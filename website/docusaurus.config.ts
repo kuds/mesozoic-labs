@@ -78,7 +78,7 @@ const config: Config = {
         },
         {to: '/blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/mesozoic-labs',
+          href: 'https://github.com/kuds/mesozoic-labs',
           label: 'GitHub',
           position: 'right',
         },
