@@ -3,7 +3,7 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 // Google Analytics Measurement ID - set via environment variable or replace with your ID
-const GA_MEASUREMENT_ID = process.env.GA_MEASUREMENT_ID || 'G-XXXXXXXXXX';
+const GA_MEASUREMENT_ID = process.env.GA_MEASUREMENT_ID || 'G-GGSQ47QSJN';
 
 const config: Config = {
   title: 'Mesozoic Labs',
