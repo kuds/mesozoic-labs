@@ -1,0 +1,657 @@
+/* =============================================================================
+   MESOZOIC LABS - Coming Soon Landing Page
+   Theme: Prehistoric meets Cyberpunk/Robotics
+   ============================================================================= */
+
+/* CSS Variables */
+:root {
+  --color-primary: #00ff88;
+  --color-primary-dim: #00ff8840;
+  --color-secondary: #ff6b35;
+  --color-accent: #00d4ff;
+  --color-dark: #0a0a0f;
+  --color-darker: #050508;
+  --color-surface: #12121a;
+  --color-surface-light: #1a1a25;
+  --color-text: #e0e0e0;
+  --color-text-dim: #808090;
+  --glow-primary: 0 0 20px var(--color-primary-dim);
+  --glow-accent: 0 0 30px #00d4ff40;
+}
+
+/* Main Container */
+.main {
+  background: var(--color-dark);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* =============================================================================
+   HERO SECTION
+   ============================================================================= */
+
+.heroBanner {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at 50% 0%, #1a2a1a 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, #1a1a2a 0%, transparent 40%),
+    var(--color-darker);
+  overflow: hidden;
+}
+
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpattern id='grid' width='10' height='10' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 10 0 L 0 0 0 10' fill='none' stroke='%2300ff8808' stroke-width='0.5'/%3E%3C/pattern%3E%3Crect width='100' height='100' fill='url(%23grid)'/%3E%3C/svg%3E");
+  opacity: 0.5;
+}
+
+.gridLines {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 49.5%, #00ff8810 49.5%, #00ff8810 50.5%, transparent 50.5%),
+    linear-gradient(0deg, transparent 49.5%, #00ff8810 49.5%, #00ff8810 50.5%, transparent 50.5%);
+  background-size: 100px 100px;
+}
+
+.scanLines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 4px
+  );
+  pointer-events: none;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  padding: 2rem;
+  max-width: 900px;
+}
+
+/* Logo */
+.logoContainer {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.logoGlow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 150px;
+  background: radial-gradient(ellipse, var(--color-primary-dim) 0%, transparent 70%);
+  filter: blur(40px);
+  animation: pulse 4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+.logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.logoDino {
+  font-size: 4rem;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  color: var(--color-primary);
+  text-shadow: var(--glow-primary);
+  font-family: 'Courier New', monospace;
+}
+
+.logoLabs {
+  font-size: 1.5rem;
+  font-weight: 300;
+  letter-spacing: 1em;
+  color: var(--color-text-dim);
+  margin-left: 1em;
+}
+
+/* Tagline */
+.taglineContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.circuitLine {
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-primary), transparent);
+}
+
+.tagline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  color: var(--color-text-dim);
+  margin: 0;
+}
+
+.taglineWord {
+  color: var(--color-accent);
+}
+
+.taglineDivider {
+  color: var(--color-primary);
+  opacity: 0.5;
+}
+
+/* Description */
+.description {
+  font-size: 1.25rem;
+  line-height: 1.8;
+  color: var(--color-text);
+  margin-bottom: 2.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Coming Soon Badge */
+.comingSoonBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 2rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: 0;
+  margin-bottom: 3rem;
+  position: relative;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.badgePulse {
+  width: 10px;
+  height: 10px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--color-primary); }
+  50% { opacity: 0.5; box-shadow: 0 0 0 10px transparent; }
+}
+
+.badgeText {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--color-primary);
+}
+
+/* Stats */
+.statsContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.statNumber {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  font-family: 'Courier New', monospace;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--color-text-dim);
+}
+
+.statDivider {
+  width: 1px;
+  height: 50px;
+  background: linear-gradient(180deg, transparent, var(--color-primary-dim), transparent);
+}
+
+/* Dinosaur Silhouette */
+.dinoSilhouette {
+  position: absolute;
+  bottom: 0;
+  right: 5%;
+  width: 400px;
+  height: 300px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 150'%3E%3Cpath d='M180 120 L170 100 L175 95 L168 80 L170 60 L165 45 L160 50 L155 45 L145 50 L140 55 L130 50 L120 52 L100 55 L80 58 L60 62 L50 70 L45 80 L50 90 L45 100 L50 110 L45 115 L50 120 L60 122 L55 140 L60 142 L65 125 L80 122 L85 140 L90 142 L95 125 L120 120 L140 118 L160 115 L180 120 Z' fill='%2300ff8815' stroke='%2300ff8830' stroke-width='1'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.6;
+  animation: dinoFloat 6s ease-in-out infinite;
+}
+
+@keyframes dinoFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* =============================================================================
+   FEATURES SECTION
+   ============================================================================= */
+
+.featuresSection {
+  padding: 6rem 2rem;
+  background: var(--color-dark);
+  position: relative;
+}
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.sectionIcon {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: var(--color-primary);
+  margin-bottom: 0.75rem;
+  font-family: 'Courier New', monospace;
+}
+
+.sectionTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.featureCard {
+  position: relative;
+  background: var(--color-surface);
+  padding: 2rem;
+  border: 1px solid #ffffff10;
+  transition: all 0.3s ease;
+}
+
+.featureCard:hover {
+  border-color: var(--color-primary-dim);
+  transform: translateY(-5px);
+  box-shadow: var(--glow-primary);
+}
+
+.featureCardBorder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: var(--color-primary);
+}
+
+.featureIcon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.featureTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 0.75rem 0;
+}
+
+.featureDescription {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--color-text-dim);
+  margin: 0;
+}
+
+.featureCorner {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  border-right: 2px solid var(--color-primary-dim);
+  border-bottom: 2px solid var(--color-primary-dim);
+}
+
+/* =============================================================================
+   SIMULATION PREVIEW SECTION
+   ============================================================================= */
+
+.simulationSection {
+  padding: 6rem 2rem;
+  background: var(--color-darker);
+}
+
+.simulationContainer {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.terminalWindow {
+  background: #1a1a2e;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid #ffffff10;
+}
+
+.terminalHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #252535;
+  border-bottom: 1px solid #ffffff10;
+}
+
+.terminalDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.terminalTitle {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--color-text-dim);
+  font-family: 'Courier New', monospace;
+}
+
+.terminalBody {
+  padding: 1.5rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.8;
+}
+
+.codeLine {
+  color: var(--color-text);
+}
+
+.codeComment {
+  color: #6a737d;
+}
+
+.codeKeyword {
+  color: #ff79c6;
+}
+
+.codeString {
+  color: #f1fa8c;
+}
+
+.codeNumber {
+  color: #bd93f9;
+}
+
+.codeOutput {
+  color: var(--color-primary);
+}
+
+.cursor {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* =============================================================================
+   ROADMAP SECTION
+   ============================================================================= */
+
+.roadmapSection {
+  padding: 6rem 2rem;
+  background: var(--color-dark);
+}
+
+.roadmapContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.milestoneCard {
+  background: var(--color-surface);
+  padding: 1.5rem;
+  border: 1px solid #ffffff10;
+  position: relative;
+}
+
+.milestoneCard.complete {
+  border-left: 3px solid var(--color-primary);
+}
+
+.milestoneCard.active {
+  border-left: 3px solid var(--color-secondary);
+  background: linear-gradient(135deg, var(--color-surface) 0%, #1f1a15 100%);
+}
+
+.milestoneCard.upcoming {
+  border-left: 3px solid var(--color-text-dim);
+  opacity: 0.7;
+}
+
+.milestonePhase {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--color-accent);
+  margin-bottom: 0.5rem;
+  font-family: 'Courier New', monospace;
+}
+
+.milestoneTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 1rem 0;
+}
+
+.milestoneItems {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem 0;
+}
+
+.milestoneItems li {
+  font-size: 0.875rem;
+  color: var(--color-text-dim);
+  padding: 0.25rem 0;
+  padding-left: 1.25rem;
+  position: relative;
+}
+
+.milestoneItems li::before {
+  content: '>';
+  position: absolute;
+  left: 0;
+  color: var(--color-primary);
+  font-family: 'Courier New', monospace;
+}
+
+.milestoneStatus {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.milestoneCard.complete .milestoneStatus {
+  color: var(--color-primary);
+}
+
+.milestoneCard.active .milestoneStatus {
+  color: var(--color-secondary);
+}
+
+.milestoneCard.upcoming .milestoneStatus {
+  color: var(--color-text-dim);
+}
+
+/* =============================================================================
+   CTA SECTION
+   ============================================================================= */
+
+.ctaSection {
+  padding: 6rem 2rem;
+  background: linear-gradient(180deg, var(--color-dark) 0%, var(--color-darker) 100%);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.ctaContent {
+  position: relative;
+  z-index: 10;
+}
+
+.ctaTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 1rem 0;
+}
+
+.ctaDescription {
+  font-size: 1.1rem;
+  color: var(--color-text-dim);
+  margin: 0 0 2rem 0;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2.5rem;
+  background: transparent;
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+}
+
+.ctaButton:hover {
+  background: var(--color-primary);
+  color: var(--color-dark);
+  box-shadow: var(--glow-primary);
+}
+
+.ctaButtonIcon {
+  font-size: 1.25rem;
+}
+
+.ctaDinoTrack {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'%3E%3Cellipse cx='20' cy='15' rx='8' ry='12' fill='%2300ff8808'/%3E%3Cellipse cx='50' cy='15' rx='8' ry='12' fill='%2300ff8808'/%3E%3Cellipse cx='80' cy='15' rx='8' ry='12' fill='%2300ff8808'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 150px 30px;
+  opacity: 0.3;
+}
+
+/* =============================================================================
+   RESPONSIVE
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  .logoDino {
+    font-size: 2.5rem;
+    letter-spacing: 0.15em;
+  }
+
+  .logoLabs {
+    font-size: 1rem;
+    letter-spacing: 0.5em;
+  }
+
+  .tagline {
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+  }
+
+  .taglineDivider {
+    display: none;
+  }
+
+  .circuitLine {
+    display: none;
+  }
+
+  .statsContainer {
+    gap: 1.5rem;
+  }
+
+  .statNumber {
+    font-size: 2rem;
+  }
+
+  .dinoSilhouette {
+    width: 200px;
+    height: 150px;
+    right: -20px;
+    opacity: 0.3;
+  }
+
+  .sectionTitle {
+    font-size: 1.75rem;
+  }
+
+  .terminalBody {
+    font-size: 0.75rem;
+    padding: 1rem;
+  }
+}
