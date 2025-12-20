@@ -62,7 +62,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/mesozoic-labs-social-card.png',
+    // Social card image for Open Graph - add 'img/mesozoic-labs-social-card.png' when available
     navbar: {
       title: 'Mesozoic Labs',
       logo: {
