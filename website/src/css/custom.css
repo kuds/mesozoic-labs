@@ -1,0 +1,200 @@
+/**
+ * Mesozoic Labs - Global Theme Customization
+ * Theme: Prehistoric Cyberpunk / Dinosaur Robotics
+ */
+
+:root {
+  /* Primary Colors - Tech Green (circuits, accents) */
+  --ifm-color-primary: #00ff88;
+  --ifm-color-primary-dark: #00e67a;
+  --ifm-color-primary-darker: #00d973;
+  --ifm-color-primary-darkest: #00b35f;
+  --ifm-color-primary-light: #1aff96;
+  --ifm-color-primary-lighter: #33ffa3;
+  --ifm-color-primary-lightest: #66ffbb;
+
+  /* Background customization */
+  --ifm-background-color: #0a0a0f;
+  --ifm-background-surface-color: #12121a;
+
+  /* Font */
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 255, 136, 0.1);
+
+  /* Navbar */
+  --ifm-navbar-background-color: #0a0a0fdd;
+  --ifm-navbar-shadow: 0 1px 0 0 rgba(0, 255, 136, 0.1);
+
+  /* Footer */
+  --ifm-footer-background-color: #050508;
+  --ifm-footer-color: #808090;
+  --ifm-footer-link-color: #a0a0b0;
+  --ifm-footer-title-color: #00ff88;
+}
+
+/* Dark mode specific */
+[data-theme='dark'] {
+  --ifm-background-color: #0a0a0f;
+  --ifm-background-surface-color: #12121a;
+  --ifm-color-primary: #00ff88;
+  --ifm-color-primary-dark: #00e67a;
+  --ifm-color-primary-darker: #00d973;
+  --ifm-color-primary-darkest: #00b35f;
+  --ifm-color-primary-light: #1aff96;
+  --ifm-color-primary-lighter: #33ffa3;
+  --ifm-color-primary-lightest: #66ffbb;
+  --ifm-navbar-background-color: #0a0a0fee;
+  --ifm-footer-background-color: #050508;
+}
+
+/* Light mode - still use dark theme for consistency */
+[data-theme='light'] {
+  --ifm-background-color: #f5f5f5;
+  --ifm-navbar-background-color: #ffffff;
+  --ifm-color-primary: #00994d;
+  --ifm-color-primary-dark: #008a45;
+  --ifm-color-primary-darker: #008241;
+  --ifm-color-primary-darkest: #006b36;
+  --ifm-color-primary-light: #00a855;
+  --ifm-color-primary-lighter: #00b059;
+  --ifm-color-primary-lightest: #00c767;
+}
+
+/* Global text styling */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* Navbar customization */
+.navbar {
+  backdrop-filter: blur(10px);
+}
+
+.navbar__title {
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.navbar__link {
+  font-weight: 500;
+}
+
+.navbar__link--active {
+  color: var(--ifm-color-primary);
+}
+
+/* Hide default hero on homepage */
+.hero--primary {
+  display: none;
+}
+
+/* Footer customization */
+.footer {
+  border-top: 1px solid rgba(0, 255, 136, 0.1);
+}
+
+.footer__title {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.footer__link-item {
+  transition: color 0.2s ease;
+}
+
+.footer__link-item:hover {
+  color: var(--ifm-color-primary);
+}
+
+/* Documentation page styling */
+.markdown h1 {
+  color: var(--ifm-color-primary);
+}
+
+.markdown h2 {
+  border-bottom: 1px solid rgba(0, 255, 136, 0.2);
+  padding-bottom: 0.5rem;
+}
+
+/* Code block styling */
+.prism-code {
+  background: #1a1a25 !important;
+  border: 1px solid rgba(0, 255, 136, 0.1);
+}
+
+/* Sidebar customization */
+.menu__link--active:not(.menu__link--sublist) {
+  background: rgba(0, 255, 136, 0.1);
+  border-left: 3px solid var(--ifm-color-primary);
+}
+
+/* Table of contents */
+.table-of-contents__link--active {
+  color: var(--ifm-color-primary);
+}
+
+/* Admonition styling */
+.admonition {
+  border-left: 4px solid;
+}
+
+.admonition-note {
+  border-color: var(--ifm-color-primary);
+}
+
+/* Button styling */
+.button--primary {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #0a0a0f;
+}
+
+.button--primary:hover {
+  background: var(--ifm-color-primary-dark);
+  border-color: var(--ifm-color-primary-dark);
+}
+
+/* Search */
+.DocSearch-Button {
+  border: 1px solid rgba(0, 255, 136, 0.2) !important;
+}
+
+/* Selection */
+::selection {
+  background: rgba(0, 255, 136, 0.3);
+  color: #ffffff;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #12121a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a35;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a45;
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
