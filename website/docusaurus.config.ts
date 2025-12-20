@@ -2,6 +2,9 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
+// Google Analytics Measurement ID - set via environment variable or replace with your ID
+const GA_MEASUREMENT_ID = process.env.GA_MEASUREMENT_ID || 'G-XXXXXXXXXX';
+
 const config: Config = {
   title: 'Mesozoic Labs',
   tagline: 'Building robotic dinosaurs through simulation and reinforcement learning',
@@ -25,6 +28,11 @@ const config: Config = {
     locales: ['en'],
   },
 
+  // Custom fields accessible in components
+  customFields: {
+    gaMeasurementId: GA_MEASUREMENT_ID,
+  },
+
   presets: [
     [
       'classic',
@@ -43,6 +51,11 @@ const config: Config = {
         },
         theme: {
           customCss: './src/css/custom.css',
+        },
+        // Google Analytics - disabled by default, enabled via cookie consent
+        gtag: {
+          trackingID: GA_MEASUREMENT_ID,
+          anonymizeIP: true,
         },
       } satisfies Preset.Options,
     ],

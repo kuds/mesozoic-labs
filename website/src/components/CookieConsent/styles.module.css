@@ -1,0 +1,215 @@
+/* Cookie Consent Banner - Mesozoic Labs Theme */
+
+.cookieBanner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: linear-gradient(180deg, #12121a 0%, #0a0a0f 100%);
+  border-top: 1px solid rgba(0, 255, 136, 0.3);
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease-out;
+}
+
+.cookieBanner.closing {
+  animation: slideDown 0.3s ease-in forwards;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.bannerContent {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.iconContainer {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 8px;
+}
+
+.cookieIcon {
+  font-size: 1.75rem;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.textContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  margin: 0 0 0.25rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #00ff88;
+  letter-spacing: 0.02em;
+}
+
+.description {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #a0a0b0;
+}
+
+.buttonContainer {
+  display: flex;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.acceptButton,
+.declineButton {
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.acceptButton {
+  background: #00ff88;
+  color: #0a0a0f;
+}
+
+.acceptButton:hover {
+  background: #00e67a;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+  transform: translateY(-1px);
+}
+
+.acceptButton:active {
+  transform: translateY(0);
+}
+
+.declineButton {
+  background: transparent;
+  color: #808090;
+  border: 1px solid #404050;
+}
+
+.declineButton:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #606070;
+  color: #c0c0d0;
+}
+
+.privacyLink {
+  text-align: center;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.link {
+  font-size: 0.75rem;
+  color: #606070;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.link:hover {
+  color: #00ff88;
+  text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .cookieBanner {
+    padding: 1rem;
+  }
+
+  .bannerContent {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .iconContainer {
+    width: 40px;
+    height: 40px;
+  }
+
+  .cookieIcon {
+    font-size: 1.5rem;
+  }
+
+  .title {
+    font-size: 0.9375rem;
+  }
+
+  .description {
+    font-size: 0.8125rem;
+  }
+
+  .buttonContainer {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .acceptButton,
+  .declineButton {
+    flex: 1;
+    max-width: 150px;
+  }
+}
+
+@media (max-width: 480px) {
+  .buttonContainer {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .acceptButton,
+  .declineButton {
+    max-width: none;
+    width: 100%;
+  }
+}
