@@ -31,7 +31,7 @@ We're bringing prehistoric creatures back to life—as robots. Using state-of-th
 - [Getting Started](/docs/getting-started/installation) - Set up your development environment
 - [Models](/docs/models/trex) - Explore available dinosaur models
 - [Training](/docs/training/sac) - Learn how to train your own dinosaur
-- [GitHub](https://github.com/mesozoic-labs) - View the source code
+- [GitHub](https://github.com/kuds/mesozoic-labs) - View the source code
 
 ## Coming Soon
 
