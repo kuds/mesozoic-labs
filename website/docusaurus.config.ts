@@ -10,8 +10,8 @@ const config: Config = {
   tagline: 'Building robotic dinosaurs through simulation and reinforcement learning',
   favicon: 'img/favicon.ico',
 
-  // GitHub Pages deployment configuration
-  url: 'https://mesozoic-labs.github.io',
+  // Production site URL - used for sitemap, canonical URLs, and social sharing
+  url: 'https://mesozoiclabs.com',
   baseUrl: '/',
 
   // GitHub Pages config
