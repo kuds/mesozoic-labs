@@ -39,6 +39,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install OSMesa
+        run: sudo apt-get update && sudo apt-get install -y libosmesa6-dev
+        working-directory: .
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -63,6 +67,10 @@ jobs:
         working-directory: ./environments/brachiosaurus
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install OSMesa
+        run: sudo apt-get update && sudo apt-get install -y libosmesa6-dev
+        working-directory: .
 
       - name: Setup Python
         uses: actions/setup-python@v5
