@@ -24,6 +24,11 @@ mesozoic-labs/
 │   │   ├── envs/              # Gymnasium environments
 │   │   ├── scripts/           # Training & utility scripts
 │   │   └── README.md
+│   ├── brachiosaurus/          # Brachiosaurus (quadrupedal sauropod)
+│   │   ├── assets/            # MJCF model files
+│   │   ├── envs/              # Gymnasium environments
+│   │   ├── scripts/           # Training & utility scripts
+│   │   └── tests/             # Pytest test suite
 │   ├── trex/                  # T-Rex (large bipedal predator)
 │   │   └── trex.xml           # MJCF model
 │   └── [future]/              # More species coming...
@@ -46,11 +51,29 @@ A bipedal predator with distinctive sickle claws, trained using 3-stage curricul
 
 | Feature | Details |
 |---------|---------|
-| Observation | 51 dims (joints, pelvis, prey tracking) |
+| Observation | 69 dims (joints, pelvis, prey tracking) |
 | Action | 12 dims (leg + claw controls) |
 | Model | `environments/velociraptor/assets/raptor.xml` |
 
 [Full documentation →](environments/velociraptor/README.md)
+
+### Brachiosaurus
+**Status:** Active development
+
+A quadrupedal sauropod herbivore with a long neck for reaching elevated food sources. The first quadrupedal species in the project, featuring columnar elephant-like legs and characteristic longer front legs.
+
+Trained using 3-stage curriculum learning:
+1. **Balance** - Stable quadrupedal stance
+2. **Locomotion** - Coordinated four-legged walking
+3. **Food Reach** - Walk to food and reach with neck
+
+| Feature | Details |
+|---------|---------|
+| Observation | 75 dims (joints, torso, food tracking) |
+| Action | 22 dims (6 neck + 16 leg controls) |
+| Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
+
+[Full documentation →](environments/brachiosaurus/README.md)
 
 ### T-Rex
 **Status:** Model ready, training planned
@@ -99,6 +122,7 @@ Hardware: Google Colab T4 GPU
 | T-Rex          | SAC       | -          | -             | 5,000,000 |
 | Velociraptor   | PPO       | -          | -             | 5,000,000 |
 | Velociraptor   | SAC       | -          | -             | 5,000,000 |
+| Brachiosaurus  | PPO       | -          | -             | 3,500,000 |
 
 ## Notebooks
 
@@ -110,6 +134,7 @@ Hardware: Google Colab T4 GPU
 ## Roadmap
 
 - [ ] Complete velociraptor 3-stage training
+- [ ] Complete brachiosaurus 3-stage training
 - [ ] T-Rex environment and training
 - [ ] JAX/MJX migration for faster training
 - [ ] Multi-agent pack hunting scenarios
