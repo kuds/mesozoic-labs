@@ -6,35 +6,80 @@ sidebar_position: 2
 
 Train your first robotic dinosaur in minutes.
 
-## Basic Training Loop
+## Option 1: Google Colab (Easiest)
 
-```python
-from mesozoic import DinoEnv, SACAgent
+Open one of the pre-configured notebooks:
 
-# Initialize environment with T-Rex model
-env = DinoEnv("trex")
+- [PPO Training](https://colab.research.google.com/github/kuds/apex/blob/main/%5BApex%5D%20Proximal%20Policy%20Optimization%20(PPO).ipynb) - Train a T-Rex with PPO
+- [SAC Training](https://colab.research.google.com/github/kuds/apex/blob/main/%5BApex%5D%20Soft%20Actor-Critic%20(SAC).ipynb) - Train a T-Rex with SAC
 
-# Create SAC agent
-agent = SACAgent(
-    observation_space=env.observation_space,
-    action_space=env.action_space,
-    learning_rate=3e-4
-)
+## Option 2: Local Setup
 
-# Train the dinosaur to walk
-agent.train(total_steps=1_000_000)
+```bash
+# Clone and setup
+git clone https://github.com/kuds/mesozoic-labs.git
+cd mesozoic-labs
 
-# Save the trained model
-agent.save("trex_walker.pt")
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies for the velociraptor environment
+pip install -r environments/velociraptor/requirements.txt
 ```
 
-## Visualize Results
+### View the Model
 
-```python
-# Render the trained dinosaur
-env.render_episode(agent, save_video="trex_walking.mp4")
+```bash
+cd environments/velociraptor
+python scripts/view_model.py
 ```
 
-:::note Coming Soon
-More detailed quick start guide is under development.
-:::
+### Train with Curriculum Learning
+
+The velociraptor uses 3-stage curriculum learning:
+
+```bash
+# Stage 1: Learn to stand and balance
+python scripts/train_sb3.py train --stage 1 --timesteps 500000
+
+# Stage 2: Learn to walk/run (loads Stage 1 weights)
+python scripts/train_sb3.py train --stage 2 --timesteps 1000000 \
+  --load logs/<stage1_dir>/models/stage1_final.zip
+
+# Stage 3: Sprint and strike prey
+python scripts/train_sb3.py train --stage 3 --timesteps 2000000 \
+  --load logs/<stage2_dir>/models/stage2_final.zip
+```
+
+### Evaluate a Trained Policy
+
+```bash
+python scripts/train_sb3.py eval logs/<stage_dir>/models/stage1_final.zip
+```
+
+### Run Tests
+
+```bash
+pip install pytest
+pytest tests/ -v
+```
+
+## Basic Training Loop (Python)
+
+```python
+import sys
+sys.path.insert(0, "environments/velociraptor")
+
+from envs.raptor_env import RaptorEnv
+
+env = RaptorEnv()
+
+obs, info = env.reset(seed=42)
+for step in range(1000):
+    action = env.action_space.sample()
+    obs, reward, terminated, truncated, info = env.step(action)
+    if terminated or truncated:
+        obs, info = env.reset()
+
+env.close()
+```
