@@ -274,60 +274,79 @@ def train(
     return model
 
 
-def evaluate(model_path: str, n_episodes: int = 10, render: bool = True):
-    """Evaluate a trained model."""
-    from stable_baselines3.common.evaluation import evaluate_policy
-    
+def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: int = None):
+    """Evaluate a trained model.
+
+    Args:
+        model_path: Path to the saved model (.zip file).
+        n_episodes: Number of evaluation episodes.
+        render: Whether to render in a window.
+        stage: Curriculum stage (1-3). Auto-detected from filename if not provided.
+    """
     print(f"Loading model from: {model_path}")
-    
-    # Determine stage from filename (hacky but works)
-    stage = 1
-    for s in [1, 2, 3]:
-        if f"stage{s}" in model_path:
-            stage = s
-            break
-    
-    model = PPO.load(model_path)
-    
-    render_mode = "human" if render else None
+
+    # Determine stage from argument or filename
+    if stage is None:
+        stage = 1
+        for s in [1, 2, 3]:
+            if f"stage{s}" in model_path:
+                stage = s
+                break
+        print(f"Auto-detected stage {stage} from filename")
+
     env_kwargs = STAGE_CONFIGS[stage]["env_kwargs"].copy()
-    env = RaptorEnv(render_mode=render_mode, **env_kwargs)
-    
-    # Load VecNormalize stats if available
+
+    # Build a properly normalized vectorized env for evaluation
     vecnorm_path = model_path.replace(".zip", "_vecnorm.pkl")
+    if not vecnorm_path.endswith("_vecnorm.pkl"):
+        vecnorm_path = model_path + "_vecnorm.pkl"
+
+    render_mode = "human" if render else None
+
+    def _make_eval_env():
+        env = RaptorEnv(render_mode=render_mode, **env_kwargs)
+        return Monitor(env)
+
+    vec_env = DummyVecEnv([_make_eval_env])
+
     if Path(vecnorm_path).exists():
         print(f"Loading normalization stats from: {vecnorm_path}")
-        # Note: For proper eval, would need to wrap in VecNormalize
-        # This is simplified for visualization
-    
-    print(f"\nEvaluating for {n_episodes} episodes...")
-    
+        vec_env = VecNormalize.load(vecnorm_path, vec_env)
+        vec_env.training = False
+        vec_env.norm_reward = False
+    else:
+        print("WARNING: No VecNormalize stats found. Results may differ from training.")
+
+    model = PPO.load(model_path, env=vec_env)
+
+    print(f"\nEvaluating for {n_episodes} episodes (stage {stage}: {STAGE_CONFIGS[stage]['name']})...")
+
     episode_rewards = []
     episode_lengths = []
-    
+
     for ep in range(n_episodes):
-        obs, _ = env.reset()
+        obs = vec_env.reset()
         total_reward = 0
         step = 0
-        
+
         while True:
             action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(action)
-            total_reward += reward
+            obs, rewards, dones, infos = vec_env.step(action)
+            total_reward += rewards[0]
             step += 1
-            
-            if terminated or truncated:
+
+            if dones[0]:
                 break
-        
+
         episode_rewards.append(total_reward)
         episode_lengths.append(step)
         print(f"  Episode {ep+1}: reward={total_reward:.2f}, length={step}")
-    
-    env.close()
-    
+
+    vec_env.close()
+
     print(f"\nResults:")
-    print(f"  Mean reward: {np.mean(episode_rewards):.2f} ± {np.std(episode_rewards):.2f}")
-    print(f"  Mean length: {np.mean(episode_lengths):.1f} ± {np.std(episode_lengths):.1f}")
+    print(f"  Mean reward: {np.mean(episode_rewards):.2f} +/- {np.std(episode_rewards):.2f}")
+    print(f"  Mean length: {np.mean(episode_lengths):.1f} +/- {np.std(episode_lengths):.1f}")
 
 
 def main():
@@ -359,6 +378,8 @@ def main():
     # Eval command
     eval_parser = subparsers.add_parser("eval", help="Evaluate a trained policy")
     eval_parser.add_argument("model_path", type=str, help="Path to trained model")
+    eval_parser.add_argument("--stage", type=int, choices=[1, 2, 3], default=None,
+                            help="Curriculum stage (auto-detected from filename if omitted)")
     eval_parser.add_argument("--episodes", type=int, default=10,
                             help="Number of episodes to evaluate")
     eval_parser.add_argument("--no-render", action="store_true",
@@ -398,6 +419,7 @@ def main():
             model_path=args.model_path,
             n_episodes=args.episodes,
             render=not args.no_render,
+            stage=args.stage,
         )
 
 
