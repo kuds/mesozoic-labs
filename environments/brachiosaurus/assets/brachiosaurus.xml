@@ -1,0 +1,332 @@
+<mujoco model="brachiosaurus">
+  <compiler angle="degree" autolimits="true"/>
+
+  <option timestep="0.002" gravity="0 0 -9.81">
+    <flag warmstart="enable"/>
+  </option>
+
+  <default>
+    <joint limited="true" damping="10.0" armature="0.05"/>
+    <geom contype="1" conaffinity="1" friction="1.2 0.005 0.0001"/>
+    <motor ctrllimited="true" ctrlrange="-1 1"/>
+
+    <!-- Leg joints: high stiffness for heavy quadruped -->
+    <default class="leg_joint">
+      <joint damping="20.0" armature="0.1"/>
+    </default>
+
+    <!-- Neck joints: moderate stiffness, wide range -->
+    <default class="neck_joint">
+      <joint damping="12.0" armature="0.05" range="-25 25"/>
+    </default>
+
+    <!-- Tail joints: moderate stiffness, limited range -->
+    <default class="tail_joint">
+      <joint damping="8.0" stiffness="15.0" armature="0.02" range="-15 15"/>
+    </default>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.6 0.8 1.0" rgb2="0.2 0.4 0.6"
+             width="256" height="256"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.45 0.5 0.35" rgb2="0.35 0.4 0.3"
+             width="512" height="512"/>
+    <material name="grid_mat" texture="grid" texrepeat="8 8" reflectance="0.1"/>
+    <material name="body_mat" rgba="0.55 0.5 0.4 1"/>
+    <material name="belly_mat" rgba="0.6 0.55 0.45 1"/>
+    <material name="foot_mat" rgba="0.4 0.35 0.3 1"/>
+  </asset>
+
+  <worldbody>
+    <!-- Ground plane -->
+    <geom name="floor" type="plane" size="100 100 0.1" material="grid_mat"
+          conaffinity="1" contype="1"/>
+
+    <!-- Food target (mocap body - can be repositioned) -->
+    <body name="food" mocap="true" pos="5 0 3.0">
+      <geom name="food_geom" type="sphere" size="0.2" rgba="0.2 0.7 0.2 0.8"
+            contype="2" conaffinity="2"/>
+    </body>
+
+    <!-- ==================== BRACHIOSAURUS BODY ==================== -->
+    <!--
+    Coordinate system:
+      +X = forward (direction of travel)
+      +Y = left
+      +Z = up
+
+    Approximate dimensions (scaled to ~5m nose-to-tail for simulation):
+      Body length: 2.0m (torso)
+      Hip height: 1.8m
+      Shoulder height: 2.2m (front legs longer)
+      Neck length: 2.5m
+      Tail length: 1.8m
+      Total mass: ~200kg (scaled)
+
+    Brachiosaurus is unique among sauropods:
+      - Front legs longer than rear legs (giraffe-like posture)
+      - Nostrils on top of head (crest)
+      - Relatively short tail compared to other sauropods
+    -->
+
+    <body name="torso" pos="0 0 2.0">
+      <freejoint name="root"/>
+
+      <!-- Main torso: barrel-shaped body -->
+      <geom name="torso_main" type="capsule" fromto="-0.8 0 0  0.8 0 0" size="0.35"
+            mass="60.0" material="body_mat"/>
+
+      <!-- Belly (cosmetic, adds mass lower) -->
+      <geom name="belly" type="capsule" fromto="-0.6 0 -0.15  0.6 0 -0.15" size="0.3"
+            mass="20.0" material="belly_mat"/>
+
+      <!-- IMU sensor site -->
+      <site name="imu" pos="0 0 0" size="0.03"/>
+
+      <!-- ==================== NECK ==================== -->
+      <!-- 4 segments, angled upward (Brachiosaurus had a steep neck angle) -->
+
+      <body name="neck_1" pos="0.8 0 0.15">
+        <joint name="neck_1_pitch" class="neck_joint" type="hinge" axis="0 1 0" range="-20 30"/>
+        <joint name="neck_1_yaw" class="neck_joint" type="hinge" axis="0 0 1" range="-15 15"/>
+        <geom name="neck_1_geom" type="capsule" fromto="0 0 0  0.35 0 0.35" size="0.18"
+              mass="8.0" material="body_mat" contype="0" conaffinity="0"/>
+
+        <body name="neck_2" pos="0.35 0 0.35">
+          <joint name="neck_2_pitch" class="neck_joint" type="hinge" axis="0 1 0" range="-20 25"/>
+          <geom name="neck_2_geom" type="capsule" fromto="0 0 0  0.3 0 0.35" size="0.15"
+                mass="6.0" material="body_mat" contype="0" conaffinity="0"/>
+
+          <body name="neck_3" pos="0.3 0 0.35">
+            <joint name="neck_3_pitch" class="neck_joint" type="hinge" axis="0 1 0" range="-25 25"/>
+            <geom name="neck_3_geom" type="capsule" fromto="0 0 0  0.25 0 0.3" size="0.12"
+                  mass="4.0" material="body_mat" contype="0" conaffinity="0"/>
+
+            <body name="neck_4" pos="0.25 0 0.3">
+              <joint name="neck_4_pitch" class="neck_joint" type="hinge" axis="0 1 0" range="-30 30"/>
+              <geom name="neck_4_geom" type="capsule" fromto="0 0 0  0.2 0 0.2" size="0.09"
+                    mass="2.5" material="body_mat" contype="0" conaffinity="0"/>
+
+              <!-- Head -->
+              <body name="head" pos="0.2 0 0.2">
+                <joint name="head_pitch" class="neck_joint" type="hinge" axis="0 1 0" range="-40 40"/>
+                <geom name="head_geom" type="ellipsoid" pos="0.1 0 0" size="0.15 0.07 0.08"
+                      mass="1.5" material="body_mat"/>
+                <!-- Nasal crest -->
+                <geom name="crest" type="ellipsoid" pos="0.05 0 0.06" size="0.06 0.04 0.05"
+                      mass="0.3" material="body_mat" contype="0" conaffinity="0"/>
+                <!-- Head tip site for food reaching detection -->
+                <site name="head_tip" pos="0.2 0 0" size="0.02"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== TAIL ==================== -->
+      <!-- 4 segments, relatively short for a sauropod -->
+
+      <body name="tail_1" pos="-0.8 0 0">
+        <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+        <joint name="tail_1_yaw" class="tail_joint" type="hinge" axis="0 0 1" range="-10 10"/>
+        <geom name="tail_1_geom" type="capsule" fromto="0 0 0  -0.4 0 -0.05" size="0.16"
+              mass="6.0" material="body_mat" contype="0" conaffinity="0"/>
+
+        <body name="tail_2" pos="-0.4 0 -0.05">
+          <joint name="tail_2_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+          <geom name="tail_2_geom" type="capsule" fromto="0 0 0  -0.4 0 -0.03" size="0.12"
+                mass="4.0" material="body_mat" contype="0" conaffinity="0"/>
+
+          <body name="tail_3" pos="-0.4 0 -0.03">
+            <joint name="tail_3_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+            <geom name="tail_3_geom" type="capsule" fromto="0 0 0  -0.35 0 0" size="0.08"
+                  mass="2.0" material="body_mat" contype="0" conaffinity="0"/>
+
+            <body name="tail_4" pos="-0.35 0 0">
+              <joint name="tail_4_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+              <geom name="tail_4_geom" type="capsule" fromto="0 0 0  -0.3 0 0.02" size="0.05"
+                    mass="1.0" material="body_mat" contype="0" conaffinity="0"/>
+              <site name="tail_tip" pos="-0.3 0 0.02" size="0.02"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== FRONT RIGHT LEG ==================== -->
+      <!-- Brachiosaurus front legs are longer than rear (unique feature) -->
+      <!-- Columnar, elephant-like legs with limited range of motion -->
+
+      <body name="fr_thigh" pos="0.55 -0.3 -0.2">
+        <joint name="fr_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-40 50"/>
+        <joint name="fr_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-20 20"/>
+        <geom name="fr_thigh_geom" type="capsule" fromto="0 0 0  0 0 -0.55" size="0.1"
+              mass="8.0" material="body_mat"/>
+
+        <body name="fr_shin" pos="0 0 -0.55">
+          <joint name="fr_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
+          <geom name="fr_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.55" size="0.09"
+                mass="5.0" material="body_mat"/>
+
+          <body name="fr_foot" pos="0 0 -0.55">
+            <joint name="fr_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-20 30"/>
+            <geom name="fr_foot_geom" type="ellipsoid" pos="0.03 0 -0.04" size="0.12 0.1 0.05"
+                  mass="2.0" material="foot_mat"/>
+            <site name="fr_foot_contact" pos="0.03 0 -0.08" size="0.03"/>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== FRONT LEFT LEG ==================== -->
+
+      <body name="fl_thigh" pos="0.55 0.3 -0.2">
+        <joint name="fl_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-40 50"/>
+        <joint name="fl_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-20 20"/>
+        <geom name="fl_thigh_geom" type="capsule" fromto="0 0 0  0 0 -0.55" size="0.1"
+              mass="8.0" material="body_mat"/>
+
+        <body name="fl_shin" pos="0 0 -0.55">
+          <joint name="fl_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
+          <geom name="fl_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.55" size="0.09"
+                mass="5.0" material="body_mat"/>
+
+          <body name="fl_foot" pos="0 0 -0.55">
+            <joint name="fl_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-20 30"/>
+            <geom name="fl_foot_geom" type="ellipsoid" pos="0.03 0 -0.04" size="0.12 0.1 0.05"
+                  mass="2.0" material="foot_mat"/>
+            <site name="fl_foot_contact" pos="0.03 0 -0.08" size="0.03"/>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== REAR RIGHT LEG ==================== -->
+      <!-- Rear legs shorter than front (characteristic of Brachiosaurus) -->
+
+      <body name="rr_thigh" pos="-0.55 -0.3 -0.2">
+        <joint name="rr_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-40 50"/>
+        <joint name="rr_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-20 20"/>
+        <geom name="rr_thigh_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.1"
+              mass="7.0" material="body_mat"/>
+
+        <body name="rr_shin" pos="0 0 -0.45">
+          <joint name="rr_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
+          <geom name="rr_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.09"
+                mass="4.0" material="body_mat"/>
+
+          <body name="rr_foot" pos="0 0 -0.45">
+            <joint name="rr_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-20 30"/>
+            <geom name="rr_foot_geom" type="ellipsoid" pos="0.03 0 -0.04" size="0.12 0.1 0.05"
+                  mass="2.0" material="foot_mat"/>
+            <site name="rr_foot_contact" pos="0.03 0 -0.08" size="0.03"/>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== REAR LEFT LEG ==================== -->
+
+      <body name="rl_thigh" pos="-0.55 0.3 -0.2">
+        <joint name="rl_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-40 50"/>
+        <joint name="rl_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-20 20"/>
+        <geom name="rl_thigh_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.1"
+              mass="7.0" material="body_mat"/>
+
+        <body name="rl_shin" pos="0 0 -0.45">
+          <joint name="rl_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
+          <geom name="rl_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.09"
+                mass="4.0" material="body_mat"/>
+
+          <body name="rl_foot" pos="0 0 -0.45">
+            <joint name="rl_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-20 30"/>
+            <geom name="rl_foot_geom" type="ellipsoid" pos="0.03 0 -0.04" size="0.12 0.1 0.05"
+                  mass="2.0" material="foot_mat"/>
+            <site name="rl_foot_contact" pos="0.03 0 -0.08" size="0.03"/>
+          </body>
+        </body>
+      </body>
+
+    </body> <!-- end torso -->
+  </worldbody>
+
+  <!-- ==================== ACTUATORS ==================== -->
+  <!-- Position actuators for locomotion, high kp for heavy body -->
+
+  <actuator>
+    <!-- Neck control (5 joints: 4 pitch + 1 yaw on base) -->
+    <position name="neck_1_pitch_act" joint="neck_1_pitch" kp="120" ctrlrange="-20 30"/>
+    <position name="neck_1_yaw_act" joint="neck_1_yaw" kp="80" ctrlrange="-15 15"/>
+    <position name="neck_2_pitch_act" joint="neck_2_pitch" kp="100" ctrlrange="-20 25"/>
+    <position name="neck_3_pitch_act" joint="neck_3_pitch" kp="80" ctrlrange="-25 25"/>
+    <position name="neck_4_pitch_act" joint="neck_4_pitch" kp="60" ctrlrange="-30 30"/>
+    <position name="head_pitch_act" joint="head_pitch" kp="40" ctrlrange="-40 40"/>
+
+    <!-- Front right leg -->
+    <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="200" ctrlrange="-40 50"/>
+    <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="150" ctrlrange="-20 20"/>
+    <position name="fr_knee_act" joint="fr_knee" kp="250" ctrlrange="-60 0"/>
+    <position name="fr_ankle_act" joint="fr_ankle" kp="120" ctrlrange="-20 30"/>
+
+    <!-- Front left leg -->
+    <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="200" ctrlrange="-40 50"/>
+    <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="150" ctrlrange="-20 20"/>
+    <position name="fl_knee_act" joint="fl_knee" kp="250" ctrlrange="-60 0"/>
+    <position name="fl_ankle_act" joint="fl_ankle" kp="120" ctrlrange="-20 30"/>
+
+    <!-- Rear right leg -->
+    <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="180" ctrlrange="-40 50"/>
+    <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="130" ctrlrange="-20 20"/>
+    <position name="rr_knee_act" joint="rr_knee" kp="220" ctrlrange="-60 0"/>
+    <position name="rr_ankle_act" joint="rr_ankle" kp="100" ctrlrange="-20 30"/>
+
+    <!-- Rear left leg -->
+    <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="180" ctrlrange="-40 50"/>
+    <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="130" ctrlrange="-20 20"/>
+    <position name="rl_knee_act" joint="rl_knee" kp="220" ctrlrange="-60 0"/>
+    <position name="rl_ankle_act" joint="rl_ankle" kp="100" ctrlrange="-20 30"/>
+  </actuator>
+
+  <!-- ==================== SENSORS ==================== -->
+
+  <sensor>
+    <!-- IMU-like sensors on torso -->
+    <gyro name="torso_gyro" site="imu"/>
+    <accelerometer name="torso_accel" site="imu"/>
+    <framequat name="torso_orientation" objtype="site" objname="imu"/>
+
+    <!-- Foot contact forces (4 feet) -->
+    <touch name="fr_foot_touch" site="fr_foot_contact"/>
+    <touch name="fl_foot_touch" site="fl_foot_contact"/>
+    <touch name="rr_foot_touch" site="rr_foot_contact"/>
+    <touch name="rl_foot_touch" site="rl_foot_contact"/>
+
+    <!-- Head tip position (for food reaching) -->
+    <framepos name="head_tip_pos" objtype="site" objname="head_tip"/>
+
+    <!-- Tail tip for stability monitoring -->
+    <framepos name="tail_tip_pos" objtype="site" objname="tail_tip"/>
+    <framelinvel name="tail_tip_linvel" objtype="site" objname="tail_tip"/>
+    <frameangvel name="tail_tip_angvel" objtype="site" objname="tail_tip"/>
+  </sensor>
+
+  <!-- ==================== CONTACT EXCLUSIONS ==================== -->
+
+  <contact>
+    <!-- Neck chain -->
+    <exclude body1="torso" body2="neck_1"/>
+    <exclude body1="neck_1" body2="neck_2"/>
+    <exclude body1="neck_2" body2="neck_3"/>
+    <exclude body1="neck_3" body2="neck_4"/>
+    <exclude body1="neck_4" body2="head"/>
+
+    <!-- Tail chain -->
+    <exclude body1="torso" body2="tail_1"/>
+    <exclude body1="tail_1" body2="tail_2"/>
+    <exclude body1="tail_2" body2="tail_3"/>
+    <exclude body1="tail_3" body2="tail_4"/>
+
+    <!-- Thigh-torso -->
+    <exclude body1="torso" body2="fr_thigh"/>
+    <exclude body1="torso" body2="fl_thigh"/>
+    <exclude body1="torso" body2="rr_thigh"/>
+    <exclude body1="torso" body2="rl_thigh"/>
+  </contact>
+
+</mujoco>

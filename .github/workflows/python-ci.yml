@@ -28,14 +28,39 @@ jobs:
         run: pip install flake8
 
       - name: Run flake8
-        run: flake8 environments/ --max-line-length 120 --ignore E501,W503,E203
+        run: flake8 environments/ --max-line-length 120 --ignore E501,W503,E203,E402,E128
 
-  test:
+  test-velociraptor:
     runs-on: ubuntu-latest
     needs: lint
     defaults:
       run:
         working-directory: ./environments/velociraptor
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+        env:
+          MUJOCO_GL: osmesa
+
+  test-brachiosaurus:
+    runs-on: ubuntu-latest
+    needs: lint
+    defaults:
+      run:
+        working-directory: ./environments/brachiosaurus
     steps:
       - uses: actions/checkout@v4
 
