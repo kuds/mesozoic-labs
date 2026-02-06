@@ -57,6 +57,7 @@ STAGE_CONFIGS = {
             "energy_penalty_weight": 0.0005,
             "gait_stability_weight": 0.1,
             "food_reach_bonus": 0.0,
+            "food_approach_weight": 0.0,     # No approach reward yet
             "food_distance_range": (10.0, 15.0),
             "food_height_range": (2.0, 3.0),
             "max_episode_steps": 500,
@@ -81,6 +82,7 @@ STAGE_CONFIGS = {
             "energy_penalty_weight": 0.001,
             "gait_stability_weight": 0.05,
             "food_reach_bonus": 0.0,
+            "food_approach_weight": 0.15,    # Light approach signal
             "food_distance_range": (8.0, 12.0),
             "food_height_range": (2.0, 3.0),
             "max_episode_steps": 1000,
@@ -106,6 +108,7 @@ STAGE_CONFIGS = {
             "gait_stability_weight": 0.02,
             "food_reach_bonus": 500.0,
             "food_reach_threshold": 0.5,
+            "food_approach_weight": 0.3,     # Full approach shaping
             "food_distance_range": (3.0, 8.0),
             "food_lateral_range": (-1.5, 1.5),
             "food_height_range": (2.5, 4.0),

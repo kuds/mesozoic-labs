@@ -51,7 +51,8 @@ class TestBasicFunctionality:
         _, _, _, _, info = env.step(action)
         expected_keys = [
             "reward_forward", "reward_alive", "reward_energy",
-            "reward_tail", "reward_strike", "reward_total",
+            "reward_tail", "reward_strike", "reward_approach",
+            "reward_total",
         ]
         for key in expected_keys:
             assert key in info, f"Missing reward component: {key}"

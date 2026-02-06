@@ -55,6 +55,7 @@ STAGE_CONFIGS = {
             "energy_penalty_weight": 0.0005,  # Light energy penalty
             "tail_stability_weight": 0.1,    # Encourage stable tail
             "strike_bonus": 0.0,             # No strike reward yet
+            "strike_approach_weight": 0.0,   # No approach reward yet
             "prey_distance_range": (10.0, 15.0),  # Prey far away (irrelevant)
             "max_episode_steps": 500,
         },
@@ -78,6 +79,7 @@ STAGE_CONFIGS = {
             "energy_penalty_weight": 0.001,
             "tail_stability_weight": 0.05,
             "strike_bonus": 0.0,             # No strike yet
+            "strike_approach_weight": 0.2,   # Light approach signal
             "prey_distance_range": (8.0, 12.0),
             "max_episode_steps": 1000,
         },
@@ -101,6 +103,7 @@ STAGE_CONFIGS = {
             "energy_penalty_weight": 0.001,
             "tail_stability_weight": 0.02,
             "strike_bonus": 500.0,           # Big strike reward!
+            "strike_approach_weight": 0.5,   # Full approach shaping
             "prey_distance_range": (3.0, 8.0),  # Prey closer
             "prey_lateral_range": (-1.5, 1.5),  # Some lateral variation
             "max_episode_steps": 1000,

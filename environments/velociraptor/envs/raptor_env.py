@@ -52,6 +52,7 @@ class RaptorEnv(gym.Env):
         fall_penalty: float = -100.0,
         tail_stability_weight: float = 0.05,
         strike_bonus: float = 500.0,
+        strike_approach_weight: float = 0.5,
         # Environment settings
         prey_distance_range: Tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: Tuple[float, float] = (-2.0, 2.0),
@@ -77,6 +78,7 @@ class RaptorEnv(gym.Env):
         self.fall_penalty = fall_penalty
         self.tail_stability_weight = tail_stability_weight
         self.strike_bonus = strike_bonus
+        self.strike_approach_weight = strike_approach_weight
 
         # Environment settings
         self.prey_distance_range = prey_distance_range
@@ -232,8 +234,19 @@ class RaptorEnv(gym.Env):
         reward_strike = strike_reward
         info["reward_strike"] = reward_strike
 
+        # 6. Approach shaping (smooth gradient toward prey for claw strike)
+        pelvis_pos = self.data.xpos[self.pelvis_id]
+        prey_pos = self.data.mocap_pos[0]
+        prey_distance = np.linalg.norm(prey_pos - pelvis_pos)
+        reward_approach = -self.strike_approach_weight * prey_distance
+        info["prey_distance"] = prey_distance
+        info["reward_approach"] = reward_approach
+
         # Total reward
-        total_reward = reward_forward + reward_alive + reward_energy + reward_tail + reward_strike
+        total_reward = (
+            reward_forward + reward_alive + reward_energy
+            + reward_tail + reward_strike + reward_approach
+        )
         info["reward_total"] = total_reward
 
         return total_reward, info
@@ -295,6 +308,7 @@ class RaptorEnv(gym.Env):
         terminated, term_info = self._is_terminated()
         if terminated:
             reward += self.fall_penalty
+            reward_info["reward_total"] = reward
 
         truncated = self._is_truncated()
 

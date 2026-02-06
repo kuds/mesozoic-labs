@@ -54,6 +54,7 @@ class BrachioEnv(gym.Env):
         gait_stability_weight: float = 0.05,
         food_reach_bonus: float = 500.0,
         food_reach_threshold: float = 0.5,
+        food_approach_weight: float = 0.3,
         # Environment settings
         food_distance_range: Tuple[float, float] = (3.0, 8.0),
         food_lateral_range: Tuple[float, float] = (-2.0, 2.0),
@@ -81,6 +82,7 @@ class BrachioEnv(gym.Env):
         self.gait_stability_weight = gait_stability_weight
         self.food_reach_bonus = food_reach_bonus
         self.food_reach_threshold = food_reach_threshold
+        self.food_approach_weight = food_approach_weight
 
         # Environment settings
         self.food_distance_range = food_distance_range
@@ -270,10 +272,14 @@ class BrachioEnv(gym.Env):
         reward_food = food_reward
         info["reward_food"] = reward_food
 
+        # 6. Approach shaping (smooth gradient toward food for head)
+        reward_approach = -self.food_approach_weight * head_food_dist
+        info["reward_approach"] = reward_approach
+
         # Total reward
         total_reward = (
             reward_forward + reward_alive + reward_energy
-            + reward_gait + reward_food
+            + reward_gait + reward_food + reward_approach
         )
         info["reward_total"] = total_reward
 
@@ -335,6 +341,7 @@ class BrachioEnv(gym.Env):
         terminated, term_info = self._is_terminated()
         if terminated:
             reward += self.fall_penalty
+            reward_info["reward_total"] = reward
 
         truncated = self._is_truncated()
 
