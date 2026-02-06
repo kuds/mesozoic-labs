@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from envs.trex_env import TRexEnv
+from environments.trex.envs.trex_env import TRexEnv
 
 
 @pytest.fixture

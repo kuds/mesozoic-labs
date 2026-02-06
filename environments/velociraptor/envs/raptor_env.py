@@ -26,7 +26,6 @@ Reward components:
     - Approach shaping (distance to prey)
 """
 
-import sys
 from pathlib import Path
 
 import gymnasium as gym
@@ -34,12 +33,7 @@ import mujoco
 import numpy as np
 from typing import Optional, Dict, Any, Tuple
 
-# Make shared module importable
-_env_root = str(Path(__file__).resolve().parent.parent.parent)
-if _env_root not in sys.path:
-    sys.path.insert(0, _env_root)
-
-from shared.base_env import BaseDinoEnv
+from environments.shared.base_env import BaseDinoEnv
 
 
 class RaptorEnv(BaseDinoEnv):
@@ -279,6 +273,6 @@ class RaptorEnv(BaseDinoEnv):
 # Register with Gymnasium
 gym.register(
     id="Raptor-v0",
-    entry_point="envs.raptor_env:RaptorEnv",
+    entry_point="environments.velociraptor.envs.raptor_env:RaptorEnv",
     max_episode_steps=1000,
 )

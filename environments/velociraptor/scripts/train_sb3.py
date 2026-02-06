@@ -21,8 +21,10 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add repo root to path
+_repo_root = str(Path(__file__).resolve().parents[3])
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
 
 import numpy as np
 
@@ -41,7 +43,7 @@ except ImportError:
     print("Install with: pip install stable-baselines3[extra]")
     sys.exit(1)
 
-from envs.raptor_env import RaptorEnv
+from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 
 # Curriculum stage configurations

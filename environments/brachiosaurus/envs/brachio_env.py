@@ -27,7 +27,6 @@ Reward components:
     - Approach shaping (distance to food)
 """
 
-import sys
 from pathlib import Path
 
 import gymnasium as gym
@@ -35,12 +34,7 @@ import mujoco
 import numpy as np
 from typing import Optional, Dict, Any, Tuple
 
-# Make shared module importable
-_env_root = str(Path(__file__).resolve().parent.parent.parent)
-if _env_root not in sys.path:
-    sys.path.insert(0, _env_root)
-
-from shared.base_env import BaseDinoEnv
+from environments.shared.base_env import BaseDinoEnv
 
 
 class BrachioEnv(BaseDinoEnv):
@@ -315,6 +309,6 @@ class BrachioEnv(BaseDinoEnv):
 # Register with Gymnasium
 gym.register(
     id="Brachio-v0",
-    entry_point="envs.brachio_env:BrachioEnv",
+    entry_point="environments.brachiosaurus.envs.brachio_env:BrachioEnv",
     max_episode_steps=1000,
 )

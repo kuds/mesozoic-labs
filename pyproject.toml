@@ -3,32 +3,41 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mesozoic-brachiosaurus"
+name = "mesozoic-labs"
 version = "0.1.0"
-description = "Brachiosaurus quadrupedal locomotion environment with food-reaching behavior"
+description = "Robotic dinosaur locomotion environments for MuJoCo + Gymnasium"
 requires-python = ">=3.10"
 dependencies = [
     "mujoco>=3.0.0",
     "gymnasium>=0.29.0",
     "numpy>=1.24.0",
-    "stable-baselines3[extra]>=2.2.0",
 ]
 
 [project.optional-dependencies]
+train = [
+    "stable-baselines3[extra]>=2.2.0",
+]
 viz = [
     "mediapy>=1.1.0",
     "matplotlib>=3.7.0",
 ]
 dev = [
     "pytest>=7.0",
+    "flake8",
+]
+all = [
+    "mesozoic-labs[train,viz,dev]",
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["envs*", "scripts*"]
+include = ["environments*"]
 
 [tool.setuptools.package-data]
 "*" = ["assets/*.xml"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = [
+    "environments/velociraptor/tests",
+    "environments/brachiosaurus/tests",
+    "environments/trex/tests",
+]

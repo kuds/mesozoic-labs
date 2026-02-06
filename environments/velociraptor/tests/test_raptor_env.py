@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from envs.raptor_env import RaptorEnv
+from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 
 @pytest.fixture

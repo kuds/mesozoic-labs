@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from envs.brachio_env import BrachioEnv
+from environments.brachiosaurus.envs.brachio_env import BrachioEnv
 
 
 @pytest.fixture
