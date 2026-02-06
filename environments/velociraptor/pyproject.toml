@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mesozoic-velociraptor"
+version = "0.1.0"
+description = "Velociraptor bipedal locomotion environment with predatory strike behavior"
+requires-python = ">=3.10"
+dependencies = [
+    "mujoco>=3.0.0",
+    "gymnasium>=0.29.0",
+    "numpy>=1.24.0",
+    "stable-baselines3[extra]>=2.2.0",
+]
+
+[project.optional-dependencies]
+viz = [
+    "mediapy>=1.1.0",
+    "matplotlib>=3.7.0",
+]
+dev = [
+    "pytest>=7.0",
+]
+mjx = [
+    "jax[cuda12]",
+    "mujoco-mjx>=3.0.0",
+    "brax>=0.10.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["envs*", "scripts*"]
+
+[tool.setuptools.package-data]
+"*" = ["assets/*.xml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

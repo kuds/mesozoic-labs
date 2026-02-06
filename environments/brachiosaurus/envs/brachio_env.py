@@ -24,22 +24,31 @@ Reward components:
     - Energy penalty
     - Gait stability (encourage coordinated quadrupedal gait)
     - Food reach bonus (when head gets close to food)
+    - Approach shaping (distance to food)
 """
 
-import gymnasium as gym
-import numpy as np
-import mujoco
+import sys
 from pathlib import Path
+
+import gymnasium as gym
+import mujoco
+import numpy as np
 from typing import Optional, Dict, Any, Tuple
 
+# Make shared module importable
+_env_root = str(Path(__file__).resolve().parent.parent.parent)
+if _env_root not in sys.path:
+    sys.path.insert(0, _env_root)
 
-class BrachioEnv(gym.Env):
+from shared.base_env import BaseDinoEnv
+
+
+class BrachioEnv(BaseDinoEnv):
     """Brachiosaurus quadrupedal locomotion and food-reaching environment."""
 
-    metadata = {
-        "render_modes": ["human", "rgb_array"],
-        "render_fps": 50,
-    }
+    _camera_distance = 8.0
+    _camera_azimuth = 135
+    _camera_elevation = -20
 
     def __init__(
         self,
@@ -61,59 +70,32 @@ class BrachioEnv(gym.Env):
         food_height_range: Tuple[float, float] = (2.0, 4.0),
         healthy_z_range: Tuple[float, float] = (1.0, 3.5),
     ):
-        super().__init__()
+        model_path = str(
+            Path(__file__).parent.parent / "assets" / "brachiosaurus.xml"
+        )
 
-        # Load MuJoCo model
-        model_path = Path(__file__).parent.parent / "assets" / "brachiosaurus.xml"
-        self.model = mujoco.MjModel.from_xml_path(str(model_path))
-        self.data = mujoco.MjData(self.model)
-
-        # Simulation parameters
-        self.frame_skip = frame_skip
-        self.dt = self.model.opt.timestep * frame_skip
-        self.max_episode_steps = max_episode_steps
-        self._step_count = 0
-
-        # Reward weights
-        self.forward_vel_weight = forward_vel_weight
-        self.alive_bonus = alive_bonus
-        self.energy_penalty_weight = energy_penalty_weight
-        self.fall_penalty = fall_penalty
+        # Brachio-specific reward weights
         self.gait_stability_weight = gait_stability_weight
         self.food_reach_bonus = food_reach_bonus
         self.food_reach_threshold = food_reach_threshold
         self.food_approach_weight = food_approach_weight
 
-        # Environment settings
+        # Brachio-specific env settings
         self.food_distance_range = food_distance_range
         self.food_lateral_range = food_lateral_range
         self.food_height_range = food_height_range
-        self.healthy_z_range = healthy_z_range
 
-        # Cache body/geom/site IDs for faster lookup
-        self._cache_ids()
-
-        # Define action space (normalized to [-1, 1])
-        self.action_space = gym.spaces.Box(
-            low=-1.0,
-            high=1.0,
-            shape=(self.model.nu,),
-            dtype=np.float32
+        super().__init__(
+            model_path=model_path,
+            render_mode=render_mode,
+            frame_skip=frame_skip,
+            max_episode_steps=max_episode_steps,
+            forward_vel_weight=forward_vel_weight,
+            alive_bonus=alive_bonus,
+            energy_penalty_weight=energy_penalty_weight,
+            fall_penalty=fall_penalty,
+            healthy_z_range=healthy_z_range,
         )
-
-        # Define observation space
-        obs = self._get_obs()
-        self.observation_space = gym.spaces.Box(
-            low=-np.inf,
-            high=np.inf,
-            shape=obs.shape,
-            dtype=np.float32
-        )
-
-        # Rendering
-        self.render_mode = render_mode
-        self._viewer = None
-        self._renderer = None
 
     def _cache_ids(self):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
@@ -315,91 +297,7 @@ class BrachioEnv(gym.Env):
 
         return False, info
 
-    def _is_truncated(self) -> bool:
-        """Check if episode should be truncated (time limit)."""
-        return self._step_count >= self.max_episode_steps
-
-    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict]:
-        """Execute one environment step."""
-        # Scale action from [-1, 1] to actuator control ranges
-        ctrl = self._scale_action(action)
-        self.data.ctrl[:] = ctrl
-
-        # Step physics
-        for _ in range(self.frame_skip):
-            mujoco.mj_step(self.model, self.data)
-
-        self._step_count += 1
-
-        # Get observation
-        obs = self._get_obs()
-
-        # Compute reward
-        reward, reward_info = self._get_reward_info(action)
-
-        # Check termination
-        terminated, term_info = self._is_terminated()
-        if terminated:
-            reward += self.fall_penalty
-            reward_info["reward_total"] = reward
-
-        truncated = self._is_truncated()
-
-        # Combine info
-        info = {**reward_info, **term_info}
-        info["step"] = self._step_count
-
-        # Render if needed
-        if self.render_mode == "human":
-            self.render()
-
-        return obs, reward, terminated, truncated, info
-
-    def _scale_action(self, action: np.ndarray) -> np.ndarray:
-        """Scale normalized action [-1, 1] to actuator control range."""
-        ctrl_range = self.model.actuator_ctrlrange
-        ctrl_min = ctrl_range[:, 0]
-        ctrl_max = ctrl_range[:, 1]
-
-        # Linear interpolation from [-1, 1] to [min, max]
-        scaled = ctrl_min + (action + 1.0) * 0.5 * (ctrl_max - ctrl_min)
-        return scaled
-
-    def reset(
-        self,
-        seed: Optional[int] = None,
-        options: Optional[Dict] = None
-    ) -> Tuple[np.ndarray, Dict]:
-        """Reset environment to initial state."""
-        super().reset(seed=seed)
-
-        # Reset MuJoCo state
-        mujoco.mj_resetData(self.model, self.data)
-
-        # Add small random perturbation to initial pose
-        if self.np_random is not None:
-            noise_scale = 0.01
-            self.data.qpos[7:] += self.np_random.uniform(
-                -noise_scale, noise_scale, size=self.data.qpos[7:].shape
-            )
-            self.data.qvel[:] += self.np_random.uniform(
-                -noise_scale, noise_scale, size=self.data.qvel.shape
-            )
-
-        # Randomize food position
-        self._spawn_food()
-
-        # Forward pass to update derived quantities
-        mujoco.mj_forward(self.model, self.data)
-
-        self._step_count = 0
-
-        obs = self._get_obs()
-        info = {"step": 0}
-
-        return obs, info
-
-    def _spawn_food(self):
+    def _spawn_target(self):
         """Spawn food at random location (elevated, since Brachiosaurus browses high)."""
         if self.np_random is not None:
             distance = self.np_random.uniform(*self.food_distance_range)
@@ -412,35 +310,6 @@ class BrachioEnv(gym.Env):
 
         food_pos = np.array([distance, lateral, height])
         self.data.mocap_pos[0] = food_pos
-
-    def render(self):
-        """Render the environment."""
-        if self.render_mode == "human":
-            if self._viewer is None:
-                self._viewer = mujoco.viewer.launch_passive(
-                    self.model, self.data
-                )
-                self._viewer.cam.distance = 8.0
-                self._viewer.cam.azimuth = 135
-                self._viewer.cam.elevation = -20
-            self._viewer.sync()
-
-        elif self.render_mode == "rgb_array":
-            if self._renderer is None:
-                self._renderer = mujoco.Renderer(
-                    self.model, height=480, width=640
-                )
-            self._renderer.update_scene(self.data)
-            return self._renderer.render()
-
-    def close(self):
-        """Clean up resources."""
-        if self._viewer is not None:
-            self._viewer.close()
-            self._viewer = None
-        if self._renderer is not None:
-            self._renderer.close()
-            self._renderer = None
 
 
 # Register with Gymnasium
