@@ -1,0 +1,340 @@
+<mujoco model="tyrannosaurus_rex">
+  <compiler angle="degree" autolimits="true"/>
+
+  <option timestep="0.002" gravity="0 0 -9.81">
+    <flag warmstart="enable"/>
+  </option>
+
+  <default>
+    <joint limited="true" damping="8.0" armature="0.05"/>
+    <geom contype="1" conaffinity="1" friction="1.2 0.005 0.0001"/>
+    <motor ctrllimited="true" ctrlrange="-1 1"/>
+
+    <!-- Leg joints: high stiffness for massive biped -->
+    <default class="leg_joint">
+      <joint damping="15.0" armature="0.1"/>
+    </default>
+
+    <!-- Tail joints: very stiff, acts as heavy counterbalance to skull -->
+    <default class="tail_joint">
+      <joint damping="20.0" stiffness="40.0" armature="0.05" range="-12 12"/>
+    </default>
+
+    <!-- Jaw joint -->
+    <default class="jaw_joint">
+      <joint damping="5.0" armature="0.02"/>
+    </default>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.6 0.8 1.0" rgb2="0.2 0.4 0.6"
+             width="256" height="256"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.4 0.4 0.4" rgb2="0.3 0.3 0.3"
+             width="512" height="512"/>
+    <material name="grid_mat" texture="grid" texrepeat="8 8" reflectance="0.1"/>
+    <material name="body_mat" rgba="0.55 0.45 0.35 1"/>
+    <material name="belly_mat" rgba="0.6 0.5 0.4 1"/>
+    <material name="head_mat" rgba="0.5 0.4 0.3 1"/>
+    <material name="claw_mat" rgba="0.3 0.25 0.2 1"/>
+    <material name="tooth_mat" rgba="0.9 0.88 0.8 1"/>
+  </asset>
+
+  <worldbody>
+    <!-- Ground plane -->
+    <geom name="floor" type="plane" size="100 100 0.1" material="grid_mat"
+          conaffinity="1" contype="1"/>
+
+    <!-- Prey target (mocap body) -->
+    <body name="prey" mocap="true" pos="6 0 0.5">
+      <geom name="prey_geom" type="sphere" size="0.25" rgba="0.8 0.2 0.2 0.8"
+            contype="2" conaffinity="2"/>
+    </body>
+
+    <!-- ==================== T-REX BODY ==================== -->
+    <!--
+    Coordinate system:
+      +X = forward (direction of travel)
+      +Y = left
+      +Z = up
+
+    Approximate dimensions (scaled for simulation):
+      Body length: 1.2m (torso)
+      Hip height: 1.1m (in neutral stance)
+      Skull length: 0.5m
+      Tail length: 1.5m
+      Total height at hip: ~1.1m
+      Total mass: ~80kg (scaled)
+
+    T-Rex anatomy:
+      - Massive skull with powerful jaws (~60% of body force)
+      - Tiny vestigial forelimbs (2 fingers)
+      - Powerful digitigrade hind legs
+      - Heavy muscular tail as counterbalance to skull
+      - Forward-leaning posture (~45 deg torso angle)
+      - Body pivots at hips, skull and tail balance each other
+    -->
+
+    <body name="pelvis" pos="0 0 1.15">
+      <freejoint name="root"/>
+
+      <!-- Main torso: forward-leaning, angled ~30 deg from horizontal -->
+      <!-- Pelvis region (rear of torso, widest part) -->
+      <geom name="torso" type="capsule" fromto="-0.2 0 0  0.35 0 0.1" size="0.18"
+            mass="20.0" material="body_mat"/>
+
+      <!-- Ribcage (front of torso, narrowing toward neck) -->
+      <geom name="ribcage" type="capsule" fromto="0.3 0 0.08  0.55 0 0.15" size="0.14"
+            mass="10.0" material="body_mat"/>
+
+      <!-- Belly (adds mass lower for stability) -->
+      <geom name="belly" type="capsule" fromto="-0.1 0 -0.08  0.35 0 -0.02" size="0.15"
+            mass="5.0" material="belly_mat"/>
+
+      <!-- IMU sensor site (center of mass region) -->
+      <site name="imu" pos="0.1 0 0.05" size="0.03"/>
+
+      <!-- ==================== NECK + HEAD ==================== -->
+      <!-- Short, thick, muscular neck angling up to massive skull -->
+
+      <body name="neck" pos="0.55 0 0.15">
+        <joint name="neck_pitch" type="hinge" axis="0 1 0" range="-30 40"
+               damping="12.0" armature="0.05"/>
+        <joint name="neck_yaw" type="hinge" axis="0 0 1" range="-20 20"
+               damping="10.0" armature="0.03"/>
+        <geom name="neck_geom" type="capsule" fromto="0 0 0  0.2 0 0.15" size="0.12"
+              mass="5.0" material="body_mat" contype="0" conaffinity="0"/>
+
+        <!-- Skull: massive, elongated, deep -->
+        <body name="skull" pos="0.2 0 0.15">
+          <joint name="head_pitch" type="hinge" axis="0 1 0" range="-25 35"
+                 damping="8.0" armature="0.03"/>
+          <!-- Upper skull -->
+          <geom name="skull_upper" type="capsule" fromto="0 0 0  0.35 0 0.02" size="0.1"
+                mass="6.0" material="head_mat"/>
+          <!-- Brow ridges (T-Rex had prominent brow horns) -->
+          <geom name="brow_ridge" type="ellipsoid" pos="0.05 0 0.06" size="0.08 0.1 0.04"
+                mass="0.5" material="head_mat" contype="0" conaffinity="0"/>
+          <!-- Snout (narrowing toward front) -->
+          <geom name="snout" type="capsule" fromto="0.3 0 0.02  0.48 0 0" size="0.06"
+                mass="2.0" material="head_mat"/>
+
+          <!-- Head tip sensor for bite detection -->
+          <site name="head_tip" pos="0.48 0 0" size="0.02"/>
+
+          <!-- Jaw (lower mandible) -->
+          <body name="jaw" pos="0.05 0 -0.06">
+            <joint name="jaw_joint" class="jaw_joint" type="hinge" axis="0 1 0" range="-35 5"/>
+            <geom name="jaw_geom" type="capsule" fromto="0 0 0  0.38 0 0.02" size="0.07"
+                  mass="3.0" material="head_mat"/>
+            <!-- Jaw contact geom for bite detection -->
+            <geom name="jaw_bite" type="box" pos="0.35 0 0.04" size="0.06 0.05 0.02"
+                  mass="0.2" material="tooth_mat" contype="2" conaffinity="2"/>
+            <site name="jaw_tip" pos="0.38 0 0.02" size="0.015"/>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== TAIL ==================== -->
+      <!-- 5 segments, heavy, muscular - primary counterbalance to skull -->
+      <!-- Starts thick at pelvis, tapers to tip -->
+
+      <body name="tail_1" pos="-0.2 0 0">
+        <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+        <joint name="tail_1_yaw" class="tail_joint" type="hinge" axis="0 0 1" range="-8 8"/>
+        <geom name="tail_1_geom" type="capsule" fromto="0 0 0  -0.3 0 -0.03" size="0.14"
+              mass="6.0" material="body_mat" contype="0" conaffinity="0"/>
+
+        <body name="tail_2" pos="-0.3 0 -0.03">
+          <joint name="tail_2_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+          <geom name="tail_2_geom" type="capsule" fromto="0 0 0  -0.3 0 -0.02" size="0.11"
+                mass="4.5" material="body_mat" contype="0" conaffinity="0"/>
+
+          <body name="tail_3" pos="-0.3 0 -0.02">
+            <joint name="tail_3_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+            <geom name="tail_3_geom" type="capsule" fromto="0 0 0  -0.3 0 0" size="0.08"
+                  mass="3.0" material="body_mat" contype="0" conaffinity="0"/>
+
+            <body name="tail_4" pos="-0.3 0 0">
+              <joint name="tail_4_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+              <geom name="tail_4_geom" type="capsule" fromto="0 0 0  -0.25 0 0.01" size="0.06"
+                    mass="1.5" material="body_mat" contype="0" conaffinity="0"/>
+
+              <body name="tail_5" pos="-0.25 0 0.01">
+                <joint name="tail_5_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+                <geom name="tail_5_geom" type="capsule" fromto="0 0 0  -0.2 0 0.02" size="0.035"
+                      mass="0.6" material="body_mat" contype="0" conaffinity="0"/>
+                <site name="tail_tip" pos="-0.2 0 0.02" size="0.015"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== RIGHT LEG ==================== -->
+      <!-- Massive, powerful digitigrade legs -->
+      <!-- Hip -> Thigh -> Tibia -> Metatarsus -> Toes -->
+
+      <body name="r_thigh" pos="-0.05 -0.14 -0.05">
+        <!-- Hip: 2 DOF -->
+        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-50 80"/>
+        <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-25 25"/>
+        <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.03 0 -0.35" size="0.09"
+              mass="5.0" material="body_mat"/>
+
+        <body name="r_tibia" pos="0.03 0 -0.35">
+          <!-- Knee: 1 DOF -->
+          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-110 -10"/>
+          <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.03 0 -0.35" size="0.07"
+                mass="3.5" material="body_mat"/>
+
+          <body name="r_metatarsus" pos="-0.03 0 -0.35">
+            <!-- Ankle: 1 DOF (digitigrade stance) -->
+            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="50 150"/>
+            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.04"
+                  mass="1.2" material="body_mat"/>
+
+            <!-- Toes (3 forward-facing digits fused as one contact pad) -->
+            <body name="r_toe" pos="0.08 0 -0.2">
+              <joint name="r_toe_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50"/>
+              <geom name="r_toe_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.035"
+                    mass="0.4" material="claw_mat"/>
+              <site name="r_foot" pos="0.06 0 -0.035" size="0.03"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== LEFT LEG ==================== -->
+
+      <body name="l_thigh" pos="-0.05 0.14 -0.05">
+        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-50 80"/>
+        <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-25 25"/>
+        <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.03 0 -0.35" size="0.09"
+              mass="5.0" material="body_mat"/>
+
+        <body name="l_tibia" pos="0.03 0 -0.35">
+          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-110 -10"/>
+          <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.03 0 -0.35" size="0.07"
+                mass="3.5" material="body_mat"/>
+
+          <body name="l_metatarsus" pos="-0.03 0 -0.35">
+            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="50 150"/>
+            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.04"
+                  mass="1.2" material="body_mat"/>
+
+            <body name="l_toe" pos="0.08 0 -0.2">
+              <joint name="l_toe_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50"/>
+              <geom name="l_toe_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.035"
+                    mass="0.4" material="claw_mat"/>
+              <site name="l_foot" pos="0.06 0 -0.035" size="0.03"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== FORELIMBS (vestigial) ==================== -->
+      <!-- T-Rex arms: tiny, 2 fingers, very limited range -->
+      <!-- Not actuated - purely cosmetic/passive -->
+
+      <body name="r_arm" pos="0.45 -0.1 -0.02">
+        <joint name="r_shoulder" type="ball" damping="3.0" range="0 30"/>
+        <geom name="r_upper_arm_geom" type="capsule" fromto="0 0 0  0.04 -0.02 -0.08" size="0.025"
+              mass="0.3" material="body_mat"/>
+        <body name="r_forearm" pos="0.04 -0.02 -0.08">
+          <joint name="r_elbow" type="hinge" axis="0 1 0" range="-40 10" damping="2.0"/>
+          <geom name="r_forearm_geom" type="capsule" fromto="0 0 0  0.02 0 -0.05" size="0.018"
+                mass="0.1" material="body_mat"/>
+          <!-- Two-fingered hand -->
+          <geom name="r_hand" type="sphere" pos="0.02 0 -0.06" size="0.02"
+                mass="0.05" material="claw_mat"/>
+        </body>
+      </body>
+
+      <body name="l_arm" pos="0.45 0.1 -0.02">
+        <joint name="l_shoulder" type="ball" damping="3.0" range="0 30"/>
+        <geom name="l_upper_arm_geom" type="capsule" fromto="0 0 0  0.04 0.02 -0.08" size="0.025"
+              mass="0.3" material="body_mat"/>
+        <body name="l_forearm" pos="0.04 0.02 -0.08">
+          <joint name="l_elbow" type="hinge" axis="0 1 0" range="-40 10" damping="2.0"/>
+          <geom name="l_forearm_geom" type="capsule" fromto="0 0 0  0.02 0 -0.05" size="0.018"
+                mass="0.1" material="body_mat"/>
+          <geom name="l_hand" type="sphere" pos="0.02 0 -0.06" size="0.02"
+                mass="0.05" material="claw_mat"/>
+        </body>
+      </body>
+
+    </body> <!-- end pelvis -->
+  </worldbody>
+
+  <!-- ==================== ACTUATORS ==================== -->
+  <!-- Position actuators for locomotion, motor for jaw -->
+
+  <actuator>
+    <!-- Head/neck control -->
+    <position name="neck_pitch_act" joint="neck_pitch" kp="150" ctrlrange="-30 40"/>
+    <position name="neck_yaw_act" joint="neck_yaw" kp="100" ctrlrange="-20 20"/>
+    <position name="head_pitch_act" joint="head_pitch" kp="80" ctrlrange="-25 35"/>
+    <motor name="jaw_act" joint="jaw_joint" gear="80" ctrlrange="-1 1"/>
+
+    <!-- Right leg -->
+    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="200" ctrlrange="-50 80"/>
+    <position name="r_hip_roll_act" joint="r_hip_roll" kp="150" ctrlrange="-25 25"/>
+    <position name="r_knee_act" joint="r_knee" kp="250" ctrlrange="-110 -10"/>
+    <position name="r_ankle_act" joint="r_ankle" kp="150" ctrlrange="50 150"/>
+    <position name="r_toe_act" joint="r_toe_joint" kp="60" ctrlrange="-25 50"/>
+
+    <!-- Left leg -->
+    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="200" ctrlrange="-50 80"/>
+    <position name="l_hip_roll_act" joint="l_hip_roll" kp="150" ctrlrange="-25 25"/>
+    <position name="l_knee_act" joint="l_knee" kp="250" ctrlrange="-110 -10"/>
+    <position name="l_ankle_act" joint="l_ankle" kp="150" ctrlrange="50 150"/>
+    <position name="l_toe_act" joint="l_toe_joint" kp="60" ctrlrange="-25 50"/>
+  </actuator>
+
+  <!-- ==================== SENSORS ==================== -->
+
+  <sensor>
+    <!-- IMU-like sensors on pelvis -->
+    <gyro name="pelvis_gyro" site="imu"/>
+    <accelerometer name="pelvis_accel" site="imu"/>
+    <framequat name="pelvis_orientation" objtype="site" objname="imu"/>
+
+    <!-- Foot contact forces -->
+    <touch name="r_foot_touch" site="r_foot"/>
+    <touch name="l_foot_touch" site="l_foot"/>
+
+    <!-- Head/jaw positions for bite detection -->
+    <framepos name="head_tip_pos" objtype="site" objname="head_tip"/>
+    <framepos name="jaw_tip_pos" objtype="site" objname="jaw_tip"/>
+
+    <!-- Tail tip for stability monitoring -->
+    <framepos name="tail_tip_pos" objtype="site" objname="tail_tip"/>
+    <framelinvel name="tail_tip_linvel" objtype="site" objname="tail_tip"/>
+    <frameangvel name="tail_tip_angvel" objtype="site" objname="tail_tip"/>
+  </sensor>
+
+  <!-- ==================== CONTACT EXCLUSIONS ==================== -->
+
+  <contact>
+    <!-- Neck/head chain -->
+    <exclude body1="pelvis" body2="neck"/>
+    <exclude body1="neck" body2="skull"/>
+    <exclude body1="skull" body2="jaw"/>
+
+    <!-- Tail chain -->
+    <exclude body1="pelvis" body2="tail_1"/>
+    <exclude body1="tail_1" body2="tail_2"/>
+    <exclude body1="tail_2" body2="tail_3"/>
+    <exclude body1="tail_3" body2="tail_4"/>
+    <exclude body1="tail_4" body2="tail_5"/>
+
+    <!-- Thigh-torso -->
+    <exclude body1="pelvis" body2="r_thigh"/>
+    <exclude body1="pelvis" body2="l_thigh"/>
+
+    <!-- Arm-torso -->
+    <exclude body1="pelvis" body2="r_arm"/>
+    <exclude body1="pelvis" body2="l_arm"/>
+  </contact>
+
+</mujoco>

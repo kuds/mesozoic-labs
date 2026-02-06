@@ -1,23 +1,23 @@
-"""Pytest tests for the Raptor Gymnasium environment."""
+"""Pytest tests for the T-Rex Gymnasium environment."""
 
 import numpy as np
 import pytest
 
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.trex.envs.trex_env import TRexEnv
 
 
 @pytest.fixture
 def env():
-    e = RaptorEnv()
+    e = TRexEnv()
     yield e
     e.close()
 
 
 class TestBasicFunctionality:
     def test_spaces_are_valid(self, env):
-        assert env.observation_space.shape == (69,)
+        assert env.observation_space.shape == (77,)
         assert env.observation_space.dtype == np.float32
-        assert env.action_space.shape == (12,)
+        assert env.action_space.shape == (14,)
         assert np.all(env.action_space.low == -1.0)
         assert np.all(env.action_space.high == 1.0)
 
@@ -51,7 +51,7 @@ class TestBasicFunctionality:
         _, _, _, _, info = env.step(action)
         expected_keys = [
             "reward_forward", "reward_alive", "reward_energy",
-            "reward_tail", "reward_strike", "reward_approach",
+            "reward_tail", "reward_bite", "reward_approach",
             "reward_total",
         ]
         for key in expected_keys:
@@ -82,7 +82,7 @@ class TestEpisodeRollout:
 class TestDeterminism:
     def test_same_seed_same_trajectory(self):
         def run_trajectory(seed):
-            e = RaptorEnv()
+            e = TRexEnv()
             obs, _ = e.reset(seed=seed)
             np.random.seed(seed)
             trajectory = [obs.copy()]

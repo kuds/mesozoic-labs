@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Train Brachiosaurus with Stable-Baselines3 PPO.
+Train T-Rex with Stable-Baselines3 PPO.
 
 Supports curriculum learning with three stages:
-1. Standing/balance (quadrupedal stability)
-2. Walking (coordinated quadrupedal gait)
-3. Walking + food reaching (full reward with neck control)
+1. Standing/balance (no forward velocity reward)
+2. Walking (moderate speed target)
+3. Sprinting + bite (full reward)
 
 Usage:
     python train_sb3.py train --stage 1 --timesteps 500000
@@ -45,23 +45,22 @@ except ImportError:
     print("Install with: pip install stable-baselines3[extra]")
     sys.exit(1)
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.trex.envs.trex_env import TRexEnv
 
 
 # Curriculum stage configurations
 STAGE_CONFIGS = {
     1: {
         "name": "balance",
-        "description": "Learn to stand on four legs without falling",
+        "description": "Learn to stand and balance without falling",
         "env_kwargs": {
             "forward_vel_weight": 0.0,
             "alive_bonus": 1.0,
             "energy_penalty_weight": 0.0005,
-            "gait_stability_weight": 0.1,
-            "food_reach_bonus": 0.0,
-            "food_approach_weight": 0.0,     # No approach reward yet
-            "food_distance_range": (10.0, 15.0),
-            "food_height_range": (2.0, 3.0),
+            "tail_stability_weight": 0.1,
+            "bite_bonus": 0.0,
+            "bite_approach_weight": 0.0,
+            "prey_distance_range": (10.0, 15.0),
             "max_episode_steps": 500,
         },
         "ppo_kwargs": {
@@ -77,16 +76,15 @@ STAGE_CONFIGS = {
     },
     2: {
         "name": "locomotion",
-        "description": "Learn coordinated quadrupedal walking",
+        "description": "Learn forward walking/running",
         "env_kwargs": {
             "forward_vel_weight": 1.0,
             "alive_bonus": 0.5,
             "energy_penalty_weight": 0.001,
-            "gait_stability_weight": 0.05,
-            "food_reach_bonus": 0.0,
-            "food_approach_weight": 0.15,    # Light approach signal
-            "food_distance_range": (8.0, 12.0),
-            "food_height_range": (2.0, 3.0),
+            "tail_stability_weight": 0.05,
+            "bite_bonus": 0.0,
+            "bite_approach_weight": 0.2,
+            "prey_distance_range": (8.0, 12.0),
             "max_episode_steps": 1000,
         },
         "ppo_kwargs": {
@@ -101,19 +99,17 @@ STAGE_CONFIGS = {
         },
     },
     3: {
-        "name": "food_reach",
-        "description": "Walk to food and reach with neck",
+        "name": "bite",
+        "description": "Sprint and bite prey with jaws",
         "env_kwargs": {
             "forward_vel_weight": 1.0,
             "alive_bonus": 0.1,
             "energy_penalty_weight": 0.001,
-            "gait_stability_weight": 0.02,
-            "food_reach_bonus": 500.0,
-            "food_reach_threshold": 0.5,
-            "food_approach_weight": 0.3,     # Full approach shaping
-            "food_distance_range": (3.0, 8.0),
-            "food_lateral_range": (-1.5, 1.5),
-            "food_height_range": (2.5, 4.0),
+            "tail_stability_weight": 0.02,
+            "bite_bonus": 500.0,
+            "bite_approach_weight": 0.5,
+            "prey_distance_range": (3.0, 8.0),
+            "prey_lateral_range": (-1.5, 1.5),
             "max_episode_steps": 1000,
         },
         "ppo_kwargs": {
@@ -134,7 +130,7 @@ def make_env(stage: int, rank: int, seed: int = 0):
     """Create a single environment instance."""
     def _init():
         env_kwargs = STAGE_CONFIGS[stage]["env_kwargs"].copy()
-        env = BrachioEnv(**env_kwargs)
+        env = TRexEnv(**env_kwargs)
         env = Monitor(env)
         env.reset(seed=seed + rank)
         return env
@@ -172,7 +168,7 @@ def train(
     log_dir: str = None,
     use_subproc: bool = False,
 ):
-    """Train the brachiosaurus policy."""
+    """Train the T-Rex policy."""
 
     config = STAGE_CONFIGS[stage]
     print("=" * 60)
@@ -299,7 +295,7 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True,
     render_mode = "human" if render else None
 
     def _make_eval_env():
-        env = BrachioEnv(render_mode=render_mode, **env_kwargs)
+        env = TRexEnv(render_mode=render_mode, **env_kwargs)
         return Monitor(env)
 
     vec_env = DummyVecEnv([_make_eval_env])
@@ -314,7 +310,7 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True,
 
     model = PPO.load(model_path, env=vec_env)
 
-    config_name = STAGE_CONFIGS[stage]['name']
+    config_name = STAGE_CONFIGS[stage]["name"]
     print(f"\nEvaluating for {n_episodes} episodes "
           f"(stage {stage}: {config_name})...")
 
@@ -342,17 +338,15 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True,
     vec_env.close()
 
     print("\nResults:")
-    mean_r = np.mean(episode_rewards)
-    std_r = np.std(episode_rewards)
-    mean_l = np.mean(episode_lengths)
-    std_l = np.std(episode_lengths)
-    print(f"  Mean reward: {mean_r:.2f} +/- {std_r:.2f}")
-    print(f"  Mean length: {mean_l:.1f} +/- {std_l:.1f}")
+    print(f"  Mean reward: {np.mean(episode_rewards):.2f} "
+          f"+/- {np.std(episode_rewards):.2f}")
+    print(f"  Mean length: {np.mean(episode_lengths):.1f} "
+          f"+/- {np.std(episode_lengths):.1f}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Train Brachiosaurus with SB3 PPO"
+        description="Train T-Rex with SB3 PPO"
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -361,7 +355,7 @@ def main():
     train_parser = subparsers.add_parser("train", help="Train a policy")
     train_parser.add_argument(
         "--stage", type=int, choices=[1, 2, 3], default=1,
-        help="Curriculum stage (1=balance, 2=locomotion, 3=food_reach)"
+        help="Curriculum stage (1=balance, 2=locomotion, 3=bite)"
     )
     train_parser.add_argument(
         "--timesteps", type=int, default=500000,
@@ -393,7 +387,7 @@ def main():
     )
     train_parser.add_argument(
         "--subproc", action="store_true",
-        help="Use subprocess vectorization (faster but more memory)"
+        help="Use subprocess vectorization"
     )
 
     # Eval command
@@ -403,11 +397,11 @@ def main():
     )
     eval_parser.add_argument(
         "--stage", type=int, choices=[1, 2, 3], default=None,
-        help="Curriculum stage (auto-detected from filename if omitted)"
+        help="Curriculum stage (auto-detected if omitted)"
     )
     eval_parser.add_argument(
         "--episodes", type=int, default=10,
-        help="Number of episodes to evaluate"
+        help="Number of evaluation episodes"
     )
     eval_parser.add_argument(
         "--no-render", action="store_true",

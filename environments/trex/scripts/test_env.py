@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 """
-Test the Brachiosaurus Gymnasium environment.
-
-This script verifies:
-1. Environment loads without errors
-2. Observation and action spaces are valid
-3. Step/reset work correctly
-4. Reward components are reasonable
-5. Termination conditions trigger appropriately
+Test the T-Rex Gymnasium environment.
 
 Usage:
     python test_env.py
@@ -25,7 +18,7 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.trex.envs.trex_env import TRexEnv
 
 
 def test_basic_functionality(render: bool = False):
@@ -35,7 +28,7 @@ def test_basic_functionality(render: bool = False):
     print("=" * 60)
 
     render_mode = "human" if render else None
-    env = BrachioEnv(render_mode=render_mode)
+    env = TRexEnv(render_mode=render_mode)
 
     print(f"\nObservation space: {env.observation_space}")
     print(f"  Shape: {env.observation_space.shape}")
@@ -50,19 +43,16 @@ def test_basic_functionality(render: bool = False):
     obs, info = env.reset(seed=42)
     print(f"Initial obs shape: {obs.shape}")
     print(f"Initial obs range: [{obs.min():.3f}, {obs.max():.3f}]")
-    print(f"Initial info: {info}")
 
     print("\n--- Testing step (zero action) ---")
     action = np.zeros(env.action_space.shape)
     obs, reward, terminated, truncated, info = env.step(action)
     print(f"Reward: {reward:.4f}")
     print(f"Terminated: {terminated}, Truncated: {truncated}")
-    print(f"Info: {info}")
 
     print("\n--- Testing step (random action) ---")
     action = env.action_space.sample()
     obs, reward, terminated, truncated, info = env.step(action)
-    print(f"Random action shape: {action.shape}")
     print(f"Reward: {reward:.4f}")
 
     env.close()
@@ -79,7 +69,7 @@ def test_episode_rollout(num_episodes: int = 3, max_steps: int = 100,
     print("=" * 60)
 
     render_mode = "human" if render else None
-    env = BrachioEnv(render_mode=render_mode, max_episode_steps=max_steps)
+    env = TRexEnv(render_mode=render_mode, max_episode_steps=max_steps)
 
     episode_rewards = []
     episode_lengths = []
@@ -93,7 +83,6 @@ def test_episode_rollout(num_episodes: int = 3, max_steps: int = 100,
         while True:
             action = env.action_space.sample()
             obs, reward, terminated, truncated, info = env.step(action)
-
             total_reward += reward
             step += 1
 
@@ -120,50 +109,6 @@ def test_episode_rollout(num_episodes: int = 3, max_steps: int = 100,
     return True
 
 
-def test_reward_components(render: bool = False):
-    """Analyze reward component distributions."""
-    print("\n" + "=" * 60)
-    print("Analyzing reward components over 500 random steps")
-    print("=" * 60)
-
-    render_mode = "human" if render else None
-    env = BrachioEnv(render_mode=render_mode)
-    obs, _ = env.reset(seed=42)
-
-    components = {
-        "reward_forward": [],
-        "reward_alive": [],
-        "reward_energy": [],
-        "reward_gait": [],
-        "reward_food": [],
-        "reward_total": [],
-    }
-
-    for _ in range(500):
-        action = env.action_space.sample()
-        obs, reward, terminated, truncated, info = env.step(action)
-
-        for key in components:
-            if key in info:
-                components[key].append(info[key])
-
-        if terminated or truncated:
-            obs, _ = env.reset()
-
-    env.close()
-
-    print("\nReward component statistics:")
-    print("-" * 50)
-    for key, values in components.items():
-        values = np.array(values)
-        print(f"  {key:20s}: mean={values.mean():8.4f}, "
-              f"std={values.std():8.4f}, "
-              f"min={values.min():8.4f}, max={values.max():8.4f}")
-
-    print("\nReward component analysis complete!")
-    return True
-
-
 def test_determinism():
     """Test that environment is deterministic given same seed."""
     print("\n" + "=" * 60)
@@ -171,11 +116,9 @@ def test_determinism():
     print("=" * 60)
 
     def run_episode(seed):
-        env = BrachioEnv()
+        env = TRexEnv()
         obs, _ = env.reset(seed=seed)
-
         np.random.seed(seed)
-
         trajectory = [obs.copy()]
         for _ in range(50):
             action = np.random.randn(env.action_space.shape[0]).astype(
@@ -186,7 +129,6 @@ def test_determinism():
             trajectory.append(obs.copy())
             if terminated or truncated:
                 break
-
         env.close()
         return np.array(trajectory)
 
@@ -202,54 +144,9 @@ def test_determinism():
         return False
 
 
-def test_observation_bounds():
-    """Check that observations stay within reasonable bounds."""
-    print("\n" + "=" * 60)
-    print("Testing observation bounds over 1000 steps")
-    print("=" * 60)
-
-    env = BrachioEnv()
-    obs, _ = env.reset(seed=42)
-
-    all_obs = [obs]
-
-    for _ in range(1000):
-        action = env.action_space.sample()
-        obs, _, terminated, truncated, _ = env.step(action)
-        all_obs.append(obs)
-
-        if terminated or truncated:
-            obs, _ = env.reset()
-
-    env.close()
-
-    all_obs = np.array(all_obs)
-
-    print("\nObservation statistics:")
-    print(f"  Shape: {all_obs.shape}")
-    print(f"  Min: {all_obs.min():.4f}")
-    print(f"  Max: {all_obs.max():.4f}")
-    print(f"  Mean: {all_obs.mean():.4f}")
-    print(f"  Std: {all_obs.std():.4f}")
-
-    if np.any(np.isnan(all_obs)):
-        print("WARNING: NaN values detected in observations!")
-        return False
-    if np.any(np.isinf(all_obs)):
-        print("WARNING: Inf values detected in observations!")
-        return False
-
-    if all_obs.max() > 1000 or all_obs.min() < -1000:
-        print("WARNING: Observations have very large values, "
-              "consider normalization")
-
-    print("\nObservation bounds test passed!")
-    return True
-
-
 def main():
     parser = argparse.ArgumentParser(
-        description="Test Brachiosaurus Gymnasium environment"
+        description="Test T-Rex Gymnasium environment"
     )
     parser.add_argument("--render", action="store_true",
                         help="Enable rendering")
@@ -260,14 +157,11 @@ def main():
     args = parser.parse_args()
 
     all_passed = True
-
     all_passed &= test_basic_functionality(render=args.render)
     all_passed &= test_episode_rollout(
         args.episodes, args.steps, render=args.render
     )
-    all_passed &= test_reward_components(render=args.render)
     all_passed &= test_determinism()
-    all_passed &= test_observation_bounds()
 
     print("\n" + "=" * 60)
     if all_passed:

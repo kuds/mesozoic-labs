@@ -20,10 +20,12 @@ import numpy as np
 import sys
 from pathlib import Path
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add repo root to path
+_repo_root = str(Path(__file__).resolve().parents[3])
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
 
-from envs.raptor_env import RaptorEnv
+from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 
 def test_basic_functionality(render: bool = False):
