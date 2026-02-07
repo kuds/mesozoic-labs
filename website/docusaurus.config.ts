@@ -114,7 +114,7 @@ const config: Config = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/mesozoic-labs',
+              href: 'https://github.com/kuds/mesozoic-labs',
             },
             {
               label: 'Finding Theta',
