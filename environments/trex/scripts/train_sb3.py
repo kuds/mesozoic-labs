@@ -26,6 +26,7 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
+import logging
 import numpy as np
 
 try:
@@ -46,84 +47,12 @@ except ImportError:
     sys.exit(1)
 
 from environments.trex.envs.trex_env import TRexEnv
+from environments.shared.config import load_all_stages
 
+logger = logging.getLogger(__name__)
 
-# Curriculum stage configurations
-STAGE_CONFIGS = {
-    1: {
-        "name": "balance",
-        "description": "Learn to stand and balance without falling",
-        "env_kwargs": {
-            "forward_vel_weight": 0.0,
-            "alive_bonus": 1.0,
-            "energy_penalty_weight": 0.0005,
-            "tail_stability_weight": 0.1,
-            "bite_bonus": 0.0,
-            "bite_approach_weight": 0.0,
-            "prey_distance_range": (10.0, 15.0),
-            "max_episode_steps": 500,
-        },
-        "ppo_kwargs": {
-            "learning_rate": 3e-4,
-            "n_steps": 2048,
-            "batch_size": 64,
-            "n_epochs": 10,
-            "gamma": 0.99,
-            "gae_lambda": 0.95,
-            "clip_range": 0.2,
-            "ent_coef": 0.01,
-        },
-    },
-    2: {
-        "name": "locomotion",
-        "description": "Learn forward walking/running",
-        "env_kwargs": {
-            "forward_vel_weight": 1.0,
-            "alive_bonus": 0.5,
-            "energy_penalty_weight": 0.001,
-            "tail_stability_weight": 0.05,
-            "bite_bonus": 0.0,
-            "bite_approach_weight": 0.2,
-            "prey_distance_range": (8.0, 12.0),
-            "max_episode_steps": 1000,
-        },
-        "ppo_kwargs": {
-            "learning_rate": 1e-4,
-            "n_steps": 2048,
-            "batch_size": 128,
-            "n_epochs": 10,
-            "gamma": 0.99,
-            "gae_lambda": 0.95,
-            "clip_range": 0.2,
-            "ent_coef": 0.005,
-        },
-    },
-    3: {
-        "name": "bite",
-        "description": "Sprint and bite prey with jaws",
-        "env_kwargs": {
-            "forward_vel_weight": 1.0,
-            "alive_bonus": 0.1,
-            "energy_penalty_weight": 0.001,
-            "tail_stability_weight": 0.02,
-            "bite_bonus": 500.0,
-            "bite_approach_weight": 0.5,
-            "prey_distance_range": (3.0, 8.0),
-            "prey_lateral_range": (-1.5, 1.5),
-            "max_episode_steps": 1000,
-        },
-        "ppo_kwargs": {
-            "learning_rate": 5e-5,
-            "n_steps": 4096,
-            "batch_size": 256,
-            "n_epochs": 10,
-            "gamma": 0.995,
-            "gae_lambda": 0.95,
-            "clip_range": 0.1,
-            "ent_coef": 0.001,
-        },
-    },
-}
+# Load curriculum configs from TOML files (configs/trex/)
+STAGE_CONFIGS = load_all_stages("trex")
 
 
 def make_env(stage: int, rank: int, seed: int = 0):

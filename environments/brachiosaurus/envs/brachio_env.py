@@ -306,9 +306,9 @@ class BrachioEnv(BaseDinoEnv):
         self.data.mocap_pos[0] = food_pos
 
 
-# Register with Gymnasium
+# Register with Gymnasium (MesozoicLabs namespace)
 gym.register(
-    id="Brachio-v0",
+    id="MesozoicLabs/Brachio-v0",
     entry_point="environments.brachiosaurus.envs.brachio_env:BrachioEnv",
     max_episode_steps=1000,
 )

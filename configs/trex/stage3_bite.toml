@@ -1,0 +1,31 @@
+[stage]
+name = "bite"
+description = "Sprint and bite prey with jaws"
+
+[env]
+forward_vel_weight = 1.0
+alive_bonus = 0.1
+energy_penalty_weight = 0.001
+tail_stability_weight = 0.02
+bite_bonus = 500.0
+bite_approach_weight = 0.5
+prey_distance_range = [3.0, 8.0]
+prey_lateral_range = [-1.5, 1.5]
+max_episode_steps = 1000
+
+[ppo]
+learning_rate = 5e-5
+n_steps = 4096
+batch_size = 256
+n_epochs = 10
+gamma = 0.995
+gae_lambda = 0.95
+clip_range = 0.1
+ent_coef = 0.001
+
+[sac]
+learning_rate = 5e-5
+batch_size = 256
+gamma = 0.995
+tau = 0.005
+ent_coef = "auto"

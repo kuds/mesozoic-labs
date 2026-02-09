@@ -1,0 +1,31 @@
+[stage]
+name = "balance"
+description = "Learn to stand on four legs without falling"
+
+[env]
+forward_vel_weight = 0.0
+alive_bonus = 1.0
+energy_penalty_weight = 0.0005
+gait_stability_weight = 0.1
+food_reach_bonus = 0.0
+food_approach_weight = 0.0
+food_distance_range = [10.0, 15.0]
+food_height_range = [2.0, 3.0]
+max_episode_steps = 500
+
+[ppo]
+learning_rate = 3e-4
+n_steps = 2048
+batch_size = 64
+n_epochs = 10
+gamma = 0.99
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.01
+
+[sac]
+learning_rate = 3e-4
+batch_size = 256
+gamma = 0.99
+tau = 0.005
+ent_coef = "auto"

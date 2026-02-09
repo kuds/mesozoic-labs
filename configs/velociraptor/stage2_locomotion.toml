@@ -1,0 +1,30 @@
+[stage]
+name = "locomotion"
+description = "Learn forward walking/running"
+
+[env]
+forward_vel_weight = 1.0
+alive_bonus = 0.5
+energy_penalty_weight = 0.001
+tail_stability_weight = 0.05
+strike_bonus = 0.0
+strike_approach_weight = 0.2
+prey_distance_range = [8.0, 12.0]
+max_episode_steps = 1000
+
+[ppo]
+learning_rate = 1e-4
+n_steps = 2048
+batch_size = 128
+n_epochs = 10
+gamma = 0.99
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.005
+
+[sac]
+learning_rate = 1e-4
+batch_size = 256
+gamma = 0.99
+tau = 0.005
+ent_coef = "auto"

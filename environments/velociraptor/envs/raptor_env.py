@@ -270,9 +270,9 @@ class RaptorEnv(BaseDinoEnv):
         self.data.mocap_pos[0] = prey_pos
 
 
-# Register with Gymnasium
+# Register with Gymnasium (MesozoicLabs namespace)
 gym.register(
-    id="Raptor-v0",
+    id="MesozoicLabs/Raptor-v0",
     entry_point="environments.velociraptor.envs.raptor_env:RaptorEnv",
     max_episode_steps=1000,
 )

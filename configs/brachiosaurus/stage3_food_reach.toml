@@ -1,0 +1,33 @@
+[stage]
+name = "food_reach"
+description = "Walk to food and reach with neck"
+
+[env]
+forward_vel_weight = 1.0
+alive_bonus = 0.1
+energy_penalty_weight = 0.001
+gait_stability_weight = 0.02
+food_reach_bonus = 500.0
+food_reach_threshold = 0.5
+food_approach_weight = 0.3
+food_distance_range = [3.0, 8.0]
+food_lateral_range = [-1.5, 1.5]
+food_height_range = [2.5, 4.0]
+max_episode_steps = 1000
+
+[ppo]
+learning_rate = 5e-5
+n_steps = 4096
+batch_size = 256
+n_epochs = 10
+gamma = 0.995
+gae_lambda = 0.95
+clip_range = 0.1
+ent_coef = 0.001
+
+[sac]
+learning_rate = 5e-5
+batch_size = 256
+gamma = 0.995
+tau = 0.005
+ent_coef = "auto"

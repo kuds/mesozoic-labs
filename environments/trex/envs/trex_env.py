@@ -304,9 +304,9 @@ class TRexEnv(BaseDinoEnv):
         self.data.mocap_pos[0] = prey_pos
 
 
-# Register with Gymnasium
+# Register with Gymnasium (MesozoicLabs namespace)
 gym.register(
-    id="TRex-v0",
+    id="MesozoicLabs/TRex-v0",
     entry_point="environments.trex.envs.trex_env:TRexEnv",
     max_episode_steps=1000,
 )
