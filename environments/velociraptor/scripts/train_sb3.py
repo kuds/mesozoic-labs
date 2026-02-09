@@ -23,8 +23,8 @@ Usage:
 import argparse
 import logging
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Add repo root to path
 _repo_root = str(Path(__file__).resolve().parents[3])
@@ -42,25 +42,21 @@ logger = logging.getLogger(__name__)
 
 try:
     from stable_baselines3 import PPO
-    from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
-    from stable_baselines3.common.callbacks import (
-        EvalCallback,
-        CheckpointCallback,
-        CallbackList
-    )
+    from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
     from stable_baselines3.common.monitor import Monitor
     from stable_baselines3.common.utils import set_random_seed
+    from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecNormalize
 except ImportError:
     logger.error("stable-baselines3 not installed. Install with: pip install stable-baselines3[extra]")
     sys.exit(1)
 
-from environments.velociraptor.envs.raptor_env import RaptorEnv
 from environments.shared.config import load_all_stages
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,
     thresholds_from_configs,
 )
+from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 # Load curriculum configs from TOML files (configs/velociraptor/)
 STAGE_CONFIGS = load_all_stages("velociraptor")
@@ -68,12 +64,14 @@ STAGE_CONFIGS = load_all_stages("velociraptor")
 
 def make_env(stage: int, rank: int, seed: int = 0):
     """Create a single environment instance."""
+
     def _init():
         env_kwargs = STAGE_CONFIGS[stage]["env_kwargs"].copy()
         env = RaptorEnv(**env_kwargs)
         env = Monitor(env)
         env.reset(seed=seed + rank)
         return env
+
     set_random_seed(seed)
     return _init
 
@@ -102,10 +100,10 @@ def train(
     total_timesteps: int,
     n_envs: int = 4,
     seed: int = 42,
-    load_path: str = None,
+    load_path: str | None = None,
     eval_freq: int = 10000,
     save_freq: int = 50000,
-    log_dir: str = None,
+    log_dir: str | None = None,
     use_subproc: bool = False,
 ):
     """Train the raptor policy."""
@@ -118,16 +116,17 @@ def train(
 
     # Setup directories
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_path: Path
     if log_dir is None:
-        log_dir = Path(__file__).parent.parent / "logs" / f"stage{stage}_{timestamp}"
+        log_path = Path(__file__).parent.parent / "logs" / f"stage{stage}_{timestamp}"
     else:
-        log_dir = Path(log_dir)
+        log_path = Path(log_dir)
 
-    log_dir.mkdir(parents=True, exist_ok=True)
-    model_dir = log_dir / "models"
+    log_path.mkdir(parents=True, exist_ok=True)
+    model_dir = log_path / "models"
     model_dir.mkdir(exist_ok=True)
 
-    logger.info("Log directory: %s", log_dir)
+    logger.info("Log directory: %s", log_path)
     logger.info("Model directory: %s", model_dir)
 
     # Create environments
@@ -140,7 +139,7 @@ def train(
     # Create or load model
     ppo_kwargs = config["ppo_kwargs"].copy()
     ppo_kwargs["verbose"] = 1
-    ppo_kwargs["tensorboard_log"] = str(log_dir / "tensorboard")
+    ppo_kwargs["tensorboard_log"] = str(log_path / "tensorboard")
 
     if load_path:
         logger.info("Loading model from: %s", load_path)
@@ -169,7 +168,7 @@ def train(
     eval_callback = EvalCallback(
         eval_env,
         best_model_save_path=str(model_dir),
-        log_path=str(log_dir),
+        log_path=str(log_path),
         eval_freq=eval_freq // n_envs,  # Adjusted for vec env
         n_eval_episodes=5,
         deterministic=True,
@@ -225,7 +224,7 @@ def train_curriculum(
     seed: int = 42,
     eval_freq: int = 10000,
     save_freq: int = 50000,
-    log_dir: str = None,
+    log_dir: str | None = None,
     use_subproc: bool = False,
 ):
     """Run the full 3-stage curriculum with automatic advancement."""
@@ -344,8 +343,7 @@ def train_curriculum(
         elif stage < 3:
             # Timestep budget exhausted without meeting threshold
             logger.warning(
-                "Stage %d timestep budget exhausted without meeting "
-                "advancement thresholds. Advancing anyway.",
+                "Stage %d timestep budget exhausted without meeting advancement thresholds. Advancing anyway.",
                 stage,
             )
             manager.advance()
@@ -356,7 +354,7 @@ def train_curriculum(
     logger.info("=" * 60)
 
 
-def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: int = None):
+def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: int | None = None):
     """Evaluate a trained model.
 
     Args:
@@ -438,51 +436,41 @@ def main():
 
     # Train command
     train_parser = subparsers.add_parser("train", help="Train a policy")
-    train_parser.add_argument("--stage", type=int, choices=[1, 2, 3], default=1,
-                             help="Curriculum stage (1=balance, 2=locomotion, 3=strike)")
-    train_parser.add_argument("--timesteps", type=int, default=500000,
-                             help="Total training timesteps")
-    train_parser.add_argument("--n-envs", type=int, default=4,
-                             help="Number of parallel environments")
-    train_parser.add_argument("--load", type=str, default=None,
-                             help="Path to model to continue training from")
-    train_parser.add_argument("--seed", type=int, default=42,
-                             help="Random seed")
-    train_parser.add_argument("--eval-freq", type=int, default=10000,
-                             help="Evaluation frequency (timesteps)")
-    train_parser.add_argument("--save-freq", type=int, default=50000,
-                             help="Checkpoint save frequency (timesteps)")
-    train_parser.add_argument("--log-dir", type=str, default=None,
-                             help="Custom log directory")
-    train_parser.add_argument("--subproc", action="store_true",
-                             help="Use subprocess vectorization (faster but more memory)")
+    train_parser.add_argument(
+        "--stage", type=int, choices=[1, 2, 3], default=1, help="Curriculum stage (1=balance, 2=locomotion, 3=strike)"
+    )
+    train_parser.add_argument("--timesteps", type=int, default=500000, help="Total training timesteps")
+    train_parser.add_argument("--n-envs", type=int, default=4, help="Number of parallel environments")
+    train_parser.add_argument("--load", type=str, default=None, help="Path to model to continue training from")
+    train_parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    train_parser.add_argument("--eval-freq", type=int, default=10000, help="Evaluation frequency (timesteps)")
+    train_parser.add_argument("--save-freq", type=int, default=50000, help="Checkpoint save frequency (timesteps)")
+    train_parser.add_argument("--log-dir", type=str, default=None, help="Custom log directory")
+    train_parser.add_argument(
+        "--subproc", action="store_true", help="Use subprocess vectorization (faster but more memory)"
+    )
 
     # Curriculum command
-    cur_parser = subparsers.add_parser(
-        "curriculum", help="Run automated end-to-end curriculum (stages 1-3)"
-    )
-    cur_parser.add_argument("--n-envs", type=int, default=4,
-                            help="Number of parallel environments")
-    cur_parser.add_argument("--seed", type=int, default=42,
-                            help="Random seed")
-    cur_parser.add_argument("--eval-freq", type=int, default=10000,
-                            help="Evaluation frequency (timesteps)")
-    cur_parser.add_argument("--save-freq", type=int, default=50000,
-                            help="Checkpoint save frequency (timesteps)")
-    cur_parser.add_argument("--log-dir", type=str, default=None,
-                            help="Custom log directory")
-    cur_parser.add_argument("--subproc", action="store_true",
-                            help="Use subprocess vectorization")
+    cur_parser = subparsers.add_parser("curriculum", help="Run automated end-to-end curriculum (stages 1-3)")
+    cur_parser.add_argument("--n-envs", type=int, default=4, help="Number of parallel environments")
+    cur_parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    cur_parser.add_argument("--eval-freq", type=int, default=10000, help="Evaluation frequency (timesteps)")
+    cur_parser.add_argument("--save-freq", type=int, default=50000, help="Checkpoint save frequency (timesteps)")
+    cur_parser.add_argument("--log-dir", type=str, default=None, help="Custom log directory")
+    cur_parser.add_argument("--subproc", action="store_true", help="Use subprocess vectorization")
 
     # Eval command
     eval_parser = subparsers.add_parser("eval", help="Evaluate a trained policy")
     eval_parser.add_argument("model_path", type=str, help="Path to trained model")
-    eval_parser.add_argument("--stage", type=int, choices=[1, 2, 3], default=None,
-                            help="Curriculum stage (auto-detected from filename if omitted)")
-    eval_parser.add_argument("--episodes", type=int, default=10,
-                            help="Number of episodes to evaluate")
-    eval_parser.add_argument("--no-render", action="store_true",
-                            help="Disable rendering")
+    eval_parser.add_argument(
+        "--stage",
+        type=int,
+        choices=[1, 2, 3],
+        default=None,
+        help="Curriculum stage (auto-detected from filename if omitted)",
+    )
+    eval_parser.add_argument("--episodes", type=int, default=10, help="Number of episodes to evaluate")
+    eval_parser.add_argument("--no-render", action="store_true", help="Disable rendering")
 
     # Parse args
     args = parser.parse_args()

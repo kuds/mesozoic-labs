@@ -29,10 +29,18 @@ class TestCurriculumManager:
         return CurriculumManager(
             species="velociraptor",
             stage_thresholds={
-                1: {"min_avg_reward": 10.0, "min_avg_episode_length": 50,
-                    "min_eval_episodes": 3, "required_consecutive": 2},
-                2: {"min_avg_reward": 50.0, "min_avg_episode_length": 200,
-                    "min_eval_episodes": 3, "required_consecutive": 2},
+                1: {
+                    "min_avg_reward": 10.0,
+                    "min_avg_episode_length": 50,
+                    "min_eval_episodes": 3,
+                    "required_consecutive": 2,
+                },
+                2: {
+                    "min_avg_reward": 50.0,
+                    "min_avg_episode_length": 200,
+                    "min_eval_episodes": 3,
+                    "required_consecutive": 2,
+                },
             },
             start_stage=1,
         )
@@ -122,8 +130,7 @@ class TestCurriculumManager:
         mgr = CurriculumManager(
             species="velociraptor",
             stage_thresholds={
-                1: {"min_avg_reward": 0.0, "min_eval_episodes": 5,
-                    "required_consecutive": 1},
+                1: {"min_avg_reward": 0.0, "min_eval_episodes": 5, "required_consecutive": 1},
             },
         )
         # Only 3 episodes provided

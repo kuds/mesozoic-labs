@@ -27,11 +27,11 @@ Reward components:
 """
 
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 import gymnasium as gym
 import mujoco
 import numpy as np
-from typing import Optional, Dict, Any, Tuple
 
 from environments.shared.base_env import BaseDinoEnv
 
@@ -121,18 +121,20 @@ class RaptorEnv(BaseDinoEnv):
         qvel = self.data.qvel[6:].copy()
 
         # Pelvis state from sensors
-        pelvis_gyro = self.data.sensordata[self._sensor_gyro_start:self._sensor_gyro_start + 3].copy()
-        pelvis_accel = self.data.sensordata[self._sensor_accel_start:self._sensor_accel_start + 3].copy()
-        pelvis_quat = self.data.sensordata[self._sensor_quat_start:self._sensor_quat_start + 4].copy()
+        pelvis_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3].copy()
+        pelvis_accel = self.data.sensordata[self._sensor_accel_start : self._sensor_accel_start + 3].copy()
+        pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4].copy()
 
         # Pelvis linear velocity (from root freejoint)
         pelvis_linvel = self.data.qvel[0:3].copy()
 
         # Foot contact (from touch sensors)
-        foot_contact = np.array([
-            self.data.sensordata[self._sensor_r_foot],
-            self.data.sensordata[self._sensor_l_foot],
-        ])
+        foot_contact = np.array(
+            [
+                self.data.sensordata[self._sensor_r_foot],
+                self.data.sensordata[self._sensor_l_foot],
+            ]
+        )
 
         # Prey info (relative to pelvis)
         pelvis_pos = self.data.xpos[self.pelvis_id]
@@ -143,17 +145,19 @@ class RaptorEnv(BaseDinoEnv):
         # Normalize prey direction
         prey_direction = prey_rel / (prey_distance + 1e-8)
 
-        obs = np.concatenate([
-            qpos,                   # Joint positions
-            qvel,                   # Joint velocities
-            pelvis_quat,            # Orientation (quaternion)
-            pelvis_gyro,            # Angular velocity
-            pelvis_linvel,          # Linear velocity
-            pelvis_accel,           # Accelerometer
-            foot_contact,           # Foot contacts
-            prey_direction,         # Direction to prey (unit vector)
-            [prey_distance],        # Distance to prey (scalar)
-        ]).astype(np.float32)
+        obs = np.concatenate(
+            [
+                qpos,  # Joint positions
+                qvel,  # Joint velocities
+                pelvis_quat,  # Orientation (quaternion)
+                pelvis_gyro,  # Angular velocity
+                pelvis_linvel,  # Linear velocity
+                pelvis_accel,  # Accelerometer
+                foot_contact,  # Foot contacts
+                prey_direction,  # Direction to prey (unit vector)
+                [prey_distance],  # Distance to prey (scalar)
+            ]
+        ).astype(np.float32)
 
         return obs
 
@@ -178,11 +182,7 @@ class RaptorEnv(BaseDinoEnv):
 
         # 4. Tail stability (penalize high angular velocity at tail tip)
         tail_vel = np.zeros(6)
-        mujoco.mj_objectVelocity(
-            self.model, self.data,
-            mujoco.mjtObj.mjOBJ_SITE, self.tail_tip_site_id,
-            tail_vel, 0
-        )
+        mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, self.tail_tip_site_id, tail_vel, 0)
         tail_tip_angvel = tail_vel[3:6]  # Angular velocity (last 3 elements)
         tail_instability = np.linalg.norm(tail_tip_angvel)
         reward_tail = -self.tail_stability_weight * tail_instability
@@ -197,8 +197,9 @@ class RaptorEnv(BaseDinoEnv):
 
             # Check if either claw touched prey
             claw_geoms = {self.r_claw_geom_id, self.l_claw_geom_id}
-            if (geom1 in claw_geoms and geom2 == self.prey_geom_id) or \
-               (geom2 in claw_geoms and geom1 == self.prey_geom_id):
+            if (geom1 in claw_geoms and geom2 == self.prey_geom_id) or (
+                geom2 in claw_geoms and geom1 == self.prey_geom_id
+            ):
                 strike_reward = self.strike_bonus
                 info["strike_success"] = 1.0
                 break
@@ -217,10 +218,7 @@ class RaptorEnv(BaseDinoEnv):
         info["reward_approach"] = reward_approach
 
         # Total reward
-        total_reward = (
-            reward_forward + reward_alive + reward_energy
-            + reward_tail + reward_strike + reward_approach
-        )
+        total_reward = reward_forward + reward_alive + reward_energy + reward_tail + reward_strike + reward_approach
         info["reward_total"] = total_reward
 
         return total_reward, info
@@ -249,8 +247,9 @@ class RaptorEnv(BaseDinoEnv):
             geom1, geom2 = contact.geom1, contact.geom2
 
             # Torso touching floor = fallen
-            if (geom1 == self.torso_geom_id and geom2 == self.floor_geom_id) or \
-               (geom2 == self.torso_geom_id and geom1 == self.floor_geom_id):
+            if (geom1 == self.torso_geom_id and geom2 == self.floor_geom_id) or (
+                geom2 == self.torso_geom_id and geom1 == self.floor_geom_id
+            ):
                 info["termination_reason"] = "torso_contact"
                 return True, info
 

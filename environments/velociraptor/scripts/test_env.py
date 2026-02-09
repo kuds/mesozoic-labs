@@ -16,9 +16,10 @@ Usage:
 """
 
 import argparse
-import numpy as np
 import sys
 from pathlib import Path
+
+import numpy as np
 
 # Add repo root to path
 _repo_root = str(Path(__file__).resolve().parents[3])
@@ -90,7 +91,7 @@ def test_episode_rollout(num_episodes: int = 3, max_steps: int = 100, render: bo
 
     for ep in range(num_episodes):
         obs, info = env.reset(seed=ep)
-        total_reward = 0
+        total_reward: float = 0.0
         step = 0
 
         while True:
@@ -108,7 +109,7 @@ def test_episode_rollout(num_episodes: int = 3, max_steps: int = 100, render: bo
 
         episode_rewards.append(total_reward)
         episode_lengths.append(step)
-        print(f"  Episode {ep+1}: reward={total_reward:.2f}, length={step}, ended={termination_reasons[-1]}")
+        print(f"  Episode {ep + 1}: reward={total_reward:.2f}, length={step}, ended={termination_reasons[-1]}")
 
     env.close()
 
@@ -131,7 +132,7 @@ def test_reward_components(render: bool = False):
     obs, _ = env.reset(seed=42)
 
     # Collect reward components
-    components = {
+    components: dict[str, list[float]] = {
         "reward_forward": [],
         "reward_alive": [],
         "reward_energy": [],
@@ -157,8 +158,10 @@ def test_reward_components(render: bool = False):
     print("-" * 50)
     for key, values in components.items():
         values = np.array(values)
-        print(f"  {key:20s}: mean={values.mean():8.4f}, std={values.std():8.4f}, "
-              f"min={values.min():8.4f}, max={values.max():8.4f}")
+        print(
+            f"  {key:20s}: mean={values.mean():8.4f}, std={values.std():8.4f}, "
+            f"min={values.min():8.4f}, max={values.max():8.4f}"
+        )
 
     print("\n✓ Reward component analysis complete!")
     return True

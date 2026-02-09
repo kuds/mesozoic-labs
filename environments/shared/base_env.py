@@ -11,11 +11,11 @@ across all dinosaur species. Subclasses override species-specific methods:
 """
 
 from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional, Tuple
 
 import gymnasium as gym
 import mujoco
 import numpy as np
-from typing import Dict, Any, Optional, Tuple
 
 
 class BaseDinoEnv(gym.Env, ABC):
@@ -102,9 +102,7 @@ class BaseDinoEnv(gym.Env, ABC):
         """Construct the observation vector."""
 
     @abstractmethod
-    def _get_reward_info(
-        self, action: np.ndarray
-    ) -> Tuple[float, Dict[str, float]]:
+    def _get_reward_info(self, action: np.ndarray) -> Tuple[float, Dict[str, float]]:
         """Compute reward and breakdown dict for logging."""
 
     @abstractmethod
@@ -119,9 +117,7 @@ class BaseDinoEnv(gym.Env, ABC):
     # Shared methods
     # ------------------------------------------------------------------
 
-    def step(
-        self, action: np.ndarray
-    ) -> Tuple[np.ndarray, float, bool, bool, Dict]:
+    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict]:
         """Execute one environment step."""
         # Scale action from [-1, 1] to actuator control ranges
         ctrl = self._scale_action(action)
@@ -185,12 +181,8 @@ class BaseDinoEnv(gym.Env, ABC):
         # Add small random perturbation to initial pose
         if self.np_random is not None:
             noise_scale = 0.01
-            self.data.qpos[7:] += self.np_random.uniform(
-                -noise_scale, noise_scale, size=self.data.qpos[7:].shape
-            )
-            self.data.qvel[:] += self.np_random.uniform(
-                -noise_scale, noise_scale, size=self.data.qvel.shape
-            )
+            self.data.qpos[7:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qpos[7:].shape)
+            self.data.qvel[:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qvel.shape)
 
         # Randomize target position (species-specific)
         self._spawn_target()
@@ -209,9 +201,7 @@ class BaseDinoEnv(gym.Env, ABC):
         """Render the environment."""
         if self.render_mode == "human":
             if self._viewer is None:
-                self._viewer = mujoco.viewer.launch_passive(
-                    self.model, self.data
-                )
+                self._viewer = mujoco.viewer.launch_passive(self.model, self.data)
                 self._viewer.cam.distance = self._camera_distance
                 self._viewer.cam.azimuth = self._camera_azimuth
                 self._viewer.cam.elevation = self._camera_elevation
@@ -219,9 +209,7 @@ class BaseDinoEnv(gym.Env, ABC):
 
         elif self.render_mode == "rgb_array":
             if self._renderer is None:
-                self._renderer = mujoco.Renderer(
-                    self.model, height=480, width=640
-                )
+                self._renderer = mujoco.Renderer(self.model, height=480, width=640)
             self._renderer.update_scene(self.data)
             return self._renderer.render()
 

@@ -7,11 +7,12 @@ Usage:
     python test_actuators.py
 """
 
+import time
+from pathlib import Path
+
 import mujoco
 import mujoco.viewer
 import numpy as np
-from pathlib import Path
-import time
 
 
 def main():
