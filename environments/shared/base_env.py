@@ -204,9 +204,7 @@ class BaseDinoEnv(gym.Env, ABC):
         camera = mujoco.MjvCamera()
         if self._camera_track_body is not None:
             camera.type = mujoco.mjtCamera.mjCAMERA_TRACKING
-            camera.trackbodyid = mujoco.mj_name2id(
-                self.model, mujoco.mjtObj.mjOBJ_BODY, self._camera_track_body
-            )
+            camera.trackbodyid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, self._camera_track_body)
         camera.distance = self._camera_distance
         camera.azimuth = self._camera_azimuth
         camera.elevation = self._camera_elevation
@@ -220,9 +218,7 @@ class BaseDinoEnv(gym.Env, ABC):
                 cam = self._viewer.cam
                 if self._camera_track_body is not None:
                     cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
-                    cam.trackbodyid = mujoco.mj_name2id(
-                        self.model, mujoco.mjtObj.mjOBJ_BODY, self._camera_track_body
-                    )
+                    cam.trackbodyid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, self._camera_track_body)
                 cam.distance = self._camera_distance
                 cam.azimuth = self._camera_azimuth
                 cam.elevation = self._camera_elevation
