@@ -6,13 +6,18 @@ Each species has a configs/<species>/ directory with one TOML file per stage:
     stage2_locomotion.toml
     stage3_<behavior>.toml
 
-Each TOML file has three tables: [stage], [env], and [ppo]/[sac].
+Each TOML file has four tables: [stage], [env], [ppo]/[sac], and [curriculum].
+The [curriculum] table contains per-stage training and advancement settings:
+    timesteps           - number of timesteps to train this stage
+    min_avg_reward      - minimum average reward to advance (optional)
+    min_avg_episode_length - minimum average episode length to advance (optional)
+    required_consecutive   - number of consecutive passes required (optional)
 """
 
-import tomllib
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import tomllib
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CONFIGS_DIR = _REPO_ROOT / "configs"
@@ -25,21 +30,14 @@ def _find_stage_file(species: str, stage: int) -> Path:
     """Find the TOML config file for a given species and stage."""
     species_dir = _CONFIGS_DIR / species
     if not species_dir.is_dir():
-        raise FileNotFoundError(
-            f"Config directory not found: {species_dir}"
-        )
+        raise FileNotFoundError(f"Config directory not found: {species_dir}")
 
     prefix = _STAGE_FILE_PREFIX[stage]
     matches = list(species_dir.glob(f"{prefix}*.toml"))
     if not matches:
-        raise FileNotFoundError(
-            f"No config file matching '{prefix}*.toml' in {species_dir}"
-        )
+        raise FileNotFoundError(f"No config file matching '{prefix}*.toml' in {species_dir}")
     if len(matches) > 1:
-        raise ValueError(
-            f"Multiple config files matching '{prefix}*.toml' "
-            f"in {species_dir}: {matches}"
-        )
+        raise ValueError(f"Multiple config files matching '{prefix}*.toml' in {species_dir}: {matches}")
     return matches[0]
 
 
@@ -74,6 +72,7 @@ def load_stage_config(
     env_raw = raw.get("env", {})
     ppo_raw = raw.get("ppo", {})
     sac_raw = raw.get("sac", {})
+    curriculum_raw = raw.get("curriculum", {})
 
     # Convert lists to tuples for range parameters (e.g. prey_distance_range)
     env_kwargs = {}
@@ -89,6 +88,7 @@ def load_stage_config(
         "env_kwargs": env_kwargs,
         "ppo_kwargs": dict(ppo_raw),
         "sac_kwargs": dict(sac_raw),
+        "curriculum_kwargs": dict(curriculum_raw),
     }
 
 
@@ -98,7 +98,4 @@ def load_all_stages(species: str) -> Dict[int, Dict[str, Any]]:
     Returns:
         Dictionary mapping stage number (1, 2, 3) to stage config dicts.
     """
-    return {
-        stage: load_stage_config(species, stage)
-        for stage in (1, 2, 3)
-    }
+    return {stage: load_stage_config(species, stage) for stage in (1, 2, 3)}

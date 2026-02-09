@@ -69,24 +69,26 @@ curriculum with published results and reproducible checkpoints.
   - Same as above for quadrupedal locomotion + food reach
   - _Dependency: None (parallel with Velociraptor)_
 
-- [ ] **T-Rex environment buildout**
-  - Implement `TRexEnv` subclass (env, tests, training script)
-  - The MJCF model and assets already exist
-  - Complete 3-stage training with PPO and SAC
+- [-] **T-Rex environment buildout**
+  - [x] Implement `TRexEnv` subclass (env, tests, training script)
+  - [x] The MJCF model, assets, and Gymnasium registration exist
+  - [ ] Complete 3-stage training with PPO and SAC
   - _Dependency: None (parallel with other species)_
 
-- [-] **Automated curriculum transitions**
+- [x] **Automated curriculum transitions**
   - Build `CurriculumManager` class that monitors eval metrics
   - Auto-advance stages when performance thresholds are met
-  - Enables hands-off end-to-end training runs
-  - Integrate into training scripts (TODO)
+  - `CurriculumCallback` for SB3 integration (stops training on threshold)
+  - `curriculum` subcommand in all training scripts for end-to-end runs
+  - Per-stage thresholds defined in TOML config `[curriculum]` sections
+  - `thresholds_from_configs()` helper to extract thresholds from TOML
   - _Dependency: Phase 0 config externalization_
 
-- [-] **W&B experiment tracking integration**
+- [x] **W&B experiment tracking integration**
   - Add `wandb` to optional dependencies
   - `WandbCallback` for SB3 logs per-component rewards and hyperparameters
   - Save git commit hash and full config snapshot per run
-  - Record videos of evaluation episodes (TODO)
+  - Video recording of evaluation episodes via `WandbCallback(video_env=...)`
   - _Dependency: None_
 
 - [x] **Expanded evaluation metrics**
