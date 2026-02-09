@@ -17,6 +17,7 @@ Usage:
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 from datetime import datetime
@@ -26,8 +27,14 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-import logging
 import numpy as np
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 try:
     from stable_baselines3 import PPO
@@ -40,14 +47,11 @@ try:
     from stable_baselines3.common.monitor import Monitor
     from stable_baselines3.common.utils import set_random_seed
 except ImportError:
-    print("ERROR: stable-baselines3 not installed.")
-    print("Install with: pip install stable-baselines3[extra]")
+    logger.error("stable-baselines3 not installed. Install with: pip install stable-baselines3[extra]")
     sys.exit(1)
 
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 from environments.shared.config import load_all_stages
-
-logger = logging.getLogger(__name__)
 
 # Load curriculum configs from TOML files (configs/velociraptor/)
 STAGE_CONFIGS = load_all_stages("velociraptor")
@@ -98,10 +102,10 @@ def train(
     """Train the raptor policy."""
 
     config = STAGE_CONFIGS[stage]
-    print("=" * 60)
-    print(f"Training Stage {stage}: {config['name']}")
-    print(f"Description: {config['description']}")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Training Stage %d: %s", stage, config["name"])
+    logger.info("Description: %s", config["description"])
+    logger.info("=" * 60)
 
     # Setup directories
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -114,14 +118,14 @@ def train(
     model_dir = log_dir / "models"
     model_dir.mkdir(exist_ok=True)
 
-    print(f"\nLog directory: {log_dir}")
-    print(f"Model directory: {model_dir}")
+    logger.info("Log directory: %s", log_dir)
+    logger.info("Model directory: %s", model_dir)
 
     # Create environments
-    print(f"\nCreating {n_envs} training environments...")
+    logger.info("Creating %d training environments...", n_envs)
     train_env = create_vec_env(stage, n_envs, seed, use_subproc)
 
-    print("Creating evaluation environment...")
+    logger.info("Creating evaluation environment...")
     eval_env = create_vec_env(stage, 1, seed + 1000, use_subproc=False)
 
     # Create or load model
@@ -130,25 +134,24 @@ def train(
     ppo_kwargs["tensorboard_log"] = str(log_dir / "tensorboard")
 
     if load_path:
-        print(f"\nLoading model from: {load_path}")
+        logger.info("Loading model from: %s", load_path)
         model = PPO.load(load_path, env=train_env)
         # Update hyperparameters for new stage
         model.learning_rate = ppo_kwargs["learning_rate"]
         model.ent_coef = ppo_kwargs["ent_coef"]
         model.clip_range = ppo_kwargs["clip_range"]
     else:
-        print("\nCreating new PPO model...")
+        logger.info("Creating new PPO model...")
         model = PPO(
             "MlpPolicy",
             train_env,
             **ppo_kwargs,
         )
 
-    # Print model info
-    print("\nModel architecture:")
-    print(f"  Policy: {model.policy}")
-    print(f"  Learning rate: {model.learning_rate}")
-    print(f"  Batch size: {ppo_kwargs['batch_size']}")
+    logger.info("Model architecture:")
+    logger.info("  Policy: %s", model.policy)
+    logger.info("  Learning rate: %s", model.learning_rate)
+    logger.info("  Batch size: %s", ppo_kwargs["batch_size"])
 
     # Setup callbacks
     callbacks = []
@@ -177,8 +180,8 @@ def train(
     callback_list = CallbackList(callbacks)
 
     # Train
-    print(f"\nStarting training for {total_timesteps:,} timesteps...")
-    print("-" * 60)
+    logger.info("Starting training for %s timesteps...", f"{total_timesteps:,}")
+    logger.info("-" * 60)
 
     try:
         model.learn(
@@ -187,11 +190,11 @@ def train(
             progress_bar=True,
         )
     except KeyboardInterrupt:
-        print("\n\nTraining interrupted by user.")
+        logger.warning("Training interrupted by user.")
 
     # Save final model
     final_path = model_dir / f"stage{stage}_final"
-    print(f"\nSaving final model to: {final_path}")
+    logger.info("Saving final model to: %s", final_path)
     model.save(str(final_path))
     train_env.save(str(final_path) + "_vecnorm.pkl")
 
@@ -199,11 +202,11 @@ def train(
     train_env.close()
     eval_env.close()
 
-    print("\n" + "=" * 60)
-    print("Training complete!")
-    print(f"Final model: {final_path}.zip")
-    print(f"VecNormalize stats: {final_path}_vecnorm.pkl")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Training complete!")
+    logger.info("Final model: %s.zip", final_path)
+    logger.info("VecNormalize stats: %s_vecnorm.pkl", final_path)
+    logger.info("=" * 60)
 
     return model
 
@@ -217,7 +220,7 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
         render: Whether to render in a window.
         stage: Curriculum stage (1-3). Auto-detected from filename if not provided.
     """
-    print(f"Loading model from: {model_path}")
+    logger.info("Loading model from: %s", model_path)
 
     # Determine stage from argument or filename
     if stage is None:
@@ -226,7 +229,7 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
             if f"stage{s}" in model_path:
                 stage = s
                 break
-        print(f"Auto-detected stage {stage} from filename")
+        logger.info("Auto-detected stage %d from filename", stage)
 
     env_kwargs = STAGE_CONFIGS[stage]["env_kwargs"].copy()
 
@@ -244,16 +247,16 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
     vec_env = DummyVecEnv([_make_eval_env])
 
     if Path(vecnorm_path).exists():
-        print(f"Loading normalization stats from: {vecnorm_path}")
+        logger.info("Loading normalization stats from: %s", vecnorm_path)
         vec_env = VecNormalize.load(vecnorm_path, vec_env)
         vec_env.training = False
         vec_env.norm_reward = False
     else:
-        print("WARNING: No VecNormalize stats found. Results may differ from training.")
+        logger.warning("No VecNormalize stats found. Results may differ from training.")
 
     model = PPO.load(model_path, env=vec_env)
 
-    print(f"\nEvaluating for {n_episodes} episodes (stage {stage}: {STAGE_CONFIGS[stage]['name']})...")
+    logger.info("Evaluating for %d episodes (stage %d: %s)...", n_episodes, stage, STAGE_CONFIGS[stage]["name"])
 
     episode_rewards = []
     episode_lengths = []
@@ -274,13 +277,13 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
 
         episode_rewards.append(total_reward)
         episode_lengths.append(step)
-        print(f"  Episode {ep+1}: reward={total_reward:.2f}, length={step}")
+        logger.info("  Episode %d: reward=%.2f, length=%d", ep + 1, total_reward, step)
 
     vec_env.close()
 
-    print("\nResults:")
-    print(f"  Mean reward: {np.mean(episode_rewards):.2f} +/- {np.std(episode_rewards):.2f}")
-    print(f"  Mean length: {np.mean(episode_lengths):.1f} +/- {np.std(episode_lengths):.1f}")
+    logger.info("Results:")
+    logger.info("  Mean reward: %.2f +/- %.2f", np.mean(episode_rewards), np.std(episode_rewards))
+    logger.info("  Mean length: %.1f +/- %.1f", np.mean(episode_lengths), np.std(episode_lengths))
 
 
 def main():

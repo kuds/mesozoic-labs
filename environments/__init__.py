@@ -1,22 +1,20 @@
 """Mesozoic Labs -- dinosaur locomotion environments.
 
-Environments are registered with Gymnasium when their modules are imported.
-Use ``register_all()`` to register all species at once, or import
-individual species to register only what you need::
+All environments are auto-registered with Gymnasium on import::
 
-    # Option 1: register all
-    import environments
-    environments.register_all()
+    import environments  # registers all species
     env = gymnasium.make("MesozoicLabs/Raptor-v0")
 
-    # Option 2: import directly (auto-registers that species)
+Individual species can also be imported directly::
+
     from environments.velociraptor.envs import RaptorEnv
     env = RaptorEnv()
 """
 
+from environments.brachiosaurus.envs import brachio_env as _brachio_env  # noqa: F401
+from environments.trex.envs import trex_env as _trex_env  # noqa: F401
+from environments.velociraptor.envs import raptor_env as _raptor_env  # noqa: F401
+
 
 def register_all():
-    """Import all env modules, triggering their gym.register() calls."""
-    from environments.velociraptor.envs import raptor_env  # noqa: F401
-    from environments.brachiosaurus.envs import brachio_env  # noqa: F401
-    from environments.trex.envs import trex_env  # noqa: F401
+    """No-op kept for backwards compatibility. Envs are registered on import."""
