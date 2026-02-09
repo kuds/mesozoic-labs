@@ -161,7 +161,7 @@ class BaseDinoEnv(gym.Env, ABC):
 
         # Linear interpolation from [-1, 1] to [min, max]
         scaled = ctrl_min + (action + 1.0) * 0.5 * (ctrl_max - ctrl_min)
-        return scaled
+        return np.asarray(scaled)
 
     def _is_truncated(self) -> bool:
         """Check if episode should be truncated (time limit)."""

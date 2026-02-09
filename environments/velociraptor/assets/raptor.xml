@@ -1,6 +1,6 @@
 <mujoco model="velociraptor">
   <compiler angle="degree" autolimits="true"/>
-  
+
   <option timestep="0.002" gravity="0 0 -9.81">
     <flag warmstart="enable"/>
   </option>
@@ -9,17 +9,17 @@
     <joint limited="true" damping="2.0" armature="0.01"/>
     <geom contype="1" conaffinity="1" friction="1.0 0.005 0.0001"/>
     <motor ctrllimited="true" ctrlrange="-1 1"/>
-    
+
     <!-- Leg joints: moderate stiffness for position control -->
     <default class="leg_joint">
       <joint damping="5.0" armature="0.02"/>
     </default>
-    
+
     <!-- Tail joints: high stiffness, limited range (rigid rudder behavior) -->
     <default class="tail_joint">
       <joint damping="8.0" stiffness="25.0" armature="0.01" range="-15 15"/>
     </default>
-    
+
     <!-- Sickle claw: high torque capability -->
     <default class="claw_joint">
       <joint damping="3.0" armature="0.005"/>
@@ -37,70 +37,70 @@
   <worldbody>
     <!-- Ground plane -->
     <geom name="floor" type="plane" size="50 50 0.1" material="grid_mat" conaffinity="1" contype="1"/>
-    
+
     <!-- Prey target (mocap body - can be repositioned without recompiling) -->
     <body name="prey" mocap="true" pos="5 0 0.3">
-      <geom name="prey_geom" type="sphere" size="0.15" rgba="0.8 0.2 0.2 0.8" 
+      <geom name="prey_geom" type="sphere" size="0.15" rgba="0.8 0.2 0.2 0.8"
             contype="2" conaffinity="2"/>
     </body>
 
     <!-- ==================== RAPTOR BODY ==================== -->
-    <!-- 
+    <!--
     Coordinate system:
       +X = forward (direction of travel)
       +Y = left
       +Z = up
-    
+
     Approximate dimensions (scaled to ~2m nose-to-tail):
       Body length: 0.6m
       Hip height: 0.5m (in neutral crouch)
       Tail length: 0.8m
       Total mass: ~15kg
     -->
-    
+
     <body name="pelvis" pos="0 0 0.55">
       <freejoint name="root"/>
-      
+
       <!-- Main body: elongated ellipsoid -->
-      <geom name="torso" type="capsule" fromto="-0.15 0 0.05  0.25 0 0.05" size="0.08" 
+      <geom name="torso" type="capsule" fromto="-0.15 0 0.05  0.25 0 0.05" size="0.08"
             mass="4.0" material="body_mat"/>
-      
+
       <!-- Head/neck (simplified) -->
-      <geom name="neck" type="capsule" fromto="0.25 0 0.05  0.4 0 0.12" size="0.04" 
+      <geom name="neck" type="capsule" fromto="0.25 0 0.05  0.4 0 0.12" size="0.04"
             mass="0.8" material="body_mat"/>
-      <geom name="head" type="ellipsoid" pos="0.5 0 0.12" size="0.12 0.04 0.05" 
+      <geom name="head" type="ellipsoid" pos="0.5 0 0.12" size="0.12 0.04 0.05"
             mass="0.5" material="body_mat"/>
-      
+
       <!-- IMU sensor site (for observations) -->
       <site name="imu" pos="0 0 0.05" size="0.02"/>
-      
+
       <!-- ==================== TAIL ==================== -->
       <!-- 5 segments, hinge joints, acts as rigid counterbalance -->
-      
+
       <body name="tail_1" pos="-0.15 0 0.05">
         <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
         <joint name="tail_1_yaw" class="tail_joint" type="hinge" axis="0 0 1" range="-10 10"/>
-        <geom name="tail_1_geom" type="capsule" fromto="0 0 0  -0.15 0 -0.02" size="0.045" 
+        <geom name="tail_1_geom" type="capsule" fromto="0 0 0  -0.15 0 -0.02" size="0.045"
               mass="1.0" material="body_mat" contype="0" conaffinity="0"/>
-        
+
         <body name="tail_2" pos="-0.15 0 -0.02">
           <joint name="tail_2_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
-          <geom name="tail_2_geom" type="capsule" fromto="0 0 0  -0.15 0 -0.01" size="0.04" 
+          <geom name="tail_2_geom" type="capsule" fromto="0 0 0  -0.15 0 -0.01" size="0.04"
                 mass="0.8" material="body_mat" contype="0" conaffinity="0"/>
-          
+
           <body name="tail_3" pos="-0.15 0 -0.01">
             <joint name="tail_3_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
-            <geom name="tail_3_geom" type="capsule" fromto="0 0 0  -0.15 0 0" size="0.035" 
+            <geom name="tail_3_geom" type="capsule" fromto="0 0 0  -0.15 0 0" size="0.035"
                   mass="0.6" material="body_mat" contype="0" conaffinity="0"/>
-            
+
             <body name="tail_4" pos="-0.15 0 0">
               <joint name="tail_4_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
-              <geom name="tail_4_geom" type="capsule" fromto="0 0 0  -0.12 0 0.01" size="0.025" 
+              <geom name="tail_4_geom" type="capsule" fromto="0 0 0  -0.12 0 0.01" size="0.025"
                     mass="0.4" material="body_mat" contype="0" conaffinity="0"/>
-              
+
               <body name="tail_5" pos="-0.12 0 0.01">
                 <joint name="tail_5_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
-                <geom name="tail_5_geom" type="capsule" fromto="0 0 0  -0.1 0 0.02" size="0.015" 
+                <geom name="tail_5_geom" type="capsule" fromto="0 0 0  -0.1 0 0.02" size="0.015"
                       mass="0.2" material="body_mat" contype="0" conaffinity="0"/>
                 <!-- Tail tip sensor for stability reward -->
                 <site name="tail_tip" pos="-0.1 0 0.02" size="0.01"/>
@@ -111,40 +111,40 @@
       </body>
 
       <!-- ==================== RIGHT LEG ==================== -->
-      
+
       <body name="r_thigh" pos="0 -0.08 0">
         <!-- Hip: 2 DOF (flexion/extension + abduction) -->
         <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90"/>
         <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30"/>
-        <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04" 
+        <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04"
               mass="1.2" material="body_mat"/>
-        
+
         <body name="r_tibia" pos="0.02 0 -0.18">
           <!-- Knee: 1 DOF -->
           <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10"/>
-          <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03" 
+          <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
                 mass="0.8" material="body_mat"/>
-          
+
           <body name="r_metatarsus" pos="-0.02 0 -0.2">
             <!-- Ankle: 1 DOF (digitigrade stance) -->
             <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160"/>
-            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02" 
+            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
                   mass="0.3" material="body_mat"/>
-            
+
             <!-- Toes -->
             <body name="r_toe_main" pos="0.06 0 -0.12">
               <!-- Main toe (digits 3+4 combined) -->
               <joint name="r_toe_main_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60"/>
-              <geom name="r_toe_main_geom" type="capsule" fromto="0 0 0  0.08 0 0" size="0.015" 
+              <geom name="r_toe_main_geom" type="capsule" fromto="0 0 0  0.08 0 0" size="0.015"
                     mass="0.1" material="body_mat"/>
               <!-- Foot contact sensor -->
               <site name="r_foot" pos="0.04 0 -0.015" size="0.02"/>
             </body>
-            
+
             <!-- Sickle claw (digit 2) - THE WEAPON -->
             <body name="r_toe_claw" pos="0.06 0.02 -0.12">
               <joint name="r_claw" class="claw_joint" type="hinge" axis="0 1 0" range="-90 30"/>
-              <geom name="r_claw_geom" type="capsule" fromto="0 0 0  0.04 0 0.06" size="0.01" 
+              <geom name="r_claw_geom" type="capsule" fromto="0 0 0  0.04 0 0.06" size="0.01"
                     mass="0.05" material="claw_mat" contype="2" conaffinity="2"/>
               <!-- Claw tip for strike detection -->
               <site name="r_claw_tip" pos="0.04 0 0.06" size="0.015"/>
@@ -154,33 +154,33 @@
       </body>
 
       <!-- ==================== LEFT LEG ==================== -->
-      
+
       <body name="l_thigh" pos="0 0.08 0">
         <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90"/>
         <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30"/>
-        <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04" 
+        <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04"
               mass="1.2" material="body_mat"/>
-        
+
         <body name="l_tibia" pos="0.02 0 -0.18">
           <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10"/>
-          <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03" 
+          <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
                 mass="0.8" material="body_mat"/>
-          
+
           <body name="l_metatarsus" pos="-0.02 0 -0.2">
             <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160"/>
-            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02" 
+            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
                   mass="0.3" material="body_mat"/>
-            
+
             <body name="l_toe_main" pos="0.06 0 -0.12">
               <joint name="l_toe_main_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60"/>
-              <geom name="l_toe_main_geom" type="capsule" fromto="0 0 0  0.08 0 0" size="0.015" 
+              <geom name="l_toe_main_geom" type="capsule" fromto="0 0 0  0.08 0 0" size="0.015"
                     mass="0.1" material="body_mat"/>
               <site name="l_foot" pos="0.04 0 -0.015" size="0.02"/>
             </body>
-            
+
             <body name="l_toe_claw" pos="0.06 -0.02 -0.12">
               <joint name="l_claw" class="claw_joint" type="hinge" axis="0 1 0" range="-90 30"/>
-              <geom name="l_claw_geom" type="capsule" fromto="0 0 0  0.04 0 0.06" size="0.01" 
+              <geom name="l_claw_geom" type="capsule" fromto="0 0 0  0.04 0 0.06" size="0.01"
                     mass="0.05" material="claw_mat" contype="2" conaffinity="2"/>
               <site name="l_claw_tip" pos="0.04 0 0.06" size="0.015"/>
             </body>
@@ -190,7 +190,7 @@
 
       <!-- ==================== FORELIMBS (stubs) ==================== -->
       <!-- Simplified for now - can expand for grappling behavior later -->
-      
+
       <body name="r_arm" pos="0.2 -0.06 0.02">
         <joint name="r_shoulder" type="ball" damping="2.0" range="0 45"/>
         <geom name="r_arm_geom" type="capsule" fromto="0 0 0  0.08 -0.02 -0.1" size="0.015"
@@ -202,13 +202,13 @@
         <geom name="l_arm_geom" type="capsule" fromto="0 0 0  0.08 0.02 -0.1" size="0.015"
               mass="0.15" material="body_mat"/>
       </body>
-      
+
     </body> <!-- end pelvis -->
   </worldbody>
 
   <!-- ==================== ACTUATORS ==================== -->
   <!-- Position actuators for locomotion, motor for claws -->
-  
+
   <actuator>
     <!-- Right leg -->
     <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="80" ctrlrange="-60 90"/>
@@ -217,7 +217,7 @@
     <position name="r_ankle_act" joint="r_ankle" kp="60" ctrlrange="60 160"/>
     <position name="r_toe_act" joint="r_toe_main_joint" kp="30" ctrlrange="-30 60"/>
     <motor name="r_claw_act" joint="r_claw" gear="50" ctrlrange="-1 1"/>
-    
+
     <!-- Left leg -->
     <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="80" ctrlrange="-60 90"/>
     <position name="l_hip_roll_act" joint="l_hip_roll" kp="60" ctrlrange="-30 30"/>
@@ -225,7 +225,7 @@
     <position name="l_ankle_act" joint="l_ankle" kp="60" ctrlrange="60 160"/>
     <position name="l_toe_act" joint="l_toe_main_joint" kp="30" ctrlrange="-30 60"/>
     <motor name="l_claw_act" joint="l_claw" gear="50" ctrlrange="-1 1"/>
-    
+
     <!-- Tail (optional - can be passive or actuated) -->
     <!-- Uncomment if you want active tail control for balance -->
     <!--
@@ -236,21 +236,21 @@
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
-  
+
   <sensor>
     <!-- IMU-like sensors -->
     <gyro name="pelvis_gyro" site="imu"/>
     <accelerometer name="pelvis_accel" site="imu"/>
     <framequat name="pelvis_orientation" objtype="site" objname="imu"/>
-    
+
     <!-- Foot contact forces -->
     <touch name="r_foot_touch" site="r_foot"/>
     <touch name="l_foot_touch" site="l_foot"/>
-    
+
     <!-- Claw tip positions (for strike detection) -->
     <framepos name="r_claw_pos" objtype="site" objname="r_claw_tip"/>
     <framepos name="l_claw_pos" objtype="site" objname="l_claw_tip"/>
-    
+
     <!-- Tail tip for stability monitoring -->
     <framepos name="tail_tip_pos" objtype="site" objname="tail_tip"/>
     <framelinvel name="tail_tip_linvel" objtype="site" objname="tail_tip"/>
@@ -259,14 +259,14 @@
 
   <!-- ==================== CONTACT EXCLUSIONS ==================== -->
   <!-- Prevent self-collision in tail chain -->
-  
+
   <contact>
     <exclude body1="pelvis" body2="tail_1"/>
     <exclude body1="tail_1" body2="tail_2"/>
     <exclude body1="tail_2" body2="tail_3"/>
     <exclude body1="tail_3" body2="tail_4"/>
     <exclude body1="tail_4" body2="tail_5"/>
-    
+
     <!-- Prevent thigh-torso collision -->
     <exclude body1="pelvis" body2="r_thigh"/>
     <exclude body1="pelvis" body2="l_thigh"/>

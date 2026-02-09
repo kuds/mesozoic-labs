@@ -19,6 +19,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import gymnasium as gym
 import numpy as np
 
 # Add repo root to path
@@ -38,6 +39,9 @@ def test_basic_functionality(render: bool = False):
     render_mode = "human" if render else None
     env = BrachioEnv(render_mode=render_mode)
 
+    assert isinstance(env.observation_space, gym.spaces.Box)
+    assert isinstance(env.action_space, gym.spaces.Box)
+
     print(f"\nObservation space: {env.observation_space}")
     print(f"  Shape: {env.observation_space.shape}")
     print(f"  Dtype: {env.observation_space.dtype}")
@@ -54,7 +58,7 @@ def test_basic_functionality(render: bool = False):
     print(f"Initial info: {info}")
 
     print("\n--- Testing step (zero action) ---")
-    action = np.zeros(env.action_space.shape)
+    action = np.zeros(env.action_space.shape, dtype=np.float32)
     obs, reward, terminated, truncated, info = env.step(action)
     print(f"Reward: {reward:.4f}")
     print(f"Terminated: {terminated}, Truncated: {truncated}")
@@ -150,13 +154,9 @@ def test_reward_components(render: bool = False):
 
     print("\nReward component statistics:")
     print("-" * 50)
-    for key, values in components.items():
-        values = np.array(values)
-        print(
-            f"  {key:20s}: mean={values.mean():8.4f}, "
-            f"std={values.std():8.4f}, "
-            f"min={values.min():8.4f}, max={values.max():8.4f}"
-        )
+    for key, vals in components.items():
+        arr = np.array(vals)
+        print(f"  {key:20s}: mean={arr.mean():8.4f}, std={arr.std():8.4f}, min={arr.min():8.4f}, max={arr.max():8.4f}")
 
     print("\nReward component analysis complete!")
     return True
@@ -219,23 +219,23 @@ def test_observation_bounds():
 
     env.close()
 
-    all_obs = np.array(all_obs)
+    obs_array = np.array(all_obs)
 
     print("\nObservation statistics:")
-    print(f"  Shape: {all_obs.shape}")
-    print(f"  Min: {all_obs.min():.4f}")
-    print(f"  Max: {all_obs.max():.4f}")
-    print(f"  Mean: {all_obs.mean():.4f}")
-    print(f"  Std: {all_obs.std():.4f}")
+    print(f"  Shape: {obs_array.shape}")
+    print(f"  Min: {obs_array.min():.4f}")
+    print(f"  Max: {obs_array.max():.4f}")
+    print(f"  Mean: {obs_array.mean():.4f}")
+    print(f"  Std: {obs_array.std():.4f}")
 
-    if np.any(np.isnan(all_obs)):
+    if np.any(np.isnan(obs_array)):
         print("WARNING: NaN values detected in observations!")
         return False
-    if np.any(np.isinf(all_obs)):
+    if np.any(np.isinf(obs_array)):
         print("WARNING: Inf values detected in observations!")
         return False
 
-    if all_obs.max() > 1000 or all_obs.min() < -1000:
+    if obs_array.max() > 1000 or obs_array.min() < -1000:
         print("WARNING: Observations have very large values, consider normalization")
 
     print("\nObservation bounds test passed!")
