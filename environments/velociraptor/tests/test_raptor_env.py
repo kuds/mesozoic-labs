@@ -50,8 +50,12 @@ class TestBasicFunctionality:
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         expected_keys = [
-            "reward_forward", "reward_alive", "reward_energy",
-            "reward_tail", "reward_strike", "reward_approach",
+            "reward_forward",
+            "reward_alive",
+            "reward_energy",
+            "reward_tail",
+            "reward_strike",
+            "reward_approach",
             "reward_total",
         ]
         for key in expected_keys:
@@ -89,7 +93,8 @@ class TestDeterminism:
             for _ in range(50):
                 action = np.clip(
                     np.random.randn(e.action_space.shape[0]).astype(np.float32),
-                    -1, 1,
+                    -1,
+                    1,
                 )
                 obs, _, terminated, truncated, _ = e.step(action)
                 trajectory.append(obs.copy())
@@ -100,9 +105,7 @@ class TestDeterminism:
 
         traj1 = run_trajectory(123)
         traj2 = run_trajectory(123)
-        assert np.allclose(traj1, traj2), (
-            f"Trajectories differ. Max diff: {np.abs(traj1 - traj2).max()}"
-        )
+        assert np.allclose(traj1, traj2), f"Trajectories differ. Max diff: {np.abs(traj1 - traj2).max()}"
 
 
 class TestObservationBounds:

@@ -86,7 +86,7 @@ class LocomotionMetrics:
         """
         n = len(self._forward_velocities)
         if n == 0:
-            return {"error": "no data recorded"}
+            return {"error": float("nan")}
 
         fwd = np.array(self._forward_velocities)
         energies = np.array(self._energies)
@@ -97,9 +97,7 @@ class LocomotionMetrics:
         result["mean_forward_velocity"] = float(np.mean(fwd))
         result["std_forward_velocity"] = float(np.std(fwd))
         result["max_forward_velocity"] = float(np.max(fwd))
-        result["velocity_consistency"] = float(
-            1.0 - np.std(fwd) / (np.abs(np.mean(fwd)) + 1e-8)
-        )
+        result["velocity_consistency"] = float(1.0 - np.std(fwd) / (np.abs(np.mean(fwd)) + 1e-8))
 
         # --- Distance traveled ---
         distance = float(np.sum(fwd * self._dt))
@@ -155,9 +153,7 @@ class LocomotionMetrics:
         return result
 
     @staticmethod
-    def _compute_gait_symmetry(
-        left_contacts: np.ndarray, right_contacts: np.ndarray
-    ) -> float:
+    def _compute_gait_symmetry(left_contacts: np.ndarray, right_contacts: np.ndarray) -> float:
         """Compute gait symmetry from foot contact sequences.
 
         Returns a value in [0, 1] where 1 is perfectly symmetric

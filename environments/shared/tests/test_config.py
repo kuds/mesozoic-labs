@@ -1,13 +1,11 @@
 """Tests for the TOML config loader."""
 
 import pytest
-from pathlib import Path
 
 from environments.shared.config import (
-    load_stage_config,
     load_all_stages,
+    load_stage_config,
 )
-
 
 SPECIES = ["velociraptor", "brachiosaurus", "trex"]
 
@@ -58,9 +56,7 @@ class TestLoadStageConfig:
         env_kw = config["env_kwargs"]
         for key, value in env_kw.items():
             if key.endswith("_range"):
-                assert isinstance(value, tuple), (
-                    f"{key} should be a tuple, got {type(value)}"
-                )
+                assert isinstance(value, tuple), f"{key} should be a tuple, got {type(value)}"
 
     def test_missing_species_raises(self):
         with pytest.raises(FileNotFoundError):

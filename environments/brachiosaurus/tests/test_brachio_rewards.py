@@ -64,7 +64,6 @@ class TestRewardComponents:
 
 
 class TestRewardWeightEffects:
-
     def test_zero_forward_weight_zeroes_forward_reward(self):
         env = BrachioEnv(forward_vel_weight=0.0)
         env.reset(seed=42)

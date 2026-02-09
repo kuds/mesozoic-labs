@@ -28,11 +28,11 @@ Reward components:
 """
 
 from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
 
 import gymnasium as gym
 import mujoco
 import numpy as np
-from typing import Optional, Dict, Any, Tuple
 
 from environments.shared.base_env import BaseDinoEnv
 
@@ -64,9 +64,7 @@ class BrachioEnv(BaseDinoEnv):
         food_height_range: Tuple[float, float] = (2.0, 4.0),
         healthy_z_range: Tuple[float, float] = (1.0, 3.5),
     ):
-        model_path = str(
-            Path(__file__).parent.parent / "assets" / "brachiosaurus.xml"
-        )
+        model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus.xml")
 
         # Brachio-specific reward weights
         self.gait_stability_weight = gait_stability_weight
@@ -94,46 +92,24 @@ class BrachioEnv(BaseDinoEnv):
     def _cache_ids(self):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
         # Body IDs
-        self.torso_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_BODY, "torso"
-        )
+        self.torso_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "torso")
 
         # Geom IDs for contact detection
-        self.food_geom_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_GEOM, "food_geom"
-        )
-        self.torso_main_geom_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso_main"
-        )
-        self.floor_geom_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor"
-        )
+        self.food_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "food_geom")
+        self.torso_main_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso_main")
+        self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
 
         # Site IDs for sensors
-        self.imu_site_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_SITE, "imu"
-        )
-        self.head_tip_site_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_SITE, "head_tip"
-        )
-        self.tail_tip_site_id = mujoco.mj_name2id(
-            self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip"
-        )
+        self.imu_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "imu")
+        self.head_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "head_tip")
+        self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
 
         # Foot site IDs
         self.foot_site_ids = {
-            "fr": mujoco.mj_name2id(
-                self.model, mujoco.mjtObj.mjOBJ_SITE, "fr_foot_contact"
-            ),
-            "fl": mujoco.mj_name2id(
-                self.model, mujoco.mjtObj.mjOBJ_SITE, "fl_foot_contact"
-            ),
-            "rr": mujoco.mj_name2id(
-                self.model, mujoco.mjtObj.mjOBJ_SITE, "rr_foot_contact"
-            ),
-            "rl": mujoco.mj_name2id(
-                self.model, mujoco.mjtObj.mjOBJ_SITE, "rl_foot_contact"
-            ),
+            "fr": mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "fr_foot_contact"),
+            "fl": mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "fl_foot_contact"),
+            "rr": mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "rr_foot_contact"),
+            "rl": mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "rl_foot_contact"),
         }
 
         # Sensor indices (order matches MJCF definition)
@@ -154,26 +130,22 @@ class BrachioEnv(BaseDinoEnv):
         qvel = self.data.qvel[6:].copy()
 
         # Torso state from sensors
-        torso_gyro = self.data.sensordata[
-            self._sensor_gyro_start:self._sensor_gyro_start + 3
-        ].copy()
-        torso_accel = self.data.sensordata[
-            self._sensor_accel_start:self._sensor_accel_start + 3
-        ].copy()
-        torso_quat = self.data.sensordata[
-            self._sensor_quat_start:self._sensor_quat_start + 4
-        ].copy()
+        torso_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3].copy()
+        torso_accel = self.data.sensordata[self._sensor_accel_start : self._sensor_accel_start + 3].copy()
+        torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4].copy()
 
         # Torso linear velocity (from root freejoint)
         torso_linvel = self.data.qvel[0:3].copy()
 
         # Foot contacts (from touch sensors)
-        foot_contact = np.array([
-            self.data.sensordata[self._sensor_fr_foot],
-            self.data.sensordata[self._sensor_fl_foot],
-            self.data.sensordata[self._sensor_rr_foot],
-            self.data.sensordata[self._sensor_rl_foot],
-        ])
+        foot_contact = np.array(
+            [
+                self.data.sensordata[self._sensor_fr_foot],
+                self.data.sensordata[self._sensor_fl_foot],
+                self.data.sensordata[self._sensor_rr_foot],
+                self.data.sensordata[self._sensor_rl_foot],
+            ]
+        )
 
         # Food info (relative to torso)
         torso_pos = self.data.xpos[self.torso_id]
@@ -184,17 +156,19 @@ class BrachioEnv(BaseDinoEnv):
         # Normalize food direction
         food_direction = food_rel / (food_distance + 1e-8)
 
-        obs = np.concatenate([
-            qpos,                   # Joint positions
-            qvel,                   # Joint velocities
-            torso_quat,             # Orientation (quaternion)
-            torso_gyro,             # Angular velocity
-            torso_linvel,           # Linear velocity
-            torso_accel,            # Accelerometer
-            foot_contact,           # Foot contacts (4)
-            food_direction,         # Direction to food (unit vector)
-            [food_distance],        # Distance to food (scalar)
-        ]).astype(np.float32)
+        obs = np.concatenate(
+            [
+                qpos,  # Joint positions
+                qvel,  # Joint velocities
+                torso_quat,  # Orientation (quaternion)
+                torso_gyro,  # Angular velocity
+                torso_linvel,  # Linear velocity
+                torso_accel,  # Accelerometer
+                foot_contact,  # Foot contacts (4)
+                food_direction,  # Direction to food (unit vector)
+                [food_distance],  # Distance to food (scalar)
+            ]
+        ).astype(np.float32)
 
         return obs
 
@@ -253,10 +227,7 @@ class BrachioEnv(BaseDinoEnv):
         info["reward_approach"] = reward_approach
 
         # Total reward
-        total_reward = (
-            reward_forward + reward_alive + reward_energy
-            + reward_gait + reward_food + reward_approach
-        )
+        total_reward = reward_forward + reward_alive + reward_energy + reward_gait + reward_food + reward_approach
         info["reward_total"] = total_reward
 
         return total_reward, info
@@ -284,8 +255,9 @@ class BrachioEnv(BaseDinoEnv):
             contact = self.data.contact[i]
             geom1, geom2 = contact.geom1, contact.geom2
 
-            if (geom1 == self.torso_main_geom_id and geom2 == self.floor_geom_id) or \
-               (geom2 == self.torso_main_geom_id and geom1 == self.floor_geom_id):
+            if (geom1 == self.torso_main_geom_id and geom2 == self.floor_geom_id) or (
+                geom2 == self.torso_main_geom_id and geom1 == self.floor_geom_id
+            ):
                 info["termination_reason"] = "torso_contact"
                 return True, info
 

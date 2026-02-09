@@ -81,8 +81,7 @@ class TestRewardWeightEffects:
         env.close()
 
     def test_high_alive_bonus_dominates(self):
-        env = RaptorEnv(alive_bonus=100.0, forward_vel_weight=0.0,
-                        strike_approach_weight=0.0, strike_bonus=0.0)
+        env = RaptorEnv(alive_bonus=100.0, forward_vel_weight=0.0, strike_approach_weight=0.0, strike_bonus=0.0)
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, terminated, _, info = env.step(action)
@@ -105,8 +104,7 @@ class TestCurriculumStageRewards:
 
     def test_stage1_balance_no_forward_reward(self):
         """Stage 1 config disables forward velocity reward."""
-        env = RaptorEnv(forward_vel_weight=0.0, strike_bonus=0.0,
-                        strike_approach_weight=0.0)
+        env = RaptorEnv(forward_vel_weight=0.0, strike_bonus=0.0, strike_approach_weight=0.0)
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)

@@ -15,9 +15,10 @@ Controls:
     - Tab: toggle UI panels
 """
 
+from pathlib import Path
+
 import mujoco
 import mujoco.viewer
-from pathlib import Path
 
 
 def main():
@@ -29,17 +30,17 @@ def main():
     data = mujoco.MjData(model)
 
     # Print model info
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"Model: {model.name if hasattr(model, 'name') else 'velociraptor'}")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"Bodies: {model.nbody}")
     print(f"Joints: {model.njnt}")
     print(f"Actuators: {model.nu}")
     print(f"Sensors: {model.nsensor}")
     print(f"Total DOF: {model.nv}")
     print(f"Total mass: {sum(model.body_mass):.2f} kg")
-    print(f"Timestep: {model.opt.timestep*1000:.1f} ms")
-    print(f"{'='*50}\n")
+    print(f"Timestep: {model.opt.timestep * 1000:.1f} ms")
+    print(f"{'=' * 50}\n")
 
     # Print joint info
     print("Joints:")

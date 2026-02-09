@@ -15,9 +15,10 @@ Controls:
     - Tab: toggle UI panels
 """
 
+from pathlib import Path
+
 import mujoco
 import mujoco.viewer
-from pathlib import Path
 
 
 def main():
@@ -41,17 +42,13 @@ def main():
 
     print("Joints:")
     for i in range(model.njnt):
-        joint_name = mujoco.mj_id2name(
-            model, mujoco.mjtObj.mjOBJ_JOINT, i
-        )
+        joint_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, i)
         joint_type = ["free", "ball", "slide", "hinge"][model.jnt_type[i]]
         print(f"  [{i:2d}] {joint_name}: {joint_type}")
 
     print("\nActuators:")
     for i in range(model.nu):
-        act_name = mujoco.mj_id2name(
-            model, mujoco.mjtObj.mjOBJ_ACTUATOR, i
-        )
+        act_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, i)
         print(f"  [{i:2d}] {act_name}")
 
     mujoco.mj_forward(model, data)

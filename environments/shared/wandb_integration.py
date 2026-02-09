@@ -283,9 +283,9 @@ def log_eval_metrics(
     if not is_available() or wandb.run is None:
         return
 
-    metrics = {"eval/stage": stage}
+    metrics: dict[str, float] = {"eval/stage": float(stage)}
     for key, value in eval_results.items():
         if isinstance(value, (int, float)):
-            metrics[f"eval/{key}"] = value
+            metrics[f"eval/{key}"] = float(value)
 
     wandb.log(metrics, step=step)
