@@ -12,6 +12,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import gymnasium as gym
 import numpy as np
 
 # Add repo root to path
@@ -31,6 +32,9 @@ def test_basic_functionality(render: bool = False):
     render_mode = "human" if render else None
     env = TRexEnv(render_mode=render_mode)
 
+    assert isinstance(env.observation_space, gym.spaces.Box)
+    assert isinstance(env.action_space, gym.spaces.Box)
+
     print(f"\nObservation space: {env.observation_space}")
     print(f"  Shape: {env.observation_space.shape}")
     print(f"  Dtype: {env.observation_space.dtype}")
@@ -46,7 +50,7 @@ def test_basic_functionality(render: bool = False):
     print(f"Initial obs range: [{obs.min():.3f}, {obs.max():.3f}]")
 
     print("\n--- Testing step (zero action) ---")
-    action = np.zeros(env.action_space.shape)
+    action = np.zeros(env.action_space.shape, dtype=np.float32)
     obs, reward, terminated, truncated, info = env.step(action)
     print(f"Reward: {reward:.4f}")
     print(f"Terminated: {terminated}, Truncated: {truncated}")

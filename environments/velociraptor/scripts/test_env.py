@@ -19,6 +19,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import gymnasium as gym
 import numpy as np
 
 # Add repo root to path
@@ -39,6 +40,9 @@ def test_basic_functionality(render: bool = False):
     env = RaptorEnv(render_mode=render_mode)
 
     # Check spaces
+    assert isinstance(env.observation_space, gym.spaces.Box)
+    assert isinstance(env.action_space, gym.spaces.Box)
+
     print(f"\nObservation space: {env.observation_space}")
     print(f"  Shape: {env.observation_space.shape}")
     print(f"  Dtype: {env.observation_space.dtype}")
@@ -57,7 +61,7 @@ def test_basic_functionality(render: bool = False):
 
     # Test step with zero action
     print("\n--- Testing step (zero action) ---")
-    action = np.zeros(env.action_space.shape)
+    action = np.zeros(env.action_space.shape, dtype=np.float32)
     obs, reward, terminated, truncated, info = env.step(action)
     print(f"Reward: {reward:.4f}")
     print(f"Terminated: {terminated}, Truncated: {truncated}")
@@ -116,7 +120,8 @@ def test_episode_rollout(num_episodes: int = 3, max_steps: int = 100, render: bo
     print("\nSummary:")
     print(f"  Avg reward: {np.mean(episode_rewards):.2f} ± {np.std(episode_rewards):.2f}")
     print(f"  Avg length: {np.mean(episode_lengths):.1f} ± {np.std(episode_lengths):.1f}")
-    print(f"  Termination reasons: {dict(zip(*np.unique(termination_reasons, return_counts=True)))}")
+    reasons, counts = np.unique(termination_reasons, return_counts=True)
+    print(f"  Termination reasons: {dict(zip(reasons, counts))}")
     print("\n✓ Episode rollout test passed!")
     return True
 
@@ -156,12 +161,9 @@ def test_reward_components(render: bool = False):
 
     print("\nReward component statistics:")
     print("-" * 50)
-    for key, values in components.items():
-        values = np.array(values)
-        print(
-            f"  {key:20s}: mean={values.mean():8.4f}, std={values.std():8.4f}, "
-            f"min={values.min():8.4f}, max={values.max():8.4f}"
-        )
+    for key, vals in components.items():
+        arr = np.array(vals)
+        print(f"  {key:20s}: mean={arr.mean():8.4f}, std={arr.std():8.4f}, min={arr.min():8.4f}, max={arr.max():8.4f}")
 
     print("\n✓ Reward component analysis complete!")
     return True
@@ -227,25 +229,25 @@ def test_observation_bounds():
 
     env.close()
 
-    all_obs = np.array(all_obs)
+    obs_array = np.array(all_obs)
 
     print("\nObservation statistics:")
-    print(f"  Shape: {all_obs.shape}")
-    print(f"  Min: {all_obs.min():.4f}")
-    print(f"  Max: {all_obs.max():.4f}")
-    print(f"  Mean: {all_obs.mean():.4f}")
-    print(f"  Std: {all_obs.std():.4f}")
+    print(f"  Shape: {obs_array.shape}")
+    print(f"  Min: {obs_array.min():.4f}")
+    print(f"  Max: {obs_array.max():.4f}")
+    print(f"  Mean: {obs_array.mean():.4f}")
+    print(f"  Std: {obs_array.std():.4f}")
 
     # Check for NaN/Inf
-    if np.any(np.isnan(all_obs)):
+    if np.any(np.isnan(obs_array)):
         print("✗ WARNING: NaN values detected in observations!")
         return False
-    if np.any(np.isinf(all_obs)):
+    if np.any(np.isinf(obs_array)):
         print("✗ WARNING: Inf values detected in observations!")
         return False
 
     # Check for reasonable bounds (arbitrary but sensible)
-    if all_obs.max() > 1000 or all_obs.min() < -1000:
+    if obs_array.max() > 1000 or obs_array.min() < -1000:
         print("⚠ WARNING: Observations have very large values, consider normalization")
 
     print("\n✓ Observation bounds test passed!")
