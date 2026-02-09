@@ -42,9 +42,10 @@ from environments.shared.base_env import BaseDinoEnv
 class TRexEnv(BaseDinoEnv):
     """Tyrannosaurus Rex bipedal locomotion and bite-attack environment."""
 
-    _camera_distance = 5.0
+    _camera_distance = 3.0
     _camera_azimuth = 135
     _camera_elevation = -20
+    _camera_track_body = "pelvis"
 
     def __init__(
         self,

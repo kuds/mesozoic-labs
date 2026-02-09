@@ -40,9 +40,10 @@ from environments.shared.base_env import BaseDinoEnv
 class BrachioEnv(BaseDinoEnv):
     """Brachiosaurus quadrupedal locomotion and food-reaching environment."""
 
-    _camera_distance = 8.0
+    _camera_distance = 5.0
     _camera_azimuth = 135
     _camera_elevation = -20
+    _camera_track_body = "torso"
 
     def __init__(
         self,
