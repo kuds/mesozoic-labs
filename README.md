@@ -141,6 +141,8 @@ Hardware: Google Colab T4 GPU
 - [ ] Terrain adaptation (uneven ground, obstacles)
 - [ ] Sim-to-real transfer experiments
 
+See [ROADMAP.md](ROADMAP.md) for the full phased timeline, milestones, and dependency graph.
+
 ## Resources
 
 - **Documentation:** [mesozoiclabs.com](https://mesozoiclabs.com)
