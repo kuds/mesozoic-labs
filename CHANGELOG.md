@@ -19,11 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reward function unit tests and curriculum stage transition tests
 - Package metadata in `pyproject.toml` (authors, license, classifiers, URLs)
 - `mypy` and `ruff` configuration in `pyproject.toml`
+- `CurriculumManager` class for automated multi-stage training (`environments/shared/curriculum.py`)
+- `LocomotionMetrics` class with gait symmetry, cost of transport, stride frequency, and time-to-target (`environments/shared/metrics.py`)
+- `WandbCallback` for SB3 with per-component reward logging and config snapshots (`environments/shared/wandb_integration.py`)
+- `wandb` added to `[train]` optional dependencies
 
 ### Changed
 - Training scripts now load stage configs from TOML files instead of hardcoded dictionaries
 - Bumped version from 0.1.0 to 0.2.0
 - Dev dependencies expanded: `pytest-cov`, `mypy`, `ruff`, `pre-commit`
+- All `print()` calls in training scripts replaced with `logging` module
+- Gymnasium environments auto-register on `import environments` (no longer requires `register_all()`)
 
 ## [0.1.0] - 2025-01-01
 

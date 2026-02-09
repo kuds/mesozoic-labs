@@ -15,32 +15,33 @@ Quick wins that pay dividends on everything that follows. Low effort, high lever
 
 ### Milestone: v0.2.0 — "Clean Slate"
 
-- [ ] **Externalize reward configs to TOML files**
+- [x] **Externalize reward configs to TOML files**
   - Create `configs/` directory with per-species, per-stage TOML files
   - Refactor `train_sb3.py` and env constructors to load from config
   - Enables rapid reward experimentation without code changes
   - _Dependency: None_
 
-- [ ] **Register Gymnasium entry points**
+- [x] **Register Gymnasium entry points**
   - Add `[project.entry-points."gymnasium.envs"]` to `pyproject.toml`
   - Users can then do `gym.make("MesozoicLabs/Velociraptor-v0")`
+  - Auto-registration on `import environments`
   - _Dependency: None_
 
-- [ ] **Developer tooling**
-  - Add `.pre-commit-config.yaml` with Black, isort, flake8, mypy
-  - Add `mypy.ini` or `[tool.mypy]` section to `pyproject.toml`
+- [x] **Developer tooling**
+  - Add `.pre-commit-config.yaml` with Ruff (format + lint), mypy
+  - Add `[tool.mypy]` and `[tool.ruff]` sections to `pyproject.toml`
   - Add `pytest-cov` to dev dependencies; set coverage threshold (70%+)
   - Replace `print()` with `logging` module in training scripts
   - _Dependency: None_
 
-- [ ] **Package metadata & distribution prep**
+- [x] **Package metadata & distribution prep**
   - Add authors, license, URLs, classifiers to `pyproject.toml`
   - Add `CHANGELOG.md` with semantic versioning
   - Add `CONTRIBUTING.md` with code style, PR process, testing requirements
   - Add GitHub issue templates (bug report, feature request, new species)
   - _Dependency: None_
 
-- [ ] **Testing improvements**
+- [x] **Testing improvements**
   - Add reward function unit tests (specific scenarios → expected values)
   - Add curriculum stage transition tests (config loading, reward changes)
   - Add `pytest-cov` coverage reporting to CI
@@ -74,25 +75,27 @@ curriculum with published results and reproducible checkpoints.
   - Complete 3-stage training with PPO and SAC
   - _Dependency: None (parallel with other species)_
 
-- [ ] **Automated curriculum transitions**
+- [-] **Automated curriculum transitions**
   - Build `CurriculumManager` class that monitors eval metrics
   - Auto-advance stages when performance thresholds are met
   - Enables hands-off end-to-end training runs
+  - Integrate into training scripts (TODO)
   - _Dependency: Phase 0 config externalization_
 
-- [ ] **W&B experiment tracking integration**
+- [-] **W&B experiment tracking integration**
   - Add `wandb` to optional dependencies
-  - Log per-component rewards, evaluation metrics, hyperparameters
-  - Record videos of evaluation episodes
+  - `WandbCallback` for SB3 logs per-component rewards and hyperparameters
   - Save git commit hash and full config snapshot per run
+  - Record videos of evaluation episodes (TODO)
   - _Dependency: None_
 
-- [ ] **Expanded evaluation metrics**
+- [x] **Expanded evaluation metrics**
   - Gait symmetry (left-right phase difference)
   - Cost of transport (energy / distance / weight)
   - Stride frequency and regularity
   - Forward velocity consistency (std dev)
   - Time-to-target (for Stage 3)
+  - `LocomotionMetrics` class with `aggregate_episodes()` for multi-episode reports
   - _Dependency: None_
 
 **Exit criteria:** All three species have published training results (PPO + SAC),
