@@ -4,14 +4,34 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mesozoic-labs"
-version = "0.1.0"
+version = "0.2.0"
 description = "Robotic dinosaur locomotion environments for MuJoCo + Gymnasium"
 requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Mesozoic Labs Contributors"}]
+readme = "README.md"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
 dependencies = [
     "mujoco>=3.0.0",
     "gymnasium>=0.29.0",
     "numpy>=1.24.0",
 ]
+
+[project.urls]
+Homepage = "https://mesozoiclabs.com"
+Repository = "https://github.com/kuds/mesozoic-labs"
+Documentation = "https://mesozoiclabs.com"
+Issues = "https://github.com/kuds/mesozoic-labs/issues"
 
 [project.optional-dependencies]
 train = [
@@ -23,11 +43,24 @@ viz = [
 ]
 dev = [
     "pytest>=7.0",
-    "flake8",
+    "pytest-cov>=4.0",
+    "mypy>=1.0",
+    "ruff>=0.4.0",
+    "pre-commit>=3.0",
 ]
 all = [
     "mesozoic-labs[train,viz,dev]",
 ]
+
+# Gymnasium environment entry points — allows gym.make("MesozoicLabs/Raptor-v0")
+[project.entry-points."gymnasium.envs.__root__"]
+MesozoicLabs = "environments:__init__"
+
+[project.entry-points."gymnasium.envs.MesozoicLabs"]
+__root__ = "environments:__init__"
+Raptor-v0 = "environments.velociraptor.envs.raptor_env:RaptorEnv"
+Brachio-v0 = "environments.brachiosaurus.envs.brachio_env:BrachioEnv"
+TRex-v0 = "environments.trex.envs.trex_env:TRexEnv"
 
 [tool.setuptools.packages.find]
 include = ["environments*"]
@@ -37,7 +70,34 @@ include = ["environments*"]
 
 [tool.pytest.ini_options]
 testpaths = [
+    "environments/shared/tests",
     "environments/velociraptor/tests",
     "environments/brachiosaurus/tests",
     "environments/trex/tests",
 ]
+addopts = "--tb=short -q"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["environments"]
+
+[tool.coverage.run]
+source = ["environments"]
+omit = ["*/tests/*", "*/scripts/*"]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true

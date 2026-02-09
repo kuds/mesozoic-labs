@@ -26,6 +26,7 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
+import logging
 import numpy as np
 
 try:
@@ -44,84 +45,12 @@ except ImportError:
     sys.exit(1)
 
 from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.shared.config import load_all_stages
 
+logger = logging.getLogger(__name__)
 
-# Curriculum stage configurations
-STAGE_CONFIGS = {
-    1: {
-        "name": "balance",
-        "description": "Learn to stand and balance without falling",
-        "env_kwargs": {
-            "forward_vel_weight": 0.0,      # No forward reward
-            "alive_bonus": 1.0,              # Strong alive bonus
-            "energy_penalty_weight": 0.0005,  # Light energy penalty
-            "tail_stability_weight": 0.1,    # Encourage stable tail
-            "strike_bonus": 0.0,             # No strike reward yet
-            "strike_approach_weight": 0.0,   # No approach reward yet
-            "prey_distance_range": (10.0, 15.0),  # Prey far away (irrelevant)
-            "max_episode_steps": 500,
-        },
-        "ppo_kwargs": {
-            "learning_rate": 3e-4,
-            "n_steps": 2048,
-            "batch_size": 64,
-            "n_epochs": 10,
-            "gamma": 0.99,
-            "gae_lambda": 0.95,
-            "clip_range": 0.2,
-            "ent_coef": 0.01,  # Higher entropy for exploration
-        },
-    },
-    2: {
-        "name": "locomotion",
-        "description": "Learn forward walking/running",
-        "env_kwargs": {
-            "forward_vel_weight": 1.0,       # Forward velocity reward
-            "alive_bonus": 0.5,              # Moderate alive bonus
-            "energy_penalty_weight": 0.001,
-            "tail_stability_weight": 0.05,
-            "strike_bonus": 0.0,             # No strike yet
-            "strike_approach_weight": 0.2,   # Light approach signal
-            "prey_distance_range": (8.0, 12.0),
-            "max_episode_steps": 1000,
-        },
-        "ppo_kwargs": {
-            "learning_rate": 1e-4,
-            "n_steps": 2048,
-            "batch_size": 128,
-            "n_epochs": 10,
-            "gamma": 0.99,
-            "gae_lambda": 0.95,
-            "clip_range": 0.2,
-            "ent_coef": 0.005,
-        },
-    },
-    3: {
-        "name": "strike",
-        "description": "Sprint and strike prey with sickle claw",
-        "env_kwargs": {
-            "forward_vel_weight": 1.0,
-            "alive_bonus": 0.1,
-            "energy_penalty_weight": 0.001,
-            "tail_stability_weight": 0.02,
-            "strike_bonus": 500.0,           # Big strike reward!
-            "strike_approach_weight": 0.5,   # Full approach shaping
-            "prey_distance_range": (3.0, 8.0),  # Prey closer
-            "prey_lateral_range": (-1.5, 1.5),  # Some lateral variation
-            "max_episode_steps": 1000,
-        },
-        "ppo_kwargs": {
-            "learning_rate": 5e-5,
-            "n_steps": 4096,
-            "batch_size": 256,
-            "n_epochs": 10,
-            "gamma": 0.995,  # Higher gamma for long-horizon strike
-            "gae_lambda": 0.95,
-            "clip_range": 0.1,  # Tighter clipping for fine-tuning
-            "ent_coef": 0.001,
-        },
-    },
-}
+# Load curriculum configs from TOML files (configs/velociraptor/)
+STAGE_CONFIGS = load_all_stages("velociraptor")
 
 
 def make_env(stage: int, rank: int, seed: int = 0):
