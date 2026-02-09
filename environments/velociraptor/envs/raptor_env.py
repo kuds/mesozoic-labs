@@ -39,9 +39,10 @@ from environments.shared.base_env import BaseDinoEnv
 class RaptorEnv(BaseDinoEnv):
     """Velociraptor locomotion and strike environment."""
 
-    _camera_distance = 3.0
+    _camera_distance = 2.0
     _camera_azimuth = 135
     _camera_elevation = -20
+    _camera_track_body = "pelvis"
 
     def __init__(
         self,

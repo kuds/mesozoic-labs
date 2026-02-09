@@ -30,6 +30,7 @@ class BaseDinoEnv(gym.Env, ABC):
     _camera_distance: float = 3.0
     _camera_azimuth: float = 135
     _camera_elevation: float = -20
+    _camera_track_body: Optional[str] = None  # Body name to track, or None for fixed
 
     def __init__(
         self,
@@ -88,6 +89,7 @@ class BaseDinoEnv(gym.Env, ABC):
         self.render_mode = render_mode
         self._viewer = None
         self._renderer = None
+        self._camera = None
 
     # ------------------------------------------------------------------
     # Abstract methods: subclasses MUST implement these
@@ -197,20 +199,40 @@ class BaseDinoEnv(gym.Env, ABC):
 
         return obs, info
 
+    def _make_camera(self) -> mujoco.MjvCamera:
+        """Create a configured MjvCamera for rendering."""
+        camera = mujoco.MjvCamera()
+        if self._camera_track_body is not None:
+            camera.type = mujoco.mjtCamera.mjCAMERA_TRACKING
+            camera.trackbodyid = mujoco.mj_name2id(
+                self.model, mujoco.mjtObj.mjOBJ_BODY, self._camera_track_body
+            )
+        camera.distance = self._camera_distance
+        camera.azimuth = self._camera_azimuth
+        camera.elevation = self._camera_elevation
+        return camera
+
     def render(self):
         """Render the environment."""
         if self.render_mode == "human":
             if self._viewer is None:
                 self._viewer = mujoco.viewer.launch_passive(self.model, self.data)
-                self._viewer.cam.distance = self._camera_distance
-                self._viewer.cam.azimuth = self._camera_azimuth
-                self._viewer.cam.elevation = self._camera_elevation
+                cam = self._viewer.cam
+                if self._camera_track_body is not None:
+                    cam.type = mujoco.mjtCamera.mjCAMERA_TRACKING
+                    cam.trackbodyid = mujoco.mj_name2id(
+                        self.model, mujoco.mjtObj.mjOBJ_BODY, self._camera_track_body
+                    )
+                cam.distance = self._camera_distance
+                cam.azimuth = self._camera_azimuth
+                cam.elevation = self._camera_elevation
             self._viewer.sync()
 
         elif self.render_mode == "rgb_array":
             if self._renderer is None:
                 self._renderer = mujoco.Renderer(self.model, height=480, width=640)
-            self._renderer.update_scene(self.data)
+                self._camera = self._make_camera()
+            self._renderer.update_scene(self.data, self._camera)
             return self._renderer.render()
 
     def close(self):
