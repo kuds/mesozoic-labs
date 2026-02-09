@@ -20,12 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package metadata in `pyproject.toml` (authors, license, classifiers, URLs)
 - `mypy` and `ruff` configuration in `pyproject.toml`
 - `CurriculumManager` class for automated multi-stage training (`environments/shared/curriculum.py`)
+- `CurriculumCallback` SB3 callback that monitors evaluation and stops training when advancement thresholds are met
+- `thresholds_from_configs()` helper to extract curriculum thresholds from TOML configs
+- `[curriculum]` section in all TOML stage configs with `timesteps`, `min_avg_reward`, `min_avg_episode_length`, and `required_consecutive` fields
+- `curriculum` subcommand in all three species' training scripts for automated end-to-end 3-stage training
 - `LocomotionMetrics` class with gait symmetry, cost of transport, stride frequency, and time-to-target (`environments/shared/metrics.py`)
 - `WandbCallback` for SB3 with per-component reward logging and config snapshots (`environments/shared/wandb_integration.py`)
+- `WandbCallback` video recording of evaluation episodes (`video_env`, `video_freq` parameters)
 - `wandb` added to `[train]` optional dependencies
 
 ### Changed
 - Training scripts now load stage configs from TOML files instead of hardcoded dictionaries
+- Config loader now parses `[curriculum]` section from TOML files into `curriculum_kwargs`
 - Bumped version from 0.1.0 to 0.2.0
 - Dev dependencies expanded: `pytest-cov`, `mypy`, `ruff`, `pre-commit`
 - All `print()` calls in training scripts replaced with `logging` module

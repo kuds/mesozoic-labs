@@ -5,21 +5,27 @@ Monitors evaluation metrics and automatically advances through curriculum
 stages when performance thresholds are met. Supports both PPO and SAC
 algorithms with per-stage hyperparameter loading from TOML configs.
 
-Usage:
+Usage with CurriculumManager directly::
+
     from environments.shared.curriculum import CurriculumManager
 
-    manager = CurriculumManager(
-        species="velociraptor",
-        stage_thresholds={
-            1: {"min_avg_reward": 50.0, "min_avg_episode_length": 400},
-            2: {"min_avg_reward": 100.0, "min_avg_episode_length": 800},
-        },
-    )
+    manager = CurriculumManager(species="velociraptor")
 
-    # In training loop or as a callback:
     if manager.should_advance(eval_rewards, eval_lengths):
         manager.advance()
         new_config = manager.current_config()
+
+Usage with CurriculumCallback (SB3 integration)::
+
+    from environments.shared.curriculum import CurriculumManager, CurriculumCallback
+
+    manager = CurriculumManager(species="velociraptor")
+    curriculum_cb = CurriculumCallback(manager, eval_env, eval_freq=10000)
+
+    model.learn(total_timesteps=500_000, callback=curriculum_cb)
+
+    if curriculum_cb.ready_to_advance:
+        manager.advance()
 """
 
 import logging
@@ -29,6 +35,16 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from environments.shared.config import load_all_stages
+
+try:
+    from stable_baselines3.common.callbacks import BaseCallback
+    from stable_baselines3.common.vec_env import VecEnv
+
+    _SB3_AVAILABLE = True
+except ImportError:
+    BaseCallback = object  # type: ignore[misc,assignment]
+    VecEnv = object  # type: ignore[misc,assignment]
+    _SB3_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -79,16 +95,14 @@ class CurriculumManager:
                 self._thresholds[stage] = StageThreshold()
 
         # History of evaluation results per stage
-        self._eval_history: Dict[int, List[Dict[str, float]]] = {
-            s: [] for s in range(1, total_stages + 1)
-        }
-        self._consecutive_passes: Dict[int, int] = {
-            s: 0 for s in range(1, total_stages + 1)
-        }
+        self._eval_history: Dict[int, List[Dict[str, float]]] = {s: [] for s in range(1, total_stages + 1)}
+        self._consecutive_passes: Dict[int, int] = {s: 0 for s in range(1, total_stages + 1)}
 
         logger.info(
             "CurriculumManager initialized for %s: stage %d/%d",
-            species, start_stage, total_stages,
+            species,
+            start_stage,
+            total_stages,
         )
 
     @property
@@ -131,8 +145,10 @@ class CurriculumManager:
         logger.info(
             "Stage %d eval: reward=%.2f +/- %.2f, length=%.1f +/- %.1f (%d eps)",
             self._current_stage,
-            summary["mean_reward"], summary["std_reward"],
-            summary["mean_length"], summary["std_length"],
+            summary["mean_reward"],
+            summary["std_reward"],
+            summary["mean_length"],
+            summary["std_length"],
             summary["n_episodes"],
         )
         return summary
@@ -197,16 +213,15 @@ class CurriculumManager:
             RuntimeError: If already on the final stage.
         """
         if self.is_final_stage:
-            raise RuntimeError(
-                f"Cannot advance past final stage {self.total_stages}"
-            )
+            raise RuntimeError(f"Cannot advance past final stage {self.total_stages}")
 
         prev = self._current_stage
         self._current_stage += 1
 
         logger.info(
             "Advanced from stage %d to stage %d (%s -> %s)",
-            prev, self._current_stage,
+            prev,
+            self._current_stage,
             self._configs[prev]["name"],
             self._configs[self._current_stage]["name"],
         )
@@ -222,3 +237,107 @@ class CurriculumManager:
             "eval_history": dict(self._eval_history),
             "consecutive_passes": dict(self._consecutive_passes),
         }
+
+
+def thresholds_from_configs(
+    configs: Dict[int, Dict[str, Any]],
+) -> Dict[int, Dict[str, Any]]:
+    """Extract stage thresholds from loaded TOML configs.
+
+    Reads the ``curriculum_kwargs`` section from each stage config and
+    returns a dict suitable for passing to ``CurriculumManager``.
+
+    Args:
+        configs: Dict mapping stage number to config dict (from ``load_all_stages``).
+
+    Returns:
+        Dict mapping stage number to threshold kwargs.
+    """
+    thresholds: Dict[int, Dict[str, Any]] = {}
+    for stage, cfg in configs.items():
+        cur = cfg.get("curriculum_kwargs", {})
+        threshold_fields: Dict[str, Any] = {}
+        if "min_avg_reward" in cur:
+            threshold_fields["min_avg_reward"] = cur["min_avg_reward"]
+        if "min_avg_episode_length" in cur:
+            threshold_fields["min_avg_episode_length"] = cur["min_avg_episode_length"]
+        if "required_consecutive" in cur:
+            threshold_fields["required_consecutive"] = cur["required_consecutive"]
+        if threshold_fields:
+            thresholds[stage] = threshold_fields
+    return thresholds
+
+
+class CurriculumCallback(BaseCallback):  # type: ignore[misc]
+    """SB3 callback that monitors evaluation and signals stage advancement.
+
+    Periodically evaluates the policy and feeds results to a
+    :class:`CurriculumManager`. When thresholds are met, the callback
+    stops the current ``model.learn()`` call by returning ``False``
+    from ``_on_step``. The caller can then check :attr:`ready_to_advance`
+    and advance to the next stage.
+
+    Args:
+        curriculum_manager: The manager tracking stage progress.
+        eval_env: Vectorized evaluation environment.
+        eval_freq: Evaluate every N training steps.
+        n_eval_episodes: Number of episodes per evaluation.
+        verbose: Verbosity level.
+    """
+
+    def __init__(
+        self,
+        curriculum_manager: CurriculumManager,
+        eval_env: Any,
+        eval_freq: int = 10000,
+        n_eval_episodes: int = 10,
+        verbose: int = 0,
+    ):
+        if not _SB3_AVAILABLE:
+            raise ImportError(
+                "stable-baselines3 is required for CurriculumCallback. Install with: pip install stable-baselines3"
+            )
+        super().__init__(verbose)
+        self.curriculum_manager = curriculum_manager
+        self.eval_env = eval_env
+        self.eval_freq = eval_freq
+        self.n_eval_episodes = n_eval_episodes
+        self.ready_to_advance = False
+        self._last_eval_step = 0
+
+    def _on_step(self) -> bool:
+        if self.curriculum_manager.is_final_stage:
+            return True
+
+        if (self.num_timesteps - self._last_eval_step) < self.eval_freq:
+            return True
+
+        self._last_eval_step = self.num_timesteps
+
+        # Run evaluation episodes
+        rewards: List[float] = []
+        lengths: List[float] = []
+        for _ in range(self.n_eval_episodes):
+            obs = self.eval_env.reset()
+            episode_reward = 0.0
+            episode_length = 0
+            done = False
+            while not done:
+                action, _ = self.model.predict(obs, deterministic=True)
+                obs, reward, dones, infos = self.eval_env.step(action)
+                episode_reward += float(reward[0])
+                episode_length += 1
+                done = bool(dones[0])
+            rewards.append(episode_reward)
+            lengths.append(float(episode_length))
+
+        if self.curriculum_manager.should_advance(rewards, lengths):
+            self.ready_to_advance = True
+            logger.info(
+                "CurriculumCallback: stage %d thresholds met at step %d. Stopping training for stage advancement.",
+                self.curriculum_manager.current_stage,
+                self.num_timesteps,
+            )
+            return False  # Stop model.learn()
+
+        return True
