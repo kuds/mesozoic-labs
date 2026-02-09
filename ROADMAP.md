@@ -9,6 +9,24 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 
 ---
 
+## Progress Summary
+
+| Phase | Name | Status | Done | Remaining |
+|-------|------|--------|------|-----------|
+| **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
+| **1** | First Steps (v0.3.0) | **In Progress** | 6/9 items | 3 training runs (Velociraptor, Brachiosaurus, T-Rex) |
+| **2** | Into the Wild (v0.4.0) | Not Started | 0/7 items | Blocked on Phase 1 training results |
+| **3** | Evolution (v0.5.0) | Not Started | 0/7 items | Blocked on Phases 1-2 |
+| **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
+| **5** | Hyperdrive (v0.7.0) | Not Started | 0/4 items | Blocked on Phase 1 training |
+| **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-5 |
+
+**Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
+W&B tracking, metrics, Dockerfile, Vertex AI guide). The remaining work is
+executing full 3-stage training runs for each species and publishing results/checkpoints.
+
+---
+
 ## Phase 0 — Foundation & Code Quality (Weeks 1-3)
 
 Quick wins that pay dividends on everything that follows. Low effort, high leverage.
@@ -47,7 +65,7 @@ Quick wins that pay dividends on everything that follows. Low effort, high lever
   - Add `pytest-cov` coverage reporting to CI
   - _Dependency: None_
 
-**Exit criteria:** All three species pass mypy, Black, and 70%+ test coverage.
+**Exit criteria:** All three species pass mypy, Ruff, and 70%+ test coverage.
 Config-driven reward weights are loaded for at least one species.
 
 ---
@@ -99,6 +117,28 @@ curriculum with published results and reproducible checkpoints.
   - Time-to-target (for Stage 3)
   - `LocomotionMetrics` class with `aggregate_episodes()` for multi-episode reports
   - _Dependency: None_
+
+- [x] **Dockerfile for containerized training**
+  - Python 3.11-slim base with MuJoCo headless rendering (`MUJOCO_GL=osmesa`)
+  - Installs training dependencies via `pip install -e ".[train]"`
+  - Packages `environments/` and `configs/` for cloud deployment
+  - _Dependency: None_
+
+- [x] **Vertex AI cloud training guide**
+  - Step-by-step guide for single-stage and full curriculum training on GCP
+  - GCS checkpoint persistence configuration
+  - W&B integration with Vertex AI
+  - Parallel multi-species training job submission
+  - Machine type recommendations and cost estimates
+  - Spot/preemptible VM configuration for cost savings
+  - Published at `website/docs/training/vertex-ai.md`
+  - _Dependency: Dockerfile_
+
+- [x] **Full linting and type-checking compliance**
+  - Fixed 92 Ruff lint errors, formatted 25 files, fixed 31 mypy type errors
+  - All checks pass: `ruff check`, `ruff format`, `mypy` (0 errors)
+  - All 155 tests passing with pytest
+  - _Dependency: Phase 0 developer tooling_
 
 **Exit criteria:** All three species have published training results (PPO + SAC),
 downloadable checkpoints, and a fully automated end-to-end curriculum pipeline.
