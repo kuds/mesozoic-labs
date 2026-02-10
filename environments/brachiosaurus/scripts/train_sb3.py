@@ -104,6 +104,7 @@ def train(
     save_freq: int = 50000,
     log_dir: str | None = None,
     use_subproc: bool = False,
+    verbose: int = 1,
 ):
     """Train the brachiosaurus policy."""
 
@@ -134,7 +135,7 @@ def train(
     eval_env = create_vec_env(stage, 1, seed + 1000, use_subproc=False)
 
     ppo_kwargs = config["ppo_kwargs"].copy()
-    ppo_kwargs["verbose"] = 1
+    ppo_kwargs["verbose"] = verbose
     ppo_kwargs["tensorboard_log"] = str(log_path / "tensorboard")
 
     if load_path:
@@ -166,6 +167,7 @@ def train(
         n_eval_episodes=5,
         deterministic=True,
         render=False,
+        verbose=max(verbose, 1),
     )
     callbacks.append(eval_callback)
 
@@ -186,7 +188,7 @@ def train(
         model.learn(
             total_timesteps=total_timesteps,
             callback=callback_list,
-            progress_bar=True,
+            progress_bar=verbose >= 1,
         )
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user.")
@@ -215,6 +217,7 @@ def train_curriculum(
     save_freq: int = 50000,
     log_dir: str | None = None,
     use_subproc: bool = False,
+    verbose: int = 1,
 ):
     """Run the full 3-stage curriculum with automatic advancement."""
     thresholds = thresholds_from_configs(STAGE_CONFIGS)
@@ -258,7 +261,7 @@ def train_curriculum(
         eval_env = create_vec_env(stage, 1, seed + 1000, use_subproc=False)
 
         ppo_kwargs = config["ppo_kwargs"].copy()
-        ppo_kwargs["verbose"] = 1
+        ppo_kwargs["verbose"] = verbose
         ppo_kwargs["tensorboard_log"] = str(stage_dir / "tensorboard")
 
         if load_path:
@@ -280,6 +283,7 @@ def train_curriculum(
             n_eval_episodes=5,
             deterministic=True,
             render=False,
+            verbose=max(verbose, 1),
         )
         callbacks.append(eval_callback)
 
@@ -305,7 +309,7 @@ def train_curriculum(
             model.learn(
                 total_timesteps=total_timesteps,
                 callback=CallbackList(callbacks),
-                progress_bar=True,
+                progress_bar=verbose >= 1,
             )
         except KeyboardInterrupt:
             logger.warning("Training interrupted by user.")
@@ -432,6 +436,10 @@ def main():
     train_parser.add_argument(
         "--subproc", action="store_true", help="Use subprocess vectorization (faster but more memory)"
     )
+    train_parser.add_argument(
+        "--verbose", type=int, choices=[0, 1, 2], default=1,
+        help="Verbose level: 0=eval results only, 1=training stats + progress bar (default), 2=debug",
+    )
 
     # Curriculum command
     cur_parser = subparsers.add_parser("curriculum", help="Run automated end-to-end curriculum (stages 1-3)")
@@ -441,6 +449,10 @@ def main():
     cur_parser.add_argument("--save-freq", type=int, default=50000, help="Checkpoint save frequency (timesteps)")
     cur_parser.add_argument("--log-dir", type=str, default=None, help="Custom log directory")
     cur_parser.add_argument("--subproc", action="store_true", help="Use subprocess vectorization")
+    cur_parser.add_argument(
+        "--verbose", type=int, choices=[0, 1, 2], default=1,
+        help="Verbose level: 0=eval results only, 1=training stats + progress bar (default), 2=debug",
+    )
 
     # Eval command
     eval_parser = subparsers.add_parser("eval", help="Evaluate a trained policy")
@@ -468,6 +480,7 @@ def main():
             args.save_freq = 50000
             args.log_dir = None
             args.subproc = False
+            args.verbose = 1
 
         train(
             stage=args.stage,
@@ -479,6 +492,7 @@ def main():
             save_freq=args.save_freq,
             log_dir=args.log_dir,
             use_subproc=args.subproc,
+            verbose=args.verbose,
         )
 
     elif args.command == "curriculum":
@@ -489,6 +503,7 @@ def main():
             save_freq=args.save_freq,
             log_dir=args.log_dir,
             use_subproc=args.subproc,
+            verbose=args.verbose,
         )
 
     elif args.command == "eval":
