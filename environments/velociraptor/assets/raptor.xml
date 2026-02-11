@@ -10,9 +10,12 @@
     <geom contype="1" conaffinity="1" friction="1.0 0.005 0.0001"/>
     <motor ctrllimited="true" ctrlrange="-1 1"/>
 
-    <!-- Leg joints: moderate stiffness for position control -->
+    <!-- Leg joints: damping only, no passive stiffness.
+         Position actuators (kp) provide active control during RL;
+         removing stiffness prevents violent spring forces when the
+         desktop viewer starts from qpos0 (which doesn't match ref). -->
     <default class="leg_joint">
-      <joint damping="5.0" armature="0.02" stiffness="15.0"/>
+      <joint damping="5.0" armature="0.02"/>
     </default>
 
     <!-- Tail joints: high stiffness, limited range (rigid rudder behavior) -->
@@ -114,27 +117,27 @@
 
       <body name="r_thigh" pos="0 -0.08 0">
         <!-- Hip: 2 DOF (flexion/extension + abduction) -->
-        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="18"/>
+        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90"/>
         <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30"/>
         <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04"
               mass="1.2" material="body_mat"/>
 
         <body name="r_tibia" pos="0.02 0 -0.18">
           <!-- Knee: 1 DOF -->
-          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10" ref="-50"/>
+          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10"/>
           <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
                 mass="0.8" material="body_mat"/>
 
           <body name="r_metatarsus" pos="-0.02 0 -0.2">
             <!-- Ankle: 1 DOF (digitigrade stance) -->
-            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160" ref="100"/>
+            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160"/>
             <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
                   mass="0.3" material="body_mat"/>
 
             <!-- Toes -->
             <body name="r_toe_main" pos="0.06 0 -0.12">
               <!-- Main toe (digits 3+4 combined) -->
-              <joint name="r_toe_main_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
+              <joint name="r_toe_main_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60"/>
               <geom name="r_toe_main_geom" type="capsule" fromto="0 0 0  0.08 0 0" size="0.015"
                     mass="0.1" material="body_mat"/>
               <!-- Foot contact sensor -->
@@ -156,23 +159,23 @@
       <!-- ==================== LEFT LEG ==================== -->
 
       <body name="l_thigh" pos="0 0.08 0">
-        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="18"/>
+        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90"/>
         <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30"/>
         <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04"
               mass="1.2" material="body_mat"/>
 
         <body name="l_tibia" pos="0.02 0 -0.18">
-          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10" ref="-50"/>
+          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10"/>
           <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
                 mass="0.8" material="body_mat"/>
 
           <body name="l_metatarsus" pos="-0.02 0 -0.2">
-            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160" ref="100"/>
+            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160"/>
             <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
                   mass="0.3" material="body_mat"/>
 
             <body name="l_toe_main" pos="0.06 0 -0.12">
-              <joint name="l_toe_main_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
+              <joint name="l_toe_main_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60"/>
               <geom name="l_toe_main_geom" type="capsule" fromto="0 0 0  0.08 0 0" size="0.015"
                     mass="0.1" material="body_mat"/>
               <site name="l_foot" pos="0.04 0 -0.015" size="0.02"/>
@@ -274,9 +277,11 @@
 
   <!-- ==================== KEYFRAMES ==================== -->
   <!-- Standing pose with COM balanced over feet.
-       Without this, knee (range -120..-10) and ankle (range 60..160)
-       start at 0 deg which is outside their limits, causing violent
-       constraint-force corrections on the first simulation step. -->
+       base_env.py loads this keyframe on reset so the RL agent
+       starts in a valid crouch.  The MuJoCo desktop viewer ignores
+       keyframes at launch (it uses qpos0), so the raptor will start
+       loose and collapse under gravity — press '0' to load this
+       keyframe manually in the viewer if needed. -->
 
   <keyframe>
     <key name="home"
