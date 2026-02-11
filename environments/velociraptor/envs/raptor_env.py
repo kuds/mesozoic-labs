@@ -184,7 +184,7 @@ class RaptorEnv(BaseDinoEnv):
         # 4. Tail stability (penalize high angular velocity at tail tip)
         tail_vel = np.zeros(6)
         mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, self.tail_tip_site_id, tail_vel, 0)
-        tail_tip_angvel = tail_vel[3:6]  # Angular velocity (last 3 elements)
+        tail_tip_angvel = tail_vel[0:3]  # Angular velocity (first 3 elements, rot:lin order)
         tail_instability = np.linalg.norm(tail_tip_angvel)
         reward_tail = -self.tail_stability_weight * tail_instability
         info["tail_instability"] = tail_instability
