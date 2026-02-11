@@ -210,28 +210,31 @@
   <!-- Position actuators for locomotion, motor for claws -->
 
   <actuator>
+    <!-- NOTE: ctrlrange must be in radians — the compiler angle="degree" setting
+         does NOT convert actuator attributes, only joint attributes. -->
+
     <!-- Right leg -->
-    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="80" ctrlrange="-60 90"/>
-    <position name="r_hip_roll_act" joint="r_hip_roll" kp="60" ctrlrange="-30 30"/>
-    <position name="r_knee_act" joint="r_knee" kp="100" ctrlrange="-120 -10"/>
-    <position name="r_ankle_act" joint="r_ankle" kp="60" ctrlrange="60 160"/>
-    <position name="r_toe_act" joint="r_toe_main_joint" kp="30" ctrlrange="-30 60"/>
+    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="80" ctrlrange="-1.0472 1.5708"/>
+    <position name="r_hip_roll_act" joint="r_hip_roll" kp="60" ctrlrange="-0.5236 0.5236"/>
+    <position name="r_knee_act" joint="r_knee" kp="100" ctrlrange="-2.0944 -0.1745"/>
+    <position name="r_ankle_act" joint="r_ankle" kp="60" ctrlrange="1.0472 2.7925"/>
+    <position name="r_toe_act" joint="r_toe_main_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
     <motor name="r_claw_act" joint="r_claw" gear="50" ctrlrange="-1 1"/>
 
     <!-- Left leg -->
-    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="80" ctrlrange="-60 90"/>
-    <position name="l_hip_roll_act" joint="l_hip_roll" kp="60" ctrlrange="-30 30"/>
-    <position name="l_knee_act" joint="l_knee" kp="100" ctrlrange="-120 -10"/>
-    <position name="l_ankle_act" joint="l_ankle" kp="60" ctrlrange="60 160"/>
-    <position name="l_toe_act" joint="l_toe_main_joint" kp="30" ctrlrange="-30 60"/>
+    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="80" ctrlrange="-1.0472 1.5708"/>
+    <position name="l_hip_roll_act" joint="l_hip_roll" kp="60" ctrlrange="-0.5236 0.5236"/>
+    <position name="l_knee_act" joint="l_knee" kp="100" ctrlrange="-2.0944 -0.1745"/>
+    <position name="l_ankle_act" joint="l_ankle" kp="60" ctrlrange="1.0472 2.7925"/>
+    <position name="l_toe_act" joint="l_toe_main_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
     <motor name="l_claw_act" joint="l_claw" gear="50" ctrlrange="-1 1"/>
 
     <!-- Tail (optional - can be passive or actuated) -->
     <!-- Uncomment if you want active tail control for balance -->
     <!--
-    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="40" ctrlrange="-15 15"/>
-    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="30" ctrlrange="-10 10"/>
-    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="30" ctrlrange="-15 15"/>
+    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="40" ctrlrange="-0.2618 0.2618"/>
+    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="30" ctrlrange="-0.1745 0.1745"/>
+    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="30" ctrlrange="-0.2618 0.2618"/>
     -->
   </actuator>
 
