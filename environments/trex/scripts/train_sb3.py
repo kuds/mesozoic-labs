@@ -427,7 +427,10 @@ def main():
     train_parser.add_argument("--log-dir", type=str, default=None, help="Custom log directory")
     train_parser.add_argument("--subproc", action="store_true", help="Use subprocess vectorization")
     train_parser.add_argument(
-        "--verbose", type=int, choices=[0, 1, 2], default=1,
+        "--verbose",
+        type=int,
+        choices=[0, 1, 2],
+        default=1,
         help="Verbose level: 0=eval results only, 1=training stats + progress bar (default), 2=debug",
     )
 
@@ -440,7 +443,10 @@ def main():
     cur_parser.add_argument("--log-dir", type=str, default=None, help="Custom log directory")
     cur_parser.add_argument("--subproc", action="store_true", help="Use subprocess vectorization")
     cur_parser.add_argument(
-        "--verbose", type=int, choices=[0, 1, 2], default=1,
+        "--verbose",
+        type=int,
+        choices=[0, 1, 2],
+        default=1,
         help="Verbose level: 0=eval results only, 1=training stats + progress bar (default), 2=debug",
     )
 
