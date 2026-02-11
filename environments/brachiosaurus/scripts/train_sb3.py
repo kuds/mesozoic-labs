@@ -51,7 +51,7 @@ except ImportError:
     sys.exit(1)
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.shared.config import load_all_stages
+from environments.shared.config import load_all_stages, save_stage_config
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,
@@ -128,6 +128,12 @@ def train(
 
     logger.info("Log directory: %s", log_path)
     logger.info("Model directory: %s", model_dir)
+
+    # Save reward weights and hyperparameters for reproducibility
+    save_stage_config(
+        log_path, stage, config, "PPO",
+        extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
+    )
 
     logger.info("Creating %d training environments...", n_envs)
     train_env = create_vec_env(stage, n_envs, seed, use_subproc)
@@ -257,6 +263,12 @@ def train_curriculum(
         logger.info("Description: %s", config["description"])
         logger.info("Timesteps: %s", f"{total_timesteps:,}")
         logger.info("=" * 60)
+
+        # Save reward weights and hyperparameters for reproducibility
+        save_stage_config(
+            stage_dir, stage, config, "PPO",
+            extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
+        )
 
         train_env = create_vec_env(stage, n_envs, seed, use_subproc)
         eval_env = create_vec_env(stage, 1, seed + 1000, use_subproc=False)

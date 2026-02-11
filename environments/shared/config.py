@@ -14,6 +14,7 @@ The [curriculum] table contains per-stage training and advancement settings:
     required_consecutive   - number of consecutive passes required (optional)
 """
 
+import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -99,3 +100,54 @@ def load_all_stages(species: str) -> Dict[int, Dict[str, Any]]:
         Dictionary mapping stage number (1, 2, 3) to stage config dicts.
     """
     return {stage: load_stage_config(species, stage) for stage in (1, 2, 3)}
+
+
+def save_stage_config(
+    stage_dir: str | Path,
+    stage: int,
+    stage_config: Dict[str, Any],
+    algorithm: str,
+    extra: Optional[Dict[str, Any]] = None,
+) -> Path:
+    """Save the reward weights and model hyperparameters for a stage to JSON.
+
+    Writes ``stage_config.json`` into *stage_dir* with the full reward signal
+    (env_kwargs), the algorithm hyperparameters, curriculum thresholds, and any
+    extra run-level metadata (seed, n_envs, etc.).
+
+    Args:
+        stage_dir: Directory for this stage (e.g. ``run_dir/stage1``).
+        stage: Stage number (1, 2, or 3).
+        stage_config: The config dict returned by :func:`load_stage_config`.
+        algorithm: Algorithm name (``"PPO"`` or ``"SAC"``).
+        extra: Optional dict of additional metadata to include at the top level
+            (e.g. ``{"seed": 42, "n_envs": 4}``).
+
+    Returns:
+        Path to the written JSON file.
+    """
+    stage_dir = Path(stage_dir)
+    stage_dir.mkdir(parents=True, exist_ok=True)
+
+    algo_key = "ppo_kwargs" if algorithm.upper() == "PPO" else "sac_kwargs"
+
+    # Convert tuples back to lists for JSON serialisation
+    env_kwargs = {}
+    for key, value in stage_config.get("env_kwargs", {}).items():
+        env_kwargs[key] = list(value) if isinstance(value, tuple) else value
+
+    data: Dict[str, Any] = {
+        "stage": stage,
+        "name": stage_config.get("name", ""),
+        "description": stage_config.get("description", ""),
+        "algorithm": algorithm.upper(),
+        "reward_weights": env_kwargs,
+        "hyperparameters": stage_config.get(algo_key, {}),
+        "curriculum": stage_config.get("curriculum_kwargs", {}),
+    }
+    if extra:
+        data["run"] = extra
+
+    out_path = stage_dir / "stage_config.json"
+    out_path.write_text(json.dumps(data, indent=2) + "\n")
+    return out_path
