@@ -12,7 +12,7 @@
 
     <!-- Leg joints: high stiffness for massive biped -->
     <default class="leg_joint">
-      <joint damping="15.0" armature="0.1"/>
+      <joint damping="15.0" armature="0.1" stiffness="40.0"/>
     </default>
 
     <!-- Tail joints: very stiff, acts as heavy counterbalance to skull -->
@@ -74,7 +74,7 @@
       - Body pivots at hips, skull and tail balance each other
     -->
 
-    <body name="pelvis" pos="0 0 1.15">
+    <body name="pelvis" pos="0 0 0.90">
       <freejoint name="root"/>
 
       <!-- Main torso: forward-leaning, angled ~30 deg from horizontal -->
@@ -176,26 +176,26 @@
 
       <body name="r_thigh" pos="-0.05 -0.14 -0.05">
         <!-- Hip: 2 DOF -->
-        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-50 80"/>
+        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-50 80" ref="15"/>
         <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-25 25"/>
         <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.03 0 -0.35" size="0.09"
               mass="5.0" material="body_mat"/>
 
         <body name="r_tibia" pos="0.03 0 -0.35">
           <!-- Knee: 1 DOF -->
-          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-110 -10"/>
+          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-110 -10" ref="-70"/>
           <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.03 0 -0.35" size="0.07"
                 mass="3.5" material="body_mat"/>
 
           <body name="r_metatarsus" pos="-0.03 0 -0.35">
             <!-- Ankle: 1 DOF (digitigrade stance) -->
-            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="50 150"/>
+            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="50 150" ref="90"/>
             <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.04"
                   mass="1.2" material="body_mat"/>
 
             <!-- Toes (3 forward-facing digits fused as one contact pad) -->
             <body name="r_toe" pos="0.08 0 -0.2">
-              <joint name="r_toe_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50"/>
+              <joint name="r_toe_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
               <geom name="r_toe_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.035"
                     mass="0.4" material="claw_mat"/>
               <site name="r_foot" pos="0.06 0 -0.035" size="0.03"/>
@@ -207,23 +207,23 @@
       <!-- ==================== LEFT LEG ==================== -->
 
       <body name="l_thigh" pos="-0.05 0.14 -0.05">
-        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-50 80"/>
+        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-50 80" ref="15"/>
         <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-25 25"/>
         <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.03 0 -0.35" size="0.09"
               mass="5.0" material="body_mat"/>
 
         <body name="l_tibia" pos="0.03 0 -0.35">
-          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-110 -10"/>
+          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-110 -10" ref="-70"/>
           <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.03 0 -0.35" size="0.07"
                 mass="3.5" material="body_mat"/>
 
           <body name="l_metatarsus" pos="-0.03 0 -0.35">
-            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="50 150"/>
+            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="50 150" ref="90"/>
             <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.04"
                   mass="1.2" material="body_mat"/>
 
             <body name="l_toe" pos="0.08 0 -0.2">
-              <joint name="l_toe_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50"/>
+              <joint name="l_toe_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
               <geom name="l_toe_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.035"
                     mass="0.4" material="claw_mat"/>
               <site name="l_foot" pos="0.06 0 -0.035" size="0.03"/>
