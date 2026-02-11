@@ -177,8 +177,11 @@ class BaseDinoEnv(gym.Env, ABC):
         """Reset environment to initial state."""
         super().reset(seed=seed)
 
-        # Reset MuJoCo state
-        mujoco.mj_resetData(self.model, self.data)
+        # Reset MuJoCo state using keyframe if available, otherwise default
+        if self.model.nkey > 0:
+            mujoco.mj_resetDataKeyframe(self.model, self.data, 0)
+        else:
+            mujoco.mj_resetData(self.model, self.data)
 
         # Add small random perturbation to initial pose
         if self.np_random is not None:

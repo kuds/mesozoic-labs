@@ -337,4 +337,22 @@
     <exclude body1="pelvis" body2="l_arm"/>
   </contact>
 
+  <!-- ==================== KEYFRAMES ==================== -->
+  <!-- Standing pose with COM balanced over feet.
+       Without this, knee (range -110..-10) and ankle (range 50..150)
+       start at 0 deg which is outside their limits, causing violent
+       constraint-force corrections on the first simulation step. -->
+
+  <keyframe>
+    <key name="home"
+         qpos="0 0 0.90 1 0 0 0
+               0 0 0 0 0 0 0 0 0 0
+               0.261799 0 -1.221730 1.570796 0.261799
+               0.261799 0 -1.221730 1.570796 0.261799
+               1 0 0 0 0 1 0 0 0 0"
+         ctrl="0 0 0 0
+               0.261799 0 -1.221730 1.570796 0.261799
+               0.261799 0 -1.221730 1.570796 0.261799"/>
+  </keyframe>
+
 </mujoco>
