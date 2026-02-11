@@ -11,9 +11,9 @@
     <motor ctrllimited="true" ctrlrange="-1 1"/>
 
     <!-- Leg joints: damping only, no passive stiffness.
-         Position actuators (kp) provide active control during RL;
-         removing stiffness prevents violent spring forces when the
-         desktop viewer starts from qpos0 (which doesn't match ref). -->
+         Position actuators (kp) provide active control during RL.
+         No stiffness here — it would create spring forces at t=0 in
+         the desktop viewer (where qpos0 ≠ the standing-pose ref). -->
     <default class="leg_joint">
       <joint damping="5.0" armature="0.02"/>
     </default>
@@ -124,13 +124,13 @@
 
         <body name="r_tibia" pos="0.02 0 -0.18">
           <!-- Knee: 1 DOF -->
-          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10"/>
+          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10" ref="-10"/>
           <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
                 mass="0.8" material="body_mat"/>
 
           <body name="r_metatarsus" pos="-0.02 0 -0.2">
             <!-- Ankle: 1 DOF (digitigrade stance) -->
-            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160"/>
+            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160" ref="60"/>
             <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
                   mass="0.3" material="body_mat"/>
 
@@ -165,12 +165,12 @@
               mass="1.2" material="body_mat"/>
 
         <body name="l_tibia" pos="0.02 0 -0.18">
-          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10"/>
+          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10" ref="-10"/>
           <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
                 mass="0.8" material="body_mat"/>
 
           <body name="l_metatarsus" pos="-0.02 0 -0.2">
-            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160"/>
+            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="60 160" ref="60"/>
             <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
                   mass="0.3" material="body_mat"/>
 
