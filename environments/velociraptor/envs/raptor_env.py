@@ -95,7 +95,12 @@ class RaptorEnv(BaseDinoEnv):
         self.r_claw_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "r_claw_geom")
         self.l_claw_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "l_claw_geom")
         self.torso_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso")
+        self.neck_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "neck")
+        self.head_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "head")
         self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+
+        # Geoms that should terminate the episode on ground contact
+        self._body_ground_geoms = {self.torso_geom_id, self.neck_geom_id, self.head_geom_id}
 
         # Site IDs for sensors
         self.imu_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "imu")
@@ -242,16 +247,16 @@ class RaptorEnv(BaseDinoEnv):
             info["termination_reason"] = "too_high"
             return True, info
 
-        # Check for torso-ground contact (fallen over)
+        # Check for body-ground contact (torso, neck, or head touching floor)
         for i in range(self.data.ncon):
             contact = self.data.contact[i]
             geom1, geom2 = contact.geom1, contact.geom2
 
-            # Torso touching floor = fallen
-            if (geom1 == self.torso_geom_id and geom2 == self.floor_geom_id) or (
-                geom2 == self.torso_geom_id and geom1 == self.floor_geom_id
-            ):
-                info["termination_reason"] = "torso_contact"
+            if geom2 == self.floor_geom_id and geom1 in self._body_ground_geoms:
+                info["termination_reason"] = "body_contact"
+                return True, info
+            if geom1 == self.floor_geom_id and geom2 in self._body_ground_geoms:
+                info["termination_reason"] = "body_contact"
                 return True, info
 
         return False, info
