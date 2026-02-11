@@ -37,13 +37,14 @@ class TestRewardComponents:
         _, _, _, _, info = env.step(action)
         assert info["reward_energy"] < 0
 
-    def test_approach_reward_negative(self, env):
-        """Approach shaping should be negative (penalizes distance)."""
+    def test_approach_reward_zero_on_first_step(self, env):
+        """Approach reward should be zero on the first step (no prior distance)."""
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
-        # Prey is spawned away from the raptor, so approach reward is negative
-        assert info["reward_approach"] <= 0
+        # First step has no prior distance, so approach delta is zero
+        assert info["reward_approach"] == 0.0
+        assert info["approach_delta"] == 0.0
 
     def test_strike_success_is_zero_initially(self, env):
         """No strike success on the first step (prey is far away)."""
@@ -113,10 +114,17 @@ class TestCurriculumStageRewards:
         env.close()
 
     def test_stage3_strike_has_approach_shaping(self):
-        """Stage 3 config enables approach shaping."""
-        env = RaptorEnv(strike_approach_weight=0.5)
+        """Stage 3 config enables approach shaping (delta-based)."""
+        env = RaptorEnv(strike_approach_weight=10.0)
         env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        # First step initialises the previous distance (delta is zero)
+        action = env.action_space.sample()
+        env.step(action)
+        # Second step should produce a non-zero approach delta from movement
+        action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
-        assert info["reward_approach"] != 0.0
+        assert "approach_delta" in info
+        assert "reward_approach" in info
+        # With a random action the raptor moves, so delta should be non-zero
+        assert info["approach_delta"] != 0.0
         env.close()

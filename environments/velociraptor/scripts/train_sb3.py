@@ -115,11 +115,11 @@ def train(
     logger.info("Description: %s", config["description"])
     logger.info("=" * 60)
 
-    # Setup directories
+    # Setup directories (organised as <species>/<datetime>/)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path: Path
     if log_dir is None:
-        log_path = Path(__file__).parent.parent / "logs" / f"stage{stage}_{timestamp}"
+        log_path = Path(__file__).parent.parent / "logs" / "velociraptor" / f"stage{stage}_{timestamp}"
     else:
         log_path = Path(log_dir)
 
@@ -239,7 +239,7 @@ def train_curriculum(
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if log_dir is None:
-        base_dir = Path(__file__).parent.parent / "logs" / f"curriculum_{timestamp}"
+        base_dir = Path(__file__).parent.parent / "logs" / "velociraptor" / f"curriculum_{timestamp}"
     else:
         base_dir = Path(log_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
