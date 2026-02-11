@@ -12,7 +12,7 @@
 
     <!-- Leg joints: moderate stiffness for position control -->
     <default class="leg_joint">
-      <joint damping="5.0" armature="0.02" stiffness="15.0"/>
+      <joint damping="5.0" armature="0.02"/>
     </default>
 
     <!-- Tail joints: high stiffness, limited range (rigid rudder behavior) -->
@@ -58,7 +58,7 @@
       Total mass: ~15kg
     -->
 
-    <body name="pelvis" pos="0 0 0.50">
+    <body name="pelvis" pos="0 0 0.55">
       <freejoint name="root"/>
 
       <!-- Main body: elongated ellipsoid -->
@@ -207,32 +207,25 @@
   </worldbody>
 
   <!-- ==================== ACTUATORS ==================== -->
-  <!-- Position actuators for locomotion, motor for claws -->
+  <!-- Motor (torque) actuators: ctrl=0 produces zero force ("loose" at rest).
+       Gear values set max torque (N·m) for each joint. -->
 
   <actuator>
     <!-- Right leg -->
-    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="80" ctrlrange="-60 90"/>
-    <position name="r_hip_roll_act" joint="r_hip_roll" kp="60" ctrlrange="-30 30"/>
-    <position name="r_knee_act" joint="r_knee" kp="100" ctrlrange="-120 -10"/>
-    <position name="r_ankle_act" joint="r_ankle" kp="60" ctrlrange="60 160"/>
-    <position name="r_toe_act" joint="r_toe_main_joint" kp="30" ctrlrange="-30 60"/>
+    <motor name="r_hip_pitch_act" joint="r_hip_pitch" gear="80" ctrlrange="-1 1"/>
+    <motor name="r_hip_roll_act" joint="r_hip_roll" gear="60" ctrlrange="-1 1"/>
+    <motor name="r_knee_act" joint="r_knee" gear="100" ctrlrange="-1 1"/>
+    <motor name="r_ankle_act" joint="r_ankle" gear="60" ctrlrange="-1 1"/>
+    <motor name="r_toe_act" joint="r_toe_main_joint" gear="30" ctrlrange="-1 1"/>
     <motor name="r_claw_act" joint="r_claw" gear="50" ctrlrange="-1 1"/>
 
     <!-- Left leg -->
-    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="80" ctrlrange="-60 90"/>
-    <position name="l_hip_roll_act" joint="l_hip_roll" kp="60" ctrlrange="-30 30"/>
-    <position name="l_knee_act" joint="l_knee" kp="100" ctrlrange="-120 -10"/>
-    <position name="l_ankle_act" joint="l_ankle" kp="60" ctrlrange="60 160"/>
-    <position name="l_toe_act" joint="l_toe_main_joint" kp="30" ctrlrange="-30 60"/>
+    <motor name="l_hip_pitch_act" joint="l_hip_pitch" gear="80" ctrlrange="-1 1"/>
+    <motor name="l_hip_roll_act" joint="l_hip_roll" gear="60" ctrlrange="-1 1"/>
+    <motor name="l_knee_act" joint="l_knee" gear="100" ctrlrange="-1 1"/>
+    <motor name="l_ankle_act" joint="l_ankle" gear="60" ctrlrange="-1 1"/>
+    <motor name="l_toe_act" joint="l_toe_main_joint" gear="30" ctrlrange="-1 1"/>
     <motor name="l_claw_act" joint="l_claw" gear="50" ctrlrange="-1 1"/>
-
-    <!-- Tail (optional - can be passive or actuated) -->
-    <!-- Uncomment if you want active tail control for balance -->
-    <!--
-    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="40" ctrlrange="-15 15"/>
-    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="30" ctrlrange="-10 10"/>
-    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="30" ctrlrange="-15 15"/>
-    -->
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
@@ -280,13 +273,13 @@
 
   <keyframe>
     <key name="home"
-         qpos="0 0 0.50 1 0 0 0
+         qpos="0 0 0.55 1 0 0 0
                0 0 0 0 0 0
                0.314159 0 -0.872665 1.745329 0.174533 0
                0.314159 0 -0.872665 1.745329 0.174533 0
                1 0 0 0 1 0 0 0"
-         ctrl="0.314159 0 -0.872665 1.745329 0.174533 0
-               0.314159 0 -0.872665 1.745329 0.174533 0"/>
+         ctrl="0 0 0 0 0 0
+               0 0 0 0 0 0"/>
   </keyframe>
 
 </mujoco>

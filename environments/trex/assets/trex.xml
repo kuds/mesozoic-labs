@@ -12,7 +12,7 @@
 
     <!-- Leg joints: high stiffness for massive biped -->
     <default class="leg_joint">
-      <joint damping="15.0" armature="0.1" stiffness="40.0"/>
+      <joint damping="15.0" armature="0.1"/>
     </default>
 
     <!-- Tail joints: very stiff, acts as heavy counterbalance to skull -->
@@ -74,7 +74,7 @@
       - Body pivots at hips, skull and tail balance each other
     -->
 
-    <body name="pelvis" pos="0 0 0.90">
+    <body name="pelvis" pos="0 0 1.15">
       <freejoint name="root"/>
 
       <!-- Main torso: forward-leaning, angled ~30 deg from horizontal -->
@@ -267,28 +267,29 @@
   </worldbody>
 
   <!-- ==================== ACTUATORS ==================== -->
-  <!-- Position actuators for locomotion, motor for jaw -->
+  <!-- Motor (torque) actuators: ctrl=0 produces zero force ("loose" at rest).
+       Gear values set max torque (N·m) for each joint. -->
 
   <actuator>
     <!-- Head/neck control -->
-    <position name="neck_pitch_act" joint="neck_pitch" kp="150" ctrlrange="-30 40"/>
-    <position name="neck_yaw_act" joint="neck_yaw" kp="100" ctrlrange="-20 20"/>
-    <position name="head_pitch_act" joint="head_pitch" kp="80" ctrlrange="-25 35"/>
+    <motor name="neck_pitch_act" joint="neck_pitch" gear="150" ctrlrange="-1 1"/>
+    <motor name="neck_yaw_act" joint="neck_yaw" gear="100" ctrlrange="-1 1"/>
+    <motor name="head_pitch_act" joint="head_pitch" gear="80" ctrlrange="-1 1"/>
     <motor name="jaw_act" joint="jaw_joint" gear="80" ctrlrange="-1 1"/>
 
     <!-- Right leg -->
-    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="200" ctrlrange="-50 80"/>
-    <position name="r_hip_roll_act" joint="r_hip_roll" kp="150" ctrlrange="-25 25"/>
-    <position name="r_knee_act" joint="r_knee" kp="250" ctrlrange="-110 -10"/>
-    <position name="r_ankle_act" joint="r_ankle" kp="150" ctrlrange="50 150"/>
-    <position name="r_toe_act" joint="r_toe_joint" kp="60" ctrlrange="-25 50"/>
+    <motor name="r_hip_pitch_act" joint="r_hip_pitch" gear="200" ctrlrange="-1 1"/>
+    <motor name="r_hip_roll_act" joint="r_hip_roll" gear="150" ctrlrange="-1 1"/>
+    <motor name="r_knee_act" joint="r_knee" gear="250" ctrlrange="-1 1"/>
+    <motor name="r_ankle_act" joint="r_ankle" gear="150" ctrlrange="-1 1"/>
+    <motor name="r_toe_act" joint="r_toe_joint" gear="60" ctrlrange="-1 1"/>
 
     <!-- Left leg -->
-    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="200" ctrlrange="-50 80"/>
-    <position name="l_hip_roll_act" joint="l_hip_roll" kp="150" ctrlrange="-25 25"/>
-    <position name="l_knee_act" joint="l_knee" kp="250" ctrlrange="-110 -10"/>
-    <position name="l_ankle_act" joint="l_ankle" kp="150" ctrlrange="50 150"/>
-    <position name="l_toe_act" joint="l_toe_joint" kp="60" ctrlrange="-25 50"/>
+    <motor name="l_hip_pitch_act" joint="l_hip_pitch" gear="200" ctrlrange="-1 1"/>
+    <motor name="l_hip_roll_act" joint="l_hip_roll" gear="150" ctrlrange="-1 1"/>
+    <motor name="l_knee_act" joint="l_knee" gear="250" ctrlrange="-1 1"/>
+    <motor name="l_ankle_act" joint="l_ankle" gear="150" ctrlrange="-1 1"/>
+    <motor name="l_toe_act" joint="l_toe_joint" gear="60" ctrlrange="-1 1"/>
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
@@ -345,14 +346,14 @@
 
   <keyframe>
     <key name="home"
-         qpos="0 0 0.90 1 0 0 0
+         qpos="0 0 1.15 1 0 0 0
                0 0 0 0 0 0 0 0 0 0
                0.261799 0 -1.221730 1.570796 0.261799
                0.261799 0 -1.221730 1.570796 0.261799
                1 0 0 0 0 1 0 0 0 0"
          ctrl="0 0 0 0
-               0.261799 0 -1.221730 1.570796 0.261799
-               0.261799 0 -1.221730 1.570796 0.261799"/>
+               0 0 0 0 0
+               0 0 0 0 0"/>
   </keyframe>
 
 </mujoco>
