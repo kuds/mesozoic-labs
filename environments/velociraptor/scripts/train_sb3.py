@@ -50,7 +50,7 @@ except ImportError:
     logger.error("stable-baselines3 not installed. Install with: pip install stable-baselines3[extra]")
     sys.exit(1)
 
-from environments.shared.config import load_all_stages
+from environments.shared.config import load_all_stages, save_stage_config
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,
@@ -115,11 +115,11 @@ def train(
     logger.info("Description: %s", config["description"])
     logger.info("=" * 60)
 
-    # Setup directories
+    # Setup directories (organised as <species>/<datetime>/)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path: Path
     if log_dir is None:
-        log_path = Path(__file__).parent.parent / "logs" / f"stage{stage}_{timestamp}"
+        log_path = Path(__file__).parent.parent / "logs" / "velociraptor" / f"stage{stage}_{timestamp}"
     else:
         log_path = Path(log_dir)
 
@@ -129,6 +129,15 @@ def train(
 
     logger.info("Log directory: %s", log_path)
     logger.info("Model directory: %s", model_dir)
+
+    # Save reward weights and hyperparameters for reproducibility
+    save_stage_config(
+        log_path,
+        stage,
+        config,
+        "PPO",
+        extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
+    )
 
     # Create environments
     logger.info("Creating %d training environments...", n_envs)
@@ -239,7 +248,7 @@ def train_curriculum(
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if log_dir is None:
-        base_dir = Path(__file__).parent.parent / "logs" / f"curriculum_{timestamp}"
+        base_dir = Path(__file__).parent.parent / "logs" / "velociraptor" / f"curriculum_{timestamp}"
     else:
         base_dir = Path(log_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
@@ -267,6 +276,15 @@ def train_curriculum(
         logger.info("Description: %s", config["description"])
         logger.info("Timesteps: %s", f"{total_timesteps:,}")
         logger.info("=" * 60)
+
+        # Save reward weights and hyperparameters for reproducibility
+        save_stage_config(
+            stage_dir,
+            stage,
+            config,
+            "PPO",
+            extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
+        )
 
         # Create environments for this stage
         train_env = create_vec_env(stage, n_envs, seed, use_subproc)
