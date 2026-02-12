@@ -46,7 +46,7 @@ The velociraptor uses 3-stage curriculum learning:
 python scripts/train_sb3.py train --stage 1 --timesteps 1000000
 
 # Stage 2: Learn to walk/run (loads Stage 1 weights)
-python scripts/train_sb3.py train --stage 2 --timesteps 1000000 \
+python scripts/train_sb3.py train --stage 2 --timesteps 2000000 \
   --load logs/<stage1_dir>/models/stage1_final.zip
 
 # Stage 3: Sprint and strike prey
