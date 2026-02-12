@@ -50,5 +50,5 @@ cd environments/brachiosaurus
 python scripts/view_model.py
 
 # Train
-python scripts/train_sb3.py train --stage 1 --timesteps 500000
+python scripts/train_sb3.py train --stage 1 --timesteps 1000000
 ```

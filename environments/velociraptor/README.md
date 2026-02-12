@@ -75,7 +75,7 @@ Training proceeds in three stages:
 
 **Stage 1: Balance** (learn to stand without falling)
 ```bash
-python scripts/train_sb3.py train --stage 1 --timesteps 500000
+python scripts/train_sb3.py train --stage 1 --timesteps 1000000
 ```
 
 **Stage 2: Locomotion** (learn to walk/run forward)

@@ -127,7 +127,7 @@ python environments/velociraptor/scripts/view_model.py
 
 # Train stage 1 (balance)
 cd environments/velociraptor
-python scripts/train_sb3.py train --stage 1 --timesteps 500000
+python scripts/train_sb3.py train --stage 1 --timesteps 1000000
 ```
 
 ## Training Results

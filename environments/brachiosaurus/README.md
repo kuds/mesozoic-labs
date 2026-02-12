@@ -52,7 +52,7 @@ pip install -r requirements.txt
 python -m pytest tests/ -v
 
 # Train stage 1 (balance)
-python scripts/train_sb3.py train --stage 1 --timesteps 500000
+python scripts/train_sb3.py train --stage 1 --timesteps 1000000
 
 # View the model (requires display)
 python scripts/view_model.py

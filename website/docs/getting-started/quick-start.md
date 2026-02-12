@@ -43,7 +43,7 @@ The velociraptor uses 3-stage curriculum learning:
 
 ```bash
 # Stage 1: Learn to stand and balance
-python scripts/train_sb3.py train --stage 1 --timesteps 500000
+python scripts/train_sb3.py train --stage 1 --timesteps 1000000
 
 # Stage 2: Learn to walk/run (loads Stage 1 weights)
 python scripts/train_sb3.py train --stage 2 --timesteps 1000000 \

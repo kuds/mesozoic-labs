@@ -85,7 +85,7 @@ job = aiplatform.CustomJob(
                     "environments/velociraptor/scripts/train_sb3.py",
                     "train",
                     "--stage", "1",
-                    "--timesteps", "500000",
+                    "--timesteps", "1000000",
                     "--n-envs", "4",
                 ],
             },

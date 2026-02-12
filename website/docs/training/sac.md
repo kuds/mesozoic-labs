@@ -38,7 +38,7 @@ Or use the included training script:
 
 ```bash
 cd environments/velociraptor
-python scripts/train_sb3.py train --stage 1 --timesteps 500000 --algo sac
+python scripts/train_sb3.py train --stage 1 --timesteps 1000000 --algo sac
 ```
 
 ## Results
