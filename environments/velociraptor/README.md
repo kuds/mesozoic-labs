@@ -86,7 +86,7 @@ python scripts/train_sb3.py train --stage 2 --timesteps 1000000 \
 
 **Stage 3: Strike** (sprint and attack prey)
 ```bash
-python scripts/train_sb3.py train --stage 3 --timesteps 2000000 \
+python scripts/train_sb3.py train --stage 3 --timesteps 3000000 \
     --load logs/<stage2_dir>/models/stage2_final.zip
 ```
 

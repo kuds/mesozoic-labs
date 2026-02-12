@@ -11,7 +11,7 @@ Usage:
     # Single-stage training
     python train_sb3.py train --stage 1 --timesteps 500000
     python train_sb3.py train --stage 2 --timesteps 1000000 --load models/stage1_final.zip
-    python train_sb3.py train --stage 3 --timesteps 2000000 --load models/stage2_final.zip
+    python train_sb3.py train --stage 3 --timesteps 3000000 --load models/stage2_final.zip
 
     # Automated end-to-end curriculum (all 3 stages)
     python train_sb3.py curriculum --n-envs 4
