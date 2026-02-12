@@ -221,7 +221,7 @@ class RaptorEnv(BaseDinoEnv):
         # 6. Approach shaping (reward closing distance to prey, penalise retreating)
         pelvis_pos = self.data.xpos[self.pelvis_id]
         prey_pos = self.data.mocap_pos[0]
-        prey_distance = np.linalg.norm(prey_pos - pelvis_pos)
+        prey_distance = float(np.linalg.norm(prey_pos - pelvis_pos))
 
         if self._prev_prey_distance is not None:
             approach_delta = self._prev_prey_distance - prey_distance
