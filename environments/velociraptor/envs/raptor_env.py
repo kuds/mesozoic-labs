@@ -74,7 +74,7 @@ class RaptorEnv(BaseDinoEnv):
         self.prey_lateral_range = prey_lateral_range
 
         # Approach tracking for delta-based reward shaping
-        self._prev_prey_distance = None
+        self._prev_prey_distance: float | None = None
 
         super().__init__(
             model_path=model_path,
