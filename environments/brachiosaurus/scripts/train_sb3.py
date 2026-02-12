@@ -131,7 +131,10 @@ def train(
 
     # Save reward weights and hyperparameters for reproducibility
     save_stage_config(
-        log_path, stage, config, "PPO",
+        log_path,
+        stage,
+        config,
+        "PPO",
         extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
     )
 
@@ -266,7 +269,10 @@ def train_curriculum(
 
         # Save reward weights and hyperparameters for reproducibility
         save_stage_config(
-            stage_dir, stage, config, "PPO",
+            stage_dir,
+            stage,
+            config,
+            "PPO",
             extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
         )
 
