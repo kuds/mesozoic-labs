@@ -130,22 +130,22 @@
         <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
         <joint name="tail_1_yaw" class="tail_joint" type="hinge" axis="0 0 1" range="-10 10"/>
         <geom name="tail_1_geom" type="capsule" fromto="0 0 0  -0.4 0 -0.05" size="0.16"
-              mass="6.0" material="body_mat" contype="0" conaffinity="0"/>
+              mass="6.0" material="body_mat"/>
 
         <body name="tail_2" pos="-0.4 0 -0.05">
           <joint name="tail_2_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
           <geom name="tail_2_geom" type="capsule" fromto="0 0 0  -0.4 0 -0.03" size="0.12"
-                mass="4.0" material="body_mat" contype="0" conaffinity="0"/>
+                mass="4.0" material="body_mat"/>
 
           <body name="tail_3" pos="-0.4 0 -0.03">
             <joint name="tail_3_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
             <geom name="tail_3_geom" type="capsule" fromto="0 0 0  -0.35 0 0" size="0.08"
-                  mass="2.0" material="body_mat" contype="0" conaffinity="0"/>
+                  mass="2.0" material="body_mat"/>
 
             <body name="tail_4" pos="-0.35 0 0">
               <joint name="tail_4_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
               <geom name="tail_4_geom" type="capsule" fromto="0 0 0  -0.3 0 0.02" size="0.05"
-                    mass="1.0" material="body_mat" contype="0" conaffinity="0"/>
+                    mass="1.0" material="body_mat"/>
               <site name="tail_tip" pos="-0.3 0 0.02" size="0.02"/>
             </body>
           </body>
