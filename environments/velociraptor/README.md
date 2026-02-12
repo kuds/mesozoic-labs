@@ -80,13 +80,13 @@ python scripts/train_sb3.py train --stage 1 --timesteps 1000000
 
 **Stage 2: Locomotion** (learn to walk/run forward)
 ```bash
-python scripts/train_sb3.py train --stage 2 --timesteps 1000000 \
+python scripts/train_sb3.py train --stage 2 --timesteps 2000000 \
     --load logs/<stage1_dir>/models/stage1_final.zip
 ```
 
 **Stage 3: Strike** (sprint and attack prey)
 ```bash
-python scripts/train_sb3.py train --stage 3 --timesteps 2000000 \
+python scripts/train_sb3.py train --stage 3 --timesteps 3000000 \
     --load logs/<stage2_dir>/models/stage2_final.zip
 ```
 
