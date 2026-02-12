@@ -63,7 +63,7 @@ class BrachioEnv(BaseDinoEnv):
         food_distance_range: Tuple[float, float] = (3.0, 8.0),
         food_lateral_range: Tuple[float, float] = (-2.0, 2.0),
         food_height_range: Tuple[float, float] = (2.0, 4.0),
-        healthy_z_range: Tuple[float, float] = (1.0, 3.5),
+        healthy_z_range: Tuple[float, float] = (1.2, 3.5),
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus.xml")
 
@@ -241,6 +241,11 @@ class BrachioEnv(BaseDinoEnv):
         torso_z = self.data.xpos[self.torso_id, 2]
         info["torso_height"] = torso_z
 
+        # Compute tilt angle from torso orientation
+        torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
+        tilt_angle = self._quat_to_tilt(torso_quat)
+        info["tilt_angle"] = tilt_angle
+
         # Termination: torso too low (fallen)
         if torso_z < self.healthy_z_range[0]:
             info["termination_reason"] = "fallen"
@@ -249,6 +254,11 @@ class BrachioEnv(BaseDinoEnv):
         # Termination: torso too high (shouldn't happen, safety check)
         if torso_z > self.healthy_z_range[1]:
             info["termination_reason"] = "too_high"
+            return True, info
+
+        # Termination: excessive tilt (about to fall)
+        if tilt_angle > self.max_tilt_angle:
+            info["termination_reason"] = "excessive_tilt"
             return True, info
 
         # Check for torso-ground contact (fallen over)

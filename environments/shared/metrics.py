@@ -39,6 +39,7 @@ class LocomotionMetrics:
     _right_contacts: List[float] = field(default_factory=list)
     _pelvis_heights: List[float] = field(default_factory=list)
     _prey_distances: List[float] = field(default_factory=list)
+    _tilt_angles: List[float] = field(default_factory=list)
     _rewards: List[float] = field(default_factory=list)
     _dt: float = 0.02  # default timestep * frame_skip
 
@@ -50,6 +51,7 @@ class LocomotionMetrics:
         self._right_contacts.clear()
         self._pelvis_heights.clear()
         self._prey_distances.clear()
+        self._tilt_angles.clear()
         self._rewards.clear()
 
     def record_step(self, info: Dict[str, Any], reward: float = 0.0):
@@ -71,6 +73,9 @@ class LocomotionMetrics:
 
         if "prey_distance" in info:
             self._prey_distances.append(info["prey_distance"])
+
+        if "tilt_angle" in info:
+            self._tilt_angles.append(info["tilt_angle"])
 
         self._left_contacts.append(info.get("l_foot_contact", 0.0))
         self._right_contacts.append(info.get("r_foot_contact", 0.0))
@@ -129,6 +134,13 @@ class LocomotionMetrics:
             heights = np.array(self._pelvis_heights)
             result["mean_pelvis_height"] = float(np.mean(heights))
             result["pelvis_height_variance"] = float(np.var(heights))
+
+        # --- Tilt angle statistics ---
+        if self._tilt_angles:
+            tilts = np.array(self._tilt_angles)
+            result["mean_tilt_angle"] = float(np.mean(tilts))
+            result["max_tilt_angle"] = float(np.max(tilts))
+            result["std_tilt_angle"] = float(np.std(tilts))
 
         # --- Time to target ---
         if self._prey_distances:

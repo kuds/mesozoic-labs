@@ -63,7 +63,7 @@ class TRexEnv(BaseDinoEnv):
         # Environment settings
         prey_distance_range: Tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: Tuple[float, float] = (-2.0, 2.0),
-        healthy_z_range: Tuple[float, float] = (0.4, 1.6),
+        healthy_z_range: Tuple[float, float] = (0.5, 1.6),
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "trex.xml")
 
@@ -245,6 +245,11 @@ class TRexEnv(BaseDinoEnv):
         pelvis_z = self.data.xpos[self.pelvis_id, 2]
         info["pelvis_height"] = pelvis_z
 
+        # Compute tilt angle from pelvis orientation
+        pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
+        tilt_angle = self._quat_to_tilt(pelvis_quat)
+        info["tilt_angle"] = tilt_angle
+
         # Termination: pelvis too low (fallen)
         if pelvis_z < self.healthy_z_range[0]:
             info["termination_reason"] = "fallen"
@@ -253,6 +258,11 @@ class TRexEnv(BaseDinoEnv):
         # Termination: pelvis too high (safety check)
         if pelvis_z > self.healthy_z_range[1]:
             info["termination_reason"] = "too_high"
+            return True, info
+
+        # Termination: excessive tilt (about to fall)
+        if tilt_angle > self.max_tilt_angle:
+            info["termination_reason"] = "excessive_tilt"
             return True, info
 
         # Check for torso-ground contact (fallen over)

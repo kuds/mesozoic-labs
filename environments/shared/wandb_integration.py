@@ -190,6 +190,7 @@ class WandbCallback(BaseCallback):
                 "reward_food_reach",
                 "reward_bite",
                 "jaw_distance",
+                "tilt_angle",
             ]
             for key in info_keys:
                 values = [info[key] for info in self.locals["infos"] if key in info]

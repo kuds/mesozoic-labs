@@ -43,6 +43,7 @@ class BaseDinoEnv(gym.Env, ABC):
         energy_penalty_weight: float = 0.001,
         fall_penalty: float = -100.0,
         healthy_z_range: Tuple[float, float] = (0.25, 1.0),
+        max_tilt_angle: float = 1.047,
     ):
         super().__init__()
 
@@ -64,6 +65,7 @@ class BaseDinoEnv(gym.Env, ABC):
 
         # Environment settings
         self.healthy_z_range = healthy_z_range
+        self.max_tilt_angle = max_tilt_angle
 
         # Cache body/geom/site IDs (species-specific)
         self._cache_ids()
@@ -90,6 +92,22 @@ class BaseDinoEnv(gym.Env, ABC):
         self._viewer = None
         self._renderer = None
         self._camera = None
+
+    @staticmethod
+    def _quat_to_tilt(quat: np.ndarray) -> float:
+        """Compute tilt angle (radians) between body up-axis and world up.
+
+        Args:
+            quat: MuJoCo quaternion (w, x, y, z).
+
+        Returns:
+            Angle in radians between the body's Z-axis and world Z-axis.
+            0 means perfectly upright, pi/2 means horizontal.
+        """
+        w, x, y, z = quat
+        # Body Z-axis (up) rotated into world frame
+        body_up_z = 1.0 - 2.0 * (x * x + y * y)
+        return float(np.arccos(np.clip(body_up_z, -1.0, 1.0)))
 
     # ------------------------------------------------------------------
     # Abstract methods: subclasses MUST implement these
