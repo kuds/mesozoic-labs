@@ -16,12 +16,15 @@ velociraptor/
 │   ├── test_actuators.py   # Test joint movements
 │   ├── test_env.py         # Verify environment works
 │   └── train_sb3.py        # Training with Stable-Baselines3
-├── configs/                 # (future) hyperparameter configs
-├── logs/                    # Training logs (created during training)
-├── models/                  # Saved models (created during training)
+├── tests/
+│   ├── conftest.py
+│   ├── test_raptor_env.py  # Environment pytest suite
+│   └── test_raptor_rewards.py
 ├── requirements.txt
 └── README.md
 ```
+
+Hyperparameter configs are at `configs/velociraptor/` in the repo root.
 
 ## Installation
 
@@ -95,12 +98,12 @@ python scripts/train_sb3.py eval logs/<run_dir>/models/stage3_final.zip
 
 ## Environment Details
 
-### Observation Space (dim=51)
+### Observation Space (dim=69)
 | Component | Dimensions | Description |
 |-----------|------------|-------------|
-| Joint positions | 20 | All joints except root freejoint |
-| Joint velocities | 19 | All joints except root freejoint |
-| Pelvis quaternion | 4 | Orientation |
+| Joint positions | 26 | All qpos except root freejoint (18 hinge + 2×4 ball) |
+| Joint velocities | 24 | All qvel except root freejoint (18 hinge + 2×3 ball) |
+| Pelvis quaternion | 4 | Orientation from framequat sensor |
 | Pelvis gyro | 3 | Angular velocity |
 | Pelvis linear vel | 3 | Linear velocity |
 | Pelvis accel | 3 | Accelerometer |
@@ -125,8 +128,9 @@ All actions normalized to [-1, 1], scaled to actuator control ranges.
 | Forward velocity | 1.0 | Reward for moving +X |
 | Alive bonus | 0.1 | Per-step survival bonus |
 | Energy penalty | -0.001 | Penalize large actions |
-| Tail stability | -0.02 | Penalize tail angular velocity |
+| Tail stability | -0.05 | Penalize tail angular velocity |
 | Strike bonus | +500 | Claw contacts prey |
+| Approach shaping | 0.5 | Reward closing distance to prey |
 | Fall penalty | -100 | Episode termination |
 
 ### Termination Conditions

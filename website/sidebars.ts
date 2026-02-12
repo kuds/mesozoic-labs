@@ -11,12 +11,12 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Models',
-      items: ['models/trex', 'models/velociraptor', 'models/custom-models'],
+      items: ['models/trex', 'models/velociraptor', 'models/brachiosaurus', 'models/custom-models'],
     },
     {
       type: 'category',
       label: 'Training',
-      items: ['training/ppo', 'training/sac', 'training/hyperparameters'],
+      items: ['training/ppo', 'training/sac', 'training/hyperparameters', 'training/vertex-ai'],
     },
     {
       type: 'category',

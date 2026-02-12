@@ -23,18 +23,31 @@ mesozoic-labs/
 │   │   ├── assets/            # MJCF model files
 │   │   ├── envs/              # Gymnasium environments
 │   │   ├── scripts/           # Training & utility scripts
+│   │   ├── tests/             # Pytest test suite
 │   │   └── README.md
-│   ├── brachiosaurus/          # Brachiosaurus (quadrupedal sauropod)
+│   ├── brachiosaurus/         # Brachiosaurus (quadrupedal sauropod)
+│   │   ├── assets/            # MJCF model files
+│   │   ├── envs/              # Gymnasium environments
+│   │   ├── scripts/           # Training & utility scripts
+│   │   ├── tests/             # Pytest test suite
+│   │   └── README.md
+│   ├── trex/                  # T-Rex (large bipedal predator)
 │   │   ├── assets/            # MJCF model files
 │   │   ├── envs/              # Gymnasium environments
 │   │   ├── scripts/           # Training & utility scripts
 │   │   └── tests/             # Pytest test suite
-│   ├── trex/                  # T-Rex (large bipedal predator)
-│   │   └── trex.xml           # MJCF model
-│   └── [future]/              # More species coming...
+│   └── shared/                # Shared base classes and utilities
+│       ├── base_env.py        # BaseDinoEnv abstract class
+│       ├── config.py          # TOML configuration loading
+│       ├── curriculum.py      # Curriculum learning manager
+│       ├── metrics.py         # Training metrics tracking
+│       └── wandb_integration.py
+├── configs/                   # TOML hyperparameter configs per species/stage
 ├── notebooks/                 # Jupyter notebooks for experiments
-│   ├── ppo_training.ipynb
-│   └── sac_training.ipynb
+│   ├── velociraptor_training.ipynb
+│   ├── brachiosaurus_training.ipynb
+│   ├── trex_training.ipynb
+│   └── jax_trex_training.ipynb
 ├── website/                   # Documentation site (Docusaurus)
 └── Images/                    # Training visualizations
 ```
@@ -76,13 +89,20 @@ Trained using 3-stage curriculum learning:
 [Full documentation →](environments/brachiosaurus/README.md)
 
 ### T-Rex
-**Status:** Model ready, training planned
+**Status:** Active development
 
-Large bipedal predator with humanoid-based locomotion.
+Large bipedal predator with a massive skull, powerful jaws, and vestigial forelimbs. Hunts by sprinting toward prey and delivering a bite.
+
+Trained using 3-stage curriculum learning:
+1. **Balance** - Stable bipedal stance
+2. **Locomotion** - Walk and run toward prey
+3. **Hunting** - Sprint and bite prey with jaws
 
 | Feature | Details |
 |---------|---------|
-| Model | `environments/trex/trex.xml` |
+| Observation | 77 dims (joints, pelvis, prey tracking) |
+| Action | 14 dims (3 neck/head + 1 jaw + 5 per leg) |
+| Model | `environments/trex/assets/trex.xml` |
 
 ### Planned Species
 - Deinonychus (pack hunter)
@@ -99,14 +119,14 @@ cd mesozoic-labs
 python -m venv venv
 source venv/bin/activate
 
-# Install dependencies for velociraptor
-pip install -r environments/velociraptor/requirements.txt
+# Install the package with training dependencies
+pip install -e ".[train]"
 
-# View the model
+# View the velociraptor model
+python environments/velociraptor/scripts/view_model.py
+
+# Train stage 1 (balance)
 cd environments/velociraptor
-python scripts/view_model.py
-
-# Train stage 1
 python scripts/train_sb3.py train --stage 1 --timesteps 500000
 ```
 
@@ -128,8 +148,10 @@ Hardware: Google Colab T4 GPU
 
 | Notebook | Description |
 |----------|-------------|
-| `notebooks/ppo_training.ipynb` | PPO training experiments (Colab-ready) |
-| `notebooks/sac_training.ipynb` | SAC training experiments (Colab-ready) |
+| `notebooks/velociraptor_training.ipynb` | Velociraptor 3-stage curriculum training (Colab-ready) |
+| `notebooks/brachiosaurus_training.ipynb` | Brachiosaurus 3-stage curriculum training (Colab-ready) |
+| `notebooks/trex_training.ipynb` | T-Rex 3-stage curriculum training (Colab-ready) |
+| `notebooks/jax_trex_training.ipynb` | JAX/MJX T-Rex training for TPU acceleration (Colab-ready) |
 
 ## Roadmap
 

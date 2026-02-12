@@ -6,15 +6,30 @@ sidebar_position: 1
 
 Reference documentation for the Mesozoic Labs environments.
 
+## Gymnasium Registration
+
+All environments are registered with the `MesozoicLabs` namespace:
+
+```python
+import gymnasium as gym
+
+# Import to trigger registration
+import environments.velociraptor.envs.raptor_env  # noqa: F401
+
+env = gym.make("MesozoicLabs/Raptor-v0")
+```
+
+Available environment IDs:
+- `MesozoicLabs/Raptor-v0` - Velociraptor
+- `MesozoicLabs/Brachio-v0` - Brachiosaurus
+- `MesozoicLabs/TRex-v0` - T-Rex
+
 ## Velociraptor Environment
 
 The main environment for velociraptor locomotion and predatory strike training.
 
 ```python
-import sys
-sys.path.insert(0, "environments/velociraptor")
-
-from envs.raptor_env import RaptorEnv
+from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 env = RaptorEnv(
     render_mode="human",       # "human" or "rgb_array"
@@ -30,13 +45,13 @@ action = env.action_space.sample()
 obs, reward, terminated, truncated, info = env.step(action)
 ```
 
-### Observation Space (51 dimensions)
+### Observation Space (69 dimensions)
 
 | Component | Dims | Description |
 |-----------|------|-------------|
-| Joint positions | 20 | All joint angles (excluding root freejoint) |
-| Joint velocities | 19 | All joint velocities (excluding root freejoint) |
-| Pelvis orientation | 4 | Quaternion from IMU |
+| Joint positions | 26 | All qpos excluding root freejoint (18 hinge + 2x4 ball) |
+| Joint velocities | 24 | All qvel excluding root freejoint (18 hinge + 2x3 ball) |
+| Pelvis orientation | 4 | Quaternion from framequat sensor |
 | Pelvis angular velocity | 3 | Gyroscope reading |
 | Pelvis linear velocity | 3 | Root body velocity |
 | Pelvis acceleration | 3 | Accelerometer reading |
@@ -61,7 +76,38 @@ Continuous actions in `[-1, 1]`, scaled to actuator control ranges:
 | `energy_penalty_weight` | 0.001 | Penalizes large actions |
 | `tail_stability_weight` | 0.05 | Penalizes tail angular velocity |
 | `strike_bonus` | 500.0 | Bonus when sickle claw contacts prey |
+| `strike_approach_weight` | 0.5 | Reward for closing distance to prey |
 | `fall_penalty` | -100.0 | Penalty on termination from falling |
+
+## T-Rex Environment
+
+Large bipedal predator with bite-attack behavior.
+
+```python
+from environments.trex.envs.trex_env import TRexEnv
+
+env = TRexEnv(
+    render_mode="human",
+    bite_bonus=500.0,          # Reward for jaw-prey contact
+    bite_approach_weight=0.5,  # Reward for closing distance
+)
+```
+
+- **Observation:** 77 dimensions
+- **Action:** 14 dimensions (3 neck/head + 1 jaw + 5 per leg)
+
+## Brachiosaurus Environment
+
+Quadrupedal sauropod with food-reaching behavior.
+
+```python
+from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+
+env = BrachioEnv(render_mode="human")
+```
+
+- **Observation:** 75 dimensions
+- **Action:** 22 dimensions (6 neck + 16 legs)
 
 ## Training with Stable-Baselines3
 
@@ -69,6 +115,8 @@ Continuous actions in `[-1, 1]`, scaled to actuator control ranges:
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.monitor import Monitor
+
+from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 def make_env():
     env = RaptorEnv(forward_vel_weight=0.0, alive_bonus=1.0)
@@ -90,7 +138,3 @@ python scripts/train_sb3.py train --stage 1 --timesteps 500000
 python scripts/train_sb3.py train --stage 2 --timesteps 1000000 --load models/stage1_final.zip
 python scripts/train_sb3.py eval models/stage2_final.zip --stage 2
 ```
-
-:::note
-Full API reference for additional environments (T-Rex, etc.) will be added as they are developed.
-:::

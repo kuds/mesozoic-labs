@@ -15,7 +15,7 @@ We're bringing prehistoric creatures back to life—as robots. Using state-of-th
 
 - **Accurate Physics Models** - MuJoCo-based simulations of dinosaur anatomy
 - **Reinforcement Learning** - PPO and SAC algorithms for training locomotion
-- **Multiple Species** - T-Rex, Velociraptor, and more
+- **Multiple Species** - T-Rex, Velociraptor, Brachiosaurus, and more
 - **Sim-to-Real** - Transfer learned behaviors to physical robots
 - **Open Source** - Fully open codebase for research and education
 

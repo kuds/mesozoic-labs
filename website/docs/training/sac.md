@@ -16,16 +16,29 @@ SAC is known for:
 ## Basic Usage
 
 ```python
-from mesozoic import DinoEnv, SACAgent
+from stable_baselines3 import SAC
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.monitor import Monitor
 
-env = DinoEnv("trex")
-agent = SACAgent(env)
+from environments.velociraptor.envs.raptor_env import RaptorEnv
 
-agent.train(
-    total_steps=3_600_000,
-    learning_rate=3e-4,
-    buffer_size=1_000_000
-)
+def make_env():
+    env = RaptorEnv(forward_vel_weight=1.0, alive_bonus=0.1)
+    return Monitor(env)
+
+vec_env = DummyVecEnv([make_env])
+vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
+
+model = SAC("MlpPolicy", vec_env, learning_rate=3e-4, buffer_size=1_000_000)
+model.learn(total_timesteps=3_600_000, progress_bar=True)
+model.save("raptor_sac")
+```
+
+Or use the included training script:
+
+```bash
+cd environments/velociraptor
+python scripts/train_sb3.py train --stage 1 --timesteps 500000 --algo sac
 ```
 
 ## Results

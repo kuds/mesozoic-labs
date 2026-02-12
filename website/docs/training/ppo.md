@@ -16,16 +16,29 @@ PPO is known for:
 ## Basic Usage
 
 ```python
-from mesozoic import DinoEnv, PPOAgent
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from stable_baselines3.common.monitor import Monitor
 
-env = DinoEnv("trex")
-agent = PPOAgent(env)
+from environments.velociraptor.envs.raptor_env import RaptorEnv
 
-agent.train(
-    total_steps=2_600_000,
-    learning_rate=3e-4,
-    clip_ratio=0.2
-)
+def make_env():
+    env = RaptorEnv(forward_vel_weight=0.0, alive_bonus=1.0)
+    return Monitor(env)
+
+vec_env = DummyVecEnv([make_env])
+vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
+
+model = PPO("MlpPolicy", vec_env, learning_rate=3e-4)
+model.learn(total_timesteps=500_000, progress_bar=True)
+model.save("raptor_stage1")
+```
+
+Or use the included training script with curriculum learning:
+
+```bash
+cd environments/velociraptor
+python scripts/train_sb3.py train --stage 1 --timesteps 500000
 ```
 
 ## Results

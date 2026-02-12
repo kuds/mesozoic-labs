@@ -8,10 +8,13 @@ Train your first robotic dinosaur in minutes.
 
 ## Option 1: Google Colab (Easiest)
 
-Open one of the pre-configured notebooks:
+Open one of the pre-configured notebooks in the `notebooks/` directory:
 
-- [PPO Training](https://colab.research.google.com/github/kuds/apex/blob/main/%5BApex%5D%20Proximal%20Policy%20Optimization%20(PPO).ipynb) - Train a T-Rex with PPO
-- [SAC Training](https://colab.research.google.com/github/kuds/apex/blob/main/%5BApex%5D%20Soft%20Actor-Critic%20(SAC).ipynb) - Train a T-Rex with SAC
+- `notebooks/velociraptor_training.ipynb` - Velociraptor 3-stage curriculum
+- `notebooks/trex_training.ipynb` - T-Rex 3-stage curriculum
+- `notebooks/brachiosaurus_training.ipynb` - Brachiosaurus 3-stage curriculum
+
+Each notebook handles dependency installation automatically.
 
 ## Option 2: Local Setup
 
@@ -23,8 +26,8 @@ cd mesozoic-labs
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies for the velociraptor environment
-pip install -r environments/velociraptor/requirements.txt
+# Install the package with training dependencies
+pip install -e ".[train]"
 ```
 
 ### View the Model
@@ -60,19 +63,18 @@ python scripts/train_sb3.py eval logs/<stage_dir>/models/stage1_final.zip
 ### Run Tests
 
 ```bash
-pip install pytest
 pytest tests/ -v
 ```
 
 ## Basic Training Loop (Python)
 
 ```python
-import sys
-sys.path.insert(0, "environments/velociraptor")
+import gymnasium as gym
 
-from envs.raptor_env import RaptorEnv
+# Registers MesozoicLabs environments
+import environments.velociraptor.envs.raptor_env  # noqa: F401
 
-env = RaptorEnv()
+env = gym.make("MesozoicLabs/Raptor-v0")
 
 obs, info = env.reset(seed=42)
 for step in range(1000):
