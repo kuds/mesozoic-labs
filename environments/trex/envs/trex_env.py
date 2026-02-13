@@ -107,7 +107,9 @@ class TRexEnv(BaseDinoEnv):
         # Geoms that should terminate the episode on ground contact
         self._body_ground_geoms = {
             self.torso_geom_id,
-            self.tail_3_geom_id, self.tail_4_geom_id, self.tail_5_geom_id,
+            self.tail_3_geom_id,
+            self.tail_4_geom_id,
+            self.tail_5_geom_id,
         }
         self._tail_ground_geoms = {self.tail_3_geom_id, self.tail_4_geom_id, self.tail_5_geom_id}
 
