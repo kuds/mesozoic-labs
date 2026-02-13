@@ -137,8 +137,7 @@ class TestTailFloorTermination:
 
         # Pitch the tail down aggressively so distal segments hit the floor
         # while keeping pelvis in healthy range
-        tail_joint_names = ["tail_1_pitch", "tail_2_pitch", "tail_3_pitch",
-                            "tail_4_pitch", "tail_5_pitch"]
+        tail_joint_names = ["tail_1_pitch", "tail_2_pitch", "tail_3_pitch", "tail_4_pitch", "tail_5_pitch"]
         for name in tail_joint_names:
             jid = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_JOINT, name)
             qadr = env.model.jnt_qposadr[jid]
