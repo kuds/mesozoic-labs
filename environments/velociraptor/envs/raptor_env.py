@@ -286,8 +286,14 @@ class RaptorEnv(BaseDinoEnv):
 
         # Total reward
         total_reward = (
-            reward_forward + reward_alive + reward_energy + reward_tail
-            + reward_strike + reward_approach + reward_posture + reward_gait
+            reward_forward
+            + reward_alive
+            + reward_energy
+            + reward_tail
+            + reward_strike
+            + reward_approach
+            + reward_posture
+            + reward_gait
             + reward_smoothness
         )
         info["reward_total"] = total_reward
