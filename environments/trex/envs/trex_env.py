@@ -76,6 +76,9 @@ class TRexEnv(BaseDinoEnv):
         self.prey_distance_range = prey_distance_range
         self.prey_lateral_range = prey_lateral_range
 
+        # State tracking for delta-based rewards
+        self._prev_prey_distance: float | None = None
+
         super().__init__(
             model_path=model_path,
             render_mode=render_mode,
@@ -239,10 +242,18 @@ class TRexEnv(BaseDinoEnv):
         reward_bite = bite_reward
         info["reward_bite"] = reward_bite
 
-        # 6. Approach shaping (smooth gradient toward prey)
-        prey_distance = np.linalg.norm(prey_pos - pelvis_pos)
-        reward_approach = -self.bite_approach_weight * prey_distance
+        # 6. Approach shaping (reward closing distance to prey, penalise retreating)
+        prey_distance = float(np.linalg.norm(prey_pos - pelvis_pos))
+
+        if self._prev_prey_distance is not None:
+            approach_delta = self._prev_prey_distance - prey_distance
+        else:
+            approach_delta = 0.0
+        self._prev_prey_distance = prey_distance
+
+        reward_approach = self.bite_approach_weight * approach_delta
         info["prey_distance"] = prey_distance
+        info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
         # Total reward
@@ -310,6 +321,9 @@ class TRexEnv(BaseDinoEnv):
 
         prey_pos = np.array([distance, lateral, 0.5])
         self.data.mocap_pos[0] = prey_pos
+
+        # Reset delta-based tracking (first step will produce zero deltas)
+        self._prev_prey_distance = None
 
 
 # Register with Gymnasium (MesozoicLabs namespace)

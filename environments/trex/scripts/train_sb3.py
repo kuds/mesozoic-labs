@@ -150,10 +150,9 @@ def train(
 
     if load_path:
         logger.info("Loading model from: %s", load_path)
-        model = PPO.load(load_path, env=train_env)
-        model.learning_rate = ppo_kwargs["learning_rate"]
-        model.ent_coef = ppo_kwargs["ent_coef"]
-        model.clip_range = ppo_kwargs["clip_range"]
+        # Pass all stage hyperparameters so rollout buffer, gamma, etc. are
+        # re-initialised correctly for the new stage.
+        model = PPO.load(load_path, env=train_env, **ppo_kwargs)
     else:
         logger.info("Creating new PPO model...")
         model = PPO(
@@ -285,10 +284,9 @@ def train_curriculum(
 
         if load_path:
             logger.info("Loading model from previous stage: %s", load_path)
-            model = PPO.load(load_path, env=train_env)
-            model.learning_rate = ppo_kwargs["learning_rate"]
-            model.ent_coef = ppo_kwargs["ent_coef"]
-            model.clip_range = ppo_kwargs["clip_range"]
+            # Pass all stage hyperparameters so rollout buffer, gamma, etc. are
+            # re-initialised correctly for the new stage.
+            model = PPO.load(load_path, env=train_env, **ppo_kwargs)
         else:
             model = PPO("MlpPolicy", train_env, **ppo_kwargs)
 
