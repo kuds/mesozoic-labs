@@ -197,8 +197,16 @@ class RaptorEnv(BaseDinoEnv):
         """Compute reward and breakdown for logging."""
         info = {}
 
-        # 1. Forward velocity reward
-        forward_vel = self.data.qvel[0]  # x-velocity of root
+        # 1. Forward velocity reward (toward prey)
+        pelvis_pos = self.data.xpos[self.pelvis_id]
+        prey_pos = self.data.mocap_pos[0]
+        prey_dir_2d = prey_pos[:2] - pelvis_pos[:2]
+        prey_dist_2d = np.linalg.norm(prey_dir_2d)
+        if prey_dist_2d > 1e-6:
+            prey_dir_2d = prey_dir_2d / prey_dist_2d
+
+        vel_2d = self.data.qvel[0:2]
+        forward_vel = np.dot(vel_2d, prey_dir_2d)
         info["forward_vel"] = forward_vel
         reward_forward = self.forward_vel_weight * forward_vel
         info["reward_forward"] = reward_forward
@@ -242,8 +250,6 @@ class RaptorEnv(BaseDinoEnv):
         info["reward_strike"] = reward_strike
 
         # 6. Approach shaping (reward closing distance to prey, penalise retreating)
-        pelvis_pos = self.data.xpos[self.pelvis_id]
-        prey_pos = self.data.mocap_pos[0]
         prey_distance = float(np.linalg.norm(prey_pos - pelvis_pos))
 
         if self._prev_prey_distance is not None:

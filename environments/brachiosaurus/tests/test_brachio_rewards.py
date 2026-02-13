@@ -34,11 +34,14 @@ class TestRewardComponents:
         _, _, _, _, info = env.step(action)
         assert info["reward_energy"] < 0
 
-    def test_approach_reward_negative(self, env):
+    def test_approach_reward_zero_on_first_step(self, env):
+        """Approach reward should be zero on the first step (no prior distance)."""
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
-        assert info["reward_approach"] <= 0
+        # First step has no prior distance, so approach delta is zero
+        assert info["reward_approach"] == 0.0
+        assert info["approach_delta"] == 0.0
 
     def test_food_not_reached_initially(self, env):
         """Food is far away on first step."""

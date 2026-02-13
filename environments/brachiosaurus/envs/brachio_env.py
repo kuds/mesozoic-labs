@@ -78,6 +78,9 @@ class BrachioEnv(BaseDinoEnv):
         self.food_lateral_range = food_lateral_range
         self.food_height_range = food_height_range
 
+        # State tracking for delta-based rewards
+        self._prev_head_food_distance: float | None = None
+
         super().__init__(
             model_path=model_path,
             render_mode=render_mode,
@@ -223,8 +226,17 @@ class BrachioEnv(BaseDinoEnv):
         reward_food = food_reward
         info["reward_food"] = reward_food
 
-        # 6. Approach shaping (smooth gradient toward food for head)
-        reward_approach = -self.food_approach_weight * head_food_dist
+        # 6. Approach shaping (reward closing head-food distance, penalise retreating)
+        head_food_dist_f = float(head_food_dist)
+
+        if self._prev_head_food_distance is not None:
+            approach_delta = self._prev_head_food_distance - head_food_dist_f
+        else:
+            approach_delta = 0.0
+        self._prev_head_food_distance = head_food_dist_f
+
+        reward_approach = self.food_approach_weight * approach_delta
+        info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
         # Total reward
@@ -287,6 +299,9 @@ class BrachioEnv(BaseDinoEnv):
 
         food_pos = np.array([distance, lateral, height])
         self.data.mocap_pos[0] = food_pos
+
+        # Reset delta-based tracking (first step will produce zero deltas)
+        self._prev_head_food_distance = None
 
 
 # Register with Gymnasium (MesozoicLabs namespace)
