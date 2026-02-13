@@ -229,13 +229,10 @@
     <position name="l_toe_act" joint="l_toe_main_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
     <motor name="l_claw_act" joint="l_claw" gear="50" ctrlrange="-1 1"/>
 
-    <!-- Tail (optional - can be passive or actuated) -->
-    <!-- Uncomment if you want active tail control for balance -->
-    <!--
+    <!-- Tail actuators for active balance control -->
     <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="40" ctrlrange="-0.2618 0.2618"/>
     <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="30" ctrlrange="-0.1745 0.1745"/>
     <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="30" ctrlrange="-0.2618 0.2618"/>
-    -->
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
@@ -289,7 +286,8 @@
                0.314159 0 -0.872665 1.745329 0.174533 0
                1 0 0 0 1 0 0 0"
          ctrl="0.314159 0 -0.872665 1.745329 0.174533 0
-               0.314159 0 -0.872665 1.745329 0.174533 0"/>
+               0.314159 0 -0.872665 1.745329 0.174533 0
+               0 0 0"/>
   </keyframe>
 
 </mujoco>

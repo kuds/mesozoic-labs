@@ -24,6 +24,9 @@ Reward components:
     - Tail stability
     - Strike bonus (when claw contacts prey)
     - Approach shaping (distance to prey)
+    - Posture (continuous tilt penalty)
+    - Gait symmetry (alternating foot contacts)
+    - Action smoothness (penalize jerky action changes)
 """
 
 from pathlib import Path
@@ -57,6 +60,9 @@ class RaptorEnv(BaseDinoEnv):
         tail_stability_weight: float = 0.05,
         strike_bonus: float = 500.0,
         strike_approach_weight: float = 0.5,
+        posture_weight: float = 0.2,
+        gait_symmetry_weight: float = 0.1,
+        smoothness_weight: float = 0.05,
         # Environment settings
         prey_distance_range: Tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: Tuple[float, float] = (-2.0, 2.0),
@@ -68,13 +74,17 @@ class RaptorEnv(BaseDinoEnv):
         self.tail_stability_weight = tail_stability_weight
         self.strike_bonus = strike_bonus
         self.strike_approach_weight = strike_approach_weight
+        self.posture_weight = posture_weight
+        self.gait_symmetry_weight = gait_symmetry_weight
+        self.smoothness_weight = smoothness_weight
 
         # Raptor-specific env settings
         self.prey_distance_range = prey_distance_range
         self.prey_lateral_range = prey_lateral_range
 
-        # Approach tracking for delta-based reward shaping
+        # State tracking for delta-based rewards
         self._prev_prey_distance: float | None = None
+        self._prev_action: np.ndarray | None = None
 
         super().__init__(
             model_path=model_path,
@@ -247,8 +257,39 @@ class RaptorEnv(BaseDinoEnv):
         info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
+        # 7. Continuous posture reward (smooth tilt penalty)
+        pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
+        tilt_angle = self._quat_to_tilt(pelvis_quat)
+        reward_posture = -self.posture_weight * tilt_angle
+        info["tilt_angle"] = tilt_angle
+        info["reward_posture"] = reward_posture
+
+        # 8. Gait symmetry (reward alternating foot contacts)
+        r_contact = self.data.sensordata[self._sensor_r_foot]
+        l_contact = self.data.sensordata[self._sensor_l_foot]
+        contact_sum = r_contact + l_contact + 1e-6
+        contact_asymmetry = abs(r_contact - l_contact) / contact_sum
+        reward_gait = self.gait_symmetry_weight * contact_asymmetry
+        info["contact_asymmetry"] = contact_asymmetry
+        info["reward_gait"] = reward_gait
+
+        # 9. Action smoothness (penalize large action changes between steps)
+        if self._prev_action is not None:
+            action_delta = float(np.sum(np.square(action - self._prev_action)))
+            reward_smoothness = -self.smoothness_weight * action_delta
+        else:
+            action_delta = 0.0
+            reward_smoothness = 0.0
+        self._prev_action = action.copy()
+        info["action_delta"] = action_delta
+        info["reward_smoothness"] = reward_smoothness
+
         # Total reward
-        total_reward = reward_forward + reward_alive + reward_energy + reward_tail + reward_strike + reward_approach
+        total_reward = (
+            reward_forward + reward_alive + reward_energy + reward_tail
+            + reward_strike + reward_approach + reward_posture + reward_gait
+            + reward_smoothness
+        )
         info["reward_total"] = total_reward
 
         return total_reward, info
@@ -314,8 +355,9 @@ class RaptorEnv(BaseDinoEnv):
         prey_pos = np.array([distance, lateral, 0.3])
         self.data.mocap_pos[0] = prey_pos
 
-        # Reset approach tracking (first step will produce zero delta)
+        # Reset delta-based tracking (first step will produce zero deltas)
         self._prev_prey_distance = None
+        self._prev_action = None
 
 
 # Register with Gymnasium (MesozoicLabs namespace)
