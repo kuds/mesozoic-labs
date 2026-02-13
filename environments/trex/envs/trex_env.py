@@ -99,6 +99,20 @@ class TRexEnv(BaseDinoEnv):
         self.torso_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso")
         self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
 
+        # Tail geom IDs (distal segments that should not contact floor)
+        self.tail_3_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_3_geom")
+        self.tail_4_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_4_geom")
+        self.tail_5_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_5_geom")
+
+        # Geoms that should terminate the episode on ground contact
+        self._body_ground_geoms = {
+            self.torso_geom_id,
+            self.tail_3_geom_id,
+            self.tail_4_geom_id,
+            self.tail_5_geom_id,
+        }
+        self._tail_ground_geoms = {self.tail_3_geom_id, self.tail_4_geom_id, self.tail_5_geom_id}
+
         # Site IDs for sensors
         self.imu_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "imu")
         self.r_foot_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "r_foot")
@@ -265,15 +279,22 @@ class TRexEnv(BaseDinoEnv):
             info["termination_reason"] = "excessive_tilt"
             return True, info
 
-        # Check for torso-ground contact (fallen over)
+        # Check for body-ground contact (torso or tail touching floor)
         for i in range(self.data.ncon):
             contact = self.data.contact[i]
             geom1, geom2 = contact.geom1, contact.geom2
 
-            if (geom1 == self.torso_geom_id and geom2 == self.floor_geom_id) or (
-                geom2 == self.torso_geom_id and geom1 == self.floor_geom_id
-            ):
-                info["termination_reason"] = "torso_contact"
+            floor_contact_geom = None
+            if geom2 == self.floor_geom_id and geom1 in self._body_ground_geoms:
+                floor_contact_geom = geom1
+            elif geom1 == self.floor_geom_id and geom2 in self._body_ground_geoms:
+                floor_contact_geom = geom2
+
+            if floor_contact_geom is not None:
+                if floor_contact_geom in self._tail_ground_geoms:
+                    info["termination_reason"] = "tail_contact"
+                else:
+                    info["termination_reason"] = "torso_contact"
                 return True, info
 
         return False, info
