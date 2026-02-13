@@ -66,8 +66,45 @@ class TestRewardComponents:
             + info["reward_tail"]
             + info["reward_strike"]
             + info["reward_approach"]
+            + info["reward_posture"]
+            + info["reward_gait"]
+            + info["reward_smoothness"]
         )
         assert abs(info["reward_total"] - expected) < 1e-6
+
+    def test_posture_reward_negative_or_zero(self, env):
+        """Posture reward should be non-positive (penalty for tilt)."""
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        assert info["reward_posture"] <= 0.0
+        assert info["tilt_angle"] >= 0.0
+
+    def test_gait_reward_non_negative(self, env):
+        """Gait symmetry reward should be non-negative."""
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_gait"] >= 0.0
+        assert 0.0 <= info["contact_asymmetry"] <= 1.0
+
+    def test_smoothness_zero_on_first_step(self, env):
+        """Smoothness penalty should be zero on first step (no prior action)."""
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_smoothness"] == 0.0
+        assert info["action_delta"] == 0.0
+
+    def test_smoothness_penalty_for_action_change(self, env):
+        """Smoothness penalty should be negative when action changes between steps."""
+        env.reset(seed=42)
+        action1 = np.ones(env.action_space.shape, dtype=np.float32)
+        env.step(action1)
+        action2 = -np.ones(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action2)
+        assert info["reward_smoothness"] < 0.0
+        assert info["action_delta"] > 0.0
 
 
 class TestRewardWeightEffects:
@@ -97,6 +134,39 @@ class TestRewardWeightEffects:
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert info["reward_strike"] == 0.0
+        env.close()
+
+    def test_zero_posture_weight_zeroes_posture_reward(self):
+        env = RaptorEnv(posture_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_posture"] == 0.0
+        env.close()
+
+    def test_zero_gait_weight_zeroes_gait_reward(self):
+        env = RaptorEnv(gait_symmetry_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_gait"] == 0.0
+        env.close()
+
+    def test_zero_smoothness_weight_zeroes_smoothness_reward(self):
+        env = RaptorEnv(smoothness_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        env.step(action)
+        action2 = env.action_space.sample()
+        _, _, _, _, info = env.step(action2)
+        assert info["reward_smoothness"] == 0.0
+        env.close()
+
+    def test_tail_actuators_active(self):
+        """Tail actuators should be enabled (15 total actuators)."""
+        env = RaptorEnv()
+        assert env.model.nu == 15, f"Expected 15 actuators, got {env.model.nu}"
+        assert env.action_space.shape == (15,)
         env.close()
 
 
