@@ -2,7 +2,7 @@
 
 Robotic dinosaur locomotion research using reinforcement learning and MuJoCo physics simulation.
 
-![Trained SAC Agent](/Images/sac_apex.gif)
+![Trained SAC Agent](/Images/ppo_raptor.gif)
 
 ## Overview
 
