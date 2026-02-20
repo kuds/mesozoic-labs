@@ -140,7 +140,7 @@ Hardware: Google Colab T4 GPU
 | Basic Dinosaur | SAC       | 3091.31    | 4:36:59       | 3,600,000 |
 | T-Rex          | PPO       | -          | -             | 5,000,000 |
 | T-Rex          | SAC       | -          | -             | 5,000,000 |
-| Velociraptor   | PPO       | -          | -             | 5,000,000 |
+| Velociraptor   | PPO       | 118.37     | 3:38:47       | 6,000,000 |
 | Velociraptor   | SAC       | -          | -             | 5,000,000 |
 | Brachiosaurus  | PPO       | -          | -             | 3,500,000 |
 
@@ -155,7 +155,7 @@ Hardware: Google Colab T4 GPU
 
 ## Roadmap
 
-- [ ] Complete velociraptor 3-stage training
+- [x] Complete velociraptor 3-stage training
 - [ ] Complete brachiosaurus 3-stage training
 - [ ] T-Rex environment and training
 - [ ] JAX/MJX migration for faster training
