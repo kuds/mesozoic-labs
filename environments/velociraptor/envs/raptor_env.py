@@ -220,6 +220,7 @@ class RaptorEnv(BaseDinoEnv):
         # 3. Energy penalty (encourage efficiency)
         # Normalize by number of actuators (each in [-1, 1], so max energy is n_actuators)
         energy = np.sum(np.square(action))
+        assert self.action_space.shape is not None
         n_actuators = self.action_space.shape[0]
         energy_norm = energy / n_actuators
         reward_energy = -self.energy_penalty_weight * energy_norm
@@ -297,6 +298,7 @@ class RaptorEnv(BaseDinoEnv):
         if self._prev_action is not None:
             action_delta = float(np.sum(np.square(action - self._prev_action)))
             # Max delta per actuator is 2.0 (from -1 to 1), so max squared is 4.0
+            assert self.action_space.shape is not None
             max_action_delta = self.action_space.shape[0] * 4.0
             action_delta_norm = action_delta / max_action_delta
             reward_smoothness = -self.smoothness_weight * action_delta_norm
