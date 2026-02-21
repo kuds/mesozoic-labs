@@ -58,7 +58,7 @@ class TestRewardComponents:
         """Total reward should equal sum of all components."""
         env.reset(seed=42)
         action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
+        _, _, terminated, _, info = env.step(action)
         expected = (
             info["reward_forward"]
             + info["reward_alive"]
@@ -70,6 +70,8 @@ class TestRewardComponents:
             + info["reward_gait"]
             + info["reward_smoothness"]
         )
+        if terminated:
+            expected += env.fall_penalty
         assert abs(info["reward_total"] - expected) < 1e-6
 
     def test_posture_reward_negative_or_zero(self, env):
