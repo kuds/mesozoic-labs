@@ -75,7 +75,8 @@
       <site name="imu" pos="0 0 0.05" size="0.02"/>
 
       <!-- ==================== TAIL ==================== -->
-      <!-- 5 segments, hinge joints, acts as rigid counterbalance -->
+      <!-- 5 segments, hinge joints, acts as rigid counterbalance.
+           Proximal joints are actuated; distal segments are passive for stability. -->
 
       <body name="tail_1" pos="-0.15 0 0.05">
         <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
@@ -229,7 +230,7 @@
     <position name="l_toe_act" joint="l_toe_main_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
     <motor name="l_claw_act" joint="l_claw" gear="50" ctrlrange="-1 1"/>
 
-    <!-- Tail actuators for active balance control -->
+    <!-- Tail actuators for active balance control (keep 3 to preserve 15D action space) -->
     <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="40" ctrlrange="-0.2618 0.2618"/>
     <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="30" ctrlrange="-0.1745 0.1745"/>
     <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="30" ctrlrange="-0.2618 0.2618"/>

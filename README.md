@@ -65,7 +65,7 @@ A bipedal predator with distinctive sickle claws, trained using 3-stage curricul
 | Feature | Details |
 |---------|---------|
 | Observation | 69 dims (joints, pelvis, prey tracking) |
-| Action | 12 dims (leg + claw controls) |
+| Action | 15 dims (leg + claw + tail controls) |
 | Model | `environments/velociraptor/assets/raptor.xml` |
 
 [Full documentation →](environments/velociraptor/README.md)

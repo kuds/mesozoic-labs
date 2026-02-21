@@ -111,7 +111,7 @@ python scripts/train_sb3.py eval logs/<run_dir>/models/stage3_final.zip
 | Prey direction | 3 | Unit vector to prey |
 | Prey distance | 1 | Scalar distance |
 
-### Action Space (dim=12)
+### Action Space (dim=15)
 All actions normalized to [-1, 1], scaled to actuator control ranges.
 
 | Index | Actuator | Type |
@@ -120,6 +120,7 @@ All actions normalized to [-1, 1], scaled to actuator control ranges.
 | 5 | Right sickle claw | Motor |
 | 6-10 | Left leg (hip pitch/roll, knee, ankle, toe) | Position |
 | 11 | Left sickle claw | Motor |
+| 12-14 | Tail (pitch/yaw/pitch) | Position |
 
 ### Reward Components
 
