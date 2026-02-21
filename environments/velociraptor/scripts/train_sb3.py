@@ -361,7 +361,9 @@ def train_curriculum(
             logger.info("Auto-advanced to stage %d", manager.current_stage)
         elif stage < 3:
             # Timestep budget exhausted without meeting threshold
-            error_msg = f"Stage {stage} timestep budget ({total_timesteps}) exhausted without meeting advancement thresholds."
+            error_msg = (
+                f"Stage {stage} timestep budget ({total_timesteps}) exhausted without meeting advancement thresholds."
+            )
             logger.error(error_msg)
             raise RuntimeError(error_msg)
 
