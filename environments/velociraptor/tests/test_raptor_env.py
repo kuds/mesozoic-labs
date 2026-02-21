@@ -15,6 +15,13 @@ def env():
 
 
 class TestBasicFunctionality:
+    def test_leg_joint_defaults_are_stability_tuned(self, env):
+        """Leg joints should use the tuned damping/stiffness defaults from MJCF."""
+        hip_joint_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_JOINT, "r_hip_pitch")
+        hip_dof_adr = env.model.jnt_dofadr[hip_joint_id]
+        assert env.model.dof_damping[hip_dof_adr] == pytest.approx(6.0)
+        assert env.model.jnt_stiffness[hip_joint_id] == pytest.approx(18.0)
+
     def test_spaces_are_valid(self, env):
         assert env.observation_space.shape == (69,)
         assert env.observation_space.dtype == np.float32
