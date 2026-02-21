@@ -17,13 +17,17 @@ max_episode_steps = 500
 
 [ppo]
 learning_rate = 1e-4
-n_steps = 4096
+learning_rate_end = 1e-5
+n_steps = 2048
 batch_size = 64
 n_epochs = 10
 gamma = 0.99
 gae_lambda = 0.95
 clip_range = 0.2
-ent_coef = 0.1
+ent_coef = 0.005
+
+[ppo.policy_kwargs]
+net_arch = [256, 256]
 
 [sac]
 learning_rate = 3e-4

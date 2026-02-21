@@ -62,6 +62,16 @@ from environments.velociraptor.envs.raptor_env import RaptorEnv
 STAGE_CONFIGS = load_all_stages("velociraptor")
 
 
+def linear_schedule(initial_lr: float, final_lr: float):
+    """Return a callable that linearly decays learning rate from initial_lr to final_lr."""
+
+    def schedule(progress_remaining: float) -> float:
+        # progress_remaining goes from 1.0 (start) to 0.0 (end)
+        return final_lr + progress_remaining * (initial_lr - final_lr)
+
+    return schedule
+
+
 def make_env(stage: int, rank: int, seed: int = 0):
     """Create a single environment instance."""
 
@@ -89,7 +99,7 @@ def create_vec_env(stage: int, n_envs: int, seed: int = 0, use_subproc: bool = F
         norm_obs=True,
         norm_reward=True,
         clip_obs=10.0,
-        clip_reward=10.0,
+        clip_reward=50.0,
     )
 
     return env
@@ -150,6 +160,13 @@ def train(
     ppo_kwargs = config["ppo_kwargs"].copy()
     ppo_kwargs["verbose"] = verbose
     ppo_kwargs["tensorboard_log"] = str(log_path / "tensorboard")
+
+    # Apply linear LR schedule if learning_rate_end is specified
+    lr_end = ppo_kwargs.pop("learning_rate_end", None)
+    if lr_end is not None:
+        lr_start = ppo_kwargs["learning_rate"]
+        ppo_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
+        logger.info("Using linear LR schedule: %s -> %s", lr_start, lr_end)
 
     if load_path:
         logger.info("Loading model from: %s", load_path)
@@ -292,6 +309,13 @@ def train_curriculum(
         ppo_kwargs = config["ppo_kwargs"].copy()
         ppo_kwargs["verbose"] = verbose
         ppo_kwargs["tensorboard_log"] = str(stage_dir / "tensorboard")
+
+        # Apply linear LR schedule if learning_rate_end is specified
+        lr_end = ppo_kwargs.pop("learning_rate_end", None)
+        if lr_end is not None:
+            lr_start = ppo_kwargs["learning_rate"]
+            ppo_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
+            logger.info("Using linear LR schedule: %s -> %s", lr_start, lr_end)
 
         if load_path:
             logger.info("Loading model from previous stage: %s", load_path)

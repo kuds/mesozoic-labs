@@ -276,12 +276,12 @@ class RaptorEnv(BaseDinoEnv):
         info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
-        # 7. Continuous posture reward (smooth tilt penalty)
+        # 7. Continuous posture reward (quadratic tilt penalty — stronger gradient near upright)
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         tilt_angle = self._quat_to_tilt(pelvis_quat)
-        # Normalize by max_tilt_angle
+        # Normalize by max_tilt_angle, then square for stronger upright incentive
         tilt_angle_norm = min(tilt_angle / self.max_tilt_angle, 1.0)
-        reward_posture = -self.posture_weight * tilt_angle_norm
+        reward_posture = -self.posture_weight * (tilt_angle_norm ** 2)
         info["tilt_angle"] = tilt_angle
         info["reward_posture"] = reward_posture
 
