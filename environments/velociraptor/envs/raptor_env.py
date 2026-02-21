@@ -207,8 +207,10 @@ class RaptorEnv(BaseDinoEnv):
 
         vel_2d = self.data.qvel[0:2]
         forward_vel = np.dot(vel_2d, prey_dir_2d)
+        # Assume max sprint speed of ~10.0 m/s
+        forward_vel_norm = np.clip(forward_vel / 10.0, -1.0, 1.0)
         info["forward_vel"] = forward_vel
-        reward_forward = self.forward_vel_weight * forward_vel
+        reward_forward = self.forward_vel_weight * forward_vel_norm
         info["reward_forward"] = reward_forward
 
         # 2. Alive bonus
@@ -216,16 +218,22 @@ class RaptorEnv(BaseDinoEnv):
         info["reward_alive"] = reward_alive
 
         # 3. Energy penalty (encourage efficiency)
+        # Normalize by number of actuators (each in [-1, 1], so max energy is n_actuators)
         energy = np.sum(np.square(action))
-        reward_energy = -self.energy_penalty_weight * energy
+        assert self.action_space.shape is not None
+        n_actuators = self.action_space.shape[0]
+        energy_norm = energy / n_actuators
+        reward_energy = -self.energy_penalty_weight * energy_norm
         info["reward_energy"] = reward_energy
 
         # 4. Tail stability (penalize high angular velocity at tail tip)
         tail_vel = np.zeros(6)
         mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, self.tail_tip_site_id, tail_vel, 0)
         tail_tip_angvel = tail_vel[0:3]  # Angular velocity (first 3 elements, rot:lin order)
-        tail_instability = np.linalg.norm(tail_tip_angvel)
-        reward_tail = -self.tail_stability_weight * tail_instability
+        tail_instability = float(np.linalg.norm(tail_tip_angvel))
+        # Normalize assuming max angular vel ~10.0 rad/s
+        tail_instability_norm = min(tail_instability / 10.0, 1.0)
+        reward_tail = -self.tail_stability_weight * tail_instability_norm
         info["tail_instability"] = tail_instability
         info["reward_tail"] = reward_tail
 
@@ -258,7 +266,12 @@ class RaptorEnv(BaseDinoEnv):
             approach_delta = 0.0
         self._prev_prey_distance = prey_distance
 
-        reward_approach = self.strike_approach_weight * approach_delta
+        # Max approach speed ~10m/s. dt is frame_skip * model.opt.timestep (typically 5 * 0.002 = 0.01s)
+        dt = self.frame_skip * self.model.opt.timestep
+        max_delta = 10.0 * dt
+        approach_delta_norm = np.clip(approach_delta / max_delta, -1.0, 1.0)
+
+        reward_approach = self.strike_approach_weight * approach_delta_norm
         info["prey_distance"] = prey_distance
         info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
@@ -266,7 +279,9 @@ class RaptorEnv(BaseDinoEnv):
         # 7. Continuous posture reward (smooth tilt penalty)
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         tilt_angle = self._quat_to_tilt(pelvis_quat)
-        reward_posture = -self.posture_weight * tilt_angle
+        # Normalize by max_tilt_angle
+        tilt_angle_norm = min(tilt_angle / self.max_tilt_angle, 1.0)
+        reward_posture = -self.posture_weight * tilt_angle_norm
         info["tilt_angle"] = tilt_angle
         info["reward_posture"] = reward_posture
 
@@ -282,7 +297,11 @@ class RaptorEnv(BaseDinoEnv):
         # 9. Action smoothness (penalize large action changes between steps)
         if self._prev_action is not None:
             action_delta = float(np.sum(np.square(action - self._prev_action)))
-            reward_smoothness = -self.smoothness_weight * action_delta
+            # Max delta per actuator is 2.0 (from -1 to 1), so max squared is 4.0
+            assert self.action_space.shape is not None
+            max_action_delta = self.action_space.shape[0] * 4.0
+            action_delta_norm = action_delta / max_action_delta
+            reward_smoothness = -self.smoothness_weight * action_delta_norm
         else:
             action_delta = 0.0
             reward_smoothness = 0.0

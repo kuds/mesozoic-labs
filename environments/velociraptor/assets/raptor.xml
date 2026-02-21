@@ -10,9 +10,9 @@
     <geom contype="1" conaffinity="1" friction="1.0 0.005 0.0001"/>
     <motor ctrllimited="true" ctrlrange="-1 1"/>
 
-    <!-- Leg joints: moderate stiffness for position control -->
+    <!-- Leg joints: relaxed stiffness (10.0) for more compliant balance/position control -->
     <default class="leg_joint">
-      <joint damping="5.0" armature="0.02" stiffness="15.0"/>
+      <joint damping="5.0" armature="0.02" stiffness="10.0"/>
     </default>
 
     <!-- Tail joints: high stiffness, limited range (rigid rudder behavior) -->
@@ -120,8 +120,8 @@
               mass="1.2" material="body_mat"/>
 
         <body name="r_tibia" pos="0.02 0 -0.18">
-          <!-- Knee: 1 DOF -->
-          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10" ref="-50"/>
+          <!-- Knee: 1 DOF (Expanded extension limit from -10 to -5 deg) -->
+          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -5" ref="-50"/>
           <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
                 mass="0.8" material="body_mat"/>
 
@@ -162,7 +162,8 @@
               mass="1.2" material="body_mat"/>
 
         <body name="l_tibia" pos="0.02 0 -0.18">
-          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -10" ref="-50"/>
+          <!-- Knee: 1 DOF (Expanded extension limit from -10 to -5 deg) -->
+          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-120 -5" ref="-50"/>
           <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.02 0 -0.2" size="0.03"
                 mass="0.8" material="body_mat"/>
 
@@ -216,7 +217,7 @@
     <!-- Right leg -->
     <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="80" ctrlrange="-1.0472 1.5708"/>
     <position name="r_hip_roll_act" joint="r_hip_roll" kp="60" ctrlrange="-0.5236 0.5236"/>
-    <position name="r_knee_act" joint="r_knee" kp="100" ctrlrange="-2.0944 -0.1745"/>
+    <position name="r_knee_act" joint="r_knee" kp="100" ctrlrange="-2.0944 -0.0872"/>
     <position name="r_ankle_act" joint="r_ankle" kp="60" ctrlrange="1.0472 2.7925"/>
     <position name="r_toe_act" joint="r_toe_main_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
     <motor name="r_claw_act" joint="r_claw" gear="50" ctrlrange="-1 1"/>
@@ -224,7 +225,7 @@
     <!-- Left leg -->
     <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="80" ctrlrange="-1.0472 1.5708"/>
     <position name="l_hip_roll_act" joint="l_hip_roll" kp="60" ctrlrange="-0.5236 0.5236"/>
-    <position name="l_knee_act" joint="l_knee" kp="100" ctrlrange="-2.0944 -0.1745"/>
+    <position name="l_knee_act" joint="l_knee" kp="100" ctrlrange="-2.0944 -0.0872"/>
     <position name="l_ankle_act" joint="l_ankle" kp="60" ctrlrange="1.0472 2.7925"/>
     <position name="l_toe_act" joint="l_toe_main_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
     <motor name="l_claw_act" joint="l_claw" gear="50" ctrlrange="-1 1"/>
@@ -274,7 +275,7 @@
 
   <!-- ==================== KEYFRAMES ==================== -->
   <!-- Standing pose with COM balanced over feet.
-       Without this, knee (range -120..-10) and ankle (range 60..160)
+       Without this, knee (range -120..-5) and ankle (range 60..160)
        start at 0 deg which is outside their limits, causing violent
        constraint-force corrections on the first simulation step. -->
 

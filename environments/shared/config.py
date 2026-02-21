@@ -18,7 +18,10 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import tomllib
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CONFIGS_DIR = _REPO_ROOT / "configs"
