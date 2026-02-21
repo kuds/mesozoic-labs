@@ -54,7 +54,7 @@ class TestRewardComponents:
     def test_total_reward_is_sum_of_components(self, env):
         env.reset(seed=42)
         action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
+        _, _, terminated, _, info = env.step(action)
         expected = (
             info["reward_forward"]
             + info["reward_alive"]
@@ -63,6 +63,8 @@ class TestRewardComponents:
             + info["reward_food"]
             + info["reward_approach"]
         )
+        if terminated:
+            expected += env.fall_penalty
         assert abs(info["reward_total"] - expected) < 1e-6
 
 

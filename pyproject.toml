@@ -48,6 +48,7 @@ dev = [
     "mypy>=1.0",
     "ruff>=0.4.0",
     "pre-commit>=3.0",
+    "scipy>=1.10.0",
 ]
 all = [
     "mesozoic-labs[train,viz,dev]",
@@ -75,6 +76,14 @@ testpaths = [
     "environments/velociraptor/tests",
     "environments/brachiosaurus/tests",
     "environments/trex/tests",
+]
+norecursedirs = [
+    "scripts",
+    "assets",
+    "notebooks",
+    "website",
+    ".git",
+    "*.egg-info",
 ]
 addopts = "--tb=short -q"
 
