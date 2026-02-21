@@ -114,7 +114,7 @@
 
       <body name="r_thigh" pos="0 -0.08 0">
         <!-- Hip: 2 DOF (flexion/extension + abduction) -->
-        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="18"/>
+        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="38"/>
         <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30"/>
         <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04"
               mass="1.2" material="body_mat"/>
@@ -156,7 +156,7 @@
       <!-- ==================== LEFT LEG ==================== -->
 
       <body name="l_thigh" pos="0 0.08 0">
-        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="18"/>
+        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-60 90" ref="38"/>
         <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-30 30"/>
         <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.02 0 -0.18" size="0.04"
               mass="1.2" material="body_mat"/>
@@ -274,20 +274,24 @@
   </contact>
 
   <!-- ==================== KEYFRAMES ==================== -->
-  <!-- Standing pose with COM balanced over feet.
-       Without this, knee (range -120..-5) and ankle (range 60..160)
+  <!-- Standing pose with forward-leaning torso (~20 deg pitch), matching
+       dromaeosaurid biomechanics: horizontal torso counterbalanced by tail,
+       with COM balanced over the digitigrade feet.
+       Hip ref angles are set to 38 deg (= 18 deg crouch + 20 deg lean
+       compensation) so joint springs hold this pose at rest.
+       Without the keyframe, knee (range -120..-5) and ankle (range 60..160)
        start at 0 deg which is outside their limits, causing violent
        constraint-force corrections on the first simulation step. -->
 
   <keyframe>
     <key name="home"
-         qpos="0 0 0.50 1 0 0 0
+         qpos="0 0 0.50 0.984808 0 0.173648 0
                0 0 0 0 0 0
-               0.314159 0 -0.872665 1.745329 0.174533 0
-               0.314159 0 -0.872665 1.745329 0.174533 0
+               0.663225 0 -0.872665 1.745329 0.174533 0
+               0.663225 0 -0.872665 1.745329 0.174533 0
                1 0 0 0 1 0 0 0"
-         ctrl="0.314159 0 -0.872665 1.745329 0.174533 0
-               0.314159 0 -0.872665 1.745329 0.174533 0
+         ctrl="0.663225 0 -0.872665 1.745329 0.174533 0
+               0.663225 0 -0.872665 1.745329 0.174533 0
                0 0 0"/>
   </keyframe>
 

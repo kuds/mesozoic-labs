@@ -250,37 +250,40 @@
   <!-- Position actuators for locomotion, high kp for heavy body -->
 
   <actuator>
+    <!-- NOTE: ctrlrange must be in radians — the compiler angle="degree" setting
+         does NOT convert actuator attributes, only joint attributes. -->
+
     <!-- Neck control (5 joints: 4 pitch + 1 yaw on base) -->
-    <position name="neck_1_pitch_act" joint="neck_1_pitch" kp="120" ctrlrange="-20 30"/>
-    <position name="neck_1_yaw_act" joint="neck_1_yaw" kp="80" ctrlrange="-15 15"/>
-    <position name="neck_2_pitch_act" joint="neck_2_pitch" kp="100" ctrlrange="-20 25"/>
-    <position name="neck_3_pitch_act" joint="neck_3_pitch" kp="80" ctrlrange="-25 25"/>
-    <position name="neck_4_pitch_act" joint="neck_4_pitch" kp="60" ctrlrange="-30 30"/>
-    <position name="head_pitch_act" joint="head_pitch" kp="40" ctrlrange="-40 40"/>
+    <position name="neck_1_pitch_act" joint="neck_1_pitch" kp="120" ctrlrange="-0.3491 0.5236"/>
+    <position name="neck_1_yaw_act" joint="neck_1_yaw" kp="80" ctrlrange="-0.2618 0.2618"/>
+    <position name="neck_2_pitch_act" joint="neck_2_pitch" kp="100" ctrlrange="-0.3491 0.4363"/>
+    <position name="neck_3_pitch_act" joint="neck_3_pitch" kp="80" ctrlrange="-0.4363 0.4363"/>
+    <position name="neck_4_pitch_act" joint="neck_4_pitch" kp="60" ctrlrange="-0.5236 0.5236"/>
+    <position name="head_pitch_act" joint="head_pitch" kp="40" ctrlrange="-0.6981 0.6981"/>
 
     <!-- Front right leg -->
-    <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="200" ctrlrange="-40 50"/>
-    <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="150" ctrlrange="-20 20"/>
-    <position name="fr_knee_act" joint="fr_knee" kp="250" ctrlrange="-60 0"/>
-    <position name="fr_ankle_act" joint="fr_ankle" kp="120" ctrlrange="-20 30"/>
+    <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="200" ctrlrange="-0.6981 0.8727"/>
+    <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="150" ctrlrange="-0.3491 0.3491"/>
+    <position name="fr_knee_act" joint="fr_knee" kp="250" ctrlrange="-1.0472 0"/>
+    <position name="fr_ankle_act" joint="fr_ankle" kp="120" ctrlrange="-0.3491 0.5236"/>
 
     <!-- Front left leg -->
-    <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="200" ctrlrange="-40 50"/>
-    <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="150" ctrlrange="-20 20"/>
-    <position name="fl_knee_act" joint="fl_knee" kp="250" ctrlrange="-60 0"/>
-    <position name="fl_ankle_act" joint="fl_ankle" kp="120" ctrlrange="-20 30"/>
+    <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="200" ctrlrange="-0.6981 0.8727"/>
+    <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="150" ctrlrange="-0.3491 0.3491"/>
+    <position name="fl_knee_act" joint="fl_knee" kp="250" ctrlrange="-1.0472 0"/>
+    <position name="fl_ankle_act" joint="fl_ankle" kp="120" ctrlrange="-0.3491 0.5236"/>
 
     <!-- Rear right leg -->
-    <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="180" ctrlrange="-40 50"/>
-    <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="130" ctrlrange="-20 20"/>
-    <position name="rr_knee_act" joint="rr_knee" kp="220" ctrlrange="-60 0"/>
-    <position name="rr_ankle_act" joint="rr_ankle" kp="100" ctrlrange="-20 30"/>
+    <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="180" ctrlrange="-0.6981 0.8727"/>
+    <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="130" ctrlrange="-0.3491 0.3491"/>
+    <position name="rr_knee_act" joint="rr_knee" kp="220" ctrlrange="-1.0472 0"/>
+    <position name="rr_ankle_act" joint="rr_ankle" kp="100" ctrlrange="-0.3491 0.5236"/>
 
     <!-- Rear left leg -->
-    <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="180" ctrlrange="-40 50"/>
-    <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="130" ctrlrange="-20 20"/>
-    <position name="rl_knee_act" joint="rl_knee" kp="220" ctrlrange="-60 0"/>
-    <position name="rl_ankle_act" joint="rl_ankle" kp="100" ctrlrange="-20 30"/>
+    <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="180" ctrlrange="-0.6981 0.8727"/>
+    <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="130" ctrlrange="-0.3491 0.3491"/>
+    <position name="rl_knee_act" joint="rl_knee" kp="220" ctrlrange="-1.0472 0"/>
+    <position name="rl_ankle_act" joint="rl_ankle" kp="100" ctrlrange="-0.3491 0.5236"/>
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
@@ -328,5 +331,30 @@
     <exclude body1="torso" body2="rr_thigh"/>
     <exclude body1="torso" body2="rl_thigh"/>
   </contact>
+
+  <!-- ==================== KEYFRAMES ==================== -->
+  <!-- Standing pose with all four feet on the ground.
+       Front legs are longer than rear (brachiosaurus characteristic), so
+       front knees are bent more deeply (-45 deg) to match the shorter
+       rear legs (-10 deg). Torso height (1.20 m) is set so all feet
+       approximately contact the floor after a few settling steps.
+       Without this keyframe, all joints start at 0 deg which leaves the
+       brachiosaurus floating ~0.6 m above the ground. -->
+
+  <keyframe>
+    <key name="home"
+         qpos="0 0 1.20 1 0 0 0
+               0 0 0 0 0 0
+               0 0 0 0 0
+               0 0 -0.7854 0
+               0 0 -0.7854 0
+               0 0 -0.1745 0
+               0 0 -0.1745 0"
+         ctrl="0 0 0 0 0 0
+               0 0 -0.7854 0
+               0 0 -0.7854 0
+               0 0 -0.1745 0
+               0 0 -0.1745 0"/>
+  </keyframe>
 
 </mujoco>
