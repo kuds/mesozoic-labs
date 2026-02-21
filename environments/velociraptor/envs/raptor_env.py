@@ -61,6 +61,8 @@ class RaptorEnv(BaseDinoEnv):
         strike_bonus: float = 500.0,
         strike_approach_weight: float = 0.5,
         posture_weight: float = 0.2,
+        nosedive_weight: float = 0.0,
+        natural_pitch: float = 0.35,
         gait_symmetry_weight: float = 0.1,
         smoothness_weight: float = 0.05,
         # Environment settings
@@ -75,8 +77,14 @@ class RaptorEnv(BaseDinoEnv):
         self.strike_bonus = strike_bonus
         self.strike_approach_weight = strike_approach_weight
         self.posture_weight = posture_weight
+        self.nosedive_weight = nosedive_weight
         self.gait_symmetry_weight = gait_symmetry_weight
         self.smoothness_weight = smoothness_weight
+
+        # Natural forward pitch (~20°). The nosedive penalty and termination
+        # are measured relative to this angle so the raptor isn't punished for
+        # its biomechanically correct forward lean.
+        self._natural_forward_z = -np.sin(natural_pitch)
 
         # Raptor-specific env settings
         self.prey_distance_range = prey_distance_range
@@ -276,16 +284,28 @@ class RaptorEnv(BaseDinoEnv):
         info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
-        # 7. Continuous posture reward (smooth tilt penalty)
+        # 7. Continuous posture reward (quadratic tilt penalty — stronger gradient near upright)
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         tilt_angle = self._quat_to_tilt(pelvis_quat)
-        # Normalize by max_tilt_angle
+        # Normalize by max_tilt_angle, then square for stronger upright incentive
         tilt_angle_norm = min(tilt_angle / self.max_tilt_angle, 1.0)
-        reward_posture = -self.posture_weight * tilt_angle_norm
+        reward_posture = -self.posture_weight * (tilt_angle_norm**2)
         info["tilt_angle"] = tilt_angle
         info["reward_posture"] = reward_posture
 
-        # 8. Gait symmetry (reward alternating foot contacts)
+        # 8. Nosedive penalty (excessive forward pitch beyond the natural lean)
+        w, x, y, z = pelvis_quat
+        # Z-component of body's local X-axis (head direction) in world frame
+        forward_z = 2.0 * (x * z - w * y)
+        # Only penalize pitch beyond the natural forward lean (~20°).
+        # _natural_forward_z is negative (≈ -0.34), so we penalize when
+        # forward_z drops further below that baseline.
+        nosedive_excess = max(0.0, -(forward_z - self._natural_forward_z))
+        reward_nosedive = -self.nosedive_weight * nosedive_excess
+        info["forward_z"] = forward_z
+        info["reward_nosedive"] = reward_nosedive
+
+        # 9. Gait symmetry (reward alternating foot contacts)
         r_contact = self.data.sensordata[self._sensor_r_foot]
         l_contact = self.data.sensordata[self._sensor_l_foot]
         contact_sum = r_contact + l_contact + 1e-6
@@ -294,7 +314,7 @@ class RaptorEnv(BaseDinoEnv):
         info["contact_asymmetry"] = contact_asymmetry
         info["reward_gait"] = reward_gait
 
-        # 9. Action smoothness (penalize large action changes between steps)
+        # 10. Action smoothness (penalize large action changes between steps)
         if self._prev_action is not None:
             action_delta = float(np.sum(np.square(action - self._prev_action)))
             # Max delta per actuator is 2.0 (from -1 to 1), so max squared is 4.0
@@ -318,6 +338,7 @@ class RaptorEnv(BaseDinoEnv):
             + reward_strike
             + reward_approach
             + reward_posture
+            + reward_nosedive
             + reward_gait
             + reward_smoothness
         )
@@ -351,6 +372,16 @@ class RaptorEnv(BaseDinoEnv):
         # Termination: excessive tilt (about to fall)
         if tilt_angle > self.max_tilt_angle:
             info["termination_reason"] = "excessive_tilt"
+            return True, info
+
+        # Termination: nosedive (forward pitch exceeds natural lean by > 30°)
+        # _natural_forward_z ≈ -0.34 for 20° lean; subtracting 0.5 gives ≈ -0.84,
+        # which corresponds to ~30° of additional pitch beyond the natural pose.
+        w, x, y, z = pelvis_quat
+        forward_z = 2.0 * (x * z - w * y)
+        info["forward_z"] = forward_z
+        if forward_z < self._natural_forward_z - 0.5:
+            info["termination_reason"] = "nosedive"
             return True, info
 
         # Check for body-ground contact (torso, neck, head, or tail touching floor)
