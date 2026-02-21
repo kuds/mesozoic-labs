@@ -73,9 +73,9 @@ export default function CookieConsent(): React.JSX.Element | null {
   }
 
   return (
-    <div className={`${styles.cookieBanner} ${isClosing ? styles.closing : ''}`}>
+    <div className={`${styles.cookieBanner} ${isClosing ? styles.closing : ''}`} role="dialog" aria-label="Cookie consent">
       <div className={styles.bannerContent}>
-        <div className={styles.iconContainer}>
+        <div className={styles.iconContainer} aria-hidden="true">
           <span className={styles.cookieIcon}>🦖</span>
         </div>
 

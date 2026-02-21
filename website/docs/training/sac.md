@@ -39,16 +39,40 @@ Or use the included training script:
 ```bash
 cd environments/velociraptor
 python scripts/train_sb3.py train --stage 1 --timesteps 1000000 --algo sac
+
+# Or run the full 3-stage curriculum automatically
+python scripts/train_sb3.py curriculum --timesteps 1000000 --algo sac
 ```
+
+## SAC Hyperparameters
+
+These defaults are defined in the per-species TOML config files under `configs/`.
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| learning_rate | 3e-4 | Network learning rate |
+| batch_size | 256 | Training batch size |
+| gamma | 0.99 | Discount factor |
+| tau | 0.005 | Soft update coefficient |
+| ent_coef | auto | Automatic entropy tuning |
+| buffer_size | 1M | Replay buffer size |
+
+SAC hyperparameters are consistent across all three species. The `ent_coef="auto"` setting lets SAC automatically tune its entropy coefficient during training.
+
+## 3-Stage Curriculum
+
+SAC training follows the same curriculum as PPO:
+
+1. **Stage 1 — Balance**: Stand upright without falling (`forward_vel_weight=0`, high `alive_bonus`)
+2. **Stage 2 — Locomotion**: Walk and run forward (increase `forward_vel_weight`, add gait rewards)
+3. **Stage 3 — Behavior**: Species-specific task (strike for Velociraptor, bite for T-Rex, food reach for Brachiosaurus)
+
+Stage transitions are automated by the `CurriculumManager` when the agent achieves the threshold reward for 3 consecutive evaluations.
 
 ## Results
 
-| Model | Steps | Avg Reward | Time |
-|-------|-------|------------|------|
-| Basic Dinosaur | 3.6M | 3091.31 | 4:36:59 |
+| Species | Steps | Avg Reward | Time |
+|---------|-------|------------|------|
+| Velociraptor | 3.6M | 3091.31 | 4:36:59 |
 
-SAC significantly outperforms PPO for dinosaur locomotion tasks.
-
-:::note Coming Soon
-Detailed SAC documentation is under development.
-:::
+SAC significantly outperforms PPO for dinosaur locomotion tasks, achieving ~10x higher reward at the cost of longer training time. The replay buffer enables more efficient use of each experience sample.

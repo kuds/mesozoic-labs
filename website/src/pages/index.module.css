@@ -1,5 +1,5 @@
 /* =============================================================================
-   MESOZOIC LABS - Coming Soon Landing Page
+   MESOZOIC LABS - Landing Page
    Theme: Prehistoric meets Cyberpunk/Robotics
    ============================================================================= */
 
@@ -14,7 +14,7 @@
   --color-surface: #12121a;
   --color-surface-light: #1a1a25;
   --color-text: #e0e0e0;
-  --color-text-dim: #808090;
+  --color-text-dim: #9a9aad;
   --glow-primary: 0 0 20px var(--color-primary-dim);
   --glow-accent: 0 0 30px #00d4ff40;
 }
@@ -228,6 +228,7 @@
   font-weight: 700;
   color: var(--color-primary);
   font-family: 'Courier New', monospace;
+  margin: 0;
 }
 
 .statLabel {
@@ -235,6 +236,7 @@
   text-transform: uppercase;
   letter-spacing: 0.15em;
   color: var(--color-text-dim);
+  order: -1;
 }
 
 .statDivider {
@@ -363,8 +365,46 @@
 }
 
 .simulationContainer {
-  max-width: 800px;
+  max-width: 1100px;
   margin: 0 auto;
+}
+
+.simulationColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.previewPane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.previewLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--color-accent);
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+}
+
+.previewGif {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #ffffff10;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.previewCaption {
+  font-size: 0.8rem;
+  color: var(--color-text-dim);
+  text-align: center;
+  margin: 0;
 }
 
 .terminalWindow {
@@ -584,6 +624,37 @@
   background: var(--color-primary);
   color: var(--color-dark);
   box-shadow: var(--glow-primary);
+  text-decoration: none;
+}
+
+.ctaButtons {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ctaButtonSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 2.5rem;
+  background: transparent;
+  border: 2px solid var(--color-text-dim);
+  color: var(--color-text-dim);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+}
+
+.ctaButtonSecondary:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  box-shadow: var(--glow-accent);
+  text-decoration: none;
 }
 
 .ctaButtonIcon {
@@ -653,5 +724,14 @@
   .terminalBody {
     font-size: 0.75rem;
     padding: 1rem;
+  }
+
+  .simulationColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .ctaButtons {
+    flex-direction: column;
+    align-items: center;
   }
 }
