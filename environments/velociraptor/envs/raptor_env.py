@@ -61,7 +61,7 @@ class RaptorEnv(BaseDinoEnv):
         strike_bonus: float = 500.0,
         strike_approach_weight: float = 0.5,
         posture_weight: float = 0.2,
-        backward_lean_weight: float = 0.0,
+        nosedive_weight: float = 0.0,
         gait_symmetry_weight: float = 0.1,
         smoothness_weight: float = 0.05,
         # Environment settings
@@ -76,7 +76,7 @@ class RaptorEnv(BaseDinoEnv):
         self.strike_bonus = strike_bonus
         self.strike_approach_weight = strike_approach_weight
         self.posture_weight = posture_weight
-        self.backward_lean_weight = backward_lean_weight
+        self.nosedive_weight = nosedive_weight
         self.gait_symmetry_weight = gait_symmetry_weight
         self.smoothness_weight = smoothness_weight
 
@@ -287,14 +287,14 @@ class RaptorEnv(BaseDinoEnv):
         info["tilt_angle"] = tilt_angle
         info["reward_posture"] = reward_posture
 
-        # 8. Backward lean penalty (head pointing down = body forward axis has negative world Z)
+        # 8. Nosedive penalty (excessive forward pitch — head drops below horizontal)
         w, x, y, z = pelvis_quat
-        # Z-component of body's local X-axis (forward direction) in world frame
+        # Z-component of body's local X-axis (head direction) in world frame
         forward_z = 2.0 * (x * z - w * y)
-        # Only penalize when head is below horizontal (forward_z < 0)
-        reward_backward_lean = -self.backward_lean_weight * max(0.0, -forward_z)
+        # Only penalize when head points below horizontal (forward_z < 0 = nosedive)
+        reward_nosedive = -self.nosedive_weight * max(0.0, -forward_z)
         info["forward_z"] = forward_z
-        info["reward_backward_lean"] = reward_backward_lean
+        info["reward_nosedive"] = reward_nosedive
 
         # 9. Gait symmetry (reward alternating foot contacts)
         r_contact = self.data.sensordata[self._sensor_r_foot]
@@ -329,7 +329,7 @@ class RaptorEnv(BaseDinoEnv):
             + reward_strike
             + reward_approach
             + reward_posture
-            + reward_backward_lean
+            + reward_nosedive
             + reward_gait
             + reward_smoothness
         )
@@ -365,14 +365,14 @@ class RaptorEnv(BaseDinoEnv):
             info["termination_reason"] = "excessive_tilt"
             return True, info
 
-        # Termination: backward lean (head pointing below horizontal)
-        # forward_z is the Z-component of body's forward axis in world frame;
-        # -0.5 corresponds to the forward axis pointing ~30° below horizontal.
+        # Termination: nosedive (excessive forward pitch — head pointing well below horizontal)
+        # forward_z is the Z-component of body's head direction in world frame;
+        # -0.5 corresponds to the head pointing ~30° below horizontal.
         w, x, y, z = pelvis_quat
         forward_z = 2.0 * (x * z - w * y)
         info["forward_z"] = forward_z
         if forward_z < -0.5:
-            info["termination_reason"] = "backward_lean"
+            info["termination_reason"] = "nosedive"
             return True, info
 
         # Check for body-ground contact (torso, neck, head, or tail touching floor)
