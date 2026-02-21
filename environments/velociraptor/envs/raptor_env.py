@@ -61,6 +61,7 @@ class RaptorEnv(BaseDinoEnv):
         strike_bonus: float = 500.0,
         strike_approach_weight: float = 0.5,
         posture_weight: float = 0.2,
+        backward_lean_weight: float = 0.0,
         gait_symmetry_weight: float = 0.1,
         smoothness_weight: float = 0.05,
         # Environment settings
@@ -75,6 +76,7 @@ class RaptorEnv(BaseDinoEnv):
         self.strike_bonus = strike_bonus
         self.strike_approach_weight = strike_approach_weight
         self.posture_weight = posture_weight
+        self.backward_lean_weight = backward_lean_weight
         self.gait_symmetry_weight = gait_symmetry_weight
         self.smoothness_weight = smoothness_weight
 
@@ -285,7 +287,16 @@ class RaptorEnv(BaseDinoEnv):
         info["tilt_angle"] = tilt_angle
         info["reward_posture"] = reward_posture
 
-        # 8. Gait symmetry (reward alternating foot contacts)
+        # 8. Backward lean penalty (head pointing down = body forward axis has negative world Z)
+        w, x, y, z = pelvis_quat
+        # Z-component of body's local X-axis (forward direction) in world frame
+        forward_z = 2.0 * (x * z - w * y)
+        # Only penalize when head is below horizontal (forward_z < 0)
+        reward_backward_lean = -self.backward_lean_weight * max(0.0, -forward_z)
+        info["forward_z"] = forward_z
+        info["reward_backward_lean"] = reward_backward_lean
+
+        # 9. Gait symmetry (reward alternating foot contacts)
         r_contact = self.data.sensordata[self._sensor_r_foot]
         l_contact = self.data.sensordata[self._sensor_l_foot]
         contact_sum = r_contact + l_contact + 1e-6
@@ -294,7 +305,7 @@ class RaptorEnv(BaseDinoEnv):
         info["contact_asymmetry"] = contact_asymmetry
         info["reward_gait"] = reward_gait
 
-        # 9. Action smoothness (penalize large action changes between steps)
+        # 10. Action smoothness (penalize large action changes between steps)
         if self._prev_action is not None:
             action_delta = float(np.sum(np.square(action - self._prev_action)))
             # Max delta per actuator is 2.0 (from -1 to 1), so max squared is 4.0
@@ -318,6 +329,7 @@ class RaptorEnv(BaseDinoEnv):
             + reward_strike
             + reward_approach
             + reward_posture
+            + reward_backward_lean
             + reward_gait
             + reward_smoothness
         )
@@ -351,6 +363,16 @@ class RaptorEnv(BaseDinoEnv):
         # Termination: excessive tilt (about to fall)
         if tilt_angle > self.max_tilt_angle:
             info["termination_reason"] = "excessive_tilt"
+            return True, info
+
+        # Termination: backward lean (head pointing below horizontal)
+        # forward_z is the Z-component of body's forward axis in world frame;
+        # -0.5 corresponds to the forward axis pointing ~30° below horizontal.
+        w, x, y, z = pelvis_quat
+        forward_z = 2.0 * (x * z - w * y)
+        info["forward_z"] = forward_z
+        if forward_z < -0.5:
+            info["termination_reason"] = "backward_lean"
             return True, info
 
         # Check for body-ground contact (torso, neck, head, or tail touching floor)
