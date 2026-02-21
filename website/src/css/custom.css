@@ -25,10 +25,10 @@
   --ifm-navbar-background-color: #0a0a0fdd;
   --ifm-navbar-shadow: 0 1px 0 0 rgba(0, 255, 136, 0.1);
 
-  /* Footer */
+  /* Footer — WCAG AA contrast on #050508 background */
   --ifm-footer-background-color: #050508;
-  --ifm-footer-color: #808090;
-  --ifm-footer-link-color: #a0a0b0;
+  --ifm-footer-color: #b0b0be;
+  --ifm-footer-link-color: #c8c8d4;
   --ifm-footer-title-color: #00ff88;
 }
 
@@ -187,6 +187,55 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #3a3a45;
+}
+
+/* Screen reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus styles — WCAG 2.4.7 keyboard accessibility */
+*:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+}
+
+/* Skip navigation link for keyboard users */
+.skip-nav {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.75rem 1.5rem;
+  background: var(--ifm-color-primary);
+  color: #0a0a0f;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 0 0 4px 4px;
+}
+
+.skip-nav:focus {
+  top: 0;
+}
+
+/* Respect user motion preferences — WCAG 2.3.3 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Animation utilities */

@@ -21,10 +21,12 @@ We're bringing prehistoric creatures back to life—as robots. Using state-of-th
 
 ## Current Results
 
-| Model | Algorithm | Avg Reward | Training Steps |
-|-------|-----------|------------|----------------|
-| Basic Dinosaur | SAC | 3091.31 | 3.6M |
-| Basic Dinosaur | PPO | 319.94 | 2.6M |
+| Species | Algorithm | Avg Reward | Training Steps |
+|---------|-----------|------------|----------------|
+| Velociraptor | SAC | 3091.31 | 3.6M |
+| Velociraptor | PPO | 319.94 | 2.6M |
+
+All results use 3-stage curriculum learning (balance → locomotion → behavior).
 
 ## Quick Links
 
@@ -33,6 +35,6 @@ We're bringing prehistoric creatures back to life—as robots. Using state-of-th
 - [Training](/docs/training/sac) - Learn how to train your own dinosaur
 - [GitHub](https://github.com/kuds/mesozoic-labs) - View the source code
 
-## Coming Soon
+## Project Status
 
-This project is actively under development. Star us on GitHub to follow our progress!
+The project is actively under development (currently on Phase 1 — v0.3.0). Core infrastructure is in place including automated curriculum training, W&B experiment tracking, and evaluation metrics. Star us on [GitHub](https://github.com/kuds/mesozoic-labs) to follow our progress!

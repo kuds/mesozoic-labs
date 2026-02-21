@@ -39,7 +39,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/mesozoic-labs/mesozoic-labs.github.io/tree/main/website/',
+          editUrl: 'https://github.com/kuds/mesozoic-labs/tree/main/website/',
         },
         blog: {
           showReadingTime: true,
@@ -47,7 +47,7 @@ const config: Config = {
             type: ['rss', 'atom'],
             xslt: true,
           },
-          editUrl: 'https://github.com/mesozoic-labs/mesozoic-labs.github.io/tree/main/website/',
+          editUrl: 'https://github.com/kuds/mesozoic-labs/tree/main/website/',
         },
         theme: {
           customCss: './src/css/custom.css',
@@ -94,6 +94,14 @@ const config: Config = {
               label: 'Getting Started',
               to: '/docs/',
             },
+            {
+              label: 'Models',
+              to: '/docs/models/trex',
+            },
+            {
+              label: 'Training',
+              to: '/docs/training/sac',
+            },
           ],
         },
         {
@@ -101,7 +109,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub Discussions',
-              href: 'https://github.com/mesozoic-labs/mesozoic-labs.github.io/discussions',
+              href: 'https://github.com/kuds/mesozoic-labs/discussions',
             },
           ],
         },
@@ -115,10 +123,6 @@ const config: Config = {
             {
               label: 'GitHub',
               href: 'https://github.com/kuds/mesozoic-labs',
-            },
-            {
-              label: 'Finding Theta',
-              href: 'https://findingtheta.com',
             },
           ],
         },
