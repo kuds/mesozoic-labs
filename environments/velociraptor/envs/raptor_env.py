@@ -289,7 +289,7 @@ class RaptorEnv(BaseDinoEnv):
         tilt_angle = self._quat_to_tilt(pelvis_quat)
         # Normalize by max_tilt_angle, then square for stronger upright incentive
         tilt_angle_norm = min(tilt_angle / self.max_tilt_angle, 1.0)
-        reward_posture = -self.posture_weight * (tilt_angle_norm ** 2)
+        reward_posture = -self.posture_weight * (tilt_angle_norm**2)
         info["tilt_angle"] = tilt_angle
         info["reward_posture"] = reward_posture
 
