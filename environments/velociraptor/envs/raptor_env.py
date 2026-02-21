@@ -62,6 +62,7 @@ class RaptorEnv(BaseDinoEnv):
         strike_approach_weight: float = 0.5,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
+        natural_pitch: float = 0.35,
         gait_symmetry_weight: float = 0.1,
         smoothness_weight: float = 0.05,
         # Environment settings
@@ -79,6 +80,11 @@ class RaptorEnv(BaseDinoEnv):
         self.nosedive_weight = nosedive_weight
         self.gait_symmetry_weight = gait_symmetry_weight
         self.smoothness_weight = smoothness_weight
+
+        # Natural forward pitch (~20°). The nosedive penalty and termination
+        # are measured relative to this angle so the raptor isn't punished for
+        # its biomechanically correct forward lean.
+        self._natural_forward_z = -np.sin(natural_pitch)
 
         # Raptor-specific env settings
         self.prey_distance_range = prey_distance_range
@@ -287,12 +293,15 @@ class RaptorEnv(BaseDinoEnv):
         info["tilt_angle"] = tilt_angle
         info["reward_posture"] = reward_posture
 
-        # 8. Nosedive penalty (excessive forward pitch — head drops below horizontal)
+        # 8. Nosedive penalty (excessive forward pitch beyond the natural lean)
         w, x, y, z = pelvis_quat
         # Z-component of body's local X-axis (head direction) in world frame
         forward_z = 2.0 * (x * z - w * y)
-        # Only penalize when head points below horizontal (forward_z < 0 = nosedive)
-        reward_nosedive = -self.nosedive_weight * max(0.0, -forward_z)
+        # Only penalize pitch beyond the natural forward lean (~20°).
+        # _natural_forward_z is negative (≈ -0.34), so we penalize when
+        # forward_z drops further below that baseline.
+        nosedive_excess = max(0.0, -(forward_z - self._natural_forward_z))
+        reward_nosedive = -self.nosedive_weight * nosedive_excess
         info["forward_z"] = forward_z
         info["reward_nosedive"] = reward_nosedive
 
@@ -365,13 +374,13 @@ class RaptorEnv(BaseDinoEnv):
             info["termination_reason"] = "excessive_tilt"
             return True, info
 
-        # Termination: nosedive (excessive forward pitch — head pointing well below horizontal)
-        # forward_z is the Z-component of body's head direction in world frame;
-        # -0.5 corresponds to the head pointing ~30° below horizontal.
+        # Termination: nosedive (forward pitch exceeds natural lean by > 30°)
+        # _natural_forward_z ≈ -0.34 for 20° lean; subtracting 0.5 gives ≈ -0.84,
+        # which corresponds to ~30° of additional pitch beyond the natural pose.
         w, x, y, z = pelvis_quat
         forward_z = 2.0 * (x * z - w * y)
         info["forward_z"] = forward_z
-        if forward_z < -0.5:
+        if forward_z < self._natural_forward_z - 0.5:
             info["termination_reason"] = "nosedive"
             return True, info
 
