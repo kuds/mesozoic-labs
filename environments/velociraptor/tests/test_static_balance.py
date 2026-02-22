@@ -36,9 +36,12 @@ def _get_foot_contacts_xy(model: mujoco.MjModel, data: mujoco.MjData) -> np.ndar
     """Return (N, 2) array of foot-floor contact positions in the XY plane."""
     floor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
     foot_geom_names = [
-        "r_toe_d3_geom", "l_toe_d3_geom",
-        "r_toe_d4_geom", "l_toe_d4_geom",
-        "r_metatarsus_geom", "l_metatarsus_geom",
+        "r_toe_d3_geom",
+        "l_toe_d3_geom",
+        "r_toe_d4_geom",
+        "l_toe_d4_geom",
+        "r_metatarsus_geom",
+        "l_metatarsus_geom",
     ]
     foot_ids = {mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, n) for n in foot_geom_names}
 

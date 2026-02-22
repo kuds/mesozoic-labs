@@ -127,9 +127,9 @@ class TestHeadFloorTermination:
         env.data.qpos[2] = 0.3  # lower pelvis
         # Pitch pelvis forward aggressively via quaternion (w, x, y, z)
         env.data.qpos[3] = 0.7071  # w
-        env.data.qpos[4] = 0.0     # x
+        env.data.qpos[4] = 0.0  # x
         env.data.qpos[5] = 0.7071  # y (90-deg pitch forward)
-        env.data.qpos[6] = 0.0     # z
+        env.data.qpos[6] = 0.0  # z
         mujoco.mj_forward(env.model, env.data)
 
         terminated, info = env._is_terminated()
@@ -153,7 +153,11 @@ class TestHeadFloorTermination:
         terminated, info = env._is_terminated()
         if terminated and "termination_reason" in info:
             assert info["termination_reason"] in (
-                "head_contact", "torso_contact", "tail_contact", "fallen", "excessive_tilt"
+                "head_contact",
+                "torso_contact",
+                "tail_contact",
+                "fallen",
+                "excessive_tilt",
             )
 
 
