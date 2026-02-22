@@ -11,13 +11,13 @@ Observation space:
     - Pelvis orientation (quaternion)
     - Pelvis angular velocity
     - Pelvis linear velocity
-    - Foot contact states (2 feet)
+    - Foot contact states (2 feet, sensed on central digit 3)
     - Prey relative direction
     - Prey distance
 
 Action space:
     - Continuous control for all actuators [-1, 1] normalized
-    - 14 actuators: 3 neck/head + 1 jaw + 5 per leg
+    - 18 actuators: 3 neck/head + 1 jaw + 7 per leg (hip pitch/roll, knee, ankle, 3 toe digits)
 
 Reward components:
     - Forward velocity (toward prey)

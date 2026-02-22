@@ -165,10 +165,10 @@ class TestRewardWeightEffects:
         env.close()
 
     def test_tail_actuators_active(self):
-        """Tail actuators should be enabled (15 total actuators)."""
+        """Tail actuators should be enabled (17 total actuators)."""
         env = RaptorEnv()
-        assert env.model.nu == 15, f"Expected 15 actuators, got {env.model.nu}"
-        assert env.action_space.shape == (15,)
+        assert env.model.nu == 17, f"Expected 17 actuators, got {env.model.nu}"
+        assert env.action_space.shape == (17,)
         env.close()
 
 

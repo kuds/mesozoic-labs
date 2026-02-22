@@ -15,9 +15,9 @@ def env():
 
 class TestBasicFunctionality:
     def test_spaces_are_valid(self, env):
-        assert env.observation_space.shape == (77,)
+        assert env.observation_space.shape == (85,)
         assert env.observation_space.dtype == np.float32
-        assert env.action_space.shape == (14,)
+        assert env.action_space.shape == (18,)
         assert np.all(env.action_space.low == -1.0)
         assert np.all(env.action_space.high == 1.0)
 
