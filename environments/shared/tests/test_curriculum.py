@@ -12,6 +12,7 @@ class TestStageThreshold:
         t = StageThreshold()
         assert t.min_avg_reward == float("-inf")
         assert t.min_avg_episode_length == 0.0
+        assert t.min_avg_forward_vel == 0.0
         assert t.min_eval_episodes == 10
         assert t.required_consecutive == 3
 
@@ -19,6 +20,10 @@ class TestStageThreshold:
         t = StageThreshold(min_avg_reward=50.0, required_consecutive=5)
         assert t.min_avg_reward == 50.0
         assert t.required_consecutive == 5
+
+    def test_forward_vel_threshold(self):
+        t = StageThreshold(min_avg_forward_vel=0.5)
+        assert t.min_avg_forward_vel == 0.5
 
 
 class TestCurriculumManager:
@@ -135,3 +140,60 @@ class TestCurriculumManager:
         )
         # Only 3 episodes provided
         assert not mgr.should_advance([100.0, 100.0, 100.0], [500.0, 500.0, 500.0])
+
+    def test_forward_vel_gate_blocks_without_velocity(self):
+        """Stage with forward velocity threshold should block if velocity is too low."""
+        mgr = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={
+                1: {
+                    "min_avg_reward": 10.0,
+                    "min_avg_episode_length": 50,
+                    "min_avg_forward_vel": 0.5,
+                    "min_eval_episodes": 3,
+                    "required_consecutive": 1,
+                },
+            },
+        )
+        rewards = [100.0, 100.0, 100.0]
+        lengths = [500.0, 500.0, 500.0]
+        # Good reward/length but no forward velocity data -> defaults to 0.0
+        assert not mgr.should_advance(rewards, lengths)
+
+    def test_forward_vel_gate_blocks_low_velocity(self):
+        """Stage with forward velocity threshold should block if velocity is below threshold."""
+        mgr = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={
+                1: {
+                    "min_avg_reward": 10.0,
+                    "min_avg_episode_length": 50,
+                    "min_avg_forward_vel": 0.5,
+                    "min_eval_episodes": 3,
+                    "required_consecutive": 1,
+                },
+            },
+        )
+        rewards = [100.0, 100.0, 100.0]
+        lengths = [500.0, 500.0, 500.0]
+        low_vels = [0.1, 0.2, 0.1]
+        assert not mgr.should_advance(rewards, lengths, low_vels)
+
+    def test_forward_vel_gate_passes_with_good_velocity(self):
+        """Stage with forward velocity threshold should pass when all metrics met."""
+        mgr = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={
+                1: {
+                    "min_avg_reward": 10.0,
+                    "min_avg_episode_length": 50,
+                    "min_avg_forward_vel": 0.5,
+                    "min_eval_episodes": 3,
+                    "required_consecutive": 1,
+                },
+            },
+        )
+        rewards = [100.0, 100.0, 100.0]
+        lengths = [500.0, 500.0, 500.0]
+        good_vels = [1.0, 1.2, 0.8]
+        assert mgr.should_advance(rewards, lengths, good_vels)
