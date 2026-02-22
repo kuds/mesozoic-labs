@@ -182,14 +182,14 @@ function SimulationSection() {
             </div>
           </div>
           <figure className={styles.previewPane}>
-            <div className={styles.previewLabel}>SAC Stage 2 — Locomotion</div>
+            <div className={styles.previewLabel}>PPO Stage 1 — Balance</div>
             <img
-              src="/img/ppo_apex.gif"
-              alt="Velociraptor learning bipedal locomotion through reinforcement learning, showing progressive improvement in walking gait"
+              src="/img/raptor_balance_ppo.gif"
+              alt="Velociraptor learning to balance using PPO reinforcement learning"
               className={styles.previewGif}
             />
             <figcaption className={styles.previewCaption}>
-              Velociraptor learning to walk via curriculum training
+              Velociraptor learning to balance via PPO curriculum training
             </figcaption>
           </figure>
         </div>
