@@ -76,7 +76,7 @@ const features = [
     icon: '\uD83E\uDD96',
     title: '3 Species',
     description:
-      'T-Rex (14 actuators), Velociraptor (12 actuators), and Brachiosaurus (22 actuators) — bipedal and quadrupedal gaits.',
+      'T-Rex (18 actuators), Velociraptor (17 actuators), and Brachiosaurus (22 actuators) — bipedal and quadrupedal gaits.',
   },
   {
     icon: '\uD83D\uDCE6',
@@ -165,7 +165,7 @@ function SimulationSection() {
                 <span>, obs.shape)</span>
               </div>
               <div className={styles.codeLine}>
-                <span className={styles.codeOutput}>{'>>> Obs shape: (69,)'}</span>
+                <span className={styles.codeOutput}>{'>>> Obs shape: (73,)'}</span>
               </div>
               <div className={styles.codeLine}>
                 <span className={styles.codeKeyword}>print</span>
@@ -174,7 +174,7 @@ function SimulationSection() {
                 <span>, env.action_space.shape)</span>
               </div>
               <div className={styles.codeLine}>
-                <span className={styles.codeOutput}>{'>>> Actions: (12,)'}</span>
+                <span className={styles.codeOutput}>{'>>> Actions: (17,)'}</span>
               </div>
               <div className={styles.codeLine}>
                 <span className={styles.cursor}>_</span>

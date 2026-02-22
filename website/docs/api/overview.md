@@ -45,27 +45,28 @@ action = env.action_space.sample()
 obs, reward, terminated, truncated, info = env.step(action)
 ```
 
-### Observation Space (69 dimensions)
+### Observation Space (73 dimensions)
 
 | Component | Dims | Description |
 |-----------|------|-------------|
-| Joint positions | 26 | All qpos excluding root freejoint (18 hinge + 2x4 ball) |
-| Joint velocities | 24 | All qvel excluding root freejoint (18 hinge + 2x3 ball) |
+| Joint positions | 28 | All qpos excluding root freejoint (20 hinge + 2x4 ball) |
+| Joint velocities | 26 | All qvel excluding root freejoint (20 hinge + 2x3 ball) |
 | Pelvis orientation | 4 | Quaternion from framequat sensor |
 | Pelvis angular velocity | 3 | Gyroscope reading |
 | Pelvis linear velocity | 3 | Root body velocity |
 | Pelvis acceleration | 3 | Accelerometer reading |
-| Foot contact | 2 | Left/right touch sensors |
+| Foot contact | 2 | Left/right touch sensors (on central digit 3) |
 | Prey direction | 3 | Unit vector toward prey |
 | Prey distance | 1 | Scalar distance to prey |
 
-### Action Space (12 dimensions)
+### Action Space (17 dimensions)
 
 Continuous actions in `[-1, 1]`, scaled to actuator control ranges:
-- Right leg: hip pitch, hip roll, knee, ankle, toe (5)
+- Right leg: hip pitch, hip roll, knee, ankle, toe d3, toe d4 (6)
 - Right sickle claw (1)
-- Left leg: hip pitch, hip roll, knee, ankle, toe (5)
+- Left leg: hip pitch, hip roll, knee, ankle, toe d3, toe d4 (6)
 - Left sickle claw (1)
+- Tail: pitch 1, yaw 1, pitch 2 (3)
 
 ### Reward Components
 
@@ -93,8 +94,8 @@ env = TRexEnv(
 )
 ```
 
-- **Observation:** 77 dimensions
-- **Action:** 14 dimensions (3 neck/head + 1 jaw + 5 per leg)
+- **Observation:** 85 dimensions
+- **Action:** 18 dimensions (3 neck/head + 1 jaw + 7 per leg)
 
 ## Brachiosaurus Environment
 

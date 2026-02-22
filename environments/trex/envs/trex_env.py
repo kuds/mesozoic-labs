@@ -11,13 +11,13 @@ Observation space:
     - Pelvis orientation (quaternion)
     - Pelvis angular velocity
     - Pelvis linear velocity
-    - Foot contact states (2 feet)
+    - Foot contact states (2 feet, sensed on central digit 3)
     - Prey relative direction
     - Prey distance
 
 Action space:
     - Continuous control for all actuators [-1, 1] normalized
-    - 14 actuators: 3 neck/head + 1 jaw + 5 per leg
+    - 18 actuators: 3 neck/head + 1 jaw + 7 per leg (hip pitch/roll, knee, ankle, 3 toe digits)
 
 Reward components:
     - Forward velocity (toward prey)
@@ -102,6 +102,12 @@ class TRexEnv(BaseDinoEnv):
         self.torso_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso")
         self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
 
+        # Head/skull geom IDs (collision-enabled geoms that should terminate on ground contact)
+        # Note: neck_geom and brow_ridge have contype=0, so they never produce floor contacts
+        self.skull_upper_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "skull_upper")
+        self.snout_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "snout")
+        self.jaw_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "jaw_geom")
+
         # Tail geom IDs (distal segments that should not contact floor)
         self.tail_3_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_3_geom")
         self.tail_4_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_4_geom")
@@ -110,10 +116,14 @@ class TRexEnv(BaseDinoEnv):
         # Geoms that should terminate the episode on ground contact
         self._body_ground_geoms = {
             self.torso_geom_id,
+            self.skull_upper_geom_id,
+            self.snout_geom_id,
+            self.jaw_geom_id,
             self.tail_3_geom_id,
             self.tail_4_geom_id,
             self.tail_5_geom_id,
         }
+        self._head_ground_geoms = {self.skull_upper_geom_id, self.snout_geom_id, self.jaw_geom_id}
         self._tail_ground_geoms = {self.tail_3_geom_id, self.tail_4_geom_id, self.tail_5_geom_id}
 
         # Site IDs for sensors
@@ -290,7 +300,7 @@ class TRexEnv(BaseDinoEnv):
             info["termination_reason"] = "excessive_tilt"
             return True, info
 
-        # Check for body-ground contact (torso or tail touching floor)
+        # Check for body-ground contact (torso, head, or tail touching floor)
         for i in range(self.data.ncon):
             contact = self.data.contact[i]
             geom1, geom2 = contact.geom1, contact.geom2
@@ -304,6 +314,8 @@ class TRexEnv(BaseDinoEnv):
             if floor_contact_geom is not None:
                 if floor_contact_geom in self._tail_ground_geoms:
                     info["termination_reason"] = "tail_contact"
+                elif floor_contact_geom in self._head_ground_geoms:
+                    info["termination_reason"] = "head_contact"
                 else:
                     info["termination_reason"] = "torso_contact"
                 return True, info

@@ -98,28 +98,29 @@ python scripts/train_sb3.py eval logs/<run_dir>/models/stage3_final.zip
 
 ## Environment Details
 
-### Observation Space (dim=69)
+### Observation Space (dim=73)
 | Component | Dimensions | Description |
 |-----------|------------|-------------|
-| Joint positions | 26 | All qpos except root freejoint (18 hinge + 2×4 ball) |
-| Joint velocities | 24 | All qvel except root freejoint (18 hinge + 2×3 ball) |
+| Joint positions | 28 | All qpos except root freejoint (20 hinge + 2×4 ball) |
+| Joint velocities | 26 | All qvel except root freejoint (20 hinge + 2×3 ball) |
 | Pelvis quaternion | 4 | Orientation from framequat sensor |
 | Pelvis gyro | 3 | Angular velocity |
 | Pelvis linear vel | 3 | Linear velocity |
 | Pelvis accel | 3 | Accelerometer |
-| Foot contacts | 2 | Left/right foot touch |
+| Foot contacts | 2 | Left/right foot touch (on central digit 3) |
 | Prey direction | 3 | Unit vector to prey |
 | Prey distance | 1 | Scalar distance |
 
-### Action Space (dim=12)
+### Action Space (dim=17)
 All actions normalized to [-1, 1], scaled to actuator control ranges.
 
 | Index | Actuator | Type |
 |-------|----------|------|
-| 0-4 | Right leg (hip pitch/roll, knee, ankle, toe) | Position |
-| 5 | Right sickle claw | Motor |
-| 6-10 | Left leg (hip pitch/roll, knee, ankle, toe) | Position |
-| 11 | Left sickle claw | Motor |
+| 0-5 | Right leg (hip pitch/roll, knee, ankle, toe d3/d4) | Position |
+| 6 | Right sickle claw | Motor |
+| 7-12 | Left leg (hip pitch/roll, knee, ankle, toe d3/d4) | Position |
+| 13 | Left sickle claw | Motor |
+| 14-16 | Tail (pitch 1, yaw 1, pitch 2) | Position |
 
 ### Reward Components
 

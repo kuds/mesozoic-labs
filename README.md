@@ -65,8 +65,8 @@ A bipedal predator with distinctive sickle claws, trained using 3-stage curricul
 
 | Feature | Details |
 |---------|---------|
-| Observation | 69 dims (joints, pelvis, prey tracking) |
-| Action | 12 dims (leg + claw controls) |
+| Observation | 73 dims (joints, pelvis, prey tracking) |
+| Action | 17 dims (leg + claw controls) |
 | Model | `environments/velociraptor/assets/raptor.xml` |
 
 [Full documentation →](environments/velociraptor/README.md)
@@ -101,8 +101,8 @@ Trained using 3-stage curriculum learning:
 
 | Feature | Details |
 |---------|---------|
-| Observation | 77 dims (joints, pelvis, prey tracking) |
-| Action | 14 dims (3 neck/head + 1 jaw + 5 per leg) |
+| Observation | 85 dims (joints, pelvis, prey tracking) |
+| Action | 18 dims (3 neck/head + 1 jaw + 7 per leg) |
 | Model | `environments/trex/assets/trex.xml` |
 
 ### Planned Species
@@ -164,7 +164,7 @@ Hardware: Google Colab T4 GPU
 - [ ] Terrain adaptation (uneven ground, obstacles)
 - [ ] Sim-to-real transfer experiments
 
-See [ROADMAP.md](ROADMAP.md) for the full phased timeline, milestones, and dependency graph.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full phased timeline, milestones, and dependency graph.
 
 ## Resources
 

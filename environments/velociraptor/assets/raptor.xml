@@ -131,14 +131,21 @@
             <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
                   mass="0.3" material="body_mat"/>
 
-            <!-- Toes -->
-            <body name="r_toe_main" pos="0.06 0 -0.12">
-              <!-- Main toe (digits 3+4 combined) — widened for stable ground contact -->
-              <joint name="r_toe_main_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
-              <geom name="r_toe_main_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.025"
-                    mass="0.1" material="body_mat"/>
-              <!-- Foot contact sensor -->
-              <site name="r_foot" pos="0.05 0 -0.025" size="0.02"/>
+            <!-- Toes: 3 separate digits (anatomically correct) -->
+            <!-- Digit 3 (central, longest — primary weight-bearing) -->
+            <body name="r_toe_d3" pos="0.06 0 -0.12">
+              <joint name="r_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
+              <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.02"
+                    mass="0.06" material="body_mat"/>
+              <!-- Foot contact sensor (on primary weight-bearing digit) -->
+              <site name="r_foot" pos="0.05 0 -0.02" size="0.02"/>
+            </body>
+
+            <!-- Digit 4 (lateral, shorter — secondary weight-bearing) -->
+            <body name="r_toe_d4" pos="0.06 -0.015 -0.12">
+              <joint name="r_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
+              <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 0  0.08 -0.01 0" size="0.018"
+                    mass="0.04" material="body_mat"/>
             </body>
 
             <!-- Sickle claw (digit 2) - THE WEAPON -->
@@ -172,14 +179,23 @@
             <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.06 0 -0.12" size="0.02"
                   mass="0.3" material="body_mat"/>
 
-            <body name="l_toe_main" pos="0.06 0 -0.12">
-              <!-- Widened for stable ground contact -->
-              <joint name="l_toe_main_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
-              <geom name="l_toe_main_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.025"
-                    mass="0.1" material="body_mat"/>
-              <site name="l_foot" pos="0.05 0 -0.025" size="0.02"/>
+            <!-- Toes: 3 separate digits (anatomically correct) -->
+            <!-- Digit 3 (central, longest — primary weight-bearing) -->
+            <body name="l_toe_d3" pos="0.06 0 -0.12">
+              <joint name="l_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
+              <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.02"
+                    mass="0.06" material="body_mat"/>
+              <site name="l_foot" pos="0.05 0 -0.02" size="0.02"/>
             </body>
 
+            <!-- Digit 4 (lateral, shorter — secondary weight-bearing) -->
+            <body name="l_toe_d4" pos="0.06 0.015 -0.12">
+              <joint name="l_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
+              <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 0  0.08 0.01 0" size="0.018"
+                    mass="0.04" material="body_mat"/>
+            </body>
+
+            <!-- Sickle claw (digit 2) - THE WEAPON -->
             <body name="l_toe_claw" pos="0.06 -0.02 -0.12">
               <joint name="l_claw" class="claw_joint" type="hinge" axis="0 1 0" range="-90 30"/>
               <geom name="l_claw_geom" type="capsule" fromto="0 0 0  0.04 0 0.06" size="0.01"
@@ -220,7 +236,8 @@
     <position name="r_hip_roll_act" joint="r_hip_roll" kp="60" ctrlrange="-0.5236 0.5236"/>
     <position name="r_knee_act" joint="r_knee" kp="100" ctrlrange="-2.0944 -0.0872"/>
     <position name="r_ankle_act" joint="r_ankle" kp="60" ctrlrange="1.0472 2.7925"/>
-    <position name="r_toe_act" joint="r_toe_main_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
+    <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
+    <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
     <motor name="r_claw_act" joint="r_claw" gear="50" ctrlrange="-1 1"/>
 
     <!-- Left leg -->
@@ -228,7 +245,8 @@
     <position name="l_hip_roll_act" joint="l_hip_roll" kp="60" ctrlrange="-0.5236 0.5236"/>
     <position name="l_knee_act" joint="l_knee" kp="100" ctrlrange="-2.0944 -0.0872"/>
     <position name="l_ankle_act" joint="l_ankle" kp="60" ctrlrange="1.0472 2.7925"/>
-    <position name="l_toe_act" joint="l_toe_main_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
+    <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
+    <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
     <motor name="l_claw_act" joint="l_claw" gear="50" ctrlrange="-1 1"/>
 
     <!-- Tail actuators for active balance control -->
@@ -288,11 +306,11 @@
     <key name="home"
          qpos="0 0 0.50 0.984808 0 0.173648 0
                0 0 0 0 0 0
-               0.663225 0 -0.872665 1.745329 0.174533 0
-               0.663225 0 -0.872665 1.745329 0.174533 0
+               0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
+               0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
                1 0 0 0 1 0 0 0"
-         ctrl="0.663225 0 -0.872665 1.745329 0.174533 0
-               0.663225 0 -0.872665 1.745329 0.174533 0
+         ctrl="0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
+               0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
                0 0 0"/>
   </keyframe>
 

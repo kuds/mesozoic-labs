@@ -193,12 +193,27 @@
             <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.04"
                   mass="1.2" material="body_mat"/>
 
-            <!-- Toes (3 forward-facing digits fused as one contact pad) -->
-            <body name="r_toe" pos="0.08 0 -0.2">
-              <joint name="r_toe_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
-              <geom name="r_toe_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.035"
-                    mass="0.4" material="claw_mat"/>
-              <site name="r_foot" pos="0.06 0 -0.035" size="0.03"/>
+            <!-- Toes: 3 separate forward-facing digits (anatomically correct) -->
+            <!-- Digit 2 (medial, shortest) -->
+            <body name="r_toe_d2" pos="0.08 0.025 -0.2">
+              <joint name="r_toe_d2_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <geom name="r_toe_d2_geom" type="capsule" fromto="0 0 0  0.08 0.015 0" size="0.025"
+                    mass="0.12" material="claw_mat"/>
+            </body>
+
+            <!-- Digit 3 (central, longest — primary weight-bearing) -->
+            <body name="r_toe_d3" pos="0.08 0 -0.2">
+              <joint name="r_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.028"
+                    mass="0.16" material="claw_mat"/>
+              <site name="r_foot" pos="0.06 0 -0.028" size="0.03"/>
+            </body>
+
+            <!-- Digit 4 (lateral, medium) -->
+            <body name="r_toe_d4" pos="0.08 -0.025 -0.2">
+              <joint name="r_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 0  0.09 -0.015 0" size="0.025"
+                    mass="0.12" material="claw_mat"/>
             </body>
           </body>
         </body>
@@ -222,11 +237,27 @@
             <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.04"
                   mass="1.2" material="body_mat"/>
 
-            <body name="l_toe" pos="0.08 0 -0.2">
-              <joint name="l_toe_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
-              <geom name="l_toe_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.035"
-                    mass="0.4" material="claw_mat"/>
-              <site name="l_foot" pos="0.06 0 -0.035" size="0.03"/>
+            <!-- Toes: 3 separate forward-facing digits (anatomically correct) -->
+            <!-- Digit 2 (medial, shortest) -->
+            <body name="l_toe_d2" pos="0.08 -0.025 -0.2">
+              <joint name="l_toe_d2_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <geom name="l_toe_d2_geom" type="capsule" fromto="0 0 0  0.08 -0.015 0" size="0.025"
+                    mass="0.12" material="claw_mat"/>
+            </body>
+
+            <!-- Digit 3 (central, longest — primary weight-bearing) -->
+            <body name="l_toe_d3" pos="0.08 0 -0.2">
+              <joint name="l_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.028"
+                    mass="0.16" material="claw_mat"/>
+              <site name="l_foot" pos="0.06 0 -0.028" size="0.03"/>
+            </body>
+
+            <!-- Digit 4 (lateral, medium) -->
+            <body name="l_toe_d4" pos="0.08 0.025 -0.2">
+              <joint name="l_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 0  0.09 0.015 0" size="0.025"
+                    mass="0.12" material="claw_mat"/>
             </body>
           </body>
         </body>
@@ -284,14 +315,18 @@
     <position name="r_hip_roll_act" joint="r_hip_roll" kp="150" ctrlrange="-0.4363 0.4363"/>
     <position name="r_knee_act" joint="r_knee" kp="250" ctrlrange="-1.9199 -0.1745"/>
     <position name="r_ankle_act" joint="r_ankle" kp="150" ctrlrange="0.8727 2.6180"/>
-    <position name="r_toe_act" joint="r_toe_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
+    <position name="r_toe_d2_act" joint="r_toe_d2_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
+    <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
+    <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
 
     <!-- Left leg -->
     <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="200" ctrlrange="-0.8727 1.3963"/>
     <position name="l_hip_roll_act" joint="l_hip_roll" kp="150" ctrlrange="-0.4363 0.4363"/>
     <position name="l_knee_act" joint="l_knee" kp="250" ctrlrange="-1.9199 -0.1745"/>
     <position name="l_ankle_act" joint="l_ankle" kp="150" ctrlrange="0.8727 2.6180"/>
-    <position name="l_toe_act" joint="l_toe_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
+    <position name="l_toe_d2_act" joint="l_toe_d2_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
+    <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
+    <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
@@ -350,12 +385,12 @@
     <key name="home"
          qpos="0 0 0.90 1 0 0 0
                0 0 0 0 0 0 0 0 0 0
-               0.261799 0 -1.221730 1.570796 0.261799
-               0.261799 0 -1.221730 1.570796 0.261799
+               0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
+               0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
                1 0 0 0 0 1 0 0 0 0"
          ctrl="0 0 0 0
-               0.261799 0 -1.221730 1.570796 0.261799
-               0.261799 0 -1.221730 1.570796 0.261799"/>
+               0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
+               0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799"/>
   </keyframe>
 
 </mujoco>

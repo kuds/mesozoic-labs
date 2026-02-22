@@ -35,7 +35,14 @@ def env():
 def _get_foot_contacts_xy(model: mujoco.MjModel, data: mujoco.MjData) -> np.ndarray:
     """Return (N, 2) array of foot-floor contact positions in the XY plane."""
     floor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
-    foot_geom_names = ["r_toe_main_geom", "l_toe_main_geom", "r_metatarsus_geom", "l_metatarsus_geom"]
+    foot_geom_names = [
+        "r_toe_d3_geom",
+        "l_toe_d3_geom",
+        "r_toe_d4_geom",
+        "l_toe_d4_geom",
+        "r_metatarsus_geom",
+        "l_metatarsus_geom",
+    ]
     foot_ids = {mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, n) for n in foot_geom_names}
 
     points = []
@@ -282,12 +289,14 @@ class TestMassDistribution:
             "r_thigh",
             "r_tibia",
             "r_metatarsus",
-            "r_toe_main",
+            "r_toe_d3",
+            "r_toe_d4",
             "r_toe_claw",
             "l_thigh",
             "l_tibia",
             "l_metatarsus",
-            "l_toe_main",
+            "l_toe_d3",
+            "l_toe_d4",
             "l_toe_claw",
         ]
         leg_mass = 0.0
@@ -317,8 +326,8 @@ class TestMassDistribution:
 
     def test_left_right_symmetry(self, env):
         """Left and right leg masses should be symmetric."""
-        r_names = ["r_thigh", "r_tibia", "r_metatarsus", "r_toe_main", "r_toe_claw"]
-        l_names = ["l_thigh", "l_tibia", "l_metatarsus", "l_toe_main", "l_toe_claw"]
+        r_names = ["r_thigh", "r_tibia", "r_metatarsus", "r_toe_d3", "r_toe_d4", "r_toe_claw"]
+        l_names = ["l_thigh", "l_tibia", "l_metatarsus", "l_toe_d3", "l_toe_d4", "l_toe_claw"]
 
         for rn, ln in zip(r_names, l_names):
             r_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, rn)
