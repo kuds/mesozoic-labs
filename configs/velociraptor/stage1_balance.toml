@@ -4,13 +4,13 @@ description = "Learn to stand and balance without falling"
 
 [env]
 forward_vel_weight = 0.0
-alive_bonus = 5.0
+alive_bonus = 2.5
 energy_penalty_weight = 0.0
 tail_stability_weight = 0.02
-posture_weight = 2.0
-nosedive_weight = 3.0
+posture_weight = 1.0
+nosedive_weight = 1.5
 gait_symmetry_weight = 0.0
-smoothness_weight = 0.1
+smoothness_weight = 0.05
 strike_bonus = 0.0
 strike_approach_weight = 0.0
 prey_distance_range = [10.0, 15.0]
@@ -20,12 +20,12 @@ max_episode_steps = 500
 learning_rate = 3e-4
 learning_rate_end = 1e-5
 n_steps = 2048
-batch_size = 64
+batch_size = 256
 n_epochs = 10
 gamma = 0.99
 gae_lambda = 0.95
 clip_range = 0.2
-ent_coef = 0.005
+ent_coef = 0.015
 
 [ppo.policy_kwargs]
 net_arch = [256, 256]
@@ -38,7 +38,7 @@ tau = 0.005
 ent_coef = "auto"
 
 [curriculum]
-timesteps = 1000000
+timesteps = 2000000
 min_avg_reward = 50.0
 min_avg_episode_length = 300
 required_consecutive = 3
