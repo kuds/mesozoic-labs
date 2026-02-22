@@ -12,11 +12,11 @@ The Tyrannosaurus Rex is a large bipedal predator with a massive skull, powerful
 |----------|-------|
 | Hip height | ~1.1m (simulated) |
 | Total mass | ~80 kg (simulated, scaled) |
-| Hinge joints | 22 |
+| Hinge joints | 26 |
 | Ball joints | 2 (shoulders, passive) |
-| Actuators | 14 |
-| Observation dim | 77 |
-| Action dim | 14 |
+| Actuators | 18 |
+| Observation dim | 85 |
+| Action dim | 18 |
 
 ## Anatomy
 
@@ -24,18 +24,18 @@ The T-Rex model includes:
 - **Torso** - Forward-leaning body (~30 deg from horizontal) with ribcage and belly
 - **Neck + Skull** - Short muscular neck with massive elongated skull and brow ridges
 - **Jaw** - Articulated lower mandible with bite contact geom
-- **Legs** - Powerful digitigrade hind limbs (hip pitch/roll, knee, ankle, toe per leg)
+- **Legs** - Powerful digitigrade hind limbs (hip pitch/roll, knee, ankle, 3 toe digits per leg)
 - **Arms** - Tiny vestigial forelimbs with 2-fingered hands (passive, not actuated)
 - **Tail** - 5-segment heavy counterbalance to skull
 
-## Action Space (14 dims)
+## Action Space (18 dims)
 
 | Index | Actuator | Type |
 |-------|----------|------|
 | 0-2 | Neck pitch, neck yaw, head pitch | Position |
 | 3 | Jaw | Motor |
-| 4-8 | Right leg (hip pitch/roll, knee, ankle, toe) | Position |
-| 9-13 | Left leg (hip pitch/roll, knee, ankle, toe) | Position |
+| 4-10 | Right leg (hip pitch/roll, knee, ankle, toe d2/d3/d4) | Position |
+| 11-17 | Left leg (hip pitch/roll, knee, ankle, toe d2/d3/d4) | Position |
 
 ## Training Stages
 
