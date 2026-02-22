@@ -133,12 +133,12 @@
 
             <!-- Toes -->
             <body name="r_toe_main" pos="0.06 0 -0.12">
-              <!-- Main toe (digits 3+4 combined) -->
+              <!-- Main toe (digits 3+4 combined) — widened for stable ground contact -->
               <joint name="r_toe_main_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
-              <geom name="r_toe_main_geom" type="capsule" fromto="0 0 0  0.08 0 0" size="0.015"
+              <geom name="r_toe_main_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.025"
                     mass="0.1" material="body_mat"/>
               <!-- Foot contact sensor -->
-              <site name="r_foot" pos="0.04 0 -0.015" size="0.02"/>
+              <site name="r_foot" pos="0.05 0 -0.025" size="0.02"/>
             </body>
 
             <!-- Sickle claw (digit 2) - THE WEAPON -->
@@ -173,10 +173,11 @@
                   mass="0.3" material="body_mat"/>
 
             <body name="l_toe_main" pos="0.06 0 -0.12">
+              <!-- Widened for stable ground contact -->
               <joint name="l_toe_main_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
-              <geom name="l_toe_main_geom" type="capsule" fromto="0 0 0  0.08 0 0" size="0.015"
+              <geom name="l_toe_main_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.025"
                     mass="0.1" material="body_mat"/>
-              <site name="l_foot" pos="0.04 0 -0.015" size="0.02"/>
+              <site name="l_foot" pos="0.05 0 -0.025" size="0.02"/>
             </body>
 
             <body name="l_toe_claw" pos="0.06 -0.02 -0.12">

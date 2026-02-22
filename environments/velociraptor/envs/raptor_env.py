@@ -65,6 +65,8 @@ class RaptorEnv(BaseDinoEnv):
         natural_pitch: float = 0.35,
         gait_symmetry_weight: float = 0.1,
         smoothness_weight: float = 0.05,
+        heading_weight: float = 0.0,
+        lateral_penalty_weight: float = 0.0,
         # Environment settings
         prey_distance_range: Tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: Tuple[float, float] = (-2.0, 2.0),
@@ -80,6 +82,8 @@ class RaptorEnv(BaseDinoEnv):
         self.nosedive_weight = nosedive_weight
         self.gait_symmetry_weight = gait_symmetry_weight
         self.smoothness_weight = smoothness_weight
+        self.heading_weight = heading_weight
+        self.lateral_penalty_weight = lateral_penalty_weight
 
         # Natural forward pitch (~20°). The nosedive penalty and termination
         # are measured relative to this angle so the raptor isn't punished for
@@ -329,6 +333,30 @@ class RaptorEnv(BaseDinoEnv):
         info["action_delta"] = action_delta
         info["reward_smoothness"] = reward_smoothness
 
+        # 11. Heading alignment (reward facing toward prey)
+        # Extract body forward direction (+X local axis) projected into world XY
+        pelvis_quat_h = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
+        wh, xh, yh, zh = pelvis_quat_h
+        body_forward_x = 1.0 - 2.0 * (yh * yh + zh * zh)
+        body_forward_y = 2.0 * (xh * yh + wh * zh)
+        body_forward_2d = np.array([body_forward_x, body_forward_y])
+        body_forward_len = np.linalg.norm(body_forward_2d)
+        if body_forward_len > 1e-6:
+            body_forward_2d = body_forward_2d / body_forward_len
+        # Dot product: +1 when facing prey, -1 when facing away
+        heading_alignment = float(np.dot(body_forward_2d, prey_dir_2d))
+        reward_heading = self.heading_weight * heading_alignment
+        info["heading_alignment"] = heading_alignment
+        info["reward_heading"] = reward_heading
+
+        # 12. Lateral velocity penalty (penalize crab-walking)
+        # Component of velocity perpendicular to body's facing direction
+        lateral_vel = abs(vel_2d[0] * body_forward_2d[1] - vel_2d[1] * body_forward_2d[0])
+        lateral_vel_norm = float(np.clip(lateral_vel / 5.0, 0.0, 1.0))
+        reward_lateral = -self.lateral_penalty_weight * lateral_vel_norm
+        info["lateral_vel"] = float(lateral_vel)
+        info["reward_lateral"] = reward_lateral
+
         # Total reward
         total_reward = (
             reward_forward
@@ -341,6 +369,8 @@ class RaptorEnv(BaseDinoEnv):
             + reward_nosedive
             + reward_gait
             + reward_smoothness
+            + reward_heading
+            + reward_lateral
         )
         info["reward_total"] = total_reward
 
