@@ -2,7 +2,7 @@
 
 Robotic dinosaur locomotion research using reinforcement learning and MuJoCo physics simulation.
 
-![Trained PPO Agent](/Images/raptor_balance_ppo.gif)
+![Trained PPO Agent](/results/velociraptor/ppo/stage1_balance.gif)
 
 ## Overview
 
@@ -49,7 +49,8 @@ mesozoic-labs/
 │   ├── trex_training.ipynb
 │   └── jax_trex_training.ipynb
 ├── website/                   # Documentation site (Docusaurus)
-└── Images/                    # Training visualizations
+├── results/                   # Training results (GIFs + summary.json per species/algorithm)
+└── Images/                    # Legacy training visualizations
 ```
 
 ## Environments
