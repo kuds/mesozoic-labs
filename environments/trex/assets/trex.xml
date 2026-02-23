@@ -327,6 +327,11 @@
     <position name="l_toe_d2_act" joint="l_toe_d2_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
     <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
     <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="60" ctrlrange="-0.4363 0.8727"/>
+
+    <!-- Tail actuators for active balance control (counterbalance to massive skull) -->
+    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="100" ctrlrange="-0.2094 0.2094"/>
+    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="80" ctrlrange="-0.1396 0.1396"/>
+    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="80" ctrlrange="-0.2094 0.2094"/>
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
@@ -390,7 +395,8 @@
                1 0 0 0 0 1 0 0 0 0"
          ctrl="0 0 0 0
                0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
-               0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799"/>
+               0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
+               0 0 0"/>
   </keyframe>
 
 </mujoco>

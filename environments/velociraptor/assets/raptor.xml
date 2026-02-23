@@ -210,13 +210,15 @@
       <!-- Simplified for now - can expand for grappling behavior later -->
 
       <body name="r_arm" pos="0.2 -0.06 0.02">
-        <joint name="r_shoulder" type="ball" damping="2.0" range="0 45"/>
+        <joint name="r_shoulder_pitch" type="hinge" axis="0 1 0" damping="2.0" range="-30 45"/>
+        <joint name="r_shoulder_roll" type="hinge" axis="1 0 0" damping="2.0" range="-20 20"/>
         <geom name="r_arm_geom" type="capsule" fromto="0 0 0  0.08 -0.02 -0.1" size="0.015"
               mass="0.15" material="body_mat"/>
       </body>
 
       <body name="l_arm" pos="0.2 0.06 0.02">
-        <joint name="l_shoulder" type="ball" damping="2.0" range="0 45"/>
+        <joint name="l_shoulder_pitch" type="hinge" axis="0 1 0" damping="2.0" range="-30 45"/>
+        <joint name="l_shoulder_roll" type="hinge" axis="1 0 0" damping="2.0" range="-20 20"/>
         <geom name="l_arm_geom" type="capsule" fromto="0 0 0  0.08 0.02 -0.1" size="0.015"
               mass="0.15" material="body_mat"/>
       </body>
@@ -253,6 +255,13 @@
     <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="40" ctrlrange="-0.2618 0.2618"/>
     <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="30" ctrlrange="-0.1745 0.1745"/>
     <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="30" ctrlrange="-0.2618 0.2618"/>
+    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="20" ctrlrange="-0.2618 0.2618"/>
+
+    <!-- Forelimb actuators (lightweight — for grappling/balance assist) -->
+    <position name="r_shoulder_pitch_act" joint="r_shoulder_pitch" kp="15" ctrlrange="-0.5236 0.7854"/>
+    <position name="r_shoulder_roll_act" joint="r_shoulder_roll" kp="15" ctrlrange="-0.3491 0.3491"/>
+    <position name="l_shoulder_pitch_act" joint="l_shoulder_pitch" kp="15" ctrlrange="-0.5236 0.7854"/>
+    <position name="l_shoulder_roll_act" joint="l_shoulder_roll" kp="15" ctrlrange="-0.3491 0.3491"/>
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
@@ -308,10 +317,11 @@
                0 0 0 0 0 0
                0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
                0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
-               1 0 0 0 1 0 0 0"
+               0 0 0 0"
          ctrl="0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
                0.663225 0 -0.872665 1.745329 0.174533 0.174533 0
-               0 0 0"/>
+               0 0 0 0
+               0 0 0 0"/>
   </keyframe>
 
 </mujoco>

@@ -60,6 +60,13 @@ class TRexEnv(BaseDinoEnv):
         tail_stability_weight: float = 0.05,
         bite_bonus: float = 500.0,
         bite_approach_weight: float = 0.5,
+        posture_weight: float = 0.2,
+        nosedive_weight: float = 0.0,
+        natural_pitch: float = 0.17,
+        gait_symmetry_weight: float = 0.1,
+        smoothness_weight: float = 0.05,
+        heading_weight: float = 0.0,
+        lateral_penalty_weight: float = 0.0,
         # Environment settings
         prey_distance_range: Tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: Tuple[float, float] = (-2.0, 2.0),
@@ -71,6 +78,17 @@ class TRexEnv(BaseDinoEnv):
         self.tail_stability_weight = tail_stability_weight
         self.bite_bonus = bite_bonus
         self.bite_approach_weight = bite_approach_weight
+        self.posture_weight = posture_weight
+        self.nosedive_weight = nosedive_weight
+        self.gait_symmetry_weight = gait_symmetry_weight
+        self.smoothness_weight = smoothness_weight
+        self.heading_weight = heading_weight
+        self.lateral_penalty_weight = lateral_penalty_weight
+
+        # Natural forward pitch (~10°). The nosedive penalty and termination
+        # are measured relative to this angle so the T-Rex isn't punished for
+        # its biomechanically correct forward lean.
+        self._natural_forward_z = -np.sin(natural_pitch)
 
         # T-Rex-specific env settings
         self.prey_distance_range = prey_distance_range
@@ -78,6 +96,7 @@ class TRexEnv(BaseDinoEnv):
 
         # State tracking for delta-based rewards
         self._prev_prey_distance: float | None = None
+        self._prev_action: np.ndarray | None = None
 
         super().__init__(
             model_path=model_path,
@@ -195,7 +214,7 @@ class TRexEnv(BaseDinoEnv):
         """Compute reward and breakdown for logging."""
         info = {}
 
-        # 1. Forward velocity reward (toward prey)
+        # 1. Forward velocity reward (toward prey) — normalized
         pelvis_pos = self.data.xpos[self.pelvis_id]
         prey_pos = self.data.mocap_pos[0]
         prey_dir_2d = prey_pos[:2] - pelvis_pos[:2]
@@ -205,20 +224,25 @@ class TRexEnv(BaseDinoEnv):
 
         vel_2d = self.data.qvel[0:2]
         forward_vel = np.dot(vel_2d, prey_dir_2d)
+        # Assume max sprint speed of ~8.0 m/s for T-Rex
+        forward_vel_norm = np.clip(forward_vel / 8.0, -1.0, 1.0)
         info["forward_vel"] = forward_vel
-        reward_forward = self.forward_vel_weight * forward_vel
+        reward_forward = self.forward_vel_weight * forward_vel_norm
         info["reward_forward"] = reward_forward
 
         # 2. Alive bonus
         reward_alive = self.alive_bonus
         info["reward_alive"] = reward_alive
 
-        # 3. Energy penalty
+        # 3. Energy penalty (normalized by number of actuators)
         energy = np.sum(np.square(action))
-        reward_energy = -self.energy_penalty_weight * energy
+        assert self.action_space.shape is not None
+        n_actuators = self.action_space.shape[0]
+        energy_norm = energy / n_actuators
+        reward_energy = -self.energy_penalty_weight * energy_norm
         info["reward_energy"] = reward_energy
 
-        # 4. Tail stability (penalize high angular velocity at tail tip)
+        # 4. Tail stability (penalize high angular velocity at tail tip) — normalized
         tail_vel = np.zeros(6)
         mujoco.mj_objectVelocity(
             self.model,
@@ -229,8 +253,10 @@ class TRexEnv(BaseDinoEnv):
             0,
         )
         tail_tip_angvel = tail_vel[0:3]  # Angular velocity (first 3 elements, rot:lin order)
-        tail_instability = np.linalg.norm(tail_tip_angvel)
-        reward_tail = -self.tail_stability_weight * tail_instability
+        tail_instability = float(np.linalg.norm(tail_tip_angvel))
+        # Normalize assuming max angular vel ~10.0 rad/s
+        tail_instability_norm = min(tail_instability / 10.0, 1.0)
+        reward_tail = -self.tail_stability_weight * tail_instability_norm
         info["tail_instability"] = tail_instability
         info["reward_tail"] = reward_tail
 
@@ -252,7 +278,7 @@ class TRexEnv(BaseDinoEnv):
         reward_bite = bite_reward
         info["reward_bite"] = reward_bite
 
-        # 6. Approach shaping (reward closing distance to prey, penalise retreating)
+        # 6. Approach shaping (reward closing distance to prey) — normalized
         prey_distance = float(np.linalg.norm(prey_pos - pelvis_pos))
 
         if self._prev_prey_distance is not None:
@@ -261,13 +287,92 @@ class TRexEnv(BaseDinoEnv):
             approach_delta = 0.0
         self._prev_prey_distance = prey_distance
 
-        reward_approach = self.bite_approach_weight * approach_delta
+        # Max approach speed ~8m/s. dt is frame_skip * model.opt.timestep
+        dt = self.frame_skip * self.model.opt.timestep
+        max_delta = 8.0 * dt
+        approach_delta_norm = np.clip(approach_delta / max_delta, -1.0, 1.0)
+
+        reward_approach = self.bite_approach_weight * approach_delta_norm
         info["prey_distance"] = prey_distance
         info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
+        # 7. Continuous posture reward (quadratic tilt penalty)
+        pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
+        tilt_angle = self._quat_to_tilt(pelvis_quat)
+        tilt_angle_norm = min(tilt_angle / self.max_tilt_angle, 1.0)
+        reward_posture = -self.posture_weight * (tilt_angle_norm**2)
+        info["tilt_angle"] = tilt_angle
+        info["reward_posture"] = reward_posture
+
+        # 8. Nosedive penalty (excessive forward pitch beyond natural lean)
+        w, x, y, z = pelvis_quat
+        # Z-component of body's local X-axis (head direction) in world frame
+        forward_z = 2.0 * (x * z - w * y)
+        nosedive_excess = max(0.0, -(forward_z - self._natural_forward_z))
+        reward_nosedive = -self.nosedive_weight * nosedive_excess
+        info["forward_z"] = forward_z
+        info["reward_nosedive"] = reward_nosedive
+
+        # 9. Gait symmetry (reward alternating foot contacts)
+        r_contact = self.data.sensordata[self._sensor_r_foot]
+        l_contact = self.data.sensordata[self._sensor_l_foot]
+        contact_sum = r_contact + l_contact + 1e-6
+        contact_asymmetry = abs(r_contact - l_contact) / contact_sum
+        reward_gait = self.gait_symmetry_weight * contact_asymmetry
+        info["contact_asymmetry"] = contact_asymmetry
+        info["reward_gait"] = reward_gait
+
+        # 10. Action smoothness (penalize large action changes between steps)
+        if self._prev_action is not None:
+            action_delta = float(np.sum(np.square(action - self._prev_action)))
+            assert self.action_space.shape is not None
+            max_action_delta = self.action_space.shape[0] * 4.0
+            action_delta_norm = action_delta / max_action_delta
+            reward_smoothness = -self.smoothness_weight * action_delta_norm
+        else:
+            action_delta = 0.0
+            reward_smoothness = 0.0
+        self._prev_action = action.copy()
+        info["action_delta"] = action_delta
+        info["reward_smoothness"] = reward_smoothness
+
+        # 11. Heading alignment (reward facing toward prey)
+        pelvis_quat_h = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
+        wh, xh, yh, zh = pelvis_quat_h
+        body_forward_x = 1.0 - 2.0 * (yh * yh + zh * zh)
+        body_forward_y = 2.0 * (xh * yh + wh * zh)
+        body_forward_2d = np.array([body_forward_x, body_forward_y])
+        body_forward_len = np.linalg.norm(body_forward_2d)
+        if body_forward_len > 1e-6:
+            body_forward_2d = body_forward_2d / body_forward_len
+        heading_alignment = float(np.dot(body_forward_2d, prey_dir_2d))
+        reward_heading = self.heading_weight * heading_alignment
+        info["heading_alignment"] = heading_alignment
+        info["reward_heading"] = reward_heading
+
+        # 12. Lateral velocity penalty (penalize crab-walking)
+        lateral_vel = abs(vel_2d[0] * body_forward_2d[1] - vel_2d[1] * body_forward_2d[0])
+        lateral_vel_norm = float(np.clip(lateral_vel / 5.0, 0.0, 1.0))
+        reward_lateral = -self.lateral_penalty_weight * lateral_vel_norm
+        info["lateral_vel"] = float(lateral_vel)
+        info["reward_lateral"] = reward_lateral
+
         # Total reward
-        total_reward = reward_forward + reward_alive + reward_energy + reward_tail + reward_bite + reward_approach
+        total_reward = (
+            reward_forward
+            + reward_alive
+            + reward_energy
+            + reward_tail
+            + reward_bite
+            + reward_approach
+            + reward_posture
+            + reward_nosedive
+            + reward_gait
+            + reward_smoothness
+            + reward_heading
+            + reward_lateral
+        )
         info["reward_total"] = total_reward
 
         return total_reward, info
@@ -298,6 +403,14 @@ class TRexEnv(BaseDinoEnv):
         # Termination: excessive tilt (about to fall)
         if tilt_angle > self.max_tilt_angle:
             info["termination_reason"] = "excessive_tilt"
+            return True, info
+
+        # Termination: nosedive (forward pitch exceeds natural lean by > 30°)
+        w, x, y, z = pelvis_quat
+        forward_z = 2.0 * (x * z - w * y)
+        info["forward_z"] = forward_z
+        if forward_z < self._natural_forward_z - 0.5:
+            info["termination_reason"] = "nosedive"
             return True, info
 
         # Check for body-ground contact (torso, head, or tail touching floor)
@@ -336,6 +449,7 @@ class TRexEnv(BaseDinoEnv):
 
         # Reset delta-based tracking (first step will produce zero deltas)
         self._prev_prey_distance = None
+        self._prev_action = None
 
 
 # Register with Gymnasium (MesozoicLabs namespace)
