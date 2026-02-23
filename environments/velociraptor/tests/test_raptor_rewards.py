@@ -67,8 +67,11 @@ class TestRewardComponents:
             + info["reward_strike"]
             + info["reward_approach"]
             + info["reward_posture"]
+            + info["reward_nosedive"]
             + info["reward_gait"]
             + info["reward_smoothness"]
+            + info["reward_heading"]
+            + info["reward_lateral"]
         )
         if terminated:
             expected += env.fall_penalty
@@ -164,11 +167,11 @@ class TestRewardWeightEffects:
         assert info["reward_smoothness"] == 0.0
         env.close()
 
-    def test_tail_actuators_active(self):
-        """Tail actuators should be enabled (17 total actuators)."""
+    def test_actuator_count(self):
+        """All actuators should be enabled (22 total: 14 legs + 4 tail + 4 arms)."""
         env = RaptorEnv()
-        assert env.model.nu == 17, f"Expected 17 actuators, got {env.model.nu}"
-        assert env.action_space.shape == (17,)
+        assert env.model.nu == 22, f"Expected 22 actuators, got {env.model.nu}"
+        assert env.action_space.shape == (22,)
         env.close()
 
 
