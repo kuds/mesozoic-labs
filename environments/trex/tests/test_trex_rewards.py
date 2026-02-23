@@ -62,6 +62,12 @@ class TestRewardComponents:
             + info["reward_tail"]
             + info["reward_bite"]
             + info["reward_approach"]
+            + info["reward_posture"]
+            + info["reward_nosedive"]
+            + info["reward_gait"]
+            + info["reward_smoothness"]
+            + info["reward_heading"]
+            + info["reward_lateral"]
         )
         if terminated:
             expected += env.fall_penalty
