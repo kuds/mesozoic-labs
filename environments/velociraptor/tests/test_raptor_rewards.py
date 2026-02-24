@@ -61,6 +61,7 @@ class TestRewardComponents:
         _, _, terminated, _, info = env.step(action)
         expected = (
             info["reward_forward"]
+            + info["reward_backward"]
             + info["reward_alive"]
             + info["reward_energy"]
             + info["reward_tail"]
@@ -110,6 +111,14 @@ class TestRewardComponents:
         _, _, _, _, info = env.step(action2)
         assert info["reward_smoothness"] < 0.0
         assert info["action_delta"] > 0.0
+
+    def test_backward_vel_penalty_non_positive(self, env):
+        """Backward velocity penalty should be non-positive."""
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_backward"] <= 0.0
+        assert info["backward_vel"] >= 0.0
 
 
 class TestRewardWeightEffects:
@@ -167,6 +176,29 @@ class TestRewardWeightEffects:
         assert info["reward_smoothness"] == 0.0
         env.close()
 
+    def test_zero_backward_vel_weight_zeroes_backward_reward(self):
+        env = RaptorEnv(backward_vel_penalty_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_backward"] == 0.0
+        env.close()
+
+    def test_nonzero_backward_vel_weight_penalizes_backward_motion(self):
+        """Backward penalty should be negative when raptor moves backward."""
+        env = RaptorEnv(backward_vel_penalty_weight=1.0, forward_vel_weight=0.0)
+        env.reset(seed=42)
+        # Run several steps with random actions to induce some velocity
+        for _ in range(10):
+            action = env.action_space.sample()
+            _, _, terminated, _, info = env.step(action)
+            if terminated:
+                break
+            if info["backward_vel"] > 0:
+                assert info["reward_backward"] < 0.0
+                break
+        env.close()
+
     def test_actuator_count(self):
         """All actuators should be enabled (22 total: 14 legs + 4 tail + 4 arms)."""
         env = RaptorEnv()
@@ -179,13 +211,20 @@ class TestCurriculumStageRewards:
     """Test that reward configs from TOML produce expected behavior."""
 
     def test_stage1_balance_no_forward_reward(self):
-        """Stage 1 config disables forward velocity reward."""
-        env = RaptorEnv(forward_vel_weight=0.0, strike_bonus=0.0, strike_approach_weight=0.0)
+        """Stage 1 config disables forward velocity reward but penalizes backward drift."""
+        env = RaptorEnv(
+            forward_vel_weight=0.0,
+            backward_vel_penalty_weight=0.5,
+            strike_bonus=0.0,
+            strike_approach_weight=0.0,
+        )
         env.reset(seed=42)
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert info["reward_forward"] == 0.0
         assert info["reward_strike"] == 0.0
+        # Backward penalty should be active (non-positive)
+        assert info["reward_backward"] <= 0.0
         env.close()
 
     def test_stage3_strike_has_approach_shaping(self):

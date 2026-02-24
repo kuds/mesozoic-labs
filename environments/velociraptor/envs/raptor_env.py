@@ -68,6 +68,7 @@ class RaptorEnv(BaseDinoEnv):
         smoothness_weight: float = 0.05,
         heading_weight: float = 0.0,
         lateral_penalty_weight: float = 0.0,
+        backward_vel_penalty_weight: float = 0.0,
         # Environment settings
         prey_distance_range: Tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: Tuple[float, float] = (-2.0, 2.0),
@@ -86,6 +87,7 @@ class RaptorEnv(BaseDinoEnv):
         self.smoothness_weight = smoothness_weight
         self.heading_weight = heading_weight
         self.lateral_penalty_weight = lateral_penalty_weight
+        self.backward_vel_penalty_weight = backward_vel_penalty_weight
 
         # Natural forward pitch (~20°). The nosedive penalty and termination
         # are measured relative to this angle so the raptor isn't punished for
@@ -226,6 +228,15 @@ class RaptorEnv(BaseDinoEnv):
         reward_forward = self.forward_vel_weight * forward_vel_norm
         info["reward_forward"] = reward_forward
 
+        # 1b. Backward velocity penalty (penalize drifting backward without
+        #     rewarding forward movement — useful in balance stages where
+        #     forward_vel_weight is zero)
+        backward_vel = max(0.0, -forward_vel)
+        backward_vel_norm = min(backward_vel / self.forward_vel_max, 1.0)
+        reward_backward = -self.backward_vel_penalty_weight * backward_vel_norm
+        info["backward_vel"] = backward_vel
+        info["reward_backward"] = reward_backward
+
         # 2. Alive bonus
         reward_alive = self.alive_bonus
         info["reward_alive"] = reward_alive
@@ -361,6 +372,7 @@ class RaptorEnv(BaseDinoEnv):
         # Total reward
         total_reward = (
             reward_forward
+            + reward_backward
             + reward_alive
             + reward_energy
             + reward_tail
