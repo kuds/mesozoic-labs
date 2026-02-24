@@ -1,0 +1,148 @@
+# Docker Compose for local training with persistent storage.
+#
+# All training outputs (models, checkpoints, TensorBoard logs, videos,
+# summaries) are written to the ./outputs bind-mount so they survive
+# container restarts and can be inspected from the host.
+#
+# Environment variables:
+#   SPECIES        - velociraptor | brachiosaurus | trex  (default: velociraptor)
+#   STAGE          - 1 | 2 | 3                           (default: 1, train only)
+#   ALGO           - PPO | SAC                            (default: PPO)
+#   TIMESTEPS      - total training steps                 (default: 500000)
+#   N_ENVS         - parallel environments                (default: 4)
+#   SEED           - random seed                          (default: 42)
+#   WANDB_API_KEY  - W&B API key for experiment tracking  (optional)
+#   WANDB_PROJECT  - W&B project name                     (optional)
+#
+# Usage:
+#   # Train a single stage (CPU)
+#   docker compose run train
+#
+#   # Train with custom species / stage
+#   SPECIES=trex STAGE=2 docker compose run train
+#
+#   # Full curriculum
+#   docker compose run curriculum
+#
+#   # Full curriculum with W&B
+#   WANDB_API_KEY=<key> docker compose run curriculum
+#
+#   # GPU training (requires NVIDIA Container Toolkit)
+#   docker compose run train-gpu
+#
+#   # Launch TensorBoard to visualise training curves
+#   docker compose up tensorboard
+
+services:
+  # ---------------------------------------------------------------------------
+  # Single-stage training (CPU)
+  # ---------------------------------------------------------------------------
+  train:
+    build: .
+    volumes:
+      - ./outputs:/app/outputs
+    environment:
+      - LOG_DIR=/app/outputs/${SPECIES:-velociraptor}/train
+      - WANDB_API_KEY=${WANDB_API_KEY:-}
+      - WANDB_PROJECT=${WANDB_PROJECT:-mesozoic-labs}
+      - MUJOCO_GL=osmesa
+    command:
+      - -m
+      - environments.${SPECIES:-velociraptor}.scripts.train_sb3
+      - train
+      - --stage=${STAGE:-1}
+      - --timesteps=${TIMESTEPS:-500000}
+      - --algo=${ALGO:-PPO}
+      - --n-envs=${N_ENVS:-4}
+      - --seed=${SEED:-42}
+      - --log-dir=/app/outputs/${SPECIES:-velociraptor}/train
+
+  # ---------------------------------------------------------------------------
+  # Full 3-stage curriculum (CPU)
+  # ---------------------------------------------------------------------------
+  curriculum:
+    build: .
+    volumes:
+      - ./outputs:/app/outputs
+    environment:
+      - LOG_DIR=/app/outputs/${SPECIES:-velociraptor}/curriculum
+      - WANDB_API_KEY=${WANDB_API_KEY:-}
+      - WANDB_PROJECT=${WANDB_PROJECT:-mesozoic-labs}
+      - MUJOCO_GL=osmesa
+    command:
+      - -m
+      - environments.${SPECIES:-velociraptor}.scripts.train_sb3
+      - curriculum
+      - --algo=${ALGO:-PPO}
+      - --n-envs=${N_ENVS:-4}
+      - --seed=${SEED:-42}
+      - --log-dir=/app/outputs/${SPECIES:-velociraptor}/curriculum
+
+  # ---------------------------------------------------------------------------
+  # Single-stage training (GPU — requires NVIDIA Container Toolkit)
+  # ---------------------------------------------------------------------------
+  train-gpu:
+    build: .
+    volumes:
+      - ./outputs:/app/outputs
+    environment:
+      - LOG_DIR=/app/outputs/${SPECIES:-velociraptor}/train
+      - WANDB_API_KEY=${WANDB_API_KEY:-}
+      - WANDB_PROJECT=${WANDB_PROJECT:-mesozoic-labs}
+      - MUJOCO_GL=osmesa
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command:
+      - -m
+      - environments.${SPECIES:-velociraptor}.scripts.train_sb3
+      - train
+      - --stage=${STAGE:-1}
+      - --timesteps=${TIMESTEPS:-500000}
+      - --algo=${ALGO:-PPO}
+      - --n-envs=${N_ENVS:-4}
+      - --seed=${SEED:-42}
+      - --log-dir=/app/outputs/${SPECIES:-velociraptor}/train
+
+  # ---------------------------------------------------------------------------
+  # Full 3-stage curriculum (GPU)
+  # ---------------------------------------------------------------------------
+  curriculum-gpu:
+    build: .
+    volumes:
+      - ./outputs:/app/outputs
+    environment:
+      - LOG_DIR=/app/outputs/${SPECIES:-velociraptor}/curriculum
+      - WANDB_API_KEY=${WANDB_API_KEY:-}
+      - WANDB_PROJECT=${WANDB_PROJECT:-mesozoic-labs}
+      - MUJOCO_GL=osmesa
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command:
+      - -m
+      - environments.${SPECIES:-velociraptor}.scripts.train_sb3
+      - curriculum
+      - --algo=${ALGO:-PPO}
+      - --n-envs=${N_ENVS:-4}
+      - --seed=${SEED:-42}
+      - --log-dir=/app/outputs/${SPECIES:-velociraptor}/curriculum
+
+  # ---------------------------------------------------------------------------
+  # TensorBoard (visualise training curves from ./outputs)
+  # ---------------------------------------------------------------------------
+  tensorboard:
+    image: tensorflow/tensorflow:latest
+    ports:
+      - "6006:6006"
+    volumes:
+      - ./outputs:/outputs:ro
+    command: tensorboard --logdir=/outputs --host=0.0.0.0 --port=6006
