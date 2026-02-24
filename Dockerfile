@@ -22,7 +22,7 @@ WORKDIR /app
 # is a no-op, but all *dependencies* get cached in this layer.
 COPY pyproject.toml README.md ./
 RUN mkdir -p environments && \
-    pip install --no-cache-dir ".[train]"
+    pip install --no-cache-dir ".[train,viz]"
 
 # Copy project source code
 COPY environments/ environments/
