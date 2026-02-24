@@ -4,9 +4,10 @@ description = "Learn to stand and balance without falling"
 
 [env]
 forward_vel_weight = 0.0
-alive_bonus = 1.0
-energy_penalty_weight = 0.0005
+alive_bonus = 2.0
+energy_penalty_weight = 0.05
 tail_stability_weight = 0.1
+posture_weight = 1.5
 bite_bonus = 0.0
 bite_approach_weight = 0.0
 prey_distance_range = [10.0, 15.0]
@@ -17,10 +18,10 @@ learning_rate = 3e-4
 n_steps = 2048
 batch_size = 64
 n_epochs = 10
-gamma = 0.99
+gamma = 0.995
 gae_lambda = 0.95
 clip_range = 0.2
-ent_coef = 0.01
+ent_coef = 0.005
 
 [sac]
 learning_rate = 3e-4
