@@ -10,9 +10,9 @@
     <geom contype="1" conaffinity="1" friction="1.0 0.005 0.0001"/>
     <motor ctrllimited="true" ctrlrange="-1 1"/>
 
-    <!-- Leg joints: relaxed stiffness (10.0) for more compliant balance/position control -->
+    <!-- Leg joints: low stiffness for compliant locomotion -->
     <default class="leg_joint">
-      <joint damping="5.0" armature="0.02" stiffness="10.0"/>
+      <joint damping="3.0" armature="0.02" stiffness="3.0"/>
     </default>
 
     <!-- Tail joints: high stiffness, limited range (rigid rudder behavior) -->

@@ -54,6 +54,7 @@ class RaptorEnv(BaseDinoEnv):
         max_episode_steps: int = 1000,
         # Reward weights (tune these!)
         forward_vel_weight: float = 1.0,
+        forward_vel_max: float = 10.0,
         alive_bonus: float = 0.1,
         energy_penalty_weight: float = 0.001,
         fall_penalty: float = -100.0,
@@ -75,6 +76,7 @@ class RaptorEnv(BaseDinoEnv):
         model_path = str(Path(__file__).parent.parent / "assets" / "raptor.xml")
 
         # Raptor-specific reward weights
+        self.forward_vel_max = forward_vel_max
         self.tail_stability_weight = tail_stability_weight
         self.strike_bonus = strike_bonus
         self.strike_approach_weight = strike_approach_weight
@@ -219,8 +221,7 @@ class RaptorEnv(BaseDinoEnv):
 
         vel_2d = self.data.qvel[0:2]
         forward_vel = np.dot(vel_2d, prey_dir_2d)
-        # Assume max sprint speed of ~10.0 m/s
-        forward_vel_norm = np.clip(forward_vel / 10.0, -1.0, 1.0)
+        forward_vel_norm = np.clip(forward_vel / self.forward_vel_max, -1.0, 1.0)
         info["forward_vel"] = forward_vel
         reward_forward = self.forward_vel_weight * forward_vel_norm
         info["reward_forward"] = reward_forward
