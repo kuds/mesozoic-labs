@@ -1,9 +1,9 @@
 """
 Tyrannosaurus Rex Gymnasium Environment
 
-A large bipedal predator with a massive skull, powerful jaws, and
-vestigial forelimbs.  The T-Rex hunts by sprinting toward prey and
-delivering a bite with its jaw.
+A large bipedal predator with a massive skull and vestigial forelimbs.
+The T-Rex hunts by sprinting toward prey and delivering a bite with
+its head.
 
 Observation space:
     - Joint positions (qpos) excluding root freejoint
@@ -17,7 +17,7 @@ Observation space:
 
 Action space:
     - Continuous control for all actuators [-1, 1] normalized
-    - 18 actuators: 3 neck/head + 1 jaw + 7 per leg (hip pitch/roll, knee, ankle, 3 toe digits)
+    - 17 actuators: 3 neck/head + 7 per leg (hip pitch/roll, knee, ankle, 3 toe digits)
 
 Reward components:
     - Forward velocity (toward prey)
@@ -25,7 +25,7 @@ Reward components:
     - Fall penalty
     - Energy penalty
     - Tail stability
-    - Bite bonus (jaw contacts prey)
+    - Bite bonus (head contacts prey)
     - Approach shaping (distance to prey)
 """
 
@@ -117,7 +117,7 @@ class TRexEnv(BaseDinoEnv):
 
         # Geom IDs for contact detection
         self.prey_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "prey_geom")
-        self.jaw_bite_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "jaw_bite")
+        self.head_bite_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "head_bite")
         self.torso_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso")
         self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
 
@@ -125,7 +125,6 @@ class TRexEnv(BaseDinoEnv):
         # Note: neck_geom and brow_ridge have contype=0, so they never produce floor contacts
         self.skull_upper_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "skull_upper")
         self.snout_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "snout")
-        self.jaw_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "jaw_geom")
 
         # Tail geom IDs (distal segments that should not contact floor)
         self.tail_3_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_3_geom")
@@ -137,12 +136,11 @@ class TRexEnv(BaseDinoEnv):
             self.torso_geom_id,
             self.skull_upper_geom_id,
             self.snout_geom_id,
-            self.jaw_geom_id,
             self.tail_3_geom_id,
             self.tail_4_geom_id,
             self.tail_5_geom_id,
         }
-        self._head_ground_geoms = {self.skull_upper_geom_id, self.snout_geom_id, self.jaw_geom_id}
+        self._head_ground_geoms = {self.skull_upper_geom_id, self.snout_geom_id}
         self._tail_ground_geoms = {self.tail_3_geom_id, self.tail_4_geom_id, self.tail_5_geom_id}
 
         # Site IDs for sensors
@@ -260,14 +258,14 @@ class TRexEnv(BaseDinoEnv):
         info["tail_instability"] = tail_instability
         info["reward_tail"] = reward_tail
 
-        # 5. Bite bonus (check jaw_bite-prey contact)
+        # 5. Bite bonus (check head_bite-prey contact)
         bite_reward = 0.0
         for i in range(self.data.ncon):
             contact = self.data.contact[i]
             geom1, geom2 = contact.geom1, contact.geom2
 
-            if (geom1 == self.jaw_bite_geom_id and geom2 == self.prey_geom_id) or (
-                geom2 == self.jaw_bite_geom_id and geom1 == self.prey_geom_id
+            if (geom1 == self.head_bite_geom_id and geom2 == self.prey_geom_id) or (
+                geom2 == self.head_bite_geom_id and geom1 == self.prey_geom_id
             ):
                 bite_reward = self.bite_bonus
                 info["bite_success"] = 1.0

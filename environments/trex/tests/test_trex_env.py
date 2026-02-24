@@ -16,9 +16,9 @@ def env():
 
 class TestBasicFunctionality:
     def test_spaces_are_valid(self, env):
-        assert env.observation_space.shape == (85,)
+        assert env.observation_space.shape == (83,)
         assert env.observation_space.dtype == np.float32
-        assert env.action_space.shape == (21,)
+        assert env.action_space.shape == (20,)
         assert np.all(env.action_space.low == -1.0)
         assert np.all(env.action_space.high == 1.0)
 
@@ -119,7 +119,7 @@ class TestHeadFloorTermination:
     def test_head_geom_ids_cached(self, env):
         """Head geom IDs should be resolved and present in termination sets."""
         env.reset(seed=42)
-        for attr in ("skull_upper_geom_id", "snout_geom_id", "jaw_geom_id"):
+        for attr in ("skull_upper_geom_id", "snout_geom_id"):
             gid = getattr(env, attr)
             assert gid >= 0, f"{attr} was not resolved"
             assert gid in env._body_ground_geoms
