@@ -2,7 +2,7 @@
 
 import pytest
 
-from environments.shared.curriculum import CurriculumManager, StageThreshold
+from environments.shared.curriculum import CurriculumManager, StageThreshold, thresholds_from_configs
 
 
 class TestStageThreshold:
@@ -197,3 +197,55 @@ class TestCurriculumManager:
         lengths = [500.0, 500.0, 500.0]
         good_vels = [1.0, 1.2, 0.8]
         assert mgr.should_advance(rewards, lengths, good_vels)
+
+
+class TestThresholdsFromConfigs:
+    """Test thresholds_from_configs extraction."""
+
+    def test_extracts_all_threshold_fields(self):
+        """All StageThreshold fields present in config should be extracted."""
+        configs = {
+            1: {
+                "curriculum_kwargs": {
+                    "timesteps": 4000000,
+                    "min_avg_reward": 50.0,
+                    "min_avg_episode_length": 400,
+                    "min_avg_forward_vel": 0.5,
+                    "min_eval_episodes": 20,
+                    "required_consecutive": 3,
+                },
+            },
+        }
+        thresholds = thresholds_from_configs(configs)
+        assert 1 in thresholds
+        assert thresholds[1]["min_avg_reward"] == 50.0
+        assert thresholds[1]["min_avg_episode_length"] == 400
+        assert thresholds[1]["min_avg_forward_vel"] == 0.5
+        assert thresholds[1]["min_eval_episodes"] == 20
+        assert thresholds[1]["required_consecutive"] == 3
+        # timesteps should NOT leak into thresholds
+        assert "timesteps" not in thresholds[1]
+
+    def test_omits_stages_without_thresholds(self):
+        """Stages with only timesteps should not appear in extracted thresholds."""
+        configs = {
+            1: {"curriculum_kwargs": {"timesteps": 4000000, "min_avg_reward": 50.0}},
+            2: {"curriculum_kwargs": {"timesteps": 4000000}},
+        }
+        thresholds = thresholds_from_configs(configs)
+        assert 1 in thresholds
+        assert 2 not in thresholds
+
+    def test_partial_threshold_fields(self):
+        """Only the fields present in config should be extracted."""
+        configs = {
+            1: {
+                "curriculum_kwargs": {
+                    "timesteps": 4000000,
+                    "min_avg_reward": 50.0,
+                    "required_consecutive": 5,
+                },
+            },
+        }
+        thresholds = thresholds_from_configs(configs)
+        assert thresholds[1] == {"min_avg_reward": 50.0, "required_consecutive": 5}

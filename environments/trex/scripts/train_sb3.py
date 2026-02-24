@@ -346,11 +346,10 @@ def train_curriculum(
             manager.advance()
             logger.info("Auto-advanced to stage %d", manager.current_stage)
         elif stage < 3:
-            logger.warning(
-                "Stage %d timestep budget exhausted without meeting advancement thresholds. Advancing anyway.",
-                stage,
+            raise RuntimeError(
+                f"Stage {stage} timestep budget exhausted without meeting advancement thresholds. "
+                f"Increase timesteps in configs/trex/stage{stage}_*.toml or lower the gate thresholds."
             )
-            manager.advance()
 
     logger.info("=" * 60)
     logger.info("Curriculum training complete!")
