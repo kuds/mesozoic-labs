@@ -437,7 +437,11 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
     logger.info("=" * 60)
     logger.info("  Reward:      %.2f +/- %.2f", agg.get("mean_total_reward", 0), agg.get("std_total_reward", 0))
     logger.info("  Ep Length:   %.1f +/- %.1f", agg.get("mean_episode_length", 0), agg.get("std_episode_length", 0))
-    logger.info("  Forward vel: %.3f +/- %.3f m/s", agg.get("mean_mean_forward_velocity", 0), agg.get("std_mean_forward_velocity", 0))
+    logger.info(
+        "  Forward vel: %.3f +/- %.3f m/s",
+        agg.get("mean_mean_forward_velocity", 0),
+        agg.get("std_mean_forward_velocity", 0),
+    )
     logger.info("  Distance:    %.3f m", agg.get("mean_total_distance", 0))
 
     term_counts = agg.get("termination_counts")
