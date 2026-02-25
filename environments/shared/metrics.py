@@ -87,7 +87,7 @@ class LocomotionMetrics:
         if "termination_reason" in info:
             self._termination_reason = info["termination_reason"]
 
-    def compute(self, body_mass: float = 1.0) -> Dict[str, float]:
+    def compute(self, body_mass: float = 1.0) -> Dict[str, Any]:
         """Compute all locomotion metrics from accumulated data.
 
         Args:
@@ -103,7 +103,7 @@ class LocomotionMetrics:
         fwd = np.array(self._forward_velocities)
         energies = np.array(self._energies)
 
-        result: Dict[str, float] = {}
+        result: Dict[str, Any] = {}
 
         # --- Forward velocity statistics ---
         result["mean_forward_velocity"] = float(np.mean(fwd))

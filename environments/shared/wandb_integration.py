@@ -529,14 +529,26 @@ def _save_dashboard_config_fallback(stage: int) -> None:
         ],
         "stage1_balance": [
             {"title": "Pelvis Height", "metrics": ["reward/pelvis_height"], "type": "line"},
-            {"title": "Reward Decomposition", "metrics": ["reward/reward_alive", "reward/reward_posture", "reward/reward_nosedive"], "type": "stacked_area"},
+            {
+                "title": "Reward Decomposition",
+                "metrics": ["reward/reward_alive", "reward/reward_posture", "reward/reward_nosedive"],
+                "type": "stacked_area",
+            },
         ],
         "stage2_locomotion": [
-            {"title": "Gait Symmetry + Stride Frequency", "metrics": ["eval/mean_gait_symmetry", "eval/mean_stride_frequency"], "type": "dual_axis"},
+            {
+                "title": "Gait Symmetry + Stride Frequency",
+                "metrics": ["eval/mean_gait_symmetry", "eval/mean_stride_frequency"],
+                "type": "dual_axis",
+            },
             {"title": "Heading Alignment", "metrics": ["reward/heading_alignment"], "type": "line"},
         ],
         "stage3_strike": [
-            {"title": "Prey Distance (mean + min)", "metrics": ["reward/prey_distance", "eval/mean_min_prey_distance"], "type": "multi_line"},
+            {
+                "title": "Prey Distance (mean + min)",
+                "metrics": ["reward/prey_distance", "eval/mean_min_prey_distance"],
+                "type": "multi_line",
+            },
             {"title": "Strike Success Rate", "metrics": ["reward/strike_success"], "type": "line"},
         ],
     }

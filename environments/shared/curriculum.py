@@ -375,10 +375,14 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
             # Log key locomotion metrics
             metric_keys = [
-                "mean_forward_velocity", "mean_total_distance",
-                "mean_cost_of_transport", "mean_gait_symmetry",
-                "mean_stride_frequency", "mean_pelvis_height",
-                "mean_mean_tilt_angle", "mean_velocity_consistency",
+                "mean_forward_velocity",
+                "mean_total_distance",
+                "mean_cost_of_transport",
+                "mean_gait_symmetry",
+                "mean_stride_frequency",
+                "mean_pelvis_height",
+                "mean_mean_tilt_angle",
+                "mean_velocity_consistency",
             ]
             metric_parts = []
             for k in metric_keys:
