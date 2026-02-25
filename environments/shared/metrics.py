@@ -17,8 +17,9 @@ Usage:
     report = metrics.compute()
 """
 
+from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -42,6 +43,7 @@ class LocomotionMetrics:
     _tilt_angles: List[float] = field(default_factory=list)
     _rewards: List[float] = field(default_factory=list)
     _dt: float = 0.02  # default timestep * frame_skip
+    _termination_reason: Optional[str] = None
 
     def reset(self):
         """Clear all accumulated data."""
@@ -53,6 +55,7 @@ class LocomotionMetrics:
         self._prey_distances.clear()
         self._tilt_angles.clear()
         self._rewards.clear()
+        self._termination_reason = None
 
     def record_step(self, info: Dict[str, Any], reward: float = 0.0):
         """Record a single environment step.
@@ -79,6 +82,10 @@ class LocomotionMetrics:
 
         self._left_contacts.append(info.get("l_foot_contact", 0.0))
         self._right_contacts.append(info.get("r_foot_contact", 0.0))
+
+        # Capture termination reason from the final step
+        if "termination_reason" in info:
+            self._termination_reason = info["termination_reason"]
 
     def compute(self, body_mass: float = 1.0) -> Dict[str, float]:
         """Compute all locomotion metrics from accumulated data.
@@ -162,6 +169,10 @@ class LocomotionMetrics:
         result["mean_step_reward"] = float(np.mean(rewards))
         result["episode_length"] = n
 
+        # --- Termination reason ---
+        if self._termination_reason is not None:
+            result["termination_reason"] = self._termination_reason
+
         return result
 
     @staticmethod
@@ -214,21 +225,24 @@ class LocomotionMetrics:
 
     @staticmethod
     def aggregate_episodes(
-        episode_reports: List[Dict[str, float]],
-    ) -> Dict[str, float]:
+        episode_reports: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
         """Aggregate metrics across multiple episodes.
 
         Args:
             episode_reports: List of dicts from :meth:`compute`.
 
         Returns:
-            Aggregated dict with mean/std for each metric.
+            Aggregated dict with mean/std for each numeric metric and
+            termination reason counts.
         """
         if not episode_reports:
             return {}
 
-        keys = [k for k in episode_reports[0] if k != "error"]
-        result: Dict[str, float] = {}
+        # Separate numeric keys from non-numeric (like termination_reason)
+        non_numeric_keys = {"termination_reason", "error"}
+        keys = [k for k in episode_reports[0] if k not in non_numeric_keys]
+        result: Dict[str, Any] = {}
 
         for key in keys:
             values = [r[key] for r in episode_reports if key in r and r[key] != float("inf")]
@@ -237,4 +251,15 @@ class LocomotionMetrics:
                 result[f"std_{key}"] = float(np.std(values))
 
         result["n_episodes"] = float(len(episode_reports))
+
+        # Aggregate termination reasons
+        reasons = [r["termination_reason"] for r in episode_reports if "termination_reason" in r]
+        if reasons:
+            counts = Counter(reasons)
+            result["termination_counts"] = dict(counts)
+            # Also add truncated count (episodes that ended without termination)
+            n_truncated = len(episode_reports) - len(reasons)
+            if n_truncated > 0:
+                result["termination_counts"]["truncated"] = n_truncated
+
         return result
