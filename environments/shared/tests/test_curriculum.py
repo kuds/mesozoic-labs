@@ -1,8 +1,18 @@
 """Tests for CurriculumManager."""
 
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, patch
+
+import numpy as np
 import pytest
 
-from environments.shared.curriculum import CurriculumManager, StageThreshold
+from environments.shared.config import load_all_stages
+from environments.shared.curriculum import (
+    CurriculumCallback,
+    CurriculumManager,
+    StageThreshold,
+    thresholds_from_configs,
+)
 
 
 class TestStageThreshold:
@@ -197,3 +207,168 @@ class TestCurriculumManager:
         lengths = [500.0, 500.0, 500.0]
         good_vels = [1.0, 1.2, 0.8]
         assert mgr.should_advance(rewards, lengths, good_vels)
+
+    def test_record_eval_with_forward_velocities(self, manager):
+        summary = manager.record_eval(
+            [10.0, 20.0], [100.0, 200.0], forward_velocities=[1.0, 2.0]
+        )
+        assert summary["mean_forward_vel"] == pytest.approx(1.5)
+
+
+class TestThresholdsFromConfigs:
+    """Test thresholds_from_configs helper."""
+
+    def test_extracts_from_real_configs(self):
+        configs = load_all_stages("velociraptor")
+        thresholds = thresholds_from_configs(configs)
+        assert isinstance(thresholds, dict)
+        # Any stage that has curriculum_kwargs should appear
+        for stage, fields in thresholds.items():
+            assert isinstance(stage, int)
+            assert isinstance(fields, dict)
+
+    def test_handles_empty_curriculum_kwargs(self):
+        configs = {
+            1: {"curriculum_kwargs": {}},
+            2: {"curriculum_kwargs": {"min_avg_reward": 50.0}},
+        }
+        thresholds = thresholds_from_configs(configs)
+        assert 1 not in thresholds  # empty kwargs -> no entry
+        assert thresholds[2] == {"min_avg_reward": 50.0}
+
+    def test_handles_all_threshold_fields(self):
+        configs = {
+            1: {
+                "curriculum_kwargs": {
+                    "min_avg_reward": 10.0,
+                    "min_avg_episode_length": 100,
+                    "min_avg_forward_vel": 0.5,
+                    "required_consecutive": 3,
+                }
+            }
+        }
+        thresholds = thresholds_from_configs(configs)
+        assert thresholds[1]["min_avg_reward"] == 10.0
+        assert thresholds[1]["min_avg_episode_length"] == 100
+        assert thresholds[1]["min_avg_forward_vel"] == 0.5
+        assert thresholds[1]["required_consecutive"] == 3
+
+    def test_missing_curriculum_key(self):
+        configs = {1: {"env_kwargs": {}}}  # no curriculum_kwargs
+        thresholds = thresholds_from_configs(configs)
+        assert thresholds == {}
+
+
+class TestCurriculumCallback:
+    """Test CurriculumCallback with mocked model and eval_env."""
+
+    @pytest.fixture
+    def manager(self):
+        return CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={
+                1: {
+                    "min_avg_reward": 10.0,
+                    "min_avg_episode_length": 50,
+                    "min_eval_episodes": 2,
+                    "required_consecutive": 1,
+                },
+            },
+            start_stage=1,
+        )
+
+    def _make_eval_env(self, episode_rewards, episode_lengths, forward_vels=None):
+        """Create a mock VecEnv that runs predetermined episodes."""
+        mock_env = MagicMock()
+        mock_env.reset.return_value = np.zeros(10)
+
+        # Build step returns for each episode
+        step_sequences = []
+        for ep_idx, length in enumerate(episode_lengths):
+            per_step_reward = episode_rewards[ep_idx] / length
+            fwd_vel = forward_vels[ep_idx] if forward_vels else 1.0
+            for step in range(int(length)):
+                done = step == int(length) - 1
+                info: Dict[str, Any] = {
+                    "forward_vel": fwd_vel,
+                    "reward_energy": -0.01,
+                    "pelvis_height": 0.5,
+                    "l_foot_contact": 1.0 if step % 2 == 0 else 0.0,
+                    "r_foot_contact": 0.0 if step % 2 == 0 else 1.0,
+                }
+                if done:
+                    info["termination_reason"] = "truncated"
+                step_sequences.append(
+                    (
+                        np.zeros(10),
+                        np.array([per_step_reward]),
+                        np.array([done]),
+                        [info],
+                    )
+                )
+
+        mock_env.step.side_effect = step_sequences
+        return mock_env
+
+    def test_init(self, manager):
+        mock_env = MagicMock()
+        cb = CurriculumCallback(manager, mock_env, eval_freq=5000, n_eval_episodes=5)
+        assert cb.eval_freq == 5000
+        assert cb.n_eval_episodes == 5
+        assert cb.ready_to_advance is False
+
+    def test_on_step_returns_true_before_eval_freq(self, manager):
+        mock_env = MagicMock()
+        cb = CurriculumCallback(manager, mock_env, eval_freq=10000)
+        cb.num_timesteps = 5000
+        cb._last_eval_step = 0
+        cb.model = MagicMock()
+        assert cb._on_step() is True
+
+    def test_on_step_returns_true_on_final_stage(self, manager):
+        manager.advance()  # -> stage 2
+        manager.advance()  # -> stage 3 (final)
+        mock_env = MagicMock()
+        cb = CurriculumCallback(manager, mock_env, eval_freq=100)
+        cb.num_timesteps = 200
+        cb._last_eval_step = 0
+        assert cb._on_step() is True
+
+    @patch("environments.shared.curriculum.log_eval_metrics")
+    def test_on_step_runs_eval_and_advances(self, mock_log, manager):
+        eval_env = self._make_eval_env(
+            episode_rewards=[50.0, 50.0],
+            episode_lengths=[100, 100],
+            forward_vels=[1.5, 1.5],
+        )
+        cb = CurriculumCallback(
+            manager, eval_env, eval_freq=1000, n_eval_episodes=2
+        )
+        cb.num_timesteps = 1000
+        cb._last_eval_step = 0
+        cb.model = MagicMock()
+        cb.model.predict.return_value = (np.zeros(10), None)
+
+        result = cb._on_step()
+        # Thresholds should be met -> ready_to_advance
+        assert cb.ready_to_advance is True
+        assert result is False  # Stops training
+        mock_log.assert_called_once()
+
+    @patch("environments.shared.curriculum.log_eval_metrics")
+    def test_on_step_continues_when_thresholds_not_met(self, mock_log, manager):
+        eval_env = self._make_eval_env(
+            episode_rewards=[1.0, 1.0],  # below threshold of 10.0
+            episode_lengths=[100, 100],
+        )
+        cb = CurriculumCallback(
+            manager, eval_env, eval_freq=1000, n_eval_episodes=2
+        )
+        cb.num_timesteps = 1000
+        cb._last_eval_step = 0
+        cb.model = MagicMock()
+        cb.model.predict.return_value = (np.zeros(10), None)
+
+        result = cb._on_step()
+        assert cb.ready_to_advance is False
+        assert result is True
