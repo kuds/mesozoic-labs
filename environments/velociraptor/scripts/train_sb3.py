@@ -56,6 +56,7 @@ from environments.shared.curriculum import (
     CurriculumManager,
     thresholds_from_configs,
 )
+from environments.shared.metrics import LocomotionMetrics
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 # Load curriculum configs from TOML files (configs/velociraptor/)
@@ -398,7 +399,7 @@ def train_curriculum(
 
 
 def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: int | None = None):
-    """Evaluate a trained model.
+    """Evaluate a trained model with full locomotion metrics.
 
     Args:
         model_path: Path to the saved model (.zip file).
@@ -444,32 +445,89 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
 
     logger.info("Evaluating for %d episodes (stage %d: %s)...", n_episodes, stage, STAGE_CONFIGS[stage]["name"])
 
-    episode_rewards = []
-    episode_lengths = []
+    episode_reports = []
 
     for ep in range(n_episodes):
         obs = vec_env.reset()
-        total_reward = 0
+        metrics = LocomotionMetrics()
+        total_reward = 0.0
         step = 0
 
         while True:
             action, _ = model.predict(obs, deterministic=True)
             obs, rewards, dones, infos = vec_env.step(action)
-            total_reward += rewards[0]
+            step_reward = float(rewards[0])
+            total_reward += step_reward
             step += 1
+            metrics.record_step(infos[0], step_reward)
 
             if dones[0]:
                 break
 
-        episode_rewards.append(total_reward)
-        episode_lengths.append(step)
-        logger.info("  Episode %d: reward=%.2f, length=%d", ep + 1, total_reward, step)
+        report = metrics.compute()
+        episode_reports.append(report)
+
+        term_reason = report.get("termination_reason", "truncated")
+        logger.info(
+            "  Episode %d: reward=%.2f, length=%d, fwd_vel=%.3f m/s, tilt=%.2f rad, ended=%s",
+            ep + 1,
+            total_reward,
+            step,
+            report.get("mean_forward_velocity", 0.0),
+            report.get("mean_tilt_angle", 0.0),
+            term_reason,
+        )
 
     vec_env.close()
 
-    logger.info("Results:")
-    logger.info("  Mean reward: %.2f +/- %.2f", np.mean(episode_rewards), np.std(episode_rewards))
-    logger.info("  Mean length: %.1f +/- %.1f", np.mean(episode_lengths), np.std(episode_lengths))
+    # Aggregate and log detailed results
+    agg = LocomotionMetrics.aggregate_episodes(episode_reports)
+
+    logger.info("=" * 60)
+    logger.info("Evaluation Results (%d episodes)", n_episodes)
+    logger.info("=" * 60)
+
+    # Core performance
+    logger.info("--- Core Performance ---")
+    logger.info("  Reward:       %.2f +/- %.2f", agg.get("mean_total_reward", 0), agg.get("std_total_reward", 0))
+    logger.info("  Ep Length:    %.1f +/- %.1f", agg.get("mean_episode_length", 0), agg.get("std_episode_length", 0))
+
+    # Velocity
+    logger.info("--- Velocity ---")
+    logger.info("  Forward vel:  %.3f +/- %.3f m/s", agg.get("mean_mean_forward_velocity", 0), agg.get("std_mean_forward_velocity", 0))
+    logger.info("  Max fwd vel:  %.3f m/s", agg.get("mean_max_forward_velocity", 0))
+    logger.info("  Consistency:  %.3f", agg.get("mean_velocity_consistency", 0))
+    logger.info("  Distance:     %.3f +/- %.3f m", agg.get("mean_total_distance", 0), agg.get("std_total_distance", 0))
+
+    # Gait quality
+    logger.info("--- Gait Quality ---")
+    logger.info("  Symmetry:     %.3f", agg.get("mean_gait_symmetry", 0))
+    logger.info("  Stride freq:  %.3f Hz", agg.get("mean_stride_frequency", 0))
+    logger.info("  Cost of transport: %.4f", agg.get("mean_cost_of_transport", 0))
+
+    # Balance
+    logger.info("--- Balance ---")
+    logger.info("  Pelvis height: %.3f +/- %.3f m", agg.get("mean_mean_pelvis_height", 0), agg.get("std_mean_pelvis_height", 0))
+    logger.info("  Mean tilt:     %.3f +/- %.3f rad", agg.get("mean_mean_tilt_angle", 0), agg.get("std_mean_tilt_angle", 0))
+    logger.info("  Max tilt:      %.3f rad", agg.get("mean_max_tilt_angle", 0))
+
+    # Hunting (stage 3)
+    if "mean_initial_prey_distance" in agg:
+        logger.info("--- Hunting ---")
+        logger.info("  Initial dist: %.3f m", agg.get("mean_initial_prey_distance", 0))
+        logger.info("  Final dist:   %.3f m", agg.get("mean_final_prey_distance", 0))
+        logger.info("  Min dist:     %.3f m", agg.get("mean_min_prey_distance", 0))
+        logger.info("  Time to target: %.3f s", agg.get("mean_time_to_target", -1))
+
+    # Termination reasons
+    term_counts = agg.get("termination_counts")
+    if term_counts:
+        logger.info("--- Termination Reasons ---")
+        for reason, count in sorted(term_counts.items(), key=lambda x: -x[1]):
+            pct = 100.0 * count / n_episodes
+            logger.info("  %-20s %d (%.0f%%)", reason, count, pct)
+
+    logger.info("=" * 60)
 
 
 def main():

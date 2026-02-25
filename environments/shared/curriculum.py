@@ -35,6 +35,7 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 from environments.shared.config import load_all_stages
+from environments.shared.metrics import LocomotionMetrics
 
 try:
     from stable_baselines3.common.callbacks import BaseCallback
@@ -337,12 +338,15 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
         self._last_eval_step = self.num_timesteps
 
-        # Run evaluation episodes
+        # Run evaluation episodes with full locomotion metrics
         rewards: List[float] = []
         lengths: List[float] = []
         forward_vels: List[float] = []
-        for _ in range(self.n_eval_episodes):
+        episode_reports: List[Dict[str, Any]] = []
+
+        for ep_idx in range(self.n_eval_episodes):
             obs = self.eval_env.reset()
+            metrics = LocomotionMetrics()
             episode_reward = 0.0
             episode_length = 0
             ep_forward_vels: List[float] = []
@@ -350,8 +354,10 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             while not done:
                 action, _ = self.model.predict(obs, deterministic=True)
                 obs, reward, dones, infos = self.eval_env.step(action)
-                episode_reward += float(reward[0])
+                step_reward = float(reward[0])
+                episode_reward += step_reward
                 episode_length += 1
+                metrics.record_step(infos[0], step_reward)
                 if "forward_vel" in infos[0]:
                     ep_forward_vels.append(float(infos[0]["forward_vel"]))
                 done = bool(dones[0])
@@ -359,6 +365,42 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             lengths.append(float(episode_length))
             if ep_forward_vels:
                 forward_vels.append(float(np.mean(ep_forward_vels)))
+            episode_reports.append(metrics.compute())
+
+        # Log aggregated locomotion metrics
+        if episode_reports:
+            agg = LocomotionMetrics.aggregate_episodes(episode_reports)
+            stage = self.curriculum_manager.current_stage
+
+            # Log key locomotion metrics
+            metric_keys = [
+                "mean_forward_velocity", "mean_total_distance",
+                "mean_cost_of_transport", "mean_gait_symmetry",
+                "mean_stride_frequency", "mean_pelvis_height",
+                "mean_mean_tilt_angle", "mean_velocity_consistency",
+            ]
+            metric_parts = []
+            for k in metric_keys:
+                if k in agg:
+                    short_name = k.replace("mean_", "")
+                    metric_parts.append(f"{short_name}={agg[k]:.3f}")
+            if metric_parts:
+                logger.info(
+                    "Stage %d locomotion: %s",
+                    stage,
+                    ", ".join(metric_parts),
+                )
+
+            # Log termination reason breakdown
+            term_counts = agg.get("termination_counts")
+            if term_counts:
+                parts = [f"{reason}={count}" for reason, count in sorted(term_counts.items())]
+                logger.info(
+                    "Stage %d terminations (%d eps): %s",
+                    stage,
+                    self.n_eval_episodes,
+                    ", ".join(parts),
+                )
 
         fwd_vel_arg = forward_vels if forward_vels else None
         if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg):

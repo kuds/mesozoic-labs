@@ -175,22 +175,39 @@ class WandbCallback(BaseCallback):
         # Log info from the most recent environment steps
         if self.locals.get("infos"):
             info_keys = [
+                # Reward components
                 "reward_forward",
+                "reward_backward",
                 "reward_alive",
                 "reward_energy",
                 "reward_tail",
                 "reward_strike",
                 "reward_approach",
+                "reward_posture",
+                "reward_nosedive",
+                "reward_gait",
+                "reward_smoothness",
+                "reward_heading",
+                "reward_lateral",
                 "reward_total",
+                # Raw metrics
                 "forward_vel",
+                "backward_vel",
                 "prey_distance",
                 "strike_success",
                 "tail_instability",
+                "tilt_angle",
+                "pelvis_height",
+                "contact_asymmetry",
+                "heading_alignment",
+                "lateral_vel",
+                "r_foot_contact",
+                "l_foot_contact",
+                # Species-specific (brachiosaurus/trex)
                 "reward_neck",
                 "reward_food_reach",
                 "reward_bite",
                 "jaw_distance",
-                "tilt_angle",
             ]
             for key in info_keys:
                 values = [info[key] for info in self.locals["infos"] if key in info]
