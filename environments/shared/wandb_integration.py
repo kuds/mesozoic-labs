@@ -159,7 +159,10 @@ class WandbCallback(BaseCallback):
         video_length: int = 500,
         verbose: int = 0,
     ):
-        super().__init__(verbose)
+        if BaseCallback is not object:
+            super().__init__(verbose)
+        else:
+            super().__init__()
         self.log_freq = log_freq
         self.video_env = video_env
         self.video_freq = video_freq
