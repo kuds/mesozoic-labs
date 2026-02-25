@@ -11,11 +11,17 @@ across all dinosaur species. Subclasses override species-specific methods:
 """
 
 from abc import ABC, abstractmethod
+from collections import deque
 from typing import Any, Dict, Optional, Tuple
 
 import gymnasium as gym
 import mujoco
 import numpy as np
+
+from environments.shared.metrics import LocomotionMetrics
+
+# Number of recent steps used for rolling-window metric estimates.
+_ROLLING_WINDOW = 100
 
 
 class BaseDinoEnv(gym.Env, ABC):
@@ -66,6 +72,13 @@ class BaseDinoEnv(gym.Env, ABC):
         # Environment settings
         self.healthy_z_range = healthy_z_range
         self.max_tilt_angle = max_tilt_angle
+
+        # Rolling buffers for per-step derived metrics
+        # (cost_of_transport, gait_symmetry, stride_frequency)
+        self._rolling_r_contact: deque = deque(maxlen=_ROLLING_WINDOW)
+        self._rolling_l_contact: deque = deque(maxlen=_ROLLING_WINDOW)
+        self._rolling_energy: deque = deque(maxlen=_ROLLING_WINDOW)
+        self._rolling_fwd_vel: deque = deque(maxlen=_ROLLING_WINDOW)
 
         # Cache body/geom/site IDs (species-specific)
         self._cache_ids()
@@ -167,6 +180,38 @@ class BaseDinoEnv(gym.Env, ABC):
         info = {**reward_info, **term_info}
         info["step"] = self._step_count
 
+        # --- Rolling-window derived metrics ---
+        # Update buffers from values already present in the per-step info dict.
+        self._rolling_r_contact.append(info.get("r_foot_contact", 0.0))
+        self._rolling_l_contact.append(info.get("l_foot_contact", 0.0))
+        self._rolling_energy.append(abs(info.get("reward_energy", 0.0)))
+        self._rolling_fwd_vel.append(info.get("forward_vel", 0.0))
+
+        if len(self._rolling_fwd_vel) >= 10:
+            # Cost of transport: energy / (mass * g * |distance|)
+            # mass is normalised to 1 here; absolute scale is captured by energy units.
+            _distance = float(np.sum(self._rolling_fwd_vel)) * self.dt
+            _total_energy = float(np.sum(self._rolling_energy))
+            if abs(_distance) > 1e-3:
+                info["cost_of_transport"] = _total_energy / (9.81 * abs(_distance))
+            else:
+                info["cost_of_transport"] = float("nan")
+
+            # Gait symmetry from recent foot-contact history
+            _left = np.array(self._rolling_l_contact)
+            _right = np.array(self._rolling_r_contact)
+            info["gait_symmetry"] = LocomotionMetrics._compute_gait_symmetry(_left, _right)
+
+            # Stride frequency from combined contact signal
+            _contacts = _left + _right
+            _onsets = np.where(np.diff(_contacts > 0.1, prepend=False))[0]
+            if len(_onsets) >= 2:
+                _mean_period_steps = float(np.mean(np.diff(_onsets)))
+                _mean_period_sec = _mean_period_steps * self.dt
+                info["stride_frequency"] = 1.0 / _mean_period_sec if _mean_period_sec > 1e-8 else 0.0
+            else:
+                info["stride_frequency"] = 0.0
+
         # Render if needed
         if self.render_mode == "human":
             self.render()
@@ -214,6 +259,12 @@ class BaseDinoEnv(gym.Env, ABC):
         mujoco.mj_forward(self.model, self.data)
 
         self._step_count = 0
+
+        # Clear rolling metric buffers at episode start
+        self._rolling_r_contact.clear()
+        self._rolling_l_contact.clear()
+        self._rolling_energy.clear()
+        self._rolling_fwd_vel.clear()
 
         obs = self._get_obs()
         info = {"step": 0}
