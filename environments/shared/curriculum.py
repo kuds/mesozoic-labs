@@ -36,6 +36,7 @@ import numpy as np
 
 from environments.shared.config import load_all_stages
 from environments.shared.metrics import LocomotionMetrics
+from environments.shared.wandb_integration import log_eval_metrics
 
 try:
     from stable_baselines3.common.callbacks import BaseCallback
@@ -401,6 +402,9 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                     self.n_eval_episodes,
                     ", ".join(parts),
                 )
+
+            # Send aggregated metrics to W&B
+            log_eval_metrics(agg, stage, step=self.num_timesteps)
 
         fwd_vel_arg = forward_vels if forward_vels else None
         if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg):
