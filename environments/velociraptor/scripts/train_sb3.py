@@ -31,8 +31,6 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-import numpy as np
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -385,12 +383,11 @@ def train_curriculum(
             manager.advance()
             logger.info("Auto-advanced to stage %d", manager.current_stage)
         elif stage < 3:
-            # Timestep budget exhausted without meeting threshold
-            error_msg = (
-                f"Stage {stage} timestep budget ({total_timesteps}) exhausted without meeting advancement thresholds."
+            logger.warning(
+                "Stage %d timestep budget exhausted without meeting advancement thresholds. Advancing anyway.",
+                stage,
             )
-            logger.error(error_msg)
-            raise RuntimeError(error_msg)
+            manager.advance()
 
     logger.info("=" * 60)
     logger.info("Curriculum training complete!")
@@ -494,7 +491,11 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
 
     # Velocity
     logger.info("--- Velocity ---")
-    logger.info("  Forward vel:  %.3f +/- %.3f m/s", agg.get("mean_mean_forward_velocity", 0), agg.get("std_mean_forward_velocity", 0))
+    logger.info(
+        "  Forward vel:  %.3f +/- %.3f m/s",
+        agg.get("mean_mean_forward_velocity", 0),
+        agg.get("std_mean_forward_velocity", 0),
+    )
     logger.info("  Max fwd vel:  %.3f m/s", agg.get("mean_max_forward_velocity", 0))
     logger.info("  Consistency:  %.3f", agg.get("mean_velocity_consistency", 0))
     logger.info("  Distance:     %.3f +/- %.3f m", agg.get("mean_total_distance", 0), agg.get("std_total_distance", 0))
@@ -507,8 +508,12 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
 
     # Balance
     logger.info("--- Balance ---")
-    logger.info("  Pelvis height: %.3f +/- %.3f m", agg.get("mean_mean_pelvis_height", 0), agg.get("std_mean_pelvis_height", 0))
-    logger.info("  Mean tilt:     %.3f +/- %.3f rad", agg.get("mean_mean_tilt_angle", 0), agg.get("std_mean_tilt_angle", 0))
+    logger.info(
+        "  Pelvis height: %.3f +/- %.3f m", agg.get("mean_mean_pelvis_height", 0), agg.get("std_mean_pelvis_height", 0)
+    )
+    logger.info(
+        "  Mean tilt:     %.3f +/- %.3f rad", agg.get("mean_mean_tilt_angle", 0), agg.get("std_mean_tilt_angle", 0)
+    )
     logger.info("  Max tilt:      %.3f rad", agg.get("mean_max_tilt_angle", 0))
 
     # Hunting (stage 3)

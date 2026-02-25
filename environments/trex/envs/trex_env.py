@@ -312,9 +312,14 @@ class TRexEnv(BaseDinoEnv):
         info["forward_z"] = forward_z
         info["reward_nosedive"] = reward_nosedive
 
+        # 8b. Pelvis height (for LocomotionMetrics tracking)
+        info["pelvis_height"] = float(self.data.xpos[self.pelvis_id, 2])
+
         # 9. Gait symmetry (reward alternating foot contacts)
         r_contact = self.data.sensordata[self._sensor_r_foot]
         l_contact = self.data.sensordata[self._sensor_l_foot]
+        info["r_foot_contact"] = float(r_contact)
+        info["l_foot_contact"] = float(l_contact)
         contact_sum = r_contact + l_contact + 1e-6
         contact_asymmetry = abs(r_contact - l_contact) / contact_sum
         reward_gait = self.gait_symmetry_weight * contact_asymmetry

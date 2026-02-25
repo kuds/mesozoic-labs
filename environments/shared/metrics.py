@@ -103,7 +103,7 @@ class LocomotionMetrics:
         fwd = np.array(self._forward_velocities)
         energies = np.array(self._energies)
 
-        result: Dict[str, float] = {}
+        result: Dict[str, Any] = {}
 
         # --- Forward velocity statistics ---
         result["mean_forward_velocity"] = float(np.mean(fwd))

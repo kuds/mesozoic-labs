@@ -31,8 +31,6 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-import numpy as np
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -56,6 +54,7 @@ from environments.shared.curriculum import (
     CurriculumManager,
     thresholds_from_configs,
 )
+from environments.shared.metrics import LocomotionMetrics
 from environments.trex.envs.trex_env import TRexEnv
 
 # Load curriculum configs from TOML files (configs/trex/)
@@ -397,32 +396,61 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
     config_name = STAGE_CONFIGS[stage]["name"]
     logger.info("Evaluating for %d episodes (stage %d: %s)...", n_episodes, stage, config_name)
 
-    episode_rewards = []
-    episode_lengths = []
+    episode_reports = []
 
     for ep in range(n_episodes):
         obs = vec_env.reset()
-        total_reward = 0
+        metrics = LocomotionMetrics()
+        total_reward = 0.0
         step = 0
 
         while True:
             action, _ = model.predict(obs, deterministic=True)
             obs, rewards, dones, infos = vec_env.step(action)
-            total_reward += rewards[0]
+            step_reward = float(rewards[0])
+            total_reward += step_reward
             step += 1
+            metrics.record_step(infos[0], step_reward)
 
             if dones[0]:
                 break
 
-        episode_rewards.append(total_reward)
-        episode_lengths.append(step)
-        logger.info("  Episode %d: reward=%.2f, length=%d", ep + 1, total_reward, step)
+        report = metrics.compute()
+        episode_reports.append(report)
+
+        term_reason = report.get("termination_reason", "truncated")
+        logger.info(
+            "  Episode %d: reward=%.2f, length=%d, fwd_vel=%.3f m/s, ended=%s",
+            ep + 1,
+            total_reward,
+            step,
+            report.get("mean_forward_velocity", 0.0),
+            term_reason,
+        )
 
     vec_env.close()
 
-    logger.info("Results:")
-    logger.info("  Mean reward: %.2f +/- %.2f", np.mean(episode_rewards), np.std(episode_rewards))
-    logger.info("  Mean length: %.1f +/- %.1f", np.mean(episode_lengths), np.std(episode_lengths))
+    agg = LocomotionMetrics.aggregate_episodes(episode_reports)
+
+    logger.info("=" * 60)
+    logger.info("Evaluation Results (%d episodes)", n_episodes)
+    logger.info("=" * 60)
+    logger.info("  Reward:      %.2f +/- %.2f", agg.get("mean_total_reward", 0), agg.get("std_total_reward", 0))
+    logger.info("  Ep Length:   %.1f +/- %.1f", agg.get("mean_episode_length", 0), agg.get("std_episode_length", 0))
+    logger.info(
+        "  Forward vel: %.3f +/- %.3f m/s",
+        agg.get("mean_mean_forward_velocity", 0),
+        agg.get("std_mean_forward_velocity", 0),
+    )
+    logger.info("  Distance:    %.3f m", agg.get("mean_total_distance", 0))
+
+    term_counts = agg.get("termination_counts")
+    if term_counts:
+        logger.info("--- Termination Reasons ---")
+        for reason, count in sorted(term_counts.items(), key=lambda x: -x[1]):
+            pct = 100.0 * count / n_episodes
+            logger.info("  %-20s %d (%.0f%%)", reason, count, pct)
+    logger.info("=" * 60)
 
 
 def main():
