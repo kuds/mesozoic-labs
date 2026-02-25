@@ -359,84 +359,186 @@ def setup_wandb_metrics(stage: int) -> None:
     wandb.define_metric("reward/strike_success", step_metric="train/timesteps")
 
 
-def create_wandb_dashboard(stage: int) -> None:
-    """Create a W&B custom dashboard with training curve panels.
+def create_wandb_dashboard(
+    stage: int,
+    entity: Optional[str] = None,
+    project: str = "mesozoic-labs",
+) -> None:
+    """Create a W&B workspace with the training curve panel layout.
 
-    Logs a ``wandb.Table`` summarising which panels to display and
-    defines custom charts for the 8 new panels (2 master + 6 stage).
-    This function relies on W&B's Custom Charts (Vega-Lite) to
-    render the panels.
+    Uses the ``wandb-workspaces`` library to programmatically build a
+    workspace with 4 sections (master + one per stage), each containing
+    2 panels arranged in a 2-column grid. Falls back to saving the
+    panel configuration as run metadata if ``wandb-workspaces`` is not
+    installed.
 
     Args:
         stage: Current curriculum stage number.
+        entity: W&B entity (team/user). Auto-detected from run if None.
+        project: W&B project name.
     """
     if not is_available() or wandb.run is None:
         return
 
-    # Define the dashboard panel configuration as run metadata
-    # so it's easy to reconstruct the layout in the W&B UI.
+    try:
+        import wandb_workspaces.reports.v2 as wr
+        import wandb_workspaces.workspaces as ws
+    except ImportError:
+        logger.info(
+            "wandb-workspaces not installed. Install with: pip install wandb-workspaces. "
+            "Saving panel config as run metadata instead."
+        )
+        _save_dashboard_config_fallback(stage)
+        return
+
+    if entity is None:
+        entity = wandb.run.entity
+
+    x_axis = "train/timesteps"
+
+    # Known termination reasons across all species
+    termination_keys = [
+        "eval/termination/fallen",
+        "eval/termination/excessive_tilt",
+        "eval/termination/nosedive",
+        "eval/termination/body_contact",
+        "eval/termination/tail_contact",
+        "eval/termination/too_high",
+        "eval/termination/truncated",
+    ]
+
+    sections = [
+        # ---- Master (all stages) ----
+        ws.Section(
+            name="Master — All Stages",
+            is_open=True,
+            panels=[
+                wr.LinePlot(
+                    title="Termination Reasons",
+                    x=x_axis,
+                    y=termination_keys,
+                    plot_type="stacked-area",
+                    title_x="Training Steps",
+                    title_y="Count per Eval",
+                ),
+                wr.LinePlot(
+                    title="Cost of Transport",
+                    x=x_axis,
+                    y=["eval/mean_cost_of_transport"],
+                    title_x="Training Steps",
+                    title_y="CoT (lower = more efficient)",
+                ),
+            ],
+        ),
+        # ---- Stage 1: Balance ----
+        ws.Section(
+            name="Stage 1 — Balance",
+            is_open=(stage == 1),
+            panels=[
+                wr.LinePlot(
+                    title="Pelvis Height",
+                    x=x_axis,
+                    y=["reward/pelvis_height"],
+                    title_x="Training Steps",
+                    title_y="Height (m)",
+                ),
+                wr.LinePlot(
+                    title="Reward Decomposition (alive / posture / nosedive)",
+                    x=x_axis,
+                    y=[
+                        "reward/reward_alive",
+                        "reward/reward_posture",
+                        "reward/reward_nosedive",
+                    ],
+                    plot_type="stacked-area",
+                    title_x="Training Steps",
+                    title_y="Reward Component",
+                ),
+            ],
+        ),
+        # ---- Stage 2: Locomotion ----
+        ws.Section(
+            name="Stage 2 — Locomotion",
+            is_open=(stage == 2),
+            panels=[
+                wr.LinePlot(
+                    title="Gait Symmetry + Stride Frequency",
+                    x=x_axis,
+                    y=[
+                        "eval/mean_gait_symmetry",
+                        "eval/mean_stride_frequency",
+                    ],
+                    title_x="Training Steps",
+                    title_y="Value",
+                ),
+                wr.LinePlot(
+                    title="Heading Alignment",
+                    x=x_axis,
+                    y=["reward/heading_alignment"],
+                    title_x="Training Steps",
+                    title_y="Alignment (-1 to +1)",
+                ),
+            ],
+        ),
+        # ---- Stage 3: Strike ----
+        ws.Section(
+            name="Stage 3 — Strike",
+            is_open=(stage == 3),
+            panels=[
+                wr.LinePlot(
+                    title="Prey Distance (mean + min)",
+                    x=x_axis,
+                    y=[
+                        "reward/prey_distance",
+                        "eval/mean_min_prey_distance",
+                    ],
+                    title_x="Training Steps",
+                    title_y="Distance (m)",
+                ),
+                wr.LinePlot(
+                    title="Strike Success Rate",
+                    x=x_axis,
+                    y=["reward/strike_success"],
+                    title_x="Training Steps",
+                    title_y="Success (0 or 1)",
+                ),
+            ],
+        ),
+    ]
+
+    try:
+        workspace = ws.Workspace(
+            name=f"Locomotion Dashboard — Stage {stage}",
+            entity=entity,
+            project=project,
+            sections=sections,
+        )
+        workspace.save()
+        logger.info("W&B workspace dashboard created for stage %d", stage)
+    except Exception as e:
+        logger.warning("Failed to create W&B workspace: %s. Saving config as fallback.", e)
+        _save_dashboard_config_fallback(stage)
+
+
+def _save_dashboard_config_fallback(stage: int) -> None:
+    """Store dashboard panel config as run metadata (fallback)."""
     panel_config = {
         "master": [
-            {
-                "title": "Termination Reasons",
-                "metrics": ["eval/termination/*"],
-                "type": "stacked_area",
-            },
-            {
-                "title": "Cost of Transport",
-                "metrics": ["eval/mean_cost_of_transport"],
-                "type": "line",
-            },
+            {"title": "Termination Reasons", "metrics": ["eval/termination/*"], "type": "stacked_area"},
+            {"title": "Cost of Transport", "metrics": ["eval/mean_cost_of_transport"], "type": "line"},
         ],
         "stage1_balance": [
-            {
-                "title": "Pelvis Height",
-                "metrics": ["reward/pelvis_height"],
-                "type": "line_with_std",
-            },
-            {
-                "title": "Reward Decomposition",
-                "metrics": [
-                    "reward/reward_alive",
-                    "reward/reward_posture",
-                    "reward/reward_nosedive",
-                ],
-                "type": "stacked_area",
-            },
+            {"title": "Pelvis Height", "metrics": ["reward/pelvis_height"], "type": "line"},
+            {"title": "Reward Decomposition", "metrics": ["reward/reward_alive", "reward/reward_posture", "reward/reward_nosedive"], "type": "stacked_area"},
         ],
         "stage2_locomotion": [
-            {
-                "title": "Gait Symmetry + Stride Frequency",
-                "metrics": [
-                    "eval/mean_gait_symmetry",
-                    "eval/mean_stride_frequency",
-                ],
-                "type": "dual_axis",
-            },
-            {
-                "title": "Heading Alignment",
-                "metrics": ["reward/heading_alignment"],
-                "type": "line",
-            },
+            {"title": "Gait Symmetry + Stride Frequency", "metrics": ["eval/mean_gait_symmetry", "eval/mean_stride_frequency"], "type": "dual_axis"},
+            {"title": "Heading Alignment", "metrics": ["reward/heading_alignment"], "type": "line"},
         ],
         "stage3_strike": [
-            {
-                "title": "Prey Distance (mean + min)",
-                "metrics": [
-                    "reward/prey_distance",
-                    "eval/mean_min_prey_distance",
-                ],
-                "type": "multi_line",
-            },
-            {
-                "title": "Strike Success Rate",
-                "metrics": ["reward/strike_success"],
-                "type": "line",
-            },
+            {"title": "Prey Distance (mean + min)", "metrics": ["reward/prey_distance", "eval/mean_min_prey_distance"], "type": "multi_line"},
+            {"title": "Strike Success Rate", "metrics": ["reward/strike_success"], "type": "line"},
         ],
     }
-
-    # Store as run config so it's accessible from the W&B UI
     wandb.config.update({"dashboard_panels": panel_config}, allow_val_change=True)
-
-    logger.info("W&B dashboard configuration saved for stage %d", stage)
+    logger.info("W&B dashboard panel config saved as run metadata for stage %d", stage)
