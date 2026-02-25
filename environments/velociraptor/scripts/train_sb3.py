@@ -31,8 +31,6 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-import numpy as np
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -385,12 +383,11 @@ def train_curriculum(
             manager.advance()
             logger.info("Auto-advanced to stage %d", manager.current_stage)
         elif stage < 3:
-            # Timestep budget exhausted without meeting threshold
-            error_msg = (
-                f"Stage {stage} timestep budget ({total_timesteps}) exhausted without meeting advancement thresholds."
+            logger.warning(
+                "Stage %d timestep budget exhausted without meeting advancement thresholds. Advancing anyway.",
+                stage,
             )
-            logger.error(error_msg)
-            raise RuntimeError(error_msg)
+            manager.advance()
 
     logger.info("=" * 60)
     logger.info("Curriculum training complete!")

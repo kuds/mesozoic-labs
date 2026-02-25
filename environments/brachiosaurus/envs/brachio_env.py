@@ -180,7 +180,7 @@ class BrachioEnv(BaseDinoEnv):
         """Compute reward and breakdown for logging."""
         info = {}
 
-        # 1. Forward velocity reward (toward food)
+        # 1. Forward velocity reward (toward food) — normalized
         torso_pos = self.data.xpos[self.torso_id]
         food_pos = self.data.mocap_pos[0]
         food_dir_2d = food_pos[:2] - torso_pos[:2]
@@ -191,25 +191,41 @@ class BrachioEnv(BaseDinoEnv):
         # Project velocity onto food direction
         vel_2d = self.data.qvel[0:2]
         forward_vel = np.dot(vel_2d, food_dir_2d)
+        # Assume max walking speed of ~3.0 m/s for Brachiosaurus
+        forward_vel_norm = np.clip(forward_vel / 3.0, -1.0, 1.0)
         info["forward_vel"] = forward_vel
-        reward_forward = self.forward_vel_weight * forward_vel
+        reward_forward = self.forward_vel_weight * forward_vel_norm
         info["reward_forward"] = reward_forward
 
         # 2. Alive bonus
         reward_alive = self.alive_bonus
         info["reward_alive"] = reward_alive
 
-        # 3. Energy penalty (encourage efficiency)
+        # 3. Energy penalty (normalized by number of actuators)
         energy = np.sum(np.square(action))
-        reward_energy = -self.energy_penalty_weight * energy
+        assert self.action_space.shape is not None
+        n_actuators = self.action_space.shape[0]
+        energy_norm = energy / n_actuators
+        reward_energy = -self.energy_penalty_weight * energy_norm
         info["reward_energy"] = reward_energy
 
-        # 4. Gait stability (penalize high angular velocity of torso)
+        # 4. Gait stability (penalize high angular velocity of torso) — normalized
         torso_angvel = self.data.qvel[3:6]
-        gait_instability = np.linalg.norm(torso_angvel)
-        reward_gait = -self.gait_stability_weight * gait_instability
+        gait_instability = float(np.linalg.norm(torso_angvel))
+        # Normalize assuming max angular vel ~5.0 rad/s
+        gait_instability_norm = min(gait_instability / 5.0, 1.0)
+        reward_gait = -self.gait_stability_weight * gait_instability_norm
         info["gait_instability"] = gait_instability
         info["reward_gait"] = reward_gait
+
+        # Torso height (for LocomotionMetrics tracking — aliased as pelvis_height)
+        info["pelvis_height"] = float(torso_pos[2])
+
+        # Foot contacts (for LocomotionMetrics gait tracking)
+        fr_contact = self.data.sensordata[self._sensor_fr_foot]
+        fl_contact = self.data.sensordata[self._sensor_fl_foot]
+        info["r_foot_contact"] = float(fr_contact)
+        info["l_foot_contact"] = float(fl_contact)
 
         # 5. Food reach bonus (head tip close to food)
         head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
@@ -226,7 +242,7 @@ class BrachioEnv(BaseDinoEnv):
         reward_food = food_reward
         info["reward_food"] = reward_food
 
-        # 6. Approach shaping (reward closing head-food distance, penalise retreating)
+        # 6. Approach shaping (reward closing head-food distance, penalise retreating) — normalized
         head_food_dist_f = float(head_food_dist)
 
         if self._prev_head_food_distance is not None:
@@ -235,7 +251,12 @@ class BrachioEnv(BaseDinoEnv):
             approach_delta = 0.0
         self._prev_head_food_distance = head_food_dist_f
 
-        reward_approach = self.food_approach_weight * approach_delta
+        # Max approach speed ~3m/s. dt is frame_skip * model.opt.timestep
+        dt = self.frame_skip * self.model.opt.timestep
+        max_delta = 3.0 * dt
+        approach_delta_norm = np.clip(approach_delta / max_delta, -1.0, 1.0)
+
+        reward_approach = self.food_approach_weight * approach_delta_norm
         info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
