@@ -74,6 +74,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add repo root to Python path so environments.* imports work
 _repo_root = str(Path(__file__).resolve().parents[3])
@@ -122,7 +123,7 @@ def _hpt_arg_to_override(key: str, value: str) -> str:
     """
     for prefix in ("ppo", "sac", "env"):
         if key.startswith(prefix + "_"):
-            param = key[len(prefix) + 1:]
+            param = key[len(prefix) + 1 :]
             return f"{prefix}.{param}={value}"
     # Unrecognised prefix — pass through as-is (best-effort)
     return f"{key}={value}"
@@ -213,7 +214,7 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
     )
 
 
-def _build_parameter_spec(search_space: dict, hpt_module: object) -> dict:
+def _build_parameter_spec(search_space: dict, hpt_module: Any) -> dict:
     """Convert a search-space dict to Vertex AI parameter spec objects."""
     hpt = hpt_module
     parameter_spec: dict = {}
@@ -226,9 +227,7 @@ def _build_parameter_spec(search_space: dict, hpt_module: object) -> dict:
                 scale=spec.get("scale", "linear"),
             )
         elif kind == "discrete":
-            parameter_spec[param_id] = hpt.DiscreteValueSpec(
-                values=[float(v) for v in spec["values"]]
-            )
+            parameter_spec[param_id] = hpt.DiscreteValueSpec(values=[float(v) for v in spec["values"]])
         elif kind == "categorical":
             parameter_spec[param_id] = hpt.CategoricalValueSpec(values=spec["values"])
         else:
@@ -236,7 +235,7 @@ def _build_parameter_spec(search_space: dict, hpt_module: object) -> dict:
     return parameter_spec
 
 
-def _collect_trial_results(hpt_job: object, stage: int, stage_config: dict) -> list[dict]:
+def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list[dict]:
     """Extract per-trial hyperparameters and outcomes from a completed HPT job.
 
     Each returned dict contains:
@@ -262,9 +261,7 @@ def _collect_trial_results(hpt_job: object, stage: int, stage_config: dict) -> l
                     best_reward = metric.value
         row["best_mean_reward"] = best_reward
         row["reward_threshold"] = threshold
-        row["stage_passed"] = (
-            best_reward is not None and threshold is not None and best_reward >= threshold
-        )
+        row["stage_passed"] = best_reward is not None and threshold is not None and best_reward >= threshold
         rows.append(row)
     return rows
 
@@ -295,9 +292,7 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
     fixed_cols = ["trial_id", "stage"]
     metric_cols = ["best_mean_reward", "reward_threshold", "stage_passed"]
     # Collect all hyperparameter column names across all rows (union, sorted)
-    hparam_cols: list[str] = sorted(
-        {k for row in rows for k in row if k not in fixed_cols + metric_cols}
-    )
+    hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in fixed_cols + metric_cols})
     fieldnames = fixed_cols + hparam_cols + metric_cols
 
     with open(path, "w", newline="") as f:
@@ -309,7 +304,7 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
     return path
 
 
-def _best_trial_model_path(hpt_job: object, bucket: str, species: str, stage: int) -> str:
+def _best_trial_model_path(hpt_job: Any, bucket: str, species: str, stage: int) -> str:
     """Return the GCS container-mount path of the best trial's final model.
 
     Each trial writes its checkpoint to::
@@ -367,12 +362,18 @@ def _submit_stage_sweep(
     trial_args = [
         "environments/shared/scripts/sweep.py",
         "trial",
-        "--species", species,
-        "--stage", str(stage),
-        "--algorithm", algorithm,
-        "--timesteps", str(timesteps),
-        "--n-envs", str(n_envs),
-        "--output-dir", output_base,
+        "--species",
+        species,
+        "--stage",
+        str(stage),
+        "--algorithm",
+        algorithm,
+        "--timesteps",
+        str(timesteps),
+        "--n-envs",
+        str(n_envs),
+        "--output-dir",
+        output_base,
     ]
     if load_path:
         trial_args += ["--load", load_path]
@@ -417,9 +418,7 @@ def _submit_stage_sweep(
     hpt_job.run(sync=sync)
 
     logger.info("Job submitted: %s", hpt_job.resource_name)
-    logger.info(
-        "Monitor at: https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs"
-    )
+    logger.info("Monitor at: https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs")
     logger.info("Results will be written to: gs://%s/sweeps/%s/stage%d/", bucket, species, stage)
     return hpt_job
 
@@ -434,10 +433,7 @@ def launch_sweep(args: argparse.Namespace) -> None:
         from google.cloud import aiplatform
         from google.cloud.aiplatform import hyperparameter_tuning as hpt
     except ImportError:
-        logger.error(
-            "google-cloud-aiplatform is not installed.\n"
-            "Install it with:  pip install google-cloud-aiplatform"
-        )
+        logger.error("google-cloud-aiplatform is not installed.\nInstall it with:  pip install google-cloud-aiplatform")
         sys.exit(1)
 
     aiplatform.init(
@@ -497,10 +493,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         from google.cloud import aiplatform
         from google.cloud.aiplatform import hyperparameter_tuning as hpt
     except ImportError:
-        logger.error(
-            "google-cloud-aiplatform is not installed.\n"
-            "Install it with:  pip install google-cloud-aiplatform"
-        )
+        logger.error("google-cloud-aiplatform is not installed.\nInstall it with:  pip install google-cloud-aiplatform")
         sys.exit(1)
 
     aiplatform.init(
@@ -557,6 +550,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
         # Collect per-trial results and append to the running list
         from environments.shared.config import load_stage_config as _load_stage_config
+
         stage_config = _load_stage_config(args.species, stage)
         stage_rows = _collect_trial_results(hpt_job, stage, stage_config)
         all_rows.extend(stage_rows)
@@ -572,9 +566,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
     logger.info("=" * 60)
     logger.info("ALL-STAGES SWEEP COMPLETE for %s (%s)", args.species, args.algorithm)
-    logger.info(
-        "All results at: gs://%s/sweeps/%s/", args.bucket, args.species
-    )
+    logger.info("All results at: gs://%s/sweeps/%s/", args.bucket, args.species)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -695,4 +687,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
