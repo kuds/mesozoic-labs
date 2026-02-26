@@ -49,7 +49,7 @@ except ImportError:
     sys.exit(1)
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.shared.config import load_all_stages, save_stage_config
+from environments.shared.config import append_stage_result_csv, load_all_stages, save_stage_config
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,
@@ -450,6 +450,29 @@ def train_curriculum(
 
         train_env.close()
         eval_env.close()
+
+        # Record stage hyperparameters and outcome to CSV
+        algo_key = "sac_kwargs" if algorithm == "sac" else "ppo_kwargs"
+        result_row: dict = {
+            "stage": stage,
+            "stage_name": config["name"],
+            "algorithm": algorithm,
+            "seed": seed,
+            "n_envs": n_envs,
+            "timesteps": total_timesteps,
+        }
+        for hp_key, hp_val in config[algo_key].items():
+            result_row[hp_key] = hp_val if isinstance(hp_val, (int, float, bool, str, type(None))) else str(hp_val)
+        for env_key, env_val in config["env_kwargs"].items():
+            if not isinstance(env_val, (list, tuple)):
+                result_row[f"env_{env_key}"] = env_val
+        result_row["best_mean_reward"] = eval_callback.best_mean_reward
+        result_row["reward_threshold"] = cur_kwargs.get("min_avg_reward")
+        result_row["stage_passed"] = bool(
+            stage == 3 or (curriculum_cb is not None and curriculum_cb.ready_to_advance)
+        )
+        append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)
+        logger.info("Stage %d result appended to: %s", stage, base_dir / "curriculum_results.csv")
 
         if curriculum_cb and curriculum_cb.ready_to_advance:
             manager.advance()

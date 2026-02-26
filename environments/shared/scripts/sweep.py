@@ -236,6 +236,79 @@ def _build_parameter_spec(search_space: dict, hpt_module: object) -> dict:
     return parameter_spec
 
 
+def _collect_trial_results(hpt_job: object, stage: int, stage_config: dict) -> list[dict]:
+    """Extract per-trial hyperparameters and outcomes from a completed HPT job.
+
+    Each returned dict contains:
+
+    * ``trial_id`` — Vertex AI trial identifier
+    * ``stage`` — curriculum stage number
+    * one key per hyperparameter (e.g. ``ppo_learning_rate``)
+    * ``best_mean_reward`` — final metric reported by the trial
+    * ``reward_threshold`` — ``min_avg_reward`` from the stage TOML config
+    * ``stage_passed`` — ``True`` when ``best_mean_reward >= reward_threshold``
+    """
+    threshold = stage_config.get("curriculum_kwargs", {}).get("min_avg_reward")
+    rows: list[dict] = []
+    for trial in hpt_job.trials:
+        row: dict = {"trial_id": trial.id, "stage": stage}
+        if hasattr(trial, "parameters") and trial.parameters:
+            for param in trial.parameters:
+                row[param.parameter_id] = param.value
+        best_reward = None
+        if trial.final_measurement and trial.final_measurement.metrics:
+            for metric in trial.final_measurement.metrics:
+                if metric.metric_id == "best_mean_reward":
+                    best_reward = metric.value
+        row["best_mean_reward"] = best_reward
+        row["reward_threshold"] = threshold
+        row["stage_passed"] = (
+            best_reward is not None and threshold is not None and best_reward >= threshold
+        )
+        rows.append(row)
+    return rows
+
+
+def write_results_csv(rows: list[dict], path: str | Path) -> Path:
+    """Write sweep trial results to a CSV file.
+
+    Each row records the trial ID, stage, all hyperparameter values,
+    ``best_mean_reward``, the curriculum ``reward_threshold``, and
+    ``stage_passed`` (``True`` when ``best_mean_reward >= reward_threshold``).
+
+    Args:
+        rows: List of result dicts from :func:`_collect_trial_results`.
+        path: Output CSV path (parent directories are created as needed).
+
+    Returns:
+        Path to the written CSV file.
+    """
+    import csv
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not rows:
+        logger.warning("No trial rows to write — skipping CSV")
+        return path
+
+    fixed_cols = ["trial_id", "stage"]
+    metric_cols = ["best_mean_reward", "reward_threshold", "stage_passed"]
+    # Collect all hyperparameter column names across all rows (union, sorted)
+    hparam_cols: list[str] = sorted(
+        {k for row in rows for k in row if k not in fixed_cols + metric_cols}
+    )
+    fieldnames = fixed_cols + hparam_cols + metric_cols
+
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    logger.info("Sweep results written to: %s", path)
+    return path
+
+
 def _best_trial_model_path(hpt_job: object, bucket: str, species: str, stage: int) -> str:
     """Return the GCS container-mount path of the best trial's final model.
 
@@ -453,6 +526,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     ]
 
     load_path: str | None = None
+    all_rows: list[dict] = []
 
     for stage in range(1, 4):
         timesteps = timesteps_per_stage[stage - 1]
@@ -481,10 +555,20 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             sync=True,  # block until this stage's sweep is done
         )
 
+        # Collect per-trial results and append to the running list
+        from environments.shared.config import load_stage_config as _load_stage_config
+        stage_config = _load_stage_config(args.species, stage)
+        stage_rows = _collect_trial_results(hpt_job, stage, stage_config)
+        all_rows.extend(stage_rows)
+
         if stage < 3:
             # Find the best trial and chain its checkpoint into the next stage
             load_path = _best_trial_model_path(hpt_job, args.bucket, args.species, stage)
             logger.info("Stage %d complete. Best model: %s", stage, load_path)
+
+    # Write a combined CSV of every trial across all three stages
+    csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}.csv")
+    write_results_csv(all_rows, csv_path)
 
     logger.info("=" * 60)
     logger.info("ALL-STAGES SWEEP COMPLETE for %s (%s)", args.species, args.algorithm)
