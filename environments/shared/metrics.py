@@ -42,6 +42,9 @@ class LocomotionMetrics:
     _prey_distances: List[float] = field(default_factory=list)
     _tilt_angles: List[float] = field(default_factory=list)
     _rewards: List[float] = field(default_factory=list)
+    _heading_alignments: List[float] = field(default_factory=list)
+    _success_events: List[float] = field(default_factory=list)
+    _contact_asymmetries: List[float] = field(default_factory=list)
     _dt: float = 0.02  # default timestep * frame_skip
     _termination_reason: Optional[str] = None
 
@@ -55,6 +58,9 @@ class LocomotionMetrics:
         self._prey_distances.clear()
         self._tilt_angles.clear()
         self._rewards.clear()
+        self._heading_alignments.clear()
+        self._success_events.clear()
+        self._contact_asymmetries.clear()
         self._termination_reason = None
 
     def record_step(self, info: Dict[str, Any], reward: float = 0.0):
@@ -67,6 +73,10 @@ class LocomotionMetrics:
                 - ``pelvis_height``: pelvis z-position
                 - ``prey_distance``: distance to target (optional)
                 - ``r_foot_contact`` / ``l_foot_contact``: binary (optional)
+                - ``heading_alignment``: cos θ alignment to prey (optional)
+                - ``bite_success`` / ``strike_success`` / ``food_reached``:
+                  binary success signal — the first present key is used (optional)
+                - ``contact_asymmetry``: left/right contact imbalance (optional)
             reward: Total reward for this step.
         """
         self._forward_velocities.append(info.get("forward_vel", 0.0))
@@ -82,6 +92,19 @@ class LocomotionMetrics:
 
         self._left_contacts.append(info.get("l_foot_contact", 0.0))
         self._right_contacts.append(info.get("r_foot_contact", 0.0))
+
+        if "heading_alignment" in info:
+            self._heading_alignments.append(float(info["heading_alignment"]))
+
+        # Accept bite_success (T-Rex), strike_success (Velociraptor), or
+        # food_reached (Brachiosaurus) as equivalent "success" signals.
+        for _success_key in ("bite_success", "strike_success", "food_reached"):
+            if _success_key in info:
+                self._success_events.append(float(info[_success_key]))
+                break
+
+        if "contact_asymmetry" in info:
+            self._contact_asymmetries.append(float(info["contact_asymmetry"]))
 
         # Capture termination reason from the final step
         if "termination_reason" in info:
@@ -168,6 +191,20 @@ class LocomotionMetrics:
         result["total_reward"] = float(np.sum(rewards))
         result["mean_step_reward"] = float(np.mean(rewards))
         result["episode_length"] = n
+
+        # --- Heading alignment ---
+        if self._heading_alignments:
+            result["mean_heading_alignment"] = float(np.mean(self._heading_alignments))
+            result["std_heading_alignment"] = float(np.std(self._heading_alignments))
+
+        # --- Success rate (bite / strike / food) ---
+        if self._success_events:
+            result["success_rate"] = float(np.mean(self._success_events))
+            result["total_successes"] = float(np.sum(self._success_events))
+
+        # --- Contact asymmetry ---
+        if self._contact_asymmetries:
+            result["mean_contact_asymmetry"] = float(np.mean(self._contact_asymmetries))
 
         # --- Termination reason ---
         if self._termination_reason is not None:

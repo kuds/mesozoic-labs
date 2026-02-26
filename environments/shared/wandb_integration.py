@@ -189,6 +189,7 @@ class WandbCallback(BaseCallback):
                 "reward_alive",
                 "reward_energy",
                 "reward_tail",
+                "reward_bite",
                 "reward_strike",
                 "reward_approach",
                 "reward_posture",
@@ -197,15 +198,20 @@ class WandbCallback(BaseCallback):
                 "reward_smoothness",
                 "reward_heading",
                 "reward_lateral",
+                "reward_food",
                 "reward_total",
                 # Raw metrics
                 "forward_vel",
                 "backward_vel",
                 "prey_distance",
+                "head_food_distance",
+                "bite_success",
                 "strike_success",
+                "food_reached",
                 "tail_instability",
                 "tilt_angle",
                 "pelvis_height",
+                "torso_height",
                 "contact_asymmetry",
                 "heading_alignment",
                 "lateral_vel",
@@ -214,7 +220,6 @@ class WandbCallback(BaseCallback):
                 # Species-specific (brachiosaurus/trex)
                 "reward_neck",
                 "reward_food_reach",
-                "reward_bite",
                 "jaw_distance",
             ]
             for key in info_keys:
@@ -356,10 +361,14 @@ def setup_wandb_metrics(stage: int) -> None:
     wandb.define_metric("eval/mean_stride_frequency", step_metric="train/timesteps")
     wandb.define_metric("reward/heading_alignment", step_metric="train/timesteps")
 
-    # ---- Stage 3: Strike ----
+    # ---- Stage 3: Strike / Bite / Food ----
     wandb.define_metric("reward/prey_distance", step_metric="train/timesteps")
     wandb.define_metric("eval/mean_min_prey_distance", step_metric="train/timesteps")
     wandb.define_metric("reward/strike_success", step_metric="train/timesteps")
+    wandb.define_metric("reward/bite_success", step_metric="train/timesteps")
+    wandb.define_metric("reward/food_reached", step_metric="train/timesteps")
+    wandb.define_metric("eval/mean_success_rate", step_metric="train/timesteps")
+    wandb.define_metric("eval/mean_heading_alignment", step_metric="train/timesteps")
 
 
 def create_wandb_dashboard(
@@ -483,25 +492,31 @@ def create_wandb_dashboard(
                 ),
             ],
         ),
-        # ---- Stage 3: Strike ----
+        # ---- Stage 3: Strike / Bite / Food ----
         ws.Section(
-            name="Stage 3 — Strike",
+            name="Stage 3 — Strike / Bite / Food",
             is_open=(stage == 3),
             panels=[
                 wr.LinePlot(
-                    title="Prey Distance (mean + min)",
+                    title="Prey / Food Distance (mean + min)",
                     x=x_axis,
                     y=[
                         "reward/prey_distance",
+                        "reward/head_food_distance",
                         "eval/mean_min_prey_distance",
                     ],
                     title_x="Training Steps",
                     title_y="Distance (m)",
                 ),
                 wr.LinePlot(
-                    title="Strike Success Rate",
+                    title="Strike / Bite / Food Success Rate",
                     x=x_axis,
-                    y=["reward/strike_success"],
+                    y=[
+                        "reward/strike_success",
+                        "reward/bite_success",
+                        "reward/food_reached",
+                        "eval/mean_success_rate",
+                    ],
                     title_x="Training Steps",
                     title_y="Success (0 or 1)",
                 ),
@@ -548,11 +563,15 @@ def _save_dashboard_config_fallback(stage: int) -> None:
         ],
         "stage3_strike": [
             {
-                "title": "Prey Distance (mean + min)",
-                "metrics": ["reward/prey_distance", "eval/mean_min_prey_distance"],
+                "title": "Prey / Food Distance (mean + min)",
+                "metrics": ["reward/prey_distance", "reward/head_food_distance", "eval/mean_min_prey_distance"],
                 "type": "multi_line",
             },
-            {"title": "Strike Success Rate", "metrics": ["reward/strike_success"], "type": "line"},
+            {
+                "title": "Strike / Bite / Food Success Rate",
+                "metrics": ["reward/strike_success", "reward/bite_success", "reward/food_reached", "eval/mean_success_rate"],
+                "type": "multi_line",
+            },
         ],
     }
     wandb.config.update({"dashboard_panels": panel_config}, allow_val_change=True)
