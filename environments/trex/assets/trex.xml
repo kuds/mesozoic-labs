@@ -16,8 +16,9 @@
     </default>
 
     <!-- Tail joints: very stiff, acts as heavy counterbalance to skull -->
+    <!-- Stiffness 80 + damping 30 prevents unactuated distal segments from sagging -->
     <default class="tail_joint">
-      <joint damping="20.0" stiffness="40.0" armature="0.05" range="-12 12"/>
+      <joint damping="30.0" stiffness="80.0" armature="0.05" range="-12 12"/>
     </default>
 
   </default>
@@ -294,7 +295,7 @@
          does NOT convert actuator attributes, only joint attributes. -->
 
     <!-- Head/neck control -->
-    <position name="neck_pitch_act" joint="neck_pitch" kp="150" ctrlrange="-0.5236 0.6981"/>
+    <position name="neck_pitch_act" joint="neck_pitch" kp="200" ctrlrange="-0.5236 0.6981"/>
     <position name="neck_yaw_act" joint="neck_yaw" kp="100" ctrlrange="-0.3491 0.3491"/>
     <position name="head_pitch_act" joint="head_pitch" kp="80" ctrlrange="-0.4363 0.6109"/>
 
@@ -320,6 +321,7 @@
     <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="100" ctrlrange="-0.2094 0.2094"/>
     <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="80" ctrlrange="-0.1396 0.1396"/>
     <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="80" ctrlrange="-0.2094 0.2094"/>
+    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="60" ctrlrange="-0.2094 0.2094"/>
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
@@ -382,7 +384,7 @@
          ctrl="0 0 0
                0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
                0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
-               0 0 0"/>
+               0 0 0 0"/>
   </keyframe>
 
 </mujoco>

@@ -420,11 +420,12 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
 
         term_reason = report.get("termination_reason", "truncated")
         logger.info(
-            "  Episode %d: reward=%.2f, length=%d, fwd_vel=%.3f m/s, ended=%s",
+            "  Episode %d: reward=%.2f, length=%d, fwd_vel=%.3f m/s, tilt=%.2f rad, ended=%s",
             ep + 1,
             total_reward,
             step,
             report.get("mean_forward_velocity", 0.0),
+            report.get("mean_tilt_angle", 0.0),
             term_reason,
         )
 
@@ -435,21 +436,57 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
     logger.info("=" * 60)
     logger.info("Evaluation Results (%d episodes)", n_episodes)
     logger.info("=" * 60)
-    logger.info("  Reward:      %.2f +/- %.2f", agg.get("mean_total_reward", 0), agg.get("std_total_reward", 0))
-    logger.info("  Ep Length:   %.1f +/- %.1f", agg.get("mean_episode_length", 0), agg.get("std_episode_length", 0))
+
+    # Core performance
+    logger.info("--- Core Performance ---")
+    logger.info("  Reward:       %.2f +/- %.2f", agg.get("mean_total_reward", 0), agg.get("std_total_reward", 0))
+    logger.info("  Ep Length:    %.1f +/- %.1f", agg.get("mean_episode_length", 0), agg.get("std_episode_length", 0))
+
+    # Velocity
+    logger.info("--- Velocity ---")
     logger.info(
-        "  Forward vel: %.3f +/- %.3f m/s",
+        "  Forward vel:  %.3f +/- %.3f m/s",
         agg.get("mean_mean_forward_velocity", 0),
         agg.get("std_mean_forward_velocity", 0),
     )
-    logger.info("  Distance:    %.3f m", agg.get("mean_total_distance", 0))
+    logger.info("  Max fwd vel:  %.3f m/s", agg.get("mean_max_forward_velocity", 0))
+    logger.info("  Consistency:  %.3f", agg.get("mean_velocity_consistency", 0))
+    logger.info("  Distance:     %.3f +/- %.3f m", agg.get("mean_total_distance", 0), agg.get("std_total_distance", 0))
 
+    # Gait quality
+    logger.info("--- Gait Quality ---")
+    logger.info("  Symmetry:     %.3f", agg.get("mean_gait_symmetry", 0))
+    logger.info("  Stride freq:  %.3f Hz", agg.get("mean_stride_frequency", 0))
+    logger.info("  Cost of transport: %.4f", agg.get("mean_cost_of_transport", 0))
+
+    # Balance
+    logger.info("--- Balance ---")
+    logger.info(
+        "  Torso height:  %.3f +/- %.3f m", agg.get("mean_mean_pelvis_height", 0), agg.get("std_mean_pelvis_height", 0)
+    )
+    logger.info(
+        "  Mean tilt:     %.3f +/- %.3f rad", agg.get("mean_mean_tilt_angle", 0), agg.get("std_mean_tilt_angle", 0)
+    )
+    logger.info("  Max tilt:      %.3f rad", agg.get("mean_max_tilt_angle", 0))
+
+    # Food reaching (stage 3)
+    if "mean_initial_prey_distance" in agg:
+        logger.info("--- Food Reaching ---")
+        logger.info("  Initial dist:   %.3f m", agg.get("mean_initial_prey_distance", 0))
+        logger.info("  Final dist:     %.3f m", agg.get("mean_final_prey_distance", 0))
+        logger.info("  Min dist:       %.3f m", agg.get("mean_min_prey_distance", 0))
+        logger.info("  Time to target: %.3f s", agg.get("mean_time_to_target", -1))
+    if "mean_success_rate" in agg:
+        logger.info("  Food reached:   %.1f%%", 100.0 * agg.get("mean_success_rate", 0))
+
+    # Termination reasons
     term_counts = agg.get("termination_counts")
     if term_counts:
         logger.info("--- Termination Reasons ---")
         for reason, count in sorted(term_counts.items(), key=lambda x: -x[1]):
             pct = 100.0 * count / n_episodes
             logger.info("  %-20s %d (%.0f%%)", reason, count, pct)
+
     logger.info("=" * 60)
 
 

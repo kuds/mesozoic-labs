@@ -41,6 +41,20 @@ Brachiosaurus differs from all other species in the project:
 2. **Locomotion** - Coordinated quadrupedal walking
 3. **Food Reach** - Navigate to food and extend neck
 
+## Diagnostic Metrics (Stage 3)
+
+After each training stage the `eval` command reports:
+
+| Metric | Description |
+|--------|-------------|
+| `mean_forward_velocity` | Average forward speed (m/s) |
+| `gait_symmetry` | Left/right stride symmetry ∈ [0, 1] |
+| `stride_frequency` | Step frequency (Hz) |
+| `cost_of_transport` | Energy efficiency (lower is better) |
+| `mean_pelvis_height` | Torso height stability (m) |
+| `success_rate` | Fraction of steps with food-reached event |
+| `min_prey_distance` | Closest approach to food (m, `head_food_distance`) |
+
 ## Usage
 
 ```bash
