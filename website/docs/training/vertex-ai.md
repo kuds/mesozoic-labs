@@ -2,6 +2,49 @@
 
 This guide covers how to run Mesozoic Labs training jobs on [Vertex AI](https://cloud.google.com/vertex-ai), Google Cloud's managed ML platform. Vertex AI lets you run the full 3-stage curriculum on cloud GPUs without managing infrastructure.
 
+## How Multi-Stage Curriculum Works in a Single Job
+
+**You do not need to submit one job per stage.** The `curriculum` subcommand runs all three stages end-to-end inside a single Docker container:
+
+```
+Stage 1 (Balance) → Stage 2 (Locomotion) → Stage 3 (Behavior)
+        └──────────── single Vertex AI job ────────────────┘
+```
+
+### Per-stage hyperparameters
+
+Each stage has its **own TOML config** (`configs/<species>/stage1_*.toml`, `stage2_*.toml`, `stage3_*.toml`). When the curriculum advances, the script loads that stage's config and re-initialises the model with those hyperparameters. This means you get a full hyperparameter shift at each stage automatically — no manual intervention required.
+
+The pattern across all three species follows a deliberate progression:
+
+| Hyperparameter | Stage 1 (Balance) | Stage 2 (Locomotion) | Stage 3 (Behavior) | Rationale |
+|---|---|---|---|---|
+| `learning_rate` | `3e-4` | `1e-4` | `5e-5` | Coarser search early, fine-tune late |
+| `ent_coef` | `0.005–0.01` | `0.005–0.01` | `0.001` | More exploration early, exploit late |
+| `clip_range` | `0.2` | `0.2` | `0.1` | Conservative updates for sparse rewards |
+| `gamma` | `0.99–0.998` | `0.99` | `0.995` | More farsighted for sparse strike/bite/food |
+| `n_steps` / `batch_size` | Smaller | Medium | Larger | Larger buffer for complex behaviour |
+
+The `env_kwargs` (reward weights, `alive_bonus`, `forward_vel_weight`, etc.) also change dramatically between stages — that is the whole point of curriculum learning.
+
+### Stage advancement logic
+
+The `CurriculumManager` checks thresholds after every `--eval-freq` steps. Both must be exceeded for `required_consecutive` evaluations in a row before the stage advances:
+
+| Threshold | What it checks |
+|---|---|
+| `min_avg_reward` | Mean episode reward over the evaluation window |
+| `min_avg_episode_length` | Mean episode length over the evaluation window |
+
+If the per-stage `timesteps` budget is exhausted before thresholds are met, the curriculum advances anyway — so the job always completes, regardless of agent performance. Checkpoints and VecNormalize stats are saved at the end of each stage.
+
+### When to use `curriculum` vs `train`
+
+| Command | Use when |
+|---|---|
+| `curriculum` | Full automated run — one job, stages 1–3 with per-stage hyperparameters applied automatically |
+| `train --stage N` | Re-running a single stage, loading from a specific checkpoint, or manually controlling stage budgets |
+
 ## Prerequisites
 
 - A Google Cloud project with billing enabled
@@ -55,51 +98,9 @@ docker run --rm ${IMAGE_URI} \
 
 ## 2. Submit a Training Job
 
-### Option A: Single-Stage Training
+### Option A: Full Curriculum — One Job (Recommended)
 
-Use the Vertex AI Python SDK to submit a single-stage training job:
-
-```python
-from google.cloud import aiplatform
-
-aiplatform.init(
-    project="YOUR_PROJECT_ID",
-    location="us-central1",
-    staging_bucket="gs://YOUR_BUCKET_NAME",
-)
-
-job = aiplatform.CustomJob(
-    display_name="raptor-stage1-balance",
-    worker_pool_specs=[
-        {
-            "machine_spec": {
-                "machine_type": "n1-standard-8",
-                "accelerator_type": "NVIDIA_TESLA_T4",
-                "accelerator_count": 1,
-            },
-            "replica_count": 1,
-            "container_spec": {
-                "image_uri": "us-central1-docker.pkg.dev/YOUR_PROJECT/mesozoic-labs/trainer:latest",
-                "command": ["python"],
-                "args": [
-                    "environments/velociraptor/scripts/train_sb3.py",
-                    "train",
-                    "--stage", "1",
-                    "--timesteps", "1000000",
-                    "--n-envs", "4",
-                ],
-            },
-        }
-    ],
-)
-
-job.run(sync=False)  # Submit and return immediately
-print(f"Job submitted: {job.resource_name}")
-```
-
-### Option B: Full Curriculum (Recommended)
-
-Run all three stages end-to-end with automatic advancement:
+Run all three stages end-to-end in a single job. Use `--output-dir` to write checkpoints directly to a mounted GCS path:
 
 ```python
 from google.cloud import aiplatform
@@ -111,6 +112,7 @@ aiplatform.init(
 )
 
 SPECIES = "velociraptor"
+IMAGE_URI = "us-central1-docker.pkg.dev/YOUR_PROJECT/mesozoic-labs/trainer:latest"
 
 job = aiplatform.CustomJob(
     display_name=f"{SPECIES}-curriculum-full",
@@ -123,19 +125,68 @@ job = aiplatform.CustomJob(
             },
             "replica_count": 1,
             "container_spec": {
-                "image_uri": "us-central1-docker.pkg.dev/YOUR_PROJECT/mesozoic-labs/trainer:latest",
+                "image_uri": IMAGE_URI,
                 "command": ["python"],
                 "args": [
                     f"environments/{SPECIES}/scripts/train_sb3.py",
                     "curriculum",
                     "--n-envs", "4",
+                    "--output-dir", f"/gcs/YOUR_BUCKET/training/{SPECIES}",
+                ],
+                "env": [
+                    {"name": "WANDB_API_KEY", "value": "YOUR_WANDB_KEY"},
+                ],
+            },
+        }
+    ],
+    base_output_dir=f"gs://YOUR_BUCKET/training/{SPECIES}",
+)
+
+job.run(sync=False)
+print(f"Job submitted: {job.resource_name}")
+```
+
+Vertex AI automatically mounts the `base_output_dir` bucket at `/gcs/YOUR_BUCKET/` inside the container.
+
+### Option B: Single-Stage Training
+
+Use this when you want to re-run one specific stage, pick up from a checkpoint, or manually control the timestep budget per stage:
+
+```python
+job = aiplatform.CustomJob(
+    display_name="raptor-stage1-balance",
+    worker_pool_specs=[
+        {
+            "machine_spec": {
+                "machine_type": "n1-standard-8",
+                "accelerator_type": "NVIDIA_TESLA_T4",
+                "accelerator_count": 1,
+            },
+            "replica_count": 1,
+            "container_spec": {
+                "image_uri": IMAGE_URI,
+                "command": ["python"],
+                "args": [
+                    "environments/velociraptor/scripts/train_sb3.py",
+                    "train",
+                    "--stage", "1",
+                    "--timesteps", "1000000",
+                    "--n-envs", "4",
+                    "--output-dir", "/gcs/YOUR_BUCKET/training/velociraptor/stage1",
                 ],
             },
         }
     ],
 )
-
 job.run(sync=False)
+```
+
+To chain stages manually, pass the previous stage's final model to `--load` in the next job:
+
+```python
+# Stage 2 picks up the Stage 1 final model
+"--load", "/gcs/YOUR_BUCKET/training/velociraptor/stage1/models/stage1_final.zip",
+"--stage", "2",
 ```
 
 ### Option C: Using `gcloud` CLI
@@ -147,7 +198,7 @@ gcloud ai custom-jobs create \
   --region=us-central1 \
   --display-name="raptor-curriculum" \
   --worker-pool-spec=machine-type=n1-standard-8,accelerator-type=NVIDIA_TESLA_T4,accelerator-count=1,replica-count=1,container-image-uri=${IMAGE_URI} \
-  --args="environments/velociraptor/scripts/train_sb3.py,curriculum,--n-envs,4"
+  --args="environments/velociraptor/scripts/train_sb3.py,curriculum,--n-envs,4,--output-dir,/gcs/YOUR_BUCKET/training/velociraptor"
 ```
 
 ## 3. Machine Type Selection
@@ -170,9 +221,7 @@ Choose your machine type based on budget and training needs:
 
 ## 4. Saving Checkpoints to GCS
 
-By default, training saves checkpoints to local disk inside the container. To persist them to GCS, mount a GCS bucket as the output directory.
-
-### Modify the training command to write to `/gcs/`:
+Use `--output-dir` (the preferred flag for cloud training) to point the script at a GCS-mounted path. Vertex AI mounts the job's `base_output_dir` bucket at `/gcs/<bucket>/` inside the container, so all outputs — models, VecNormalize stats, TensorBoard logs — land in cloud storage automatically.
 
 ```python
 job = aiplatform.CustomJob(
@@ -192,7 +241,7 @@ job = aiplatform.CustomJob(
                     "environments/velociraptor/scripts/train_sb3.py",
                     "curriculum",
                     "--n-envs", "4",
-                    "--log-dir", "/gcs/YOUR_BUCKET_NAME/training/velociraptor",
+                    "--output-dir", "/gcs/YOUR_BUCKET_NAME/training/velociraptor",
                 ],
                 "env": [
                     {"name": "WANDB_API_KEY", "value": "YOUR_WANDB_KEY"},
@@ -204,23 +253,63 @@ job = aiplatform.CustomJob(
 )
 ```
 
-Vertex AI automatically mounts the base output directory at `/gcs/YOUR_BUCKET_NAME/` inside the container.
+> **`--output-dir` vs `--log-dir`:** `--output-dir` takes precedence when both are specified. Use `--output-dir` for cloud training (GCS mounts, Vertex AI); use `--log-dir` for local runs where you want to pin the output path. If neither is provided, a timestamped subdirectory is created automatically.
 
-## 5. W&B Integration on Vertex AI
+## 5. Algorithm Selection and Hyperparameter Overrides
 
-To enable Weights & Biases logging from cloud training jobs, pass your API key as an environment variable:
+### Choosing an algorithm
+
+Pass `--algorithm sac` or `--algorithm ppo` to either subcommand. Each stage's TOML config has a `[ppo]` and a `[sac]` section, so per-stage hyperparameters are respected regardless of which algorithm you pick:
+
+```python
+"args": [
+    "environments/velociraptor/scripts/train_sb3.py",
+    "curriculum",
+    "--algorithm", "sac",
+    "--n-envs", "4",
+    "--output-dir", "/gcs/YOUR_BUCKET/training/velociraptor",
+],
+```
+
+### Overriding hyperparameters from the command line
+
+Use `--override` to change TOML config values without editing files. This is designed for Vertex AI hyperparameter sweep jobs. Keys use dot notation: `ppo.X`, `sac.X`, or `env.X`. Values are auto-cast to `int`, `float`, or `str`.
+
+```python
+"args": [
+    "environments/velociraptor/scripts/train_sb3.py",
+    "curriculum",
+    "--algorithm", "ppo",
+    "--output-dir", "/gcs/YOUR_BUCKET/training/velociraptor",
+    "--override", "ppo.learning_rate=1e-4", "ppo.ent_coef=0.02", "env.alive_bonus=3.0",
+],
+```
+
+> **Important:** `--override` applies the same value to **all three stages**. This is intentional for sweep jobs where you want a consistent adjustment. If you need different values per stage, use separate `train --stage N` jobs instead.
+
+## 6. W&B Integration on Vertex AI
+
+To enable Weights & Biases logging from cloud training jobs, add `--wandb` and pass your API key as an environment variable:
 
 ```python
 "container_spec": {
     "image_uri": IMAGE_URI,
     "command": ["python"],
-    "args": [...],
+    "args": [
+        "environments/velociraptor/scripts/train_sb3.py",
+        "curriculum",
+        "--n-envs", "4",
+        "--output-dir", "/gcs/YOUR_BUCKET/training/velociraptor",
+        "--wandb",
+    ],
     "env": [
         {"name": "WANDB_API_KEY", "value": "YOUR_WANDB_KEY"},
         {"name": "WANDB_PROJECT", "value": "mesozoic-labs"},
     ],
 },
 ```
+
+If `wandb` is not installed or `WANDB_API_KEY` is not set, the flag is silently ignored — training continues without W&B logging.
 
 **Security tip:** Use [Google Cloud Secret Manager](https://cloud.google.com/secret-manager) for production deployments instead of passing API keys directly:
 
@@ -230,7 +319,7 @@ echo -n "YOUR_WANDB_KEY" | gcloud secrets create wandb-api-key --data-file=-
 
 Then reference the secret in your job configuration.
 
-## 6. Training All Species in Parallel
+## 7. Training All Species in Parallel
 
 Submit training jobs for all three species simultaneously:
 
@@ -261,7 +350,11 @@ for species in SPECIES_LIST:
                         f"environments/{species}/scripts/train_sb3.py",
                         "curriculum",
                         "--n-envs", "4",
-                        "--log-dir", f"/gcs/YOUR_BUCKET/training/{species}",
+                        "--output-dir", f"/gcs/YOUR_BUCKET/training/{species}",
+                        "--wandb",
+                    ],
+                    "env": [
+                        {"name": "WANDB_API_KEY", "value": "YOUR_WANDB_KEY"},
                     ],
                 },
             }
@@ -273,7 +366,7 @@ for species in SPECIES_LIST:
     print(f"Submitted {species}: {job.resource_name}")
 ```
 
-## 7. Monitoring Jobs
+## 8. Monitoring Jobs
 
 ### From the Console
 
@@ -299,7 +392,7 @@ print(job.state)
 job.wait()
 ```
 
-## 8. Downloading Results
+## 9. Downloading Results
 
 After training completes, download checkpoints from GCS:
 
@@ -354,7 +447,7 @@ job = aiplatform.CustomJob(
                     "curriculum",
                     "--n-envs", "4",
                     "--save-freq", "25000",  # Save more frequently for preemption
-                    "--log-dir", "/gcs/YOUR_BUCKET/training/velociraptor",
+                    "--output-dir", "/gcs/YOUR_BUCKET/training/velociraptor",
                 ],
             },
         }
@@ -381,3 +474,7 @@ If training crashes with OOM, reduce `--n-envs` or switch to a machine type with
 ### Job gets preempted frequently
 
 Increase `--save-freq` to save checkpoints more often. Consider switching to on-demand VMs for the final stage (Stage 3) where you don't want to risk losing a long training run.
+
+## Next Steps
+
+Once you have a working training run, use Vertex AI's built-in Hyperparameter Tuning to automatically find the best learning rate, entropy coefficient, batch size, and more — without manually submitting one job per combination. See [Hyperparameter Sweeps](sweeps.md).

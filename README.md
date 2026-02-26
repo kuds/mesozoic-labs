@@ -126,10 +126,34 @@ pip install -e ".[train]"
 # View the velociraptor model
 python environments/velociraptor/scripts/view_model.py
 
-# Train stage 1 (balance)
+# Full 3-stage curriculum — one command, all stages handled automatically
+# (each stage loads its own hyperparameters from the TOML config)
 cd environments/velociraptor
-python scripts/train_sb3.py train --stage 1 --timesteps 1000000
+python scripts/train_sb3.py curriculum --algorithm ppo
 ```
+
+## Docker
+
+The repo ships a `Dockerfile` that bundles MuJoCo, Stable-Baselines3, and all training dependencies:
+
+```bash
+# Build
+docker build -t mesozoic-labs:latest .
+
+# Quick smoke-test (no GPU needed)
+docker run --rm mesozoic-labs:latest \
+  environments/velociraptor/scripts/train_sb3.py \
+  train --stage 1 --timesteps 1000 --n-envs 1
+
+# Full curriculum with GPU, writing outputs to local disk
+docker run --rm --gpus all \
+  -v "$(pwd)/outputs:/app/outputs" \
+  mesozoic-labs:latest \
+  environments/velociraptor/scripts/train_sb3.py \
+  curriculum --algorithm ppo --n-envs 4 --output-dir /app/outputs/velociraptor
+```
+
+See [Vertex AI training docs](website/docs/training/vertex-ai.md) for cloud deployment.
 
 ## Training Results
 

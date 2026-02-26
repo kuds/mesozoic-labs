@@ -38,10 +38,12 @@ Or use the included training script with curriculum learning:
 
 ```bash
 cd environments/velociraptor
-python scripts/train_sb3.py train --stage 1 --timesteps 1000000
 
-# Or run the full 3-stage curriculum automatically
-python scripts/train_sb3.py curriculum --timesteps 1000000
+# Single stage
+python scripts/train_sb3.py train --stage 1 --algorithm ppo --timesteps 1000000
+
+# Full 3-stage curriculum in one command (per-stage hyperparameters applied automatically)
+python scripts/train_sb3.py curriculum --algorithm ppo
 ```
 
 ## PPO Hyperparameters

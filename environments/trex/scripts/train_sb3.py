@@ -39,7 +39,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 try:
-    from stable_baselines3 import PPO
+    from stable_baselines3 import PPO, SAC
     from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
     from stable_baselines3.common.monitor import Monitor
     from stable_baselines3.common.utils import set_random_seed
@@ -48,17 +48,67 @@ except ImportError:
     logger.error("stable-baselines3 not installed. Install with: pip install stable-baselines3[extra]")
     sys.exit(1)
 
-from environments.shared.config import load_all_stages, save_stage_config
+from environments.shared.config import append_stage_result_csv, load_all_stages, save_stage_config
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,
     thresholds_from_configs,
 )
 from environments.shared.metrics import LocomotionMetrics
+from environments.shared.wandb_integration import WandbCallback, init_wandb, is_available as wandb_available
 from environments.trex.envs.trex_env import TRexEnv
 
 # Load curriculum configs from TOML files (configs/trex/)
 STAGE_CONFIGS = load_all_stages("trex")
+
+
+def linear_schedule(initial_lr: float, final_lr: float):
+    """Return a callable that linearly decays learning rate from initial_lr to final_lr."""
+
+    def schedule(progress_remaining: float) -> float:
+        return final_lr + progress_remaining * (initial_lr - final_lr)
+
+    return schedule
+
+
+def _cast_value(v: str):
+    """Auto-cast a string value to int, float, or keep as string."""
+    try:
+        return int(v)
+    except ValueError:
+        try:
+            return float(v)
+        except ValueError:
+            return v
+
+
+def _apply_overrides(configs: dict, overrides: list | None) -> None:
+    """Apply dot-notation key=value overrides to stage configs.
+
+    Two formats are supported:
+    - ``section.key=value``   — applies to **all** stages (e.g. ``ppo.learning_rate=1e-4``)
+    - ``N.section.key=value`` — applies to stage N only  (e.g. ``2.ppo.learning_rate=5e-5``)
+    """
+    if not overrides:
+        return
+    for item in overrides:
+        key, _, raw_value = item.partition("=")
+        value = _cast_value(raw_value)
+        parts = key.split(".")
+        if len(parts) == 3 and parts[0].isdigit():
+            # Stage-scoped override: N.section.key
+            stage_num, section, param = int(parts[0]), parts[1], parts[2]
+            kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
+            if stage_num in configs:
+                configs[stage_num][kwargs_key][param] = value
+                logger.info("Stage %d override: %s.%s = %r", stage_num, section, param, value)
+        else:
+            # All-stage override: section.key
+            section, _, param = key.partition(".")
+            kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
+            for stage_config in configs.values():
+                stage_config[kwargs_key][param] = value
+            logger.info("Override applied: %s.%s = %r", section, param, value)
 
 
 def make_env(stage: int, rank: int, seed: int = 0):
@@ -104,6 +154,9 @@ def train(
     log_dir: str | None = None,
     use_subproc: bool = False,
     verbose: int = 1,
+    algorithm: str = "ppo",
+    use_wandb: bool = False,
+    output_dir: str | None = None,
 ):
     """Train the T-Rex policy."""
 
@@ -116,7 +169,9 @@ def train(
     # Setup directories (organised as <species>/<datetime>/)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path: Path
-    if log_dir is None:
+    if output_dir is not None:
+        log_path = Path(output_dir)
+    elif log_dir is None:
         log_path = Path(__file__).parent.parent / "logs" / "trex" / f"stage{stage}_{timestamp}"
     else:
         log_path = Path(log_dir)
@@ -133,7 +188,7 @@ def train(
         log_path,
         stage,
         config,
-        "PPO",
+        algorithm.upper(),
         extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
     )
 
@@ -143,27 +198,41 @@ def train(
     logger.info("Creating evaluation environment...")
     eval_env = create_vec_env(stage, 1, seed + 1000, use_subproc=False)
 
-    ppo_kwargs = config["ppo_kwargs"].copy()
-    ppo_kwargs["verbose"] = verbose
-    ppo_kwargs["tensorboard_log"] = str(log_path / "tensorboard")
+    alg_cls = SAC if algorithm == "sac" else PPO
+    alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
+    alg_kwargs["verbose"] = verbose
+    alg_kwargs["tensorboard_log"] = str(log_path / "tensorboard")
+
+    # Apply linear LR schedule if learning_rate_end is specified (PPO only)
+    if algorithm == "ppo":
+        lr_end = alg_kwargs.pop("learning_rate_end", None)
+        if lr_end is not None:
+            lr_start = alg_kwargs["learning_rate"]
+            alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
+            logger.info("Using linear LR schedule: %s -> %s", lr_start, lr_end)
+
+    wandb_run = None
+    if use_wandb:
+        wandb_run = init_wandb(species="trex", stage=stage, config=config)
+        logger.info("W&B run initialized.")
 
     if load_path:
         logger.info("Loading model from: %s", load_path)
         # Pass all stage hyperparameters so rollout buffer, gamma, etc. are
         # re-initialised correctly for the new stage.
-        model = PPO.load(load_path, env=train_env, **ppo_kwargs)
+        model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
     else:
-        logger.info("Creating new PPO model...")
-        model = PPO(
+        logger.info("Creating new %s model...", algorithm.upper())
+        model = alg_cls(
             "MlpPolicy",
             train_env,
-            **ppo_kwargs,
+            **alg_kwargs,
         )
 
     logger.info("Model architecture:")
     logger.info("  Policy: %s", model.policy)
     logger.info("  Learning rate: %s", model.learning_rate)
-    logger.info("  Batch size: %s", ppo_kwargs["batch_size"])
+    logger.info("  Batch size: %s", alg_kwargs["batch_size"])
 
     callbacks = []
 
@@ -187,6 +256,9 @@ def train(
     )
     callbacks.append(checkpoint_callback)
 
+    if use_wandb:
+        callbacks.append(WandbCallback())
+
     callback_list = CallbackList(callbacks)
 
     logger.info("Starting training for %s timesteps...", f"{total_timesteps:,}")
@@ -200,6 +272,23 @@ def train(
         )
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user.")
+
+    if wandb_run is not None:
+        wandb_run.finish()
+
+    # Report best eval reward to Vertex AI HPT (no-op when cloudml-hypertune not installed)
+    try:
+        import hypertune as _hypertune
+
+        _hpt = _hypertune.HyperTune()
+        _hpt.report_hyperparameter_tuning_metric(
+            hyperparameter_metric_tag="best_mean_reward",
+            metric_value=eval_callback.best_mean_reward,
+            global_step=total_timesteps,
+        )
+        logger.info("HPT metric reported: best_mean_reward=%.4f", eval_callback.best_mean_reward)
+    except ImportError:
+        pass
 
     final_path = model_dir / f"stage{stage}_final"
     logger.info("Saving final model to: %s", final_path)
@@ -226,6 +315,9 @@ def train_curriculum(
     log_dir: str | None = None,
     use_subproc: bool = False,
     verbose: int = 1,
+    algorithm: str = "ppo",
+    use_wandb: bool = False,
+    output_dir: str | None = None,
 ):
     """Run the full 3-stage curriculum with automatic advancement."""
     thresholds = thresholds_from_configs(STAGE_CONFIGS)
@@ -235,7 +327,9 @@ def train_curriculum(
     )
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    if log_dir is None:
+    if output_dir is not None:
+        base_dir = Path(output_dir)
+    elif log_dir is None:
         base_dir = Path(__file__).parent.parent / "logs" / "trex" / f"curriculum_{timestamp}"
     else:
         base_dir = Path(log_dir)
@@ -270,24 +364,37 @@ def train_curriculum(
             stage_dir,
             stage,
             config,
-            "PPO",
+            algorithm.upper(),
             extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
         )
 
         train_env = create_vec_env(stage, n_envs, seed, use_subproc)
         eval_env = create_vec_env(stage, 1, seed + 1000, use_subproc=False)
 
-        ppo_kwargs = config["ppo_kwargs"].copy()
-        ppo_kwargs["verbose"] = verbose
-        ppo_kwargs["tensorboard_log"] = str(stage_dir / "tensorboard")
+        alg_cls = SAC if algorithm == "sac" else PPO
+        alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
+        alg_kwargs["verbose"] = verbose
+        alg_kwargs["tensorboard_log"] = str(stage_dir / "tensorboard")
+
+        # Apply linear LR schedule if learning_rate_end is specified (PPO only)
+        if algorithm == "ppo":
+            lr_end = alg_kwargs.pop("learning_rate_end", None)
+            if lr_end is not None:
+                lr_start = alg_kwargs["learning_rate"]
+                alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
+                logger.info("Using linear LR schedule: %s -> %s", lr_start, lr_end)
+
+        wandb_run = None
+        if use_wandb:
+            wandb_run = init_wandb(species="trex", stage=stage, config=config)
 
         if load_path:
             logger.info("Loading model from previous stage: %s", load_path)
             # Pass all stage hyperparameters so rollout buffer, gamma, etc. are
             # re-initialised correctly for the new stage.
-            model = PPO.load(load_path, env=train_env, **ppo_kwargs)
+            model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
         else:
-            model = PPO("MlpPolicy", train_env, **ppo_kwargs)
+            model = alg_cls("MlpPolicy", train_env, **alg_kwargs)
 
         callbacks = []
 
@@ -331,6 +438,9 @@ def train_curriculum(
             logger.warning("Training interrupted by user.")
             break
 
+        if wandb_run is not None:
+            wandb_run.finish()
+
         final_path = model_dir / f"stage{stage}_final"
         model.save(str(final_path))
         train_env.save(str(final_path) + "_vecnorm.pkl")
@@ -340,6 +450,29 @@ def train_curriculum(
 
         train_env.close()
         eval_env.close()
+
+        # Record stage hyperparameters and outcome to CSV
+        algo_key = "sac_kwargs" if algorithm == "sac" else "ppo_kwargs"
+        result_row: dict = {
+            "stage": stage,
+            "stage_name": config["name"],
+            "algorithm": algorithm,
+            "seed": seed,
+            "n_envs": n_envs,
+            "timesteps": total_timesteps,
+        }
+        for hp_key, hp_val in config[algo_key].items():
+            result_row[hp_key] = hp_val if isinstance(hp_val, (int, float, bool, str, type(None))) else str(hp_val)
+        for env_key, env_val in config["env_kwargs"].items():
+            if not isinstance(env_val, (list, tuple)):
+                result_row[f"env_{env_key}"] = env_val
+        result_row["best_mean_reward"] = eval_callback.best_mean_reward
+        result_row["reward_threshold"] = cur_kwargs.get("min_avg_reward")
+        result_row["stage_passed"] = bool(
+            stage == 3 or (curriculum_cb is not None and curriculum_cb.ready_to_advance)
+        )
+        append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)
+        logger.info("Stage %d result appended to: %s", stage, base_dir / "curriculum_results.csv")
 
         if curriculum_cb and curriculum_cb.ready_to_advance:
             manager.advance()
@@ -357,7 +490,7 @@ def train_curriculum(
     logger.info("=" * 60)
 
 
-def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: int | None = None):
+def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: int | None = None, algorithm: str = "ppo"):
     """Evaluate a trained model."""
     logger.info("Loading model from: %s", model_path)
 
@@ -391,7 +524,8 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
     else:
         logger.warning("No VecNormalize stats found.")
 
-    model = PPO.load(model_path, env=vec_env)
+    alg_cls = SAC if algorithm == "sac" else PPO
+    model = alg_cls.load(model_path, env=vec_env)
 
     config_name = STAGE_CONFIGS[stage]["name"]
     logger.info("Evaluating for %d episodes (stage %d: %s)...", n_episodes, stage, config_name)
@@ -517,8 +651,23 @@ def main():
         default=1,
         help="Verbose level: 0=eval results only, 1=training stats + progress bar (default), 2=debug",
     )
-
-    # Curriculum command
+    train_parser.add_argument(
+        "--algorithm", type=str, choices=["ppo", "sac"], default="ppo", help="RL algorithm (ppo or sac)"
+    )
+    train_parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging")
+    train_parser.add_argument(
+        "--override",
+        nargs="*",
+        default=None,
+        metavar="KEY=VALUE",
+        help="Override config values, e.g. ppo.learning_rate=1e-4 env.alive_bonus=5.0",
+    )
+    train_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Base output directory for all artifacts (preferred for cloud/GCS training)",
+    )
     cur_parser = subparsers.add_parser("curriculum", help="Run automated end-to-end curriculum (stages 1-3)")
     cur_parser.add_argument("--n-envs", type=int, default=4, help="Number of parallel environments")
     cur_parser.add_argument("--seed", type=int, default=42, help="Random seed")
@@ -533,6 +682,23 @@ def main():
         default=1,
         help="Verbose level: 0=eval results only, 1=training stats + progress bar (default), 2=debug",
     )
+    cur_parser.add_argument(
+        "--algorithm", type=str, choices=["ppo", "sac"], default="ppo", help="RL algorithm (ppo or sac)"
+    )
+    cur_parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging")
+    cur_parser.add_argument(
+        "--override",
+        nargs="*",
+        default=None,
+        metavar="KEY=VALUE",
+        help="Override config values, e.g. ppo.learning_rate=1e-4 env.alive_bonus=5.0",
+    )
+    cur_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Base output directory for all artifacts (preferred for cloud/GCS training)",
+    )
 
     # Eval command
     eval_parser = subparsers.add_parser("eval", help="Evaluate a trained policy")
@@ -542,6 +708,9 @@ def main():
     )
     eval_parser.add_argument("--episodes", type=int, default=10, help="Number of evaluation episodes")
     eval_parser.add_argument("--no-render", action="store_true", help="Disable rendering")
+    eval_parser.add_argument(
+        "--algorithm", type=str, choices=["ppo", "sac"], default="ppo", help="RL algorithm used for training"
+    )
 
     args = parser.parse_args()
 
@@ -557,7 +726,12 @@ def main():
             args.log_dir = None
             args.subproc = False
             args.verbose = 1
+            args.algorithm = "ppo"
+            args.wandb = False
+            args.override = None
+            args.output_dir = None
 
+        _apply_overrides(STAGE_CONFIGS, args.override)
         train(
             stage=args.stage,
             total_timesteps=args.timesteps,
@@ -569,9 +743,13 @@ def main():
             log_dir=args.log_dir,
             use_subproc=args.subproc,
             verbose=args.verbose,
+            algorithm=args.algorithm,
+            use_wandb=args.wandb,
+            output_dir=args.output_dir,
         )
 
     elif args.command == "curriculum":
+        _apply_overrides(STAGE_CONFIGS, args.override)
         train_curriculum(
             n_envs=args.n_envs,
             seed=args.seed,
@@ -580,6 +758,9 @@ def main():
             log_dir=args.log_dir,
             use_subproc=args.subproc,
             verbose=args.verbose,
+            algorithm=args.algorithm,
+            use_wandb=args.wandb,
+            output_dir=args.output_dir,
         )
 
     elif args.command == "eval":
@@ -588,6 +769,7 @@ def main():
             n_episodes=args.episodes,
             render=not args.no_render,
             stage=args.stage,
+            algorithm=args.algorithm,
         )
 
 
