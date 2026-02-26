@@ -39,7 +39,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 try:
-    from stable_baselines3 import PPO
+    from stable_baselines3 import PPO, SAC
     from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
     from stable_baselines3.common.monitor import Monitor
     from stable_baselines3.common.utils import set_random_seed
@@ -56,9 +56,44 @@ from environments.shared.curriculum import (
     thresholds_from_configs,
 )
 from environments.shared.metrics import LocomotionMetrics
+from environments.shared.wandb_integration import WandbCallback, init_wandb, is_available as wandb_available
 
 # Load curriculum configs from TOML files (configs/brachiosaurus/)
 STAGE_CONFIGS = load_all_stages("brachiosaurus")
+
+
+def linear_schedule(initial_lr: float, final_lr: float):
+    """Return a callable that linearly decays learning rate from initial_lr to final_lr."""
+
+    def schedule(progress_remaining: float) -> float:
+        return final_lr + progress_remaining * (initial_lr - final_lr)
+
+    return schedule
+
+
+def _cast_value(v: str):
+    """Auto-cast a string value to int, float, or keep as string."""
+    try:
+        return int(v)
+    except ValueError:
+        try:
+            return float(v)
+        except ValueError:
+            return v
+
+
+def _apply_overrides(configs: dict, overrides: list | None) -> None:
+    """Apply dot-notation key=value overrides to all stage configs."""
+    if not overrides:
+        return
+    for item in overrides:
+        key, _, raw_value = item.partition("=")
+        section, _, param = key.partition(".")
+        value = _cast_value(raw_value)
+        kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
+        for stage_config in configs.values():
+            stage_config[kwargs_key][param] = value
+        logger.info("Override applied: %s.%s = %r", section, param, value)
 
 
 def make_env(stage: int, rank: int, seed: int = 0):
@@ -104,6 +139,9 @@ def train(
     log_dir: str | None = None,
     use_subproc: bool = False,
     verbose: int = 1,
+    algorithm: str = "ppo",
+    use_wandb: bool = False,
+    output_dir: str | None = None,
 ):
     """Train the brachiosaurus policy."""
 
@@ -116,7 +154,9 @@ def train(
     # Setup directories (organised as <species>/<datetime>/)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_path: Path
-    if log_dir is None:
+    if output_dir is not None:
+        log_path = Path(output_dir)
+    elif log_dir is None:
         log_path = Path(__file__).parent.parent / "logs" / "brachiosaurus" / f"stage{stage}_{timestamp}"
     else:
         log_path = Path(log_dir)
@@ -133,7 +173,7 @@ def train(
         log_path,
         stage,
         config,
-        "PPO",
+        algorithm.upper(),
         extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
     )
 
@@ -143,27 +183,41 @@ def train(
     logger.info("Creating evaluation environment...")
     eval_env = create_vec_env(stage, 1, seed + 1000, use_subproc=False)
 
-    ppo_kwargs = config["ppo_kwargs"].copy()
-    ppo_kwargs["verbose"] = verbose
-    ppo_kwargs["tensorboard_log"] = str(log_path / "tensorboard")
+    alg_cls = SAC if algorithm == "sac" else PPO
+    alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
+    alg_kwargs["verbose"] = verbose
+    alg_kwargs["tensorboard_log"] = str(log_path / "tensorboard")
+
+    # Apply linear LR schedule if learning_rate_end is specified (PPO only)
+    if algorithm == "ppo":
+        lr_end = alg_kwargs.pop("learning_rate_end", None)
+        if lr_end is not None:
+            lr_start = alg_kwargs["learning_rate"]
+            alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
+            logger.info("Using linear LR schedule: %s -> %s", lr_start, lr_end)
+
+    wandb_run = None
+    if use_wandb:
+        wandb_run = init_wandb(species="brachiosaurus", stage=stage, config=config)
+        logger.info("W&B run initialized.")
 
     if load_path:
         logger.info("Loading model from: %s", load_path)
         # Pass all stage hyperparameters so rollout buffer, gamma, etc. are
         # re-initialised correctly for the new stage.
-        model = PPO.load(load_path, env=train_env, **ppo_kwargs)
+        model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
     else:
-        logger.info("Creating new PPO model...")
-        model = PPO(
+        logger.info("Creating new %s model...", algorithm.upper())
+        model = alg_cls(
             "MlpPolicy",
             train_env,
-            **ppo_kwargs,
+            **alg_kwargs,
         )
 
     logger.info("Model architecture:")
     logger.info("  Policy: %s", model.policy)
     logger.info("  Learning rate: %s", model.learning_rate)
-    logger.info("  Batch size: %s", ppo_kwargs["batch_size"])
+    logger.info("  Batch size: %s", alg_kwargs["batch_size"])
 
     callbacks = []
 
@@ -187,6 +241,9 @@ def train(
     )
     callbacks.append(checkpoint_callback)
 
+    if use_wandb:
+        callbacks.append(WandbCallback())
+
     callback_list = CallbackList(callbacks)
 
     logger.info("Starting training for %s timesteps...", f"{total_timesteps:,}")
@@ -200,6 +257,9 @@ def train(
         )
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user.")
+
+    if wandb_run is not None:
+        wandb_run.finish()
 
     final_path = model_dir / f"stage{stage}_final"
     logger.info("Saving final model to: %s", final_path)
@@ -226,6 +286,9 @@ def train_curriculum(
     log_dir: str | None = None,
     use_subproc: bool = False,
     verbose: int = 1,
+    algorithm: str = "ppo",
+    use_wandb: bool = False,
+    output_dir: str | None = None,
 ):
     """Run the full 3-stage curriculum with automatic advancement."""
     thresholds = thresholds_from_configs(STAGE_CONFIGS)
@@ -235,7 +298,9 @@ def train_curriculum(
     )
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    if log_dir is None:
+    if output_dir is not None:
+        base_dir = Path(output_dir)
+    elif log_dir is None:
         base_dir = Path(__file__).parent.parent / "logs" / "brachiosaurus" / f"curriculum_{timestamp}"
     else:
         base_dir = Path(log_dir)
@@ -270,24 +335,37 @@ def train_curriculum(
             stage_dir,
             stage,
             config,
-            "PPO",
+            algorithm.upper(),
             extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
         )
 
         train_env = create_vec_env(stage, n_envs, seed, use_subproc)
         eval_env = create_vec_env(stage, 1, seed + 1000, use_subproc=False)
 
-        ppo_kwargs = config["ppo_kwargs"].copy()
-        ppo_kwargs["verbose"] = verbose
-        ppo_kwargs["tensorboard_log"] = str(stage_dir / "tensorboard")
+        alg_cls = SAC if algorithm == "sac" else PPO
+        alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
+        alg_kwargs["verbose"] = verbose
+        alg_kwargs["tensorboard_log"] = str(stage_dir / "tensorboard")
+
+        # Apply linear LR schedule if learning_rate_end is specified (PPO only)
+        if algorithm == "ppo":
+            lr_end = alg_kwargs.pop("learning_rate_end", None)
+            if lr_end is not None:
+                lr_start = alg_kwargs["learning_rate"]
+                alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
+                logger.info("Using linear LR schedule: %s -> %s", lr_start, lr_end)
+
+        wandb_run = None
+        if use_wandb:
+            wandb_run = init_wandb(species="brachiosaurus", stage=stage, config=config)
 
         if load_path:
             logger.info("Loading model from previous stage: %s", load_path)
             # Pass all stage hyperparameters so rollout buffer, gamma, etc. are
             # re-initialised correctly for the new stage.
-            model = PPO.load(load_path, env=train_env, **ppo_kwargs)
+            model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
         else:
-            model = PPO("MlpPolicy", train_env, **ppo_kwargs)
+            model = alg_cls("MlpPolicy", train_env, **alg_kwargs)
 
         callbacks = []
 
@@ -331,6 +409,9 @@ def train_curriculum(
             logger.warning("Training interrupted by user.")
             break
 
+        if wandb_run is not None:
+            wandb_run.finish()
+
         final_path = model_dir / f"stage{stage}_final"
         model.save(str(final_path))
         train_env.save(str(final_path) + "_vecnorm.pkl")
@@ -357,7 +438,7 @@ def train_curriculum(
     logger.info("=" * 60)
 
 
-def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: int | None = None):
+def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: int | None = None, algorithm: str = "ppo"):
     """Evaluate a trained model."""
     logger.info("Loading model from: %s", model_path)
 
@@ -391,7 +472,8 @@ def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: 
     else:
         logger.warning("No VecNormalize stats found.")
 
-    model = PPO.load(model_path, env=vec_env)
+    alg_cls = SAC if algorithm == "sac" else PPO
+    model = alg_cls.load(model_path, env=vec_env)
 
     config_name = STAGE_CONFIGS[stage]["name"]
     logger.info("Evaluating for %d episodes (stage %d: %s)...", n_episodes, stage, config_name)
@@ -521,6 +603,23 @@ def main():
         default=1,
         help="Verbose level: 0=eval results only, 1=training stats + progress bar (default), 2=debug",
     )
+    train_parser.add_argument(
+        "--algorithm", type=str, choices=["ppo", "sac"], default="ppo", help="RL algorithm (ppo or sac)"
+    )
+    train_parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging")
+    train_parser.add_argument(
+        "--override",
+        nargs="*",
+        default=None,
+        metavar="KEY=VALUE",
+        help="Override config values, e.g. ppo.learning_rate=1e-4 env.alive_bonus=5.0",
+    )
+    train_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Base output directory for all artifacts (preferred for cloud/GCS training)",
+    )
 
     # Curriculum command
     cur_parser = subparsers.add_parser("curriculum", help="Run automated end-to-end curriculum (stages 1-3)")
@@ -537,6 +636,23 @@ def main():
         default=1,
         help="Verbose level: 0=eval results only, 1=training stats + progress bar (default), 2=debug",
     )
+    cur_parser.add_argument(
+        "--algorithm", type=str, choices=["ppo", "sac"], default="ppo", help="RL algorithm (ppo or sac)"
+    )
+    cur_parser.add_argument("--wandb", action="store_true", help="Enable Weights & Biases logging")
+    cur_parser.add_argument(
+        "--override",
+        nargs="*",
+        default=None,
+        metavar="KEY=VALUE",
+        help="Override config values, e.g. ppo.learning_rate=1e-4 env.alive_bonus=5.0",
+    )
+    cur_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Base output directory for all artifacts (preferred for cloud/GCS training)",
+    )
 
     # Eval command
     eval_parser = subparsers.add_parser("eval", help="Evaluate a trained policy")
@@ -550,6 +666,9 @@ def main():
     )
     eval_parser.add_argument("--episodes", type=int, default=10, help="Number of episodes to evaluate")
     eval_parser.add_argument("--no-render", action="store_true", help="Disable rendering")
+    eval_parser.add_argument(
+        "--algorithm", type=str, choices=["ppo", "sac"], default="ppo", help="RL algorithm used for training"
+    )
 
     args = parser.parse_args()
 
@@ -565,7 +684,12 @@ def main():
             args.log_dir = None
             args.subproc = False
             args.verbose = 1
+            args.algorithm = "ppo"
+            args.wandb = False
+            args.override = None
+            args.output_dir = None
 
+        _apply_overrides(STAGE_CONFIGS, args.override)
         train(
             stage=args.stage,
             total_timesteps=args.timesteps,
@@ -577,9 +701,13 @@ def main():
             log_dir=args.log_dir,
             use_subproc=args.subproc,
             verbose=args.verbose,
+            algorithm=args.algorithm,
+            use_wandb=args.wandb,
+            output_dir=args.output_dir,
         )
 
     elif args.command == "curriculum":
+        _apply_overrides(STAGE_CONFIGS, args.override)
         train_curriculum(
             n_envs=args.n_envs,
             seed=args.seed,
@@ -588,6 +716,9 @@ def main():
             log_dir=args.log_dir,
             use_subproc=args.subproc,
             verbose=args.verbose,
+            algorithm=args.algorithm,
+            use_wandb=args.wandb,
+            output_dir=args.output_dir,
         )
 
     elif args.command == "eval":
@@ -596,6 +727,7 @@ def main():
             n_episodes=args.episodes,
             render=not args.no_render,
             stage=args.stage,
+            algorithm=args.algorithm,
         )
 
 
