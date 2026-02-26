@@ -74,6 +74,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add repo root to Python path so environments.* imports work
 _repo_root = str(Path(__file__).resolve().parents[3])
@@ -213,7 +214,7 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
     )
 
 
-def _build_parameter_spec(search_space: dict, hpt_module: object) -> dict:
+def _build_parameter_spec(search_space: dict, hpt_module: Any) -> dict:
     """Convert a search-space dict to Vertex AI parameter spec objects."""
     hpt = hpt_module
     parameter_spec: dict = {}
@@ -234,7 +235,7 @@ def _build_parameter_spec(search_space: dict, hpt_module: object) -> dict:
     return parameter_spec
 
 
-def _collect_trial_results(hpt_job: object, stage: int, stage_config: dict) -> list[dict]:
+def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list[dict]:
     """Extract per-trial hyperparameters and outcomes from a completed HPT job.
 
     Each returned dict contains:
@@ -303,7 +304,7 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
     return path
 
 
-def _best_trial_model_path(hpt_job: object, bucket: str, species: str, stage: int) -> str:
+def _best_trial_model_path(hpt_job: Any, bucket: str, species: str, stage: int) -> str:
     """Return the GCS container-mount path of the best trial's final model.
 
     Each trial writes its checkpoint to::
