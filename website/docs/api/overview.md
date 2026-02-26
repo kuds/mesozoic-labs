@@ -139,3 +139,60 @@ python scripts/train_sb3.py train --stage 1 --timesteps 1000000
 python scripts/train_sb3.py train --stage 2 --timesteps 1000000 --load models/stage1_final.zip
 python scripts/train_sb3.py eval models/stage2_final.zip --stage 2
 ```
+
+## Diagnostic Metrics
+
+The `LocomotionMetrics` class (from `environments.shared.metrics`) automatically computes
+eight diagnostic metrics during evaluation. Call `record_step(info, reward)` each step, then
+`compute()` at episode end.
+
+```python
+from environments.shared.metrics import LocomotionMetrics
+
+metrics = LocomotionMetrics()
+obs, info = env.reset()
+for _ in range(1000):
+    action = model.predict(obs)[0]
+    obs, reward, terminated, truncated, info = env.step(action)
+    metrics.record_step(info, reward)
+    if terminated or truncated:
+        break
+
+report = metrics.compute()
+agg = LocomotionMetrics.aggregate_episodes([report])
+```
+
+### Locomotion Health Metrics
+
+| Metric key | Description | Species |
+|---|---|---|
+| `mean_forward_velocity` | Mean forward speed (m/s) | All |
+| `cost_of_transport` | Energy per unit distance per unit weight | All |
+| `mean_pelvis_height` | Mean pelvis z-position (m) | T-Rex, Velociraptor |
+| `gait_symmetry` | Left/right stride symmetry ∈ [0, 1] | All |
+| `stride_frequency` | Mean step frequency (Hz) | All |
+| `mean_tilt_angle` | Mean body tilt angle (rad) | All |
+| `termination_reason` | Reason episode ended | All |
+
+### Behavioral Metrics
+
+| Metric key | Description | Species |
+|---|---|---|
+| `mean_heading_alignment` | cos θ alignment toward prey ∈ [-1, 1] | T-Rex, Velociraptor |
+| `mean_contact_asymmetry` | Left/right contact imbalance ∈ [0, 1] | All |
+| `success_rate` | Fraction of steps with a success event | All |
+| `min_prey_distance` | Minimum distance reached to prey (m) | T-Rex, Velociraptor |
+| `min_prey_distance` | Minimum distance reached to food (m) | Brachiosaurus |
+
+### Species-Specific Key Mapping
+
+| Metric | T-Rex | Velociraptor | Brachiosaurus |
+|---|---|---|---|
+| Height key | `pelvis_height` | `pelvis_height` | `torso_height` |
+| Success key | `bite_success` | `strike_success` | `food_reached` |
+| Prey/food key | `prey_distance` | `prey_distance` | `head_food_distance` |
+| Heading | ✓ | ✓ | N/A |
+
+The `evaluate` command in each `train_sb3.py` script prints all metrics above grouped
+into **Core Performance**, **Velocity**, **Gait Quality**, **Balance**, and a species-specific
+**Hunting / Food Reaching** section.
