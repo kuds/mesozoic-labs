@@ -6,9 +6,13 @@ description = "Learn to stand and balance without falling"
 forward_vel_weight = 0.0
 alive_bonus = 2.0
 energy_penalty_weight = 0.05
-tail_stability_weight = 0.1
-posture_weight = 1.5
-nosedive_weight = 2.0
+tail_stability_weight = 0.15
+posture_weight = 2.0
+nosedive_weight = 3.0
+smoothness_weight = 0.1
+gait_symmetry_weight = 0.0     # Disable: default formula rewards single-foot stance, bad for balance
+height_weight = 1.0            # Reward maintaining pelvis height near target (0.90m)
+fall_penalty = -50.0           # Reduce from -100 to lower gradient variance
 bite_bonus = 0.0
 bite_approach_weight = 0.0
 prey_distance_range = [10.0, 15.0]
@@ -16,10 +20,10 @@ max_episode_steps = 500
 
 [ppo]
 learning_rate = 3e-4
-n_steps = 2048
-batch_size = 64
+n_steps = 4096
+batch_size = 128
 n_epochs = 10
-gamma = 0.995
+gamma = 0.998
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
@@ -32,7 +36,7 @@ tau = 0.005
 ent_coef = "auto"
 
 [curriculum]
-timesteps = 4000000
+timesteps = 6000000
 min_avg_reward = 100.0
 min_avg_episode_length = 300
 required_consecutive = 3

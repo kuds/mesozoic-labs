@@ -18,7 +18,7 @@ class TestBasicFunctionality:
     def test_spaces_are_valid(self, env):
         assert env.observation_space.shape == (83,)
         assert env.observation_space.dtype == np.float32
-        assert env.action_space.shape == (20,)
+        assert env.action_space.shape == (21,)
         assert np.all(env.action_space.low == -1.0)
         assert np.all(env.action_space.high == 1.0)
 
@@ -59,6 +59,7 @@ class TestBasicFunctionality:
             "reward_approach",
             "reward_posture",
             "reward_nosedive",
+            "reward_height",
             "reward_gait",
             "reward_smoothness",
             "reward_heading",
