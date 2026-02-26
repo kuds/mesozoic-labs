@@ -63,6 +63,7 @@ class TRexEnv(BaseDinoEnv):
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
         natural_pitch: float = 0.17,
+        height_weight: float = 0.0,
         gait_symmetry_weight: float = 0.1,
         smoothness_weight: float = 0.05,
         heading_weight: float = 0.0,
@@ -80,6 +81,7 @@ class TRexEnv(BaseDinoEnv):
         self.bite_approach_weight = bite_approach_weight
         self.posture_weight = posture_weight
         self.nosedive_weight = nosedive_weight
+        self.height_weight = height_weight
         self.gait_symmetry_weight = gait_symmetry_weight
         self.smoothness_weight = smoothness_weight
         self.heading_weight = heading_weight
@@ -313,7 +315,15 @@ class TRexEnv(BaseDinoEnv):
         info["reward_nosedive"] = reward_nosedive
 
         # 8b. Pelvis height (for LocomotionMetrics tracking)
-        info["pelvis_height"] = float(self.data.xpos[self.pelvis_id, 2])
+        pelvis_height = float(self.data.xpos[self.pelvis_id, 2])
+        info["pelvis_height"] = pelvis_height
+
+        # 8c. Height maintenance reward (smooth gradient toward staying upright)
+        min_z = self.healthy_z_range[0]  # 0.5m (termination threshold)
+        target_z = 0.90  # Initial standing height from keyframe
+        height_frac = np.clip((pelvis_height - min_z) / (target_z - min_z), 0.0, 1.0)
+        reward_height = self.height_weight * height_frac
+        info["reward_height"] = reward_height
 
         # 9. Gait symmetry (reward alternating foot contacts)
         r_contact = self.data.sensordata[self._sensor_r_foot]
@@ -371,6 +381,7 @@ class TRexEnv(BaseDinoEnv):
             + reward_approach
             + reward_posture
             + reward_nosedive
+            + reward_height
             + reward_gait
             + reward_smoothness
             + reward_heading

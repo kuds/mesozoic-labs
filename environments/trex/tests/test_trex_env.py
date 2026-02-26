@@ -59,6 +59,7 @@ class TestBasicFunctionality:
             "reward_approach",
             "reward_posture",
             "reward_nosedive",
+            "reward_height",
             "reward_gait",
             "reward_smoothness",
             "reward_heading",
