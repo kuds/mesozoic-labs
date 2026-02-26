@@ -43,6 +43,21 @@ The T-Rex model includes:
 2. **Locomotion** - Walk and run toward prey
 3. **Hunting** - Sprint and bite prey with jaws
 
+## Diagnostic Metrics (Stage 3)
+
+After each training stage the `eval` command reports:
+
+| Metric | Description |
+|--------|-------------|
+| `mean_forward_velocity` | Average forward speed (m/s) |
+| `gait_symmetry` | Left/right stride symmetry ∈ [0, 1] |
+| `stride_frequency` | Step frequency (Hz) |
+| `cost_of_transport` | Energy efficiency (lower is better) |
+| `mean_pelvis_height` | Upright stability (m) |
+| `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
+| `success_rate` | Fraction of steps with jaw-bite event |
+| `min_prey_distance` | Closest approach to prey (m) |
+
 ## Usage
 
 ```bash
