@@ -478,9 +478,7 @@ def train_curriculum(
                 result_row[f"env_{env_key}"] = env_val
         result_row["best_mean_reward"] = eval_callback.best_mean_reward
         result_row["reward_threshold"] = cur_kwargs.get("min_avg_reward")
-        result_row["stage_passed"] = bool(
-            stage == 3 or (curriculum_cb is not None and curriculum_cb.ready_to_advance)
-        )
+        result_row["stage_passed"] = bool(stage == 3 or (curriculum_cb is not None and curriculum_cb.ready_to_advance))
         append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)
         logger.info("Stage %d result appended to: %s", stage, base_dir / "curriculum_results.csv")
 
@@ -500,7 +498,9 @@ def train_curriculum(
     logger.info("=" * 60)
 
 
-def evaluate(model_path: str, n_episodes: int = 10, render: bool = True, stage: int | None = None, algorithm: str = "ppo"):
+def evaluate(
+    model_path: str, n_episodes: int = 10, render: bool = True, stage: int | None = None, algorithm: str = "ppo"
+):
     """Evaluate a trained model with full locomotion metrics.
 
     Args:
