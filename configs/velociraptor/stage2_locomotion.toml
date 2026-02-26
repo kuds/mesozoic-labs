@@ -3,16 +3,23 @@ name = "locomotion"
 description = "Learn forward walking/running"
 
 [env]
-forward_vel_weight = 2.0
+# --- Velocity: reduced weight to prevent lean-to-fall exploitation ---
+forward_vel_weight = 1.0           # Was 2.0. Halved so posture penalties can compete.
 forward_vel_max = 3.0
-backward_vel_penalty_weight = 0.0
-alive_bonus = 1.0
+backward_vel_penalty_weight = 0.3  # Was 0.0. Explicitly penalise backward/falling drift.
+# --- Survival: high bonus makes long episodes far more valuable than short falls ---
+alive_bonus = 3.0                  # Was 1.0. At 800 steps = 2400 bonus; at 50 steps = 150.
 energy_penalty_weight = 0.001
 tail_stability_weight = 0.05
-posture_weight = 0.4
-nosedive_weight = 0.35
+# --- Posture: must dominate the velocity-from-leaning exploit ---
+posture_weight = 1.2               # Was 0.4. At 30° tilt, penalty is now -0.30 vs old -0.09.
+nosedive_weight = 0.8              # Was 0.35. Rapid linear penalty beyond natural 20° lean.
+# --- Height: new reward to prevent crouching into collapse ---
+height_weight = 0.4                # NEW. Reward maintaining pelvis height near standing.
+height_target = 0.50               # Target pelvis height (m), matches home keyframe.
+# --- Gait quality ---
 gait_symmetry_weight = 0.1
-smoothness_weight = 0.1
+smoothness_weight = 0.15           # Was 0.1. Slightly higher to penalise jerky fall motions.
 strike_bonus = 0.0
 strike_approach_weight = 0.0
 heading_weight = 0.3
@@ -24,8 +31,8 @@ max_episode_steps = 1000
 learning_rate = 1e-4
 learning_rate_end = 1e-5
 n_steps = 4096
-batch_size = 128
-n_epochs = 10
+batch_size = 256                   # Was 128. Larger batches = more stable gradients.
+n_epochs = 5                       # Was 10. Fewer epochs per rollout reduces overfitting.
 gamma = 0.99
 gae_lambda = 0.95
 clip_range = 0.2

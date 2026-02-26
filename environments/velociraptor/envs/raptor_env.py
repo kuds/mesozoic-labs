@@ -25,6 +25,7 @@ Reward components:
     - Strike bonus (when claw contacts prey)
     - Approach shaping (distance to prey)
     - Posture (continuous tilt penalty)
+    - Pelvis height (penalize deviation from target standing height)
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
 """
@@ -69,6 +70,8 @@ class RaptorEnv(BaseDinoEnv):
         heading_weight: float = 0.0,
         lateral_penalty_weight: float = 0.0,
         backward_vel_penalty_weight: float = 0.0,
+        height_weight: float = 0.0,
+        height_target: float = 0.50,
         # Environment settings
         prey_distance_range: Tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: Tuple[float, float] = (-2.0, 2.0),
@@ -88,6 +91,8 @@ class RaptorEnv(BaseDinoEnv):
         self.heading_weight = heading_weight
         self.lateral_penalty_weight = lateral_penalty_weight
         self.backward_vel_penalty_weight = backward_vel_penalty_weight
+        self.height_weight = height_weight
+        self.height_target = height_target
 
         # Natural forward pitch (~20°). The nosedive penalty and termination
         # are measured relative to this angle so the raptor isn't punished for
@@ -321,8 +326,13 @@ class RaptorEnv(BaseDinoEnv):
         info["forward_z"] = forward_z
         info["reward_nosedive"] = reward_nosedive
 
-        # 8b. Pelvis height (for LocomotionMetrics tracking)
-        info["pelvis_height"] = float(self.data.xpos[self.pelvis_id, 2])
+        # 8b. Pelvis height reward (penalise crouching/sinking toward collapse)
+        pelvis_height = float(self.data.xpos[self.pelvis_id, 2])
+        info["pelvis_height"] = pelvis_height
+        height_error = abs(pelvis_height - self.height_target) / self.height_target
+        height_error_norm = min(height_error, 1.0)
+        reward_height = -self.height_weight * (height_error_norm**2)
+        info["reward_height"] = reward_height
 
         # 9. Gait symmetry (reward alternating foot contacts)
         r_contact = self.data.sensordata[self._sensor_r_foot]
@@ -385,6 +395,7 @@ class RaptorEnv(BaseDinoEnv):
             + reward_approach
             + reward_posture
             + reward_nosedive
+            + reward_height
             + reward_gait
             + reward_smoothness
             + reward_heading
