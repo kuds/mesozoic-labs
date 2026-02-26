@@ -131,13 +131,29 @@ model.learn(total_timesteps=1_000_000, progress_bar=True)
 model.save("raptor_stage1")
 ```
 
-Or use the included training script with curriculum learning:
+Or use the included training script. The `curriculum` command runs all three stages in a single call — each stage loads its own hyperparameters from the TOML config automatically:
 
 ```bash
 cd environments/velociraptor
-python scripts/train_sb3.py train --stage 1 --timesteps 1000000
-python scripts/train_sb3.py train --stage 2 --timesteps 1000000 --load models/stage1_final.zip
-python scripts/train_sb3.py eval models/stage2_final.zip --stage 2
+
+# Full 3-stage curriculum (recommended) — one command, stages 1-3
+python scripts/train_sb3.py curriculum --algorithm ppo --n-envs 4
+
+# Or control stages individually
+python scripts/train_sb3.py train --stage 1 --algorithm ppo --timesteps 1000000
+python scripts/train_sb3.py train --stage 2 --algorithm ppo --timesteps 1000000 \
+  --load logs/stage1/models/stage1_final.zip
+python scripts/train_sb3.py eval logs/stage2/models/stage2_final.zip --algorithm ppo --stage 2
+
+# Use SAC instead
+python scripts/train_sb3.py curriculum --algorithm sac
+
+# Override hyperparameters without editing TOML files
+python scripts/train_sb3.py train --stage 1 \
+  --override ppo.learning_rate=1e-3 env.alive_bonus=3.0
+
+# Write outputs to a specific directory (e.g. GCS mount for cloud training)
+python scripts/train_sb3.py curriculum --output-dir /mnt/gcs/training/velociraptor
 ```
 
 ## Diagnostic Metrics

@@ -38,10 +38,12 @@ Or use the included training script:
 
 ```bash
 cd environments/velociraptor
-python scripts/train_sb3.py train --stage 1 --timesteps 1000000 --algo sac
 
-# Or run the full 3-stage curriculum automatically
-python scripts/train_sb3.py curriculum --timesteps 1000000 --algo sac
+# Single stage
+python scripts/train_sb3.py train --stage 1 --algorithm sac --timesteps 1000000
+
+# Full 3-stage curriculum in one command (per-stage hyperparameters applied automatically)
+python scripts/train_sb3.py curriculum --algorithm sac
 ```
 
 ## SAC Hyperparameters

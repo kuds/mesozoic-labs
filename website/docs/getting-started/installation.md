@@ -10,6 +10,30 @@ Get started with Mesozoic Labs by setting up your development environment.
 
 - Python 3.10+
 - CUDA-compatible GPU (recommended for training, not required)
+- [Docker](https://docs.docker.com/get-docker/) (optional, recommended for reproducible training)
+
+## Docker (Recommended)
+
+The repo ships a `Dockerfile` that bundles MuJoCo, Stable-Baselines3, and all training dependencies into a single image — no manual dependency management required.
+
+```bash
+# Build the image (from the repo root)
+docker build -t mesozoic-labs:latest .
+
+# Verify the image works with a quick smoke-test
+docker run --rm mesozoic-labs:latest \
+  environments/velociraptor/scripts/train_sb3.py \
+  train --stage 1 --timesteps 1000 --n-envs 1
+
+# Train with GPU and write outputs to your local machine
+docker run --rm --gpus all \
+  -v "$(pwd)/outputs:/app/outputs" \
+  mesozoic-labs:latest \
+  environments/velociraptor/scripts/train_sb3.py \
+  curriculum --algorithm ppo --n-envs 4 --output-dir /app/outputs/velociraptor
+```
+
+The Dockerfile sets `MUJOCO_GL=osmesa` for headless rendering — no display is needed.
 
 ## Local Install
 
