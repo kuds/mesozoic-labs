@@ -17,7 +17,7 @@ Observation space:
 
 Action space:
     - Continuous control for all actuators [-1, 1] normalized
-    - 17 actuators: 3 neck/head + 7 per leg (hip pitch/roll, knee, ankle, 3 toe digits)
+    - 21 actuators: 3 neck/head + 7 per leg + 4 tail (pitch segments 1-3 + yaw segment 1)
 
 Reward components:
     - Forward velocity (toward prey)
