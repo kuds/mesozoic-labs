@@ -55,7 +55,7 @@ from environments.shared.curriculum import (
     thresholds_from_configs,
 )
 from environments.shared.metrics import LocomotionMetrics
-from environments.shared.wandb_integration import WandbCallback, init_wandb, is_available as wandb_available
+from environments.shared.wandb_integration import WandbCallback, init_wandb
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 # Load curriculum configs from TOML files (configs/velociraptor/)
@@ -299,6 +299,9 @@ def train(
         pass
 
     # Save final model
+    final_path = model_dir / f"stage{stage}_final"
+    model.save(str(final_path))
+    train_env.save(str(final_path) + "_vecnorm.pkl")
 
     logger.info("=" * 60)
     logger.info("Training complete!")
