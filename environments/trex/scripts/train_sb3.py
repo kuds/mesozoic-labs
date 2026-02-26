@@ -55,7 +55,7 @@ from environments.shared.curriculum import (
     thresholds_from_configs,
 )
 from environments.shared.metrics import LocomotionMetrics
-from environments.shared.wandb_integration import WandbCallback, init_wandb, is_available as wandb_available
+from environments.shared.wandb_integration import WandbCallback, init_wandb
 from environments.trex.envs.trex_env import TRexEnv
 
 # Load curriculum configs from TOML files (configs/trex/)
