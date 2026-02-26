@@ -83,17 +83,32 @@ def _cast_value(v: str):
 
 
 def _apply_overrides(configs: dict, overrides: list | None) -> None:
-    """Apply dot-notation key=value overrides to all stage configs."""
+    """Apply dot-notation key=value overrides to stage configs.
+
+    Two formats are supported:
+    - ``section.key=value``   — applies to **all** stages (e.g. ``ppo.learning_rate=1e-4``)
+    - ``N.section.key=value`` — applies to stage N only  (e.g. ``2.ppo.learning_rate=5e-5``)
+    """
     if not overrides:
         return
     for item in overrides:
         key, _, raw_value = item.partition("=")
-        section, _, param = key.partition(".")
         value = _cast_value(raw_value)
-        kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
-        for stage_config in configs.values():
-            stage_config[kwargs_key][param] = value
-        logger.info("Override applied: %s.%s = %r", section, param, value)
+        parts = key.split(".")
+        if len(parts) == 3 and parts[0].isdigit():
+            # Stage-scoped override: N.section.key
+            stage_num, section, param = int(parts[0]), parts[1], parts[2]
+            kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
+            if stage_num in configs:
+                configs[stage_num][kwargs_key][param] = value
+                logger.info("Stage %d override: %s.%s = %r", stage_num, section, param, value)
+        else:
+            # All-stage override: section.key
+            section, _, param = key.partition(".")
+            kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
+            for stage_config in configs.values():
+                stage_config[kwargs_key][param] = value
+            logger.info("Override applied: %s.%s = %r", section, param, value)
 
 
 def make_env(stage: int, rank: int, seed: int = 0):
@@ -260,6 +275,20 @@ def train(
 
     if wandb_run is not None:
         wandb_run.finish()
+
+    # Report best eval reward to Vertex AI HPT (no-op when cloudml-hypertune not installed)
+    try:
+        import hypertune as _hypertune
+
+        _hpt = _hypertune.HyperTune()
+        _hpt.report_hyperparameter_tuning_metric(
+            hyperparameter_metric_tag="best_mean_reward",
+            metric_value=eval_callback.best_mean_reward,
+            global_step=total_timesteps,
+        )
+        logger.info("HPT metric reported: best_mean_reward=%.4f", eval_callback.best_mean_reward)
+    except ImportError:
+        pass
 
     final_path = model_dir / f"stage{stage}_final"
     logger.info("Saving final model to: %s", final_path)

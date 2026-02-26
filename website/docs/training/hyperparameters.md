@@ -108,7 +108,9 @@ Supported key prefixes:
 | `sac.X` | `sac_kwargs[X]` |
 | `env.X` | `env_kwargs[X]` (reward weights, episode settings) |
 
-> **Note:** When used with `curriculum`, the override is applied to **all three stages uniformly**. To apply different values per stage, run separate `train --stage N` jobs.
+For stage-scoped overrides within a curriculum run, prefix with the stage number: `1.ppo.learning_rate=3e-4 2.ppo.learning_rate=1e-4`. Plain `section.key=value` still applies to all stages.
+
+> **Systematic sweeps:** To try many combinations automatically, use the Vertex AI HPT sweep tool. See [Hyperparameter Sweeps](sweeps.md).
 
 ## Tips
 

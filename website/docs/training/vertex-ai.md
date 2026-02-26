@@ -474,3 +474,7 @@ If training crashes with OOM, reduce `--n-envs` or switch to a machine type with
 ### Job gets preempted frequently
 
 Increase `--save-freq` to save checkpoints more often. Consider switching to on-demand VMs for the final stage (Stage 3) where you don't want to risk losing a long training run.
+
+## Next Steps
+
+Once you have a working training run, use Vertex AI's built-in Hyperparameter Tuning to automatically find the best learning rate, entropy coefficient, batch size, and more — without manually submitting one job per combination. See [Hyperparameter Sweeps](sweeps.md).
