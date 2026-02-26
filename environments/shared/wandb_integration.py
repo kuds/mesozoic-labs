@@ -569,7 +569,12 @@ def _save_dashboard_config_fallback(stage: int) -> None:
             },
             {
                 "title": "Strike / Bite / Food Success Rate",
-                "metrics": ["reward/strike_success", "reward/bite_success", "reward/food_reached", "eval/mean_success_rate"],
+                "metrics": [
+                    "reward/strike_success",
+                    "reward/bite_success",
+                    "reward/food_reached",
+                    "eval/mean_success_rate",
+                ],
                 "type": "multi_line",
             },
         ],
