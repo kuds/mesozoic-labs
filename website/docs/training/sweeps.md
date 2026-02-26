@@ -6,22 +6,45 @@ sidebar_position: 4
 
 This page explains how to find the best hyperparameters for each curriculum stage without running one job per combination.
 
-## The Strategy: Sweep Stages Independently
+## The Short Answer: One Command
 
-The key insight is to **sweep one stage at a time**, not the full curriculum. This reduces the problem from an exponential number of combinations to three sequential searches:
+Yes — there is a single command that sweeps hyperparameters across **all three curriculum stages** end-to-end:
+
+```bash
+python environments/shared/scripts/sweep.py launch-all \
+  --species velociraptor --algorithm ppo \
+  --project YOUR_GCP_PROJECT \
+  --bucket YOUR_GCS_BUCKET \
+  --image ${IMAGE_URI} \
+  --trials 20 --parallel 5 \
+  --timesteps-stage1 500000 \
+  --timesteps-stage2 1000000 \
+  --timesteps-stage3 1500000
+```
+
+`launch-all` orchestrates the full three-stage sweep automatically:
+
+1. Submits a Stage 1 Hyperparameter Tuning job and **waits** for it to complete.
+2. Identifies the best Stage 1 trial (by `best_mean_reward`).
+3. Submits a Stage 2 sweep, **automatically passing the best Stage 1 checkpoint** as the warm-start model.
+4. Identifies the best Stage 2 trial.
+5. Submits a Stage 3 sweep, loading the best Stage 2 checkpoint.
+
+You submit one command and come back when it's done — no manual chaining required.
+
+## The Strategy: Why Sweep Stages Sequentially
+
+Each stage builds on what the previous stage learned, so the optimal hyperparameters for Stage 2 depend on having a good Stage 1 policy. Sweeping all three stages simultaneously would be wasteful — Stage 2 hyperparameters don't matter much if Stage 1 policy was poor.
+
+The `launch-all` command reduces the problem from an exponential number of combinations to three sequential Bayesian searches, each using the best model from the previous stage:
 
 1. **Stage 1 sweep** — Run N parallel trials, each with different hyperparameters. Vertex AI uses Bayesian optimisation to find the best settings for balance.
-2. **Pick the best Stage 1 config** — Download the model checkpoint from the best trial.
+2. **Auto-chain** — `launch-all` finds the best Stage 1 trial and passes its checkpoint to Stage 2 automatically.
 3. **Stage 2 sweep** — Load the best Stage 1 model, then sweep Stage 2 hyperparameters for locomotion.
-4. **Pick the best Stage 2 config** — Download that model checkpoint.
+4. **Auto-chain** — `launch-all` finds the best Stage 2 trial and passes its checkpoint to Stage 3.
 5. **Stage 3 sweep** — Load the best Stage 2 model, then sweep Stage 3 hyperparameters for behavior (strike/bite/food).
 
-Each sweep is a [Vertex AI Hyperparameter Tuning Job](https://cloud.google.com/vertex-ai/docs/training/hyperparameter-tuning-overview) that:
-- Runs N parallel trials simultaneously (e.g. 5 at a time)
-- Uses **Bayesian optimisation** to explore the search space efficiently — not grid search, so you get good coverage in 20–30 trials instead of hundreds
-- Reports `best_mean_reward` from each trial so Vertex AI knows which ones to focus on
-
-You only need to run **3 HPT jobs total** (one per stage) to fully sweep a species, not one job per parameter combination.
+Each stage uses [Vertex AI Hyperparameter Tuning](https://cloud.google.com/vertex-ai/docs/training/hyperparameter-tuning-overview) — N parallel trials with Bayesian optimisation, not grid search, so you get good coverage in 20–30 trials instead of hundreds.
 
 ## Quick Start
 
@@ -36,45 +59,45 @@ docker build -t ${IMAGE_URI} .
 docker push ${IMAGE_URI}
 ```
 
-### 2. Launch a Stage 1 sweep
+### 2. Launch the all-stages sweep
 
 ```bash
-python environments/shared/scripts/sweep.py launch \
-  --species velociraptor --stage 1 --algorithm ppo \
+python environments/shared/scripts/sweep.py launch-all \
+  --species velociraptor --algorithm ppo \
   --project YOUR_GCP_PROJECT \
   --bucket YOUR_GCS_BUCKET \
   --image ${IMAGE_URI} \
   --trials 20 --parallel 5 \
-  --timesteps 500000
+  --timesteps-stage1 500000 \
+  --timesteps-stage2 1000000 \
+  --timesteps-stage3 1500000
 ```
 
-Vertex AI submits 20 trials, running 5 in parallel. Each trial trains Stage 1 with a different hyperparameter combination chosen by the Bayesian optimiser.
+Vertex AI runs 20 trials per stage (5 in parallel), waiting for each stage to finish before starting the next. The final best checkpoints from each stage are saved to:
 
-### 3. Monitor and pick the best trial
+```
+gs://YOUR_BUCKET/sweeps/velociraptor/stage1/<best_trial_id>/models/stage1_final.zip
+gs://YOUR_BUCKET/sweeps/velociraptor/stage2/<best_trial_id>/models/stage2_final.zip
+gs://YOUR_BUCKET/sweeps/velociraptor/stage3/<best_trial_id>/models/stage3_final.zip
+```
+
+### 3. Monitor progress
 
 ```bash
-# List all trials for the job (sorted by best_mean_reward)
+# List all HPT jobs in your project
 gcloud ai hp-tuning-jobs list --region=us-central1
 
 # Or view in the Console:
 # https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs
 ```
 
-The best trial's model checkpoint is saved to:
-```
-gs://YOUR_BUCKET/sweeps/velociraptor/stage1/models/stage1_final.zip
-```
+Because `launch-all` runs synchronously (each stage blocks until the previous is done), you can monitor three sequential jobs appearing one after another in the console.
 
-### 4. Launch a Stage 2 sweep loading the best Stage 1 model
+## Single-Stage Sweep
+
+If you want to sweep only one stage — for example, to re-sweep Stage 2 after finding better Stage 1 weights — use `launch` instead:
 
 ```bash
-# Download the best Stage 1 model first
-gcloud storage cp \
-  gs://YOUR_BUCKET/sweeps/velociraptor/stage1/models/stage1_final.zip \
-  ./best_stage1.zip
-
-# Launch Stage 2 sweep, loading the Stage 1 model as the starting point
-# (Pass --load via --search-space or handle in the trial args)
 python environments/shared/scripts/sweep.py launch \
   --species velociraptor --stage 2 --algorithm ppo \
   --project YOUR_GCP_PROJECT \
@@ -83,6 +106,8 @@ python environments/shared/scripts/sweep.py launch \
   --trials 20 --parallel 5 \
   --timesteps 1000000
 ```
+
+`launch` submits the job and returns immediately (non-blocking). Use this when you want to monitor the job interactively or script your own stage-chaining logic.
 
 ## Default Search Spaces
 
@@ -106,11 +131,11 @@ python environments/shared/scripts/sweep.py launch \
 
 ## Customising the Search Space
 
-Pass a JSON string to `--search-space` to override the defaults. You can narrow the range, add env reward weights, or remove parameters you don't want to sweep:
+Pass a JSON string to `--search-space` to override the defaults for all stages. You can narrow the range, add env reward weights, or remove parameters you don't want to sweep:
 
 ```bash
-python environments/shared/scripts/sweep.py launch \
-  --species trex --stage 1 --algorithm ppo \
+python environments/shared/scripts/sweep.py launch-all \
+  --species trex --algorithm ppo \
   --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
   --trials 30 --parallel 5 \
   --search-space '{
@@ -142,14 +167,15 @@ The `trial` subcommand is also what each Vertex AI worker runs — it accepts th
 
 ## Stage-Scoped Overrides with `--override`
 
-Once you've found the best Stage 1 config, you can lock it in and only sweep Stage 2 by using the stage-scoped override syntax when running `curriculum`:
+Once you've found the best configs via `launch-all`, you can lock them in for production runs using the stage-scoped override syntax:
 
 ```bash
-# Lock Stage 1 at best-found values, sweep Stage 2 manually
+# Lock stages at best-found values for a final production run
 python environments/velociraptor/scripts/train_sb3.py curriculum \
   --algorithm ppo \
   --override 1.ppo.learning_rate=3e-4 1.ppo.ent_coef=0.005 \
-             2.ppo.learning_rate=1e-4 2.ppo.ent_coef=0.01
+             2.ppo.learning_rate=1e-4 2.ppo.ent_coef=0.01 \
+             3.ppo.learning_rate=5e-5 3.ppo.ent_coef=0.001
 ```
 
 The `N.section.key=value` format targets a single stage; plain `section.key=value` applies to all stages. Both formats can be mixed in the same `--override` list.
@@ -159,8 +185,8 @@ The `N.section.key=value` format targets a single stage; plain `section.key=valu
 Add `--wandb` to log all trials to Weights & Biases. Each trial appears as a separate run so you can compare them side-by-side on the W&B dashboard:
 
 ```bash
-python environments/shared/scripts/sweep.py launch \
-  --species velociraptor --stage 1 --algorithm ppo \
+python environments/shared/scripts/sweep.py launch-all \
+  --species velociraptor --algorithm ppo \
   --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
   --trials 20 --parallel 5 \
   --wandb
@@ -170,7 +196,7 @@ Add `WANDB_API_KEY` as an environment variable in your Docker image or as a GCP 
 
 ## How the Metric Flows to Vertex AI
 
-Each trial's `train()` call reports `best_mean_reward` (the highest mean evaluation reward seen during training) to Vertex AI HPT via `cloudml-hypertune`:
+Each trial's `train()` call reports `best_mean_reward` (the highest mean evaluation reward seen during training) to Vertex AI HPT via `cloudml-hypertune`. `launch-all` reads these metrics from the completed job to identify the best trial:
 
 ```
 trial training loop
@@ -181,9 +207,15 @@ trial training loop
                   "best_mean_reward", eval_callback.best_mean_reward
               )
            └─ Vertex AI reads this and updates the Bayesian model
+
+launch-all (after stage N completes)
+    └─ reads hpt_job.trials
+    └─ picks trial with highest best_mean_reward
+    └─ constructs checkpoint path: /gcs/<bucket>/sweeps/<species>/stageN/<trial_id>/models/stageN_final.zip
+    └─ passes it as --load to stage N+1 trials
 ```
 
-Vertex AI uses these results to decide which hyperparameter regions to explore next. Trials in promising areas get more follow-up trials; poor regions are avoided. This is why Bayesian optimisation needs far fewer trials than grid search.
+Vertex AI uses trial results to decide which hyperparameter regions to explore next. Trials in promising areas get more follow-up trials; poor regions are avoided. This is why Bayesian optimisation needs far fewer trials than grid search.
 
 ## Recommended Trial Counts
 
@@ -195,7 +227,7 @@ Vertex AI uses these results to decide which hyperparameter regions to explore n
 
 ## Cost Estimate
 
-Each trial trains for `--timesteps` steps on an `n1-standard-8 + T4` machine (approximate costs as of early 2026 in `us-central1`; check [current GCP pricing](https://cloud.google.com/vertex-ai/pricing) before running large sweeps — costs vary by region and machine type):
+Each trial trains for the configured number of timesteps on an `n1-standard-8 + T4` machine (approximate costs as of early 2026 in `us-central1`; check [current GCP pricing](https://cloud.google.com/vertex-ai/pricing) before running large sweeps — costs vary by region and machine type):
 
 | Timesteps per trial | Trial cost | 20 trials (5 parallel) | Total wall time |
 |---|---|---|---|
@@ -203,4 +235,7 @@ Each trial trains for `--timesteps` steps on an `n1-standard-8 + T4` machine (ap
 | 500 000 | ~$0.37 | ~$7.40 | ~5 hours |
 | 1 000 000 | ~$0.73 | ~$14.60 | ~10 hours |
 
+For a full `launch-all` (3 stages at 500k/1M/1.5M steps per trial, 20 trials each): roughly **$45–60 total** for a complete sweep.
+
 **Tip:** Start with 100 000–200 000 timesteps per trial to get a rough ranking, then run longer trials for the top 3–5 configurations.
+
