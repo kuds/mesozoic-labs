@@ -227,7 +227,9 @@ def _build_parameter_spec(search_space: dict, hpt_module: Any) -> dict:
                 scale=spec.get("scale", "linear"),
             )
         elif kind == "discrete":
-            parameter_spec[param_id] = hpt.DiscreteParameterSpec(values=[float(v) for v in spec["values"]], scale="linear")
+            parameter_spec[param_id] = hpt.DiscreteParameterSpec(
+                values=[float(v) for v in spec["values"]], scale="linear"
+            )
         elif kind == "categorical":
             parameter_spec[param_id] = hpt.CategoricalParameterSpec(values=spec["values"])
         else:
