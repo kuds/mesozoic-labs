@@ -217,6 +217,10 @@ class WandbCallback(BaseCallback):
                 "lateral_vel",
                 "r_foot_contact",
                 "l_foot_contact",
+                # Diagnostic metrics
+                "forward_z",
+                "reward_height",
+                "action_delta",
                 # Species-specific (brachiosaurus/trex)
                 "reward_neck",
                 "reward_food_reach",
