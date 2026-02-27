@@ -183,7 +183,8 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
             if value not in NET_ARCH_PRESETS:
                 logger.error(
                     "Unknown net_arch preset %r. Valid presets: %s",
-                    value, list(NET_ARCH_PRESETS.keys()),
+                    value,
+                    list(NET_ARCH_PRESETS.keys()),
                 )
                 sys.exit(1)
             net_arch_preset = value
