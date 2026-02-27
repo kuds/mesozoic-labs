@@ -231,6 +231,7 @@ class BrachioEnv(BaseDinoEnv):
         head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
         head_food_dist = np.linalg.norm(head_tip_pos - food_pos)
         info["head_food_distance"] = head_food_dist
+        info["prey_distance"] = float(head_food_dist)  # alias for LocomotionMetrics
 
         food_reward = 0.0
         if head_food_dist < self.food_reach_threshold:

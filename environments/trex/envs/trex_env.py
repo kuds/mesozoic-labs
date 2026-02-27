@@ -68,6 +68,7 @@ class TRexEnv(BaseDinoEnv):
         smoothness_weight: float = 0.05,
         heading_weight: float = 0.0,
         lateral_penalty_weight: float = 0.0,
+        forward_vel_max: float = 8.0,
         # Environment settings
         prey_distance_range: Tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: Tuple[float, float] = (-2.0, 2.0),
@@ -86,6 +87,7 @@ class TRexEnv(BaseDinoEnv):
         self.smoothness_weight = smoothness_weight
         self.heading_weight = heading_weight
         self.lateral_penalty_weight = lateral_penalty_weight
+        self.forward_vel_max = forward_vel_max
 
         # Natural forward pitch (~10°). The nosedive penalty and termination
         # are measured relative to this angle so the T-Rex isn't punished for
@@ -224,8 +226,7 @@ class TRexEnv(BaseDinoEnv):
 
         vel_2d = self.data.qvel[0:2]
         forward_vel = np.dot(vel_2d, prey_dir_2d)
-        # Assume max sprint speed of ~8.0 m/s for T-Rex
-        forward_vel_norm = np.clip(forward_vel / 8.0, -1.0, 1.0)
+        forward_vel_norm = np.clip(forward_vel / self.forward_vel_max, -1.0, 1.0)
         info["forward_vel"] = forward_vel
         reward_forward = self.forward_vel_weight * forward_vel_norm
         info["reward_forward"] = reward_forward

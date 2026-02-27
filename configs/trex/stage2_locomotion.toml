@@ -12,7 +12,7 @@ nosedive_weight = 0.8
 heading_weight = 0.5
 lateral_penalty_weight = 0.3
 bite_bonus = 0.0
-bite_approach_weight = 5.0
+bite_approach_weight = 0.0
 prey_distance_range = [8.0, 12.0]
 max_episode_steps = 1000
 
@@ -25,6 +25,9 @@ gamma = 0.99
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
+
+[ppo.policy_kwargs]
+net_arch = [256, 256]
 
 [sac]
 learning_rate = 1e-4

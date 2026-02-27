@@ -8,8 +8,8 @@ alive_bonus = 0.1
 energy_penalty_weight = 0.001
 tail_stability_weight = 0.02
 nosedive_weight = 0.2
-bite_bonus = 500.0
-bite_approach_weight = 15.0
+bite_bonus = 10.0
+bite_approach_weight = 1.0
 prey_distance_range = [3.0, 8.0]
 prey_lateral_range = [-1.5, 1.5]
 max_episode_steps = 1000
@@ -23,6 +23,9 @@ gamma = 0.995
 gae_lambda = 0.95
 clip_range = 0.1
 ent_coef = 0.001
+
+[ppo.policy_kwargs]
+net_arch = [256, 256]
 
 [sac]
 learning_rate = 5e-5
