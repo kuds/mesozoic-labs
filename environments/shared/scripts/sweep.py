@@ -408,13 +408,18 @@ def _submit_stage_sweep(
     if load_path:
         logger.info("  Warm-start model: %s", load_path)
 
+    custom_job = aiplatform.CustomJob(
+        display_name=f"{display_name}-trial",
+        worker_pool_specs=worker_pool_specs,
+    )
+
     hpt_job = aiplatform.HyperparameterTuningJob(
         display_name=display_name,
+        custom_job=custom_job,
         metric_spec={"best_mean_reward": "maximize"},
         parameter_spec=parameter_spec,
         max_trial_count=trials,
         parallel_trial_count=parallel,
-        worker_pool_specs=worker_pool_specs,
     )
 
     hpt_job.run(sync=sync)
