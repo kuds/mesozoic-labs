@@ -112,6 +112,16 @@ _DEFAULT_SEARCH_SPACES = {
     "sac": _DEFAULT_SAC_SEARCH_SPACE,
 }
 
+# ── Net-arch presets ─────────────────────────────────────────────────────────
+# Categorical values for the ``ppo_net_arch`` / ``sac_net_arch`` sweep param.
+# Each preset maps to a ``policy_kwargs.net_arch`` list for SB3.
+NET_ARCH_PRESETS: dict[str, list[int]] = {
+    "small": [64, 64],
+    "medium": [256, 256],
+    "large": [512, 512],
+    "deep": [256, 256, 256],
+}
+
 
 def _hpt_arg_to_override(key: str, value: str) -> str:
     """Convert a Vertex AI HPT arg name to ``--override`` dot notation.
@@ -160,6 +170,29 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         else:
             i += 1
 
+    # Extract net_arch overrides — these need special handling because
+    # net_arch lives inside a nested ``policy_kwargs`` dict rather than at
+    # the top level of ``ppo_kwargs`` / ``sac_kwargs``.
+    net_arch_preset: str | None = None
+    net_arch_algo: str | None = None
+    remaining_overrides: list[str] = []
+    for ovr in overrides:
+        key, _, value = ovr.partition("=")
+        section, _, param = key.partition(".")
+        if param == "net_arch" and section in ("ppo", "sac"):
+            if value not in NET_ARCH_PRESETS:
+                logger.error(
+                    "Unknown net_arch preset %r. Valid presets: %s",
+                    value, list(NET_ARCH_PRESETS.keys()),
+                )
+                sys.exit(1)
+            net_arch_preset = value
+            net_arch_algo = section
+            logger.info("Net-arch preset: %s → %s", value, NET_ARCH_PRESETS[value])
+        else:
+            remaining_overrides.append(ovr)
+    overrides = remaining_overrides
+
     if overrides:
         logger.info("Trial overrides from HPT: %s", overrides)
     else:
@@ -197,6 +230,14 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
 
     if overrides:
         _apply_overrides(STAGE_CONFIGS, overrides)
+
+    # Apply net_arch preset to the nested policy_kwargs dict
+    if net_arch_preset is not None:
+        arch = NET_ARCH_PRESETS[net_arch_preset]
+        algo_key = f"{net_arch_algo}_kwargs"
+        for stage_config in STAGE_CONFIGS.values():
+            stage_config[algo_key].setdefault("policy_kwargs", {})["net_arch"] = arch
+        logger.info("Applied net_arch=%s (%s) to all stages", net_arch_preset, arch)
 
     train(
         stage=args.stage,
