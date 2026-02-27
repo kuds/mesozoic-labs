@@ -45,6 +45,20 @@ If the per-stage `timesteps` budget is exhausted before thresholds are met, the 
 | `curriculum` | Full automated run — one job, stages 1–3 with per-stage hyperparameters applied automatically |
 | `train --stage N` | Re-running a single stage, loading from a specific checkpoint, or manually controlling stage budgets |
 
+## Quick Start with Google Cloud Shell
+
+If you have access to [Google Cloud Shell](https://shell.cloud.google.com), you can set up everything — Artifact Registry, Docker image, GCS bucket, and optionally submit a training job — with a single interactive script:
+
+```bash
+git clone https://github.com/mesozoic-labs/mesozoic-labs.git
+cd mesozoic-labs
+bash scripts/setup_vertex_ai.sh
+```
+
+Cloud Shell comes with `gcloud`, `docker`, and `git` pre-installed, so no local setup is required. The script will prompt you for your project ID, region, and other settings.
+
+If you prefer to run the steps manually, follow the sections below.
+
 ## Prerequisites
 
 - A Google Cloud project with billing enabled
