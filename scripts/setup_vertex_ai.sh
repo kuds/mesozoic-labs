@@ -5,7 +5,7 @@
 #
 # Usage:
 #   # Clone the repo and run the script
-#   git clone https://github.com/mesozoic-labs/mesozoic-labs.git
+#   git clone https://github.com/kuds/mesozoic-labs.git
 #   cd mesozoic-labs
 #   bash scripts/setup_vertex_ai.sh
 #
