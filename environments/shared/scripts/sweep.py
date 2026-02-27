@@ -221,15 +221,15 @@ def _build_parameter_spec(search_space: dict, hpt_module: Any) -> dict:
     for param_id, spec in search_space.items():
         kind = spec.get("type", "double")
         if kind == "double":
-            parameter_spec[param_id] = hpt.DoubleValueSpec(
-                min_value=float(spec["min"]),
-                max_value=float(spec["max"]),
+            parameter_spec[param_id] = hpt.DoubleParameterSpec(
+                min=float(spec["min"]),
+                max=float(spec["max"]),
                 scale=spec.get("scale", "linear"),
             )
         elif kind == "discrete":
-            parameter_spec[param_id] = hpt.DiscreteValueSpec(values=[float(v) for v in spec["values"]])
+            parameter_spec[param_id] = hpt.DiscreteParameterSpec(values=[float(v) for v in spec["values"]], scale="linear")
         elif kind == "categorical":
-            parameter_spec[param_id] = hpt.CategoricalValueSpec(values=spec["values"])
+            parameter_spec[param_id] = hpt.CategoricalParameterSpec(values=spec["values"])
         else:
             logger.warning("Unknown parameter type %r for %s — skipping", kind, param_id)
     return parameter_spec
