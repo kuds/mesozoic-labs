@@ -7,9 +7,9 @@ forward_vel_weight = 1.0
 alive_bonus = 0.1
 energy_penalty_weight = 0.001
 gait_stability_weight = 0.02
-food_reach_bonus = 500.0
+food_reach_bonus = 10.0
 food_reach_threshold = 0.5
-food_approach_weight = 10.0
+food_approach_weight = 1.0
 food_distance_range = [3.0, 8.0]
 food_lateral_range = [-1.5, 1.5]
 food_height_range = [2.5, 4.0]
@@ -24,6 +24,9 @@ gamma = 0.995
 gae_lambda = 0.95
 clip_range = 0.1
 ent_coef = 0.001
+
+[ppo.policy_kwargs]
+net_arch = [256, 256]
 
 [sac]
 learning_rate = 5e-5

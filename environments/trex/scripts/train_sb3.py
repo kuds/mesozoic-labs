@@ -137,7 +137,7 @@ def create_vec_env(stage: int, n_envs: int, seed: int = 0, use_subproc: bool = F
         norm_obs=True,
         norm_reward=True,
         clip_obs=10.0,
-        clip_reward=10.0,
+        clip_reward=50.0,
     )
 
     return env
