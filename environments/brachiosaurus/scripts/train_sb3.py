@@ -295,8 +295,8 @@ def train(
         eval_npz_path = Path(log_path) / "evaluations.npz"
         if eval_npz_path.exists():
             eval_data = _np.load(str(eval_npz_path))
-            eval_rewards = eval_data["results"]       # (n_evals, n_episodes)
-            eval_lengths = eval_data["ep_lengths"]     # (n_evals, n_episodes)
+            eval_rewards = eval_data["results"]  # (n_evals, n_episodes)
+            eval_lengths = eval_data["ep_lengths"]  # (n_evals, n_episodes)
             mean_rewards_per_eval = eval_rewards.mean(axis=1)
 
             # Episode length from the eval that produced best_mean_reward
@@ -324,7 +324,8 @@ def train(
             )
             logger.info(
                 "HPT metric reported: last_mean_reward=%.4f, last_mean_episode_length=%.1f",
-                last_mean_reward, last_mean_ep_length,
+                last_mean_reward,
+                last_mean_ep_length,
             )
     except ImportError:
         pass
