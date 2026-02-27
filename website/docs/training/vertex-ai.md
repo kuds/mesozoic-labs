@@ -50,7 +50,7 @@ If the per-stage `timesteps` budget is exhausted before thresholds are met, the 
 If you have access to [Google Cloud Shell](https://shell.cloud.google.com), you can set up everything — Artifact Registry, Docker image, GCS bucket, and optionally submit a training job — with a single interactive script:
 
 ```bash
-git clone https://github.com/mesozoic-labs/mesozoic-labs.git
+git clone https://github.com/kuds/mesozoic-labs.git
 cd mesozoic-labs
 bash scripts/setup_vertex_ai.sh
 ```
