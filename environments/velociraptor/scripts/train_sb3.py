@@ -306,6 +306,8 @@ def train(
             eval_rewards = eval_data["results"]       # (n_evals, n_episodes)
             eval_lengths = eval_data["ep_lengths"]     # (n_evals, n_episodes)
             mean_rewards_per_eval = eval_rewards.mean(axis=1)
+
+            # Episode length from the eval that produced best_mean_reward
             best_eval_idx = int(mean_rewards_per_eval.argmax())
             best_mean_ep_length = float(eval_lengths[best_eval_idx].mean())
             _hpt.report_hyperparameter_tuning_metric(
@@ -314,6 +316,24 @@ def train(
                 global_step=total_timesteps,
             )
             logger.info("HPT metric reported: best_mean_episode_length=%.1f", best_mean_ep_length)
+
+            # Last eval metrics — shows whether training was still improving or degraded
+            last_mean_reward = float(mean_rewards_per_eval[-1])
+            last_mean_ep_length = float(eval_lengths[-1].mean())
+            _hpt.report_hyperparameter_tuning_metric(
+                hyperparameter_metric_tag="last_mean_reward",
+                metric_value=last_mean_reward,
+                global_step=total_timesteps,
+            )
+            _hpt.report_hyperparameter_tuning_metric(
+                hyperparameter_metric_tag="last_mean_episode_length",
+                metric_value=last_mean_ep_length,
+                global_step=total_timesteps,
+            )
+            logger.info(
+                "HPT metric reported: last_mean_reward=%.4f, last_mean_episode_length=%.1f",
+                last_mean_reward, last_mean_ep_length,
+            )
     except ImportError:
         pass
 

@@ -287,24 +287,49 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list
     * ``stage`` — curriculum stage number
     * one key per hyperparameter (e.g. ``ppo_learning_rate``)
     * ``best_mean_reward`` — final metric reported by the trial
+    * ``best_mean_episode_length`` — episode length from the best eval
     * ``reward_threshold`` — ``min_avg_reward`` from the stage TOML config
-    * ``stage_passed`` — ``True`` when ``best_mean_reward >= reward_threshold``
+    * ``ep_length_threshold`` — ``min_avg_episode_length`` from config
+    * ``forward_vel_threshold`` — ``min_avg_forward_vel`` from config
+    * ``stage_passed`` — ``True`` when all curriculum criteria are met
     """
-    threshold = stage_config.get("curriculum_kwargs", {}).get("min_avg_reward")
+    cur = stage_config.get("curriculum_kwargs", {})
+    reward_threshold = cur.get("min_avg_reward")
+    ep_length_threshold = cur.get("min_avg_episode_length")
+    forward_vel_threshold = cur.get("min_avg_forward_vel")
+
     rows: list[dict] = []
     for trial in hpt_job.trials:
         row: dict = {"trial_id": trial.id, "stage": stage}
         if hasattr(trial, "parameters") and trial.parameters:
             for param in trial.parameters:
                 row[param.parameter_id] = param.value
-        best_reward = None
+
+        # Extract all reported metrics from the trial
+        metrics: dict[str, float | None] = {}
         if trial.final_measurement and trial.final_measurement.metrics:
             for metric in trial.final_measurement.metrics:
-                if metric.metric_id == "best_mean_reward":
-                    best_reward = metric.value
+                metrics[metric.metric_id] = metric.value
+
+        best_reward = metrics.get("best_mean_reward")
+        best_ep_length = metrics.get("best_mean_episode_length")
+        last_reward = metrics.get("last_mean_reward")
+        last_ep_length = metrics.get("last_mean_episode_length")
+
         row["best_mean_reward"] = best_reward
-        row["reward_threshold"] = threshold
-        row["stage_passed"] = best_reward is not None and threshold is not None and best_reward >= threshold
+        row["best_mean_episode_length"] = best_ep_length
+        row["last_mean_reward"] = last_reward
+        row["last_mean_episode_length"] = last_ep_length
+        row["reward_threshold"] = reward_threshold
+        row["ep_length_threshold"] = ep_length_threshold
+        row["forward_vel_threshold"] = forward_vel_threshold
+
+        # Check all curriculum criteria
+        passed = best_reward is not None and reward_threshold is not None and best_reward >= reward_threshold
+        if passed and ep_length_threshold is not None:
+            passed = best_ep_length is not None and best_ep_length >= ep_length_threshold
+        row["stage_passed"] = passed
+
         rows.append(row)
     return rows
 
@@ -313,8 +338,8 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
     """Write sweep trial results to a CSV file.
 
     Each row records the trial ID, stage, all hyperparameter values,
-    ``best_mean_reward``, the curriculum ``reward_threshold``, and
-    ``stage_passed`` (``True`` when ``best_mean_reward >= reward_threshold``).
+    performance metrics, curriculum thresholds, and whether the trial
+    met all stage advancement criteria.
 
     Args:
         rows: List of result dicts from :func:`_collect_trial_results`.
@@ -333,7 +358,16 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
         return path
 
     fixed_cols = ["trial_id", "stage"]
-    metric_cols = ["best_mean_reward", "reward_threshold", "stage_passed"]
+    metric_cols = [
+        "best_mean_reward",
+        "best_mean_episode_length",
+        "last_mean_reward",
+        "last_mean_episode_length",
+        "reward_threshold",
+        "ep_length_threshold",
+        "forward_vel_threshold",
+        "stage_passed",
+    ]
     # Collect all hyperparameter column names across all rows (union, sorted)
     hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in fixed_cols + metric_cols})
     fieldnames = fixed_cols + hparam_cols + metric_cols
