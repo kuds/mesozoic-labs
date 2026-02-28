@@ -677,6 +677,18 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}.csv")
     write_results_csv(all_rows, csv_path)
 
+    # Persist the CSV to GCS alongside the trial artifacts
+    gcs_csv_path = f"sweeps/{args.species}/{csv_path.name}"
+    try:
+        from google.cloud import storage as _gcs
+
+        _client = _gcs.Client(project=args.project)
+        _bucket = _client.bucket(args.bucket)
+        _bucket.blob(gcs_csv_path).upload_from_filename(str(csv_path))
+        logger.info("Sweep CSV uploaded to: gs://%s/%s", args.bucket, gcs_csv_path)
+    except Exception as exc:
+        logger.warning("Failed to upload sweep CSV to GCS: %s. Local copy at: %s", exc, csv_path)
+
     logger.info("=" * 60)
     logger.info("ALL-STAGES SWEEP COMPLETE for %s (%s)", args.species, args.algorithm)
     logger.info("All results at: gs://%s/sweeps/%s/", args.bucket, args.species)
