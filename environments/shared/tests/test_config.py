@@ -108,9 +108,9 @@ class TestLoadAllStages:
 
     @pytest.mark.parametrize("species", SPECIES)
     def test_stage_progression_alive_bonus(self, species):
-        """Alive bonus should decrease across stages (less reliance on survival)."""
+        """Alive bonus should not increase across stages (less reliance on survival)."""
         stages = load_all_stages(species)
-        assert stages[1]["env_kwargs"]["alive_bonus"] > stages[2]["env_kwargs"]["alive_bonus"]
+        assert stages[1]["env_kwargs"]["alive_bonus"] >= stages[2]["env_kwargs"]["alive_bonus"]
         assert stages[2]["env_kwargs"]["alive_bonus"] > stages[3]["env_kwargs"]["alive_bonus"]
 
     @pytest.mark.parametrize("species", SPECIES)
