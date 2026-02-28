@@ -143,6 +143,37 @@ def create_vec_env(stage: int, n_envs: int, seed: int = 0, use_subproc: bool = F
     return env
 
 
+def _run_hpt_eval(model, eval_env, n_episodes: int = 10):
+    """Run evaluation episodes and collect forward velocity and success rate.
+
+    Returns:
+        Tuple of (forward_velocities, success_flags) — one entry per episode.
+    """
+    import numpy as _np
+
+    fwd_vels: list[float] = []
+    success_flags: list[float] = []
+
+    for _ in range(n_episodes):
+        obs = eval_env.reset()
+        ep_fwd: list[float] = []
+        ep_success = 0.0
+        done = False
+        while not done:
+            action, _ = model.predict(obs, deterministic=True)
+            obs, _reward, dones, infos = eval_env.step(action)
+            if "forward_vel" in infos[0]:
+                ep_fwd.append(float(infos[0]["forward_vel"]))
+            if infos[0].get("bite_success") or infos[0].get("strike_success"):
+                ep_success = 1.0
+            done = bool(dones[0])
+        if ep_fwd:
+            fwd_vels.append(float(_np.mean(ep_fwd)))
+        success_flags.append(ep_success)
+
+    return fwd_vels, success_flags
+
+
 def train(
     stage: int,
     total_timesteps: int,
@@ -327,6 +358,27 @@ def train(
                 last_mean_reward,
                 last_mean_ep_length,
             )
+
+        # Report forward velocity (stages 2-3) and success rate (stage 3)
+        # by running a short evaluation pass that collects info-dict metrics.
+        if stage >= 2:
+            fwd_vels, success_flags = _run_hpt_eval(model, eval_env)
+            if fwd_vels:
+                best_fwd = float(_np.mean(fwd_vels))
+                _hpt.report_hyperparameter_tuning_metric(
+                    hyperparameter_metric_tag="best_mean_forward_vel",
+                    metric_value=best_fwd,
+                    global_step=total_timesteps,
+                )
+                logger.info("HPT metric reported: best_mean_forward_vel=%.4f", best_fwd)
+            if stage >= 3 and success_flags:
+                best_success = float(_np.mean(success_flags))
+                _hpt.report_hyperparameter_tuning_metric(
+                    hyperparameter_metric_tag="best_mean_success_rate",
+                    metric_value=best_success,
+                    global_step=total_timesteps,
+                )
+                logger.info("HPT metric reported: best_mean_success_rate=%.4f", best_success)
     except ImportError:
         pass
 
@@ -466,9 +518,11 @@ def train_curriculum(
             eval_env=eval_env,
             eval_freq=eval_freq,
             n_eval_episodes=10,
+            eval_callback=eval_callback,
         )
         callbacks.append(curriculum_cb)
 
+        interrupted = False
         try:
             model.learn(
                 total_timesteps=total_timesteps,
@@ -477,7 +531,7 @@ def train_curriculum(
             )
         except KeyboardInterrupt:
             logger.warning("Training interrupted by user.")
-            break
+            interrupted = True
 
         if wandb_run is not None:
             wandb_run.finish()
@@ -551,6 +605,9 @@ def train_curriculum(
         }
         append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)
         logger.info("Stage %d result appended to: %s", stage, base_dir / "curriculum_results.csv")
+
+        if interrupted:
+            break
 
         if curriculum_cb and curriculum_cb.ready_to_advance and not manager.is_final_stage:
             manager.advance()

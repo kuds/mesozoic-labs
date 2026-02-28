@@ -231,11 +231,12 @@ class WandbCallback(BaseCallback):
                 if values:
                     metrics[f"reward/{key}"] = float(sum(values) / len(values))
 
-        # Log learning rate
+        # Log learning rate (use current progress for scheduled LR)
         if hasattr(self.model, "learning_rate"):
             lr = self.model.learning_rate
             if callable(lr):
-                lr = lr(1.0)
+                progress = getattr(self.model, "_current_progress_remaining", 1.0)
+                lr = lr(progress)
             metrics["train/learning_rate"] = lr
 
         wandb.log(metrics, step=self.num_timesteps)
