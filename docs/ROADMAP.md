@@ -135,7 +135,7 @@ curriculum with published results and reproducible checkpoints.
   - _Dependency: Dockerfile_
 
 - [x] **Full linting and type-checking compliance**
-  - Fixed 92 Ruff lint errors, formatted 25 files, fixed 31 mypy type errors
+  - Fixed 92 Ruff lint errors, formatted 25 files, fixed 40 mypy type errors
   - All checks pass: `ruff check`, `ruff format`, `mypy` (0 errors)
   - All 155 tests passing with pytest
   - _Dependency: Phase 0 developer tooling_
