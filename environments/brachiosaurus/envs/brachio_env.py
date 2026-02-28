@@ -56,9 +56,9 @@ class BrachioEnv(BaseDinoEnv):
         energy_penalty_weight: float = 0.001,
         fall_penalty: float = -100.0,
         gait_stability_weight: float = 0.05,
-        food_reach_bonus: float = 500.0,
+        food_reach_bonus: float = 10.0,
         food_reach_threshold: float = 0.5,
-        food_approach_weight: float = 0.3,
+        food_approach_weight: float = 1.0,
         # Environment settings
         food_distance_range: Tuple[float, float] = (3.0, 8.0),
         food_lateral_range: Tuple[float, float] = (-2.0, 2.0),
