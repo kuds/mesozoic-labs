@@ -48,7 +48,12 @@ except ImportError:
     logger.error("stable-baselines3 not installed. Install with: pip install stable-baselines3[extra]")
     sys.exit(1)
 
-from environments.shared.config import append_stage_result_csv, load_all_stages, save_stage_config, upload_curriculum_artifacts
+from environments.shared.config import (
+    append_stage_result_csv,
+    load_all_stages,
+    save_stage_config,
+    upload_curriculum_artifacts,
+)
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,

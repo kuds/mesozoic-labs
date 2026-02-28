@@ -93,7 +93,7 @@ python scripts/train_sb3.py train --stage 1 \
 ### Run Tests
 
 ```bash
-pytest tests/ -v
+pytest -v
 ```
 
 ## Basic Training Loop (Python)

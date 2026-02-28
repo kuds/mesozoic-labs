@@ -501,7 +501,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
             (_float(r.get("best_mean_reward")), _float(r.get("last_mean_reward")))
             for r in stage_rows
         ]
-        valid_bl = [(b, l) for b, l in best_last if b is not None and l is not None]
+        valid_bl = [(b, last) for b, last in best_last if b is not None and last is not None]
         if valid_bl:
             bests, lasts = zip(*valid_bl)
             axes1[1, 0].scatter(bests, lasts, color=color, alpha=0.7, label=label, edgecolors="white", s=50)

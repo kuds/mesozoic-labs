@@ -23,8 +23,9 @@ We're bringing prehistoric creatures back to life—as robots. Using state-of-th
 
 | Species | Algorithm | Avg Reward | Training Steps |
 |---------|-----------|------------|----------------|
-| Velociraptor | SAC | 3091.31 | 3.6M |
-| Velociraptor | PPO | 319.94 | 2.6M |
+| Basic Dinosaur | PPO | 319.94 | 2.6M |
+| Basic Dinosaur | SAC | 3091.31 | 3.6M |
+| Velociraptor | PPO | 118.37 | 6.0M |
 
 All results use 3-stage curriculum learning (balance → locomotion → behavior).
 

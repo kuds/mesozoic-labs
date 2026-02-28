@@ -49,7 +49,12 @@ except ImportError:
     sys.exit(1)
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.shared.config import append_stage_result_csv, load_all_stages, save_stage_config, upload_curriculum_artifacts
+from environments.shared.config import (
+    append_stage_result_csv,
+    load_all_stages,
+    save_stage_config,
+    upload_curriculum_artifacts,
+)
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,

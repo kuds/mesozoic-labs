@@ -5,19 +5,22 @@ A large bipedal predator with a massive skull and vestigial forelimbs.
 The T-Rex hunts by sprinting toward prey and delivering a bite with
 its head.
 
-Observation space:
-    - Joint positions (qpos) excluding root freejoint
-    - Joint velocities (qvel) excluding root freejoint
-    - Pelvis orientation (quaternion)
-    - Pelvis angular velocity
-    - Pelvis linear velocity
-    - Foot contact states (2 feet, sensed on central digit 3)
-    - Prey relative direction
-    - Prey distance
+Observation space (83 dims):
+    - Joint positions (qpos[7:]) — 33 (25 hinge + 2x4 ball shoulders)
+    - Joint velocities (qvel[6:]) — 31 (25 hinge + 2x3 ball shoulders)
+    - Pelvis orientation (quaternion) — 4
+    - Pelvis angular velocity (gyroscope) — 3
+    - Pelvis linear velocity — 3
+    - Pelvis acceleration — 3
+    - Foot contact states (2 feet, sensed on central digit 3) — 2
+    - Prey direction (unit vector) — 3
+    - Prey distance (scalar) — 1
 
-Action space:
-    - Continuous control for all actuators [-1, 1] normalized
-    - 21 actuators: 3 neck/head + 7 per leg + 4 tail (pitch segments 1-3 + yaw segment 1)
+Action space (21 dims):
+    - Neck/head: neck pitch, neck yaw, head pitch (3)
+    - Right leg: hip pitch/roll, knee, ankle, toe d2/d3/d4 (7)
+    - Left leg: hip pitch/roll, knee, ankle, toe d2/d3/d4 (7)
+    - Tail: pitch 1, yaw 1, pitch 2, pitch 3 (4)
 
 Reward components:
     - Forward velocity (toward prey)
@@ -27,6 +30,13 @@ Reward components:
     - Tail stability
     - Bite bonus (head contacts prey)
     - Approach shaping (distance to prey)
+    - Posture (continuous tilt penalty)
+    - Nosedive penalty
+    - Height maintenance
+    - Gait symmetry (alternating foot contacts)
+    - Action smoothness (penalize jerky action changes)
+    - Heading alignment (facing toward prey)
+    - Lateral velocity penalty (anti crab-walk)
 """
 
 from pathlib import Path

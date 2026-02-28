@@ -3,21 +3,29 @@ Velociraptor Gymnasium Environment
 
 A bipedal dinosaur locomotion environment with predatory strike behavior.
 
-Observation space:
-    - Joint positions (qpos) excluding root freejoint
-    - Joint velocities (qvel) excluding root freejoint
-    - Pelvis orientation (quaternion)
-    - Pelvis angular velocity
-    - Pelvis linear velocity
-    - Foot contact states
-    - Prey relative position
-    - Prey distance
+Observation space (67 dims):
+    - Joint positions (qpos[7:]) — 24 hinge joints excluding root freejoint
+    - Joint velocities (qvel[6:]) — 24 hinge joints excluding root freejoint
+    - Pelvis orientation (quaternion) — 4
+    - Pelvis angular velocity (gyroscope) — 3
+    - Pelvis linear velocity — 3
+    - Pelvis acceleration — 3
+    - Foot contact states — 2
+    - Prey direction (unit vector) — 3
+    - Prey distance (scalar) — 1
 
-Action space:
-    - Continuous control for all actuators [-1, 1] normalized
+Action space (22 dims):
+    - Right leg: hip pitch/roll, knee, ankle, toe d3/d4 (6)
+    - Right sickle claw (1)
+    - Left leg: hip pitch/roll, knee, ankle, toe d3/d4 (6)
+    - Left sickle claw (1)
+    - Tail: pitch 1, yaw 1, pitch 2, pitch 3 (4)
+    - Right arm: shoulder pitch/roll (2)
+    - Left arm: shoulder pitch/roll (2)
 
 Reward components:
     - Forward velocity
+    - Backward velocity penalty
     - Alive bonus
     - Fall penalty
     - Energy penalty
@@ -25,8 +33,11 @@ Reward components:
     - Strike bonus (when claw contacts prey)
     - Approach shaping (distance to prey)
     - Posture (continuous tilt penalty)
+    - Nosedive penalty
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
+    - Heading alignment (facing toward prey)
+    - Lateral velocity penalty (anti crab-walk)
 """
 
 from pathlib import Path
