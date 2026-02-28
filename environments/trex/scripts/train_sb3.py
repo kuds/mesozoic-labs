@@ -458,6 +458,9 @@ def train_curriculum(
         )
         callbacks.append(checkpoint_callback)
 
+        if use_wandb:
+            callbacks.append(WandbCallback())
+
         curriculum_cb = None
         if stage < 3:
             curriculum_cb = CurriculumCallback(
