@@ -15,8 +15,8 @@ That said, there are concrete areas where targeted investment would significantl
 The current reward functions are hand-tuned with hardcoded weights. This is the single biggest bottleneck for training quality.
 
 **Recommendations:**
-- **Externalize reward configs to YAML/TOML files** instead of embedding weights in Python code and training scripts. This enables rapid experimentation without code changes and creates a clear audit trail of what was tried.
-- **Add reward logging dashboards** beyond TensorBoard scalars. Plot per-component reward distributions over training, not just totals. This reveals which components dominate and which are being ignored by the policy.
+- ~~**Externalize reward configs to YAML/TOML files** instead of embedding weights in Python code and training scripts. This enables rapid experimentation without code changes and creates a clear audit trail of what was tried.~~ **Done (v0.2.0)** — TOML configs in `configs/` directory, loaded via `environments/shared/config.py`.
+- ~~**Add reward logging dashboards** beyond TensorBoard scalars. Plot per-component reward distributions over training, not just totals. This reveals which components dominate and which are being ignored by the policy.~~ **Done (v0.2.0)** — `WandbCallback` logs per-component rewards.
 - **Implement reward normalization per-component**, not just the total reward via `VecNormalize`. Components on different scales (alive bonus at 0.1 vs. strike bonus at 500.0) create gradient dominance issues.
 - **Consider learned reward shaping** or adversarial reward functions (GAIL/AIRL) for more natural locomotion gaits rather than hand-crafting every term.
 
@@ -35,17 +35,17 @@ The project currently uses only PPO and SAC from Stable-Baselines3 with default 
 The 3-stage curriculum is good but static. Each stage requires manual intervention to load the previous checkpoint and start the next phase.
 
 **Recommendations:**
-- **Automate stage transitions** with a curriculum manager that monitors performance metrics and automatically advances stages when thresholds are met (e.g., advance from balance to locomotion when average episode length exceeds 900 steps).
+- ~~**Automate stage transitions** with a curriculum manager that monitors performance metrics and automatically advances stages when thresholds are met (e.g., advance from balance to locomotion when average episode length exceeds 900 steps).~~ **Done (v0.2.0)** — `CurriculumManager` and `CurriculumCallback` with per-stage thresholds in TOML `[curriculum]` sections.
 - **Add intermediate difficulty levels** within stages. For example, Stage 2 could progressively increase target speed or distance rather than jumping directly to the full locomotion challenge.
 - **Implement domain randomization** within each stage: randomize body mass (within 10%), joint friction, ground friction, and initial pose perturbation magnitude. This produces more robust policies.
-- **Track and version curriculum configs** alongside model checkpoints so experiments are fully reproducible.
+- ~~**Track and version curriculum configs** alongside model checkpoints so experiments are fully reproducible.~~ **Done (v0.2.0)** — TOML configs versioned in `configs/` and snapshot saved per W&B run.
 
 ### 1.4 Training Infrastructure
 
 **Recommendations:**
-- **Add Weights & Biases (wandb) integration** alongside TensorBoard. W&B provides experiment comparison, hyperparameter sweeps, and artifact versioning that TensorBoard lacks.
-- **Implement proper experiment tracking** with run IDs, git commit hashes, and full hyperparameter snapshots saved with each checkpoint.
-- **Add evaluation metrics beyond average reward**: gait symmetry, energy efficiency (cost of transport), stride frequency, forward velocity consistency, and time-to-target.
+- ~~**Add Weights & Biases (wandb) integration** alongside TensorBoard. W&B provides experiment comparison, hyperparameter sweeps, and artifact versioning that TensorBoard lacks.~~ **Done (v0.2.0)** — `WandbCallback` with per-component reward logging, config snapshots, and video recording.
+- ~~**Implement proper experiment tracking** with run IDs, git commit hashes, and full hyperparameter snapshots saved with each checkpoint.~~ **Done (v0.2.0)** — W&B integration saves git commit hash and full config per run.
+- ~~**Add evaluation metrics beyond average reward**: gait symmetry, energy efficiency (cost of transport), stride frequency, forward velocity consistency, and time-to-target.~~ **Done (v0.2.0)** — `LocomotionMetrics` class in `environments/shared/metrics.py`.
 - **Create a benchmark suite** that evaluates trained policies on standardized scenarios (flat ground, slopes, perturbation recovery) and outputs a structured report.
 
 ---
@@ -113,29 +113,29 @@ Currently each species learns a single behavior chain (stand, walk, attack/feed)
 ### 4.1 Tooling Gaps
 
 **Recommendations:**
-- **Add a code formatter** (Black or Ruff format) and import sorter (isort) with a pre-commit hook. Currently only flake8 linting exists, and it ignores several rules.
-- **Add mypy or pyright** for static type checking in CI. The type hints are already excellent; enforcing them catches bugs early.
-- **Add code coverage reporting** (pytest-cov) to CI with a coverage badge on the README. Current tests cover the happy path well but don't measure branch coverage.
-- **Replace print statements with Python's `logging` module**. This enables configurable log levels, log file output, and integration with monitoring tools.
-- **Add pre-commit hooks** for linting, formatting, and type checking to catch issues before they reach CI.
+- ~~**Add a code formatter** (Black or Ruff format) and import sorter (isort) with a pre-commit hook. Currently only flake8 linting exists, and it ignores several rules.~~ **Done (v0.2.0)** — Ruff format + lint configured in `pyproject.toml` with pre-commit hooks.
+- ~~**Add mypy or pyright** for static type checking in CI. The type hints are already excellent; enforcing them catches bugs early.~~ **Done (v0.2.0)** — mypy configured in `pyproject.toml` with pre-commit hook; all type errors resolved.
+- ~~**Add code coverage reporting** (pytest-cov) to CI with a coverage badge on the README. Current tests cover the happy path well but don't measure branch coverage.~~ **Done (v0.2.0)** — `pytest-cov` with 70% threshold.
+- ~~**Replace print statements with Python's `logging` module**. This enables configurable log levels, log file output, and integration with monitoring tools.~~ **Done (v0.2.0)** — All `print()` calls replaced with `logging` in training scripts.
+- ~~**Add pre-commit hooks** for linting, formatting, and type checking to catch issues before they reach CI.~~ **Done (v0.2.0)** — `.pre-commit-config.yaml` with Ruff and mypy.
 
 ### 4.2 Testing Improvements
 
 The test suites are well-structured but limited to basic functionality checks.
 
 **Recommendations:**
-- **Add reward function unit tests** that verify specific scenarios produce expected reward values. For example: "raptor at prey position with claw contact should produce strike bonus."
+- ~~**Add reward function unit tests** that verify specific scenarios produce expected reward values. For example: "raptor at prey position with claw contact should produce strike bonus."~~ **Done (v0.2.0)**
 - **Add regression tests for trained policies**: save a reference trajectory from a trained checkpoint and verify that loading the same checkpoint reproduces it within tolerance.
 - **Add performance/benchmark tests** that measure simulation step throughput and flag regressions.
 - **Add property-based testing** (Hypothesis) for observation/action space invariants.
-- **Test curriculum stage transitions** to verify that configs load correctly and rewards change as expected across stages.
+- ~~**Test curriculum stage transitions** to verify that configs load correctly and rewards change as expected across stages.~~ **Done (v0.2.0)**
 
 ### 4.3 Package & Distribution
 
 **Recommendations:**
-- **Add metadata to pyproject.toml**: authors, license declaration, repository URL, classifiers. The MIT license is mentioned in the README but not declared in the package metadata.
-- **Register Gymnasium environments** using entry points so users can create environments with `gym.make("MesozoicLabs/Velociraptor-v0")` instead of importing directly.
-- **Adopt semantic versioning** with a CHANGELOG.md. The project is at 0.1.0; define what 0.2.0 and 1.0.0 mean in terms of API stability.
+- ~~**Add metadata to pyproject.toml**: authors, license declaration, repository URL, classifiers. The MIT license is mentioned in the README but not declared in the package metadata.~~ **Done (v0.2.0)**
+- ~~**Register Gymnasium environments** using entry points so users can create environments with `gym.make("MesozoicLabs/Velociraptor-v0")` instead of importing directly.~~ **Done (v0.2.0)** — Auto-registration on `import environments`.
+- ~~**Adopt semantic versioning** with a CHANGELOG.md. The project is at 0.1.0; define what 0.2.0 and 1.0.0 mean in terms of API stability.~~ **Done (v0.2.0)** — `CHANGELOG.md` and versioning plan in `ROADMAP.md`.
 - **Publish to PyPI** once the API stabilizes. The pyproject.toml is already structured for it.
 - **Add Dependabot or Renovate** for automated dependency updates.
 
@@ -156,8 +156,8 @@ The test suites are well-structured but limited to basic functionality checks.
 
 **Recommendations:**
 - **Create a "Adding a New Species" guide** that walks through the full process: MJCF model creation, environment subclass implementation, test suite, training script, and CI integration. The existing 3 species provide a clear template, but documenting it lowers the barrier to contribution.
-- **Add a CONTRIBUTING.md** with code style guidelines, PR process, and testing requirements.
-- **Create issue templates** for bug reports, feature requests, and new species proposals.
+- ~~**Add a CONTRIBUTING.md** with code style guidelines, PR process, and testing requirements.~~ **Done (v0.2.0)**
+- ~~**Create issue templates** for bug reports, feature requests, and new species proposals.~~ **Done (v0.2.0)**
 
 ---
 
@@ -193,19 +193,19 @@ This is already on the roadmap and would be transformative. MJX enables batch si
 
 ## Priority Ranking
 
-| Priority | Recommendation | Impact | Effort |
-|----------|---------------|--------|--------|
-| 1 | Externalize reward configs to YAML | High | Low |
-| 2 | Register Gymnasium entry points | High | Low |
-| 3 | Add mypy + Black + pre-commit | Medium | Low |
-| 4 | Automated curriculum transitions | High | Medium |
-| 5 | Scripted prey (moving target) | High | Medium |
-| 6 | Sensor noise + action delay | High | Medium |
-| 7 | Domain randomization | High | Medium |
-| 8 | Terrain heightfields | High | Medium |
-| 9 | W&B experiment tracking | Medium | Low |
-| 10 | Custom policy networks | High | Medium |
-| 11 | MJX migration (Velociraptor) | Very High | High |
-| 12 | Multi-agent pack hunting | Very High | High |
-| 13 | Pre-trained model zoo | Medium | Medium |
-| 14 | Physical robot prototype | Very High | Very High |
+| Priority | Recommendation | Impact | Effort | Status |
+|----------|---------------|--------|--------|--------|
+| 1 | Externalize reward configs to TOML | High | Low | **Done (v0.2.0)** |
+| 2 | Register Gymnasium entry points | High | Low | **Done (v0.2.0)** |
+| 3 | Add mypy + Ruff + pre-commit | Medium | Low | **Done (v0.2.0)** |
+| 4 | Automated curriculum transitions | High | Medium | **Done (v0.2.0)** |
+| 5 | Scripted prey (moving target) | High | Medium | Not started |
+| 6 | Sensor noise + action delay | High | Medium | Not started |
+| 7 | Domain randomization | High | Medium | Not started |
+| 8 | Terrain heightfields | High | Medium | Not started |
+| 9 | W&B experiment tracking | Medium | Low | **Done (v0.2.0)** |
+| 10 | Custom policy networks | High | Medium | Not started |
+| 11 | MJX migration (Velociraptor) | Very High | High | Not started |
+| 12 | Multi-agent pack hunting | Very High | High | Not started |
+| 13 | Pre-trained model zoo | Medium | Medium | Not started |
+| 14 | Physical robot prototype | Very High | Very High | Not started |
