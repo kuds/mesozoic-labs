@@ -48,7 +48,7 @@ except ImportError:
     logger.error("stable-baselines3 not installed. Install with: pip install stable-baselines3[extra]")
     sys.exit(1)
 
-from environments.shared.config import append_stage_result_csv, load_all_stages, save_stage_config
+from environments.shared.config import append_stage_result_csv, load_all_stages, save_stage_config, upload_curriculum_artifacts
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,
@@ -410,6 +410,8 @@ def train_curriculum(
     algorithm: str = "ppo",
     use_wandb: bool = False,
     output_dir: str | None = None,
+    gcs_bucket: str | None = None,
+    gcs_project: str | None = None,
 ):
     """Run the full 3-stage curriculum with automatic advancement."""
     thresholds = thresholds_from_configs(STAGE_CONFIGS)
@@ -618,6 +620,15 @@ def train_curriculum(
                 stage,
             )
             manager.advance()
+
+    # Upload curriculum CSV and best models to GCS (no-op when bucket is None)
+    upload_curriculum_artifacts(
+        base_dir,
+        species="trex",
+        algorithm=algorithm,
+        bucket=gcs_bucket,
+        project=gcs_project,
+    )
 
     logger.info("=" * 60)
     logger.info("Curriculum training complete!")
@@ -836,6 +847,18 @@ def main():
         default=None,
         help="Base output directory for all artifacts (preferred for cloud/GCS training)",
     )
+    cur_parser.add_argument(
+        "--gcs-bucket",
+        type=str,
+        default=None,
+        help="GCS bucket name (without gs:// prefix) to upload curriculum CSV and best models",
+    )
+    cur_parser.add_argument(
+        "--gcs-project",
+        type=str,
+        default=None,
+        help="GCP project ID for GCS uploads (uses default credentials if omitted)",
+    )
 
     # Eval command
     eval_parser = subparsers.add_parser("eval", help="Evaluate a trained policy")
@@ -898,6 +921,8 @@ def main():
             algorithm=args.algorithm,
             use_wandb=args.wandb,
             output_dir=args.output_dir,
+            gcs_bucket=args.gcs_bucket,
+            gcs_project=args.gcs_project,
         )
 
     elif args.command == "eval":
