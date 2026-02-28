@@ -512,10 +512,10 @@ def train_curriculum(
         # Extract final eval stats from evaluations.npz (std_reward, avg/std ep_length)
         import numpy as _np
 
-        avg_reward = eval_callback.best_mean_reward
-        std_reward = ""
-        avg_ep_length = ""
-        std_ep_length = ""
+        avg_reward: float | str = eval_callback.best_mean_reward
+        std_reward: float | str = ""
+        avg_ep_length: float | str = ""
+        std_ep_length: float | str = ""
         eval_npz = stage_dir / "evaluations.npz"
         if eval_npz.exists():
             eval_data = _np.load(str(eval_npz))
