@@ -496,22 +496,61 @@ def train_curriculum(
 
         # Record stage hyperparameters and outcome to CSV
         algo_key = "sac_kwargs" if algorithm == "sac" else "ppo_kwargs"
+        algo_kwargs = config[algo_key]
+        env_kwargs = config["env_kwargs"]
+
+        # Extract final eval stats from evaluations.npz (std_reward, avg/std ep_length)
+        import numpy as _np
+
+        avg_reward: float | str = eval_callback.best_mean_reward
+        std_reward: float | str = ""
+        avg_ep_length: float | str = ""
+        std_ep_length: float | str = ""
+        eval_npz = stage_dir / "evaluations.npz"
+        if eval_npz.exists():
+            eval_data = _np.load(str(eval_npz))
+            eval_rewards = eval_data["results"]  # (n_evals, n_episodes)
+            eval_lengths = eval_data["ep_lengths"]  # (n_evals, n_episodes)
+            mean_rewards_per_eval = eval_rewards.mean(axis=1)
+            best_idx = int(mean_rewards_per_eval.argmax())
+            avg_reward = round(float(mean_rewards_per_eval[best_idx]), 2)
+            std_reward = round(float(eval_rewards[best_idx].std()), 2)
+            avg_ep_length = round(float(eval_lengths[best_idx].mean()), 1)
+            std_ep_length = round(float(eval_lengths[best_idx].std()), 1)
+
+        # Build net_arch string for CSV
+        net_arch_val = algo_kwargs.get("policy_kwargs", {}).get("net_arch", "")
+        if isinstance(net_arch_val, (list, tuple)):
+            net_arch_str = str(list(net_arch_val))
+        else:
+            net_arch_str = str(net_arch_val) if net_arch_val else ""
+
         result_row: dict = {
+            "species": "trex",
+            "algorithm": algorithm.upper(),
+            "run_date": timestamp,
+            "run_dir": base_dir.name,
             "stage": stage,
             "stage_name": config["name"],
-            "algorithm": algorithm,
+            "passed": bool(stage == 3 or (curriculum_cb is not None and curriculum_cb.ready_to_advance)),
+            "avg_reward": avg_reward,
+            "std_reward": std_reward,
+            "avg_ep_length": avg_ep_length,
+            "std_ep_length": std_ep_length,
+            "timesteps": total_timesteps,
+            "threshold_reward": cur_kwargs.get("min_avg_reward", ""),
+            "threshold_ep_length": cur_kwargs.get("min_avg_episode_length", ""),
+            "learning_rate": algo_kwargs.get("learning_rate", ""),
+            "batch_size": algo_kwargs.get("batch_size", ""),
+            "gamma": algo_kwargs.get("gamma", ""),
+            "net_arch": net_arch_str,
             "seed": seed,
             "n_envs": n_envs,
-            "timesteps": total_timesteps,
+            "alive_bonus": env_kwargs.get("alive_bonus", ""),
+            "energy_penalty": env_kwargs.get("energy_penalty_weight", ""),
+            "forward_vel_weight": env_kwargs.get("forward_vel_weight", ""),
+            "posture_weight": env_kwargs.get("posture_weight", ""),
         }
-        for hp_key, hp_val in config[algo_key].items():
-            result_row[hp_key] = hp_val if isinstance(hp_val, (int, float, bool, str, type(None))) else str(hp_val)
-        for env_key, env_val in config["env_kwargs"].items():
-            if not isinstance(env_val, (list, tuple)):
-                result_row[f"env_{env_key}"] = env_val
-        result_row["best_mean_reward"] = eval_callback.best_mean_reward
-        result_row["reward_threshold"] = cur_kwargs.get("min_avg_reward")
-        result_row["stage_passed"] = bool(stage == 3 or (curriculum_cb is not None and curriculum_cb.ready_to_advance))
         append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)
         logger.info("Stage %d result appended to: %s", stage, base_dir / "curriculum_results.csv")
 
