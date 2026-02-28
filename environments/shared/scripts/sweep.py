@@ -398,6 +398,215 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
     return path
 
 
+def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_dir: str | Path | None = None) -> None:
+    """Generate visualisation graphs from sweep results CSV.
+
+    Produces two PNG figures saved alongside the CSV (or to *save_dir*):
+
+    **sweep_trial_metrics.png** — 2x2 grid:
+      - [0,0] Best Mean Reward per trial (grouped by stage)
+      - [0,1] Best Mean Episode Length per trial (grouped by stage)
+      - [1,0] Best vs Last Mean Reward (training stability)
+      - [1,1] Stage Pass/Fail summary (stacked bar)
+
+    **sweep_hyperparameter_analysis.png** — Nx1 column:
+      - One scatter plot per hyperparameter vs best_mean_reward (colour = stage)
+
+    Args:
+        csv_path: Path to the sweep results CSV.
+        species: Species name for titles.
+        algorithm: Algorithm name for titles.
+        save_dir: Directory to save PNGs. Defaults to the CSV's parent directory.
+    """
+    import csv as _csv
+
+    try:
+        import matplotlib
+        matplotlib.use("Agg")  # non-interactive backend for headless environments
+        import matplotlib.pyplot as plt
+        import numpy as np
+    except ImportError:
+        logger.warning("matplotlib or numpy not installed — skipping sweep visualisations")
+        return
+
+    csv_path = Path(csv_path)
+    if not csv_path.exists():
+        logger.warning("Sweep CSV not found: %s — skipping visualisations", csv_path)
+        return
+
+    if save_dir is None:
+        save_dir = csv_path.parent
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    # Read CSV into list of dicts
+    with open(csv_path, newline="") as f:
+        reader = _csv.DictReader(f)
+        rows = list(reader)
+
+    if not rows:
+        logger.warning("Sweep CSV is empty — skipping visualisations")
+        return
+
+    # Parse numeric values
+    def _float(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+
+    stages = sorted({int(r["stage"]) for r in rows if r.get("stage")})
+    stage_colors = {1: "#1f77b4", 2: "#ff7f0e", 3: "#2ca02c"}
+
+    # ── Figure 1: Trial Metrics (2x2) ────────────────────────────────────────
+    fig1, axes1 = plt.subplots(2, 2, figsize=(14, 10))
+    title = f"{species.capitalize()} {algorithm.upper()} Sweep"
+    fig1.suptitle(title, fontsize=14, fontweight="bold")
+
+    for stage in stages:
+        stage_rows = [r for r in rows if int(r["stage"]) == stage]
+        trial_ids = [r["trial_id"] for r in stage_rows]
+        label = f"Stage {stage}"
+        color = stage_colors.get(stage, "#333333")
+
+        # [0,0] Best Mean Reward
+        rewards = [_float(r.get("best_mean_reward")) for r in stage_rows]
+        valid = [(tid, rw) for tid, rw in zip(trial_ids, rewards) if rw is not None]
+        if valid:
+            tids, rws = zip(*valid)
+            x = np.arange(len(tids))
+            axes1[0, 0].bar(x, rws, color=color, alpha=0.7, label=label)
+            axes1[0, 0].set_xticks(x)
+            axes1[0, 0].set_xticklabels(tids, rotation=45, fontsize=7)
+            # Draw threshold line if available
+            threshold = _float(stage_rows[0].get("reward_threshold"))
+            if threshold is not None:
+                axes1[0, 0].axhline(y=threshold, color=color, linestyle="--", alpha=0.5)
+
+        # [0,1] Best Mean Episode Length
+        ep_lengths = [_float(r.get("best_mean_episode_length")) for r in stage_rows]
+        valid_ep = [(tid, el) for tid, el in zip(trial_ids, ep_lengths) if el is not None]
+        if valid_ep:
+            tids_ep, els = zip(*valid_ep)
+            x = np.arange(len(tids_ep))
+            axes1[0, 1].bar(x, els, color=color, alpha=0.7, label=label)
+            axes1[0, 1].set_xticks(x)
+            axes1[0, 1].set_xticklabels(tids_ep, rotation=45, fontsize=7)
+            ep_threshold = _float(stage_rows[0].get("ep_length_threshold"))
+            if ep_threshold is not None:
+                axes1[0, 1].axhline(y=ep_threshold, color=color, linestyle="--", alpha=0.5)
+
+        # [1,0] Best vs Last Mean Reward (training stability)
+        best_last = [
+            (_float(r.get("best_mean_reward")), _float(r.get("last_mean_reward")))
+            for r in stage_rows
+        ]
+        valid_bl = [(b, l) for b, l in best_last if b is not None and l is not None]
+        if valid_bl:
+            bests, lasts = zip(*valid_bl)
+            axes1[1, 0].scatter(bests, lasts, color=color, alpha=0.7, label=label, edgecolors="white", s=50)
+
+    axes1[0, 0].set_xlabel("Trial ID")
+    axes1[0, 0].set_ylabel("Best Mean Reward")
+    axes1[0, 0].set_title("Best Mean Reward per Trial")
+    axes1[0, 0].legend()
+    axes1[0, 0].grid(True, alpha=0.3)
+
+    axes1[0, 1].set_xlabel("Trial ID")
+    axes1[0, 1].set_ylabel("Best Mean Episode Length")
+    axes1[0, 1].set_title("Best Mean Episode Length per Trial")
+    axes1[0, 1].legend()
+    axes1[0, 1].grid(True, alpha=0.3)
+
+    axes1[1, 0].set_xlabel("Best Mean Reward")
+    axes1[1, 0].set_ylabel("Last Mean Reward")
+    axes1[1, 0].set_title("Training Stability (Best vs Last Reward)")
+    # Draw y=x reference line
+    all_rewards = [_float(r.get("best_mean_reward")) for r in rows]
+    all_rewards = [v for v in all_rewards if v is not None]
+    if all_rewards:
+        lo, hi = min(all_rewards), max(all_rewards)
+        axes1[1, 0].plot([lo, hi], [lo, hi], "k--", alpha=0.3, label="y=x")
+    axes1[1, 0].legend()
+    axes1[1, 0].grid(True, alpha=0.3)
+
+    # [1,1] Stage Pass/Fail Summary
+    ax_pf = axes1[1, 1]
+    pass_counts = []
+    fail_counts = []
+    stage_labels = []
+    for stage in stages:
+        stage_rows = [r for r in rows if int(r["stage"]) == stage]
+        passed = sum(1 for r in stage_rows if str(r.get("stage_passed", "")).lower() == "true")
+        failed = len(stage_rows) - passed
+        pass_counts.append(passed)
+        fail_counts.append(failed)
+        stage_labels.append(f"Stage {stage}")
+
+    x_pf = np.arange(len(stages))
+    ax_pf.bar(x_pf, pass_counts, color="#2ca02c", alpha=0.8, label="Passed")
+    ax_pf.bar(x_pf, fail_counts, bottom=pass_counts, color="#d62728", alpha=0.8, label="Failed")
+    ax_pf.set_xticks(x_pf)
+    ax_pf.set_xticklabels(stage_labels)
+    ax_pf.set_ylabel("Number of Trials")
+    ax_pf.set_title("Stage Pass/Fail Summary")
+    ax_pf.legend()
+    ax_pf.grid(True, alpha=0.3, axis="y")
+
+    fig1.tight_layout()
+    fig1_path = save_dir / "sweep_trial_metrics.png"
+    fig1.savefig(fig1_path, dpi=150, bbox_inches="tight")
+    plt.close(fig1)
+    logger.info("Sweep trial metrics graph saved to: %s", fig1_path)
+
+    # ── Figure 2: Hyperparameter Analysis ─────────────────────────────────────
+    # Identify hyperparameter columns (not fixed or metric columns)
+    fixed_cols = {
+        "trial_id", "stage", "best_mean_reward", "best_mean_episode_length",
+        "last_mean_reward", "last_mean_episode_length", "reward_threshold",
+        "ep_length_threshold", "forward_vel_threshold", "success_rate_threshold",
+        "stage_passed",
+    }
+    hparam_cols = [k for k in rows[0].keys() if k not in fixed_cols]
+    # Filter to columns with numeric, varying values
+    numeric_hparams = []
+    for col in hparam_cols:
+        vals = [_float(r.get(col)) for r in rows]
+        vals = [v for v in vals if v is not None]
+        if len(vals) >= 2 and len(set(vals)) > 1:
+            numeric_hparams.append(col)
+
+    if numeric_hparams:
+        n_params = len(numeric_hparams)
+        fig2, axes2 = plt.subplots(n_params, 1, figsize=(10, 4 * n_params), squeeze=False)
+        fig2.suptitle(f"{title} — Hyperparameter vs Reward", fontsize=14, fontweight="bold")
+
+        for idx, hparam in enumerate(numeric_hparams):
+            ax = axes2[idx, 0]
+            for stage in stages:
+                stage_rows = [r for r in rows if int(r["stage"]) == stage]
+                xs = [_float(r.get(hparam)) for r in stage_rows]
+                ys = [_float(r.get("best_mean_reward")) for r in stage_rows]
+                valid_hp = [(x, y) for x, y in zip(xs, ys) if x is not None and y is not None]
+                if valid_hp:
+                    hx, hy = zip(*valid_hp)
+                    ax.scatter(hx, hy, color=stage_colors.get(stage, "#333"), alpha=0.7,
+                               label=f"Stage {stage}", edgecolors="white", s=50)
+            ax.set_xlabel(hparam)
+            ax.set_ylabel("Best Mean Reward")
+            ax.set_title(f"{hparam} vs Best Mean Reward")
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+
+        fig2.tight_layout()
+        fig2_path = save_dir / "sweep_hyperparameter_analysis.png"
+        fig2.savefig(fig2_path, dpi=150, bbox_inches="tight")
+        plt.close(fig2)
+        logger.info("Sweep hyperparameter analysis graph saved to: %s", fig2_path)
+    else:
+        logger.info("No varying numeric hyperparameters found — skipping hyperparameter analysis graph")
+
+
 def _best_trial_model_path(hpt_job: Any, bucket: str, species: str, stage: int) -> str:
     """Return the GCS container-mount path of the best trial's final model.
 
@@ -688,6 +897,20 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         logger.info("Sweep CSV uploaded to: gs://%s/%s", args.bucket, gcs_csv_path)
     except Exception as exc:
         logger.warning("Failed to upload sweep CSV to GCS: %s. Local copy at: %s", exc, csv_path)
+
+    # Generate sweep visualisation graphs
+    plot_sweep_results(csv_path, args.species, args.algorithm)
+
+    # Upload graphs to GCS alongside the CSV
+    for graph_name in ("sweep_trial_metrics.png", "sweep_hyperparameter_analysis.png"):
+        graph_path = csv_path.parent / graph_name
+        if graph_path.exists():
+            gcs_graph_path = f"sweeps/{args.species}/{graph_name}"
+            try:
+                _bucket.blob(gcs_graph_path).upload_from_filename(str(graph_path))
+                logger.info("Sweep graph uploaded to: gs://%s/%s", args.bucket, gcs_graph_path)
+            except Exception as exc:
+                logger.warning("Failed to upload %s to GCS: %s", graph_name, exc)
 
     logger.info("=" * 60)
     logger.info("ALL-STAGES SWEEP COMPLETE for %s (%s)", args.species, args.algorithm)

@@ -15,8 +15,11 @@ The [curriculum] table contains per-stage training and advancement settings:
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+_logger = logging.getLogger(__name__)
 
 try:
     import tomllib
@@ -204,3 +207,109 @@ def append_stage_result_csv(csv_path: str | Path, data: dict) -> Path:
                 writer.writerow(data)
 
     return csv_path
+
+
+def upload_to_gcs(
+    local_path: str | Path,
+    bucket_name: str,
+    gcs_path: str,
+    project: str | None = None,
+) -> bool:
+    """Upload a local file to Google Cloud Storage.
+
+    Args:
+        local_path: Path to the local file to upload.
+        bucket_name: GCS bucket name (without ``gs://`` prefix).
+        gcs_path: Destination blob path inside the bucket.
+        project: GCP project ID (optional, uses default if *None*).
+
+    Returns:
+        *True* if the upload succeeded, *False* otherwise.
+    """
+    local_path = Path(local_path)
+    if not local_path.exists():
+        _logger.warning("Cannot upload to GCS: local file not found: %s", local_path)
+        return False
+
+    try:
+        from google.cloud import storage as _gcs
+
+        client = _gcs.Client(project=project)
+        bucket = client.bucket(bucket_name)
+        bucket.blob(gcs_path).upload_from_filename(str(local_path))
+        _logger.info("Uploaded to GCS: gs://%s/%s", bucket_name, gcs_path)
+        return True
+    except Exception as exc:
+        _logger.warning(
+            "Failed to upload %s to GCS: %s. Local copy remains at: %s",
+            gcs_path,
+            exc,
+            local_path,
+        )
+        return False
+
+
+def upload_curriculum_artifacts(
+    base_dir: str | Path,
+    species: str,
+    algorithm: str,
+    bucket: str | None = None,
+    project: str | None = None,
+) -> None:
+    """Upload curriculum training artifacts (CSV + best models) to GCS.
+
+    Uploads:
+    * ``curriculum_results.csv`` → ``training/<species>/curriculum_results_<run>.csv``
+    * Each stage's ``best_model.zip`` and ``stage<N>_final.zip`` →
+      ``training/<species>/<run>/stage<N>/models/``
+
+    When *bucket* is ``None`` (no GCP info provided), this function is a
+    no-op and all artifacts remain local only.
+
+    Args:
+        base_dir: The curriculum run's base directory
+            (e.g. ``logs/velociraptor/curriculum_20240228_150000``).
+        species: Species name (``"velociraptor"``, ``"brachiosaurus"``, ``"trex"``).
+        algorithm: Algorithm name (``"ppo"`` or ``"sac"``).
+        bucket: GCS bucket name (without ``gs://`` prefix).  Pass *None* to
+            skip cloud upload and keep artifacts local only.
+        project: GCP project ID (optional, uses default if *None*).
+    """
+    base_dir = Path(base_dir)
+
+    if bucket is None:
+        _logger.info(
+            "No GCS bucket specified — curriculum artifacts saved locally only: %s",
+            base_dir,
+        )
+        return
+
+    run_name = base_dir.name  # e.g. curriculum_20240228_150000
+
+    # 1. Upload curriculum_results.csv
+    csv_path = base_dir / "curriculum_results.csv"
+    if csv_path.exists():
+        gcs_csv = f"training/{species}/{run_name}/curriculum_results.csv"
+        upload_to_gcs(csv_path, bucket, gcs_csv, project=project)
+
+    # 2. Upload best model and final model for each stage
+    for stage in range(1, 4):
+        stage_model_dir = base_dir / f"stage{stage}" / "models"
+        if not stage_model_dir.is_dir():
+            continue
+
+        gcs_model_prefix = f"training/{species}/{run_name}/stage{stage}/models"
+
+        # best_model.zip (from EvalCallback)
+        best_model = stage_model_dir / "best_model.zip"
+        if best_model.exists():
+            upload_to_gcs(best_model, bucket, f"{gcs_model_prefix}/best_model.zip", project=project)
+
+        # stage<N>_final.zip + vecnorm
+        final_model = stage_model_dir / f"stage{stage}_final.zip"
+        if final_model.exists():
+            upload_to_gcs(final_model, bucket, f"{gcs_model_prefix}/stage{stage}_final.zip", project=project)
+
+        vecnorm = stage_model_dir / f"stage{stage}_final_vecnorm.pkl"
+        if vecnorm.exists():
+            upload_to_gcs(vecnorm, bucket, f"{gcs_model_prefix}/stage{stage}_final_vecnorm.pkl", project=project)
