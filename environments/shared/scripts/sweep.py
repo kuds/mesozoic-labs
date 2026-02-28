@@ -328,13 +328,14 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list
         row["forward_vel_threshold"] = forward_vel_threshold
         row["success_rate_threshold"] = success_rate_threshold
 
-        # Check all curriculum criteria
-        passed = best_reward is not None and reward_threshold is not None and best_reward >= reward_threshold
+        # Check all curriculum criteria.  When no thresholds are defined
+        # (e.g. Stage 3 hunting stages), the trial passes by default as
+        # long as it produced a valid reward.
+        passed = best_reward is not None
+        if reward_threshold is not None:
+            passed = passed and best_reward >= reward_threshold
         if passed and ep_length_threshold is not None:
             passed = best_ep_length is not None and best_ep_length >= ep_length_threshold
-        # Note: forward_vel and success_rate are not currently reported as HPT
-        # metrics by train(). These gates take effect once those metrics are
-        # added to the hypertune reporter in train().
         if passed and forward_vel_threshold is not None:
             trial_fwd_vel = metrics.get("best_mean_forward_vel")
             if trial_fwd_vel is not None:
@@ -675,6 +676,18 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     # Write a combined CSV of every trial across all three stages
     csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}.csv")
     write_results_csv(all_rows, csv_path)
+
+    # Persist the CSV to GCS alongside the trial artifacts
+    gcs_csv_path = f"sweeps/{args.species}/{csv_path.name}"
+    try:
+        from google.cloud import storage as _gcs
+
+        _client = _gcs.Client(project=args.project)
+        _bucket = _client.bucket(args.bucket)
+        _bucket.blob(gcs_csv_path).upload_from_filename(str(csv_path))
+        logger.info("Sweep CSV uploaded to: gs://%s/%s", args.bucket, gcs_csv_path)
+    except Exception as exc:
+        logger.warning("Failed to upload sweep CSV to GCS: %s. Local copy at: %s", exc, csv_path)
 
     logger.info("=" * 60)
     logger.info("ALL-STAGES SWEEP COMPLETE for %s (%s)", args.species, args.algorithm)

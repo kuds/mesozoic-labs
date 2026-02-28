@@ -319,11 +319,24 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
     from ``_on_step``. The caller can then check :attr:`ready_to_advance`
     and advance to the next stage.
 
+    When an ``eval_callback`` is provided, this callback piggybacks on
+    its evaluation results (reward / episode length) instead of running
+    a redundant full eval pass.  A small supplementary eval still runs
+    to collect forward velocity and success rate from the info dicts,
+    which ``EvalCallback`` does not capture.
+
     Args:
         curriculum_manager: The manager tracking stage progress.
         eval_env: Vectorized evaluation environment.
         eval_freq: Evaluate every N training steps.
-        n_eval_episodes: Number of episodes per evaluation.
+        n_eval_episodes: Number of episodes per evaluation (used only
+            when no *eval_callback* is provided).
+        eval_callback: Optional ``EvalCallback`` to read results from.
+            When set, the callback reads reward/length from the
+            evaluations.npz and only runs a short supplementary eval
+            for forward velocity and success rate.
+        supplementary_episodes: Number of episodes for the supplementary
+            eval when *eval_callback* is provided (default 5).
         verbose: Verbosity level.
     """
 
@@ -333,6 +346,8 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         eval_env: Any,
         eval_freq: int = 10000,
         n_eval_episodes: int = 10,
+        eval_callback: Any = None,
+        supplementary_episodes: int = 5,
         verbose: int = 0,
     ):
         if not _SB3_AVAILABLE:
@@ -344,8 +359,11 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         self.eval_env = eval_env
         self.eval_freq = eval_freq
         self.n_eval_episodes = n_eval_episodes
+        self.eval_callback = eval_callback
+        self.supplementary_episodes = supplementary_episodes
         self.ready_to_advance = False
         self._last_eval_step = 0
+        self._last_seen_n_evals = 0
 
     def _on_step(self) -> bool:
         if (self.num_timesteps - self._last_eval_step) < self.eval_freq:
@@ -353,14 +371,148 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
         self._last_eval_step = self.num_timesteps
 
-        # Run evaluation episodes with full locomotion metrics
+        if self.eval_callback is not None:
+            return self._on_step_with_eval_callback()
+        return self._on_step_standalone()
+
+    def _read_latest_eval(self) -> tuple:
+        """Read the latest per-episode rewards/lengths from EvalCallback's npz.
+
+        Returns ``(rewards, lengths, n_evals)`` or ``(None, None, 0)``
+        if no new evaluation data is available.
+        """
+        log_path = getattr(self.eval_callback, "log_path", None)
+        if log_path is None:
+            return None, None, 0
+
+        from pathlib import Path
+
+        npz_path = Path(log_path) / "evaluations.npz"
+        if not npz_path.exists():
+            return None, None, 0
+
+        data = np.load(str(npz_path))
+        eval_rewards = data["results"]  # (n_evals, n_episodes)
+        eval_lengths = data["ep_lengths"]
+
+        n_evals = eval_rewards.shape[0]
+        if n_evals <= self._last_seen_n_evals:
+            return None, None, n_evals  # No new eval
+
+        self._last_seen_n_evals = n_evals
+        latest_rewards = eval_rewards[-1].tolist()
+        latest_lengths = eval_lengths[-1].tolist()
+        return latest_rewards, latest_lengths, n_evals
+
+    def _run_supplementary_eval(self) -> tuple:
+        """Run a small eval pass to collect forward velocity and success rate.
+
+        Returns ``(forward_vels, success_flags, episode_reports)``.
+        """
+        forward_vels: List[float] = []
+        success_flags: List[float] = []
+        episode_reports: List[Dict[str, Any]] = []
+
+        for _ in range(self.supplementary_episodes):
+            obs = self.eval_env.reset()
+            metrics = LocomotionMetrics()
+            ep_forward_vels: List[float] = []
+            ep_success = 0.0
+            done = False
+            while not done:
+                action, _ = self.model.predict(obs, deterministic=True)
+                obs, reward, dones, infos = self.eval_env.step(action)
+                step_reward = float(reward[0])
+                metrics.record_step(infos[0], step_reward)
+                if "forward_vel" in infos[0]:
+                    ep_forward_vels.append(float(infos[0]["forward_vel"]))
+                for key in ("bite_success", "strike_success", "food_reached"):
+                    if infos[0].get(key):
+                        ep_success = 1.0
+                        break
+                done = bool(dones[0])
+            if ep_forward_vels:
+                forward_vels.append(float(np.mean(ep_forward_vels)))
+            success_flags.append(ep_success)
+            episode_reports.append(metrics.compute())
+
+        return forward_vels, success_flags, episode_reports
+
+    def _log_locomotion_metrics(self, episode_reports: List[Dict[str, Any]]) -> None:
+        """Log aggregated locomotion metrics from episode reports."""
+        if not episode_reports:
+            return
+
+        agg = LocomotionMetrics.aggregate_episodes(episode_reports)
+        stage = self.curriculum_manager.current_stage
+
+        metric_keys = [
+            "mean_forward_velocity",
+            "mean_total_distance",
+            "mean_cost_of_transport",
+            "mean_gait_symmetry",
+            "mean_stride_frequency",
+            "mean_pelvis_height",
+            "mean_mean_tilt_angle",
+            "mean_velocity_consistency",
+        ]
+        metric_parts = []
+        for k in metric_keys:
+            if k in agg:
+                short_name = k.replace("mean_", "")
+                metric_parts.append(f"{short_name}={agg[k]:.3f}")
+        if metric_parts:
+            logger.info(
+                "Stage %d locomotion: %s",
+                stage,
+                ", ".join(metric_parts),
+            )
+
+        term_counts = agg.get("termination_counts")
+        if term_counts:
+            n_eps = len(episode_reports)
+            parts = [f"{reason}={count}" for reason, count in sorted(term_counts.items())]
+            logger.info(
+                "Stage %d terminations (%d eps): %s",
+                stage,
+                n_eps,
+                ", ".join(parts),
+            )
+
+        log_eval_metrics(agg, stage, step=self.num_timesteps)
+
+    def _on_step_with_eval_callback(self) -> bool:
+        """Advancement check using EvalCallback results + supplementary eval."""
+        rewards, lengths, _n_evals = self._read_latest_eval()
+        if rewards is None:
+            return True  # EvalCallback hasn't produced new results yet
+
+        # Run supplementary eval for forward_vel / success_rate
+        forward_vels, success_flags, episode_reports = self._run_supplementary_eval()
+        self._log_locomotion_metrics(episode_reports)
+
+        fwd_vel_arg = forward_vels if forward_vels else None
+        success_arg = success_flags if success_flags else None
+        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg):
+            self.ready_to_advance = True
+            logger.info(
+                "CurriculumCallback: stage %d thresholds met at step %d. Stopping training for stage advancement.",
+                self.curriculum_manager.current_stage,
+                self.num_timesteps,
+            )
+            return False
+
+        return True
+
+    def _on_step_standalone(self) -> bool:
+        """Full standalone evaluation (backward-compatible path)."""
         rewards: List[float] = []
         lengths: List[float] = []
         forward_vels: List[float] = []
         success_flags: List[float] = []
         episode_reports: List[Dict[str, Any]] = []
 
-        for ep_idx in range(self.n_eval_episodes):
+        for _ in range(self.n_eval_episodes):
             obs = self.eval_env.reset()
             metrics = LocomotionMetrics()
             episode_reward = 0.0
@@ -377,8 +529,10 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 metrics.record_step(infos[0], step_reward)
                 if "forward_vel" in infos[0]:
                     ep_forward_vels.append(float(infos[0]["forward_vel"]))
-                if infos[0].get("success"):
-                    ep_success = 1.0
+                for key in ("bite_success", "strike_success", "food_reached"):
+                    if infos[0].get(key):
+                        ep_success = 1.0
+                        break
                 done = bool(dones[0])
             rewards.append(episode_reward)
             lengths.append(float(episode_length))
@@ -387,47 +541,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             success_flags.append(ep_success)
             episode_reports.append(metrics.compute())
 
-        # Log aggregated locomotion metrics
-        if episode_reports:
-            agg = LocomotionMetrics.aggregate_episodes(episode_reports)
-            stage = self.curriculum_manager.current_stage
-
-            # Log key locomotion metrics
-            metric_keys = [
-                "mean_forward_velocity",
-                "mean_total_distance",
-                "mean_cost_of_transport",
-                "mean_gait_symmetry",
-                "mean_stride_frequency",
-                "mean_pelvis_height",
-                "mean_mean_tilt_angle",
-                "mean_velocity_consistency",
-            ]
-            metric_parts = []
-            for k in metric_keys:
-                if k in agg:
-                    short_name = k.replace("mean_", "")
-                    metric_parts.append(f"{short_name}={agg[k]:.3f}")
-            if metric_parts:
-                logger.info(
-                    "Stage %d locomotion: %s",
-                    stage,
-                    ", ".join(metric_parts),
-                )
-
-            # Log termination reason breakdown
-            term_counts = agg.get("termination_counts")
-            if term_counts:
-                parts = [f"{reason}={count}" for reason, count in sorted(term_counts.items())]
-                logger.info(
-                    "Stage %d terminations (%d eps): %s",
-                    stage,
-                    self.n_eval_episodes,
-                    ", ".join(parts),
-                )
-
-            # Send aggregated metrics to W&B
-            log_eval_metrics(agg, stage, step=self.num_timesteps)
+        self._log_locomotion_metrics(episode_reports)
 
         fwd_vel_arg = forward_vels if forward_vels else None
         success_arg = success_flags if success_flags else None
@@ -438,6 +552,6 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 self.curriculum_manager.current_stage,
                 self.num_timesteps,
             )
-            return False  # Stop model.learn()
+            return False
 
         return True
