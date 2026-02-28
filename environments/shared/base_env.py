@@ -158,7 +158,8 @@ class BaseDinoEnv(gym.Env, ABC):
         # Check termination
         terminated, term_info = self._is_terminated()
         if terminated:
-            reward += self.fall_penalty
+            if not term_info.get("success"):
+                reward += self.fall_penalty
             reward_info["reward_total"] = reward
 
         truncated = self._is_truncated()

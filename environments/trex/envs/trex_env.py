@@ -428,11 +428,20 @@ class TRexEnv(BaseDinoEnv):
             info["termination_reason"] = "nosedive"
             return True, info
 
-        # Check for body-ground contact (torso, head, or tail touching floor)
+        # Check contacts: body-ground (failure) and head-prey (success)
         for i in range(self.data.ncon):
             contact = self.data.contact[i]
             geom1, geom2 = contact.geom1, contact.geom2
 
+            # Success: head_bite contacted prey
+            if (geom1 == self.head_bite_geom_id and geom2 == self.prey_geom_id) or (
+                geom2 == self.head_bite_geom_id and geom1 == self.prey_geom_id
+            ):
+                info["termination_reason"] = "bite_success"
+                info["success"] = True
+                return True, info
+
+            # Failure: body part contacted floor
             floor_contact_geom = None
             if geom2 == self.floor_geom_id and geom1 in self._body_ground_geoms:
                 floor_contact_geom = geom1

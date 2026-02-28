@@ -461,15 +461,13 @@ def train_curriculum(
         if use_wandb:
             callbacks.append(WandbCallback())
 
-        curriculum_cb = None
-        if stage < 3:
-            curriculum_cb = CurriculumCallback(
-                curriculum_manager=manager,
-                eval_env=eval_env,
-                eval_freq=eval_freq,
-                n_eval_episodes=10,
-            )
-            callbacks.append(curriculum_cb)
+        curriculum_cb = CurriculumCallback(
+            curriculum_manager=manager,
+            eval_env=eval_env,
+            eval_freq=eval_freq,
+            n_eval_episodes=10,
+        )
+        callbacks.append(curriculum_cb)
 
         try:
             model.learn(
@@ -532,7 +530,7 @@ def train_curriculum(
             "run_dir": base_dir.name,
             "stage": stage,
             "stage_name": config["name"],
-            "passed": bool(stage == 3 or (curriculum_cb is not None and curriculum_cb.ready_to_advance)),
+            "passed": bool(curriculum_cb is not None and curriculum_cb.ready_to_advance),
             "avg_reward": avg_reward,
             "std_reward": std_reward,
             "avg_ep_length": avg_ep_length,
@@ -554,7 +552,7 @@ def train_curriculum(
         append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)
         logger.info("Stage %d result appended to: %s", stage, base_dir / "curriculum_results.csv")
 
-        if curriculum_cb and curriculum_cb.ready_to_advance:
+        if curriculum_cb and curriculum_cb.ready_to_advance and not manager.is_final_stage:
             manager.advance()
             logger.info("Auto-advanced to stage %d", manager.current_stage)
         elif stage < 3:
