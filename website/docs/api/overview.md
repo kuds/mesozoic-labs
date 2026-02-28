@@ -37,7 +37,7 @@ env = RaptorEnv(
     max_episode_steps=1000,
     forward_vel_weight=1.0,    # Reward for forward movement
     alive_bonus=0.1,           # Bonus for staying upright
-    strike_bonus=500.0,        # Reward for claw-prey contact
+    strike_bonus=10.0,         # Reward for claw-prey contact
 )
 
 observation, info = env.reset(seed=42)
@@ -45,12 +45,12 @@ action = env.action_space.sample()
 obs, reward, terminated, truncated, info = env.step(action)
 ```
 
-### Observation Space (73 dimensions)
+### Observation Space (67 dimensions)
 
 | Component | Dims | Description |
 |-----------|------|-------------|
-| Joint positions | 28 | All qpos excluding root freejoint (20 hinge + 2x4 ball) |
-| Joint velocities | 26 | All qvel excluding root freejoint (20 hinge + 2x3 ball) |
+| Joint positions | 24 | All qpos excluding root freejoint (24 hinge joints) |
+| Joint velocities | 24 | All qvel excluding root freejoint (24 hinge joints) |
 | Pelvis orientation | 4 | Quaternion from framequat sensor |
 | Pelvis angular velocity | 3 | Gyroscope reading |
 | Pelvis linear velocity | 3 | Root body velocity |
@@ -59,14 +59,16 @@ obs, reward, terminated, truncated, info = env.step(action)
 | Prey direction | 3 | Unit vector toward prey |
 | Prey distance | 1 | Scalar distance to prey |
 
-### Action Space (17 dimensions)
+### Action Space (22 dimensions)
 
 Continuous actions in `[-1, 1]`, scaled to actuator control ranges:
 - Right leg: hip pitch, hip roll, knee, ankle, toe d3, toe d4 (6)
 - Right sickle claw (1)
 - Left leg: hip pitch, hip roll, knee, ankle, toe d3, toe d4 (6)
 - Left sickle claw (1)
-- Tail: pitch 1, yaw 1, pitch 2 (3)
+- Tail: pitch 1, yaw 1, pitch 2, pitch 3 (4)
+- Right arm: shoulder pitch, shoulder roll (2)
+- Left arm: shoulder pitch, shoulder roll (2)
 
 ### Reward Components
 
@@ -76,8 +78,8 @@ Continuous actions in `[-1, 1]`, scaled to actuator control ranges:
 | `alive_bonus` | 0.1 | Per-step survival bonus |
 | `energy_penalty_weight` | 0.001 | Penalizes large actions |
 | `tail_stability_weight` | 0.05 | Penalizes tail angular velocity |
-| `strike_bonus` | 500.0 | Bonus when sickle claw contacts prey |
-| `strike_approach_weight` | 0.5 | Reward for closing distance to prey |
+| `strike_bonus` | 10.0 | Bonus when sickle claw contacts prey |
+| `strike_approach_weight` | 1.0 | Reward for closing distance to prey |
 | `fall_penalty` | -100.0 | Penalty on termination from falling |
 
 ## T-Rex Environment
@@ -89,13 +91,13 @@ from environments.trex.envs.trex_env import TRexEnv
 
 env = TRexEnv(
     render_mode="human",
-    bite_bonus=500.0,          # Reward for jaw-prey contact
-    bite_approach_weight=0.5,  # Reward for closing distance
+    bite_bonus=10.0,           # Reward for head-prey contact
+    bite_approach_weight=1.0,  # Reward for closing distance
 )
 ```
 
-- **Observation:** 85 dimensions
-- **Action:** 18 dimensions (3 neck/head + 1 jaw + 7 per leg)
+- **Observation:** 83 dimensions
+- **Action:** 21 dimensions (3 neck/head + 7 per leg + 4 tail)
 
 ## Brachiosaurus Environment
 
@@ -204,9 +206,9 @@ agg = LocomotionMetrics.aggregate_episodes([report])
 
 | Metric | T-Rex | Velociraptor | Brachiosaurus |
 |---|---|---|---|
-| Height key | `pelvis_height` | `pelvis_height` | `torso_height` |
+| Height key | `pelvis_height` | `pelvis_height` | `pelvis_height` (aliased from torso) |
 | Success key | `bite_success` | `strike_success` | `food_reached` |
-| Prey/food key | `prey_distance` | `prey_distance` | `head_food_distance` |
+| Prey/food key | `prey_distance` | `prey_distance` | `prey_distance` (aliased from head_food_distance) |
 | Heading | ✓ | ✓ | N/A |
 
 The `evaluate` command in each `train_sb3.py` script prints all metrics above grouped

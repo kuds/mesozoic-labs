@@ -28,12 +28,12 @@ A massive quadrupedal sauropod herbivore optimized for stable four-legged locomo
 
 ## Unique Characteristics
 
-Brachiosaurus differs from all other species in the project:
+Brachiosaurus differs from the bipedal species in the project:
 
 - **Quadrupedal gait** instead of bipedal
 - **Herbivore behavior** (food reaching) instead of predatory (hunting/striking)
-- **22 actuators** (6 neck + 16 legs) - most complex action space
-- **75-dim observation** - largest observation space
+- **22 actuators** (6 neck + 16 legs)
+- **75-dim observation space**
 
 ## Training Stages
 

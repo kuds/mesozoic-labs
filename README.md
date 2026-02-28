@@ -40,8 +40,9 @@ mesozoic-labs/
 │       ├── base_env.py        # BaseDinoEnv abstract class
 │       ├── config.py          # TOML configuration loading
 │       ├── curriculum.py      # Curriculum learning manager
-│       ├── metrics.py         # Training metrics tracking
-│       └── wandb_integration.py
+│       ├── metrics.py         # Locomotion evaluation metrics
+│       ├── wandb_integration.py
+│       └── tests/             # Shared utility tests
 ├── configs/                   # TOML hyperparameter configs per species/stage
 ├── notebooks/                 # Jupyter notebooks for experiments
 │   ├── velociraptor_training.ipynb
@@ -49,8 +50,7 @@ mesozoic-labs/
 │   ├── trex_training.ipynb
 │   └── jax_trex_training.ipynb
 ├── website/                   # Documentation site (Docusaurus)
-├── results/                   # Training results (GIFs + summary.json per species/algorithm)
-└── Images/                    # Legacy training visualizations
+└── results/                   # Training results (GIFs + summary.json per species/algorithm)
 ```
 
 ## Environments
@@ -65,8 +65,8 @@ A bipedal predator with distinctive sickle claws, trained using 3-stage curricul
 
 | Feature | Details |
 |---------|---------|
-| Observation | 73 dims (joints, pelvis, prey tracking) |
-| Action | 17 dims (leg + claw controls) |
+| Observation | 67 dims (joints, pelvis, prey tracking) |
+| Action | 22 dims (legs, claws, tail, arms) |
 | Model | `environments/velociraptor/assets/raptor.xml` |
 
 [Full documentation →](environments/velociraptor/README.md)
@@ -101,8 +101,8 @@ Trained using 3-stage curriculum learning:
 
 | Feature | Details |
 |---------|---------|
-| Observation | 85 dims (joints, pelvis, prey tracking) |
-| Action | 18 dims (3 neck/head + 1 jaw + 7 per leg) |
+| Observation | 83 dims (joints, pelvis, prey tracking) |
+| Action | 21 dims (3 neck/head + 7 per leg + 4 tail) |
 | Model | `environments/trex/assets/trex.xml` |
 
 ### Planned Species
@@ -182,7 +182,7 @@ Hardware: Google Colab T4 GPU
 
 - [x] Complete velociraptor 3-stage training
 - [ ] Complete brachiosaurus 3-stage training
-- [ ] T-Rex environment and training
+- [ ] Complete T-Rex 3-stage training
 - [ ] JAX/MJX migration for faster training
 - [ ] Multi-agent pack hunting scenarios
 - [ ] Terrain adaptation (uneven ground, obstacles)
@@ -195,9 +195,23 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the full phased timeline, milestones,
 - **Documentation:** [mesozoiclabs.com](https://mesozoiclabs.com)
 - **Blog:** [From Zero to Dino-Roar](https://www.findingtheta.com/blog/from-zero-to-dino-roar-teaching-a-t-rex-to-walk-with-mujoco-and-reinforcement-learning)
 
+## Development
+
+```bash
+# Install with all dev dependencies
+pip install -e ".[all]"
+
+# Run tests
+pytest
+
+# Lint and type check
+ruff check environments/
+mypy environments/
+```
+
 ## Contributing
 
-Contributions welcome! Open an issue or PR.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 

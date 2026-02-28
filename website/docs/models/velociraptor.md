@@ -12,21 +12,20 @@ A bipedal predator with distinctive sickle claws, trained for locomotion and pre
 |----------|-------|
 | Hip height | ~0.5m (simulated) |
 | Total mass | ~15 kg (simulated, scaled) |
-| Hinge joints | 20 |
-| Ball joints | 2 (shoulders, passive) |
-| Actuators | 17 |
-| Observation dim | 73 |
-| Action dim | 17 |
+| Hinge joints | 24 |
+| Actuators | 22 |
+| Observation dim | 67 |
+| Action dim | 22 |
 
 ## Anatomy
 
 - **Torso** - Elongated body with simplified head/neck
 - **Legs** - Digitigrade hind limbs (hip pitch/roll, knee, ankle, 2 toe digits per leg)
 - **Sickle claws** - Retractable claw on digit 2 of each foot (the weapon)
-- **Arms** - Stub forelimbs (passive, not actuated)
-- **Tail** - 5-segment stiff counterbalance
+- **Arms** - Stub forelimbs with shoulder pitch/roll actuators
+- **Tail** - 5-segment counterbalance (4 actuated segments)
 
-## Action Space (17 dims)
+## Action Space (22 dims)
 
 | Index | Actuator | Type |
 |-------|----------|------|
@@ -34,7 +33,9 @@ A bipedal predator with distinctive sickle claws, trained for locomotion and pre
 | 6 | Right sickle claw | Motor |
 | 7-12 | Left leg (hip pitch/roll, knee, ankle, toe d3/d4) | Position |
 | 13 | Left sickle claw | Motor |
-| 14-16 | Tail (pitch 1, yaw 1, pitch 2) | Position |
+| 14-17 | Tail (pitch 1, yaw 1, pitch 2, pitch 3) | Position |
+| 18-19 | Right arm (shoulder pitch/roll) | Position |
+| 20-21 | Left arm (shoulder pitch/roll) | Position |
 
 ## Training Stages
 
