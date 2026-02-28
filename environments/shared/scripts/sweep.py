@@ -568,10 +568,11 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     4. Identify the best Stage 2 trial.
     5. Submit Stage 3 sweep, loading the best Stage 2 checkpoint.
 
-    Each stage uses the same ``--trials`` / ``--parallel`` budget, but can
-    have its own timestep budget via ``--timesteps-stage1/2/3``.
-    The search space is shared across all stages (use separate ``launch``
-    calls if you want different spaces per stage).
+    Each stage can have its own budget via ``--trials-stageN``,
+    ``--parallel-stageN``, and ``--timesteps-stageN`` flags.  When a
+    per-stage flag is omitted, the shared ``--trials`` / ``--parallel``
+    default is used.  The search space is shared across all stages (use
+    separate ``launch`` calls if you want different spaces per stage).
     """
     try:
         from google.cloud import aiplatform
@@ -595,11 +596,21 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     else:
         search_space = _DEFAULT_SEARCH_SPACES.get(args.algorithm, _DEFAULT_PPO_SEARCH_SPACE)
 
-    # Per-stage timestep budgets
+    # Per-stage budgets (fall back to the shared default when not overridden)
     timesteps_per_stage = [
         args.timesteps_stage1,
         args.timesteps_stage2,
         args.timesteps_stage3,
+    ]
+    trials_per_stage = [
+        args.trials_stage1 if args.trials_stage1 is not None else args.trials,
+        args.trials_stage2 if args.trials_stage2 is not None else args.trials,
+        args.trials_stage3 if args.trials_stage3 is not None else args.trials,
+    ]
+    parallel_per_stage = [
+        args.parallel_stage1 if args.parallel_stage1 is not None else args.parallel,
+        args.parallel_stage2 if args.parallel_stage2 is not None else args.parallel,
+        args.parallel_stage3 if args.parallel_stage3 is not None else args.parallel,
     ]
 
     load_path: str | None = None
@@ -607,6 +618,8 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
     for stage in range(1, 4):
         timesteps = timesteps_per_stage[stage - 1]
+        trials = trials_per_stage[stage - 1]
+        parallel = parallel_per_stage[stage - 1]
         logger.info("=" * 60)
         logger.info("ALL-STAGES SWEEP  —  Stage %d / 3", stage)
         logger.info("=" * 60)
@@ -619,8 +632,8 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             algorithm=args.algorithm,
             timesteps=timesteps,
             n_envs=args.n_envs,
-            trials=args.trials,
-            parallel=args.parallel,
+            trials=trials,
+            parallel=parallel,
             bucket=args.bucket,
             image=args.image,
             machine_type=args.machine_type,
@@ -725,8 +738,30 @@ def _build_parser() -> argparse.ArgumentParser:
     launch_all.add_argument("--location", default="us-central1", help="GCP region")
     launch_all.add_argument("--bucket", required=True, help="GCS bucket name (without gs:// prefix)")
     launch_all.add_argument("--image", required=True, help="Docker image URI for trial workers")
-    launch_all.add_argument("--trials", type=int, default=20, help="Maximum number of trials per stage")
-    launch_all.add_argument("--parallel", type=int, default=5, help="Parallel trials per stage")
+    launch_all.add_argument(
+        "--trials", type=int, default=20, help="Default max trials per stage (overridden by --trials-stageN)"
+    )
+    launch_all.add_argument(
+        "--trials-stage1", type=int, default=None, help="Max trials for Stage 1 (defaults to --trials)"
+    )
+    launch_all.add_argument(
+        "--trials-stage2", type=int, default=None, help="Max trials for Stage 2 (defaults to --trials)"
+    )
+    launch_all.add_argument(
+        "--trials-stage3", type=int, default=None, help="Max trials for Stage 3 (defaults to --trials)"
+    )
+    launch_all.add_argument(
+        "--parallel", type=int, default=5, help="Default parallel trials per stage (overridden by --parallel-stageN)"
+    )
+    launch_all.add_argument(
+        "--parallel-stage1", type=int, default=None, help="Parallel trials for Stage 1 (defaults to --parallel)"
+    )
+    launch_all.add_argument(
+        "--parallel-stage2", type=int, default=None, help="Parallel trials for Stage 2 (defaults to --parallel)"
+    )
+    launch_all.add_argument(
+        "--parallel-stage3", type=int, default=None, help="Parallel trials for Stage 3 (defaults to --parallel)"
+    )
     launch_all.add_argument("--timesteps-stage1", type=int, default=500000, help="Timesteps per Stage 1 trial")
     launch_all.add_argument("--timesteps-stage2", type=int, default=1000000, help="Timesteps per Stage 2 trial")
     launch_all.add_argument("--timesteps-stage3", type=int, default=1500000, help="Timesteps per Stage 3 trial")
