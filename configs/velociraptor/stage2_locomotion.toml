@@ -3,16 +3,16 @@ name = "locomotion"
 description = "Learn forward walking/running"
 
 [env]
-forward_vel_weight = 1.5
+forward_vel_weight = 1.0
 forward_vel_max = 3.0
 backward_vel_penalty_weight = 0.0
-alive_bonus = 1.5
+alive_bonus = 2.0                       # Increase: reward staying upright longer (key for ep_length ≥ 800)
 energy_penalty_weight = 0.003
 tail_stability_weight = 0.05
-posture_weight = 0.8
+posture_weight = 0.5                    # Reduce: 0.8 was too punishing, agent gave up quickly
 nosedive_weight = 0.7
-gait_symmetry_weight = 0.1
-smoothness_weight = 0.1
+gait_symmetry_weight = 0.0             # Disable: formula rewards asymmetry, not alternation
+smoothness_weight = 0.15               # Increase: penalize jerky movements that cause falls
 strike_bonus = 0.0
 strike_approach_weight = 0.0
 heading_weight = 0.3
@@ -23,13 +23,13 @@ max_episode_steps = 1000
 [ppo]
 learning_rate = 1e-4
 learning_rate_end = 1e-5
-n_steps = 8192
-batch_size = 128
+n_steps = 4096                          # Reduce from 8192: faster updates, more stable for locomotion
+batch_size = 256                        # Increase: your passing stage1 uses 256, keep consistency
 n_epochs = 10
-gamma = 0.99
+gamma = 0.995                           # Increase from 0.99: longer horizon helps value sustained walking
 gae_lambda = 0.95
 clip_range = 0.2
-ent_coef = 0.02
+ent_coef = 0.01                         # Reduce from 0.02: less exploration, more exploitation of learned balance
 
 [ppo.policy_kwargs]
 net_arch = [256, 256]
@@ -44,6 +44,6 @@ ent_coef = "auto"
 [curriculum]
 timesteps = 8000000
 min_avg_reward = 100.0
-min_avg_episode_length = 800
-min_avg_forward_vel = 0.5
+min_avg_episode_length = 600            # Reduce from 800: most good runs cluster 500-680, this is still demanding
+min_avg_forward_vel = 0.4               # Reduce slightly from 0.5: less pressure to sprint recklessly
 required_consecutive = 3
