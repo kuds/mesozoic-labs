@@ -292,12 +292,14 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list
     * ``reward_threshold`` — ``min_avg_reward`` from the stage TOML config
     * ``ep_length_threshold`` — ``min_avg_episode_length`` from config
     * ``forward_vel_threshold`` — ``min_avg_forward_vel`` from config
+    * ``success_rate_threshold`` — ``min_success_rate`` from config
     * ``stage_passed`` — ``True`` when all curriculum criteria are met
     """
     cur = stage_config.get("curriculum_kwargs", {})
     reward_threshold = cur.get("min_avg_reward")
     ep_length_threshold = cur.get("min_avg_episode_length")
     forward_vel_threshold = cur.get("min_avg_forward_vel")
+    success_rate_threshold = cur.get("min_success_rate")
 
     rows: list[dict] = []
     for trial in hpt_job.trials:
@@ -324,11 +326,23 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list
         row["reward_threshold"] = reward_threshold
         row["ep_length_threshold"] = ep_length_threshold
         row["forward_vel_threshold"] = forward_vel_threshold
+        row["success_rate_threshold"] = success_rate_threshold
 
         # Check all curriculum criteria
         passed = best_reward is not None and reward_threshold is not None and best_reward >= reward_threshold
         if passed and ep_length_threshold is not None:
             passed = best_ep_length is not None and best_ep_length >= ep_length_threshold
+        # Note: forward_vel and success_rate are not currently reported as HPT
+        # metrics by train(). These gates take effect once those metrics are
+        # added to the hypertune reporter in train().
+        if passed and forward_vel_threshold is not None:
+            trial_fwd_vel = metrics.get("best_mean_forward_vel")
+            if trial_fwd_vel is not None:
+                passed = trial_fwd_vel >= forward_vel_threshold
+        if passed and success_rate_threshold is not None:
+            trial_success_rate = metrics.get("best_mean_success_rate")
+            if trial_success_rate is not None:
+                passed = trial_success_rate >= success_rate_threshold
         row["stage_passed"] = passed
 
         rows.append(row)
@@ -367,6 +381,7 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
         "reward_threshold",
         "ep_length_threshold",
         "forward_vel_threshold",
+        "success_rate_threshold",
         "stage_passed",
     ]
     # Collect all hyperparameter column names across all rows (union, sorted)

@@ -295,6 +295,15 @@ class BrachioEnv(BaseDinoEnv):
             info["termination_reason"] = "excessive_tilt"
             return True, info
 
+        # Success: head reached food
+        head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
+        food_pos = self.data.mocap_pos[0]
+        head_food_dist = float(np.linalg.norm(head_tip_pos - food_pos))
+        if head_food_dist < self.food_reach_threshold:
+            info["termination_reason"] = "food_reached"
+            info["success"] = True
+            return True, info
+
         # Check for torso-ground contact (fallen over)
         for i in range(self.data.ncon):
             contact = self.data.contact[i]

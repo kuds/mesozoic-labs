@@ -58,6 +58,7 @@ class StageThreshold:
     min_avg_reward: float = -np.inf
     min_avg_episode_length: float = 0.0
     min_avg_forward_vel: float = 0.0
+    min_success_rate: float = 0.0
     min_eval_episodes: int = 10
     required_consecutive: int = 3
 
@@ -127,6 +128,7 @@ class CurriculumManager:
         rewards: List[float],
         episode_lengths: List[float],
         forward_velocities: Optional[List[float]] = None,
+        success_rates: Optional[List[float]] = None,
     ) -> Dict[str, float]:
         """Record evaluation results for the current stage.
 
@@ -135,6 +137,8 @@ class CurriculumManager:
             episode_lengths: List of episode lengths from evaluation.
             forward_velocities: Optional list of mean forward velocities
                 per episode (m/s). Used for locomotion stage gating.
+            success_rates: Optional list of per-episode success flags
+                (1.0 if prey contact / food reached, 0.0 otherwise).
 
         Returns:
             Summary dict with mean/std statistics.
@@ -148,19 +152,25 @@ class CurriculumManager:
         }
         if forward_velocities is not None:
             summary["mean_forward_vel"] = float(np.mean(forward_velocities))
+        if success_rates is not None:
+            summary["mean_success_rate"] = float(np.mean(success_rates))
         self._eval_history[self._current_stage].append(summary)
 
         vel_str = ""
         if "mean_forward_vel" in summary:
             vel_str = f", fwd_vel={summary['mean_forward_vel']:.2f} m/s"
+        success_str = ""
+        if "mean_success_rate" in summary:
+            success_str = f", success={summary['mean_success_rate']:.0%}"
         logger.info(
-            "Stage %d eval: reward=%.2f +/- %.2f, length=%.1f +/- %.1f%s (%d eps)",
+            "Stage %d eval: reward=%.2f +/- %.2f, length=%.1f +/- %.1f%s%s (%d eps)",
             self._current_stage,
             summary["mean_reward"],
             summary["std_reward"],
             summary["mean_length"],
             summary["std_length"],
             vel_str,
+            success_str,
             summary["n_episodes"],
         )
         return summary
@@ -170,6 +180,7 @@ class CurriculumManager:
         rewards: Optional[List[float]] = None,
         episode_lengths: Optional[List[float]] = None,
         forward_velocities: Optional[List[float]] = None,
+        success_rates: Optional[List[float]] = None,
     ) -> bool:
         """Check whether performance thresholds are met for advancement.
 
@@ -180,16 +191,15 @@ class CurriculumManager:
             rewards: Per-episode total rewards.
             episode_lengths: Per-episode step counts.
             forward_velocities: Per-episode mean forward velocities (m/s).
+            success_rates: Per-episode success flags (1.0 if prey contact
+                / food reached, 0.0 otherwise).
 
         Returns:
             True if the current stage thresholds have been met for the
             required number of consecutive evaluations.
         """
-        if self.is_final_stage:
-            return False
-
         if rewards is not None and episode_lengths is not None:
-            self.record_eval(rewards, episode_lengths, forward_velocities)
+            self.record_eval(rewards, episode_lengths, forward_velocities, success_rates)
 
         threshold = self._thresholds[self._current_stage]
         history = self._eval_history[self._current_stage]
@@ -209,6 +219,11 @@ class CurriculumManager:
         if threshold.min_avg_forward_vel > 0.0:
             mean_vel = latest.get("mean_forward_vel", 0.0)
             passes = passes and mean_vel >= threshold.min_avg_forward_vel
+
+        # Success rate gate (only checked when threshold is > 0)
+        if threshold.min_success_rate > 0.0:
+            mean_success = latest.get("mean_success_rate", 0.0)
+            passes = passes and mean_success >= threshold.min_success_rate
 
         if passes:
             self._consecutive_passes[self._current_stage] += 1
@@ -286,6 +301,8 @@ def thresholds_from_configs(
             threshold_fields["min_avg_episode_length"] = cur["min_avg_episode_length"]
         if "min_avg_forward_vel" in cur:
             threshold_fields["min_avg_forward_vel"] = cur["min_avg_forward_vel"]
+        if "min_success_rate" in cur:
+            threshold_fields["min_success_rate"] = cur["min_success_rate"]
         if "required_consecutive" in cur:
             threshold_fields["required_consecutive"] = cur["required_consecutive"]
         if threshold_fields:
@@ -331,9 +348,6 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         self._last_eval_step = 0
 
     def _on_step(self) -> bool:
-        if self.curriculum_manager.is_final_stage:
-            return True
-
         if (self.num_timesteps - self._last_eval_step) < self.eval_freq:
             return True
 
@@ -343,6 +357,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         rewards: List[float] = []
         lengths: List[float] = []
         forward_vels: List[float] = []
+        success_flags: List[float] = []
         episode_reports: List[Dict[str, Any]] = []
 
         for ep_idx in range(self.n_eval_episodes):
@@ -351,6 +366,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             episode_reward = 0.0
             episode_length = 0
             ep_forward_vels: List[float] = []
+            ep_success = 0.0
             done = False
             while not done:
                 action, _ = self.model.predict(obs, deterministic=True)
@@ -361,11 +377,14 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 metrics.record_step(infos[0], step_reward)
                 if "forward_vel" in infos[0]:
                     ep_forward_vels.append(float(infos[0]["forward_vel"]))
+                if infos[0].get("success"):
+                    ep_success = 1.0
                 done = bool(dones[0])
             rewards.append(episode_reward)
             lengths.append(float(episode_length))
             if ep_forward_vels:
                 forward_vels.append(float(np.mean(ep_forward_vels)))
+            success_flags.append(ep_success)
             episode_reports.append(metrics.compute())
 
         # Log aggregated locomotion metrics
@@ -411,7 +430,8 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             log_eval_metrics(agg, stage, step=self.num_timesteps)
 
         fwd_vel_arg = forward_vels if forward_vels else None
-        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg):
+        success_arg = success_flags if success_flags else None
+        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg):
             self.ready_to_advance = True
             logger.info(
                 "CurriculumCallback: stage %d thresholds met at step %d. Stopping training for stage advancement.",
