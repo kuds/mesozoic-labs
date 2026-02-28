@@ -6,23 +6,23 @@
   </option>
 
   <default>
-    <joint limited="true" damping="2.0" armature="0.01"/>
-    <geom contype="1" conaffinity="1" friction="1.0 0.005 0.0001"/>
+    <joint limited="true" damping="5.0" armature="0.01"/>
+    <geom contype="1" conaffinity="1" friction="1.2 0.005 0.0001"/>
     <motor ctrllimited="true" ctrlrange="-1 1"/>
 
-    <!-- Leg joints: low stiffness for compliant locomotion -->
+    <!-- Leg joints: firm support for grounded locomotion -->
     <default class="leg_joint">
-      <joint damping="3.0" armature="0.02" stiffness="3.0"/>
+      <joint damping="10.0" armature="0.05" stiffness="20.0"/>
     </default>
 
     <!-- Tail joints: high stiffness, limited range (rigid rudder behavior) -->
     <default class="tail_joint">
-      <joint damping="8.0" stiffness="25.0" armature="0.01" range="-15 15"/>
+      <joint damping="15.0" stiffness="40.0" armature="0.03" range="-15 15"/>
     </default>
 
     <!-- Sickle claw: high torque capability -->
     <default class="claw_joint">
-      <joint damping="3.0" armature="0.005"/>
+      <joint damping="5.0" armature="0.005"/>
     </default>
   </default>
 
@@ -234,28 +234,28 @@
          does NOT convert actuator attributes, only joint attributes. -->
 
     <!-- Right leg -->
-    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="80" ctrlrange="-1.0472 1.5708"/>
-    <position name="r_hip_roll_act" joint="r_hip_roll" kp="60" ctrlrange="-0.5236 0.5236"/>
-    <position name="r_knee_act" joint="r_knee" kp="100" ctrlrange="-2.0944 -0.0872"/>
-    <position name="r_ankle_act" joint="r_ankle" kp="60" ctrlrange="1.0472 2.7925"/>
-    <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
-    <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
+    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="150" ctrlrange="-1.0472 1.5708"/>
+    <position name="r_hip_roll_act" joint="r_hip_roll" kp="100" ctrlrange="-0.5236 0.5236"/>
+    <position name="r_knee_act" joint="r_knee" kp="180" ctrlrange="-2.0944 -0.0872"/>
+    <position name="r_ankle_act" joint="r_ankle" kp="100" ctrlrange="1.0472 2.7925"/>
+    <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="50" ctrlrange="-0.5236 1.0472"/>
+    <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="50" ctrlrange="-0.5236 1.0472"/>
     <motor name="r_claw_act" joint="r_claw" gear="50" ctrlrange="-1 1"/>
 
     <!-- Left leg -->
-    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="80" ctrlrange="-1.0472 1.5708"/>
-    <position name="l_hip_roll_act" joint="l_hip_roll" kp="60" ctrlrange="-0.5236 0.5236"/>
-    <position name="l_knee_act" joint="l_knee" kp="100" ctrlrange="-2.0944 -0.0872"/>
-    <position name="l_ankle_act" joint="l_ankle" kp="60" ctrlrange="1.0472 2.7925"/>
-    <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
-    <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="30" ctrlrange="-0.5236 1.0472"/>
+    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="150" ctrlrange="-1.0472 1.5708"/>
+    <position name="l_hip_roll_act" joint="l_hip_roll" kp="100" ctrlrange="-0.5236 0.5236"/>
+    <position name="l_knee_act" joint="l_knee" kp="180" ctrlrange="-2.0944 -0.0872"/>
+    <position name="l_ankle_act" joint="l_ankle" kp="100" ctrlrange="1.0472 2.7925"/>
+    <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="50" ctrlrange="-0.5236 1.0472"/>
+    <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="50" ctrlrange="-0.5236 1.0472"/>
     <motor name="l_claw_act" joint="l_claw" gear="50" ctrlrange="-1 1"/>
 
     <!-- Tail actuators for active balance control -->
-    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="40" ctrlrange="-0.2618 0.2618"/>
-    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="30" ctrlrange="-0.1745 0.1745"/>
-    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="30" ctrlrange="-0.2618 0.2618"/>
-    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="20" ctrlrange="-0.2618 0.2618"/>
+    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="60" ctrlrange="-0.2618 0.2618"/>
+    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="50" ctrlrange="-0.1745 0.1745"/>
+    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="50" ctrlrange="-0.2618 0.2618"/>
+    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="40" ctrlrange="-0.2618 0.2618"/>
 
     <!-- Forelimb actuators (lightweight — for grappling/balance assist) -->
     <position name="r_shoulder_pitch_act" joint="r_shoulder_pitch" kp="15" ctrlrange="-0.5236 0.7854"/>
