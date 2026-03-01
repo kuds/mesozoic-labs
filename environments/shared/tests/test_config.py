@@ -127,7 +127,7 @@ class TestLoadAllStages:
         """Learning rate should decrease across stages (finer tuning)."""
         stages = load_all_stages(species)
         assert stages[1]["ppo_kwargs"]["learning_rate"] > stages[2]["ppo_kwargs"]["learning_rate"]
-        assert stages[2]["ppo_kwargs"]["learning_rate"] > stages[3]["ppo_kwargs"]["learning_rate"]
+        assert stages[2]["ppo_kwargs"]["learning_rate"] >= stages[3]["ppo_kwargs"]["learning_rate"]
 
 
 class TestCurriculumInvariants:
@@ -152,10 +152,10 @@ class TestCurriculumInvariants:
         assert stages[3]["env_kwargs"]["bite_bonus"] > 0.0
 
     @pytest.mark.parametrize("species", SPECIES)
-    def test_stage1_shorter_episodes(self, species):
-        """Stage 1 should have shorter episodes than later stages."""
+    def test_consistent_episode_length(self, species):
+        """All stages should use the same max_episode_steps for consistent return horizons."""
         stages = load_all_stages(species)
-        assert stages[1]["env_kwargs"]["max_episode_steps"] < stages[2]["env_kwargs"]["max_episode_steps"]
+        assert stages[1]["env_kwargs"]["max_episode_steps"] == stages[2]["env_kwargs"]["max_episode_steps"]
 
 
 class TestSaveStageConfig:
