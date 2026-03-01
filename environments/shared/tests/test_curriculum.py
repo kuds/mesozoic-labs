@@ -301,3 +301,91 @@ class TestThresholdsFromConfigs:
         configs = load_all_stages("velociraptor")
         thresholds = thresholds_from_configs(configs)
         assert isinstance(thresholds, dict)
+
+
+class TestLoadVecnormStats:
+    """Test that VecNormalize stats are correctly carried across stages."""
+
+    @pytest.fixture
+    def vec_envs(self):
+        """Create a pair of VecNormalize-wrapped dummy envs for stage 1."""
+        from stable_baselines3.common.monitor import Monitor
+        from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+        from environments.velociraptor.envs.raptor_env import RaptorEnv
+
+        def _make():
+            env = RaptorEnv()
+            return Monitor(env)
+
+        train = VecNormalize(DummyVecEnv([_make]), norm_obs=True, norm_reward=True)
+        eval_ = VecNormalize(DummyVecEnv([_make]), norm_obs=True, norm_reward=True)
+        yield train, eval_
+        train.close()
+        eval_.close()
+
+    def test_stats_carried_forward(self, vec_envs, tmp_path):
+        """obs_rms/ret_rms are copied from saved file into fresh envs."""
+        import numpy as np
+        from stable_baselines3.common.monitor import Monitor
+        from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+        from environments.shared.curriculum import load_vecnorm_stats
+        from environments.velociraptor.envs.raptor_env import RaptorEnv
+
+        train_env, _ = vec_envs
+
+        # Run a few steps so the running mean/var diverge from defaults
+        obs = train_env.reset()
+        for _ in range(50):
+            action = [train_env.action_space.sample()]
+            obs, _, dones, _ = train_env.step(action)
+            if dones[0]:
+                obs = train_env.reset()
+
+        # Snapshot the trained stats
+        saved_obs_mean = train_env.obs_rms.mean.copy()
+        saved_obs_var = train_env.obs_rms.var.copy()
+
+        # Save to disk
+        save_path = str(tmp_path / "stage1_final_vecnorm.pkl")
+        train_env.save(save_path)
+
+        # Create fresh envs (simulating a new stage)
+        def _make():
+            return Monitor(RaptorEnv())
+
+        new_train = VecNormalize(DummyVecEnv([_make]), norm_obs=True, norm_reward=True)
+        new_eval = VecNormalize(DummyVecEnv([_make]), norm_obs=True, norm_reward=True)
+
+        # Before loading, stats should be at defaults (mean≈0, var≈1)
+        assert not np.allclose(new_train.obs_rms.mean, saved_obs_mean)
+
+        # Load stats from the "previous stage"
+        loaded = load_vecnorm_stats(save_path, new_train, new_eval)
+        assert loaded is True
+
+        # Stats should now match the saved values
+        np.testing.assert_array_equal(new_train.obs_rms.mean, saved_obs_mean)
+        np.testing.assert_array_equal(new_train.obs_rms.var, saved_obs_var)
+        np.testing.assert_array_equal(new_eval.obs_rms.mean, saved_obs_mean)
+        np.testing.assert_array_equal(new_eval.obs_rms.var, saved_obs_var)
+
+        # Train env should still be in training mode
+        assert new_train.training is True
+        assert new_train.norm_reward is True
+
+        # Eval env should NOT be training or normalizing reward
+        assert new_eval.training is False
+        assert new_eval.norm_reward is False
+
+        new_train.close()
+        new_eval.close()
+
+    def test_missing_file_returns_false(self, vec_envs):
+        """load_vecnorm_stats returns False when file doesn't exist."""
+        from environments.shared.curriculum import load_vecnorm_stats
+
+        train_env, eval_env = vec_envs
+        result = load_vecnorm_stats("/nonexistent/path_vecnorm.pkl", train_env, eval_env)
+        assert result is False
