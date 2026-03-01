@@ -744,14 +744,14 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
     """
     best_trial_id = None
     best_value = float("-inf")
-    
+
     for row in stage_rows:
         if row.get("stage_passed"):
             best_reward = row.get("best_mean_reward")
             if best_reward is not None and best_reward > best_value:
                 best_value = best_reward
                 best_trial_id = row["trial_id"]
-                
+
     if best_trial_id is None:
         logger.error("No trials passed stage %d criteria. Aborting multi-stage sweep.", stage)
         sys.exit(1)
