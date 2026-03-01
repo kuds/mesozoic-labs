@@ -121,6 +121,7 @@ NET_ARCH_PRESETS: dict[str, list[int]] = {
     "large": [512, 512],
     "deep": [256, 256, 256],
     "tapered": [512, 256],
+    "deep_tapered": [512, 512, 256],
 }
 
 
