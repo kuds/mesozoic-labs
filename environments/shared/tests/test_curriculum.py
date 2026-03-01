@@ -2,7 +2,11 @@
 
 import pytest
 
-from environments.shared.curriculum import CurriculumManager, StageThreshold
+from environments.shared.curriculum import (
+    CurriculumManager,
+    StageThreshold,
+    thresholds_from_configs,
+)
 
 
 class TestStageThreshold:
@@ -197,3 +201,103 @@ class TestCurriculumManager:
         lengths = [500.0, 500.0, 500.0]
         good_vels = [1.0, 1.2, 0.8]
         assert mgr.should_advance(rewards, lengths, good_vels)
+
+    def test_success_rate_gate_blocks_low_rate(self):
+        """Success rate below threshold should block advancement."""
+        mgr = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={
+                1: {
+                    "min_avg_reward": 10.0,
+                    "min_avg_episode_length": 50,
+                    "min_success_rate": 0.5,
+                    "min_eval_episodes": 3,
+                    "required_consecutive": 1,
+                },
+            },
+        )
+        rewards = [100.0, 100.0, 100.0]
+        lengths = [500.0, 500.0, 500.0]
+        low_success = [0.0, 0.0, 1.0]  # mean = 0.33, below 0.5
+        assert not mgr.should_advance(rewards, lengths, success_rates=low_success)
+
+    def test_success_rate_gate_passes_high_rate(self):
+        """Success rate above threshold should allow advancement."""
+        mgr = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={
+                1: {
+                    "min_avg_reward": 10.0,
+                    "min_avg_episode_length": 50,
+                    "min_success_rate": 0.5,
+                    "min_eval_episodes": 3,
+                    "required_consecutive": 1,
+                },
+            },
+        )
+        rewards = [100.0, 100.0, 100.0]
+        lengths = [500.0, 500.0, 500.0]
+        high_success = [1.0, 1.0, 0.0]  # mean = 0.67, above 0.5
+        assert mgr.should_advance(rewards, lengths, success_rates=high_success)
+
+    def test_record_eval_with_forward_vel(self):
+        """record_eval should include forward velocity in summary."""
+        mgr = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={1: {"min_avg_reward": 0.0, "required_consecutive": 1}},
+        )
+        summary = mgr.record_eval([10.0, 20.0], [100.0, 200.0], forward_velocities=[1.0, 2.0])
+        assert summary["mean_forward_vel"] == 1.5
+
+    def test_record_eval_with_success_rate(self):
+        """record_eval should include success rate in summary."""
+        mgr = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={1: {"min_avg_reward": 0.0, "required_consecutive": 1}},
+        )
+        summary = mgr.record_eval([10.0, 20.0], [100.0, 200.0], success_rates=[1.0, 0.0])
+        assert summary["mean_success_rate"] == 0.5
+
+
+class TestThresholdsFromConfigs:
+    """Test extracting thresholds from loaded TOML configs."""
+
+    def test_extracts_reward_threshold(self):
+        configs = {
+            1: {"curriculum_kwargs": {"min_avg_reward": 10.0, "required_consecutive": 2}},
+            2: {"curriculum_kwargs": {"min_avg_reward": 50.0}},
+            3: {"curriculum_kwargs": {}},
+        }
+        thresholds = thresholds_from_configs(configs)
+        assert thresholds[1]["min_avg_reward"] == 10.0
+        assert thresholds[1]["required_consecutive"] == 2
+        assert thresholds[2]["min_avg_reward"] == 50.0
+        assert 3 not in thresholds  # empty curriculum_kwargs -> no entry
+
+    def test_extracts_all_threshold_fields(self):
+        configs = {
+            1: {
+                "curriculum_kwargs": {
+                    "min_avg_reward": 10.0,
+                    "min_avg_episode_length": 100,
+                    "min_avg_forward_vel": 0.5,
+                    "min_success_rate": 0.3,
+                    "required_consecutive": 3,
+                },
+            },
+        }
+        thresholds = thresholds_from_configs(configs)
+        assert thresholds[1]["min_avg_forward_vel"] == 0.5
+        assert thresholds[1]["min_success_rate"] == 0.3
+
+    def test_empty_configs(self):
+        thresholds = thresholds_from_configs({})
+        assert thresholds == {}
+
+    def test_with_real_configs(self):
+        """Integration test: extract thresholds from actual TOML configs."""
+        from environments.shared.config import load_all_stages
+
+        configs = load_all_stages("velociraptor")
+        thresholds = thresholds_from_configs(configs)
+        assert isinstance(thresholds, dict)
