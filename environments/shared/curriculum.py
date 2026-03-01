@@ -555,3 +555,50 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             return False
 
         return True
+
+
+def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:
+    """Load VecNormalize running statistics from a previous stage into new envs.
+
+    This preserves observation/reward normalization across curriculum stage
+    transitions, preventing the policy from receiving scrambled inputs when
+    the environment wrapper is re-created for a new stage.
+
+    Args:
+        vecnorm_path: Path to a ``_vecnorm.pkl`` file saved by a previous stage.
+        train_env: The new stage's training ``VecNormalize`` wrapper.
+            ``training`` is left ``True`` so stats keep updating.
+        eval_env: Optional evaluation ``VecNormalize`` wrapper.
+            ``training`` is set to ``False``; ``norm_reward`` is disabled.
+
+    Returns:
+        ``True`` if stats were loaded, ``False`` if the file was not found.
+    """
+    from pathlib import Path as _Path
+
+    if not _SB3_AVAILABLE:
+        logger.warning("stable-baselines3 not available; skipping VecNormalize load.")
+        return False
+
+    from stable_baselines3.common.vec_env import VecNormalize
+
+    path = _Path(vecnorm_path)
+    if not path.exists():
+        logger.debug("VecNormalize file not found: %s", vecnorm_path)
+        return False
+
+    logger.info("Loading VecNormalize stats from: %s", vecnorm_path)
+    prev_norm = VecNormalize.load(str(path), train_env.venv)
+
+    train_env.obs_rms = prev_norm.obs_rms
+    train_env.ret_rms = prev_norm.ret_rms
+    train_env.training = True
+    train_env.norm_reward = True
+
+    if eval_env is not None:
+        eval_env.obs_rms = prev_norm.obs_rms.copy()
+        eval_env.ret_rms = prev_norm.ret_rms.copy()
+        eval_env.training = False
+        eval_env.norm_reward = False
+
+    return True

@@ -57,6 +57,7 @@ from environments.shared.config import (
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,
+    load_vecnorm_stats,
     thresholds_from_configs,
 )
 from environments.shared.metrics import LocomotionMetrics
@@ -243,6 +244,14 @@ def train(
 
     logger.info("Creating evaluation environment...")
     eval_env = create_vec_env(stage, 1, seed + 1000, use_subproc=False)
+
+    # If resuming from a prior stage, carry forward normalization statistics
+    # so the policy's observation inputs stay correctly scaled.
+    if load_path:
+        _vecnorm_path = load_path.replace(".zip", "") + "_vecnorm.pkl"
+        if not _vecnorm_path.endswith("_vecnorm.pkl"):
+            _vecnorm_path = load_path + "_vecnorm.pkl"
+        load_vecnorm_stats(_vecnorm_path, train_env, eval_env)
 
     # Create or load model
     alg_cls = SAC if algorithm == "sac" else PPO
@@ -453,6 +462,7 @@ def train_curriculum(
 
     model = None
     load_path = None
+    prev_vecnorm_path = None
 
     for stage in range(1, 4):
         config = STAGE_CONFIGS[stage]
@@ -482,6 +492,11 @@ def train_curriculum(
         # Create environments for this stage
         train_env = create_vec_env(stage, n_envs, seed, use_subproc)
         eval_env = create_vec_env(stage, 1, seed + 1000, use_subproc=False)
+
+        # Carry forward normalization statistics from the previous stage so the
+        # policy's observation inputs stay correctly scaled across transitions.
+        if prev_vecnorm_path:
+            load_vecnorm_stats(prev_vecnorm_path, train_env, eval_env)
 
         # Create or load model
         alg_cls = SAC if algorithm == "sac" else PPO
@@ -563,6 +578,7 @@ def train_curriculum(
         model.save(str(final_path))
         train_env.save(str(final_path) + "_vecnorm.pkl")
         load_path = str(final_path)
+        prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
 
         logger.info("Stage %d complete. Model saved to %s", stage, final_path)
 
