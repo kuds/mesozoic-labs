@@ -528,6 +528,7 @@ tmux new -s sweep
 source .venv/bin/activate
 
 # Example: T-Rex sweep — 10 trials stage 1, 20 trials stages 2-3
+# Uses per-stage search space file so each stage sweeps different params
 python environments/shared/scripts/sweep.py launch-all \
   --species trex --algorithm ppo \
   --project ${PROJECT_ID} \
@@ -536,8 +537,11 @@ python environments/shared/scripts/sweep.py launch-all \
   --trials 20 --trials-stage1 10 --parallel 5 \
   --timesteps-stage1 500000 \
   --timesteps-stage2 1000000 \
-  --timesteps-stage3 1500000
+  --timesteps-stage3 1500000 \
+  --search-space-file configs/sweep_ppo.json
 ```
+
+The `--search-space-file` flag loads per-stage search spaces from a JSON file (see [Customising the Search Space](sweeps.md#customising-the-search-space) for the file format). Pre-built files are included at `configs/sweep_ppo.json` and `configs/sweep_sac.json`.
 
 Detach from tmux with `Ctrl+B` then `D`. The sweep continues running.
 
@@ -555,7 +559,8 @@ python environments/shared/scripts/sweep.py launch-all \
   --trials 20 --trials-stage1 10 --parallel 5 \
   --timesteps-stage1 500000 \
   --timesteps-stage2 1000000 \
-  --timesteps-stage3 1500000
+  --timesteps-stage3 1500000 \
+  --search-space-file configs/sweep_ppo.json
 ```
 
 ### 4. Reconnect and monitor
