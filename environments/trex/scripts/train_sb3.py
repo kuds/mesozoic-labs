@@ -557,19 +557,23 @@ def train_curriculum(
         # and gradually ramp the forward velocity reward to prevent
         # catastrophic forgetting of balance behaviours.
         if stage > 1 and algorithm == "ppo":
-            callbacks.append(StageWarmupCallback(
-                warmup_timesteps=100_000,
-                warmup_clip_range=0.02,
-                warmup_ent_coef=0.02,
-            ))
+            callbacks.append(
+                StageWarmupCallback(
+                    warmup_timesteps=100_000,
+                    warmup_clip_range=0.02,
+                    warmup_ent_coef=0.02,
+                )
+            )
         if stage > 1:
             target_fwd_weight = config["env_kwargs"].get("forward_vel_weight", 1.0)
-            callbacks.append(RewardRampCallback(
-                attr_name="forward_vel_weight",
-                start_value=0.1,
-                end_value=target_fwd_weight,
-                ramp_timesteps=500_000,
-            ))
+            callbacks.append(
+                RewardRampCallback(
+                    attr_name="forward_vel_weight",
+                    start_value=0.1,
+                    end_value=target_fwd_weight,
+                    ramp_timesteps=500_000,
+                )
+            )
 
         interrupted = False
         try:

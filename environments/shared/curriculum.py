@@ -590,9 +590,7 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
         verbose: int = 0,
     ):
         if not _SB3_AVAILABLE:
-            raise ImportError(
-                "stable-baselines3 is required for StageWarmupCallback."
-            )
+            raise ImportError("stable-baselines3 is required for StageWarmupCallback.")
         super().__init__(verbose)
         self.warmup_timesteps = warmup_timesteps
         self.warmup_clip_range = warmup_clip_range
@@ -612,8 +610,7 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
         self.model.clip_range = lambda _progress: self.warmup_clip_range
         self.model.ent_coef = self.warmup_ent_coef
         logger.info(
-            "StageWarmupCallback: warm-up active for %d timesteps "
-            "(clip_range=%.3f, ent_coef=%.3f)",
+            "StageWarmupCallback: warm-up active for %d timesteps (clip_range=%.3f, ent_coef=%.3f)",
             self.warmup_timesteps,
             self.warmup_clip_range,
             self.warmup_ent_coef,
@@ -627,8 +624,7 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
             self.model.ent_coef = self._original_ent_coef
             self._warmup_done = True
             logger.info(
-                "StageWarmupCallback: warm-up complete at step %d. "
-                "Restored original clip_range and ent_coef.",
+                "StageWarmupCallback: warm-up complete at step %d. Restored original clip_range and ent_coef.",
                 self.num_timesteps,
             )
         return True
@@ -664,9 +660,7 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
         verbose: int = 0,
     ):
         if not _SB3_AVAILABLE:
-            raise ImportError(
-                "stable-baselines3 is required for RewardRampCallback."
-            )
+            raise ImportError("stable-baselines3 is required for RewardRampCallback.")
         super().__init__(verbose)
         self.attr_name = attr_name
         self.start_value = start_value
@@ -757,9 +751,7 @@ def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:
     # return statistics would produce incorrectly scaled normalised rewards.
     train_env.training = True
     train_env.norm_reward = True
-    logger.info(
-        "obs_rms carried forward; ret_rms reset (reward distribution changed)"
-    )
+    logger.info("obs_rms carried forward; ret_rms reset (reward distribution changed)")
 
     if eval_env is not None:
         eval_env.obs_rms = prev_norm.obs_rms.copy()
