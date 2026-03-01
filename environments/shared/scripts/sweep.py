@@ -452,12 +452,10 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list
             passed = best_ep_length is not None and best_ep_length >= ep_length_threshold
         if passed and forward_vel_threshold is not None:
             trial_fwd_vel = metrics.get("best_mean_forward_vel")
-            if trial_fwd_vel is not None:
-                passed = trial_fwd_vel >= forward_vel_threshold
+            passed = trial_fwd_vel is not None and trial_fwd_vel >= forward_vel_threshold
         if passed and success_rate_threshold is not None:
             trial_success_rate = metrics.get("best_mean_success_rate")
-            if trial_success_rate is not None:
-                passed = trial_success_rate >= success_rate_threshold
+            passed = trial_success_rate is not None and trial_success_rate >= success_rate_threshold
         row["stage_passed"] = passed
 
         rows.append(row)
@@ -733,30 +731,33 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
         logger.info("No varying numeric hyperparameters found — skipping hyperparameter analysis graph")
 
 
-def _best_trial_model_path(hpt_job: Any, bucket: str, species: str, stage: int) -> str:
+def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, stage: int) -> str:
     """Return the GCS container-mount path of the best trial's final model.
 
     Each trial writes its checkpoint to::
 
         /gcs/<bucket>/sweeps/<species>/stage<N>/<trial_id>/models/stage<N>_final.zip
 
-    This function inspects the completed HPT job, identifies the trial with
-    the highest ``best_mean_reward``, and returns that checkpoint path so the
-    next stage's sweep can warm-start from it.
+    This function inspects the completed trial rows, identifies the trial with
+    the highest ``best_mean_reward`` among those that passed the stage, and
+    returns that checkpoint path so the next stage's sweep can warm-start from it.
     """
-    best_trial = None
+    best_trial_id = None
     best_value = float("-inf")
-    for trial in hpt_job.trials:
-        if trial.final_measurement and trial.final_measurement.metrics:
-            for metric in trial.final_measurement.metrics:
-                if metric.metric_id == "best_mean_reward" and metric.value > best_value:
-                    best_value = metric.value
-                    best_trial = trial
-    if best_trial is None:
-        raise RuntimeError(f"No completed trials with 'best_mean_reward' found in HPT job {hpt_job.resource_name}")
-    trial_id = best_trial.id
-    logger.info("Best trial for stage %d: id=%s  best_mean_reward=%.4f", stage, trial_id, best_value)
-    return f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{trial_id}/models/stage{stage}_final.zip"
+    
+    for row in stage_rows:
+        if row.get("stage_passed"):
+            best_reward = row.get("best_mean_reward")
+            if best_reward is not None and best_reward > best_value:
+                best_value = best_reward
+                best_trial_id = row["trial_id"]
+                
+    if best_trial_id is None:
+        logger.error("No trials passed stage %d criteria. Aborting multi-stage sweep.", stage)
+        sys.exit(1)
+        
+    logger.info("Best passing trial for stage %d: id=%s  best_mean_reward=%.4f", stage, best_trial_id, best_value)
+    return f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{best_trial_id}/models/stage{stage}_final.zip"
 
 
 def _submit_stage_sweep(
@@ -1015,8 +1016,8 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
         if stage < 3:
             # Find the best trial and chain its checkpoint into the next stage
-            load_path = _best_trial_model_path(hpt_job, args.bucket, args.species, stage)
-            logger.info("Stage %d complete. Best model: %s", stage, load_path)
+            load_path = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
+            logger.info("Stage %d complete. Best passing model: %s", stage, load_path)
 
     # Write a combined CSV of every trial across all three stages
     csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}.csv")
