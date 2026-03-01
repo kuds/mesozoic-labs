@@ -15,20 +15,24 @@
     "timesteps": 1000000,
     "parallel": 5,
     "n_envs": 4,
-    "sac_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
-    "sac_batch_size":    {"type": "discrete", "values": [128, 256, 512]},
-    "sac_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
-    "sac_net_arch":      {"type": "categorical", "values": ["small", "medium", "large"]},
-    "env_alive_bonus":   {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"}
+    "sac_learning_rate":           {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
+    "sac_batch_size":              {"type": "discrete", "values": [128, 256, 512]},
+    "sac_gamma":                   {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
+    "sac_net_arch":                {"type": "categorical", "values": ["small", "medium", "large"]},
+    "env_alive_bonus":             {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"},
+    "curriculum_ramp_timesteps":   {"type": "discrete", "values": [200000, 500000, 1000000]},
+    "curriculum_ramp_start_value": {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"}
   },
   "stage3": {
     "trials": 20,
     "timesteps": 1500000,
     "parallel": 5,
     "n_envs": 4,
-    "sac_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
-    "sac_batch_size":    {"type": "discrete", "values": [128, 256, 512]},
-    "sac_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
-    "sac_net_arch":      {"type": "categorical", "values": ["small", "medium", "large"]}
+    "sac_learning_rate":           {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
+    "sac_batch_size":              {"type": "discrete", "values": [128, 256, 512]},
+    "sac_gamma":                   {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
+    "sac_net_arch":                {"type": "categorical", "values": ["small", "medium", "large"]},
+    "curriculum_ramp_timesteps":   {"type": "discrete", "values": [200000, 500000, 1000000]},
+    "curriculum_ramp_start_value": {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"}
   }
 }

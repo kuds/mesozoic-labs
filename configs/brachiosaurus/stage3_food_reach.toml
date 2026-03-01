@@ -37,3 +37,8 @@ ent_coef = "auto"
 
 [curriculum]
 timesteps = 4000000
+warmup_timesteps = 100000               # Timesteps to constrain policy updates while critic adapts (PPO only)
+warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change
+warmup_ent_coef = 0.02                  # Higher entropy during warm-up to maintain exploration
+ramp_timesteps = 500000                 # Timesteps over which to linearly ramp forward_vel_weight
+ramp_start_value = 0.1                  # Starting fraction of forward_vel_weight during ramp

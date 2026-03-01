@@ -282,6 +282,29 @@ def train(
     if use_wandb:
         callbacks.append(WandbCallback())
 
+    # Stage transition callbacks: when loading a prior-stage model into
+    # stage 2+, warm up the critic and ramp forward_vel_weight to prevent
+    # catastrophic forgetting.  Also used by sweep trial mode.
+    if stage > 1 and load_path:
+        cur_kwargs = config.get("curriculum_kwargs", {})
+        if algorithm == "ppo":
+            callbacks.append(
+                StageWarmupCallback(
+                    warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
+                    warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
+                    warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
+                )
+            )
+        target_fwd_weight = config["env_kwargs"].get("forward_vel_weight", 1.0)
+        callbacks.append(
+            RewardRampCallback(
+                attr_name="forward_vel_weight",
+                start_value=cur_kwargs.get("ramp_start_value", 0.1),
+                end_value=target_fwd_weight,
+                ramp_timesteps=cur_kwargs.get("ramp_timesteps", 500_000),
+            )
+        )
+
     callback_list = CallbackList(callbacks)
 
     logger.info("Starting training for %s timesteps...", f"{total_timesteps:,}")
@@ -506,9 +529,9 @@ def train_curriculum(
         if stage > 1 and algorithm == "ppo":
             callbacks.append(
                 StageWarmupCallback(
-                    warmup_timesteps=100_000,
-                    warmup_clip_range=0.02,
-                    warmup_ent_coef=0.02,
+                    warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
+                    warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
+                    warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
                 )
             )
         if stage > 1:
@@ -516,9 +539,9 @@ def train_curriculum(
             callbacks.append(
                 RewardRampCallback(
                     attr_name="forward_vel_weight",
-                    start_value=0.1,
+                    start_value=cur_kwargs.get("ramp_start_value", 0.1),
                     end_value=target_fwd_weight,
-                    ramp_timesteps=500_000,
+                    ramp_timesteps=cur_kwargs.get("ramp_timesteps", 500_000),
                 )
             )
 

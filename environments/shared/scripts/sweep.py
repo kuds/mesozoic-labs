@@ -242,10 +242,11 @@ def _hpt_arg_to_override(key: str, value: str) -> str:
 
     Examples::
 
-        "ppo_learning_rate", "0.0003" → "ppo.learning_rate=0.0003"
-        "env_alive_bonus",   "2.0"    → "env.alive_bonus=2.0"
+        "ppo_learning_rate", "0.0003"          → "ppo.learning_rate=0.0003"
+        "env_alive_bonus",   "2.0"             → "env.alive_bonus=2.0"
+        "curriculum_warmup_timesteps", "50000"  → "curriculum.warmup_timesteps=50000"
     """
-    for prefix in ("ppo", "sac", "env"):
+    for prefix in ("ppo", "sac", "env", "curriculum"):
         if key.startswith(prefix + "_"):
             param = key[len(prefix) + 1 :]
             return f"{prefix}.{param}={value}"
