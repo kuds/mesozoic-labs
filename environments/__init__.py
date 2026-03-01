@@ -9,11 +9,23 @@ Individual species can also be imported directly::
 
     from environments.velociraptor.envs import RaptorEnv
     env = RaptorEnv()
+
+Shared utilities (config, curriculum, metrics) are available even when
+gymnasium/mujoco are not installed::
+
+    from environments.shared.curriculum import RewardRampCallback
 """
 
-from environments.brachiosaurus.envs import brachio_env as _brachio_env  # noqa: F401
-from environments.trex.envs import trex_env as _trex_env  # noqa: F401
-from environments.velociraptor.envs import raptor_env as _raptor_env  # noqa: F401
+import logging as _logging
+
+try:
+    from environments.brachiosaurus.envs import brachio_env as _brachio_env  # noqa: F401
+    from environments.trex.envs import trex_env as _trex_env  # noqa: F401
+    from environments.velociraptor.envs import raptor_env as _raptor_env  # noqa: F401
+except ImportError:
+    _logging.getLogger(__name__).debug(
+        "Species environments not loaded (gymnasium/mujoco may not be installed)",
+    )
 
 
 def register_all():
