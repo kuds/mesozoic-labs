@@ -433,8 +433,9 @@ class TestPickleSafety:
 
     def test_constant_schedule_roundtrips(self):
         """_ConstantSchedule survives pickle and returns the same value."""
-        import cloudpickle
         import pickle
+
+        import cloudpickle
 
         sched = _ConstantSchedule(0.02)
         restored = pickle.loads(cloudpickle.dumps(sched))
@@ -443,8 +444,9 @@ class TestPickleSafety:
 
     def test_warmup_clip_range_is_picklable(self):
         """After StageWarmupCallback sets clip_range, the model can be pickled."""
-        import cloudpickle
         import pickle
+
+        import cloudpickle
 
         cb = object.__new__(StageWarmupCallback)
         cb.warmup_clip_range = 0.02
