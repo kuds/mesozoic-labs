@@ -62,6 +62,11 @@ All tests must pass before submitting a PR. We target 70%+ code coverage.
 The project is designed to make adding new dinosaur species straightforward.
 Follow this checklist:
 
+> **Note:** The training and test scripts use shared base modules in
+> `environments/shared/`. Species-specific scripts are thin wrappers around
+> this shared infrastructure. See `docs/REFACTORING.md` for the consolidation
+> plan and architecture details.
+
 1. **Create the directory structure:**
    ```
    environments/<species>/
@@ -71,9 +76,9 @@ Follow this checklist:
    │   ├── __init__.py
    │   └── <species>_env.py      # Gymnasium environment
    ├── scripts/
-   │   ├── train_sb3.py          # Training script
+   │   ├── train_sb3.py          # Training script (wraps shared base)
    │   ├── view_model.py         # Model viewer
-   │   └── test_env.py           # Quick env validation
+   │   └── test_env.py           # Quick env validation (wraps shared base)
    └── tests/
        ├── __init__.py
        ├── conftest.py            # Copy from existing species
@@ -96,7 +101,7 @@ Follow this checklist:
    - Follow the TOML structure from an existing species
 
 5. **Write tests** (`tests/test_<species>_env.py`):
-   - Copy the test structure from an existing species
+   - Use the shared test utilities in `environments/shared/`
    - Verify observation/action space shapes, reward components, determinism
 
 6. **Update CI** (`.github/workflows/python-ci.yml`):
