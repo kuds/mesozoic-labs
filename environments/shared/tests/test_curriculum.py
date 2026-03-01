@@ -1,10 +1,17 @@
 """Tests for CurriculumManager."""
 
+import sys
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from environments.shared.curriculum import (
+    CurriculumCallback,
     CurriculumManager,
+    RewardRampCallback,
     StageThreshold,
+    StageWarmupCallback,
+    load_vecnorm_stats,
     thresholds_from_configs,
 )
 
@@ -309,6 +316,7 @@ class TestLoadVecnormStats:
     @pytest.fixture
     def vec_envs(self):
         """Create a pair of VecNormalize-wrapped dummy envs for stage 1."""
+        pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.monitor import Monitor
         from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
@@ -389,3 +397,146 @@ class TestLoadVecnormStats:
         train_env, eval_env = vec_envs
         result = load_vecnorm_stats("/nonexistent/path_vecnorm.pkl", train_env, eval_env)
         assert result is False
+
+
+class TestCallbacksWithoutSB3:
+    """Test that SB3-dependent classes fail gracefully when SB3 is unavailable."""
+
+    def test_curriculum_callback_raises_without_sb3(self):
+        with pytest.raises(ImportError, match="stable-baselines3"):
+            CurriculumCallback(
+                curriculum_manager=MagicMock(),
+                eval_env=MagicMock(),
+            )
+
+    def test_stage_warmup_callback_raises_without_sb3(self):
+        with pytest.raises(ImportError, match="stable-baselines3"):
+            StageWarmupCallback()
+
+    def test_reward_ramp_callback_raises_without_sb3(self):
+        with pytest.raises(ImportError, match="stable-baselines3"):
+            RewardRampCallback()
+
+    def test_load_vecnorm_stats_returns_false_without_sb3(self):
+        result = load_vecnorm_stats("/any/path.pkl", MagicMock())
+        assert result is False
+
+
+class TestLoadVecnormStatsMocked:
+    """Test load_vecnorm_stats logic with mocked SB3 dependencies."""
+
+    def _sb3_mock_modules(self):
+        mock_vec_env_mod = MagicMock()
+        return {
+            "stable_baselines3": MagicMock(),
+            "stable_baselines3.common": MagicMock(),
+            "stable_baselines3.common.vec_env": mock_vec_env_mod,
+        }, mock_vec_env_mod
+
+    def test_missing_file_returns_false_with_sb3(self):
+        mods, _ = self._sb3_mock_modules()
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
+            result = load_vecnorm_stats("/nonexistent/path.pkl", MagicMock())
+        assert result is False
+
+    def test_loads_and_applies_stats(self, tmp_path):
+        fake_pkl = tmp_path / "vecnorm.pkl"
+        fake_pkl.write_bytes(b"fake")
+
+        mods, mock_vec_env_mod = self._sb3_mock_modules()
+        mock_prev = MagicMock()
+        mock_vec_env_mod.VecNormalize.load.return_value = mock_prev
+
+        mock_train = MagicMock()
+        mock_eval = MagicMock()
+
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
+            result = load_vecnorm_stats(str(fake_pkl), mock_train, mock_eval)
+
+        assert result is True
+        assert mock_train.obs_rms == mock_prev.obs_rms
+        assert mock_train.training is True
+        assert mock_train.norm_reward is True
+        assert mock_eval.training is False
+        assert mock_eval.norm_reward is False
+
+    def test_loads_without_eval_env(self, tmp_path):
+        fake_pkl = tmp_path / "vecnorm.pkl"
+        fake_pkl.write_bytes(b"fake")
+
+        mods, mock_vec_env_mod = self._sb3_mock_modules()
+        mock_prev = MagicMock()
+        mock_vec_env_mod.VecNormalize.load.return_value = mock_prev
+
+        mock_train = MagicMock()
+
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
+            result = load_vecnorm_stats(str(fake_pkl), mock_train, eval_env=None)
+
+        assert result is True
+        assert mock_train.obs_rms == mock_prev.obs_rms
+
+
+class TestCallbackMethodsMocked:
+    """Test callback methods by constructing instances via __new__ and mocking."""
+
+    def test_on_step_returns_true_before_eval_freq(self):
+        """_on_step returns True when eval_freq hasn't been reached."""
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_freq = 10000
+        cb._last_eval_step = 0
+        cb.num_timesteps = 5000
+        assert cb._on_step() is True
+
+    def test_on_step_delegates_to_standalone(self):
+        """_on_step calls _on_step_standalone when eval_callback is None."""
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_freq = 10000
+        cb._last_eval_step = 0
+        cb.num_timesteps = 15000
+        cb.eval_callback = None
+        with patch.object(CurriculumCallback, "_on_step_standalone", return_value=True) as mock_standalone:
+            result = cb._on_step()
+        assert cb._last_eval_step == 15000
+        mock_standalone.assert_called_once()
+        assert result is True
+
+    def test_on_step_delegates_to_eval_callback_path(self):
+        """_on_step calls _on_step_with_eval_callback when eval_callback is set."""
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_freq = 10000
+        cb._last_eval_step = 0
+        cb.num_timesteps = 15000
+        cb.eval_callback = MagicMock()
+        with patch.object(CurriculumCallback, "_on_step_with_eval_callback", return_value=True) as mock_ecb:
+            result = cb._on_step()
+        mock_ecb.assert_called_once()
+        assert result is True
+
+    def test_log_locomotion_metrics_empty(self):
+        """_log_locomotion_metrics returns early on empty list."""
+        cb = object.__new__(CurriculumCallback)
+        cb._log_locomotion_metrics([])  # should not raise
+
+    def test_log_locomotion_metrics_with_data(self):
+        """_log_locomotion_metrics aggregates and logs metrics."""
+        cb = object.__new__(CurriculumCallback)
+        cb.curriculum_manager = MagicMock()
+        cb.curriculum_manager.current_stage = 1
+        cb.num_timesteps = 1000
+
+        mock_agg = {
+            "mean_forward_velocity": 1.5,
+            "mean_total_distance": 10.0,
+            "mean_cost_of_transport": 0.3,
+            "termination_counts": {"timeout": 3, "fall": 1},
+        }
+
+        with (
+            patch("environments.shared.curriculum.LocomotionMetrics") as MockMetrics,
+            patch("environments.shared.curriculum.log_eval_metrics") as mock_log,
+        ):
+            MockMetrics.aggregate_episodes.return_value = mock_agg
+            cb._log_locomotion_metrics([{"some": "report"}])
+
+        mock_log.assert_called_once_with(mock_agg, 1, step=1000)
