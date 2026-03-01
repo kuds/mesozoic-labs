@@ -5,14 +5,14 @@ description = "Learn forward walking/running"
 [env]
 forward_vel_weight = 1.0
 forward_vel_max = 3.0
-backward_vel_penalty_weight = 0.0
-alive_bonus = 2.0                       # Increase: reward staying upright longer (key for ep_length ≥ 800)
+backward_vel_penalty_weight = 0.5               # Restore from Stage 1 to heavily penalize backward drifting
+alive_bonus = 2.0                       # Keep alive bonus high to prevent suicide, but ensure it balances
 energy_penalty_weight = 0.003
 tail_stability_weight = 0.05
-posture_weight = 0.5                    # Reduce: 0.8 was too punishing, agent gave up quickly
+posture_weight = 1.0                    # Increase: 0.5 was too low, leading to excessive tilt termination
 nosedive_weight = 0.7
 gait_symmetry_weight = 0.0             # Disable: formula rewards asymmetry, not alternation
-smoothness_weight = 0.15               # Increase: penalize jerky movements that cause falls
+smoothness_weight = 0.05               # Revert to Stage 1's 0.05. 0.15 makes it too sluggish to catch a fall
 strike_bonus = 0.0
 strike_approach_weight = 0.0
 heading_weight = 0.3
@@ -21,7 +21,7 @@ prey_distance_range = [8.0, 12.0]
 max_episode_steps = 1000
 
 [ppo]
-learning_rate = 1e-4
+learning_rate = 5e-5                    # Reduce from 1e-4: prevent catastrophic forgetting of Stage 1 balance
 learning_rate_end = 1e-5
 n_steps = 4096                          # Reduce from 8192: faster updates, more stable for locomotion
 batch_size = 256                        # Increase: your passing stage1 uses 256, keep consistency
@@ -29,7 +29,7 @@ n_epochs = 10
 gamma = 0.995                           # Increase from 0.99: longer horizon helps value sustained walking
 gae_lambda = 0.95
 clip_range = 0.2
-ent_coef = 0.01                         # Reduce from 0.02: less exploration, more exploitation of learned balance
+ent_coef = 0.005                        # Reduce from 0.01: exploit Stage 1 balance more, explore less violently
 
 [ppo.policy_kwargs]
 net_arch = [256, 256]
