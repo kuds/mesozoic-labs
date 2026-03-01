@@ -1,10 +1,19 @@
 """Tests for the TOML config loader."""
 
+import csv
+import json
+from unittest.mock import patch
+
 import pytest
 
 from environments.shared.config import (
+    _find_stage_file,
+    append_stage_result_csv,
     load_all_stages,
     load_stage_config,
+    save_stage_config,
+    upload_curriculum_artifacts,
+    upload_to_gcs,
 )
 
 SPECIES = ["velociraptor", "brachiosaurus", "trex"]
@@ -147,3 +156,167 @@ class TestCurriculumInvariants:
         """Stage 1 should have shorter episodes than later stages."""
         stages = load_all_stages(species)
         assert stages[1]["env_kwargs"]["max_episode_steps"] < stages[2]["env_kwargs"]["max_episode_steps"]
+
+
+class TestSaveStageConfig:
+    """Test saving stage config to JSON."""
+
+    def test_saves_ppo_config(self, tmp_path):
+        stage_config = {
+            "name": "balance",
+            "description": "Stand upright",
+            "env_kwargs": {"alive_bonus": 2.0, "prey_distance_range": (5.0, 10.0)},
+            "ppo_kwargs": {"learning_rate": 3e-4, "batch_size": 64},
+            "sac_kwargs": {"learning_rate": 1e-4},
+            "curriculum_kwargs": {"min_avg_reward": 10.0},
+        }
+        out = save_stage_config(tmp_path / "stage1", 1, stage_config, "PPO")
+        assert out.exists()
+        data = json.loads(out.read_text())
+        assert data["stage"] == 1
+        assert data["name"] == "balance"
+        assert data["algorithm"] == "PPO"
+        assert data["hyperparameters"]["learning_rate"] == 3e-4
+        # Tuples should be converted to lists for JSON
+        assert data["reward_weights"]["prey_distance_range"] == [5.0, 10.0]
+        assert data["curriculum"]["min_avg_reward"] == 10.0
+
+    def test_saves_sac_config(self, tmp_path):
+        stage_config = {
+            "name": "locomotion",
+            "description": "Walk forward",
+            "env_kwargs": {"forward_vel_weight": 1.0},
+            "ppo_kwargs": {},
+            "sac_kwargs": {"learning_rate": 1e-4, "batch_size": 256},
+            "curriculum_kwargs": {},
+        }
+        out = save_stage_config(tmp_path / "stage2", 2, stage_config, "SAC")
+        data = json.loads(out.read_text())
+        assert data["algorithm"] == "SAC"
+        assert data["hyperparameters"]["learning_rate"] == 1e-4
+
+    def test_saves_with_extra_metadata(self, tmp_path):
+        stage_config = {
+            "name": "test",
+            "env_kwargs": {},
+            "ppo_kwargs": {},
+            "sac_kwargs": {},
+            "curriculum_kwargs": {},
+        }
+        extra = {"seed": 42, "n_envs": 4}
+        out = save_stage_config(tmp_path / "run", 1, stage_config, "PPO", extra=extra)
+        data = json.loads(out.read_text())
+        assert data["run"]["seed"] == 42
+        assert data["run"]["n_envs"] == 4
+
+    def test_creates_nested_directories(self, tmp_path):
+        stage_config = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
+        out = save_stage_config(tmp_path / "a" / "b" / "c", 1, stage_config, "PPO")
+        assert out.exists()
+
+
+class TestAppendStageResultCsv:
+    """Test CSV append helper."""
+
+    def test_creates_new_csv(self, tmp_path):
+        csv_path = tmp_path / "results.csv"
+        data = {"stage": 1, "reward": 10.5, "passed": True}
+        result = append_stage_result_csv(csv_path, data)
+        assert result == csv_path
+        assert csv_path.exists()
+        with open(csv_path, newline="") as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 1
+        assert rows[0]["stage"] == "1"
+        assert rows[0]["reward"] == "10.5"
+
+    def test_appends_to_existing_csv(self, tmp_path):
+        csv_path = tmp_path / "results.csv"
+        append_stage_result_csv(csv_path, {"stage": 1, "reward": 10.0})
+        append_stage_result_csv(csv_path, {"stage": 2, "reward": 20.0})
+        with open(csv_path, newline="") as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 2
+        assert rows[1]["stage"] == "2"
+
+    def test_expands_header_for_new_keys(self, tmp_path):
+        csv_path = tmp_path / "results.csv"
+        append_stage_result_csv(csv_path, {"stage": 1, "reward": 10.0})
+        append_stage_result_csv(csv_path, {"stage": 2, "reward": 20.0, "velocity": 1.5})
+        with open(csv_path, newline="") as f:
+            reader = csv.DictReader(f)
+            assert "velocity" in reader.fieldnames
+            rows = list(reader)
+        assert len(rows) == 2
+        assert rows[1]["velocity"] == "1.5"
+
+
+class TestFindStageFile:
+    """Test edge cases in _find_stage_file."""
+
+    def test_no_matching_file_raises(self, tmp_path):
+        species_dir = tmp_path / "configs" / "unknown_species"
+        species_dir.mkdir(parents=True)
+        with patch("environments.shared.config._CONFIGS_DIR", tmp_path / "configs"):
+            with pytest.raises(FileNotFoundError, match="No config file matching"):
+                _find_stage_file("unknown_species", 1)
+
+    def test_multiple_matching_files_raises(self, tmp_path):
+        species_dir = tmp_path / "configs" / "multi"
+        species_dir.mkdir(parents=True)
+        (species_dir / "stage1_a.toml").write_text("")
+        (species_dir / "stage1_b.toml").write_text("")
+        with patch("environments.shared.config._CONFIGS_DIR", tmp_path / "configs"):
+            with pytest.raises(ValueError, match="Multiple config files"):
+                _find_stage_file("multi", 1)
+
+
+class TestUploadToGcs:
+    """Test GCS upload."""
+
+    def test_returns_false_for_missing_file(self, tmp_path):
+        result = upload_to_gcs(tmp_path / "nonexistent.csv", "bucket", "path.csv")
+        assert result is False
+
+    def test_returns_false_when_gcs_import_fails(self, tmp_path):
+        local_file = tmp_path / "data.csv"
+        local_file.write_text("a,b\n1,2\n")
+        # The GCS import is inside the function, so we mock the import mechanism
+        import builtins
+
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "google.cloud":
+                raise ImportError("no google-cloud-storage")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            result = upload_to_gcs(local_file, "bucket", "data.csv")
+        assert result is False
+
+
+class TestUploadCurriculumArtifacts:
+    """Test upload_curriculum_artifacts."""
+
+    def test_noop_when_no_bucket(self, tmp_path):
+        """Should do nothing when bucket is None."""
+        upload_curriculum_artifacts(tmp_path, "velociraptor", "ppo", bucket=None)
+
+    def test_uploads_artifacts_with_bucket(self, tmp_path):
+        """Should call upload_to_gcs for existing artifacts."""
+        # Create a fake run directory structure
+        base = tmp_path / "curriculum_20240228_150000"
+        base.mkdir()
+        (base / "curriculum_results.csv").write_text("stage,reward\n1,10\n")
+        stage1_models = base / "stage1" / "models"
+        stage1_models.mkdir(parents=True)
+        (stage1_models / "best_model.zip").write_bytes(b"fake")
+        (stage1_models / "stage1_final.zip").write_bytes(b"fake")
+        (stage1_models / "stage1_final_vecnorm.pkl").write_bytes(b"fake")
+
+        with patch("environments.shared.config.upload_to_gcs", return_value=True) as mock_upload:
+            upload_curriculum_artifacts(base, "velociraptor", "ppo", bucket="test-bucket", project="test-project")
+
+        # Should have been called for: CSV + best_model + final + vecnorm = 4
+        assert mock_upload.call_count == 4

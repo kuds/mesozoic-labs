@@ -536,6 +536,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
 
     try:
         import matplotlib
+
         matplotlib.use("Agg")  # non-interactive backend for headless environments
         import matplotlib.pyplot as plt
         import numpy as np
@@ -611,10 +612,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
                 axes1[0, 1].axhline(y=ep_threshold, color=color, linestyle="--", alpha=0.5)
 
         # [1,0] Best vs Last Mean Reward (training stability)
-        best_last = [
-            (_float(r.get("best_mean_reward")), _float(r.get("last_mean_reward")))
-            for r in stage_rows
-        ]
+        best_last = [(_float(r.get("best_mean_reward")), _float(r.get("last_mean_reward"))) for r in stage_rows]
         valid_bl = [(b, last) for b, last in best_last if b is not None and last is not None]
         if valid_bl:
             bests, lasts = zip(*valid_bl)
@@ -676,9 +674,16 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
     # ── Figure 2: Hyperparameter Analysis ─────────────────────────────────────
     # Identify hyperparameter columns (not fixed or metric columns)
     fixed_cols = {
-        "trial_id", "stage", "best_mean_reward", "best_mean_episode_length",
-        "last_mean_reward", "last_mean_episode_length", "reward_threshold",
-        "ep_length_threshold", "forward_vel_threshold", "success_rate_threshold",
+        "trial_id",
+        "stage",
+        "best_mean_reward",
+        "best_mean_episode_length",
+        "last_mean_reward",
+        "last_mean_episode_length",
+        "reward_threshold",
+        "ep_length_threshold",
+        "forward_vel_threshold",
+        "success_rate_threshold",
         "stage_passed",
     }
     hparam_cols = [k for k in rows[0].keys() if k not in fixed_cols]
@@ -704,8 +709,15 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
                 valid_hp = [(x, y) for x, y in zip(xs, ys) if x is not None and y is not None]
                 if valid_hp:
                     hx, hy = zip(*valid_hp)
-                    ax.scatter(hx, hy, color=stage_colors.get(stage, "#333"), alpha=0.7,
-                               label=f"Stage {stage}", edgecolors="white", s=50)
+                    ax.scatter(
+                        hx,
+                        hy,
+                        color=stage_colors.get(stage, "#333"),
+                        alpha=0.7,
+                        label=f"Stage {stage}",
+                        edgecolors="white",
+                        s=50,
+                    )
             ax.set_xlabel(hparam)
             ax.set_ylabel("Best Mean Reward")
             ax.set_title(f"{hparam} vs Best Mean Reward")
@@ -1147,9 +1159,15 @@ def _build_parser() -> argparse.ArgumentParser:
     launch_all.add_argument(
         "--parallel-stage3", type=int, default=None, help="Parallel trials for Stage 3 (defaults to --parallel)"
     )
-    launch_all.add_argument("--timesteps-stage1", type=int, default=None, help="Timesteps per Stage 1 trial (default: 500k)")
-    launch_all.add_argument("--timesteps-stage2", type=int, default=None, help="Timesteps per Stage 2 trial (default: 1M)")
-    launch_all.add_argument("--timesteps-stage3", type=int, default=None, help="Timesteps per Stage 3 trial (default: 1.5M)")
+    launch_all.add_argument(
+        "--timesteps-stage1", type=int, default=None, help="Timesteps per Stage 1 trial (default: 500k)"
+    )
+    launch_all.add_argument(
+        "--timesteps-stage2", type=int, default=None, help="Timesteps per Stage 2 trial (default: 1M)"
+    )
+    launch_all.add_argument(
+        "--timesteps-stage3", type=int, default=None, help="Timesteps per Stage 3 trial (default: 1.5M)"
+    )
     launch_all.add_argument("--machine-type", default="n1-standard-8", help="Vertex AI machine type")
     launch_all.add_argument(
         "--accelerator-type",
