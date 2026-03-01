@@ -93,6 +93,8 @@ gcloud ai hp-tuning-jobs list --region=us-central1
 
 Because `launch-all` runs synchronously (each stage blocks until the previous is done), you can monitor three sequential jobs appearing one after another in the console.
 
+> **Long sweeps (>24 hours):** Since `launch-all` blocks until all stages complete, use a persistent environment like a GCE VM with `tmux` instead of a notebook. See [Running Long Sweeps from a GCE VM](vertex-ai.md#running-long-sweeps-from-a-gce-vm) for step-by-step setup.
+
 ## Single-Stage Sweep
 
 If you want to sweep only one stage — for example, to re-sweep Stage 2 after finding better Stage 1 weights — use `launch` instead:
