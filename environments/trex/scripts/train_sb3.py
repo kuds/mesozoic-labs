@@ -77,12 +77,19 @@ def linear_schedule(initial_lr: float, final_lr: float):
 
 
 def _cast_value(v: str):
-    """Auto-cast a string value to int, float, or keep as string."""
+    """Auto-cast a string value to int, float, or keep as string.
+
+    Handles float-encoded integers (e.g. "128.0" → 128) which Vertex AI
+    HPT sends for DiscreteParameterSpec values.
+    """
     try:
         return int(v)
     except ValueError:
         try:
-            return float(v)
+            f = float(v)
+            if f.is_integer():
+                return int(f)
+            return f
         except ValueError:
             return v
 

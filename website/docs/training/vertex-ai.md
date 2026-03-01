@@ -475,6 +475,116 @@ job.run(
 )
 ```
 
+## Running Long Sweeps from a GCE VM
+
+The `launch-all` command in `sweep.py` blocks while it orchestrates three sequential HPT jobs. For large sweeps (20+ trials across 3 stages), the total wall-clock time can exceed 24 hours. Notebook environments like Colab may disconnect before all stages complete.
+
+The recommended approach is to run the orchestrator from a small **GCE VM** with `tmux` so the process persists indefinitely. The VM only orchestrates — all GPU training happens on Vertex AI worker nodes.
+
+### 1. Create a small orchestrator VM
+
+An `e2-micro` (2 vCPU, 1 GB) is sufficient since it only runs the Python SDK client:
+
+```bash
+export PROJECT_ID=$(gcloud config get project)
+export ZONE=us-central1-a
+
+gcloud compute instances create sweep-orchestrator \
+  --project=${PROJECT_ID} \
+  --zone=${ZONE} \
+  --machine-type=e2-micro \
+  --image-family=debian-12 \
+  --image-project=debian-cloud \
+  --scopes=cloud-platform \
+  --metadata=startup-script='#!/bin/bash
+    apt-get update -qq && apt-get install -y -qq python3-pip python3-venv tmux git
+  '
+```
+
+The `cloud-platform` scope gives the VM access to Vertex AI and GCS APIs using its service account — no manual authentication required.
+
+### 2. SSH in and set up the environment
+
+```bash
+gcloud compute ssh sweep-orchestrator --zone=${ZONE}
+```
+
+On the VM:
+
+```bash
+# Clone the repo and install the sweep orchestrator dependencies
+git clone https://github.com/kuds/mesozoic-labs.git
+cd mesozoic-labs
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install google-cloud-aiplatform
+```
+
+### 3. Start the sweep in tmux
+
+```bash
+tmux new -s sweep
+source .venv/bin/activate
+
+# Example: T-Rex sweep — all settings (trials, timesteps, parallel,
+# n_envs, search space) are defined per stage in the JSON file
+python environments/shared/scripts/sweep.py launch-all \
+  --species trex --algorithm ppo \
+  --project ${PROJECT_ID} \
+  --bucket YOUR_GCS_BUCKET \
+  --image us-central1-docker.pkg.dev/${PROJECT_ID}/mesozoic-labs/trainer:latest \
+  --search-space-file configs/sweep_ppo.json
+```
+
+The `--search-space-file` flag loads per-stage search spaces from a JSON file (see [Customising the Search Space](sweeps.md#customising-the-search-space) for the file format). Pre-built files are included at `configs/sweep_ppo.json` and `configs/sweep_sac.json`.
+
+Detach from tmux with `Ctrl+B` then `D`. The sweep continues running.
+
+To run multiple species in parallel, open additional tmux windows:
+
+```bash
+# In the same tmux session, create a new window for velociraptor
+tmux new-window -t sweep
+
+python environments/shared/scripts/sweep.py launch-all \
+  --species velociraptor --algorithm ppo \
+  --project ${PROJECT_ID} \
+  --bucket YOUR_GCS_BUCKET \
+  --image us-central1-docker.pkg.dev/${PROJECT_ID}/mesozoic-labs/trainer:latest \
+  --search-space-file configs/sweep_ppo.json
+```
+
+### 4. Reconnect and monitor
+
+```bash
+# SSH back in at any time
+gcloud compute ssh sweep-orchestrator --zone=${ZONE}
+tmux attach -t sweep
+```
+
+Monitor individual HPT jobs from any machine:
+
+```bash
+# List running HPT jobs
+gcloud ai hp-tuning-jobs list --region=us-central1 --project=${PROJECT_ID} \
+  --filter="state=JOB_STATE_RUNNING"
+
+# Or check the console
+# https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs
+```
+
+### 5. Clean up the orchestrator VM
+
+After all sweeps finish, delete the VM to stop incurring costs (~$7/month for e2-micro):
+
+```bash
+gcloud compute instances delete sweep-orchestrator \
+  --zone=${ZONE} --project=${PROJECT_ID} --quiet
+```
+
+Your training artifacts remain safely in GCS at `gs://YOUR_BUCKET/sweeps/`.
+
 ## Troubleshooting
 
 ### MuJoCo rendering errors

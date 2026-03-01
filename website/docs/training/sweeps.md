@@ -93,6 +93,8 @@ gcloud ai hp-tuning-jobs list --region=us-central1
 
 Because `launch-all` runs synchronously (each stage blocks until the previous is done), you can monitor three sequential jobs appearing one after another in the console.
 
+> **Long sweeps (>24 hours):** Since `launch-all` blocks until all stages complete, use a persistent environment like a GCE VM with `tmux` instead of a notebook. See [Running Long Sweeps from a GCE VM](vertex-ai.md#running-long-sweeps-from-a-gce-vm) for step-by-step setup.
+
 ## Single-Stage Sweep
 
 If you want to sweep only one stage — for example, to re-sweep Stage 2 after finding better Stage 1 weights — use `launch` instead:
@@ -131,7 +133,11 @@ python environments/shared/scripts/sweep.py launch \
 
 ## Customising the Search Space
 
-Pass a JSON string to `--search-space` to override the defaults for all stages. You can narrow the range, add env reward weights, or remove parameters you don't want to sweep:
+There are two ways to customise the search space: inline JSON or a JSON file.
+
+### Inline JSON (same space for all stages)
+
+Pass a JSON string to `--search-space` to override the defaults. This applies the same search space to all stages:
 
 ```bash
 python environments/shared/scripts/sweep.py launch-all \
@@ -146,7 +152,97 @@ python environments/shared/scripts/sweep.py launch-all \
   }'
 ```
 
-Parameter naming convention:
+### JSON file with per-stage search spaces (recommended)
+
+Use `--search-space-file` to load the search space from a JSON file. The file can define different parameters per stage using `"stage1"`, `"stage2"`, `"stage3"` top-level keys:
+
+```bash
+python environments/shared/scripts/sweep.py launch-all \
+  --species trex --algorithm ppo \
+  --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
+  --trials 20 --trials-stage1 10 --parallel 5 \
+  --search-space-file configs/sweep_ppo.json
+```
+
+Example per-stage file (`configs/sweep_ppo.json`):
+
+```json
+{
+  "stage1": {
+    "trials": 10,
+    "timesteps": 500000,
+    "parallel": 5,
+    "n_envs": 4,
+    "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
+    "ppo_ent_coef":      {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
+    "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
+    "ppo_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
+    "ppo_n_steps":       {"type": "discrete", "values": [1024, 2048, 4096]},
+    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep"]},
+    "env_alive_bonus":   {"type": "double", "min": 1.0, "max": 5.0, "scale": "linear"}
+  },
+  "stage2": {
+    "trials": 20,
+    "timesteps": 1000000,
+    "parallel": 5,
+    "n_envs": 4,
+    "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
+    "ppo_ent_coef":      {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
+    "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
+    "ppo_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
+    "ppo_n_steps":       {"type": "discrete", "values": [1024, 2048, 4096]},
+    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep"]},
+    "env_alive_bonus":   {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"}
+  },
+  "stage3": {
+    "trials": 20,
+    "timesteps": 1500000,
+    "parallel": 5,
+    "n_envs": 4,
+    "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
+    "ppo_ent_coef":      {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
+    "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
+    "ppo_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
+    "ppo_n_steps":       {"type": "discrete", "values": [1024, 2048, 4096]},
+    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep"]}
+  }
+}
+```
+
+Each stage block can include both **job settings** and **search space parameters**. The parser distinguishes them automatically: entries with a `"type"` key are search space parameters; scalar values (`trials`, `timesteps`, `parallel`, `n_envs`) are job settings.
+
+| Setting | Description | Default |
+|---|---|---|
+| `trials` | Max number of HPT trials for this stage | `--trials` CLI flag (20) |
+| `timesteps` | Training timesteps per trial | `--timesteps-stageN` CLI flag |
+| `parallel` | Concurrent trials | `--parallel` CLI flag (5) |
+| `n_envs` | Parallel environments per trial worker | `--n-envs` CLI flag (4) |
+
+CLI flags always override file settings. This means you can set your baseline config in the file and tweak individual values from the command line without editing JSON:
+
+```bash
+# File says trials=10 for stage 1, but override to 15 from the CLI
+python environments/shared/scripts/sweep.py launch-all \
+  --species trex --algorithm ppo \
+  --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
+  --search-space-file configs/sweep_ppo.json \
+  --trials-stage1 15
+```
+
+Notice that `env_alive_bonus` is swept in stages 1-2 (where it's a meaningful reward signal) but omitted from stage 3 (where the bite/strike bonus dominates). A flat file (no `stageN` keys) applies the same space to all stages.
+
+Pre-built search space files for PPO and SAC are included in the repo at `configs/sweep_ppo.json` and `configs/sweep_sac.json`.
+
+### Parameter types
+
+| Type | JSON fields | Example |
+|---|---|---|
+| `double` | `min`, `max`, `scale` (`"log"` or `"linear"`) | `{"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}` |
+| `discrete` | `values` (list of numbers) | `{"type": "discrete", "values": [64, 128, 256]}` |
+| `categorical` | `values` (list of strings) | `{"type": "categorical", "values": ["small", "medium"]}` |
+
+### Parameter naming convention
+
 - `ppo_X` → sets `ppo.X` in the config (e.g. `ppo_learning_rate`)
 - `sac_X` → sets `sac.X` in the config (e.g. `sac_batch_size`)
 - `env_X` → sets `env.X` in the config (e.g. `env_alive_bonus`)

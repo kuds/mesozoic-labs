@@ -123,6 +123,118 @@ NET_ARCH_PRESETS: dict[str, list[int]] = {
 }
 
 
+def _load_search_space_file(path: str) -> dict:
+    """Load a search space definition from a JSON file.
+
+    The file can be either:
+
+    * **Flat** — a single dict of parameter specs applied to all stages::
+
+        {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}, ...}
+
+    * **Per-stage** — top-level keys ``"stage1"``, ``"stage2"``, ``"stage3"``
+      each mapping to a stage-specific search space dict::
+
+        {
+          "stage1": {"ppo_learning_rate": ..., "env_alive_bonus": ...},
+          "stage2": {"ppo_learning_rate": ...},
+          "stage3": {"ppo_learning_rate": ...}
+        }
+
+    Returns the parsed dict as-is; the caller detects the format by checking
+    for ``"stage1"`` / ``"stage2"`` / ``"stage3"`` keys.
+    """
+    file_path = Path(path)
+    if not file_path.exists():
+        logger.error("Search space file not found: %s", file_path)
+        sys.exit(1)
+    try:
+        return json.loads(file_path.read_text())
+    except json.JSONDecodeError as exc:
+        logger.error("Invalid JSON in search space file %s: %s", file_path, exc)
+        sys.exit(1)
+
+
+def _resolve_search_space(
+    search_space_json: str | None,
+    search_space_file: str | None,
+    algorithm: str,
+) -> dict:
+    """Resolve the search space from CLI args.
+
+    Priority: ``--search-space`` (inline JSON) > ``--search-space-file`` >
+    algorithm default.
+
+    Returns either a flat search-space dict (all stages share the same space)
+    or a dict with ``"stage1"``/``"stage2"``/``"stage3"`` keys for per-stage
+    spaces.
+    """
+    if search_space_json:
+        try:
+            return json.loads(search_space_json)
+        except json.JSONDecodeError as exc:
+            logger.error("Invalid --search-space JSON: %s", exc)
+            sys.exit(1)
+
+    if search_space_file:
+        return _load_search_space_file(search_space_file)
+
+    return _DEFAULT_SEARCH_SPACES.get(algorithm, _DEFAULT_PPO_SEARCH_SPACE)
+
+
+def _is_per_stage(config: dict) -> bool:
+    """Return True if *config* uses per-stage keys (stage1/stage2/stage3)."""
+    return "stage1" in config or "stage2" in config or "stage3" in config
+
+
+def _split_stage_block(block: dict) -> tuple[dict, dict]:
+    """Split a stage block into (search_space, settings).
+
+    Within a stage block, any key whose value is a dict containing a
+    ``"type"`` field is a search-space parameter.  All other keys
+    (``trials``, ``timesteps``, ``parallel``, ``n_envs``) are job settings.
+    """
+    search_space: dict = {}
+    settings: dict = {}
+    for key, value in block.items():
+        if isinstance(value, dict) and "type" in value:
+            search_space[key] = value
+        else:
+            settings[key] = value
+    return search_space, settings
+
+
+def _search_space_for_stage(config: dict, stage: int) -> dict:
+    """Extract the search space for a specific stage.
+
+    If *config* has ``"stage1"``/``"stage2"``/``"stage3"`` keys, return
+    the search-space parameters for the requested stage (job settings like
+    ``trials`` and ``timesteps`` are filtered out).  Otherwise return
+    *config* as-is (flat format — same space for all stages).
+    """
+    if _is_per_stage(config):
+        key = f"stage{stage}"
+        if key not in config:
+            logger.error("Per-stage search space file is missing '%s' key", key)
+            sys.exit(1)
+        search_space, _ = _split_stage_block(config[key])
+        return search_space
+    return config
+
+
+def _settings_for_stage(config: dict, stage: int) -> dict:
+    """Extract job settings (trials, timesteps, parallel, n_envs) for a stage.
+
+    Returns an empty dict for flat configs or stages without settings.
+    """
+    if _is_per_stage(config):
+        key = f"stage{stage}"
+        if key in config:
+            _, settings = _split_stage_block(config[key])
+            return settings
+    return {}
+
+
 def _hpt_arg_to_override(key: str, value: str) -> str:
     """Convert a Vertex AI HPT arg name to ``--override`` dot notation.
 
@@ -751,15 +863,9 @@ def launch_sweep(args: argparse.Namespace) -> None:
         staging_bucket=f"gs://{args.bucket}",
     )
 
-    # Load search space: JSON override or algorithm default
-    if args.search_space:
-        try:
-            search_space = json.loads(args.search_space)
-        except json.JSONDecodeError as exc:
-            logger.error("Invalid --search-space JSON: %s", exc)
-            sys.exit(1)
-    else:
-        search_space = _DEFAULT_SEARCH_SPACES.get(args.algorithm, _DEFAULT_PPO_SEARCH_SPACE)
+    # Load search space: inline JSON > file > algorithm default
+    resolved = _resolve_search_space(args.search_space, args.search_space_file, args.algorithm)
+    search_space = _search_space_for_stage(resolved, args.stage)
 
     _submit_stage_sweep(
         aiplatform=aiplatform,
@@ -796,8 +902,12 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     Each stage can have its own budget via ``--trials-stageN``,
     ``--parallel-stageN``, and ``--timesteps-stageN`` flags.  When a
     per-stage flag is omitted, the shared ``--trials`` / ``--parallel``
-    default is used.  The search space is shared across all stages (use
-    separate ``launch`` calls if you want different spaces per stage).
+    default is used.
+
+    The search space can be customised per stage using a JSON file with
+    ``"stage1"`` / ``"stage2"`` / ``"stage3"`` top-level keys (see
+    ``--search-space-file``).  A flat JSON file or inline ``--search-space``
+    applies the same space to all three stages.
     """
     try:
         from google.cloud import aiplatform
@@ -812,39 +922,51 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         staging_bucket=f"gs://{args.bucket}",
     )
 
-    if args.search_space:
-        try:
-            search_space = json.loads(args.search_space)
-        except json.JSONDecodeError as exc:
-            logger.error("Invalid --search-space JSON: %s", exc)
-            sys.exit(1)
-    else:
-        search_space = _DEFAULT_SEARCH_SPACES.get(args.algorithm, _DEFAULT_PPO_SEARCH_SPACE)
+    # Load search space: inline JSON > file > algorithm default
+    # If the file uses per-stage keys ("stage1", "stage2", "stage3"), each
+    # stage gets its own search space.  Otherwise the same space is reused.
+    resolved = _resolve_search_space(args.search_space, args.search_space_file, args.algorithm)
 
-    # Per-stage budgets (fall back to the shared default when not overridden)
-    timesteps_per_stage = [
-        args.timesteps_stage1,
-        args.timesteps_stage2,
-        args.timesteps_stage3,
+    # Per-stage budgets: CLI flags > search-space file settings > shared defaults
+    # The search-space file can include "trials", "timesteps", "parallel",
+    # "n_envs" alongside the search-space params.  CLI flags always win.
+    cli_timesteps = [args.timesteps_stage1, args.timesteps_stage2, args.timesteps_stage3]
+    cli_trials = [
+        args.trials_stage1,
+        args.trials_stage2,
+        args.trials_stage3,
     ]
-    trials_per_stage = [
-        args.trials_stage1 if args.trials_stage1 is not None else args.trials,
-        args.trials_stage2 if args.trials_stage2 is not None else args.trials,
-        args.trials_stage3 if args.trials_stage3 is not None else args.trials,
-    ]
-    parallel_per_stage = [
-        args.parallel_stage1 if args.parallel_stage1 is not None else args.parallel,
-        args.parallel_stage2 if args.parallel_stage2 is not None else args.parallel,
-        args.parallel_stage3 if args.parallel_stage3 is not None else args.parallel,
+    cli_parallel = [
+        args.parallel_stage1,
+        args.parallel_stage2,
+        args.parallel_stage3,
     ]
 
     load_path: str | None = None
     all_rows: list[dict] = []
 
     for stage in range(1, 4):
-        timesteps = timesteps_per_stage[stage - 1]
-        trials = trials_per_stage[stage - 1]
-        parallel = parallel_per_stage[stage - 1]
+        search_space = _search_space_for_stage(resolved, stage)
+        file_settings = _settings_for_stage(resolved, stage)
+
+        # Resolve each setting: CLI flag > file setting > shared CLI default
+        timesteps = cli_timesteps[stage - 1]
+        if timesteps is None:
+            timesteps = file_settings.get("timesteps", cli_timesteps[stage - 1])
+        if timesteps is None:
+            # Fall back to the argparse defaults (500k/1M/1.5M)
+            timesteps = [500_000, 1_000_000, 1_500_000][stage - 1]
+
+        trials = cli_trials[stage - 1]
+        if trials is None:
+            trials = file_settings.get("trials", args.trials)
+
+        parallel = cli_parallel[stage - 1]
+        if parallel is None:
+            parallel = file_settings.get("parallel", args.parallel)
+
+        n_envs = file_settings.get("n_envs", args.n_envs)
+
         logger.info("=" * 60)
         logger.info("ALL-STAGES SWEEP  —  Stage %d / 3", stage)
         logger.info("=" * 60)
@@ -856,7 +978,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             stage=stage,
             algorithm=args.algorithm,
             timesteps=timesteps,
-            n_envs=args.n_envs,
+            n_envs=n_envs,
             trials=trials,
             parallel=parallel,
             bucket=args.bucket,
@@ -971,8 +1093,18 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="JSON",
         help=(
-            "JSON search space override. If omitted, the default space for the chosen "
+            "JSON search space override (inline string). If omitted, the default space for the chosen "
             "algorithm is used. See module docstring for format details."
+        ),
+    )
+    launch.add_argument(
+        "--search-space-file",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help=(
+            "Path to a JSON file defining the search space. Supports per-stage "
+            "sections (keys: stage1, stage2, stage3) or a flat dict for all stages."
         ),
     )
     launch.add_argument("--wandb", action="store_true", help="Enable W&B logging in each trial")
@@ -1028,7 +1160,18 @@ def _build_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         metavar="JSON",
-        help="JSON search space override (applied to all stages). Defaults to the algorithm's default space.",
+        help="JSON search space override (inline string, applied to all stages). Defaults to the algorithm's default space.",
+    )
+    launch_all.add_argument(
+        "--search-space-file",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help=(
+            "Path to a JSON file defining the search space. Use per-stage keys "
+            "(stage1, stage2, stage3) to give each stage its own search space, "
+            "or a flat dict to apply the same space to all stages."
+        ),
     )
     launch_all.add_argument("--wandb", action="store_true", help="Enable W&B logging in each trial")
 
