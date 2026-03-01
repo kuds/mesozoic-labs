@@ -169,6 +169,10 @@ Example per-stage file (`configs/sweep_ppo.json`):
 ```json
 {
   "stage1": {
+    "trials": 10,
+    "timesteps": 500000,
+    "parallel": 5,
+    "n_envs": 4,
     "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
     "ppo_ent_coef":      {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
     "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
@@ -178,6 +182,10 @@ Example per-stage file (`configs/sweep_ppo.json`):
     "env_alive_bonus":   {"type": "double", "min": 1.0, "max": 5.0, "scale": "linear"}
   },
   "stage2": {
+    "trials": 20,
+    "timesteps": 1000000,
+    "parallel": 5,
+    "n_envs": 4,
     "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
     "ppo_ent_coef":      {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
     "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
@@ -187,6 +195,10 @@ Example per-stage file (`configs/sweep_ppo.json`):
     "env_alive_bonus":   {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"}
   },
   "stage3": {
+    "trials": 20,
+    "timesteps": 1500000,
+    "parallel": 5,
+    "n_envs": 4,
     "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
     "ppo_ent_coef":      {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
     "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
@@ -195,6 +207,26 @@ Example per-stage file (`configs/sweep_ppo.json`):
     "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep"]}
   }
 }
+```
+
+Each stage block can include both **job settings** and **search space parameters**. The parser distinguishes them automatically: entries with a `"type"` key are search space parameters; scalar values (`trials`, `timesteps`, `parallel`, `n_envs`) are job settings.
+
+| Setting | Description | Default |
+|---|---|---|
+| `trials` | Max number of HPT trials for this stage | `--trials` CLI flag (20) |
+| `timesteps` | Training timesteps per trial | `--timesteps-stageN` CLI flag |
+| `parallel` | Concurrent trials | `--parallel` CLI flag (5) |
+| `n_envs` | Parallel environments per trial worker | `--n-envs` CLI flag (4) |
+
+CLI flags always override file settings. This means you can set your baseline config in the file and tweak individual values from the command line without editing JSON:
+
+```bash
+# File says trials=10 for stage 1, but override to 15 from the CLI
+python environments/shared/scripts/sweep.py launch-all \
+  --species trex --algorithm ppo \
+  --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
+  --search-space-file configs/sweep_ppo.json \
+  --trials-stage1 15
 ```
 
 Notice that `env_alive_bonus` is swept in stages 1-2 (where it's a meaningful reward signal) but omitted from stage 3 (where the bite/strike bonus dominates). A flat file (no `stageN` keys) applies the same space to all stages.

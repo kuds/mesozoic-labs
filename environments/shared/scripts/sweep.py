@@ -182,20 +182,57 @@ def _resolve_search_space(
     return _DEFAULT_SEARCH_SPACES.get(algorithm, _DEFAULT_PPO_SEARCH_SPACE)
 
 
-def _search_space_for_stage(search_space: dict, stage: int) -> dict:
+def _is_per_stage(config: dict) -> bool:
+    """Return True if *config* uses per-stage keys (stage1/stage2/stage3)."""
+    return "stage1" in config or "stage2" in config or "stage3" in config
+
+
+def _split_stage_block(block: dict) -> tuple[dict, dict]:
+    """Split a stage block into (search_space, settings).
+
+    Within a stage block, any key whose value is a dict containing a
+    ``"type"`` field is a search-space parameter.  All other keys
+    (``trials``, ``timesteps``, ``parallel``, ``n_envs``) are job settings.
+    """
+    search_space: dict = {}
+    settings: dict = {}
+    for key, value in block.items():
+        if isinstance(value, dict) and "type" in value:
+            search_space[key] = value
+        else:
+            settings[key] = value
+    return search_space, settings
+
+
+def _search_space_for_stage(config: dict, stage: int) -> dict:
     """Extract the search space for a specific stage.
 
-    If *search_space* has ``"stage1"``/``"stage2"``/``"stage3"`` keys, return
-    the sub-dict for the requested stage.  Otherwise return *search_space*
-    as-is (flat format — same space for all stages).
+    If *config* has ``"stage1"``/``"stage2"``/``"stage3"`` keys, return
+    the search-space parameters for the requested stage (job settings like
+    ``trials`` and ``timesteps`` are filtered out).  Otherwise return
+    *config* as-is (flat format — same space for all stages).
     """
-    if "stage1" in search_space or "stage2" in search_space or "stage3" in search_space:
+    if _is_per_stage(config):
         key = f"stage{stage}"
-        if key not in search_space:
+        if key not in config:
             logger.error("Per-stage search space file is missing '%s' key", key)
             sys.exit(1)
-        return search_space[key]
-    return search_space
+        search_space, _ = _split_stage_block(config[key])
+        return search_space
+    return config
+
+
+def _settings_for_stage(config: dict, stage: int) -> dict:
+    """Extract job settings (trials, timesteps, parallel, n_envs) for a stage.
+
+    Returns an empty dict for flat configs or stages without settings.
+    """
+    if _is_per_stage(config):
+        key = f"stage{stage}"
+        if key in config:
+            _, settings = _split_stage_block(config[key])
+            return settings
+    return {}
 
 
 def _hpt_arg_to_override(key: str, value: str) -> str:
@@ -890,31 +927,46 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     # stage gets its own search space.  Otherwise the same space is reused.
     resolved = _resolve_search_space(args.search_space, args.search_space_file, args.algorithm)
 
-    # Per-stage budgets (fall back to the shared default when not overridden)
-    timesteps_per_stage = [
-        args.timesteps_stage1,
-        args.timesteps_stage2,
-        args.timesteps_stage3,
+    # Per-stage budgets: CLI flags > search-space file settings > shared defaults
+    # The search-space file can include "trials", "timesteps", "parallel",
+    # "n_envs" alongside the search-space params.  CLI flags always win.
+    cli_timesteps = [args.timesteps_stage1, args.timesteps_stage2, args.timesteps_stage3]
+    cli_trials = [
+        args.trials_stage1,
+        args.trials_stage2,
+        args.trials_stage3,
     ]
-    trials_per_stage = [
-        args.trials_stage1 if args.trials_stage1 is not None else args.trials,
-        args.trials_stage2 if args.trials_stage2 is not None else args.trials,
-        args.trials_stage3 if args.trials_stage3 is not None else args.trials,
-    ]
-    parallel_per_stage = [
-        args.parallel_stage1 if args.parallel_stage1 is not None else args.parallel,
-        args.parallel_stage2 if args.parallel_stage2 is not None else args.parallel,
-        args.parallel_stage3 if args.parallel_stage3 is not None else args.parallel,
+    cli_parallel = [
+        args.parallel_stage1,
+        args.parallel_stage2,
+        args.parallel_stage3,
     ]
 
     load_path: str | None = None
     all_rows: list[dict] = []
 
     for stage in range(1, 4):
-        timesteps = timesteps_per_stage[stage - 1]
-        trials = trials_per_stage[stage - 1]
-        parallel = parallel_per_stage[stage - 1]
         search_space = _search_space_for_stage(resolved, stage)
+        file_settings = _settings_for_stage(resolved, stage)
+
+        # Resolve each setting: CLI flag > file setting > shared CLI default
+        timesteps = cli_timesteps[stage - 1]
+        if timesteps is None:
+            timesteps = file_settings.get("timesteps", cli_timesteps[stage - 1])
+        if timesteps is None:
+            # Fall back to the argparse defaults (500k/1M/1.5M)
+            timesteps = [500_000, 1_000_000, 1_500_000][stage - 1]
+
+        trials = cli_trials[stage - 1]
+        if trials is None:
+            trials = file_settings.get("trials", args.trials)
+
+        parallel = cli_parallel[stage - 1]
+        if parallel is None:
+            parallel = file_settings.get("parallel", args.parallel)
+
+        n_envs = file_settings.get("n_envs", args.n_envs)
+
         logger.info("=" * 60)
         logger.info("ALL-STAGES SWEEP  —  Stage %d / 3", stage)
         logger.info("=" * 60)
@@ -926,7 +978,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             stage=stage,
             algorithm=args.algorithm,
             timesteps=timesteps,
-            n_envs=args.n_envs,
+            n_envs=n_envs,
             trials=trials,
             parallel=parallel,
             bucket=args.bucket,

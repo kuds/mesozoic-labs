@@ -527,17 +527,13 @@ pip install google-cloud-aiplatform
 tmux new -s sweep
 source .venv/bin/activate
 
-# Example: T-Rex sweep — 10 trials stage 1, 20 trials stages 2-3
-# Uses per-stage search space file so each stage sweeps different params
+# Example: T-Rex sweep — all settings (trials, timesteps, parallel,
+# n_envs, search space) are defined per stage in the JSON file
 python environments/shared/scripts/sweep.py launch-all \
   --species trex --algorithm ppo \
   --project ${PROJECT_ID} \
   --bucket YOUR_GCS_BUCKET \
   --image us-central1-docker.pkg.dev/${PROJECT_ID}/mesozoic-labs/trainer:latest \
-  --trials 20 --trials-stage1 10 --parallel 5 \
-  --timesteps-stage1 500000 \
-  --timesteps-stage2 1000000 \
-  --timesteps-stage3 1500000 \
   --search-space-file configs/sweep_ppo.json
 ```
 
@@ -556,10 +552,6 @@ python environments/shared/scripts/sweep.py launch-all \
   --project ${PROJECT_ID} \
   --bucket YOUR_GCS_BUCKET \
   --image us-central1-docker.pkg.dev/${PROJECT_ID}/mesozoic-labs/trainer:latest \
-  --trials 20 --trials-stage1 10 --parallel 5 \
-  --timesteps-stage1 500000 \
-  --timesteps-stage2 1000000 \
-  --timesteps-stage3 1500000 \
   --search-space-file configs/sweep_ppo.json
 ```
 
