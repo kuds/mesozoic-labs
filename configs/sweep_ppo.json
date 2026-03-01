@@ -9,7 +9,7 @@
     "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
     "ppo_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
     "ppo_n_steps":       {"type": "discrete", "values": [1024, 2048, 4096]},
-    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep"]},
+    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep", "tapered", "deep_tapered"]},
     "env_alive_bonus":   {"type": "double", "min": 1.0, "max": 5.0, "scale": "linear"}
   },
   "stage2": {
@@ -17,24 +17,32 @@
     "timesteps": 1000000,
     "parallel": 5,
     "n_envs": 4,
-    "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
-    "ppo_ent_coef":      {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
-    "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
-    "ppo_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
-    "ppo_n_steps":       {"type": "discrete", "values": [1024, 2048, 4096]},
-    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep"]},
-    "env_alive_bonus":   {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"}
+    "ppo_learning_rate":            {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
+    "ppo_ent_coef":                 {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
+    "ppo_batch_size":               {"type": "discrete", "values": [64, 128, 256, 512]},
+    "ppo_gamma":                    {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
+    "ppo_n_steps":                  {"type": "discrete", "values": [1024, 2048, 4096]},
+    "env_alive_bonus":              {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"},
+    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [50000, 100000, 200000]},
+    "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
+    "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.005, "max": 0.05, "scale": "log"},
+    "curriculum_ramp_timesteps":    {"type": "discrete", "values": [200000, 500000, 1000000]},
+    "curriculum_ramp_start_value":  {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"}
   },
   "stage3": {
     "trials": 20,
     "timesteps": 1500000,
     "parallel": 5,
     "n_envs": 4,
-    "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
-    "ppo_ent_coef":      {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
-    "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
-    "ppo_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
-    "ppo_n_steps":       {"type": "discrete", "values": [1024, 2048, 4096]},
-    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep"]}
+    "ppo_learning_rate":            {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
+    "ppo_ent_coef":                 {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
+    "ppo_batch_size":               {"type": "discrete", "values": [64, 128, 256, 512]},
+    "ppo_gamma":                    {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
+    "ppo_n_steps":                  {"type": "discrete", "values": [1024, 2048, 4096]},
+    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [50000, 100000, 200000]},
+    "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
+    "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.005, "max": 0.05, "scale": "log"},
+    "curriculum_ramp_timesteps":    {"type": "discrete", "values": [200000, 500000, 1000000]},
+    "curriculum_ramp_start_value":  {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"}
   }
 }
