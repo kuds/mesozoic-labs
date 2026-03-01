@@ -11,6 +11,7 @@ from environments.shared.curriculum import (
     RewardRampCallback,
     StageThreshold,
     StageWarmupCallback,
+    _ConstantSchedule,
     load_vecnorm_stats,
     thresholds_from_configs,
 )
@@ -420,6 +421,48 @@ class TestCallbacksWithoutSB3:
     def test_load_vecnorm_stats_returns_false_without_sb3(self):
         result = load_vecnorm_stats("/any/path.pkl", MagicMock())
         assert result is False
+
+
+class TestPickleSafety:
+    """Ensure objects assigned to model attributes survive cloudpickle round-trips.
+
+    In Colab/Jupyter, cloudpickle serialises the __globals__ of lambdas
+    defined in notebook cells, which pulls in zmq.Context and fails.
+    These tests verify that our replacements are safely picklable.
+    """
+
+    def test_constant_schedule_roundtrips(self):
+        """_ConstantSchedule survives pickle and returns the same value."""
+        import cloudpickle
+        import pickle
+
+        sched = _ConstantSchedule(0.02)
+        restored = pickle.loads(cloudpickle.dumps(sched))
+        assert restored(0.5) == pytest.approx(0.02)
+        assert restored(1.0) == pytest.approx(0.02)
+
+    def test_warmup_clip_range_is_picklable(self):
+        """After StageWarmupCallback sets clip_range, the model can be pickled."""
+        import cloudpickle
+        import pickle
+
+        cb = object.__new__(StageWarmupCallback)
+        cb.warmup_clip_range = 0.02
+        cb.warmup_ent_coef = 0.02
+        cb.warmup_timesteps = 100_000
+        cb._warmup_done = False
+
+        mock_model = MagicMock()
+        mock_model.clip_range = lambda _: 0.2  # original PPO schedule
+        mock_model.ent_coef = 0.01
+        cb.model = mock_model
+
+        # Simulate _on_training_start
+        cb._on_training_start()
+
+        # The clip_range assigned by the callback must be picklable
+        restored = pickle.loads(cloudpickle.dumps(mock_model.clip_range))
+        assert restored(0.5) == pytest.approx(0.02)
 
 
 class TestLoadVecnormStatsMocked:
