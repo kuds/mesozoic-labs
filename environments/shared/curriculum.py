@@ -51,6 +51,21 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class _ConstantSchedule:
+    """Picklable callable that returns a constant value.
+
+    Replaces inline lambdas (e.g. ``lambda _: 0.02``) which capture the
+    notebook cell's ``__globals__`` and fail to pickle in Colab/Jupyter
+    because of ``zmq.Context`` objects in that namespace.
+    """
+
+    def __init__(self, value: float) -> None:
+        self.value = value
+
+    def __call__(self, _progress: float) -> float:
+        return self.value
+
+
 @dataclass
 class StageThreshold:
     """Performance thresholds that must be met to advance past a stage."""
@@ -607,7 +622,7 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
 
         self._original_clip_range = self.model.clip_range
         self._original_ent_coef = self.model.ent_coef
-        self.model.clip_range = lambda _progress: self.warmup_clip_range
+        self.model.clip_range = _ConstantSchedule(self.warmup_clip_range)
         self.model.ent_coef = self.warmup_ent_coef
         logger.info(
             "StageWarmupCallback: warm-up active for %d timesteps (clip_range=%.3f, ent_coef=%.3f)",
