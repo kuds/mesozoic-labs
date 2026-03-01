@@ -149,7 +149,8 @@ def _load_search_space_file(path: str) -> dict:
         logger.error("Search space file not found: %s", file_path)
         sys.exit(1)
     try:
-        return json.loads(file_path.read_text())
+        result: dict = json.loads(file_path.read_text())
+        return result
     except json.JSONDecodeError as exc:
         logger.error("Invalid JSON in search space file %s: %s", file_path, exc)
         sys.exit(1)
@@ -171,7 +172,8 @@ def _resolve_search_space(
     """
     if search_space_json:
         try:
-            return json.loads(search_space_json)
+            result: dict = json.loads(search_space_json)
+            return result
         except json.JSONDecodeError as exc:
             logger.error("Invalid --search-space JSON: %s", exc)
             sys.exit(1)
@@ -1145,9 +1147,9 @@ def _build_parser() -> argparse.ArgumentParser:
     launch_all.add_argument(
         "--parallel-stage3", type=int, default=None, help="Parallel trials for Stage 3 (defaults to --parallel)"
     )
-    launch_all.add_argument("--timesteps-stage1", type=int, default=500000, help="Timesteps per Stage 1 trial")
-    launch_all.add_argument("--timesteps-stage2", type=int, default=1000000, help="Timesteps per Stage 2 trial")
-    launch_all.add_argument("--timesteps-stage3", type=int, default=1500000, help="Timesteps per Stage 3 trial")
+    launch_all.add_argument("--timesteps-stage1", type=int, default=None, help="Timesteps per Stage 1 trial (default: 500k)")
+    launch_all.add_argument("--timesteps-stage2", type=int, default=None, help="Timesteps per Stage 2 trial (default: 1M)")
+    launch_all.add_argument("--timesteps-stage3", type=int, default=None, help="Timesteps per Stage 3 trial (default: 1.5M)")
     launch_all.add_argument("--machine-type", default="n1-standard-8", help="Vertex AI machine type")
     launch_all.add_argument(
         "--accelerator-type",
