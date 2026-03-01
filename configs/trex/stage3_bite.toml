@@ -4,7 +4,7 @@ description = "Sprint and bite prey with jaws"
 
 [env]
 forward_vel_weight = 1.0
-alive_bonus = 0.1
+alive_bonus = 0.5                       # Increase from 0.1: maintain self-preservation during bite training
 energy_penalty_weight = 0.001
 tail_stability_weight = 0.02
 posture_weight = 0.1
@@ -21,6 +21,7 @@ max_episode_steps = 1000
 
 [ppo]
 learning_rate = 5e-5
+learning_rate_end = 1e-5
 n_steps = 4096
 batch_size = 256
 n_epochs = 10
