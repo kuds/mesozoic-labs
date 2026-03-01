@@ -435,8 +435,7 @@ class TestLoadVecnormStatsMocked:
 
     def test_missing_file_returns_false_with_sb3(self):
         mods, _ = self._sb3_mock_modules()
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), \
-             patch.dict(sys.modules, mods):
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
             result = load_vecnorm_stats("/nonexistent/path.pkl", MagicMock())
         assert result is False
 
@@ -451,8 +450,7 @@ class TestLoadVecnormStatsMocked:
         mock_train = MagicMock()
         mock_eval = MagicMock()
 
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), \
-             patch.dict(sys.modules, mods):
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
             result = load_vecnorm_stats(str(fake_pkl), mock_train, mock_eval)
 
         assert result is True
@@ -472,8 +470,7 @@ class TestLoadVecnormStatsMocked:
 
         mock_train = MagicMock()
 
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), \
-             patch.dict(sys.modules, mods):
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
             result = load_vecnorm_stats(str(fake_pkl), mock_train, eval_env=None)
 
         assert result is True
@@ -535,8 +532,10 @@ class TestCallbackMethodsMocked:
             "termination_counts": {"timeout": 3, "fall": 1},
         }
 
-        with patch("environments.shared.curriculum.LocomotionMetrics") as MockMetrics, \
-             patch("environments.shared.curriculum.log_eval_metrics") as mock_log:
+        with (
+            patch("environments.shared.curriculum.LocomotionMetrics") as MockMetrics,
+            patch("environments.shared.curriculum.log_eval_metrics") as mock_log,
+        ):
             MockMetrics.aggregate_episodes.return_value = mock_agg
             cb._log_locomotion_metrics([{"some": "report"}])
 
