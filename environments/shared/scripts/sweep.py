@@ -733,8 +733,8 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
         logger.info("No varying numeric hyperparameters found — skipping hyperparameter analysis graph")
 
 
-def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, stage: int) -> str:
-    """Return the GCS container-mount path of the best trial's final model.
+def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, stage: int) -> tuple[str, dict]:
+    """Return the GCS path of the best trial's final model and its result row.
 
     Each trial writes its checkpoint to::
 
@@ -743,8 +743,13 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
     This function inspects the completed trial rows, identifies the trial with
     the highest ``best_mean_reward`` among those that passed the stage, and
     returns that checkpoint path so the next stage's sweep can warm-start from it.
+
+    Returns:
+        A tuple of ``(model_path, best_row)`` where ``best_row`` is the full
+        result dict for the winning trial.  This allows callers to inspect
+        hyperparameters (e.g. ``net_arch``) that must be propagated forward.
     """
-    best_trial_id = None
+    best_row: dict | None = None
     best_value = float("-inf")
 
     for row in stage_rows:
@@ -752,14 +757,16 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
             best_reward = row.get("best_mean_reward")
             if best_reward is not None and best_reward > best_value:
                 best_value = best_reward
-                best_trial_id = row["trial_id"]
+                best_row = row
 
-    if best_trial_id is None:
+    if best_row is None:
         logger.error("No trials passed stage %d criteria. Aborting multi-stage sweep.", stage)
         sys.exit(1)
 
+    best_trial_id = best_row["trial_id"]
     logger.info("Best passing trial for stage %d: id=%s  best_mean_reward=%.4f", stage, best_trial_id, best_value)
-    return f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{best_trial_id}/models/stage{stage}_final.zip"
+    path = f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{best_trial_id}/models/stage{stage}_final.zip"
+    return path, best_row
 
 
 def _submit_stage_sweep(
@@ -780,10 +787,18 @@ def _submit_stage_sweep(
     accelerator_count: int,
     search_space: dict,
     load_path: str | None = None,
+    fixed_trial_args: list[str] | None = None,
     wandb: bool = False,
     sync: bool = False,
 ):
-    """Build and submit a single-stage HPT job. Returns the job object."""
+    """Build and submit a single-stage HPT job. Returns the job object.
+
+    Args:
+        fixed_trial_args: Extra CLI args appended verbatim to every trial's
+            command line.  Used to inject hyperparameters that are *not* part
+            of the search space but must match a prior stage's winning trial
+            (e.g. ``["--ppo_net_arch", "medium"]``).
+    """
     parameter_spec = _build_parameter_spec(search_space, hpt_module)
     if not parameter_spec:
         logger.error("No valid parameters in search space for stage %d — aborting", stage)
@@ -809,6 +824,8 @@ def _submit_stage_sweep(
     ]
     if load_path:
         trial_args += ["--load", load_path]
+    if fixed_trial_args:
+        trial_args += fixed_trial_args
     if wandb:
         trial_args.append("--wandb")
 
@@ -960,7 +977,11 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     ]
 
     load_path: str | None = None
+    fixed_trial_args: list[str] | None = None
     all_rows: list[dict] = []
+
+    # Determine the net_arch HPT key for this algorithm (e.g. "ppo_net_arch")
+    net_arch_key = f"{args.algorithm}_net_arch"
 
     for stage in range(1, 4):
         search_space = _search_space_for_stage(resolved, stage)
@@ -1005,6 +1026,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             accelerator_count=args.accelerator_count,
             search_space=search_space,
             load_path=load_path,
+            fixed_trial_args=fixed_trial_args,
             wandb=args.wandb,
             sync=True,  # block until this stage's sweep is done
         )
@@ -1018,8 +1040,16 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
         if stage < 3:
             # Find the best trial and chain its checkpoint into the next stage
-            load_path = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
+            load_path, best_row = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
             logger.info("Stage %d complete. Best passing model: %s", stage, load_path)
+
+            # Propagate the winning trial's net_arch to subsequent stages so
+            # every trial loads the checkpoint with a matching architecture.
+            # net_arch is only searched in stage 1; stages 2+ inherit it.
+            best_net_arch = best_row.get(net_arch_key)
+            if best_net_arch is not None:
+                fixed_trial_args = [f"--{net_arch_key}", str(best_net_arch)]
+                logger.info("Propagating %s=%s from best trial to stage %d", net_arch_key, best_net_arch, stage + 1)
 
     # Write a combined CSV of every trial across all three stages
     csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}.csv")
