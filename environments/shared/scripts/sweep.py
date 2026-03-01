@@ -755,7 +755,7 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
     if best_trial_id is None:
         logger.error("No trials passed stage %d criteria. Aborting multi-stage sweep.", stage)
         sys.exit(1)
-        
+
     logger.info("Best passing trial for stage %d: id=%s  best_mean_reward=%.4f", stage, best_trial_id, best_value)
     return f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{best_trial_id}/models/stage{stage}_final.zip"
 
