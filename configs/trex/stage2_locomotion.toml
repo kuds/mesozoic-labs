@@ -5,11 +5,12 @@ description = "Learn forward walking/running"
 [env]
 forward_vel_weight = 0.8               # Reduce slightly: your best run (743 reward, 682 ep_len) used 1.0
                                        # but agent was sprinting and falling; 0.8 favors stable walking
-alive_bonus = 1.5                      # Increase from 1.0: critical for sustaining long episodes
+alive_bonus = 2.0                      # Match Stage 1: preserve survival incentive during locomotion learning
 energy_penalty_weight = 0.001
 tail_stability_weight = 0.08           # Increase from 0.05: T-Rex tail is a major instability source
-posture_weight = 1.0                    # Increase from 0.4: prevent forgetting upright posture from Stage 1
-nosedive_weight = 1.0                  # Increase from 0.8: T-Rex heavy head pitches forward during walking
+posture_weight = 2.0                    # Match Stage 1: preserve balance signal to prevent catastrophic forgetting
+nosedive_weight = 3.0                  # Match Stage 1: T-Rex heavy head needs full nosedive penalty during walking
+height_weight = 1.0                    # Match Stage 1: reward maintaining pelvis height near target
 gait_symmetry_weight = 0.0            # Keep disabled: formula is inverted
 smoothness_weight = 0.1               # Increase from 0.05: reduce jerky actions that topple the T-Rex
 heading_weight = 0.5
