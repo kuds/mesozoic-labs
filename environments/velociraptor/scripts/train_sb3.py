@@ -57,6 +57,8 @@ from environments.shared.config import (
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,
+    RewardRampCallback,
+    StageWarmupCallback,
     load_vecnorm_stats,
     thresholds_from_configs,
 )
@@ -559,6 +561,28 @@ def train_curriculum(
         )
         callbacks.append(curriculum_cb)
 
+        # Stage transition callbacks (stages 2+): warm up the value function
+        # and gradually ramp the forward velocity reward to prevent
+        # catastrophic forgetting of balance behaviours.
+        if stage > 1 and algorithm == "ppo":
+            callbacks.append(
+                StageWarmupCallback(
+                    warmup_timesteps=100_000,
+                    warmup_clip_range=0.02,
+                    warmup_ent_coef=0.02,
+                )
+            )
+        if stage > 1:
+            target_fwd_weight = config["env_kwargs"].get("forward_vel_weight", 1.0)
+            callbacks.append(
+                RewardRampCallback(
+                    attr_name="forward_vel_weight",
+                    start_value=0.1,
+                    end_value=target_fwd_weight,
+                    ramp_timesteps=500_000,
+                )
+            )
+
         interrupted = False
         try:
             model.learn(
@@ -653,10 +677,11 @@ def train_curriculum(
             logger.info("Auto-advanced to stage %d", manager.current_stage)
         elif stage < 3:
             logger.warning(
-                "Stage %d timestep budget exhausted without meeting advancement thresholds. Advancing anyway.",
+                "Stage %d timestep budget exhausted without meeting advancement thresholds. "
+                "Stopping curriculum — advancing with a weak policy causes catastrophic forgetting.",
                 stage,
             )
-            manager.advance()
+            break
 
     # Upload curriculum CSV and best models to GCS (no-op when bucket is None)
     upload_curriculum_artifacts(

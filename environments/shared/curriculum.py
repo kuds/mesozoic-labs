@@ -557,12 +557,166 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         return True
 
 
+class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
+    """Constrain policy updates during the first N timesteps of a new stage.
+
+    When transitioning between curriculum stages, the value function (critic)
+    must adapt to the new reward landscape before the policy (actor) should
+    change significantly.  This callback temporarily:
+
+    * Reduces ``clip_range`` to a small value (default 0.02) so PPO's clipped
+      surrogate objective barely moves the policy per update while the critic
+      adapts via its own loss.
+    * Increases ``ent_coef`` (default 0.02) so the policy maintains
+      exploration breadth during the transition instead of committing to
+      stale stage-1 action patterns.
+
+    After ``warmup_timesteps`` have elapsed the original values are restored.
+
+    Only affects PPO models (SAC has no clip_range).
+
+    Args:
+        warmup_timesteps: Number of timesteps for the warm-up period.
+        warmup_clip_range: Clip range during warm-up (small = less policy change).
+        warmup_ent_coef: Entropy coefficient during warm-up.
+        verbose: Verbosity level.
+    """
+
+    def __init__(
+        self,
+        warmup_timesteps: int = 100_000,
+        warmup_clip_range: float = 0.02,
+        warmup_ent_coef: float = 0.02,
+        verbose: int = 0,
+    ):
+        if not _SB3_AVAILABLE:
+            raise ImportError("stable-baselines3 is required for StageWarmupCallback.")
+        super().__init__(verbose)
+        self.warmup_timesteps = warmup_timesteps
+        self.warmup_clip_range = warmup_clip_range
+        self.warmup_ent_coef = warmup_ent_coef
+        self._original_clip_range = None
+        self._original_ent_coef = None
+        self._warmup_done = False
+
+    def _on_training_start(self) -> None:
+        # Only apply to PPO (SAC has no clip_range)
+        if not hasattr(self.model, "clip_range"):
+            self._warmup_done = True
+            return
+
+        self._original_clip_range = self.model.clip_range
+        self._original_ent_coef = self.model.ent_coef
+        self.model.clip_range = lambda _progress: self.warmup_clip_range
+        self.model.ent_coef = self.warmup_ent_coef
+        logger.info(
+            "StageWarmupCallback: warm-up active for %d timesteps (clip_range=%.3f, ent_coef=%.3f)",
+            self.warmup_timesteps,
+            self.warmup_clip_range,
+            self.warmup_ent_coef,
+        )
+
+    def _on_step(self) -> bool:
+        if self._warmup_done:
+            return True
+        if self.num_timesteps >= self.warmup_timesteps:
+            self.model.clip_range = self._original_clip_range
+            self.model.ent_coef = self._original_ent_coef
+            self._warmup_done = True
+            logger.info(
+                "StageWarmupCallback: warm-up complete at step %d. Restored original clip_range and ent_coef.",
+                self.num_timesteps,
+            )
+        return True
+
+
+class RewardRampCallback(BaseCallback):  # type: ignore[misc]
+    """Gradually ramp a reward weight from a starting value to the target.
+
+    Instead of abruptly switching ``forward_vel_weight`` from 0.0 to its
+    full stage-2 value, this callback linearly increases it over
+    ``ramp_timesteps``.  This gives the policy time to adapt to the new
+    reward signal without catastrophic gradient updates that overwrite
+    previously learned balance behaviours.
+
+    Works with both ``DummyVecEnv`` and ``SubprocVecEnv`` via
+    ``env_method`` on the underlying VecEnv.
+
+    Args:
+        attr_name: Name of the reward-weight attribute on the environment
+            (e.g. ``"forward_vel_weight"``).
+        start_value: Initial value at the beginning of training.
+        end_value: Target value at the end of the ramp.
+        ramp_timesteps: Number of timesteps over which to ramp.
+        verbose: Verbosity level.
+    """
+
+    def __init__(
+        self,
+        attr_name: str = "forward_vel_weight",
+        start_value: float = 0.1,
+        end_value: float = 1.0,
+        ramp_timesteps: int = 500_000,
+        verbose: int = 0,
+    ):
+        if not _SB3_AVAILABLE:
+            raise ImportError("stable-baselines3 is required for RewardRampCallback.")
+        super().__init__(verbose)
+        self.attr_name = attr_name
+        self.start_value = start_value
+        self.end_value = end_value
+        self.ramp_timesteps = ramp_timesteps
+        self._last_set_value: Optional[float] = None
+
+    def _set_env_attr(self, value: float) -> None:
+        """Set the reward weight on all underlying envs."""
+        vec_norm = self.model.get_env()
+        # Access the inner VecEnv through VecNormalize
+        inner_venv = getattr(vec_norm, "venv", vec_norm)
+        inner_venv.env_method("set_reward_weight", self.attr_name, value)
+        self._last_set_value = value
+
+    def _on_training_start(self) -> None:
+        self._set_env_attr(self.start_value)
+        logger.info(
+            "RewardRampCallback: ramping %s from %.3f to %.3f over %d timesteps",
+            self.attr_name,
+            self.start_value,
+            self.end_value,
+            self.ramp_timesteps,
+        )
+
+    def _on_step(self) -> bool:
+        if self.num_timesteps >= self.ramp_timesteps:
+            if self._last_set_value != self.end_value:
+                self._set_env_attr(self.end_value)
+                logger.info(
+                    "RewardRampCallback: ramp complete — %s = %.3f",
+                    self.attr_name,
+                    self.end_value,
+                )
+            return True
+
+        progress = self.num_timesteps / self.ramp_timesteps
+        current = self.start_value + progress * (self.end_value - self.start_value)
+
+        # Only update every 10k steps to avoid overhead
+        quantised = round(current, 3)
+        if quantised != self._last_set_value:
+            self._set_env_attr(quantised)
+
+        return True
+
+
 def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:
     """Load VecNormalize running statistics from a previous stage into new envs.
 
-    This preserves observation/reward normalization across curriculum stage
-    transitions, preventing the policy from receiving scrambled inputs when
-    the environment wrapper is re-created for a new stage.
+    Only observation normalization (``obs_rms``) is carried forward.  Return
+    normalization (``ret_rms``) is deliberately **reset** because the reward
+    distribution changes between curriculum stages (new reward components,
+    different weight magnitudes).  Carrying stale ``ret_rms`` produces badly
+    scaled normalized rewards that destabilise policy gradients during the
+    critical first updates of a new stage.
 
     Args:
         vecnorm_path: Path to a ``_vecnorm.pkl`` file saved by a previous stage.
@@ -590,14 +744,17 @@ def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:
     logger.info("Loading VecNormalize stats from: %s", vecnorm_path)
     prev_norm = VecNormalize.load(str(path), train_env.venv)
 
+    # Carry forward observation statistics — the observation space is identical
+    # across stages, so the running mean/var remain valid.
     train_env.obs_rms = prev_norm.obs_rms
-    train_env.ret_rms = prev_norm.ret_rms
+    # Reset ret_rms: reward distribution changes between stages, so stale
+    # return statistics would produce incorrectly scaled normalised rewards.
     train_env.training = True
     train_env.norm_reward = True
+    logger.info("obs_rms carried forward; ret_rms reset (reward distribution changed)")
 
     if eval_env is not None:
         eval_env.obs_rms = prev_norm.obs_rms.copy()
-        eval_env.ret_rms = prev_norm.ret_rms.copy()
         eval_env.training = False
         eval_env.norm_reward = False
 

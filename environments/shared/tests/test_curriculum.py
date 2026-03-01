@@ -341,7 +341,7 @@ class TestLoadVecnormStats:
             action = [train_env.action_space.sample()]
             obs, _, dones, _ = train_env.step(action)
             if dones[0]:
-                obs = train_env.reset()
+                train_env.reset()
 
         # Snapshot the trained stats
         saved_obs_mean = train_env.obs_rms.mean.copy()

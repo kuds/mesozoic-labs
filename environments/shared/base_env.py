@@ -137,6 +137,16 @@ class BaseDinoEnv(gym.Env, ABC):
     # Shared methods
     # ------------------------------------------------------------------
 
+    def set_reward_weight(self, name: str, value: float) -> None:
+        """Dynamically update a reward weight attribute.
+
+        Used by :class:`RewardRampCallback` to gradually introduce new reward
+        components during curriculum stage transitions.
+        """
+        if not hasattr(self, name):
+            raise AttributeError(f"{type(self).__name__} has no attribute '{name}'")
+        setattr(self, name, value)
+
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict]:
         """Execute one environment step."""
         # Scale action from [-1, 1] to actuator control ranges
