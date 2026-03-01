@@ -1,6 +1,6 @@
 # Mesozoic Labs - Roadmap & Timeline
 
-> Last updated: 2026-02-27
+> Last updated: 2026-03-01
 
 This roadmap organizes the project's growth into six phases. Each phase builds on
 the previous one. Items within a phase can often be worked in parallel.
@@ -14,7 +14,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | Phase | Name | Status | Done | Remaining |
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
-| **1** | First Steps (v0.3.0) | **In Progress** | 6/9 items | 3 training runs (Velociraptor, Brachiosaurus, T-Rex) |
+| **1** | First Steps (v0.3.0) | **In Progress** | 6/10 items | 3 training runs + codebase consolidation |
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/7 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | Not Started | 0/7 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
@@ -140,8 +140,18 @@ curriculum with published results and reproducible checkpoints.
   - All 155 tests passing with pytest
   - _Dependency: Phase 0 developer tooling_
 
+- [ ] **Codebase consolidation**
+  - Extract shared training logic into `environments/shared/train_base.py` (~2,000 lines of duplication)
+  - Extract shared test utilities into `environments/shared/test_env_base.py` (~500 lines)
+  - Move common reward calculations to `BaseDinoEnv` helper methods (~300 lines)
+  - Centralize sensor constants and VecNormalize defaults
+  - Clean up unused website exports and naming inconsistencies
+  - See [REFACTORING.md](REFACTORING.md) for full analysis and implementation plan
+  - _Dependency: Training runs complete (avoid changing training scripts mid-run)_
+
 **Exit criteria:** All three species have published training results (PPO + SAC),
-downloadable checkpoints, and a fully automated end-to-end curriculum pipeline.
+downloadable checkpoints, a fully automated end-to-end curriculum pipeline, and
+consolidated codebase with shared training/test infrastructure.
 
 ---
 
