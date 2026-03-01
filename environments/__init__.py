@@ -18,16 +18,13 @@ gymnasium/mujoco are not installed::
 
 import logging as _logging
 
-_logger = _logging.getLogger(__name__)
-
 try:
     from environments.brachiosaurus.envs import brachio_env as _brachio_env  # noqa: F401
     from environments.trex.envs import trex_env as _trex_env  # noqa: F401
     from environments.velociraptor.envs import raptor_env as _raptor_env  # noqa: F401
-except ImportError as _exc:
-    _logger.debug(
-        "Species environments not loaded (gymnasium/mujoco may not be installed): %s",
-        _exc,
+except ImportError:
+    _logging.getLogger(__name__).debug(
+        "Species environments not loaded (gymnasium/mujoco may not be installed)",
     )
 
 

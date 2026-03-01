@@ -2,11 +2,11 @@
 
 import logging as _logging
 
-_logger = _logging.getLogger(__name__)
-
 from .config import load_all_stages, load_stage_config
 from .curriculum import CurriculumManager
 from .metrics import LocomotionMetrics
+
+_logger = _logging.getLogger(__name__)
 
 try:
     from .base_env import BaseDinoEnv
