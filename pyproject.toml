@@ -115,7 +115,16 @@ known-first-party = ["environments"]
 
 [tool.coverage.run]
 source = ["environments"]
-omit = ["*/tests/*", "*/scripts/*"]
+omit = [
+    "*/tests/*",
+    "*/scripts/*",
+    # Test utility (not application code) — lives outside tests/ dir
+    "environments/shared/test_env_base.py",
+    # Training entry-point infrastructure (equivalent to the per-species scripts
+    # that were already excluded by */scripts/*). Utility helpers in this module
+    # are tested via test_train_base.py.
+    "environments/shared/train_base.py",
+]
 
 [tool.coverage.report]
 fail_under = 70

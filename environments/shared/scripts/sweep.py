@@ -323,28 +323,22 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
     if output_dir:
         logger.info("Trial output directory: %s", output_dir)
 
-    # Import the right species' training module
+    # Import shared training infrastructure
+    from environments.shared.config import load_all_stages
+    from environments.shared.train_base import _apply_overrides, train
+
+    # Load species config and stage configs
     if args.species == "velociraptor":
-        from environments.velociraptor.scripts.train_sb3 import (
-            STAGE_CONFIGS,
-            _apply_overrides,
-            train,
-        )
+        from environments.velociraptor.scripts.train_sb3 import SPECIES_CONFIG
     elif args.species == "brachiosaurus":
-        from environments.brachiosaurus.scripts.train_sb3 import (
-            STAGE_CONFIGS,
-            _apply_overrides,
-            train,
-        )
+        from environments.brachiosaurus.scripts.train_sb3 import SPECIES_CONFIG
     elif args.species == "trex":
-        from environments.trex.scripts.train_sb3 import (
-            STAGE_CONFIGS,
-            _apply_overrides,
-            train,
-        )
+        from environments.trex.scripts.train_sb3 import SPECIES_CONFIG
     else:
         logger.error("Unknown species: %s", args.species)
         sys.exit(1)
+
+    STAGE_CONFIGS = load_all_stages(args.species)
 
     if overrides:
         _apply_overrides(STAGE_CONFIGS, overrides)
@@ -358,6 +352,8 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         logger.info("Applied net_arch=%s (%s) to all stages", net_arch_preset, arch)
 
     train(
+        species_cfg=SPECIES_CONFIG,
+        stage_configs=STAGE_CONFIGS,
         stage=args.stage,
         total_timesteps=args.timesteps,
         n_envs=args.n_envs,
