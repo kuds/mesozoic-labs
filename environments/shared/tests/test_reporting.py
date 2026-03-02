@@ -233,9 +233,7 @@ class TestWriteTrainingSummary:
 
     def test_contains_quick_test_flag(self, tmp_path):
         results = [_make_stage_result(1)]
-        path = write_training_summary(
-            tmp_path, results, "velociraptor", "PPO", seed=42, n_envs=4, quick_test=True
-        )
+        path = write_training_summary(tmp_path, results, "velociraptor", "PPO", seed=42, n_envs=4, quick_test=True)
         text = path.read_text()
         assert "True" in text
 

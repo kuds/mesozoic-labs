@@ -33,10 +33,7 @@ class TestHptArgToOverride:
         assert _hpt_arg_to_override("env_alive_bonus", "2.0") == "env.alive_bonus=2.0"
 
     def test_curriculum_prefix(self):
-        assert (
-            _hpt_arg_to_override("curriculum_warmup_timesteps", "50000")
-            == "curriculum.warmup_timesteps=50000"
-        )
+        assert _hpt_arg_to_override("curriculum_warmup_timesteps", "50000") == "curriculum.warmup_timesteps=50000"
 
     def test_unknown_prefix_passthrough(self):
         assert _hpt_arg_to_override("unknown_param", "42") == "unknown_param=42"
@@ -49,10 +46,7 @@ class TestHptArgToOverride:
         assert _hpt_arg_to_override("ppo_clip_range", "0.2") == "ppo.clip_range=0.2"
 
     def test_env_multi_word_param(self):
-        assert (
-            _hpt_arg_to_override("env_forward_vel_weight", "1.5")
-            == "env.forward_vel_weight=1.5"
-        )
+        assert _hpt_arg_to_override("env_forward_vel_weight", "1.5") == "env.forward_vel_weight=1.5"
 
 
 # ── _is_per_stage / _split_stage_block / _search_space_for_stage ─────────

@@ -142,7 +142,7 @@ class DiagnosticsCallback(_BaseCallback):
         if ep_rewards:
             self._rollout_ep_rewards.append(_np.mean(ep_rewards))
             if len(self._rollout_ep_rewards) >= self.plateau_window:
-                recent = self._rollout_ep_rewards[-self.plateau_window:]
+                recent = self._rollout_ep_rewards[-self.plateau_window :]
                 variation = max(recent) - min(recent)
                 self.logger.record("diagnostics/reward_variation", variation)
                 if variation < self.plateau_threshold:

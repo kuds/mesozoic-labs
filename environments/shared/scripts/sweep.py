@@ -451,29 +451,21 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list
             fail_reasons.append("no reward reported (trial may have crashed)")
         if reward_threshold is not None and (best_reward is None or best_reward < reward_threshold):
             passed = False
-            fail_reasons.append(
-                f"reward {best_reward} < threshold {reward_threshold}"
-            )
+            fail_reasons.append(f"reward {best_reward} < threshold {reward_threshold}")
         if passed and ep_length_threshold is not None:
             if best_ep_length is None or best_ep_length < ep_length_threshold:
                 passed = False
-                fail_reasons.append(
-                    f"ep_length {best_ep_length} < threshold {ep_length_threshold}"
-                )
+                fail_reasons.append(f"ep_length {best_ep_length} < threshold {ep_length_threshold}")
         if passed and forward_vel_threshold is not None:
             trial_fwd_vel = metrics.get("best_mean_forward_vel")
             if trial_fwd_vel is None or trial_fwd_vel < forward_vel_threshold:
                 passed = False
-                fail_reasons.append(
-                    f"forward_vel {trial_fwd_vel} < threshold {forward_vel_threshold}"
-                )
+                fail_reasons.append(f"forward_vel {trial_fwd_vel} < threshold {forward_vel_threshold}")
         if passed and success_rate_threshold is not None:
             trial_success_rate = metrics.get("best_mean_success_rate")
             if trial_success_rate is None or trial_success_rate < success_rate_threshold:
                 passed = False
-                fail_reasons.append(
-                    f"success_rate {trial_success_rate} < threshold {success_rate_threshold}"
-                )
+                fail_reasons.append(f"success_rate {trial_success_rate} < threshold {success_rate_threshold}")
         row["stage_passed"] = passed
 
         # Log per-trial diagnostic summary

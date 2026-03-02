@@ -94,11 +94,13 @@ def write_stage_summary(
             lines.append(f"  Fwd vel:      {bm_vel} +/- {bm_vel_s} m/s")
         if bm_sr != "":
             lines.append(f"  Success rate: {bm_sr:.0%}")
-    lines.extend([
-        f"Best model:     {results_dict['model_path']}.zip",
-        f"VecNormalize:   {results_dict['vecnorm_path']}",
-        "",
-    ])
+    lines.extend(
+        [
+            f"Best model:     {results_dict['model_path']}.zip",
+            f"VecNormalize:   {results_dict['vecnorm_path']}",
+            "",
+        ]
+    )
     summary_text = "\n".join(lines) + "\n"
     summary_path.write_text(summary_text)
     return summary_path
@@ -157,7 +159,8 @@ def write_training_summary(
             best_ts = r.get("best_eval_timestep", "")
             ts_label = f"  (at {best_ts:,} steps)" if isinstance(best_ts, int) else ""
             lines.append(f"  Best eval:      {best_r} +/- {best_s}{ts_label}")
-        lines.extend([
+        lines.extend(
+            [
                 f"  Best model:     {r['model_path']}.zip",
                 "",
             ]
