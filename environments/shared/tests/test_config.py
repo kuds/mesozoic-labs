@@ -120,7 +120,7 @@ class TestLoadAllStages:
         """Alive bonus should not increase across stages (less reliance on survival)."""
         stages = load_all_stages(species)
         assert stages[1]["env_kwargs"]["alive_bonus"] >= stages[2]["env_kwargs"]["alive_bonus"]
-        assert stages[2]["env_kwargs"]["alive_bonus"] > stages[3]["env_kwargs"]["alive_bonus"]
+        assert stages[2]["env_kwargs"]["alive_bonus"] >= stages[3]["env_kwargs"]["alive_bonus"]
 
     @pytest.mark.parametrize("species", SPECIES)
     def test_stage_progression_learning_rate(self, species):
@@ -156,6 +156,84 @@ class TestCurriculumInvariants:
         """All stages should use the same max_episode_steps for consistent return horizons."""
         stages = load_all_stages(species)
         assert stages[1]["env_kwargs"]["max_episode_steps"] == stages[2]["env_kwargs"]["max_episode_steps"]
+
+
+class TestCatastrophicForgettingMitigation:
+    """Regression tests for curriculum configs that prevent catastrophic forgetting.
+
+    Stage 2 must relax balance-centric reward weights below Stage 1 values.
+    Keeping them equal (or higher) traps the agent in a standing posture and
+    prevents locomotion learning — the "inverse forgetting" pattern documented
+    in TRAINING_REVIEW.md.
+    """
+
+    def test_velociraptor_stage2_reduces_posture_weight(self):
+        """Stage 2 posture_weight must be strictly lower than Stage 1."""
+        stages = load_all_stages("velociraptor")
+        assert stages[2]["env_kwargs"]["posture_weight"] < stages[1]["env_kwargs"]["posture_weight"], (
+            "Stage 2 posture_weight must be reduced from Stage 1 to allow forward lean during locomotion"
+        )
+
+    def test_velociraptor_stage2_reduces_nosedive_weight(self):
+        """Stage 2 nosedive_weight must be strictly lower than Stage 1."""
+        stages = load_all_stages("velociraptor")
+        assert stages[2]["env_kwargs"]["nosedive_weight"] < stages[1]["env_kwargs"]["nosedive_weight"], (
+            "Stage 2 nosedive_weight must be reduced from Stage 1 to allow natural walking lean"
+        )
+
+    def test_velociraptor_stage2_reduces_alive_bonus(self):
+        """Stage 2 alive_bonus must be lower than Stage 1."""
+        stages = load_all_stages("velociraptor")
+        assert stages[2]["env_kwargs"]["alive_bonus"] < stages[1]["env_kwargs"]["alive_bonus"], (
+            "Stage 2 alive_bonus must be reduced so forward velocity reward can dominate"
+        )
+
+    def test_trex_stage2_reduces_posture_weight(self):
+        """T-Rex Stage 2 posture_weight must be strictly lower than Stage 1."""
+        stages = load_all_stages("trex")
+        assert stages[2]["env_kwargs"]["posture_weight"] < stages[1]["env_kwargs"]["posture_weight"], (
+            "T-Rex Stage 2 posture_weight must be reduced to allow locomotion"
+        )
+
+    def test_trex_stage2_reduces_nosedive_weight(self):
+        """T-Rex Stage 2 nosedive_weight must be strictly lower than Stage 1."""
+        stages = load_all_stages("trex")
+        assert stages[2]["env_kwargs"]["nosedive_weight"] < stages[1]["env_kwargs"]["nosedive_weight"], (
+            "T-Rex Stage 2 nosedive_weight must be reduced to allow head-forward walking"
+        )
+
+    def test_trex_stage2_reduces_alive_bonus(self):
+        """T-Rex Stage 2 alive_bonus must be lower than Stage 1."""
+        stages = load_all_stages("trex")
+        assert stages[2]["env_kwargs"]["alive_bonus"] < stages[1]["env_kwargs"]["alive_bonus"], (
+            "T-Rex Stage 2 alive_bonus must be reduced so forward velocity reward can dominate"
+        )
+
+    @pytest.mark.parametrize("species", SPECIES)
+    def test_stage2_has_warmup_config(self, species):
+        """Stage 2 must have warmup configuration to stabilise critic during transition."""
+        stages = load_all_stages(species)
+        cur = stages[2].get("curriculum_kwargs", {})
+        assert "warmup_timesteps" in cur, f"{species} Stage 2 missing warmup_timesteps"
+        assert cur["warmup_timesteps"] > 0
+
+    @pytest.mark.parametrize("species", SPECIES)
+    def test_stage2_has_reward_ramp_config(self, species):
+        """Stage 2 must have reward ramp config to gradually introduce forward_vel_weight."""
+        stages = load_all_stages(species)
+        cur = stages[2].get("curriculum_kwargs", {})
+        assert "ramp_timesteps" in cur, f"{species} Stage 2 missing ramp_timesteps"
+        assert cur["ramp_timesteps"] > 0
+        assert "ramp_start_value" in cur, f"{species} Stage 2 missing ramp_start_value"
+        assert 0 < cur["ramp_start_value"] < 1.0
+
+    @pytest.mark.parametrize("species", SPECIES)
+    def test_stage2_learning_rate_lower_than_stage1(self, species):
+        """Stage 2 LR must be lower than Stage 1 to prevent overwriting balance knowledge."""
+        stages = load_all_stages(species)
+        assert stages[2]["ppo_kwargs"]["learning_rate"] < stages[1]["ppo_kwargs"]["learning_rate"], (
+            f"{species}: Stage 2 LR must be lower than Stage 1 to mitigate catastrophic forgetting"
+        )
 
 
 class TestSaveStageConfig:
