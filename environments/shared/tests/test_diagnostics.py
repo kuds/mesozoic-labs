@@ -45,9 +45,7 @@ class TestInit:
         assert cb._log_dir is None
 
     def test_custom_params(self, tmp_path):
-        cb = DiagnosticsCallback(
-            plateau_window=20, plateau_threshold=2.0, log_dir=str(tmp_path), verbose=1
-        )
+        cb = DiagnosticsCallback(plateau_window=20, plateau_threshold=2.0, log_dir=str(tmp_path), verbose=1)
         assert cb.plateau_window == 20
         assert cb.plateau_threshold == 2.0
         assert cb._log_dir == tmp_path
@@ -60,26 +58,20 @@ class TestInit:
 
 class TestOnStep:
     def test_collects_reward_keys(self, callback):
-        callback.locals = {
-            "infos": [{"reward_forward": 1.5, "reward_alive": 0.5}]
-        }
+        callback.locals = {"infos": [{"reward_forward": 1.5, "reward_alive": 0.5}]}
         result = callback._on_step()
         assert result is True
         assert callback._step_infos["reward_forward"] == [1.5]
         assert callback._step_infos["reward_alive"] == [0.5]
 
     def test_collects_info_keys(self, callback):
-        callback.locals = {
-            "infos": [{"forward_vel": 2.0, "prey_distance": 5.0}]
-        }
+        callback.locals = {"infos": [{"forward_vel": 2.0, "prey_distance": 5.0}]}
         callback._on_step()
         assert callback._step_infos["forward_vel"] == [2.0]
         assert callback._step_infos["prey_distance"] == [5.0]
 
     def test_collects_termination_reasons(self, callback):
-        callback.locals = {
-            "infos": [{"termination_reason": "fallen"}, {"termination_reason": "fallen"}]
-        }
+        callback.locals = {"infos": [{"termination_reason": "fallen"}, {"termination_reason": "fallen"}]}
         callback._on_step()
         assert callback._rollout_terminations["fallen"] == 2
 
