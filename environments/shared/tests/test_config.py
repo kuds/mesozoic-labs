@@ -8,12 +8,12 @@ import pytest
 
 from environments.shared.config import (
     _find_stage_file,
+    _upload_to_gcs,
     append_stage_result_csv,
     load_all_stages,
     load_stage_config,
     save_stage_config,
     upload_curriculum_artifacts,
-    upload_to_gcs,
 )
 
 SPECIES = ["velociraptor", "brachiosaurus", "trex"]
@@ -275,7 +275,7 @@ class TestUploadToGcs:
     """Test GCS upload."""
 
     def test_returns_false_for_missing_file(self, tmp_path):
-        result = upload_to_gcs(tmp_path / "nonexistent.csv", "bucket", "path.csv")
+        result = _upload_to_gcs(tmp_path / "nonexistent.csv", "bucket", "path.csv")
         assert result is False
 
     def test_returns_false_when_gcs_import_fails(self, tmp_path):
@@ -292,7 +292,7 @@ class TestUploadToGcs:
             return real_import(name, *args, **kwargs)
 
         with patch("builtins.__import__", side_effect=mock_import):
-            result = upload_to_gcs(local_file, "bucket", "data.csv")
+            result = _upload_to_gcs(local_file, "bucket", "data.csv")
         assert result is False
 
 
@@ -315,7 +315,7 @@ class TestUploadCurriculumArtifacts:
         (stage1_models / "stage1_final.zip").write_bytes(b"fake")
         (stage1_models / "stage1_final_vecnorm.pkl").write_bytes(b"fake")
 
-        with patch("environments.shared.config.upload_to_gcs", return_value=True) as mock_upload:
+        with patch("environments.shared.config._upload_to_gcs", return_value=True) as mock_upload:
             upload_curriculum_artifacts(base, "velociraptor", "ppo", bucket="test-bucket", project="test-project")
 
         # Should have been called for: CSV + best_model + final + vecnorm = 4

@@ -209,7 +209,7 @@ def append_stage_result_csv(csv_path: str | Path, data: dict) -> Path:
     return csv_path
 
 
-def upload_to_gcs(
+def _upload_to_gcs(
     local_path: str | Path,
     bucket_name: str,
     gcs_path: str,
@@ -290,7 +290,7 @@ def upload_curriculum_artifacts(
     csv_path = base_dir / "curriculum_results.csv"
     if csv_path.exists():
         gcs_csv = f"training/{species}/{run_name}/curriculum_results.csv"
-        upload_to_gcs(csv_path, bucket, gcs_csv, project=project)
+        _upload_to_gcs(csv_path, bucket, gcs_csv, project=project)
 
     # 2. Upload best model and final model for each stage
     for stage in range(1, 4):
@@ -303,13 +303,13 @@ def upload_curriculum_artifacts(
         # best_model.zip (from EvalCallback)
         best_model = stage_model_dir / "best_model.zip"
         if best_model.exists():
-            upload_to_gcs(best_model, bucket, f"{gcs_model_prefix}/best_model.zip", project=project)
+            _upload_to_gcs(best_model, bucket, f"{gcs_model_prefix}/best_model.zip", project=project)
 
         # stage<N>_final.zip + vecnorm
         final_model = stage_model_dir / f"stage{stage}_final.zip"
         if final_model.exists():
-            upload_to_gcs(final_model, bucket, f"{gcs_model_prefix}/stage{stage}_final.zip", project=project)
+            _upload_to_gcs(final_model, bucket, f"{gcs_model_prefix}/stage{stage}_final.zip", project=project)
 
         vecnorm = stage_model_dir / f"stage{stage}_final_vecnorm.pkl"
         if vecnorm.exists():
-            upload_to_gcs(vecnorm, bucket, f"{gcs_model_prefix}/stage{stage}_final_vecnorm.pkl", project=project)
+            _upload_to_gcs(vecnorm, bucket, f"{gcs_model_prefix}/stage{stage}_final_vecnorm.pkl", project=project)
