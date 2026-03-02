@@ -180,7 +180,7 @@ def save_results_json(
     species: str,
     algorithm: str,
     seed: int,
-    results_dir,
+    results_dir: "str | Path",
 ) -> Path:
     """Save a ``summary.json`` to *results_dir*.
 

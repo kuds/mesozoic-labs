@@ -134,6 +134,56 @@ class BaseDinoEnv(gym.Env, ABC):
         """Randomize the target (prey/food) position on reset."""
 
     # ------------------------------------------------------------------
+    # Common sensor layout (overridable by subclasses)
+    # ------------------------------------------------------------------
+    _sensor_gyro_start: int = 0
+    _sensor_accel_start: int = 3
+    _sensor_quat_start: int = 6
+
+    # ------------------------------------------------------------------
+    # Shared reward helpers
+    # ------------------------------------------------------------------
+
+    def _reward_alive(self) -> float:
+        """Return the alive bonus. Identical across all species."""
+        return self.alive_bonus
+
+    # Subclass attributes used by shared helpers.  Declared here for type
+    # checking; actual values are set in subclass ``__init__``.
+    smoothness_weight: float
+    _prev_action: "np.ndarray | None"
+
+    def _reward_energy(self, action: np.ndarray) -> float:
+        """Compute normalised energy penalty. Identical across all species.
+
+        Energy is ``sum(action**2) / n_actuators``, so it ranges [0, 1]
+        when actions are in [-1, 1].
+        """
+        energy = float(np.sum(np.square(action)))
+        n_actuators: int = self.action_space.shape[0]  # type: ignore[index]
+        energy_norm = energy / n_actuators
+        return -self.energy_penalty_weight * energy_norm
+
+    def _reward_action_smoothness(self, action: np.ndarray) -> tuple[float, float]:
+        """Compute action-smoothness penalty and raw action delta.
+
+        Returns ``(reward, action_delta)`` where *action_delta* is the
+        sum of squared differences from the previous action.  Callers
+        must set ``self._prev_action`` before the first call.
+        """
+        if self._prev_action is not None:
+            action_delta = float(np.sum(np.square(action - self._prev_action)))
+            n_actuators: int = self.action_space.shape[0]  # type: ignore[index]
+            max_action_delta = n_actuators * 4.0
+            action_delta_norm = action_delta / max_action_delta
+            reward = -self.smoothness_weight * action_delta_norm
+        else:
+            action_delta = 0.0
+            reward = 0.0
+        self._prev_action = action.copy()
+        return reward, action_delta
+
+    # ------------------------------------------------------------------
     # Shared methods
     # ------------------------------------------------------------------
 

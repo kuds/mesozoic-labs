@@ -25,7 +25,8 @@ except ImportError as _exc:
     )
 
 try:
-    from .train_base import DiagnosticsCallback, eval_policy, record_stage_video
+    from .diagnostics import DiagnosticsCallback
+    from .evaluation import eval_policy, record_stage_video
 except ImportError as _exc:
     DiagnosticsCallback = None  # type: ignore[assignment,misc]
     eval_policy = None  # type: ignore[assignment]
