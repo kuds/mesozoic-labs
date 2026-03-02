@@ -335,7 +335,13 @@ class RaptorEnv(BaseDinoEnv):
         # 8b. Pelvis height (for LocomotionMetrics tracking)
         info["pelvis_height"] = float(self.data.xpos[self.pelvis_id, 2])
 
-        # 9. Gait symmetry (reward alternating foot contacts)
+        # 9. Gait symmetry
+        # BUG: This rewards instantaneous contact asymmetry, not foot
+        # alternation. Standing on one leg scores the same as walking,
+        # and normal double-support phases are penalized. To fix, track
+        # foot contact transitions (L→R, R→L switches) over a window
+        # instead of instantaneous force asymmetry. Keep weight at 0.0
+        # until the formula is corrected.
         r_contact = self.data.sensordata[self._sensor_r_foot]
         l_contact = self.data.sensordata[self._sensor_l_foot]
         info["r_foot_contact"] = float(r_contact)
