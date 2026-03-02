@@ -7,6 +7,7 @@ forward_vel_weight = 4.0                # Increase from 1.0: must dominate alive
 forward_vel_max = 1.5                   # Reduce from 3.0: stronger gradient at low speeds where raptor operates
 backward_vel_penalty_weight = 2.0       # Increase from 0.5: make backward drift clearly costly
 alive_bonus = 0.5                       # Reduce from 2.0: was 99% of total reward, drowning forward signal
+fall_penalty = -50.0                    # Reduce from -100: less punitive with lower alive_bonus
 energy_penalty_weight = 0.003
 tail_stability_weight = 0.05
 posture_weight = 0.8                    # Reduce from 1.5: strong posture penalty inhibits forward lean needed for walking

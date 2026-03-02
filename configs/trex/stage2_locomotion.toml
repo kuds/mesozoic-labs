@@ -6,6 +6,7 @@ description = "Learn forward walking/running"
 forward_vel_weight = 0.8               # Reduce slightly: your best run (743 reward, 682 ep_len) used 1.0
                                        # but agent was sprinting and falling; 0.8 favors stable walking
 alive_bonus = 0.5                      # Reduce from Stage 1 (2.0): high alive_bonus traps agent in standing posture
+fall_penalty = -50.0                   # Reduce from -100: lower risk/reward asymmetry encourages locomotion attempts
 energy_penalty_weight = 0.001
 tail_stability_weight = 0.08           # Increase from 0.05: T-Rex tail is a major instability source
 posture_weight = 0.5                    # Reduce from Stage 1 (2.0): allow forward lean for locomotion
