@@ -187,7 +187,7 @@ def train(
         StageWarmupCallback,
         load_vecnorm_stats,
     )
-    from .diagnostics import DiagnosticsCallback
+    from .diagnostics import DiagnosticsCallback  # noqa: F811
     from .wandb_integration import WandbCallback, init_wandb
 
     sb3 = _ensure_sb3()
@@ -478,7 +478,7 @@ def train_curriculum(
         load_vecnorm_stats,
         thresholds_from_configs,
     )
-    from .diagnostics import DiagnosticsCallback
+    from .diagnostics import DiagnosticsCallback  # noqa: F811
     from .wandb_integration import WandbCallback, init_wandb
 
     sb3 = _ensure_sb3()
