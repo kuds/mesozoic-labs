@@ -4,6 +4,9 @@ description = "Learn forward walking/running"
 
 [env]
 forward_vel_weight = 2.0                # Reduced from 4.0: with forward_vel_max=1.5 gives max reward 2.0, avoids sprint-and-fall
+                                        # NOTE: Successful runs used 1.0 with fwd_vel_max=10.0 (weaker gradient).
+                                        # Current combo (2.0/1.5) is ~13x stronger at walking speeds — untested.
+                                        # The 2M-step ramp mitigates initial shock. If stage 2 fails, try 1.0.
 forward_vel_max = 1.5                   # Reduce from 3.0: stronger gradient at low speeds where raptor operates
 backward_vel_penalty_weight = 0.5       # Reduced from 2.0: matches successful runs; forward reward provides directional incentive
 alive_bonus = 0.5                       # Reduce from 2.0: was 99% of total reward, drowning forward signal
