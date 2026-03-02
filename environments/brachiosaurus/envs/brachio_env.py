@@ -117,9 +117,8 @@ class BrachioEnv(BaseDinoEnv):
         }
 
         # Sensor indices (order matches MJCF definition)
-        self._sensor_gyro_start = 0
-        self._sensor_accel_start = 3
-        self._sensor_quat_start = 6
+        # _sensor_gyro_start, _sensor_accel_start, _sensor_quat_start
+        # are inherited from BaseDinoEnv (0, 3, 6 respectively).
         self._sensor_fr_foot = 10
         self._sensor_fl_foot = 11
         self._sensor_rr_foot = 12
@@ -197,16 +196,12 @@ class BrachioEnv(BaseDinoEnv):
         reward_forward = self.forward_vel_weight * forward_vel_norm
         info["reward_forward"] = reward_forward
 
-        # 2. Alive bonus
-        reward_alive = self.alive_bonus
+        # 2. Alive bonus (shared helper)
+        reward_alive = self._reward_alive()
         info["reward_alive"] = reward_alive
 
-        # 3. Energy penalty (normalized by number of actuators)
-        energy = np.sum(np.square(action))
-        assert self.action_space.shape is not None
-        n_actuators = self.action_space.shape[0]
-        energy_norm = energy / n_actuators
-        reward_energy = -self.energy_penalty_weight * energy_norm
+        # 3. Energy penalty (shared helper)
+        reward_energy = self._reward_energy(action)
         info["reward_energy"] = reward_energy
 
         # 4. Gait stability (penalize high angular velocity of torso) — normalized

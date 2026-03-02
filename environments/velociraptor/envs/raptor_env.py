@@ -165,9 +165,8 @@ class RaptorEnv(BaseDinoEnv):
         self.prey_mocap_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "prey")
 
         # Sensor indices (order matches MJCF definition)
-        self._sensor_gyro_start = 0
-        self._sensor_accel_start = 3
-        self._sensor_quat_start = 6
+        # _sensor_gyro_start, _sensor_accel_start, _sensor_quat_start
+        # are inherited from BaseDinoEnv (0, 3, 6 respectively).
         self._sensor_r_foot = 10
         self._sensor_l_foot = 11
 
@@ -248,17 +247,12 @@ class RaptorEnv(BaseDinoEnv):
         info["backward_vel"] = backward_vel
         info["reward_backward"] = reward_backward
 
-        # 2. Alive bonus
-        reward_alive = self.alive_bonus
+        # 2. Alive bonus (shared helper)
+        reward_alive = self._reward_alive()
         info["reward_alive"] = reward_alive
 
-        # 3. Energy penalty (encourage efficiency)
-        # Normalize by number of actuators (each in [-1, 1], so max energy is n_actuators)
-        energy = np.sum(np.square(action))
-        assert self.action_space.shape is not None
-        n_actuators = self.action_space.shape[0]
-        energy_norm = energy / n_actuators
-        reward_energy = -self.energy_penalty_weight * energy_norm
+        # 3. Energy penalty (shared helper)
+        reward_energy = self._reward_energy(action)
         info["reward_energy"] = reward_energy
 
         # 4. Tail stability (penalize high angular velocity at tail tip)
@@ -352,18 +346,8 @@ class RaptorEnv(BaseDinoEnv):
         info["contact_asymmetry"] = contact_asymmetry
         info["reward_gait"] = reward_gait
 
-        # 10. Action smoothness (penalize large action changes between steps)
-        if self._prev_action is not None:
-            action_delta = float(np.sum(np.square(action - self._prev_action)))
-            # Max delta per actuator is 2.0 (from -1 to 1), so max squared is 4.0
-            assert self.action_space.shape is not None
-            max_action_delta = self.action_space.shape[0] * 4.0
-            action_delta_norm = action_delta / max_action_delta
-            reward_smoothness = -self.smoothness_weight * action_delta_norm
-        else:
-            action_delta = 0.0
-            reward_smoothness = 0.0
-        self._prev_action = action.copy()
+        # 10. Action smoothness (shared helper)
+        reward_smoothness, action_delta = self._reward_action_smoothness(action)
         info["action_delta"] = action_delta
         info["reward_smoothness"] = reward_smoothness
 

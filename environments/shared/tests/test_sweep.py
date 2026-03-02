@@ -1,8 +1,6 @@
 """Tests for the hyperparameter sweep tool's pure functions."""
 
-import argparse
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,7 +16,6 @@ from environments.shared.scripts.sweep import (
     _split_stage_block,
     write_results_csv,
 )
-
 
 # ── _hpt_arg_to_override ────────────────────────────────────────────────────
 
