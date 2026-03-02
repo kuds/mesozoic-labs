@@ -585,3 +585,224 @@ class TestCallbackMethodsMocked:
             cb._log_locomotion_metrics([{"some": "report"}])
 
         mock_log.assert_called_once_with(mock_agg, 1, step=1000)
+
+
+class TestStageWarmupCallbackMocked:
+    """Test StageWarmupCallback lifecycle without SB3 training."""
+
+    def test_warmup_applies_reduced_clip_range(self):
+        """Warmup should set clip_range to the configured small value."""
+        cb = object.__new__(StageWarmupCallback)
+        cb.warmup_timesteps = 100_000
+        cb.warmup_clip_range = 0.02
+        cb.warmup_ent_coef = 0.02
+        cb._warmup_done = False
+
+        mock_model = MagicMock()
+        mock_model.clip_range = lambda _: 0.2
+        mock_model.ent_coef = 0.01
+        cb.model = mock_model
+
+        cb._on_training_start()
+
+        # clip_range should be replaced with _ConstantSchedule(0.02)
+        assert mock_model.clip_range(0.5) == pytest.approx(0.02)
+        assert mock_model.ent_coef == 0.02
+
+    def test_warmup_restores_original_values(self):
+        """After warmup_timesteps, original clip_range and ent_coef should be restored."""
+        cb = object.__new__(StageWarmupCallback)
+        cb.warmup_timesteps = 100
+        cb.warmup_clip_range = 0.02
+        cb.warmup_ent_coef = 0.02
+        cb._warmup_done = False
+
+        original_clip = MagicMock()
+        original_ent = 0.005
+        mock_model = MagicMock()
+        mock_model.clip_range = original_clip
+        mock_model.ent_coef = original_ent
+        cb.model = mock_model
+
+        cb._on_training_start()
+
+        # Simulate reaching warmup_timesteps
+        cb.num_timesteps = 100
+        assert cb._on_step() is True
+        assert cb._warmup_done is True
+        assert mock_model.clip_range == original_clip
+        assert mock_model.ent_coef == original_ent
+
+    def test_warmup_noop_for_sac(self):
+        """StageWarmupCallback should skip models without clip_range (SAC)."""
+        cb = object.__new__(StageWarmupCallback)
+        cb.warmup_timesteps = 100_000
+        cb.warmup_clip_range = 0.02
+        cb.warmup_ent_coef = 0.02
+        cb._warmup_done = False
+
+        # SAC model has no clip_range attribute
+        mock_model = MagicMock(spec=["ent_coef", "learning_rate"])
+        cb.model = mock_model
+
+        cb._on_training_start()
+        assert cb._warmup_done is True
+
+    def test_on_step_noop_after_warmup(self):
+        """_on_step returns True immediately once warmup is done."""
+        cb = object.__new__(StageWarmupCallback)
+        cb._warmup_done = True
+        assert cb._on_step() is True
+
+
+class TestRewardRampCallbackMocked:
+    """Test RewardRampCallback logic without SB3 training."""
+
+    def test_sets_start_value_on_training_start(self):
+        """_on_training_start should set the attribute to start_value."""
+        cb = object.__new__(RewardRampCallback)
+        cb.attr_name = "forward_vel_weight"
+        cb.start_value = 0.1
+        cb.end_value = 1.0
+        cb.ramp_timesteps = 500_000
+        cb._last_set_value = None
+
+        mock_venv = MagicMock()
+        mock_model = MagicMock()
+        mock_model.get_env.return_value = mock_venv
+        cb.model = mock_model
+
+        cb._on_training_start()
+
+        # Should have called env_method to set 0.1
+        inner = mock_venv.venv
+        inner.env_method.assert_called_once_with("set_reward_weight", "forward_vel_weight", 0.1)
+        assert cb._last_set_value == 0.1
+
+    def test_ramp_complete_sets_end_value(self):
+        """After ramp_timesteps, the attribute should be set to end_value."""
+        cb = object.__new__(RewardRampCallback)
+        cb.attr_name = "forward_vel_weight"
+        cb.start_value = 0.1
+        cb.end_value = 1.0
+        cb.ramp_timesteps = 1000
+        cb._last_set_value = 0.5
+
+        mock_venv = MagicMock()
+        mock_model = MagicMock()
+        mock_model.get_env.return_value = mock_venv
+        cb.model = mock_model
+        cb.num_timesteps = 1000
+
+        result = cb._on_step()
+
+        assert result is True
+        inner = mock_venv.venv
+        inner.env_method.assert_called_with("set_reward_weight", "forward_vel_weight", 1.0)
+        assert cb._last_set_value == 1.0
+
+    def test_ramp_midpoint_value(self):
+        """At 50% through ramp, value should be midpoint between start and end."""
+        cb = object.__new__(RewardRampCallback)
+        cb.attr_name = "forward_vel_weight"
+        cb.start_value = 0.0
+        cb.end_value = 1.0
+        cb.ramp_timesteps = 1000
+        cb._last_set_value = None
+
+        mock_venv = MagicMock()
+        mock_model = MagicMock()
+        mock_model.get_env.return_value = mock_venv
+        cb.model = mock_model
+        cb.num_timesteps = 500
+
+        cb._on_step()
+
+        inner = mock_venv.venv
+        call_args = inner.env_method.call_args
+        set_value = call_args[0][2]
+        assert set_value == pytest.approx(0.5, abs=0.01)
+
+    def test_no_update_when_value_unchanged(self):
+        """Quantised value that hasn't changed should not trigger env_method."""
+        cb = object.__new__(RewardRampCallback)
+        cb.attr_name = "forward_vel_weight"
+        cb.start_value = 0.0
+        cb.end_value = 1.0
+        cb.ramp_timesteps = 1_000_000
+        cb._last_set_value = 0.0  # Already set to quantised value
+
+        mock_venv = MagicMock()
+        mock_model = MagicMock()
+        mock_model.get_env.return_value = mock_venv
+        cb.model = mock_model
+        # With 1M ramp steps and timestep=1, progress=0.000001, quantised to 0.0
+        cb.num_timesteps = 1
+
+        cb._on_step()
+
+        inner = mock_venv.venv
+        inner.env_method.assert_not_called()
+
+
+class TestReadLatestEval:
+    """Test CurriculumCallback._read_latest_eval npz reading logic."""
+
+    def test_returns_none_when_no_log_path(self):
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock(spec=[])  # no log_path attr
+        cb._last_seen_n_evals = 0
+        rewards, lengths, n = cb._read_latest_eval()
+        assert rewards is None
+        assert lengths is None
+
+    def test_returns_none_when_npz_missing(self, tmp_path):
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(tmp_path)
+        cb._last_seen_n_evals = 0
+        rewards, lengths, n = cb._read_latest_eval()
+        assert rewards is None
+
+    def test_reads_latest_eval_from_npz(self, tmp_path):
+        import numpy as np
+
+        # Create a fake evaluations.npz
+        eval_rewards = np.array([[10.0, 20.0], [30.0, 40.0]])
+        eval_lengths = np.array([[100.0, 200.0], [300.0, 400.0]])
+        np.savez(
+            str(tmp_path / "evaluations.npz"),
+            results=eval_rewards,
+            ep_lengths=eval_lengths,
+        )
+
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(tmp_path)
+        cb._last_seen_n_evals = 0
+
+        rewards, lengths, n = cb._read_latest_eval()
+
+        assert rewards == [30.0, 40.0]  # last row
+        assert lengths == [300.0, 400.0]
+        assert n == 2
+        assert cb._last_seen_n_evals == 2
+
+    def test_no_new_eval_returns_none(self, tmp_path):
+        import numpy as np
+
+        eval_rewards = np.array([[10.0, 20.0]])
+        eval_lengths = np.array([[100.0, 200.0]])
+        np.savez(
+            str(tmp_path / "evaluations.npz"),
+            results=eval_rewards,
+            ep_lengths=eval_lengths,
+        )
+
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(tmp_path)
+        cb._last_seen_n_evals = 1  # Already seen
+
+        rewards, lengths, n = cb._read_latest_eval()
+        assert rewards is None
