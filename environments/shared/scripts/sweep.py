@@ -73,6 +73,7 @@ import json
 import logging
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -362,7 +363,7 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         eval_freq=args.eval_freq,
         save_freq=args.save_freq,
         use_subproc=False,
-        verbose=1,
+        verbose=0,
         algorithm=args.algorithm,
         use_wandb=args.wandb,
         output_dir=output_dir,
@@ -445,17 +446,51 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list
         # (e.g. Stage 3 hunting stages), the trial passes by default as
         # long as it produced a valid reward.
         passed = best_reward is not None
-        if reward_threshold is not None:
-            passed = passed and best_reward >= reward_threshold
+        fail_reasons: list[str] = []
+        if best_reward is None:
+            fail_reasons.append("no reward reported (trial may have crashed)")
+        if reward_threshold is not None and (best_reward is None or best_reward < reward_threshold):
+            passed = False
+            fail_reasons.append(
+                f"reward {best_reward} < threshold {reward_threshold}"
+            )
         if passed and ep_length_threshold is not None:
-            passed = best_ep_length is not None and best_ep_length >= ep_length_threshold
+            if best_ep_length is None or best_ep_length < ep_length_threshold:
+                passed = False
+                fail_reasons.append(
+                    f"ep_length {best_ep_length} < threshold {ep_length_threshold}"
+                )
         if passed and forward_vel_threshold is not None:
             trial_fwd_vel = metrics.get("best_mean_forward_vel")
-            passed = trial_fwd_vel is not None and trial_fwd_vel >= forward_vel_threshold
+            if trial_fwd_vel is None or trial_fwd_vel < forward_vel_threshold:
+                passed = False
+                fail_reasons.append(
+                    f"forward_vel {trial_fwd_vel} < threshold {forward_vel_threshold}"
+                )
         if passed and success_rate_threshold is not None:
             trial_success_rate = metrics.get("best_mean_success_rate")
-            passed = trial_success_rate is not None and trial_success_rate >= success_rate_threshold
+            if trial_success_rate is None or trial_success_rate < success_rate_threshold:
+                passed = False
+                fail_reasons.append(
+                    f"success_rate {trial_success_rate} < threshold {success_rate_threshold}"
+                )
         row["stage_passed"] = passed
+
+        # Log per-trial diagnostic summary
+        if passed:
+            logger.info(
+                "  Trial %s stage %d: PASSED (reward=%.2f)",
+                trial.id,
+                stage,
+                best_reward,
+            )
+        else:
+            logger.warning(
+                "  Trial %s stage %d: FAILED — %s",
+                trial.id,
+                stage,
+                "; ".join(fail_reasons),
+            )
 
         rows.append(row)
     return rows
@@ -976,11 +1011,13 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     load_path: str | None = None
     fixed_trial_args: list[str] | None = None
     all_rows: list[dict] = []
+    sweep_start_time = time.monotonic()
 
     # Determine the net_arch HPT key for this algorithm (e.g. "ppo_net_arch")
     net_arch_key = f"{args.algorithm}_net_arch"
 
     for stage in range(1, 4):
+        stage_start_time = time.monotonic()
         search_space = _search_space_for_stage(resolved, stage)
         file_settings = _settings_for_stage(resolved, stage)
 
@@ -1035,6 +1072,17 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         stage_rows = _collect_trial_results(hpt_job, stage, stage_config)
         all_rows.extend(stage_rows)
 
+        stage_elapsed = time.monotonic() - stage_start_time
+        stage_mins = stage_elapsed / 60
+        logger.info(
+            "Stage %d finished in %.1f min (%.0f s). Trials: %d total, %d passed.",
+            stage,
+            stage_mins,
+            stage_elapsed,
+            len(stage_rows),
+            sum(1 for r in stage_rows if r.get("stage_passed")),
+        )
+
         if stage < 3:
             # Find the best trial and chain its checkpoint into the next stage
             load_path, best_row = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
@@ -1078,8 +1126,16 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             except Exception as exc:
                 logger.warning("Failed to upload %s to GCS: %s", graph_name, exc)
 
+    total_elapsed = time.monotonic() - sweep_start_time
+    total_mins = total_elapsed / 60
     logger.info("=" * 60)
-    logger.info("ALL-STAGES SWEEP COMPLETE for %s (%s)", args.species, args.algorithm)
+    logger.info(
+        "ALL-STAGES SWEEP COMPLETE for %s (%s) in %.1f min (%.0f s)",
+        args.species,
+        args.algorithm,
+        total_mins,
+        total_elapsed,
+    )
     logger.info("All results at: gs://%s/sweeps/%s/", args.bucket, args.species)
 
 
