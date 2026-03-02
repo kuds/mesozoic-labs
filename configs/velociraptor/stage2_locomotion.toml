@@ -3,16 +3,16 @@ name = "locomotion"
 description = "Learn forward walking/running"
 
 [env]
-forward_vel_weight = 1.0
-forward_vel_max = 3.0
-backward_vel_penalty_weight = 0.5               # Restore from Stage 1 to heavily penalize backward drifting
-alive_bonus = 2.0                       # Keep alive bonus high to prevent suicide, but ensure it balances
+forward_vel_weight = 4.0                # Increase from 1.0: must dominate alive_bonus to incentivize movement
+forward_vel_max = 1.5                   # Reduce from 3.0: stronger gradient at low speeds where raptor operates
+backward_vel_penalty_weight = 2.0       # Increase from 0.5: make backward drift clearly costly
+alive_bonus = 0.5                       # Reduce from 2.0: was 99% of total reward, drowning forward signal
 energy_penalty_weight = 0.003
 tail_stability_weight = 0.05
-posture_weight = 1.5                    # Match Stage 1: preserve balance signal to prevent catastrophic forgetting
-nosedive_weight = 1.5                   # Match Stage 1: keep nosedive penalty strong during locomotion learning
-gait_symmetry_weight = 0.0             # Disable: formula rewards asymmetry, not alternation
-smoothness_weight = 0.05               # Revert to Stage 1's 0.05. 0.15 makes it too sluggish to catch a fall
+posture_weight = 0.8                    # Reduce from 1.5: strong posture penalty inhibits forward lean needed for walking
+nosedive_weight = 1.0                   # Reduce from 1.5: allow moderate dynamic pitch during gait initiation
+gait_symmetry_weight = 0.1             # Enable: reward asymmetric foot contacts (proxy for stepping gait)
+smoothness_weight = 0.05
 strike_bonus = 0.0
 strike_approach_weight = 0.0
 heading_weight = 0.3
@@ -21,15 +21,15 @@ prey_distance_range = [8.0, 12.0]
 max_episode_steps = 1000
 
 [ppo]
-learning_rate = 5e-5                    # Reduce from 1e-4: prevent catastrophic forgetting of Stage 1 balance
+learning_rate = 5e-5
 learning_rate_end = 1e-5
-n_steps = 4096                          # Reduce from 8192: faster updates, more stable for locomotion
-batch_size = 256                        # Increase: your passing stage1 uses 256, keep consistency
+n_steps = 4096
+batch_size = 256
 n_epochs = 10
-gamma = 0.995                           # Increase from 0.99: longer horizon helps value sustained walking
+gamma = 0.995
 gae_lambda = 0.95
 clip_range = 0.2
-ent_coef = 0.005                        # Reduce from 0.01: exploit Stage 1 balance more, explore less violently
+ent_coef = 0.005
 
 [ppo.policy_kwargs]
 net_arch = [256, 256]
@@ -44,11 +44,11 @@ ent_coef = "auto"
 [curriculum]
 timesteps = 8000000
 min_avg_reward = 100.0
-min_avg_episode_length = 600            # Reduce from 800: most good runs cluster 500-680, this is still demanding
-min_avg_forward_vel = 0.4               # Reduce slightly from 0.5: less pressure to sprint recklessly
+min_avg_episode_length = 600
+min_avg_forward_vel = 0.4
 required_consecutive = 3
-warmup_timesteps = 100000               # Timesteps to constrain policy updates while critic adapts (PPO only)
-warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change
-warmup_ent_coef = 0.02                  # Higher entropy during warm-up to maintain exploration
-ramp_timesteps = 500000                 # Timesteps over which to linearly ramp forward_vel_weight
-ramp_start_value = 0.1                  # Starting fraction of forward_vel_weight during ramp
+warmup_timesteps = 300000               # Increase from 100k: give critic more time to adapt to new reward landscape
+warmup_clip_range = 0.02
+warmup_ent_coef = 0.02
+ramp_timesteps = 2000000               # Increase from 500k: much slower ramp prevents reward-chasing collapse
+ramp_start_value = 0.2                  # Increase from 0.1: start with detectable forward signal
