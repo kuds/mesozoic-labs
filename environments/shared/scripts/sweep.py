@@ -93,6 +93,7 @@ logger = logging.getLogger(__name__)
 class SweepStageError(Exception):
     """Raised when a sweep stage fails and cannot proceed."""
 
+
 # ── Default search spaces ────────────────────────────────────────────────────
 # Each entry: parameter_id -> {"type": ..., ...}
 # parameter_id uses underscore notation to match Vertex AI HPT arg injection.
@@ -789,8 +790,7 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
 
     if best_row is None:
         raise SweepStageError(
-            f"No trials passed stage {stage} criteria. "
-            "Re-run with adjusted thresholds or more trials."
+            f"No trials passed stage {stage} criteria. Re-run with adjusted thresholds or more trials."
         )
 
     best_trial_id = best_row["trial_id"]
@@ -1157,9 +1157,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         "stages": {},
     }
     if args.resume:
-        prev_state = _load_sweep_state(
-            args.species, args.algorithm, bucket=args.bucket, project=args.project
-        )
+        prev_state = _load_sweep_state(args.species, args.algorithm, bucket=args.bucket, project=args.project)
         if prev_state and prev_state.get("stages"):
             sweep_state = prev_state
             for stg_key, stg_data in prev_state["stages"].items():
@@ -1281,8 +1279,11 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 "trial_rows": stage_rows,
             }
             _save_sweep_state(
-                sweep_state, args.species, args.algorithm,
-                bucket=args.bucket, project=args.project,
+                sweep_state,
+                args.species,
+                args.algorithm,
+                bucket=args.bucket,
+                project=args.project,
             )
 
         except (SweepStageError, Exception) as exc:
@@ -1295,8 +1296,11 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     sorted(int(k) for k, v in sweep_state["stages"].items() if v.get("status") == "completed"),
                 )
                 _save_sweep_state(
-                    sweep_state, args.species, args.algorithm,
-                    bucket=args.bucket, project=args.project,
+                    sweep_state,
+                    args.species,
+                    args.algorithm,
+                    bucket=args.bucket,
+                    project=args.project,
                 )
                 sys.exit(1)
             raise

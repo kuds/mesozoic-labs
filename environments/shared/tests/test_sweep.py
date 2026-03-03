@@ -470,7 +470,9 @@ class TestSaveLoadSweepState:
         # Mock google.cloud.storage to raise on Client() so the GCS upload fails
         mock_storage = MagicMock()
         mock_storage.Client.side_effect = Exception("connection refused")
-        with patch.dict("sys.modules", {"google.cloud.storage": mock_storage, "google.cloud": MagicMock(), "google": MagicMock()}):
+        with patch.dict(
+            "sys.modules", {"google.cloud.storage": mock_storage, "google.cloud": MagicMock(), "google": MagicMock()}
+        ):
             # Should not raise even if GCS upload fails
             _save_sweep_state(state, "velociraptor", "ppo", bucket="my-bucket")
         # Local file should still be written
