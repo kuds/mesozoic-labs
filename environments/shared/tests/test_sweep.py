@@ -7,6 +7,7 @@ import pytest
 from environments.shared.scripts.sweep import (
     NET_ARCH_PRESETS,
     SweepStageError,
+    _SweepJobFailed,
     _best_trial_model_path,
     _collect_trial_results,
     _hpt_arg_to_override,
@@ -526,7 +527,7 @@ class TestSubmitStageRetry:
         assert result is mock_job
 
     def test_raises_after_all_retries_exhausted(self):
-        """After all retry attempts are exhausted, the exception is raised."""
+        """After all retry attempts are exhausted, _SweepJobFailed is raised with the hpt_job."""
         from environments.shared.scripts.sweep import _submit_stage_sweep
 
         mock_aiplatform = MagicMock()
@@ -540,7 +541,7 @@ class TestSubmitStageRetry:
 
         search_space = {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}}
 
-        with patch("time.sleep"), pytest.raises(ResourceExhausted):
+        with patch("time.sleep"), pytest.raises(_SweepJobFailed) as exc_info:
             _submit_stage_sweep(
                 aiplatform=mock_aiplatform,
                 hpt_module=mock_hpt,
@@ -561,9 +562,12 @@ class TestSubmitStageRetry:
 
         # 1 initial + 3 retries = 4 total attempts
         assert mock_job.run.call_count == 4
+        # The hpt_job is attached so callers can collect partial trial results
+        assert exc_info.value.hpt_job is mock_job
+        assert isinstance(exc_info.value.__cause__, ResourceExhausted)
 
     def test_non_retryable_error_raised_immediately(self):
-        """Non-retryable errors are raised without retry."""
+        """Non-retryable errors are wrapped in _SweepJobFailed without retry."""
         from environments.shared.scripts.sweep import _submit_stage_sweep
 
         mock_aiplatform = MagicMock()
@@ -576,7 +580,7 @@ class TestSubmitStageRetry:
 
         search_space = {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}}
 
-        with patch("time.sleep"), pytest.raises(ValueError, match="bad parameter"):
+        with patch("time.sleep"), pytest.raises(_SweepJobFailed) as exc_info:
             _submit_stage_sweep(
                 aiplatform=mock_aiplatform,
                 hpt_module=mock_hpt,
@@ -596,3 +600,211 @@ class TestSubmitStageRetry:
             )
 
         assert mock_job.run.call_count == 1
+        assert exc_info.value.hpt_job is mock_job
+        assert isinstance(exc_info.value.__cause__, ValueError)
+
+
+# ── _SweepJobFailed ────────────────────────────────────────────────────
+
+
+class TestSweepJobFailed:
+    def test_is_sweep_stage_error(self):
+        assert issubclass(_SweepJobFailed, SweepStageError)
+
+    def test_carries_hpt_job(self):
+        mock_job = MagicMock()
+        exc = _SweepJobFailed("job failed", hpt_job=mock_job)
+        assert exc.hpt_job is mock_job
+        assert "job failed" in str(exc)
+
+    def test_hpt_job_defaults_to_none(self):
+        exc = _SweepJobFailed("no job")
+        assert exc.hpt_job is None
+
+
+# ── _best_trial_model_path with pre-computed model_path ───────────────
+
+
+class TestBestTrialModelPathWithModelPath:
+    def test_uses_precomputed_model_path(self):
+        rows = [
+            {
+                "trial_id": "5",
+                "stage_passed": True,
+                "best_mean_reward": 200.0,
+                "model_path": "/gcs/bucket/sweeps/velociraptor/stage2_r1/5/models/stage2_final.zip",
+            },
+        ]
+        path, best_row = _best_trial_model_path(rows, "bucket", "velociraptor", 2)
+        assert path == "/gcs/bucket/sweeps/velociraptor/stage2_r1/5/models/stage2_final.zip"
+
+    def test_falls_back_to_constructed_path(self):
+        """Rows without model_path still get the default constructed path."""
+        rows = [
+            {"trial_id": "3", "stage_passed": True, "best_mean_reward": 100.0},
+        ]
+        path, _ = _best_trial_model_path(rows, "my-bucket", "trex", 1)
+        assert path == "/gcs/my-bucket/sweeps/trex/stage1/3/models/stage1_final.zip"
+
+    def test_mixed_rows_picks_best_with_correct_path(self):
+        """When rows from different runs are merged, the best trial's model_path is used."""
+        rows = [
+            # From original run (no model_path — constructed by default)
+            {"trial_id": "1", "stage_passed": True, "best_mean_reward": 100.0},
+            # From resumed run (has model_path)
+            {
+                "trial_id": "1",
+                "stage_passed": True,
+                "best_mean_reward": 250.0,
+                "model_path": "/gcs/bucket/sweeps/velociraptor/stage1_r1/1/models/stage1_final.zip",
+            },
+        ]
+        path, best_row = _best_trial_model_path(rows, "bucket", "velociraptor", 1)
+        assert best_row["best_mean_reward"] == 250.0
+        assert path == "/gcs/bucket/sweeps/velociraptor/stage1_r1/1/models/stage1_final.zip"
+
+
+# ── Partial trial recovery (save/load state) ──────────────────────────
+
+
+class TestPartialTrialRecovery:
+    def test_partial_state_round_trip(self, tmp_path, monkeypatch):
+        """Partial stage data survives a save/load cycle."""
+        monkeypatch.chdir(tmp_path)
+        state = {
+            "species": "velociraptor",
+            "algorithm": "ppo",
+            "started_at": "2026-01-01T00:00:00Z",
+            "stages": {
+                "1": {"status": "completed", "best_model_path": "/gcs/bucket/path.zip"},
+                "2": {
+                    "status": "partial",
+                    "trial_rows": [
+                        {"trial_id": "1", "best_mean_reward": 100.0, "stage_passed": True},
+                        {"trial_id": "2", "best_mean_reward": 80.0, "stage_passed": False},
+                    ],
+                    "fixed_trial_args": ["--ppo_net_arch", "medium"],
+                    "resume_run": 0,
+                },
+            },
+        }
+        _save_sweep_state(state, "velociraptor", "ppo")
+        loaded = _load_sweep_state("velociraptor", "ppo")
+        assert loaded is not None
+        assert loaded["stages"]["1"]["status"] == "completed"
+        assert loaded["stages"]["2"]["status"] == "partial"
+        assert len(loaded["stages"]["2"]["trial_rows"]) == 2
+        assert loaded["stages"]["2"]["resume_run"] == 0
+
+    def test_partial_rows_accumulate_across_failures(self, tmp_path, monkeypatch):
+        """Multiple failures for the same stage accumulate partial rows."""
+        monkeypatch.chdir(tmp_path)
+        # First failure saved 3 rows
+        state = {
+            "species": "velociraptor",
+            "algorithm": "ppo",
+            "stages": {
+                "1": {
+                    "status": "partial",
+                    "trial_rows": [
+                        {"trial_id": "1", "best_mean_reward": 100.0, "stage_passed": True, "model_path": "/gcs/b/s/stage1/1/models/stage1_final.zip"},
+                        {"trial_id": "2", "best_mean_reward": 80.0, "stage_passed": False, "model_path": "/gcs/b/s/stage1/2/models/stage1_final.zip"},
+                        {"trial_id": "3", "best_mean_reward": 120.0, "stage_passed": True, "model_path": "/gcs/b/s/stage1/3/models/stage1_final.zip"},
+                    ],
+                    "resume_run": 0,
+                },
+            },
+        }
+        _save_sweep_state(state, "velociraptor", "ppo")
+
+        # Simulate resume: load, find partial, note resume_run should be 1
+        loaded = _load_sweep_state("velociraptor", "ppo")
+        partial_data = loaded["stages"]["1"]
+        assert partial_data["status"] == "partial"
+        partial_rows = [r for r in partial_data["trial_rows"] if r.get("best_mean_reward") is not None]
+        assert len(partial_rows) == 3
+        resume_run = partial_data.get("resume_run", 0) + 1
+        assert resume_run == 1
+
+
+# ── resume_run output directory isolation ─────────────────────────────
+
+
+class TestResumeRunOutputDir:
+    def test_resume_run_changes_output_base(self):
+        """resume_run > 0 appends _r{N} to the output directory."""
+        from environments.shared.scripts.sweep import _submit_stage_sweep
+
+        mock_aiplatform = MagicMock()
+        mock_hpt = MagicMock()
+
+        mock_job = MagicMock()
+        mock_aiplatform.HyperparameterTuningJob.return_value = mock_job
+        mock_aiplatform.CustomJob.return_value = MagicMock()
+
+        search_space = {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}}
+
+        _submit_stage_sweep(
+            aiplatform=mock_aiplatform,
+            hpt_module=mock_hpt,
+            species="velociraptor",
+            stage=2,
+            algorithm="ppo",
+            timesteps=100000,
+            n_envs=4,
+            trials=5,
+            parallel=2,
+            bucket="test-bucket",
+            image="test-image",
+            machine_type="n1-standard-8",
+            accelerator_type="NVIDIA_TESLA_T4",
+            accelerator_count=1,
+            search_space=search_space,
+            resume_run=1,
+        )
+
+        # Check that the trial args include the resumed output dir
+        call_args = mock_aiplatform.CustomJob.call_args
+        worker_specs = call_args[1]["worker_pool_specs"]
+        trial_args = worker_specs[0]["container_spec"]["args"]
+        output_idx = trial_args.index("--output-dir")
+        output_dir = trial_args[output_idx + 1]
+        assert output_dir == "/gcs/test-bucket/sweeps/velociraptor/stage2_r1"
+
+    def test_resume_run_zero_uses_default_path(self):
+        """resume_run=0 (default) uses the standard output directory."""
+        from environments.shared.scripts.sweep import _submit_stage_sweep
+
+        mock_aiplatform = MagicMock()
+        mock_hpt = MagicMock()
+
+        mock_job = MagicMock()
+        mock_aiplatform.HyperparameterTuningJob.return_value = mock_job
+        mock_aiplatform.CustomJob.return_value = MagicMock()
+
+        search_space = {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}}
+
+        _submit_stage_sweep(
+            aiplatform=mock_aiplatform,
+            hpt_module=mock_hpt,
+            species="velociraptor",
+            stage=2,
+            algorithm="ppo",
+            timesteps=100000,
+            n_envs=4,
+            trials=5,
+            parallel=2,
+            bucket="test-bucket",
+            image="test-image",
+            machine_type="n1-standard-8",
+            accelerator_type="NVIDIA_TESLA_T4",
+            accelerator_count=1,
+            search_space=search_space,
+        )
+
+        call_args = mock_aiplatform.CustomJob.call_args
+        worker_specs = call_args[1]["worker_pool_specs"]
+        trial_args = worker_specs[0]["container_spec"]["args"]
+        output_idx = trial_args.index("--output-dir")
+        output_dir = trial_args[output_idx + 1]
+        assert output_dir == "/gcs/test-bucket/sweeps/velociraptor/stage2"
