@@ -84,7 +84,7 @@ def write_stage_summary(
         bm_vel_s = results_dict.get("best_model_std_fwd_vel", "")
         bm_sr = results_dict.get("best_model_success_rate", "")
         lines.append("")
-        lines.append("Best Model Evaluation (25 episodes)")
+        lines.append("Best Model Evaluation (30 episodes)")
         lines.append("-" * 40)
         lines.append(f"  Reward:       {bm_r} +/- {bm_s}")
         if bm_len != "":

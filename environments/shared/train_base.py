@@ -298,7 +298,7 @@ def train(
         best_model_save_path=str(model_dir),
         log_path=str(log_path),
         eval_freq=eval_freq // n_envs,
-        n_eval_episodes=20,
+        n_eval_episodes=30,
         deterministic=True,
         render=False,
         verbose=max(verbose, 1),
@@ -488,7 +488,7 @@ def _report_hpt_metrics(
             eval_env.norm_reward = False
             logger.warning("HPT eval: best_model.zip not found, falling back to final model")
 
-        _, _, fwd_vels, success_flags = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=10)
+        _, _, fwd_vels, success_flags = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=30)
         if fwd_vels:
             best_fwd = float(_np.mean(fwd_vels))
             _hpt.report_hyperparameter_tuning_metric(
@@ -641,7 +641,7 @@ def train_curriculum(
             best_model_save_path=str(model_dir),
             log_path=str(stage_dir),
             eval_freq=eval_freq // n_envs,
-            n_eval_episodes=20,
+            n_eval_episodes=30,
             deterministic=True,
             render=False,
             verbose=max(verbose, 1),
@@ -666,7 +666,7 @@ def train_curriculum(
             curriculum_manager=manager,
             eval_env=eval_env,
             eval_freq=eval_freq,
-            n_eval_episodes=10,
+            n_eval_episodes=30,
             eval_callback=eval_callback,
         )
         callbacks.append(curriculum_cb)
