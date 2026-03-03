@@ -113,6 +113,13 @@ class RaptorEnv(BaseDinoEnv):
         self._prev_prey_distance: float | None = None
         self._prev_action: np.ndarray | None = None
 
+        # Gait symmetry: track foot touchdown events for alternation reward
+        self._contact_threshold = 0.1  # Newtons, matches metrics.py onset detection
+        self._prev_r_in_contact = False
+        self._prev_l_in_contact = False
+        self._touchdown_sequence: list = []  # Recent 'L'/'R' touchdown events
+        self._max_touchdown_history = 20
+
         # Cached initial direction to prey (set in _spawn_target).
         # Used by forward-velocity and heading rewards so the "forward"
         # reference direction stays fixed for the whole episode, preventing
@@ -343,21 +350,42 @@ class RaptorEnv(BaseDinoEnv):
         # 8b. Pelvis height (for LocomotionMetrics tracking)
         info["pelvis_height"] = float(self.data.xpos[self.pelvis_id, 2])
 
-        # 9. Gait symmetry
-        # BUG: This rewards instantaneous contact asymmetry, not foot
-        # alternation. Standing on one leg scores the same as walking,
-        # and normal double-support phases are penalized. To fix, track
-        # foot contact transitions (L→R, R→L switches) over a window
-        # instead of instantaneous force asymmetry. Keep weight at 0.0
-        # until the formula is corrected.
+        # 9. Gait symmetry (reward alternating foot contacts)
+        # Track touchdown events (off→on transitions) and reward when
+        # consecutive touchdowns alternate feet: L→R→L = 1.0, L→L→R = 0.5.
         r_contact = self.data.sensordata[self._sensor_r_foot]
         l_contact = self.data.sensordata[self._sensor_l_foot]
         info["r_foot_contact"] = float(r_contact)
         info["l_foot_contact"] = float(l_contact)
-        contact_sum = r_contact + l_contact + 1e-6
-        contact_asymmetry = abs(r_contact - l_contact) / contact_sum
-        reward_gait = self.gait_symmetry_weight * contact_asymmetry
-        info["contact_asymmetry"] = contact_asymmetry
+
+        r_in_contact = r_contact > self._contact_threshold
+        l_in_contact = l_contact > self._contact_threshold
+        r_touchdown = r_in_contact and not self._prev_r_in_contact
+        l_touchdown = l_in_contact and not self._prev_l_in_contact
+        self._prev_r_in_contact = r_in_contact
+        self._prev_l_in_contact = l_in_contact
+
+        if r_touchdown:
+            self._touchdown_sequence.append("R")
+        if l_touchdown:
+            self._touchdown_sequence.append("L")
+        if len(self._touchdown_sequence) > self._max_touchdown_history:
+            self._touchdown_sequence = self._touchdown_sequence[-self._max_touchdown_history :]
+
+        n_touchdowns = len(self._touchdown_sequence)
+        if n_touchdowns > 1:
+            alternations = sum(
+                1
+                for i in range(1, n_touchdowns)
+                if self._touchdown_sequence[i] != self._touchdown_sequence[i - 1]
+            )
+            alternation_ratio = alternations / (n_touchdowns - 1)
+        else:
+            alternation_ratio = 0.0
+
+        reward_gait = self.gait_symmetry_weight * alternation_ratio
+        info["alternation_ratio"] = alternation_ratio
+        info["contact_asymmetry"] = alternation_ratio  # backward compat with metrics
         info["reward_gait"] = reward_gait
 
         # 10. Action smoothness (shared helper)
@@ -502,6 +530,11 @@ class RaptorEnv(BaseDinoEnv):
         # Reset delta-based tracking (first step will produce zero deltas)
         self._prev_prey_distance = None
         self._prev_action = None
+
+        # Reset gait symmetry tracking
+        self._prev_r_in_contact = False
+        self._prev_l_in_contact = False
+        self._touchdown_sequence = []
 
 
 # Register with Gymnasium (MesozoicLabs namespace)
