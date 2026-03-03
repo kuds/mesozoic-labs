@@ -195,14 +195,17 @@ def _resolve_search_space(
     if search_space_json:
         try:
             result: dict = json.loads(search_space_json)
+            logger.info("Search space resolved from inline --search-space JSON")
             return result
         except json.JSONDecodeError as exc:
             logger.error("Invalid --search-space JSON: %s", exc)
             sys.exit(1)
 
     if search_space_file:
+        logger.info("Search space resolved from file: %s", search_space_file)
         return _load_search_space_file(search_space_file)
 
+    logger.info("Using default %s search space", algorithm)
     return _DEFAULT_SEARCH_SPACES.get(algorithm, _DEFAULT_PPO_SEARCH_SPACE)
 
 
@@ -842,7 +845,7 @@ def _save_sweep_state(
     logger.info("Sweep state saved locally: %s", local_path)
 
     if bucket:
-        gcs_key = f"sweeps/{species}/_sweep_state.json"
+        gcs_key = f"sweeps/{species}/_sweep_state_{algorithm}.json"
         try:
             from google.cloud import storage as _gcs
 
@@ -870,7 +873,7 @@ def _load_sweep_state(
 
     # Try GCS first
     if bucket:
-        gcs_key = f"sweeps/{species}/_sweep_state.json"
+        gcs_key = f"sweeps/{species}/_sweep_state_{algorithm}.json"
         try:
             from google.cloud import storage as _gcs
 
@@ -1185,6 +1188,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "stages": {},
     }
+    logger.info("Resume mode: %s", "enabled" if args.resume else "disabled")
     if args.resume:
         prev_state = _load_sweep_state(args.species, args.algorithm, bucket=args.bucket, project=args.project)
         if prev_state and prev_state.get("stages"):
@@ -1264,6 +1268,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
         logger.info("=" * 60)
         logger.info("ALL-STAGES SWEEP  —  Stage %d / 3", stage)
+        logger.info("  Timesteps: %s  |  Trials: %d  |  Parallel: %d  |  n_envs: %d", timesteps, trials, parallel, n_envs)
         logger.info("=" * 60)
 
         try:
@@ -1342,15 +1347,29 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 sum(1 for r in stage_rows if r.get("stage_passed")),
             )
 
-            if stage < 3:
-                # Find the best trial and chain its checkpoint into the next stage
-                load_path, best_row = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
+            # Identify the best passing trial for this stage (used for
+            # chaining stages 1→2→3 and for reporting in the saved state).
+            try:
+                best_model_path, best_row = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
+            except SweepStageError:
+                # No trials passed — still save state but mark no best trial.
+                best_model_path = None
+                best_row = None
+                if stage < 3:
+                    raise  # stages 1-2 must pass to chain forward
+
+            if best_row is not None:
+                logger.info("Stage %d best passing trial: id=%s  reward=%.4f", stage, best_row["trial_id"], best_row.get("best_mean_reward", 0))
+
+            if stage < 3 and best_model_path is not None:
+                # Chain the best checkpoint into the next stage
+                load_path = best_model_path
                 logger.info("Stage %d complete. Best passing model: %s", stage, load_path)
 
                 # Propagate the winning trial's net_arch to subsequent stages so
                 # every trial loads the checkpoint with a matching architecture.
                 # net_arch is only searched in stage 1; stages 2+ inherit it.
-                best_net_arch = best_row.get(net_arch_key)
+                best_net_arch = best_row.get(net_arch_key) if best_row else None
                 if best_net_arch is not None:
                     fixed_trial_args = [f"--{net_arch_key}", str(best_net_arch)]
                     logger.info("Propagating %s=%s from best trial to stage %d", net_arch_key, best_net_arch, stage + 1)
@@ -1359,9 +1378,9 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             sweep_state["stages"][str(stage)] = {
                 "status": "completed",
                 "job_resource_name": job_resource_name,
-                "best_trial_id": best_row["trial_id"] if stage < 3 else None,
-                "best_mean_reward": best_row.get("best_mean_reward") if stage < 3 else None,
-                "best_model_path": load_path if stage < 3 else None,
+                "best_trial_id": best_row["trial_id"] if best_row else None,
+                "best_mean_reward": best_row.get("best_mean_reward") if best_row else None,
+                "best_model_path": best_model_path if stage < 3 else None,
                 "fixed_trial_args": fixed_trial_args,
                 "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "trial_rows": stage_rows,
@@ -1374,7 +1393,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 project=args.project,
             )
 
-        except (SweepStageError, Exception) as exc:
+        except Exception as exc:
             if isinstance(exc, SweepStageError) or _is_retryable_gcp_error(exc):
                 # ── Partial trial recovery ────────────────────────────────
                 # Try to salvage completed trials from the failed job so they
@@ -1435,31 +1454,38 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}.csv")
     write_results_csv(all_rows, csv_path)
 
-    # Persist the CSV to GCS alongside the trial artifacts
-    gcs_csv_path = f"sweeps/{args.species}/{csv_path.name}"
+    # Persist the CSV and graphs to GCS alongside the trial artifacts
+    _gcs_bucket = None
     try:
         from google.cloud import storage as _gcs
 
-        _client = _gcs.Client(project=args.project)
-        _bucket = _client.bucket(args.bucket)
-        _bucket.blob(gcs_csv_path).upload_from_filename(str(csv_path))
-        logger.info("Sweep CSV uploaded to: gs://%s/%s", args.bucket, gcs_csv_path)
+        _gcs_client = _gcs.Client(project=args.project)
+        _gcs_bucket = _gcs_client.bucket(args.bucket)
     except Exception as exc:
-        logger.warning("Failed to upload sweep CSV to GCS: %s. Local copy at: %s", exc, csv_path)
+        logger.warning("Could not initialise GCS client for uploads: %s", exc)
+
+    if _gcs_bucket is not None:
+        gcs_csv_path = f"sweeps/{args.species}/{csv_path.name}"
+        try:
+            _gcs_bucket.blob(gcs_csv_path).upload_from_filename(str(csv_path))
+            logger.info("Sweep CSV uploaded to: gs://%s/%s", args.bucket, gcs_csv_path)
+        except Exception as exc:
+            logger.warning("Failed to upload sweep CSV to GCS: %s. Local copy at: %s", exc, csv_path)
 
     # Generate sweep visualisation graphs
     plot_sweep_results(csv_path, args.species, args.algorithm)
 
     # Upload graphs to GCS alongside the CSV
-    for graph_name in ("sweep_trial_metrics.png", "sweep_hyperparameter_analysis.png"):
-        graph_path = csv_path.parent / graph_name
-        if graph_path.exists():
-            gcs_graph_path = f"sweeps/{args.species}/{graph_name}"
-            try:
-                _bucket.blob(gcs_graph_path).upload_from_filename(str(graph_path))
-                logger.info("Sweep graph uploaded to: gs://%s/%s", args.bucket, gcs_graph_path)
-            except Exception as exc:
-                logger.warning("Failed to upload %s to GCS: %s", graph_name, exc)
+    if _gcs_bucket is not None:
+        for graph_name in ("sweep_trial_metrics.png", "sweep_hyperparameter_analysis.png"):
+            graph_path = csv_path.parent / graph_name
+            if graph_path.exists():
+                gcs_graph_path = f"sweeps/{args.species}/{graph_name}"
+                try:
+                    _gcs_bucket.blob(gcs_graph_path).upload_from_filename(str(graph_path))
+                    logger.info("Sweep graph uploaded to: gs://%s/%s", args.bucket, gcs_graph_path)
+                except Exception as exc:
+                    logger.warning("Failed to upload %s to GCS: %s", graph_name, exc)
 
     total_elapsed = time.monotonic() - sweep_start_time
     total_mins = total_elapsed / 60

@@ -1,5 +1,6 @@
 """Tests for the hyperparameter sweep tool's pure functions."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,7 +8,6 @@ import pytest
 from environments.shared.scripts.sweep import (
     NET_ARCH_PRESETS,
     SweepStageError,
-    _SweepJobFailed,
     _best_trial_model_path,
     _collect_trial_results,
     _hpt_arg_to_override,
@@ -20,6 +20,7 @@ from environments.shared.scripts.sweep import (
     _settings_for_stage,
     _split_stage_block,
     _sweep_state_local_path,
+    _SweepJobFailed,
     write_results_csv,
 )
 
@@ -808,3 +809,91 @@ class TestResumeRunOutputDir:
         output_idx = trial_args.index("--output-dir")
         output_dir = trial_args[output_idx + 1]
         assert output_dir == "/gcs/test-bucket/sweeps/velociraptor/stage2"
+
+
+# ── GCS state key includes algorithm ───────────────────────────────
+
+
+class TestGcsStateKeyIncludesAlgorithm:
+    """The GCS state key must include the algorithm to avoid collisions."""
+
+    def test_save_uses_algorithm_in_gcs_key(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        state = {"species": "velociraptor", "algorithm": "ppo", "stages": {}}
+
+        mock_storage = MagicMock()
+        mock_client = MagicMock()
+        mock_bucket = MagicMock()
+        mock_storage.Client.return_value = mock_client
+        mock_client.bucket.return_value = mock_bucket
+
+        mock_gc = MagicMock()
+        mock_gc.storage = mock_storage
+
+        with patch.dict(
+            "sys.modules",
+            {"google.cloud.storage": mock_storage, "google.cloud": mock_gc, "google": MagicMock()},
+        ):
+            _save_sweep_state(state, "velociraptor", "ppo", bucket="my-bucket")
+
+        # The blob key should contain the algorithm
+        mock_bucket.blob.assert_called_once_with("sweeps/velociraptor/_sweep_state_ppo.json")
+
+    def test_load_uses_algorithm_in_gcs_key(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+
+        mock_storage = MagicMock()
+        mock_client = MagicMock()
+        mock_bucket = MagicMock()
+        mock_blob = MagicMock()
+        mock_blob.exists.return_value = True
+        mock_blob.download_as_text.return_value = json.dumps(
+            {"species": "velociraptor", "algorithm": "sac", "stages": {}}
+        )
+        mock_storage.Client.return_value = mock_client
+        mock_client.bucket.return_value = mock_bucket
+        mock_bucket.blob.return_value = mock_blob
+
+        mock_gc = MagicMock()
+        mock_gc.storage = mock_storage
+
+        with patch.dict(
+            "sys.modules",
+            {"google.cloud.storage": mock_storage, "google.cloud": mock_gc, "google": MagicMock()},
+        ):
+            _load_sweep_state("velociraptor", "sac", bucket="my-bucket")
+
+        mock_bucket.blob.assert_called_once_with("sweeps/velociraptor/_sweep_state_sac.json")
+
+
+# ── _resolve_search_space logging ──────────────────────────────────
+
+
+class TestResolveSearchSpaceLogging:
+    def test_inline_json_logs_source(self, caplog):
+        import logging
+
+        with caplog.at_level(logging.INFO):
+            _resolve_search_space('{"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 1e-3}}', None, "ppo")
+        assert "inline --search-space JSON" in caplog.text
+
+    def test_default_space_logs_algorithm(self, caplog):
+        import logging
+
+        with caplog.at_level(logging.INFO):
+            _resolve_search_space(None, None, "sac")
+        assert "default sac search space" in caplog.text
+
+
+# ── _best_trial_model_path for stage 3 (no chain-forward needed) ──
+
+
+class TestBestTrialModelPathStage3:
+    def test_stage3_best_trial_identified(self):
+        rows = [
+            {"trial_id": "1", "stage_passed": True, "best_mean_reward": 100.0},
+            {"trial_id": "2", "stage_passed": True, "best_mean_reward": 200.0},
+        ]
+        path, best_row = _best_trial_model_path(rows, "bucket", "velociraptor", 3)
+        assert best_row["trial_id"] == "2"
+        assert "stage3" in path
