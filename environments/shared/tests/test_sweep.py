@@ -708,9 +708,24 @@ class TestPartialTrialRecovery:
                 "1": {
                     "status": "partial",
                     "trial_rows": [
-                        {"trial_id": "1", "best_mean_reward": 100.0, "stage_passed": True, "model_path": "/gcs/b/s/stage1/1/models/best_model.zip"},
-                        {"trial_id": "2", "best_mean_reward": 80.0, "stage_passed": False, "model_path": "/gcs/b/s/stage1/2/models/best_model.zip"},
-                        {"trial_id": "3", "best_mean_reward": 120.0, "stage_passed": True, "model_path": "/gcs/b/s/stage1/3/models/best_model.zip"},
+                        {
+                            "trial_id": "1",
+                            "best_mean_reward": 100.0,
+                            "stage_passed": True,
+                            "model_path": "/gcs/b/s/stage1/1/models/best_model.zip",
+                        },
+                        {
+                            "trial_id": "2",
+                            "best_mean_reward": 80.0,
+                            "stage_passed": False,
+                            "model_path": "/gcs/b/s/stage1/2/models/best_model.zip",
+                        },
+                        {
+                            "trial_id": "3",
+                            "best_mean_reward": 120.0,
+                            "stage_passed": True,
+                            "model_path": "/gcs/b/s/stage1/3/models/best_model.zip",
+                        },
                     ],
                     "resume_run": 0,
                 },
