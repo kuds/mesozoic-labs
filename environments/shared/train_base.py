@@ -238,7 +238,12 @@ def train(
         _vecnorm_path = load_path.replace(".zip", "") + "_vecnorm.pkl"
         if not _vecnorm_path.endswith("_vecnorm.pkl"):
             _vecnorm_path = load_path + "_vecnorm.pkl"
-        load_vecnorm_stats(_vecnorm_path, train_env, eval_env)
+        if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env):
+            # VecNormalize file not found (e.g. missing from GCS mount).
+            # Ensure eval env doesn't pollute running stats.
+            logger.warning("VecNormalize file not found: %s — eval env will use defaults", _vecnorm_path)
+            eval_env.training = False
+            eval_env.norm_reward = False
     else:
         # Even without prior stats, the eval env should never update
         # running statistics or normalise rewards during evaluation.
@@ -551,7 +556,10 @@ def train_curriculum(
         eval_env = create_vec_env(species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False)
 
         if prev_vecnorm_path:
-            load_vecnorm_stats(prev_vecnorm_path, train_env, eval_env)
+            if not load_vecnorm_stats(prev_vecnorm_path, train_env, eval_env):
+                logger.warning("VecNormalize file not found: %s — eval env will use defaults", prev_vecnorm_path)
+                eval_env.training = False
+                eval_env.norm_reward = False
         else:
             eval_env.training = False
             eval_env.norm_reward = False

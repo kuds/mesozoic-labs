@@ -825,6 +825,44 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
     return path, best_row
 
 
+def _best_trial_model_path_any(stage_rows: list[dict], bucket: str, species: str, stage: int) -> tuple[str, dict]:
+    """Return the GCS path of the best trial's model, ignoring pass/fail status.
+
+    Like :func:`_best_trial_model_path` but selects the trial with the highest
+    ``best_mean_reward`` regardless of whether it met the curriculum gate.
+    Used by ``--force-continue`` to chain stages even when no trial passes.
+
+    Raises:
+        SweepStageError: If no trial reported a valid reward.
+    """
+    best_row: dict | None = None
+    best_value = float("-inf")
+
+    for row in stage_rows:
+        best_reward = row.get("best_mean_reward")
+        if best_reward is not None and best_reward > best_value:
+            best_value = best_reward
+            best_row = row
+
+    if best_row is None:
+        raise SweepStageError(
+            f"No trials reported a valid reward for stage {stage}. All trials may have crashed."
+        )
+
+    best_trial_id = best_row["trial_id"]
+    passed_str = "PASSED" if best_row.get("stage_passed") else "FAILED gate"
+    logger.info(
+        "Best trial for stage %d (force-continue): id=%s  best_mean_reward=%.4f (%s)",
+        stage, best_trial_id, best_value, passed_str,
+    )
+
+    if "model_path" in best_row:
+        path = best_row["model_path"]
+    else:
+        path = f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{best_trial_id}/models/best_model.zip"
+    return path, best_row
+
+
 def _sweep_state_local_path(species: str, algorithm: str) -> Path:
     """Return the local path for a sweep state file."""
     return Path(f"sweep_state_{species}_{algorithm}.json")
@@ -1354,11 +1392,23 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             try:
                 best_model_path, best_row = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
             except SweepStageError:
-                # No trials passed — still save state but mark no best trial.
-                best_model_path = None
-                best_row = None
-                if stage < 3:
-                    raise  # stages 1-2 must pass to chain forward
+                # No trials passed the curriculum gate.
+                if args.force_continue and stage < 3:
+                    # --force-continue: pick the best trial regardless of
+                    # gate status and chain it into the next stage.
+                    logger.warning(
+                        "Stage %d: no trials passed curriculum gate. "
+                        "--force-continue is set — selecting best trial anyway.",
+                        stage,
+                    )
+                    best_model_path, best_row = _best_trial_model_path_any(
+                        stage_rows, args.bucket, args.species, stage,
+                    )
+                else:
+                    best_model_path = None
+                    best_row = None
+                    if stage < 3:
+                        raise  # stages 1-2 must pass to chain forward
 
             if best_row is not None:
                 logger.info(
@@ -1655,6 +1705,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "Resume from the last completed stage if a sweep state file exists "
             "(default: --resume). Use --no-resume to start fresh."
+        ),
+    )
+    launch_all.add_argument(
+        "--force-continue",
+        action="store_true",
+        default=False,
+        help=(
+            "Continue to the next stage even when no trials pass the curriculum "
+            "gate. The best trial (by reward) is selected regardless of gate "
+            "status. Useful for running all three stages to completion."
         ),
     )
 
