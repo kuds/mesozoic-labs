@@ -335,3 +335,42 @@ For a full `launch-all` (3 stages at 500k/1M/1.5M steps per trial, 20 trials eac
 
 **Tip:** Start with 100 000–200 000 timesteps per trial to get a rough ranking, then run longer trials for the top 3–5 configurations.
 
+## Resuming a Sweep
+
+`launch-all` automatically saves progress after each stage completes. If the process is interrupted (network failure, quota exhaustion, machine crash), re-run the **exact same command** and the completed stages will be skipped:
+
+```bash
+# First run — gets interrupted during Stage 2
+python environments/shared/scripts/sweep.py launch-all \
+    --species velociraptor --algorithm ppo \
+    --project MY_PROJECT --bucket MY_BUCKET --image IMAGE_URI \
+    --trials 20 --parallel 5
+
+# Re-run — Stage 1 is skipped, resumes from Stage 2
+python environments/shared/scripts/sweep.py launch-all \
+    --species velociraptor --algorithm ppo \
+    --project MY_PROJECT --bucket MY_BUCKET --image IMAGE_URI \
+    --trials 20 --parallel 5
+```
+
+State is saved to both a local file (`sweep_state_<species>_<algorithm>.json`) and GCS (`gs://<bucket>/sweeps/<species>/_sweep_state.json`). On resume, GCS is checked first, then the local file.
+
+To **start fresh** and ignore any saved state, pass `--no-resume`:
+
+```bash
+python environments/shared/scripts/sweep.py launch-all \
+    --species velociraptor --algorithm ppo \
+    --project MY_PROJECT --bucket MY_BUCKET --image IMAGE_URI \
+    --trials 20 --parallel 5 --no-resume
+```
+
+## Resource Errors and Retries
+
+When submitting a job to Vertex AI, transient errors (quota exhaustion, service unavailability) are automatically retried up to 3 times with increasing delays (60 s, 180 s, 300 s). If all retries fail:
+
+1. Progress for already-completed stages is saved.
+2. The script exits with a clear error message.
+3. Re-running the same command resumes from where it left off.
+
+Non-transient errors (invalid parameters, authentication failures) are **not** retried and fail immediately.
+

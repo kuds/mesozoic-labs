@@ -1,19 +1,24 @@
 """Tests for the hyperparameter sweep tool's pure functions."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from environments.shared.scripts.sweep import (
     NET_ARCH_PRESETS,
+    SweepStageError,
     _best_trial_model_path,
     _collect_trial_results,
     _hpt_arg_to_override,
     _is_per_stage,
+    _is_retryable_gcp_error,
+    _load_sweep_state,
     _resolve_search_space,
+    _save_sweep_state,
     _search_space_for_stage,
     _settings_for_stage,
     _split_stage_block,
+    _sweep_state_local_path,
     write_results_csv,
 )
 
@@ -320,11 +325,11 @@ class TestBestTrialModelPath:
         assert "stage1" in path
         assert "/2/" in path
 
-    def test_exits_when_no_trials_pass(self):
+    def test_raises_when_no_trials_pass(self):
         rows = [
             {"trial_id": "1", "stage_passed": False, "best_mean_reward": 50.0},
         ]
-        with pytest.raises(SystemExit):
+        with pytest.raises(SweepStageError):
             _best_trial_model_path(rows, "bucket", "trex", 2)
 
     def test_gcs_path_format(self):
@@ -386,3 +391,208 @@ class TestNetArchPresets:
     def test_expected_presets_exist(self):
         expected = {"small", "medium", "large", "deep", "tapered", "deep_tapered"}
         assert set(NET_ARCH_PRESETS.keys()) == expected
+
+
+# ── SweepStageError ─────────────────────────────────────────────────────
+
+
+class TestSweepStageError:
+    def test_is_exception(self):
+        assert issubclass(SweepStageError, Exception)
+
+    def test_message(self):
+        err = SweepStageError("stage 2 failed")
+        assert "stage 2 failed" in str(err)
+
+
+# ── _is_retryable_gcp_error ────────────────────────────────────────────
+
+
+class TestIsRetryableGcpError:
+    def test_retryable_by_name(self):
+        for name in ("ResourceExhausted", "ServiceUnavailable", "GoogleAPICallError", "TooManyRequests"):
+            # Create a dynamically-named exception class
+            exc_cls = type(name, (Exception,), {})
+            assert _is_retryable_gcp_error(exc_cls("quota exceeded")) is True
+
+    def test_non_retryable(self):
+        assert _is_retryable_gcp_error(ValueError("bad")) is False
+        assert _is_retryable_gcp_error(RuntimeError("crash")) is False
+
+
+# ── _save_sweep_state / _load_sweep_state ───────────────────────────────
+
+
+class TestSaveLoadSweepState:
+    def test_round_trip_local(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        state = {
+            "species": "velociraptor",
+            "algorithm": "ppo",
+            "started_at": "2026-01-01T00:00:00Z",
+            "stages": {
+                "1": {"status": "completed", "best_model_path": "/gcs/bucket/path.zip"},
+            },
+        }
+        _save_sweep_state(state, "velociraptor", "ppo")
+        loaded = _load_sweep_state("velociraptor", "ppo")
+        assert loaded is not None
+        assert loaded["species"] == "velociraptor"
+        assert loaded["stages"]["1"]["status"] == "completed"
+
+    def test_load_returns_none_when_no_file(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        assert _load_sweep_state("velociraptor", "ppo") is None
+
+    def test_load_returns_none_on_species_mismatch(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        state = {"species": "trex", "algorithm": "ppo", "stages": {}}
+        _save_sweep_state(state, "trex", "ppo")
+        # Try to load with different species
+        loaded = _load_sweep_state("velociraptor", "ppo")
+        assert loaded is None
+
+    def test_load_returns_none_on_algorithm_mismatch(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        state = {"species": "velociraptor", "algorithm": "ppo", "stages": {}}
+        _save_sweep_state(state, "velociraptor", "ppo")
+        loaded = _load_sweep_state("velociraptor", "sac")
+        assert loaded is None
+
+    def test_local_path_format(self):
+        path = _sweep_state_local_path("velociraptor", "ppo")
+        assert path.name == "sweep_state_velociraptor_ppo.json"
+
+    def test_gcs_upload_failure_is_non_fatal(self, tmp_path, monkeypatch):
+        """GCS failures should log a warning but not raise."""
+        monkeypatch.chdir(tmp_path)
+        state = {"species": "velociraptor", "algorithm": "ppo", "stages": {}}
+        # Mock google.cloud.storage to raise on Client() so the GCS upload fails
+        mock_storage = MagicMock()
+        mock_storage.Client.side_effect = Exception("connection refused")
+        with patch.dict(
+            "sys.modules", {"google.cloud.storage": mock_storage, "google.cloud": MagicMock(), "google": MagicMock()}
+        ):
+            # Should not raise even if GCS upload fails
+            _save_sweep_state(state, "velociraptor", "ppo", bucket="my-bucket")
+        # Local file should still be written
+        assert _sweep_state_local_path("velociraptor", "ppo").exists()
+
+
+# ── Retry logic in _submit_stage_sweep ──────────────────────────────────
+
+
+class TestSubmitStageRetry:
+    def test_retries_on_resource_exhausted(self):
+        """hpt_job.run() is retried on retryable errors."""
+        from environments.shared.scripts.sweep import _submit_stage_sweep
+
+        mock_aiplatform = MagicMock()
+        mock_hpt = MagicMock()
+
+        # Make the HPT job's run method fail twice then succeed
+        ResourceExhausted = type("ResourceExhausted", (Exception,), {})
+        mock_job = MagicMock()
+        mock_job.run.side_effect = [
+            ResourceExhausted("quota"),
+            ResourceExhausted("quota"),
+            None,  # success on 3rd attempt
+        ]
+        mock_aiplatform.HyperparameterTuningJob.return_value = mock_job
+        mock_aiplatform.CustomJob.return_value = MagicMock()
+
+        search_space = {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}}
+
+        with patch("time.sleep"):
+            result = _submit_stage_sweep(
+                aiplatform=mock_aiplatform,
+                hpt_module=mock_hpt,
+                species="velociraptor",
+                stage=1,
+                algorithm="ppo",
+                timesteps=100000,
+                n_envs=4,
+                trials=5,
+                parallel=2,
+                bucket="test-bucket",
+                image="test-image",
+                machine_type="n1-standard-8",
+                accelerator_type="NVIDIA_TESLA_T4",
+                accelerator_count=1,
+                search_space=search_space,
+            )
+
+        assert mock_job.run.call_count == 3
+        assert result is mock_job
+
+    def test_raises_after_all_retries_exhausted(self):
+        """After all retry attempts are exhausted, the exception is raised."""
+        from environments.shared.scripts.sweep import _submit_stage_sweep
+
+        mock_aiplatform = MagicMock()
+        mock_hpt = MagicMock()
+
+        ResourceExhausted = type("ResourceExhausted", (Exception,), {})
+        mock_job = MagicMock()
+        mock_job.run.side_effect = ResourceExhausted("quota")
+        mock_aiplatform.HyperparameterTuningJob.return_value = mock_job
+        mock_aiplatform.CustomJob.return_value = MagicMock()
+
+        search_space = {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}}
+
+        with patch("time.sleep"), pytest.raises(ResourceExhausted):
+            _submit_stage_sweep(
+                aiplatform=mock_aiplatform,
+                hpt_module=mock_hpt,
+                species="velociraptor",
+                stage=1,
+                algorithm="ppo",
+                timesteps=100000,
+                n_envs=4,
+                trials=5,
+                parallel=2,
+                bucket="test-bucket",
+                image="test-image",
+                machine_type="n1-standard-8",
+                accelerator_type="NVIDIA_TESLA_T4",
+                accelerator_count=1,
+                search_space=search_space,
+            )
+
+        # 1 initial + 3 retries = 4 total attempts
+        assert mock_job.run.call_count == 4
+
+    def test_non_retryable_error_raised_immediately(self):
+        """Non-retryable errors are raised without retry."""
+        from environments.shared.scripts.sweep import _submit_stage_sweep
+
+        mock_aiplatform = MagicMock()
+        mock_hpt = MagicMock()
+
+        mock_job = MagicMock()
+        mock_job.run.side_effect = ValueError("bad parameter")
+        mock_aiplatform.HyperparameterTuningJob.return_value = mock_job
+        mock_aiplatform.CustomJob.return_value = MagicMock()
+
+        search_space = {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}}
+
+        with patch("time.sleep"), pytest.raises(ValueError, match="bad parameter"):
+            _submit_stage_sweep(
+                aiplatform=mock_aiplatform,
+                hpt_module=mock_hpt,
+                species="velociraptor",
+                stage=1,
+                algorithm="ppo",
+                timesteps=100000,
+                n_envs=4,
+                trials=5,
+                parallel=2,
+                bucket="test-bucket",
+                image="test-image",
+                machine_type="n1-standard-8",
+                accelerator_type="NVIDIA_TESLA_T4",
+                accelerator_count=1,
+                search_space=search_space,
+            )
+
+        assert mock_job.run.call_count == 1

@@ -89,6 +89,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+class SweepStageError(Exception):
+    """Raised when a sweep stage fails and cannot proceed."""
+
+
 # ── Default search spaces ────────────────────────────────────────────────────
 # Each entry: parameter_id -> {"type": ..., ...}
 # parameter_id uses underscore notation to match Vertex AI HPT arg injection.
@@ -784,13 +789,120 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
                 best_row = row
 
     if best_row is None:
-        logger.error("No trials passed stage %d criteria. Aborting multi-stage sweep.", stage)
-        sys.exit(1)
+        raise SweepStageError(
+            f"No trials passed stage {stage} criteria. Re-run with adjusted thresholds or more trials."
+        )
 
     best_trial_id = best_row["trial_id"]
     logger.info("Best passing trial for stage %d: id=%s  best_mean_reward=%.4f", stage, best_trial_id, best_value)
     path = f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{best_trial_id}/models/stage{stage}_final.zip"
     return path, best_row
+
+
+def _sweep_state_local_path(species: str, algorithm: str) -> Path:
+    """Return the local path for a sweep state file."""
+    return Path(f"sweep_state_{species}_{algorithm}.json")
+
+
+def _save_sweep_state(
+    state: dict,
+    species: str,
+    algorithm: str,
+    bucket: str | None = None,
+    project: str | None = None,
+) -> None:
+    """Persist sweep progress to local disk and (best-effort) GCS.
+
+    The state dict is written as JSON to a local file and, if *bucket* is
+    provided, also uploaded to
+    ``gs://<bucket>/sweeps/<species>/_sweep_state.json``.
+    """
+    local_path = _sweep_state_local_path(species, algorithm)
+    local_path.write_text(json.dumps(state, indent=2))
+    logger.info("Sweep state saved locally: %s", local_path)
+
+    if bucket:
+        gcs_key = f"sweeps/{species}/_sweep_state.json"
+        try:
+            from google.cloud import storage as _gcs
+
+            _client = _gcs.Client(project=project)
+            _bkt = _client.bucket(bucket)
+            _bkt.blob(gcs_key).upload_from_string(json.dumps(state, indent=2))
+            logger.info("Sweep state uploaded to: gs://%s/%s", bucket, gcs_key)
+        except Exception as exc:
+            logger.warning("Failed to upload sweep state to GCS: %s", exc)
+
+
+def _load_sweep_state(
+    species: str,
+    algorithm: str,
+    bucket: str | None = None,
+    project: str | None = None,
+) -> dict | None:
+    """Load a previously saved sweep state file.
+
+    Checks GCS first (if *bucket* is provided), then falls back to the
+    local file.  Returns ``None`` if no state exists or if the state does
+    not match *species* and *algorithm*.
+    """
+    state: dict | None = None
+
+    # Try GCS first
+    if bucket:
+        gcs_key = f"sweeps/{species}/_sweep_state.json"
+        try:
+            from google.cloud import storage as _gcs
+
+            _client = _gcs.Client(project=project)
+            _bkt = _client.bucket(bucket)
+            blob = _bkt.blob(gcs_key)
+            if blob.exists():
+                state = json.loads(blob.download_as_text())
+                logger.info("Loaded sweep state from: gs://%s/%s", bucket, gcs_key)
+        except Exception as exc:
+            logger.warning("Could not read sweep state from GCS: %s", exc)
+
+    # Fall back to local file
+    if state is None:
+        local_path = _sweep_state_local_path(species, algorithm)
+        if local_path.exists():
+            try:
+                state = json.loads(local_path.read_text())
+                logger.info("Loaded sweep state from: %s", local_path)
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning("Could not read local sweep state: %s", exc)
+
+    # Validate species + algorithm match
+    if state is not None:
+        if state.get("species") != species or state.get("algorithm") != algorithm:
+            logger.warning(
+                "Sweep state species/algorithm (%s/%s) does not match current (%s/%s) — ignoring",
+                state.get("species"),
+                state.get("algorithm"),
+                species,
+                algorithm,
+            )
+            return None
+
+    return state
+
+
+def _is_retryable_gcp_error(exc: Exception) -> bool:
+    """Return ``True`` if *exc* is a transient GCP error worth retrying.
+
+    Matches by class name so we don't need ``google-cloud-aiplatform``
+    installed at import time (the exceptions live in ``google.api_core``).
+    """
+    retryable_names = {
+        "ResourceExhausted",
+        "ServiceUnavailable",
+        "GoogleAPICallError",
+        "TooManyRequests",
+        "InternalServerError",
+        "GatewayTimeout",
+    }
+    return type(exc).__name__ in retryable_names
 
 
 def _submit_stage_sweep(
@@ -894,7 +1006,35 @@ def _submit_stage_sweep(
         parallel_trial_count=parallel,
     )
 
-    hpt_job.run(sync=sync)
+    # Retry loop for transient Vertex AI / quota errors.
+    _RETRY_DELAYS = [60, 180, 300]  # seconds between retries
+    last_exc: Exception | None = None
+    for attempt in range(len(_RETRY_DELAYS) + 1):
+        try:
+            hpt_job.run(sync=sync)
+            break  # success
+        except Exception as exc:
+            # Only retry on transient / quota errors from the Google API.
+            _retryable = _is_retryable_gcp_error(exc)
+            if not _retryable or attempt >= len(_RETRY_DELAYS):
+                raise
+            last_exc = exc
+            delay = _RETRY_DELAYS[attempt]
+            logger.warning(
+                "Vertex AI error on attempt %d/%d for stage %d: %s. Retrying in %ds …",
+                attempt + 1,
+                len(_RETRY_DELAYS) + 1,
+                stage,
+                exc,
+                delay,
+            )
+            time.sleep(delay)
+    else:
+        # All retries exhausted — should not reach here because we re-raise
+        # above, but guard defensively.
+        raise SweepStageError(
+            f"Job submission for stage {stage} failed after {len(_RETRY_DELAYS) + 1} attempts"
+        ) from last_exc
 
     logger.info("Job submitted: %s", hpt_job.resource_name)
     logger.info("Monitor at: https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs")
@@ -1008,7 +1148,45 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     # Determine the net_arch HPT key for this algorithm (e.g. "ppo_net_arch")
     net_arch_key = f"{args.algorithm}_net_arch"
 
+    # ── Resume: restore state from a previous (possibly interrupted) run ─────
+    completed_stages: set[int] = set()
+    sweep_state: dict = {
+        "species": args.species,
+        "algorithm": args.algorithm,
+        "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "stages": {},
+    }
+    if args.resume:
+        prev_state = _load_sweep_state(args.species, args.algorithm, bucket=args.bucket, project=args.project)
+        if prev_state and prev_state.get("stages"):
+            sweep_state = prev_state
+            for stg_key, stg_data in prev_state["stages"].items():
+                if stg_data.get("status") == "completed":
+                    stg_num = int(stg_key)
+                    completed_stages.add(stg_num)
+                    # Restore load_path and fixed_trial_args from the last completed stage
+                    if stg_data.get("best_model_path"):
+                        load_path = stg_data["best_model_path"]
+                    if stg_data.get("fixed_trial_args"):
+                        fixed_trial_args = stg_data["fixed_trial_args"]
+                    if stg_data.get("trial_rows"):
+                        all_rows.extend(stg_data["trial_rows"])
+            if completed_stages:
+                logger.info(
+                    "Resuming sweep: stages %s already completed. load_path=%s",
+                    sorted(completed_stages),
+                    load_path,
+                )
+    # ── End resume ───────────────────────────────────────────────────────────
+
     for stage in range(1, 4):
+        # Skip stages that were already completed in a previous run
+        if stage in completed_stages:
+            logger.info("=" * 60)
+            logger.info("ALL-STAGES SWEEP  —  Stage %d / 3  (SKIPPED — already completed)", stage)
+            logger.info("=" * 60)
+            continue
+
         stage_start_time = time.monotonic()
         search_space = _search_space_for_stage(resolved, stage)
         file_settings = _settings_for_stage(resolved, stage)
@@ -1035,58 +1213,97 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         logger.info("ALL-STAGES SWEEP  —  Stage %d / 3", stage)
         logger.info("=" * 60)
 
-        hpt_job = _submit_stage_sweep(
-            aiplatform=aiplatform,
-            hpt_module=hpt,
-            species=args.species,
-            stage=stage,
-            algorithm=args.algorithm,
-            timesteps=timesteps,
-            n_envs=n_envs,
-            trials=trials,
-            parallel=parallel,
-            bucket=args.bucket,
-            image=args.image,
-            machine_type=args.machine_type,
-            accelerator_type=args.accelerator_type,
-            accelerator_count=args.accelerator_count,
-            search_space=search_space,
-            load_path=load_path,
-            fixed_trial_args=fixed_trial_args,
-            wandb=args.wandb,
-            sync=True,  # block until this stage's sweep is done
-        )
+        try:
+            hpt_job = _submit_stage_sweep(
+                aiplatform=aiplatform,
+                hpt_module=hpt,
+                species=args.species,
+                stage=stage,
+                algorithm=args.algorithm,
+                timesteps=timesteps,
+                n_envs=n_envs,
+                trials=trials,
+                parallel=parallel,
+                bucket=args.bucket,
+                image=args.image,
+                machine_type=args.machine_type,
+                accelerator_type=args.accelerator_type,
+                accelerator_count=args.accelerator_count,
+                search_space=search_space,
+                load_path=load_path,
+                fixed_trial_args=fixed_trial_args,
+                wandb=args.wandb,
+                sync=True,  # block until this stage's sweep is done
+            )
 
-        # Collect per-trial results and append to the running list
-        from environments.shared.config import load_stage_config as _load_stage_config
+            # Collect per-trial results and append to the running list
+            from environments.shared.config import load_stage_config as _load_stage_config
 
-        stage_config = _load_stage_config(args.species, stage)
-        stage_rows = _collect_trial_results(hpt_job, stage, stage_config)
-        all_rows.extend(stage_rows)
+            stage_config = _load_stage_config(args.species, stage)
+            stage_rows = _collect_trial_results(hpt_job, stage, stage_config)
+            all_rows.extend(stage_rows)
 
-        stage_elapsed = time.monotonic() - stage_start_time
-        stage_mins = stage_elapsed / 60
-        logger.info(
-            "Stage %d finished in %.1f min (%.0f s). Trials: %d total, %d passed.",
-            stage,
-            stage_mins,
-            stage_elapsed,
-            len(stage_rows),
-            sum(1 for r in stage_rows if r.get("stage_passed")),
-        )
+            stage_elapsed = time.monotonic() - stage_start_time
+            stage_mins = stage_elapsed / 60
+            logger.info(
+                "Stage %d finished in %.1f min (%.0f s). Trials: %d total, %d passed.",
+                stage,
+                stage_mins,
+                stage_elapsed,
+                len(stage_rows),
+                sum(1 for r in stage_rows if r.get("stage_passed")),
+            )
 
-        if stage < 3:
-            # Find the best trial and chain its checkpoint into the next stage
-            load_path, best_row = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
-            logger.info("Stage %d complete. Best passing model: %s", stage, load_path)
+            if stage < 3:
+                # Find the best trial and chain its checkpoint into the next stage
+                load_path, best_row = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
+                logger.info("Stage %d complete. Best passing model: %s", stage, load_path)
 
-            # Propagate the winning trial's net_arch to subsequent stages so
-            # every trial loads the checkpoint with a matching architecture.
-            # net_arch is only searched in stage 1; stages 2+ inherit it.
-            best_net_arch = best_row.get(net_arch_key)
-            if best_net_arch is not None:
-                fixed_trial_args = [f"--{net_arch_key}", str(best_net_arch)]
-                logger.info("Propagating %s=%s from best trial to stage %d", net_arch_key, best_net_arch, stage + 1)
+                # Propagate the winning trial's net_arch to subsequent stages so
+                # every trial loads the checkpoint with a matching architecture.
+                # net_arch is only searched in stage 1; stages 2+ inherit it.
+                best_net_arch = best_row.get(net_arch_key)
+                if best_net_arch is not None:
+                    fixed_trial_args = [f"--{net_arch_key}", str(best_net_arch)]
+                    logger.info("Propagating %s=%s from best trial to stage %d", net_arch_key, best_net_arch, stage + 1)
+
+            # Save state after each stage completes successfully
+            sweep_state["stages"][str(stage)] = {
+                "status": "completed",
+                "job_resource_name": getattr(hpt_job, "resource_name", None),
+                "best_trial_id": best_row["trial_id"] if stage < 3 else None,
+                "best_mean_reward": best_row.get("best_mean_reward") if stage < 3 else None,
+                "best_model_path": load_path if stage < 3 else None,
+                "fixed_trial_args": fixed_trial_args,
+                "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "trial_rows": stage_rows,
+            }
+            _save_sweep_state(
+                sweep_state,
+                args.species,
+                args.algorithm,
+                bucket=args.bucket,
+                project=args.project,
+            )
+
+        except (SweepStageError, Exception) as exc:
+            if isinstance(exc, SweepStageError) or _is_retryable_gcp_error(exc):
+                logger.error(
+                    "Stage %d failed: %s. Saving progress — completed stages: %s. "
+                    "Re-run the same command to resume from where you left off.",
+                    stage,
+                    exc,
+                    sorted(int(k) for k, v in sweep_state["stages"].items() if v.get("status") == "completed"),
+                )
+                _save_sweep_state(
+                    sweep_state,
+                    args.species,
+                    args.algorithm,
+                    bucket=args.bucket,
+                    project=args.project,
+                )
+                sys.exit(1)
+            raise
 
     # Write a combined CSV of every trial across all three stages
     csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}.csv")
@@ -1272,6 +1489,15 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     launch_all.add_argument("--wandb", action="store_true", help="Enable W&B logging in each trial")
+    launch_all.add_argument(
+        "--resume",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Resume from the last completed stage if a sweep state file exists "
+            "(default: --resume). Use --no-resume to start fresh."
+        ),
+    )
 
     return parser
 
