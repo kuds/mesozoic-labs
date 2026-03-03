@@ -360,7 +360,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         curriculum_manager: CurriculumManager,
         eval_env: Any,
         eval_freq: int = 10000,
-        n_eval_episodes: int = 10,
+        n_eval_episodes: int = 30,
         eval_callback: Any = None,
         supplementary_episodes: int = 5,
         verbose: int = 0,

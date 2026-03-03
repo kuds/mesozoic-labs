@@ -20,7 +20,7 @@ def eval_policy(
     model,
     eval_env,
     success_keys: list[str],
-    n_episodes: int = 25,
+    n_episodes: int = 30,
 ):
     """Evaluate a trained policy collecting per-episode metrics.
 
@@ -133,7 +133,7 @@ def evaluate(
     species_cfg,
     stage_configs: Dict[int, Dict[str, Any]],
     model_path: str,
-    n_episodes: int = 10,
+    n_episodes: int = 30,
     render: bool = True,
     stage: int | None = None,
     algorithm: str = "ppo",
