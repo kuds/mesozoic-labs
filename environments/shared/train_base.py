@@ -239,6 +239,11 @@ def train(
         if not _vecnorm_path.endswith("_vecnorm.pkl"):
             _vecnorm_path = load_path + "_vecnorm.pkl"
         load_vecnorm_stats(_vecnorm_path, train_env, eval_env)
+    else:
+        # Even without prior stats, the eval env should never update
+        # running statistics or normalise rewards during evaluation.
+        eval_env.training = False
+        eval_env.norm_reward = False
 
     # Create or load model
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
@@ -541,6 +546,9 @@ def train_curriculum(
 
         if prev_vecnorm_path:
             load_vecnorm_stats(prev_vecnorm_path, train_env, eval_env)
+        else:
+            eval_env.training = False
+            eval_env.norm_reward = False
 
         alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
         alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()

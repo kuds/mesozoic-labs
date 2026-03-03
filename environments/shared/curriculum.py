@@ -423,33 +423,52 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         """Run a small eval pass to collect forward velocity and success rate.
 
         Returns ``(forward_vels, success_flags, episode_reports)``.
+
+        The eval env's ``VecNormalize`` flags are temporarily set to
+        ``training=False`` and ``norm_reward=False`` so that running
+        statistics are not contaminated by evaluation episodes and
+        rewards are returned in the original (unnormalised) scale.
         """
+        # Disable VecNormalize stat updates during evaluation
+        old_training = getattr(self.eval_env, "training", None)
+        old_norm_reward = getattr(self.eval_env, "norm_reward", None)
+        if old_training is not None:
+            self.eval_env.training = False
+        if old_norm_reward is not None:
+            self.eval_env.norm_reward = False
+
         forward_vels: List[float] = []
         success_flags: List[float] = []
         episode_reports: List[Dict[str, Any]] = []
 
-        for _ in range(self.supplementary_episodes):
-            obs = self.eval_env.reset()
-            metrics = LocomotionMetrics()
-            ep_forward_vels: List[float] = []
-            ep_success = 0.0
-            done = False
-            while not done:
-                action, _ = self.model.predict(obs, deterministic=True)
-                obs, reward, dones, infos = self.eval_env.step(action)
-                step_reward = float(reward[0])
-                metrics.record_step(infos[0], step_reward)
-                if "forward_vel" in infos[0]:
-                    ep_forward_vels.append(float(infos[0]["forward_vel"]))
-                for key in ("bite_success", "strike_success", "food_reached"):
-                    if infos[0].get(key):
-                        ep_success = 1.0
-                        break
-                done = bool(dones[0])
-            if ep_forward_vels:
-                forward_vels.append(float(np.mean(ep_forward_vels)))
-            success_flags.append(ep_success)
-            episode_reports.append(metrics.compute())
+        try:
+            for _ in range(self.supplementary_episodes):
+                obs = self.eval_env.reset()
+                metrics = LocomotionMetrics()
+                ep_forward_vels: List[float] = []
+                ep_success = 0.0
+                done = False
+                while not done:
+                    action, _ = self.model.predict(obs, deterministic=True)
+                    obs, reward, dones, infos = self.eval_env.step(action)
+                    step_reward = float(reward[0])
+                    metrics.record_step(infos[0], step_reward)
+                    if "forward_vel" in infos[0]:
+                        ep_forward_vels.append(float(infos[0]["forward_vel"]))
+                    for key in ("bite_success", "strike_success", "food_reached"):
+                        if infos[0].get(key):
+                            ep_success = 1.0
+                            break
+                    done = bool(dones[0])
+                if ep_forward_vels:
+                    forward_vels.append(float(np.mean(ep_forward_vels)))
+                success_flags.append(ep_success)
+                episode_reports.append(metrics.compute())
+        finally:
+            if old_training is not None:
+                self.eval_env.training = old_training
+            if old_norm_reward is not None:
+                self.eval_env.norm_reward = old_norm_reward
 
         return forward_vels, success_flags, episode_reports
 
@@ -520,41 +539,60 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         return True
 
     def _on_step_standalone(self) -> bool:
-        """Full standalone evaluation (backward-compatible path)."""
+        """Full standalone evaluation (backward-compatible path).
+
+        Temporarily sets ``training=False`` and ``norm_reward=False`` on the
+        eval env's ``VecNormalize`` wrapper so running statistics are not
+        contaminated and rewards are in the original scale.
+        """
+        # Disable VecNormalize stat updates during evaluation
+        old_training = getattr(self.eval_env, "training", None)
+        old_norm_reward = getattr(self.eval_env, "norm_reward", None)
+        if old_training is not None:
+            self.eval_env.training = False
+        if old_norm_reward is not None:
+            self.eval_env.norm_reward = False
+
         rewards: List[float] = []
         lengths: List[float] = []
         forward_vels: List[float] = []
         success_flags: List[float] = []
         episode_reports: List[Dict[str, Any]] = []
 
-        for _ in range(self.n_eval_episodes):
-            obs = self.eval_env.reset()
-            metrics = LocomotionMetrics()
-            episode_reward = 0.0
-            episode_length = 0
-            ep_forward_vels: List[float] = []
-            ep_success = 0.0
-            done = False
-            while not done:
-                action, _ = self.model.predict(obs, deterministic=True)
-                obs, reward, dones, infos = self.eval_env.step(action)
-                step_reward = float(reward[0])
-                episode_reward += step_reward
-                episode_length += 1
-                metrics.record_step(infos[0], step_reward)
-                if "forward_vel" in infos[0]:
-                    ep_forward_vels.append(float(infos[0]["forward_vel"]))
-                for key in ("bite_success", "strike_success", "food_reached"):
-                    if infos[0].get(key):
-                        ep_success = 1.0
-                        break
-                done = bool(dones[0])
-            rewards.append(episode_reward)
-            lengths.append(float(episode_length))
-            if ep_forward_vels:
-                forward_vels.append(float(np.mean(ep_forward_vels)))
-            success_flags.append(ep_success)
-            episode_reports.append(metrics.compute())
+        try:
+            for _ in range(self.n_eval_episodes):
+                obs = self.eval_env.reset()
+                metrics = LocomotionMetrics()
+                episode_reward = 0.0
+                episode_length = 0
+                ep_forward_vels: List[float] = []
+                ep_success = 0.0
+                done = False
+                while not done:
+                    action, _ = self.model.predict(obs, deterministic=True)
+                    obs, reward, dones, infos = self.eval_env.step(action)
+                    step_reward = float(reward[0])
+                    episode_reward += step_reward
+                    episode_length += 1
+                    metrics.record_step(infos[0], step_reward)
+                    if "forward_vel" in infos[0]:
+                        ep_forward_vels.append(float(infos[0]["forward_vel"]))
+                    for key in ("bite_success", "strike_success", "food_reached"):
+                        if infos[0].get(key):
+                            ep_success = 1.0
+                            break
+                    done = bool(dones[0])
+                rewards.append(episode_reward)
+                lengths.append(float(episode_length))
+                if ep_forward_vels:
+                    forward_vels.append(float(np.mean(ep_forward_vels)))
+                success_flags.append(ep_success)
+                episode_reports.append(metrics.compute())
+        finally:
+            if old_training is not None:
+                self.eval_env.training = old_training
+            if old_norm_reward is not None:
+                self.eval_env.norm_reward = old_norm_reward
 
         self._log_locomotion_metrics(episode_reports)
 
