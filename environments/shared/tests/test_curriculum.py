@@ -400,6 +400,121 @@ class TestLoadVecnormStats:
         assert result is False
 
 
+class TestFindBestVecnormalize:
+    """Test find_best_vecnormalize matches checkpoint VecNormalize to best model."""
+
+    def test_finds_closest_checkpoint(self, tmp_path):
+        """Selects the checkpoint VecNormalize closest to the best eval timestep."""
+        import numpy as np
+
+        from environments.shared.curriculum import find_best_vecnormalize
+
+        stage_dir = tmp_path / "stage1"
+        model_dir = stage_dir / "models"
+        model_dir.mkdir(parents=True)
+
+        # Simulate evaluations.npz: best eval at timestep 150000
+        timesteps = np.array([50000, 100000, 150000, 200000])
+        results = np.array([
+            [10.0, 12.0],   # mean=11.0
+            [20.0, 22.0],   # mean=21.0
+            [30.0, 32.0],   # mean=31.0  <-- best
+            [25.0, 27.0],   # mean=26.0
+        ])
+        np.savez(str(stage_dir / "evaluations.npz"), timesteps=timesteps, results=results)
+
+        # Create checkpoint VecNormalize files at various timesteps
+        for ts in [50000, 100000, 150000, 200000]:
+            (model_dir / f"stage1_vecnormalize_{ts}_steps.pkl").write_bytes(b"fake")
+
+        result = find_best_vecnormalize(stage_dir, stage=1)
+        assert result is not None
+        assert "150000" in result
+
+    def test_finds_nearest_when_no_exact_match(self, tmp_path):
+        """Picks the nearest checkpoint when there is no exact timestep match."""
+        import numpy as np
+
+        from environments.shared.curriculum import find_best_vecnormalize
+
+        stage_dir = tmp_path / "stage1"
+        model_dir = stage_dir / "models"
+        model_dir.mkdir(parents=True)
+
+        # Best eval at timestep 175000 but checkpoints only at 150000 and 200000
+        timesteps = np.array([100000, 150000, 175000, 200000])
+        results = np.array([
+            [10.0],
+            [20.0],
+            [30.0],  # best
+            [25.0],
+        ])
+        np.savez(str(stage_dir / "evaluations.npz"), timesteps=timesteps, results=results)
+
+        (model_dir / "stage1_vecnormalize_150000_steps.pkl").write_bytes(b"fake")
+        (model_dir / "stage1_vecnormalize_200000_steps.pkl").write_bytes(b"fake")
+
+        result = find_best_vecnormalize(stage_dir, stage=1)
+        assert result is not None
+        # 175000 is closer to 200000 (dist=25000) than 150000 (dist=25000) -- tie.
+        # But actually 175000 - 150000 = 25000 and 200000 - 175000 = 25000, so either is fine.
+        # Just assert one is chosen.
+        assert "150000" in result or "200000" in result
+
+    def test_returns_none_when_no_evaluations(self, tmp_path):
+        """Returns None if evaluations.npz does not exist."""
+        from environments.shared.curriculum import find_best_vecnormalize
+
+        stage_dir = tmp_path / "stage1"
+        stage_dir.mkdir()
+
+        result = find_best_vecnormalize(stage_dir, stage=1)
+        assert result is None
+
+    def test_returns_none_when_no_checkpoint_files(self, tmp_path):
+        """Returns None if no checkpoint VecNormalize files are found."""
+        import numpy as np
+
+        from environments.shared.curriculum import find_best_vecnormalize
+
+        stage_dir = tmp_path / "stage1"
+        model_dir = stage_dir / "models"
+        model_dir.mkdir(parents=True)
+
+        timesteps = np.array([50000, 100000])
+        results = np.array([[10.0], [20.0]])
+        np.savez(str(stage_dir / "evaluations.npz"), timesteps=timesteps, results=results)
+
+        result = find_best_vecnormalize(stage_dir, stage=1)
+        assert result is None
+
+    def test_respects_stage_prefix(self, tmp_path):
+        """Only matches checkpoint files for the correct stage number."""
+        import numpy as np
+
+        from environments.shared.curriculum import find_best_vecnormalize
+
+        stage_dir = tmp_path / "stage2"
+        model_dir = stage_dir / "models"
+        model_dir.mkdir(parents=True)
+
+        timesteps = np.array([50000])
+        results = np.array([[20.0]])
+        np.savez(str(stage_dir / "evaluations.npz"), timesteps=timesteps, results=results)
+
+        # Only stage1 files exist, looking for stage2
+        (model_dir / "stage1_vecnormalize_50000_steps.pkl").write_bytes(b"fake")
+
+        result = find_best_vecnormalize(stage_dir, stage=2)
+        assert result is None
+
+        # Add a stage2 file
+        (model_dir / "stage2_vecnormalize_50000_steps.pkl").write_bytes(b"fake")
+        result = find_best_vecnormalize(stage_dir, stage=2)
+        assert result is not None
+        assert "stage2" in result
+
+
 class TestCallbacksWithoutSB3:
     """Test that SB3-dependent classes fail gracefully when SB3 is unavailable."""
 

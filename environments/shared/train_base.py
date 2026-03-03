@@ -475,6 +475,7 @@ def train_curriculum(
         CurriculumManager,
         RewardRampCallback,
         StageWarmupCallback,
+        find_best_vecnormalize,
         load_vecnorm_stats,
         thresholds_from_configs,
     )
@@ -631,8 +632,24 @@ def train_curriculum(
         final_path = model_dir / f"stage{stage}_final"
         model.save(str(final_path))
         train_env.save(str(final_path) + "_vecnorm.pkl")
-        load_path = str(final_path)
-        prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
+
+        # Prefer loading the best model + its matched checkpoint VecNormalize
+        # for the next stage.  EvalCallback saves best_model.zip but not the
+        # accompanying VecNormalize, so we find the closest checkpoint's
+        # VecNormalize via find_best_vecnormalize().
+        best_model_zip = model_dir / "best_model.zip"
+        if best_model_zip.exists():
+            load_path = str(model_dir / "best_model")
+            matched = find_best_vecnormalize(stage_dir, stage)
+            prev_vecnorm_path = matched if matched else str(final_path) + "_vecnorm.pkl"
+            logger.info(
+                "Next stage will load best model (%s) with VecNormalize: %s",
+                load_path,
+                prev_vecnorm_path,
+            )
+        else:
+            load_path = str(final_path)
+            prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
 
         logger.info("Stage %d complete. Model saved to %s", stage, final_path)
 
