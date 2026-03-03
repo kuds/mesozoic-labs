@@ -77,6 +77,12 @@ class DiagnosticsCallback(_BaseCallback):
             super().__init__(verbose)
         else:
             super().__init__()
+            self.verbose = verbose
+            self.locals: dict = {}
+            self.model = None
+            self.logger = None
+            self.num_timesteps = 0
+            self.training_env = None
         self.plateau_window = plateau_window
         self.plateau_threshold = plateau_threshold
         self._log_dir = Path(log_dir) if log_dir is not None else None
@@ -88,6 +94,14 @@ class DiagnosticsCallback(_BaseCallback):
         self._history_rewards = {k: [] for k in self.REWARD_KEYS}
         self._history_terminations: dict[str, list[float]] = {}
         self._history_term_timesteps: list[int] = []
+
+    if not _SB3_AVAILABLE:
+
+        def init_callback(self, model) -> None:
+            """Minimal stand-in for ``BaseCallback.init_callback`` when SB3 is absent."""
+            self.model = model
+            self.logger = getattr(model, "logger", None)
+            self.training_env = getattr(model, "get_env", lambda: None)()
 
     def _on_step(self) -> bool:
         for info in self.locals.get("infos", []):
