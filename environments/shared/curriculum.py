@@ -723,6 +723,45 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
         return True
 
 
+class SaveVecNormalizeCallback(BaseCallback):  # type: ignore[misc]
+    """Save VecNormalize stats whenever triggered.
+
+    Intended for use as ``callback_on_new_best`` in SB3's ``EvalCallback``
+    so that the VecNormalize wrapper is saved alongside ``best_model.zip``.
+    This ensures the observation normalization statistics match the policy
+    weights when the best model is loaded for evaluation or next-stage
+    curriculum training.
+
+    Example::
+
+        save_vecnorm_cb = SaveVecNormalizeCallback(
+            save_path=str(model_dir / "best_model_vecnorm.pkl"),
+        )
+        eval_callback = EvalCallback(
+            eval_env,
+            callback_on_new_best=save_vecnorm_cb,
+            ...
+        )
+
+    Args:
+        save_path: Destination path for the VecNormalize ``.pkl`` file.
+        verbose: Verbosity level.
+    """
+
+    def __init__(self, save_path: str, verbose: int = 0):
+        if not _SB3_AVAILABLE:
+            raise ImportError("stable-baselines3 is required for SaveVecNormalizeCallback.")
+        super().__init__(verbose)
+        self.save_path = save_path
+
+    def _on_step(self) -> bool:
+        vec_env = self.model.get_vec_normalize_env()
+        if vec_env is not None:
+            vec_env.save(self.save_path)
+            logger.info("VecNormalize saved to: %s", self.save_path)
+        return True
+
+
 def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:
     """Load VecNormalize running statistics from a previous stage into new envs.
 

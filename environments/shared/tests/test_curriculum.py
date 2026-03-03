@@ -9,6 +9,7 @@ from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,
     RewardRampCallback,
+    SaveVecNormalizeCallback,
     StageThreshold,
     StageWarmupCallback,
     _ConstantSchedule,
@@ -398,6 +399,52 @@ class TestLoadVecnormStats:
         train_env, eval_env = vec_envs
         result = load_vecnorm_stats("/nonexistent/path_vecnorm.pkl", train_env, eval_env)
         assert result is False
+
+
+class TestSaveVecNormalizeCallback:
+    """Test SaveVecNormalizeCallback saves VecNormalize on new best model."""
+
+    def test_saves_vecnormalize_on_step(self, tmp_path):
+        """_on_step saves VecNormalize to the configured path."""
+        save_path = str(tmp_path / "best_model_vecnorm.pkl")
+
+        mock_vec_env = MagicMock()
+        mock_model = MagicMock()
+        mock_model.get_vec_normalize_env.return_value = mock_vec_env
+
+        cb = object.__new__(SaveVecNormalizeCallback)
+        cb.save_path = save_path
+        cb.verbose = 0
+        cb.model = mock_model
+
+        result = cb._on_step()
+
+        assert result is True
+        mock_model.get_vec_normalize_env.assert_called_once()
+        mock_vec_env.save.assert_called_once_with(save_path)
+
+    def test_no_op_without_vecnormalize(self, tmp_path):
+        """_on_step is a no-op when there is no VecNormalize wrapper."""
+        save_path = str(tmp_path / "best_model_vecnorm.pkl")
+
+        mock_model = MagicMock()
+        mock_model.get_vec_normalize_env.return_value = None
+
+        cb = object.__new__(SaveVecNormalizeCallback)
+        cb.save_path = save_path
+        cb.verbose = 0
+        cb.model = mock_model
+
+        result = cb._on_step()
+
+        assert result is True
+        assert not (tmp_path / "best_model_vecnorm.pkl").exists()
+
+    def test_raises_without_sb3(self):
+        """Constructor raises ImportError when SB3 is unavailable."""
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+            with pytest.raises(ImportError, match="stable-baselines3"):
+                SaveVecNormalizeCallback(save_path="/tmp/test.pkl")
 
 
 class TestCallbacksWithoutSB3:

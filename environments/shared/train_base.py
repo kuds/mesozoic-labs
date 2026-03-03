@@ -184,6 +184,7 @@ def train(
     from .config import save_stage_config
     from .curriculum import (
         RewardRampCallback,
+        SaveVecNormalizeCallback,
         StageWarmupCallback,
         load_vecnorm_stats,
     )
@@ -272,6 +273,10 @@ def train(
     # Setup callbacks
     callbacks = []
 
+    save_vecnorm_cb = SaveVecNormalizeCallback(
+        save_path=str(model_dir / "best_model_vecnorm.pkl"),
+    )
+
     eval_callback = sb3["EvalCallback"](
         eval_env,
         best_model_save_path=str(model_dir),
@@ -281,6 +286,7 @@ def train(
         deterministic=True,
         render=False,
         verbose=max(verbose, 1),
+        callback_on_new_best=save_vecnorm_cb,
     )
     callbacks.append(eval_callback)
 
@@ -474,6 +480,7 @@ def train_curriculum(
         CurriculumCallback,
         CurriculumManager,
         RewardRampCallback,
+        SaveVecNormalizeCallback,
         StageWarmupCallback,
         load_vecnorm_stats,
         thresholds_from_configs,
@@ -560,6 +567,9 @@ def train_curriculum(
         # Build callbacks
         callbacks = []
 
+        best_vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
+        save_vecnorm_cb = SaveVecNormalizeCallback(save_path=best_vecnorm_path)
+
         eval_callback = sb3["EvalCallback"](
             eval_env,
             best_model_save_path=str(model_dir),
@@ -569,6 +579,7 @@ def train_curriculum(
             deterministic=True,
             render=False,
             verbose=max(verbose, 1),
+            callback_on_new_best=save_vecnorm_cb,
         )
         callbacks.append(eval_callback)
 
@@ -631,24 +642,23 @@ def train_curriculum(
         final_path = model_dir / f"stage{stage}_final"
         model.save(str(final_path))
         train_env.save(str(final_path) + "_vecnorm.pkl")
-        prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
 
-        # Prefer the best model (saved by EvalCallback) for the next stage,
-        # as it represents peak evaluated performance and protects against
-        # late-stage training instability.
-        best_model_path = model_dir / "best_model.zip"
-        if best_model_path.exists():
+        # Prefer loading the best model + its matched VecNormalize for the
+        # next stage.  SaveVecNormalizeCallback (wired to EvalCallback's
+        # callback_on_new_best) saves best_model_vecnorm.pkl alongside
+        # best_model.zip so the obs normalization matches the policy weights.
+        best_model_zip = model_dir / "best_model.zip"
+        if best_model_zip.exists() and Path(best_vecnorm_path).exists():
             load_path = str(model_dir / "best_model")
+            prev_vecnorm_path = best_vecnorm_path
             logger.info(
-                "Stage %d complete. Using best model for next stage: %s",
-                stage, best_model_path,
+                "Next stage will load best model (%s) with VecNormalize: %s",
+                load_path,
+                prev_vecnorm_path,
             )
         else:
             load_path = str(final_path)
-            logger.info(
-                "Stage %d complete. No best model found; using final model: %s",
-                stage, final_path,
-            )
+            prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
 
         train_env.close()
         eval_env.close()
