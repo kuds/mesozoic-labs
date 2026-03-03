@@ -37,6 +37,9 @@ ent_coef = "auto"
 
 [curriculum]
 timesteps = 4000000
+min_avg_reward = 50.0                   # Minimum average reward to confirm food-reaching behavior
+min_success_rate = 0.1                  # At least 10% food reach success — confirms behavior emerged
+required_consecutive = 3
 warmup_timesteps = 100000               # Timesteps to constrain policy updates while critic adapts (PPO only)
 warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change
 warmup_ent_coef = 0.02                  # Higher entropy during warm-up to maintain exploration

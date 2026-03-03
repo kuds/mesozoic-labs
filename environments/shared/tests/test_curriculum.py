@@ -404,23 +404,27 @@ class TestCallbacksWithoutSB3:
     """Test that SB3-dependent classes fail gracefully when SB3 is unavailable."""
 
     def test_curriculum_callback_raises_without_sb3(self):
-        with pytest.raises(ImportError, match="stable-baselines3"):
-            CurriculumCallback(
-                curriculum_manager=MagicMock(),
-                eval_env=MagicMock(),
-            )
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+            with pytest.raises(ImportError, match="stable-baselines3"):
+                CurriculumCallback(
+                    curriculum_manager=MagicMock(),
+                    eval_env=MagicMock(),
+                )
 
     def test_stage_warmup_callback_raises_without_sb3(self):
-        with pytest.raises(ImportError, match="stable-baselines3"):
-            StageWarmupCallback()
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+            with pytest.raises(ImportError, match="stable-baselines3"):
+                StageWarmupCallback()
 
     def test_reward_ramp_callback_raises_without_sb3(self):
-        with pytest.raises(ImportError, match="stable-baselines3"):
-            RewardRampCallback()
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+            with pytest.raises(ImportError, match="stable-baselines3"):
+                RewardRampCallback()
 
     def test_load_vecnorm_stats_returns_false_without_sb3(self):
-        result = load_vecnorm_stats("/any/path.pkl", MagicMock())
-        assert result is False
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+            result = load_vecnorm_stats("/any/path.pkl", MagicMock())
+            assert result is False
 
 
 class TestPickleSafety:

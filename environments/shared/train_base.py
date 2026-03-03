@@ -187,6 +187,7 @@ def train(
         StageWarmupCallback,
         load_vecnorm_stats,
     )
+    from .diagnostics import DiagnosticsCallback  # noqa: F811
     from .wandb_integration import WandbCallback, init_wandb
 
     sb3 = _ensure_sb3()
@@ -290,6 +291,8 @@ def train(
         save_vecnormalize=True,
     )
     callbacks.append(checkpoint_callback)
+
+    callbacks.append(DiagnosticsCallback(log_dir=str(log_path), verbose=verbose))
 
     if use_wandb:
         callbacks.append(WandbCallback())
@@ -475,6 +478,7 @@ def train_curriculum(
         load_vecnorm_stats,
         thresholds_from_configs,
     )
+    from .diagnostics import DiagnosticsCallback  # noqa: F811
     from .wandb_integration import WandbCallback, init_wandb
 
     sb3 = _ensure_sb3()
@@ -575,6 +579,8 @@ def train_curriculum(
             save_vecnormalize=True,
         )
         callbacks.append(checkpoint_callback)
+
+        callbacks.append(DiagnosticsCallback(log_dir=str(stage_dir), verbose=verbose))
 
         if use_wandb:
             callbacks.append(WandbCallback())
