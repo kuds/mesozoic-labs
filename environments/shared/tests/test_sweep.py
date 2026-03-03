@@ -1,6 +1,5 @@
 """Tests for the hyperparameter sweep tool's pure functions."""
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
