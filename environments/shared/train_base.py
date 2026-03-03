@@ -631,10 +631,24 @@ def train_curriculum(
         final_path = model_dir / f"stage{stage}_final"
         model.save(str(final_path))
         train_env.save(str(final_path) + "_vecnorm.pkl")
-        load_path = str(final_path)
         prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
 
-        logger.info("Stage %d complete. Model saved to %s", stage, final_path)
+        # Prefer the best model (saved by EvalCallback) for the next stage,
+        # as it represents peak evaluated performance and protects against
+        # late-stage training instability.
+        best_model_path = model_dir / "best_model.zip"
+        if best_model_path.exists():
+            load_path = str(model_dir / "best_model")
+            logger.info(
+                "Stage %d complete. Using best model for next stage: %s",
+                stage, best_model_path,
+            )
+        else:
+            load_path = str(final_path)
+            logger.info(
+                "Stage %d complete. No best model found; using final model: %s",
+                stage, final_path,
+            )
 
         train_env.close()
         eval_env.close()
