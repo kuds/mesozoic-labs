@@ -845,15 +845,16 @@ def _best_trial_model_path_any(stage_rows: list[dict], bucket: str, species: str
             best_row = row
 
     if best_row is None:
-        raise SweepStageError(
-            f"No trials reported a valid reward for stage {stage}. All trials may have crashed."
-        )
+        raise SweepStageError(f"No trials reported a valid reward for stage {stage}. All trials may have crashed.")
 
     best_trial_id = best_row["trial_id"]
     passed_str = "PASSED" if best_row.get("stage_passed") else "FAILED gate"
     logger.info(
         "Best trial for stage %d (force-continue): id=%s  best_mean_reward=%.4f (%s)",
-        stage, best_trial_id, best_value, passed_str,
+        stage,
+        best_trial_id,
+        best_value,
+        passed_str,
     )
 
     if "model_path" in best_row:
@@ -1402,7 +1403,10 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                         stage,
                     )
                     best_model_path, best_row = _best_trial_model_path_any(
-                        stage_rows, args.bucket, args.species, stage,
+                        stage_rows,
+                        args.bucket,
+                        args.species,
+                        stage,
                     )
                 else:
                     best_model_path = None

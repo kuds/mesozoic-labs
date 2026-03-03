@@ -359,8 +359,15 @@ def train(
 
     # Report metrics to Vertex AI HPT (no-op when cloudml-hypertune not installed)
     _report_hpt_metrics(
-        species_cfg, model, eval_env, eval_callback, log_path,
-        model_dir, stage, total_timesteps, algorithm,
+        species_cfg,
+        model,
+        eval_env,
+        eval_callback,
+        log_path,
+        model_dir,
+        stage,
+        total_timesteps,
+        algorithm,
     )
 
     # Save final model
