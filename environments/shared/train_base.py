@@ -238,7 +238,12 @@ def train(
         _vecnorm_path = load_path.replace(".zip", "") + "_vecnorm.pkl"
         if not _vecnorm_path.endswith("_vecnorm.pkl"):
             _vecnorm_path = load_path + "_vecnorm.pkl"
-        load_vecnorm_stats(_vecnorm_path, train_env, eval_env)
+        if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env):
+            # VecNormalize file not found (e.g. missing from GCS mount).
+            # Ensure eval env doesn't pollute running stats.
+            logger.warning("VecNormalize file not found: %s — eval env will use defaults", _vecnorm_path)
+            eval_env.training = False
+            eval_env.norm_reward = False
     else:
         # Even without prior stats, the eval env should never update
         # running statistics or normalise rewards during evaluation.
@@ -353,7 +358,10 @@ def train(
         wandb_run.finish()
 
     # Report metrics to Vertex AI HPT (no-op when cloudml-hypertune not installed)
-    _report_hpt_metrics(species_cfg, model, eval_env, eval_callback, log_path, stage, total_timesteps)
+    _report_hpt_metrics(
+        species_cfg, model, eval_env, eval_callback, log_path,
+        model_dir, stage, total_timesteps, algorithm,
+    )
 
     # Save final model
     final_path = model_dir / f"stage{stage}_final"
@@ -381,16 +389,26 @@ def _report_hpt_metrics(
     eval_env,
     eval_callback,
     log_path: Path,
+    model_dir: Path,
     stage: int,
     total_timesteps: int,
+    algorithm: str,
 ):
-    """Report metrics to Vertex AI Hypertune (no-op when not installed)."""
+    """Report metrics to Vertex AI Hypertune (no-op when not installed).
+
+    For forward velocity and success rate (stages 2+), the **best model**
+    checkpoint is loaded with its matched VecNormalize stats so the
+    reported metrics reflect the checkpoint that will be handed off to
+    the next stage — not the final model which may have regressed.
+    """
     try:
         import hypertune as _hypertune
     except ImportError:
         return
 
     import numpy as _np
+
+    sb3 = _ensure_sb3()
 
     _hpt = _hypertune.HyperTune()
     _hpt.report_hyperparameter_tuning_metric(
@@ -441,7 +459,29 @@ def _report_hpt_metrics(
         )
 
     if stage >= 2:
-        _, _, fwd_vels, success_flags = eval_policy(model, eval_env, species_cfg.success_keys, n_episodes=10)
+        # Use the best model + its matched VecNormalize for forward_vel
+        # and success_rate evaluation so the metrics reflect the checkpoint
+        # that will actually be handed off to the next stage.
+        from .curriculum import load_vecnorm_stats
+
+        best_model_zip = model_dir / "best_model.zip"
+        best_vecnorm_path = model_dir / "best_model_vecnorm.pkl"
+        alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
+
+        if best_model_zip.exists():
+            eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
+            if best_vecnorm_path.exists():
+                load_vecnorm_stats(str(best_vecnorm_path), eval_env)
+            eval_env.training = False
+            eval_env.norm_reward = False
+            logger.info("HPT eval: using best model + matched VecNormalize")
+        else:
+            eval_model = model
+            eval_env.training = False
+            eval_env.norm_reward = False
+            logger.warning("HPT eval: best_model.zip not found, falling back to final model")
+
+        _, _, fwd_vels, success_flags = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=10)
         if fwd_vels:
             best_fwd = float(_np.mean(fwd_vels))
             _hpt.report_hyperparameter_tuning_metric(
@@ -551,7 +591,10 @@ def train_curriculum(
         eval_env = create_vec_env(species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False)
 
         if prev_vecnorm_path:
-            load_vecnorm_stats(prev_vecnorm_path, train_env, eval_env)
+            if not load_vecnorm_stats(prev_vecnorm_path, train_env, eval_env):
+                logger.warning("VecNormalize file not found: %s — eval env will use defaults", prev_vecnorm_path)
+                eval_env.training = False
+                eval_env.norm_reward = False
         else:
             eval_env.training = False
             eval_env.norm_reward = False
