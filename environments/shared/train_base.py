@@ -660,8 +660,6 @@ def train_curriculum(
             load_path = str(final_path)
             prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
 
-        logger.info("Stage %d complete. Model saved to %s", stage, final_path)
-
         train_env.close()
         eval_env.close()
 
