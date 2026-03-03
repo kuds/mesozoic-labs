@@ -723,86 +723,43 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
         return True
 
 
-def find_best_vecnormalize(stage_dir, stage: int) -> Optional[str]:
-    """Find the checkpoint VecNormalize that matches the best model's timestep.
+class SaveVecNormalizeCallback(BaseCallback):  # type: ignore[misc]
+    """Save VecNormalize stats whenever triggered.
 
-    SB3's ``EvalCallback`` saves ``best_model.zip`` when it finds a new peak
-    evaluation reward, but does **not** save the corresponding VecNormalize
-    stats.  The periodic ``CheckpointCallback`` (with
-    ``save_vecnormalize=True``) *does* save paired VecNormalize files at
-    regular intervals.
+    Intended for use as ``callback_on_new_best`` in SB3's ``EvalCallback``
+    so that the VecNormalize wrapper is saved alongside ``best_model.zip``.
+    This ensures the observation normalization statistics match the policy
+    weights when the best model is loaded for evaluation or next-stage
+    curriculum training.
 
-    This function reads ``evaluations.npz`` to determine when the best model
-    was saved, then finds the checkpoint VecNormalize file whose timestep is
-    closest to that point.
+    Example::
+
+        save_vecnorm_cb = SaveVecNormalizeCallback(
+            save_path=str(model_dir / "best_model_vecnorm.pkl"),
+        )
+        eval_callback = EvalCallback(
+            eval_env,
+            callback_on_new_best=save_vecnorm_cb,
+            ...
+        )
 
     Args:
-        stage_dir: Path to the stage directory containing ``evaluations.npz``
-            and a ``models/`` subdirectory with checkpoint files.
-        stage: Stage number (used to match the checkpoint filename prefix).
-
-    Returns:
-        Absolute path to the closest checkpoint VecNormalize file, or
-        ``None`` if no match could be found.
+        save_path: Destination path for the VecNormalize ``.pkl`` file.
+        verbose: Verbosity level.
     """
-    from pathlib import Path as _Path
 
-    stage_dir = _Path(stage_dir)
-    model_dir = stage_dir / "models"
-    eval_npz = stage_dir / "evaluations.npz"
+    def __init__(self, save_path: str, verbose: int = 0):
+        if not _SB3_AVAILABLE:
+            raise ImportError("stable-baselines3 is required for SaveVecNormalizeCallback.")
+        super().__init__(verbose)
+        self.save_path = save_path
 
-    if not eval_npz.exists():
-        logger.debug("evaluations.npz not found in %s", stage_dir)
-        return None
-
-    data = np.load(str(eval_npz))
-    results = data["results"]  # (n_evals, n_episodes)
-    timesteps = data["timesteps"]
-    mean_rewards = results.mean(axis=1)
-    best_idx = int(mean_rewards.argmax())
-    best_timestep = int(timesteps[best_idx])
-
-    # Checkpoint VecNormalize files follow SB3 naming:
-    #   {name_prefix}_vecnormalize_{num_timesteps}_steps.pkl
-    pattern = f"stage{stage}_vecnormalize_*_steps.pkl"
-    vecnorm_files = sorted(model_dir.glob(pattern))
-
-    if not vecnorm_files:
-        logger.debug("No checkpoint VecNormalize files found matching %s", pattern)
-        return None
-
-    def _extract_steps(path: _Path) -> Optional[int]:
-        """Extract the timestep number from a checkpoint VecNormalize filename."""
-        stem = path.stem  # e.g. "stage1_vecnormalize_50000_steps"
-        parts = stem.split("_")
-        for i, part in enumerate(parts):
-            if part == "steps" and i > 0:
-                try:
-                    return int(parts[i - 1])
-                except ValueError:
-                    pass
-        return None
-
-    closest: Optional[_Path] = None
-    closest_dist = float("inf")
-    for f in vecnorm_files:
-        steps = _extract_steps(f)
-        if steps is not None:
-            dist = abs(steps - best_timestep)
-            if dist < closest_dist:
-                closest_dist = dist
-                closest = f
-
-    if closest is not None:
-        logger.info(
-            "Best model at timestep %d; closest checkpoint VecNormalize: %s (distance=%d steps)",
-            best_timestep,
-            closest.name,
-            int(closest_dist),
-        )
-        return str(closest)
-
-    return None
+    def _on_step(self) -> bool:
+        vec_env = self.model.get_vec_normalize_env()
+        if vec_env is not None:
+            vec_env.save(self.save_path)
+            logger.info("VecNormalize saved to: %s", self.save_path)
+        return True
 
 
 def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:

@@ -184,6 +184,7 @@ def train(
     from .config import save_stage_config
     from .curriculum import (
         RewardRampCallback,
+        SaveVecNormalizeCallback,
         StageWarmupCallback,
         load_vecnorm_stats,
     )
@@ -272,6 +273,10 @@ def train(
     # Setup callbacks
     callbacks = []
 
+    save_vecnorm_cb = SaveVecNormalizeCallback(
+        save_path=str(model_dir / "best_model_vecnorm.pkl"),
+    )
+
     eval_callback = sb3["EvalCallback"](
         eval_env,
         best_model_save_path=str(model_dir),
@@ -281,6 +286,7 @@ def train(
         deterministic=True,
         render=False,
         verbose=max(verbose, 1),
+        callback_on_new_best=save_vecnorm_cb,
     )
     callbacks.append(eval_callback)
 
@@ -474,8 +480,8 @@ def train_curriculum(
         CurriculumCallback,
         CurriculumManager,
         RewardRampCallback,
+        SaveVecNormalizeCallback,
         StageWarmupCallback,
-        find_best_vecnormalize,
         load_vecnorm_stats,
         thresholds_from_configs,
     )
@@ -561,6 +567,9 @@ def train_curriculum(
         # Build callbacks
         callbacks = []
 
+        best_vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
+        save_vecnorm_cb = SaveVecNormalizeCallback(save_path=best_vecnorm_path)
+
         eval_callback = sb3["EvalCallback"](
             eval_env,
             best_model_save_path=str(model_dir),
@@ -570,6 +579,7 @@ def train_curriculum(
             deterministic=True,
             render=False,
             verbose=max(verbose, 1),
+            callback_on_new_best=save_vecnorm_cb,
         )
         callbacks.append(eval_callback)
 
@@ -633,15 +643,14 @@ def train_curriculum(
         model.save(str(final_path))
         train_env.save(str(final_path) + "_vecnorm.pkl")
 
-        # Prefer loading the best model + its matched checkpoint VecNormalize
-        # for the next stage.  EvalCallback saves best_model.zip but not the
-        # accompanying VecNormalize, so we find the closest checkpoint's
-        # VecNormalize via find_best_vecnormalize().
+        # Prefer loading the best model + its matched VecNormalize for the
+        # next stage.  SaveVecNormalizeCallback (wired to EvalCallback's
+        # callback_on_new_best) saves best_model_vecnorm.pkl alongside
+        # best_model.zip so the obs normalization matches the policy weights.
         best_model_zip = model_dir / "best_model.zip"
-        if best_model_zip.exists():
+        if best_model_zip.exists() and Path(best_vecnorm_path).exists():
             load_path = str(model_dir / "best_model")
-            matched = find_best_vecnormalize(stage_dir, stage)
-            prev_vecnorm_path = matched if matched else str(final_path) + "_vecnorm.pkl"
+            prev_vecnorm_path = best_vecnorm_path
             logger.info(
                 "Next stage will load best model (%s) with VecNormalize: %s",
                 load_path,
