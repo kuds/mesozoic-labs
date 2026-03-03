@@ -14,8 +14,8 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | Phase | Name | Status | Done | Remaining |
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
-| **1** | First Steps (v0.3.0) | **In Progress** | 6/11 items | 3 training runs + stage 4 prey pursuit + codebase consolidation |
-| **2** | Into the Wild (v0.4.0) | Not Started | 0/7 items | Blocked on Phase 1 training results |
+| **1** | First Steps (v0.3.0) | **In Progress** | 6/10 items | 3 training runs + codebase consolidation |
+| **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | Not Started | 0/7 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
 | **5** | Hyperdrive (v0.7.0) | Not Started | 0/4 items | Blocked on Phase 1 training |
@@ -23,8 +23,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 
 **Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
 W&B tracking, metrics, Dockerfile, Vertex AI guide). The remaining work is
-executing full 4-stage training runs for each species (3-stage for Brachiosaurus)
-and publishing results/checkpoints.
+executing full 3-stage training runs for each species and publishing results/checkpoints.
 
 ---
 
@@ -73,28 +72,25 @@ Config-driven reward weights are loaded for at least one species.
 
 ## Phase 1 — Complete Core Training (Weeks 3-8)
 
-Finish what's started: all three species fully trained through the curriculum
-with published results and reproducible checkpoints. Predator species
-(Velociraptor, T-Rex) use a 4-stage curriculum; Brachiosaurus uses 3 stages.
+Finish what's started: all three species fully trained through the 3-stage
+curriculum with published results and reproducible checkpoints.
 
 ### Milestone: v0.3.0 — "First Steps"
 
-- [ ] **Complete Velociraptor 4-stage training**
-  - Run Stages 1-4 with PPO and SAC
-  - Stage 4: pursue and strike prey moving on predefined paths
+- [ ] **Complete Velociraptor 3-stage training**
+  - Run Stages 1-3 with PPO and SAC
   - Record reward curves, training GIFs, final evaluation metrics
   - Publish checkpoints as GitHub release artifacts
   - _Dependency: Phase 0 config externalization (helpful, not blocking)_
 
 - [ ] **Complete Brachiosaurus 3-stage training**
-  - Stages 1-3 (balance, locomotion, food reach) — food does not flee
-  - Same evaluation and checkpoint publishing workflow
+  - Same as above for quadrupedal locomotion + food reach
   - _Dependency: None (parallel with Velociraptor)_
 
 - [-] **T-Rex environment buildout**
   - [x] Implement `TRexEnv` subclass (env, tests, training script)
   - [x] The MJCF model, assets, and Gymnasium registration exist
-  - [ ] Complete 4-stage training with PPO and SAC
+  - [ ] Complete 3-stage training with PPO and SAC
   - _Dependency: None (parallel with other species)_
 
 - [x] **Automated curriculum transitions**
@@ -105,25 +101,6 @@ with published results and reproducible checkpoints. Predator species
   - Per-stage thresholds defined in TOML config `[curriculum]` sections
   - `thresholds_from_configs()` helper to extract thresholds from TOML
   - _Dependency: Phase 0 config externalization_
-
-- [ ] **Stage 4: Prey Pursuit (predator species only)**
-  - Add a 4th curriculum stage where prey moves on predefined paths
-  - `PreyPath` module with four path types: straight retreat, angled
-    retreat (30-60 degree offset), smooth arc, and zigzag evasion
-  - Path type, speed, and stochastic parameters randomised per episode
-    to prevent memorisation and encourage a robust pursuit policy
-  - Prey position updated each simulation step via mocap body
-  - `prey_velocity` (3D) added to predator observation spaces so the
-    agent can anticipate prey movement (zeros in stages 1-3 for
-    backward-compatible observation dimensions across all stages)
-  - TOML configs: `prey_path_types`, `prey_speed_range`, longer episodes
-    (1500 steps), and higher approach reward weight
-  - Curriculum threshold: 10% strike/bite success rate on moving prey
-  - Applies to Velociraptor and T-Rex only (Brachiosaurus food is static)
-  - Bridges the gap between static targets (Stage 3) and fully learned
-    prey behaviour (Phase 4), forcing the agent to develop heading
-    correction, speed modulation, and sustained pursuit
-  - _Dependency: Stages 1-3 curriculum infrastructure_
 
 - [x] **W&B experiment tracking integration**
   - Add `wandb` to optional dependencies
@@ -137,7 +114,7 @@ with published results and reproducible checkpoints. Predator species
   - Cost of transport (energy / distance / weight)
   - Stride frequency and regularity
   - Forward velocity consistency (std dev)
-  - Time-to-target (for Stages 3-4)
+  - Time-to-target (for Stage 3)
   - `LocomotionMetrics` class with `aggregate_episodes()` for multi-episode reports
   - _Dependency: None_
 
@@ -172,8 +149,7 @@ with published results and reproducible checkpoints. Predator species
   - See [REFACTORING.md](REFACTORING.md) for full analysis and implementation plan
   - _Dependency: Training runs complete (avoid changing training scripts mid-run)_
 
-**Exit criteria:** All three species have published training results (PPO + SAC)
-through the full curriculum (4-stage for predators, 3-stage for Brachiosaurus),
+**Exit criteria:** All three species have published training results (PPO + SAC),
 downloadable checkpoints, a fully automated end-to-end curriculum pipeline, and
 consolidated codebase with shared training/test infrastructure.
 
@@ -219,12 +195,31 @@ critical bridge between "cool demo" and "transferable research."
   - Prerequisite for interesting predator-prey dynamics
   - _Dependency: Phase 1 (need locomotion policies as starting point)_
 
+- [ ] **Stage 4: Prey Pursuit (predator species only)**
+  - Add a 4th curriculum stage where prey moves on predefined paths
+  - `PreyPath` module with four path types: straight retreat, angled
+    retreat (30-60 degree offset), smooth arc, and zigzag evasion
+  - Path type, speed, and stochastic parameters randomised per episode
+    to prevent memorisation and encourage a robust pursuit policy
+  - Prey position updated each simulation step via mocap body
+  - `prey_velocity` (3D) added to predator observation spaces so the
+    agent can anticipate prey movement (zeros in stages 1-3 for
+    backward-compatible observation dimensions across all stages)
+  - TOML configs: `prey_path_types`, `prey_speed_range`, longer episodes
+    (1500 steps), and higher approach reward weight
+  - Curriculum threshold: 10% strike/bite success rate on moving prey
+  - Applies to Velociraptor and T-Rex only (Brachiosaurus food is static)
+  - Bridges the gap between static targets (Stage 3) and fully learned
+    prey behaviour (Phase 4), forcing the agent to develop heading
+    correction, speed modulation, and sustained pursuit
+  - _Dependency: Phase 1 Stages 1-3 + turning and steering_
+
 - [ ] **Reactive scripted prey**
   - Extend Stage 4's predefined prey paths with reactive evasion behaviours
   - Prey behaviors: flee when predator is within range, random wandering,
     dodge on approach (reactive to predator position, not just clock-based)
   - Configurable prey speed, perception radius, and evasion strategy
-  - _Dependency: Turning and steering + Phase 1 Stage 4 prey path foundation_
+  - _Dependency: Stage 4 prey pursuit foundation_
 
 - [ ] **Hyperparameter optimization**
   - Add Optuna integration for systematic sweeps
@@ -233,8 +228,9 @@ critical bridge between "cool demo" and "transferable research."
   - _Dependency: Phase 1 W&B integration (for tracking sweep results)_
 
 **Exit criteria:** Policies can walk on rough terrain, handle noisy observations,
-recover from pushes, and chase a moving target. Published ablation studies
-showing the impact of each robustness technique.
+recover from pushes, and chase moving prey (predefined paths in Stage 4,
+reactive evasion in scripted prey). Published ablation studies showing the
+impact of each robustness technique.
 
 ---
 
@@ -436,8 +432,8 @@ Phase 6:  |        |        |         |         |     ████|████�
 | Version | Phase | Name | API Stability |
 |---------|-------|------|---------------|
 | v0.2.0 | 0 | Clean Slate | Config format may change |
-| v0.3.0 | 1 | First Steps | Env API stable (obs space grows by 3 for predators), config format stable |
-| v0.4.0 | 2 | Into the Wild | Observation space may grow |
+| v0.3.0 | 1 | First Steps | Env API stable, config format stable |
+| v0.4.0 | 2 | Into the Wild | Observation space grows (prey_velocity for predators), Stage 4 added |
 | v0.5.0 | 3 | Evolution | Multi-species API stable |
 | v0.6.0 | 4 | The Pack | Multi-agent API stable |
 | v0.7.0 | 5 | Hyperdrive | MJX backend API stable |
@@ -452,8 +448,8 @@ Config externalization (P0) → Automated curriculum (P1) → Domain randomizati
 Velociraptor training (P1) → Custom networks (P3) → Hierarchical RL (P3)
                            → Terrain (P2) → Benchmark suite (P3)
 
-Stages 1-3 (P1) → Stage 4 prey pursuit (P1) → Reactive prey (P2) → Multi-agent (P4)
-                                              → Turning (P2)       → Learned prey (P4)
+Locomotion (P1) → Turning (P2) → Stage 4 prey pursuit (P2) → Reactive prey (P2) → Multi-agent (P4)
+                                                                                 → Learned prey (P4)
 
 Velociraptor trained (P1) → MJX port (P5) → Brax PPO (P5) → Scale experiments (P5)
 
