@@ -15,8 +15,11 @@ try:
 except ImportError:
     _np = None  # type: ignore[assignment]
 
+_SB3_AVAILABLE = False
 try:
     from stable_baselines3.common.callbacks import BaseCallback as _BaseCallback
+
+    _SB3_AVAILABLE = True
 except ImportError:
     _BaseCallback = object  # type: ignore[misc,assignment]
 
@@ -70,7 +73,10 @@ class DiagnosticsCallback(_BaseCallback):
     ]
 
     def __init__(self, plateau_window=10, plateau_threshold=1.0, log_dir=None, verbose=0):
-        super().__init__(verbose)
+        if _SB3_AVAILABLE:
+            super().__init__(verbose)
+        else:
+            super().__init__()
         self.plateau_window = plateau_window
         self.plateau_threshold = plateau_threshold
         self._log_dir = Path(log_dir) if log_dir is not None else None

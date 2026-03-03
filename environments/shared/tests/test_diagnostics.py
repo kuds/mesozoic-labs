@@ -1,7 +1,7 @@
 """Tests for DiagnosticsCallback."""
 
 from collections import Counter
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -264,3 +264,19 @@ class TestSaveDiagnostics:
         assert data["timesteps"][1] == 200
         assert data["forward_vel"][0] == pytest.approx(1.0)
         assert data["forward_vel"][1] == pytest.approx(2.0)
+
+
+class TestWithoutSB3:
+    """Test that DiagnosticsCallback can be instantiated when SB3 is absent."""
+
+    def test_init_without_sb3(self):
+        with patch("environments.shared.diagnostics._SB3_AVAILABLE", False):
+            cb = DiagnosticsCallback()
+            assert cb.plateau_window == 10
+            assert cb._log_dir is None
+
+    def test_custom_params_without_sb3(self, tmp_path):
+        with patch("environments.shared.diagnostics._SB3_AVAILABLE", False):
+            cb = DiagnosticsCallback(plateau_window=20, plateau_threshold=2.0, log_dir=str(tmp_path))
+            assert cb.plateau_window == 20
+            assert cb._log_dir == tmp_path
