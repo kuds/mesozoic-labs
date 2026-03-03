@@ -94,6 +94,20 @@ class SweepStageError(Exception):
     """Raised when a sweep stage fails and cannot proceed."""
 
 
+class _SweepJobFailed(SweepStageError):
+    """A submitted HPT job failed but may contain partial trial results.
+
+    Attributes:
+        hpt_job: The Vertex AI ``HyperparameterTuningJob`` object, which may
+            still expose ``.trials`` for completed trial data even when the
+            overall job failed.
+    """
+
+    def __init__(self, message: str, hpt_job: Any = None):
+        super().__init__(message)
+        self.hpt_job = hpt_job
+
+
 # ── Default search spaces ────────────────────────────────────────────────────
 # Each entry: parameter_id -> {"type": ..., ...}
 # parameter_id uses underscore notation to match Vertex AI HPT arg injection.
@@ -795,7 +809,13 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
 
     best_trial_id = best_row["trial_id"]
     logger.info("Best passing trial for stage %d: id=%s  best_mean_reward=%.4f", stage, best_trial_id, best_value)
-    path = f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{best_trial_id}/models/stage{stage}_final.zip"
+
+    # Use a pre-computed model_path if available (e.g. from a partial-resume
+    # merge where trials come from different GCS output directories).
+    if "model_path" in best_row:
+        path = best_row["model_path"]
+    else:
+        path = f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{best_trial_id}/models/stage{stage}_final.zip"
     return path, best_row
 
 
@@ -926,6 +946,7 @@ def _submit_stage_sweep(
     fixed_trial_args: list[str] | None = None,
     wandb: bool = False,
     sync: bool = False,
+    resume_run: int = 0,
 ):
     """Build and submit a single-stage HPT job. Returns the job object.
 
@@ -934,6 +955,10 @@ def _submit_stage_sweep(
             command line.  Used to inject hyperparameters that are *not* part
             of the search space but must match a prior stage's winning trial
             (e.g. ``["--ppo_net_arch", "medium"]``).
+        resume_run: When resuming a partially completed stage, set to a
+            positive integer so the new job writes to a separate GCS
+            sub-directory (``stage{N}_r{resume_run}``) to avoid overwriting
+            checkpoints from previous runs.
     """
     parameter_spec = _build_parameter_spec(search_space, hpt_module)
     if not parameter_spec:
@@ -941,6 +966,8 @@ def _submit_stage_sweep(
         sys.exit(1)
 
     output_base = f"/gcs/{bucket}/sweeps/{species}/stage{stage}"
+    if resume_run:
+        output_base = f"{output_base}_r{resume_run}"
 
     trial_args = [
         "environments/shared/scripts/sweep.py",
@@ -1017,7 +1044,7 @@ def _submit_stage_sweep(
             # Only retry on transient / quota errors from the Google API.
             _retryable = _is_retryable_gcp_error(exc)
             if not _retryable or attempt >= len(_RETRY_DELAYS):
-                raise
+                raise _SweepJobFailed(str(exc), hpt_job=hpt_job) from exc
             last_exc = exc
             delay = _RETRY_DELAYS[attempt]
             logger.warning(
@@ -1032,8 +1059,9 @@ def _submit_stage_sweep(
     else:
         # All retries exhausted — should not reach here because we re-raise
         # above, but guard defensively.
-        raise SweepStageError(
-            f"Job submission for stage {stage} failed after {len(_RETRY_DELAYS) + 1} attempts"
+        raise _SweepJobFailed(
+            f"Job submission for stage {stage} failed after {len(_RETRY_DELAYS) + 1} attempts",
+            hpt_job=hpt_job,
         ) from last_exc
 
     logger.info("Job submitted: %s", hpt_job.resource_name)
@@ -1150,6 +1178,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
     # ── Resume: restore state from a previous (possibly interrupted) run ─────
     completed_stages: set[int] = set()
+    partial_stages: dict[int, dict] = {}
     sweep_state: dict = {
         "species": args.species,
         "algorithm": args.algorithm,
@@ -1161,8 +1190,8 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         if prev_state and prev_state.get("stages"):
             sweep_state = prev_state
             for stg_key, stg_data in prev_state["stages"].items():
+                stg_num = int(stg_key)
                 if stg_data.get("status") == "completed":
-                    stg_num = int(stg_key)
                     completed_stages.add(stg_num)
                     # Restore load_path and fixed_trial_args from the last completed stage
                     if stg_data.get("best_model_path"):
@@ -1171,12 +1200,23 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                         fixed_trial_args = stg_data["fixed_trial_args"]
                     if stg_data.get("trial_rows"):
                         all_rows.extend(stg_data["trial_rows"])
+                elif stg_data.get("status") == "partial":
+                    partial_stages[stg_num] = stg_data
+                    if stg_data.get("fixed_trial_args"):
+                        fixed_trial_args = stg_data["fixed_trial_args"]
             if completed_stages:
                 logger.info(
                     "Resuming sweep: stages %s already completed. load_path=%s",
                     sorted(completed_stages),
                     load_path,
                 )
+            if partial_stages:
+                for ps, pd in sorted(partial_stages.items()):
+                    logger.info(
+                        "Resuming sweep: stage %d has %d partial trial results from a previous run.",
+                        ps,
+                        len(pd.get("trial_rows", [])),
+                    )
     # ── End resume ───────────────────────────────────────────────────────────
 
     for stage in range(1, 4):
@@ -1209,38 +1249,86 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
         n_envs = file_settings.get("n_envs", args.n_envs)
 
+        # ── Partial recovery: check for trial results from a previous
+        #    interrupted run of this stage ──────────────────────────────────
+        partial_data = partial_stages.get(stage)
+        partial_rows: list[dict] = []
+        resume_run = 0
+        if partial_data:
+            partial_rows = [
+                r for r in partial_data.get("trial_rows", [])
+                if r.get("best_mean_reward") is not None
+            ]
+            if partial_rows:
+                resume_run = partial_data.get("resume_run", 0) + 1
+
         logger.info("=" * 60)
         logger.info("ALL-STAGES SWEEP  —  Stage %d / 3", stage)
         logger.info("=" * 60)
 
         try:
-            hpt_job = _submit_stage_sweep(
-                aiplatform=aiplatform,
-                hpt_module=hpt,
-                species=args.species,
-                stage=stage,
-                algorithm=args.algorithm,
-                timesteps=timesteps,
-                n_envs=n_envs,
-                trials=trials,
-                parallel=parallel,
-                bucket=args.bucket,
-                image=args.image,
-                machine_type=args.machine_type,
-                accelerator_type=args.accelerator_type,
-                accelerator_count=args.accelerator_count,
-                search_space=search_space,
-                load_path=load_path,
-                fixed_trial_args=fixed_trial_args,
-                wandb=args.wandb,
-                sync=True,  # block until this stage's sweep is done
-            )
+            remaining_trials = trials - len(partial_rows)
+            job_resource_name = None
 
-            # Collect per-trial results and append to the running list
-            from environments.shared.config import load_stage_config as _load_stage_config
+            if remaining_trials > 0:
+                if partial_rows:
+                    logger.info(
+                        "Resuming stage %d: %d trials recovered from previous run, %d remaining.",
+                        stage,
+                        len(partial_rows),
+                        remaining_trials,
+                    )
 
-            stage_config = _load_stage_config(args.species, stage)
-            stage_rows = _collect_trial_results(hpt_job, stage, stage_config)
+                hpt_job = _submit_stage_sweep(
+                    aiplatform=aiplatform,
+                    hpt_module=hpt,
+                    species=args.species,
+                    stage=stage,
+                    algorithm=args.algorithm,
+                    timesteps=timesteps,
+                    n_envs=n_envs,
+                    trials=remaining_trials,
+                    parallel=parallel,
+                    bucket=args.bucket,
+                    image=args.image,
+                    machine_type=args.machine_type,
+                    accelerator_type=args.accelerator_type,
+                    accelerator_count=args.accelerator_count,
+                    search_space=search_space,
+                    load_path=load_path,
+                    fixed_trial_args=fixed_trial_args,
+                    wandb=args.wandb,
+                    sync=True,  # block until this stage's sweep is done
+                    resume_run=resume_run,
+                )
+                job_resource_name = getattr(hpt_job, "resource_name", None)
+
+                # Collect per-trial results and append to the running list
+                from environments.shared.config import load_stage_config as _load_stage_config
+
+                stage_config = _load_stage_config(args.species, stage)
+                new_rows = _collect_trial_results(hpt_job, stage, stage_config)
+
+                # Tag new rows with model_path so _best_trial_model_path can
+                # locate the correct checkpoint even when trials span multiple
+                # GCS output directories (original run vs resumed run).
+                output_base = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
+                if resume_run:
+                    output_base = f"{output_base}_r{resume_run}"
+                for row in new_rows:
+                    row["model_path"] = f"{output_base}/{row['trial_id']}/models/stage{stage}_final.zip"
+
+                stage_rows = partial_rows + new_rows
+            else:
+                # All requested trials were already completed in a previous
+                # partial run — no need to submit a new job.
+                logger.info(
+                    "Stage %d: all %d trials already completed in previous run. Skipping job submission.",
+                    stage,
+                    len(partial_rows),
+                )
+                stage_rows = list(partial_rows)
+
             all_rows.extend(stage_rows)
 
             stage_elapsed = time.monotonic() - stage_start_time
@@ -1270,7 +1358,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             # Save state after each stage completes successfully
             sweep_state["stages"][str(stage)] = {
                 "status": "completed",
-                "job_resource_name": getattr(hpt_job, "resource_name", None),
+                "job_resource_name": job_resource_name,
                 "best_trial_id": best_row["trial_id"] if stage < 3 else None,
                 "best_mean_reward": best_row.get("best_mean_reward") if stage < 3 else None,
                 "best_model_path": load_path if stage < 3 else None,
@@ -1288,6 +1376,44 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
         except (SweepStageError, Exception) as exc:
             if isinstance(exc, SweepStageError) or _is_retryable_gcp_error(exc):
+                # ── Partial trial recovery ────────────────────────────────
+                # Try to salvage completed trials from the failed job so they
+                # can be reused on the next ``--resume`` run.
+                if isinstance(exc, _SweepJobFailed) and exc.hpt_job is not None:
+                    try:
+                        from environments.shared.config import load_stage_config as _lsc
+
+                        _sc = _lsc(args.species, stage)
+                        _new_partial = _collect_trial_results(exc.hpt_job, stage, _sc)
+                        # Keep only trials that actually reported metrics
+                        _new_partial = [r for r in _new_partial if r.get("best_mean_reward") is not None]
+                        if _new_partial:
+                            # Tag each row with its model_path for correct
+                            # checkpoint resolution on resume.
+                            _out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
+                            if resume_run:
+                                _out = f"{_out}_r{resume_run}"
+                            for row in _new_partial:
+                                row["model_path"] = f"{_out}/{row['trial_id']}/models/stage{stage}_final.zip"
+
+                            all_partial = partial_rows + _new_partial
+                            sweep_state["stages"][str(stage)] = {
+                                "status": "partial",
+                                "job_resource_name": getattr(exc.hpt_job, "resource_name", None),
+                                "trial_rows": all_partial,
+                                "fixed_trial_args": fixed_trial_args,
+                                "resume_run": resume_run,
+                            }
+                            logger.info(
+                                "Recovered %d completed trials from failed stage %d "
+                                "(total partial: %d). These will be reused on resume.",
+                                len(_new_partial),
+                                stage,
+                                len(all_partial),
+                            )
+                    except Exception as collect_exc:
+                        logger.warning("Could not collect partial trial results: %s", collect_exc)
+
                 logger.error(
                     "Stage %d failed: %s. Saving progress — completed stages: %s. "
                     "Re-run the same command to resume from where you left off.",
