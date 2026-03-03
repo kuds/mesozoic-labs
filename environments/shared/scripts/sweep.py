@@ -780,15 +780,18 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
 
 
 def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, stage: int) -> tuple[str, dict]:
-    """Return the GCS path of the best trial's final model and its result row.
+    """Return the GCS path of the best trial's best model and its result row.
 
-    Each trial writes its checkpoint to::
+    Each trial saves its best model (highest eval reward) to::
 
-        /gcs/<bucket>/sweeps/<species>/stage<N>/<trial_id>/models/stage<N>_final.zip
+        /gcs/<bucket>/sweeps/<species>/stage<N>/<trial_id>/models/best_model.zip
+
+    alongside a matched VecNormalize snapshot at ``best_model_vecnorm.pkl``.
 
     This function inspects the completed trial rows, identifies the trial with
     the highest ``best_mean_reward`` among those that passed the stage, and
-    returns that checkpoint path so the next stage's sweep can warm-start from it.
+    returns the best model checkpoint path so the next stage's sweep can
+    warm-start from it.
 
     Returns:
         A tuple of ``(model_path, best_row)`` where ``best_row`` is the full
@@ -818,7 +821,7 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
     if "model_path" in best_row:
         path = best_row["model_path"]
     else:
-        path = f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{best_trial_id}/models/stage{stage}_final.zip"
+        path = f"/gcs/{bucket}/sweeps/{species}/stage{stage}/{best_trial_id}/models/best_model.zip"
     return path, best_row
 
 
@@ -1321,7 +1324,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 if resume_run:
                     output_base = f"{output_base}_r{resume_run}"
                 for row in new_rows:
-                    row["model_path"] = f"{output_base}/{row['trial_id']}/models/stage{stage}_final.zip"
+                    row["model_path"] = f"{output_base}/{row['trial_id']}/models/best_model.zip"
 
                 stage_rows = partial_rows + new_rows
             else:
@@ -1413,7 +1416,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                             if resume_run:
                                 _out = f"{_out}_r{resume_run}"
                             for row in _new_partial:
-                                row["model_path"] = f"{_out}/{row['trial_id']}/models/stage{stage}_final.zip"
+                                row["model_path"] = f"{_out}/{row['trial_id']}/models/best_model.zip"
 
                             all_partial = partial_rows + _new_partial
                             sweep_state["stages"][str(stage)] = {

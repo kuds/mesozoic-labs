@@ -337,7 +337,7 @@ class TestBestTrialModelPath:
     def test_gcs_path_format(self):
         rows = [{"trial_id": "7", "stage_passed": True, "best_mean_reward": 150.0}]
         path, _ = _best_trial_model_path(rows, "my-bucket", "velociraptor", 2)
-        assert path == "/gcs/my-bucket/sweeps/velociraptor/stage2/7/models/stage2_final.zip"
+        assert path == "/gcs/my-bucket/sweeps/velociraptor/stage2/7/models/best_model.zip"
 
 
 # ── write_results_csv ────────────────────────────────────────────────────
@@ -633,11 +633,11 @@ class TestBestTrialModelPathWithModelPath:
                 "trial_id": "5",
                 "stage_passed": True,
                 "best_mean_reward": 200.0,
-                "model_path": "/gcs/bucket/sweeps/velociraptor/stage2_r1/5/models/stage2_final.zip",
+                "model_path": "/gcs/bucket/sweeps/velociraptor/stage2_r1/5/models/best_model.zip",
             },
         ]
         path, best_row = _best_trial_model_path(rows, "bucket", "velociraptor", 2)
-        assert path == "/gcs/bucket/sweeps/velociraptor/stage2_r1/5/models/stage2_final.zip"
+        assert path == "/gcs/bucket/sweeps/velociraptor/stage2_r1/5/models/best_model.zip"
 
     def test_falls_back_to_constructed_path(self):
         """Rows without model_path still get the default constructed path."""
@@ -645,7 +645,7 @@ class TestBestTrialModelPathWithModelPath:
             {"trial_id": "3", "stage_passed": True, "best_mean_reward": 100.0},
         ]
         path, _ = _best_trial_model_path(rows, "my-bucket", "trex", 1)
-        assert path == "/gcs/my-bucket/sweeps/trex/stage1/3/models/stage1_final.zip"
+        assert path == "/gcs/my-bucket/sweeps/trex/stage1/3/models/best_model.zip"
 
     def test_mixed_rows_picks_best_with_correct_path(self):
         """When rows from different runs are merged, the best trial's model_path is used."""
@@ -657,12 +657,12 @@ class TestBestTrialModelPathWithModelPath:
                 "trial_id": "1",
                 "stage_passed": True,
                 "best_mean_reward": 250.0,
-                "model_path": "/gcs/bucket/sweeps/velociraptor/stage1_r1/1/models/stage1_final.zip",
+                "model_path": "/gcs/bucket/sweeps/velociraptor/stage1_r1/1/models/best_model.zip",
             },
         ]
         path, best_row = _best_trial_model_path(rows, "bucket", "velociraptor", 1)
         assert best_row["best_mean_reward"] == 250.0
-        assert path == "/gcs/bucket/sweeps/velociraptor/stage1_r1/1/models/stage1_final.zip"
+        assert path == "/gcs/bucket/sweeps/velociraptor/stage1_r1/1/models/best_model.zip"
 
 
 # ── Partial trial recovery (save/load state) ──────────────────────────
@@ -708,9 +708,9 @@ class TestPartialTrialRecovery:
                 "1": {
                     "status": "partial",
                     "trial_rows": [
-                        {"trial_id": "1", "best_mean_reward": 100.0, "stage_passed": True, "model_path": "/gcs/b/s/stage1/1/models/stage1_final.zip"},
-                        {"trial_id": "2", "best_mean_reward": 80.0, "stage_passed": False, "model_path": "/gcs/b/s/stage1/2/models/stage1_final.zip"},
-                        {"trial_id": "3", "best_mean_reward": 120.0, "stage_passed": True, "model_path": "/gcs/b/s/stage1/3/models/stage1_final.zip"},
+                        {"trial_id": "1", "best_mean_reward": 100.0, "stage_passed": True, "model_path": "/gcs/b/s/stage1/1/models/best_model.zip"},
+                        {"trial_id": "2", "best_mean_reward": 80.0, "stage_passed": False, "model_path": "/gcs/b/s/stage1/2/models/best_model.zip"},
+                        {"trial_id": "3", "best_mean_reward": 120.0, "stage_passed": True, "model_path": "/gcs/b/s/stage1/3/models/best_model.zip"},
                     ],
                     "resume_run": 0,
                 },
