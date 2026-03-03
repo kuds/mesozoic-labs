@@ -263,12 +263,18 @@ def train(
         wandb_run = init_wandb(species=species, stage=stage, config=config)
         logger.info("W&B run initialized.")
 
+    # policy_kwargs defines the network architecture and must only be used
+    # when creating a *new* model.  When loading a saved model the
+    # architecture is already baked into the weights; passing a (possibly
+    # different) policy_kwargs to .load() would create a metadata mismatch.
+    policy_kwargs = alg_kwargs.pop("policy_kwargs", None)
+
     if load_path:
         logger.info("Loading model from: %s", load_path)
         model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
     else:
         logger.info("Creating new %s model...", algorithm.upper())
-        model = alg_cls("MlpPolicy", train_env, **alg_kwargs)
+        model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
 
     logger.info("Model architecture:")
     logger.info("  Policy: %s", model.policy)
@@ -566,11 +572,13 @@ def train_curriculum(
         if use_wandb:
             wandb_run = init_wandb(species=species, stage=stage, config=config)
 
+        policy_kwargs = alg_kwargs.pop("policy_kwargs", None)
+
         if load_path:
             logger.info("Loading model from previous stage: %s", load_path)
             model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
         else:
-            model = alg_cls("MlpPolicy", train_env, **alg_kwargs)
+            model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
 
         # Build callbacks
         callbacks = []

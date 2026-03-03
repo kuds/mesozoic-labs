@@ -1262,16 +1262,15 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         partial_rows: list[dict] = []
         resume_run = 0
         if partial_data:
-            partial_rows = [
-                r for r in partial_data.get("trial_rows", [])
-                if r.get("best_mean_reward") is not None
-            ]
+            partial_rows = [r for r in partial_data.get("trial_rows", []) if r.get("best_mean_reward") is not None]
             if partial_rows:
                 resume_run = partial_data.get("resume_run", 0) + 1
 
         logger.info("=" * 60)
         logger.info("ALL-STAGES SWEEP  —  Stage %d / 3", stage)
-        logger.info("  Timesteps: %s  |  Trials: %d  |  Parallel: %d  |  n_envs: %d", timesteps, trials, parallel, n_envs)
+        logger.info(
+            "  Timesteps: %s  |  Trials: %d  |  Parallel: %d  |  n_envs: %d", timesteps, trials, parallel, n_envs
+        )
         logger.info("=" * 60)
 
         try:
@@ -1362,7 +1361,12 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     raise  # stages 1-2 must pass to chain forward
 
             if best_row is not None:
-                logger.info("Stage %d best passing trial: id=%s  reward=%.4f", stage, best_row["trial_id"], best_row.get("best_mean_reward", 0))
+                logger.info(
+                    "Stage %d best passing trial: id=%s  reward=%.4f",
+                    stage,
+                    best_row["trial_id"],
+                    best_row.get("best_mean_reward", 0),
+                )
 
             if stage < 3 and best_model_path is not None:
                 # Chain the best checkpoint into the next stage
