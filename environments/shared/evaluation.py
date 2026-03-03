@@ -73,6 +73,7 @@ def record_stage_video(
     seed: int = 42,
     vecnorm_path: str | None = None,
     max_steps: int = 1000,
+    label: str | None = None,
 ):
     """Record and save a video of the trained policy for a given stage.
 
@@ -120,7 +121,8 @@ def record_stage_video(
     if vec_normalize is not None:
         vec_normalize.close()
 
-    video_path = str(Path(stage_dir) / f"{species}_{algorithm.lower()}_stage{stage}.mp4")
+    suffix = f"_{label}" if label else ""
+    video_path = str(Path(stage_dir) / f"{species}_{algorithm.lower()}_stage{stage}{suffix}.mp4")
     mediapy.write_video(video_path, frames, fps=50)
     logger.info("Stage %d video: reward=%.2f | %d frames", stage, episode_reward, len(frames))
     logger.info("  Saved to: %s", video_path)
