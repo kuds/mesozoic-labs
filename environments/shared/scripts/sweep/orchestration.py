@@ -289,6 +289,18 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             if in_progress_data and in_progress_data.get("job_resource_name"):
                 prev_resource = in_progress_data["job_resource_name"]
                 logger.info("Attempting to reconnect to previous job: %s", prev_resource)
+
+                # Restore partial rows from runs that preceded the in-progress
+                # job so they aren't lost across multiple resume cycles.
+                prior_partial = in_progress_data.get("prior_partial_rows", [])
+                if prior_partial:
+                    partial_rows = partial_rows + prior_partial
+                    remaining_trials = trials - len(partial_rows)
+                    logger.info(
+                        "Restored %d prior partial rows from earlier runs.",
+                        len(prior_partial),
+                    )
+
                 try:
                     prev_job = aiplatform.HyperparameterTuningJob.get(prev_resource)
                     prev_state_name = prev_job.state.name if hasattr(prev_job.state, "name") else str(prev_job.state)
@@ -382,12 +394,15 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
                 # Save in-progress state immediately so the job can be
                 # reconnected if the orchestrator is interrupted.
+                # Include any partial_rows recovered from earlier runs so
+                # they survive across multiple resume cycles.
                 sweep_state["stages"][str(stage)] = {
                     "status": "in_progress",
                     "job_resource_name": job_resource_name,
                     "load_path": load_path,
                     "fixed_trial_args": fixed_trial_args,
                     "resume_run": resume_run,
+                    "prior_partial_rows": partial_rows,
                     "submitted_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 }
                 _save_sweep_state(
