@@ -3,9 +3,9 @@ name = "strike"
 description = "Sprint and strike prey with sickle claw"
 
 [env]
-forward_vel_weight = 1.0
+forward_vel_weight = 0.5               # Halved from 1.0: prevent forward reward from dominating approach/strike signals
 backward_vel_penalty_weight = 0.0
-alive_bonus = 0.5                       # Increase from 0.1: maintain self-preservation during strike training
+alive_bonus = 0.05                     # Drastically reduced from 0.5: survival is learned in stages 1-2; high alive_bonus made striking net-negative (strike terminates episode, costing ~500 in future alive rewards vs 5.0 bonus)
 energy_penalty_weight = 0.001
 tail_stability_weight = 0.02
 posture_weight = 0.1
@@ -14,9 +14,10 @@ gait_symmetry_weight = 0.0             # Disabled: formula rewards asymmetry, no
 smoothness_weight = 0.02
 heading_weight = 0.3                   # Match stage 2: face toward prey for strike
 lateral_penalty_weight = 0.1           # Match stage 2: penalize crab-walking toward prey
-strike_bonus = 5.0                     # Reduced from 10.0: still 10x alive_bonus but limits gradient shock (not ramped by callback)
-strike_approach_weight = 1.0
-prey_distance_range = [3.0, 8.0]
+strike_bonus = 50.0                    # 10x increase from 5.0: must outweigh opportunity cost of episode termination (~50-100 in lost future per-step rewards with reduced alive_bonus)
+strike_approach_weight = 3.0           # 3x increase from 1.0: stronger delta-based gradient toward prey
+strike_proximity_weight = 0.5          # NEW: continuous proximity bonus (1 - dist/max_dist) creates smooth basin of attraction toward prey, complementing noisy delta-based approach
+prey_distance_range = [2.0, 6.0]       # Tightened from [3.0, 8.0]: closer prey makes strike discovery much more likely during exploration
 prey_lateral_range = [-1.5, 1.5]
 max_episode_steps = 1000
 
@@ -28,8 +29,8 @@ batch_size = 256
 n_epochs = 10
 gamma = 0.995
 gae_lambda = 0.95
-clip_range = 0.1
-ent_coef = 0.001
+clip_range = 0.15                      # Widened from 0.1: allow larger policy updates to escape local optimum (survival-only behavior)
+ent_coef = 0.005                       # 5x increase from 0.001: more exploration needed to discover sparse strike reward
 
 [ppo.policy_kwargs]
 net_arch = [256, 256]
