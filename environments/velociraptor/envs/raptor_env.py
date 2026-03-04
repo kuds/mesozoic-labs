@@ -388,9 +388,7 @@ class RaptorEnv(BaseDinoEnv):
         n_touchdowns = len(self._touchdown_sequence)
         if n_touchdowns > 1:
             alternations = sum(
-                1
-                for i in range(1, n_touchdowns)
-                if self._touchdown_sequence[i] != self._touchdown_sequence[i - 1]
+                1 for i in range(1, n_touchdowns) if self._touchdown_sequence[i] != self._touchdown_sequence[i - 1]
             )
             alternation_ratio = alternations / (n_touchdowns - 1)
         else:
