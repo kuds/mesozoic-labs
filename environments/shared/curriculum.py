@@ -761,6 +761,101 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
         return True
 
 
+class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
+    """Stop training if eval reward drops significantly from the peak.
+
+    Monitors evaluation results and stops training when the mean reward
+    drops below ``(1 - drop_fraction) * peak_reward`` for
+    ``patience`` consecutive evaluations.  This prevents wasting compute
+    on a policy that has already collapsed past recovery.
+
+    Args:
+        eval_callback: The ``EvalCallback`` whose ``evaluations.npz``
+            to monitor.
+        drop_fraction: Fractional drop from peak that triggers early
+            stopping (default 0.3 = 30% drop).
+        patience: Number of consecutive below-threshold evaluations
+            before stopping (default 3).
+        min_evals: Minimum number of evaluations before early stopping
+            can activate (default 5).
+        verbose: Verbosity level.
+    """
+
+    def __init__(
+        self,
+        eval_callback: Any,
+        drop_fraction: float = 0.3,
+        patience: int = 3,
+        min_evals: int = 5,
+        verbose: int = 0,
+    ):
+        if not _SB3_AVAILABLE:
+            raise ImportError("stable-baselines3 is required for EvalCollapseEarlyStopCallback.")
+        super().__init__(verbose)
+        self.eval_callback = eval_callback
+        self.drop_fraction = drop_fraction
+        self.patience = patience
+        self.min_evals = min_evals
+        self._peak_reward = -np.inf
+        self._consecutive_drops = 0
+        self._last_seen_n_evals = 0
+
+    def _on_step(self) -> bool:
+        log_path = getattr(self.eval_callback, "log_path", None)
+        if log_path is None:
+            return True
+
+        from pathlib import Path
+
+        npz_path = Path(log_path) / "evaluations.npz"
+        if not npz_path.exists():
+            return True
+
+        data = np.load(str(npz_path))
+        eval_rewards = data["results"]  # (n_evals, n_episodes)
+        n_evals = eval_rewards.shape[0]
+
+        if n_evals <= self._last_seen_n_evals:
+            return True  # No new eval yet
+        self._last_seen_n_evals = n_evals
+
+        if n_evals < self.min_evals:
+            return True
+
+        mean_rewards = eval_rewards.mean(axis=1)
+        current_peak = float(mean_rewards.max())
+        self._peak_reward = max(self._peak_reward, current_peak)
+
+        latest_mean = float(mean_rewards[-1])
+        threshold = (1.0 - self.drop_fraction) * self._peak_reward
+
+        if self._peak_reward > 0 and latest_mean < threshold:
+            self._consecutive_drops += 1
+            logger.warning(
+                "EvalCollapseEarlyStop: reward %.1f < %.1f (%.0f%% of peak %.1f), "
+                "consecutive drops: %d/%d",
+                latest_mean,
+                threshold,
+                100 * (1 - self.drop_fraction),
+                self._peak_reward,
+                self._consecutive_drops,
+                self.patience,
+            )
+            if self._consecutive_drops >= self.patience:
+                logger.warning(
+                    "EvalCollapseEarlyStop: stopping training at step %d — "
+                    "reward collapsed from peak %.1f to %.1f",
+                    self.num_timesteps,
+                    self._peak_reward,
+                    latest_mean,
+                )
+                return False
+        else:
+            self._consecutive_drops = 0
+
+        return True
+
+
 class SaveVecNormalizeCallback(BaseCallback):  # type: ignore[misc]
     """Save VecNormalize stats whenever triggered.
 

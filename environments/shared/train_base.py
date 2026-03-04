@@ -108,6 +108,22 @@ def linear_schedule(initial_lr: float, final_lr: float):
     return schedule
 
 
+def cosine_schedule(initial_lr: float, final_lr: float):
+    """Return a callable that decays learning rate on a cosine curve.
+
+    Decays faster in mid-training than linear, then flattens near the end.
+    This better protects converged policies from late-training destabilisation.
+    """
+    import math
+
+    def schedule(progress_remaining: float) -> float:
+        # progress_remaining goes from 1.0 → 0.0
+        cosine_decay = 0.5 * (1.0 + math.cos(math.pi * (1.0 - progress_remaining)))
+        return final_lr + cosine_decay * (initial_lr - final_lr)
+
+    return schedule
+
+
 # ── Environment creation ─────────────────────────────────────────────────
 
 
@@ -183,6 +199,7 @@ def train(
     """Train a single stage of the curriculum."""
     from .config import save_stage_config
     from .curriculum import (
+        EvalCollapseEarlyStopCallback,
         RewardRampCallback,
         SaveVecNormalizeCallback,
         StageWarmupCallback,
@@ -258,10 +275,21 @@ def train(
 
     if algorithm == "ppo":
         lr_end = alg_kwargs.pop("learning_rate_end", None)
+        lr_schedule_type = alg_kwargs.pop("lr_schedule", "linear")
         if lr_end is not None:
             lr_start = alg_kwargs["learning_rate"]
-            alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
-            logger.info("Using linear LR schedule: %s -> %s", lr_start, lr_end)
+            if lr_schedule_type == "cosine":
+                alg_kwargs["learning_rate"] = cosine_schedule(lr_start, lr_end)
+            else:
+                alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
+            logger.info("Using %s LR schedule: %s -> %s", lr_schedule_type, lr_start, lr_end)
+
+        # Clip range annealing
+        clip_range_end = alg_kwargs.pop("clip_range_end", None)
+        if clip_range_end is not None:
+            clip_start = alg_kwargs["clip_range"]
+            alg_kwargs["clip_range"] = linear_schedule(clip_start, clip_range_end)
+            logger.info("Using clip_range schedule: %s -> %s", clip_start, clip_range_end)
 
     wandb_run = None
     if use_wandb:
@@ -315,6 +343,9 @@ def train(
     callbacks.append(checkpoint_callback)
 
     callbacks.append(DiagnosticsCallback(log_dir=str(log_path), verbose=verbose))
+
+    # Early stopping on eval reward collapse
+    callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, verbose=verbose))
 
     if use_wandb:
         callbacks.append(WandbCallback())
@@ -537,6 +568,7 @@ def train_curriculum(
     from .curriculum import (
         CurriculumCallback,
         CurriculumManager,
+        EvalCollapseEarlyStopCallback,
         RewardRampCallback,
         SaveVecNormalizeCallback,
         StageWarmupCallback,
@@ -613,10 +645,21 @@ def train_curriculum(
 
         if algorithm == "ppo":
             lr_end = alg_kwargs.pop("learning_rate_end", None)
+            lr_schedule_type = alg_kwargs.pop("lr_schedule", "linear")
             if lr_end is not None:
                 lr_start = alg_kwargs["learning_rate"]
-                alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
-                logger.info("Using linear LR schedule: %s -> %s", lr_start, lr_end)
+                if lr_schedule_type == "cosine":
+                    alg_kwargs["learning_rate"] = cosine_schedule(lr_start, lr_end)
+                else:
+                    alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
+                logger.info("Using %s LR schedule: %s -> %s", lr_schedule_type, lr_start, lr_end)
+
+            # Clip range annealing
+            clip_range_end = alg_kwargs.pop("clip_range_end", None)
+            if clip_range_end is not None:
+                clip_start = alg_kwargs["clip_range"]
+                alg_kwargs["clip_range"] = linear_schedule(clip_start, clip_range_end)
+                logger.info("Using clip_range schedule: %s -> %s", clip_start, clip_range_end)
 
         wandb_run = None
         if use_wandb:
@@ -658,6 +701,9 @@ def train_curriculum(
         callbacks.append(checkpoint_callback)
 
         callbacks.append(DiagnosticsCallback(log_dir=str(stage_dir), verbose=verbose))
+
+        # Early stopping on eval reward collapse
+        callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, verbose=verbose))
 
         if use_wandb:
             callbacks.append(WandbCallback())
