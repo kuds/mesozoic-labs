@@ -190,6 +190,23 @@ def _build_parser() -> argparse.ArgumentParser:
             "status. Useful for running all three stages to completion."
         ),
     )
+    launch_all.add_argument(
+        "--stage-timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Maximum wall-clock seconds to wait for each stage's HPT job to "
+            "complete. If exceeded the job keeps running in the cloud — re-run "
+            "with --resume to reconnect."
+        ),
+    )
+    launch_all.add_argument(
+        "--poll-interval",
+        type=int,
+        default=120,
+        help="Seconds between job status checks while waiting for completion (default: 120)",
+    )
 
     return parser
 
