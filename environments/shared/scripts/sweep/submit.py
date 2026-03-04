@@ -237,7 +237,7 @@ def _submit_stage_sweep(
     custom_job = aiplatform.CustomJob(
         display_name=f"{display_name}-trial",
         worker_pool_specs=worker_pool_specs,
-        base_output_dir=f"gs://{bucket}/sweeps/{species}/stage{stage}",
+        base_output_dir=f"gs://{bucket}/sweeps/{species}/stage{stage}{'_r' + str(resume_run) if resume_run else ''}",
     )
 
     hpt_job = aiplatform.HyperparameterTuningJob(
