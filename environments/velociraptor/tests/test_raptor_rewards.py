@@ -68,6 +68,7 @@ class TestRewardComponents:
             + info["reward_strike"]
             + info["reward_approach"]
             + info["reward_proximity"]
+            + info["reward_claw_proximity"]
             + info["reward_posture"]
             + info["reward_nosedive"]
             + info["reward_gait"]
@@ -120,6 +121,15 @@ class TestRewardComponents:
         _, _, _, _, info = env.step(action)
         assert info["reward_backward"] <= 0.0
         assert info["backward_vel"] >= 0.0
+
+    def test_claw_proximity_zero_by_default(self, env):
+        """Claw proximity reward should be zero when weight is zero (default)."""
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        assert info["reward_claw_proximity"] == 0.0
+        assert info["min_claw_prey_distance"] >= 0.0
+        assert 0.0 <= info["claw_proximity"] <= 1.0
 
 
 class TestRewardWeightEffects:
@@ -183,6 +193,18 @@ class TestRewardWeightEffects:
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert info["reward_backward"] == 0.0
+        env.close()
+
+    def test_nonzero_claw_proximity_weight_gives_positive_reward(self):
+        """Claw proximity reward should be positive when weight is set and prey is within range."""
+        env = RaptorEnv(strike_claw_proximity_weight=5.0, prey_distance_range=(1.0, 2.0))
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        # Prey is spawned 1-2m away; claw_proximity_max_dist is 2m, so claws
+        # should be within range and produce a positive reward.
+        assert info["reward_claw_proximity"] >= 0.0
+        assert info["min_claw_prey_distance"] > 0.0
         env.close()
 
     def test_nonzero_backward_vel_weight_penalizes_backward_motion(self):

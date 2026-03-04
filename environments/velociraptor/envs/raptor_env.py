@@ -33,6 +33,7 @@ Reward components:
     - Strike bonus (when claw contacts prey)
     - Approach shaping (distance to prey)
     - Proximity bonus (continuous reward for being close to prey)
+    - Claw proximity shaping (reward for positioning claw tip near prey)
     - Posture (continuous tilt penalty)
     - Nosedive penalty
     - Gait symmetry (alternating foot contacts)
@@ -74,6 +75,7 @@ class RaptorEnv(BaseDinoEnv):
         strike_bonus: float = 10.0,
         strike_approach_weight: float = 1.0,
         strike_proximity_weight: float = 0.0,
+        strike_claw_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
         natural_pitch: float = 0.35,
@@ -95,6 +97,7 @@ class RaptorEnv(BaseDinoEnv):
         self.strike_bonus = strike_bonus
         self.strike_approach_weight = strike_approach_weight
         self.strike_proximity_weight = strike_proximity_weight
+        self.strike_claw_proximity_weight = strike_claw_proximity_weight
         self.posture_weight = posture_weight
         self.nosedive_weight = nosedive_weight
         self.gait_symmetry_weight = gait_symmetry_weight
@@ -179,6 +182,10 @@ class RaptorEnv(BaseDinoEnv):
 
         # Mocap body for prey
         self.prey_mocap_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "prey")
+
+        # Claw tip site IDs (for claw-to-prey proximity shaping)
+        self.r_claw_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "r_claw_tip")
+        self.l_claw_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "l_claw_tip")
 
         # Sensor indices (order matches MJCF definition)
         # _sensor_gyro_start, _sensor_accel_start, _sensor_quat_start
@@ -339,6 +346,27 @@ class RaptorEnv(BaseDinoEnv):
         info["proximity"] = proximity
         info["reward_proximity"] = reward_proximity
 
+        # 6c. Claw-to-prey proximity shaping
+        # Uses the actual claw tip positions (not the pelvis) to give the agent
+        # a gradient for positioning its weapon near the prey.  Takes the min
+        # distance of the two claw tips so the agent is rewarded for whichever
+        # claw is closest.  Activates only when the pelvis is already within
+        # max_prey_dist (outer approach is handled by the pelvis-based rewards).
+        r_claw_pos = self.data.site_xpos[self.r_claw_tip_site_id]
+        l_claw_pos = self.data.site_xpos[self.l_claw_tip_site_id]
+        r_claw_dist = float(np.linalg.norm(prey_pos - r_claw_pos))
+        l_claw_dist = float(np.linalg.norm(prey_pos - l_claw_pos))
+        min_claw_dist = min(r_claw_dist, l_claw_dist)
+        # Scale: 1.0 when claw touches prey, 0.0 at claw_proximity_max_dist away.
+        # Use a tighter range than the pelvis proximity since this reward is
+        # meant to guide the final strike positioning.
+        claw_proximity_max_dist = 2.0
+        claw_proximity = max(0.0, 1.0 - min_claw_dist / claw_proximity_max_dist)
+        reward_claw_proximity = self.strike_claw_proximity_weight * claw_proximity
+        info["min_claw_prey_distance"] = min_claw_dist
+        info["claw_proximity"] = claw_proximity
+        info["reward_claw_proximity"] = reward_claw_proximity
+
         # 7. Continuous posture reward (quadratic tilt penalty — stronger gradient near upright)
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         tilt_angle = self._quat_to_tilt(pelvis_quat)
@@ -439,6 +467,7 @@ class RaptorEnv(BaseDinoEnv):
             + reward_strike
             + reward_approach
             + reward_proximity
+            + reward_claw_proximity
             + reward_posture
             + reward_nosedive
             + reward_gait

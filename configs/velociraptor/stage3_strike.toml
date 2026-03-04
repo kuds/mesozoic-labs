@@ -19,6 +19,7 @@ lateral_penalty_weight = 0.1           # Match stage 2: penalize crab-walking to
 strike_bonus = 50.0                    # 10x increase from 5.0: must outweigh opportunity cost of episode termination (~50-100 in lost future per-step rewards with reduced alive_bonus)
 strike_approach_weight = 3.0           # 3x increase from 1.0: stronger delta-based gradient toward prey
 strike_proximity_weight = 0.5          # NEW: continuous proximity bonus (1 - dist/max_dist) creates smooth basin of attraction toward prey, complementing noisy delta-based approach
+strike_claw_proximity_weight = 2.0     # Claw-to-prey shaping: rewards positioning sickle claw near prey (uses min of L/R claw distance), active within 2m — bridges the gap between body approach and actual strike contact
 prey_distance_range = [2.0, 6.0]       # Tightened from [3.0, 8.0]: closer prey makes strike discovery much more likely during exploration
 prey_lateral_range = [-1.5, 1.5]
 max_episode_steps = 1000
