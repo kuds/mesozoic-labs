@@ -267,6 +267,8 @@ class BaseDinoEnv(gym.Env, ABC):
             noise_scale = 0.01
             self.data.qpos[7:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qpos[7:].shape)
             self.data.qvel[:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qvel.shape)
+            # Slightly vary starting height to improve policy robustness
+            self.data.qpos[2] += self.np_random.normal(0, 0.01)
 
         # Randomize target position (species-specific)
         self._spawn_target()
