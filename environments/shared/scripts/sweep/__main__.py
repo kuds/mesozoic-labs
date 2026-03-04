@@ -1,0 +1,218 @@
+"""CLI entry point for ``python -m environments.shared.scripts.sweep``."""
+
+import argparse
+import logging
+import sys
+from pathlib import Path
+
+# Add repo root to Python path so environments.* imports work in Docker containers
+_repo_root = str(Path(__file__).resolve().parents[4])
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
+from .orchestration import launch_all_stages, launch_sweep
+from .trial import run_trial
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Mesozoic Labs hyperparameter sweep tool",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    subparsers = parser.add_subparsers(dest="mode", help="Mode")
+
+    # ── trial mode ────────────────────────────────────────────────────────────
+    trial = subparsers.add_parser(
+        "trial",
+        help="Run one sweep trial (used by Vertex AI HPT workers inside Docker)",
+    )
+    trial.add_argument("--species", required=True, choices=["velociraptor", "brachiosaurus", "trex"])
+    trial.add_argument("--stage", type=int, choices=[1, 2, 3], default=1)
+    trial.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
+    trial.add_argument("--timesteps", type=int, default=500000, help="Training timesteps per trial")
+    trial.add_argument("--n-envs", type=int, default=4, help="Parallel environments per trial")
+    trial.add_argument("--seed", type=int, default=42)
+    trial.add_argument("--eval-freq", type=int, default=10000)
+    trial.add_argument("--save-freq", type=int, default=50000)
+    trial.add_argument("--load", type=str, default=None, help="Path to model checkpoint to warm-start from")
+    trial.add_argument("--output-dir", type=str, default=None, help="Base output dir (GCS mount path on Vertex AI)")
+    trial.add_argument("--wandb", action="store_true", help="Enable W&B logging")
+
+    # ── launch mode (single stage) ────────────────────────────────────────────
+    launch = subparsers.add_parser(
+        "launch",
+        help="Submit a Vertex AI Hyperparameter Tuning job for one stage",
+    )
+    launch.add_argument("--species", required=True, choices=["velociraptor", "brachiosaurus", "trex"])
+    launch.add_argument("--stage", type=int, choices=[1, 2, 3], default=1, help="Curriculum stage to sweep")
+    launch.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
+    launch.add_argument("--timesteps", type=int, default=500000, help="Training timesteps per trial")
+    launch.add_argument("--n-envs", type=int, default=4, help="Parallel environments per trial")
+    launch.add_argument("--project", required=True, help="GCP project ID")
+    launch.add_argument("--location", default="us-central1", help="GCP region")
+    launch.add_argument("--bucket", required=True, help="GCS bucket name (without gs:// prefix)")
+    launch.add_argument("--image", required=True, help="Docker image URI for trial workers")
+    launch.add_argument("--trials", type=int, default=20, help="Maximum number of trials")
+    launch.add_argument("--parallel", type=int, default=5, help="Parallel trials running at once")
+    launch.add_argument("--machine-type", default="n1-standard-8", help="Vertex AI machine type")
+    launch.add_argument(
+        "--accelerator-type",
+        default="NVIDIA_TESLA_T4",
+        help="Vertex AI accelerator type (use 'None' for CPU-only)",
+    )
+    launch.add_argument("--accelerator-count", type=int, default=1)
+    launch.add_argument(
+        "--search-space",
+        type=str,
+        default=None,
+        metavar="JSON",
+        help=(
+            "JSON search space override (inline string). If omitted, the default space for the chosen "
+            "algorithm is used. See module docstring for format details."
+        ),
+    )
+    launch.add_argument(
+        "--search-space-file",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help=(
+            "Path to a JSON file defining the search space. Supports per-stage "
+            "sections (keys: stage1, stage2, stage3) or a flat dict for all stages."
+        ),
+    )
+    launch.add_argument("--wandb", action="store_true", help="Enable W&B logging in each trial")
+    launch.add_argument(
+        "--load",
+        type=str,
+        default=None,
+        help=(
+            "Path to a model checkpoint to warm-start every trial from "
+            "(e.g. best model from a prior stage). VecNormalize stats are "
+            "loaded automatically from <load_path>_vecnorm.pkl if present."
+        ),
+    )
+
+    # ── launch-all mode (all stages, sequential) ──────────────────────────────
+    launch_all = subparsers.add_parser(
+        "launch-all",
+        help="Sweep all three curriculum stages end-to-end with a single command",
+    )
+    launch_all.add_argument("--species", required=True, choices=["velociraptor", "brachiosaurus", "trex"])
+    launch_all.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
+    launch_all.add_argument("--n-envs", type=int, default=4, help="Parallel environments per trial")
+    launch_all.add_argument("--project", required=True, help="GCP project ID")
+    launch_all.add_argument("--location", default="us-central1", help="GCP region")
+    launch_all.add_argument("--bucket", required=True, help="GCS bucket name (without gs:// prefix)")
+    launch_all.add_argument("--image", required=True, help="Docker image URI for trial workers")
+    launch_all.add_argument(
+        "--trials", type=int, default=20, help="Default max trials per stage (overridden by --trials-stageN)"
+    )
+    launch_all.add_argument(
+        "--trials-stage1", type=int, default=None, help="Max trials for Stage 1 (defaults to --trials)"
+    )
+    launch_all.add_argument(
+        "--trials-stage2", type=int, default=None, help="Max trials for Stage 2 (defaults to --trials)"
+    )
+    launch_all.add_argument(
+        "--trials-stage3", type=int, default=None, help="Max trials for Stage 3 (defaults to --trials)"
+    )
+    launch_all.add_argument(
+        "--parallel", type=int, default=5, help="Default parallel trials per stage (overridden by --parallel-stageN)"
+    )
+    launch_all.add_argument(
+        "--parallel-stage1", type=int, default=None, help="Parallel trials for Stage 1 (defaults to --parallel)"
+    )
+    launch_all.add_argument(
+        "--parallel-stage2", type=int, default=None, help="Parallel trials for Stage 2 (defaults to --parallel)"
+    )
+    launch_all.add_argument(
+        "--parallel-stage3", type=int, default=None, help="Parallel trials for Stage 3 (defaults to --parallel)"
+    )
+    launch_all.add_argument(
+        "--timesteps-stage1", type=int, default=None, help="Timesteps per Stage 1 trial (default: 500k)"
+    )
+    launch_all.add_argument(
+        "--timesteps-stage2", type=int, default=None, help="Timesteps per Stage 2 trial (default: 1M)"
+    )
+    launch_all.add_argument(
+        "--timesteps-stage3", type=int, default=None, help="Timesteps per Stage 3 trial (default: 1.5M)"
+    )
+    launch_all.add_argument("--machine-type", default="n1-standard-8", help="Vertex AI machine type")
+    launch_all.add_argument(
+        "--accelerator-type",
+        default="NVIDIA_TESLA_T4",
+        help="Vertex AI accelerator type (use 'None' for CPU-only)",
+    )
+    launch_all.add_argument("--accelerator-count", type=int, default=1)
+    launch_all.add_argument(
+        "--search-space",
+        type=str,
+        default=None,
+        metavar="JSON",
+        help="JSON search space override (inline string, applied to all stages). Defaults to the algorithm's default space.",
+    )
+    launch_all.add_argument(
+        "--search-space-file",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help=(
+            "Path to a JSON file defining the search space. Use per-stage keys "
+            "(stage1, stage2, stage3) to give each stage its own search space, "
+            "or a flat dict to apply the same space to all stages."
+        ),
+    )
+    launch_all.add_argument("--wandb", action="store_true", help="Enable W&B logging in each trial")
+    launch_all.add_argument(
+        "--resume",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Resume from the last completed stage if a sweep state file exists "
+            "(default: --resume). Use --no-resume to start fresh."
+        ),
+    )
+    launch_all.add_argument(
+        "--force-continue",
+        action="store_true",
+        default=False,
+        help=(
+            "Continue to the next stage even when no trials pass the curriculum "
+            "gate. The best trial (by reward) is selected regardless of gate "
+            "status. Useful for running all three stages to completion."
+        ),
+    )
+
+    return parser
+
+
+def main() -> None:
+    parser = _build_parser()
+    # parse_known_args so Vertex AI HPT can inject extra --param value pairs
+    args, extra_args = parser.parse_known_args()
+
+    if args.mode == "trial":
+        run_trial(args, extra_args)
+    elif args.mode == "launch":
+        if extra_args:
+            logger.warning("Ignoring unexpected args in launch mode: %s", extra_args)
+        launch_sweep(args)
+    elif args.mode == "launch-all":
+        if extra_args:
+            logger.warning("Ignoring unexpected args in launch-all mode: %s", extra_args)
+        launch_all_stages(args)
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
