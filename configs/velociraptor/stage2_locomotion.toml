@@ -3,11 +3,9 @@ name = "locomotion"
 description = "Learn forward walking/running"
 
 [env]
-forward_vel_weight = 2.0                # Reduced from 4.0: with forward_vel_max=1.5 gives max reward 2.0, avoids sprint-and-fall
-                                        # NOTE: Successful runs used 1.0 with fwd_vel_max=10.0 (weaker gradient).
-                                        # Current combo (2.0/1.5) is ~13x stronger at walking speeds — untested.
-                                        # The 2M-step ramp mitigates initial shock. If stage 2 fails, try 1.0.
-forward_vel_max = 1.5                   # Reduce from 3.0: stronger gradient at low speeds where raptor operates
+forward_vel_weight = 2.0                # With forward_vel_max=3.0 gives max reward 2.0; at 1.3 m/s (current avg) reward = 0.87/step
+                                        # Still provides meaningful gradient without saturating at walking speeds
+forward_vel_max = 3.0                   # Increased from 1.5: agent plateaued at 1.3 m/s (87% of old max), needs headroom to push past waddle
 backward_vel_penalty_weight = 0.5       # Reduced from 2.0: matches successful runs; forward reward provides directional incentive
 alive_bonus = 0.5                       # Reduce from 2.0: was 99% of total reward, drowning forward signal
 fall_penalty = -50.0                    # Reduce from -100: less punitive with lower alive_bonus
@@ -15,7 +13,7 @@ energy_penalty_weight = 0.003
 tail_stability_weight = 0.05
 posture_weight = 0.2                    # Reduced from 0.8: successful runs used 0.0-0.2; high values trap agent in standing posture
 nosedive_weight = 0.3                   # Reduced from 1.0: allows forward lean for gait initiation while preventing face-plants
-gait_symmetry_weight = 0.0             # Disabled: formula rewards instantaneous asymmetry, not alternation
+gait_symmetry_weight = 0.3              # Enabled: fixed formula now tracks touchdown alternation (L→R→L), not instantaneous force
 smoothness_weight = 0.05
 strike_bonus = 0.0
 strike_approach_weight = 0.0
