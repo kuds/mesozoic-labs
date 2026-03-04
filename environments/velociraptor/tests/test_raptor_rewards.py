@@ -67,6 +67,7 @@ class TestRewardComponents:
             + info["reward_tail"]
             + info["reward_strike"]
             + info["reward_approach"]
+            + info["reward_proximity"]
             + info["reward_posture"]
             + info["reward_nosedive"]
             + info["reward_gait"]

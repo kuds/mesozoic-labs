@@ -32,6 +32,7 @@ Reward components:
     - Tail stability
     - Strike bonus (when claw contacts prey)
     - Approach shaping (distance to prey)
+    - Proximity bonus (continuous reward for being close to prey)
     - Posture (continuous tilt penalty)
     - Nosedive penalty
     - Gait symmetry (alternating foot contacts)
@@ -72,6 +73,7 @@ class RaptorEnv(BaseDinoEnv):
         tail_stability_weight: float = 0.05,
         strike_bonus: float = 10.0,
         strike_approach_weight: float = 1.0,
+        strike_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
         natural_pitch: float = 0.35,
@@ -92,6 +94,7 @@ class RaptorEnv(BaseDinoEnv):
         self.tail_stability_weight = tail_stability_weight
         self.strike_bonus = strike_bonus
         self.strike_approach_weight = strike_approach_weight
+        self.strike_proximity_weight = strike_proximity_weight
         self.posture_weight = posture_weight
         self.nosedive_weight = nosedive_weight
         self.gait_symmetry_weight = gait_symmetry_weight
@@ -326,6 +329,16 @@ class RaptorEnv(BaseDinoEnv):
         info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
+        # 6b. Proximity bonus (continuous reward for being close to prey)
+        # Provides a smooth basin of attraction that complements the noisy
+        # delta-based approach reward.  Linearly scales from 0 at max spawn
+        # distance to 1 at the prey location.
+        max_prey_dist = max(self.prey_distance_range[1], 1.0)
+        proximity = max(0.0, 1.0 - prey_distance / max_prey_dist)
+        reward_proximity = self.strike_proximity_weight * proximity
+        info["proximity"] = proximity
+        info["reward_proximity"] = reward_proximity
+
         # 7. Continuous posture reward (quadratic tilt penalty — stronger gradient near upright)
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         tilt_angle = self._quat_to_tilt(pelvis_quat)
@@ -427,6 +440,7 @@ class RaptorEnv(BaseDinoEnv):
             + reward_tail
             + reward_strike
             + reward_approach
+            + reward_proximity
             + reward_posture
             + reward_nosedive
             + reward_gait
