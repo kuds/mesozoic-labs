@@ -1154,6 +1154,7 @@ def launch_sweep(args: argparse.Namespace) -> None:
         accelerator_type=args.accelerator_type,
         accelerator_count=args.accelerator_count,
         search_space=search_space,
+        load_path=args.load,
         wandb=args.wandb,
         sync=False,  # fire-and-forget for single-stage launch
     )
@@ -1630,6 +1631,16 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     launch.add_argument("--wandb", action="store_true", help="Enable W&B logging in each trial")
+    launch.add_argument(
+        "--load",
+        type=str,
+        default=None,
+        help=(
+            "Path to a model checkpoint to warm-start every trial from "
+            "(e.g. best model from a prior stage). VecNormalize stats are "
+            "loaded automatically from <load_path>_vecnorm.pkl if present."
+        ),
+    )
 
     # ── launch-all mode (all stages, sequential) ──────────────────────────────
     launch_all = subparsers.add_parser(
