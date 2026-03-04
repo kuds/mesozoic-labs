@@ -44,6 +44,7 @@ class BaseDinoEnv(gym.Env, ABC):
         fall_penalty: float = -100.0,
         healthy_z_range: Tuple[float, float] = (0.25, 1.0),
         max_tilt_angle: float = 1.047,
+        reset_noise_scale: float = 0.01,
     ):
         super().__init__()
 
@@ -66,6 +67,7 @@ class BaseDinoEnv(gym.Env, ABC):
         # Environment settings
         self.healthy_z_range = healthy_z_range
         self.max_tilt_angle = max_tilt_angle
+        self.reset_noise_scale = reset_noise_scale
 
         # Cache body/geom/site IDs (species-specific)
         self._cache_ids()
@@ -264,11 +266,11 @@ class BaseDinoEnv(gym.Env, ABC):
 
         # Add small random perturbation to initial pose
         if self.np_random is not None:
-            noise_scale = 0.01
+            noise_scale = self.reset_noise_scale
             self.data.qpos[7:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qpos[7:].shape)
             self.data.qvel[:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qvel.shape)
             # Slightly vary starting height to improve policy robustness
-            self.data.qpos[2] += self.np_random.normal(0, 0.01)
+            self.data.qpos[2] += self.np_random.normal(0, noise_scale)
 
         # Randomize target position (species-specific)
         self._spawn_target()
