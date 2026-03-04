@@ -494,9 +494,10 @@ class RaptorEnv(BaseDinoEnv):
             contact = self.data.contact[i]
             geom1, geom2 = contact.geom1, contact.geom2
 
-            # Success: sickle claw contacted prey
-            if (geom1 in claw_geoms and geom2 == self.prey_geom_id) or (
-                geom2 in claw_geoms and geom1 == self.prey_geom_id
+            # Success: sickle claw contacted prey (only terminate when striking is rewarded)
+            if self.strike_bonus > 0 and (
+                (geom1 in claw_geoms and geom2 == self.prey_geom_id)
+                or (geom2 in claw_geoms and geom1 == self.prey_geom_id)
             ):
                 info["termination_reason"] = "strike_success"
                 info["success"] = True
