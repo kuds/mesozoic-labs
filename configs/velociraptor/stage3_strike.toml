@@ -4,13 +4,15 @@ description = "Sprint and strike prey with sickle claw"
 
 [env]
 forward_vel_weight = 0.5               # Halved from 1.0: prevent forward reward from dominating approach/strike signals
+forward_vel_max = 3.0                  # Match stage 2: without this, default 10.0 drops effective forward signal ~13x (agent may forget locomotion)
 backward_vel_penalty_weight = 0.0
 alive_bonus = 0.05                     # Drastically reduced from 0.5: survival is learned in stages 1-2; high alive_bonus made striking net-negative (strike terminates episode, costing ~500 in future alive rewards vs 5.0 bonus)
+fall_penalty = -10.0                   # Proportional to reduced alive_bonus (0.05); default -100 is 2000x alive_bonus, making agent overly conservative about approaching prey
 energy_penalty_weight = 0.001
 tail_stability_weight = 0.02
 posture_weight = 0.1
 nosedive_weight = 0.3                  # Reduced from stage2 (0.7): more aggressive lean acceptable during sprinting
-gait_symmetry_weight = 0.0             # Disabled: formula rewards asymmetry, not alternation (same as stage 1/2)
+gait_symmetry_weight = 0.1             # Reduced from stage 2 (0.3): small residual preserves alternating gait during sprint-to-strike without over-constraining lunge maneuvers
 smoothness_weight = 0.02
 heading_weight = 0.3                   # Match stage 2: face toward prey for strike
 lateral_penalty_weight = 0.1           # Match stage 2: penalize crab-walking toward prey
