@@ -832,8 +832,7 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         if self._peak_reward > 0 and latest_mean < threshold:
             self._consecutive_drops += 1
             logger.warning(
-                "EvalCollapseEarlyStop: reward %.1f < %.1f (%.0f%% of peak %.1f), "
-                "consecutive drops: %d/%d",
+                "EvalCollapseEarlyStop: reward %.1f < %.1f (%.0f%% of peak %.1f), consecutive drops: %d/%d",
                 latest_mean,
                 threshold,
                 100 * (1 - self.drop_fraction),
@@ -843,8 +842,7 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
             )
             if self._consecutive_drops >= self.patience:
                 logger.warning(
-                    "EvalCollapseEarlyStop: stopping training at step %d — "
-                    "reward collapsed from peak %.1f to %.1f",
+                    "EvalCollapseEarlyStop: stopping training at step %d — reward collapsed from peak %.1f to %.1f",
                     self.num_timesteps,
                     self._peak_reward,
                     latest_mean,
