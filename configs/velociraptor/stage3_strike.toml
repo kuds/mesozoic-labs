@@ -4,8 +4,10 @@ description = "Sprint and strike prey with sickle claw"
 
 [env]
 forward_vel_weight = 0.5               # Halved from 1.0: prevent forward reward from dominating approach/strike signals
+forward_vel_max = 3.0                  # Match stage 2: without this, default 10.0 drops effective forward signal ~13x (agent may forget locomotion)
 backward_vel_penalty_weight = 0.0
 alive_bonus = 0.05                     # Drastically reduced from 0.5: survival is learned in stages 1-2; high alive_bonus made striking net-negative (strike terminates episode, costing ~500 in future alive rewards vs 5.0 bonus)
+fall_penalty = -10.0                   # Proportional to reduced alive_bonus (0.05); default -100 is 2000x alive_bonus, making agent overly conservative about approaching prey
 energy_penalty_weight = 0.001
 tail_stability_weight = 0.02
 posture_weight = 0.1
