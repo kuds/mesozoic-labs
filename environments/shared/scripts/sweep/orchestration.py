@@ -19,7 +19,7 @@ from .search_space import (
     _search_space_for_stage,
     _settings_for_stage,
 )
-from .state import _save_sweep_state, _load_sweep_state
+from .state import _load_sweep_state, _save_sweep_state
 from .submit import _is_retryable_gcp_error, _submit_stage_sweep
 
 logger = logging.getLogger(__name__)

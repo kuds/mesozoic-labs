@@ -3,7 +3,6 @@
 import logging
 import sys
 import time
-from typing import Any
 
 from .constants import _SweepJobFailed
 from .trial import _build_parameter_spec
