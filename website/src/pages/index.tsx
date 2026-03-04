@@ -1,5 +1,6 @@
 import React from 'react';
 import Layout from '@theme/Layout';
+import RaptorVideoUpload from '@site/src/components/RaptorVideoUpload';
 import styles from './index.module.css';
 
 function HeroSection() {
@@ -322,6 +323,7 @@ export default function Home(): React.JSX.Element {
         <HeroSection />
         <FeaturesSection />
         <SimulationSection />
+        <RaptorVideoUpload />
         <RoadmapSection />
         <CTASection />
       </main>
