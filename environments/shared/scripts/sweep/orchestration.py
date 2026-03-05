@@ -116,18 +116,20 @@ def launch_sweep(args: argparse.Namespace) -> None:
     resolved = _resolve_search_space(args.search_space, args.search_space_file, args.algorithm)
     search_space = _search_space_for_stage(resolved, stage)
 
-    # Extract per-stage job settings from the search-space file (if any).
-    # These serve as defaults that the CLI args can override.  The argparse
-    # defaults for --trials, --timesteps, --parallel, and --n-envs are used
-    # as sentinels: when the CLI value matches the argparse default, the
-    # file setting takes priority (if present).
+    # Resolve job settings: CLI args (if set) > search-space file > hardcoded defaults.
+    # The argparse defaults are None so we can detect when a flag was explicitly passed.
     file_settings = _settings_for_stage(resolved, stage)
-    _ARGPARSE_DEFAULTS = {"trials": 20, "timesteps": 500_000, "parallel": 5, "n_envs": 4}
-    for key, default_val in _ARGPARSE_DEFAULTS.items():
+    _HARDCODED_DEFAULTS = {"trials": 20, "timesteps": 500_000, "parallel": 5, "n_envs": 4}
+    for key, hardcoded in _HARDCODED_DEFAULTS.items():
+        cli_val = getattr(args, key)
+        if cli_val is not None:
+            continue  # CLI wins
         file_val = file_settings.get(key)
-        if file_val is not None and getattr(args, key) == default_val:
-            logger.info("Using %s=%s from search-space file (CLI used default %s)", key, file_val, default_val)
+        if file_val is not None:
+            logger.info("Using %s=%s from search-space file", key, file_val)
             setattr(args, key, file_val)
+        else:
+            setattr(args, key, hardcoded)
 
     # ── State key used for single-stage launches ──────────────────────────
     # We store state under a stage-specific key so multiple single-stage
