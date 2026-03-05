@@ -601,4 +601,4 @@ Increase `--save-freq` to save checkpoints more often. Consider switching to on-
 
 ## Next Steps
 
-Once you have a working training run, use Vertex AI's built-in Hyperparameter Tuning to automatically find the best learning rate, entropy coefficient, batch size, and more — without manually submitting one job per combination. See [Hyperparameter Sweeps](sweeps.md).
+Once you have a working training run, use Vertex AI's built-in Hyperparameter Tuning to automatically find the best learning rate, entropy coefficient, batch size, and more — without manually submitting one job per combination. See [Hyperparameter Sweeps](sweeps.md) for the full guide, or jump to [Running a Stage 1 Trial](sweeps.md#running-a-stage-1-trial) for a focused walkthrough of running a single-stage sweep.
