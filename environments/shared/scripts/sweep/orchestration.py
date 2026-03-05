@@ -38,11 +38,11 @@ def _dedup_trial_rows(rows: list[dict]) -> list[dict]:
     for row in rows:
         tid = row.get("trial_id")
         if tid is not None:
-            seen[tid] = row
+            seen[str(tid)] = row
         else:
             # Rows without a trial_id are kept unconditionally (shouldn't
             # happen in practice, but don't silently drop data).
-            seen[id(row)] = row
+            seen[f"_no_id_{id(row)}"] = row
     deduped = list(seen.values())
     if len(deduped) < len(rows):
         logger.info(
