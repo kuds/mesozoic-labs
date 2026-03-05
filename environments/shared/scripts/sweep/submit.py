@@ -269,30 +269,31 @@ def _submit_stage_sweep(
         parallel_trial_count=parallel,
     )
 
-    # Submit the job synchronously so errors surface immediately and the
-    # retry loop can catch transient GCP failures.  We use sync=False and
-    # then immediately block on the SDK's internal future so that:
-    #   a) The API call to *create* the job runs to completion (or raises).
-    #   b) The SDK does NOT enter its own long-running poll loop — our
-    #      _wait_for_job handles that with better logging.
+    # Submit the job in our own background thread so we always have a
+    # future we can inspect for errors.  The SDK's sync=False uses an
+    # internal thread-pool whose future attribute name varies across
+    # versions, making error detection unreliable.  By running
+    # sync=True in our own ThreadPoolExecutor we get:
+    #   a) Immediate visibility into creation errors (permission denied, etc.)
+    #   b) The SDK handles the API call synchronously inside the thread.
+    # We only need the job to be *created* — our _wait_for_job handles
+    # the long-running poll with better logging.
+    import concurrent.futures
+
     _RETRY_DELAYS = [60, 180, 300]  # seconds between retries
     last_exc: Exception | None = None
     for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
-            hpt_job.run(sync=False)
-
-            # Block until the background thread finishes the API call to
-            # create the job resource.  Poll resource_name and also check
-            # the SDK future for errors so we surface the real exception
-            # (e.g. permission denied) instead of timing out silently.
             _CREATION_TIMEOUT = 300
+            _executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            _future = _executor.submit(hpt_job.run, sync=True)
+
+            # Poll until the job resource is created (resource_name becomes
+            # available) or the future raises an error.
             for _tick in range(_CREATION_TIMEOUT):
-                # Check if the background thread raised an exception.
-                # Try multiple attribute names across SDK versions.
-                _future = getattr(hpt_job, "_latest_future", None) or getattr(hpt_job, "_blocking_future", None)
-                if _future is not None and _future.done():
-                    # .result() re-raises any exception from the thread.
-                    _future.result()
+                # If the background thread failed, surface the real error.
+                if _future.done():
+                    _future.result()  # re-raises any exception
 
                 try:
                     _ = hpt_job.resource_name
@@ -300,22 +301,20 @@ def _submit_stage_sweep(
                 except RuntimeError:
                     time.sleep(1)
             else:
-                # Do a final check on the SDK future — if the background
-                # thread failed, surface the real error instead of a
-                # generic timeout message.
-                _future = getattr(hpt_job, "_latest_future", None) or getattr(hpt_job, "_blocking_future", None)
-                if _future is not None:
-                    try:
-                        _future.result(timeout=5)
-                    except Exception as _real_exc:
-                        raise _real_exc
+                # Final check — if the thread finished with an error,
+                # surface it instead of a generic timeout message.
+                if _future.done():
+                    _future.result()
                 raise RuntimeError(
                     f"Job '{display_name}' resource was not created within "
-                    f"{_CREATION_TIMEOUT}s. The SDK background thread did not "
-                    f"surface an error (future={'found' if _future is not None else 'not found'}). "
-                    f"Check Vertex AI permissions, project configuration, and "
-                    f"that the service account has roles/aiplatform.user."
+                    f"{_CREATION_TIMEOUT}s. Check Vertex AI permissions, "
+                    f"project configuration, and that the service account "
+                    f"has roles/aiplatform.user."
                 )
+
+            # Job created — shut down executor without waiting for the
+            # SDK's completion poll (our _wait_for_job replaces it).
+            _executor.shutdown(wait=False)
 
             break  # success — exit retry loop
 
