@@ -289,9 +289,7 @@ def _submit_stage_sweep(
             for _tick in range(_CREATION_TIMEOUT):
                 # Check if the background thread raised an exception.
                 # Try multiple attribute names across SDK versions.
-                _future = getattr(hpt_job, "_latest_future", None) or getattr(
-                    hpt_job, "_blocking_future", None
-                )
+                _future = getattr(hpt_job, "_latest_future", None) or getattr(hpt_job, "_blocking_future", None)
                 if _future is not None and _future.done():
                     # .result() re-raises any exception from the thread.
                     _future.result()
@@ -305,9 +303,7 @@ def _submit_stage_sweep(
                 # Do a final check on the SDK future — if the background
                 # thread failed, surface the real error instead of a
                 # generic timeout message.
-                _future = getattr(hpt_job, "_latest_future", None) or getattr(
-                    hpt_job, "_blocking_future", None
-                )
+                _future = getattr(hpt_job, "_latest_future", None) or getattr(hpt_job, "_blocking_future", None)
                 if _future is not None:
                     try:
                         _future.result(timeout=5)
