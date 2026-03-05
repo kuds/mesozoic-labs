@@ -9,6 +9,23 @@ from .trial import _build_parameter_spec
 
 logger = logging.getLogger(__name__)
 
+# Common short names → full Vertex AI accelerator enum labels.
+_ACCELERATOR_ALIASES: dict[str, str] = {
+    "T4": "NVIDIA_TESLA_T4",
+    "V100": "NVIDIA_TESLA_V100",
+    "P100": "NVIDIA_TESLA_P100",
+    "A100": "NVIDIA_TESLA_A100",
+    "L4": "NVIDIA_L4",
+}
+
+
+def _normalize_accelerator_type(raw: str) -> str | None:
+    """Return the canonical Vertex AI enum label, or *None* for CPU-only."""
+    if raw.lower() == "none":
+        return None
+    upper = raw.upper()
+    return _ACCELERATOR_ALIASES.get(upper, raw)
+
 
 def _is_retryable_gcp_error(exc: Exception) -> bool:
     """Return ``True`` if *exc* is a transient GCP error worth retrying.
@@ -208,13 +225,16 @@ def _submit_stage_sweep(
     if wandb:
         trial_args.append("--wandb")
 
+    resolved_accelerator = _normalize_accelerator_type(accelerator_type)
+
+    machine_spec: dict = {"machine_type": machine_type}
+    if resolved_accelerator is not None:
+        machine_spec["accelerator_type"] = resolved_accelerator
+        machine_spec["accelerator_count"] = accelerator_count
+
     worker_pool_specs = [
         {
-            "machine_spec": {
-                "machine_type": machine_type,
-                "accelerator_type": accelerator_type,
-                "accelerator_count": accelerator_count,
-            },
+            "machine_spec": machine_spec,
             "replica_count": 1,
             "container_spec": {
                 "image_uri": image,
