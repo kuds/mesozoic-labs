@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+import tempfile
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -26,7 +28,21 @@ def _save_sweep_state(
     ``gs://<bucket>/sweeps/<species>/_sweep_state.json``.
     """
     local_path = _sweep_state_local_path(species, algorithm)
-    local_path.write_text(json.dumps(state, indent=2))
+    # Write to a temp file then atomically rename to avoid corruption
+    # if the process is killed mid-write (e.g. Ctrl+C, OOM, SIGKILL).
+    try:
+        fd, tmp_path = tempfile.mkstemp(
+            dir=local_path.parent,
+            prefix=f".{local_path.name}.",
+            suffix=".tmp",
+        )
+        with os.fdopen(fd, "w") as f:
+            json.dump(state, f, indent=2)
+        os.replace(tmp_path, local_path)
+    except OSError:
+        # Fallback: direct write (e.g. if the filesystem doesn't
+        # support atomic rename from the temp directory).
+        local_path.write_text(json.dumps(state, indent=2))
     logger.info("Sweep state saved locally: %s", local_path)
 
     if bucket:

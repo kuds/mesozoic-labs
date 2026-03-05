@@ -25,6 +25,35 @@ from .submit import _is_retryable_gcp_error, _submit_stage_sweep, _wait_for_job
 logger = logging.getLogger(__name__)
 
 
+def _dedup_trial_rows(rows: list[dict]) -> list[dict]:
+    """Deduplicate trial rows by ``trial_id``, keeping the last occurrence.
+
+    When merging partial rows from multiple resume cycles, the same
+    ``trial_id`` can appear more than once (e.g. if Vertex AI re-uses an
+    ID across separate HPT jobs, or if rows are accidentally appended
+    twice).  Later entries are assumed to have more complete data, so
+    the last occurrence wins.
+    """
+    seen: dict[str, dict] = {}
+    for row in rows:
+        tid = row.get("trial_id")
+        if tid is not None:
+            seen[tid] = row
+        else:
+            # Rows without a trial_id are kept unconditionally (shouldn't
+            # happen in practice, but don't silently drop data).
+            seen[id(row)] = row
+    deduped = list(seen.values())
+    if len(deduped) < len(rows):
+        logger.info(
+            "Deduplicated trial rows: %d → %d (removed %d duplicates)",
+            len(rows),
+            len(deduped),
+            len(rows) - len(deduped),
+        )
+    return deduped
+
+
 def launch_sweep(args: argparse.Namespace) -> None:
     """Submit a Vertex AI Hyperparameter Tuning job for a single stage.
 
@@ -294,7 +323,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 # job so they aren't lost across multiple resume cycles.
                 prior_partial = in_progress_data.get("prior_partial_rows", [])
                 if prior_partial:
-                    partial_rows = partial_rows + prior_partial
+                    partial_rows = _dedup_trial_rows(partial_rows + prior_partial)
                     remaining_trials = trials - len(partial_rows)
                     logger.info(
                         "Restored %d prior partial rows from earlier runs.",
@@ -339,7 +368,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                                     _ip_out = f"{_ip_out}_r{ip_resume}"
                                 for row in _ip_rows:
                                     row["model_path"] = f"{_ip_out}/{row['trial_id']}/models/best_model.zip"
-                                partial_rows = partial_rows + _ip_rows
+                                partial_rows = _dedup_trial_rows(partial_rows + _ip_rows)
                                 remaining_trials = trials - len(partial_rows)
                                 resume_run = ip_resume + 1
                                 logger.info(
@@ -437,7 +466,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 for row in new_rows:
                     row["model_path"] = f"{output_base}/{row['trial_id']}/models/best_model.zip"
 
-                stage_rows = partial_rows + new_rows
+                stage_rows = _dedup_trial_rows(partial_rows + new_rows)
             elif remaining_trials <= 0:
                 # All requested trials were already completed in a previous
                 # partial run — no need to submit a new job.
@@ -551,7 +580,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                             for row in _new_partial:
                                 row["model_path"] = f"{_out}/{row['trial_id']}/models/best_model.zip"
 
-                            all_partial = partial_rows + _new_partial
+                            all_partial = _dedup_trial_rows(partial_rows + _new_partial)
                             sweep_state["stages"][str(stage)] = {
                                 "status": "partial",
                                 "job_resource_name": getattr(exc.hpt_job, "resource_name", None),
