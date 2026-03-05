@@ -935,6 +935,155 @@ class TestResolveSearchSpaceLogging:
 # ── _best_trial_model_path for stage 3 (no chain-forward needed) ──
 
 
+# ── restart_job_on_worker_restart ──────────────────────────────────
+
+
+class TestRestartJobOnWorkerRestart:
+    def test_restart_passed_to_run(self):
+        """restart_job_on_worker_restart=True is forwarded to hpt_job.run()."""
+        from environments.shared.scripts.sweep import _submit_stage_sweep
+
+        mock_aiplatform = MagicMock()
+        mock_hpt = MagicMock()
+
+        mock_job = MagicMock()
+        mock_aiplatform.HyperparameterTuningJob.return_value = mock_job
+        mock_aiplatform.CustomJob.return_value = MagicMock()
+
+        search_space = {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}}
+
+        _submit_stage_sweep(
+            aiplatform=mock_aiplatform,
+            hpt_module=mock_hpt,
+            species="velociraptor",
+            stage=1,
+            algorithm="ppo",
+            timesteps=100000,
+            n_envs=4,
+            trials=5,
+            parallel=2,
+            bucket="test-bucket",
+            image="test-image",
+            machine_type="n1-standard-8",
+            accelerator_type="NVIDIA_TESLA_T4",
+            accelerator_count=1,
+            search_space=search_space,
+            restart_job_on_worker_restart=True,
+        )
+
+        mock_job.run.assert_called_once_with(sync=True, restart_job_on_worker_restart=True)
+
+    def test_restart_not_passed_when_false(self):
+        """restart_job_on_worker_restart=False (default) does not add the kwarg."""
+        from environments.shared.scripts.sweep import _submit_stage_sweep
+
+        mock_aiplatform = MagicMock()
+        mock_hpt = MagicMock()
+
+        mock_job = MagicMock()
+        mock_aiplatform.HyperparameterTuningJob.return_value = mock_job
+        mock_aiplatform.CustomJob.return_value = MagicMock()
+
+        search_space = {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}}
+
+        _submit_stage_sweep(
+            aiplatform=mock_aiplatform,
+            hpt_module=mock_hpt,
+            species="velociraptor",
+            stage=1,
+            algorithm="ppo",
+            timesteps=100000,
+            n_envs=4,
+            trials=5,
+            parallel=2,
+            bucket="test-bucket",
+            image="test-image",
+            machine_type="n1-standard-8",
+            accelerator_type="NVIDIA_TESLA_T4",
+            accelerator_count=1,
+            search_space=search_space,
+        )
+
+        mock_job.run.assert_called_once_with(sync=True)
+
+    def test_cli_arg_parsed(self):
+        """--restart-job-on-worker-restart is parsed correctly."""
+        from environments.shared.scripts.sweep.__main__ import _build_parser
+
+        parser = _build_parser()
+
+        # launch mode
+        args = parser.parse_args(
+            [
+                "launch",
+                "--species",
+                "velociraptor",
+                "--project",
+                "test",
+                "--bucket",
+                "b",
+                "--image",
+                "img",
+                "--restart-job-on-worker-restart",
+            ]
+        )
+        assert args.restart_job_on_worker_restart is True
+
+        # launch mode with --no- prefix
+        args = parser.parse_args(
+            [
+                "launch",
+                "--species",
+                "velociraptor",
+                "--project",
+                "test",
+                "--bucket",
+                "b",
+                "--image",
+                "img",
+                "--no-restart-job-on-worker-restart",
+            ]
+        )
+        assert args.restart_job_on_worker_restart is False
+
+        # launch-all mode
+        args = parser.parse_args(
+            [
+                "launch-all",
+                "--species",
+                "velociraptor",
+                "--project",
+                "test",
+                "--bucket",
+                "b",
+                "--image",
+                "img",
+                "--restart-job-on-worker-restart",
+            ]
+        )
+        assert args.restart_job_on_worker_restart is True
+
+    def test_cli_default_is_false(self):
+        """Default value for --restart-job-on-worker-restart is False."""
+        from environments.shared.scripts.sweep.__main__ import _build_parser
+
+        parser = _build_parser()
+        args = parser.parse_args(
+            [
+                "launch",
+                "--species",
+                "velociraptor",
+                "--project",
+                "test",
+                "--bucket",
+                "b",
+                "--image",
+                "img",
+            ]
+        )
+        assert args.restart_job_on_worker_restart is False
+
+
 class TestBestTrialModelPathStage3:
     def test_stage3_best_trial_identified(self):
         rows = [

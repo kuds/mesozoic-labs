@@ -99,6 +99,41 @@ def _build_parser() -> argparse.ArgumentParser:
             "loaded automatically from <load_path>_vecnorm.pkl if present."
         ),
     )
+    launch.add_argument(
+        "--resume",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Resume from a previous run if a sweep state file exists "
+            "(default: --resume). Use --no-resume to start fresh."
+        ),
+    )
+    launch.add_argument(
+        "--stage-timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Maximum wall-clock seconds to wait for the HPT job to complete. "
+            "If exceeded the job keeps running in the cloud — re-run with "
+            "--resume to reconnect."
+        ),
+    )
+    launch.add_argument(
+        "--poll-interval",
+        type=int,
+        default=120,
+        help="Seconds between job status checks while waiting for completion (default: 120)",
+    )
+    launch.add_argument(
+        "--restart-job-on-worker-restart",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Restart the job if a worker is preempted (e.g. when using spot VMs). "
+            "Maps to Vertex AI's restart_job_on_worker_restart parameter."
+        ),
+    )
 
     # ── launch-all mode (all stages, sequential) ──────────────────────────────
     launch_all = subparsers.add_parser(
@@ -206,6 +241,15 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=120,
         help="Seconds between job status checks while waiting for completion (default: 120)",
+    )
+    launch_all.add_argument(
+        "--restart-job-on-worker-restart",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Restart the job if a worker is preempted (e.g. when using spot VMs). "
+            "Maps to Vertex AI's restart_job_on_worker_restart parameter."
+        ),
     )
 
     return parser
