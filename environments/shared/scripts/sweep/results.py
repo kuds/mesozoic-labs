@@ -48,7 +48,9 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list
         best_ep_length = metrics.get("best_mean_episode_length")
         last_reward = metrics.get("last_mean_reward")
         last_ep_length = metrics.get("last_mean_episode_length")
+        trial_seed = metrics.get("seed")
 
+        row["seed"] = int(trial_seed) if trial_seed is not None else None
         row["best_mean_reward"] = best_reward
         row["best_mean_episode_length"] = best_ep_length
         row["last_mean_reward"] = last_reward
@@ -127,7 +129,7 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
         logger.warning("No trial rows to write — skipping CSV")
         return path
 
-    fixed_cols = ["trial_id", "stage"]
+    fixed_cols = ["trial_id", "stage", "seed"]
     metric_cols = [
         "best_mean_reward",
         "best_mean_episode_length",
@@ -316,6 +318,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
     fixed_cols = {
         "trial_id",
         "stage",
+        "seed",
         "best_mean_reward",
         "best_mean_episode_length",
         "last_mean_reward",

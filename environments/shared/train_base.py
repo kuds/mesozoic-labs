@@ -399,6 +399,7 @@ def train(
         stage,
         total_timesteps,
         algorithm,
+        seed=seed,
     )
 
     # Save final model
@@ -431,6 +432,7 @@ def _report_hpt_metrics(
     stage: int,
     total_timesteps: int,
     algorithm: str,
+    seed: int = 42,
 ):
     """Report metrics to Vertex AI Hypertune (no-op when not installed).
 
@@ -454,9 +456,15 @@ def _report_hpt_metrics(
         metric_value=eval_callback.best_mean_reward,
         global_step=total_timesteps,
     )
+    _hpt.report_hyperparameter_tuning_metric(
+        hyperparameter_metric_tag="seed",
+        metric_value=float(seed),
+        global_step=total_timesteps,
+    )
     logger.info(
-        "HPT metric reported: best_mean_reward=%.4f",
+        "HPT metric reported: best_mean_reward=%.4f, seed=%d",
         eval_callback.best_mean_reward,
+        seed,
     )
 
     eval_npz_path = Path(log_path) / "evaluations.npz"
