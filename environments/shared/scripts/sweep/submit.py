@@ -269,13 +269,44 @@ def _submit_stage_sweep(
         parallel_trial_count=parallel,
     )
 
-    # Retry loop for transient Vertex AI / quota errors.
+    # Submit the job synchronously so errors surface immediately and the
+    # retry loop can catch transient GCP failures.  We use sync=False and
+    # then immediately block on the SDK's internal future so that:
+    #   a) The API call to *create* the job runs to completion (or raises).
+    #   b) The SDK does NOT enter its own long-running poll loop — our
+    #      _wait_for_job handles that with better logging.
     _RETRY_DELAYS = [60, 180, 300]  # seconds between retries
     last_exc: Exception | None = None
     for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
             hpt_job.run(sync=False)
-            break  # success
+
+            # Block until the background thread finishes the API call to
+            # create the job resource.  Poll resource_name and also check
+            # the SDK future for errors so we surface the real exception
+            # (e.g. permission denied) instead of timing out silently.
+            _CREATION_TIMEOUT = 120
+            for _tick in range(_CREATION_TIMEOUT):
+                # Check if the background thread raised an exception.
+                _future = getattr(hpt_job, "_latest_future", None)
+                if _future is not None and _future.done():
+                    # .result() re-raises any exception from the thread.
+                    _future.result()
+
+                try:
+                    _ = hpt_job.resource_name
+                    break  # resource created successfully
+                except RuntimeError:
+                    time.sleep(1)
+            else:
+                raise RuntimeError(
+                    f"Job '{display_name}' resource was not created within "
+                    f"{_CREATION_TIMEOUT}s — check Vertex AI permissions and "
+                    f"project configuration."
+                )
+
+            break  # success — exit retry loop
+
         except Exception as exc:
             # Only retry on transient / quota errors from the Google API.
             _retryable = _is_retryable_gcp_error(exc)
@@ -292,32 +323,29 @@ def _submit_stage_sweep(
                 delay,
             )
             time.sleep(delay)
+
+            # Re-create job objects for the retry — the SDK marks them as
+            # used after a run() call.
+            custom_job = aiplatform.CustomJob(
+                display_name=f"{display_name}-trial",
+                worker_pool_specs=worker_pool_specs,
+                base_output_dir=f"gs://{bucket}/sweeps/{species}/stage{stage}{'_r' + str(resume_run) if resume_run else ''}",
+            )
+            hpt_job = aiplatform.HyperparameterTuningJob(
+                display_name=display_name,
+                custom_job=custom_job,
+                metric_spec={"best_mean_reward": "maximize"},
+                parameter_spec=parameter_spec,
+                max_trial_count=trials,
+                parallel_trial_count=parallel,
+            )
     else:
-        # All retries exhausted — should not reach here because we re-raise
-        # above, but guard defensively.
         raise _SweepJobFailed(
             f"Job submission for stage {stage} failed after {len(_RETRY_DELAYS) + 1} attempts",
             hpt_job=hpt_job,
         ) from last_exc
 
-    # run(sync=False) starts the API call in a background thread.
-    # Wait for the resource to actually be created before returning,
-    # otherwise the script may exit and kill the background thread.
-    _RESOURCE_CREATION_TIMEOUT = 120  # seconds
-    job_name = display_name
-    for _poll in range(_RESOURCE_CREATION_TIMEOUT):
-        try:
-            job_name = hpt_job.resource_name
-            break
-        except RuntimeError:
-            time.sleep(1)
-    else:
-        raise _SweepJobFailed(
-            f"Job '{display_name}' was not created within {_RESOURCE_CREATION_TIMEOUT}s. "
-            "Check Vertex AI permissions and project configuration.",
-            hpt_job=hpt_job,
-        )
-
+    job_name = hpt_job.resource_name
     logger.info("Job submitted: %s", job_name)
     logger.info("Monitor at: https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs")
     logger.info("Results will be written to: gs://%s/sweeps/%s/stage%d/", bucket, species, stage)
