@@ -410,6 +410,160 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
         logger.info("No varying numeric hyperparameters found — skipping hyperparameter analysis graph")
 
 
+def collect_results_from_disk(
+    output_dir: str | Path,
+    species: str | None = None,
+    stages: list[int] | None = None,
+) -> list[dict]:
+    """Scan trial directories on disk and collect results into row dicts.
+
+    This is the offline equivalent of :func:`_collect_trial_results` — it
+    reads ``metrics.json`` sidecars directly from the filesystem without
+    needing a Vertex AI HPT job object.
+
+    Expected directory layout (one of)::
+
+        # Sweep layout: output_dir = .../sweeps/<species>
+        output_dir/stage1/<trial_id>/metrics.json
+        output_dir/stage2/<trial_id>/metrics.json
+
+        # Curriculum layout: output_dir = .../curriculum_<timestamp>
+        output_dir/stage1/metrics.json
+        output_dir/stage2/metrics.json
+
+    Each trial's ``stage_config.json`` (if present) is used to populate
+    curriculum thresholds and evaluate pass/fail status.
+
+    Args:
+        output_dir: Root directory containing stage sub-directories.
+        species: Species name (for logging only; optional).
+        stages: Restrict collection to these stage numbers.  Defaults to
+            all ``stage*`` sub-directories found.
+
+    Returns:
+        List of result dicts compatible with :func:`write_results_csv`.
+    """
+    output_dir = Path(output_dir)
+    if not output_dir.is_dir():
+        logger.error("Output directory does not exist: %s", output_dir)
+        return []
+
+    # Discover stage directories
+    stage_dirs: list[tuple[int, Path]] = []
+    for child in sorted(output_dir.iterdir()):
+        if child.is_dir() and child.name.startswith("stage"):
+            try:
+                stage_num = int(child.name.replace("stage", "").split("_")[0])
+            except ValueError:
+                continue
+            if stages and stage_num not in stages:
+                continue
+            stage_dirs.append((stage_num, child))
+
+    if not stage_dirs:
+        logger.warning("No stage directories found under %s", output_dir)
+        return []
+
+    rows: list[dict] = []
+    for stage_num, stage_path in stage_dirs:
+        # Load stage_config.json for thresholds (may be at the stage level
+        # or inside each trial directory — check the stage level first).
+        stage_config_path = stage_path / "stage_config.json"
+        stage_cfg: dict = {}
+        if stage_config_path.exists():
+            try:
+                with open(stage_config_path) as f:
+                    stage_cfg = json.load(f)
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning("Failed to read %s: %s", stage_config_path, exc)
+
+        cur = stage_cfg.get("curriculum", {})
+        reward_threshold = cur.get("min_avg_reward")
+        ep_length_threshold = cur.get("min_avg_episode_length")
+        forward_vel_threshold = cur.get("min_avg_forward_vel")
+        success_rate_threshold = cur.get("min_success_rate")
+
+        # Check if this is a single-trial (curriculum) layout where
+        # metrics.json sits directly in the stage directory.
+        direct_metrics = stage_path / "metrics.json"
+        if direct_metrics.exists():
+            trial_dirs = [(stage_path.name, stage_path)]
+        else:
+            # Sweep layout: each child is a trial directory.
+            trial_dirs = []
+            for td in sorted(stage_path.iterdir()):
+                if td.is_dir() and (td / "metrics.json").exists():
+                    trial_dirs.append((td.name, td))
+
+        for trial_id, trial_path in trial_dirs:
+            metrics = _load_trial_metrics(str(trial_path.parent), trial_path.name)
+            if not metrics:
+                logger.warning("Stage %d trial %s: no valid metrics.json", stage_num, trial_id)
+                continue
+
+            # Load per-trial stage_config.json if the stage-level one wasn't found.
+            if not stage_cfg:
+                per_trial_cfg_path = trial_path / "stage_config.json"
+                if per_trial_cfg_path.exists():
+                    try:
+                        with open(per_trial_cfg_path) as f:
+                            trial_cfg = json.load(f)
+                        cur = trial_cfg.get("curriculum", {})
+                        reward_threshold = cur.get("min_avg_reward")
+                        ep_length_threshold = cur.get("min_avg_episode_length")
+                        forward_vel_threshold = cur.get("min_avg_forward_vel")
+                        success_rate_threshold = cur.get("min_success_rate")
+                    except (json.JSONDecodeError, OSError):
+                        pass
+
+            best_reward = metrics.get("best_mean_reward")
+            row: dict = {
+                "trial_id": trial_id,
+                "stage": stage_num,
+                "best_mean_reward": best_reward,
+                "best_mean_episode_length": metrics.get("best_mean_episode_length"),
+                "last_mean_reward": metrics.get("last_mean_reward"),
+                "last_mean_episode_length": metrics.get("last_mean_episode_length"),
+                "reward_threshold": reward_threshold,
+                "ep_length_threshold": ep_length_threshold,
+                "forward_vel_threshold": forward_vel_threshold,
+                "success_rate_threshold": success_rate_threshold,
+            }
+
+            # Evaluate pass/fail using the same logic as _collect_trial_results.
+            passed = best_reward is not None
+            if best_reward is None:
+                passed = False
+            if reward_threshold is not None and (best_reward is None or best_reward < reward_threshold):
+                passed = False
+            if passed and ep_length_threshold is not None:
+                best_ep = metrics.get("best_mean_episode_length")
+                if best_ep is None or best_ep < ep_length_threshold:
+                    passed = False
+            if passed and forward_vel_threshold is not None:
+                fwd_vel = metrics.get("best_mean_forward_vel")
+                if fwd_vel is None or fwd_vel < forward_vel_threshold:
+                    passed = False
+            if passed and success_rate_threshold is not None:
+                sr = metrics.get("best_mean_success_rate")
+                if sr is None or sr < success_rate_threshold:
+                    passed = False
+            row["stage_passed"] = passed
+
+            rows.append(row)
+
+        logger.info(
+            "Stage %d: collected %d trial(s) from %s",
+            stage_num,
+            len([r for r in rows if r["stage"] == stage_num]),
+            stage_path,
+        )
+
+    species_label = species or output_dir.name
+    logger.info("Collected %d total rows for %s", len(rows), species_label)
+    return rows
+
+
 def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, stage: int) -> tuple[str, dict]:
     """Return the GCS path of the best trial's best model and its result row.
 

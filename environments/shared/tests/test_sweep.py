@@ -23,6 +23,7 @@ from environments.shared.scripts.sweep import (
     _split_stage_block,
     _sweep_state_local_path,
     _SweepJobFailed,
+    collect_results_from_disk,
     write_results_csv,
 )
 
@@ -1116,3 +1117,113 @@ class TestBestTrialModelPathStage3:
         path, best_row = _best_trial_model_path(rows, "bucket", "velociraptor", 3)
         assert best_row["trial_id"] == "2"
         assert "stage3" in path
+
+
+# ── collect_results_from_disk ───────────────────────────────────────────
+
+
+def _setup_sweep_dir(base, stage, trials):
+    """Create a sweep-style directory with metrics.json per trial.
+
+    Args:
+        base: Root path (tmp_path).
+        stage: Stage number.
+        trials: Dict mapping trial_id -> metrics dict.
+
+    Returns:
+        The stage directory path.
+    """
+    stage_dir = base / f"stage{stage}"
+    for trial_id, metrics in trials.items():
+        trial_dir = stage_dir / str(trial_id)
+        trial_dir.mkdir(parents=True, exist_ok=True)
+        with open(trial_dir / "metrics.json", "w") as f:
+            json.dump(metrics, f)
+    return stage_dir
+
+
+class TestCollectResultsFromDisk:
+    def test_sweep_layout(self, tmp_path):
+        """Collects results from sweep-style trial directories."""
+        _setup_sweep_dir(tmp_path, 1, {
+            "1": {"best_mean_reward": 150.0, "best_mean_episode_length": 500.0},
+            "2": {"best_mean_reward": 80.0, "best_mean_episode_length": 300.0},
+        })
+        rows = collect_results_from_disk(tmp_path)
+        assert len(rows) == 2
+        rewards = {r["trial_id"]: r["best_mean_reward"] for r in rows}
+        assert rewards["1"] == 150.0
+        assert rewards["2"] == 80.0
+
+    def test_curriculum_layout(self, tmp_path):
+        """Collects results from curriculum-style single-trial directories."""
+        for stage in (1, 2):
+            stage_dir = tmp_path / f"stage{stage}"
+            stage_dir.mkdir(parents=True)
+            with open(stage_dir / "metrics.json", "w") as f:
+                json.dump({"best_mean_reward": 100.0 * stage}, f)
+        rows = collect_results_from_disk(tmp_path)
+        assert len(rows) == 2
+        assert rows[0]["stage"] == 1
+        assert rows[1]["stage"] == 2
+
+    def test_stage_filter(self, tmp_path):
+        """Only collects from specified stages."""
+        _setup_sweep_dir(tmp_path, 1, {"1": {"best_mean_reward": 100.0}})
+        _setup_sweep_dir(tmp_path, 2, {"1": {"best_mean_reward": 200.0}})
+        rows = collect_results_from_disk(tmp_path, stages=[2])
+        assert len(rows) == 1
+        assert rows[0]["stage"] == 2
+
+    def test_thresholds_from_stage_config(self, tmp_path):
+        """Loads curriculum thresholds from stage_config.json."""
+        stage_dir = _setup_sweep_dir(tmp_path, 1, {
+            "1": {"best_mean_reward": 50.0},
+        })
+        cfg = {"curriculum": {"min_avg_reward": 100.0}}
+        with open(stage_dir / "stage_config.json", "w") as f:
+            json.dump(cfg, f)
+        rows = collect_results_from_disk(tmp_path)
+        assert len(rows) == 1
+        assert rows[0]["stage_passed"] is False
+        assert rows[0]["reward_threshold"] == 100.0
+
+    def test_passing_trial_with_threshold(self, tmp_path):
+        """Trial passes when reward exceeds threshold."""
+        stage_dir = _setup_sweep_dir(tmp_path, 1, {
+            "1": {"best_mean_reward": 150.0},
+        })
+        cfg = {"curriculum": {"min_avg_reward": 100.0}}
+        with open(stage_dir / "stage_config.json", "w") as f:
+            json.dump(cfg, f)
+        rows = collect_results_from_disk(tmp_path)
+        assert rows[0]["stage_passed"] is True
+
+    def test_empty_directory(self, tmp_path):
+        """Returns empty list for directory with no stage sub-dirs."""
+        rows = collect_results_from_disk(tmp_path)
+        assert rows == []
+
+    def test_nonexistent_directory(self, tmp_path):
+        """Returns empty list for nonexistent directory."""
+        rows = collect_results_from_disk(tmp_path / "does_not_exist")
+        assert rows == []
+
+    def test_multi_stage_collection(self, tmp_path):
+        """Collects across multiple stages into a single list."""
+        _setup_sweep_dir(tmp_path, 1, {
+            "1": {"best_mean_reward": 100.0},
+            "2": {"best_mean_reward": 120.0},
+        })
+        _setup_sweep_dir(tmp_path, 2, {
+            "1": {"best_mean_reward": 200.0},
+        })
+        _setup_sweep_dir(tmp_path, 3, {
+            "1": {"best_mean_reward": 300.0},
+        })
+        rows = collect_results_from_disk(tmp_path)
+        assert len(rows) == 4
+        stages = [r["stage"] for r in rows]
+        assert stages.count(1) == 2
+        assert stages.count(2) == 1
+        assert stages.count(3) == 1
