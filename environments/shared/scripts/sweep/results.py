@@ -1,5 +1,6 @@
 """Trial result collection, CSV export, and visualisation."""
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -9,16 +10,45 @@ from .constants import SweepStageError
 logger = logging.getLogger(__name__)
 
 
-def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list[dict]:
+def _load_trial_metrics(output_base: str, trial_id: str) -> dict[str, float]:
+    """Load auxiliary metrics from a trial's ``metrics.json`` sidecar on GCS.
+
+    The training code writes all computed metrics (episode lengths,
+    forward velocity, success rate, etc.) to ``<trial_dir>/metrics.json``
+    so they can be collected without being declared in the HPT
+    ``metric_spec``.
+
+    Returns an empty dict if the file is missing (e.g. trial crashed).
+    """
+    metrics_path = Path(f"{output_base}/{trial_id}/metrics.json")
+    if not metrics_path.exists():
+        logger.warning("  Trial %s: metrics.json not found at %s", trial_id, metrics_path)
+        return {}
+    try:
+        with open(metrics_path) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("  Trial %s: failed to read metrics.json: %s", trial_id, exc)
+        return {}
+
+
+def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_base: str) -> list[dict]:
     """Extract per-trial hyperparameters and outcomes from a completed HPT job.
+
+    The primary optimisation metric (``best_mean_reward``) is read from
+    the HPT trial's ``final_measurement``.  All auxiliary metrics are
+    read from the ``metrics.json`` sidecar written by the training code
+    to each trial's GCS output directory.
 
     Each returned dict contains:
 
     * ``trial_id`` — Vertex AI trial identifier
     * ``stage`` — curriculum stage number
     * one key per hyperparameter (e.g. ``ppo_learning_rate``)
-    * ``best_mean_reward`` — final metric reported by the trial
-    * ``best_mean_episode_length`` — episode length from the best eval
+    * ``best_mean_reward`` — primary HPT metric
+    * ``best_mean_episode_length`` — from ``metrics.json``
+    * ``last_mean_reward`` — from ``metrics.json``
+    * ``last_mean_episode_length`` — from ``metrics.json``
     * ``reward_threshold`` — ``min_avg_reward`` from the stage TOML config
     * ``ep_length_threshold`` — ``min_avg_episode_length`` from config
     * ``forward_vel_threshold`` — ``min_avg_forward_vel`` from config
@@ -38,16 +68,23 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list
             for param in trial.parameters:
                 row[param.parameter_id] = param.value
 
-        # Extract all reported metrics from the trial
-        metrics: dict[str, float | None] = {}
+        # Primary metric from HPT final_measurement
+        best_reward: float | None = None
         if trial.final_measurement and trial.final_measurement.metrics:
             for metric in trial.final_measurement.metrics:
-                metrics[metric.metric_id] = metric.value
+                if metric.metric_id == "best_mean_reward":
+                    best_reward = metric.value
 
-        best_reward = metrics.get("best_mean_reward")
-        best_ep_length = metrics.get("best_mean_episode_length")
-        last_reward = metrics.get("last_mean_reward")
-        last_ep_length = metrics.get("last_mean_episode_length")
+        # Auxiliary metrics from the JSON sidecar
+        aux = _load_trial_metrics(output_base, trial.id)
+        # Prefer HPT value for best_mean_reward (authoritative), fall
+        # back to sidecar if HPT somehow didn't capture it.
+        if best_reward is None:
+            best_reward = aux.get("best_mean_reward")
+
+        best_ep_length = aux.get("best_mean_episode_length")
+        last_reward = aux.get("last_mean_reward")
+        last_ep_length = aux.get("last_mean_episode_length")
 
         row["best_mean_reward"] = best_reward
         row["best_mean_episode_length"] = best_ep_length
@@ -73,12 +110,12 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict) -> list
                 passed = False
                 fail_reasons.append(f"ep_length {best_ep_length} < threshold {ep_length_threshold}")
         if passed and forward_vel_threshold is not None:
-            trial_fwd_vel = metrics.get("best_mean_forward_vel")
+            trial_fwd_vel = aux.get("best_mean_forward_vel")
             if trial_fwd_vel is None or trial_fwd_vel < forward_vel_threshold:
                 passed = False
                 fail_reasons.append(f"forward_vel {trial_fwd_vel} < threshold {forward_vel_threshold}")
         if passed and success_rate_threshold is not None:
-            trial_success_rate = metrics.get("best_mean_success_rate")
+            trial_success_rate = aux.get("best_mean_success_rate")
             if trial_success_rate is None or trial_success_rate < success_rate_threshold:
                 passed = False
                 fail_reasons.append(f"success_rate {trial_success_rate} < threshold {success_rate_threshold}")

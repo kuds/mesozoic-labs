@@ -224,13 +224,13 @@ def launch_sweep(args: argparse.Namespace) -> None:
                                 from environments.shared.config import load_stage_config as _lsc_ip
 
                                 _sc_ip = _lsc_ip(args.species, stage)
-                                _ip_rows = _collect_trial_results(prev_job, stage, _sc_ip)
+                                _ip_out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
+                                ip_resume = prev_stage_data.get("resume_run", 0)
+                                if ip_resume:
+                                    _ip_out = f"{_ip_out}_r{ip_resume}"
+                                _ip_rows = _collect_trial_results(prev_job, stage, _sc_ip, output_base=_ip_out)
                                 _ip_rows = [r for r in _ip_rows if r.get("best_mean_reward") is not None]
                                 if _ip_rows:
-                                    _ip_out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
-                                    ip_resume = prev_stage_data.get("resume_run", 0)
-                                    if ip_resume:
-                                        _ip_out = f"{_ip_out}_r{ip_resume}"
                                     for row in _ip_rows:
                                         row["model_path"] = f"{_ip_out}/{row['trial_id']}/models/best_model.zip"
                                     partial_rows = _dedup_trial_rows(partial_rows + _ip_rows)
@@ -337,11 +337,11 @@ def launch_sweep(args: argparse.Namespace) -> None:
             from environments.shared.config import load_stage_config as _load_stage_config
 
             stage_config = _load_stage_config(args.species, stage)
-            new_rows = _collect_trial_results(hpt_job, stage, stage_config)
 
             output_base = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
             if resume_run:
                 output_base = f"{output_base}_r{resume_run}"
+            new_rows = _collect_trial_results(hpt_job, stage, stage_config, output_base=output_base)
             for row in new_rows:
                 row["model_path"] = f"{output_base}/{row['trial_id']}/models/best_model.zip"
 
@@ -431,12 +431,12 @@ def launch_sweep(args: argparse.Namespace) -> None:
                     from environments.shared.config import load_stage_config as _lsc
 
                     _sc = _lsc(args.species, stage)
-                    _new_partial = _collect_trial_results(exc.hpt_job, stage, _sc)
+                    _out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
+                    if resume_run:
+                        _out = f"{_out}_r{resume_run}"
+                    _new_partial = _collect_trial_results(exc.hpt_job, stage, _sc, output_base=_out)
                     _new_partial = [r for r in _new_partial if r.get("best_mean_reward") is not None]
                     if _new_partial:
-                        _out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
-                        if resume_run:
-                            _out = f"{_out}_r{resume_run}"
                         for row in _new_partial:
                             row["model_path"] = f"{_out}/{row['trial_id']}/models/best_model.zip"
 
@@ -735,13 +735,13 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                             from environments.shared.config import load_stage_config as _lsc_ip
 
                             _sc_ip = _lsc_ip(args.species, stage)
-                            _ip_rows = _collect_trial_results(prev_job, stage, _sc_ip)
+                            _ip_out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
+                            ip_resume = in_progress_data.get("resume_run", 0)
+                            if ip_resume:
+                                _ip_out = f"{_ip_out}_r{ip_resume}"
+                            _ip_rows = _collect_trial_results(prev_job, stage, _sc_ip, output_base=_ip_out)
                             _ip_rows = [r for r in _ip_rows if r.get("best_mean_reward") is not None]
                             if _ip_rows:
-                                _ip_out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
-                                ip_resume = in_progress_data.get("resume_run", 0)
-                                if ip_resume:
-                                    _ip_out = f"{_ip_out}_r{ip_resume}"
                                 for row in _ip_rows:
                                     row["model_path"] = f"{_ip_out}/{row['trial_id']}/models/best_model.zip"
                                 partial_rows = _dedup_trial_rows(partial_rows + _ip_rows)
@@ -834,7 +834,6 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 from environments.shared.config import load_stage_config as _load_stage_config
 
                 stage_config = _load_stage_config(args.species, stage)
-                new_rows = _collect_trial_results(hpt_job, stage, stage_config)
 
                 # Tag new rows with model_path so _best_trial_model_path can
                 # locate the correct checkpoint even when trials span multiple
@@ -842,6 +841,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 output_base = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
                 if resume_run:
                     output_base = f"{output_base}_r{resume_run}"
+                new_rows = _collect_trial_results(hpt_job, stage, stage_config, output_base=output_base)
                 for row in new_rows:
                     row["model_path"] = f"{output_base}/{row['trial_id']}/models/best_model.zip"
 
@@ -947,15 +947,15 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                         from environments.shared.config import load_stage_config as _lsc
 
                         _sc = _lsc(args.species, stage)
-                        _new_partial = _collect_trial_results(exc.hpt_job, stage, _sc)
+                        # Tag each row with its model_path for correct
+                        # checkpoint resolution on resume.
+                        _out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
+                        if resume_run:
+                            _out = f"{_out}_r{resume_run}"
+                        _new_partial = _collect_trial_results(exc.hpt_job, stage, _sc, output_base=_out)
                         # Keep only trials that actually reported metrics
                         _new_partial = [r for r in _new_partial if r.get("best_mean_reward") is not None]
                         if _new_partial:
-                            # Tag each row with its model_path for correct
-                            # checkpoint resolution on resume.
-                            _out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
-                            if resume_run:
-                                _out = f"{_out}_r{resume_run}"
                             for row in _new_partial:
                                 row["model_path"] = f"{_out}/{row['trial_id']}/models/best_model.zip"
 

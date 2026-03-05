@@ -275,14 +275,7 @@ def _submit_stage_sweep(
     hpt_job = aiplatform.HyperparameterTuningJob(
         display_name=display_name,
         custom_job=custom_job,
-        metric_spec={
-            "best_mean_reward": "maximize",
-            "best_mean_episode_length": "maximize",
-            "last_mean_reward": "maximize",
-            "last_mean_episode_length": "maximize",
-            "best_mean_forward_vel": "maximize",
-            "best_mean_success_rate": "maximize",
-        },
+        metric_spec={"best_mean_reward": "maximize"},
         parameter_spec=parameter_spec,
         max_trial_count=trials,
         parallel_trial_count=parallel,
@@ -367,14 +360,7 @@ def _submit_stage_sweep(
             hpt_job = aiplatform.HyperparameterTuningJob(
                 display_name=display_name,
                 custom_job=custom_job,
-                metric_spec={
-                    "best_mean_reward": "maximize",
-                    "best_mean_episode_length": "maximize",
-                    "last_mean_reward": "maximize",
-                    "last_mean_episode_length": "maximize",
-                    "best_mean_forward_vel": "maximize",
-                    "best_mean_success_rate": "maximize",
-                },
+                metric_spec={"best_mean_reward": "maximize"},
                 parameter_spec=parameter_spec,
                 max_trial_count=trials,
                 parallel_trial_count=parallel,

@@ -1,6 +1,7 @@
 """Tests for the hyperparameter sweep tool's pure functions."""
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -258,58 +259,79 @@ def _make_mock_trial(trial_id, params=None, metrics=None):
     return trial
 
 
+def _write_trial_metrics(output_base, trial_id, metrics_dict):
+    """Write a metrics.json sidecar for a mock trial."""
+    import json
+
+    trial_dir = Path(output_base) / str(trial_id)
+    trial_dir.mkdir(parents=True, exist_ok=True)
+    with open(trial_dir / "metrics.json", "w") as f:
+        json.dump(metrics_dict, f)
+
+
 class TestCollectTrialResults:
-    def test_passing_trial(self):
+    def test_passing_trial(self, tmp_path):
         trial = _make_mock_trial(
             "1",
             params={"ppo_learning_rate": 0.0003},
-            metrics={"best_mean_reward": 150.0, "best_mean_episode_length": 500.0},
+            metrics={"best_mean_reward": 150.0},
         )
+        _write_trial_metrics(tmp_path, "1", {
+            "best_mean_reward": 150.0,
+            "best_mean_episode_length": 500.0,
+        })
         job = MagicMock()
         job.trials = [trial]
         stage_config = {"curriculum_kwargs": {"min_avg_reward": 100.0}}
 
-        rows = _collect_trial_results(job, 1, stage_config)
+        rows = _collect_trial_results(job, 1, stage_config, output_base=str(tmp_path))
         assert len(rows) == 1
         assert rows[0]["stage_passed"] is True
         assert rows[0]["best_mean_reward"] == 150.0
+        assert rows[0]["best_mean_episode_length"] == 500.0
 
-    def test_failing_trial_below_threshold(self):
+    def test_failing_trial_below_threshold(self, tmp_path):
         trial = _make_mock_trial(
             "2",
             metrics={"best_mean_reward": 50.0},
         )
+        _write_trial_metrics(tmp_path, "2", {"best_mean_reward": 50.0})
         job = MagicMock()
         job.trials = [trial]
         stage_config = {"curriculum_kwargs": {"min_avg_reward": 100.0}}
 
-        rows = _collect_trial_results(job, 1, stage_config)
+        rows = _collect_trial_results(job, 1, stage_config, output_base=str(tmp_path))
         assert rows[0]["stage_passed"] is False
 
-    def test_crashed_trial_no_metrics(self):
+    def test_crashed_trial_no_metrics(self, tmp_path):
         trial = _make_mock_trial("3")
         job = MagicMock()
         job.trials = [trial]
         stage_config = {"curriculum_kwargs": {}}
 
-        rows = _collect_trial_results(job, 1, stage_config)
+        rows = _collect_trial_results(job, 1, stage_config, output_base=str(tmp_path))
         assert rows[0]["stage_passed"] is False
         assert rows[0]["best_mean_reward"] is None
 
-    def test_no_thresholds_passes_with_valid_reward(self):
+    def test_no_thresholds_passes_with_valid_reward(self, tmp_path):
         trial = _make_mock_trial("4", metrics={"best_mean_reward": 10.0})
+        _write_trial_metrics(tmp_path, "4", {"best_mean_reward": 10.0})
         job = MagicMock()
         job.trials = [trial]
         stage_config = {"curriculum_kwargs": {}}
 
-        rows = _collect_trial_results(job, 3, stage_config)
+        rows = _collect_trial_results(job, 3, stage_config, output_base=str(tmp_path))
         assert rows[0]["stage_passed"] is True
 
-    def test_ep_length_threshold_checked(self):
+    def test_ep_length_threshold_checked(self, tmp_path):
         trial = _make_mock_trial(
             "5",
-            metrics={"best_mean_reward": 200.0, "best_mean_episode_length": 100.0},
+            metrics={"best_mean_reward": 200.0},
         )
+        _write_trial_metrics(tmp_path, "5", {
+            "best_mean_reward": 200.0,
+            "best_mean_episode_length": 100.0,
+        })
         job = MagicMock()
         job.trials = [trial]
         stage_config = {
@@ -319,17 +341,18 @@ class TestCollectTrialResults:
             }
         }
 
-        rows = _collect_trial_results(job, 1, stage_config)
+        rows = _collect_trial_results(job, 1, stage_config, output_base=str(tmp_path))
         assert rows[0]["stage_passed"] is False
 
-    def test_forward_vel_threshold_checked(self):
+    def test_forward_vel_threshold_checked(self, tmp_path):
         trial = _make_mock_trial(
             "6",
-            metrics={
-                "best_mean_reward": 200.0,
-                "best_mean_forward_vel": 0.5,
-            },
+            metrics={"best_mean_reward": 200.0},
         )
+        _write_trial_metrics(tmp_path, "6", {
+            "best_mean_reward": 200.0,
+            "best_mean_forward_vel": 0.5,
+        })
         job = MagicMock()
         job.trials = [trial]
         stage_config = {
@@ -339,7 +362,7 @@ class TestCollectTrialResults:
             }
         }
 
-        rows = _collect_trial_results(job, 2, stage_config)
+        rows = _collect_trial_results(job, 2, stage_config, output_base=str(tmp_path))
         assert rows[0]["stage_passed"] is False
 
 
