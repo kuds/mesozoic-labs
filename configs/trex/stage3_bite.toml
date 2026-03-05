@@ -3,8 +3,9 @@ name = "bite"
 description = "Sprint and bite prey with jaws"
 
 [env]
-forward_vel_weight = 1.0
-alive_bonus = 0.5                       # Increase from 0.1: maintain self-preservation during bite training
+forward_vel_weight = 0.5               # Halved from 1.0: prevent forward reward from dominating approach/bite signals
+alive_bonus = 0.05                     # Drastically reduced from 0.5: survival is learned in stages 1-2; high alive_bonus made biting net-negative (bite terminates episode, costing ~500 in future alive rewards vs 10.0 bonus)
+fall_penalty = -10.0                   # Proportional to reduced alive_bonus (0.05); default -100 is 2000x alive_bonus, making agent overly conservative about approaching prey
 energy_penalty_weight = 0.001
 tail_stability_weight = 0.02
 posture_weight = 0.1
@@ -13,8 +14,8 @@ gait_symmetry_weight = 0.0             # Disabled: formula rewards asymmetry, no
 smoothness_weight = 0.02
 heading_weight = 0.5                   # Match stage 2: face toward prey for bite
 lateral_penalty_weight = 0.3           # Match stage 2: penalize crab-walking toward prey
-bite_bonus = 10.0
-bite_approach_weight = 1.0
+bite_bonus = 50.0                      # 5x increase from 10.0: must outweigh opportunity cost of episode termination (~25 in lost future per-step rewards with reduced alive_bonus)
+bite_approach_weight = 3.0             # 3x increase from 1.0: stronger delta-based gradient toward prey
 prey_distance_range = [3.0, 8.0]
 prey_lateral_range = [-1.5, 1.5]
 max_episode_steps = 1000
@@ -27,8 +28,8 @@ batch_size = 256
 n_epochs = 10
 gamma = 0.995
 gae_lambda = 0.95
-clip_range = 0.1
-ent_coef = 0.001
+clip_range = 0.15                      # Widened from 0.1: allow larger policy updates to escape local optimum (survival-only behavior)
+ent_coef = 0.005                       # 5x increase from 0.001: more exploration needed to discover sparse bite reward
 
 [ppo.policy_kwargs]
 net_arch = [256, 256]

@@ -37,6 +37,7 @@ ent_coef = "auto"
 timesteps = 5000000
 min_avg_reward = 100.0
 min_avg_episode_length = 800
+min_avg_forward_vel = 0.2              # Gate on actual locomotion; without this, a standing-still policy passes on alive_bonus alone. Lower than raptor (0.4) and T-Rex (0.3) — Brachiosaurus is slower.
 required_consecutive = 3
 warmup_timesteps = 100000               # Timesteps to constrain policy updates while critic adapts (PPO only)
 warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change

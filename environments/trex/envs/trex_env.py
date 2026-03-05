@@ -112,6 +112,12 @@ class TRexEnv(BaseDinoEnv):
         self._prev_prey_distance: float | None = None
         self._prev_action: np.ndarray | None = None
 
+        # Cached initial direction to prey (set in _spawn_target).
+        # Used by forward-velocity and heading rewards so the "forward"
+        # reference direction stays fixed for the whole episode, preventing
+        # the reward from flipping sign when the T-Rex passes the prey.
+        self._initial_prey_dir_2d: np.ndarray = np.array([1.0, 0.0])
+
         super().__init__(
             model_path=model_path,
             render_mode=render_mode,
@@ -228,13 +234,21 @@ class TRexEnv(BaseDinoEnv):
         # 1. Forward velocity reward (toward prey) — normalized
         pelvis_pos = self.data.xpos[self.pelvis_id]
         prey_pos = self.data.mocap_pos[0]
+
+        # Use the cached initial direction so the "forward" reference stays
+        # fixed for the whole episode.  This prevents the reward from flipping
+        # sign when the T-Rex overshoots and passes the prey.
+        forward_ref_2d = self._initial_prey_dir_2d
+
+        # Keep the live direction available for rewards that genuinely need
+        # the current relative vector (approach shaping, observations).
         prey_dir_2d = prey_pos[:2] - pelvis_pos[:2]
         prey_dist_2d = np.linalg.norm(prey_dir_2d)
         if prey_dist_2d > 1e-6:
             prey_dir_2d = prey_dir_2d / prey_dist_2d
 
         vel_2d = self.data.qvel[0:2]
-        forward_vel = np.dot(vel_2d, prey_dir_2d)
+        forward_vel = np.dot(vel_2d, forward_ref_2d)
         forward_vel_norm = np.clip(forward_vel / self.forward_vel_max, -1.0, 1.0)
         info["forward_vel"] = forward_vel
         reward_forward = self.forward_vel_weight * forward_vel_norm
@@ -362,7 +376,8 @@ class TRexEnv(BaseDinoEnv):
         body_forward_len = np.linalg.norm(body_forward_2d)
         if body_forward_len > 1e-6:
             body_forward_2d = body_forward_2d / body_forward_len
-        heading_alignment = float(np.dot(body_forward_2d, prey_dir_2d))
+        # Uses the cached direction so heading reward doesn't flip after overshoot.
+        heading_alignment = float(np.dot(body_forward_2d, forward_ref_2d))
         reward_heading = self.heading_weight * heading_alignment
         info["heading_alignment"] = heading_alignment
         info["reward_heading"] = reward_heading
@@ -435,9 +450,10 @@ class TRexEnv(BaseDinoEnv):
             contact = self.data.contact[i]
             geom1, geom2 = contact.geom1, contact.geom2
 
-            # Success: head_bite contacted prey
-            if (geom1 == self.head_bite_geom_id and geom2 == self.prey_geom_id) or (
-                geom2 == self.head_bite_geom_id and geom1 == self.prey_geom_id
+            # Success: head_bite contacted prey (only terminate when biting is rewarded)
+            if self.bite_bonus > 0 and (
+                (geom1 == self.head_bite_geom_id and geom2 == self.prey_geom_id)
+                or (geom2 == self.head_bite_geom_id and geom1 == self.prey_geom_id)
             ):
                 info["termination_reason"] = "bite_success"
                 info["success"] = True
@@ -472,6 +488,14 @@ class TRexEnv(BaseDinoEnv):
 
         prey_pos = np.array([distance, lateral, 0.5])
         self.data.mocap_pos[0] = prey_pos
+
+        # Cache initial 2D direction to prey for stable reward computation.
+        # The T-Rex starts near the origin, so prey_pos[:2] ≈ the direction.
+        dir_2d = prey_pos[:2].copy()
+        dir_len = np.linalg.norm(dir_2d)
+        if dir_len > 1e-6:
+            dir_2d /= dir_len
+        self._initial_prey_dir_2d = dir_2d
 
         # Reset delta-based tracking (first step will produce zero deltas)
         self._prev_prey_distance = None
