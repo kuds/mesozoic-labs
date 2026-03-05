@@ -102,13 +102,15 @@ docker push ${IMAGE_URI}
 
 ### Test locally first
 
-Before pushing to the cloud, verify the container works:
+Before pushing to the cloud, verify the container works (use the `IMAGE_URI` variable from the build step above):
 
 ```bash
 docker run --rm ${IMAGE_URI} \
   environments/velociraptor/scripts/train_sb3.py \
   train --stage 1 --timesteps 1000
 ```
+
+> **Note:** If `IMAGE_URI` is not set, Docker will interpret the script path as the image name and fail with a "not found" error. Make sure you've exported `IMAGE_URI` as shown in the build step, or substitute it with the full image URI directly.
 
 ## 2. Submit a Training Job
 
