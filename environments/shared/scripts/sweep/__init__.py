@@ -50,6 +50,7 @@ __all__ = [
     "_is_per_stage",
     "_is_retryable_gcp_error",
     "_load_sweep_state",
+    "_normalize_accelerator_type",
     "_resolve_search_space",
     "_save_sweep_state",
     "_search_space_for_stage",
