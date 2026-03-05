@@ -300,7 +300,11 @@ def _submit_stage_sweep(
             hpt_job=hpt_job,
         ) from last_exc
 
-    logger.info("Job submitted: %s", hpt_job.resource_name)
+    try:
+        job_name = hpt_job.resource_name
+    except RuntimeError:
+        job_name = hpt_job.display_name
+    logger.info("Job submitted: %s", job_name)
     logger.info("Monitor at: https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs")
     logger.info("Results will be written to: gs://%s/sweeps/%s/stage%d/", bucket, species, stage)
     return hpt_job
