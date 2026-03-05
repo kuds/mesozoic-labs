@@ -468,6 +468,16 @@ def _report_hpt_metrics(
     )
 
     eval_npz_path = Path(log_path) / "evaluations.npz"
+    # GCS-fuse mounts can have stale metadata; retry a few times before
+    # giving up so we don't silently lose episode-length / last-reward
+    # metrics on Vertex AI workers.
+    if not eval_npz_path.exists():
+        import time as _time
+
+        for _attempt in range(3):
+            _time.sleep(2)
+            if eval_npz_path.exists():
+                break
     if eval_npz_path.exists():
         eval_data = _np.load(str(eval_npz_path))
         eval_rewards = eval_data["results"]
@@ -502,6 +512,13 @@ def _report_hpt_metrics(
             "HPT metric reported: last_mean_reward=%.4f, last_mean_episode_length=%.1f",
             last_mean_reward,
             last_mean_ep_length,
+        )
+    else:
+        logger.warning(
+            "evaluations.npz not found at %s — episode length and last-reward "
+            "metrics will not be reported. This may indicate a GCS-fuse write "
+            "issue or that no evaluations completed during training.",
+            eval_npz_path,
         )
 
     if stage >= 2:
