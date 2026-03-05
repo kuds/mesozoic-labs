@@ -27,6 +27,120 @@ def _is_retryable_gcp_error(exc: Exception) -> bool:
     return type(exc).__name__ in retryable_names
 
 
+def _state_name(state) -> str:
+    """Return the string name of a Vertex AI job state enum value."""
+    return state.name if hasattr(state, "name") else str(state)
+
+
+def _wait_for_job(
+    hpt_job,
+    aiplatform,
+    *,
+    poll_interval: int = 120,
+    timeout: float | None = None,
+):
+    """Poll a running HPT job until completion with progress logging.
+
+    Periodically refreshes the job state and logs trial progress, providing
+    visibility into multi-hour sweeps.  When *timeout* is set, raises
+    ``TimeoutError`` if the job hasn't finished within the given number of
+    seconds — the job continues running in the cloud and can be resumed.
+
+    Args:
+        hpt_job: A submitted ``HyperparameterTuningJob`` with a valid
+            ``resource_name``.
+        aiplatform: The ``google.cloud.aiplatform`` module, used to refresh
+            the job via ``HyperparameterTuningJob.get()``.
+        poll_interval: Seconds between status checks (default 120).
+        timeout: Maximum wall-clock seconds to wait.  ``None`` means wait
+            indefinitely.
+
+    Returns:
+        The refreshed job object with final trial data.
+
+    Raises:
+        _SweepJobFailed: If the job ends in a failed or cancelled state.
+        TimeoutError: If *timeout* is exceeded while the job is still running.
+    """
+    resource_name = hpt_job.resource_name
+    start = time.monotonic()
+
+    logger.info(
+        "Waiting for job %s (poll every %ds, timeout %s) …",
+        resource_name,
+        poll_interval,
+        f"{timeout / 3600:.1f}h" if timeout else "none",
+    )
+
+    # Check initial state — important for reconnection where the job may
+    # already be finished.
+    initial_state = _state_name(hpt_job.state)
+    if "SUCCEEDED" in initial_state:
+        logger.info("Job already completed successfully.")
+        return hpt_job
+    if "FAILED" in initial_state or "CANCELLED" in initial_state:
+        raise _SweepJobFailed(
+            f"Job {resource_name} already in terminal state {initial_state}",
+            hpt_job=hpt_job,
+        )
+
+    while True:
+        time.sleep(poll_interval)
+        elapsed = time.monotonic() - start
+        elapsed_min = elapsed / 60
+
+        # Refresh job state from Vertex AI
+        try:
+            refreshed = aiplatform.HyperparameterTuningJob.get(resource_name)
+        except Exception as exc:
+            logger.warning("Failed to refresh job state (will retry): %s", exc)
+            continue
+
+        state = _state_name(refreshed.state)
+
+        # Count trial progress
+        trials = getattr(refreshed, "trials", None) or []
+        n_total = len(trials)
+        n_completed = sum(1 for t in trials if t.final_measurement)
+
+        # Find best reward so far
+        best_so_far: float | None = None
+        for t in trials:
+            if t.final_measurement and t.final_measurement.metrics:
+                for m in t.final_measurement.metrics:
+                    if m.metric_id == "best_mean_reward":
+                        if best_so_far is None or m.value > best_so_far:
+                            best_so_far = m.value
+
+        reward_str = f"  best_reward={best_so_far:.4f}" if best_so_far is not None else ""
+        logger.info(
+            "  [%.0f min] state=%s | trials: %d/%d completed%s",
+            elapsed_min,
+            state,
+            n_completed,
+            n_total,
+            reward_str,
+        )
+
+        # Check terminal state
+        if "SUCCEEDED" in state:
+            logger.info("Job completed successfully after %.1f min.", elapsed_min)
+            return refreshed
+        if "FAILED" in state or "CANCELLED" in state:
+            raise _SweepJobFailed(
+                f"Job {resource_name} ended with state {state} after {elapsed_min:.1f} min",
+                hpt_job=refreshed,
+            )
+
+        # Check timeout
+        if timeout is not None and elapsed > timeout:
+            raise TimeoutError(
+                f"Job {resource_name} timed out after {elapsed_min:.1f} min "
+                f"(limit: {timeout / 60:.1f} min). The job is still running in "
+                f"the cloud — re-run with --resume to reconnect."
+            )
+
+
 def _submit_stage_sweep(
     *,
     aiplatform,
@@ -47,7 +161,6 @@ def _submit_stage_sweep(
     load_path: str | None = None,
     fixed_trial_args: list[str] | None = None,
     wandb: bool = False,
-    sync: bool = False,
     resume_run: int = 0,
 ):
     """Build and submit a single-stage HPT job. Returns the job object.
@@ -124,7 +237,7 @@ def _submit_stage_sweep(
     custom_job = aiplatform.CustomJob(
         display_name=f"{display_name}-trial",
         worker_pool_specs=worker_pool_specs,
-        base_output_dir=f"gs://{bucket}/sweeps/{species}/stage{stage}",
+        base_output_dir=f"gs://{bucket}/sweeps/{species}/stage{stage}{'_r' + str(resume_run) if resume_run else ''}",
     )
 
     hpt_job = aiplatform.HyperparameterTuningJob(
@@ -141,7 +254,7 @@ def _submit_stage_sweep(
     last_exc: Exception | None = None
     for attempt in range(len(_RETRY_DELAYS) + 1):
         try:
-            hpt_job.run(sync=sync)
+            hpt_job.run(sync=False)
             break  # success
         except Exception as exc:
             # Only retry on transient / quota errors from the Google API.

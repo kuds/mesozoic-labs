@@ -20,9 +20,38 @@ from .search_space import (
     _settings_for_stage,
 )
 from .state import _load_sweep_state, _save_sweep_state
-from .submit import _is_retryable_gcp_error, _submit_stage_sweep
+from .submit import _is_retryable_gcp_error, _submit_stage_sweep, _wait_for_job
 
 logger = logging.getLogger(__name__)
+
+
+def _dedup_trial_rows(rows: list[dict]) -> list[dict]:
+    """Deduplicate trial rows by ``trial_id``, keeping the last occurrence.
+
+    When merging partial rows from multiple resume cycles, the same
+    ``trial_id`` can appear more than once (e.g. if Vertex AI re-uses an
+    ID across separate HPT jobs, or if rows are accidentally appended
+    twice).  Later entries are assumed to have more complete data, so
+    the last occurrence wins.
+    """
+    seen: dict[str, dict] = {}
+    for row in rows:
+        tid = row.get("trial_id")
+        if tid is not None:
+            seen[str(tid)] = row
+        else:
+            # Rows without a trial_id are kept unconditionally (shouldn't
+            # happen in practice, but don't silently drop data).
+            seen[f"_no_id_{id(row)}"] = row
+    deduped = list(seen.values())
+    if len(deduped) < len(rows):
+        logger.info(
+            "Deduplicated trial rows: %d → %d (removed %d duplicates)",
+            len(rows),
+            len(deduped),
+            len(rows) - len(deduped),
+        )
+    return deduped
 
 
 def launch_sweep(args: argparse.Namespace) -> None:
@@ -66,7 +95,6 @@ def launch_sweep(args: argparse.Namespace) -> None:
         search_space=search_space,
         load_path=args.load,
         wandb=args.wandb,
-        sync=False,  # fire-and-forget for single-stage launch
     )
 
 
@@ -132,20 +160,62 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     # Determine the net_arch HPT key for this algorithm (e.g. "ppo_net_arch")
     net_arch_key = f"{args.algorithm}_net_arch"
 
+    # ── CLI args snapshot (persisted in state for reproducibility) ───────────
+    cli_args_snapshot: dict = {
+        "trials": args.trials,
+        "parallel": args.parallel,
+        "n_envs": args.n_envs,
+        "machine_type": args.machine_type,
+        "accelerator_type": args.accelerator_type,
+        "accelerator_count": args.accelerator_count,
+        "timesteps_stage1": args.timesteps_stage1,
+        "timesteps_stage2": args.timesteps_stage2,
+        "timesteps_stage3": args.timesteps_stage3,
+        "trials_stage1": args.trials_stage1,
+        "trials_stage2": args.trials_stage2,
+        "trials_stage3": args.trials_stage3,
+        "parallel_stage1": args.parallel_stage1,
+        "parallel_stage2": args.parallel_stage2,
+        "parallel_stage3": args.parallel_stage3,
+        "image": args.image,
+        "bucket": args.bucket,
+        "project": args.project,
+        "location": args.location,
+        "force_continue": args.force_continue,
+        "stage_timeout": getattr(args, "stage_timeout", None),
+        "poll_interval": getattr(args, "poll_interval", 120),
+    }
+
     # ── Resume: restore state from a previous (possibly interrupted) run ─────
     completed_stages: set[int] = set()
     partial_stages: dict[int, dict] = {}
+    in_progress_stages: dict[int, dict] = {}
     sweep_state: dict = {
         "species": args.species,
         "algorithm": args.algorithm,
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "cli_args": cli_args_snapshot,
         "stages": {},
     }
     logger.info("Resume mode: %s", "enabled" if args.resume else "disabled")
     if args.resume:
         prev_state = _load_sweep_state(args.species, args.algorithm, bucket=args.bucket, project=args.project)
         if prev_state and prev_state.get("stages"):
+            # Warn if CLI args differ from the previous run
+            prev_cli = prev_state.get("cli_args", {})
+            if prev_cli:
+                changed = {
+                    k for k in set(prev_cli) | set(cli_args_snapshot) if prev_cli.get(k) != cli_args_snapshot.get(k)
+                }
+                if changed:
+                    logger.warning(
+                        "CLI args differ from previous run on: %s. Current values will be used.",
+                        ", ".join(sorted(changed)),
+                    )
+
             sweep_state = prev_state
+            sweep_state["cli_args"] = cli_args_snapshot  # always store current args
+
             for stg_key, stg_data in prev_state["stages"].items():
                 stg_num = int(stg_key)
                 if stg_data.get("status") == "completed":
@@ -157,6 +227,10 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                         fixed_trial_args = stg_data["fixed_trial_args"]
                     if stg_data.get("trial_rows"):
                         all_rows.extend(stg_data["trial_rows"])
+                elif stg_data.get("status") == "in_progress":
+                    in_progress_stages[stg_num] = stg_data
+                    if stg_data.get("fixed_trial_args"):
+                        fixed_trial_args = stg_data["fixed_trial_args"]
                 elif stg_data.get("status") == "partial":
                     partial_stages[stg_num] = stg_data
                     if stg_data.get("fixed_trial_args"):
@@ -167,6 +241,13 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     sorted(completed_stages),
                     load_path,
                 )
+            if in_progress_stages:
+                for ips, ipd in sorted(in_progress_stages.items()):
+                    logger.info(
+                        "Resuming sweep: stage %d has an in-progress job: %s",
+                        ips,
+                        ipd.get("job_resource_name", "unknown"),
+                    )
             if partial_stages:
                 for ps, pd in sorted(partial_stages.items()):
                     logger.info(
@@ -223,11 +304,92 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         )
         logger.info("=" * 60)
 
+        poll_interval = getattr(args, "poll_interval", 120)
+        stage_timeout = getattr(args, "stage_timeout", None)
+
         try:
             remaining_trials = trials - len(partial_rows)
             job_resource_name = None
+            hpt_job = None
+            reconnected = False
 
-            if remaining_trials > 0:
+            # ── Reconnect to an in-progress job from a previous run ───────
+            in_progress_data = in_progress_stages.get(stage)
+            if in_progress_data and in_progress_data.get("job_resource_name"):
+                prev_resource = in_progress_data["job_resource_name"]
+                logger.info("Attempting to reconnect to previous job: %s", prev_resource)
+
+                # Restore partial rows from runs that preceded the in-progress
+                # job so they aren't lost across multiple resume cycles.
+                prior_partial = in_progress_data.get("prior_partial_rows", [])
+                if prior_partial:
+                    partial_rows = _dedup_trial_rows(partial_rows + prior_partial)
+                    remaining_trials = trials - len(partial_rows)
+                    logger.info(
+                        "Restored %d prior partial rows from earlier runs.",
+                        len(prior_partial),
+                    )
+
+                try:
+                    prev_job = aiplatform.HyperparameterTuningJob.get(prev_resource)
+                    prev_state_name = prev_job.state.name if hasattr(prev_job.state, "name") else str(prev_job.state)
+
+                    if "SUCCEEDED" in prev_state_name:
+                        logger.info("Previous job already completed successfully.")
+                        hpt_job = prev_job
+                        job_resource_name = prev_resource
+                        reconnected = True
+                    elif any(s in prev_state_name for s in ("RUNNING", "QUEUED", "PENDING")):
+                        logger.info("Previous job still running (state=%s) — resuming poll.", prev_state_name)
+                        hpt_job = _wait_for_job(
+                            prev_job,
+                            aiplatform,
+                            poll_interval=poll_interval,
+                            timeout=stage_timeout,
+                        )
+                        job_resource_name = prev_resource
+                        reconnected = True
+                    else:
+                        # Failed/cancelled — collect partial results
+                        logger.warning(
+                            "Previous job in state %s — collecting partial results.",
+                            prev_state_name,
+                        )
+                        try:
+                            from environments.shared.config import load_stage_config as _lsc_ip
+
+                            _sc_ip = _lsc_ip(args.species, stage)
+                            _ip_rows = _collect_trial_results(prev_job, stage, _sc_ip)
+                            _ip_rows = [r for r in _ip_rows if r.get("best_mean_reward") is not None]
+                            if _ip_rows:
+                                _ip_out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
+                                ip_resume = in_progress_data.get("resume_run", 0)
+                                if ip_resume:
+                                    _ip_out = f"{_ip_out}_r{ip_resume}"
+                                for row in _ip_rows:
+                                    row["model_path"] = f"{_ip_out}/{row['trial_id']}/models/best_model.zip"
+                                partial_rows = _dedup_trial_rows(partial_rows + _ip_rows)
+                                remaining_trials = trials - len(partial_rows)
+                                resume_run = ip_resume + 1
+                                logger.info(
+                                    "Recovered %d trials from previous in-progress job (%d total partial).",
+                                    len(_ip_rows),
+                                    len(partial_rows),
+                                )
+                        except Exception as ip_collect_exc:
+                            logger.warning(
+                                "Could not collect partial results from previous job: %s",
+                                ip_collect_exc,
+                            )
+                except Exception as reconnect_exc:
+                    logger.warning(
+                        "Could not reconnect to previous job %s: %s. Will submit a new job.",
+                        prev_resource,
+                        reconnect_exc,
+                    )
+
+            # ── Submit new job if needed ───────────────────────────────────
+            if not reconnected and remaining_trials > 0:
                 if partial_rows:
                     logger.info(
                         "Resuming stage %d: %d trials recovered from previous run, %d remaining.",
@@ -255,12 +417,41 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     load_path=load_path,
                     fixed_trial_args=fixed_trial_args,
                     wandb=args.wandb,
-                    sync=True,  # block until this stage's sweep is done
                     resume_run=resume_run,
                 )
                 job_resource_name = getattr(hpt_job, "resource_name", None)
 
-                # Collect per-trial results and append to the running list
+                # Save in-progress state immediately so the job can be
+                # reconnected if the orchestrator is interrupted.
+                # Include any partial_rows recovered from earlier runs so
+                # they survive across multiple resume cycles.
+                sweep_state["stages"][str(stage)] = {
+                    "status": "in_progress",
+                    "job_resource_name": job_resource_name,
+                    "load_path": load_path,
+                    "fixed_trial_args": fixed_trial_args,
+                    "resume_run": resume_run,
+                    "prior_partial_rows": partial_rows,
+                    "submitted_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }
+                _save_sweep_state(
+                    sweep_state,
+                    args.species,
+                    args.algorithm,
+                    bucket=args.bucket,
+                    project=args.project,
+                )
+
+                # Poll until the job completes
+                hpt_job = _wait_for_job(
+                    hpt_job,
+                    aiplatform,
+                    poll_interval=poll_interval,
+                    timeout=stage_timeout,
+                )
+
+            # ── Collect results ────────────────────────────────────────────
+            if hpt_job is not None:
                 from environments.shared.config import load_stage_config as _load_stage_config
 
                 stage_config = _load_stage_config(args.species, stage)
@@ -275,8 +466,8 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 for row in new_rows:
                     row["model_path"] = f"{output_base}/{row['trial_id']}/models/best_model.zip"
 
-                stage_rows = partial_rows + new_rows
-            else:
+                stage_rows = _dedup_trial_rows(partial_rows + new_rows)
+            elif remaining_trials <= 0:
                 # All requested trials were already completed in a previous
                 # partial run — no need to submit a new job.
                 logger.info(
@@ -284,6 +475,8 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     stage,
                     len(partial_rows),
                 )
+                stage_rows = list(partial_rows)
+            else:
                 stage_rows = list(partial_rows)
 
             all_rows.extend(stage_rows)
@@ -366,7 +559,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             )
 
         except Exception as exc:
-            if isinstance(exc, SweepStageError) or _is_retryable_gcp_error(exc):
+            if isinstance(exc, (SweepStageError, TimeoutError)) or _is_retryable_gcp_error(exc):
                 # ── Partial trial recovery ────────────────────────────────
                 # Try to salvage completed trials from the failed job so they
                 # can be reused on the next ``--resume`` run.
@@ -387,7 +580,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                             for row in _new_partial:
                                 row["model_path"] = f"{_out}/{row['trial_id']}/models/best_model.zip"
 
-                            all_partial = partial_rows + _new_partial
+                            all_partial = _dedup_trial_rows(partial_rows + _new_partial)
                             sweep_state["stages"][str(stage)] = {
                                 "status": "partial",
                                 "job_resource_name": getattr(exc.hpt_job, "resource_name", None),
