@@ -25,6 +25,33 @@ from .submit import _is_retryable_gcp_error, _submit_stage_sweep, _wait_for_job
 logger = logging.getLogger(__name__)
 
 
+def _resolve_credentials(project: str | None = None):
+    """Resolve Google Cloud credentials using Application Default Credentials.
+
+    Cloud Shell's metadata service can return malformed responses that break
+    the default compute-engine credential flow.  Explicitly calling
+    ``google.auth.default()`` uses ADC, which correctly picks up the
+    user's ``gcloud auth`` session in Cloud Shell and service-account
+    credentials on Vertex AI workers.
+
+    Returns:
+        A ``(credentials, project)`` tuple suitable for passing to
+        ``aiplatform.init()``.
+    """
+    import google.auth
+
+    credentials, adc_project = google.auth.default(
+        scopes=["https://www.googleapis.com/auth/cloud-platform"],
+    )
+    resolved_project = project or adc_project
+    if resolved_project is None:
+        raise RuntimeError(
+            "Could not determine GCP project.  Pass --project explicitly or "
+            "set the GOOGLE_CLOUD_PROJECT / GCLOUD_PROJECT environment variable."
+        )
+    return credentials, resolved_project
+
+
 def _dedup_trial_rows(rows: list[dict]) -> list[dict]:
     """Deduplicate trial rows by ``trial_id``, keeping the last occurrence.
 
@@ -67,10 +94,13 @@ def launch_sweep(args: argparse.Namespace) -> None:
         logger.error("google-cloud-aiplatform is not installed.\nInstall it with:  pip install google-cloud-aiplatform")
         sys.exit(1)
 
+    credentials, project = _resolve_credentials(args.project)
+
     aiplatform.init(
-        project=args.project,
+        project=project,
         location=args.location,
         staging_bucket=f"gs://{args.bucket}",
+        credentials=credentials,
     )
 
     # Load search space: inline JSON > file > algorithm default
@@ -126,10 +156,13 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         logger.error("google-cloud-aiplatform is not installed.\nInstall it with:  pip install google-cloud-aiplatform")
         sys.exit(1)
 
+    credentials, project = _resolve_credentials(args.project)
+
     aiplatform.init(
-        project=args.project,
+        project=project,
         location=args.location,
         staging_bucket=f"gs://{args.bucket}",
+        credentials=credentials,
     )
 
     # Load search space: inline JSON > file > algorithm default
