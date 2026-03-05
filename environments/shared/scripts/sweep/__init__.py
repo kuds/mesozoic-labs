@@ -36,7 +36,7 @@ from .state import (
     _save_sweep_state,
     _sweep_state_local_path,
 )
-from .submit import _is_retryable_gcp_error, _submit_stage_sweep
+from .submit import _is_retryable_gcp_error, _normalize_accelerator_type, _submit_stage_sweep
 from .trial import _hpt_arg_to_override, run_trial
 
 __all__ = [
@@ -50,6 +50,7 @@ __all__ = [
     "_is_per_stage",
     "_is_retryable_gcp_error",
     "_load_sweep_state",
+    "_normalize_accelerator_type",
     "_resolve_search_space",
     "_save_sweep_state",
     "_search_space_for_stage",

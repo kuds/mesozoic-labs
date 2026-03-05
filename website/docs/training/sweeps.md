@@ -166,6 +166,8 @@ python -m environments.shared.scripts.sweep launch \
   --accelerator-type None
 ```
 
+Short accelerator aliases are accepted: `T4` → `NVIDIA_TESLA_T4`, `V100` → `NVIDIA_TESLA_V100`, `A100` → `NVIDIA_TESLA_A100`, `L4` → `NVIDIA_L4`. Use `None` for CPU-only.
+
 This runs 5 trials (3 in parallel) at 100K steps each. Stage 1 (balance) is CPU-bound and doesn't need a GPU. Once you're confident the pipeline works, scale up to 20 trials at 500K steps with `--search-space-file configs/sweep_ppo.json`.
 
 ### Full Stage 1 sweep

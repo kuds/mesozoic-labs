@@ -14,6 +14,7 @@ from environments.shared.scripts.sweep import (
     _is_per_stage,
     _is_retryable_gcp_error,
     _load_sweep_state,
+    _normalize_accelerator_type,
     _resolve_search_space,
     _save_sweep_state,
     _search_space_for_stage,
@@ -23,6 +24,37 @@ from environments.shared.scripts.sweep import (
     _SweepJobFailed,
     write_results_csv,
 )
+
+# ── _normalize_accelerator_type ──────────────────────────────────────────────
+
+
+class TestNormalizeAcceleratorType:
+    """Short aliases like 'T4' are expanded to full Vertex AI enum labels."""
+
+    def test_short_alias_t4(self):
+        assert _normalize_accelerator_type("T4") == "NVIDIA_TESLA_T4"
+
+    def test_short_alias_case_insensitive(self):
+        assert _normalize_accelerator_type("t4") == "NVIDIA_TESLA_T4"
+        assert _normalize_accelerator_type("v100") == "NVIDIA_TESLA_V100"
+
+    def test_full_name_passthrough(self):
+        assert _normalize_accelerator_type("NVIDIA_TESLA_T4") == "NVIDIA_TESLA_T4"
+
+    def test_none_string_returns_none(self):
+        assert _normalize_accelerator_type("None") is None
+        assert _normalize_accelerator_type("none") is None
+        assert _normalize_accelerator_type("NONE") is None
+
+    def test_unknown_type_passthrough(self):
+        assert _normalize_accelerator_type("TPU_V3") == "TPU_V3"
+
+    def test_l4_alias(self):
+        assert _normalize_accelerator_type("L4") == "NVIDIA_L4"
+
+    def test_a100_alias(self):
+        assert _normalize_accelerator_type("A100") == "NVIDIA_TESLA_A100"
+
 
 # ── _hpt_arg_to_override ────────────────────────────────────────────────────
 
