@@ -4,7 +4,7 @@ sidebar_position: 4
 
 # Hyperparameter Sweeps
 
-This page explains how to find the best hyperparameters for each curriculum stage without running one job per combination.
+This page explains how to find the best hyperparameters for each curriculum stage without running one job per combination. For GCP setup, Docker image building, and machine type selection, see [Training on Vertex AI](vertex-ai.md).
 
 ## The Short Answer: One Command
 
@@ -110,6 +110,95 @@ python -m environments.shared.scripts.sweep launch \
 ```
 
 `launch` submits the job and returns immediately (non-blocking). Use this when you want to monitor the job interactively or script your own stage-chaining logic.
+
+## Running a Stage 1 Trial
+
+This section walks through running a trial sweep specifically for **Stage 1 (Balance)** — useful for validating your setup or exploring Stage 1 hyperparameters before committing to a full three-stage sweep.
+
+### Stage 1 search space
+
+The `configs/sweep_ppo.json` file defines these Stage 1-specific parameters:
+
+| Parameter | Type | Range / Values | Description |
+|---|---|---|---|
+| `ppo_learning_rate` | log-uniform | `1e-5` to `3e-4` | Learning rate |
+| `ppo_ent_coef` | log-uniform | `1e-4` to `0.05` | Entropy coefficient |
+| `ppo_batch_size` | discrete | `64, 128, 256, 512` | Mini-batch size |
+| `ppo_gamma` | uniform | `0.97` to `0.999` | Discount factor |
+| `ppo_n_steps` | discrete | `1024, 2048, 4096` | Steps per rollout |
+| `ppo_net_arch` | categorical | `small, medium, large, deep, tapered, deep_tapered` | Network architecture preset |
+| `env_alive_bonus` | uniform | `1.0` to `5.0` | Reward for staying alive |
+| `env_posture_weight` | uniform | `0.5` to `3.0` | Upright posture reward weight |
+| `env_nosedive_weight` | uniform | `0.5` to `3.0` | Falling-forward penalty weight |
+
+Stage 1 sweeps balance-specific reward weights (`alive_bonus`, `posture_weight`, `nosedive_weight`) and the network architecture. The winning `ppo_net_arch` is automatically propagated to Stages 2 and 3 when using `launch-all`.
+
+### How a trial executes
+
+When Vertex AI launches each HPT trial worker, this is what happens end-to-end:
+
+1. **Vertex AI injects hyperparameters** as CLI args (e.g. `--ppo_learning_rate 0.0003 --env_alive_bonus 2.5`).
+2. **`trial.py` converts** HPT-style args to `--override` format (`ppo.learning_rate=0.0003`, `env.alive_bonus=2.5`).
+3. **Stage config is loaded** from `configs/<species>/stage1_balance.toml` with overrides applied.
+4. **Training runs** for the configured timesteps. Every `--eval-freq` steps (default: 10,000), the agent is evaluated and `best_mean_reward` is tracked.
+5. **`cloudml-hypertune` reports** `best_mean_reward` back to Vertex AI when training finishes.
+6. **Vertex AI updates** its Bayesian model and selects hyperparameters for the next trial.
+
+Each trial writes checkpoints to `gs://YOUR_BUCKET/sweeps/<species>/stage1/<trial_id>/models/best_model.zip`.
+
+### Budget-friendly trial run
+
+For an initial test with minimal cost (~$0.35 total), run a small sweep on CPU-only machines:
+
+```bash
+python -m environments.shared.scripts.sweep launch \
+  --species velociraptor \
+  --stage 1 \
+  --algorithm ppo \
+  --timesteps 100000 \
+  --n-envs 4 \
+  --project ${PROJECT_ID} \
+  --bucket YOUR_BUCKET_NAME \
+  --image ${IMAGE_URI} \
+  --trials 5 \
+  --parallel 3 \
+  --machine-type n1-standard-8 \
+  --accelerator-type None
+```
+
+This runs 5 trials (3 in parallel) at 100K steps each. Stage 1 (balance) is CPU-bound and doesn't need a GPU. Once you're confident the pipeline works, scale up to 20 trials at 500K steps with `--search-space-file configs/sweep_ppo.json`.
+
+### Full Stage 1 sweep
+
+```bash
+python -m environments.shared.scripts.sweep launch \
+  --species velociraptor \
+  --stage 1 \
+  --algorithm ppo \
+  --project ${PROJECT_ID} \
+  --bucket YOUR_BUCKET_NAME \
+  --image ${IMAGE_URI} \
+  --search-space-file configs/sweep_ppo.json \
+  --machine-type n1-standard-8 \
+  --accelerator-type NVIDIA_TESLA_T4
+```
+
+The file provides all job settings (trials, timesteps, parallel count) and search space parameters for Stage 1. CLI flags override file settings if both are provided.
+
+### Retrieving Stage 1 results
+
+```bash
+# Download the results CSV
+gsutil cp gs://YOUR_BUCKET/sweeps/velociraptor/_stage1_results.csv ./
+
+# List completed trial checkpoints
+gsutil ls gs://YOUR_BUCKET/sweeps/velociraptor/stage1/
+
+# Download the best model from a specific trial
+gsutil cp gs://YOUR_BUCKET/sweeps/velociraptor/stage1/TRIAL_ID/models/best_model.zip ./
+```
+
+For prerequisites (GCP project, Docker image, GCS bucket), see [Training on Vertex AI](vertex-ai.md#prerequisites).
 
 ## Default Search Spaces
 
