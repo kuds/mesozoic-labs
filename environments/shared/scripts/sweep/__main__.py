@@ -53,14 +53,35 @@ def _build_parser() -> argparse.ArgumentParser:
     launch.add_argument("--species", required=True, choices=["velociraptor", "brachiosaurus", "trex"])
     launch.add_argument("--stage", type=int, choices=[1, 2, 3], default=1, help="Curriculum stage to sweep")
     launch.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
-    launch.add_argument("--timesteps", type=int, default=500000, help="Training timesteps per trial")
-    launch.add_argument("--n-envs", type=int, default=4, help="Parallel environments per trial")
+    launch.add_argument(
+        "--timesteps",
+        type=int,
+        default=None,
+        help="Training timesteps per trial (default: 500k, or from search-space file)",
+    )
+    launch.add_argument(
+        "--n-envs",
+        type=int,
+        default=None,
+        help="Parallel environments per trial (default: 4, or from search-space file)",
+    )
     launch.add_argument("--project", required=True, help="GCP project ID")
     launch.add_argument("--location", default="us-central1", help="GCP region")
     launch.add_argument("--bucket", required=True, help="GCS bucket name (without gs:// prefix)")
     launch.add_argument("--image", required=True, help="Docker image URI for trial workers")
-    launch.add_argument("--trials", type=int, default=20, help="Maximum number of trials")
-    launch.add_argument("--parallel", type=int, default=5, help="Parallel trials running at once")
+    launch.add_argument(
+        "--trials", type=int, default=None, help="Maximum number of trials (default: 20, or from search-space file)"
+    )
+    launch.add_argument(
+        "--parallel",
+        type=int,
+        default=None,
+        help="Parallel trials running at once (default: 5, or from search-space file)",
+    )
+    launch.add_argument("--eval-freq", type=int, default=None, help="Eval frequency per trial (default: 10000)")
+    launch.add_argument(
+        "--save-freq", type=int, default=None, help="Checkpoint save frequency per trial (default: 50000)"
+    )
     launch.add_argument("--machine-type", default="n1-standard-8", help="Vertex AI machine type")
     launch.add_argument(
         "--accelerator-type",
@@ -179,6 +200,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     launch_all.add_argument(
         "--timesteps-stage3", type=int, default=None, help="Timesteps per Stage 3 trial (default: 1.5M)"
+    )
+    launch_all.add_argument("--eval-freq", type=int, default=None, help="Eval frequency per trial (default: 10000)")
+    launch_all.add_argument(
+        "--save-freq", type=int, default=None, help="Checkpoint save frequency per trial (default: 50000)"
     )
     launch_all.add_argument("--machine-type", default="n1-standard-8", help="Vertex AI machine type")
     launch_all.add_argument(

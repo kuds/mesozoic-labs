@@ -116,6 +116,21 @@ def launch_sweep(args: argparse.Namespace) -> None:
     resolved = _resolve_search_space(args.search_space, args.search_space_file, args.algorithm)
     search_space = _search_space_for_stage(resolved, stage)
 
+    # Resolve job settings: CLI args (if set) > search-space file > hardcoded defaults.
+    # The argparse defaults are None so we can detect when a flag was explicitly passed.
+    file_settings = _settings_for_stage(resolved, stage)
+    _HARDCODED_DEFAULTS = {"trials": 20, "timesteps": 500_000, "parallel": 5, "n_envs": 4}
+    for key, hardcoded in _HARDCODED_DEFAULTS.items():
+        cli_val = getattr(args, key)
+        if cli_val is not None:
+            continue  # CLI wins
+        file_val = file_settings.get(key)
+        if file_val is not None:
+            logger.info("Using %s=%s from search-space file", key, file_val)
+            setattr(args, key, file_val)
+        else:
+            setattr(args, key, hardcoded)
+
     # ── State key used for single-stage launches ──────────────────────────
     # We store state under a stage-specific key so multiple single-stage
     # launches for different stages don't overwrite each other.
@@ -284,6 +299,8 @@ def launch_sweep(args: argparse.Namespace) -> None:
                 search_space=search_space,
                 load_path=args.load,
                 wandb=args.wandb,
+                eval_freq=getattr(args, "eval_freq", None),
+                save_freq=getattr(args, "save_freq", None),
                 resume_run=resume_run,
                 restart_job_on_worker_restart=getattr(args, "restart_job_on_worker_restart", False),
             )
@@ -382,7 +399,10 @@ def launch_sweep(args: argparse.Namespace) -> None:
         csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}_stage{stage}.csv")
         write_results_csv(stage_rows, csv_path)
 
-        # Upload CSV to GCS
+        # Generate sweep visualisation graphs
+        plot_sweep_results(csv_path, args.species, args.algorithm)
+
+        # Upload CSV and graphs to GCS
         try:
             from google.cloud import storage as _gcs
 
@@ -391,8 +411,15 @@ def launch_sweep(args: argparse.Namespace) -> None:
             gcs_csv_path = f"sweeps/{args.species}/{csv_path.name}"
             _gcs_bucket.blob(gcs_csv_path).upload_from_filename(str(csv_path))
             logger.info("Sweep CSV uploaded to: gs://%s/%s", args.bucket, gcs_csv_path)
+
+            for graph_name in ("sweep_trial_metrics.png", "sweep_hyperparameter_analysis.png"):
+                graph_path = csv_path.parent / graph_name
+                if graph_path.exists():
+                    gcs_graph_path = f"sweeps/{args.species}/{graph_name}"
+                    _gcs_bucket.blob(gcs_graph_path).upload_from_filename(str(graph_path))
+                    logger.info("Sweep graph uploaded to: gs://%s/%s", args.bucket, gcs_graph_path)
         except Exception as exc:
-            logger.warning("Failed to upload sweep CSV to GCS: %s. Local copy at: %s", exc, csv_path)
+            logger.warning("Failed to upload sweep results to GCS: %s. Local copy at: %s", exc, csv_path)
 
         logger.info("Stage %d sweep complete.", stage)
 
@@ -766,6 +793,8 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     load_path=load_path,
                     fixed_trial_args=fixed_trial_args,
                     wandb=args.wandb,
+                    eval_freq=getattr(args, "eval_freq", None),
+                    save_freq=getattr(args, "save_freq", None),
                     resume_run=resume_run,
                     restart_job_on_worker_restart=getattr(args, "restart_job_on_worker_restart", False),
                 )

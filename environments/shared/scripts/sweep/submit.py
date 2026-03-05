@@ -178,6 +178,8 @@ def _submit_stage_sweep(
     load_path: str | None = None,
     fixed_trial_args: list[str] | None = None,
     wandb: bool = False,
+    eval_freq: int | None = None,
+    save_freq: int | None = None,
     resume_run: int = 0,
     restart_job_on_worker_restart: bool = False,
 ):
@@ -222,6 +224,10 @@ def _submit_stage_sweep(
         "--output-dir",
         output_base,
     ]
+    if eval_freq is not None:
+        trial_args += ["--eval-freq", str(eval_freq)]
+    if save_freq is not None:
+        trial_args += ["--save-freq", str(save_freq)]
     if load_path:
         trial_args += ["--load", load_path]
     if fixed_trial_args:
