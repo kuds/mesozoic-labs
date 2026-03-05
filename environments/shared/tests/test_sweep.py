@@ -1227,3 +1227,129 @@ class TestCollectResultsFromDisk:
         assert stages.count(1) == 2
         assert stages.count(2) == 1
         assert stages.count(3) == 1
+
+
+# ── collect_results_from_disk with gs:// URIs ──────────────────────────
+
+
+def _make_mock_gcs_blobs(file_map):
+    """Build mock GCS blobs from a dict of {blob_name: content_bytes}.
+
+    Returns a list of mock blob objects whose ``download_to_filename``
+    writes the content to the requested local path.
+    """
+    blobs = []
+    for name, content in file_map.items():
+        blob = MagicMock()
+        blob.name = name
+
+        def _download(local_path, _content=content):
+            Path(local_path).parent.mkdir(parents=True, exist_ok=True)
+            Path(local_path).write_bytes(_content)
+
+        blob.download_to_filename = _download
+        blobs.append(blob)
+    return blobs
+
+
+class TestCollectResultsFromDiskGCS:
+    def _gcs_modules(self, mock_storage):
+        """Build sys.modules dict for mocking google.cloud.storage."""
+        mock_gc = MagicMock()
+        mock_gc.storage = mock_storage
+        return {
+            "google": MagicMock(),
+            "google.cloud": mock_gc,
+            "google.cloud.storage": mock_storage,
+        }
+
+    def test_gs_uri_downloads_and_collects(self):
+        """gs:// URI triggers GCS download and produces correct rows."""
+        metrics_1 = json.dumps({"best_mean_reward": 150.0}).encode()
+        metrics_2 = json.dumps({"best_mean_reward": 200.0}).encode()
+        stage_cfg = json.dumps({"curriculum": {"min_avg_reward": 100.0}}).encode()
+
+        file_map = {
+            "sweeps/velociraptor/stage1/1/metrics.json": metrics_1,
+            "sweeps/velociraptor/stage1/stage_config.json": stage_cfg,
+            "sweeps/velociraptor/stage2/1/metrics.json": metrics_2,
+            # Also include a non-JSON file that should be skipped
+            "sweeps/velociraptor/stage1/1/best_model.zip": b"fake_model",
+        }
+        mock_blobs = _make_mock_gcs_blobs(file_map)
+
+        mock_storage = MagicMock()
+        mock_client = MagicMock()
+        mock_bucket = MagicMock()
+        mock_storage.Client.return_value = mock_client
+        mock_client.bucket.return_value = mock_bucket
+        mock_bucket.list_blobs.return_value = mock_blobs
+
+        with patch.dict("sys.modules", self._gcs_modules(mock_storage)):
+            rows = collect_results_from_disk(
+                "gs://my-bucket/sweeps/velociraptor",
+                species="velociraptor",
+            )
+
+        assert len(rows) == 2
+        stage_nums = {r["stage"] for r in rows}
+        assert stage_nums == {1, 2}
+        # Stage 1 has a stage_config.json with threshold
+        s1_row = [r for r in rows if r["stage"] == 1][0]
+        assert s1_row["reward_threshold"] == 100.0
+        assert s1_row["stage_passed"] is True
+
+    def test_gs_uri_cleans_up_tempdir_on_success(self):
+        """Temp directory is cleaned up after successful collection."""
+        metrics = json.dumps({"best_mean_reward": 100.0}).encode()
+        file_map = {"prefix/stage1/1/metrics.json": metrics}
+        mock_blobs = _make_mock_gcs_blobs(file_map)
+
+        mock_storage = MagicMock()
+        mock_client = MagicMock()
+        mock_bucket = MagicMock()
+        mock_storage.Client.return_value = mock_client
+        mock_client.bucket.return_value = mock_bucket
+        mock_bucket.list_blobs.return_value = mock_blobs
+
+        created_tmpdirs = []
+        original_mkdtemp = __import__("tempfile").mkdtemp
+
+        def tracking_mkdtemp(**kwargs):
+            d = original_mkdtemp(**kwargs)
+            created_tmpdirs.append(d)
+            return d
+
+        with (
+            patch.dict("sys.modules", self._gcs_modules(mock_storage)),
+            patch("tempfile.mkdtemp", side_effect=tracking_mkdtemp),
+        ):
+            rows = collect_results_from_disk("gs://bucket/prefix")
+
+        assert len(rows) == 1
+        # Temp dir should have been cleaned up
+        assert len(created_tmpdirs) == 1
+        assert not Path(created_tmpdirs[0]).exists()
+
+    def test_gs_uri_cleans_up_tempdir_on_error(self):
+        """Temp directory is cleaned up even if GCS download fails."""
+        mock_storage = MagicMock()
+        mock_storage.Client.side_effect = Exception("auth failed")
+
+        created_tmpdirs = []
+        original_mkdtemp = __import__("tempfile").mkdtemp
+
+        def tracking_mkdtemp(**kwargs):
+            d = original_mkdtemp(**kwargs)
+            created_tmpdirs.append(d)
+            return d
+
+        with (
+            patch.dict("sys.modules", self._gcs_modules(mock_storage)),
+            patch("tempfile.mkdtemp", side_effect=tracking_mkdtemp),
+        ):
+            with pytest.raises(Exception, match="auth failed"):
+                collect_results_from_disk("gs://bucket/prefix")
+
+        assert len(created_tmpdirs) == 1
+        assert not Path(created_tmpdirs[0]).exists()

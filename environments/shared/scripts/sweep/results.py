@@ -410,6 +410,70 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
         logger.info("No varying numeric hyperparameters found — skipping hyperparameter analysis graph")
 
 
+def _download_gcs_results(gcs_uri: str, local_dir: Path) -> Path:
+    """Download ``metrics.json`` and ``stage_config.json`` from a GCS URI.
+
+    Mirrors the remote directory structure into *local_dir* so the
+    local-path logic in :func:`collect_results_from_disk` can process
+    the files without modification.
+
+    Args:
+        gcs_uri: A ``gs://bucket/prefix`` URI pointing at the root
+            directory containing ``stage*`` sub-directories.
+        local_dir: Local directory to download files into.
+
+    Returns:
+        Path to the local mirror root (same as *local_dir*).
+
+    Raises:
+        ImportError: If ``google-cloud-storage`` is not installed.
+        ValueError: If *gcs_uri* is not a valid ``gs://`` URI.
+    """
+    from google.cloud import storage as _gcs
+
+    if not gcs_uri.startswith("gs://"):
+        raise ValueError(f"Not a gs:// URI: {gcs_uri}")
+
+    # Parse gs://bucket/prefix
+    without_scheme = gcs_uri[len("gs://"):]
+    slash_idx = without_scheme.find("/")
+    if slash_idx == -1:
+        bucket_name = without_scheme
+        prefix = ""
+    else:
+        bucket_name = without_scheme[:slash_idx]
+        prefix = without_scheme[slash_idx + 1:].rstrip("/")
+
+    client = _gcs.Client()
+    bucket = client.bucket(bucket_name)
+
+    blob_prefix = f"{prefix}/" if prefix else ""
+    target_filenames = {"metrics.json", "stage_config.json"}
+    downloaded = 0
+
+    for blob in bucket.list_blobs(prefix=blob_prefix):
+        # Only download the JSON files we care about.
+        basename = blob.name.rsplit("/", 1)[-1] if "/" in blob.name else blob.name
+        if basename not in target_filenames:
+            continue
+
+        # Compute the relative path under the prefix.
+        rel_path = blob.name[len(blob_prefix):] if blob_prefix else blob.name
+        local_path = local_dir / rel_path
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        blob.download_to_filename(str(local_path))
+        downloaded += 1
+
+    logger.info(
+        "Downloaded %d file(s) from gs://%s/%s to %s",
+        downloaded,
+        bucket_name,
+        prefix,
+        local_dir,
+    )
+    return local_dir
+
+
 def collect_results_from_disk(
     output_dir: str | Path,
     species: str | None = None,
@@ -420,6 +484,10 @@ def collect_results_from_disk(
     This is the offline equivalent of :func:`_collect_trial_results` — it
     reads ``metrics.json`` sidecars directly from the filesystem without
     needing a Vertex AI HPT job object.
+
+    Supports both local paths and ``gs://`` URIs.  When a ``gs://`` URI
+    is provided, the relevant JSON files are downloaded to a temporary
+    directory which is cleaned up automatically.
 
     Expected directory layout (one of)::
 
@@ -435,7 +503,8 @@ def collect_results_from_disk(
     curriculum thresholds and evaluate pass/fail status.
 
     Args:
-        output_dir: Root directory containing stage sub-directories.
+        output_dir: Root directory containing stage sub-directories, or a
+            ``gs://bucket/prefix`` URI.
         species: Species name (for logging only; optional).
         stages: Restrict collection to these stage numbers.  Defaults to
             all ``stage*`` sub-directories found.
@@ -443,7 +512,43 @@ def collect_results_from_disk(
     Returns:
         List of result dicts compatible with :func:`write_results_csv`.
     """
-    output_dir = Path(output_dir)
+    import tempfile
+
+    # Handle gs:// URIs by downloading to a temp directory.
+    cleanup_tempdir = None
+    output_dir_str = str(output_dir)
+    if output_dir_str.startswith("gs://"):
+        tmpdir = tempfile.mkdtemp(prefix="sweep_collect_")
+        cleanup_tempdir = tmpdir
+        try:
+            output_dir = _download_gcs_results(output_dir_str, Path(tmpdir))
+        except Exception:
+            import shutil
+
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            raise
+    else:
+        output_dir = Path(output_dir)
+
+    try:
+        return _collect_results_local(output_dir, species, stages)
+    finally:
+        if cleanup_tempdir is not None:
+            import shutil
+
+            shutil.rmtree(cleanup_tempdir, ignore_errors=True)
+
+
+def _collect_results_local(
+    output_dir: Path,
+    species: str | None = None,
+    stages: list[int] | None = None,
+) -> list[dict]:
+    """Collect results from a local directory tree.
+
+    This is the internal implementation used by :func:`collect_results_from_disk`
+    after any GCS download has been completed.
+    """
     if not output_dir.is_dir():
         logger.error("Output directory does not exist: %s", output_dir)
         return []
