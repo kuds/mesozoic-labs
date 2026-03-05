@@ -61,6 +61,8 @@ def _build_parser() -> argparse.ArgumentParser:
     launch.add_argument("--image", required=True, help="Docker image URI for trial workers")
     launch.add_argument("--trials", type=int, default=20, help="Maximum number of trials")
     launch.add_argument("--parallel", type=int, default=5, help="Parallel trials running at once")
+    launch.add_argument("--eval-freq", type=int, default=None, help="Eval frequency per trial (default: 10000)")
+    launch.add_argument("--save-freq", type=int, default=None, help="Checkpoint save frequency per trial (default: 50000)")
     launch.add_argument("--machine-type", default="n1-standard-8", help="Vertex AI machine type")
     launch.add_argument(
         "--accelerator-type",
@@ -180,6 +182,8 @@ def _build_parser() -> argparse.ArgumentParser:
     launch_all.add_argument(
         "--timesteps-stage3", type=int, default=None, help="Timesteps per Stage 3 trial (default: 1.5M)"
     )
+    launch_all.add_argument("--eval-freq", type=int, default=None, help="Eval frequency per trial (default: 10000)")
+    launch_all.add_argument("--save-freq", type=int, default=None, help="Checkpoint save frequency per trial (default: 50000)")
     launch_all.add_argument("--machine-type", default="n1-standard-8", help="Vertex AI machine type")
     launch_all.add_argument(
         "--accelerator-type",
