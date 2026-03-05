@@ -2,7 +2,8 @@
 
 This package provides three modes:
 
-  **launch**      — Submit a Vertex AI Hyperparameter Tuning job for one stage.
+  **launch**      — Submit a Vertex AI Hyperparameter Tuning job for one stage
+                    and poll until completion (supports ``--resume``).
   **launch-all**  — Submit Stage 1, 2, and 3 HPT jobs sequentially.
   **trial**       — Entry point used by each Vertex AI HPT trial worker.
 

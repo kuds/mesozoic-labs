@@ -86,6 +86,10 @@ def launch_sweep(args: argparse.Namespace) -> None:
 
     Each trial runs ``sweep.py trial`` inside the Docker container. The
     HPT service injects the trial's parameter values as additional CLI args.
+
+    The job is submitted and then polled until completion (or ``--stage-timeout``
+    is reached).  State is persisted to a local JSON file and GCS so the job
+    can be reconnected to later by re-running the same command with ``--resume``.
     """
     try:
         from google.cloud import aiplatform
@@ -103,29 +107,339 @@ def launch_sweep(args: argparse.Namespace) -> None:
         credentials=credentials,
     )
 
+    stage = args.stage
+    poll_interval = getattr(args, "poll_interval", 120)
+    stage_timeout = getattr(args, "stage_timeout", None)
+    resume = getattr(args, "resume", True)
+
     # Load search space: inline JSON > file > algorithm default
     resolved = _resolve_search_space(args.search_space, args.search_space_file, args.algorithm)
-    search_space = _search_space_for_stage(resolved, args.stage)
+    search_space = _search_space_for_stage(resolved, stage)
 
-    _submit_stage_sweep(
-        aiplatform=aiplatform,
-        hpt_module=hpt,
-        species=args.species,
-        stage=args.stage,
-        algorithm=args.algorithm,
-        timesteps=args.timesteps,
-        n_envs=args.n_envs,
-        trials=args.trials,
-        parallel=args.parallel,
-        bucket=args.bucket,
-        image=args.image,
-        machine_type=args.machine_type,
-        accelerator_type=args.accelerator_type,
-        accelerator_count=args.accelerator_count,
-        search_space=search_space,
-        load_path=args.load,
-        wandb=args.wandb,
-    )
+    # ── State key used for single-stage launches ──────────────────────────
+    # We store state under a stage-specific key so multiple single-stage
+    # launches for different stages don't overwrite each other.
+    state_stage_key = str(stage)
+
+    # ── CLI args snapshot ─────────────────────────────────────────────────
+    cli_args_snapshot: dict = {
+        "mode": "launch",
+        "stage": stage,
+        "trials": args.trials,
+        "parallel": args.parallel,
+        "timesteps": args.timesteps,
+        "n_envs": args.n_envs,
+        "machine_type": args.machine_type,
+        "accelerator_type": args.accelerator_type,
+        "accelerator_count": args.accelerator_count,
+        "image": args.image,
+        "bucket": args.bucket,
+        "project": args.project,
+        "location": args.location,
+    }
+
+    sweep_state: dict = {
+        "species": args.species,
+        "algorithm": args.algorithm,
+        "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "cli_args": cli_args_snapshot,
+        "stages": {},
+    }
+
+    partial_rows: list[dict] = []
+    resume_run = 0
+    hpt_job = None
+    job_resource_name = None
+    reconnected = False
+
+    # ── Resume: restore state from a previous run ─────────────────────────
+    if resume:
+        prev_state = _load_sweep_state(args.species, args.algorithm, bucket=args.bucket, project=args.project)
+        if prev_state and prev_state.get("stages"):
+            prev_stage_data = prev_state["stages"].get(state_stage_key)
+            if prev_stage_data:
+                status = prev_stage_data.get("status")
+
+                if status == "completed":
+                    logger.info(
+                        "Stage %d already completed (best_reward=%.4f). Nothing to do. "
+                        "Use --no-resume to start fresh.",
+                        stage,
+                        prev_stage_data.get("best_mean_reward", 0),
+                    )
+                    return
+
+                if status == "in_progress" and prev_stage_data.get("job_resource_name"):
+                    prev_resource = prev_stage_data["job_resource_name"]
+                    logger.info("Attempting to reconnect to previous job: %s", prev_resource)
+
+                    # Restore partial rows from earlier runs
+                    prior_partial = prev_stage_data.get("prior_partial_rows", [])
+                    if prior_partial:
+                        partial_rows = list(prior_partial)
+                        logger.info("Restored %d prior partial rows.", len(prior_partial))
+
+                    try:
+                        prev_job = aiplatform.HyperparameterTuningJob.get(prev_resource)
+                        prev_state_name = prev_job.state.name if hasattr(prev_job.state, "name") else str(prev_job.state)
+
+                        if "SUCCEEDED" in prev_state_name:
+                            logger.info("Previous job already completed successfully.")
+                            hpt_job = prev_job
+                            job_resource_name = prev_resource
+                            reconnected = True
+                        elif any(s in prev_state_name for s in ("RUNNING", "QUEUED", "PENDING")):
+                            logger.info("Previous job still running (state=%s) — resuming poll.", prev_state_name)
+                            hpt_job = _wait_for_job(
+                                prev_job,
+                                aiplatform,
+                                poll_interval=poll_interval,
+                                timeout=stage_timeout,
+                            )
+                            job_resource_name = prev_resource
+                            reconnected = True
+                        else:
+                            # Failed/cancelled — collect partial results
+                            logger.warning(
+                                "Previous job in state %s — collecting partial results.",
+                                prev_state_name,
+                            )
+                            try:
+                                from environments.shared.config import load_stage_config as _lsc_ip
+
+                                _sc_ip = _lsc_ip(args.species, stage)
+                                _ip_rows = _collect_trial_results(prev_job, stage, _sc_ip)
+                                _ip_rows = [r for r in _ip_rows if r.get("best_mean_reward") is not None]
+                                if _ip_rows:
+                                    _ip_out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
+                                    ip_resume = prev_stage_data.get("resume_run", 0)
+                                    if ip_resume:
+                                        _ip_out = f"{_ip_out}_r{ip_resume}"
+                                    for row in _ip_rows:
+                                        row["model_path"] = f"{_ip_out}/{row['trial_id']}/models/best_model.zip"
+                                    partial_rows = _dedup_trial_rows(partial_rows + _ip_rows)
+                                    resume_run = ip_resume + 1
+                                    logger.info(
+                                        "Recovered %d trials from previous job (%d total partial).",
+                                        len(_ip_rows),
+                                        len(partial_rows),
+                                    )
+                            except Exception as ip_collect_exc:
+                                logger.warning(
+                                    "Could not collect partial results from previous job: %s",
+                                    ip_collect_exc,
+                                )
+                    except Exception as reconnect_exc:
+                        logger.warning(
+                            "Could not reconnect to previous job %s: %s. Will submit a new job.",
+                            prev_resource,
+                            reconnect_exc,
+                        )
+
+                elif status == "partial":
+                    partial_rows = [
+                        r for r in prev_stage_data.get("trial_rows", []) if r.get("best_mean_reward") is not None
+                    ]
+                    if partial_rows:
+                        resume_run = prev_stage_data.get("resume_run", 0) + 1
+                        logger.info(
+                            "Resuming stage %d: %d partial trials recovered from previous run.",
+                            stage,
+                            len(partial_rows),
+                        )
+
+            # Preserve state for other stages so we don't clobber them
+            sweep_state = prev_state
+            sweep_state["cli_args"] = cli_args_snapshot
+
+    remaining_trials = args.trials - len(partial_rows)
+
+    # ── Submit new job if needed ──────────────────────────────────────────
+    try:
+        if not reconnected and remaining_trials > 0:
+            if partial_rows:
+                logger.info(
+                    "Stage %d: %d trials recovered, %d remaining.",
+                    stage,
+                    len(partial_rows),
+                    remaining_trials,
+                )
+
+            hpt_job = _submit_stage_sweep(
+                aiplatform=aiplatform,
+                hpt_module=hpt,
+                species=args.species,
+                stage=stage,
+                algorithm=args.algorithm,
+                timesteps=args.timesteps,
+                n_envs=args.n_envs,
+                trials=remaining_trials,
+                parallel=args.parallel,
+                bucket=args.bucket,
+                image=args.image,
+                machine_type=args.machine_type,
+                accelerator_type=args.accelerator_type,
+                accelerator_count=args.accelerator_count,
+                search_space=search_space,
+                load_path=args.load,
+                wandb=args.wandb,
+                resume_run=resume_run,
+            )
+            job_resource_name = getattr(hpt_job, "resource_name", None)
+
+            # Save in-progress state immediately so the job can be
+            # reconnected if the process is interrupted.
+            sweep_state["stages"][state_stage_key] = {
+                "status": "in_progress",
+                "job_resource_name": job_resource_name,
+                "load_path": args.load,
+                "resume_run": resume_run,
+                "prior_partial_rows": partial_rows,
+                "submitted_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+            _save_sweep_state(
+                sweep_state,
+                args.species,
+                args.algorithm,
+                bucket=args.bucket,
+                project=args.project,
+            )
+
+            # Poll until the job completes
+            hpt_job = _wait_for_job(
+                hpt_job,
+                aiplatform,
+                poll_interval=poll_interval,
+                timeout=stage_timeout,
+            )
+
+        # ── Collect results ───────────────────────────────────────────────
+        if hpt_job is not None:
+            from environments.shared.config import load_stage_config as _load_stage_config
+
+            stage_config = _load_stage_config(args.species, stage)
+            new_rows = _collect_trial_results(hpt_job, stage, stage_config)
+
+            output_base = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
+            if resume_run:
+                output_base = f"{output_base}_r{resume_run}"
+            for row in new_rows:
+                row["model_path"] = f"{output_base}/{row['trial_id']}/models/best_model.zip"
+
+            stage_rows = _dedup_trial_rows(partial_rows + new_rows)
+        elif remaining_trials <= 0:
+            logger.info(
+                "Stage %d: all %d trials already completed in previous run.",
+                stage,
+                len(partial_rows),
+            )
+            stage_rows = list(partial_rows)
+        else:
+            stage_rows = list(partial_rows)
+
+        # Identify the best trial
+        best_row: dict | None = None
+        best_model_path: str | None = None
+        try:
+            best_model_path, best_row = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
+        except SweepStageError:
+            # Fall back to best trial regardless of gate status
+            try:
+                best_model_path, best_row = _best_trial_model_path_any(stage_rows, args.bucket, args.species, stage)
+            except SweepStageError:
+                logger.warning("No trials reported a valid reward for stage %d.", stage)
+
+        if best_row is not None:
+            logger.info(
+                "Stage %d best trial: id=%s  reward=%.4f  passed=%s",
+                stage,
+                best_row["trial_id"],
+                best_row.get("best_mean_reward", 0),
+                best_row.get("stage_passed", False),
+            )
+
+        # Save completed state
+        sweep_state["stages"][state_stage_key] = {
+            "status": "completed",
+            "job_resource_name": job_resource_name,
+            "best_trial_id": best_row["trial_id"] if best_row else None,
+            "best_mean_reward": best_row.get("best_mean_reward") if best_row else None,
+            "best_model_path": best_model_path,
+            "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "trial_rows": stage_rows,
+        }
+        _save_sweep_state(
+            sweep_state,
+            args.species,
+            args.algorithm,
+            bucket=args.bucket,
+            project=args.project,
+        )
+
+        # Write results CSV
+        csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}_stage{stage}.csv")
+        write_results_csv(stage_rows, csv_path)
+
+        # Upload CSV to GCS
+        try:
+            from google.cloud import storage as _gcs
+
+            _gcs_client = _gcs.Client(project=args.project)
+            _gcs_bucket = _gcs_client.bucket(args.bucket)
+            gcs_csv_path = f"sweeps/{args.species}/{csv_path.name}"
+            _gcs_bucket.blob(gcs_csv_path).upload_from_filename(str(csv_path))
+            logger.info("Sweep CSV uploaded to: gs://%s/%s", args.bucket, gcs_csv_path)
+        except Exception as exc:
+            logger.warning("Failed to upload sweep CSV to GCS: %s. Local copy at: %s", exc, csv_path)
+
+        logger.info("Stage %d sweep complete.", stage)
+
+    except Exception as exc:
+        if isinstance(exc, (SweepStageError, TimeoutError)) or _is_retryable_gcp_error(exc):
+            # Partial trial recovery
+            if isinstance(exc, _SweepJobFailed) and exc.hpt_job is not None:
+                try:
+                    from environments.shared.config import load_stage_config as _lsc
+
+                    _sc = _lsc(args.species, stage)
+                    _new_partial = _collect_trial_results(exc.hpt_job, stage, _sc)
+                    _new_partial = [r for r in _new_partial if r.get("best_mean_reward") is not None]
+                    if _new_partial:
+                        _out = f"/gcs/{args.bucket}/sweeps/{args.species}/stage{stage}"
+                        if resume_run:
+                            _out = f"{_out}_r{resume_run}"
+                        for row in _new_partial:
+                            row["model_path"] = f"{_out}/{row['trial_id']}/models/best_model.zip"
+
+                        all_partial = _dedup_trial_rows(partial_rows + _new_partial)
+                        sweep_state["stages"][state_stage_key] = {
+                            "status": "partial",
+                            "job_resource_name": getattr(exc.hpt_job, "resource_name", None),
+                            "trial_rows": all_partial,
+                            "resume_run": resume_run,
+                        }
+                        logger.info(
+                            "Recovered %d completed trials from failed job (total partial: %d).",
+                            len(_new_partial),
+                            len(all_partial),
+                        )
+                except Exception as collect_exc:
+                    logger.warning("Could not collect partial trial results: %s", collect_exc)
+
+            logger.error(
+                "Stage %d failed: %s. Saving progress — re-run the same command to resume.",
+                stage,
+                exc,
+            )
+            _save_sweep_state(
+                sweep_state,
+                args.species,
+                args.algorithm,
+                bucket=args.bucket,
+                project=args.project,
+            )
+            sys.exit(1)
+        raise
 
 
 def launch_all_stages(args: argparse.Namespace) -> None:
