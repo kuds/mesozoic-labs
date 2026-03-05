@@ -11,7 +11,7 @@ This page explains how to find the best hyperparameters for each curriculum stag
 Yes — there is a single command that sweeps hyperparameters across **all three curriculum stages** end-to-end:
 
 ```bash
-python environments/shared/scripts/sweep.py launch-all \
+python -m environments.shared.scripts.sweep launch-all \
   --species velociraptor --algorithm ppo \
   --project YOUR_GCP_PROJECT \
   --bucket YOUR_GCS_BUCKET \
@@ -62,7 +62,7 @@ docker push ${IMAGE_URI}
 ### 2. Launch the all-stages sweep
 
 ```bash
-python environments/shared/scripts/sweep.py launch-all \
+python -m environments.shared.scripts.sweep launch-all \
   --species velociraptor --algorithm ppo \
   --project YOUR_GCP_PROJECT \
   --bucket YOUR_GCS_BUCKET \
@@ -100,7 +100,7 @@ Because `launch-all` runs synchronously (each stage blocks until the previous is
 If you want to sweep only one stage — for example, to re-sweep Stage 2 after finding better Stage 1 weights — use `launch` instead:
 
 ```bash
-python environments/shared/scripts/sweep.py launch \
+python -m environments.shared.scripts.sweep launch \
   --species velociraptor --stage 2 --algorithm ppo \
   --project YOUR_GCP_PROJECT \
   --bucket YOUR_GCS_BUCKET \
@@ -140,7 +140,7 @@ There are two ways to customise the search space: inline JSON or a JSON file.
 Pass a JSON string to `--search-space` to override the defaults. This applies the same search space to all stages:
 
 ```bash
-python environments/shared/scripts/sweep.py launch-all \
+python -m environments.shared.scripts.sweep launch-all \
   --species trex --algorithm ppo \
   --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
   --trials 30 --parallel 5 \
@@ -157,7 +157,7 @@ python environments/shared/scripts/sweep.py launch-all \
 Use `--search-space-file` to load the search space from a JSON file. The file can define different parameters per stage using `"stage1"`, `"stage2"`, `"stage3"` top-level keys:
 
 ```bash
-python environments/shared/scripts/sweep.py launch-all \
+python -m environments.shared.scripts.sweep launch-all \
   --species trex --algorithm ppo \
   --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
   --trials 20 --trials-stage1 10 --parallel 5 \
@@ -178,33 +178,46 @@ Example per-stage file (`configs/sweep_ppo.json`):
     "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
     "ppo_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
     "ppo_n_steps":       {"type": "discrete", "values": [1024, 2048, 4096]},
-    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep"]},
-    "env_alive_bonus":   {"type": "double", "min": 1.0, "max": 5.0, "scale": "linear"}
+    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep", "tapered", "deep_tapered"]},
+    "env_alive_bonus":   {"type": "double", "min": 1.0, "max": 5.0, "scale": "linear"},
+    "env_posture_weight":  {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"},
+    "env_nosedive_weight": {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"}
   },
   "stage2": {
     "trials": 20,
     "timesteps": 1000000,
     "parallel": 5,
     "n_envs": 4,
-    "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
-    "ppo_ent_coef":      {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
-    "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
-    "ppo_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
-    "ppo_n_steps":       {"type": "discrete", "values": [1024, 2048, 4096]},
-    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep"]},
-    "env_alive_bonus":   {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"}
+    "ppo_learning_rate":            {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
+    "ppo_ent_coef":                 {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
+    "ppo_batch_size":               {"type": "discrete", "values": [64, 128, 256, 512]},
+    "ppo_gamma":                    {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
+    "ppo_n_steps":                  {"type": "discrete", "values": [1024, 2048, 4096]},
+    "env_alive_bonus":              {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"},
+    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [50000, 100000, 200000, 300000]},
+    "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
+    "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.005, "max": 0.05, "scale": "log"},
+    "curriculum_ramp_timesteps":    {"type": "discrete", "values": [200000, 500000, 1000000, 2000000]},
+    "curriculum_ramp_start_value":  {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"}
   },
   "stage3": {
     "trials": 20,
     "timesteps": 1500000,
     "parallel": 5,
     "n_envs": 4,
-    "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
-    "ppo_ent_coef":      {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
-    "ppo_batch_size":    {"type": "discrete", "values": [64, 128, 256, 512]},
-    "ppo_gamma":         {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
-    "ppo_n_steps":       {"type": "discrete", "values": [1024, 2048, 4096]},
-    "ppo_net_arch":      {"type": "categorical", "values": ["small", "medium", "large", "deep"]}
+    "ppo_learning_rate":            {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
+    "ppo_ent_coef":                 {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
+    "ppo_batch_size":               {"type": "discrete", "values": [64, 128, 256, 512]},
+    "ppo_gamma":                    {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
+    "ppo_n_steps":                  {"type": "discrete", "values": [1024, 2048, 4096]},
+    "env_strike_bonus":             {"type": "double", "min": 10.0, "max": 100.0, "scale": "log"},
+    "env_strike_approach_weight":   {"type": "double", "min": 1.0, "max": 5.0, "scale": "linear"},
+    "env_strike_proximity_weight":  {"type": "double", "min": 0.1, "max": 1.0, "scale": "linear"},
+    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [50000, 100000, 200000, 300000]},
+    "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
+    "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.005, "max": 0.05, "scale": "log"},
+    "curriculum_ramp_timesteps":    {"type": "discrete", "values": [200000, 500000, 1000000]},
+    "curriculum_ramp_start_value":  {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"}
   }
 }
 ```
@@ -222,14 +235,14 @@ CLI flags always override file settings. This means you can set your baseline co
 
 ```bash
 # File says trials=10 for stage 1, but override to 15 from the CLI
-python environments/shared/scripts/sweep.py launch-all \
+python -m environments.shared.scripts.sweep launch-all \
   --species trex --algorithm ppo \
   --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
   --search-space-file configs/sweep_ppo.json \
   --trials-stage1 15
 ```
 
-Notice that `env_alive_bonus` is swept in stages 1-2 (where it's a meaningful reward signal) but omitted from stage 3 (where the bite/strike bonus dominates). A flat file (no `stageN` keys) applies the same space to all stages.
+Notice that each stage sweeps different reward signals: Stage 1 sweeps `env_alive_bonus`, `env_posture_weight`, and `env_nosedive_weight` (the key balance rewards), Stage 2 sweeps `env_alive_bonus` alongside curriculum schedule parameters, and Stage 3 replaces those with `env_strike_bonus`, `env_strike_approach_weight`, and `env_strike_proximity_weight` (where the strike reward dominates). `ppo_net_arch` is only swept in Stage 1 — the winning architecture is automatically propagated to stages 2 and 3. A flat file (no `stageN` keys) applies the same space to all stages.
 
 Pre-built search space files for PPO and SAC are included in the repo at `configs/sweep_ppo.json` and `configs/sweep_sac.json`.
 
@@ -253,7 +266,7 @@ Run a single trial locally to verify the setup before burning cloud credits:
 
 ```bash
 # Quick smoke-test: 10 000 steps, 1 env, specific hyperparameters
-python environments/shared/scripts/sweep.py trial \
+python -m environments.shared.scripts.sweep trial \
   --species velociraptor --stage 1 --algorithm ppo \
   --timesteps 10000 --n-envs 1 \
   --ppo_learning_rate 1e-4 --ppo_ent_coef 0.02 --ppo_batch_size 128
@@ -281,7 +294,7 @@ The `N.section.key=value` format targets a single stage; plain `section.key=valu
 Add `--wandb` to log all trials to Weights & Biases. Each trial appears as a separate run so you can compare them side-by-side on the W&B dashboard:
 
 ```bash
-python environments/shared/scripts/sweep.py launch-all \
+python -m environments.shared.scripts.sweep launch-all \
   --species velociraptor --algorithm ppo \
   --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
   --trials 20 --parallel 5 \
@@ -341,13 +354,13 @@ For a full `launch-all` (3 stages at 500k/1M/1.5M steps per trial, 20 trials eac
 
 ```bash
 # First run — gets interrupted during Stage 2
-python environments/shared/scripts/sweep.py launch-all \
+python -m environments.shared.scripts.sweep launch-all \
     --species velociraptor --algorithm ppo \
     --project MY_PROJECT --bucket MY_BUCKET --image IMAGE_URI \
     --trials 20 --parallel 5
 
 # Re-run — Stage 1 is skipped, resumes from Stage 2
-python environments/shared/scripts/sweep.py launch-all \
+python -m environments.shared.scripts.sweep launch-all \
     --species velociraptor --algorithm ppo \
     --project MY_PROJECT --bucket MY_BUCKET --image IMAGE_URI \
     --trials 20 --parallel 5
@@ -358,7 +371,7 @@ State is saved to both a local file (`sweep_state_<species>_<algorithm>.json`) a
 To **start fresh** and ignore any saved state, pass `--no-resume`:
 
 ```bash
-python environments/shared/scripts/sweep.py launch-all \
+python -m environments.shared.scripts.sweep launch-all \
     --species velociraptor --algorithm ppo \
     --project MY_PROJECT --bucket MY_BUCKET --image IMAGE_URI \
     --trials 20 --parallel 5 --no-resume
