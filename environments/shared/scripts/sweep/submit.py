@@ -300,10 +300,24 @@ def _submit_stage_sweep(
             hpt_job=hpt_job,
         ) from last_exc
 
-    try:
-        job_name = hpt_job.resource_name
-    except RuntimeError:
-        job_name = display_name
+    # run(sync=False) starts the API call in a background thread.
+    # Wait for the resource to actually be created before returning,
+    # otherwise the script may exit and kill the background thread.
+    _RESOURCE_CREATION_TIMEOUT = 120  # seconds
+    job_name = display_name
+    for _poll in range(_RESOURCE_CREATION_TIMEOUT):
+        try:
+            job_name = hpt_job.resource_name
+            break
+        except RuntimeError:
+            time.sleep(1)
+    else:
+        raise _SweepJobFailed(
+            f"Job '{display_name}' was not created within {_RESOURCE_CREATION_TIMEOUT}s. "
+            "Check Vertex AI permissions and project configuration.",
+            hpt_job=hpt_job,
+        )
+
     logger.info("Job submitted: %s", job_name)
     logger.info("Monitor at: https://console.cloud.google.com/vertex-ai/training/hyperparameter-tuning-jobs")
     logger.info("Results will be written to: gs://%s/sweeps/%s/stage%d/", bucket, species, stage)
