@@ -162,8 +162,7 @@ def launch_sweep(args: argparse.Namespace) -> None:
 
                 if status == "completed":
                     logger.info(
-                        "Stage %d already completed (best_reward=%.4f). Nothing to do. "
-                        "Use --no-resume to start fresh.",
+                        "Stage %d already completed (best_reward=%.4f). Nothing to do. Use --no-resume to start fresh.",
                         stage,
                         prev_stage_data.get("best_mean_reward", 0),
                     )
@@ -181,7 +180,9 @@ def launch_sweep(args: argparse.Namespace) -> None:
 
                     try:
                         prev_job = aiplatform.HyperparameterTuningJob.get(prev_resource)
-                        prev_state_name = prev_job.state.name if hasattr(prev_job.state, "name") else str(prev_job.state)
+                        prev_state_name = (
+                            prev_job.state.name if hasattr(prev_job.state, "name") else str(prev_job.state)
+                        )
 
                         if "SUCCEEDED" in prev_state_name:
                             logger.info("Previous job already completed successfully.")
