@@ -179,6 +179,7 @@ def _submit_stage_sweep(
     fixed_trial_args: list[str] | None = None,
     wandb: bool = False,
     resume_run: int = 0,
+    restart_job_on_worker_restart: bool = False,
 ):
     """Build and submit a single-stage HPT job. Returns the job object.
 
@@ -191,6 +192,9 @@ def _submit_stage_sweep(
             positive integer so the new job writes to a separate GCS
             sub-directory (``stage{N}_r{resume_run}``) to avoid overwriting
             checkpoints from previous runs.
+        restart_job_on_worker_restart: If ``True``, Vertex AI will
+            automatically restart the job when a worker is preempted
+            (e.g. spot/preemptible VMs).
     """
     parameter_spec = _build_parameter_spec(search_space, hpt_module)
     if not parameter_spec:
@@ -253,6 +257,8 @@ def _submit_stage_sweep(
         logger.info("    %-30s %s", k, v)
     if load_path:
         logger.info("  Warm-start model: %s", load_path)
+    if restart_job_on_worker_restart:
+        logger.info("  restart_job_on_worker_restart: enabled")
 
     custom_job = aiplatform.CustomJob(
         display_name=f"{display_name}-trial",
@@ -286,7 +292,10 @@ def _submit_stage_sweep(
         try:
             _CREATION_TIMEOUT = 300
             _executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-            _future = _executor.submit(hpt_job.run, sync=True)
+            _run_kwargs: dict = {"sync": True}
+            if restart_job_on_worker_restart:
+                _run_kwargs["restart_job_on_worker_restart"] = True
+            _future = _executor.submit(lambda: hpt_job.run(**_run_kwargs))
 
             # Poll until the job resource is created (resource_name becomes
             # available) or the future raises an error.

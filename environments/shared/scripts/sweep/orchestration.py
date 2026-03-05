@@ -285,6 +285,7 @@ def launch_sweep(args: argparse.Namespace) -> None:
                 load_path=args.load,
                 wandb=args.wandb,
                 resume_run=resume_run,
+                restart_job_on_worker_restart=getattr(args, "restart_job_on_worker_restart", False),
             )
             job_resource_name = getattr(hpt_job, "resource_name", None)
 
@@ -766,6 +767,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     fixed_trial_args=fixed_trial_args,
                     wandb=args.wandb,
                     resume_run=resume_run,
+                    restart_job_on_worker_restart=getattr(args, "restart_job_on_worker_restart", False),
                 )
                 job_resource_name = getattr(hpt_job, "resource_name", None)
 

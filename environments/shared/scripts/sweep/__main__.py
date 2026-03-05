@@ -125,6 +125,15 @@ def _build_parser() -> argparse.ArgumentParser:
         default=120,
         help="Seconds between job status checks while waiting for completion (default: 120)",
     )
+    launch.add_argument(
+        "--restart-job-on-worker-restart",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Restart the job if a worker is preempted (e.g. when using spot VMs). "
+            "Maps to Vertex AI's restart_job_on_worker_restart parameter."
+        ),
+    )
 
     # ── launch-all mode (all stages, sequential) ──────────────────────────────
     launch_all = subparsers.add_parser(
@@ -232,6 +241,15 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         default=120,
         help="Seconds between job status checks while waiting for completion (default: 120)",
+    )
+    launch_all.add_argument(
+        "--restart-job-on-worker-restart",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Restart the job if a worker is preempted (e.g. when using spot VMs). "
+            "Maps to Vertex AI's restart_job_on_worker_restart parameter."
+        ),
     )
 
     return parser
