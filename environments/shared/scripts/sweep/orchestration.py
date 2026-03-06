@@ -468,6 +468,14 @@ def launch_sweep(args: argparse.Namespace) -> None:
                 project=args.project,
             )
             sys.exit(1)
+        # Save state for unexpected errors too, so progress isn't lost.
+        _save_sweep_state(
+            sweep_state,
+            args.species,
+            args.algorithm,
+            bucket=args.bucket,
+            project=args.project,
+        )
         raise
 
 
@@ -924,7 +932,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 "job_resource_name": job_resource_name,
                 "best_trial_id": best_row["trial_id"] if best_row else None,
                 "best_mean_reward": best_row.get("best_mean_reward") if best_row else None,
-                "best_model_path": best_model_path if stage < 3 else None,
+                "best_model_path": best_model_path,
                 "fixed_trial_args": fixed_trial_args,
                 "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "trial_rows": stage_rows,
@@ -992,6 +1000,14 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     project=args.project,
                 )
                 sys.exit(1)
+            # Save state for unexpected errors too, so progress isn't lost.
+            _save_sweep_state(
+                sweep_state,
+                args.species,
+                args.algorithm,
+                bucket=args.bucket,
+                project=args.project,
+            )
             raise
 
     # Write a combined CSV of every trial across all three stages
