@@ -11,6 +11,7 @@ if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
 from .orchestration import launch_all_stages, launch_sweep
+from .results import collect_results_from_disk, write_results_csv
 from .trial import run_trial
 
 logging.basicConfig(
@@ -277,6 +278,53 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    # ── collect-results mode ────────────────────────────────────────────────
+    collect = subparsers.add_parser(
+        "collect-results",
+        help="Scan trial directories for metrics.json and produce a combined CSV",
+    )
+    collect.add_argument(
+        "output_dir",
+        type=str,
+        help=(
+            "Root directory containing stage sub-directories with trial results. "
+            "For sweeps: .../sweeps/<species>  For curriculum: .../curriculum_<timestamp>"
+        ),
+    )
+    collect.add_argument(
+        "--csv",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Output CSV path (default: <output_dir>/collected_results.csv)",
+    )
+    collect.add_argument(
+        "--species",
+        type=str,
+        default=None,
+        help="Species name (used in log messages and plot titles)",
+    )
+    collect.add_argument(
+        "--algorithm",
+        type=str,
+        default=None,
+        help="Algorithm name (used in plot titles when --plot is set)",
+    )
+    collect.add_argument(
+        "--stages",
+        type=int,
+        nargs="+",
+        default=None,
+        metavar="N",
+        help="Only collect results for these stage numbers (default: all)",
+    )
+    collect.add_argument(
+        "--plot",
+        action="store_true",
+        default=False,
+        help="Generate visualisation graphs alongside the CSV",
+    )
+
     return parser
 
 
@@ -295,6 +343,26 @@ def main() -> None:
         if extra_args:
             logger.warning("Ignoring unexpected args in launch-all mode: %s", extra_args)
         launch_all_stages(args)
+    elif args.mode == "collect-results":
+        if extra_args:
+            logger.warning("Ignoring unexpected args in collect-results mode: %s", extra_args)
+        rows = collect_results_from_disk(
+            args.output_dir,
+            species=args.species,
+            stages=args.stages,
+        )
+        if not rows:
+            logger.error("No results found — nothing to write.")
+            sys.exit(1)
+        csv_path = args.csv or str(Path(args.output_dir) / "collected_results.csv")
+        write_results_csv(rows, csv_path)
+        logger.info("Combined CSV written to: %s  (%d rows)", csv_path, len(rows))
+        if args.plot:
+            from .results import plot_sweep_results
+
+            species = args.species or Path(args.output_dir).name
+            algorithm = args.algorithm or "unknown"
+            plot_sweep_results(csv_path, species, algorithm)
     else:
         parser.print_help()
         sys.exit(1)

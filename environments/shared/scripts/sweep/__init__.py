@@ -22,6 +22,7 @@ from .results import (
     _best_trial_model_path,
     _best_trial_model_path_any,
     _collect_trial_results,
+    collect_results_from_disk,
     plot_sweep_results,
     write_results_csv,
 )
@@ -47,6 +48,7 @@ __all__ = [
     "_best_trial_model_path",
     "_best_trial_model_path_any",
     "_collect_trial_results",
+    "collect_results_from_disk",
     "_hpt_arg_to_override",
     "_is_per_stage",
     "_is_retryable_gcp_error",

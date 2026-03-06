@@ -432,28 +432,41 @@ def _report_hpt_metrics(
     total_timesteps: int,
     algorithm: str,
 ):
-    """Report metrics to Vertex AI Hypertune (no-op when not installed).
+    """Report metrics to Vertex AI Hypertune and write a local JSON sidecar.
+
+    Only ``best_mean_reward`` is declared in the HPT ``metric_spec`` (it
+    is the sole optimisation target).  All auxiliary metrics are written
+    to ``<log_path>/metrics.json`` so they can be collected from GCS
+    after the sweep completes — without polluting the HPT objective.
 
     For forward velocity and success rate (stages 2+), the **best model**
     checkpoint is loaded with its matched VecNormalize stats so the
     reported metrics reflect the checkpoint that will be handed off to
     the next stage — not the final model which may have regressed.
     """
-    try:
-        import hypertune as _hypertune
-    except ImportError:
-        return
+    import json as _json
 
     import numpy as _np
 
     sb3 = _ensure_sb3()
 
-    _hpt = _hypertune.HyperTune()
-    _hpt.report_hyperparameter_tuning_metric(
-        hyperparameter_metric_tag="best_mean_reward",
-        metric_value=eval_callback.best_mean_reward,
-        global_step=total_timesteps,
-    )
+    # Accumulate all metrics for the JSON sidecar.
+    aux_metrics: dict[str, float] = {
+        "best_mean_reward": float(eval_callback.best_mean_reward),
+    }
+
+    # Report the primary optimisation metric to HPT (if available).
+    try:
+        import hypertune as _hypertune
+
+        _hpt = _hypertune.HyperTune()
+        _hpt.report_hyperparameter_tuning_metric(
+            hyperparameter_metric_tag="best_mean_reward",
+            metric_value=eval_callback.best_mean_reward,
+            global_step=total_timesteps,
+        )
+    except ImportError:
+        _hpt = None
     logger.info(
         "HPT metric reported: best_mean_reward=%.4f",
         eval_callback.best_mean_reward,
@@ -468,11 +481,7 @@ def _report_hpt_metrics(
 
         best_eval_idx = int(mean_rewards_per_eval.argmax())
         best_mean_ep_length = float(eval_lengths[best_eval_idx].mean())
-        _hpt.report_hyperparameter_tuning_metric(
-            hyperparameter_metric_tag="best_mean_episode_length",
-            metric_value=best_mean_ep_length,
-            global_step=total_timesteps,
-        )
+        aux_metrics["best_mean_episode_length"] = best_mean_ep_length
         logger.info(
             "HPT metric reported: best_mean_episode_length=%.1f",
             best_mean_ep_length,
@@ -480,16 +489,8 @@ def _report_hpt_metrics(
 
         last_mean_reward = float(mean_rewards_per_eval[-1])
         last_mean_ep_length = float(eval_lengths[-1].mean())
-        _hpt.report_hyperparameter_tuning_metric(
-            hyperparameter_metric_tag="last_mean_reward",
-            metric_value=last_mean_reward,
-            global_step=total_timesteps,
-        )
-        _hpt.report_hyperparameter_tuning_metric(
-            hyperparameter_metric_tag="last_mean_episode_length",
-            metric_value=last_mean_ep_length,
-            global_step=total_timesteps,
-        )
+        aux_metrics["last_mean_reward"] = last_mean_reward
+        aux_metrics["last_mean_episode_length"] = last_mean_ep_length
         logger.info(
             "HPT metric reported: last_mean_reward=%.4f, last_mean_episode_length=%.1f",
             last_mean_reward,
@@ -522,23 +523,22 @@ def _report_hpt_metrics(
         _, _, fwd_vels, success_flags = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=30)
         if fwd_vels:
             best_fwd = float(_np.mean(fwd_vels))
-            _hpt.report_hyperparameter_tuning_metric(
-                hyperparameter_metric_tag="best_mean_forward_vel",
-                metric_value=best_fwd,
-                global_step=total_timesteps,
-            )
+            aux_metrics["best_mean_forward_vel"] = best_fwd
             logger.info("HPT metric reported: best_mean_forward_vel=%.4f", best_fwd)
         if stage >= 3 and success_flags:
             best_success = float(_np.mean(success_flags))
-            _hpt.report_hyperparameter_tuning_metric(
-                hyperparameter_metric_tag="best_mean_success_rate",
-                metric_value=best_success,
-                global_step=total_timesteps,
-            )
+            aux_metrics["best_mean_success_rate"] = best_success
             logger.info(
                 "HPT metric reported: best_mean_success_rate=%.4f",
                 best_success,
             )
+
+    # Write all metrics to a JSON sidecar so they can be collected from
+    # GCS without relying on the HPT metric_spec.
+    metrics_path = Path(log_path) / "metrics.json"
+    with open(metrics_path, "w") as f:
+        _json.dump(aux_metrics, f, indent=2)
+    logger.info("Metrics sidecar written to: %s", metrics_path)
 
 
 # ── Curriculum training ──────────────────────────────────────────────────
