@@ -7,20 +7,18 @@ A bipedal dinosaur locomotion and predatory strike environment built with MuJoCo
 ```
 velociraptor/
 ├── assets/
-│   └── raptor.xml          # MJCF model definition
+│   └── raptor.xml              # MJCF model definition
 ├── envs/
 │   ├── __init__.py
-│   └── raptor_env.py       # Gymnasium environment
+│   └── raptor_env.py           # Gymnasium environment
 ├── scripts/
-│   ├── view_model.py       # Passive viewer for MJCF iteration
-│   ├── test_actuators.py   # Test joint movements
-│   ├── test_env.py         # Verify environment works
-│   └── train_sb3.py        # Training with Stable-Baselines3
+│   ├── view_model.py           # Passive viewer for MJCF iteration
+│   ├── test_actuators.py       # Test joint movements
+│   ├── test_env.py             # Verify environment works
+│   └── train_sb3.py            # Training with Stable-Baselines3
 ├── tests/
-│   ├── conftest.py
-│   ├── test_raptor_env.py  # Environment pytest suite
-│   └── test_raptor_rewards.py
-├── requirements.txt
+│   ├── test_raptor_env.py      # Species-specific env tests
+│   └── test_raptor_rewards.py  # Species-specific reward tests
 └── README.md
 ```
 
@@ -29,12 +27,8 @@ Hyperparameter configs are at `configs/velociraptor/` in the repo root.
 ## Installation
 
 ```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-
-# Install dependencies
-pip install -r requirements.txt
+# Install from the repository root
+pip install -e ".[all]"
 ```
 
 ## Quick Start
@@ -98,7 +92,7 @@ python scripts/train_sb3.py eval logs/<run_dir>/models/stage3_final.zip
 
 ## Environment Details
 
-### Observation Space (dim=73)
+### Observation Space (dim=67)
 | Component | Dimensions | Description |
 |-----------|------------|-------------|
 | Joint positions | 28 | All qpos except root freejoint (20 hinge + 2×4 ball) |
@@ -111,16 +105,8 @@ python scripts/train_sb3.py eval logs/<run_dir>/models/stage3_final.zip
 | Prey direction | 3 | Unit vector to prey |
 | Prey distance | 1 | Scalar distance |
 
-### Action Space (dim=17)
-All actions normalized to [-1, 1], scaled to actuator control ranges.
-
-| Index | Actuator | Type |
-|-------|----------|------|
-| 0-5 | Right leg (hip pitch/roll, knee, ankle, toe d3/d4) | Position |
-| 6 | Right sickle claw | Motor |
-| 7-12 | Left leg (hip pitch/roll, knee, ankle, toe d3/d4) | Position |
-| 13 | Left sickle claw | Motor |
-| 14-16 | Tail (pitch 1, yaw 1, pitch 2) | Position |
+### Action Space (dim=22)
+All actions normalized to [-1, 1], scaled to actuator control ranges (14 legs + 4 tail + 2 sickle claws + 2 arms).
 
 ### Reward Components
 

@@ -1,4 +1,9 @@
-"""Tests for Velociraptor reward function behavior."""
+"""Species-specific reward tests for Velociraptor.
+
+Common reward invariants (alive bonus, energy penalty, approach zero on first
+step, zero forward weight) are tested in
+environments/shared/tests/test_species_integration.py::TestRewardConsistency.
+"""
 
 import numpy as np
 import pytest
@@ -13,38 +18,8 @@ def env():
     e.close()
 
 
-class TestRewardComponents:
-    """Verify individual reward components produce expected values."""
-
-    def test_alive_bonus_is_positive(self, env):
-        """Alive bonus should always be positive when not terminated."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_alive"] > 0
-
-    def test_energy_penalty_zero_for_zero_action(self, env):
-        """Energy penalty should be zero when no action is applied."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_energy"] == 0.0
-
-    def test_energy_penalty_negative_for_large_action(self, env):
-        """Energy penalty should be negative for non-zero actions."""
-        env.reset(seed=42)
-        action = np.ones(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_energy"] < 0
-
-    def test_approach_reward_zero_on_first_step(self, env):
-        """Approach reward should be zero on the first step (no prior distance)."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        # First step has no prior distance, so approach delta is zero
-        assert info["reward_approach"] == 0.0
-        assert info["approach_delta"] == 0.0
+class TestRaptorRewardComponents:
+    """Raptor-specific reward component tests."""
 
     def test_strike_success_is_zero_initially(self, env):
         """No strike success on the first step (prey is far away)."""
@@ -132,16 +107,8 @@ class TestRewardComponents:
         assert 0.0 <= info["claw_proximity"] <= 1.0
 
 
-class TestRewardWeightEffects:
+class TestRaptorRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
-
-    def test_zero_forward_weight_zeroes_forward_reward(self):
-        env = RaptorEnv(forward_vel_weight=0.0)
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_forward"] == 0.0
-        env.close()
 
     def test_high_alive_bonus_dominates(self):
         env = RaptorEnv(alive_bonus=100.0, forward_vel_weight=0.0, strike_approach_weight=0.0, strike_bonus=0.0)
@@ -149,7 +116,6 @@ class TestRewardWeightEffects:
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, terminated, _, info = env.step(action)
         if not terminated:
-            # With all other weights zero/tiny, alive bonus should dominate
             assert info["reward_alive"] == 100.0
         env.close()
 
@@ -201,8 +167,6 @@ class TestRewardWeightEffects:
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
-        # Prey is spawned 1-2m away; claw_proximity_max_dist is 2m, so claws
-        # should be within range and produce a positive reward.
         assert info["reward_claw_proximity"] >= 0.0
         assert info["min_claw_prey_distance"] > 0.0
         env.close()
@@ -211,7 +175,6 @@ class TestRewardWeightEffects:
         """Backward penalty should be negative when raptor moves backward."""
         env = RaptorEnv(backward_vel_penalty_weight=1.0, forward_vel_weight=0.0)
         env.reset(seed=42)
-        # Run several steps with random actions to induce some velocity
         for _ in range(10):
             action = env.action_space.sample()
             _, _, terminated, _, info = env.step(action)
@@ -246,7 +209,6 @@ class TestCurriculumStageRewards:
         _, _, _, _, info = env.step(action)
         assert info["reward_forward"] == 0.0
         assert info["reward_strike"] == 0.0
-        # Backward penalty should be active (non-positive)
         assert info["reward_backward"] <= 0.0
         env.close()
 
@@ -254,14 +216,11 @@ class TestCurriculumStageRewards:
         """Stage 3 config enables approach shaping (delta-based)."""
         env = RaptorEnv(strike_approach_weight=10.0)
         env.reset(seed=42)
-        # First step initialises the previous distance (delta is zero)
         action = env.action_space.sample()
         env.step(action)
-        # Second step should produce a non-zero approach delta from movement
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert "approach_delta" in info
         assert "reward_approach" in info
-        # With a random action the raptor moves, so delta should be non-zero
         assert info["approach_delta"] != 0.0
         env.close()

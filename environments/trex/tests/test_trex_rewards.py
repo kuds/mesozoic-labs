@@ -1,4 +1,9 @@
-"""Tests for T-Rex reward function behavior."""
+"""Species-specific reward tests for T-Rex.
+
+Common reward invariants (alive bonus, energy penalty, approach zero on first
+step, zero forward weight) are tested in
+environments/shared/tests/test_species_integration.py::TestRewardConsistency.
+"""
 
 import numpy as np
 import pytest
@@ -13,42 +18,8 @@ def env():
     e.close()
 
 
-class TestRewardComponents:
-    """Verify individual reward components produce expected values."""
-
-    def test_alive_bonus_is_positive(self, env):
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_alive"] > 0
-
-    def test_energy_penalty_zero_for_zero_action(self, env):
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_energy"] == 0.0
-
-    def test_energy_penalty_negative_for_large_action(self, env):
-        env.reset(seed=42)
-        action = np.ones(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_energy"] < 0
-
-    def test_approach_reward_zero_on_first_step(self, env):
-        """Approach reward should be zero on the first step (no prior distance)."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_approach"] == 0.0
-        assert info["approach_delta"] == 0.0
-
-    def test_bite_not_triggered_initially(self, env):
-        """Prey is far away on first step."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["bite_success"] == 0.0
-        assert info["reward_bite"] == 0.0
+class TestTRexRewardComponents:
+    """T-Rex-specific reward component tests."""
 
     def test_total_reward_is_sum_of_components(self, env):
         env.reset(seed=42)
@@ -107,31 +78,9 @@ class TestRewardComponents:
         assert info["reward_smoothness"] < 0.0
         assert info["action_delta"] > 0.0
 
-    def test_height_reward_non_negative(self, env):
-        """Height reward should be non-negative (bonus for staying upright)."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_height"] >= 0.0
 
-    def test_nosedive_penalty_non_positive(self, env):
-        """Nosedive penalty should be non-positive."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_nosedive"] <= 0.0
-
-
-class TestRewardWeightEffects:
+class TestTRexRewardWeightEffects:
     """Verify that changing reward weights affects the output."""
-
-    def test_zero_forward_weight_zeroes_forward_reward(self):
-        env = TRexEnv(forward_vel_weight=0.0)
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_forward"] == 0.0
-        env.close()
 
     def test_zero_bite_bonus_gives_no_bite_reward(self):
         env = TRexEnv(bite_bonus=0.0)

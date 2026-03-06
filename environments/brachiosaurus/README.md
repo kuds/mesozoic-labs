@@ -45,11 +45,11 @@ Walk to food and extend neck to reach elevated food sources.
 ## Quick Start
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install from the repository root
+pip install -e ".[all]"
 
 # Run environment tests
-python -m pytest tests/ -v
+python -m pytest environments/brachiosaurus/tests/ -v
 
 # Train stage 1 (balance)
 python scripts/train_sb3.py train --stage 1 --timesteps 1000000
@@ -63,17 +63,16 @@ python scripts/view_model.py
 ```
 brachiosaurus/
 ├── assets/
-│   └── brachiosaurus.xml      # MuJoCo MJCF model
+│   └── brachiosaurus.xml       # MuJoCo MJCF model
 ├── envs/
 │   ├── __init__.py
-│   └── brachio_env.py          # Gymnasium environment
+│   └── brachio_env.py           # Gymnasium environment
 ├── scripts/
-│   ├── train_sb3.py            # SB3 PPO training with curriculum
-│   ├── test_env.py             # Environment validation script
-│   └── view_model.py           # MuJoCo passive viewer
+│   ├── train_sb3.py             # SB3 PPO training with curriculum
+│   ├── test_env.py              # Environment validation script
+│   └── view_model.py            # MuJoCo passive viewer
 ├── tests/
-│   ├── conftest.py
-│   └── test_brachio_env.py     # Pytest test suite
-├── requirements.txt
+│   ├── test_brachio_env.py      # Species-specific env tests
+│   └── test_brachio_rewards.py  # Species-specific reward tests
 └── README.md
 ```
