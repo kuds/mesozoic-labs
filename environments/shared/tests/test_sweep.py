@@ -277,10 +277,14 @@ class TestCollectTrialResults:
             params={"ppo_learning_rate": 0.0003},
             metrics={"best_mean_reward": 150.0},
         )
-        _write_trial_metrics(tmp_path, "1", {
-            "best_mean_reward": 150.0,
-            "best_mean_episode_length": 500.0,
-        })
+        _write_trial_metrics(
+            tmp_path,
+            "1",
+            {
+                "best_mean_reward": 150.0,
+                "best_mean_episode_length": 500.0,
+            },
+        )
         job = MagicMock()
         job.trials = [trial]
         stage_config = {"curriculum_kwargs": {"min_avg_reward": 100.0}}
@@ -329,10 +333,14 @@ class TestCollectTrialResults:
             "5",
             metrics={"best_mean_reward": 200.0},
         )
-        _write_trial_metrics(tmp_path, "5", {
-            "best_mean_reward": 200.0,
-            "best_mean_episode_length": 100.0,
-        })
+        _write_trial_metrics(
+            tmp_path,
+            "5",
+            {
+                "best_mean_reward": 200.0,
+                "best_mean_episode_length": 100.0,
+            },
+        )
         job = MagicMock()
         job.trials = [trial]
         stage_config = {
@@ -350,10 +358,14 @@ class TestCollectTrialResults:
             "6",
             metrics={"best_mean_reward": 200.0},
         )
-        _write_trial_metrics(tmp_path, "6", {
-            "best_mean_reward": 200.0,
-            "best_mean_forward_vel": 0.5,
-        })
+        _write_trial_metrics(
+            tmp_path,
+            "6",
+            {
+                "best_mean_reward": 200.0,
+                "best_mean_forward_vel": 0.5,
+            },
+        )
         job = MagicMock()
         job.trials = [trial]
         stage_config = {
@@ -1145,10 +1157,14 @@ def _setup_sweep_dir(base, stage, trials):
 class TestCollectResultsFromDisk:
     def test_sweep_layout(self, tmp_path):
         """Collects results from sweep-style trial directories."""
-        _setup_sweep_dir(tmp_path, 1, {
-            "1": {"best_mean_reward": 150.0, "best_mean_episode_length": 500.0},
-            "2": {"best_mean_reward": 80.0, "best_mean_episode_length": 300.0},
-        })
+        _setup_sweep_dir(
+            tmp_path,
+            1,
+            {
+                "1": {"best_mean_reward": 150.0, "best_mean_episode_length": 500.0},
+                "2": {"best_mean_reward": 80.0, "best_mean_episode_length": 300.0},
+            },
+        )
         rows = collect_results_from_disk(tmp_path)
         assert len(rows) == 2
         rewards = {r["trial_id"]: r["best_mean_reward"] for r in rows}
@@ -1177,9 +1193,13 @@ class TestCollectResultsFromDisk:
 
     def test_thresholds_from_stage_config(self, tmp_path):
         """Loads curriculum thresholds from stage_config.json."""
-        stage_dir = _setup_sweep_dir(tmp_path, 1, {
-            "1": {"best_mean_reward": 50.0},
-        })
+        stage_dir = _setup_sweep_dir(
+            tmp_path,
+            1,
+            {
+                "1": {"best_mean_reward": 50.0},
+            },
+        )
         cfg = {"curriculum": {"min_avg_reward": 100.0}}
         with open(stage_dir / "stage_config.json", "w") as f:
             json.dump(cfg, f)
@@ -1190,9 +1210,13 @@ class TestCollectResultsFromDisk:
 
     def test_passing_trial_with_threshold(self, tmp_path):
         """Trial passes when reward exceeds threshold."""
-        stage_dir = _setup_sweep_dir(tmp_path, 1, {
-            "1": {"best_mean_reward": 150.0},
-        })
+        stage_dir = _setup_sweep_dir(
+            tmp_path,
+            1,
+            {
+                "1": {"best_mean_reward": 150.0},
+            },
+        )
         cfg = {"curriculum": {"min_avg_reward": 100.0}}
         with open(stage_dir / "stage_config.json", "w") as f:
             json.dump(cfg, f)
@@ -1211,16 +1235,28 @@ class TestCollectResultsFromDisk:
 
     def test_multi_stage_collection(self, tmp_path):
         """Collects across multiple stages into a single list."""
-        _setup_sweep_dir(tmp_path, 1, {
-            "1": {"best_mean_reward": 100.0},
-            "2": {"best_mean_reward": 120.0},
-        })
-        _setup_sweep_dir(tmp_path, 2, {
-            "1": {"best_mean_reward": 200.0},
-        })
-        _setup_sweep_dir(tmp_path, 3, {
-            "1": {"best_mean_reward": 300.0},
-        })
+        _setup_sweep_dir(
+            tmp_path,
+            1,
+            {
+                "1": {"best_mean_reward": 100.0},
+                "2": {"best_mean_reward": 120.0},
+            },
+        )
+        _setup_sweep_dir(
+            tmp_path,
+            2,
+            {
+                "1": {"best_mean_reward": 200.0},
+            },
+        )
+        _setup_sweep_dir(
+            tmp_path,
+            3,
+            {
+                "1": {"best_mean_reward": 300.0},
+            },
+        )
         rows = collect_results_from_disk(tmp_path)
         assert len(rows) == 4
         stages = [r["stage"] for r in rows]
