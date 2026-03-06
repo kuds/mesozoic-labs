@@ -680,25 +680,33 @@ def _collect_results_local(
             # Include any extra keys from metrics.json (e.g. hyperparameters,
             # auxiliary metrics) that aren't in the fixed/metric column sets.
             _fixed_metric_keys = {
-                "trial_id", "stage", "best_mean_reward",
-                "best_mean_episode_length", "last_mean_reward",
-                "last_mean_episode_length", "reward_threshold",
-                "ep_length_threshold", "forward_vel_threshold",
-                "success_rate_threshold", "stage_passed",
+                "trial_id",
+                "stage",
+                "best_mean_reward",
+                "best_mean_episode_length",
+                "last_mean_reward",
+                "last_mean_episode_length",
+                "reward_threshold",
+                "ep_length_threshold",
+                "forward_vel_threshold",
+                "success_rate_threshold",
+                "stage_passed",
             }
             for mk, mv in metrics.items():
                 if mk not in _fixed_metric_keys:
                     row[mk] = mv
-            row.update({
-                "best_mean_reward": best_reward,
-                "best_mean_episode_length": metrics.get("best_mean_episode_length"),
-                "last_mean_reward": metrics.get("last_mean_reward"),
-                "last_mean_episode_length": metrics.get("last_mean_episode_length"),
-                "reward_threshold": trial_reward_th,
-                "ep_length_threshold": trial_ep_th,
-                "forward_vel_threshold": trial_fwd_th,
-                "success_rate_threshold": trial_sr_th,
-            })
+            row.update(
+                {
+                    "best_mean_reward": best_reward,
+                    "best_mean_episode_length": metrics.get("best_mean_episode_length"),
+                    "last_mean_reward": metrics.get("last_mean_reward"),
+                    "last_mean_episode_length": metrics.get("last_mean_episode_length"),
+                    "reward_threshold": trial_reward_th,
+                    "ep_length_threshold": trial_ep_th,
+                    "forward_vel_threshold": trial_fwd_th,
+                    "success_rate_threshold": trial_sr_th,
+                }
+            )
 
             passed, _ = _evaluate_curriculum_gate(
                 best_reward, metrics, trial_reward_th, trial_ep_th, trial_fwd_th, trial_sr_th
