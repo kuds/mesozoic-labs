@@ -33,17 +33,17 @@ def _evaluate_curriculum_gate(
     if reward_threshold is not None and (best_reward is None or best_reward < reward_threshold):
         passed = False
         fail_reasons.append(f"reward {best_reward} < threshold {reward_threshold}")
-    if passed and ep_length_threshold is not None:
+    if ep_length_threshold is not None:
         best_ep_length = aux_metrics.get("best_mean_episode_length")
         if best_ep_length is None or best_ep_length < ep_length_threshold:
             passed = False
             fail_reasons.append(f"ep_length {best_ep_length} < threshold {ep_length_threshold}")
-    if passed and forward_vel_threshold is not None:
+    if forward_vel_threshold is not None:
         trial_fwd_vel = aux_metrics.get("best_mean_forward_vel")
         if trial_fwd_vel is None or trial_fwd_vel < forward_vel_threshold:
             passed = False
             fail_reasons.append(f"forward_vel {trial_fwd_vel} < threshold {forward_vel_threshold}")
-    if passed and success_rate_threshold is not None:
+    if success_rate_threshold is not None:
         trial_success_rate = aux_metrics.get("best_mean_success_rate")
         if trial_success_rate is None or trial_success_rate < success_rate_threshold:
             passed = False
@@ -288,6 +288,14 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
     title = f"{species.capitalize()} {algorithm.upper()} Sweep"
     fig1.suptitle(title, fontsize=14, fontweight="bold")
 
+    # Build combined x-axis labels: "S{stage}_{trial_id}" for each trial
+    all_reward_labels: list[str] = []
+    all_reward_values: list[float] = []
+    all_reward_colors: list[str] = []
+    all_ep_labels: list[str] = []
+    all_ep_values: list[float] = []
+    all_ep_colors: list[str] = []
+
     for stage in stages:
         stage_rows = [r for r in rows if int(r["stage"]) == stage]
         trial_ids = [r["trial_id"] for r in stage_rows]
@@ -295,31 +303,29 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
         color = stage_colors.get(stage, "#333333")
 
         # [0,0] Best Mean Reward
-        rewards = [_float(r.get("best_mean_reward")) for r in stage_rows]
-        valid = [(tid, rw) for tid, rw in zip(trial_ids, rewards) if rw is not None]
-        if valid:
-            tids, rws = zip(*valid)
-            x = np.arange(len(tids))
-            axes1[0, 0].bar(x, rws, color=color, alpha=0.7, label=label)
-            axes1[0, 0].set_xticks(x)
-            axes1[0, 0].set_xticklabels(tids, rotation=45, fontsize=7)
-            # Draw threshold line if available
+        for tid, r in zip(trial_ids, stage_rows):
+            rw = _float(r.get("best_mean_reward"))
+            if rw is not None:
+                all_reward_labels.append(f"S{stage}_{tid}")
+                all_reward_values.append(rw)
+                all_reward_colors.append(color)
+
+        # Draw threshold line if available
+        if stage_rows:
             threshold = _float(stage_rows[0].get("reward_threshold"))
             if threshold is not None:
-                axes1[0, 0].axhline(y=threshold, color=color, linestyle="--", alpha=0.5)
+                axes1[0, 0].axhline(y=threshold, color=color, linestyle="--", alpha=0.5, label=f"S{stage} threshold")
 
         # [0,1] Best Mean Episode Length
-        ep_lengths = [_float(r.get("best_mean_episode_length")) for r in stage_rows]
-        valid_ep = [(tid, el) for tid, el in zip(trial_ids, ep_lengths) if el is not None]
-        if valid_ep:
-            tids_ep, els = zip(*valid_ep)
-            x = np.arange(len(tids_ep))
-            axes1[0, 1].bar(x, els, color=color, alpha=0.7, label=label)
-            axes1[0, 1].set_xticks(x)
-            axes1[0, 1].set_xticklabels(tids_ep, rotation=45, fontsize=7)
+        for tid, r in zip(trial_ids, stage_rows):
+            el = _float(r.get("best_mean_episode_length"))
+            if el is not None:
+                all_ep_labels.append(f"S{stage}_{tid}")
+                all_ep_values.append(el)
+                all_ep_colors.append(color)
             ep_threshold = _float(stage_rows[0].get("ep_length_threshold"))
             if ep_threshold is not None:
-                axes1[0, 1].axhline(y=ep_threshold, color=color, linestyle="--", alpha=0.5)
+                axes1[0, 1].axhline(y=ep_threshold, color=color, linestyle="--", alpha=0.5, label=f"S{stage} threshold")
 
         # [1,0] Best vs Last Mean Reward (training stability)
         best_last = [(_float(r.get("best_mean_reward")), _float(r.get("last_mean_reward"))) for r in stage_rows]
@@ -328,13 +334,27 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
             bests, lasts = zip(*valid_bl)
             axes1[1, 0].scatter(bests, lasts, color=color, alpha=0.7, label=label, edgecolors="white", s=50)
 
-    axes1[0, 0].set_xlabel("Trial ID")
+    # Render reward bars with non-overlapping x positions
+    if all_reward_values:
+        x_rw = np.arange(len(all_reward_values))
+        axes1[0, 0].bar(x_rw, all_reward_values, color=all_reward_colors, alpha=0.7)
+        axes1[0, 0].set_xticks(x_rw)
+        axes1[0, 0].set_xticklabels(all_reward_labels, rotation=45, fontsize=7, ha="right")
+
+    # Render episode length bars with non-overlapping x positions
+    if all_ep_values:
+        x_ep = np.arange(len(all_ep_values))
+        axes1[0, 1].bar(x_ep, all_ep_values, color=all_ep_colors, alpha=0.7)
+        axes1[0, 1].set_xticks(x_ep)
+        axes1[0, 1].set_xticklabels(all_ep_labels, rotation=45, fontsize=7, ha="right")
+
+    axes1[0, 0].set_xlabel("Trial")
     axes1[0, 0].set_ylabel("Best Mean Reward")
     axes1[0, 0].set_title("Best Mean Reward per Trial")
     axes1[0, 0].legend()
     axes1[0, 0].grid(True, alpha=0.3)
 
-    axes1[0, 1].set_xlabel("Trial ID")
+    axes1[0, 1].set_xlabel("Trial")
     axes1[0, 1].set_ylabel("Best Mean Episode Length")
     axes1[0, 1].set_title("Best Mean Episode Length per Trial")
     axes1[0, 1].legend()
@@ -656,6 +676,20 @@ def _collect_results_local(
             row: dict = {
                 "trial_id": trial_id,
                 "stage": stage_num,
+            }
+            # Include any extra keys from metrics.json (e.g. hyperparameters,
+            # auxiliary metrics) that aren't in the fixed/metric column sets.
+            _fixed_metric_keys = {
+                "trial_id", "stage", "best_mean_reward",
+                "best_mean_episode_length", "last_mean_reward",
+                "last_mean_episode_length", "reward_threshold",
+                "ep_length_threshold", "forward_vel_threshold",
+                "success_rate_threshold", "stage_passed",
+            }
+            for mk, mv in metrics.items():
+                if mk not in _fixed_metric_keys:
+                    row[mk] = mv
+            row.update({
                 "best_mean_reward": best_reward,
                 "best_mean_episode_length": metrics.get("best_mean_episode_length"),
                 "last_mean_reward": metrics.get("last_mean_reward"),
@@ -664,7 +698,7 @@ def _collect_results_local(
                 "ep_length_threshold": trial_ep_th,
                 "forward_vel_threshold": trial_fwd_th,
                 "success_rate_threshold": trial_sr_th,
-            }
+            })
 
             passed, _ = _evaluate_curriculum_gate(
                 best_reward, metrics, trial_reward_th, trial_ep_th, trial_fwd_th, trial_sr_th
