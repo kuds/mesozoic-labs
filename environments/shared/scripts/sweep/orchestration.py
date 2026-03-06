@@ -648,7 +648,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         # Resolve each setting: CLI flag > file setting > shared CLI default
         timesteps = cli_timesteps[stage - 1]
         if timesteps is None:
-            timesteps = file_settings.get("timesteps", cli_timesteps[stage - 1])
+            timesteps = file_settings.get("timesteps")
         if timesteps is None:
             # Fall back to the argparse defaults (500k/1M/1.5M)
             timesteps = [500_000, 1_000_000, 1_500_000][stage - 1]

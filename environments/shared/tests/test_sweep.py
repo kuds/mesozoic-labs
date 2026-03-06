@@ -224,9 +224,9 @@ class TestResolveSearchSpace:
         assert "sac_learning_rate" in result
         assert "sac_batch_size" in result
 
-    def test_unknown_algorithm_falls_back_to_ppo(self):
-        result = _resolve_search_space(None, None, "unknown_algo")
-        assert "ppo_learning_rate" in result
+    def test_unknown_algorithm_exits_with_error(self):
+        with pytest.raises(SystemExit):
+            _resolve_search_space(None, None, "unknown_algo")
 
 
 # ── _collect_trial_results ───────────────────────────────────────────────

@@ -10,6 +10,66 @@ from .constants import SweepStageError
 logger = logging.getLogger(__name__)
 
 
+def _evaluate_curriculum_gate(
+    best_reward: float | None,
+    aux_metrics: dict[str, float],
+    reward_threshold: float | None,
+    ep_length_threshold: float | None,
+    forward_vel_threshold: float | None,
+    success_rate_threshold: float | None,
+) -> tuple[bool, list[str]]:
+    """Evaluate whether a trial meets all curriculum advancement criteria.
+
+    Returns:
+        A tuple of ``(passed, fail_reasons)`` where *passed* is ``True``
+        when all criteria are met and *fail_reasons* lists human-readable
+        explanations of which criteria were not met.
+    """
+    passed = best_reward is not None
+    fail_reasons: list[str] = []
+
+    if best_reward is None:
+        fail_reasons.append("no reward reported (trial may have crashed)")
+    if reward_threshold is not None and (best_reward is None or best_reward < reward_threshold):
+        passed = False
+        fail_reasons.append(f"reward {best_reward} < threshold {reward_threshold}")
+    if passed and ep_length_threshold is not None:
+        best_ep_length = aux_metrics.get("best_mean_episode_length")
+        if best_ep_length is None or best_ep_length < ep_length_threshold:
+            passed = False
+            fail_reasons.append(f"ep_length {best_ep_length} < threshold {ep_length_threshold}")
+    if passed and forward_vel_threshold is not None:
+        trial_fwd_vel = aux_metrics.get("best_mean_forward_vel")
+        if trial_fwd_vel is None or trial_fwd_vel < forward_vel_threshold:
+            passed = False
+            fail_reasons.append(f"forward_vel {trial_fwd_vel} < threshold {forward_vel_threshold}")
+    if passed and success_rate_threshold is not None:
+        trial_success_rate = aux_metrics.get("best_mean_success_rate")
+        if trial_success_rate is None or trial_success_rate < success_rate_threshold:
+            passed = False
+            fail_reasons.append(f"success_rate {trial_success_rate} < threshold {success_rate_threshold}")
+
+    return passed, fail_reasons
+
+
+def _extract_thresholds(config: dict) -> tuple[float | None, float | None, float | None, float | None]:
+    """Extract curriculum thresholds from a stage config dict.
+
+    Supports both runtime TOML configs (key: ``curriculum_kwargs``) and
+    serialized JSON configs (key: ``curriculum``).
+
+    Returns:
+        A tuple of ``(reward, ep_length, forward_vel, success_rate)`` thresholds.
+    """
+    cur = config.get("curriculum_kwargs") or config.get("curriculum") or {}
+    return (
+        cur.get("min_avg_reward"),
+        cur.get("min_avg_episode_length"),
+        cur.get("min_avg_forward_vel"),
+        cur.get("min_success_rate"),
+    )
+
+
 def _load_trial_metrics(output_base: str, trial_id: str) -> dict[str, float]:
     """Load auxiliary metrics from a trial's ``metrics.json`` sidecar on GCS.
 
@@ -55,11 +115,9 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
     * ``success_rate_threshold`` — ``min_success_rate`` from config
     * ``stage_passed`` — ``True`` when all curriculum criteria are met
     """
-    cur = stage_config.get("curriculum_kwargs", {})
-    reward_threshold = cur.get("min_avg_reward")
-    ep_length_threshold = cur.get("min_avg_episode_length")
-    forward_vel_threshold = cur.get("min_avg_forward_vel")
-    success_rate_threshold = cur.get("min_success_rate")
+    reward_threshold, ep_length_threshold, forward_vel_threshold, success_rate_threshold = _extract_thresholds(
+        stage_config
+    )
 
     rows: list[dict] = []
     for trial in hpt_job.trials:
@@ -82,43 +140,18 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
         if best_reward is None:
             best_reward = aux.get("best_mean_reward")
 
-        best_ep_length = aux.get("best_mean_episode_length")
-        last_reward = aux.get("last_mean_reward")
-        last_ep_length = aux.get("last_mean_episode_length")
-
         row["best_mean_reward"] = best_reward
-        row["best_mean_episode_length"] = best_ep_length
-        row["last_mean_reward"] = last_reward
-        row["last_mean_episode_length"] = last_ep_length
+        row["best_mean_episode_length"] = aux.get("best_mean_episode_length")
+        row["last_mean_reward"] = aux.get("last_mean_reward")
+        row["last_mean_episode_length"] = aux.get("last_mean_episode_length")
         row["reward_threshold"] = reward_threshold
         row["ep_length_threshold"] = ep_length_threshold
         row["forward_vel_threshold"] = forward_vel_threshold
         row["success_rate_threshold"] = success_rate_threshold
 
-        # Check all curriculum criteria.  When no thresholds are defined
-        # (e.g. Stage 3 hunting stages), the trial passes by default as
-        # long as it produced a valid reward.
-        passed = best_reward is not None
-        fail_reasons: list[str] = []
-        if best_reward is None:
-            fail_reasons.append("no reward reported (trial may have crashed)")
-        if reward_threshold is not None and (best_reward is None or best_reward < reward_threshold):
-            passed = False
-            fail_reasons.append(f"reward {best_reward} < threshold {reward_threshold}")
-        if passed and ep_length_threshold is not None:
-            if best_ep_length is None or best_ep_length < ep_length_threshold:
-                passed = False
-                fail_reasons.append(f"ep_length {best_ep_length} < threshold {ep_length_threshold}")
-        if passed and forward_vel_threshold is not None:
-            trial_fwd_vel = aux.get("best_mean_forward_vel")
-            if trial_fwd_vel is None or trial_fwd_vel < forward_vel_threshold:
-                passed = False
-                fail_reasons.append(f"forward_vel {trial_fwd_vel} < threshold {forward_vel_threshold}")
-        if passed and success_rate_threshold is not None:
-            trial_success_rate = aux.get("best_mean_success_rate")
-            if trial_success_rate is None or trial_success_rate < success_rate_threshold:
-                passed = False
-                fail_reasons.append(f"success_rate {trial_success_rate} < threshold {success_rate_threshold}")
+        passed, fail_reasons = _evaluate_curriculum_gate(
+            best_reward, aux, reward_threshold, ep_length_threshold, forward_vel_threshold, success_rate_threshold
+        )
         row["stage_passed"] = passed
 
         # Log per-trial diagnostic summary
@@ -582,11 +615,9 @@ def _collect_results_local(
             except (json.JSONDecodeError, OSError) as exc:
                 logger.warning("Failed to read %s: %s", stage_config_path, exc)
 
-        cur = stage_cfg.get("curriculum", {})
-        reward_threshold = cur.get("min_avg_reward")
-        ep_length_threshold = cur.get("min_avg_episode_length")
-        forward_vel_threshold = cur.get("min_avg_forward_vel")
-        success_rate_threshold = cur.get("min_success_rate")
+        reward_threshold, ep_length_threshold, forward_vel_threshold, success_rate_threshold = _extract_thresholds(
+            stage_cfg
+        )
 
         # Check if this is a single-trial (curriculum) layout where
         # metrics.json sits directly in the stage directory.
@@ -607,17 +638,17 @@ def _collect_results_local(
                 continue
 
             # Load per-trial stage_config.json if the stage-level one wasn't found.
+            trial_reward_th = reward_threshold
+            trial_ep_th = ep_length_threshold
+            trial_fwd_th = forward_vel_threshold
+            trial_sr_th = success_rate_threshold
             if not stage_cfg:
                 per_trial_cfg_path = trial_path / "stage_config.json"
                 if per_trial_cfg_path.exists():
                     try:
                         with open(per_trial_cfg_path) as f:
                             trial_cfg = json.load(f)
-                        cur = trial_cfg.get("curriculum", {})
-                        reward_threshold = cur.get("min_avg_reward")
-                        ep_length_threshold = cur.get("min_avg_episode_length")
-                        forward_vel_threshold = cur.get("min_avg_forward_vel")
-                        success_rate_threshold = cur.get("min_success_rate")
+                        trial_reward_th, trial_ep_th, trial_fwd_th, trial_sr_th = _extract_thresholds(trial_cfg)
                     except (json.JSONDecodeError, OSError):
                         pass
 
@@ -629,30 +660,15 @@ def _collect_results_local(
                 "best_mean_episode_length": metrics.get("best_mean_episode_length"),
                 "last_mean_reward": metrics.get("last_mean_reward"),
                 "last_mean_episode_length": metrics.get("last_mean_episode_length"),
-                "reward_threshold": reward_threshold,
-                "ep_length_threshold": ep_length_threshold,
-                "forward_vel_threshold": forward_vel_threshold,
-                "success_rate_threshold": success_rate_threshold,
+                "reward_threshold": trial_reward_th,
+                "ep_length_threshold": trial_ep_th,
+                "forward_vel_threshold": trial_fwd_th,
+                "success_rate_threshold": trial_sr_th,
             }
 
-            # Evaluate pass/fail using the same logic as _collect_trial_results.
-            passed = best_reward is not None
-            if best_reward is None:
-                passed = False
-            if reward_threshold is not None and (best_reward is None or best_reward < reward_threshold):
-                passed = False
-            if passed and ep_length_threshold is not None:
-                best_ep = metrics.get("best_mean_episode_length")
-                if best_ep is None or best_ep < ep_length_threshold:
-                    passed = False
-            if passed and forward_vel_threshold is not None:
-                fwd_vel = metrics.get("best_mean_forward_vel")
-                if fwd_vel is None or fwd_vel < forward_vel_threshold:
-                    passed = False
-            if passed and success_rate_threshold is not None:
-                sr = metrics.get("best_mean_success_rate")
-                if sr is None or sr < success_rate_threshold:
-                    passed = False
+            passed, _ = _evaluate_curriculum_gate(
+                best_reward, metrics, trial_reward_th, trial_ep_th, trial_fwd_th, trial_sr_th
+            )
             row["stage_passed"] = passed
 
             rows.append(row)
