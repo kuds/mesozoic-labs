@@ -468,6 +468,69 @@ python -m environments.shared.scripts.sweep launch-all \
     --trials 20 --parallel 5 --no-resume
 ```
 
+## Collecting Results
+
+After a sweep completes, use `collect-results` to scan all trial directories and produce a combined CSV:
+
+```bash
+python -m environments.shared.scripts.sweep collect-results \
+  gs://YOUR_BUCKET/sweeps/velociraptor
+```
+
+This downloads every `metrics.json` and `stage_config.json` from the GCS prefix, evaluates pass/fail against curriculum thresholds, and writes a CSV to the same directory (`collected_results.csv` by default).
+
+### Options
+
+| Flag | Description | Default |
+|---|---|---|
+| `--csv PATH` | Output CSV path | `<output_dir>/collected_results.csv` |
+| `--species NAME` | Species name (log messages & plot titles) | directory name |
+| `--algorithm NAME` | Algorithm name (plot titles) | `unknown` |
+| `--stages N [N ...]` | Only collect these stage numbers | all stages found |
+| `--plot` | Generate PNG visualisation graphs | off |
+
+### Example with plots
+
+```bash
+python -m environments.shared.scripts.sweep collect-results \
+  gs://YOUR_BUCKET/sweeps/velociraptor \
+  --species velociraptor \
+  --algorithm ppo \
+  --plot
+```
+
+This produces:
+
+- **collected_results.csv** — one row per trial with hyperparameters, metrics (`best_mean_reward`, `best_mean_episode_length`, etc.), curriculum thresholds, and a `stage_passed` flag.
+- **sweep_trial_metrics.png** — 2x2 grid: reward per trial, episode length per trial, training stability scatter, and pass/fail summary.
+- **sweep_hyperparameter_analysis.png** — scatter plots of each hyperparameter vs `best_mean_reward`, colour-coded by stage.
+
+### Expected directory structure
+
+The command looks for `stage<N>/` sub-directories under the path you provide:
+
+```
+gs://YOUR_BUCKET/sweeps/velociraptor/     ← pass this path
+  stage1/
+    1/metrics.json
+    2/metrics.json
+    ...
+  stage2/
+    1/metrics.json
+    ...
+```
+
+Single-trial (curriculum) layouts where `metrics.json` sits directly in each `stage<N>/` directory are also supported.
+
+### Filtering by stage
+
+```bash
+# Only collect results for stages 1 and 2
+python -m environments.shared.scripts.sweep collect-results \
+  gs://YOUR_BUCKET/sweeps/velociraptor \
+  --stages 1 2
+```
+
 ## Resource Errors and Retries
 
 When submitting a job to Vertex AI, transient errors (quota exhaustion, service unavailability) are automatically retried up to 3 times with increasing delays (60 s, 180 s, 300 s). If all retries fail:

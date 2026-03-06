@@ -354,13 +354,23 @@ def main() -> None:
         if not rows:
             logger.error("No results found — nothing to write.")
             sys.exit(1)
-        csv_path = args.csv or str(Path(args.output_dir) / "collected_results.csv")
+        if args.csv:
+            csv_path = args.csv
+        elif args.output_dir.startswith("gs://"):
+            csv_path = args.output_dir.rstrip("/") + "/collected_results.csv"
+        else:
+            csv_path = str(Path(args.output_dir) / "collected_results.csv")
         write_results_csv(rows, csv_path)
         logger.info("Combined CSV written to: %s  (%d rows)", csv_path, len(rows))
         if args.plot:
             from .results import plot_sweep_results
 
-            species = args.species or Path(args.output_dir).name
+            if args.species:
+                species = args.species
+            elif args.output_dir.startswith("gs://"):
+                species = args.output_dir.rstrip("/").rsplit("/", 1)[-1]
+            else:
+                species = Path(args.output_dir).name
             algorithm = args.algorithm or "unknown"
             plot_sweep_results(csv_path, species, algorithm)
     else:
