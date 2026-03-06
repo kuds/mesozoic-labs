@@ -8,6 +8,7 @@ import pytest
 from environments.shared.curriculum import (
     CurriculumCallback,
     CurriculumManager,
+    EvalCollapseEarlyStopCallback,
     RewardRampCallback,
     SaveVecNormalizeCallback,
     StageThreshold,
@@ -857,3 +858,125 @@ class TestReadLatestEval:
 
         rewards, lengths, n = cb._read_latest_eval()
         assert rewards is None
+
+
+class TestEvalCollapseEarlyStopCallback:
+    """Test EvalCollapseEarlyStopCallback early stopping logic."""
+
+    def test_raises_without_sb3(self):
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+            with pytest.raises(ImportError, match="stable-baselines3"):
+                EvalCollapseEarlyStopCallback(eval_callback=MagicMock())
+
+    def test_returns_true_when_no_log_path(self):
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock(spec=[])  # no log_path
+        cb._last_seen_n_evals = 0
+        cb._peak_reward = float("-inf")
+        cb._consecutive_drops = 0
+        assert cb._on_step() is True
+
+    def test_returns_true_when_npz_missing(self, tmp_path):
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(tmp_path)
+        cb._last_seen_n_evals = 0
+        cb._peak_reward = float("-inf")
+        cb._consecutive_drops = 0
+        assert cb._on_step() is True
+
+    def test_returns_true_before_min_evals(self, tmp_path):
+        import numpy as np
+
+        eval_rewards = np.array([[10.0, 20.0], [15.0, 25.0]])
+        np.savez(str(tmp_path / "evaluations.npz"), results=eval_rewards)
+
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(tmp_path)
+        cb._last_seen_n_evals = 0
+        cb._peak_reward = float("-inf")
+        cb._consecutive_drops = 0
+        cb.min_evals = 5  # Need 5 evals, only have 2
+        cb.drop_fraction = 0.3
+        cb.patience = 3
+        assert cb._on_step() is True
+
+    def test_returns_true_no_new_eval(self, tmp_path):
+        import numpy as np
+
+        eval_rewards = np.array([[10.0]])
+        np.savez(str(tmp_path / "evaluations.npz"), results=eval_rewards)
+
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(tmp_path)
+        cb._last_seen_n_evals = 1  # Already seen this eval
+        cb._peak_reward = float("-inf")
+        cb._consecutive_drops = 0
+        assert cb._on_step() is True
+
+    def test_stops_after_patience_drops(self, tmp_path):
+        import numpy as np
+
+        # 6 evals: peak at eval 3 (50.0), then drops to 20.0
+        eval_rewards = np.array(
+            [
+                [10.0, 10.0],
+                [30.0, 30.0],
+                [50.0, 50.0],  # peak
+                [20.0, 20.0],  # drop 1
+                [15.0, 15.0],  # drop 2
+                [10.0, 10.0],  # drop 3 -> stop
+            ]
+        )
+        np.savez(str(tmp_path / "evaluations.npz"), results=eval_rewards)
+
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(tmp_path)
+        cb._last_seen_n_evals = 0
+        cb._peak_reward = float("-inf")
+        cb._consecutive_drops = 0
+        cb.min_evals = 3
+        cb.drop_fraction = 0.3
+        cb.patience = 1  # Stop after 1 drop
+        cb.num_timesteps = 1000
+
+        result = cb._on_step()
+        # latest_mean = 10.0, peak = 50.0, threshold = 35.0
+        # 10.0 < 35.0, so consecutive_drops=1 >= patience=1 -> stop
+        assert result is False
+
+    def test_resets_drops_on_recovery(self, tmp_path):
+        import numpy as np
+
+        # Evals: peak, drop, recovery
+        eval_rewards = np.array(
+            [
+                [50.0, 50.0],
+                [40.0, 40.0],
+                [30.0, 30.0],
+                [20.0, 20.0],
+                [10.0, 10.0],
+                [45.0, 45.0],  # recovery
+            ]
+        )
+        np.savez(str(tmp_path / "evaluations.npz"), results=eval_rewards)
+
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(tmp_path)
+        cb._last_seen_n_evals = 0
+        cb._peak_reward = float("-inf")
+        cb._consecutive_drops = 0
+        cb.min_evals = 5
+        cb.drop_fraction = 0.3
+        cb.patience = 5  # High patience
+        cb.num_timesteps = 1000
+
+        result = cb._on_step()
+        # latest_mean = 45.0, peak = 50.0, threshold = 35.0
+        # 45.0 >= 35.0 -> consecutive_drops reset to 0
+        assert result is True
+        assert cb._consecutive_drops == 0

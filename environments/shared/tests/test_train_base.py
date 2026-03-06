@@ -36,79 +36,17 @@ class TestLinearSchedule:
         assert sched(1.0) == pytest.approx(5e-4)
 
 
-# ── _cast_value ──────────────────────────────────────────────────────────
+# ── _cast_value and _apply_overrides ─────────────────────────────────────
+# These are re-exported from cli.py; comprehensive tests live in test_cli.py.
+# We verify that the re-exports are importable from train_base.
 
 
-class TestCastValue:
-    def test_int(self):
-        assert _cast_value("42") == 42
+class TestReExports:
+    def test_cast_value_importable(self):
+        assert callable(_cast_value)
 
-    def test_float(self):
-        assert _cast_value("3.14") == pytest.approx(3.14)
-
-    def test_float_encoded_int(self):
-        """Vertex AI HPT sends integers as floats like '128.0'."""
-        assert _cast_value("128.0") == 128
-        assert isinstance(_cast_value("128.0"), int)
-
-    def test_string(self):
-        assert _cast_value("hello") == "hello"
-
-    def test_bool_string(self):
-        assert _cast_value("true") == "true"  # Not cast to bool
-
-    def test_negative_float(self):
-        assert _cast_value("-0.5") == pytest.approx(-0.5)
-
-    def test_scientific_notation(self):
-        assert _cast_value("1e-4") == pytest.approx(1e-4)
-
-
-# ── _apply_overrides ─────────────────────────────────────────────────────
-
-
-class TestApplyOverrides:
-    @pytest.fixture()
-    def configs(self):
-        return {
-            1: {
-                "env_kwargs": {"alive_bonus": 2.0, "forward_vel_weight": 0.0},
-                "ppo_kwargs": {"learning_rate": 1e-3, "batch_size": 256},
-            },
-            2: {
-                "env_kwargs": {"alive_bonus": 1.5, "forward_vel_weight": 1.0},
-                "ppo_kwargs": {"learning_rate": 5e-4, "batch_size": 128},
-            },
-        }
-
-    def test_none_overrides_is_noop(self, configs):
-        original = {k: dict(v) for k, v in configs.items()}
-        _apply_overrides(configs, None)
-        for stage in original:
-            assert configs[stage]["env_kwargs"] == original[stage]["env_kwargs"]
-
-    def test_empty_overrides_is_noop(self, configs):
-        _apply_overrides(configs, [])
-
-    def test_all_stage_override(self, configs):
-        _apply_overrides(configs, ["ppo.learning_rate=1e-4"])
-        assert configs[1]["ppo_kwargs"]["learning_rate"] == pytest.approx(1e-4)
-        assert configs[2]["ppo_kwargs"]["learning_rate"] == pytest.approx(1e-4)
-
-    def test_stage_scoped_override(self, configs):
-        _apply_overrides(configs, ["2.ppo.learning_rate=5e-5"])
-        assert configs[1]["ppo_kwargs"]["learning_rate"] == pytest.approx(1e-3)
-        assert configs[2]["ppo_kwargs"]["learning_rate"] == pytest.approx(5e-5)
-
-    def test_env_section(self, configs):
-        _apply_overrides(configs, ["env.alive_bonus=5.0"])
-        assert configs[1]["env_kwargs"]["alive_bonus"] == pytest.approx(5.0)
-        assert configs[2]["env_kwargs"]["alive_bonus"] == pytest.approx(5.0)
-
-    def test_float_encoded_int(self, configs):
-        _apply_overrides(configs, ["ppo.batch_size=512.0"])
-        assert configs[1]["ppo_kwargs"]["batch_size"] == 512
-        assert isinstance(configs[1]["ppo_kwargs"]["batch_size"], int)
+    def test_apply_overrides_importable(self):
+        assert callable(_apply_overrides)
 
 
 # ── SpeciesConfig ────────────────────────────────────────────────────────
