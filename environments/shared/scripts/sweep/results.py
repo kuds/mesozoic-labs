@@ -26,7 +26,7 @@ def _load_trial_metrics(output_base: str, trial_id: str) -> dict[str, float]:
         return {}
     try:
         with open(metrics_path) as f:
-            return json.load(f)
+            return dict(json.load(f))
     except (json.JSONDecodeError, OSError) as exc:
         logger.warning("  Trial %s: failed to read metrics.json: %s", trial_id, exc)
         return {}
