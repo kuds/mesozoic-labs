@@ -28,27 +28,27 @@ def _hpt_arg_to_override(key: str, value: str) -> str:
     return f"{key}={value}"
 
 
-def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
-    """Run a single training trial.
+def _parse_hpt_extra_args(extra_args: list[str]) -> list[str]:
+    """Parse HPT-injected extra args into override strings.
 
-    ``extra_args`` contains the hyperparameter values injected by Vertex AI
-    HPT (e.g. ``['--ppo_learning_rate', '0.0003', '--ppo_ent_coef', '0.01']``).
-    They are converted to ``--override`` format before calling ``train()``.
+    Vertex AI HPT injects hyperparameters as either:
+      ``--param_id=value``   (equals sign format)
+      ``--param_id value``   (space-separated format)
 
-    Each Vertex AI worker gets a unique ``CLOUD_ML_TRIAL_ID`` environment
-    variable.  When ``--output-dir`` is set, this ID is appended as a
-    subdirectory so that every trial's checkpoint is written to its own
-    path — which is how ``launch-all`` identifies the best trial later.
+    Returns a list of override strings like ``["ppo.learning_rate=0.0003", ...]``.
     """
-    # Convert HPT-style args (--ppo_learning_rate 0.0003) to override format
     overrides: list[str] = []
     i = 0
     while i < len(extra_args):
         token = extra_args[i]
         if token.startswith("--"):
-            key = token[2:]  # strip leading "--"
-            # Peek at the next token — is it a value or another flag?
-            if i + 1 < len(extra_args) and not extra_args[i + 1].startswith("--"):
+            # Handle --key=value format (used by Vertex AI HPT)
+            if "=" in token:
+                key, value = token[2:].split("=", 1)
+                i += 1
+            # Handle --key value format (space-separated)
+            elif i + 1 < len(extra_args) and not extra_args[i + 1].startswith("--"):
+                key = token[2:]
                 value = extra_args[i + 1]
                 i += 2
             else:
@@ -58,6 +58,23 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
             overrides.append(_hpt_arg_to_override(key, value))
         else:
             i += 1
+    return overrides
+
+
+def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
+    """Run a single training trial.
+
+    ``extra_args`` contains the hyperparameter values injected by Vertex AI
+    HPT (e.g. ``['--ppo_learning_rate', '0.0003', '--ppo_ent_coef', '0.01']``
+    or ``['--ppo_learning_rate=0.0003', '--ppo_ent_coef=0.01']``).
+    They are converted to ``--override`` format before calling ``train()``.
+
+    Each Vertex AI worker gets a unique ``CLOUD_ML_TRIAL_ID`` environment
+    variable.  When ``--output-dir`` is set, this ID is appended as a
+    subdirectory so that every trial's checkpoint is written to its own
+    path — which is how ``launch-all`` identifies the best trial later.
+    """
+    overrides = _parse_hpt_extra_args(extra_args)
 
     # Extract net_arch overrides — these need special handling because
     # net_arch lives inside a nested ``policy_kwargs`` dict rather than at

@@ -41,7 +41,7 @@ from .state import (
     _sweep_state_local_path,
 )
 from .submit import _is_retryable_gcp_error, _normalize_accelerator_type, _submit_stage_sweep
-from .trial import _hpt_arg_to_override, run_trial
+from .trial import _hpt_arg_to_override, _parse_hpt_extra_args, run_trial
 
 __all__ = [
     "NET_ARCH_PRESETS",
@@ -54,6 +54,7 @@ __all__ = [
     "_extract_thresholds",
     "collect_results_from_disk",
     "_hpt_arg_to_override",
+    "_parse_hpt_extra_args",
     "_is_per_stage",
     "_is_retryable_gcp_error",
     "_load_sweep_state",

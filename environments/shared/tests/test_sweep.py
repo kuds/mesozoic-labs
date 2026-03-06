@@ -12,6 +12,7 @@ from environments.shared.scripts.sweep import (
     _best_trial_model_path,
     _collect_trial_results,
     _hpt_arg_to_override,
+    _parse_hpt_extra_args,
     _is_per_stage,
     _is_retryable_gcp_error,
     _load_sweep_state,
@@ -88,6 +89,66 @@ class TestHptArgToOverride:
 
     def test_env_multi_word_param(self):
         assert _hpt_arg_to_override("env_forward_vel_weight", "1.5") == "env.forward_vel_weight=1.5"
+
+
+# ── _parse_hpt_extra_args ────────────────────────────────────────────────────
+
+
+class TestParseHptExtraArgs:
+    """Parsing of HPT-injected extra CLI args into override strings."""
+
+    def test_equals_format(self):
+        """Vertex AI HPT uses --key=value format."""
+        extra = ["--ppo_learning_rate=0.0001", "--ppo_ent_coef=0.005"]
+        result = _parse_hpt_extra_args(extra)
+        assert result == ["ppo.learning_rate=0.0001", "ppo.ent_coef=0.005"]
+
+    def test_space_separated_format(self):
+        """Fallback --key value format."""
+        extra = ["--ppo_learning_rate", "0.0001", "--ppo_ent_coef", "0.005"]
+        result = _parse_hpt_extra_args(extra)
+        assert result == ["ppo.learning_rate=0.0001", "ppo.ent_coef=0.005"]
+
+    def test_mixed_formats(self):
+        """Both formats can appear in the same arg list."""
+        extra = ["--ppo_learning_rate=0.0001", "--ppo_ent_coef", "0.005"]
+        result = _parse_hpt_extra_args(extra)
+        assert result == ["ppo.learning_rate=0.0001", "ppo.ent_coef=0.005"]
+
+    def test_empty(self):
+        assert _parse_hpt_extra_args([]) == []
+
+    def test_boolean_flags_skipped(self):
+        """Boolean flags (no value) are skipped."""
+        extra = ["--some_flag", "--ppo_learning_rate=0.0001"]
+        result = _parse_hpt_extra_args(extra)
+        assert result == ["ppo.learning_rate=0.0001"]
+
+    def test_discrete_values(self):
+        """Discrete HPT params like batch_size come as floats from Vertex AI."""
+        extra = ["--ppo_batch_size=256.0", "--ppo_n_steps=2048.0"]
+        result = _parse_hpt_extra_args(extra)
+        assert result == ["ppo.batch_size=256.0", "ppo.n_steps=2048.0"]
+
+    def test_multiple_params_equals_format(self):
+        """Realistic Vertex AI HPT injection with 5 parameters."""
+        extra = [
+            "--ppo_learning_rate=0.0001",
+            "--ppo_ent_coef=0.005",
+            "--ppo_batch_size=128.0",
+            "--ppo_gamma=0.985",
+            "--ppo_n_steps=2048.0",
+        ]
+        result = _parse_hpt_extra_args(extra)
+        assert len(result) == 5
+        assert "ppo.learning_rate=0.0001" in result
+        assert "ppo.batch_size=128.0" in result
+
+    def test_non_flag_tokens_skipped(self):
+        """Bare tokens without -- prefix are skipped."""
+        extra = ["stray_token", "--ppo_learning_rate=0.0001"]
+        result = _parse_hpt_extra_args(extra)
+        assert result == ["ppo.learning_rate=0.0001"]
 
 
 # ── _is_per_stage / _split_stage_block / _search_space_for_stage ─────────
