@@ -189,13 +189,20 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
         Path to the written CSV file.
     """
     import csv
+    import tempfile
 
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path_str = str(path)
+    is_gcs = path_str.startswith("gs://")
+
+    if is_gcs:
+        local_path = Path(tempfile.mktemp(suffix=".csv"))
+    else:
+        local_path = Path(path_str)
+        local_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not rows:
         logger.warning("No trial rows to write — skipping CSV")
-        return path
+        return local_path if not is_gcs else Path(path_str)
 
     fixed_cols = ["trial_id", "stage"]
     metric_cols = [
@@ -213,13 +220,25 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
     hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in fixed_cols + metric_cols})
     fieldnames = fixed_cols + hparam_cols + metric_cols
 
-    with open(path, "w", newline="") as f:
+    with open(local_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
-    logger.info("Sweep results written to: %s", path)
-    return path
+    if is_gcs:
+        from google.cloud import storage
+
+        if not path_str.startswith("gs://"):
+            raise ValueError(f"Not a gs:// URI: {path_str}")
+        without_scheme = path_str[len("gs://"):]
+        bucket_name, _, blob_name = without_scheme.partition("/")
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        bucket.blob(blob_name).upload_from_filename(str(local_path))
+        local_path.unlink(missing_ok=True)
+
+    logger.info("Sweep results written to: %s", path_str)
+    return Path(path_str)
 
 
 def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_dir: str | Path | None = None) -> None:
