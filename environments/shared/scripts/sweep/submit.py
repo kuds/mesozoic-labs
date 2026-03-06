@@ -293,11 +293,10 @@ def _submit_stage_sweep(
     import concurrent.futures
 
     _RETRY_DELAYS = [60, 180, 300]  # seconds between retries
-    last_exc: Exception | None = None
+    _CREATION_TIMEOUT = 300
     for attempt in range(len(_RETRY_DELAYS) + 1):
+        _executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         try:
-            _CREATION_TIMEOUT = 300
-            _executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
             _run_kwargs: dict = {"sync": True}
             if restart_job_on_worker_restart:
                 _run_kwargs["restart_job_on_worker_restart"] = True
@@ -334,11 +333,11 @@ def _submit_stage_sweep(
             break  # success — exit retry loop
 
         except Exception as exc:
+            _executor.shutdown(wait=False)
+
             # Only retry on transient / quota errors from the Google API.
-            _retryable = _is_retryable_gcp_error(exc)
-            if not _retryable or attempt >= len(_RETRY_DELAYS):
+            if not _is_retryable_gcp_error(exc) or attempt >= len(_RETRY_DELAYS):
                 raise _SweepJobFailed(str(exc), hpt_job=hpt_job) from exc
-            last_exc = exc
             delay = _RETRY_DELAYS[attempt]
             logger.warning(
                 "Vertex AI error on attempt %d/%d for stage %d: %s. Retrying in %ds …",
@@ -365,11 +364,6 @@ def _submit_stage_sweep(
                 max_trial_count=trials,
                 parallel_trial_count=parallel,
             )
-    else:
-        raise _SweepJobFailed(
-            f"Job submission for stage {stage} failed after {len(_RETRY_DELAYS) + 1} attempts",
-            hpt_job=hpt_job,
-        ) from last_exc
 
     job_name = hpt_job.resource_name
     logger.info("Job submitted: %s", job_name)

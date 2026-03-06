@@ -5,7 +5,7 @@ import logging
 import sys
 from pathlib import Path
 
-from .constants import _DEFAULT_PPO_SEARCH_SPACE, _DEFAULT_SEARCH_SPACES
+from .constants import _DEFAULT_SEARCH_SPACES
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +70,15 @@ def _resolve_search_space(
         logger.info("Search space resolved from file: %s", search_space_file)
         return _load_search_space_file(search_space_file)
 
+    if algorithm not in _DEFAULT_SEARCH_SPACES:
+        logger.error(
+            "No default search space for algorithm %r. Available: %s",
+            algorithm,
+            list(_DEFAULT_SEARCH_SPACES.keys()),
+        )
+        sys.exit(1)
     logger.info("Using default %s search space", algorithm)
-    return _DEFAULT_SEARCH_SPACES.get(algorithm, _DEFAULT_PPO_SEARCH_SPACE)
+    return _DEFAULT_SEARCH_SPACES[algorithm]
 
 
 def _is_per_stage(config: dict) -> bool:
