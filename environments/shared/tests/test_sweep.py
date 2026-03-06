@@ -1264,6 +1264,95 @@ class TestCollectResultsFromDisk:
         assert stages.count(2) == 1
         assert stages.count(3) == 1
 
+    def test_hyperparameters_from_stage_config(self, tmp_path):
+        """Includes algorithm hyperparameters and reward weights from stage_config.json."""
+        stage_dir = _setup_sweep_dir(
+            tmp_path,
+            1,
+            {"1": {"best_mean_reward": 100.0, "best_mean_episode_length": 400.0}},
+        )
+        cfg = {
+            "algorithm": "PPO",
+            "hyperparameters": {
+                "learning_rate": 0.0003,
+                "batch_size": 128,
+                "n_epochs": 10,
+                "policy_kwargs": {"net_arch": [256, 256]},
+            },
+            "reward_weights": {
+                "alive_bonus": 2.0,
+                "energy_penalty_weight": 0.05,
+            },
+            "curriculum": {"min_avg_reward": 50.0},
+        }
+        with open(stage_dir / "stage_config.json", "w") as f:
+            json.dump(cfg, f)
+        rows = collect_results_from_disk(tmp_path)
+        assert len(rows) == 1
+        row = rows[0]
+        # Algorithm hyperparameters prefixed with algorithm name
+        assert row["ppo_learning_rate"] == 0.0003
+        assert row["ppo_batch_size"] == 128
+        assert row["ppo_n_epochs"] == 10
+        # Nested policy_kwargs flattened
+        assert row["ppo_policy_kwargs_net_arch"] == [256, 256]
+        # Reward weights prefixed with env_
+        assert row["env_alive_bonus"] == 2.0
+        assert row["env_energy_penalty_weight"] == 0.05
+
+    def test_hyperparameters_from_per_trial_config(self, tmp_path):
+        """Falls back to per-trial stage_config.json for hyperparameters."""
+        stage_dir = tmp_path / "stage1"
+        trial_dir = stage_dir / "1"
+        trial_dir.mkdir(parents=True)
+        with open(trial_dir / "metrics.json", "w") as f:
+            json.dump({"best_mean_reward": 100.0}, f)
+        cfg = {
+            "algorithm": "SAC",
+            "hyperparameters": {"learning_rate": 0.001, "gamma": 0.99},
+            "reward_weights": {"alive_bonus": 1.5},
+            "curriculum": {"min_avg_reward": 50.0},
+        }
+        with open(trial_dir / "stage_config.json", "w") as f:
+            json.dump(cfg, f)
+        rows = collect_results_from_disk(tmp_path)
+        assert len(rows) == 1
+        row = rows[0]
+        assert row["sac_learning_rate"] == 0.001
+        assert row["sac_gamma"] == 0.99
+        assert row["env_alive_bonus"] == 1.5
+
+    def test_hyperparameters_in_csv_output(self, tmp_path):
+        """Hyperparameters appear as columns in the written CSV."""
+        stage_dir = _setup_sweep_dir(
+            tmp_path,
+            1,
+            {"1": {"best_mean_reward": 100.0}},
+        )
+        cfg = {
+            "algorithm": "PPO",
+            "hyperparameters": {"learning_rate": 0.0003, "batch_size": 256},
+            "reward_weights": {"alive_bonus": 2.0},
+            "curriculum": {"min_avg_reward": 50.0},
+        }
+        with open(stage_dir / "stage_config.json", "w") as f:
+            json.dump(cfg, f)
+        rows = collect_results_from_disk(tmp_path)
+        csv_path = tmp_path / "collected_results.csv"
+        write_results_csv(rows, csv_path)
+        import csv
+
+        with open(csv_path) as f:
+            reader = csv.DictReader(f)
+            csv_rows = list(reader)
+        assert len(csv_rows) == 1
+        assert "ppo_learning_rate" in csv_rows[0]
+        assert "ppo_batch_size" in csv_rows[0]
+        assert "env_alive_bonus" in csv_rows[0]
+        assert csv_rows[0]["ppo_learning_rate"] == "0.0003"
+        assert csv_rows[0]["ppo_batch_size"] == "256"
+        assert csv_rows[0]["env_alive_bonus"] == "2.0"
+
 
 # ── collect_results_from_disk with gs:// URIs ──────────────────────────
 

@@ -611,6 +611,39 @@ def collect_results_from_disk(
             shutil.rmtree(cleanup_tempdir, ignore_errors=True)
 
 
+def _extract_hyperparameters(config: dict) -> dict[str, Any]:
+    """Extract hyperparameter settings from a stage_config.json dict.
+
+    Converts the nested ``hyperparameters``, ``reward_weights``, and
+    ``curriculum`` sections into flat keys using the same
+    ``<prefix>_<param>`` naming convention used by the Vertex AI HPT
+    parameter injection (e.g. ``ppo_learning_rate``, ``env_alive_bonus``,
+    ``curriculum_timesteps``).
+
+    Nested dicts (like ``policy_kwargs``) are flattened with an underscore
+    separator (e.g. ``ppo_policy_kwargs_net_arch``).
+
+    Returns:
+        A flat dict of ``{param_id: value}`` pairs.
+    """
+    params: dict[str, Any] = {}
+    algorithm = (config.get("algorithm") or "ppo").lower()
+
+    # Algorithm hyperparameters (e.g. learning_rate → ppo_learning_rate)
+    for key, value in (config.get("hyperparameters") or {}).items():
+        if isinstance(value, dict):
+            for sub_key, sub_value in value.items():
+                params[f"{algorithm}_{key}_{sub_key}"] = sub_value
+        else:
+            params[f"{algorithm}_{key}"] = value
+
+    # Environment / reward weights (e.g. alive_bonus → env_alive_bonus)
+    for key, value in (config.get("reward_weights") or {}).items():
+        params[f"env_{key}"] = value
+
+    return params
+
+
 def _collect_results_local(
     output_dir: Path,
     species: str | None = None,
@@ -643,8 +676,9 @@ def _collect_results_local(
 
     rows: list[dict] = []
     for stage_num, stage_path in stage_dirs:
-        # Load stage_config.json for thresholds (may be at the stage level
-        # or inside each trial directory — check the stage level first).
+        # Load stage_config.json for thresholds and hyperparameters (may be
+        # at the stage level or inside each trial directory — check the
+        # stage level first).
         stage_config_path = stage_path / "stage_config.json"
         stage_cfg: dict = {}
         if stage_config_path.exists():
@@ -657,6 +691,7 @@ def _collect_results_local(
         reward_threshold, ep_length_threshold, forward_vel_threshold, success_rate_threshold = _extract_thresholds(
             stage_cfg
         )
+        stage_hparams = _extract_hyperparameters(stage_cfg)
 
         # Check if this is a single-trial (curriculum) layout where
         # metrics.json sits directly in the stage directory.
@@ -681,6 +716,7 @@ def _collect_results_local(
             trial_ep_th = ep_length_threshold
             trial_fwd_th = forward_vel_threshold
             trial_sr_th = success_rate_threshold
+            trial_hparams = stage_hparams
             if not stage_cfg:
                 per_trial_cfg_path = trial_path / "stage_config.json"
                 if per_trial_cfg_path.exists():
@@ -688,6 +724,7 @@ def _collect_results_local(
                         with open(per_trial_cfg_path) as f:
                             trial_cfg = json.load(f)
                         trial_reward_th, trial_ep_th, trial_fwd_th, trial_sr_th = _extract_thresholds(trial_cfg)
+                        trial_hparams = _extract_hyperparameters(trial_cfg)
                     except (json.JSONDecodeError, OSError):
                         pass
 
@@ -696,6 +733,10 @@ def _collect_results_local(
                 "trial_id": trial_id,
                 "stage": stage_num,
             }
+
+            # Add hyperparameter settings from stage_config.json
+            row.update(trial_hparams)
+
             # Include any extra keys from metrics.json (e.g. hyperparameters,
             # auxiliary metrics) that aren't in the fixed/metric column sets.
             _fixed_metric_keys = {
