@@ -230,7 +230,7 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
 
         if not path_str.startswith("gs://"):
             raise ValueError(f"Not a gs:// URI: {path_str}")
-        without_scheme = path_str[len("gs://"):]
+        without_scheme = path_str[len("gs://") :]
         bucket_name, _, blob_name = without_scheme.partition("/")
         client = storage.Client()
         bucket = client.bucket(bucket_name)
