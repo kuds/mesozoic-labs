@@ -435,14 +435,14 @@ def _download_gcs_results(gcs_uri: str, local_dir: Path) -> Path:
         raise ValueError(f"Not a gs:// URI: {gcs_uri}")
 
     # Parse gs://bucket/prefix
-    without_scheme = gcs_uri[len("gs://"):]
+    without_scheme = gcs_uri[len("gs://") :]
     slash_idx = without_scheme.find("/")
     if slash_idx == -1:
         bucket_name = without_scheme
         prefix = ""
     else:
         bucket_name = without_scheme[:slash_idx]
-        prefix = without_scheme[slash_idx + 1:].rstrip("/")
+        prefix = without_scheme[slash_idx + 1 :].rstrip("/")
 
     client = _gcs.Client()
     bucket = client.bucket(bucket_name)
@@ -458,7 +458,7 @@ def _download_gcs_results(gcs_uri: str, local_dir: Path) -> Path:
             continue
 
         # Compute the relative path under the prefix.
-        rel_path = blob.name[len(blob_prefix):] if blob_prefix else blob.name
+        rel_path = blob.name[len(blob_prefix) :] if blob_prefix else blob.name
         local_path = local_dir / rel_path
         local_path.parent.mkdir(parents=True, exist_ok=True)
         blob.download_to_filename(str(local_path))
