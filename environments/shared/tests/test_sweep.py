@@ -24,6 +24,7 @@ from environments.shared.scripts.sweep import (
     _split_stage_block,
     _sweep_state_local_path,
     _SweepJobFailed,
+    _validate_machine_type,
     collect_results_from_disk,
     write_results_csv,
 )
@@ -57,6 +58,22 @@ class TestNormalizeAcceleratorType:
 
     def test_a100_alias(self):
         assert _normalize_accelerator_type("A100") == "NVIDIA_TESLA_A100"
+
+
+# ── _validate_machine_type ───────────────────────────────────────────────────
+
+
+class TestValidateMachineType:
+    """Unsupported machine families are rejected before job submission."""
+
+    @pytest.mark.parametrize("mt", ["n1-standard-8", "n2-standard-4", "e2-standard-16", "c2-standard-8", "c3-standard-4", "a2-highgpu-1g", "g2-standard-4"])
+    def test_supported_types_pass(self, mt):
+        _validate_machine_type(mt)  # should not raise
+
+    @pytest.mark.parametrize("mt", ["c4-standard-8", "c4-highcpu-16", "z1-standard-4"])
+    def test_unsupported_types_raise(self, mt):
+        with pytest.raises(ValueError, match="not supported by Vertex AI"):
+            _validate_machine_type(mt)
 
 
 # ── _hpt_arg_to_override ────────────────────────────────────────────────────

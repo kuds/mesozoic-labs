@@ -18,6 +18,26 @@ _ACCELERATOR_ALIASES: dict[str, str] = {
     "L4": "NVIDIA_L4",
 }
 
+# Machine-type families supported by Vertex AI custom training jobs.
+_SUPPORTED_MACHINE_PREFIXES = (
+    "n1-", "n2-", "n2d-",
+    "e2-",
+    "c2-", "c2d-", "c3-",
+    "m1-", "m2-", "m3-",
+    "a2-", "a3-",
+    "g2-",
+)
+
+
+def _validate_machine_type(machine_type: str) -> None:
+    """Raise ``ValueError`` early if the machine type is unsupported."""
+    if not any(machine_type.startswith(p) for p in _SUPPORTED_MACHINE_PREFIXES):
+        raise ValueError(
+            f'Machine type "{machine_type}" is not supported by Vertex AI custom training. '
+            f"Supported families: {', '.join(p.rstrip('-') for p in _SUPPORTED_MACHINE_PREFIXES)}. "
+            f'The default is "n1-standard-8".'
+        )
+
 
 def _normalize_accelerator_type(raw: str) -> str | None:
     """Return the canonical Vertex AI enum label, or *None* for CPU-only."""
@@ -235,6 +255,7 @@ def _submit_stage_sweep(
     if wandb:
         trial_args.append("--wandb")
 
+    _validate_machine_type(machine_type)
     resolved_accelerator = _normalize_accelerator_type(accelerator_type)
 
     machine_spec: dict = {"machine_type": machine_type}

@@ -40,7 +40,7 @@ from .state import (
     _save_sweep_state,
     _sweep_state_local_path,
 )
-from .submit import _is_retryable_gcp_error, _normalize_accelerator_type, _submit_stage_sweep
+from .submit import _is_retryable_gcp_error, _normalize_accelerator_type, _submit_stage_sweep, _validate_machine_type
 from .trial import _hpt_arg_to_override, _parse_hpt_extra_args, run_trial
 
 __all__ = [
@@ -66,6 +66,7 @@ __all__ = [
     "_split_stage_block",
     "_submit_stage_sweep",
     "_sweep_state_local_path",
+    "_validate_machine_type",
     "launch_all_stages",
     "launch_sweep",
     "plot_sweep_results",
