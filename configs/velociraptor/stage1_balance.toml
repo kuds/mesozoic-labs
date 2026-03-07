@@ -20,15 +20,15 @@ reset_noise_scale = 0.05                  # Increased from 0.01 default to impro
 
 [ppo]
 learning_rate = 3e-4
-learning_rate_end = 1e-5
-lr_schedule = "cosine"                       # "linear" or "cosine" — cosine decays faster mid-training, protecting converged policies
+# learning_rate_end = 1e-5
+# lr_schedule = "cosine"                       # "linear" or "cosine" — cosine decays faster mid-training, protecting converged policies
 n_steps = 2048
 batch_size = 256
 n_epochs = 6                                 # Reduced from 10 to limit per-rollout over-updating
 gamma = 0.99                                 # Reduced from 0.995 to stabilise value estimation for balance
 gae_lambda = 0.95
 clip_range = 0.2
-clip_range_end = 0.1                         # Anneal clip_range to constrain late-training policy updates
+# clip_range_end = 0.1                         # Anneal clip_range to constrain late-training policy updates
 ent_coef = 0.005
 
 [ppo.policy_kwargs]
