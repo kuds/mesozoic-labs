@@ -66,7 +66,18 @@ class TestNormalizeAcceleratorType:
 class TestValidateMachineType:
     """Unsupported machine families are rejected before job submission."""
 
-    @pytest.mark.parametrize("mt", ["n1-standard-8", "n2-standard-4", "e2-standard-16", "c2-standard-8", "c3-standard-4", "a2-highgpu-1g", "g2-standard-4"])
+    @pytest.mark.parametrize(
+        "mt",
+        [
+            "n1-standard-8",
+            "n2-standard-4",
+            "e2-standard-16",
+            "c2-standard-8",
+            "c3-standard-4",
+            "a2-highgpu-1g",
+            "g2-standard-4",
+        ],
+    )
     def test_supported_types_pass(self, mt):
         _validate_machine_type(mt)  # should not raise
 
