@@ -93,7 +93,7 @@ def main(species_cfg):
     train_parser.add_argument("--n-envs", type=int, default=4, help="Number of parallel environments")
     train_parser.add_argument("--load", type=str, default=None, help="Path to model to continue from")
     train_parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    train_parser.add_argument("--eval-freq", type=int, default=10000, help="Evaluation frequency")
+    train_parser.add_argument("--eval-freq", type=int, default=50000, help="Evaluation frequency")
     train_parser.add_argument("--save-freq", type=int, default=50000, help="Checkpoint frequency")
     train_parser.add_argument("--log-dir", type=str, default=None, help="Custom log directory")
     train_parser.add_argument("--subproc", action="store_true", help="Use subprocess vectorization")
@@ -125,7 +125,7 @@ def main(species_cfg):
     cur_parser = subparsers.add_parser("curriculum", help="Run automated end-to-end curriculum (stages 1-3)")
     cur_parser.add_argument("--n-envs", type=int, default=4)
     cur_parser.add_argument("--seed", type=int, default=42)
-    cur_parser.add_argument("--eval-freq", type=int, default=10000)
+    cur_parser.add_argument("--eval-freq", type=int, default=50000)
     cur_parser.add_argument("--save-freq", type=int, default=50000)
     cur_parser.add_argument("--log-dir", type=str, default=None)
     cur_parser.add_argument("--subproc", action="store_true")
@@ -161,7 +161,7 @@ def main(species_cfg):
             args.n_envs = 4
             args.load = None
             args.seed = 42
-            args.eval_freq = 10000
+            args.eval_freq = 50000
             args.save_freq = 50000
             args.log_dir = None
             args.subproc = False

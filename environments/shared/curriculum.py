@@ -20,7 +20,7 @@ Usage with CurriculumCallback (SB3 integration)::
     from environments.shared.curriculum import CurriculumManager, CurriculumCallback
 
     manager = CurriculumManager(species="velociraptor")
-    curriculum_cb = CurriculumCallback(manager, eval_env, eval_freq=10000)
+    curriculum_cb = CurriculumCallback(manager, eval_env, eval_freq=50000)
 
     model.learn(total_timesteps=500_000, callback=curriculum_cb)
 
@@ -359,7 +359,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         self,
         curriculum_manager: CurriculumManager,
         eval_env: Any,
-        eval_freq: int = 10000,
+        eval_freq: int = 50000,
         n_eval_episodes: int = 30,
         eval_callback: Any = None,
         supplementary_episodes: int = 5,

@@ -40,7 +40,7 @@ def _build_parser() -> argparse.ArgumentParser:
     trial.add_argument("--timesteps", type=int, default=500000, help="Training timesteps per trial")
     trial.add_argument("--n-envs", type=int, default=4, help="Parallel environments per trial")
     trial.add_argument("--seed", type=int, default=42)
-    trial.add_argument("--eval-freq", type=int, default=10000)
+    trial.add_argument("--eval-freq", type=int, default=50000)
     trial.add_argument("--save-freq", type=int, default=50000)
     trial.add_argument("--load", type=str, default=None, help="Path to model checkpoint to warm-start from")
     trial.add_argument("--output-dir", type=str, default=None, help="Base output dir (GCS mount path on Vertex AI)")
@@ -79,7 +79,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Parallel trials running at once (default: 5, or from search-space file)",
     )
-    launch.add_argument("--eval-freq", type=int, default=None, help="Eval frequency per trial (default: 10000)")
+    launch.add_argument("--eval-freq", type=int, default=None, help="Eval frequency per trial (default: 50000)")
     launch.add_argument(
         "--save-freq", type=int, default=None, help="Checkpoint save frequency per trial (default: 50000)"
     )
@@ -202,7 +202,7 @@ def _build_parser() -> argparse.ArgumentParser:
     launch_all.add_argument(
         "--timesteps-stage3", type=int, default=None, help="Timesteps per Stage 3 trial (default: 1.5M)"
     )
-    launch_all.add_argument("--eval-freq", type=int, default=None, help="Eval frequency per trial (default: 10000)")
+    launch_all.add_argument("--eval-freq", type=int, default=None, help="Eval frequency per trial (default: 50000)")
     launch_all.add_argument(
         "--save-freq", type=int, default=None, help="Checkpoint save frequency per trial (default: 50000)"
     )
