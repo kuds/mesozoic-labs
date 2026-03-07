@@ -19,17 +19,13 @@ _ACCELERATOR_ALIASES: dict[str, str] = {
 }
 
 # Machine-type families supported by Vertex AI custom training jobs.
+# See https://docs.cloud.google.com/vertex-ai/docs/training/configure-compute
 _SUPPORTED_MACHINE_PREFIXES = (
     "n1-",
     "n2-",
-    "n2d-",
     "e2-",
     "c2-",
-    "c2d-",
-    "c3-",
     "m1-",
-    "m2-",
-    "m3-",
     "a2-",
     "a3-",
     "g2-",

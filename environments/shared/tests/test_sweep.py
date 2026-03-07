@@ -73,7 +73,6 @@ class TestValidateMachineType:
             "n2-standard-4",
             "e2-standard-16",
             "c2-standard-8",
-            "c3-standard-4",
             "a2-highgpu-1g",
             "g2-standard-4",
         ],
@@ -81,7 +80,7 @@ class TestValidateMachineType:
     def test_supported_types_pass(self, mt):
         _validate_machine_type(mt)  # should not raise
 
-    @pytest.mark.parametrize("mt", ["c4-standard-8", "c4-highcpu-16", "z1-standard-4"])
+    @pytest.mark.parametrize("mt", ["c3-standard-4", "c4-standard-8", "c4-highcpu-16", "z1-standard-4"])
     def test_unsupported_types_raise(self, mt):
         with pytest.raises(ValueError, match="not supported by Vertex AI"):
             _validate_machine_type(mt)
