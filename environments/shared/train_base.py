@@ -458,7 +458,7 @@ def _report_hpt_metrics(
     sb3 = _ensure_sb3()
 
     # Accumulate all metrics for the JSON sidecar.
-    aux_metrics: dict[str, float] = {
+    aux_metrics: dict[str, float | str] = {
         "best_mean_reward": float(eval_callback.best_mean_reward),
         "training_duration_seconds": round(training_duration_seconds, 1),
     }
