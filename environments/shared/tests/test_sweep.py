@@ -1651,3 +1651,8 @@ class TestGenerateTrialArtifacts:
         # Returned results should have best eval metrics from evaluations.npz
         assert results["best_eval_reward"] == 21.0
         assert results["best_eval_timestep"] == 100000
+
+        # Training graphs should be generated
+        assert (tmp_path / "training_curves.png").exists()
+        assert (tmp_path / "locomotion_health.png").exists()
+        assert (tmp_path / "behavioral_metrics.png").exists()

@@ -339,8 +339,9 @@ def generate_stage_artifacts(
     stage_results: Dict[str, Any] | None = None,
     timesteps: int = 0,
     record_videos: bool = True,
+    generate_graphs: bool = True,
 ) -> Dict[str, Any]:
-    """Write stage summary and optionally record replay videos.
+    """Write stage summary, record replay videos, and generate training graphs.
 
     This is the single shared entry-point for generating post-training
     artifacts.  Both the training notebook and the sweep trial worker
@@ -350,6 +351,10 @@ def generate_stage_artifacts(
     eval data via :func:`build_stage_results_from_eval_data`.  Callers
     that already have richer metrics (e.g. the notebook, which runs a
     full 30-episode eval) should pass their own *stage_results*.
+
+    When *generate_graphs* is ``True`` (the default), training curves and
+    diagnostic graphs are saved to the stage directory.  Requires
+    ``matplotlib``.
 
     Returns the (possibly enriched) *stage_results* dict.
     """
@@ -364,6 +369,32 @@ def generate_stage_artifacts(
 
     write_stage_summary(stage_dir, stage_results, species, algorithm)
     logger.info("Stage summary written to: %s", stage_dir / "stage_summary.txt")
+
+    # ── Generate training graphs ────────────────────────────────────────
+    if generate_graphs:
+        try:
+            from environments.shared.visualization import (
+                plot_diagnostics_graphs,
+                plot_training_curves,
+            )
+
+            stage_dirs = [(stage, stage_dir)]
+            stage_configs = {stage: stage_config}
+
+            plot_training_curves(
+                stage_dirs, stage_configs, species, algorithm,
+                save_path=stage_dir / "training_curves.png",
+            )
+            plot_diagnostics_graphs(
+                stage_dirs, stage_configs, species, algorithm,
+                save_dir=stage_dir, show=False,
+            )
+        except ImportError:
+            logger.warning(
+                "Skipping graph generation (matplotlib not installed)."
+            )
+        except Exception:
+            logger.warning("Graph generation failed.", exc_info=True)
 
     if not record_videos:
         return stage_results
