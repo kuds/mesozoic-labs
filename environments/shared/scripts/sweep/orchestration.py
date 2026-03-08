@@ -13,6 +13,7 @@ from .results import (
     _collect_trial_results,
     plot_sweep_results,
     write_results_csv,
+    write_sweep_summary,
 )
 from .search_space import (
     _resolve_search_space,
@@ -399,8 +400,9 @@ def launch_sweep(args: argparse.Namespace) -> None:
         csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}_stage{stage}.csv")
         write_results_csv(stage_rows, csv_path)
 
-        # Generate sweep visualisation graphs
+        # Generate sweep visualisation graphs and summary
         plot_sweep_results(csv_path, args.species, args.algorithm)
+        write_sweep_summary(stage_rows, args.species, args.algorithm)
 
         # Upload CSV and graphs to GCS
         try:
@@ -1032,10 +1034,19 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         except Exception as exc:
             logger.warning("Failed to upload sweep CSV to GCS: %s. Local copy at: %s", exc, csv_path)
 
-    # Generate sweep visualisation graphs
+    # Generate sweep visualisation graphs and summary
     plot_sweep_results(csv_path, args.species, args.algorithm)
+    summary_path = write_sweep_summary(all_rows, args.species, args.algorithm)
 
-    # Upload graphs to GCS alongside the CSV
+    # Upload graphs and summary to GCS alongside the CSV
+    if _gcs_bucket is not None and summary_path is not None and summary_path.exists():
+        gcs_summary_path = f"sweeps/{args.species}/{summary_path.name}"
+        try:
+            _gcs_bucket.blob(gcs_summary_path).upload_from_filename(str(summary_path))
+            logger.info("Sweep summary uploaded to: gs://%s/%s", args.bucket, gcs_summary_path)
+        except Exception as exc:
+            logger.warning("Failed to upload sweep summary to GCS: %s", exc)
+
     if _gcs_bucket is not None:
         for graph_name in ("sweep_trial_metrics.png", "sweep_hyperparameter_analysis.png"):
             graph_path = csv_path.parent / graph_name

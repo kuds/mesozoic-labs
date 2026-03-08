@@ -27,6 +27,7 @@ from .results import (
     collect_results_from_disk,
     plot_sweep_results,
     write_results_csv,
+    write_sweep_summary,
 )
 from .search_space import (
     _is_per_stage,
@@ -72,4 +73,5 @@ __all__ = [
     "plot_sweep_results",
     "run_trial",
     "write_results_csv",
+    "write_sweep_summary",
 ]
