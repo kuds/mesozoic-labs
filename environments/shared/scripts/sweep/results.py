@@ -101,11 +101,11 @@ def _load_trial_metrics(output_base: str, trial_id: str) -> dict[str, float]:
     path_str = str(metrics_path)
     if path_str.startswith("/gcs/"):
         # Convert /gcs/<bucket>/... → gs://<bucket>/...
-        gcs_uri = "gs://" + path_str[len("/gcs/"):]
+        gcs_uri = "gs://" + path_str[len("/gcs/") :]
         try:
             from google.cloud import storage as _gcs
 
-            without_scheme = gcs_uri[len("gs://"):]
+            without_scheme = gcs_uri[len("gs://") :]
             bucket_name, _, blob_name = without_scheme.partition("/")
             client = _gcs.Client()
             bucket = client.bucket(bucket_name)
@@ -326,7 +326,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
         try:
             from google.cloud import storage as _gcs
 
-            without_scheme = csv_path_str[len("gs://"):]
+            without_scheme = csv_path_str[len("gs://") :]
             bucket_name, _, blob_name = without_scheme.partition("/")
             client = _gcs.Client()
             bucket = client.bucket(bucket_name)
@@ -610,10 +610,19 @@ def write_sweep_summary(
 
     # Identify columns that look like hyperparameters (not fixed/metric)
     _fixed = {
-        "trial_id", "stage", "best_mean_reward", "best_mean_episode_length",
-        "last_mean_reward", "last_mean_episode_length", "reward_threshold",
-        "ep_length_threshold", "forward_vel_threshold", "success_rate_threshold",
-        "stage_passed", "model_path", "training_duration_seconds",
+        "trial_id",
+        "stage",
+        "best_mean_reward",
+        "best_mean_episode_length",
+        "last_mean_reward",
+        "last_mean_episode_length",
+        "reward_threshold",
+        "ep_length_threshold",
+        "forward_vel_threshold",
+        "success_rate_threshold",
+        "stage_passed",
+        "model_path",
+        "training_duration_seconds",
     }
 
     for stage in stages:
