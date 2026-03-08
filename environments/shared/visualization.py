@@ -12,7 +12,7 @@ called headless (no display).  The notebook can continue to call
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
