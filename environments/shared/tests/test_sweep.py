@@ -1566,3 +1566,83 @@ class TestCollectResultsFromDiskGCS:
 
         assert len(created_tmpdirs) == 1
         assert not Path(created_tmpdirs[0]).exists()
+
+
+class TestGenerateTrialArtifacts:
+    """Test _generate_trial_artifacts produces stage summary and videos."""
+
+    def test_writes_stage_summary_and_records_videos(self, tmp_path):
+        """After a trial, stage_summary.txt is written and videos are attempted."""
+        import numpy as np
+
+        from environments.shared.scripts.sweep.trial import _generate_trial_artifacts
+
+        # Setup directory structure matching what train() produces
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+        (model_dir / "best_model.zip").write_bytes(b"fake")
+        (model_dir / "best_model_vecnorm.pkl").write_bytes(b"fake")
+        (model_dir / "stage1_final.zip").write_bytes(b"fake")
+        (model_dir / "stage1_final_vecnorm.pkl").write_bytes(b"fake")
+
+        # Create evaluations.npz
+        rewards = np.array([[10.0, 12.0], [20.0, 22.0]])
+        lengths = np.array([[100, 110], [200, 210]])
+        timesteps = np.array([50000, 100000])
+        np.savez(
+            str(tmp_path / "evaluations.npz"),
+            results=rewards,
+            ep_lengths=lengths,
+            timesteps=timesteps,
+        )
+
+        mock_species_cfg = MagicMock()
+        mock_species_cfg.species = "velociraptor"
+        mock_species_cfg.env_class = MagicMock
+
+        stage_configs = {
+            1: {
+                "name": "Balance",
+                "description": "Stand up",
+                "env_kwargs": {"sim_dt": 0.01},
+                "ppo_kwargs": {},
+            },
+        }
+
+        mock_sb3 = {
+            "PPO": MagicMock(),
+            "SAC": MagicMock(),
+        }
+
+        with (
+            patch(
+                "environments.shared.train_base._ensure_sb3",
+                return_value=mock_sb3,
+            ),
+            patch(
+                "environments.shared.evaluation.record_stage_video",
+            ) as mock_video,
+        ):
+            _generate_trial_artifacts(
+                model=MagicMock(),
+                species_cfg=mock_species_cfg,
+                stage_configs=stage_configs,
+                stage=1,
+                algorithm="ppo",
+                output_dir=str(tmp_path),
+                timesteps=100_000,
+                seed=42,
+            )
+
+        # stage_summary.txt should exist
+        summary = tmp_path / "stage_summary.txt"
+        assert summary.exists()
+        text = summary.read_text()
+        assert "Balance" in text
+        assert "Velociraptor" in text
+
+        # Videos should be recorded for both best and final models
+        assert mock_video.call_count == 2
+        labels = [call.kwargs["label"] for call in mock_video.call_args_list]
+        assert "best" in labels
+        assert "final" in labels

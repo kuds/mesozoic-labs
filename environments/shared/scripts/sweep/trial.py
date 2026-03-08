@@ -140,7 +140,7 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
             stage_config[algo_key].setdefault("policy_kwargs", {})["net_arch"] = arch
         logger.info("Applied net_arch=%s (%s) to all stages", net_arch_preset, arch)
 
-    train(
+    model = train(
         species_cfg=SPECIES_CONFIG,
         stage_configs=STAGE_CONFIGS,
         stage=args.stage,
@@ -156,6 +156,158 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         use_wandb=args.wandb,
         output_dir=output_dir,
     )
+
+    # Generate stage summary and replay videos (same artifacts the notebook produces)
+    if output_dir is not None:
+        _generate_trial_artifacts(
+            model=model,
+            species_cfg=SPECIES_CONFIG,
+            stage_configs=STAGE_CONFIGS,
+            stage=args.stage,
+            algorithm=args.algorithm,
+            output_dir=output_dir,
+            timesteps=args.timesteps,
+            seed=args.seed,
+        )
+
+
+def _generate_trial_artifacts(
+    model,
+    species_cfg,
+    stage_configs,
+    stage: int,
+    algorithm: str,
+    output_dir: str,
+    timesteps: int,
+    seed: int,
+) -> None:
+    """Generate stage summary and replay videos for a completed trial.
+
+    Mirrors what the training notebook produces so sweep trials leave the
+    same artifacts: ``stage_summary.txt`` and best/final ``.mp4`` videos.
+    """
+    from pathlib import Path
+
+    import numpy as _np
+
+    from environments.shared.evaluation import record_stage_video
+    from environments.shared.reporting import write_stage_summary
+    from environments.shared.train_base import _ensure_sb3
+
+    sb3 = _ensure_sb3()
+    log_path = Path(output_dir)
+    model_dir = log_path / "models"
+    config = stage_configs[stage]
+    species = species_cfg.species
+
+    # ── Build a results dict from on-disk eval data ─────────────────────
+    eval_npz = log_path / "evaluations.npz"
+    mean_reward = 0.0
+    std_reward = 0.0
+    mean_length = 0.0
+    std_length = 0.0
+    best_eval_reward: float | str = ""
+    best_eval_std: float | str = ""
+    best_eval_length: float | str = ""
+    best_eval_std_length: float | str = ""
+    best_eval_timestep: int | str = ""
+
+    if eval_npz.exists():
+        eval_data = _np.load(str(eval_npz))
+        eval_rewards = eval_data["results"]
+        eval_lengths = eval_data["ep_lengths"]
+        eval_timesteps = eval_data["timesteps"]
+
+        mean_per_eval = eval_rewards.mean(axis=1)
+        best_idx = int(mean_per_eval.argmax())
+
+        best_eval_reward = round(float(mean_per_eval[best_idx]), 2)
+        best_eval_std = round(float(eval_rewards[best_idx].std()), 2)
+        best_eval_length = round(float(eval_lengths[best_idx].mean()), 1)
+        best_eval_std_length = round(float(eval_lengths[best_idx].std()), 1)
+        best_eval_timestep = int(eval_timesteps[best_idx])
+
+        # Use last eval as "final" metrics
+        mean_reward = float(mean_per_eval[-1])
+        std_reward = float(eval_rewards[-1].std())
+        mean_length = float(eval_lengths[-1].mean())
+        std_length = float(eval_lengths[-1].std())
+
+    # Read duration from metrics.json if available
+    metrics_path = log_path / "metrics.json"
+    duration = 0.0
+    if metrics_path.exists():
+        import json as _json
+
+        metrics = _json.loads(metrics_path.read_text())
+        duration = metrics.get("training_duration_seconds", 0.0)
+
+    best_model_path = model_dir / "best_model"
+    final_path = model_dir / f"stage{stage}_final"
+    vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
+    final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
+
+    sim_dt = config.get("env_kwargs", {}).get("sim_dt", 0.01)
+
+    stage_results = {
+        "stage": stage,
+        "name": config["name"],
+        "description": config["description"],
+        "timesteps": timesteps,
+        "duration_seconds": duration,
+        "mean_reward": mean_reward,
+        "std_reward": std_reward,
+        "mean_episode_length": mean_length,
+        "std_episode_length": std_length,
+        "mean_forward_vel": 0.0,
+        "std_forward_vel": 0.0,
+        "mean_success_rate": 0.0,
+        "best_eval_reward": best_eval_reward,
+        "best_eval_std": best_eval_std,
+        "best_eval_length": best_eval_length,
+        "best_eval_std_length": best_eval_std_length,
+        "best_eval_timestep": best_eval_timestep,
+        "sim_dt": sim_dt,
+        "model_path": str(best_model_path),
+        "vecnorm_path": vecnorm_path,
+    }
+
+    write_stage_summary(log_path, stage_results, species, algorithm)
+    logger.info("Stage summary written to: %s", log_path / "stage_summary.txt")
+
+    # ── Record replay videos for best and final models ──────────────────
+    env_kwargs = config["env_kwargs"].copy()
+    alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
+
+    if (model_dir / "best_model.zip").exists():
+        best_model = alg_cls.load(str(best_model_path))
+        record_stage_video(
+            best_model,
+            env_class=species_cfg.env_class,
+            env_kwargs=env_kwargs,
+            stage=stage,
+            stage_dir=log_path,
+            species=species,
+            algorithm=algorithm,
+            seed=seed,
+            vecnorm_path=vecnorm_path,
+            label="best",
+        )
+
+    if (Path(str(final_path) + ".zip")).exists():
+        final_model = alg_cls.load(str(final_path))
+        record_stage_video(
+            final_model,
+            env_class=species_cfg.env_class,
+            env_kwargs=env_kwargs,
+            stage=stage,
+            stage_dir=log_path,
+            species=species,
+            algorithm=algorithm,
+            seed=seed,
+            vecnorm_path=final_vecnorm_path,
+            label="final",
+        )
 
 
 def _build_parameter_spec(search_space: dict, hpt_module: Any) -> dict:
