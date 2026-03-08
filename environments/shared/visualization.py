@@ -12,12 +12,12 @@ called headless (no display).  The notebook can continue to call
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
 logger = logging.getLogger(__name__)
 
 # Type alias for the (stage_num, stage_dir) tuples used throughout.
-StageDirs = List[Tuple[int, "str | Path"]]
+StageDirs = Sequence[Tuple[int, "str | Path"]]
 
 
 def plot_training_curves(
@@ -26,7 +26,7 @@ def plot_training_curves(
     species: str,
     algorithm: str,
     save_path: "str | Path | None" = None,
-) -> None:
+) -> "Any":
     """Plot evaluation reward, episode length, tilt angle, and forward velocity.
 
     Produces a 2x2 grid and optionally saves to *save_path*.
