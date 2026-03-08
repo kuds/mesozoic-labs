@@ -415,46 +415,49 @@ def generate_stage_artifacts(
         return stage_results
 
     # ── Record replay videos for best and final models ──────────────────
-    from environments.shared.evaluation import record_stage_video
-    from environments.shared.train_base import _ensure_sb3
+    try:
+        from environments.shared.evaluation import record_stage_video
+        from environments.shared.train_base import _ensure_sb3
 
-    sb3 = _ensure_sb3()
-    env_kwargs = stage_config["env_kwargs"].copy()
-    alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
+        sb3 = _ensure_sb3()
+        env_kwargs = stage_config["env_kwargs"].copy()
+        alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
 
-    best_model_path = model_dir / "best_model"
-    vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
-    final_path = model_dir / f"stage{stage}_final"
-    final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
+        best_model_path = model_dir / "best_model"
+        vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
+        final_path = model_dir / f"stage{stage}_final"
+        final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
 
-    if (model_dir / "best_model.zip").exists():
-        best_model = alg_cls.load(str(best_model_path))
-        record_stage_video(
-            best_model,
-            env_class=species_cfg.env_class,
-            env_kwargs=env_kwargs,
-            stage=stage,
-            stage_dir=stage_dir,
-            species=species,
-            algorithm=algorithm,
-            seed=seed,
-            vecnorm_path=vecnorm_path,
-            label="best",
-        )
+        if (model_dir / "best_model.zip").exists():
+            best_model = alg_cls.load(str(best_model_path))
+            record_stage_video(
+                best_model,
+                env_class=species_cfg.env_class,
+                env_kwargs=env_kwargs,
+                stage=stage,
+                stage_dir=stage_dir,
+                species=species,
+                algorithm=algorithm,
+                seed=seed,
+                vecnorm_path=vecnorm_path,
+                label="best",
+            )
 
-    if (Path(str(final_path) + ".zip")).exists():
-        final_model = alg_cls.load(str(final_path))
-        record_stage_video(
-            final_model,
-            env_class=species_cfg.env_class,
-            env_kwargs=env_kwargs,
-            stage=stage,
-            stage_dir=stage_dir,
-            species=species,
-            algorithm=algorithm,
-            seed=seed,
-            vecnorm_path=final_vecnorm_path,
-            label="final",
-        )
+        if (Path(str(final_path) + ".zip")).exists():
+            final_model = alg_cls.load(str(final_path))
+            record_stage_video(
+                final_model,
+                env_class=species_cfg.env_class,
+                env_kwargs=env_kwargs,
+                stage=stage,
+                stage_dir=stage_dir,
+                species=species,
+                algorithm=algorithm,
+                seed=seed,
+                vecnorm_path=final_vecnorm_path,
+                label="final",
+            )
+    except Exception:
+        logger.warning("Video recording failed.", exc_info=True)
 
     return stage_results
