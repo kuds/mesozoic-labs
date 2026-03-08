@@ -1569,13 +1569,17 @@ class TestCollectResultsFromDiskGCS:
 
 
 class TestGenerateTrialArtifacts:
-    """Test _generate_trial_artifacts produces stage summary and videos."""
+    """Test generate_stage_artifacts produces stage summary and videos.
+
+    This tests the shared function that both the sweep trial worker
+    and the training notebook use to produce consistent artifacts.
+    """
 
     def test_writes_stage_summary_and_records_videos(self, tmp_path):
         """After a trial, stage_summary.txt is written and videos are attempted."""
         import numpy as np
 
-        from environments.shared.scripts.sweep.trial import _generate_trial_artifacts
+        from environments.shared.reporting import generate_stage_artifacts
 
         # Setup directory structure matching what train() produces
         model_dir = tmp_path / "models"
@@ -1600,13 +1604,11 @@ class TestGenerateTrialArtifacts:
         mock_species_cfg.species = "velociraptor"
         mock_species_cfg.env_class = MagicMock
 
-        stage_configs = {
-            1: {
-                "name": "Balance",
-                "description": "Stand up",
-                "env_kwargs": {"sim_dt": 0.01},
-                "ppo_kwargs": {},
-            },
+        stage_config = {
+            "name": "Balance",
+            "description": "Stand up",
+            "env_kwargs": {"sim_dt": 0.01},
+            "ppo_kwargs": {},
         }
 
         mock_sb3 = {
@@ -1623,15 +1625,14 @@ class TestGenerateTrialArtifacts:
                 "environments.shared.evaluation.record_stage_video",
             ) as mock_video,
         ):
-            _generate_trial_artifacts(
-                model=MagicMock(),
+            results = generate_stage_artifacts(
                 species_cfg=mock_species_cfg,
-                stage_configs=stage_configs,
+                stage_config=stage_config,
                 stage=1,
                 algorithm="ppo",
-                output_dir=str(tmp_path),
-                timesteps=100_000,
+                stage_dir=tmp_path,
                 seed=42,
+                timesteps=100_000,
             )
 
         # stage_summary.txt should exist
@@ -1646,3 +1647,7 @@ class TestGenerateTrialArtifacts:
         labels = [call.kwargs["label"] for call in mock_video.call_args_list]
         assert "best" in labels
         assert "final" in labels
+
+        # Returned results should have best eval metrics from evaluations.npz
+        assert results["best_eval_reward"] == 21.0
+        assert results["best_eval_timestep"] == 100000
