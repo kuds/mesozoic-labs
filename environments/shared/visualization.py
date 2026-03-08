@@ -26,10 +26,13 @@ def plot_training_curves(
     species: str,
     algorithm: str,
     save_path: "str | Path | None" = None,
+    show: bool = True,
 ) -> "Any":
     """Plot evaluation reward, episode length, tilt angle, and forward velocity.
 
     Produces a 2x2 grid and optionally saves to *save_path*.
+    When *show* is ``False``, the figure is closed after saving
+    (headless / sweep usage).
     """
     import matplotlib.pyplot as plt
     import numpy as np
@@ -125,6 +128,8 @@ def plot_training_curves(
     if save_path is not None:
         fig.savefig(save_path, dpi=150, bbox_inches="tight")
         logger.info("Training curves saved to: %s", save_path)
+    if not show:
+        plt.close(fig)
 
     return fig
 

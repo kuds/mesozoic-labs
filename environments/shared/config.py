@@ -326,10 +326,13 @@ def upload_curriculum_artifacts(
 
         gcs_model_prefix = f"{gcs_stage_prefix}/models"
 
-        # best_model.zip (from EvalCallback)
+        # best_model.zip + matched vecnorm (from EvalCallback + SaveVecNormalizeCallback)
         best_model = stage_model_dir / "best_model.zip"
         if best_model.exists():
             _upload_to_gcs(best_model, bucket, f"{gcs_model_prefix}/best_model.zip", project=project)
+        best_vecnorm = stage_model_dir / "best_model_vecnorm.pkl"
+        if best_vecnorm.exists():
+            _upload_to_gcs(best_vecnorm, bucket, f"{gcs_model_prefix}/best_model_vecnorm.pkl", project=project)
 
         # stage<N>_final.zip + vecnorm
         final_model = stage_model_dir / f"stage{stage}_final.zip"

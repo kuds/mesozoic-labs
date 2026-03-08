@@ -21,6 +21,7 @@ environments.shared.train_base import ...`` statements continue to work.
 import dataclasses
 import logging
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
@@ -376,6 +377,7 @@ def train(
     logger.info("Starting training for %s timesteps...", f"{total_timesteps:,}")
     logger.info("-" * 60)
 
+    train_start = time.monotonic()
     try:
         model.learn(
             total_timesteps=total_timesteps,
@@ -384,6 +386,7 @@ def train(
         )
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user.")
+    training_duration = time.monotonic() - train_start
 
     if wandb_run is not None:
         wandb_run.finish()
@@ -399,6 +402,8 @@ def train(
         stage,
         total_timesteps,
         algorithm,
+        training_duration_seconds=training_duration,
+        stage_config=config,
     )
 
     # Save final model
@@ -431,6 +436,8 @@ def _report_hpt_metrics(
     stage: int,
     total_timesteps: int,
     algorithm: str,
+    training_duration_seconds: float = 0.0,
+    stage_config: Dict[str, Any] | None = None,
 ):
     """Report metrics to Vertex AI Hypertune and write a local JSON sidecar.
 
@@ -451,8 +458,9 @@ def _report_hpt_metrics(
     sb3 = _ensure_sb3()
 
     # Accumulate all metrics for the JSON sidecar.
-    aux_metrics: dict[str, float] = {
+    aux_metrics: dict[str, float | str] = {
         "best_mean_reward": float(eval_callback.best_mean_reward),
+        "training_duration_seconds": round(training_duration_seconds, 1),
     }
 
     # Report the primary optimisation metric to HPT (if available).
@@ -532,6 +540,21 @@ def _report_hpt_metrics(
                 "HPT metric reported: best_mean_success_rate=%.4f",
                 best_success,
             )
+
+    # Include key hyperparameters in the sidecar so offline result
+    # collection works even when stage_config.json is missing.
+    if stage_config is not None:
+        algo_key = "sac_kwargs" if algorithm == "sac" else "ppo_kwargs"
+        algo_kwargs = stage_config.get(algo_key, {})
+        for k in ("learning_rate", "batch_size", "gamma", "n_steps", "ent_coef"):
+            if k in algo_kwargs:
+                val = algo_kwargs[k]
+                # Skip callable schedules — store the initial value description
+                if not callable(val):
+                    aux_metrics[f"{algorithm}_{k}"] = val
+        net_arch = algo_kwargs.get("policy_kwargs", {}).get("net_arch")
+        if net_arch is not None:
+            aux_metrics[f"{algorithm}_net_arch"] = str(net_arch)
 
     # Write all metrics to a JSON sidecar so they can be collected from
     # GCS without relying on the HPT metric_spec.

@@ -187,11 +187,17 @@ def save_results_json(
     algorithm: str,
     seed: int,
     results_dir: "str | Path",
+    hardware: str = "Google Colab T4 GPU",
 ) -> Path:
     """Save a ``summary.json`` to *results_dir*.
 
     Creates a machine-readable record of the training run that can be
     used to auto-generate the README results table and website content.
+
+    Args:
+        hardware: Description of the training hardware (e.g.
+            ``"Vertex AI n1-standard-8 + T4"``).  Defaults to
+            ``"Google Colab T4 GPU"`` for notebook usage.
 
     Returns the path to the written JSON file.
     """
@@ -219,7 +225,7 @@ def save_results_json(
     summary = {
         "species": species,
         "algorithm": algorithm,
-        "hardware": "Google Colab T4 GPU",
+        "hardware": hardware,
         "seed": seed,
         "date": datetime.now().strftime("%Y-%m-%d"),
         "stages": stages,
@@ -390,6 +396,7 @@ def generate_stage_artifacts(
                 species,
                 algorithm,
                 save_path=stage_dir / "training_curves.png",
+                show=False,
             )
             plot_diagnostics_graphs(
                 stage_dirs,

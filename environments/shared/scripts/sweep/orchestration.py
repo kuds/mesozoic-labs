@@ -1035,7 +1035,6 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     # Generate sweep visualisation graphs
     plot_sweep_results(csv_path, args.species, args.algorithm)
 
-    # Upload graphs to GCS alongside the CSV
     if _gcs_bucket is not None:
         for graph_name in ("sweep_trial_metrics.png", "sweep_hyperparameter_analysis.png"):
             graph_path = csv_path.parent / graph_name

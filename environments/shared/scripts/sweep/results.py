@@ -71,7 +71,12 @@ def _extract_thresholds(config: dict) -> tuple[float | None, float | None, float
 
 
 def _load_trial_metrics(output_base: str, trial_id: str) -> dict[str, float]:
-    """Load auxiliary metrics from a trial's ``metrics.json`` sidecar on GCS.
+    """Load auxiliary metrics from a trial's ``metrics.json`` sidecar.
+
+    Supports both local paths and ``/gcs/``-prefixed paths.  When the
+    path starts with ``/gcs/`` and the FUSE mount is not available, the
+    file is fetched directly from GCS using the ``google-cloud-storage``
+    client library.
 
     The training code writes all computed metrics (episode lengths,
     forward velocity, success rate, etc.) to ``<trial_dir>/metrics.json``
@@ -81,15 +86,49 @@ def _load_trial_metrics(output_base: str, trial_id: str) -> dict[str, float]:
     Returns an empty dict if the file is missing (e.g. trial crashed).
     """
     metrics_path = Path(f"{output_base}/{trial_id}/metrics.json")
-    if not metrics_path.exists():
-        logger.warning("  Trial %s: metrics.json not found at %s", trial_id, metrics_path)
-        return {}
-    try:
-        with open(metrics_path) as f:
-            return dict(json.load(f))
-    except (json.JSONDecodeError, OSError) as exc:
-        logger.warning("  Trial %s: failed to read metrics.json: %s", trial_id, exc)
-        return {}
+
+    # Try local / FUSE-mounted path first.
+    if metrics_path.exists():
+        try:
+            with open(metrics_path) as f:
+                return dict(json.load(f))
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning("  Trial %s: failed to read metrics.json: %s", trial_id, exc)
+            return {}
+
+    # Fall back to reading from GCS when the path looks like a FUSE path
+    # but the mount is not available (e.g. orchestrator running locally).
+    path_str = str(metrics_path)
+    if path_str.startswith("/gcs/"):
+        # Convert /gcs/<bucket>/... → gs://<bucket>/...
+        gcs_uri = "gs://" + path_str[len("/gcs/") :]
+        try:
+            from google.cloud import storage as _gcs
+
+            without_scheme = gcs_uri[len("gs://") :]
+            bucket_name, _, blob_name = without_scheme.partition("/")
+            client = _gcs.Client()
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(blob_name)
+            if not blob.exists():
+                logger.warning("  Trial %s: metrics.json not found at %s", trial_id, gcs_uri)
+                return {}
+            data = json.loads(blob.download_as_text())
+            return dict(data)
+        except ImportError:
+            logger.warning(
+                "  Trial %s: metrics.json not found locally and google-cloud-storage "
+                "is not installed for GCS fallback: %s",
+                trial_id,
+                path_str,
+            )
+            return {}
+        except (json.JSONDecodeError, Exception) as exc:
+            logger.warning("  Trial %s: failed to read metrics.json from GCS: %s", trial_id, exc)
+            return {}
+
+    logger.warning("  Trial %s: metrics.json not found at %s", trial_id, metrics_path)
+    return {}
 
 
 def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_base: str) -> list[dict]:
@@ -144,6 +183,7 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
         row["best_mean_episode_length"] = aux.get("best_mean_episode_length")
         row["last_mean_reward"] = aux.get("last_mean_reward")
         row["last_mean_episode_length"] = aux.get("last_mean_episode_length")
+        row["training_duration_seconds"] = aux.get("training_duration_seconds")
         row["reward_threshold"] = reward_threshold
         row["ep_length_threshold"] = ep_length_threshold
         row["forward_vel_threshold"] = forward_vel_threshold
@@ -210,6 +250,7 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
         "best_mean_episode_length",
         "last_mean_reward",
         "last_mean_episode_length",
+        "training_duration_seconds",
         "reward_threshold",
         "ep_length_threshold",
         "forward_vel_threshold",
@@ -232,10 +273,12 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
             raise ValueError(f"Not a gs:// URI: {path_str}")
         without_scheme = path_str[len("gs://") :]
         bucket_name, _, blob_name = without_scheme.partition("/")
-        client = storage.Client()
-        bucket = client.bucket(bucket_name)
-        bucket.blob(blob_name).upload_from_filename(str(local_path))
-        local_path.unlink(missing_ok=True)
+        try:
+            client = storage.Client()
+            bucket = client.bucket(bucket_name)
+            bucket.blob(blob_name).upload_from_filename(str(local_path))
+        finally:
+            local_path.unlink(missing_ok=True)
 
     logger.info("Sweep results written to: %s", path_str)
     return Path(path_str)
@@ -273,13 +316,42 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
         logger.warning("matplotlib or numpy not installed — skipping sweep visualisations")
         return
 
-    csv_path = Path(csv_path)
+    csv_path_str = str(csv_path)
+    _temp_csv: Path | None = None
+
+    # Support gs:// URIs by downloading to a temp file.
+    if csv_path_str.startswith("gs://"):
+        import tempfile
+
+        try:
+            from google.cloud import storage as _gcs
+
+            without_scheme = csv_path_str[len("gs://") :]
+            bucket_name, _, blob_name = without_scheme.partition("/")
+            client = _gcs.Client()
+            bucket = client.bucket(bucket_name)
+            blob = bucket.blob(blob_name)
+            if not blob.exists():
+                logger.warning("Sweep CSV not found at %s — skipping visualisations", csv_path_str)
+                return
+            _temp_csv = Path(tempfile.mktemp(suffix=".csv"))
+            blob.download_to_filename(str(_temp_csv))
+            csv_path = _temp_csv
+        except ImportError:
+            logger.warning("google-cloud-storage not installed — cannot read %s", csv_path_str)
+            return
+        except Exception as exc:
+            logger.warning("Failed to download %s: %s — skipping visualisations", csv_path_str, exc)
+            return
+    else:
+        csv_path = Path(csv_path_str)
+
     if not csv_path.exists():
         logger.warning("Sweep CSV not found: %s — skipping visualisations", csv_path)
         return
 
     if save_dir is None:
-        save_dir = csv_path.parent
+        save_dir = Path.cwd() if _temp_csv is not None else csv_path.parent
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
 
@@ -287,6 +359,10 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
     with open(csv_path, newline="") as f:
         reader = _csv.DictReader(f)
         rows = list(reader)
+
+    # Clean up temp file if we downloaded from GCS.
+    if _temp_csv is not None:
+        _temp_csv.unlink(missing_ok=True)
 
     if not rows:
         logger.warning("Sweep CSV is empty — skipping visualisations")
@@ -342,6 +418,9 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
                 all_ep_labels.append(f"S{stage}_{tid}")
                 all_ep_values.append(el)
                 all_ep_colors.append(color)
+
+        # Draw episode length threshold line once per stage (outside trial loop)
+        if stage_rows:
             ep_threshold = _float(stage_rows[0].get("ep_length_threshold"))
             if ep_threshold is not None:
                 axes1[0, 1].axhline(y=ep_threshold, color=color, linestyle="--", alpha=0.5, label=f"S{stage} threshold")
@@ -746,6 +825,7 @@ def _collect_results_local(
                 "best_mean_episode_length",
                 "last_mean_reward",
                 "last_mean_episode_length",
+                "training_duration_seconds",
                 "reward_threshold",
                 "ep_length_threshold",
                 "forward_vel_threshold",
@@ -761,6 +841,7 @@ def _collect_results_local(
                     "best_mean_episode_length": metrics.get("best_mean_episode_length"),
                     "last_mean_reward": metrics.get("last_mean_reward"),
                     "last_mean_episode_length": metrics.get("last_mean_episode_length"),
+                    "training_duration_seconds": metrics.get("training_duration_seconds"),
                     "reward_threshold": trial_reward_th,
                     "ep_length_threshold": trial_ep_th,
                     "forward_vel_threshold": trial_fwd_th,
