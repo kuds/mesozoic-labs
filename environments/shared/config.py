@@ -256,12 +256,17 @@ def upload_curriculum_artifacts(
     bucket: str | None = None,
     project: str | None = None,
 ) -> None:
-    """Upload curriculum training artifacts (CSV + best models) to GCS.
+    """Upload curriculum training artifacts to GCS.
 
     Uploads:
-    * ``curriculum_results.csv`` → ``training/<species>/curriculum_results_<run>.csv``
+    * ``curriculum_results.csv`` → ``training/<species>/<run>/curriculum_results.csv``
+    * ``training_summary.txt`` → ``training/<species>/<run>/training_summary.txt``
     * Each stage's ``best_model.zip`` and ``stage<N>_final.zip`` →
       ``training/<species>/<run>/stage<N>/models/``
+    * Each stage's ``stage_summary.txt`` →
+      ``training/<species>/<run>/stage<N>/stage_summary.txt``
+    * Each stage's replay videos (``*.mp4``) →
+      ``training/<species>/<run>/stage<N>/``
 
     When *bucket* is ``None`` (no GCP info provided), this function is a
     no-op and all artifacts remain local only.
@@ -285,20 +290,41 @@ def upload_curriculum_artifacts(
         return
 
     run_name = base_dir.name  # e.g. curriculum_20240228_150000
+    gcs_run_prefix = f"training/{species}/{run_name}"
 
     # 1. Upload curriculum_results.csv
     csv_path = base_dir / "curriculum_results.csv"
     if csv_path.exists():
-        gcs_csv = f"training/{species}/{run_name}/curriculum_results.csv"
-        _upload_to_gcs(csv_path, bucket, gcs_csv, project=project)
+        _upload_to_gcs(csv_path, bucket, f"{gcs_run_prefix}/curriculum_results.csv", project=project)
 
-    # 2. Upload best model and final model for each stage
+    # 2. Upload training_summary.txt
+    training_summary = base_dir / "training_summary.txt"
+    if training_summary.exists():
+        _upload_to_gcs(training_summary, bucket, f"{gcs_run_prefix}/training_summary.txt", project=project)
+
+    # 3. Upload per-stage artifacts
     for stage in range(1, 4):
-        stage_model_dir = base_dir / f"stage{stage}" / "models"
+        stage_dir = base_dir / f"stage{stage}"
+        if not stage_dir.is_dir():
+            continue
+
+        gcs_stage_prefix = f"{gcs_run_prefix}/stage{stage}"
+
+        # stage_summary.txt
+        stage_summary = stage_dir / "stage_summary.txt"
+        if stage_summary.exists():
+            _upload_to_gcs(stage_summary, bucket, f"{gcs_stage_prefix}/stage_summary.txt", project=project)
+
+        # Replay videos (*.mp4)
+        for video in stage_dir.glob("*.mp4"):
+            _upload_to_gcs(video, bucket, f"{gcs_stage_prefix}/{video.name}", project=project)
+
+        # Models
+        stage_model_dir = stage_dir / "models"
         if not stage_model_dir.is_dir():
             continue
 
-        gcs_model_prefix = f"training/{species}/{run_name}/stage{stage}/models"
+        gcs_model_prefix = f"{gcs_stage_prefix}/models"
 
         # best_model.zip (from EvalCallback)
         best_model = stage_model_dir / "best_model.zip"
