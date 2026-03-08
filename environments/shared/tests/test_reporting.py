@@ -3,6 +3,7 @@
 import json
 
 from environments.shared.reporting import (
+    build_stage_results_from_eval_data,
     format_duration,
     format_duration_hms,
     save_results_json,
@@ -347,3 +348,97 @@ class TestSaveResultsJson:
         assert "training_time" in stage
         assert "training_time_seconds" in stage
         assert stage["training_time"] == "1:01:01"
+
+
+# ── build_stage_results_from_eval_data ──────────────────────────────────
+
+
+class TestBuildStageResultsFromEvalData:
+    """Tests for build_stage_results_from_eval_data."""
+
+    def test_builds_from_evaluations_npz(self, tmp_path):
+        import numpy as np
+
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+
+        rewards = np.array([[10.0, 12.0], [20.0, 22.0], [15.0, 17.0]])
+        lengths = np.array([[100, 110], [200, 210], [150, 160]])
+        timesteps = np.array([50000, 100000, 150000])
+        np.savez(
+            str(tmp_path / "evaluations.npz"),
+            results=rewards,
+            ep_lengths=lengths,
+            timesteps=timesteps,
+        )
+
+        config = {
+            "name": "Balance",
+            "description": "Stand up",
+            "env_kwargs": {"sim_dt": 0.02},
+        }
+
+        result = build_stage_results_from_eval_data(
+            tmp_path,
+            stage=1,
+            stage_config=config,
+            timesteps=150_000,
+        )
+
+        assert result["stage"] == 1
+        assert result["name"] == "Balance"
+        assert result["timesteps"] == 150_000
+        assert result["sim_dt"] == 0.02
+        # Best eval is at index 1 (mean 21.0)
+        assert result["best_eval_reward"] == 21.0
+        assert result["best_eval_timestep"] == 100000
+        # Last eval used as final metrics (mean 16.0)
+        assert result["mean_reward"] == 16.0
+        # Forward vel defaults to 0 (requires live eval)
+        assert result["mean_forward_vel"] == 0.0
+
+    def test_reads_duration_from_metrics_json(self, tmp_path):
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+
+        (tmp_path / "metrics.json").write_text(json.dumps({"training_duration_seconds": 123.4}))
+
+        config = {"name": "Loco", "description": "Walk", "env_kwargs": {}}
+        result = build_stage_results_from_eval_data(
+            tmp_path,
+            stage=2,
+            stage_config=config,
+            timesteps=50_000,
+        )
+        assert result["duration_seconds"] == 123.4
+
+    def test_explicit_duration_overrides_metrics_json(self, tmp_path):
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+
+        (tmp_path / "metrics.json").write_text(json.dumps({"training_duration_seconds": 123.4}))
+
+        config = {"name": "Loco", "description": "Walk", "env_kwargs": {}}
+        result = build_stage_results_from_eval_data(
+            tmp_path,
+            stage=2,
+            stage_config=config,
+            timesteps=50_000,
+            duration_seconds=999.0,
+        )
+        assert result["duration_seconds"] == 999.0
+
+    def test_no_eval_data_returns_defaults(self, tmp_path):
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+
+        config = {"name": "Balance", "description": "Stand", "env_kwargs": {}}
+        result = build_stage_results_from_eval_data(
+            tmp_path,
+            stage=1,
+            stage_config=config,
+            timesteps=100_000,
+        )
+        assert result["mean_reward"] == 0.0
+        assert result["best_eval_reward"] == ""
+        assert result["duration_seconds"] == 0.0

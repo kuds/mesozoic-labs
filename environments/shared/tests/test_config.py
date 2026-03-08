@@ -387,8 +387,13 @@ class TestUploadCurriculumArtifacts:
         base = tmp_path / "curriculum_20240228_150000"
         base.mkdir()
         (base / "curriculum_results.csv").write_text("stage,reward\n1,10\n")
-        stage1_models = base / "stage1" / "models"
+        (base / "training_summary.txt").write_text("summary")
+        stage1 = base / "stage1"
+        stage1_models = stage1 / "models"
         stage1_models.mkdir(parents=True)
+        (stage1 / "stage_summary.txt").write_text("stage 1 summary")
+        (stage1 / "velociraptor_ppo_stage1_best.mp4").write_bytes(b"vid1")
+        (stage1 / "velociraptor_ppo_stage1_final.mp4").write_bytes(b"vid2")
         (stage1_models / "best_model.zip").write_bytes(b"fake")
         (stage1_models / "stage1_final.zip").write_bytes(b"fake")
         (stage1_models / "stage1_final_vecnorm.pkl").write_bytes(b"fake")
@@ -396,5 +401,13 @@ class TestUploadCurriculumArtifacts:
         with patch("environments.shared.config._upload_to_gcs", return_value=True) as mock_upload:
             upload_curriculum_artifacts(base, "velociraptor", "ppo", bucket="test-bucket", project="test-project")
 
-        # Should have been called for: CSV + best_model + final + vecnorm = 4
-        assert mock_upload.call_count == 4
+        # CSV + training_summary + stage_summary + 2 videos + best_model + final + vecnorm = 8
+        assert mock_upload.call_count == 8
+
+        # Verify the GCS paths for the new artifact types
+        uploaded_paths = [call.args[2] for call in mock_upload.call_args_list]
+        run = "curriculum_20240228_150000"
+        assert f"training/velociraptor/{run}/training_summary.txt" in uploaded_paths
+        assert f"training/velociraptor/{run}/stage1/stage_summary.txt" in uploaded_paths
+        assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_best.mp4" in uploaded_paths
+        assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_final.mp4" in uploaded_paths

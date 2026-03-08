@@ -157,6 +157,20 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         output_dir=output_dir,
     )
 
+    # Generate stage summary and replay videos (same artifacts the notebook produces)
+    if output_dir is not None:
+        from environments.shared.reporting import generate_stage_artifacts
+
+        generate_stage_artifacts(
+            species_cfg=SPECIES_CONFIG,
+            stage_config=STAGE_CONFIGS[args.stage],
+            stage=args.stage,
+            algorithm=args.algorithm,
+            stage_dir=output_dir,
+            seed=args.seed,
+            timesteps=args.timesteps,
+        )
+
 
 def _build_parameter_spec(search_space: dict, hpt_module: Any) -> dict:
     """Convert a search-space dict to Vertex AI parameter spec objects."""
