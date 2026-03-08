@@ -140,7 +140,7 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
             stage_config[algo_key].setdefault("policy_kwargs", {})["net_arch"] = arch
         logger.info("Applied net_arch=%s (%s) to all stages", net_arch_preset, arch)
 
-    model = train(
+    train(
         species_cfg=SPECIES_CONFIG,
         stage_configs=STAGE_CONFIGS,
         stage=args.stage,
