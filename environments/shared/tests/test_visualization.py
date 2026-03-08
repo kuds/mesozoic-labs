@@ -1,14 +1,15 @@
 """Tests for the training visualization utilities."""
 
 import numpy as np
+import pytest
+
+matplotlib = pytest.importorskip("matplotlib")
 
 
 class TestPlotTrainingCurves:
     """Tests for plot_training_curves."""
 
     def test_saves_png_from_evaluations_npz(self, tmp_path):
-        import matplotlib
-
         matplotlib.use("Agg")
 
         from environments.shared.visualization import plot_training_curves
@@ -42,8 +43,6 @@ class TestPlotTrainingCurves:
         assert save_path.stat().st_size > 0
 
     def test_handles_missing_eval_log(self, tmp_path):
-        import matplotlib
-
         matplotlib.use("Agg")
 
         from environments.shared.visualization import plot_training_curves
@@ -69,8 +68,6 @@ class TestPlotDiagnosticsGraphs:
     """Tests for plot_diagnostics_graphs."""
 
     def test_saves_locomotion_health_and_behavioral_metrics(self, tmp_path):
-        import matplotlib
-
         matplotlib.use("Agg")
 
         from environments.shared.visualization import plot_diagnostics_graphs
@@ -102,8 +99,6 @@ class TestPlotDiagnosticsGraphs:
         assert (tmp_path / "behavioral_metrics.png").exists()
 
     def test_handles_empty_diagnostics(self, tmp_path):
-        import matplotlib
-
         matplotlib.use("Agg")
 
         from environments.shared.visualization import plot_diagnostics_graphs
