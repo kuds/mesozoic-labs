@@ -85,6 +85,26 @@ class TestValidateMachineType:
         with pytest.raises(ValueError, match="not supported by Vertex AI"):
             _validate_machine_type(mt)
 
+    @pytest.mark.parametrize(
+        "mt",
+        ["n1-standard-8", "a2-highgpu-1g", "g2-standard-4"],
+    )
+    def test_gpu_compatible_types_with_accelerator(self, mt):
+        _validate_machine_type(mt, "NVIDIA_TESLA_T4")  # should not raise
+
+    @pytest.mark.parametrize(
+        "mt",
+        ["c2-standard-8", "e2-standard-16", "n2-standard-4", "m1-ultramem-40"],
+    )
+    def test_gpu_incompatible_types_with_accelerator_raise(self, mt):
+        with pytest.raises(ValueError, match="not supported for machine type"):
+            _validate_machine_type(mt, "NVIDIA_TESLA_T4")
+
+    def test_cpu_only_allows_any_supported_machine(self):
+        # accelerator_type=None means CPU-only — no GPU check needed
+        _validate_machine_type("c2-standard-8", None)
+        _validate_machine_type("e2-standard-16", None)
+
 
 # ── _hpt_arg_to_override ────────────────────────────────────────────────────
 

@@ -31,14 +31,33 @@ _SUPPORTED_MACHINE_PREFIXES = (
     "g2-",
 )
 
+# Machine-type families that support attaching GPU accelerators.
+_GPU_COMPATIBLE_PREFIXES = (
+    "n1-",
+    "a2-",
+    "a3-",
+    "g2-",
+)
 
-def _validate_machine_type(machine_type: str) -> None:
-    """Raise ``ValueError`` early if the machine type is unsupported."""
+
+def _validate_machine_type(machine_type: str, accelerator_type: str | None = None) -> None:
+    """Raise ``ValueError`` early if the machine type is unsupported.
+
+    When *accelerator_type* is not ``None``, also checks that the machine
+    family supports GPU attachment (e.g. ``c2-`` and ``e2-`` do not).
+    """
     if not any(machine_type.startswith(p) for p in _SUPPORTED_MACHINE_PREFIXES):
         raise ValueError(
             f'Machine type "{machine_type}" is not supported by Vertex AI custom training. '
             f"Supported families: {', '.join(p.rstrip('-') for p in _SUPPORTED_MACHINE_PREFIXES)}. "
             f'The default is "n1-standard-8".'
+        )
+    if accelerator_type is not None and not any(machine_type.startswith(p) for p in _GPU_COMPATIBLE_PREFIXES):
+        raise ValueError(
+            f'Accelerator "{accelerator_type}" is not supported for machine type '
+            f'"{machine_type}". Use a GPU-compatible machine family '
+            f"({', '.join(p.rstrip('-') for p in _GPU_COMPATIBLE_PREFIXES)}) "
+            f'or set --accelerator-type=None for CPU-only. The default is "n1-standard-8".'
         )
 
 
@@ -258,8 +277,8 @@ def _submit_stage_sweep(
     if wandb:
         trial_args.append("--wandb")
 
-    _validate_machine_type(machine_type)
     resolved_accelerator = _normalize_accelerator_type(accelerator_type)
+    _validate_machine_type(machine_type, resolved_accelerator)
 
     machine_spec: dict = {"machine_type": machine_type}
     if resolved_accelerator is not None:
