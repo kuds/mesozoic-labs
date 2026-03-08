@@ -54,7 +54,10 @@ def plot_training_curves(
         std_rewards = np.std(results, axis=1)
         axes[0, 0].plot(timesteps, mean_rewards, label=label)
         axes[0, 0].fill_between(
-            timesteps, mean_rewards - std_rewards, mean_rewards + std_rewards, alpha=0.2,
+            timesteps,
+            mean_rewards - std_rewards,
+            mean_rewards + std_rewards,
+            alpha=0.2,
         )
 
         # Episode length curve
@@ -64,7 +67,10 @@ def plot_training_curves(
             std_lengths = np.std(ep_lengths, axis=1)
             axes[0, 1].plot(timesteps, mean_lengths, label=label)
             axes[0, 1].fill_between(
-                timesteps, mean_lengths - std_lengths, mean_lengths + std_lengths, alpha=0.2,
+                timesteps,
+                mean_lengths - std_lengths,
+                mean_lengths + std_lengths,
+                alpha=0.2,
             )
 
         # Curriculum threshold lines
@@ -158,7 +164,8 @@ def plot_diagnostics_graphs(
     fig1, axes1 = plt.subplots(2, 2, figsize=(14, 10))
     fig1.suptitle(
         f"{species_title} {algorithm} \u2013 Locomotion Health",
-        fontsize=14, fontweight="bold",
+        fontsize=14,
+        fontweight="bold",
     )
     _reward_colors = plt.cm.tab10.colors
     _all_term_data: dict = {}
@@ -194,7 +201,8 @@ def plot_diagnostics_graphs(
         for _ci, _rkey in enumerate(_REWARD_COMPONENTS):
             if _rkey in diag:
                 axes1[1, 1].plot(
-                    ts, diag[_rkey],
+                    ts,
+                    diag[_rkey],
                     label=f"S{stage_num} {_rkey.replace('reward_', '')}",
                     color=_reward_colors[_ci % len(_reward_colors)],
                     linestyle=["-", "--", "-."][stage_num % 3],
@@ -212,13 +220,22 @@ def plot_diagnostics_graphs(
             _ax_term.bar(_x + _offset, _vals, _w, label=_reason)
         _ax_term.set_xticks(_x)
         _ax_term.set_xticklabels(
-            list(_all_term_data.keys()), rotation=15, ha="right", fontsize=8,
+            list(_all_term_data.keys()),
+            rotation=15,
+            ha="right",
+            fontsize=8,
         )
         _ax_term.legend(fontsize=7, loc="upper right")
     else:
         _ax_term.text(
-            0.5, 0.5, "No termination data yet", transform=_ax_term.transAxes,
-            ha="center", va="center", fontsize=12, color="gray",
+            0.5,
+            0.5,
+            "No termination data yet",
+            transform=_ax_term.transAxes,
+            ha="center",
+            va="center",
+            fontsize=12,
+            color="gray",
         )
     _ax_term.set_title(f"{species_title} {algorithm} \u2013 Termination Breakdown")
     _ax_term.set_ylabel("Mean Fraction")
@@ -256,7 +273,8 @@ def plot_diagnostics_graphs(
     fig2, axes2 = plt.subplots(2, 2, figsize=(14, 10))
     fig2.suptitle(
         f"{species_title} {algorithm} \u2013 Behavioral Metrics",
-        fontsize=14, fontweight="bold",
+        fontsize=14,
+        fontweight="bold",
     )
 
     for stage_num, stage_dir in stage_dirs:
@@ -278,11 +296,19 @@ def plot_diagnostics_graphs(
             _gait_sym = 1.0 - np.abs(_l - _r) / (_l + _r + 1e-8)
             _stride_proxy = (_l + _r) / 2.0
             axes2[0, 0].plot(
-                ts, _gait_sym, label=f"{label} \u2013 gait sym", color=color, linestyle="-",
+                ts,
+                _gait_sym,
+                label=f"{label} \u2013 gait sym",
+                color=color,
+                linestyle="-",
             )
             axes2[0, 0].plot(
-                ts, _stride_proxy, label=f"{label} \u2013 stride freq",
-                color=color, linestyle="--", alpha=0.7,
+                ts,
+                _stride_proxy,
+                label=f"{label} \u2013 stride freq",
+                color=color,
+                linestyle="--",
+                alpha=0.7,
             )
 
         # [0,1] Heading Alignment

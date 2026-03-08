@@ -28,8 +28,10 @@ class TestPlotTrainingCurves:
         save_path = tmp_path / "training_curves.png"
 
         fig = plot_training_curves(
-            [(1, tmp_path)], stage_configs,
-            species="velociraptor", algorithm="ppo",
+            [(1, tmp_path)],
+            stage_configs,
+            species="velociraptor",
+            algorithm="ppo",
             save_path=save_path,
         )
         import matplotlib.pyplot as plt
@@ -50,8 +52,10 @@ class TestPlotTrainingCurves:
         save_path = tmp_path / "training_curves.png"
 
         fig = plot_training_curves(
-            [(1, tmp_path)], stage_configs,
-            species="velociraptor", algorithm="ppo",
+            [(1, tmp_path)],
+            stage_configs,
+            species="velociraptor",
+            algorithm="ppo",
             save_path=save_path,
         )
         import matplotlib.pyplot as plt
@@ -86,9 +90,12 @@ class TestPlotDiagnosticsGraphs:
         stage_configs = {1: {"name": "Balance"}}
 
         fig1, fig2 = plot_diagnostics_graphs(
-            [(1, tmp_path)], stage_configs,
-            species="velociraptor", algorithm="ppo",
-            save_dir=tmp_path, show=False,
+            [(1, tmp_path)],
+            stage_configs,
+            species="velociraptor",
+            algorithm="ppo",
+            save_dir=tmp_path,
+            show=False,
         )
 
         assert (tmp_path / "locomotion_health.png").exists()
@@ -104,9 +111,12 @@ class TestPlotDiagnosticsGraphs:
         stage_configs = {1: {"name": "Balance"}}
 
         fig1, fig2 = plot_diagnostics_graphs(
-            [(1, tmp_path)], stage_configs,
-            species="velociraptor", algorithm="ppo",
-            save_dir=tmp_path, show=False,
+            [(1, tmp_path)],
+            stage_configs,
+            species="velociraptor",
+            algorithm="ppo",
+            save_dir=tmp_path,
+            show=False,
         )
 
         # Files still created (with empty/"no data" plots)

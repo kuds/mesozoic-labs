@@ -379,7 +379,10 @@ class TestBuildStageResultsFromEvalData:
         }
 
         result = build_stage_results_from_eval_data(
-            tmp_path, stage=1, stage_config=config, timesteps=150_000,
+            tmp_path,
+            stage=1,
+            stage_config=config,
+            timesteps=150_000,
         )
 
         assert result["stage"] == 1
@@ -398,13 +401,14 @@ class TestBuildStageResultsFromEvalData:
         model_dir = tmp_path / "models"
         model_dir.mkdir()
 
-        (tmp_path / "metrics.json").write_text(
-            json.dumps({"training_duration_seconds": 123.4})
-        )
+        (tmp_path / "metrics.json").write_text(json.dumps({"training_duration_seconds": 123.4}))
 
         config = {"name": "Loco", "description": "Walk", "env_kwargs": {}}
         result = build_stage_results_from_eval_data(
-            tmp_path, stage=2, stage_config=config, timesteps=50_000,
+            tmp_path,
+            stage=2,
+            stage_config=config,
+            timesteps=50_000,
         )
         assert result["duration_seconds"] == 123.4
 
@@ -412,13 +416,14 @@ class TestBuildStageResultsFromEvalData:
         model_dir = tmp_path / "models"
         model_dir.mkdir()
 
-        (tmp_path / "metrics.json").write_text(
-            json.dumps({"training_duration_seconds": 123.4})
-        )
+        (tmp_path / "metrics.json").write_text(json.dumps({"training_duration_seconds": 123.4}))
 
         config = {"name": "Loco", "description": "Walk", "env_kwargs": {}}
         result = build_stage_results_from_eval_data(
-            tmp_path, stage=2, stage_config=config, timesteps=50_000,
+            tmp_path,
+            stage=2,
+            stage_config=config,
+            timesteps=50_000,
             duration_seconds=999.0,
         )
         assert result["duration_seconds"] == 999.0
@@ -429,7 +434,10 @@ class TestBuildStageResultsFromEvalData:
 
         config = {"name": "Balance", "description": "Stand", "env_kwargs": {}}
         result = build_stage_results_from_eval_data(
-            tmp_path, stage=1, stage_config=config, timesteps=100_000,
+            tmp_path,
+            stage=1,
+            stage_config=config,
+            timesteps=100_000,
         )
         assert result["mean_reward"] == 0.0
         assert result["best_eval_reward"] == ""

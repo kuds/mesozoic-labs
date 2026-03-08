@@ -364,7 +364,10 @@ def generate_stage_artifacts(
 
     if stage_results is None:
         stage_results = build_stage_results_from_eval_data(
-            stage_dir, stage, stage_config, timesteps=timesteps,
+            stage_dir,
+            stage,
+            stage_config,
+            timesteps=timesteps,
         )
 
     write_stage_summary(stage_dir, stage_results, species, algorithm)
@@ -382,17 +385,22 @@ def generate_stage_artifacts(
             stage_configs = {stage: stage_config}
 
             plot_training_curves(
-                stage_dirs, stage_configs, species, algorithm,
+                stage_dirs,
+                stage_configs,
+                species,
+                algorithm,
                 save_path=stage_dir / "training_curves.png",
             )
             plot_diagnostics_graphs(
-                stage_dirs, stage_configs, species, algorithm,
-                save_dir=stage_dir, show=False,
+                stage_dirs,
+                stage_configs,
+                species,
+                algorithm,
+                save_dir=stage_dir,
+                show=False,
             )
         except ImportError:
-            logger.warning(
-                "Skipping graph generation (matplotlib not installed)."
-            )
+            logger.warning("Skipping graph generation (matplotlib not installed).")
         except Exception:
             logger.warning("Graph generation failed.", exc_info=True)
 
