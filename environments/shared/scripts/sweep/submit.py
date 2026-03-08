@@ -52,9 +52,7 @@ def _validate_machine_type(machine_type: str, accelerator_type: str | None = Non
             f"Supported families: {', '.join(p.rstrip('-') for p in _SUPPORTED_MACHINE_PREFIXES)}. "
             f'The default is "n1-standard-8".'
         )
-    if accelerator_type is not None and not any(
-        machine_type.startswith(p) for p in _GPU_COMPATIBLE_PREFIXES
-    ):
+    if accelerator_type is not None and not any(machine_type.startswith(p) for p in _GPU_COMPATIBLE_PREFIXES):
         raise ValueError(
             f'Accelerator "{accelerator_type}" is not supported for machine type '
             f'"{machine_type}". Use a GPU-compatible machine family '
