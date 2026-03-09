@@ -90,8 +90,7 @@ def _eager_refresh(credentials, *, max_retries: int = 4, _request=None):
                 )
                 raise
             logger.warning(
-                "Transient metadata-server error on credential refresh "
-                "(attempt %d/%d), retrying in %ds …",
+                "Transient metadata-server error on credential refresh (attempt %d/%d), retrying in %ds …",
                 attempt,
                 max_retries,
                 delay,
