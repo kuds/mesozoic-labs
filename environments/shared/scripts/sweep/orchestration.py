@@ -376,8 +376,7 @@ def launch_sweep(args: argparse.Namespace) -> None:
             # Poll until the job completes (--stage-timeout 0 means fire-and-forget)
             if stage_timeout == 0:
                 logger.info(
-                    "Job submitted (--stage-timeout 0). Re-run with --resume to check results.\n"
-                    "  Resource: %s",
+                    "Job submitted (--stage-timeout 0). Re-run with --resume to check results.\n  Resource: %s",
                     job_resource_name,
                 )
                 os._exit(0)
