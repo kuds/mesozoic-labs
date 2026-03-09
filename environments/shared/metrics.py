@@ -285,10 +285,7 @@ class LocomotionMetrics:
         result: Dict[str, Any] = {}
 
         for key in keys:
-            values = [
-                r[key] for r in episode_reports
-                if key in r and np.isfinite(r[key])
-            ]
+            values = [r[key] for r in episode_reports if key in r and np.isfinite(r[key])]
             if values:
                 result[f"mean_{key}"] = float(np.mean(values))
                 result[f"std_{key}"] = float(np.std(values))
