@@ -235,6 +235,8 @@ Choose your machine type based on budget and training needs:
 - **Full curriculum runs:** `n1-standard-16` + T4 to support `--subproc` with more parallel environments.
 - **Future JAX/MJX training:** A100 GPUs become essential for batch simulation.
 
+> **Tip:** For CPU-bound training (no GPU), consider using [`c2-standard-*` machine types](https://cloud.google.com/compute/docs/compute-optimized-machines#c2_machine_types) instead of `n1-standard-*`. C2 machines offer higher per-core performance (3.1 GHz sustained all-core turbo), which benefits MuJoCo's single-threaded simulation stepping and SB3's CPU-side rollout collection. For example, `c2-standard-8` typically completes Stage 1 faster than `n1-standard-8` at a comparable price point.
+
 ## 4. Saving Checkpoints to GCS
 
 Use `--output-dir` (the preferred flag for cloud training) to point the script at a GCS-mounted path. Vertex AI mounts the job's `base_output_dir` bucket at `/gcs/<bucket>/` inside the container, so all outputs — models, VecNormalize stats, TensorBoard logs — land in cloud storage automatically.
