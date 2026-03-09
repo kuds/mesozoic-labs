@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -372,7 +373,14 @@ def launch_sweep(args: argparse.Namespace) -> None:
                 project=args.project,
             )
 
-            # Poll until the job completes
+            # Poll until the job completes (--stage-timeout 0 means fire-and-forget)
+            if stage_timeout == 0:
+                logger.info(
+                    "Job submitted (--stage-timeout 0). Re-run with --resume to check results.\n  Resource: %s",
+                    job_resource_name,
+                )
+                os._exit(0)
+
             hpt_job = _wait_for_job(
                 hpt_job,
                 aiplatform,
@@ -515,7 +523,8 @@ def launch_sweep(args: argparse.Namespace) -> None:
                 bucket=args.bucket,
                 project=args.project,
             )
-            sys.exit(1)
+            # Use os._exit to avoid hanging on non-daemon SDK threads (e.g. gRPC).
+            os._exit(1)
         # Save state for unexpected errors too, so progress isn't lost.
         _save_sweep_state(
             sweep_state,
@@ -878,7 +887,16 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     project=args.project,
                 )
 
-                # Poll until the job completes
+                # Poll until the job completes (--stage-timeout 0 means fire-and-forget)
+                if stage_timeout == 0:
+                    logger.info(
+                        "Stage %d job submitted (--stage-timeout 0). Re-run with --resume to check results.\n"
+                        "  Resource: %s",
+                        stage,
+                        job_resource_name,
+                    )
+                    os._exit(0)
+
                 hpt_job = _wait_for_job(
                     hpt_job,
                     aiplatform,
@@ -1048,7 +1066,8 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     bucket=args.bucket,
                     project=args.project,
                 )
-                sys.exit(1)
+                # Use os._exit to avoid hanging on non-daemon SDK threads (e.g. gRPC).
+                os._exit(1)
             # Save state for unexpected errors too, so progress isn't lost.
             _save_sweep_state(
                 sweep_state,
