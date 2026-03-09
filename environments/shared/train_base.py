@@ -139,13 +139,13 @@ def make_env(
     sb3 = _ensure_sb3()
 
     def _init():
+        sb3["set_random_seed"](seed + rank)
         env_kwargs = stage_configs[stage]["env_kwargs"].copy()
         env = species_cfg.env_class(**env_kwargs)
         env = sb3["Monitor"](env)
         env.reset(seed=seed + rank)
         return env
 
-    sb3["set_random_seed"](seed)
     return _init
 
 
