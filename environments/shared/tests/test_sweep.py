@@ -11,6 +11,7 @@ from environments.shared.scripts.sweep import (
     SweepStageError,
     _best_trial_model_path,
     _collect_trial_results,
+    _eager_refresh,
     _hpt_arg_to_override,
     _is_per_stage,
     _is_retryable_gcp_error,
@@ -1681,3 +1682,58 @@ class TestGenerateTrialArtifacts:
             assert (tmp_path / "behavioral_metrics.png").exists()
         except ImportError:
             pass  # graphs are skipped gracefully without matplotlib
+
+
+# ── _eager_refresh ───────────────────────────────────────────────────────────
+
+
+class TestEagerRefresh:
+    """Credential refresh retries on transient metadata-server errors."""
+
+    def _call(self, creds, **kwargs):
+        """Call _eager_refresh with a dummy request to avoid google.auth import."""
+        return _eager_refresh(creds, _request=MagicMock(), **kwargs)
+
+    def test_success_on_first_attempt(self):
+        creds = MagicMock()
+        self._call(creds, max_retries=3)
+        creds.refresh.assert_called_once()
+
+    @patch("time.sleep")
+    def test_retries_on_type_error(self, mock_sleep):
+        creds = MagicMock()
+        creds.refresh.side_effect = [TypeError("string indices"), None]
+        self._call(creds, max_retries=3)
+        assert creds.refresh.call_count == 2
+        mock_sleep.assert_called_once_with(1)
+
+    @patch("time.sleep")
+    def test_raises_after_max_retries(self, mock_sleep):
+        creds = MagicMock()
+        creds.refresh.side_effect = TypeError("string indices")
+        with pytest.raises(TypeError):
+            self._call(creds, max_retries=3)
+        assert creds.refresh.call_count == 3
+
+    @patch("time.sleep")
+    def test_exponential_backoff(self, mock_sleep):
+        creds = MagicMock()
+        creds.refresh.side_effect = [
+            TypeError("string indices"),
+            TypeError("string indices"),
+            TypeError("string indices"),
+            None,
+        ]
+        self._call(creds, max_retries=4)
+        assert mock_sleep.call_args_list == [
+            ((1,),),
+            ((2,),),
+            ((4,),),
+        ]
+
+    def test_non_type_error_propagates_immediately(self):
+        creds = MagicMock()
+        creds.refresh.side_effect = ValueError("unexpected")
+        with pytest.raises(ValueError, match="unexpected"):
+            self._call(creds, max_retries=3)
+        creds.refresh.assert_called_once()

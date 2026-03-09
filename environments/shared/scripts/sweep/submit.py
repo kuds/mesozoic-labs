@@ -224,6 +224,7 @@ def _submit_stage_sweep(
     save_freq: int | None = None,
     resume_run: int = 0,
     restart_job_on_worker_restart: bool = False,
+    no_tensorboard: bool = False,
 ):
     """Build and submit a single-stage HPT job. Returns the job object.
 
@@ -239,6 +240,8 @@ def _submit_stage_sweep(
         restart_job_on_worker_restart: If ``True``, Vertex AI will
             automatically restart the job when a worker is preempted
             (e.g. spot/preemptible VMs).
+        no_tensorboard: If ``True``, disable TensorBoard logging in each
+            trial to reduce disk I/O and storage usage.
     """
     parameter_spec = _build_parameter_spec(search_space, hpt_module)
     if not parameter_spec:
@@ -276,6 +279,8 @@ def _submit_stage_sweep(
         trial_args += fixed_trial_args
     if wandb:
         trial_args.append("--wandb")
+    if no_tensorboard:
+        trial_args.append("--no-tensorboard")
 
     resolved_accelerator = _normalize_accelerator_type(accelerator_type)
     _validate_machine_type(machine_type, resolved_accelerator)

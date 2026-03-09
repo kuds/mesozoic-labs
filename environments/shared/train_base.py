@@ -238,6 +238,7 @@ def train(
     algorithm: str = "ppo",
     use_wandb: bool = False,
     output_dir: str | None = None,
+    use_tensorboard: bool = True,
 ):
     """Train a single stage of the curriculum."""
     from .config import save_stage_config
@@ -316,14 +317,17 @@ def train(
     alg_kwargs["verbose"] = verbose
     # Buffer TensorBoard writes locally when output is on a GCS FUSE mount
     # to avoid per-event latency from direct GCS writes.
+    local_tb_dir = None
     gcs_tb_path = log_path / "tensorboard"
-    if _is_gcs_path(log_path):
-        local_tb_dir = _make_local_tb_dir(gcs_tb_path)
-        alg_kwargs["tensorboard_log"] = str(local_tb_dir)
-        logger.info("TensorBoard buffering locally at %s (will sync to GCS after training)", local_tb_dir)
+    if use_tensorboard:
+        if _is_gcs_path(log_path):
+            local_tb_dir = _make_local_tb_dir(gcs_tb_path)
+            alg_kwargs["tensorboard_log"] = str(local_tb_dir)
+            logger.info("TensorBoard buffering locally at %s (will sync to GCS after training)", local_tb_dir)
+        else:
+            alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
     else:
-        local_tb_dir = None
-        alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
+        logger.info("TensorBoard logging disabled")
 
     if algorithm == "ppo":
         lr_end = alg_kwargs.pop("learning_rate_end", None)
@@ -637,6 +641,7 @@ def train_curriculum(
     output_dir: str | None = None,
     gcs_bucket: str | None = None,
     gcs_project: str | None = None,
+    use_tensorboard: bool = True,
 ):
     """Run the full 3-stage curriculum with automatic advancement."""
     from .config import (
@@ -720,14 +725,17 @@ def train_curriculum(
         alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
         alg_kwargs["verbose"] = verbose
         # Buffer TensorBoard writes locally when on GCS FUSE mount
+        local_tb_dir = None
         gcs_tb_path = stage_dir / "tensorboard"
-        if _is_gcs_path(stage_dir):
-            local_tb_dir = _make_local_tb_dir(gcs_tb_path)
-            alg_kwargs["tensorboard_log"] = str(local_tb_dir)
-            logger.info("TensorBoard buffering locally at %s", local_tb_dir)
+        if use_tensorboard:
+            if _is_gcs_path(stage_dir):
+                local_tb_dir = _make_local_tb_dir(gcs_tb_path)
+                alg_kwargs["tensorboard_log"] = str(local_tb_dir)
+                logger.info("TensorBoard buffering locally at %s", local_tb_dir)
+            else:
+                alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
         else:
-            local_tb_dir = None
-            alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
+            logger.info("TensorBoard logging disabled")
 
         if algorithm == "ppo":
             lr_end = alg_kwargs.pop("learning_rate_end", None)
