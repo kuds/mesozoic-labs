@@ -149,8 +149,9 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="SECONDS",
         help=(
             "Maximum wall-clock seconds to wait for the HPT job to complete. "
-            "If exceeded the job keeps running in the cloud — re-run with "
-            "--resume to reconnect."
+            "Use 0 to submit and exit immediately without polling "
+            "(fire-and-forget). If exceeded the job keeps running in the "
+            "cloud — re-run with --resume to reconnect."
         ),
     )
     launch.add_argument(
@@ -276,8 +277,9 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="SECONDS",
         help=(
             "Maximum wall-clock seconds to wait for each stage's HPT job to "
-            "complete. If exceeded the job keeps running in the cloud — re-run "
-            "with --resume to reconnect."
+            "complete. Use 0 to submit and exit immediately without polling "
+            "(fire-and-forget). If exceeded the job keeps running in the "
+            "cloud — re-run with --resume to reconnect."
         ),
     )
     launch_all.add_argument(

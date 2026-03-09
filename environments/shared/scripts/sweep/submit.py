@@ -124,6 +124,13 @@ def _wait_for_job(
     resource_name = hpt_job.resource_name
     start = time.monotonic()
 
+    # timeout=0 means fire-and-forget — skip polling entirely.
+    if timeout == 0:
+        raise TimeoutError(
+            f"Job {resource_name} submitted (--stage-timeout 0). "
+            f"The job is running in the cloud — re-run with --resume to reconnect."
+        )
+
     logger.info(
         "Waiting for job %s (poll every %ds, timeout %s) …",
         resource_name,
