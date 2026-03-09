@@ -20,7 +20,9 @@ environments.shared.train_base import ...`` statements continue to work.
 
 import dataclasses
 import logging
+import shutil
 import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -123,6 +125,46 @@ def cosine_schedule(initial_lr: float, final_lr: float):
         return final_lr + cosine_decay * (initial_lr - final_lr)
 
     return schedule
+
+
+# ── TensorBoard local buffering ───────────────────────────────────────────
+
+
+def _is_gcs_path(path: str | Path) -> bool:
+    """Return True if *path* is on a GCS FUSE mount (``/gcs/...``)."""
+    return str(path).startswith("/gcs/")
+
+
+def _make_local_tb_dir(gcs_tb_path: str | Path) -> Path:
+    """Create a local temp directory for TensorBoard event buffering.
+
+    Returns a ``Path`` under ``/tmp`` that mirrors the GCS structure so
+    concurrent trials don't collide.
+    """
+    # Use a stable suffix derived from the GCS path so restarts reuse the dir.
+    suffix = str(gcs_tb_path).replace("/", "_")
+    local_dir = Path(tempfile.gettempdir()) / "tb_buffer" / suffix
+    local_dir.mkdir(parents=True, exist_ok=True)
+    return local_dir
+
+
+def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path) -> None:
+    """Copy locally-buffered TensorBoard events to the GCS FUSE mount."""
+    gcs_dest = Path(gcs_tb_path)
+    if not local_tb_dir.exists():
+        return
+    gcs_dest.mkdir(parents=True, exist_ok=True)
+    n_copied = 0
+    for src_file in local_tb_dir.rglob("*"):
+        if src_file.is_file():
+            rel = src_file.relative_to(local_tb_dir)
+            dest = gcs_dest / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_file, dest)
+            n_copied += 1
+    logger.info("Synced %d TensorBoard files to %s", n_copied, gcs_dest)
+    # Clean up temp dir
+    shutil.rmtree(local_tb_dir, ignore_errors=True)
 
 
 # ── Environment creation ─────────────────────────────────────────────────
@@ -272,7 +314,16 @@ def train(
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
     alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
     alg_kwargs["verbose"] = verbose
-    alg_kwargs["tensorboard_log"] = str(log_path / "tensorboard")
+    # Buffer TensorBoard writes locally when output is on a GCS FUSE mount
+    # to avoid per-event latency from direct GCS writes.
+    gcs_tb_path = log_path / "tensorboard"
+    if _is_gcs_path(log_path):
+        local_tb_dir = _make_local_tb_dir(gcs_tb_path)
+        alg_kwargs["tensorboard_log"] = str(local_tb_dir)
+        logger.info("TensorBoard buffering locally at %s (will sync to GCS after training)", local_tb_dir)
+    else:
+        local_tb_dir = None
+        alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
 
     if algorithm == "ppo":
         lr_end = alg_kwargs.pop("learning_rate_end", None)
@@ -405,6 +456,10 @@ def train(
         training_duration_seconds=training_duration,
         stage_config=config,
     )
+
+    # Sync locally-buffered TensorBoard events to GCS before saving the model
+    if local_tb_dir is not None:
+        _sync_tb_to_gcs(local_tb_dir, gcs_tb_path)
 
     # Save final model
     final_path = model_dir / f"stage{stage}_final"
@@ -664,7 +719,15 @@ def train_curriculum(
         alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
         alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
         alg_kwargs["verbose"] = verbose
-        alg_kwargs["tensorboard_log"] = str(stage_dir / "tensorboard")
+        # Buffer TensorBoard writes locally when on GCS FUSE mount
+        gcs_tb_path = stage_dir / "tensorboard"
+        if _is_gcs_path(stage_dir):
+            local_tb_dir = _make_local_tb_dir(gcs_tb_path)
+            alg_kwargs["tensorboard_log"] = str(local_tb_dir)
+            logger.info("TensorBoard buffering locally at %s", local_tb_dir)
+        else:
+            local_tb_dir = None
+            alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
 
         if algorithm == "ppo":
             lr_end = alg_kwargs.pop("learning_rate_end", None)
@@ -772,6 +835,10 @@ def train_curriculum(
 
         if wandb_run is not None:
             wandb_run.finish()
+
+        # Sync locally-buffered TensorBoard events to GCS
+        if local_tb_dir is not None:
+            _sync_tb_to_gcs(local_tb_dir, gcs_tb_path)
 
         # Save stage checkpoint
         final_path = model_dir / f"stage{stage}_final"
