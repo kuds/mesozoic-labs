@@ -34,15 +34,27 @@ def _resolve_credentials(project: str | None = None):
     user's ``gcloud auth`` session in Cloud Shell and service-account
     credentials on Vertex AI workers.
 
+    The initial credential refresh is attempted eagerly so that transient
+    metadata-server errors (e.g. the server returning a raw string instead
+    of JSON) are caught and retried here rather than surfacing later as
+    opaque gRPC ``AuthMetadataPlugin`` failures.
+
     Returns:
         A ``(credentials, project)`` tuple suitable for passing to
         ``aiplatform.init()``.
     """
     import google.auth
+    import google.auth.transport.requests
 
     credentials, adc_project = google.auth.default(
         scopes=["https://www.googleapis.com/auth/cloud-platform"],
     )
+
+    # Eagerly refresh credentials so transient metadata-server errors
+    # (TypeError from malformed JSON) are retried here instead of
+    # propagating through the gRPC auth plugin at call time.
+    _eager_refresh(credentials)
+
     resolved_project = project or adc_project
     if resolved_project is None:
         raise RuntimeError(
@@ -50,6 +62,42 @@ def _resolve_credentials(project: str | None = None):
             "set the GOOGLE_CLOUD_PROJECT / GCLOUD_PROJECT environment variable."
         )
     return credentials, resolved_project
+
+
+def _eager_refresh(credentials, *, max_retries: int = 4, _request=None):
+    """Refresh *credentials* with retries for transient metadata errors.
+
+    The GCE metadata server can occasionally return a plain string instead
+    of a JSON object, which causes ``google-auth`` to raise ``TypeError``
+    (``string indices must be integers``).  This helper retries with
+    exponential back-off so the caller gets usable credentials.
+    """
+    if _request is None:
+        import google.auth.transport.requests
+
+        _request = google.auth.transport.requests.Request()
+    delay = 1
+    for attempt in range(1, max_retries + 1):
+        try:
+            credentials.refresh(_request)
+            return
+        except TypeError:
+            if attempt == max_retries:
+                logger.error(
+                    "GCE metadata server returned malformed responses after "
+                    "%d attempts.  Check that the metadata service is healthy.",
+                    max_retries,
+                )
+                raise
+            logger.warning(
+                "Transient metadata-server error on credential refresh "
+                "(attempt %d/%d), retrying in %ds …",
+                attempt,
+                max_retries,
+                delay,
+            )
+            time.sleep(delay)
+            delay *= 2
 
 
 def _dedup_trial_rows(rows: list[dict]) -> list[dict]:

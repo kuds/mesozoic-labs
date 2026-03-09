@@ -17,7 +17,7 @@ from .constants import (
     SweepStageError,
     _SweepJobFailed,
 )
-from .orchestration import launch_all_stages, launch_sweep
+from .orchestration import _eager_refresh, launch_all_stages, launch_sweep
 from .results import (
     _best_trial_model_path,
     _best_trial_model_path_any,
@@ -50,6 +50,7 @@ __all__ = [
     "_best_trial_model_path",
     "_best_trial_model_path_any",
     "_collect_trial_results",
+    "_eager_refresh",
     "_evaluate_curriculum_gate",
     "_extract_thresholds",
     "collect_results_from_disk",
