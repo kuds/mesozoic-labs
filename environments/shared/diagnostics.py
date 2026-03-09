@@ -24,6 +24,13 @@ except ImportError:
     _BaseCallback = object  # type: ignore[misc,assignment]
 
 
+def _sanitize(value: float) -> float:
+    """Replace NaN/Inf with 0.0 to prevent tensorboardX x2num warnings."""
+    if _np is not None and not _np.isfinite(value):
+        return 0.0
+    return value
+
+
 class DiagnosticsCallback(_BaseCallback):
     """Logs per-component reward breakdowns and training diagnostics to TensorBoard.
 
@@ -115,7 +122,7 @@ class DiagnosticsCallback(_BaseCallback):
     def _on_rollout_end(self) -> None:
         for key, values in self._step_infos.items():
             if values:
-                self.logger.record(f"diagnostics/{key}", _np.mean(values))
+                self.logger.record(f"diagnostics/{key}", _sanitize(float(_np.mean(values))))
 
         has_info = any(self._step_infos[k] for k in self.INFO_KEYS)
         if has_info:
@@ -135,7 +142,7 @@ class DiagnosticsCallback(_BaseCallback):
             self._history_term_timesteps.append(self.num_timesteps)
             for reason, count in self._rollout_terminations.items():
                 frac = count / total_terminations
-                self.logger.record(f"terminations/{reason}", frac)
+                self.logger.record(f"terminations/{reason}", _sanitize(frac))
                 self._history_terminations.setdefault(reason, []).append(frac)
             self.logger.record("terminations/total_count", total_terminations)
             self._save_diagnostics()
@@ -143,20 +150,20 @@ class DiagnosticsCallback(_BaseCallback):
 
         if hasattr(self.model, "rollout_buffer") and self.model.rollout_buffer.observations is not None:
             obs = self.model.rollout_buffer.observations
-            self.logger.record("diagnostics/obs_mean", float(_np.mean(obs)))
-            self.logger.record("diagnostics/obs_std", float(_np.std(obs)))
-            self.logger.record("diagnostics/obs_max_abs", float(_np.max(_np.abs(obs))))
+            self.logger.record("diagnostics/obs_mean", _sanitize(float(_np.mean(obs))))
+            self.logger.record("diagnostics/obs_std", _sanitize(float(_np.std(obs))))
+            self.logger.record("diagnostics/obs_max_abs", _sanitize(float(_np.max(_np.abs(obs)))))
 
         if hasattr(self.model, "rollout_buffer") and self.model.rollout_buffer.actions is not None:
             acts = self.model.rollout_buffer.actions
-            self.logger.record("diagnostics/action_mean", float(_np.mean(acts)))
-            self.logger.record("diagnostics/action_std", float(_np.std(acts)))
+            self.logger.record("diagnostics/action_mean", _sanitize(float(_np.mean(acts))))
+            self.logger.record("diagnostics/action_std", _sanitize(float(_np.std(acts))))
 
         env = self.training_env
         if hasattr(env, "obs_rms"):
-            self.logger.record("diagnostics/vecnorm_obs_var_mean", float(_np.mean(env.obs_rms.var)))
+            self.logger.record("diagnostics/vecnorm_obs_var_mean", _sanitize(float(_np.mean(env.obs_rms.var))))
         if hasattr(env, "ret_rms"):
-            self.logger.record("diagnostics/vecnorm_ret_var", float(_np.mean(env.ret_rms.var)))
+            self.logger.record("diagnostics/vecnorm_ret_var", _sanitize(float(_np.mean(env.ret_rms.var))))
 
         ep_rewards = [info["episode"]["r"] for info in self.locals.get("infos", []) if "episode" in info]
         if ep_rewards:
@@ -164,7 +171,7 @@ class DiagnosticsCallback(_BaseCallback):
             if len(self._rollout_ep_rewards) >= self.plateau_window:
                 recent = self._rollout_ep_rewards[-self.plateau_window :]
                 variation = max(recent) - min(recent)
-                self.logger.record("diagnostics/reward_variation", variation)
+                self.logger.record("diagnostics/reward_variation", _sanitize(variation))
                 if variation < self.plateau_threshold:
                     print(
                         f"\n*** PLATEAU WARNING: Reward variation over last "

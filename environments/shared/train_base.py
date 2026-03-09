@@ -30,6 +30,9 @@ from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
+# Suppress noisy tensorboardX NaN/Inf warnings (handled by _sanitize in diagnostics.py)
+logging.getLogger("tensorboardX").setLevel(logging.ERROR)
+
 try:
     import numpy as _np
 except ImportError:

@@ -145,6 +145,9 @@ class LocomotionMetrics:
         if abs(distance) > 0.01:
             result["cost_of_transport"] = total_energy / (body_mass * gravity * abs(distance))
         else:
+            # Inf signals "dino didn't move" and is filtered out by
+            # aggregate_episodes (np.isfinite check).  This never reaches
+            # TensorBoard — CoT is only computed in offline evaluation.
             result["cost_of_transport"] = float("inf")
         result["total_energy"] = total_energy
 
@@ -282,7 +285,7 @@ class LocomotionMetrics:
         result: Dict[str, Any] = {}
 
         for key in keys:
-            values = [r[key] for r in episode_reports if key in r and r[key] != float("inf")]
+            values = [r[key] for r in episode_reports if key in r and np.isfinite(r[key])]
             if values:
                 result[f"mean_{key}"] = float(np.mean(values))
                 result[f"std_{key}"] = float(np.std(values))
