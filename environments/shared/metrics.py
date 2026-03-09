@@ -145,9 +145,10 @@ class LocomotionMetrics:
         if abs(distance) > 0.01:
             result["cost_of_transport"] = total_energy / (body_mass * gravity * abs(distance))
         else:
-            # Use a large finite value instead of inf to avoid NaN/Inf
-            # propagation into TensorBoard and downstream aggregations.
-            result["cost_of_transport"] = 1e6
+            # Inf signals "dino didn't move" and is filtered out by
+            # aggregate_episodes (np.isfinite check).  This never reaches
+            # TensorBoard — CoT is only computed in offline evaluation.
+            result["cost_of_transport"] = float("inf")
         result["total_energy"] = total_energy
 
         # --- Gait symmetry ---
