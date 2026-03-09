@@ -149,7 +149,12 @@ def _make_local_tb_dir(gcs_tb_path: str | Path) -> Path:
 
 
 def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path) -> None:
-    """Copy locally-buffered TensorBoard events to the GCS FUSE mount."""
+    """Copy locally-buffered TensorBoard events to the GCS FUSE mount.
+
+    Uses :func:`shutil.copy` (not ``copy2``) because GCS FUSE does not
+    support the ``os.utime`` / ``os.chmod`` calls that ``copy2`` makes
+    to preserve file metadata, which causes ``OSError`` on FUSE mounts.
+    """
     gcs_dest = Path(gcs_tb_path)
     if not local_tb_dir.exists():
         return
@@ -160,7 +165,7 @@ def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path) -> None:
             rel = src_file.relative_to(local_tb_dir)
             dest = gcs_dest / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src_file, dest)
+            shutil.copy(src_file, dest)
             n_copied += 1
     logger.info("Synced %d TensorBoard files to %s", n_copied, gcs_dest)
     # Clean up temp dir
@@ -461,14 +466,18 @@ def train(
         stage_config=config,
     )
 
-    # Sync locally-buffered TensorBoard events to GCS before saving the model
-    if local_tb_dir is not None:
-        _sync_tb_to_gcs(local_tb_dir, gcs_tb_path)
-
     # Save final model
     final_path = model_dir / f"stage{stage}_final"
     model.save(str(final_path))
     train_env.save(str(final_path) + "_vecnorm.pkl")
+
+    # Sync locally-buffered TensorBoard events to GCS (best-effort, after
+    # model save so a sync failure never prevents checkpoint writes).
+    if local_tb_dir is not None:
+        try:
+            _sync_tb_to_gcs(local_tb_dir, gcs_tb_path)
+        except Exception:
+            logger.warning("TensorBoard sync to GCS failed.", exc_info=True)
 
     train_env.close()
     eval_env.close()
@@ -844,14 +853,17 @@ def train_curriculum(
         if wandb_run is not None:
             wandb_run.finish()
 
-        # Sync locally-buffered TensorBoard events to GCS
-        if local_tb_dir is not None:
-            _sync_tb_to_gcs(local_tb_dir, gcs_tb_path)
-
-        # Save stage checkpoint
+        # Save stage checkpoint (before TB sync so checkpoint is never lost)
         final_path = model_dir / f"stage{stage}_final"
         model.save(str(final_path))
         train_env.save(str(final_path) + "_vecnorm.pkl")
+
+        # Sync locally-buffered TensorBoard events to GCS (best-effort)
+        if local_tb_dir is not None:
+            try:
+                _sync_tb_to_gcs(local_tb_dir, gcs_tb_path)
+            except Exception:
+                logger.warning("TensorBoard sync to GCS failed.", exc_info=True)
 
         # Prefer loading the best model + its matched VecNormalize for the
         # next stage.  SaveVecNormalizeCallback (wired to EvalCallback's
