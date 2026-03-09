@@ -350,6 +350,7 @@ def launch_sweep(args: argparse.Namespace) -> None:
                 save_freq=getattr(args, "save_freq", None),
                 resume_run=resume_run,
                 restart_job_on_worker_restart=getattr(args, "restart_job_on_worker_restart", False),
+                no_tensorboard=getattr(args, "no_tensorboard", False),
             )
             job_resource_name = getattr(hpt_job, "resource_name", None)
 
@@ -852,6 +853,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     save_freq=getattr(args, "save_freq", None),
                     resume_run=resume_run,
                     restart_job_on_worker_restart=getattr(args, "restart_job_on_worker_restart", False),
+                    no_tensorboard=getattr(args, "no_tensorboard", False),
                 )
                 job_resource_name = getattr(hpt_job, "resource_name", None)
 

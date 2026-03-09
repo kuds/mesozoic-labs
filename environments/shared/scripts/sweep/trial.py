@@ -155,6 +155,7 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         algorithm=args.algorithm,
         use_wandb=args.wandb,
         output_dir=output_dir,
+        use_tensorboard=not args.no_tensorboard,
     )
 
     # Generate stage summary and replay videos (same artifacts the notebook produces)

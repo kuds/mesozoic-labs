@@ -45,6 +45,12 @@ def _build_parser() -> argparse.ArgumentParser:
     trial.add_argument("--load", type=str, default=None, help="Path to model checkpoint to warm-start from")
     trial.add_argument("--output-dir", type=str, default=None, help="Base output dir (GCS mount path on Vertex AI)")
     trial.add_argument("--wandb", action="store_true", help="Enable W&B logging")
+    trial.add_argument(
+        "--no-tensorboard",
+        action="store_true",
+        default=False,
+        help="Disable TensorBoard logging to reduce disk I/O and storage usage",
+    )
 
     # ── launch mode (single stage) ────────────────────────────────────────────
     launch = subparsers.add_parser(
@@ -111,6 +117,12 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     launch.add_argument("--wandb", action="store_true", help="Enable W&B logging in each trial")
+    launch.add_argument(
+        "--no-tensorboard",
+        action="store_true",
+        default=False,
+        help="Disable TensorBoard logging in each trial to reduce disk I/O and storage usage",
+    )
     launch.add_argument(
         "--load",
         type=str,
@@ -232,6 +244,12 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     launch_all.add_argument("--wandb", action="store_true", help="Enable W&B logging in each trial")
+    launch_all.add_argument(
+        "--no-tensorboard",
+        action="store_true",
+        default=False,
+        help="Disable TensorBoard logging in each trial to reduce disk I/O and storage usage",
+    )
     launch_all.add_argument(
         "--resume",
         action=argparse.BooleanOptionalAction,
