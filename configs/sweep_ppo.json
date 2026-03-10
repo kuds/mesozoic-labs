@@ -34,6 +34,7 @@
     "env_nosedive_weight":          {"type": "double", "min": 0.1, "max": 0.8, "scale": "linear"},
     "env_heading_weight":           {"type": "double", "min": 0.0, "max": 0.6, "scale": "linear"},
     "env_lateral_penalty_weight":   {"type": "double", "min": 0.0, "max": 0.3, "scale": "linear"},
+    "env_energy_penalty_weight":    {"type": "double", "min": 0.001, "max": 0.01, "scale": "log"},
     "curriculum_warmup_timesteps":  {"type": "discrete", "values": [50000, 100000, 200000, 300000]},
     "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
     "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.005, "max": 0.05, "scale": "log"},
