@@ -1733,6 +1733,7 @@ class TestEagerRefresh:
 
     @patch("time.sleep")
     def test_retries_on_refresh_error(self, mock_sleep):
+        pytest.importorskip("google.auth.exceptions")
         from google.auth.exceptions import RefreshError
 
         creds = MagicMock()
@@ -1743,6 +1744,7 @@ class TestEagerRefresh:
 
     @patch("time.sleep")
     def test_retries_on_transport_error(self, mock_sleep):
+        pytest.importorskip("google.auth.exceptions")
         from google.auth.exceptions import TransportError
 
         creds = MagicMock()

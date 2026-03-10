@@ -75,7 +75,15 @@ def _eager_refresh(credentials, *, max_retries: int = 4, _request=None):
     This helper retries all three with exponential back-off so the caller
     gets usable credentials.
     """
-    import google.auth.exceptions
+    # Build the tuple of retryable exception types.  google-auth may not be
+    # installed in lightweight test environments, so we resolve dynamically.
+    _retryable: tuple[type[BaseException], ...] = (TypeError,)
+    try:
+        import google.auth.exceptions as _gae
+
+        _retryable = (TypeError, _gae.RefreshError, _gae.TransportError)
+    except ImportError:
+        pass
 
     if _request is None:
         import google.auth.transport.requests
@@ -86,7 +94,7 @@ def _eager_refresh(credentials, *, max_retries: int = 4, _request=None):
         try:
             credentials.refresh(_request)
             return
-        except (TypeError, google.auth.exceptions.RefreshError, google.auth.exceptions.TransportError) as exc:
+        except _retryable as exc:
             if attempt == max_retries:
                 logger.error(
                     "Credential refresh failed after %d attempts: %s. "
