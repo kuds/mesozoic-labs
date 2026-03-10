@@ -69,7 +69,7 @@ def _build_parser() -> argparse.ArgumentParser:
     launch.add_argument(
         "--n-envs",
         type=int,
-        default=None,
+        default=4,
         help="Parallel environments per trial (default: 4, or from search-space file)",
     )
     launch.add_argument("--project", required=True, help="GCP project ID")
