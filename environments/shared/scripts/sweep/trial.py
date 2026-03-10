@@ -77,16 +77,23 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
     # ── Log system info for debugging failed Vertex AI trials ──────────
     trial_id = os.environ.get("CLOUD_ML_TRIAL_ID", "local")
     logger.info("=" * 60)
-    logger.info("TRIAL START  |  species=%s  stage=%d  algorithm=%s  trial_id=%s",
-                args.species, args.stage, args.algorithm, trial_id)
+    logger.info(
+        "TRIAL START  |  species=%s  stage=%d  algorithm=%s  trial_id=%s",
+        args.species,
+        args.stage,
+        args.algorithm,
+        trial_id,
+    )
     logger.info("  timesteps=%s  n_envs=%d  seed=%d", f"{args.timesteps:,}", args.n_envs, args.seed)
     try:
         import multiprocessing
+
         logger.info("  CPU cores: %d", multiprocessing.cpu_count())
     except Exception:
         pass
     try:
         import torch
+
         if torch.cuda.is_available():
             logger.info("  GPU: %s (CUDA %s)", torch.cuda.get_device_name(0), torch.version.cuda)
             logger.info("  GPU memory: %.1f GB", torch.cuda.get_device_properties(0).total_mem / 1e9)
