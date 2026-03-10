@@ -17,9 +17,9 @@
     "env_energy_penalty_weight": {"type": "double", "min": 0.01, "max": 0.1, "scale": "log"}
   },
   "stage2": {
-    "trials": 30,
+    "trials": 50,
     "timesteps": 8000000,
-    "parallel": 4,
+    "parallel": 7,
     "n_envs": 4,
     "ppo_learning_rate":            {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
     "ppo_ent_coef":                 {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
@@ -42,9 +42,9 @@
     "curriculum_ramp_start_value":  {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"}
   },
   "stage3": {
-    "trials": 30,
+    "trials": 50,
     "timesteps": 8000000,
-    "parallel": 4,
+    "parallel": 7,
     "n_envs": 4,
     "ppo_learning_rate":                {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
     "ppo_ent_coef":                     {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
