@@ -26,6 +26,56 @@ from .submit import _is_retryable_gcp_error, _submit_stage_sweep, _wait_for_job
 logger = logging.getLogger(__name__)
 
 
+def _print_dry_run_summary(
+    *,
+    species: str,
+    algorithm: str,
+    stages: list[int],
+    search_spaces: dict[int, dict],
+    timesteps: dict[int, int],
+    trials: dict[int, int],
+    parallel: dict[int, int],
+    n_envs: dict[int, int],
+    machine_type: str,
+    accelerator_type: str,
+    accelerator_count: int,
+    image: str,
+    bucket: str,
+    seed: int,
+) -> None:
+    """Print resolved sweep configuration without submitting any jobs."""
+    print("\n" + "=" * 60)
+    print("DRY RUN — no jobs will be submitted")
+    print("=" * 60)
+    print(f"  Species:     {species}")
+    print(f"  Algorithm:   {algorithm}")
+    print(f"  Image:       {image}")
+    print(f"  Bucket:      gs://{bucket}")
+    print(f"  Machine:     {machine_type}")
+    print(f"  Accelerator: {accelerator_type} x{accelerator_count}")
+    print(f"  Seed:        {seed}")
+    print()
+    for s in stages:
+        ss = search_spaces.get(s, {})
+        print(f"  Stage {s}:")
+        print(f"    Timesteps:  {timesteps[s]:,}")
+        print(f"    Trials:     {trials[s]}  |  Parallel: {parallel[s]}  |  n_envs: {n_envs[s]}")
+        print(f"    Search space ({len(ss)} params):")
+        for param_id, spec in ss.items():
+            kind = spec.get("type", "double")
+            if kind == "double":
+                print(f"      {param_id}: [{spec['min']}, {spec['max']}] scale={spec.get('scale', 'linear')}")
+            elif kind == "discrete":
+                print(f"      {param_id}: {spec['values']}")
+            elif kind == "categorical":
+                print(f"      {param_id}: {spec['values']} (categorical)")
+        print()
+    # Estimate rough cost
+    total_trials = sum(trials[s] for s in stages)
+    print(f"  Total trials across all stages: {total_trials}")
+    print("=" * 60 + "\n")
+
+
 def _resolve_credentials(project: str | None = None):
     """Resolve Google Cloud credentials using Application Default Credentials.
 
@@ -193,6 +243,26 @@ def launch_sweep(args: argparse.Namespace) -> None:
             setattr(args, key, file_val)
         else:
             setattr(args, key, hardcoded)
+
+    # ── Dry run: print resolved config and exit ─────────────────────────
+    if getattr(args, "dry_run", False):
+        _print_dry_run_summary(
+            species=args.species,
+            algorithm=args.algorithm,
+            stages=[stage],
+            search_spaces={stage: search_space},
+            timesteps={stage: args.timesteps},
+            trials={stage: args.trials},
+            parallel={stage: args.parallel},
+            n_envs={stage: args.n_envs},
+            machine_type=args.machine_type,
+            accelerator_type=args.accelerator_type,
+            accelerator_count=args.accelerator_count,
+            image=args.image,
+            bucket=args.bucket,
+            seed=getattr(args, "seed", 42),
+        )
+        return
 
     # ── State key used for single-stage launches ──────────────────────────
     # We store state under a stage-specific key so multiple single-stage
@@ -367,6 +437,7 @@ def launch_sweep(args: argparse.Namespace) -> None:
                 resume_run=resume_run,
                 restart_job_on_worker_restart=getattr(args, "restart_job_on_worker_restart", False),
                 no_tensorboard=getattr(args, "no_tensorboard", False),
+                seed=getattr(args, "seed", 42),
             )
             job_resource_name = getattr(hpt_job, "resource_name", None)
 
@@ -607,6 +678,38 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         args.parallel_stage2,
         args.parallel_stage3,
     ]
+
+    # ── Dry run: resolve all settings, print summary, exit ──────────────
+    if getattr(args, "dry_run", False):
+        all_search_spaces: dict[int, dict] = {}
+        all_timesteps: dict[int, int] = {}
+        all_trials: dict[int, int] = {}
+        all_parallel: dict[int, int] = {}
+        all_n_envs: dict[int, int] = {}
+        for s in range(1, 4):
+            all_search_spaces[s] = _search_space_for_stage(resolved, s)
+            fs = _settings_for_stage(resolved, s)
+            all_timesteps[s] = cli_timesteps[s - 1] or fs.get("timesteps") or [500_000, 1_000_000, 1_500_000][s - 1]
+            all_trials[s] = cli_trials[s - 1] or fs.get("trials", args.trials)
+            all_parallel[s] = cli_parallel[s - 1] or fs.get("parallel", args.parallel)
+            all_n_envs[s] = fs.get("n_envs", args.n_envs)
+        _print_dry_run_summary(
+            species=args.species,
+            algorithm=args.algorithm,
+            stages=[1, 2, 3],
+            search_spaces=all_search_spaces,
+            timesteps=all_timesteps,
+            trials=all_trials,
+            parallel=all_parallel,
+            n_envs=all_n_envs,
+            machine_type=args.machine_type,
+            accelerator_type=args.accelerator_type,
+            accelerator_count=args.accelerator_count,
+            image=args.image,
+            bucket=args.bucket,
+            seed=getattr(args, "seed", 42),
+        )
+        return
 
     load_path: str | None = None
     fixed_trial_args: list[str] | None = None
@@ -878,6 +981,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     resume_run=resume_run,
                     restart_job_on_worker_restart=getattr(args, "restart_job_on_worker_restart", False),
                     no_tensorboard=getattr(args, "no_tensorboard", False),
+                    seed=getattr(args, "seed", 42),
                 )
                 job_resource_name = getattr(hpt_job, "resource_name", None)
 

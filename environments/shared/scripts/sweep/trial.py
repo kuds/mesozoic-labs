@@ -74,6 +74,28 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
     subdirectory so that every trial's checkpoint is written to its own
     path — which is how ``launch-all`` identifies the best trial later.
     """
+    # ── Log system info for debugging failed Vertex AI trials ──────────
+    trial_id = os.environ.get("CLOUD_ML_TRIAL_ID", "local")
+    logger.info("=" * 60)
+    logger.info("TRIAL START  |  species=%s  stage=%d  algorithm=%s  trial_id=%s",
+                args.species, args.stage, args.algorithm, trial_id)
+    logger.info("  timesteps=%s  n_envs=%d  seed=%d", f"{args.timesteps:,}", args.n_envs, args.seed)
+    try:
+        import multiprocessing
+        logger.info("  CPU cores: %d", multiprocessing.cpu_count())
+    except Exception:
+        pass
+    try:
+        import torch
+        if torch.cuda.is_available():
+            logger.info("  GPU: %s (CUDA %s)", torch.cuda.get_device_name(0), torch.version.cuda)
+            logger.info("  GPU memory: %.1f GB", torch.cuda.get_device_properties(0).total_mem / 1e9)
+        else:
+            logger.info("  GPU: none (CPU-only training)")
+    except ImportError:
+        logger.info("  GPU: torch not installed (CPU-only training)")
+    logger.info("=" * 60)
+
     overrides = _parse_hpt_extra_args(extra_args)
 
     # Extract net_arch overrides — these need special handling because
@@ -106,8 +128,6 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         logger.info("No HPT overrides received — using TOML defaults")
 
     # Make output unique per trial so each worker keeps its own checkpoint.
-    # Vertex AI sets CLOUD_ML_TRIAL_ID on every worker container.
-    trial_id = os.environ.get("CLOUD_ML_TRIAL_ID", "local")
     output_dir = f"{args.output_dir}/{trial_id}" if args.output_dir else None
     if output_dir:
         logger.info("Trial output directory: %s", output_dir)
@@ -140,6 +160,11 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
             stage_config[algo_key].setdefault("policy_kwargs", {})["net_arch"] = arch
         logger.info("Applied net_arch=%s (%s) to all stages", net_arch_preset, arch)
 
+    # Use SubprocVecEnv when running multiple envs on Vertex AI to
+    # exploit multi-core machines.  DummyVecEnv runs envs sequentially
+    # which wastes CPU on n1-standard-8 and above.
+    use_subproc = args.n_envs > 1
+
     train(
         species_cfg=SPECIES_CONFIG,
         stage_configs=STAGE_CONFIGS,
@@ -150,7 +175,7 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         load_path=args.load,
         eval_freq=args.eval_freq,
         save_freq=args.save_freq,
-        use_subproc=False,
+        use_subproc=use_subproc,
         verbose=0,
         algorithm=args.algorithm,
         use_wandb=args.wandb,
