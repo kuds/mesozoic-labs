@@ -123,7 +123,10 @@ def _load_trial_metrics(output_base: str, trial_id: str) -> dict[str, float]:
                 path_str,
             )
             return {}
-        except (json.JSONDecodeError, Exception) as exc:
+        except json.JSONDecodeError as exc:
+            logger.warning("  Trial %s: failed to parse metrics.json from GCS: %s", trial_id, exc)
+            return {}
+        except OSError as exc:
             logger.warning("  Trial %s: failed to read metrics.json from GCS: %s", trial_id, exc)
             return {}
 
@@ -235,7 +238,7 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
     is_gcs = path_str.startswith("gs://")
 
     if is_gcs:
-        local_path = Path(tempfile.mktemp(suffix=".csv"))
+        local_path = Path(tempfile.NamedTemporaryFile(suffix=".csv", delete=False).name)
     else:
         local_path = Path(path_str)
         local_path.parent.mkdir(parents=True, exist_ok=True)

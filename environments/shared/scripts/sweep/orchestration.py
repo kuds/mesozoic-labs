@@ -70,9 +70,13 @@ def _eager_refresh(credentials, *, max_retries: int = 4, _request=None):
 
     The GCE metadata server can occasionally return a plain string instead
     of a JSON object, which causes ``google-auth`` to raise ``TypeError``
-    (``string indices must be integers``).  This helper retries with
-    exponential back-off so the caller gets usable credentials.
+    (``string indices must be integers``).  Expired or revoked credentials
+    raise ``RefreshError``, and network issues raise ``TransportError``.
+    This helper retries all three with exponential back-off so the caller
+    gets usable credentials.
     """
+    import google.auth.exceptions
+
     if _request is None:
         import google.auth.transport.requests
 
@@ -82,18 +86,21 @@ def _eager_refresh(credentials, *, max_retries: int = 4, _request=None):
         try:
             credentials.refresh(_request)
             return
-        except TypeError:
+        except (TypeError, google.auth.exceptions.RefreshError, google.auth.exceptions.TransportError) as exc:
             if attempt == max_retries:
                 logger.error(
-                    "GCE metadata server returned malformed responses after "
-                    "%d attempts.  Check that the metadata service is healthy.",
+                    "Credential refresh failed after %d attempts: %s. "
+                    "Try running 'gcloud auth application-default login' or "
+                    "verify the service account has the required permissions.",
                     max_retries,
+                    exc,
                 )
                 raise
             logger.warning(
-                "Transient metadata-server error on credential refresh (attempt %d/%d), retrying in %ds …",
+                "Transient credential refresh error (attempt %d/%d): %s. Retrying in %ds …",
                 attempt,
                 max_retries,
+                exc,
                 delay,
             )
             time.sleep(delay)

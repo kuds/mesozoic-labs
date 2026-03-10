@@ -358,10 +358,34 @@ def main() -> None:
     elif args.mode == "launch":
         if extra_args:
             logger.warning("Ignoring unexpected args in launch mode: %s", extra_args)
+        if args.parallel is not None and args.trials is not None and args.parallel > args.trials:
+            logger.warning(
+                "--parallel (%d) exceeds --trials (%d). Clamping parallel to %d.",
+                args.parallel,
+                args.trials,
+                args.trials,
+            )
+            args.parallel = args.trials
         launch_sweep(args)
     elif args.mode == "launch-all":
         if extra_args:
             logger.warning("Ignoring unexpected args in launch-all mode: %s", extra_args)
+        # Validate per-stage parallel <= trials where both are explicitly set
+        for stage_num in (1, 2, 3):
+            p = getattr(args, f"parallel_stage{stage_num}", None) or args.parallel
+            t = getattr(args, f"trials_stage{stage_num}", None) or args.trials
+            if p > t:
+                logger.warning(
+                    "Stage %d: --parallel (%d) exceeds --trials (%d). Clamping parallel to %d.",
+                    stage_num,
+                    p,
+                    t,
+                    t,
+                )
+                if getattr(args, f"parallel_stage{stage_num}", None) is not None:
+                    setattr(args, f"parallel_stage{stage_num}", t)
+                else:
+                    args.parallel = t
         launch_all_stages(args)
     elif args.mode == "collect-results":
         if extra_args:

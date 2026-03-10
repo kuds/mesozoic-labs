@@ -1731,6 +1731,26 @@ class TestEagerRefresh:
             ((4,),),
         ]
 
+    @patch("time.sleep")
+    def test_retries_on_refresh_error(self, mock_sleep):
+        from google.auth.exceptions import RefreshError
+
+        creds = MagicMock()
+        creds.refresh.side_effect = [RefreshError("token expired"), None]
+        self._call(creds, max_retries=3)
+        assert creds.refresh.call_count == 2
+        mock_sleep.assert_called_once_with(1)
+
+    @patch("time.sleep")
+    def test_retries_on_transport_error(self, mock_sleep):
+        from google.auth.exceptions import TransportError
+
+        creds = MagicMock()
+        creds.refresh.side_effect = [TransportError("connection reset"), None]
+        self._call(creds, max_retries=3)
+        assert creds.refresh.call_count == 2
+        mock_sleep.assert_called_once_with(1)
+
     def test_non_type_error_propagates_immediately(self):
         creds = MagicMock()
         creds.refresh.side_effect = ValueError("unexpected")
