@@ -116,6 +116,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "sections (keys: stage1, stage2, stage3) or a flat dict for all stages."
         ),
     )
+    launch.add_argument("--seed", type=int, default=42, help="Random seed for all trials (default: 42)")
     launch.add_argument("--wandb", action="store_true", help="Enable W&B logging in each trial")
     launch.add_argument(
         "--no-tensorboard",
@@ -167,6 +168,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "Restart the job if a worker is preempted (e.g. when using spot VMs). "
             "Maps to Vertex AI's restart_job_on_worker_restart parameter."
+        ),
+    )
+    launch.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help=(
+            "Print the resolved configuration (search space, machine type, "
+            "trials, timesteps) without submitting the job. Useful for "
+            "verifying settings before a large training run."
         ),
     )
 
@@ -244,6 +255,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "or a flat dict to apply the same space to all stages."
         ),
     )
+    launch_all.add_argument("--seed", type=int, default=42, help="Random seed for all trials (default: 42)")
     launch_all.add_argument("--wandb", action="store_true", help="Enable W&B logging in each trial")
     launch_all.add_argument(
         "--no-tensorboard",
@@ -295,6 +307,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             "Restart the job if a worker is preempted (e.g. when using spot VMs). "
             "Maps to Vertex AI's restart_job_on_worker_restart parameter."
+        ),
+    )
+    launch_all.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help=(
+            "Print the resolved configuration for all stages without "
+            "submitting any jobs. Useful for verifying settings before "
+            "a large training run."
         ),
     )
 

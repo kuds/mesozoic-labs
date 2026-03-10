@@ -304,9 +304,9 @@ def train(
 
     # Carry forward normalization statistics from a prior stage
     if load_path:
-        _vecnorm_path = load_path.replace(".zip", "") + "_vecnorm.pkl"
-        if not _vecnorm_path.endswith("_vecnorm.pkl"):
-            _vecnorm_path = load_path + "_vecnorm.pkl"
+        # Strip trailing .zip (if present) and append _vecnorm.pkl
+        _base = load_path[:-4] if load_path.endswith(".zip") else load_path
+        _vecnorm_path = _base + "_vecnorm.pkl"
         if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env):
             # VecNormalize file not found (e.g. missing from GCS mount).
             # Ensure eval env doesn't pollute running stats.

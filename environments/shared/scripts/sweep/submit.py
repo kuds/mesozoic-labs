@@ -232,6 +232,7 @@ def _submit_stage_sweep(
     resume_run: int = 0,
     restart_job_on_worker_restart: bool = False,
     no_tensorboard: bool = False,
+    seed: int = 42,
 ):
     """Build and submit a single-stage HPT job. Returns the job object.
 
@@ -249,6 +250,7 @@ def _submit_stage_sweep(
             (e.g. spot/preemptible VMs).
         no_tensorboard: If ``True``, disable TensorBoard logging in each
             trial to reduce disk I/O and storage usage.
+        seed: Random seed passed to each trial (default 42).
     """
     parameter_spec = _build_parameter_spec(search_space, hpt_module)
     if not parameter_spec:
@@ -273,6 +275,8 @@ def _submit_stage_sweep(
         str(timesteps),
         "--n-envs",
         str(n_envs),
+        "--seed",
+        str(seed),
         "--output-dir",
         output_base,
     ]
