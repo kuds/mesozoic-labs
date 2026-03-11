@@ -393,6 +393,11 @@ class RaptorEnv(BaseDinoEnv):
         # 8b. Pelvis height (for LocomotionMetrics tracking)
         info["pelvis_height"] = float(self.data.xpos[self.pelvis_id, 2])
 
+        # 8c. Pelvis angular velocity (for spinning detection in eval metrics)
+        pelvis_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3]
+        info["pelvis_angular_vel"] = float(np.linalg.norm(pelvis_gyro))
+        info["pelvis_yaw_vel"] = float(pelvis_gyro[2])  # Z-axis rotation = yaw = spinning
+
         # 9. Gait symmetry (reward alternating foot contacts)
         # Track touchdown events (off→on transitions) and reward when
         # consecutive touchdowns alternate feet: L→R→L = 1.0, L→L→R = 0.5.

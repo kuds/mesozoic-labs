@@ -77,6 +77,8 @@ class DiagnosticsCallback(_BaseCallback):
         "strike_success",
         "r_foot_contact",
         "l_foot_contact",
+        "pelvis_angular_vel",
+        "pelvis_yaw_vel",
     ]
 
     def __init__(self, plateau_window=10, plateau_threshold=1.0, log_dir=None, verbose=0):
