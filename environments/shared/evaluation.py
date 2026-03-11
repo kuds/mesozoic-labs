@@ -83,8 +83,6 @@ def eval_policy_quality(
     """
     from .metrics import LocomotionMetrics
 
-    import numpy as _np
-
     episode_reports = []
 
     for _ in range(n_episodes):
