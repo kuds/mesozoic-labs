@@ -250,6 +250,21 @@ class TestSaveDiagnostics:
         cb._on_rollout_end()
         # No error, just no file
 
+    def test_saves_heading_alignment_std(self, callback, tmp_path):
+        callback._step_infos["heading_alignment"] = [1.0, -1.0, 0.5, -0.5]
+        callback._step_infos["forward_vel"] = [1.0]  # needed to trigger history append
+        callback._on_rollout_end()
+        data = np.load(str(tmp_path / "diagnostics.npz"))
+        assert "heading_alignment_std" in data
+        assert data["heading_alignment_std"][0] == pytest.approx(np.std([1.0, -1.0, 0.5, -0.5]))
+
+    def test_heading_alignment_std_nan_when_no_data(self, callback, tmp_path):
+        callback._step_infos["forward_vel"] = [1.0]  # trigger history but no heading data
+        callback._on_rollout_end()
+        data = np.load(str(tmp_path / "diagnostics.npz"))
+        assert "heading_alignment_std" in data
+        assert np.isnan(data["heading_alignment_std"][0])
+
     def test_accumulates_over_multiple_rollouts(self, callback, tmp_path):
         callback._step_infos["forward_vel"] = [1.0]
         callback._on_rollout_end()
