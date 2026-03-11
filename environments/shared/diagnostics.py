@@ -136,9 +136,7 @@ class DiagnosticsCallback(_BaseCallback):
                 self._history_rewards[key].append(float(_np.mean(vals)) if vals else float("nan"))
             # Track heading alignment std to distinguish spinning from stable heading
             heading_vals = self._step_infos.get("heading_alignment", [])
-            self._history_heading_std.append(
-                float(_np.std(heading_vals)) if len(heading_vals) > 1 else float("nan")
-            )
+            self._history_heading_std.append(float(_np.std(heading_vals)) if len(heading_vals) > 1 else float("nan"))
             self._save_diagnostics()
 
         self._step_infos = {k: [] for k in self.REWARD_KEYS + self.INFO_KEYS}
