@@ -99,6 +99,7 @@ class DiagnosticsCallback(_BaseCallback):
         self._history_timesteps: list[int] = []
         self._history = {k: [] for k in self.INFO_KEYS}
         self._history_rewards = {k: [] for k in self.REWARD_KEYS}
+        self._history_heading_std: list[float] = []
         self._history_terminations: dict[str, list[float]] = {}
         self._history_term_timesteps: list[int] = []
 
@@ -133,6 +134,11 @@ class DiagnosticsCallback(_BaseCallback):
             for key in self.REWARD_KEYS:
                 vals = self._step_infos[key]
                 self._history_rewards[key].append(float(_np.mean(vals)) if vals else float("nan"))
+            # Track heading alignment std to distinguish spinning from stable heading
+            heading_vals = self._step_infos.get("heading_alignment", [])
+            self._history_heading_std.append(
+                float(_np.std(heading_vals)) if len(heading_vals) > 1 else float("nan")
+            )
             self._save_diagnostics()
 
         self._step_infos = {k: [] for k in self.REWARD_KEYS + self.INFO_KEYS}
@@ -190,6 +196,8 @@ class DiagnosticsCallback(_BaseCallback):
             arr = self._history_rewards[key]
             if len(arr) == len(self._history_timesteps):
                 save_dict[key] = _np.array(arr)
+        if len(self._history_heading_std) == len(self._history_timesteps):
+            save_dict["heading_alignment_std"] = _np.array(self._history_heading_std)
         if self._history_term_timesteps:
             save_dict["term_timesteps"] = _np.array(self._history_term_timesteps)
             for reason, fracs in self._history_terminations.items():

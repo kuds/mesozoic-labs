@@ -316,9 +316,19 @@ def plot_diagnostics_graphs(
                 alpha=0.7,
             )
 
-        # [0,1] Heading Alignment
+        # [0,1] Heading Alignment (with std band to reveal spinning)
         if "heading_alignment" in diag:
-            axes2[0, 1].plot(ts, diag["heading_alignment"], label=label, color=color)
+            ha = diag["heading_alignment"]
+            axes2[0, 1].plot(ts, ha, label=label, color=color)
+            if "heading_alignment_std" in diag:
+                ha_std = diag["heading_alignment_std"]
+                axes2[0, 1].fill_between(
+                    ts,
+                    ha - ha_std,
+                    ha + ha_std,
+                    alpha=0.2,
+                    color=color,
+                )
 
         # [1,0] Prey / Food Distance
         if "prey_distance" in diag:
