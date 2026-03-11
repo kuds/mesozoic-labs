@@ -240,6 +240,131 @@ def save_results_json(
     return summary_path
 
 
+def save_results_csv(
+    stage_results_list: List[Dict[str, Any]],
+    stage_configs: Dict[int, Dict[str, Any]],
+    species: str,
+    algorithm: str,
+    seed: int,
+    run_dir: "str | Path",
+) -> Path:
+    """Save a ``collected_results.csv`` to *run_dir*.
+
+    Produces a CSV with the same column structure as the sweep's
+    ``collected_results.csv`` so that single-run notebook results can be
+    analysed with the same downstream tooling (plotting, comparison
+    scripts, etc.).
+
+    Each stage produces one row containing:
+
+    * **Fixed columns** — ``species``, ``algorithm``, ``seed``, ``stage``
+    * **Hyperparameter columns** — all ``env_kwargs``, ``ppo_kwargs``/
+      ``sac_kwargs``, and ``curriculum_kwargs`` values from the stage
+      config, prefixed with ``env_``, ``ppo_``/``sac_``, or
+      ``curriculum_`` respectively (matching sweep CSV conventions).
+    * **Metric columns** — ``best_mean_reward``,
+      ``best_mean_episode_length``, ``last_mean_reward``,
+      ``last_mean_episode_length``, ``mean_forward_vel``,
+      ``mean_success_rate``, ``training_duration_seconds``,
+      curriculum thresholds, and ``stage_passed``.
+
+    Returns the path to the written CSV file.
+    """
+    import csv as _csv
+
+    run_dir = Path(run_dir)
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    rows: List[Dict[str, Any]] = []
+    for r in stage_results_list:
+        stage = r["stage"]
+        cfg = stage_configs[stage]
+
+        row: Dict[str, Any] = {
+            "species": species,
+            "algorithm": algorithm,
+            "seed": seed,
+            "stage": stage,
+        }
+
+        # ── Hyperparameters (mirroring sweep CSV key names) ─────────
+        for key, val in cfg.get("env_kwargs", {}).items():
+            row[f"env_{key}"] = val
+        algo_key = "sac_kwargs" if algorithm.lower() == "sac" else "ppo_kwargs"
+        for key, val in cfg.get(algo_key, {}).items():
+            if key == "policy_kwargs":
+                # Flatten net_arch to a string like the sweep CSV does
+                net_arch = val.get("net_arch", [])
+                row[f"{algorithm.lower()}_net_arch"] = str(net_arch)
+            elif key == "verbose":
+                continue
+            else:
+                row[f"{algorithm.lower()}_{key}"] = val
+        for key, val in cfg.get("curriculum_kwargs", {}).items():
+            row[f"curriculum_{key}"] = val
+
+        # ── Metrics ─────────────────────────────────────────────────
+        best_model_reward = r.get("best_model_reward", "")
+        row["best_mean_reward"] = (
+            float(best_model_reward) if best_model_reward != "" else r.get("best_eval_reward", "")
+        )
+        best_model_length = r.get("best_model_length", "")
+        row["best_mean_episode_length"] = (
+            float(best_model_length) if best_model_length != "" else r.get("best_eval_length", "")
+        )
+        row["last_mean_reward"] = round(r.get("mean_reward", 0.0), 2)
+        row["last_mean_episode_length"] = round(r.get("mean_episode_length", 0.0), 1)
+        row["mean_forward_vel"] = round(r.get("mean_forward_vel", 0.0), 2)
+        row["std_forward_vel"] = round(r.get("std_forward_vel", 0.0), 2)
+        row["mean_success_rate"] = round(r.get("mean_success_rate", 0.0), 4)
+        row["training_duration_seconds"] = round(r.get("duration_seconds", 0.0), 1)
+
+        # Curriculum thresholds
+        cur = cfg.get("curriculum_kwargs", {})
+        row["reward_threshold"] = cur.get("min_avg_reward", "")
+        row["ep_length_threshold"] = cur.get("min_avg_episode_length", "")
+        row["forward_vel_threshold"] = cur.get("min_avg_forward_vel", "")
+        row["success_rate_threshold"] = cur.get("min_success_rate", "")
+        row["stage_passed"] = r.get("gate_passed", "")
+
+        rows.append(row)
+
+    if not rows:
+        logger.warning("No stage results to write — skipping CSV")
+        csv_path = run_dir / "collected_results.csv"
+        return csv_path
+
+    # Build column order: fixed → hyperparams (sorted) → metrics
+    fixed_cols = ["species", "algorithm", "seed", "stage"]
+    metric_cols = [
+        "best_mean_reward",
+        "best_mean_episode_length",
+        "last_mean_reward",
+        "last_mean_episode_length",
+        "mean_forward_vel",
+        "std_forward_vel",
+        "mean_success_rate",
+        "training_duration_seconds",
+        "reward_threshold",
+        "ep_length_threshold",
+        "forward_vel_threshold",
+        "success_rate_threshold",
+        "stage_passed",
+    ]
+    all_known = set(fixed_cols + metric_cols)
+    hparam_cols: List[str] = sorted({k for row in rows for k in row if k not in all_known})
+    fieldnames = fixed_cols + hparam_cols + metric_cols
+
+    csv_path = run_dir / "collected_results.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = _csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    logger.info("Training results CSV written to: %s", csv_path)
+    return csv_path
+
+
 def build_stage_results_from_eval_data(
     stage_dir: "str | Path",
     stage: int,
