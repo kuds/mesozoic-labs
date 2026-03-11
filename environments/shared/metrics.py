@@ -78,11 +78,25 @@ class LocomotionMetrics:
                 - ``reward_energy``: energy penalty (negative)
                 - ``pelvis_height``: pelvis z-position
                 - ``prey_distance``: distance to target (optional)
+                - ``tilt_angle``: pelvis tilt in radians (optional)
                 - ``r_foot_contact`` / ``l_foot_contact``: binary (optional)
                 - ``heading_alignment``: cos θ alignment to prey (optional)
                 - ``bite_success`` / ``strike_success`` / ``food_reached``:
                   binary success signal — the first present key is used (optional)
                 - ``contact_asymmetry``: left/right contact imbalance (optional)
+                - ``pelvis_angular_vel``: 3-D pelvis angular velocity magnitude
+                  used for spinning-detection metrics (optional)
+                - ``pelvis_yaw_vel``: yaw-axis angular velocity of the pelvis
+                  used for spinning-detection metrics (optional)
+                - ``reward_forward``, ``reward_alive``, ``reward_energy``,
+                  ``reward_tail``, ``reward_posture``, ``reward_nosedive``,
+                  ``reward_smoothness``, ``reward_strike``, ``reward_approach``,
+                  ``reward_gait``, ``reward_heading``, ``reward_lateral``,
+                  ``reward_backward``, ``reward_proximity``,
+                  ``reward_claw_proximity``: individual reward components
+                  accumulated for post-training quality evaluation (all optional)
+                - ``termination_reason``: string describing why the episode ended,
+                  captured from the final step (optional)
             reward: Total reward for this step.
         """
         self._forward_velocities.append(info.get("forward_vel", 0.0))
