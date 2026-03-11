@@ -77,9 +77,7 @@ def write_stage_summary(
         lines.append(f"Best eval:      {best_r} +/- {best_s}{ts_label}")
         if best_len != "":
             best_dur_s = best_len * sim_dt
-            lines.append(
-                f"Best ep length: {best_len} +/- {best_len_s} steps ({best_dur_s:.2f}s sim time)"
-            )
+            lines.append(f"Best ep length: {best_len} +/- {best_len_s} steps ({best_dur_s:.2f}s sim time)")
     bm_r = results_dict.get("best_model_reward", "")
     if bm_r != "":
         bm_s = results_dict.get("best_model_std_reward", "")
@@ -94,9 +92,7 @@ def write_stage_summary(
         lines.append(f"  Reward:       {bm_r} +/- {bm_s}")
         if bm_len != "":
             bm_dur_s = bm_len * sim_dt
-            lines.append(
-                f"  Ep length:    {bm_len} +/- {bm_len_s} steps ({bm_dur_s:.2f}s sim time)"
-            )
+            lines.append(f"  Ep length:    {bm_len} +/- {bm_len_s} steps ({bm_dur_s:.2f}s sim time)")
         if bm_vel != "":
             lines.append(f"  Fwd vel:      {bm_vel} +/- {bm_vel_s} m/s")
         if bm_sr != "":
@@ -309,16 +305,10 @@ def save_results_csv(
 
         # ── Metrics ─────────────────────────────────────────────────
         best_model_reward = r.get("best_model_reward", "")
-        row["best_mean_reward"] = (
-            float(best_model_reward)
-            if best_model_reward != ""
-            else r.get("best_eval_reward", "")
-        )
+        row["best_mean_reward"] = float(best_model_reward) if best_model_reward != "" else r.get("best_eval_reward", "")
         best_model_length = r.get("best_model_length", "")
         row["best_mean_episode_length"] = (
-            float(best_model_length)
-            if best_model_length != ""
-            else r.get("best_eval_length", "")
+            float(best_model_length) if best_model_length != "" else r.get("best_eval_length", "")
         )
         row["last_mean_reward"] = round(r.get("mean_reward", 0.0), 2)
         row["last_mean_episode_length"] = round(r.get("mean_episode_length", 0.0), 1)
@@ -360,9 +350,7 @@ def save_results_csv(
         "stage_passed",
     ]
     all_known = set(fixed_cols + metric_cols)
-    hparam_cols: List[str] = sorted(
-        {k for row in rows for k in row if k not in all_known}
-    )
+    hparam_cols: List[str] = sorted({k for row in rows for k in row if k not in all_known})
     fieldnames = fixed_cols + hparam_cols + metric_cols
 
     csv_path = run_dir / "collected_results.csv"
