@@ -38,6 +38,7 @@ Reward components:
     - Nosedive penalty
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
+    - Spin penalty (penalize pelvis angular velocity)
     - Heading alignment (facing toward prey)
     - Lateral velocity penalty (anti crab-walk)
 """
@@ -84,6 +85,7 @@ class RaptorEnv(BaseDinoEnv):
         heading_weight: float = 0.0,
         lateral_penalty_weight: float = 0.0,
         backward_vel_penalty_weight: float = 0.0,
+        spin_penalty_weight: float = 0.0,
         # Environment settings
         prey_distance_range: Tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: Tuple[float, float] = (-2.0, 2.0),
@@ -106,6 +108,7 @@ class RaptorEnv(BaseDinoEnv):
         self.heading_weight = heading_weight
         self.lateral_penalty_weight = lateral_penalty_weight
         self.backward_vel_penalty_weight = backward_vel_penalty_weight
+        self.spin_penalty_weight = spin_penalty_weight
 
         # Natural forward pitch (~20°). The nosedive penalty and termination
         # are measured relative to this angle so the raptor isn't punished for
@@ -398,6 +401,14 @@ class RaptorEnv(BaseDinoEnv):
         info["pelvis_angular_vel"] = float(np.linalg.norm(pelvis_gyro))
         info["pelvis_yaw_vel"] = float(pelvis_gyro[2])  # Z-axis rotation = yaw = spinning
 
+        # 8d. Spin penalty (penalize pelvis angular velocity, cf. Brachiosaurus gait_stability)
+        pelvis_angvel = self.data.qvel[3:6]
+        spin_instability = float(np.linalg.norm(pelvis_angvel))
+        spin_instability_norm = min(spin_instability / 10.0, 1.0)
+        reward_spin = -self.spin_penalty_weight * spin_instability_norm
+        info["spin_instability"] = spin_instability
+        info["reward_spin"] = reward_spin
+
         # 9. Gait symmetry (reward alternating foot contacts)
         # Track touchdown events (off→on transitions) and reward when
         # consecutive touchdowns alternate feet: L→R→L = 1.0, L→L→R = 0.5.
@@ -477,6 +488,7 @@ class RaptorEnv(BaseDinoEnv):
             + reward_claw_proximity
             + reward_posture
             + reward_nosedive
+            + reward_spin
             + reward_gait
             + reward_smoothness
             + reward_heading
