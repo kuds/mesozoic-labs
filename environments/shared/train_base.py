@@ -576,29 +576,49 @@ def _report_hpt_metrics(
             last_mean_ep_length,
         )
 
+    # ── Post-training quality evaluation (all stages) ──────────────────
+    # Run evaluation rollouts with LocomotionMetrics to collect spinning
+    # detection signals, heading stability, and reward component breakdown.
+    # These metrics enable model selection beyond raw reward.
+    from .curriculum import load_vecnorm_stats
+
+    best_model_zip = model_dir / "best_model.zip"
+    best_vecnorm_path = model_dir / "best_model_vecnorm.pkl"
+    alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
+
+    if best_model_zip.exists():
+        eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
+        if best_vecnorm_path.exists():
+            load_vecnorm_stats(str(best_vecnorm_path), eval_env)
+        eval_env.training = False
+        eval_env.norm_reward = False
+        logger.info("HPT eval: using best model + matched VecNormalize")
+    else:
+        eval_model = model
+        eval_env.training = False
+        eval_env.norm_reward = False
+        logger.warning("HPT eval: best_model.zip not found, falling back to final model")
+
+    # Quality evaluation with full LocomotionMetrics (spinning detection,
+    # heading alignment, reward breakdown, etc.)
+    from .evaluation import eval_policy_quality
+
+    try:
+        quality_metrics = eval_policy_quality(
+            eval_model, eval_env, species_cfg.success_keys, n_episodes=50
+        )
+        aux_metrics.update(quality_metrics)
+        logger.info(
+            "Quality eval complete: %d metrics collected (angular_vel=%.3f, heading_align=%.3f)",
+            len(quality_metrics),
+            quality_metrics.get("eval_mean_pelvis_angular_velocity", float("nan")),
+            quality_metrics.get("eval_mean_heading_alignment", float("nan")),
+        )
+    except Exception:
+        logger.warning("Quality evaluation failed — skipping quality metrics.", exc_info=True)
+
     if stage >= 2:
-        # Use the best model + its matched VecNormalize for forward_vel
-        # and success_rate evaluation so the metrics reflect the checkpoint
-        # that will actually be handed off to the next stage.
-        from .curriculum import load_vecnorm_stats
-
-        best_model_zip = model_dir / "best_model.zip"
-        best_vecnorm_path = model_dir / "best_model_vecnorm.pkl"
-        alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
-
-        if best_model_zip.exists():
-            eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
-            if best_vecnorm_path.exists():
-                load_vecnorm_stats(str(best_vecnorm_path), eval_env)
-            eval_env.training = False
-            eval_env.norm_reward = False
-            logger.info("HPT eval: using best model + matched VecNormalize")
-        else:
-            eval_model = model
-            eval_env.training = False
-            eval_env.norm_reward = False
-            logger.warning("HPT eval: best_model.zip not found, falling back to final model")
-
+        # Forward velocity and success rate evaluation for stage advancement.
         _, _, fwd_vels, success_flags = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=30)
         if fwd_vels:
             best_fwd = float(_np.mean(fwd_vels))

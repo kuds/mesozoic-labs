@@ -187,6 +187,12 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
         row["last_mean_reward"] = aux.get("last_mean_reward")
         row["last_mean_episode_length"] = aux.get("last_mean_episode_length")
         row["training_duration_seconds"] = aux.get("training_duration_seconds")
+
+        # Quality evaluation metrics (spinning detection, heading, reward breakdown)
+        for key, value in aux.items():
+            if key.startswith("eval_"):
+                row[key] = value
+
         row["reward_threshold"] = reward_threshold
         row["ep_length_threshold"] = ep_length_threshold
         row["forward_vel_threshold"] = forward_vel_threshold
@@ -260,9 +266,12 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
         "success_rate_threshold",
         "stage_passed",
     ]
+    # Collect eval_* quality metric columns across all rows (union, sorted)
+    eval_cols: list[str] = sorted({k for row in rows for k in row if k.startswith("eval_")})
     # Collect all hyperparameter column names across all rows (union, sorted)
-    hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in fixed_cols + metric_cols})
-    fieldnames = fixed_cols + hparam_cols + metric_cols
+    all_known = set(fixed_cols + metric_cols + eval_cols)
+    hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in all_known})
+    fieldnames = fixed_cols + hparam_cols + metric_cols + eval_cols
 
     with open(local_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
@@ -511,13 +520,15 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
         "best_mean_episode_length",
         "last_mean_reward",
         "last_mean_episode_length",
+        "training_duration_seconds",
         "reward_threshold",
         "ep_length_threshold",
         "forward_vel_threshold",
         "success_rate_threshold",
         "stage_passed",
     }
-    hparam_cols = [k for k in rows[0].keys() if k not in fixed_cols]
+    # Exclude eval_* quality metrics from hyperparameter analysis
+    hparam_cols = [k for k in rows[0].keys() if k not in fixed_cols and not k.startswith("eval_")]
     # Filter to columns with numeric, varying values
     numeric_hparams = []
     for col in hparam_cols:

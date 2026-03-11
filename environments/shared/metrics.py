@@ -45,6 +45,9 @@ class LocomotionMetrics:
     _heading_alignments: List[float] = field(default_factory=list)
     _success_events: List[float] = field(default_factory=list)
     _contact_asymmetries: List[float] = field(default_factory=list)
+    _pelvis_angular_velocities: List[float] = field(default_factory=list)
+    _pelvis_yaw_velocities: List[float] = field(default_factory=list)
+    _reward_components: Dict[str, List[float]] = field(default_factory=dict)
     _dt: float = 0.02  # default timestep * frame_skip
     _termination_reason: Optional[str] = None
 
@@ -61,6 +64,9 @@ class LocomotionMetrics:
         self._heading_alignments.clear()
         self._success_events.clear()
         self._contact_asymmetries.clear()
+        self._pelvis_angular_velocities.clear()
+        self._pelvis_yaw_velocities.clear()
+        self._reward_components.clear()
         self._termination_reason = None
 
     def record_step(self, info: Dict[str, Any], reward: float = 0.0):
@@ -105,6 +111,23 @@ class LocomotionMetrics:
 
         if "contact_asymmetry" in info:
             self._contact_asymmetries.append(float(info["contact_asymmetry"]))
+
+        if "pelvis_angular_vel" in info:
+            self._pelvis_angular_velocities.append(float(info["pelvis_angular_vel"]))
+
+        if "pelvis_yaw_vel" in info:
+            self._pelvis_yaw_velocities.append(float(info["pelvis_yaw_vel"]))
+
+        # Track individual reward components for post-training breakdown
+        for key in (
+            "reward_forward", "reward_alive", "reward_energy", "reward_tail",
+            "reward_posture", "reward_nosedive", "reward_smoothness",
+            "reward_strike", "reward_approach", "reward_gait",
+            "reward_heading", "reward_lateral", "reward_backward",
+            "reward_proximity", "reward_claw_proximity",
+        ):
+            if key in info:
+                self._reward_components.setdefault(key, []).append(float(info[key]))
 
         # Capture termination reason from the final step
         if "termination_reason" in info:
@@ -208,6 +231,25 @@ class LocomotionMetrics:
         # --- Contact asymmetry ---
         if self._contact_asymmetries:
             result["mean_contact_asymmetry"] = float(np.mean(self._contact_asymmetries))
+
+        # --- Pelvis angular velocity (spinning detection) ---
+        if self._pelvis_angular_velocities:
+            angvel = np.array(self._pelvis_angular_velocities)
+            result["mean_pelvis_angular_velocity"] = float(np.mean(angvel))
+            result["max_pelvis_angular_velocity"] = float(np.max(angvel))
+            result["std_pelvis_angular_velocity"] = float(np.std(angvel))
+
+        if self._pelvis_yaw_velocities:
+            yaw = np.array(self._pelvis_yaw_velocities)
+            result["mean_pelvis_yaw_velocity"] = float(np.mean(np.abs(yaw)))
+            result["max_pelvis_yaw_velocity"] = float(np.max(np.abs(yaw)))
+
+        # --- Reward component breakdown ---
+        for key, values in self._reward_components.items():
+            if values:
+                # Strip "reward_" prefix for cleaner metric names
+                component = key.replace("reward_", "")
+                result[f"reward_component_{component}"] = float(np.sum(values))
 
         # --- Termination reason ---
         if self._termination_reason is not None:

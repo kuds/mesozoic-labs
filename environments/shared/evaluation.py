@@ -62,6 +62,102 @@ def eval_policy(
     return rewards, lengths, fwd_vels, successes
 
 
+def eval_policy_quality(
+    model,
+    eval_env,
+    success_keys: list[str],
+    n_episodes: int = 50,
+) -> dict:
+    """Evaluate a trained policy collecting quality metrics for post-training selection.
+
+    Runs *n_episodes* deterministic rollouts using :class:`LocomotionMetrics`
+    and returns aggregated quality metrics including spinning detection
+    signals, reward component breakdowns, and heading stability.
+
+    This is designed to be called after training to populate the
+    ``metrics.json`` sidecar with columns that enable model selection
+    beyond raw reward.
+
+    Returns:
+        Dict of aggregated eval metrics (prefixed with ``eval_``).
+    """
+    from .metrics import LocomotionMetrics
+
+    import numpy as _np
+
+    episode_reports = []
+
+    for _ in range(n_episodes):
+        obs = eval_env.reset()
+        metrics = LocomotionMetrics()
+        done = False
+        while not done:
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, dones, infos = eval_env.step(action)
+            metrics.record_step(infos[0], float(reward[0]))
+            done = bool(dones[0])
+        episode_reports.append(metrics.compute())
+
+    agg = LocomotionMetrics.aggregate_episodes(episode_reports)
+
+    # Extract the key quality metrics with eval_ prefix
+    result: dict = {}
+
+    # Core performance
+    for key in (
+        "mean_episode_length",
+        "mean_total_reward",
+    ):
+        if key in agg:
+            result[f"eval_{key}"] = round(agg[key], 4)
+
+    # Spinning detection
+    for key in (
+        "mean_mean_pelvis_angular_velocity",
+        "mean_max_pelvis_angular_velocity",
+        "mean_mean_pelvis_yaw_velocity",
+        "mean_max_pelvis_yaw_velocity",
+    ):
+        if key in agg:
+            # Simplify key: mean_mean_pelvis_angular_velocity → eval_mean_pelvis_angular_velocity
+            clean_key = key.replace("mean_mean_", "mean_").replace("mean_max_", "max_")
+            result[f"eval_{clean_key}"] = round(agg[key], 4)
+
+    # Heading stability
+    for key in (
+        "mean_mean_heading_alignment",
+        "std_mean_heading_alignment",
+        "mean_std_heading_alignment",
+    ):
+        if key in agg:
+            clean_key = key.replace("mean_mean_", "mean_").replace("mean_std_", "std_")
+            result[f"eval_{clean_key}"] = round(agg[key], 4)
+
+    # Posture quality
+    for key in (
+        "mean_mean_tilt_angle",
+        "mean_mean_pelvis_height",
+    ):
+        if key in agg:
+            clean_key = key.replace("mean_mean_", "mean_")
+            result[f"eval_{clean_key}"] = round(agg[key], 4)
+
+    # Reward component breakdown (cumulative per episode, averaged across episodes)
+    for key, value in agg.items():
+        if key.startswith("mean_reward_component_"):
+            component = key.replace("mean_reward_component_", "")
+            result[f"eval_reward_{component}"] = round(value, 4)
+
+    # Termination reason distribution
+    term_counts = agg.get("termination_counts")
+    if term_counts:
+        total = sum(term_counts.values())
+        for reason, count in term_counts.items():
+            result[f"eval_term_{reason}_pct"] = round(count / total, 4)
+
+    return result
+
+
 def record_stage_video(
     model,
     env_class: type,
