@@ -120,11 +120,21 @@ class LocomotionMetrics:
 
         # Track individual reward components for post-training breakdown
         for key in (
-            "reward_forward", "reward_alive", "reward_energy", "reward_tail",
-            "reward_posture", "reward_nosedive", "reward_smoothness",
-            "reward_strike", "reward_approach", "reward_gait",
-            "reward_heading", "reward_lateral", "reward_backward",
-            "reward_proximity", "reward_claw_proximity",
+            "reward_forward",
+            "reward_alive",
+            "reward_energy",
+            "reward_tail",
+            "reward_posture",
+            "reward_nosedive",
+            "reward_smoothness",
+            "reward_strike",
+            "reward_approach",
+            "reward_gait",
+            "reward_heading",
+            "reward_lateral",
+            "reward_backward",
+            "reward_proximity",
+            "reward_claw_proximity",
         ):
             if key in info:
                 self._reward_components.setdefault(key, []).append(float(info[key]))

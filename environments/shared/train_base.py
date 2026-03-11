@@ -604,9 +604,7 @@ def _report_hpt_metrics(
     from .evaluation import eval_policy_quality
 
     try:
-        quality_metrics = eval_policy_quality(
-            eval_model, eval_env, species_cfg.success_keys, n_episodes=50
-        )
+        quality_metrics = eval_policy_quality(eval_model, eval_env, species_cfg.success_keys, n_episodes=50)
         aux_metrics.update(quality_metrics)
         logger.info(
             "Quality eval complete: %d metrics collected (angular_vel=%.3f, heading_align=%.3f)",
