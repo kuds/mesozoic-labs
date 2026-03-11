@@ -46,6 +46,7 @@ class TestRaptorRewardComponents:
             + info["reward_claw_proximity"]
             + info["reward_posture"]
             + info["reward_nosedive"]
+            + info["reward_spin"]
             + info["reward_gait"]
             + info["reward_smoothness"]
             + info["reward_heading"]
@@ -151,6 +152,23 @@ class TestRaptorRewardWeightEffects:
         action2 = env.action_space.sample()
         _, _, _, _, info = env.step(action2)
         assert info["reward_smoothness"] == 0.0
+        env.close()
+
+    def test_zero_spin_weight_zeroes_spin_reward(self):
+        env = RaptorEnv(spin_penalty_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_spin"] == 0.0
+        env.close()
+
+    def test_nonzero_spin_weight_gives_nonpositive_reward(self):
+        env = RaptorEnv(spin_penalty_weight=0.5)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_spin"] <= 0.0
+        assert info["spin_instability"] >= 0.0
         env.close()
 
     def test_zero_backward_vel_weight_zeroes_backward_reward(self):
