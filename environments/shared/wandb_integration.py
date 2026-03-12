@@ -180,48 +180,21 @@ class WandbCallback(BaseCallback):
             "train/timesteps": self.num_timesteps,
         }
 
-        # Log info from the most recent environment steps
+        # Log info from the most recent environment steps.
+        # Re-use the canonical key lists from DiagnosticsCallback so all
+        # tracking backends (TensorBoard, W&B) stay in sync automatically.
         if self.locals.get("infos"):
-            info_keys = [
-                # Reward components
-                "reward_forward",
-                "reward_backward",
-                "reward_alive",
-                "reward_energy",
-                "reward_tail",
-                "reward_bite",
-                "reward_strike",
-                "reward_approach",
-                "reward_posture",
-                "reward_nosedive",
-                "reward_gait",
-                "reward_smoothness",
-                "reward_heading",
-                "reward_lateral",
-                "reward_food",
+            from .diagnostics import DiagnosticsCallback as _DC
+
+            info_keys = list(_DC.REWARD_KEYS) + list(_DC.INFO_KEYS) + [
+                # Extra keys not tracked by DiagnosticsCallback but useful
+                # for W&B dashboards (species-specific raw signals).
                 "reward_total",
-                # Raw metrics
-                "forward_vel",
                 "backward_vel",
-                "prey_distance",
                 "head_food_distance",
                 "bite_success",
-                "strike_success",
                 "food_reached",
-                "tail_instability",
-                "tilt_angle",
-                "pelvis_height",
                 "torso_height",
-                "contact_asymmetry",
-                "heading_alignment",
-                "lateral_vel",
-                "r_foot_contact",
-                "l_foot_contact",
-                # Diagnostic metrics
-                "forward_z",
-                "reward_height",
-                "action_delta",
-                # Species-specific (brachiosaurus/trex)
                 "reward_neck",
                 "reward_food_reach",
                 "jaw_distance",
