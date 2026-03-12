@@ -408,6 +408,7 @@ def plot_trial_comparison(
     """
     try:
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError:
@@ -427,16 +428,16 @@ def plot_trial_comparison(
         return [r.get(key, default) for r in analysis_rows]
 
     # Reward
-    axes[0, 0].bar(x, _vals("eval_reward"), yerr=_vals("eval_reward_std"),
-                   capsize=4, alpha=0.8, edgecolor="black")
+    axes[0, 0].bar(x, _vals("eval_reward"), yerr=_vals("eval_reward_std"), capsize=4, alpha=0.8, edgecolor="black")
     axes[0, 0].set_ylabel("Mean Reward")
     axes[0, 0].set_title("Eval Reward")
     axes[0, 0].set_xticks(list(x))
     axes[0, 0].set_xticklabels(trial_labels, rotation=45, ha="right", fontsize=8)
 
     # Forward velocity
-    axes[0, 1].bar(x, _vals("fwd_vel_m/s"), yerr=_vals("fwd_vel_std"),
-                   capsize=4, alpha=0.8, color="tab:orange", edgecolor="black")
+    axes[0, 1].bar(
+        x, _vals("fwd_vel_m/s"), yerr=_vals("fwd_vel_std"), capsize=4, alpha=0.8, color="tab:orange", edgecolor="black"
+    )
     axes[0, 1].set_ylabel("m/s")
     axes[0, 1].set_title("Forward Velocity")
     axes[0, 1].set_xticks(list(x))
@@ -465,11 +466,11 @@ def plot_trial_comparison(
     axes[1, 1].set_xticklabels(trial_labels, rotation=45, ha="right", fontsize=8)
 
     # Reward vs Velocity scatter
-    axes[1, 2].scatter(_vals("fwd_vel_m/s"), _vals("eval_reward"),
-                       s=80, alpha=0.8, edgecolors="black")
+    axes[1, 2].scatter(_vals("fwd_vel_m/s"), _vals("eval_reward"), s=80, alpha=0.8, edgecolors="black")
     for i, label in enumerate(trial_labels):
-        axes[1, 2].annotate(label, (_vals("fwd_vel_m/s")[i], _vals("eval_reward")[i]),
-                            fontsize=7, ha="left", va="bottom")
+        axes[1, 2].annotate(
+            label, (_vals("fwd_vel_m/s")[i], _vals("eval_reward")[i]), fontsize=7, ha="left", va="bottom"
+        )
     axes[1, 2].set_xlabel("Forward Velocity (m/s)")
     axes[1, 2].set_ylabel("Eval Reward")
     axes[1, 2].set_title("Reward vs Velocity")

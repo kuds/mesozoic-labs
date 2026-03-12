@@ -186,19 +186,23 @@ class WandbCallback(BaseCallback):
         if self.locals.get("infos"):
             from .diagnostics import DiagnosticsCallback as _DC
 
-            info_keys = list(_DC.REWARD_KEYS) + list(_DC.INFO_KEYS) + [
-                # Extra keys not tracked by DiagnosticsCallback but useful
-                # for W&B dashboards (species-specific raw signals).
-                "reward_total",
-                "backward_vel",
-                "head_food_distance",
-                "bite_success",
-                "food_reached",
-                "torso_height",
-                "reward_neck",
-                "reward_food_reach",
-                "jaw_distance",
-            ]
+            info_keys = (
+                list(_DC.REWARD_KEYS)
+                + list(_DC.INFO_KEYS)
+                + [
+                    # Extra keys not tracked by DiagnosticsCallback but useful
+                    # for W&B dashboards (species-specific raw signals).
+                    "reward_total",
+                    "backward_vel",
+                    "head_food_distance",
+                    "bite_success",
+                    "food_reached",
+                    "torso_height",
+                    "reward_neck",
+                    "reward_food_reach",
+                    "jaw_distance",
+                ]
+            )
             for key in info_keys:
                 values = [info[key] for info in self.locals["infos"] if key in info]
                 if values:
