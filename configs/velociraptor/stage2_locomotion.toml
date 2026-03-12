@@ -6,7 +6,7 @@ description = "Learn forward walking/running"
 forward_vel_weight = 2.0                # With forward_vel_max=3.0 gives max reward 2.0; at 1.3 m/s (current avg) reward = 0.87/step
                                         # Still provides meaningful gradient without saturating at walking speeds
 forward_vel_max = 3.0                   # Increased from 1.5: agent plateaued at 1.3 m/s (87% of old max), needs headroom to push past waddle
-backward_vel_penalty_weight = 0.5       # Reduced from 2.0: matches successful runs; forward reward provides directional incentive
+backward_vel_penalty_weight = 0.0       # Redundant: forward_vel_weight already penalizes backward motion (forward_vel_norm goes negative)
 alive_bonus = 0.5                       # Reduce from 2.0: was 99% of total reward, drowning forward signal
 fall_penalty = -50.0                    # Reduce from -100: less punitive with lower alive_bonus
 energy_penalty_weight = 0.003
