@@ -280,8 +280,8 @@ class TRexEnv(BaseDinoEnv):
         #     quadratic so small wobbles are cheap but sustained drift is costly)
         drift_2d = pelvis_pos[:2] - self._initial_pos_2d
         drift_dist = float(np.linalg.norm(drift_2d))
-        # Normalize: 1.0 at 2m drift, capped at 1.0
-        drift_norm = min(drift_dist / 2.0, 1.0)
+        # Normalize: 1.0 at 2m drift, uncapped so penalty grows with distance
+        drift_norm = drift_dist / 2.0
         reward_drift = -self.drift_penalty_weight * (drift_norm**2)
         info["drift_distance"] = drift_dist
         info["reward_drift"] = reward_drift
