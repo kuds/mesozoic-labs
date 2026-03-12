@@ -389,6 +389,11 @@ class TRexEnv(BaseDinoEnv):
         info["lateral_vel"] = float(lateral_vel)
         info["reward_lateral"] = reward_lateral
 
+        # Pelvis angular velocity (for spinning detection in shared diagnostics)
+        pelvis_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3]
+        info["pelvis_angular_vel"] = float(np.linalg.norm(pelvis_gyro))
+        info["pelvis_yaw_vel"] = float(pelvis_gyro[2])  # Z-axis rotation = yaw
+
         # Total reward
         total_reward = (
             reward_forward

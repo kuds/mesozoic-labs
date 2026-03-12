@@ -371,3 +371,115 @@ def plot_diagnostics_graphs(
         plt.close(fig2)
 
     return fig1, fig2
+
+
+def plot_trial_comparison(
+    analysis_rows: "list[dict[str, Any]]",
+    species: str,
+    stage: int,
+    save_path: "str | Path | None" = None,
+    show: bool = True,
+) -> "Any":
+    """Plot a 2x3 comparison of top sweep trials.
+
+    Produces a six-panel figure comparing trials on:
+      - [0,0] Eval reward (with std error bars)
+      - [0,1] Forward velocity (with std error bars)
+      - [0,2] Total distance
+      - [1,0] Gait symmetry
+      - [1,1] Cost of transport
+      - [1,2] Reward vs velocity scatter
+
+    Each *analysis_rows* entry is expected to contain keys produced by
+    :class:`~environments.shared.metrics.LocomotionMetrics` aggregation:
+    ``eval_reward``, ``eval_reward_std``, ``fwd_vel_m/s``, ``fwd_vel_std``,
+    ``distance_m``, ``gait_symmetry``, ``cost_of_transport``, and ``trial``
+    (a short label for the x-axis).
+
+    Args:
+        analysis_rows: List of dicts, one per trial, with the keys above.
+        species: Species name for the figure title.
+        stage: Curriculum stage number for the figure title.
+        save_path: If provided, save the figure to this path.
+        show: If ``False``, close the figure after saving (headless mode).
+
+    Returns:
+        The matplotlib Figure object.
+    """
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        logger.warning("matplotlib not installed — skipping trial comparison plot")
+        return None
+
+    if not analysis_rows:
+        logger.warning("No analysis rows — skipping trial comparison plot")
+        return None
+
+    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+    fig.suptitle(f"{species.title()} Stage {stage} — Top {len(analysis_rows)} Trials Comparison", fontsize=14)
+    trial_labels = [str(r.get("trial", f"T{i}"))[:12] for i, r in enumerate(analysis_rows)]
+    x = range(len(analysis_rows))
+
+    def _vals(key, default=0):
+        return [r.get(key, default) for r in analysis_rows]
+
+    # Reward
+    axes[0, 0].bar(x, _vals("eval_reward"), yerr=_vals("eval_reward_std"),
+                   capsize=4, alpha=0.8, edgecolor="black")
+    axes[0, 0].set_ylabel("Mean Reward")
+    axes[0, 0].set_title("Eval Reward")
+    axes[0, 0].set_xticks(list(x))
+    axes[0, 0].set_xticklabels(trial_labels, rotation=45, ha="right", fontsize=8)
+
+    # Forward velocity
+    axes[0, 1].bar(x, _vals("fwd_vel_m/s"), yerr=_vals("fwd_vel_std"),
+                   capsize=4, alpha=0.8, color="tab:orange", edgecolor="black")
+    axes[0, 1].set_ylabel("m/s")
+    axes[0, 1].set_title("Forward Velocity")
+    axes[0, 1].set_xticks(list(x))
+    axes[0, 1].set_xticklabels(trial_labels, rotation=45, ha="right", fontsize=8)
+
+    # Distance
+    axes[0, 2].bar(x, _vals("distance_m"), alpha=0.8, color="tab:green", edgecolor="black")
+    axes[0, 2].set_ylabel("meters")
+    axes[0, 2].set_title("Total Distance")
+    axes[0, 2].set_xticks(list(x))
+    axes[0, 2].set_xticklabels(trial_labels, rotation=45, ha="right", fontsize=8)
+
+    # Gait symmetry
+    axes[1, 0].bar(x, _vals("gait_symmetry"), alpha=0.8, color="tab:purple", edgecolor="black")
+    axes[1, 0].set_ylabel("Symmetry")
+    axes[1, 0].set_title("Gait Symmetry")
+    axes[1, 0].set_ylim(0, 1.05)
+    axes[1, 0].set_xticks(list(x))
+    axes[1, 0].set_xticklabels(trial_labels, rotation=45, ha="right", fontsize=8)
+
+    # Cost of transport
+    axes[1, 1].bar(x, _vals("cost_of_transport"), alpha=0.8, color="tab:red", edgecolor="black")
+    axes[1, 1].set_ylabel("CoT")
+    axes[1, 1].set_title("Cost of Transport (lower = better)")
+    axes[1, 1].set_xticks(list(x))
+    axes[1, 1].set_xticklabels(trial_labels, rotation=45, ha="right", fontsize=8)
+
+    # Reward vs Velocity scatter
+    axes[1, 2].scatter(_vals("fwd_vel_m/s"), _vals("eval_reward"),
+                       s=80, alpha=0.8, edgecolors="black")
+    for i, label in enumerate(trial_labels):
+        axes[1, 2].annotate(label, (_vals("fwd_vel_m/s")[i], _vals("eval_reward")[i]),
+                            fontsize=7, ha="left", va="bottom")
+    axes[1, 2].set_xlabel("Forward Velocity (m/s)")
+    axes[1, 2].set_ylabel("Eval Reward")
+    axes[1, 2].set_title("Reward vs Velocity")
+    axes[1, 2].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    if save_path is not None:
+        fig.savefig(str(save_path), dpi=150, bbox_inches="tight")
+        logger.info("Trial comparison plot saved to: %s", save_path)
+    if not show:
+        plt.close(fig)
+
+    return fig
