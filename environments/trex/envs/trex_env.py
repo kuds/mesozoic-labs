@@ -24,6 +24,8 @@ Action space (21 dims):
 
 Reward components:
     - Forward velocity (toward prey)
+    - Backward velocity penalty
+    - Drift penalty (horizontal displacement from spawn)
     - Alive bonus
     - Fall penalty
     - Energy penalty
@@ -35,6 +37,7 @@ Reward components:
     - Height maintenance
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
+    - Spin penalty (penalize pelvis angular velocity)
     - Heading alignment (facing toward prey)
     - Lateral velocity penalty (anti crab-walk)
 """
@@ -78,6 +81,9 @@ class TRexEnv(BaseDinoEnv):
         smoothness_weight: float = 0.05,
         heading_weight: float = 0.0,
         lateral_penalty_weight: float = 0.0,
+        backward_vel_penalty_weight: float = 0.0,
+        drift_penalty_weight: float = 0.0,
+        spin_penalty_weight: float = 0.0,
         forward_vel_max: float = 8.0,
         # Environment settings
         prey_distance_range: Tuple[float, float] = (3.0, 8.0),
@@ -97,6 +103,9 @@ class TRexEnv(BaseDinoEnv):
         self.smoothness_weight = smoothness_weight
         self.heading_weight = heading_weight
         self.lateral_penalty_weight = lateral_penalty_weight
+        self.backward_vel_penalty_weight = backward_vel_penalty_weight
+        self.drift_penalty_weight = drift_penalty_weight
+        self.spin_penalty_weight = spin_penalty_weight
         self.forward_vel_max = forward_vel_max
 
         # Natural forward pitch (~10°). The nosedive penalty and termination
@@ -117,6 +126,10 @@ class TRexEnv(BaseDinoEnv):
         # reference direction stays fixed for the whole episode, preventing
         # the reward from flipping sign when the T-Rex passes the prey.
         self._initial_prey_dir_2d: np.ndarray = np.array([1.0, 0.0])
+
+        # Cached initial pelvis position (set in _spawn_target).
+        # Used by the drift penalty to discourage horizontal displacement.
+        self._initial_pos_2d: np.ndarray = np.array([0.0, 0.0])
 
         super().__init__(
             model_path=model_path,
@@ -253,6 +266,25 @@ class TRexEnv(BaseDinoEnv):
         info["forward_vel"] = forward_vel
         reward_forward = self.forward_vel_weight * forward_vel_norm
         info["reward_forward"] = reward_forward
+
+        # 1b. Backward velocity penalty (penalize drifting backward without
+        #     rewarding forward movement — useful in balance stages where
+        #     forward_vel_weight is zero)
+        backward_vel = max(0.0, -forward_vel)
+        backward_vel_norm = min(backward_vel / self.forward_vel_max, 1.0)
+        reward_backward = -self.backward_vel_penalty_weight * backward_vel_norm
+        info["backward_vel"] = backward_vel
+        info["reward_backward"] = reward_backward
+
+        # 1c. Drift penalty (penalize horizontal displacement from spawn point;
+        #     quadratic so small wobbles are cheap but sustained drift is costly)
+        drift_2d = pelvis_pos[:2] - self._initial_pos_2d
+        drift_dist = float(np.linalg.norm(drift_2d))
+        # Normalize: 1.0 at 2m drift, capped at 1.0
+        drift_norm = min(drift_dist / 2.0, 1.0)
+        reward_drift = -self.drift_penalty_weight * (drift_norm**2)
+        info["drift_distance"] = drift_dist
+        info["reward_drift"] = reward_drift
 
         # 2. Alive bonus (shared helper)
         reward_alive = self._reward_alive()
@@ -394,9 +426,19 @@ class TRexEnv(BaseDinoEnv):
         info["pelvis_angular_vel"] = float(np.linalg.norm(pelvis_gyro))
         info["pelvis_yaw_vel"] = float(pelvis_gyro[2])  # Z-axis rotation = yaw
 
+        # 13. Spin penalty (penalize pelvis angular velocity)
+        pelvis_angvel = self.data.qvel[3:6]
+        spin_instability = float(np.linalg.norm(pelvis_angvel))
+        spin_instability_norm = min(spin_instability / 10.0, 1.0)
+        reward_spin = -self.spin_penalty_weight * spin_instability_norm
+        info["spin_instability"] = spin_instability
+        info["reward_spin"] = reward_spin
+
         # Total reward
         total_reward = (
             reward_forward
+            + reward_backward
+            + reward_drift
             + reward_alive
             + reward_energy
             + reward_tail
@@ -409,6 +451,7 @@ class TRexEnv(BaseDinoEnv):
             + reward_smoothness
             + reward_heading
             + reward_lateral
+            + reward_spin
         )
         info["reward_total"] = total_reward
 
@@ -501,6 +544,10 @@ class TRexEnv(BaseDinoEnv):
         if dir_len > 1e-6:
             dir_2d /= dir_len
         self._initial_prey_dir_2d = dir_2d
+
+        # Cache initial pelvis position for drift penalty (qpos[0:2] is the
+        # root freejoint x,y — valid here before mj_forward).
+        self._initial_pos_2d = self.data.qpos[0:2].copy()
 
         # Reset delta-based tracking (first step will produce zero deltas)
         self._prev_prey_distance = None

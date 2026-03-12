@@ -194,6 +194,8 @@ class WandbCallback(BaseCallback):
                     # for W&B dashboards (species-specific raw signals).
                     "reward_total",
                     "backward_vel",
+                    "drift_distance",
+                    "spin_instability",
                     "head_food_distance",
                     "bite_success",
                     "food_reached",
