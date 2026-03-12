@@ -63,10 +63,10 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_heading",
         "reward_lateral",
         # Species-specific reward components
-        "reward_bite",          # T-Rex
-        "reward_food",          # Brachiosaurus
-        "reward_height",        # T-Rex
-        "reward_proximity",     # Velociraptor
+        "reward_bite",  # T-Rex
+        "reward_food",  # Brachiosaurus
+        "reward_height",  # T-Rex
+        "reward_proximity",  # Velociraptor
         "reward_claw_proximity",  # Velociraptor
     ]
     INFO_KEYS = [

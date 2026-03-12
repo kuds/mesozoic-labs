@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from environments.shared.reporting import CSV_METRIC_COLUMNS
+
 from .constants import SweepStageError
 
 logger = logging.getLogger(__name__)
