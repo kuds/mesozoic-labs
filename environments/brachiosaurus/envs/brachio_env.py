@@ -213,6 +213,11 @@ class BrachioEnv(BaseDinoEnv):
         info["gait_instability"] = gait_instability
         info["reward_gait"] = reward_gait
 
+        # Torso angular velocity (for spinning detection in shared diagnostics)
+        torso_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3]
+        info["pelvis_angular_vel"] = float(np.linalg.norm(torso_gyro))
+        info["pelvis_yaw_vel"] = float(torso_gyro[2])  # Z-axis rotation = yaw
+
         # Torso height (for LocomotionMetrics tracking — aliased as pelvis_height)
         info["pelvis_height"] = float(torso_pos[2])
 

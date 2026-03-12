@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from environments.shared.reporting import CSV_METRIC_COLUMNS
 from .constants import SweepStageError
 
 logger = logging.getLogger(__name__)
@@ -186,6 +187,9 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
         row["best_mean_episode_length"] = aux.get("best_mean_episode_length")
         row["last_mean_reward"] = aux.get("last_mean_reward")
         row["last_mean_episode_length"] = aux.get("last_mean_episode_length")
+        row["mean_forward_vel"] = aux.get("mean_forward_vel")
+        row["std_forward_vel"] = aux.get("std_forward_vel")
+        row["mean_success_rate"] = aux.get("mean_success_rate")
         row["training_duration_seconds"] = aux.get("training_duration_seconds")
 
         # Quality evaluation metrics (spinning detection, heading, reward breakdown)
@@ -254,24 +258,12 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
         return local_path if not is_gcs else Path(path_str)
 
     fixed_cols = ["trial_id", "stage"]
-    metric_cols = [
-        "best_mean_reward",
-        "best_mean_episode_length",
-        "last_mean_reward",
-        "last_mean_episode_length",
-        "training_duration_seconds",
-        "reward_threshold",
-        "ep_length_threshold",
-        "forward_vel_threshold",
-        "success_rate_threshold",
-        "stage_passed",
-    ]
     # Collect eval_* quality metric columns across all rows (union, sorted)
     eval_cols: list[str] = sorted({k for row in rows for k in row if k.startswith("eval_")})
     # Collect all hyperparameter column names across all rows (union, sorted)
-    all_known = set(fixed_cols + metric_cols + eval_cols)
+    all_known = set(fixed_cols + CSV_METRIC_COLUMNS + eval_cols)
     hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in all_known})
-    fieldnames = fixed_cols + hparam_cols + metric_cols + eval_cols
+    fieldnames = fixed_cols + hparam_cols + CSV_METRIC_COLUMNS + eval_cols
 
     with open(local_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
@@ -513,20 +505,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
 
     # ── Figure 2: Hyperparameter Analysis ─────────────────────────────────────
     # Identify hyperparameter columns (not fixed or metric columns)
-    fixed_cols = {
-        "trial_id",
-        "stage",
-        "best_mean_reward",
-        "best_mean_episode_length",
-        "last_mean_reward",
-        "last_mean_episode_length",
-        "training_duration_seconds",
-        "reward_threshold",
-        "ep_length_threshold",
-        "forward_vel_threshold",
-        "success_rate_threshold",
-        "stage_passed",
-    }
+    fixed_cols = {"trial_id", "stage"} | set(CSV_METRIC_COLUMNS)
     # Exclude eval_* quality metrics from hyperparameter analysis
     hparam_cols = [k for k in rows[0].keys() if k not in fixed_cols and not k.startswith("eval_")]
     # Filter to columns with numeric, varying values
@@ -832,20 +811,7 @@ def _collect_results_local(
 
             # Include any extra keys from metrics.json (e.g. hyperparameters,
             # auxiliary metrics) that aren't in the fixed/metric column sets.
-            _fixed_metric_keys = {
-                "trial_id",
-                "stage",
-                "best_mean_reward",
-                "best_mean_episode_length",
-                "last_mean_reward",
-                "last_mean_episode_length",
-                "training_duration_seconds",
-                "reward_threshold",
-                "ep_length_threshold",
-                "forward_vel_threshold",
-                "success_rate_threshold",
-                "stage_passed",
-            }
+            _fixed_metric_keys = {"trial_id", "stage"} | set(CSV_METRIC_COLUMNS)
             for mk, mv in metrics.items():
                 if mk not in _fixed_metric_keys:
                     row[mk] = mv
@@ -855,6 +821,9 @@ def _collect_results_local(
                     "best_mean_episode_length": metrics.get("best_mean_episode_length"),
                     "last_mean_reward": metrics.get("last_mean_reward"),
                     "last_mean_episode_length": metrics.get("last_mean_episode_length"),
+                    "mean_forward_vel": metrics.get("mean_forward_vel"),
+                    "std_forward_vel": metrics.get("std_forward_vel"),
+                    "mean_success_rate": metrics.get("mean_success_rate"),
                     "training_duration_seconds": metrics.get("training_duration_seconds"),
                     "reward_threshold": trial_reward_th,
                     "ep_length_threshold": trial_ep_th,

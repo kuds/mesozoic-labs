@@ -23,6 +23,8 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
+from environments.shared.diagnostics import DiagnosticsCallback
+
 
 @dataclass
 class LocomotionMetrics:
@@ -118,24 +120,9 @@ class LocomotionMetrics:
         if "pelvis_yaw_vel" in info:
             self._pelvis_yaw_velocities.append(float(info["pelvis_yaw_vel"]))
 
-        # Track individual reward components for post-training breakdown
-        for key in (
-            "reward_forward",
-            "reward_alive",
-            "reward_energy",
-            "reward_tail",
-            "reward_posture",
-            "reward_nosedive",
-            "reward_smoothness",
-            "reward_strike",
-            "reward_approach",
-            "reward_gait",
-            "reward_heading",
-            "reward_lateral",
-            "reward_backward",
-            "reward_proximity",
-            "reward_claw_proximity",
-        ):
+        # Track individual reward components for post-training breakdown.
+        # Uses the canonical list from DiagnosticsCallback to stay in sync.
+        for key in DiagnosticsCallback.REWARD_KEYS:
             if key in info:
                 self._reward_components.setdefault(key, []).append(float(info[key]))
 

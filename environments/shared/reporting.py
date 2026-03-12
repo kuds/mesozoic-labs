@@ -14,6 +14,26 @@ from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
+# Canonical metric column order for collected_results.csv.  Both the
+# single-run notebook (``save_results_csv``) and the sweep result
+# collector (``sweep/results.write_results_csv``) reference this list
+# so that all CSVs share a consistent schema.
+CSV_METRIC_COLUMNS: List[str] = [
+    "best_mean_reward",
+    "best_mean_episode_length",
+    "last_mean_reward",
+    "last_mean_episode_length",
+    "mean_forward_vel",
+    "std_forward_vel",
+    "mean_success_rate",
+    "training_duration_seconds",
+    "reward_threshold",
+    "ep_length_threshold",
+    "forward_vel_threshold",
+    "success_rate_threshold",
+    "stage_passed",
+]
+
 
 def format_duration(seconds: float) -> str:
     """Format seconds into a human-readable string (e.g. ``2h 15m 30s``)."""
@@ -326,6 +346,11 @@ def save_results_csv(
         row["success_rate_threshold"] = cur.get("min_success_rate", "")
         row["stage_passed"] = r.get("gate_passed", "")
 
+        # Quality evaluation metrics (eval_* keys from quality eval)
+        for key, val in r.items():
+            if key.startswith("eval_"):
+                row[key] = val
+
         rows.append(row)
 
     if not rows:
@@ -333,26 +358,13 @@ def save_results_csv(
         csv_path = run_dir / "collected_results.csv"
         return csv_path
 
-    # Build column order: fixed → hyperparams (sorted) → metrics
+    # Build column order: fixed → hyperparams (sorted) → metrics → eval_*
     fixed_cols = ["species", "algorithm", "seed", "stage"]
-    metric_cols = [
-        "best_mean_reward",
-        "best_mean_episode_length",
-        "last_mean_reward",
-        "last_mean_episode_length",
-        "mean_forward_vel",
-        "std_forward_vel",
-        "mean_success_rate",
-        "training_duration_seconds",
-        "reward_threshold",
-        "ep_length_threshold",
-        "forward_vel_threshold",
-        "success_rate_threshold",
-        "stage_passed",
-    ]
-    all_known = set(fixed_cols + metric_cols)
+    all_known = set(fixed_cols + CSV_METRIC_COLUMNS)
+    eval_cols: List[str] = sorted({k for row in rows for k in row if k.startswith("eval_")})
+    all_known.update(eval_cols)
     hparam_cols: List[str] = sorted({k for row in rows for k in row if k not in all_known})
-    fieldnames = fixed_cols + hparam_cols + metric_cols
+    fieldnames = fixed_cols + hparam_cols + CSV_METRIC_COLUMNS + eval_cols
 
     csv_path = run_dir / "collected_results.csv"
     with open(csv_path, "w", newline="") as f:
