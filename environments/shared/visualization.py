@@ -163,6 +163,40 @@ def plot_diagnostics_graphs(
     species_title = species.title()
     _REWARD_COMPONENTS = [k for k in DiagnosticsCallback.REWARD_KEYS if k != "reward_total"]
 
+    # Mapping from diagnostic reward key → config weight parameter name(s).
+    # A signal "matters" to a stage if any of its config weights is non-zero.
+    _REWARD_KEY_TO_CONFIG_WEIGHTS: Dict[str, Tuple[str, ...]] = {
+        "reward_forward": ("forward_vel_weight",),
+        "reward_backward": ("backward_vel_penalty_weight",),
+        "reward_drift": ("drift_penalty_weight",),
+        "reward_alive": ("alive_bonus",),
+        "reward_energy": ("energy_penalty_weight",),
+        "reward_tail": ("tail_stability_weight",),
+        "reward_gait": ("gait_symmetry_weight", "gait_stability_weight"),
+        "reward_posture": ("posture_weight",),
+        "reward_nosedive": ("nosedive_weight",),
+        "reward_height": ("height_weight",),
+        "reward_smoothness": ("smoothness_weight",),
+        "reward_heading": ("heading_weight",),
+        "reward_lateral": ("lateral_penalty_weight",),
+        "reward_spin": ("spin_penalty_weight",),
+        "reward_strike": ("strike_bonus",),
+        "reward_approach": ("strike_approach_weight", "bite_approach_weight", "food_approach_weight"),
+        "reward_proximity": ("strike_proximity_weight",),
+        "reward_claw_proximity": ("strike_claw_proximity_weight",),
+        "reward_bite": ("bite_bonus",),
+        "reward_food": ("food_reach_bonus",),
+    }
+
+    def _signal_active(reward_key: str, stage_num: int) -> bool:
+        """Return True if *reward_key* has a non-zero weight in this stage's config."""
+        env_kw = stage_configs.get(stage_num, {}).get("env_kwargs", {})
+        weight_keys = _REWARD_KEY_TO_CONFIG_WEIGHTS.get(reward_key, ())
+        if not weight_keys:
+            # Unknown reward key — show it to be safe.
+            return True
+        return any(abs(env_kw.get(wk, 0.0)) > 0 for wk in weight_keys)
+
     # -----------------------------------------------------------
     # Figure 1: Locomotion Health Metrics
     # -----------------------------------------------------------
@@ -202,9 +236,9 @@ def plot_diagnostics_graphs(
         if "pelvis_height" in diag:
             axes1[1, 0].plot(ts, diag["pelvis_height"], label=label, color=color)
 
-        # [1,1] Reward Decomposition
+        # [1,1] Reward Decomposition — only signals with non-zero weight
         for _ci, _rkey in enumerate(_REWARD_COMPONENTS):
-            if _rkey in diag:
+            if _rkey in diag and _signal_active(_rkey, stage_num):
                 axes1[1, 1].plot(
                     ts,
                     diag[_rkey],
