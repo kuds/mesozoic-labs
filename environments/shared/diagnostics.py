@@ -50,6 +50,7 @@ class DiagnosticsCallback(_BaseCallback):
 
     REWARD_KEYS = [
         "reward_forward",
+        "reward_backward",
         "reward_alive",
         "reward_energy",
         "reward_tail",
@@ -61,6 +62,12 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_gait",
         "reward_heading",
         "reward_lateral",
+        # Species-specific reward components
+        "reward_bite",          # T-Rex
+        "reward_food",          # Brachiosaurus
+        "reward_height",        # T-Rex
+        "reward_proximity",     # Velociraptor
+        "reward_claw_proximity",  # Velociraptor
     ]
     INFO_KEYS = [
         "forward_vel",
