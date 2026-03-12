@@ -51,6 +51,7 @@ class DiagnosticsCallback(_BaseCallback):
     REWARD_KEYS = [
         "reward_forward",
         "reward_backward",
+        "reward_drift",
         "reward_alive",
         "reward_energy",
         "reward_tail",
@@ -62,6 +63,7 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_gait",
         "reward_heading",
         "reward_lateral",
+        "reward_spin",
         # Species-specific reward components
         "reward_bite",  # T-Rex
         "reward_food",  # Brachiosaurus
@@ -86,6 +88,8 @@ class DiagnosticsCallback(_BaseCallback):
         "l_foot_contact",
         "pelvis_angular_vel",
         "pelvis_yaw_vel",
+        "drift_distance",
+        "spin_instability",
     ]
 
     def __init__(self, plateau_window=10, plateau_threshold=1.0, log_dir=None, verbose=0):

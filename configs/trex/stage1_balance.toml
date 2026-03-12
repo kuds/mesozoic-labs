@@ -4,6 +4,9 @@ description = "Learn to stand and balance without falling"
 
 [env]
 forward_vel_weight = 0.0
+backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
+drift_penalty_weight = 0.3                     # Penalize horizontal displacement from spawn; prevents hop-to-balance exploit
+spin_penalty_weight = 0.1                      # Penalize pelvis angular velocity to directly discourage spinning
 alive_bonus = 2.0
 energy_penalty_weight = 0.05
 tail_stability_weight = 0.15
