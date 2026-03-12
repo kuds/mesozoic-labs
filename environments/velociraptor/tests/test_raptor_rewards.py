@@ -37,6 +37,7 @@ class TestRaptorRewardComponents:
         expected = (
             info["reward_forward"]
             + info["reward_backward"]
+            + info["reward_drift"]
             + info["reward_alive"]
             + info["reward_energy"]
             + info["reward_tail"]
@@ -97,6 +98,14 @@ class TestRaptorRewardComponents:
         _, _, _, _, info = env.step(action)
         assert info["reward_backward"] <= 0.0
         assert info["backward_vel"] >= 0.0
+
+    def test_drift_penalty_non_positive(self, env):
+        """Drift penalty should be non-positive."""
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_drift"] <= 0.0
+        assert info["drift_distance"] >= 0.0
 
     def test_claw_proximity_zero_by_default(self, env):
         """Claw proximity reward should be zero when weight is zero (default)."""
@@ -169,6 +178,28 @@ class TestRaptorRewardWeightEffects:
         _, _, _, _, info = env.step(action)
         assert info["reward_spin"] <= 0.0
         assert info["spin_instability"] >= 0.0
+        env.close()
+
+    def test_zero_drift_weight_zeroes_drift_reward(self):
+        env = RaptorEnv(drift_penalty_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_drift"] == 0.0
+        env.close()
+
+    def test_nonzero_drift_weight_penalizes_displacement(self):
+        """Drift penalty should be negative after several steps of movement."""
+        env = RaptorEnv(drift_penalty_weight=0.5)
+        env.reset(seed=42)
+        for _ in range(20):
+            action = env.action_space.sample()
+            _, _, terminated, _, info = env.step(action)
+            if terminated:
+                break
+            if info["drift_distance"] > 0.01:
+                assert info["reward_drift"] < 0.0
+                break
         env.close()
 
     def test_zero_backward_vel_weight_zeroes_backward_reward(self):
