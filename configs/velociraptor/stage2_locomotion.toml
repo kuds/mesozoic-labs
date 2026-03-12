@@ -46,8 +46,8 @@ ent_coef = "auto"
 [curriculum]
 timesteps = 6000000                    # Reduced from 8M: successful runs passed in 2M; 5M provides margin for warmup/ramp
 min_avg_reward = 100.0
-min_avg_episode_length = 600
-min_avg_forward_vel = 0.4
+min_avg_episode_length = 750
+min_avg_forward_vel = 2.0
 required_consecutive = 3
 warmup_timesteps = 300000               # Increase from 100k: give critic more time to adapt to new reward landscape
 warmup_clip_range = 0.02
