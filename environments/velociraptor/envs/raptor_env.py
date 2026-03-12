@@ -296,7 +296,7 @@ class RaptorEnv(BaseDinoEnv):
         drift_dist = float(np.linalg.norm(drift_2d))
         # Normalize: 1.0 at 2m drift, capped at 1.0
         drift_norm = min(drift_dist / 2.0, 1.0)
-        reward_drift = -self.drift_penalty_weight * (drift_norm ** 2)
+        reward_drift = -self.drift_penalty_weight * (drift_norm**2)
         info["drift_distance"] = drift_dist
         info["reward_drift"] = reward_drift
 
