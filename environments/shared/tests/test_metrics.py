@@ -113,6 +113,26 @@ class TestLocomotionMetrics:
         result = metrics.compute()
         assert result["velocity_consistency"] < 1.0
 
+    def test_distance_traveled(self, metrics):
+        """distance_traveled uses the last recorded value (cumulative from env)."""
+        distances = [0.0, 0.5, 1.2, 2.0, 3.5]
+        for d in distances:
+            metrics.record_step({"forward_vel": 1.0, "distance_traveled": d})
+        result = metrics.compute()
+        assert result["distance_traveled"] == pytest.approx(3.5)
+
+    def test_distance_traveled_missing(self, metrics):
+        """When distance_traveled is not in info, it should not appear in result."""
+        metrics.record_step({"forward_vel": 1.0})
+        result = metrics.compute()
+        assert "distance_traveled" not in result
+
+    def test_distance_traveled_reset(self, metrics):
+        metrics.record_step({"forward_vel": 1.0, "distance_traveled": 5.0})
+        metrics.reset()
+        result = metrics.compute()
+        assert "distance_traveled" not in result
+
 
 class TestGaitSymmetry:
     """Test gait symmetry computation."""
