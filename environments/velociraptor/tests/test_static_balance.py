@@ -21,7 +21,6 @@ from environments.shared.tests.static_balance_helpers import (
     ZeroTorqueStabilityBase,
     com_xy,
     get_foot_contacts_xy,
-    species_mass,
 )
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 

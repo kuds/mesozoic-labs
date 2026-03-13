@@ -7,7 +7,6 @@ the configuration (body names, thresholds, joint lists).
 import mujoco
 import numpy as np
 import pytest
-from scipy.spatial import ConvexHull
 
 
 # ---------------------------------------------------------------------------

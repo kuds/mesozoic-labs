@@ -22,7 +22,6 @@ from environments.shared.tests.static_balance_helpers import (
     body_group_mass,
     com_xy,
     get_foot_contacts_xy,
-    species_mass,
 )
 
 FOOT_GEOM_NAMES = ["fr_foot_geom", "fl_foot_geom", "rr_foot_geom", "rl_foot_geom"]
