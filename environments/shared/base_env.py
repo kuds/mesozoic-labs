@@ -482,13 +482,12 @@ class BaseDinoEnv(gym.Env, ABC):
         if l_touchdown:
             self._touchdown_sequence.append("L")
         if len(self._touchdown_sequence) > self._max_touchdown_history:
-            self._touchdown_sequence = self._touchdown_sequence[-self._max_touchdown_history:]
+            self._touchdown_sequence = self._touchdown_sequence[-self._max_touchdown_history :]
 
         n_touchdowns = len(self._touchdown_sequence)
         if n_touchdowns > 1:
             alternations = sum(
-                1 for i in range(1, n_touchdowns)
-                if self._touchdown_sequence[i] != self._touchdown_sequence[i - 1]
+                1 for i in range(1, n_touchdowns) if self._touchdown_sequence[i] != self._touchdown_sequence[i - 1]
             )
             alternation_ratio = alternations / (n_touchdowns - 1)
         else:
