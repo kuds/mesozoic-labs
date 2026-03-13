@@ -11,15 +11,19 @@ Call ``build_search_space(species, stage, algorithm)`` to get a ready-to-use
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from .constants import _DEFAULT_PPO_SEARCH_SPACE, _DEFAULT_SAC_SEARCH_SPACE
+
+# Type alias for a single parameter spec dict.
+_ParamSpec = dict[str, Any]
+_SearchSpace = dict[str, _ParamSpec]
 
 # ── Shared algorithm search spaces ──────────────────────────────────────────
 # Extended from _DEFAULT_PPO_SEARCH_SPACE with n_epochs and net_arch.
 
-_PPO_ALGO_SPACE: dict[str, dict[str, Any]] = {
-    **{k: v for k, v in _DEFAULT_PPO_SEARCH_SPACE.items()},
+_PPO_ALGO_SPACE: _SearchSpace = {
+    **cast(_SearchSpace, _DEFAULT_PPO_SEARCH_SPACE),
     "ppo_n_epochs": {"type": "discrete", "values": [3, 6, 10]},
     "ppo_net_arch": {
         "type": "categorical",
@@ -27,8 +31,8 @@ _PPO_ALGO_SPACE: dict[str, dict[str, Any]] = {
     },
 }
 
-_SAC_ALGO_SPACE: dict[str, dict[str, Any]] = {
-    **{k: v for k, v in _DEFAULT_SAC_SEARCH_SPACE.items()},
+_SAC_ALGO_SPACE: _SearchSpace = {
+    **cast(_SearchSpace, _DEFAULT_SAC_SEARCH_SPACE),
     "sac_net_arch": {
         "type": "categorical",
         "values": ["small", "medium", "large", "tapered", "deep_tapered"],
