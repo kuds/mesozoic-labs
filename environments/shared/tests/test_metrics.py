@@ -13,9 +13,13 @@ class TestLocomotionMetrics:
     def metrics(self):
         return LocomotionMetrics()
 
-    def test_empty_compute_returns_error(self, metrics):
+    def test_empty_compute_returns_nan_defaults(self, metrics):
         result = metrics.compute()
-        assert "error" in result
+        assert result["episode_length"] == 0
+        assert np.isnan(result["mean_forward_velocity"])
+        assert np.isnan(result["total_distance"])
+        assert "mean_forward_velocity" in result
+        assert "cost_of_transport" in result
 
     def test_forward_velocity_stats(self, metrics):
         for _ in range(10):
@@ -94,7 +98,8 @@ class TestLocomotionMetrics:
         metrics.record_step({"forward_vel": 1.0})
         metrics.reset()
         result = metrics.compute()
-        assert "error" in result
+        assert result["episode_length"] == 0
+        assert np.isnan(result["mean_forward_velocity"])
 
     def test_velocity_consistency_perfect(self, metrics):
         for _ in range(10):

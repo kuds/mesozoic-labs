@@ -186,6 +186,346 @@ class BaseDinoEnv(gym.Env, ABC):
         return reward, action_delta
 
     # ------------------------------------------------------------------
+    # Consolidated reward helpers (extracted from species envs)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _quat_to_forward_2d(quat: np.ndarray) -> np.ndarray:
+        """Extract body forward direction (+X local axis) projected into XY plane.
+
+        Args:
+            quat: MuJoCo quaternion (w, x, y, z).
+
+        Returns:
+            Normalised 2D forward direction vector.
+        """
+        w, x, y, z = quat
+        body_forward_x = 1.0 - 2.0 * (y * y + z * z)
+        body_forward_y = 2.0 * (x * y + w * z)
+        body_forward_2d = np.array([body_forward_x, body_forward_y])
+        length = np.linalg.norm(body_forward_2d)
+        if length > 1e-6:
+            body_forward_2d = body_forward_2d / length
+        return body_forward_2d
+
+    @staticmethod
+    def _quat_to_forward_z(quat: np.ndarray) -> float:
+        """Compute the Z-component of the body's local X-axis (head direction) in world frame.
+
+        Used for nosedive detection: negative values mean the head is
+        pointing downward.
+
+        Args:
+            quat: MuJoCo quaternion (w, x, y, z).
+
+        Returns:
+            Scalar Z-component of forward direction.
+        """
+        w, x, y, z = quat
+        return float(2.0 * (x * z - w * y))
+
+    def _compute_posture_reward(self, quat: np.ndarray, weight: float) -> tuple[float, float]:
+        """Compute quadratic tilt penalty.
+
+        Args:
+            quat: Pelvis/torso quaternion from sensor data.
+            weight: Posture reward weight.
+
+        Returns:
+            (reward, tilt_angle) tuple.
+        """
+        tilt_angle = self._quat_to_tilt(quat)
+        tilt_angle_norm = min(tilt_angle / self.max_tilt_angle, 1.0)
+        reward = -weight * (tilt_angle_norm**2)
+        return reward, tilt_angle
+
+    def _compute_nosedive_penalty(
+        self, quat: np.ndarray, weight: float, natural_forward_z: float
+    ) -> tuple[float, float]:
+        """Compute nosedive penalty (excessive forward pitch beyond natural lean).
+
+        Args:
+            quat: Pelvis/torso quaternion from sensor data.
+            weight: Nosedive penalty weight.
+            natural_forward_z: Baseline forward_z for species' natural lean.
+
+        Returns:
+            (reward, forward_z) tuple.
+        """
+        forward_z = self._quat_to_forward_z(quat)
+        nosedive_excess = max(0.0, -(forward_z - natural_forward_z))
+        reward = -weight * nosedive_excess
+        return reward, forward_z
+
+    def _compute_angular_velocity_penalty(self, weight: float, max_angvel: float = 10.0) -> tuple[float, float]:
+        """Compute angular velocity (spin) penalty from root freejoint.
+
+        Args:
+            weight: Penalty weight.
+            max_angvel: Normalisation ceiling (rad/s).
+
+        Returns:
+            (reward, instability_magnitude) tuple.
+        """
+        angvel = self.data.qvel[3:6]
+        instability = float(np.linalg.norm(angvel))
+        instability_norm = min(instability / max_angvel, 1.0)
+        reward = -weight * instability_norm
+        return reward, instability
+
+    def _compute_tail_stability(
+        self, tail_tip_site_id: int, weight: float, max_angvel: float = 10.0
+    ) -> tuple[float, float]:
+        """Compute tail tip angular velocity penalty.
+
+        Args:
+            tail_tip_site_id: MuJoCo site ID for the tail tip.
+            weight: Tail stability weight.
+            max_angvel: Normalisation ceiling (rad/s).
+
+        Returns:
+            (reward, tail_instability_magnitude) tuple.
+        """
+        tail_vel = np.zeros(6)
+        mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, tail_tip_site_id, tail_vel, 0)
+        tail_tip_angvel = tail_vel[0:3]
+        instability = float(np.linalg.norm(tail_tip_angvel))
+        instability_norm = min(instability / max_angvel, 1.0)
+        reward = -weight * instability_norm
+        return reward, instability
+
+    def _compute_approach_shaping(
+        self,
+        current_distance: float,
+        prev_distance: "float | None",
+        weight: float,
+        max_speed: float,
+    ) -> tuple[float, float]:
+        """Compute approach shaping reward (reward closing distance, penalise retreating).
+
+        Args:
+            current_distance: Current distance to target.
+            prev_distance: Previous step's distance (None on first step).
+            weight: Approach shaping weight.
+            max_speed: Maximum expected approach speed (m/s) for normalisation.
+
+        Returns:
+            (reward, approach_delta) tuple.
+        """
+        if prev_distance is not None:
+            approach_delta = prev_distance - current_distance
+        else:
+            approach_delta = 0.0
+
+        dt = self.frame_skip * self.model.opt.timestep
+        max_delta = max_speed * dt
+        approach_delta_norm = float(np.clip(approach_delta / max_delta, -1.0, 1.0))
+        reward = weight * approach_delta_norm
+        return reward, approach_delta
+
+    def _compute_forward_velocity(
+        self, vel_2d: np.ndarray, forward_ref_2d: np.ndarray, vel_max: float, weight: float
+    ) -> tuple[float, float]:
+        """Compute forward velocity reward along a reference direction.
+
+        Args:
+            vel_2d: 2D velocity vector (qvel[0:2]).
+            forward_ref_2d: Unit reference direction in XY plane.
+            vel_max: Maximum velocity for normalisation.
+            weight: Reward weight.
+
+        Returns:
+            (reward, raw_forward_vel) tuple.
+        """
+        forward_vel = float(np.dot(vel_2d, forward_ref_2d))
+        forward_vel_norm = float(np.clip(forward_vel / vel_max, -1.0, 1.0))
+        reward = weight * forward_vel_norm
+        return reward, forward_vel
+
+    def _compute_backward_penalty(self, forward_vel: float, vel_max: float, weight: float) -> tuple[float, float]:
+        """Compute backward velocity penalty.
+
+        Args:
+            forward_vel: Forward velocity (negative means backward).
+            vel_max: Normalisation ceiling.
+            weight: Penalty weight.
+
+        Returns:
+            (reward, backward_vel) tuple.
+        """
+        backward_vel = max(0.0, -forward_vel)
+        backward_vel_norm = min(backward_vel / vel_max, 1.0)
+        reward = -weight * backward_vel_norm
+        return reward, backward_vel
+
+    def _compute_drift_penalty(
+        self, current_pos_2d: np.ndarray, initial_pos_2d: np.ndarray, weight: float
+    ) -> tuple[float, float]:
+        """Compute quadratic drift penalty (horizontal displacement from spawn).
+
+        Args:
+            current_pos_2d: Current XY position.
+            initial_pos_2d: Spawn XY position.
+            weight: Penalty weight.
+
+        Returns:
+            (reward, drift_distance) tuple.
+        """
+        drift_2d = current_pos_2d - initial_pos_2d
+        drift_dist = float(np.linalg.norm(drift_2d))
+        drift_norm = drift_dist / 2.0
+        reward = -weight * (drift_norm**2)
+        return reward, drift_dist
+
+    def _compute_heading_alignment(
+        self, body_forward_2d: np.ndarray, forward_ref_2d: np.ndarray, weight: float
+    ) -> tuple[float, float]:
+        """Compute heading alignment reward (reward facing toward target).
+
+        Args:
+            body_forward_2d: Body's forward direction in XY plane.
+            forward_ref_2d: Reference direction to target in XY plane.
+            weight: Reward weight.
+
+        Returns:
+            (reward, heading_alignment_cos) tuple.
+        """
+        heading_alignment = float(np.dot(body_forward_2d, forward_ref_2d))
+        reward = weight * heading_alignment
+        return reward, heading_alignment
+
+    def _compute_lateral_velocity_penalty(
+        self, vel_2d: np.ndarray, body_forward_2d: np.ndarray, weight: float
+    ) -> tuple[float, float]:
+        """Compute lateral (crab-walk) velocity penalty.
+
+        Args:
+            vel_2d: 2D velocity vector.
+            body_forward_2d: Body's forward direction in XY plane.
+            weight: Penalty weight.
+
+        Returns:
+            (reward, lateral_vel) tuple.
+        """
+        lateral_vel = abs(vel_2d[0] * body_forward_2d[1] - vel_2d[1] * body_forward_2d[0])
+        lateral_vel_norm = float(np.clip(lateral_vel / 5.0, 0.0, 1.0))
+        reward = -weight * lateral_vel_norm
+        return reward, float(lateral_vel)
+
+    def _compute_pelvis_diagnostics(self) -> tuple[float, float]:
+        """Compute pelvis angular velocity metrics for spinning detection.
+
+        Returns:
+            (pelvis_angular_vel_magnitude, pelvis_yaw_vel) tuple.
+        """
+        gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3]
+        return float(np.linalg.norm(gyro)), float(gyro[2])
+
+    # ------------------------------------------------------------------
+    # Consolidated termination helpers
+    # ------------------------------------------------------------------
+
+    def _check_height_tilt_termination(self, body_z: float, tilt_angle: float) -> "tuple[bool, str | None]":
+        """Check common height and tilt termination conditions.
+
+        Args:
+            body_z: Height of root body (pelvis/torso).
+            tilt_angle: Tilt angle in radians.
+
+        Returns:
+            (terminated, reason) where reason is None if not terminated.
+        """
+        if body_z < self.healthy_z_range[0]:
+            return True, "fallen"
+        if body_z > self.healthy_z_range[1]:
+            return True, "too_high"
+        if tilt_angle > self.max_tilt_angle:
+            return True, "excessive_tilt"
+        return False, None
+
+    def _check_floor_contact(
+        self, body_ground_geoms: set, floor_geom_id: int, geom_categories: "dict[str, set] | None" = None
+    ) -> "tuple[bool, str | None]":
+        """Check if any body geom contacts the floor.
+
+        Args:
+            body_ground_geoms: Set of geom IDs that should terminate on floor contact.
+            floor_geom_id: Floor geom ID.
+            geom_categories: Optional mapping of category names to geom ID sets
+                for more specific termination reasons (e.g. {"tail": tail_geoms, "head": head_geoms}).
+                Falls back to "body_contact" if geom not found in any category.
+
+        Returns:
+            (terminated, reason) where reason is None if not terminated.
+        """
+        for i in range(self.data.ncon):
+            contact = self.data.contact[i]
+            geom1, geom2 = contact.geom1, contact.geom2
+
+            floor_contact_geom = None
+            if geom2 == floor_geom_id and geom1 in body_ground_geoms:
+                floor_contact_geom = geom1
+            elif geom1 == floor_geom_id and geom2 in body_ground_geoms:
+                floor_contact_geom = geom2
+
+            if floor_contact_geom is not None:
+                if geom_categories:
+                    for category_name, category_geoms in geom_categories.items():
+                        if floor_contact_geom in category_geoms:
+                            return True, f"{category_name}_contact"
+                return True, "body_contact"
+        return False, None
+
+    # ------------------------------------------------------------------
+    # Consolidated target spawning helpers
+    # ------------------------------------------------------------------
+
+    def _spawn_target_2d(
+        self,
+        distance_range: "tuple[float, float]",
+        lateral_range: "tuple[float, float]",
+        target_z: float,
+    ) -> np.ndarray:
+        """Spawn target (prey/food) at a random 2D location with fixed height.
+
+        Sets ``self.data.mocap_pos[0]`` and returns the target position.
+
+        Args:
+            distance_range: (min, max) forward distance.
+            lateral_range: (min, max) lateral offset.
+            target_z: Fixed Z height for target.
+
+        Returns:
+            Target position as (3,) numpy array.
+        """
+        if self.np_random is not None:
+            distance = self.np_random.uniform(*distance_range)
+            lateral = self.np_random.uniform(*lateral_range)
+        else:
+            distance = float(np.mean(distance_range))
+            lateral = 0.0
+
+        target_pos = np.array([distance, lateral, target_z])
+        self.data.mocap_pos[0] = target_pos
+        return target_pos
+
+    @staticmethod
+    def _compute_initial_direction_2d(target_pos: np.ndarray) -> np.ndarray:
+        """Compute normalised initial 2D direction from origin to target.
+
+        Args:
+            target_pos: Target position (3D).
+
+        Returns:
+            Normalised 2D direction vector.
+        """
+        dir_2d = np.array(target_pos[:2], dtype=np.float64)
+        dir_len = float(np.linalg.norm(dir_2d))
+        if dir_len > 1e-6:
+            dir_2d /= dir_len
+        return dir_2d
+
+    # ------------------------------------------------------------------
     # Shared methods
     # ------------------------------------------------------------------
 

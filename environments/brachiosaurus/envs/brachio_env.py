@@ -204,19 +204,17 @@ class BrachioEnv(BaseDinoEnv):
         reward_energy = self._reward_energy(action)
         info["reward_energy"] = reward_energy
 
-        # 4. Gait stability (penalize high angular velocity of torso) — normalized
-        torso_angvel = self.data.qvel[3:6]
-        gait_instability = float(np.linalg.norm(torso_angvel))
-        # Normalize assuming max angular vel ~5.0 rad/s
-        gait_instability_norm = min(gait_instability / 5.0, 1.0)
-        reward_gait = -self.gait_stability_weight * gait_instability_norm
+        # 4. Gait stability (penalize high angular velocity of torso)
+        reward_gait, gait_instability = self._compute_angular_velocity_penalty(
+            self.gait_stability_weight, max_angvel=5.0
+        )
         info["gait_instability"] = gait_instability
         info["reward_gait"] = reward_gait
 
         # Torso angular velocity (for spinning detection in shared diagnostics)
-        torso_gyro = self.data.sensordata[self._sensor_gyro_start : self._sensor_gyro_start + 3]
-        info["pelvis_angular_vel"] = float(np.linalg.norm(torso_gyro))
-        info["pelvis_yaw_vel"] = float(torso_gyro[2])  # Z-axis rotation = yaw
+        pelvis_angular_vel, pelvis_yaw_vel = self._compute_pelvis_diagnostics()
+        info["pelvis_angular_vel"] = pelvis_angular_vel
+        info["pelvis_yaw_vel"] = pelvis_yaw_vel
 
         # Torso height (for LocomotionMetrics tracking — aliased as pelvis_height)
         info["pelvis_height"] = float(torso_pos[2])
@@ -243,21 +241,12 @@ class BrachioEnv(BaseDinoEnv):
         reward_food = food_reward
         info["reward_food"] = reward_food
 
-        # 6. Approach shaping (reward closing head-food distance, penalise retreating) — normalized
+        # 6. Approach shaping
         head_food_dist_f = float(head_food_dist)
-
-        if self._prev_head_food_distance is not None:
-            approach_delta = self._prev_head_food_distance - head_food_dist_f
-        else:
-            approach_delta = 0.0
+        reward_approach, approach_delta = self._compute_approach_shaping(
+            head_food_dist_f, self._prev_head_food_distance, self.food_approach_weight, 3.0
+        )
         self._prev_head_food_distance = head_food_dist_f
-
-        # Max approach speed ~3m/s. dt is frame_skip * model.opt.timestep
-        dt = self.frame_skip * self.model.opt.timestep
-        max_delta = 3.0 * dt
-        approach_delta_norm = np.clip(approach_delta / max_delta, -1.0, 1.0)
-
-        reward_approach = self.food_approach_weight * approach_delta_norm
         info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
@@ -271,28 +260,17 @@ class BrachioEnv(BaseDinoEnv):
         """Check if episode should terminate."""
         info = {}
 
-        # Get torso height
         torso_z = self.data.xpos[self.torso_id, 2]
         info["torso_height"] = torso_z
 
-        # Compute tilt angle from torso orientation
         torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         tilt_angle = self._quat_to_tilt(torso_quat)
         info["tilt_angle"] = tilt_angle
 
-        # Termination: torso too low (fallen)
-        if torso_z < self.healthy_z_range[0]:
-            info["termination_reason"] = "fallen"
-            return True, info
-
-        # Termination: torso too high (shouldn't happen, safety check)
-        if torso_z > self.healthy_z_range[1]:
-            info["termination_reason"] = "too_high"
-            return True, info
-
-        # Termination: excessive tilt (about to fall)
-        if tilt_angle > self.max_tilt_angle:
-            info["termination_reason"] = "excessive_tilt"
+        # Height/tilt termination (shared)
+        terminated, reason = self._check_height_tilt_termination(torso_z, tilt_angle)
+        if terminated:
+            info["termination_reason"] = reason
             return True, info
 
         # Success: head reached food
@@ -304,16 +282,11 @@ class BrachioEnv(BaseDinoEnv):
             info["success"] = True
             return True, info
 
-        # Check for torso-ground contact (fallen over)
-        for i in range(self.data.ncon):
-            contact = self.data.contact[i]
-            geom1, geom2 = contact.geom1, contact.geom2
-
-            if (geom1 == self.torso_main_geom_id and geom2 == self.floor_geom_id) or (
-                geom2 == self.torso_main_geom_id and geom1 == self.floor_geom_id
-            ):
-                info["termination_reason"] = "torso_contact"
-                return True, info
+        # Floor contact termination (shared)
+        terminated, reason = self._check_floor_contact({self.torso_main_geom_id}, self.floor_geom_id)
+        if terminated:
+            info["termination_reason"] = reason
+            return True, info
 
         return False, info
 

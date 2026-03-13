@@ -141,7 +141,18 @@ class LocomotionMetrics:
         """
         n = len(self._forward_velocities)
         if n == 0:
-            return {"error": float("nan")}
+            return {
+                "mean_forward_velocity": float("nan"),
+                "std_forward_velocity": float("nan"),
+                "max_forward_velocity": float("nan"),
+                "velocity_consistency": float("nan"),
+                "total_distance": float("nan"),
+                "cost_of_transport": float("nan"),
+                "total_energy": float("nan"),
+                "total_reward": float("nan"),
+                "mean_step_reward": float("nan"),
+                "episode_length": 0,
+            }
 
         fwd = np.array(self._forward_velocities)
         energies = np.array(self._energies)

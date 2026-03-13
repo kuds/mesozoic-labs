@@ -251,7 +251,7 @@ class WandbCallback(BaseCallback):
             if dones[0]:
                 break
 
-        if frames:
+        if frames and np is not None:
             # Stack frames into (T, H, W, C) array and log
             video_array = np.array(frames)
             # wandb.Video expects (T, C, H, W) for numpy arrays
