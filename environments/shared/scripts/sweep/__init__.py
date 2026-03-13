@@ -1,11 +1,16 @@
 """Hyperparameter sweep tool for Mesozoic Labs.
 
-This package provides three modes:
+This package provides:
 
-  **launch**      — Submit a Vertex AI Hyperparameter Tuning job for one stage
-                    and poll until completion (supports ``--resume``).
-  **launch-all**  — Submit Stage 1, 2, and 3 HPT jobs sequentially.
-  **trial**       — Entry point used by each Vertex AI HPT trial worker.
+  **Vertex AI** (CLI):
+    ``launch``      — Submit a Vertex AI HPT job for one stage.
+    ``launch-all``  — Submit Stage 1, 2, and 3 HPT jobs sequentially.
+    ``trial``       — Entry point used by each Vertex AI HPT trial worker.
+
+  **Ray Tune** (notebook / programmatic):
+    ``ray_search_space`` — Per-species, per-stage search spaces with
+                           a ``to_ray_tune()`` converter.
+    ``ray_tune``         — Callbacks, trainable, and result helpers.
 
 See ``__main__.py`` for CLI usage or run::
 
@@ -18,6 +23,14 @@ from .constants import (
     _SweepJobFailed,
 )
 from .orchestration import _eager_refresh, launch_all_stages, launch_sweep
+from .ray_search_space import build_search_space, to_ray_tune
+from .ray_tune import (
+    RayTuneReportCallback,
+    TrialTerminationCallback,
+    apply_sampled_config,
+    collect_ray_results,
+    train_trial,
+)
 from .results import (
     _best_trial_model_path,
     _best_trial_model_path_any,
@@ -45,7 +58,9 @@ from .trial import _hpt_arg_to_override, _parse_hpt_extra_args, run_trial
 
 __all__ = [
     "NET_ARCH_PRESETS",
+    "RayTuneReportCallback",
     "SweepStageError",
+    "TrialTerminationCallback",
     "_SweepJobFailed",
     "_best_trial_model_path",
     "_best_trial_model_path_any",
@@ -53,6 +68,9 @@ __all__ = [
     "_eager_refresh",
     "_evaluate_curriculum_gate",
     "_extract_thresholds",
+    "apply_sampled_config",
+    "build_search_space",
+    "collect_ray_results",
     "collect_results_from_disk",
     "_hpt_arg_to_override",
     "_parse_hpt_extra_args",
@@ -72,5 +90,7 @@ __all__ = [
     "launch_sweep",
     "plot_sweep_results",
     "run_trial",
+    "to_ray_tune",
+    "train_trial",
     "write_results_csv",
 ]
