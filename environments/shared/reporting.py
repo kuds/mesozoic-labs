@@ -6,11 +6,13 @@ inline in the Colab training notebook and are now shared so that both the
 notebook and CLI training scripts can produce consistent output.
 """
 
+from __future__ import annotations
+
 import json as _json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +20,7 @@ logger = logging.getLogger(__name__)
 # single-run notebook (``save_results_csv``) and the sweep result
 # collector (``sweep/results.write_results_csv``) reference this list
 # so that all CSVs share a consistent schema.
-CSV_METRIC_COLUMNS: List[str] = [
+CSV_METRIC_COLUMNS: list[str] = [
     "best_mean_reward",
     "best_mean_episode_length",
     "last_mean_reward",
@@ -58,7 +60,7 @@ def format_duration_hms(seconds: float) -> str:
 
 def write_stage_summary(
     stage_dir,
-    results_dict: Dict[str, Any],
+    results_dict: dict[str, Any],
     species: str,
     algorithm: str,
 ) -> Path:
@@ -133,7 +135,7 @@ def write_stage_summary(
 
 def write_training_summary(
     run_dir,
-    stage_results_list: List[Dict[str, Any]],
+    stage_results_list: list[dict[str, Any]],
     species: str,
     algorithm: str,
     seed: int,
@@ -204,7 +206,7 @@ def write_training_summary(
 
 
 def save_results_json(
-    stage_results_list: List[Dict[str, Any]],
+    stage_results_list: list[dict[str, Any]],
     species: str,
     algorithm: str,
     seed: int,
@@ -263,8 +265,8 @@ def save_results_json(
 
 
 def save_results_csv(
-    stage_results_list: List[Dict[str, Any]],
-    stage_configs: Dict[int, Dict[str, Any]],
+    stage_results_list: list[dict[str, Any]],
+    stage_configs: dict[int, dict[str, Any]],
     species: str,
     algorithm: str,
     seed: int,
@@ -297,12 +299,12 @@ def save_results_csv(
     run_dir = Path(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     for r in stage_results_list:
         stage = r["stage"]
         cfg = stage_configs[stage]
 
-        row: Dict[str, Any] = {
+        row: dict[str, Any] = {
             "species": species,
             "algorithm": algorithm,
             "seed": seed,
@@ -363,9 +365,9 @@ def save_results_csv(
     # Build column order: fixed → hyperparams (sorted) → metrics → eval_*
     fixed_cols = ["species", "algorithm", "seed", "stage"]
     all_known = set(fixed_cols + CSV_METRIC_COLUMNS)
-    eval_cols: List[str] = sorted({k for row in rows for k in row if k.startswith("eval_")})
+    eval_cols: list[str] = sorted({k for row in rows for k in row if k.startswith("eval_")})
     all_known.update(eval_cols)
-    hparam_cols: List[str] = sorted({k for row in rows for k in row if k not in all_known})
+    hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in all_known})
     fieldnames = fixed_cols + hparam_cols + CSV_METRIC_COLUMNS + eval_cols
 
     csv_path = run_dir / "collected_results.csv"
@@ -381,10 +383,10 @@ def save_results_csv(
 def build_stage_results_from_eval_data(
     stage_dir: "str | Path",
     stage: int,
-    stage_config: Dict[str, Any],
+    stage_config: dict[str, Any],
     timesteps: int,
     duration_seconds: float = 0.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build a ``stage_results`` dict from on-disk evaluation artifacts.
 
     Reads ``evaluations.npz`` (written by SB3's ``EvalCallback``) and
@@ -475,16 +477,16 @@ def build_stage_results_from_eval_data(
 
 def generate_stage_artifacts(
     species_cfg,
-    stage_config: Dict[str, Any],
+    stage_config: dict[str, Any],
     stage: int,
     algorithm: str,
     stage_dir: "str | Path",
     seed: int,
-    stage_results: Dict[str, Any] | None = None,
+    stage_results: dict[str, Any] | None = None,
     timesteps: int = 0,
     record_videos: bool = True,
     generate_graphs: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Write stage summary, record replay videos, and generate training graphs.
 
     This is the single shared entry-point for generating post-training

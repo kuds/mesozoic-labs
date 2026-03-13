@@ -28,9 +28,11 @@ Usage with CurriculumCallback (SB3 integration)::
         manager.advance()
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -96,7 +98,7 @@ class CurriculumManager:
     def __init__(
         self,
         species: str,
-        stage_thresholds: Optional[Dict[int, Dict[str, Any]]] = None,
+        stage_thresholds: dict[int, dict[str, Any]] | None = None,
         start_stage: int = 1,
         total_stages: int = 3,
     ):
@@ -106,7 +108,7 @@ class CurriculumManager:
         self._configs = load_all_stages(species)
 
         # Build threshold objects per stage
-        self._thresholds: Dict[int, StageThreshold] = {}
+        self._thresholds: dict[int, StageThreshold] = {}
         for stage in range(1, total_stages + 1):
             if stage_thresholds and stage in stage_thresholds:
                 self._thresholds[stage] = StageThreshold(**stage_thresholds[stage])
@@ -114,8 +116,8 @@ class CurriculumManager:
                 self._thresholds[stage] = StageThreshold()
 
         # History of evaluation results per stage
-        self._eval_history: Dict[int, List[Dict[str, float]]] = {s: [] for s in range(1, total_stages + 1)}
-        self._consecutive_passes: Dict[int, int] = {s: 0 for s in range(1, total_stages + 1)}
+        self._eval_history: dict[int, list[dict[str, float]]] = {s: [] for s in range(1, total_stages + 1)}
+        self._consecutive_passes: dict[int, int] = {s: 0 for s in range(1, total_stages + 1)}
 
         logger.info(
             "CurriculumManager initialized for %s: stage %d/%d",
@@ -134,17 +136,17 @@ class CurriculumManager:
         """Whether the manager is on the last stage."""
         return self._current_stage >= self.total_stages
 
-    def current_config(self) -> Dict[str, Any]:
+    def current_config(self) -> dict[str, Any]:
         """Return the TOML config dict for the current stage."""
         return self._configs[self._current_stage]
 
     def record_eval(
         self,
-        rewards: List[float],
-        episode_lengths: List[float],
-        forward_velocities: Optional[List[float]] = None,
-        success_rates: Optional[List[float]] = None,
-    ) -> Dict[str, float]:
+        rewards: list[float],
+        episode_lengths: list[float],
+        forward_velocities: list[float] | None = None,
+        success_rates: list[float] | None = None,
+    ) -> dict[str, float]:
         """Record evaluation results for the current stage.
 
         Args:
@@ -192,10 +194,10 @@ class CurriculumManager:
 
     def should_advance(
         self,
-        rewards: Optional[List[float]] = None,
-        episode_lengths: Optional[List[float]] = None,
-        forward_velocities: Optional[List[float]] = None,
-        success_rates: Optional[List[float]] = None,
+        rewards: list[float] | None = None,
+        episode_lengths: list[float] | None = None,
+        forward_velocities: list[float] | None = None,
+        success_rates: list[float] | None = None,
     ) -> bool:
         """Check whether performance thresholds are met for advancement.
 
@@ -281,7 +283,7 @@ class CurriculumManager:
 
         return self._current_stage
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         """Return a summary of the curriculum state for logging/serialization."""
         return {
             "species": self.species,
@@ -293,8 +295,8 @@ class CurriculumManager:
 
 
 def thresholds_from_configs(
-    configs: Dict[int, Dict[str, Any]],
-) -> Dict[int, Dict[str, Any]]:
+    configs: dict[int, dict[str, Any]],
+) -> dict[int, dict[str, Any]]:
     """Extract stage thresholds from loaded TOML configs.
 
     Reads the ``curriculum_kwargs`` section from each stage config and
@@ -306,10 +308,10 @@ def thresholds_from_configs(
     Returns:
         Dict mapping stage number to threshold kwargs.
     """
-    thresholds: Dict[int, Dict[str, Any]] = {}
+    thresholds: dict[int, dict[str, Any]] = {}
     for stage, cfg in configs.items():
         cur = cfg.get("curriculum_kwargs", {})
-        threshold_fields: Dict[str, Any] = {}
+        threshold_fields: dict[str, Any] = {}
         if "min_avg_reward" in cur:
             threshold_fields["min_avg_reward"] = cur["min_avg_reward"]
         if "min_avg_episode_length" in cur:
@@ -437,15 +439,15 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         if old_norm_reward is not None:
             self.eval_env.norm_reward = False
 
-        forward_vels: List[float] = []
-        success_flags: List[float] = []
-        episode_reports: List[Dict[str, Any]] = []
+        forward_vels: list[float] = []
+        success_flags: list[float] = []
+        episode_reports: list[dict[str, Any]] = []
 
         try:
             for _ in range(self.supplementary_episodes):
                 obs = self.eval_env.reset()
                 metrics = LocomotionMetrics()
-                ep_forward_vels: List[float] = []
+                ep_forward_vels: list[float] = []
                 ep_success = 0.0
                 done = False
                 while not done:
@@ -472,7 +474,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
         return forward_vels, success_flags, episode_reports
 
-    def _log_locomotion_metrics(self, episode_reports: List[Dict[str, Any]]) -> None:
+    def _log_locomotion_metrics(self, episode_reports: list[dict[str, Any]]) -> None:
         """Log aggregated locomotion metrics from episode reports."""
         if not episode_reports:
             return
@@ -553,11 +555,11 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         if old_norm_reward is not None:
             self.eval_env.norm_reward = False
 
-        rewards: List[float] = []
-        lengths: List[float] = []
-        forward_vels: List[float] = []
-        success_flags: List[float] = []
-        episode_reports: List[Dict[str, Any]] = []
+        rewards: list[float] = []
+        lengths: list[float] = []
+        forward_vels: list[float] = []
+        success_flags: list[float] = []
+        episode_reports: list[dict[str, Any]] = []
 
         try:
             for _ in range(self.n_eval_episodes):
@@ -565,7 +567,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 metrics = LocomotionMetrics()
                 episode_reward = 0.0
                 episode_length = 0
-                ep_forward_vels: List[float] = []
+                ep_forward_vels: list[float] = []
                 ep_success = 0.0
                 done = False
                 while not done:
@@ -719,7 +721,7 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
         self.start_value = start_value
         self.end_value = end_value
         self.ramp_timesteps = ramp_timesteps
-        self._last_set_value: Optional[float] = None
+        self._last_set_value: float | None = None
 
     def _set_env_attr(self, value: float) -> None:
         """Set the reward weight on all underlying envs."""

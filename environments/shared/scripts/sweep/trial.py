@@ -1,5 +1,7 @@
 """Trial execution — runs a single training trial with HPT-injected hyperparameters."""
 
+from __future__ import annotations
+
 import argparse
 import logging
 import os

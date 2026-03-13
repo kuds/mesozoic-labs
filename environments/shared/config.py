@@ -14,10 +14,12 @@ The [curriculum] table contains per-stage training and advancement settings:
     required_consecutive   - number of consecutive passes required (optional)
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 _logger = logging.getLogger(__name__)
 
@@ -51,8 +53,8 @@ def _find_stage_file(species: str, stage: int) -> Path:
 def load_stage_config(
     species: str,
     stage: int,
-    config_path: Optional[str] = None,
-) -> Dict[str, Any]:
+    config_path: str | None = None,
+) -> dict[str, Any]:
     """Load a curriculum stage configuration from TOML.
 
     Args:
@@ -99,7 +101,7 @@ def load_stage_config(
     }
 
 
-def load_all_stages(species: str) -> Dict[int, Dict[str, Any]]:
+def load_all_stages(species: str) -> dict[int, dict[str, Any]]:
     """Load all curriculum stage configs for a species.
 
     Returns:
@@ -111,9 +113,9 @@ def load_all_stages(species: str) -> Dict[int, Dict[str, Any]]:
 def save_stage_config(
     stage_dir: str | Path,
     stage: int,
-    stage_config: Dict[str, Any],
+    stage_config: dict[str, Any],
     algorithm: str,
-    extra: Optional[Dict[str, Any]] = None,
+    extra: dict[str, Any] | None = None,
 ) -> Path:
     """Save the reward weights and model hyperparameters for a stage to JSON.
 
@@ -142,7 +144,7 @@ def save_stage_config(
     for key, value in stage_config.get("env_kwargs", {}).items():
         env_kwargs[key] = list(value) if isinstance(value, tuple) else value
 
-    data: Dict[str, Any] = {
+    data: dict[str, Any] = {
         "stage": stage,
         "name": stage_config.get("name", ""),
         "description": stage_config.get("description", ""),

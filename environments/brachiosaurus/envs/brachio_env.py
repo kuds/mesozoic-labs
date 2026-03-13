@@ -27,8 +27,10 @@ Reward components:
     - Approach shaping (distance to food)
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import gymnasium as gym
 import mujoco
@@ -47,7 +49,7 @@ class BrachioEnv(BaseDinoEnv):
 
     def __init__(
         self,
-        render_mode: Optional[str] = None,
+        render_mode: str | None = None,
         frame_skip: int = 5,
         max_episode_steps: int = 1000,
         # Reward weights
@@ -60,10 +62,10 @@ class BrachioEnv(BaseDinoEnv):
         food_reach_threshold: float = 0.5,
         food_approach_weight: float = 1.0,
         # Environment settings
-        food_distance_range: Tuple[float, float] = (3.0, 8.0),
-        food_lateral_range: Tuple[float, float] = (-2.0, 2.0),
-        food_height_range: Tuple[float, float] = (2.0, 4.0),
-        healthy_z_range: Tuple[float, float] = (1.2, 3.5),
+        food_distance_range: tuple[float, float] = (3.0, 8.0),
+        food_lateral_range: tuple[float, float] = (-2.0, 2.0),
+        food_height_range: tuple[float, float] = (2.0, 4.0),
+        healthy_z_range: tuple[float, float] = (1.2, 3.5),
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus.xml")
 
@@ -175,7 +177,7 @@ class BrachioEnv(BaseDinoEnv):
 
         return obs
 
-    def _get_reward_info(self, action: np.ndarray) -> Tuple[float, Dict[str, float]]:
+    def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         """Compute reward and breakdown for logging."""
         info = {}
 
@@ -256,7 +258,7 @@ class BrachioEnv(BaseDinoEnv):
 
         return total_reward, info
 
-    def _is_terminated(self) -> Tuple[bool, Dict[str, Any]]:
+    def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         """Check if episode should terminate."""
         info = {}
 
