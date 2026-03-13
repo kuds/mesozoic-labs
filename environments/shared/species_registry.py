@@ -70,7 +70,5 @@ def get_species_config(species: str) -> SpeciesConfig:
     factory = SPECIES_FACTORIES.get(species.lower()) or SPECIES_FACTORIES.get(key)
     if factory is None:
         available = sorted(set(SPECIES_FACTORIES.keys()))
-        raise ValueError(
-            f"Unknown species '{species}'. Available: {available}"
-        )
+        raise ValueError(f"Unknown species '{species}'. Available: {available}")
     return factory()

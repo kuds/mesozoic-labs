@@ -49,8 +49,7 @@ class TestHomePoseCOM:
     def test_com_centered_laterally(self, env):
         com = com_xy(env.model, env.data, ROOT_BODY)
         assert abs(com[1]) < 0.15, (
-            f"COM Y ({com[1]:.3f}) is off-center by more than 15 cm. "
-            "The model may have asymmetric mass distribution."
+            f"COM Y ({com[1]:.3f}) is off-center by more than 15 cm. The model may have asymmetric mass distribution."
         )
 
     def test_com_x_between_front_and_rear_hips(self, env):
@@ -76,16 +75,12 @@ class TestInitialSettling:
 
     def test_torso_starts_in_healthy_range(self, env):
         torso_z = env.data.xpos[env.torso_id, 2]
-        assert 1.0 < torso_z < 3.5, (
-            f"Torso z ({torso_z:.3f}) is outside plausible range at reset."
-        )
+        assert 1.0 < torso_z < 3.5, f"Torso z ({torso_z:.3f}) is outside plausible range at reset."
 
     def test_initial_tilt_is_small(self, env):
         _, _, _, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
         tilt = info.get("tilt_angle", 0.0)
-        assert tilt < np.radians(15), (
-            f"Initial tilt is {np.degrees(tilt):.1f} deg — model should start near upright."
-        )
+        assert tilt < np.radians(15), f"Initial tilt is {np.degrees(tilt):.1f} deg — model should start near upright."
 
     def test_settling_drops_less_than_1m(self, env):
         env.reset(seed=0)
@@ -112,17 +107,29 @@ class TestMassDistribution(MassDistributionBase):
     root_body = ROOT_BODY
     mass_range = (150.0, 230.0)
     leg_body_names = [
-        "fr_thigh", "fr_shin", "fr_foot",
-        "fl_thigh", "fl_shin", "fl_foot",
-        "rr_thigh", "rr_shin", "rr_foot",
-        "rl_thigh", "rl_shin", "rl_foot",
+        "fr_thigh",
+        "fr_shin",
+        "fr_foot",
+        "fl_thigh",
+        "fl_shin",
+        "fl_foot",
+        "rr_thigh",
+        "rr_shin",
+        "rr_foot",
+        "rl_thigh",
+        "rl_shin",
+        "rl_foot",
     ]
     min_leg_fraction = 0.20
     tail_body_names = ["tail_1", "tail_2", "tail_3", "tail_4"]
     max_tail_fraction = 0.15
     symmetry_pairs = [
-        ("fr_thigh", "fl_thigh"), ("fr_shin", "fl_shin"), ("fr_foot", "fl_foot"),
-        ("rr_thigh", "rl_thigh"), ("rr_shin", "rl_shin"), ("rr_foot", "rl_foot"),
+        ("fr_thigh", "fl_thigh"),
+        ("fr_shin", "fl_shin"),
+        ("fr_foot", "fl_foot"),
+        ("rr_thigh", "rl_thigh"),
+        ("rr_shin", "rl_shin"),
+        ("rr_foot", "rl_foot"),
     ]
 
     def test_front_legs_heavier_than_rear(self, env):

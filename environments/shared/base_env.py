@@ -236,7 +236,7 @@ class BaseDinoEnv(gym.Env, ABC):
         """
         tilt_angle = self._quat_to_tilt(quat)
         tilt_angle_norm = min(tilt_angle / self.max_tilt_angle, 1.0)
-        reward = -weight * (tilt_angle_norm ** 2)
+        reward = -weight * (tilt_angle_norm**2)
         return reward, tilt_angle
 
     def _compute_nosedive_penalty(
@@ -257,9 +257,7 @@ class BaseDinoEnv(gym.Env, ABC):
         reward = -weight * nosedive_excess
         return reward, forward_z
 
-    def _compute_angular_velocity_penalty(
-        self, weight: float, max_angvel: float = 10.0
-    ) -> tuple[float, float]:
+    def _compute_angular_velocity_penalty(self, weight: float, max_angvel: float = 10.0) -> tuple[float, float]:
         """Compute angular velocity (spin) penalty from root freejoint.
 
         Args:
@@ -289,9 +287,7 @@ class BaseDinoEnv(gym.Env, ABC):
             (reward, tail_instability_magnitude) tuple.
         """
         tail_vel = np.zeros(6)
-        mujoco.mj_objectVelocity(
-            self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, tail_tip_site_id, tail_vel, 0
-        )
+        mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, tail_tip_site_id, tail_vel, 0)
         tail_tip_angvel = tail_vel[0:3]
         instability = float(np.linalg.norm(tail_tip_angvel))
         instability_norm = min(instability / max_angvel, 1.0)
@@ -346,9 +342,7 @@ class BaseDinoEnv(gym.Env, ABC):
         reward = weight * forward_vel_norm
         return reward, forward_vel
 
-    def _compute_backward_penalty(
-        self, forward_vel: float, vel_max: float, weight: float
-    ) -> tuple[float, float]:
+    def _compute_backward_penalty(self, forward_vel: float, vel_max: float, weight: float) -> tuple[float, float]:
         """Compute backward velocity penalty.
 
         Args:
@@ -380,7 +374,7 @@ class BaseDinoEnv(gym.Env, ABC):
         drift_2d = current_pos_2d - initial_pos_2d
         drift_dist = float(np.linalg.norm(drift_2d))
         drift_norm = drift_dist / 2.0
-        reward = -weight * (drift_norm ** 2)
+        reward = -weight * (drift_norm**2)
         return reward, drift_dist
 
     def _compute_heading_alignment(
@@ -431,9 +425,7 @@ class BaseDinoEnv(gym.Env, ABC):
     # Consolidated termination helpers
     # ------------------------------------------------------------------
 
-    def _check_height_tilt_termination(
-        self, body_z: float, tilt_angle: float
-    ) -> "tuple[bool, str | None]":
+    def _check_height_tilt_termination(self, body_z: float, tilt_angle: float) -> "tuple[bool, str | None]":
         """Check common height and tilt termination conditions.
 
         Args:

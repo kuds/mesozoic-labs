@@ -13,9 +13,7 @@ import pytest
 # ---------------------------------------------------------------------------
 
 
-def get_foot_contacts_xy(
-    model: mujoco.MjModel, data: mujoco.MjData, foot_geom_names: list[str]
-) -> np.ndarray:
+def get_foot_contacts_xy(model: mujoco.MjModel, data: mujoco.MjData, foot_geom_names: list[str]) -> np.ndarray:
     """Return (N, 2) array of foot-floor contact positions in the XY plane."""
     floor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
     foot_ids = {mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, n) for n in foot_geom_names}
@@ -43,10 +41,7 @@ def species_mass(model: mujoco.MjModel, root_body: str) -> float:
 
 def body_group_mass(model: mujoco.MjModel, body_names: list[str]) -> float:
     """Sum the mass of a list of named bodies."""
-    return sum(
-        model.body_mass[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, n)]
-        for n in body_names
-    )
+    return sum(model.body_mass[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, n)] for n in body_names)
 
 
 # ---------------------------------------------------------------------------
@@ -139,17 +134,14 @@ class MassDistributionBase:
     def test_total_mass_reasonable(self, env):
         total_mass = species_mass(env.model, self.root_body)
         lo, hi = self.mass_range
-        assert lo < total_mass < hi, (
-            f"Total mass is {total_mass:.1f} kg — expected {lo}-{hi} kg for this scale."
-        )
+        assert lo < total_mass < hi, f"Total mass is {total_mass:.1f} kg — expected {lo}-{hi} kg for this scale."
 
     def test_leg_mass_fraction(self, env):
         total_mass = species_mass(env.model, self.root_body)
         leg_mass = body_group_mass(env.model, self.leg_body_names)
         fraction = leg_mass / total_mass
         assert fraction > self.min_leg_fraction, (
-            f"Leg mass fraction is {fraction:.1%} — legs should be at least "
-            f"{self.min_leg_fraction:.0%} of total mass."
+            f"Leg mass fraction is {fraction:.1%} — legs should be at least {self.min_leg_fraction:.0%} of total mass."
         )
 
     def test_tail_mass_not_excessive(self, env):
@@ -166,9 +158,7 @@ class MassDistributionBase:
             l_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, ln)
             r_mass = env.model.body_mass[r_id]
             l_mass = env.model.body_mass[l_id]
-            assert abs(r_mass - l_mass) < 1e-6, (
-                f"Mass asymmetry: {rn}={r_mass:.4f} kg vs {ln}={l_mass:.4f} kg"
-            )
+            assert abs(r_mass - l_mass) < 1e-6, f"Mass asymmetry: {rn}={r_mass:.4f} kg vs {ln}={l_mass:.4f} kg"
 
 
 class ZeroTorqueStabilityBase:
@@ -236,9 +226,7 @@ class ZeroTorqueStabilityBase:
 
     def test_tilt_deviation_stays_small(self, env):
         env.reset(seed=0)
-        _, _, _, _, initial_info = env.step(
-            np.zeros(env.action_space.shape, dtype=np.float32)
-        )
+        _, _, _, _, initial_info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
         initial_tilt = initial_info.get("tilt_angle", 0.0)
 
         zero_action = np.zeros(env.action_space.shape, dtype=np.float32)

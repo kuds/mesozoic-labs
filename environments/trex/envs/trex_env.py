@@ -279,9 +279,7 @@ class TRexEnv(BaseDinoEnv):
         info["reward_energy"] = reward_energy
 
         # 4. Tail stability
-        reward_tail, tail_instability = self._compute_tail_stability(
-            self.tail_tip_site_id, self.tail_stability_weight
-        )
+        reward_tail, tail_instability = self._compute_tail_stability(self.tail_tip_site_id, self.tail_stability_weight)
         info["tail_instability"] = tail_instability
         info["reward_tail"] = reward_tail
 
@@ -442,8 +440,13 @@ class TRexEnv(BaseDinoEnv):
 
         # Floor contact termination (shared)
         terminated, reason = self._check_floor_contact(
-            self._body_ground_geoms, self.floor_geom_id,
-            geom_categories={"tail": self._tail_ground_geoms, "head": self._head_ground_geoms, "torso": {self.torso_geom_id}},
+            self._body_ground_geoms,
+            self.floor_geom_id,
+            geom_categories={
+                "tail": self._tail_ground_geoms,
+                "head": self._head_ground_geoms,
+                "torso": {self.torso_geom_id},
+            },
         )
         if terminated:
             info["termination_reason"] = reason

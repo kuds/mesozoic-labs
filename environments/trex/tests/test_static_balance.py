@@ -24,9 +24,12 @@ from environments.shared.tests.static_balance_helpers import (
 from environments.trex.envs.trex_env import TRexEnv
 
 FOOT_GEOM_NAMES = [
-    "r_toe_d3_geom", "l_toe_d3_geom",
-    "r_toe_d4_geom", "l_toe_d4_geom",
-    "r_metatarsus_geom", "l_metatarsus_geom",
+    "r_toe_d3_geom",
+    "l_toe_d3_geom",
+    "r_toe_d4_geom",
+    "l_toe_d4_geom",
+    "r_metatarsus_geom",
+    "l_metatarsus_geom",
 ]
 ROOT_BODY = "pelvis"
 
@@ -110,13 +113,27 @@ class TestMassDistribution(MassDistributionBase):
     root_body = ROOT_BODY
     mass_range = (60.0, 100.0)
     leg_body_names = [
-        "r_thigh", "r_tibia", "r_metatarsus", "r_toe_d2", "r_toe_d3", "r_toe_d4",
-        "l_thigh", "l_tibia", "l_metatarsus", "l_toe_d2", "l_toe_d3", "l_toe_d4",
+        "r_thigh",
+        "r_tibia",
+        "r_metatarsus",
+        "r_toe_d2",
+        "r_toe_d3",
+        "r_toe_d4",
+        "l_thigh",
+        "l_tibia",
+        "l_metatarsus",
+        "l_toe_d2",
+        "l_toe_d3",
+        "l_toe_d4",
     ]
     min_leg_fraction = 0.15
     tail_body_names = ["tail_1", "tail_2", "tail_3", "tail_4", "tail_5"]
     max_tail_fraction = 0.30
     symmetry_pairs = [
-        ("r_thigh", "l_thigh"), ("r_tibia", "l_tibia"), ("r_metatarsus", "l_metatarsus"),
-        ("r_toe_d2", "l_toe_d2"), ("r_toe_d3", "l_toe_d3"), ("r_toe_d4", "l_toe_d4"),
+        ("r_thigh", "l_thigh"),
+        ("r_tibia", "l_tibia"),
+        ("r_metatarsus", "l_metatarsus"),
+        ("r_toe_d2", "l_toe_d2"),
+        ("r_toe_d3", "l_toe_d3"),
+        ("r_toe_d4", "l_toe_d4"),
     ]

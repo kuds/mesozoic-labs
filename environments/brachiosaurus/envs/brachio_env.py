@@ -283,9 +283,7 @@ class BrachioEnv(BaseDinoEnv):
             return True, info
 
         # Floor contact termination (shared)
-        terminated, reason = self._check_floor_contact(
-            {self.torso_main_geom_id}, self.floor_geom_id
-        )
+        terminated, reason = self._check_floor_contact({self.torso_main_geom_id}, self.floor_geom_id)
         if terminated:
             info["termination_reason"] = reason
             return True, info
