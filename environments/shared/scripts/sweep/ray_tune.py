@@ -60,6 +60,9 @@ class RayTuneReportCallback:
     module level (which would fail outside the Ray worker).
     """
 
+    # Provided by BaseCallback at runtime (declared here for mypy)
+    num_timesteps: int
+
     def __new__(cls, *args: Any, **kwargs: Any) -> RayTuneReportCallback:
         from stable_baselines3.common.callbacks import BaseCallback
 
