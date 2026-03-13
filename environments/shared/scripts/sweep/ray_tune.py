@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Drive sync helper
 # ---------------------------------------------------------------------------
 
+
 def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") -> None:
     """Copy files from a local directory to Drive, tolerating FUSE flakiness."""
     src_dir = Path(src_dir)
@@ -46,6 +47,7 @@ def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") 
 # ---------------------------------------------------------------------------
 # SB3 callback: report metrics + checkpoints to Ray Tune
 # ---------------------------------------------------------------------------
+
 
 class RayTuneReportCallback:
     """SB3 callback that reports eval metrics + checkpoints to Ray Tune.
@@ -120,10 +122,7 @@ class RayTuneReportCallback:
                 checkpoint=checkpoint,
             )
 
-        if (
-            self._drive_best_model_dir
-            and self.eval_callback.best_mean_reward > self._best_mean_reward
-        ):
+        if self._drive_best_model_dir and self.eval_callback.best_mean_reward > self._best_mean_reward:
             self._best_mean_reward = self.eval_callback.best_mean_reward
             best_src = Path(self.eval_callback.best_model_save_path)
             _sync_to_drive(best_src, self._drive_best_model_dir, label=f"best@{self.num_timesteps}")
@@ -134,6 +133,7 @@ class RayTuneReportCallback:
 # ---------------------------------------------------------------------------
 # Ray Tune callback: print trial status summaries
 # ---------------------------------------------------------------------------
+
 
 class TrialTerminationCallback:
     """Ray Tune callback that prints status on trial completion and periodically.
@@ -157,10 +157,7 @@ class TrialTerminationCallback:
 
     def on_trial_complete(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
         metrics = {k: trial.last_result.get(k) for k in self.METRIC_COLS}
-        metrics_str = "  ".join(
-            f"{k}={v:.2f}" if isinstance(v, float) else f"{k}={v}"
-            for k, v in metrics.items()
-        )
+        metrics_str = "  ".join(f"{k}={v:.2f}" if isinstance(v, float) else f"{k}={v}" for k, v in metrics.items())
         n_done = sum(1 for t in trials if t.status == "TERMINATED")
         print(f"[Trial {trial.trial_id} DONE] ({n_done}/{len(trials)} complete)  {metrics_str}")
 
@@ -177,11 +174,7 @@ class TrialTerminationCallback:
             return
         self._last_report_time = now
 
-        header = (
-            f"\n{'trial_id':<16}"
-            + "".join(f"{c:>20}" for c in self.METRIC_COLS)
-            + f"{'status':>14}"
-        )
+        header = f"\n{'trial_id':<16}" + "".join(f"{c:>20}" for c in self.METRIC_COLS) + f"{'status':>14}"
         print(header)
         print("-" * len(header))
         for t in trials:
@@ -198,6 +191,7 @@ class TrialTerminationCallback:
 # ---------------------------------------------------------------------------
 # Config application
 # ---------------------------------------------------------------------------
+
 
 def apply_sampled_config(
     stage_configs: dict[int, dict[str, Any]],
@@ -217,7 +211,7 @@ def apply_sampled_config(
     for key, value in hpt_config.items():
         for prefix in ("ppo", "sac", "env", "curriculum"):
             if key.startswith(prefix + "_"):
-                param = key[len(prefix) + 1:]
+                param = key[len(prefix) + 1 :]
                 if prefix in ("ppo", "sac"):
                     if param == "net_arch":
                         config[algo_key].setdefault("policy_kwargs", {})["net_arch"] = NET_ARCH_PRESETS[value]
@@ -237,6 +231,7 @@ def apply_sampled_config(
 # ---------------------------------------------------------------------------
 # Ray Tune trainable
 # ---------------------------------------------------------------------------
+
 
 def train_trial(config: dict[str, Any]) -> None:
     """Ray Tune trainable function for a single hyperparameter trial.
@@ -377,17 +372,25 @@ def train_trial(config: dict[str, Any]) -> None:
         callbacks.append(eval_callback)
 
         model_ref = [model]
-        callbacks.append(RayTuneReportCallback(
-            eval_callback, train_env, model_ref, algorithm, stage,
-            drive_best_model_dir=drive_best_model_dir,
-        ))
+        callbacks.append(
+            RayTuneReportCallback(
+                eval_callback,
+                train_env,
+                model_ref,
+                algorithm,
+                stage,
+                drive_best_model_dir=drive_best_model_dir,
+            )
+        )
 
-        callbacks.append(CheckpointCallback(
-            save_freq=max(5 * eval_freq // n_envs, 1),
-            save_path=str(model_dir),
-            name_prefix=f"stage{stage}",
-            save_vecnormalize=True,
-        ))
+        callbacks.append(
+            CheckpointCallback(
+                save_freq=max(5 * eval_freq // n_envs, 1),
+                save_path=str(model_dir),
+                name_prefix=f"stage{stage}",
+                save_vecnormalize=True,
+            )
+        )
 
         callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, verbose=0))
 
@@ -395,18 +398,22 @@ def train_trial(config: dict[str, Any]) -> None:
         cur_kwargs = stage_config.get("curriculum_kwargs", {})
         if stage > 1 and load_path:
             if algorithm == "ppo":
-                callbacks.append(StageWarmupCallback(
-                    warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
-                    warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
-                    warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
-                ))
+                callbacks.append(
+                    StageWarmupCallback(
+                        warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
+                        warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
+                        warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
+                    )
+                )
             target_fwd_weight = stage_config["env_kwargs"].get("forward_vel_weight", 1.0)
-            callbacks.append(RewardRampCallback(
-                attr_name="forward_vel_weight",
-                start_value=cur_kwargs.get("ramp_start_value", 0.1),
-                end_value=target_fwd_weight,
-                ramp_timesteps=cur_kwargs.get("ramp_timesteps", 500_000),
-            ))
+            callbacks.append(
+                RewardRampCallback(
+                    attr_name="forward_vel_weight",
+                    start_value=cur_kwargs.get("ramp_start_value", 0.1),
+                    end_value=target_fwd_weight,
+                    ramp_timesteps=cur_kwargs.get("ramp_timesteps", 500_000),
+                )
+            )
 
         # Train
         model.learn(
@@ -444,6 +451,7 @@ def train_trial(config: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 # Result collection helper
 # ---------------------------------------------------------------------------
+
 
 def collect_ray_results(
     results_df: Any,
