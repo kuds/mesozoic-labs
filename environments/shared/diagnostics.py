@@ -31,6 +31,13 @@ def _sanitize(value: float) -> float:
     return value
 
 
+def _safe_mean(vals: list) -> float:
+    """Return the mean of *vals*, or NaN if the list is empty."""
+    if vals:
+        return float(_np.mean(vals))
+    return float("nan")
+
+
 class DiagnosticsCallback(_BaseCallback):
     """Logs per-component reward breakdowns and training diagnostics to TensorBoard.
 
@@ -143,10 +150,10 @@ class DiagnosticsCallback(_BaseCallback):
             self._history_timesteps.append(self.num_timesteps)
             for key in self.INFO_KEYS:
                 vals = self._step_infos[key]
-                self._history[key].append(float(_np.mean(vals)) if vals else float("nan"))
+                self._history[key].append(_safe_mean(vals))
             for key in self.REWARD_KEYS:
                 vals = self._step_infos[key]
-                self._history_rewards[key].append(float(_np.mean(vals)) if vals else float("nan"))
+                self._history_rewards[key].append(_safe_mean(vals))
             # Track heading alignment std to distinguish spinning from stable heading
             heading_vals = self._step_infos.get("heading_alignment", [])
             self._history_heading_std.append(float(_np.std(heading_vals)) if len(heading_vals) > 1 else float("nan"))

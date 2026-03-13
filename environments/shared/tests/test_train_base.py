@@ -1,6 +1,8 @@
 """Tests for shared training infrastructure (train_base.py)."""
 
 import dataclasses
+import math
+from pathlib import Path
 
 import pytest
 
@@ -8,6 +10,10 @@ from environments.shared.train_base import (
     SpeciesConfig,
     _apply_overrides,
     _cast_value,
+    _is_gcs_path,
+    _make_local_tb_dir,
+    _sync_tb_to_gcs,
+    cosine_schedule,
     linear_schedule,
 )
 
@@ -107,3 +113,98 @@ class TestSpeciesConfig:
             success_keys=["food_reached"],
         )
         assert cfg.species == "brachiosaurus"
+
+
+# ── cosine_schedule ─────────────────────────────────────────────────────
+
+
+class TestCosineSchedule:
+    def test_returns_initial_at_start(self):
+        sched = cosine_schedule(1e-3, 1e-4)
+        assert sched(1.0) == pytest.approx(1e-3)
+
+    def test_returns_final_at_end(self):
+        sched = cosine_schedule(1e-3, 1e-4)
+        assert sched(0.0) == pytest.approx(1e-4)
+
+    def test_midpoint_matches_cosine_formula(self):
+        sched = cosine_schedule(1e-3, 1e-4)
+        mid = sched(0.5)
+        cosine_decay = 0.5 * (1.0 + math.cos(math.pi * 0.5))
+        expected = 1e-4 + cosine_decay * (1e-3 - 1e-4)
+        assert mid == pytest.approx(expected)
+
+    def test_constant_when_initial_equals_final(self):
+        sched = cosine_schedule(5e-4, 5e-4)
+        for p in [0.0, 0.25, 0.5, 0.75, 1.0]:
+            assert sched(p) == pytest.approx(5e-4)
+
+    def test_monotonically_decreasing(self):
+        sched = cosine_schedule(1e-3, 1e-4)
+        values = [sched(p) for p in [1.0, 0.75, 0.5, 0.25, 0.0]]
+        for i in range(len(values) - 1):
+            assert values[i] >= values[i + 1]
+
+    def test_always_between_bounds(self):
+        sched = cosine_schedule(1e-3, 1e-4)
+        for p in [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0]:
+            val = sched(p)
+            assert 1e-4 <= val <= 1e-3
+
+
+# ── GCS path utilities ─────────────────────────────────────────────────
+
+
+class TestIsGcsPath:
+    def test_gcs_path_detected(self):
+        assert _is_gcs_path("/gcs/my-bucket/runs/run1") is True
+
+    def test_local_path_not_gcs(self):
+        assert _is_gcs_path("/home/user/runs/run1") is False
+
+    def test_relative_path_not_gcs(self):
+        assert _is_gcs_path("runs/run1") is False
+
+    def test_path_object(self):
+        assert _is_gcs_path(Path("/gcs/bucket/tb")) is True
+        assert _is_gcs_path(Path("/tmp/tb")) is False
+
+
+class TestMakeLocalTbDir:
+    def test_creates_directory(self, tmp_path):
+        local_dir = _make_local_tb_dir("/gcs/bucket/tb_logs")
+        assert local_dir.exists()
+        assert local_dir.is_dir()
+
+    def test_stable_across_calls(self):
+        d1 = _make_local_tb_dir("/gcs/bucket/tb_logs")
+        d2 = _make_local_tb_dir("/gcs/bucket/tb_logs")
+        assert d1 == d2
+
+    def test_different_paths_get_different_dirs(self):
+        d1 = _make_local_tb_dir("/gcs/bucket-a/tb")
+        d2 = _make_local_tb_dir("/gcs/bucket-b/tb")
+        assert d1 != d2
+
+
+class TestSyncTbToGcs:
+    def test_copies_files(self, tmp_path):
+        src = tmp_path / "local_tb"
+        src.mkdir()
+        (src / "events.out.tfevents.1234").write_text("data")
+        (src / "subdir").mkdir()
+        (src / "subdir" / "nested.txt").write_text("nested")
+
+        dest = tmp_path / "gcs_tb"
+        _sync_tb_to_gcs(src, str(dest))
+
+        assert (dest / "events.out.tfevents.1234").read_text() == "data"
+        assert (dest / "subdir" / "nested.txt").read_text() == "nested"
+        # Source should be cleaned up
+        assert not src.exists()
+
+    def test_noop_when_source_missing(self, tmp_path):
+        dest = tmp_path / "gcs_tb"
+        # Should not raise
+        _sync_tb_to_gcs(tmp_path / "nonexistent", str(dest))
+        assert not dest.exists()
