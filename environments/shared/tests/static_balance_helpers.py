@@ -30,7 +30,7 @@ def get_foot_contacts_xy(model: mujoco.MjModel, data: mujoco.MjData, foot_geom_n
 def com_xy(model: mujoco.MjModel, data: mujoco.MjData, root_body: str) -> np.ndarray:
     """Return the species' center of mass projected onto the XY plane."""
     body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, root_body)
-    return data.subtree_com[body_id, :2].copy()
+    return np.array(data.subtree_com[body_id, :2])
 
 
 def species_mass(model: mujoco.MjModel, root_body: str) -> float:
@@ -41,7 +41,7 @@ def species_mass(model: mujoco.MjModel, root_body: str) -> float:
 
 def body_group_mass(model: mujoco.MjModel, body_names: list[str]) -> float:
     """Sum the mass of a list of named bodies."""
-    return sum(model.body_mass[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, n)] for n in body_names)
+    return float(sum(model.body_mass[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, n)] for n in body_names))
 
 
 # ---------------------------------------------------------------------------

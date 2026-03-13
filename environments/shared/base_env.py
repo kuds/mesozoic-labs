@@ -519,7 +519,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             Normalised 2D direction vector.
         """
-        dir_2d = target_pos[:2].copy()
+        dir_2d = np.array(target_pos[:2], dtype=np.float64)
         dir_len = float(np.linalg.norm(dir_2d))
         if dir_len > 1e-6:
             dir_2d /= dir_len
