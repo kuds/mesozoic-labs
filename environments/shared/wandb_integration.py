@@ -26,9 +26,11 @@ Usage:
 Requires: pip install wandb
 """
 
+from __future__ import annotations
+
 import logging
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +58,10 @@ def is_available() -> bool:
 def init_wandb(
     species: str,
     stage: int,
-    config: Dict[str, Any],
+    config: dict[str, Any],
     project: str = "mesozoic-labs",
-    tags: Optional[list] = None,
-    notes: Optional[str] = None,
+    tags: list | None = None,
+    notes: str | None = None,
 ) -> Any:
     """Initialize a W&B run for a training session.
 
@@ -176,7 +178,7 @@ class WandbCallback(BaseCallback):
         if self.num_timesteps % self.log_freq != 0:
             return True
 
-        metrics: Dict[str, Any] = {
+        metrics: dict[str, Any] = {
             "train/timesteps": self.num_timesteps,
         }
 
@@ -234,7 +236,7 @@ class WandbCallback(BaseCallback):
         if np is None:
             return
 
-        frames: List[Any] = []
+        frames: list[Any] = []
         obs = self.video_env.reset()
         for _ in range(self.video_length):
             action, _ = self.model.predict(obs, deterministic=True)
@@ -284,9 +286,9 @@ class WandbCallback(BaseCallback):
 
 
 def log_eval_metrics(
-    eval_results: Dict[str, Any],
+    eval_results: dict[str, Any],
     stage: int,
-    step: Optional[int] = None,
+    step: int | None = None,
 ):
     """Log evaluation metrics to W&B.
 
@@ -301,7 +303,7 @@ def log_eval_metrics(
     if not is_available() or wandb.run is None:
         return
 
-    metrics: Dict[str, Any] = {"eval/stage": float(stage)}
+    metrics: dict[str, Any] = {"eval/stage": float(stage)}
 
     for key, value in eval_results.items():
         if key == "termination_counts" and isinstance(value, dict):
@@ -357,7 +359,7 @@ def setup_wandb_metrics(stage: int) -> None:
 
 def create_wandb_dashboard(
     stage: int,
-    entity: Optional[str] = None,
+    entity: str | None = None,
     project: str = "mesozoic-labs",
 ) -> None:
     """Create a W&B workspace with the training curve panel layout.

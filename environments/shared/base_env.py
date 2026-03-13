@@ -10,8 +10,10 @@ across all dinosaur species. Subclasses override species-specific methods:
   - _spawn_target()
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import gymnasium as gym
 import mujoco
@@ -30,19 +32,19 @@ class BaseDinoEnv(gym.Env, ABC):
     _camera_distance: float = 3.0
     _camera_azimuth: float = 135
     _camera_elevation: float = -20
-    _camera_track_body: Optional[str] = None  # Body name to track, or None for fixed
+    _camera_track_body: str | None = None  # Body name to track, or None for fixed
 
     def __init__(
         self,
         model_path: str,
-        render_mode: Optional[str] = None,
+        render_mode: str | None = None,
         frame_skip: int = 5,
         max_episode_steps: int = 1000,
         forward_vel_weight: float = 1.0,
         alive_bonus: float = 0.1,
         energy_penalty_weight: float = 0.001,
         fall_penalty: float = -100.0,
-        healthy_z_range: Tuple[float, float] = (0.25, 1.0),
+        healthy_z_range: tuple[float, float] = (0.25, 1.0),
         max_tilt_angle: float = 1.047,
         reset_noise_scale: float = 0.01,
     ):
@@ -128,11 +130,11 @@ class BaseDinoEnv(gym.Env, ABC):
         """Construct the observation vector."""
 
     @abstractmethod
-    def _get_reward_info(self, action: np.ndarray) -> Tuple[float, Dict[str, float]]:
+    def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         """Compute reward and breakdown dict for logging."""
 
     @abstractmethod
-    def _is_terminated(self) -> Tuple[bool, Dict[str, Any]]:
+    def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         """Check species-specific termination conditions."""
 
     @abstractmethod
@@ -416,6 +418,85 @@ class BaseDinoEnv(gym.Env, ABC):
         reward = -weight * lateral_vel_norm
         return reward, float(lateral_vel)
 
+    def _init_gait_state(
+        self,
+        contact_threshold: float = 0.1,
+        max_touchdown_history: int = 20,
+    ) -> None:
+        """Initialise gait symmetry tracking state.
+
+        Call this in the subclass ``__init__`` (before ``super().__init__``
+        is fine) to enable :meth:`_compute_gait_symmetry`.
+
+        Args:
+            contact_threshold: Force (N) above which a foot is considered
+                in contact.  Matches ``metrics.py`` onset detection default.
+            max_touchdown_history: Maximum number of touchdown events to keep
+                in the sliding window.
+        """
+        self._contact_threshold = contact_threshold
+        self._max_touchdown_history = max_touchdown_history
+        self._prev_r_in_contact = False
+        self._prev_l_in_contact = False
+        self._touchdown_sequence: list[str] = []
+
+    def _reset_gait_state(self) -> None:
+        """Reset gait symmetry tracking for a new episode.
+
+        Call this from the subclass ``_spawn_target`` / reset path.
+        """
+        self._prev_r_in_contact = False
+        self._prev_l_in_contact = False
+        self._touchdown_sequence = []
+
+    def _compute_gait_symmetry(
+        self,
+        r_contact_force: float,
+        l_contact_force: float,
+        weight: float,
+    ) -> tuple[float, float]:
+        """Compute gait symmetry reward based on foot touchdown alternation.
+
+        Tracks off→on transitions (touchdowns) and rewards when consecutive
+        touchdowns alternate feet: L→R→L = 1.0, L→L→R = 0.5.
+
+        Requires :meth:`_init_gait_state` to have been called.
+
+        Args:
+            r_contact_force: Right foot contact sensor reading (N).
+            l_contact_force: Left foot contact sensor reading (N).
+            weight: Gait symmetry reward weight.
+
+        Returns:
+            (reward, alternation_ratio) tuple.
+        """
+        r_in_contact = r_contact_force > self._contact_threshold
+        l_in_contact = l_contact_force > self._contact_threshold
+        r_touchdown = r_in_contact and not self._prev_r_in_contact
+        l_touchdown = l_in_contact and not self._prev_l_in_contact
+        self._prev_r_in_contact = r_in_contact
+        self._prev_l_in_contact = l_in_contact
+
+        if r_touchdown:
+            self._touchdown_sequence.append("R")
+        if l_touchdown:
+            self._touchdown_sequence.append("L")
+        if len(self._touchdown_sequence) > self._max_touchdown_history:
+            self._touchdown_sequence = self._touchdown_sequence[-self._max_touchdown_history:]
+
+        n_touchdowns = len(self._touchdown_sequence)
+        if n_touchdowns > 1:
+            alternations = sum(
+                1 for i in range(1, n_touchdowns)
+                if self._touchdown_sequence[i] != self._touchdown_sequence[i - 1]
+            )
+            alternation_ratio = alternations / (n_touchdowns - 1)
+        else:
+            alternation_ratio = 0.0
+
+        reward = weight * alternation_ratio
+        return reward, alternation_ratio
+
     def _compute_pelvis_diagnostics(self) -> tuple[float, float]:
         """Compute pelvis angular velocity metrics for spinning detection.
 
@@ -543,7 +624,7 @@ class BaseDinoEnv(gym.Env, ABC):
             raise AttributeError(f"{type(self).__name__} has no attribute '{name}'")
         setattr(self, name, value)
 
-    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict]:
+    def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         """Execute one environment step."""
         # Scale action from [-1, 1] to actuator control ranges
         ctrl = self._scale_action(action)
@@ -602,9 +683,9 @@ class BaseDinoEnv(gym.Env, ABC):
 
     def reset(
         self,
-        seed: Optional[int] = None,
-        options: Optional[Dict] = None,
-    ) -> Tuple[np.ndarray, Dict]:
+        seed: int | None = None,
+        options: dict | None = None,
+    ) -> tuple[np.ndarray, dict]:
         """Reset environment to initial state."""
         super().reset(seed=seed)
 

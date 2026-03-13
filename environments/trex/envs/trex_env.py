@@ -42,8 +42,10 @@ Reward components:
     - Lateral velocity penalty (anti crab-walk)
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import gymnasium as gym
 import mujoco
@@ -62,7 +64,7 @@ class TRexEnv(BaseDinoEnv):
 
     def __init__(
         self,
-        render_mode: Optional[str] = None,
+        render_mode: str | None = None,
         frame_skip: int = 5,
         max_episode_steps: int = 1000,
         # Reward weights
@@ -86,9 +88,10 @@ class TRexEnv(BaseDinoEnv):
         spin_penalty_weight: float = 0.0,
         forward_vel_max: float = 8.0,
         # Environment settings
-        prey_distance_range: Tuple[float, float] = (3.0, 8.0),
-        prey_lateral_range: Tuple[float, float] = (-2.0, 2.0),
-        healthy_z_range: Tuple[float, float] = (0.5, 1.6),
+        prey_distance_range: tuple[float, float] = (3.0, 8.0),
+        prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
+        healthy_z_range: tuple[float, float] = (0.5, 1.6),
+        reset_noise_scale: float = 0.01,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "trex.xml")
 
@@ -121,6 +124,9 @@ class TRexEnv(BaseDinoEnv):
         self._prev_prey_distance: float | None = None
         self._prev_action: np.ndarray | None = None
 
+        # Gait symmetry: track foot touchdown events for alternation reward
+        self._init_gait_state()
+
         # Cached initial direction to prey (set in _spawn_target).
         # Used by forward-velocity and heading rewards so the "forward"
         # reference direction stays fixed for the whole episode, preventing
@@ -141,6 +147,7 @@ class TRexEnv(BaseDinoEnv):
             energy_penalty_weight=energy_penalty_weight,
             fall_penalty=fall_penalty,
             healthy_z_range=healthy_z_range,
+            reset_noise_scale=reset_noise_scale,
         )
 
     def _cache_ids(self):
@@ -240,7 +247,7 @@ class TRexEnv(BaseDinoEnv):
 
         return obs
 
-    def _get_reward_info(self, action: np.ndarray) -> Tuple[float, Dict[str, float]]:
+    def _get_reward_info(self, action: np.ndarray) -> tuple[float, dict[str, float]]:
         """Compute reward and breakdown for logging."""
         info = {}
 
@@ -335,17 +342,17 @@ class TRexEnv(BaseDinoEnv):
         reward_height = self.height_weight * height_frac
         info["reward_height"] = reward_height
 
-        # 9. Gait symmetry
-        # BUG: This rewards instantaneous contact asymmetry, not foot
-        # alternation. Keep weight at 0.0 until the formula is corrected.
+        # 9. Gait symmetry (reward alternating foot contacts, shared helper)
         r_contact = self.data.sensordata[self._sensor_r_foot]
         l_contact = self.data.sensordata[self._sensor_l_foot]
         info["r_foot_contact"] = float(r_contact)
         info["l_foot_contact"] = float(l_contact)
-        contact_sum = r_contact + l_contact + 1e-6
-        contact_asymmetry = abs(r_contact - l_contact) / contact_sum
-        reward_gait = self.gait_symmetry_weight * contact_asymmetry
-        info["contact_asymmetry"] = contact_asymmetry
+
+        reward_gait, alternation_ratio = self._compute_gait_symmetry(
+            float(r_contact), float(l_contact), self.gait_symmetry_weight
+        )
+        info["alternation_ratio"] = alternation_ratio
+        info["contact_asymmetry"] = alternation_ratio  # backward compat with metrics
         info["reward_gait"] = reward_gait
 
         # 10. Action smoothness (shared helper)
@@ -401,7 +408,7 @@ class TRexEnv(BaseDinoEnv):
 
         return total_reward, info
 
-    def _is_terminated(self) -> Tuple[bool, Dict[str, Any]]:
+    def _is_terminated(self) -> tuple[bool, dict[str, Any]]:
         """Check if episode should terminate."""
         info = {}
 
@@ -463,6 +470,9 @@ class TRexEnv(BaseDinoEnv):
         # Reset delta-based tracking (first step will produce zero deltas)
         self._prev_prey_distance = None
         self._prev_action = None
+
+        # Reset gait symmetry tracking
+        self._reset_gait_state()
 
 
 # Register with Gymnasium (MesozoicLabs namespace)

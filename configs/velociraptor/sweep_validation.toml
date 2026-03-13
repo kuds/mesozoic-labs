@@ -1,0 +1,151 @@
+# Validation configurations for Stage 1 (balance) — top 3 sweep results
+# plus a manually tuned anti-rotation variant.
+#
+# Select one by setting VALIDATION_SETTING = 1..4 in the training notebook.
+# Set to None to skip the override and use the default stage1_balance.toml.
+#
+# | Setting | Source             | Best Reward | Ep Length | Key Traits                          |
+# |---------|--------------------|-------------|-----------|-------------------------------------|
+# | 1       | Sweep Trial 20     | 4516.53     | 972       | Highest reward, perfectly stable    |
+# | 2       | Sweep Trial 9      | 4383.09     | 1000      | Max episode length, very stable     |
+# | 3       | Sweep Trial 21     | 4380.45     | 1000      | Lowest LR, max episode length       |
+# | 4       | Manual (anti-rot.) | TBD         | TBD       | Reduced alive bonus, heading/spin   |
+
+# --- Setting 1: Trial 20 — Highest reward (4516.53), perfectly stable ---
+
+[setting_1.env]
+alive_bonus = 4.7751150971653455
+backward_vel_penalty_weight = 0.5
+drift_penalty_weight = 0.0
+spin_penalty_weight = 0.0
+energy_penalty_weight = 0.023098437233377095
+forward_vel_weight = 0.0
+gait_symmetry_weight = 0.0
+nosedive_weight = 2.1421201217594983
+posture_weight = 1.2638516073204769
+smoothness_weight = 0.05
+strike_bonus = 0.0
+strike_approach_weight = 0.0
+tail_stability_weight = 0.02
+prey_distance_range = [10.0, 15.0]
+max_episode_steps = 1000
+reset_noise_scale = 0.05
+
+[setting_1.ppo]
+learning_rate = 4.8822421551019516e-05
+n_steps = 1024
+batch_size = 128
+n_epochs = 10
+gamma = 0.9882306956920238
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.0014883260316447084
+
+[setting_1.ppo.policy_kwargs]
+net_arch = [512, 256]
+
+# --- Setting 2: Trial 9 — Very stable (4383.09), max episode length ---
+
+[setting_2.env]
+alive_bonus = 4.449520870491213
+backward_vel_penalty_weight = 0.5
+drift_penalty_weight = 0.0
+spin_penalty_weight = 0.0
+energy_penalty_weight = 0.02253706968983308
+forward_vel_weight = 0.0
+gait_symmetry_weight = 0.0
+nosedive_weight = 2.1391876973034245
+posture_weight = 1.3417210235959485
+smoothness_weight = 0.05
+strike_bonus = 0.0
+strike_approach_weight = 0.0
+tail_stability_weight = 0.02
+prey_distance_range = [10.0, 15.0]
+max_episode_steps = 1000
+reset_noise_scale = 0.05
+
+[setting_2.ppo]
+learning_rate = 3.227259919476763e-05
+n_steps = 2048
+batch_size = 128
+n_epochs = 6
+gamma = 0.9796799988368609
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.0007740928167426532
+
+[setting_2.ppo.policy_kwargs]
+net_arch = [512, 256]
+
+# --- Setting 3: Trial 21 — Stable (4380.45), lowest LR, max episode length ---
+
+[setting_3.env]
+alive_bonus = 4.483655731575338
+backward_vel_penalty_weight = 0.5
+drift_penalty_weight = 0.0
+spin_penalty_weight = 0.0
+energy_penalty_weight = 0.011545762075454427
+forward_vel_weight = 0.0
+gait_symmetry_weight = 0.0
+nosedive_weight = 2.125715086331019
+posture_weight = 1.3075265288212674
+smoothness_weight = 0.05
+strike_bonus = 0.0
+strike_approach_weight = 0.0
+tail_stability_weight = 0.02
+prey_distance_range = [10.0, 15.0]
+max_episode_steps = 1000
+reset_noise_scale = 0.05
+
+[setting_3.ppo]
+learning_rate = 1.164093538184898e-05
+n_steps = 2048
+batch_size = 128
+n_epochs = 6
+gamma = 0.975529372002336
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.00012015156147932175
+
+[setting_3.ppo.policy_kwargs]
+net_arch = [512, 256]
+
+# --- Setting 4: Anti-rotation — Reduced alive bonus, stronger heading/spin ---
+# Addresses heading drift observed in Settings 1-3 where alive_bonus (~4.5-4.8)
+# drowns the heading signal (0.1), allowing the agent to rotate ~90 deg unchecked.
+# Key changes: alive_bonus 1.5 (down from ~4.5), heading_weight 0.5 (up from 0.1),
+# spin_penalty_weight 0.3 (up from 0.1). Reverts posture/nosedive/energy to TOML
+# defaults since the sweep over-tuned them alongside the inflated alive_bonus.
+# PPO hyperparams based on Setting 2 (most stable episode length).
+
+[setting_4.env]
+alive_bonus = 1.5
+backward_vel_penalty_weight = 0.5
+drift_penalty_weight = 0.3
+energy_penalty_weight = 0.05
+forward_vel_weight = 0.0
+gait_symmetry_weight = 0.0
+heading_weight = 0.5
+spin_penalty_weight = 0.3
+nosedive_weight = 1.5
+posture_weight = 1.5
+smoothness_weight = 0.05
+strike_bonus = 0.0
+strike_approach_weight = 0.0
+tail_stability_weight = 0.02
+prey_distance_range = [10.0, 15.0]
+max_episode_steps = 1000
+reset_noise_scale = 0.05
+
+[setting_4.ppo]
+learning_rate = 3.227259919476763e-05
+n_steps = 2048
+batch_size = 128
+n_epochs = 6
+gamma = 0.9796799988368609
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.0007740928167426532
+
+[setting_4.ppo.policy_kwargs]
+net_arch = [512, 256]

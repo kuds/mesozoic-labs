@@ -18,6 +18,8 @@ All public names are re-exported here so existing ``from
 environments.shared.train_base import ...`` statements continue to work.
 """
 
+from __future__ import annotations
+
 import dataclasses
 import logging
 import shutil
@@ -26,7 +28,7 @@ import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -180,7 +182,7 @@ def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path) -> None:
 
 def make_env(
     species_cfg: SpeciesConfig,
-    stage_configs: Dict[int, Dict[str, Any]],
+    stage_configs: dict[int, dict[str, Any]],
     stage: int,
     rank: int,
     seed: int = 0,
@@ -201,7 +203,7 @@ def make_env(
 
 def create_vec_env(
     species_cfg: SpeciesConfig,
-    stage_configs: Dict[int, Dict[str, Any]],
+    stage_configs: dict[int, dict[str, Any]],
     stage: int,
     n_envs: int,
     seed: int = 0,
@@ -232,7 +234,7 @@ def create_vec_env(
 
 def train(
     species_cfg: SpeciesConfig,
-    stage_configs: Dict[int, Dict[str, Any]],
+    stage_configs: dict[int, dict[str, Any]],
     stage: int,
     total_timesteps: int,
     n_envs: int = 4,
@@ -508,7 +510,7 @@ def _report_hpt_metrics(
     total_timesteps: int,
     algorithm: str,
     training_duration_seconds: float = 0.0,
-    stage_config: Dict[str, Any] | None = None,
+    stage_config: dict[str, Any] | None = None,
 ):
     """Report metrics to Vertex AI Hypertune and write a local JSON sidecar.
 
@@ -658,7 +660,7 @@ def _report_hpt_metrics(
 
 def train_curriculum(
     species_cfg: SpeciesConfig,
-    stage_configs: Dict[int, Dict[str, Any]],
+    stage_configs: dict[int, dict[str, Any]],
     n_envs: int = 4,
     seed: int = 42,
     eval_freq: int = 50000,

@@ -10,19 +10,22 @@ called headless (no display).  The notebook can continue to call
 ``plt.show()`` after each function returns.
 """
 
+from __future__ import annotations
+
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 # Type alias for the (stage_num, stage_dir) tuples used throughout.
-StageDirs = Sequence[Tuple[int, "str | Path"]]
+StageDirs = Sequence[tuple[int, str | Path]]
 
 
 def plot_training_curves(
     stage_dirs: StageDirs,
-    stage_configs: Dict[int, Dict[str, Any]],
+    stage_configs: dict[int, dict[str, Any]],
     species: str,
     algorithm: str,
     save_path: "str | Path | None" = None,
@@ -136,7 +139,7 @@ def plot_training_curves(
 
 def plot_diagnostics_graphs(
     stage_dirs: StageDirs,
-    stage_configs: Dict[int, Dict[str, Any]],
+    stage_configs: dict[int, dict[str, Any]],
     species: str,
     algorithm: str,
     save_dir: "str | Path | None" = None,
@@ -167,7 +170,7 @@ def plot_diagnostics_graphs(
 
     # Mapping from diagnostic reward key → config weight parameter name(s).
     # A signal "matters" to a stage if any of its config weights is non-zero.
-    _REWARD_KEY_TO_CONFIG_WEIGHTS: Dict[str, Tuple[str, ...]] = {
+    _REWARD_KEY_TO_CONFIG_WEIGHTS: dict[str, tuple[str, ...]] = {
         "reward_forward": ("forward_vel_weight",),
         "reward_backward": ("backward_vel_penalty_weight",),
         "reward_drift": ("drift_penalty_weight",),

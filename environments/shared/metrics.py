@@ -17,9 +17,11 @@ Usage:
     report = metrics.compute()
 """
 
+from __future__ import annotations
+
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -36,23 +38,23 @@ class LocomotionMetrics:
     """
 
     # Accumulated per-step data
-    _forward_velocities: List[float] = field(default_factory=list)
-    _energies: List[float] = field(default_factory=list)
-    _left_contacts: List[float] = field(default_factory=list)
-    _right_contacts: List[float] = field(default_factory=list)
-    _pelvis_heights: List[float] = field(default_factory=list)
-    _prey_distances: List[float] = field(default_factory=list)
-    _tilt_angles: List[float] = field(default_factory=list)
-    _rewards: List[float] = field(default_factory=list)
-    _heading_alignments: List[float] = field(default_factory=list)
-    _success_events: List[float] = field(default_factory=list)
-    _contact_asymmetries: List[float] = field(default_factory=list)
-    _pelvis_angular_velocities: List[float] = field(default_factory=list)
-    _pelvis_yaw_velocities: List[float] = field(default_factory=list)
-    _distances_traveled: List[float] = field(default_factory=list)
-    _reward_components: Dict[str, List[float]] = field(default_factory=dict)
+    _forward_velocities: list[float] = field(default_factory=list)
+    _energies: list[float] = field(default_factory=list)
+    _left_contacts: list[float] = field(default_factory=list)
+    _right_contacts: list[float] = field(default_factory=list)
+    _pelvis_heights: list[float] = field(default_factory=list)
+    _prey_distances: list[float] = field(default_factory=list)
+    _tilt_angles: list[float] = field(default_factory=list)
+    _rewards: list[float] = field(default_factory=list)
+    _heading_alignments: list[float] = field(default_factory=list)
+    _success_events: list[float] = field(default_factory=list)
+    _contact_asymmetries: list[float] = field(default_factory=list)
+    _pelvis_angular_velocities: list[float] = field(default_factory=list)
+    _pelvis_yaw_velocities: list[float] = field(default_factory=list)
+    _distances_traveled: list[float] = field(default_factory=list)
+    _reward_components: dict[str, list[float]] = field(default_factory=dict)
     _dt: float = 0.02  # default timestep * frame_skip
-    _termination_reason: Optional[str] = None
+    _termination_reason: str | None = None
 
     def reset(self):
         """Clear all accumulated data."""
@@ -73,7 +75,7 @@ class LocomotionMetrics:
         self._reward_components.clear()
         self._termination_reason = None
 
-    def record_step(self, info: Dict[str, Any], reward: float = 0.0):
+    def record_step(self, info: dict[str, Any], reward: float = 0.0):
         """Record a single environment step.
 
         Args:
@@ -135,7 +137,7 @@ class LocomotionMetrics:
         if "termination_reason" in info:
             self._termination_reason = info["termination_reason"]
 
-    def compute(self, body_mass: float = 1.0) -> Dict[str, float]:
+    def compute(self, body_mass: float = 1.0) -> dict[str, float]:
         """Compute all locomotion metrics from accumulated data.
 
         Args:
@@ -162,7 +164,7 @@ class LocomotionMetrics:
         fwd = np.array(self._forward_velocities)
         energies = np.array(self._energies)
 
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
 
         # --- Forward velocity statistics ---
         result["mean_forward_velocity"] = float(np.mean(fwd))
@@ -324,8 +326,8 @@ class LocomotionMetrics:
 
     @staticmethod
     def aggregate_episodes(
-        episode_reports: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        episode_reports: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """Aggregate metrics across multiple episodes.
 
         Args:
@@ -341,7 +343,7 @@ class LocomotionMetrics:
         # Separate numeric keys from non-numeric (like termination_reason)
         non_numeric_keys = {"termination_reason", "error"}
         keys = [k for k in episode_reports[0] if k not in non_numeric_keys]
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
 
         for key in keys:
             values = [r[key] for r in episode_reports if key in r and np.isfinite(r[key])]

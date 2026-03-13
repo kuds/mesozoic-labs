@@ -4,9 +4,11 @@ Extracted from ``train_base.py`` for maintainability.  Contains the
 evaluation loop, video recorder, and human-readable result logger.
 """
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -229,7 +231,7 @@ def record_stage_video(
 
 def evaluate(
     species_cfg,
-    stage_configs: Dict[int, Dict[str, Any]],
+    stage_configs: dict[int, dict[str, Any]],
     model_path: str,
     n_episodes: int = 30,
     render: bool = True,

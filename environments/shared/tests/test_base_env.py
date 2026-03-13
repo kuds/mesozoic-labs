@@ -245,3 +245,95 @@ class TestDistanceTracking:
         _, _, _, _, info = env.step(action)
         # After reset, distance should be near zero again
         assert info["distance_traveled"] < 0.1
+
+
+# ── gait symmetry ────────────────────────────────────────────────────────
+
+
+class TestGaitSymmetry:
+    """Test the shared gait symmetry helper on BaseDinoEnv."""
+
+    @pytest.fixture
+    def env(self):
+        e = RaptorEnv(gait_symmetry_weight=1.0)
+        e.reset(seed=42)
+        yield e
+        e.close()
+
+    def test_no_touchdowns_gives_zero(self, env):
+        """With no foot contacts, alternation ratio should be 0."""
+        reward, ratio = env._compute_gait_symmetry(0.0, 0.0, 1.0)
+        assert ratio == 0.0
+        assert reward == 0.0
+
+    def test_single_touchdown_gives_zero(self, env):
+        """A single touchdown cannot produce alternation."""
+        # First call: no contact
+        env._compute_gait_symmetry(0.0, 0.0, 1.0)
+        # Second call: right foot lands (off→on)
+        reward, ratio = env._compute_gait_symmetry(1.0, 0.0, 1.0)
+        assert ratio == 0.0
+
+    def test_perfect_alternation(self, env):
+        """L→R→L should produce alternation_ratio = 1.0."""
+        # Start: no contact
+        env._compute_gait_symmetry(0.0, 0.0, 1.0)
+        # Left touchdown
+        env._compute_gait_symmetry(0.0, 1.0, 1.0)
+        # Left lifts, right lands
+        env._compute_gait_symmetry(1.0, 0.0, 1.0)
+        # Right lifts, left lands
+        reward, ratio = env._compute_gait_symmetry(0.0, 1.0, 1.0)
+        assert ratio == pytest.approx(1.0)
+        assert reward == pytest.approx(1.0)
+
+    def test_same_foot_repeated(self, env):
+        """R→R→R (same foot) should produce alternation_ratio = 0.0."""
+        # Start: no contact
+        env._compute_gait_symmetry(0.0, 0.0, 1.0)
+        # Right touchdown
+        env._compute_gait_symmetry(1.0, 0.0, 1.0)
+        # Right lifts
+        env._compute_gait_symmetry(0.0, 0.0, 1.0)
+        # Right lands again
+        env._compute_gait_symmetry(1.0, 0.0, 1.0)
+        # Right lifts
+        env._compute_gait_symmetry(0.0, 0.0, 1.0)
+        # Right lands again
+        reward, ratio = env._compute_gait_symmetry(1.0, 0.0, 1.0)
+        assert ratio == pytest.approx(0.0)
+        assert reward == pytest.approx(0.0)
+
+    def test_weight_scales_reward(self, env):
+        """Reward should scale linearly with weight."""
+        # Perfect alternation
+        env._compute_gait_symmetry(0.0, 0.0, 1.0)
+        env._compute_gait_symmetry(0.0, 1.0, 1.0)
+        env._compute_gait_symmetry(1.0, 0.0, 1.0)
+        _, ratio = env._compute_gait_symmetry(0.0, 1.0, 1.0)
+        # Reset and redo with weight=0.5
+        env._reset_gait_state()
+        env._compute_gait_symmetry(0.0, 0.0, 0.5)
+        env._compute_gait_symmetry(0.0, 1.0, 0.5)
+        env._compute_gait_symmetry(1.0, 0.0, 0.5)
+        reward, _ = env._compute_gait_symmetry(0.0, 1.0, 0.5)
+        assert reward == pytest.approx(0.5 * ratio)
+
+    def test_reset_clears_state(self, env):
+        """After _reset_gait_state, history should be empty."""
+        env._compute_gait_symmetry(0.0, 1.0, 1.0)
+        env._compute_gait_symmetry(1.0, 0.0, 1.0)
+        env._reset_gait_state()
+        reward, ratio = env._compute_gait_symmetry(0.0, 0.0, 1.0)
+        assert ratio == 0.0
+
+    def test_trex_uses_shared_helper(self):
+        """TRexEnv should use the shared gait symmetry (not the old buggy version)."""
+        from environments.trex.envs.trex_env import TRexEnv
+
+        env = TRexEnv(gait_symmetry_weight=1.0)
+        env.reset(seed=42)
+        # Verify gait state was initialised
+        assert hasattr(env, "_touchdown_sequence")
+        assert env._touchdown_sequence == []
+        env.close()
