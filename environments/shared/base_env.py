@@ -58,6 +58,10 @@ class BaseDinoEnv(gym.Env, ABC):
         self.max_episode_steps = max_episode_steps
         self._step_count = 0
 
+        # Distance tracking (cumulative XY path length)
+        self._prev_pos_2d: np.ndarray = np.zeros(2)
+        self._distance_traveled: float = 0.0
+
         # Common reward weights
         self.forward_vel_weight = forward_vel_weight
         self.alive_bonus = alive_bonus
@@ -551,6 +555,11 @@ class BaseDinoEnv(gym.Env, ABC):
 
         self._step_count += 1
 
+        # Update cumulative distance traveled (XY path length)
+        current_pos_2d = self.data.qpos[0:2].copy()
+        self._distance_traveled += float(np.linalg.norm(current_pos_2d - self._prev_pos_2d))
+        self._prev_pos_2d = current_pos_2d
+
         # Get observation
         obs = self._get_obs()
 
@@ -569,6 +578,7 @@ class BaseDinoEnv(gym.Env, ABC):
         # Combine info
         info = {**reward_info, **term_info}
         info["step"] = self._step_count
+        info["distance_traveled"] = self._distance_traveled
 
         # Render if needed
         if self.render_mode == "human":
@@ -619,6 +629,8 @@ class BaseDinoEnv(gym.Env, ABC):
         mujoco.mj_forward(self.model, self.data)
 
         self._step_count = 0
+        self._prev_pos_2d = self.data.qpos[0:2].copy()
+        self._distance_traveled = 0.0
 
         obs = self._get_obs()
         info = {"step": 0}

@@ -142,15 +142,17 @@ def plot_diagnostics_graphs(
     save_dir: "str | Path | None" = None,
     show: bool = True,
 ) -> "tuple":
-    """Create two 2x2 diagnostic figures tracking advanced training metrics.
+    """Create two diagnostic figures tracking advanced training metrics.
 
-    Figure 1 -- Locomotion Health (``locomotion_health.png``):
+    Figure 1 -- Locomotion Health (``locomotion_health.png``, 2x2):
       - Termination Breakdown, Cost of Transport,
         Pelvis Height, Reward Decomposition
 
-    Figure 2 -- Behavioral Metrics (``behavioral_metrics.png``):
+    Figure 2 -- Behavioral Metrics (``behavioral_metrics.png``, 3x2):
       - Gait Symmetry + Stride Frequency, Heading Alignment,
-        Prey Distance, Strike Success Rate
+        Prey Distance, Strike Success Rate,
+        Distance Traveled (cumulative path length),
+        Drift Distance (displacement from spawn)
 
     Returns ``(fig1, fig2)``.  When *show* is ``False``, figures are
     closed after saving (headless / sweep usage).
@@ -309,7 +311,7 @@ def plot_diagnostics_graphs(
     # -----------------------------------------------------------
     # Figure 2: Behavioral Metrics
     # -----------------------------------------------------------
-    fig2, axes2 = plt.subplots(2, 2, figsize=(14, 10))
+    fig2, axes2 = plt.subplots(3, 2, figsize=(14, 15))
     fig2.suptitle(
         f"{species_title} {algorithm} \u2013 Behavioral Metrics",
         fontsize=14,
@@ -372,6 +374,14 @@ def plot_diagnostics_graphs(
         if "strike_success" in diag:
             axes2[1, 1].plot(ts, diag["strike_success"], label=label, color=color)
 
+        # [2,0] Distance Traveled (cumulative XY path length)
+        if "distance_traveled" in diag:
+            axes2[2, 0].plot(ts, diag["distance_traveled"], label=label, color=color)
+
+        # [2,1] Drift Distance (displacement from spawn)
+        if "drift_distance" in diag:
+            axes2[2, 1].plot(ts, diag["drift_distance"], label=label, color=color)
+
     axes2[0, 0].set_xlabel("Timesteps")
     axes2[0, 0].set_ylabel("Gait Symmetry (\u2013) / Stride Freq proxy (--)")
     axes2[0, 0].set_title(f"{species_title} {algorithm} \u2013 Gait Symmetry + Stride Frequency")
@@ -395,6 +405,18 @@ def plot_diagnostics_graphs(
     axes2[1, 1].set_title(f"{species_title} {algorithm} \u2013 Strike Success Rate")
     axes2[1, 1].legend()
     axes2[1, 1].grid(True, alpha=0.3)
+
+    axes2[2, 0].set_xlabel("Timesteps")
+    axes2[2, 0].set_ylabel("Distance Traveled (m)")
+    axes2[2, 0].set_title(f"{species_title} {algorithm} \u2013 Distance Traveled (path length)")
+    axes2[2, 0].legend()
+    axes2[2, 0].grid(True, alpha=0.3)
+
+    axes2[2, 1].set_xlabel("Timesteps")
+    axes2[2, 1].set_ylabel("Drift Distance (m)")
+    axes2[2, 1].set_title(f"{species_title} {algorithm} \u2013 Drift Distance (displacement from spawn)")
+    axes2[2, 1].legend()
+    axes2[2, 1].grid(True, alpha=0.3)
 
     fig2.tight_layout()
     if save_dir is not None:

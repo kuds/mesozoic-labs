@@ -25,6 +25,7 @@ CSV_METRIC_COLUMNS: List[str] = [
     "last_mean_episode_length",
     "mean_forward_vel",
     "std_forward_vel",
+    "mean_distance_traveled",
     "mean_success_rate",
     "training_duration_seconds",
     "reward_threshold",
@@ -335,6 +336,7 @@ def save_results_csv(
         row["last_mean_episode_length"] = round(r.get("mean_episode_length", 0.0), 1)
         row["mean_forward_vel"] = round(r.get("mean_forward_vel", 0.0), 2)
         row["std_forward_vel"] = round(r.get("std_forward_vel", 0.0), 2)
+        row["mean_distance_traveled"] = round(r.get("mean_distance_traveled", 0.0), 2)
         row["mean_success_rate"] = round(r.get("mean_success_rate", 0.0), 4)
         row["training_duration_seconds"] = round(r.get("duration_seconds", 0.0), 1)
 

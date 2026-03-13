@@ -190,6 +190,7 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
         row["last_mean_episode_length"] = aux.get("last_mean_episode_length")
         row["mean_forward_vel"] = aux.get("mean_forward_vel")
         row["std_forward_vel"] = aux.get("std_forward_vel")
+        row["mean_distance_traveled"] = aux.get("mean_distance_traveled")
         row["mean_success_rate"] = aux.get("mean_success_rate")
         row["training_duration_seconds"] = aux.get("training_duration_seconds")
 
@@ -824,6 +825,7 @@ def _collect_results_local(
                     "last_mean_episode_length": metrics.get("last_mean_episode_length"),
                     "mean_forward_vel": metrics.get("mean_forward_vel"),
                     "std_forward_vel": metrics.get("std_forward_vel"),
+                    "mean_distance_traveled": metrics.get("mean_distance_traveled"),
                     "mean_success_rate": metrics.get("mean_success_rate"),
                     "training_duration_seconds": metrics.get("training_duration_seconds"),
                     "reward_threshold": trial_reward_th,

@@ -140,6 +140,10 @@ def eval_policy_quality(
             clean_key = key.replace("mean_mean_", "mean_")
             result[f"eval_{clean_key}"] = round(agg[key], 4)
 
+    # Distance traveled
+    if "mean_distance_traveled" in agg:
+        result["eval_distance_traveled"] = round(agg["mean_distance_traveled"], 4)
+
     # Reward component breakdown (cumulative per episode, averaged across episodes)
     for key, value in agg.items():
         if key.startswith("mean_reward_component_"):
@@ -354,6 +358,12 @@ def _log_eval_results(
         agg.get("mean_total_distance", 0),
         agg.get("std_total_distance", 0),
     )
+    if "mean_distance_traveled" in agg:
+        logger.info(
+            "  Path length:  %.3f +/- %.3f m",
+            agg.get("mean_distance_traveled", 0),
+            agg.get("std_distance_traveled", 0),
+        )
 
     logger.info("--- Gait Quality ---")
     logger.info("  Symmetry:     %.3f", agg.get("mean_gait_symmetry", 0))

@@ -97,6 +97,7 @@ class DiagnosticsCallback(_BaseCallback):
         "pelvis_yaw_vel",
         "drift_distance",
         "spin_instability",
+        "distance_traveled",
     ]
 
     def __init__(self, plateau_window=10, plateau_threshold=1.0, log_dir=None, verbose=0):

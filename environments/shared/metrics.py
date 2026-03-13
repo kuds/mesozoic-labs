@@ -49,6 +49,7 @@ class LocomotionMetrics:
     _contact_asymmetries: List[float] = field(default_factory=list)
     _pelvis_angular_velocities: List[float] = field(default_factory=list)
     _pelvis_yaw_velocities: List[float] = field(default_factory=list)
+    _distances_traveled: List[float] = field(default_factory=list)
     _reward_components: Dict[str, List[float]] = field(default_factory=dict)
     _dt: float = 0.02  # default timestep * frame_skip
     _termination_reason: Optional[str] = None
@@ -68,6 +69,7 @@ class LocomotionMetrics:
         self._contact_asymmetries.clear()
         self._pelvis_angular_velocities.clear()
         self._pelvis_yaw_velocities.clear()
+        self._distances_traveled.clear()
         self._reward_components.clear()
         self._termination_reason = None
 
@@ -119,6 +121,9 @@ class LocomotionMetrics:
 
         if "pelvis_yaw_vel" in info:
             self._pelvis_yaw_velocities.append(float(info["pelvis_yaw_vel"]))
+
+        if "distance_traveled" in info:
+            self._distances_traveled.append(float(info["distance_traveled"]))
 
         # Track individual reward components for post-training breakdown.
         # Uses the canonical list from DiagnosticsCallback to stay in sync.
@@ -251,6 +256,10 @@ class LocomotionMetrics:
             yaw = np.array(self._pelvis_yaw_velocities)
             result["mean_pelvis_yaw_velocity"] = float(np.mean(np.abs(yaw)))
             result["max_pelvis_yaw_velocity"] = float(np.max(np.abs(yaw)))
+
+        # --- Distance traveled (cumulative XY path length) ---
+        if self._distances_traveled:
+            result["distance_traveled"] = float(self._distances_traveled[-1])
 
         # --- Reward component breakdown ---
         for key, values in self._reward_components.items():

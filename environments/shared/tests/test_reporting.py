@@ -3,6 +3,7 @@
 import json
 
 from environments.shared.reporting import (
+    CSV_METRIC_COLUMNS,
     build_stage_results_from_eval_data,
     format_duration,
     format_duration_hms,
@@ -10,6 +11,19 @@ from environments.shared.reporting import (
     write_stage_summary,
     write_training_summary,
 )
+
+# ── CSV_METRIC_COLUMNS ──────────────────────────────────────────────────
+
+
+class TestCsvMetricColumns:
+    """Tests for CSV_METRIC_COLUMNS schema."""
+
+    def test_contains_distance_traveled(self):
+        assert "mean_distance_traveled" in CSV_METRIC_COLUMNS
+
+    def test_contains_forward_vel(self):
+        assert "mean_forward_vel" in CSV_METRIC_COLUMNS
+
 
 # ── format_duration ──────────────────────────────────────────────────────
 

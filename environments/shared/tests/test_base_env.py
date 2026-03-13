@@ -191,3 +191,57 @@ class TestActionScaling:
         scaled = env._scale_action(action)
         ctrl_min = env.model.actuator_ctrlrange[:, 0]
         np.testing.assert_allclose(scaled, ctrl_min, atol=1e-6)
+
+
+# ── distance tracking ────────────────────────────────────────────────────
+
+
+class TestDistanceTracking:
+    """Test cumulative XY distance traveled tracking."""
+
+    @pytest.fixture
+    def env(self):
+        e = RaptorEnv(max_episode_steps=100)
+        yield e
+        e.close()
+
+    def test_distance_starts_at_zero(self, env):
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        # First step distance should be very small (near zero with zero action)
+        assert "distance_traveled" in info
+        assert info["distance_traveled"] >= 0.0
+
+    def test_distance_is_non_negative(self, env):
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        for _ in range(10):
+            _, _, terminated, _, info = env.step(action)
+            assert info["distance_traveled"] >= 0.0
+            if terminated:
+                break
+
+    def test_distance_is_monotonically_increasing(self, env):
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        prev_dist = 0.0
+        for _ in range(10):
+            _, _, terminated, _, info = env.step(action)
+            assert info["distance_traveled"] >= prev_dist
+            prev_dist = info["distance_traveled"]
+            if terminated:
+                break
+
+    def test_distance_resets_on_reset(self, env):
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        for _ in range(5):
+            _, _, terminated, _, _ = env.step(action)
+            if terminated:
+                break
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        # After reset, distance should be near zero again
+        assert info["distance_traveled"] < 0.1
