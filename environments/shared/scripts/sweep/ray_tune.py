@@ -259,8 +259,6 @@ def train_trial(config: dict[str, Any]) -> None:
     _logging.getLogger("tensorboardX").setLevel(_logging.ERROR)
     _logging.getLogger("ray.tune.experiment_state").setLevel(_logging.ERROR)
 
-    import copy
-
     from ray import tune
     from ray.train import Checkpoint
     from stable_baselines3 import PPO, SAC
@@ -280,8 +278,8 @@ def train_trial(config: dict[str, Any]) -> None:
     )
     from environments.shared.species_registry import get_species_config
     from environments.shared.train_base import (
-        create_vec_env,
         cosine_schedule,
+        create_vec_env,
         linear_schedule,
     )
 
