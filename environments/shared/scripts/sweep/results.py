@@ -7,10 +7,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from environments.shared.reporting import (
-    CSV_METRIC_COLUMNS,
-    write_results_csv as _write_results_csv,
-)
+from environments.shared.reporting import CSV_METRIC_COLUMNS
+from environments.shared.reporting import write_results_csv as _write_results_csv
 
 from .constants import SweepStageError
 
