@@ -265,7 +265,9 @@ class BrachioEnv(BaseDinoEnv):
         info["reward_approach"] = reward_approach
 
         # Total reward
-        total_reward = reward_forward + reward_alive + reward_energy + reward_gait + reward_food + reward_approach + reward_speed
+        total_reward = (
+            reward_forward + reward_alive + reward_energy + reward_gait + reward_food + reward_approach + reward_speed
+        )
         info["reward_total"] = total_reward
 
         return total_reward, info
