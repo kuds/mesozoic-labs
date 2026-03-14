@@ -248,9 +248,7 @@ def _make_experiment_state_sync_callback_class():
             except OSError as e:
                 logger.warning("Experiment state sync failed: %s", e)
 
-        def on_trial_complete(
-            self, iteration: int, trials: list[Any], trial: Any, **info: Any
-        ) -> None:
+        def on_trial_complete(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
             self._sync(reason=f"trial {trial.trial_id} complete")
 
         def on_trial_result(
