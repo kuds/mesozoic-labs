@@ -3,7 +3,8 @@ name = "balance"
 description = "Learn to stand on four legs without falling"
 
 [env]
-forward_vel_weight = 0.0
+forward_vel_weight = 0.15                      # Gentle forward incentive — enough to bias direction without destabilising balance
+forward_vel_max = 0.10                         # Cap reward at 0.10 m/s; a balanced crawl that primes stage 2 transition
 alive_bonus = 1.0
 energy_penalty_weight = 0.0005
 gait_stability_weight = 0.1
