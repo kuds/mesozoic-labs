@@ -85,11 +85,13 @@ direction = "minimize"
 
 # ── Stage 3: Species Behavior ────────────────────────────────────────
 # Goal: perform strike/bite/food-reach while maintaining locomotion.
-# Success rate is the primary signal for the species-specific task.
+# Shorter episodes with high success rate = efficient prey engagement.
+# A dino that finds and contacts the target quickly is better than one
+# that wanders for the full episode before getting lucky.
 [stage_3]
 
 [stage_3.best_mean_reward]
-weight = 0.15
+weight = 0.10
 direction = "maximize"
 
 [stage_3.eval_reward]
@@ -97,16 +99,16 @@ weight = 0.10
 direction = "maximize"
 
 [stage_3."fwd_vel_m/s"]
-weight = 0.15
+weight = 0.10
 direction = "maximize"
 
 [stage_3.distance_m]
-weight = 0.15
+weight = 0.10
 direction = "maximize"
 
 [stage_3.ep_length]
-weight = 0.10
-direction = "maximize"
+weight = 0.15
+direction = "minimize"
 
 [stage_3.gait_symmetry]
 weight = 0.10
@@ -121,5 +123,9 @@ weight = 0.05
 direction = "minimize"
 
 [stage_3.pelvis_height_m]
-weight = 0.10
+weight = 0.05
+direction = "maximize"
+
+[stage_3.mean_success_rate]
+weight = 0.15
 direction = "maximize"

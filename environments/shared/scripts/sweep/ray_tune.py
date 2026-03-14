@@ -456,7 +456,7 @@ def train_trial(config: dict[str, Any]) -> None:
         eval_env.training = False
         eval_env.norm_reward = False
 
-        _, eval_lengths, eval_fwd_vels, _, eval_distances = eval_policy(
+        _, eval_lengths, eval_fwd_vels, eval_successes, eval_distances = eval_policy(
             eval_model, eval_env, species_cfg.success_keys, n_episodes=30,
         )
         import numpy as _np
@@ -467,6 +467,7 @@ def train_trial(config: dict[str, Any]) -> None:
             "mean_forward_vel": float(_np.mean(eval_fwd_vels)) if eval_fwd_vels else 0.0,
             "std_forward_vel": float(_np.std(eval_fwd_vels)) if eval_fwd_vels else 0.0,
             "mean_distance_traveled": float(_np.mean(eval_distances)) if eval_distances else 0.0,
+            "mean_success_rate": float(_np.mean(eval_successes)) if eval_successes else 0.0,
             "timesteps": timesteps,
             "done": True,
         }
