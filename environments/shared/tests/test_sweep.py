@@ -1844,9 +1844,7 @@ class TestSaveSearchSpace:
             "ppo_lr": {"type": "double", "min": 1e-5, "max": 1e-3, "scale": "log"},
             "env_bonus": {"type": "double", "min": 0.1, "max": 5.0, "scale": "linear"},
         }
-        result_path = save_search_space(
-            space, tmp_path, species="velociraptor", stage=1, algorithm="ppo"
-        )
+        result_path = save_search_space(space, tmp_path, species="velociraptor", stage=1, algorithm="ppo")
         assert result_path.exists()
         assert result_path.name == "search_space_stage1_ppo.json"
 
