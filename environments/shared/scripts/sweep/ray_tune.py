@@ -138,57 +138,62 @@ class RayTuneReportCallback:
 # ---------------------------------------------------------------------------
 
 
-class TrialTerminationCallback:
-    """Ray Tune callback that prints status on trial completion and periodically.
+def _make_trial_termination_callback_class():
+    """Build TrialTerminationCallback as a proper Callback subclass at runtime."""
+    from ray.tune import Callback
 
-    Inherits from ``ray.tune.Callback`` at runtime to avoid importing Ray at
-    module level.
+    class _TrialTerminationCallback(Callback):
+        """Ray Tune callback that prints status on trial completion and periodically."""
+
+        METRIC_COLS = ("best_mean_reward", "last_mean_reward", "timesteps")
+
+        def __init__(self, report_interval_s: int = 300) -> None:
+            self._report_interval_s = report_interval_s
+            self._last_report_time = 0.0
+
+        def on_trial_complete(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
+            metrics = {k: trial.last_result.get(k) for k in self.METRIC_COLS}
+            metrics_str = "  ".join(f"{k}={v:.2f}" if isinstance(v, float) else f"{k}={v}" for k, v in metrics.items())
+            n_done = sum(1 for t in trials if t.status == "TERMINATED")
+            print(f"[Trial {trial.trial_id} DONE] ({n_done}/{len(trials)} complete)  {metrics_str}")
+
+        def on_trial_result(
+            self,
+            iteration: int,
+            trials: list[Any],
+            trial: Any,
+            result: dict[str, Any],
+            **info: Any,
+        ) -> None:
+            now = time.time()
+            if now - self._last_report_time < self._report_interval_s:
+                return
+            self._last_report_time = now
+
+            header = f"\n{'trial_id':<16}" + "".join(f"{c:>20}" for c in self.METRIC_COLS) + f"{'status':>14}"
+            print(header)
+            print("-" * len(header))
+            for t in trials:
+                cols = "".join(
+                    f"{t.last_result.get(c, ''):>20}"
+                    if not isinstance(t.last_result.get(c), float)
+                    else f"{t.last_result[c]:>20.2f}"
+                    for c in self.METRIC_COLS
+                )
+                print(f"{t.trial_id:<16}{cols}{t.status:>14}")
+            print()
+
+    return _TrialTerminationCallback
+
+
+def TrialTerminationCallback(*args: Any, **kwargs: Any):
+    """Create a TrialTerminationCallback instance.
+
+    Defers importing ``ray.tune.Callback`` until first call to avoid importing
+    Ray at module level.
     """
-
-    METRIC_COLS = ("best_mean_reward", "last_mean_reward", "timesteps")
-
-    def __new__(cls, *args: Any, **kwargs: Any) -> TrialTerminationCallback:
-        from ray.tune import Callback
-
-        if not issubclass(cls, Callback):
-            cls.__bases__ = (Callback,)
-        return super().__new__(cls)
-
-    def __init__(self, report_interval_s: int = 300) -> None:
-        self._report_interval_s = report_interval_s
-        self._last_report_time = 0.0
-
-    def on_trial_complete(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
-        metrics = {k: trial.last_result.get(k) for k in self.METRIC_COLS}
-        metrics_str = "  ".join(f"{k}={v:.2f}" if isinstance(v, float) else f"{k}={v}" for k, v in metrics.items())
-        n_done = sum(1 for t in trials if t.status == "TERMINATED")
-        print(f"[Trial {trial.trial_id} DONE] ({n_done}/{len(trials)} complete)  {metrics_str}")
-
-    def on_trial_result(
-        self,
-        iteration: int,
-        trials: list[Any],
-        trial: Any,
-        result: dict[str, Any],
-        **info: Any,
-    ) -> None:
-        now = time.time()
-        if now - self._last_report_time < self._report_interval_s:
-            return
-        self._last_report_time = now
-
-        header = f"\n{'trial_id':<16}" + "".join(f"{c:>20}" for c in self.METRIC_COLS) + f"{'status':>14}"
-        print(header)
-        print("-" * len(header))
-        for t in trials:
-            cols = "".join(
-                f"{t.last_result.get(c, ''):>20}"
-                if not isinstance(t.last_result.get(c), float)
-                else f"{t.last_result[c]:>20.2f}"
-                for c in self.METRIC_COLS
-            )
-            print(f"{t.trial_id:<16}{cols}{t.status:>14}")
-        print()
+    cls = _make_trial_termination_callback_class()
+    return cls(*args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
