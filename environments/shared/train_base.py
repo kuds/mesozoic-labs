@@ -721,7 +721,10 @@ def _report_hpt_metrics(
     # Forward velocity, distance, and success rate evaluation.
     # Run for all stages so mean_distance_traveled is always captured.
     _, _, fwd_vels, success_flags, distances = eval_policy(
-        eval_model, eval_env, species_cfg.success_keys, n_episodes=30,
+        eval_model,
+        eval_env,
+        species_cfg.success_keys,
+        n_episodes=30,
     )
     if fwd_vels:
         mean_fwd = float(_np.mean(fwd_vels))

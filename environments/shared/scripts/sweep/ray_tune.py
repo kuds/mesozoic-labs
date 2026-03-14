@@ -457,7 +457,10 @@ def train_trial(config: dict[str, Any]) -> None:
         eval_env.norm_reward = False
 
         _, eval_lengths, eval_fwd_vels, eval_successes, eval_distances = eval_policy(
-            eval_model, eval_env, species_cfg.success_keys, n_episodes=30,
+            eval_model,
+            eval_env,
+            species_cfg.success_keys,
+            n_episodes=30,
         )
         import numpy as _np
 

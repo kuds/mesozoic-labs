@@ -202,16 +202,15 @@ def compute_quality_scores(
             row["quality_rank"] = ""
         return rows
 
-    normalized_weights = {
-        m: config[m]["weight"] / total_weight for m in available_metrics
-    }
+    normalized_weights = {m: config[m]["weight"] / total_weight for m in available_metrics}
 
     # Normalize each metric and compute weighted score.
     normalized_scores: dict[str, list[float]] = {}
     for metric_name in available_metrics:
         direction = config[metric_name]["direction"]
         normalized_scores[metric_name] = _normalize_metric(
-            metric_values[metric_name], direction,
+            metric_values[metric_name],
+            direction,
         )
 
     # Compute composite score per trial.

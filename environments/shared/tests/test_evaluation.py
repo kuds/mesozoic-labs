@@ -37,7 +37,9 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        rewards, lengths, fwd_vels, successes, distances = eval_policy(model, env, success_keys=["strike_success"], n_episodes=2)
+        rewards, lengths, fwd_vels, successes, distances = eval_policy(
+            model, env, success_keys=["strike_success"], n_episodes=2
+        )
 
         assert len(rewards) == 2
         assert len(lengths) == 2
