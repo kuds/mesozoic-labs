@@ -251,7 +251,9 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
         Path to the written CSV file.
     """
     return _write_results_csv(
-        rows, path, fixed_columns=["trial_id", "stage"],
+        rows,
+        path,
+        fixed_columns=["trial_id", "stage"],
     )
 
 

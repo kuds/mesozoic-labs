@@ -56,13 +56,9 @@ def _compute_fieldnames(
     """
     if fixed_columns is None:
         fixed_columns = []
-    eval_cols: list[str] = sorted(
-        {k for row in rows for k in row if k.startswith("eval_")}
-    )
+    eval_cols: list[str] = sorted({k for row in rows for k in row if k.startswith("eval_")})
     all_known = set(fixed_columns) | set(CSV_METRIC_COLUMNS) | set(eval_cols)
-    hparam_cols: list[str] = sorted(
-        {k for row in rows for k in row if k not in all_known}
-    )
+    hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in all_known})
     return fixed_columns + hparam_cols + CSV_METRIC_COLUMNS + eval_cols
 
 
@@ -121,7 +117,9 @@ def write_results_csv(
             fieldnames = _compute_fieldnames(rows, fixed_columns)
             with open(local_path, "w", newline="") as f:
                 writer = _csv.DictWriter(
-                    f, fieldnames=fieldnames, extrasaction="ignore",
+                    f,
+                    fieldnames=fieldnames,
+                    extrasaction="ignore",
                 )
                 writer.writeheader()
                 writer.writerows(rows)
@@ -131,9 +129,7 @@ def write_results_csv(
                 existing_fieldnames: list[str] = list(reader.fieldnames or [])
                 existing_rows = list(reader)
 
-            new_keys = [
-                k for row in rows for k in row if k not in existing_fieldnames
-            ]
+            new_keys = [k for row in rows for k in row if k not in existing_fieldnames]
             if new_keys:
                 # Rewrite with canonical column ordering so new keys land
                 # in the correct position.
@@ -141,7 +137,9 @@ def write_results_csv(
                 fieldnames = _compute_fieldnames(all_rows, fixed_columns)
                 with open(local_path, "w", newline="") as f:
                     writer = _csv.DictWriter(
-                        f, fieldnames=fieldnames, extrasaction="ignore",
+                        f,
+                        fieldnames=fieldnames,
+                        extrasaction="ignore",
                     )
                     writer.writeheader()
                     writer.writerows(existing_rows)
@@ -168,7 +166,9 @@ def write_results_csv(
     fieldnames = _compute_fieldnames(rows, fixed_columns)
     with open(local_path, "w", newline="") as f:
         writer = _csv.DictWriter(
-            f, fieldnames=fieldnames, extrasaction="ignore",
+            f,
+            fieldnames=fieldnames,
+            extrasaction="ignore",
         )
         writer.writeheader()
         writer.writerows(rows)
@@ -176,7 +176,7 @@ def write_results_csv(
     if is_gcs:
         from google.cloud import storage
 
-        without_scheme = path_str[len("gs://"):]
+        without_scheme = path_str[len("gs://") :]
         bucket_name, _, blob_name = without_scheme.partition("/")
         try:
             client = storage.Client()
