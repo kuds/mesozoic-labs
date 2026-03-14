@@ -48,6 +48,12 @@ direction = "minimize"
 # ── Stage 2: Locomotion ──────────────────────────────────────────────
 # Goal: walk/run forward with good gait quality.
 # Forward velocity and distance are the primary signals.
+#
+# TODO: Re-add gait_symmetry once the training reward is fixed.
+# Currently gait_symmetry_weight=0.0 in all training configs (the
+# formula rewards asymmetry/single-foot stance, not alternation), so
+# scoring on a metric the agent was never trained on adds noise.
+# See: base_env.py _compute_gait_symmetry() and stage config comments.
 [stage_2]
 
 [stage_2.best_mean_reward]
@@ -63,11 +69,7 @@ weight = 0.20
 direction = "maximize"
 
 [stage_2.ep_length]
-weight = 0.10
-direction = "maximize"
-
-[stage_2.gait_symmetry]
-weight = 0.10
+weight = 0.15
 direction = "maximize"
 
 [stage_2.vel_consistency]
@@ -79,7 +81,7 @@ weight = 0.10
 direction = "minimize"
 
 [stage_2.tilt_rad]
-weight = 0.05
+weight = 0.10
 direction = "minimize"
 
 
@@ -88,6 +90,9 @@ direction = "minimize"
 # Shorter episodes with high success rate = efficient prey engagement.
 # A dino that finds and contacts the target quickly is better than one
 # that wanders for the full episode before getting lucky.
+#
+# TODO: Re-add gait_symmetry once the training reward is fixed.
+# Same issue as Stage 2 — see comment above.
 [stage_3]
 
 [stage_3.best_mean_reward]
@@ -110,16 +115,12 @@ direction = "maximize"
 weight = 0.15
 direction = "minimize"
 
-[stage_3.gait_symmetry]
-weight = 0.10
-direction = "maximize"
-
 [stage_3.cost_of_transport]
 weight = 0.10
 direction = "minimize"
 
 [stage_3.tilt_rad]
-weight = 0.05
+weight = 0.10
 direction = "minimize"
 
 [stage_3.pelvis_height_m]
@@ -127,5 +128,5 @@ weight = 0.05
 direction = "maximize"
 
 [stage_3.mean_success_rate]
-weight = 0.15
+weight = 0.20
 direction = "maximize"
