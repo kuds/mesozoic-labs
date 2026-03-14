@@ -398,6 +398,8 @@ def train_trial(config: dict[str, Any]) -> None:
     if drive_sweep_dir:
         drive_best_model_dir = Path(drive_sweep_dir) / "trials" / trial_id / "models"
 
+    _train_start_time = time.time()
+
     # Create environments
     train_env = create_vec_env(species_cfg, stage_configs, stage, n_envs, seed)
     eval_env = create_vec_env(species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False)
@@ -540,6 +542,8 @@ def train_trial(config: dict[str, Any]) -> None:
         )
         import numpy as _np
 
+        _training_duration_s = time.time() - _train_start_time
+
         final_metrics = {
             "best_mean_reward": float(eval_callback.best_mean_reward),
             "best_mean_episode_length": float(_np.mean(eval_lengths)) if eval_lengths else 0.0,
@@ -547,6 +551,7 @@ def train_trial(config: dict[str, Any]) -> None:
             "std_forward_vel": float(_np.std(eval_fwd_vels)) if eval_fwd_vels else 0.0,
             "mean_distance_traveled": float(_np.mean(eval_distances)) if eval_distances else 0.0,
             "mean_success_rate": float(_np.mean(eval_successes)) if eval_successes else 0.0,
+            "training_duration_seconds": round(_training_duration_s, 1),
             "timesteps": timesteps,
             "done": True,
         }
@@ -586,7 +591,7 @@ def collect_ray_results(
 
         # Hyperparameters
         for col in results_df.columns:
-            if col.startswith(("ppo_", "sac_", "env_")):
+            if col.startswith(("ppo_", "sac_", "env_", "curriculum_")):
                 row[col] = rt_row[col]
 
         # Metrics
