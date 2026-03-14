@@ -180,12 +180,13 @@ Hardware: Google Colab T4 GPU
 
 ## Roadmap
 
-- [x] Complete velociraptor 3-stage training
+- [-] Complete velociraptor 3-stage training (stages 1-2 solved, tuning stage 3)
 - [ ] Complete brachiosaurus 3-stage training
 - [ ] Complete T-Rex 3-stage training
+- [ ] Domain randomization (friction, damping, gravity, actuator strength, external pushes, observation noise)
+- [ ] Terrain adaptation (uneven ground, obstacles)
 - [ ] JAX/MJX migration for faster training
 - [ ] Multi-agent pack hunting scenarios
-- [ ] Terrain adaptation (uneven ground, obstacles)
 - [ ] Sim-to-real transfer experiments
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full phased timeline, milestones, and dependency graph.
