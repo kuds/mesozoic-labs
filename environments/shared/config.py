@@ -164,13 +164,9 @@ def save_stage_config(
 def append_stage_result_csv(csv_path: str | Path, data: dict) -> Path:
     """Append one stage training result row to a CSV file.
 
-    Creates the file with a header row on the first call; subsequent calls
-    append rows without re-writing the header.  If a later call introduces
-    new keys that were not in the original header, the file is rewritten with
-    the expanded column set so no data is silently dropped.
-
-    All values in *data* should be scalars (strings, numbers, booleans).
-    Non-scalar values are converted to their string representation.
+    Delegates to :func:`environments.shared.reporting.write_results_csv`
+    in append mode, which creates the file with a header on the first call
+    and expands the column set if later calls introduce new keys.
 
     Args:
         csv_path: Path to the CSV file (created if it does not exist).
@@ -179,36 +175,9 @@ def append_stage_result_csv(csv_path: str | Path, data: dict) -> Path:
     Returns:
         Path to the CSV file.
     """
-    import csv as _csv
+    from .reporting import write_results_csv
 
-    csv_path = Path(csv_path)
-
-    if not csv_path.exists():
-        with open(csv_path, "w", newline="") as f:
-            writer = _csv.DictWriter(f, fieldnames=list(data.keys()), extrasaction="ignore")
-            writer.writeheader()
-            writer.writerow(data)
-    else:
-        with open(csv_path, "r", newline="") as f:
-            reader = _csv.DictReader(f)
-            existing_fieldnames: list[str] = list(reader.fieldnames or [])
-            existing_rows = list(reader)
-
-        new_keys = [k for k in data if k not in existing_fieldnames]
-        if new_keys:
-            # Rewrite with expanded header so no column is silently dropped
-            all_fieldnames = existing_fieldnames + new_keys
-            with open(csv_path, "w", newline="") as f:
-                writer = _csv.DictWriter(f, fieldnames=all_fieldnames, extrasaction="ignore")
-                writer.writeheader()
-                writer.writerows(existing_rows)
-                writer.writerow(data)
-        else:
-            with open(csv_path, "a", newline="") as f:
-                writer = _csv.DictWriter(f, fieldnames=existing_fieldnames, extrasaction="ignore")
-                writer.writerow(data)
-
-    return csv_path
+    return write_results_csv([data], csv_path, append=True)
 
 
 def _upload_to_gcs(
