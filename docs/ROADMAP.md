@@ -163,17 +163,38 @@ critical bridge between "cool demo" and "transferable research."
 ### Milestone: v0.4.0 — "Into the Wild"
 
 - [ ] **Domain randomization**
-  - Randomize body mass (within +/- 10%), joint damping, ground friction
-  - Randomize initial pose perturbation magnitude per episode
-  - Add external force perturbations (random pushes) during training
+  All parameters live in `BaseDinoEnv.__init__` with defaults of 0 (disabled),
+  configurable via TOML `[env]` sections. Nominal physics values are cached at
+  init; randomization is applied relative to XML defaults each `reset()`.
+  - **Ground friction** (`friction_range`): Multiplicative per-episode scaling
+    of all geom friction coefficients (e.g. `[0.8, 1.2]` = +/-20%). Teaches
+    handling of slippery and grippy surfaces.
+  - **Joint damping** (`joint_damping_range`): Per-joint multiplicative scaling
+    each episode (e.g. `[0.9, 1.1]`). Simulates wear, temperature variation,
+    and model uncertainty in joint dynamics.
+  - **Gravity perturbation** (`gravity_range`): Additive offset on Z-gravity
+    each episode (e.g. `[-0.5, 0.5]` around -9.81 m/s²). Prevents overfitting
+    to the exact gravity constant.
+  - **Actuator strength** (`actuator_strength_range`): Per-actuator
+    multiplicative scaling each episode (e.g. `[0.9, 1.1]`). Forces the policy
+    to handle motor strength variation.
+  - **External force perturbations** (`push_force_scale`, `push_interval`):
+    Random 3D pushes applied to the root body every N steps during the episode
+    (e.g. 5 N every 100 steps). Most impactful single technique for locomotion
+    balance recovery.
+  - Introduce in Stage 2+ configs only — Stage 1 (balance) should train
+    without perturbations so the agent learns to stand first.
   - _Dependency: Phase 1 (need working trained policies to evaluate against)_
 
 - [ ] **Sensor noise & action delay**
-  - Add configurable Gaussian noise to joint position/velocity observations
+  - **Observation noise** (`obs_noise_scale`): Additive Gaussian noise applied
+    to the full observation vector each step (e.g. std dev 0.01). Simulates
+    sensor imprecision and prevents reliance on unrealistically precise state.
+    Implemented in `BaseDinoEnv.step()` after `_get_obs()`.
   - Add accelerometer bias drift model
   - Add touch sensor activation thresholds
   - Simulate 1-3 step action delay to model communication latency
-  - All noise parameters in config files, disabled by default
+  - All noise parameters in TOML config `[env]` sections, disabled by default
   - _Dependency: Phase 0 config externalization_
 
 - [ ] **Terrain diversity**
