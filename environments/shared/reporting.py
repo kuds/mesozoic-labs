@@ -35,6 +35,8 @@ CSV_METRIC_COLUMNS: list[str] = [
     "forward_vel_threshold",
     "success_rate_threshold",
     "stage_passed",
+    "quality_score",
+    "quality_rank",
 ]
 
 

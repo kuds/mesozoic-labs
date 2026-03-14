@@ -42,6 +42,7 @@ from .results import (
     plot_sweep_results,
     write_results_csv,
 )
+from .scoring import compute_quality_scores, load_scoring_config
 from .search_space import (
     _is_per_stage,
     _resolve_search_space,
@@ -96,4 +97,6 @@ __all__ = [
     "to_ray_tune",
     "train_trial",
     "write_results_csv",
+    "compute_quality_scores",
+    "load_scoring_config",
 ]
