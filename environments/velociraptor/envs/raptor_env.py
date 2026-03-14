@@ -42,6 +42,7 @@ Reward components:
     - Spin penalty (penalize pelvis angular velocity)
     - Heading alignment (facing toward prey)
     - Lateral velocity penalty (anti crab-walk)
+    - Speed penalty (penalise absolute speed above threshold)
 """
 
 from __future__ import annotations
@@ -90,6 +91,8 @@ class RaptorEnv(BaseDinoEnv):
         backward_vel_penalty_weight: float = 0.0,
         drift_penalty_weight: float = 0.0,
         spin_penalty_weight: float = 0.0,
+        speed_penalty_weight: float = 0.0,
+        speed_penalty_threshold: float = 0.10,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
@@ -114,6 +117,8 @@ class RaptorEnv(BaseDinoEnv):
         self.backward_vel_penalty_weight = backward_vel_penalty_weight
         self.drift_penalty_weight = drift_penalty_weight
         self.spin_penalty_weight = spin_penalty_weight
+        self.speed_penalty_weight = speed_penalty_weight
+        self.speed_penalty_threshold = speed_penalty_threshold
 
         # Natural forward pitch (~20°). The nosedive penalty and termination
         # are measured relative to this angle so the raptor isn't punished for
@@ -415,6 +420,13 @@ class RaptorEnv(BaseDinoEnv):
         info["lateral_vel"] = lateral_vel
         info["reward_lateral"] = reward_lateral
 
+        # 13. Speed penalty (penalise absolute speed above threshold)
+        reward_speed, abs_speed = self._compute_speed_penalty(
+            vel_2d, self.speed_penalty_weight, self.speed_penalty_threshold
+        )
+        info["abs_speed"] = abs_speed
+        info["reward_speed"] = reward_speed
+
         # Total reward
         total_reward = (
             reward_forward
@@ -434,6 +446,7 @@ class RaptorEnv(BaseDinoEnv):
             + reward_smoothness
             + reward_heading
             + reward_lateral
+            + reward_speed
         )
         info["reward_total"] = total_reward
 
