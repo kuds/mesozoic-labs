@@ -49,88 +49,92 @@ def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") 
 # ---------------------------------------------------------------------------
 
 
-class RayTuneReportCallback:
-    """SB3 callback that reports eval metrics + checkpoints to Ray Tune.
+def _make_ray_tune_report_callback_class():
+    """Build RayTuneReportCallback as a proper BaseCallback subclass at runtime.
 
-    After each evaluation, reports metrics to ASHA and saves a Ray-native
-    checkpoint containing the SB3 model and VecNormalize stats.  Also syncs
-    the best model to Google Drive for crash resilience.
-
-    Inherits from ``BaseCallback`` at runtime to avoid importing SB3 at
-    module level (which would fail outside the Ray worker).
+    Defers importing ``stable_baselines3`` until first call so the module can
+    be loaded outside Ray workers where SB3 may not be installed.
     """
+    from stable_baselines3.common.callbacks import BaseCallback
 
-    # Provided by BaseCallback at runtime (declared here for mypy)
-    num_timesteps: int
+    class _RayTuneReportCallback(BaseCallback):
+        """SB3 callback that reports eval metrics + checkpoints to Ray Tune.
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> RayTuneReportCallback:
-        from stable_baselines3.common.callbacks import BaseCallback
+        After each evaluation, reports metrics to ASHA and saves a Ray-native
+        checkpoint containing the SB3 model and VecNormalize stats.  Also syncs
+        the best model to Google Drive for crash resilience.
+        """
 
-        # Dynamically make this class inherit from BaseCallback
-        if not issubclass(cls, BaseCallback):
-            cls.__bases__ = (BaseCallback,)
-        return super().__new__(cls)
+        def __init__(
+            self,
+            eval_callback: Any,
+            train_env: Any,
+            model_ref: list[Any],
+            algorithm: str,
+            stage: int,
+            drive_best_model_dir: str | Path | None = None,
+            verbose: int = 0,
+        ) -> None:
+            super().__init__(verbose)
+            self.eval_callback = eval_callback
+            self.train_env = train_env
+            self._model_ref = model_ref
+            self.algorithm = algorithm
+            self.stage = stage
+            self._last_eval_count = 0
+            self._drive_best_model_dir = Path(drive_best_model_dir) if drive_best_model_dir else None
+            self._best_mean_reward = float("-inf")
 
-    def __init__(
-        self,
-        eval_callback: Any,
-        train_env: Any,
-        model_ref: list[Any],
-        algorithm: str,
-        stage: int,
-        drive_best_model_dir: str | Path | None = None,
-        verbose: int = 0,
-    ) -> None:
-        from stable_baselines3.common.callbacks import BaseCallback
+        def _on_step(self) -> bool:
+            from ray import tune
+            from ray.train import Checkpoint
 
-        BaseCallback.__init__(self, verbose)
-        self.eval_callback = eval_callback
-        self.train_env = train_env
-        self._model_ref = model_ref
-        self.algorithm = algorithm
-        self.stage = stage
-        self._last_eval_count = 0
-        self._drive_best_model_dir = Path(drive_best_model_dir) if drive_best_model_dir else None
-        self._best_mean_reward = float("-inf")
+            current_eval_count = len(getattr(self.eval_callback, "evaluations_timesteps", []))
+            if current_eval_count <= self._last_eval_count:
+                return True
+            if (
+                not hasattr(self.eval_callback, "last_mean_reward")
+                or self.eval_callback.last_mean_reward is None
+                or self.eval_callback.last_mean_reward == float("-inf")
+            ):
+                return True
 
-    def _on_step(self) -> bool:
-        from ray import tune
-        from ray.train import Checkpoint
+            self._last_eval_count = current_eval_count
 
-        current_eval_count = len(getattr(self.eval_callback, "evaluations_timesteps", []))
-        if current_eval_count <= self._last_eval_count:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                model_base = Path(tmpdir) / "model"
+                self._model_ref[0].save(str(model_base))
+                vecnorm_path = Path(tmpdir) / "vecnorm.pkl"
+                self.train_env.save(str(vecnorm_path))
+
+                checkpoint = Checkpoint.from_directory(tmpdir)
+                tune.report(
+                    {
+                        "best_mean_reward": float(self.eval_callback.best_mean_reward),
+                        "last_mean_reward": float(self.eval_callback.last_mean_reward),
+                        "timesteps": self.num_timesteps,
+                    },
+                    checkpoint=checkpoint,
+                )
+
+            if self._drive_best_model_dir and self.eval_callback.best_mean_reward > self._best_mean_reward:
+                self._best_mean_reward = self.eval_callback.best_mean_reward
+                best_src = Path(self.eval_callback.best_model_save_path)
+                _sync_to_drive(best_src, self._drive_best_model_dir, label=f"best@{self.num_timesteps}")
+
             return True
-        if (
-            not hasattr(self.eval_callback, "last_mean_reward")
-            or self.eval_callback.last_mean_reward is None
-            or self.eval_callback.last_mean_reward == float("-inf")
-        ):
-            return True
 
-        self._last_eval_count = current_eval_count
+    return _RayTuneReportCallback
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            model_base = Path(tmpdir) / "model"
-            self._model_ref[0].save(str(model_base))
-            vecnorm_path = Path(tmpdir) / "vecnorm.pkl"
-            self.train_env.save(str(vecnorm_path))
 
-            checkpoint = Checkpoint.from_directory(tmpdir)
-            tune.report(
-                {
-                    "best_mean_reward": float(self.eval_callback.best_mean_reward),
-                    "last_mean_reward": float(self.eval_callback.last_mean_reward),
-                    "timesteps": self.num_timesteps,
-                },
-                checkpoint=checkpoint,
-            )
+def RayTuneReportCallback(*args: Any, **kwargs: Any):
+    """Create a RayTuneReportCallback instance.
 
-        if self._drive_best_model_dir and self.eval_callback.best_mean_reward > self._best_mean_reward:
-            self._best_mean_reward = self.eval_callback.best_mean_reward
-            best_src = Path(self.eval_callback.best_model_save_path)
-            _sync_to_drive(best_src, self._drive_best_model_dir, label=f"best@{self.num_timesteps}")
-
-        return True
+    Defers importing ``stable_baselines3.common.callbacks.BaseCallback`` until
+    first call to avoid importing SB3 at module level.
+    """
+    cls = _make_ray_tune_report_callback_class()
+    return cls(*args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
