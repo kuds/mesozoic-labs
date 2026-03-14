@@ -418,6 +418,26 @@ class BaseDinoEnv(gym.Env, ABC):
         reward = -weight * lateral_vel_norm
         return reward, float(lateral_vel)
 
+    def _compute_speed_penalty(
+        self, vel_2d: np.ndarray, weight: float, threshold: float = 0.10, max_excess: float = 1.0
+    ) -> tuple[float, float]:
+        """Penalise absolute 2D speed exceeding a threshold.
+
+        Args:
+            vel_2d: 2D velocity vector (qvel[0:2]).
+            weight: Penalty weight.
+            threshold: Speed (m/s) below which no penalty applies.
+            max_excess: Speed above threshold at which penalty saturates.
+
+        Returns:
+            (reward, absolute_speed) tuple.
+        """
+        speed = float(np.linalg.norm(vel_2d))
+        excess = max(0.0, speed - threshold)
+        excess_norm = min(excess / max_excess, 1.0)
+        reward = -weight * excess_norm
+        return reward, speed
+
     def _init_gait_state(
         self,
         contact_threshold: float = 0.1,
