@@ -352,7 +352,7 @@ def _build_core_callbacks(
         EvalCollapseEarlyStopCallback,
         SaveVecNormalizeCallback,
     )
-    from .diagnostics import DiagnosticsCallback
+    from .diagnostics import DiagnosticsCallback as _DiagCB
     from .wandb_integration import WandbCallback
 
     callbacks = []
@@ -382,7 +382,7 @@ def _build_core_callbacks(
     )
     callbacks.append(checkpoint_callback)
 
-    callbacks.append(DiagnosticsCallback(log_dir=str(log_path), verbose=verbose))
+    callbacks.append(_DiagCB(log_dir=str(log_path), verbose=verbose))
 
     callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, verbose=verbose))
 

@@ -10,7 +10,6 @@ import pytest
 from environments.shared.train_base import (
     SpeciesConfig,
     _apply_overrides,
-    _build_core_callbacks,
     _cast_value,
     _create_or_load_model,
     _is_gcs_path,

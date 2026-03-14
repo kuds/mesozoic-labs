@@ -12,7 +12,6 @@ from environments.shared.scripts.sweep import (
     _validate_machine_type,
 )
 
-
 # ── _normalize_accelerator_type ──────────────────────────────────────────────
 
 
