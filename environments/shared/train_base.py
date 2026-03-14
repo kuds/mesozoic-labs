@@ -244,9 +244,7 @@ def _prepare_alg_kwargs(
     Returns ``(alg_kwargs, local_tb_dir, gcs_tb_path)`` where *local_tb_dir*
     is ``None`` when the output is not on a GCS FUSE mount.
     """
-    alg_kwargs = (
-        config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
-    )
+    alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
     alg_kwargs["verbose"] = verbose
 
     # TensorBoard buffering
@@ -491,7 +489,11 @@ def train(
     _load_vecnorm_into_envs(load_path, train_env, eval_env)
 
     alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
-        config, algorithm, verbose, log_path, use_tensorboard,
+        config,
+        algorithm,
+        verbose,
+        log_path,
+        use_tensorboard,
     )
 
     wandb_run = None
@@ -507,8 +509,16 @@ def train(
     logger.info("  Batch size: %s", alg_kwargs.get("batch_size", "N/A"))
 
     callbacks, eval_callback, _ = _build_core_callbacks(
-        sb3, eval_env, model_dir, log_path, stage, n_envs,
-        eval_freq, save_freq, verbose, use_wandb,
+        sb3,
+        eval_env,
+        model_dir,
+        log_path,
+        stage,
+        n_envs,
+        eval_freq,
+        save_freq,
+        verbose,
+        use_wandb,
     )
 
     if stage > 1 and load_path:
@@ -567,7 +577,12 @@ def train(
     )
 
     final_path = _save_final_and_sync_tb(
-        model, train_env, model_dir, stage, local_tb_dir, gcs_tb_path,
+        model,
+        train_env,
+        model_dir,
+        stage,
+        local_tb_dir,
+        gcs_tb_path,
     )
 
     train_env.close()
@@ -829,7 +844,11 @@ def train_curriculum(
         _load_vecnorm_into_envs(prev_vecnorm_path, train_env, eval_env)
 
         alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
-            config, algorithm, verbose, stage_dir, use_tensorboard,
+            config,
+            algorithm,
+            verbose,
+            stage_dir,
+            use_tensorboard,
         )
 
         wandb_run = None
@@ -839,8 +858,16 @@ def train_curriculum(
         model = _create_or_load_model(sb3, algorithm, alg_kwargs, train_env, load_path)
 
         callbacks, eval_callback, _ = _build_core_callbacks(
-            sb3, eval_env, model_dir, stage_dir, stage, n_envs,
-            eval_freq, save_freq, verbose, use_wandb,
+            sb3,
+            eval_env,
+            model_dir,
+            stage_dir,
+            stage,
+            n_envs,
+            eval_freq,
+            save_freq,
+            verbose,
+            use_wandb,
         )
 
         curriculum_cb = CurriculumCallback(
@@ -886,7 +913,12 @@ def train_curriculum(
             wandb_run.finish()
 
         final_path = _save_final_and_sync_tb(
-            model, train_env, model_dir, stage, local_tb_dir, gcs_tb_path,
+            model,
+            train_env,
+            model_dir,
+            stage,
+            local_tb_dir,
+            gcs_tb_path,
         )
 
         # Prefer loading the best model + its matched VecNormalize for the

@@ -124,7 +124,8 @@ def _make_submit_kwargs(search_space=None, **overrides):
         machine_type="n1-standard-8",
         accelerator_type="NVIDIA_TESLA_T4",
         accelerator_count=1,
-        search_space=search_space or {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}},
+        search_space=search_space
+        or {"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"}},
     )
     defaults.update(overrides)
     return defaults

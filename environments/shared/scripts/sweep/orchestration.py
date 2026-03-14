@@ -50,9 +50,7 @@ def _reconnect_or_collect_partial(
 
     try:
         prev_job = aiplatform.HyperparameterTuningJob.get(prev_resource)
-        prev_state_name = (
-            prev_job.state.name if hasattr(prev_job.state, "name") else str(prev_job.state)
-        )
+        prev_state_name = prev_job.state.name if hasattr(prev_job.state, "name") else str(prev_job.state)
 
         if "SUCCEEDED" in prev_state_name:
             logger.info("Previous job already completed successfully.")
@@ -76,7 +74,12 @@ def _reconnect_or_collect_partial(
                 prev_state_name,
             )
             partial_rows, resume_run = _try_collect_partial_from_job(
-                prev_job, stage, species, bucket, partial_rows, resume_run,
+                prev_job,
+                stage,
+                species,
+                bucket,
+                partial_rows,
+                resume_run,
             )
     except Exception as reconnect_exc:
         logger.warning(
@@ -168,7 +171,12 @@ def _handle_stage_failure(
         # Partial trial recovery
         if isinstance(exc, _SweepJobFailed) and exc.hpt_job is not None:
             partial_rows, _ = _try_collect_partial_from_job(
-                exc.hpt_job, stage, species, bucket, partial_rows, resume_run,
+                exc.hpt_job,
+                stage,
+                species,
+                bucket,
+                partial_rows,
+                resume_run,
             )
             if partial_rows:
                 stage_data = {
@@ -523,11 +531,16 @@ def launch_sweep(args: argparse.Namespace) -> None:
                         logger.info("Restored %d prior partial rows.", len(prior_partial))
 
                     ip_resume = prev_stage_data.get("resume_run", 0)
-                    hpt_job, job_resource_name, reconnected, partial_rows, resume_run = (
-                        _reconnect_or_collect_partial(
-                            aiplatform, prev_resource, stage, args.species, args.bucket,
-                            partial_rows, ip_resume, poll_interval, stage_timeout,
-                        )
+                    hpt_job, job_resource_name, reconnected, partial_rows, resume_run = _reconnect_or_collect_partial(
+                        aiplatform,
+                        prev_resource,
+                        stage,
+                        args.species,
+                        args.bucket,
+                        partial_rows,
+                        ip_resume,
+                        poll_interval,
+                        stage_timeout,
                     )
 
                 elif status == "partial":
@@ -682,8 +695,16 @@ def launch_sweep(args: argparse.Namespace) -> None:
 
     except Exception as exc:
         _handle_stage_failure(
-            exc, stage, args.species, args.algorithm, args.bucket, args.project,
-            sweep_state, state_stage_key, partial_rows, resume_run,
+            exc,
+            stage,
+            args.species,
+            args.algorithm,
+            args.bucket,
+            args.project,
+            sweep_state,
+            state_stage_key,
+            partial_rows,
+            resume_run,
         )
 
 
@@ -953,11 +974,16 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     )
 
                 ip_resume = in_progress_data.get("resume_run", 0)
-                hpt_job, job_resource_name, reconnected, partial_rows, resume_run = (
-                    _reconnect_or_collect_partial(
-                        aiplatform, prev_resource, stage, args.species, args.bucket,
-                        partial_rows, ip_resume, poll_interval, stage_timeout,
-                    )
+                hpt_job, job_resource_name, reconnected, partial_rows, resume_run = _reconnect_or_collect_partial(
+                    aiplatform,
+                    prev_resource,
+                    stage,
+                    args.species,
+                    args.bucket,
+                    partial_rows,
+                    ip_resume,
+                    poll_interval,
+                    stage_timeout,
                 )
                 remaining_trials = trials - len(partial_rows)
 
@@ -1134,8 +1160,16 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
         except Exception as exc:
             _handle_stage_failure(
-                exc, stage, args.species, args.algorithm, args.bucket, args.project,
-                sweep_state, str(stage), partial_rows, resume_run,
+                exc,
+                stage,
+                args.species,
+                args.algorithm,
+                args.bucket,
+                args.project,
+                sweep_state,
+                str(stage),
+                partial_rows,
+                resume_run,
                 fixed_trial_args=fixed_trial_args,
             )
 

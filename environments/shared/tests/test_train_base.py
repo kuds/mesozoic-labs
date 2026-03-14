@@ -347,7 +347,10 @@ class TestCreateOrLoadModel:
         kwargs = {"batch_size": 64, "policy_kwargs": {"net_arch": [256, 256]}}
         _create_or_load_model(sb3, "ppo", kwargs, env)
         sb3["PPO"].assert_called_once_with(
-            "MlpPolicy", env, policy_kwargs={"net_arch": [256, 256]}, batch_size=64,
+            "MlpPolicy",
+            env,
+            policy_kwargs={"net_arch": [256, 256]},
+            batch_size=64,
         )
         # policy_kwargs should be popped from kwargs
         assert "policy_kwargs" not in kwargs
@@ -387,7 +390,12 @@ class TestSaveFinalAndSyncTb:
         model_dir.mkdir()
 
         result = _save_final_and_sync_tb(
-            model, train_env, model_dir, 1, None, tmp_path / "tb",
+            model,
+            train_env,
+            model_dir,
+            1,
+            None,
+            tmp_path / "tb",
         )
 
         assert result == model_dir / "stage1_final"
@@ -420,6 +428,10 @@ class TestSaveFinalAndSyncTb:
         ):
             # Should not raise
             _save_final_and_sync_tb(
-                model, train_env, model_dir, 1,
-                tmp_path / "local_tb", tmp_path / "gcs_tb",
+                model,
+                train_env,
+                model_dir,
+                1,
+                tmp_path / "local_tb",
+                tmp_path / "gcs_tb",
             )
