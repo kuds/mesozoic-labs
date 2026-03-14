@@ -442,19 +442,41 @@ def train_trial(config: dict[str, Any]) -> None:
         if drive_best_model_dir:
             _sync_to_drive(model_dir, drive_best_model_dir, label="final")
 
+        # Post-training evaluation for distance + forward velocity metrics.
+        # Load the best model for evaluation (matches what gets handed off).
+        from ...evaluation import eval_policy
+
+        best_model_zip = model_dir / "best_model.zip"
+        best_vecnorm = model_dir / "best_model_vecnorm.pkl"
+        eval_model = model
+        if best_model_zip.exists():
+            eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
+            if best_vecnorm.exists():
+                load_vecnorm_stats(str(best_vecnorm), eval_env)
+        eval_env.training = False
+        eval_env.norm_reward = False
+
+        _, eval_lengths, eval_fwd_vels, _, eval_distances = eval_policy(
+            eval_model, eval_env, species_cfg.success_keys, n_episodes=30,
+        )
+        import numpy as _np
+
+        final_metrics = {
+            "best_mean_reward": float(eval_callback.best_mean_reward),
+            "best_mean_episode_length": float(_np.mean(eval_lengths)) if eval_lengths else 0.0,
+            "mean_forward_vel": float(_np.mean(eval_fwd_vels)) if eval_fwd_vels else 0.0,
+            "std_forward_vel": float(_np.std(eval_fwd_vels)) if eval_fwd_vels else 0.0,
+            "mean_distance_traveled": float(_np.mean(eval_distances)) if eval_distances else 0.0,
+            "timesteps": timesteps,
+            "done": True,
+        }
+
         # Final report
         with tempfile.TemporaryDirectory() as tmpdir:
             model.save(str(Path(tmpdir) / "model"))
             train_env.save(str(Path(tmpdir) / "vecnorm.pkl"))
             checkpoint = Checkpoint.from_directory(tmpdir)
-            tune.report(
-                {
-                    "best_mean_reward": float(eval_callback.best_mean_reward),
-                    "timesteps": timesteps,
-                    "done": True,
-                },
-                checkpoint=checkpoint,
-            )
+            tune.report(final_metrics, checkpoint=checkpoint)
     finally:
         train_env.close()
         eval_env.close()
@@ -495,6 +517,7 @@ def collect_ray_results(
             "last_mean_episode_length",
             "mean_forward_vel",
             "std_forward_vel",
+            "mean_distance_traveled",
             "mean_success_rate",
             "training_duration_seconds",
         ):

@@ -26,12 +26,13 @@ def eval_policy(
 ):
     """Evaluate a trained policy collecting per-episode metrics.
 
-    Runs *n_episodes* deterministic rollouts and returns four parallel lists:
+    Runs *n_episodes* deterministic rollouts and returns five parallel lists:
 
     * **rewards** -- total reward per episode
     * **lengths** -- step count per episode
     * **fwd_vels** -- mean forward velocity per episode
     * **successes** -- 1.0 if any *success_keys* triggered, else 0.0
+    * **distances** -- total distance traveled per episode (cumulative XY path)
     """
     import numpy as _np
 
@@ -39,12 +40,14 @@ def eval_policy(
     lengths: list[float] = []
     fwd_vels: list[float] = []
     successes: list[float] = []
+    distances: list[float] = []
 
     for _ in range(n_episodes):
         obs = eval_env.reset()
         ep_reward, ep_len = 0.0, 0
         ep_fwd: list[float] = []
         ep_success = 0.0
+        ep_distance = 0.0
         done = False
         while not done:
             action, _ = model.predict(obs, deterministic=True)
@@ -53,6 +56,8 @@ def eval_policy(
             ep_len += 1
             if "forward_vel" in infos[0]:
                 ep_fwd.append(float(infos[0]["forward_vel"]))
+            if "distance_traveled" in infos[0]:
+                ep_distance = float(infos[0]["distance_traveled"])
             if any(infos[0].get(k) for k in success_keys):
                 ep_success = 1.0
             done = bool(dones[0])
@@ -60,8 +65,9 @@ def eval_policy(
         lengths.append(float(ep_len))
         fwd_vels.append(float(_np.mean(ep_fwd)) if ep_fwd else 0.0)
         successes.append(ep_success)
+        distances.append(ep_distance)
 
-    return rewards, lengths, fwd_vels, successes
+    return rewards, lengths, fwd_vels, successes, distances
 
 
 def eval_policy_quality(
