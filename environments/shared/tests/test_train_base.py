@@ -3,6 +3,7 @@
 import dataclasses
 import math
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -10,8 +11,12 @@ from environments.shared.train_base import (
     SpeciesConfig,
     _apply_overrides,
     _cast_value,
+    _create_or_load_model,
     _is_gcs_path,
+    _load_vecnorm_into_envs,
     _make_local_tb_dir,
+    _prepare_alg_kwargs,
+    _save_final_and_sync_tb,
     _sync_tb_to_gcs,
     cosine_schedule,
     linear_schedule,
@@ -208,3 +213,225 @@ class TestSyncTbToGcs:
         # Should not raise
         _sync_tb_to_gcs(tmp_path / "nonexistent", str(dest))
         assert not dest.exists()
+
+
+# ── _prepare_alg_kwargs ──────────────────────────────────────────────────
+
+
+class TestPrepareAlgKwargs:
+    """Tests for the shared algorithm kwargs setup helper."""
+
+    def _make_config(self, **ppo_overrides):
+        ppo = {
+            "learning_rate": 3e-4,
+            "batch_size": 64,
+            "clip_range": 0.2,
+        }
+        ppo.update(ppo_overrides)
+        return {
+            "ppo_kwargs": ppo,
+            "sac_kwargs": {"learning_rate": 1e-3, "batch_size": 256},
+        }
+
+    def test_ppo_basic(self, tmp_path):
+        config = self._make_config()
+        kwargs, local_tb, gcs_tb = _prepare_alg_kwargs(config, "ppo", 1, tmp_path, True)
+        assert kwargs["learning_rate"] == 3e-4
+        assert kwargs["batch_size"] == 64
+        assert kwargs["verbose"] == 1
+        assert local_tb is None  # not GCS
+        assert gcs_tb == tmp_path / "tensorboard"
+
+    def test_sac_selects_sac_kwargs(self, tmp_path):
+        config = self._make_config()
+        kwargs, _, _ = _prepare_alg_kwargs(config, "sac", 0, tmp_path, True)
+        assert kwargs["learning_rate"] == 1e-3
+        assert kwargs["batch_size"] == 256
+
+    def test_linear_lr_schedule(self, tmp_path):
+        config = self._make_config(learning_rate_end=1e-5)
+        kwargs, _, _ = _prepare_alg_kwargs(config, "ppo", 1, tmp_path, False)
+        # learning_rate should be a callable schedule
+        assert callable(kwargs["learning_rate"])
+        assert kwargs["learning_rate"](1.0) == pytest.approx(3e-4)
+        assert kwargs["learning_rate"](0.0) == pytest.approx(1e-5)
+        # learning_rate_end should be consumed (popped)
+        assert "learning_rate_end" not in kwargs
+
+    def test_cosine_lr_schedule(self, tmp_path):
+        config = self._make_config(learning_rate_end=1e-5, lr_schedule="cosine")
+        kwargs, _, _ = _prepare_alg_kwargs(config, "ppo", 1, tmp_path, False)
+        assert callable(kwargs["learning_rate"])
+        assert kwargs["learning_rate"](1.0) == pytest.approx(3e-4)
+        assert kwargs["learning_rate"](0.0) == pytest.approx(1e-5)
+
+    def test_clip_range_annealing(self, tmp_path):
+        config = self._make_config(clip_range_end=0.05)
+        kwargs, _, _ = _prepare_alg_kwargs(config, "ppo", 1, tmp_path, False)
+        assert callable(kwargs["clip_range"])
+        assert kwargs["clip_range"](1.0) == pytest.approx(0.2)
+        assert kwargs["clip_range"](0.0) == pytest.approx(0.05)
+
+    def test_tb_disabled(self, tmp_path):
+        config = self._make_config()
+        kwargs, local_tb, _ = _prepare_alg_kwargs(config, "ppo", 1, tmp_path, False)
+        assert "tensorboard_log" not in kwargs
+        assert local_tb is None
+
+    def test_tb_gcs_buffering(self):
+        config = self._make_config()
+        gcs_path = Path("/gcs/bucket/run1")
+        kwargs, local_tb, gcs_tb = _prepare_alg_kwargs(config, "ppo", 1, gcs_path, True)
+        assert local_tb is not None
+        assert local_tb.exists()
+        assert kwargs["tensorboard_log"] == str(local_tb)
+
+    def test_does_not_mutate_original_config(self, tmp_path):
+        config = self._make_config(learning_rate_end=1e-5, clip_range_end=0.05)
+        original_ppo = config["ppo_kwargs"].copy()
+        _prepare_alg_kwargs(config, "ppo", 1, tmp_path, False)
+        # Original config should be unchanged
+        assert config["ppo_kwargs"] == original_ppo
+
+
+# ── _load_vecnorm_into_envs ──────────────────────────────────────────────
+
+
+class TestLoadVecnormIntoEnvs:
+    def test_no_load_path_disables_eval_training(self):
+        train_env = MagicMock()
+        eval_env = MagicMock()
+        _load_vecnorm_into_envs(None, train_env, eval_env)
+        assert eval_env.training is False
+        assert eval_env.norm_reward is False
+
+    @patch("environments.shared.train_base.logger")
+    def test_with_load_path_calls_load_vecnorm(self, mock_logger):
+        train_env = MagicMock()
+        eval_env = MagicMock()
+        with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
+            _load_vecnorm_into_envs("/path/to/model.zip", train_env, eval_env)
+        mock_load.assert_called_once_with("/path/to/model_vecnorm.pkl", train_env, eval_env)
+
+    @patch("environments.shared.train_base.logger")
+    def test_strips_zip_extension(self, mock_logger):
+        train_env = MagicMock()
+        eval_env = MagicMock()
+        with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
+            _load_vecnorm_into_envs("/path/model.zip", train_env, eval_env)
+        mock_load.assert_called_once_with("/path/model_vecnorm.pkl", train_env, eval_env)
+
+    @patch("environments.shared.train_base.logger")
+    def test_fallback_when_vecnorm_missing(self, mock_logger):
+        train_env = MagicMock()
+        eval_env = MagicMock()
+        with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=False):
+            _load_vecnorm_into_envs("/path/model", train_env, eval_env)
+        assert eval_env.training is False
+        assert eval_env.norm_reward is False
+
+
+# ── _create_or_load_model ────────────────────────────────────────────────
+
+
+class TestCreateOrLoadModel:
+    def _make_sb3(self):
+        return {
+            "PPO": MagicMock(),
+            "SAC": MagicMock(),
+        }
+
+    def test_creates_new_ppo_model(self):
+        sb3 = self._make_sb3()
+        env = MagicMock()
+        kwargs = {"batch_size": 64, "policy_kwargs": {"net_arch": [256, 256]}}
+        _create_or_load_model(sb3, "ppo", kwargs, env)
+        sb3["PPO"].assert_called_once_with(
+            "MlpPolicy",
+            env,
+            policy_kwargs={"net_arch": [256, 256]},
+            batch_size=64,
+        )
+        # policy_kwargs should be popped from kwargs
+        assert "policy_kwargs" not in kwargs
+
+    def test_creates_new_sac_model(self):
+        sb3 = self._make_sb3()
+        env = MagicMock()
+        kwargs = {"batch_size": 256}
+        _create_or_load_model(sb3, "sac", kwargs, env)
+        sb3["SAC"].assert_called_once()
+
+    def test_loads_existing_model(self):
+        sb3 = self._make_sb3()
+        env = MagicMock()
+        kwargs = {"batch_size": 64, "policy_kwargs": {"net_arch": [128]}}
+        _create_or_load_model(sb3, "ppo", kwargs, env, load_path="/path/model")
+        sb3["PPO"].load.assert_called_once_with("/path/model", env=env, batch_size=64)
+        # policy_kwargs should NOT be passed to .load()
+        call_kwargs = sb3["PPO"].load.call_args
+        assert "policy_kwargs" not in call_kwargs.kwargs
+
+    def test_pops_policy_kwargs_even_on_load(self):
+        sb3 = self._make_sb3()
+        kwargs = {"policy_kwargs": {"net_arch": [64]}, "lr": 1e-3}
+        _create_or_load_model(sb3, "ppo", kwargs, MagicMock(), load_path="/p")
+        assert "policy_kwargs" not in kwargs
+
+
+# ── _save_final_and_sync_tb ──────────────────────────────────────────────
+
+
+class TestSaveFinalAndSyncTb:
+    def test_saves_model_and_vecnorm(self, tmp_path):
+        model = MagicMock()
+        train_env = MagicMock()
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+
+        result = _save_final_and_sync_tb(
+            model,
+            train_env,
+            model_dir,
+            1,
+            None,
+            tmp_path / "tb",
+        )
+
+        assert result == model_dir / "stage1_final"
+        model.save.assert_called_once_with(str(model_dir / "stage1_final"))
+        train_env.save.assert_called_once_with(str(model_dir / "stage1_final") + "_vecnorm.pkl")
+
+    def test_syncs_tb_when_local_dir_provided(self, tmp_path):
+        model = MagicMock()
+        train_env = MagicMock()
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+        local_tb = tmp_path / "local_tb"
+        local_tb.mkdir()
+        (local_tb / "events.out").write_text("data")
+        gcs_tb = tmp_path / "gcs_tb"
+
+        _save_final_and_sync_tb(model, train_env, model_dir, 2, local_tb, gcs_tb)
+
+        assert (gcs_tb / "events.out").read_text() == "data"
+
+    def test_tb_sync_failure_does_not_raise(self, tmp_path):
+        model = MagicMock()
+        train_env = MagicMock()
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+
+        with patch(
+            "environments.shared.train_base._sync_tb_to_gcs",
+            side_effect=OSError("FUSE error"),
+        ):
+            # Should not raise
+            _save_final_and_sync_tb(
+                model,
+                train_env,
+                model_dir,
+                1,
+                tmp_path / "local_tb",
+                tmp_path / "gcs_tb",
+            )
