@@ -25,6 +25,7 @@ Reward components:
     - Gait stability (encourage coordinated quadrupedal gait)
     - Food reach bonus (when head gets close to food)
     - Approach shaping (distance to food)
+    - Speed penalty (penalise absolute speed above threshold)
 """
 
 from __future__ import annotations
@@ -58,6 +59,8 @@ class BrachioEnv(BaseDinoEnv):
         energy_penalty_weight: float = 0.001,
         fall_penalty: float = -100.0,
         gait_stability_weight: float = 0.05,
+        speed_penalty_weight: float = 0.0,
+        speed_penalty_threshold: float = 0.10,
         food_reach_bonus: float = 10.0,
         food_reach_threshold: float = 0.5,
         food_approach_weight: float = 1.0,
@@ -70,6 +73,8 @@ class BrachioEnv(BaseDinoEnv):
         model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus.xml")
 
         # Brachio-specific reward weights
+        self.speed_penalty_weight = speed_penalty_weight
+        self.speed_penalty_threshold = speed_penalty_threshold
         self.gait_stability_weight = gait_stability_weight
         self.food_reach_bonus = food_reach_bonus
         self.food_reach_threshold = food_reach_threshold
@@ -243,6 +248,13 @@ class BrachioEnv(BaseDinoEnv):
         reward_food = food_reward
         info["reward_food"] = reward_food
 
+        # 5b. Speed penalty (penalise absolute speed above threshold)
+        reward_speed, abs_speed = self._compute_speed_penalty(
+            vel_2d, self.speed_penalty_weight, self.speed_penalty_threshold
+        )
+        info["abs_speed"] = abs_speed
+        info["reward_speed"] = reward_speed
+
         # 6. Approach shaping
         head_food_dist_f = float(head_food_dist)
         reward_approach, approach_delta = self._compute_approach_shaping(
@@ -253,7 +265,7 @@ class BrachioEnv(BaseDinoEnv):
         info["reward_approach"] = reward_approach
 
         # Total reward
-        total_reward = reward_forward + reward_alive + reward_energy + reward_gait + reward_food + reward_approach
+        total_reward = reward_forward + reward_alive + reward_energy + reward_gait + reward_food + reward_approach + reward_speed
         info["reward_total"] = total_reward
 
         return total_reward, info
