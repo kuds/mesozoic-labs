@@ -1,0 +1,131 @@
+# Quality scoring configuration for post-analysis trial ranking.
+#
+# Each [stage_N] section defines weighted metrics used to compute a
+# composite quality score after training completes.  The score is used
+# for ranking trials in sweep post-analysis — it does NOT affect the
+# training objective (which remains best_mean_reward for ASHA / HPT).
+#
+# Metric keys match the column names in collected_results.csv or the
+# keys produced by LocomotionMetrics aggregation in post-sweep analysis.
+#
+# direction:
+#   "maximize"     — higher is better (e.g., episode_length)
+#   "minimize"     — lower is better (e.g., tilt_angle)
+#   "minimize_abs" — closer to zero is better (e.g., forward_vel in stage 1)
+#
+# Normalization: min-max within the current trial set (relative ranking).
+
+# ── Stage 1: Balance ─────────────────────────────────────────────────
+# Goal: stand still and upright without falling or drifting.
+# Forward velocity near zero is ideal (no walking/spinning reward).
+[stage_1]
+
+[stage_1.best_mean_reward]
+weight = 0.25
+direction = "maximize"
+
+[stage_1.ep_length]
+weight = 0.25
+direction = "maximize"
+
+[stage_1."fwd_vel_m/s"]
+weight = 0.20
+direction = "minimize_abs"
+
+[stage_1.tilt_rad]
+weight = 0.15
+direction = "minimize"
+
+[stage_1.pelvis_height_m]
+weight = 0.10
+direction = "maximize"
+
+[stage_1.cost_of_transport]
+weight = 0.05
+direction = "minimize"
+
+
+# ── Stage 2: Locomotion ──────────────────────────────────────────────
+# Goal: walk/run forward with good gait quality.
+# Forward velocity and distance are the primary signals.
+[stage_2]
+
+[stage_2.best_mean_reward]
+weight = 0.15
+direction = "maximize"
+
+[stage_2."fwd_vel_m/s"]
+weight = 0.25
+direction = "maximize"
+
+[stage_2.distance_m]
+weight = 0.20
+direction = "maximize"
+
+[stage_2.ep_length]
+weight = 0.10
+direction = "maximize"
+
+[stage_2.gait_symmetry]
+weight = 0.10
+direction = "maximize"
+
+[stage_2.vel_consistency]
+weight = 0.05
+direction = "maximize"
+
+[stage_2.cost_of_transport]
+weight = 0.10
+direction = "minimize"
+
+[stage_2.tilt_rad]
+weight = 0.05
+direction = "minimize"
+
+
+# ── Stage 3: Species Behavior ────────────────────────────────────────
+# Goal: perform strike/bite/food-reach while maintaining locomotion.
+# Shorter episodes with high success rate = efficient prey engagement.
+# A dino that finds and contacts the target quickly is better than one
+# that wanders for the full episode before getting lucky.
+[stage_3]
+
+[stage_3.best_mean_reward]
+weight = 0.10
+direction = "maximize"
+
+[stage_3.eval_reward]
+weight = 0.10
+direction = "maximize"
+
+[stage_3."fwd_vel_m/s"]
+weight = 0.10
+direction = "maximize"
+
+[stage_3.distance_m]
+weight = 0.10
+direction = "maximize"
+
+[stage_3.ep_length]
+weight = 0.15
+direction = "minimize"
+
+[stage_3.gait_symmetry]
+weight = 0.10
+direction = "maximize"
+
+[stage_3.cost_of_transport]
+weight = 0.10
+direction = "minimize"
+
+[stage_3.tilt_rad]
+weight = 0.05
+direction = "minimize"
+
+[stage_3.pelvis_height_m]
+weight = 0.05
+direction = "maximize"
+
+[stage_3.mean_success_rate]
+weight = 0.15
+direction = "maximize"

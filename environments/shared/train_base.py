@@ -718,20 +718,31 @@ def _report_hpt_metrics(
     except Exception:
         logger.warning("Quality evaluation failed — skipping quality metrics.", exc_info=True)
 
-    if stage >= 2:
-        # Forward velocity and success rate evaluation for stage advancement.
-        _, _, fwd_vels, success_flags = eval_policy(eval_model, eval_env, species_cfg.success_keys, n_episodes=30)
-        if fwd_vels:
-            best_fwd = float(_np.mean(fwd_vels))
-            aux_metrics["best_mean_forward_vel"] = best_fwd
-            logger.info("HPT metric reported: best_mean_forward_vel=%.4f", best_fwd)
-        if stage >= 3 and success_flags:
-            best_success = float(_np.mean(success_flags))
-            aux_metrics["best_mean_success_rate"] = best_success
-            logger.info(
-                "HPT metric reported: best_mean_success_rate=%.4f",
-                best_success,
-            )
+    # Forward velocity, distance, and success rate evaluation.
+    # Run for all stages so mean_distance_traveled is always captured.
+    _, _, fwd_vels, success_flags, distances = eval_policy(
+        eval_model,
+        eval_env,
+        species_cfg.success_keys,
+        n_episodes=30,
+    )
+    if fwd_vels:
+        mean_fwd = float(_np.mean(fwd_vels))
+        aux_metrics["mean_forward_vel"] = mean_fwd
+        # Keep backward-compat alias used by existing sweep analysis.
+        aux_metrics["best_mean_forward_vel"] = mean_fwd
+        logger.info("HPT metric reported: mean_forward_vel=%.4f", mean_fwd)
+    if distances:
+        mean_dist = float(_np.mean(distances))
+        aux_metrics["mean_distance_traveled"] = mean_dist
+        logger.info("HPT metric reported: mean_distance_traveled=%.4f", mean_dist)
+    if stage >= 3 and success_flags:
+        best_success = float(_np.mean(success_flags))
+        aux_metrics["best_mean_success_rate"] = best_success
+        logger.info(
+            "HPT metric reported: best_mean_success_rate=%.4f",
+            best_success,
+        )
 
     # Include key hyperparameters in the sidecar so offline result
     # collection works even when stage_config.json is missing.

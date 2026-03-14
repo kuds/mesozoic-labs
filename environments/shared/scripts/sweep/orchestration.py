@@ -685,6 +685,11 @@ def launch_sweep(args: argparse.Namespace) -> None:
             project=args.project,
         )
 
+        # Apply quality scoring before writing CSV
+        from .scoring import compute_quality_scores
+
+        compute_quality_scores(stage_rows, stage)
+
         # Write results CSV and upload
         csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}_stage{stage}.csv")
         write_results_csv(stage_rows, csv_path)
@@ -1172,6 +1177,14 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 resume_run,
                 fixed_trial_args=fixed_trial_args,
             )
+
+    # Apply quality scoring per stage before writing combined CSV
+    from .scoring import compute_quality_scores
+
+    stages_in_rows = sorted({r["stage"] for r in all_rows})
+    for s in stages_in_rows:
+        stage_subset = [r for r in all_rows if r["stage"] == s]
+        compute_quality_scores(stage_subset, s)
 
     # Write a combined CSV of every trial across all three stages
     csv_path = Path(f"sweep_results_{args.species}_{args.algorithm}.csv")

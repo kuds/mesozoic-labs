@@ -32,24 +32,27 @@ class TestEvalPolicy:
         env.step.side_effect = step_returns
         return env
 
-    def test_returns_four_lists(self):
+    def test_returns_five_lists(self):
         env = self._make_mock_env(2, steps_per_ep=3)
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        rewards, lengths, fwd_vels, successes = eval_policy(model, env, success_keys=["strike_success"], n_episodes=2)
+        rewards, lengths, fwd_vels, successes, distances = eval_policy(
+            model, env, success_keys=["strike_success"], n_episodes=2
+        )
 
         assert len(rewards) == 2
         assert len(lengths) == 2
         assert len(fwd_vels) == 2
         assert len(successes) == 2
+        assert len(distances) == 2
 
     def test_episode_lengths_correct(self):
         env = self._make_mock_env(1, steps_per_ep=4)
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, lengths, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, lengths, _, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
 
         assert lengths[0] == 4.0
 
@@ -58,7 +61,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        rewards, _, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        rewards, _, _, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
 
         assert rewards[0] == pytest.approx(3.0)  # 3 steps * 1.0 reward
 
@@ -67,7 +70,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, _, fwd_vels, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, _, fwd_vels, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
 
         assert fwd_vels[0] > 0
 
@@ -85,7 +88,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, _, _, successes = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, _, _, successes, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
 
         assert successes[0] == 1.0
 
@@ -100,7 +103,7 @@ class TestEvalPolicy:
         model = MagicMock()
         model.predict.return_value = (np.array([0.0]), None)
 
-        _, _, fwd_vels, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
+        _, _, fwd_vels, _, _ = eval_policy(model, env, success_keys=["strike_success"], n_episodes=1)
 
         assert fwd_vels[0] == 0.0
 
