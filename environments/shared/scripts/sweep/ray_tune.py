@@ -201,6 +201,82 @@ def TrialTerminationCallback(*args: Any, **kwargs: Any):
 
 
 # ---------------------------------------------------------------------------
+# Ray Tune callback: sync experiment state to Drive for cross-session resume
+# ---------------------------------------------------------------------------
+
+
+def _make_experiment_state_sync_callback_class():
+    """Build ExperimentStateSyncCallback as a proper Callback subclass at runtime."""
+    from ray.tune import Callback
+
+    class _ExperimentStateSyncCallback(Callback):
+        """Periodically syncs Ray Tune experiment state to Google Drive.
+
+        This enables cross-session resume: if a Colab session terminates,
+        the experiment state can be restored from Drive on the next session
+        so that ``Tuner.restore()`` can pick up where it left off.
+
+        Syncs happen:
+        - After every trial completes (captures newly finished results)
+        - Periodically based on ``sync_interval_s`` (captures in-progress state)
+        """
+
+        def __init__(
+            self,
+            local_experiment_dir: str | Path,
+            drive_ray_results_dir: str | Path,
+            sync_interval_s: int = 300,
+        ) -> None:
+            self._local_dir = Path(local_experiment_dir)
+            self._drive_dir = Path(drive_ray_results_dir) / self._local_dir.name
+            self._sync_interval_s = sync_interval_s
+            self._last_sync_time = 0.0
+
+        def _sync(self, reason: str = "") -> None:
+            """Copy local experiment state to Drive."""
+            if not self._local_dir.exists():
+                return
+            try:
+                self._drive_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copytree(
+                    str(self._local_dir),
+                    str(self._drive_dir),
+                    dirs_exist_ok=True,
+                )
+                self._last_sync_time = time.time()
+                logger.info("Experiment state synced to Drive (%s)", reason)
+            except OSError as e:
+                logger.warning("Experiment state sync failed: %s", e)
+
+        def on_trial_complete(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
+            self._sync(reason=f"trial {trial.trial_id} complete")
+
+        def on_trial_result(
+            self,
+            iteration: int,
+            trials: list[Any],
+            trial: Any,
+            result: dict[str, Any],
+            **info: Any,
+        ) -> None:
+            now = time.time()
+            if now - self._last_sync_time >= self._sync_interval_s:
+                self._sync(reason="periodic")
+
+    return _ExperimentStateSyncCallback
+
+
+def ExperimentStateSyncCallback(*args: Any, **kwargs: Any):
+    """Create an ExperimentStateSyncCallback instance.
+
+    Defers importing ``ray.tune.Callback`` until first call to avoid importing
+    Ray at module level.
+    """
+    cls = _make_experiment_state_sync_callback_class()
+    return cls(*args, **kwargs)
+
+
+# ---------------------------------------------------------------------------
 # Config application
 # ---------------------------------------------------------------------------
 
