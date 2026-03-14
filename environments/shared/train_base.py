@@ -1019,14 +1019,15 @@ def _record_stage_result(
 
     from .config import append_stage_result_csv
 
-    algo_key = "sac_kwargs" if algorithm == "sac" else "ppo_kwargs"
+    algo_prefix = "sac" if algorithm == "sac" else "ppo"
+    algo_key = f"{algo_prefix}_kwargs"
     algo_kwargs = config[algo_key]
     env_kwargs = config["env_kwargs"]
 
-    avg_reward: float | str = eval_callback.best_mean_reward
-    std_reward: float | str = ""
-    avg_ep_length: float | str = ""
-    std_ep_length: float | str = ""
+    best_mean_reward: float | str = eval_callback.best_mean_reward
+    best_mean_episode_length: float | str = ""
+    last_mean_reward: float | str = ""
+    last_mean_episode_length: float | str = ""
     eval_npz = stage_dir / "evaluations.npz"
     if eval_npz.exists():
         eval_data = _np.load(str(eval_npz))
@@ -1034,10 +1035,11 @@ def _record_stage_result(
         eval_lengths = eval_data["ep_lengths"]
         mean_rewards_per_eval = eval_rewards.mean(axis=1)
         best_idx = int(mean_rewards_per_eval.argmax())
-        avg_reward = round(float(mean_rewards_per_eval[best_idx]), 2)
-        std_reward = round(float(eval_rewards[best_idx].std()), 2)
-        avg_ep_length = round(float(eval_lengths[best_idx].mean()), 1)
-        std_ep_length = round(float(eval_lengths[best_idx].std()), 1)
+        best_mean_reward = round(float(mean_rewards_per_eval[best_idx]), 2)
+        best_mean_episode_length = round(float(eval_lengths[best_idx].mean()), 1)
+        # Last eval as "final" metrics
+        last_mean_reward = round(float(mean_rewards_per_eval[-1]), 2)
+        last_mean_episode_length = round(float(eval_lengths[-1].mean()), 1)
 
     net_arch_val = algo_kwargs.get("policy_kwargs", {}).get("net_arch", "")
     if isinstance(net_arch_val, (list, tuple)):
@@ -1045,6 +1047,8 @@ def _record_stage_result(
     else:
         net_arch_str = str(net_arch_val) if net_arch_val else ""
 
+    # Use canonical column names matching CSV_METRIC_COLUMNS and prefixed
+    # hyperparameter conventions from the sweep CSV format.
     result_row: dict = {
         "species": species,
         "algorithm": algorithm.upper(),
@@ -1052,24 +1056,28 @@ def _record_stage_result(
         "run_dir": base_dir.name,
         "stage": stage,
         "stage_name": config["name"],
-        "passed": bool(curriculum_cb is not None and curriculum_cb.ready_to_advance),
-        "avg_reward": avg_reward,
-        "std_reward": std_reward,
-        "avg_ep_length": avg_ep_length,
-        "std_ep_length": std_ep_length,
-        "timesteps": total_timesteps,
-        "threshold_reward": cur_kwargs.get("min_avg_reward", ""),
-        "threshold_ep_length": cur_kwargs.get("min_avg_episode_length", ""),
-        "learning_rate": algo_kwargs.get("learning_rate", ""),
-        "batch_size": algo_kwargs.get("batch_size", ""),
-        "gamma": algo_kwargs.get("gamma", ""),
-        "net_arch": net_arch_str,
         "seed": seed,
         "n_envs": n_envs,
-        "alive_bonus": env_kwargs.get("alive_bonus", ""),
-        "energy_penalty": env_kwargs.get("energy_penalty_weight", ""),
-        "forward_vel_weight": env_kwargs.get("forward_vel_weight", ""),
-        "posture_weight": env_kwargs.get("posture_weight", ""),
+        # Prefixed hyperparameters (matching sweep CSV conventions)
+        f"{algo_prefix}_learning_rate": algo_kwargs.get("learning_rate", ""),
+        f"{algo_prefix}_batch_size": algo_kwargs.get("batch_size", ""),
+        f"{algo_prefix}_gamma": algo_kwargs.get("gamma", ""),
+        f"{algo_prefix}_net_arch": net_arch_str,
+        "env_alive_bonus": env_kwargs.get("alive_bonus", ""),
+        "env_energy_penalty_weight": env_kwargs.get("energy_penalty_weight", ""),
+        "env_forward_vel_weight": env_kwargs.get("forward_vel_weight", ""),
+        "env_posture_weight": env_kwargs.get("posture_weight", ""),
+        # Canonical metric columns
+        "best_mean_reward": best_mean_reward,
+        "best_mean_episode_length": best_mean_episode_length,
+        "last_mean_reward": last_mean_reward,
+        "last_mean_episode_length": last_mean_episode_length,
+        "training_duration_seconds": "",
+        "reward_threshold": cur_kwargs.get("min_avg_reward", ""),
+        "ep_length_threshold": cur_kwargs.get("min_avg_episode_length", ""),
+        "forward_vel_threshold": cur_kwargs.get("min_avg_forward_vel", ""),
+        "success_rate_threshold": cur_kwargs.get("min_success_rate", ""),
+        "stage_passed": bool(curriculum_cb is not None and curriculum_cb.ready_to_advance),
     }
     append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)
     logger.info(

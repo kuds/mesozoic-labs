@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from environments.shared.reporting import CSV_METRIC_COLUMNS
+from environments.shared.reporting import write_results_csv as _write_results_csv
 
 from .constants import SweepStageError
 
@@ -234,6 +235,9 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
 def write_results_csv(rows: list[dict], path: str | Path) -> Path:
     """Write sweep trial results to a CSV file.
 
+    Thin wrapper around :func:`environments.shared.reporting.write_results_csv`
+    with sweep-specific fixed columns (``trial_id``, ``stage``).
+
     Each row records the trial ID, stage, all hyperparameter values,
     performance metrics, curriculum thresholds, and whether the trial
     met all stage advancement criteria.
@@ -241,55 +245,16 @@ def write_results_csv(rows: list[dict], path: str | Path) -> Path:
     Args:
         rows: List of result dicts from :func:`_collect_trial_results`.
         path: Output CSV path (parent directories are created as needed).
+            Supports ``gs://`` URIs.
 
     Returns:
         Path to the written CSV file.
     """
-    import csv
-    import tempfile
-
-    path_str = str(path)
-    is_gcs = path_str.startswith("gs://")
-
-    if is_gcs:
-        local_path = Path(tempfile.NamedTemporaryFile(suffix=".csv", delete=False).name)
-    else:
-        local_path = Path(path_str)
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if not rows:
-        logger.warning("No trial rows to write — skipping CSV")
-        return local_path if not is_gcs else Path(path_str)
-
-    fixed_cols = ["trial_id", "stage"]
-    # Collect eval_* quality metric columns across all rows (union, sorted)
-    eval_cols: list[str] = sorted({k for row in rows for k in row if k.startswith("eval_")})
-    # Collect all hyperparameter column names across all rows (union, sorted)
-    all_known = set(fixed_cols + CSV_METRIC_COLUMNS + eval_cols)
-    hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in all_known})
-    fieldnames = fixed_cols + hparam_cols + CSV_METRIC_COLUMNS + eval_cols
-
-    with open(local_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
-
-    if is_gcs:
-        from google.cloud import storage
-
-        if not path_str.startswith("gs://"):
-            raise ValueError(f"Not a gs:// URI: {path_str}")
-        without_scheme = path_str[len("gs://") :]
-        bucket_name, _, blob_name = without_scheme.partition("/")
-        try:
-            client = storage.Client()
-            bucket = client.bucket(bucket_name)
-            bucket.blob(blob_name).upload_from_filename(str(local_path))
-        finally:
-            local_path.unlink(missing_ok=True)
-
-    logger.info("Sweep results written to: %s", path_str)
-    return Path(path_str)
+    return _write_results_csv(
+        rows,
+        path,
+        fixed_columns=["trial_id", "stage"],
+    )
 
 
 def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_dir: str | Path | None = None) -> None:

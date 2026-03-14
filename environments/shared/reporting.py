@@ -8,6 +8,7 @@ notebook and CLI training scripts can produce consistent output.
 
 from __future__ import annotations
 
+import csv as _csv
 import json as _json
 import logging
 from datetime import datetime
@@ -38,6 +39,154 @@ CSV_METRIC_COLUMNS: list[str] = [
     "quality_score",
     "quality_rank",
 ]
+
+
+def _compute_fieldnames(
+    rows: list[dict[str, Any]],
+    fixed_columns: list[str] | None = None,
+) -> list[str]:
+    """Derive ordered fieldnames from *rows*.
+
+    Column order: *fixed_columns* → hyperparameter columns (sorted) →
+    ``CSV_METRIC_COLUMNS`` → ``eval_*`` columns (sorted).
+
+    Any key in a row dict that is not in *fixed_columns*,
+    ``CSV_METRIC_COLUMNS``, or prefixed with ``eval_`` is treated as a
+    hyperparameter column.
+    """
+    if fixed_columns is None:
+        fixed_columns = []
+    eval_cols: list[str] = sorted({k for row in rows for k in row if k.startswith("eval_")})
+    all_known = set(fixed_columns) | set(CSV_METRIC_COLUMNS) | set(eval_cols)
+    hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in all_known})
+    return fixed_columns + hparam_cols + CSV_METRIC_COLUMNS + eval_cols
+
+
+def write_results_csv(
+    rows: list[dict[str, Any]],
+    path: str | Path,
+    *,
+    fixed_columns: list[str] | None = None,
+    append: bool = False,
+) -> Path:
+    """Write (or append) result rows to a CSV file.
+
+    This is the single shared CSV writer used by single-run training,
+    sweep result collection, and CLI curriculum training.  All callers
+    build a flat row dict with prefixed hyperparameter keys (``ppo_*``,
+    ``env_*``, …), canonical metric keys from :data:`CSV_METRIC_COLUMNS`,
+    and optional ``eval_*`` quality-metric keys, then delegate the actual
+    file I/O to this function.
+
+    Args:
+        rows: Flat result dicts (one per trial/stage).
+        path: Output CSV path.  ``gs://`` URIs are supported for batch
+            writes (the file is written locally first, then uploaded).
+        fixed_columns: Column names that appear first in the header, in
+            the order given.  Remaining non-metric, non-eval keys are
+            treated as hyperparameter columns and sorted alphabetically.
+            When *None*, all non-metric/non-eval keys are sorted.
+        append: When *True*, rows are appended to an existing file.  If
+            the file does not yet exist it is created with a header.  If
+            new keys appear that were not in the original header the file
+            is rewritten with the expanded column set.  Append mode does
+            not support ``gs://`` URIs.
+
+    Returns:
+        Path to the written CSV file.
+    """
+    import tempfile
+
+    path_str = str(path)
+    is_gcs = path_str.startswith("gs://")
+
+    if append and is_gcs:
+        raise ValueError("Append mode is not supported for gs:// URIs")
+
+    if not rows:
+        if not append:
+            logger.warning("No result rows to write — skipping CSV")
+        return Path(path_str)
+
+    # ── Append mode ────────────────────────────────────────────────────
+    if append:
+        local_path = Path(path_str)
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if not local_path.exists():
+            fieldnames = _compute_fieldnames(rows, fixed_columns)
+            with open(local_path, "w", newline="") as f:
+                writer = _csv.DictWriter(
+                    f,
+                    fieldnames=fieldnames,
+                    extrasaction="ignore",
+                )
+                writer.writeheader()
+                writer.writerows(rows)
+        else:
+            with open(local_path, "r", newline="") as f:
+                reader = _csv.DictReader(f)
+                existing_fieldnames: list[str] = list(reader.fieldnames or [])
+                existing_rows = list(reader)
+
+            new_keys = [k for row in rows for k in row if k not in existing_fieldnames]
+            if new_keys:
+                # Rewrite with canonical column ordering so new keys land
+                # in the correct position.
+                all_rows = existing_rows + list(rows)
+                fieldnames = _compute_fieldnames(all_rows, fixed_columns)
+                with open(local_path, "w", newline="") as f:
+                    writer = _csv.DictWriter(
+                        f,
+                        fieldnames=fieldnames,
+                        extrasaction="ignore",
+                    )
+                    writer.writeheader()
+                    writer.writerows(existing_rows)
+                    writer.writerows(rows)
+            else:
+                with open(local_path, "a", newline="") as f:
+                    writer = _csv.DictWriter(
+                        f,
+                        fieldnames=existing_fieldnames,
+                        extrasaction="ignore",
+                    )
+                    writer.writerows(rows)
+
+        logger.info("Results CSV updated: %s", local_path)
+        return local_path
+
+    # ── Batch mode ─────────────────────────────────────────────────────
+    if is_gcs:
+        local_path = Path(tempfile.NamedTemporaryFile(suffix=".csv", delete=False).name)
+    else:
+        local_path = Path(path_str)
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fieldnames = _compute_fieldnames(rows, fixed_columns)
+    with open(local_path, "w", newline="") as f:
+        writer = _csv.DictWriter(
+            f,
+            fieldnames=fieldnames,
+            extrasaction="ignore",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+    if is_gcs:
+        from google.cloud import storage
+
+        without_scheme = path_str[len("gs://") :]
+        bucket_name, _, blob_name = without_scheme.partition("/")
+        try:
+            client = storage.Client()
+            bucket = client.bucket(bucket_name)
+            bucket.blob(blob_name).upload_from_filename(str(local_path))
+        finally:
+            local_path.unlink(missing_ok=True)
+
+    logger.info("Results CSV written to: %s", path_str)
+    return Path(path_str)
 
 
 def format_duration(seconds: float) -> str:
@@ -296,8 +445,6 @@ def save_results_csv(
 
     Returns the path to the written CSV file.
     """
-    import csv as _csv
-
     run_dir = Path(run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -359,27 +506,11 @@ def save_results_csv(
 
         rows.append(row)
 
-    if not rows:
-        logger.warning("No stage results to write — skipping CSV")
-        csv_path = run_dir / "collected_results.csv"
-        return csv_path
-
-    # Build column order: fixed → hyperparams (sorted) → metrics → eval_*
-    fixed_cols = ["species", "algorithm", "seed", "stage"]
-    all_known = set(fixed_cols + CSV_METRIC_COLUMNS)
-    eval_cols: list[str] = sorted({k for row in rows for k in row if k.startswith("eval_")})
-    all_known.update(eval_cols)
-    hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in all_known})
-    fieldnames = fixed_cols + hparam_cols + CSV_METRIC_COLUMNS + eval_cols
-
-    csv_path = run_dir / "collected_results.csv"
-    with open(csv_path, "w", newline="") as f:
-        writer = _csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
-
-    logger.info("Training results CSV written to: %s", csv_path)
-    return csv_path
+    return write_results_csv(
+        rows,
+        run_dir / "collected_results.csv",
+        fixed_columns=["species", "algorithm", "seed", "stage"],
+    )
 
 
 def build_stage_results_from_eval_data(
