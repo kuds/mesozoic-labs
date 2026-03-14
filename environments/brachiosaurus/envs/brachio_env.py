@@ -54,7 +54,6 @@ class BrachioEnv(BaseDinoEnv):
         max_episode_steps: int = 1000,
         # Reward weights
         forward_vel_weight: float = 1.0,
-        forward_vel_max: float = 3.0,
         alive_bonus: float = 0.1,
         energy_penalty_weight: float = 0.001,
         fall_penalty: float = -100.0,
@@ -71,7 +70,6 @@ class BrachioEnv(BaseDinoEnv):
         model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus.xml")
 
         # Brachio-specific reward weights
-        self.forward_vel_max = forward_vel_max
         self.gait_stability_weight = gait_stability_weight
         self.food_reach_bonus = food_reach_bonus
         self.food_reach_threshold = food_reach_threshold
@@ -194,7 +192,8 @@ class BrachioEnv(BaseDinoEnv):
         # Project velocity onto food direction
         vel_2d = self.data.qvel[0:2]
         forward_vel = np.dot(vel_2d, food_dir_2d)
-        forward_vel_norm = np.clip(forward_vel / self.forward_vel_max, -1.0, 1.0)
+        # Assume max walking speed of ~3.0 m/s for Brachiosaurus
+        forward_vel_norm = np.clip(forward_vel / 3.0, -1.0, 1.0)
         info["forward_vel"] = forward_vel
         reward_forward = self.forward_vel_weight * forward_vel_norm
         info["reward_forward"] = reward_forward
