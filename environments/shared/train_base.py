@@ -229,6 +229,194 @@ def create_vec_env(
     return env
 
 
+# ── Shared setup helpers (used by both train() and train_curriculum()) ──
+
+
+def _prepare_alg_kwargs(
+    config: dict[str, Any],
+    algorithm: str,
+    verbose: int,
+    log_path: Path,
+    use_tensorboard: bool,
+) -> tuple[dict[str, Any], Path | None, Path]:
+    """Build algorithm kwargs with LR schedule, clip annealing, and TB setup.
+
+    Returns ``(alg_kwargs, local_tb_dir, gcs_tb_path)`` where *local_tb_dir*
+    is ``None`` when the output is not on a GCS FUSE mount.
+    """
+    alg_kwargs = (
+        config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
+    )
+    alg_kwargs["verbose"] = verbose
+
+    # TensorBoard buffering
+    local_tb_dir = None
+    gcs_tb_path = log_path / "tensorboard"
+    if use_tensorboard:
+        if _is_gcs_path(log_path):
+            local_tb_dir = _make_local_tb_dir(gcs_tb_path)
+            alg_kwargs["tensorboard_log"] = str(local_tb_dir)
+            logger.info(
+                "TensorBoard buffering locally at %s (will sync to GCS after training)",
+                local_tb_dir,
+            )
+        else:
+            alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
+    else:
+        logger.info("TensorBoard logging disabled")
+
+    # PPO-specific schedule setup
+    if algorithm == "ppo":
+        lr_end = alg_kwargs.pop("learning_rate_end", None)
+        lr_schedule_type = alg_kwargs.pop("lr_schedule", "linear")
+        if lr_end is not None:
+            lr_start = alg_kwargs["learning_rate"]
+            if lr_schedule_type == "cosine":
+                alg_kwargs["learning_rate"] = cosine_schedule(lr_start, lr_end)
+            else:
+                alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
+            logger.info("Using %s LR schedule: %s -> %s", lr_schedule_type, lr_start, lr_end)
+
+        clip_range_end = alg_kwargs.pop("clip_range_end", None)
+        if clip_range_end is not None:
+            clip_start = alg_kwargs["clip_range"]
+            alg_kwargs["clip_range"] = linear_schedule(clip_start, clip_range_end)
+            logger.info("Using clip_range schedule: %s -> %s", clip_start, clip_range_end)
+
+    return alg_kwargs, local_tb_dir, gcs_tb_path
+
+
+def _load_vecnorm_into_envs(
+    load_path: str | None,
+    train_env,
+    eval_env,
+) -> None:
+    """Carry forward VecNormalize stats from a prior stage or reset eval env."""
+    from .curriculum import load_vecnorm_stats
+
+    if load_path:
+        _base = load_path[:-4] if load_path.endswith(".zip") else load_path
+        _vecnorm_path = _base + "_vecnorm.pkl"
+        if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env):
+            logger.warning("VecNormalize file not found: %s — eval env will use defaults", _vecnorm_path)
+            eval_env.training = False
+            eval_env.norm_reward = False
+    else:
+        eval_env.training = False
+        eval_env.norm_reward = False
+
+
+def _create_or_load_model(
+    sb3: dict,
+    algorithm: str,
+    alg_kwargs: dict[str, Any],
+    train_env,
+    load_path: str | None = None,
+) -> Any:
+    """Create a new model or load from checkpoint.
+
+    Pops ``policy_kwargs`` from *alg_kwargs* (mutating it) so that network
+    architecture is only applied to new models, not loaded ones.
+    """
+    alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
+    policy_kwargs = alg_kwargs.pop("policy_kwargs", None)
+
+    if load_path:
+        logger.info("Loading model from: %s", load_path)
+        model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
+    else:
+        logger.info("Creating new %s model...", algorithm.upper())
+        model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
+
+    return model
+
+
+def _build_core_callbacks(
+    sb3: dict,
+    eval_env,
+    model_dir: Path,
+    log_path: Path,
+    stage: int,
+    n_envs: int,
+    eval_freq: int,
+    save_freq: int,
+    verbose: int,
+    use_wandb: bool = False,
+) -> tuple[list, Any, Any]:
+    """Build the standard callback set shared by train() and train_curriculum().
+
+    Returns ``(callbacks, eval_callback, save_vecnorm_cb)`` so callers can
+    append additional stage-specific callbacks.
+    """
+    from .curriculum import (
+        EvalCollapseEarlyStopCallback,
+        SaveVecNormalizeCallback,
+    )
+    from .diagnostics import DiagnosticsCallback
+    from .wandb_integration import WandbCallback
+
+    callbacks = []
+
+    save_vecnorm_cb = SaveVecNormalizeCallback(
+        save_path=str(model_dir / "best_model_vecnorm.pkl"),
+    )
+
+    eval_callback = sb3["EvalCallback"](
+        eval_env,
+        best_model_save_path=str(model_dir),
+        log_path=str(log_path),
+        eval_freq=eval_freq // n_envs,
+        n_eval_episodes=30,
+        deterministic=True,
+        render=False,
+        verbose=max(verbose, 1),
+        callback_on_new_best=save_vecnorm_cb,
+    )
+    callbacks.append(eval_callback)
+
+    checkpoint_callback = sb3["CheckpointCallback"](
+        save_freq=save_freq // n_envs,
+        save_path=str(model_dir),
+        name_prefix=f"stage{stage}",
+        save_vecnormalize=True,
+    )
+    callbacks.append(checkpoint_callback)
+
+    callbacks.append(DiagnosticsCallback(log_dir=str(log_path), verbose=verbose))
+
+    callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, verbose=verbose))
+
+    if use_wandb:
+        callbacks.append(WandbCallback())
+
+    return callbacks, eval_callback, save_vecnorm_cb
+
+
+def _save_final_and_sync_tb(
+    model,
+    train_env,
+    model_dir: Path,
+    stage: int,
+    local_tb_dir: Path | None,
+    gcs_tb_path: Path,
+) -> Path:
+    """Save the final model checkpoint and sync TensorBoard events to GCS.
+
+    Returns the final model path (without ``.zip`` extension).
+    """
+    final_path = model_dir / f"stage{stage}_final"
+    model.save(str(final_path))
+    train_env.save(str(final_path) + "_vecnorm.pkl")
+
+    if local_tb_dir is not None:
+        try:
+            _sync_tb_to_gcs(local_tb_dir, gcs_tb_path)
+        except Exception:
+            logger.warning("TensorBoard sync to GCS failed.", exc_info=True)
+
+    return final_path
+
+
 # ── Single-stage training ────────────────────────────────────────────────
 
 
@@ -253,14 +441,10 @@ def train(
     """Train a single stage of the curriculum."""
     from .config import save_stage_config
     from .curriculum import (
-        EvalCollapseEarlyStopCallback,
         RewardRampCallback,
-        SaveVecNormalizeCallback,
         StageWarmupCallback,
-        load_vecnorm_stats,
     )
-    from .diagnostics import DiagnosticsCallback  # noqa: F811
-    from .wandb_integration import WandbCallback, init_wandb
+    from .wandb_integration import init_wandb
 
     sb3 = _ensure_sb3()
 
@@ -304,117 +488,28 @@ def train(
     logger.info("Creating evaluation environment...")
     eval_env = create_vec_env(species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False)
 
-    # Carry forward normalization statistics from a prior stage
-    if load_path:
-        # Strip trailing .zip (if present) and append _vecnorm.pkl
-        _base = load_path[:-4] if load_path.endswith(".zip") else load_path
-        _vecnorm_path = _base + "_vecnorm.pkl"
-        if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env):
-            # VecNormalize file not found (e.g. missing from GCS mount).
-            # Ensure eval env doesn't pollute running stats.
-            logger.warning("VecNormalize file not found: %s — eval env will use defaults", _vecnorm_path)
-            eval_env.training = False
-            eval_env.norm_reward = False
-    else:
-        # Even without prior stats, the eval env should never update
-        # running statistics or normalise rewards during evaluation.
-        eval_env.training = False
-        eval_env.norm_reward = False
+    _load_vecnorm_into_envs(load_path, train_env, eval_env)
 
-    # Create or load model
-    alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
-    alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
-    alg_kwargs["verbose"] = verbose
-    # Buffer TensorBoard writes locally when output is on a GCS FUSE mount
-    # to avoid per-event latency from direct GCS writes.
-    local_tb_dir = None
-    gcs_tb_path = log_path / "tensorboard"
-    if use_tensorboard:
-        if _is_gcs_path(log_path):
-            local_tb_dir = _make_local_tb_dir(gcs_tb_path)
-            alg_kwargs["tensorboard_log"] = str(local_tb_dir)
-            logger.info("TensorBoard buffering locally at %s (will sync to GCS after training)", local_tb_dir)
-        else:
-            alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
-    else:
-        logger.info("TensorBoard logging disabled")
-
-    if algorithm == "ppo":
-        lr_end = alg_kwargs.pop("learning_rate_end", None)
-        lr_schedule_type = alg_kwargs.pop("lr_schedule", "linear")
-        if lr_end is not None:
-            lr_start = alg_kwargs["learning_rate"]
-            if lr_schedule_type == "cosine":
-                alg_kwargs["learning_rate"] = cosine_schedule(lr_start, lr_end)
-            else:
-                alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
-            logger.info("Using %s LR schedule: %s -> %s", lr_schedule_type, lr_start, lr_end)
-
-        # Clip range annealing
-        clip_range_end = alg_kwargs.pop("clip_range_end", None)
-        if clip_range_end is not None:
-            clip_start = alg_kwargs["clip_range"]
-            alg_kwargs["clip_range"] = linear_schedule(clip_start, clip_range_end)
-            logger.info("Using clip_range schedule: %s -> %s", clip_start, clip_range_end)
+    alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
+        config, algorithm, verbose, log_path, use_tensorboard,
+    )
 
     wandb_run = None
     if use_wandb:
         wandb_run = init_wandb(species=species, stage=stage, config=config)
         logger.info("W&B run initialized.")
 
-    # policy_kwargs defines the network architecture and must only be used
-    # when creating a *new* model.  When loading a saved model the
-    # architecture is already baked into the weights; passing a (possibly
-    # different) policy_kwargs to .load() would create a metadata mismatch.
-    policy_kwargs = alg_kwargs.pop("policy_kwargs", None)
-
-    if load_path:
-        logger.info("Loading model from: %s", load_path)
-        model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
-    else:
-        logger.info("Creating new %s model...", algorithm.upper())
-        model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
+    model = _create_or_load_model(sb3, algorithm, alg_kwargs, train_env, load_path)
 
     logger.info("Model architecture:")
     logger.info("  Policy: %s", model.policy)
     logger.info("  Learning rate: %s", model.learning_rate)
-    logger.info("  Batch size: %s", alg_kwargs["batch_size"])
+    logger.info("  Batch size: %s", alg_kwargs.get("batch_size", "N/A"))
 
-    # Setup callbacks
-    callbacks = []
-
-    save_vecnorm_cb = SaveVecNormalizeCallback(
-        save_path=str(model_dir / "best_model_vecnorm.pkl"),
+    callbacks, eval_callback, _ = _build_core_callbacks(
+        sb3, eval_env, model_dir, log_path, stage, n_envs,
+        eval_freq, save_freq, verbose, use_wandb,
     )
-
-    eval_callback = sb3["EvalCallback"](
-        eval_env,
-        best_model_save_path=str(model_dir),
-        log_path=str(log_path),
-        eval_freq=eval_freq // n_envs,
-        n_eval_episodes=30,
-        deterministic=True,
-        render=False,
-        verbose=max(verbose, 1),
-        callback_on_new_best=save_vecnorm_cb,
-    )
-    callbacks.append(eval_callback)
-
-    checkpoint_callback = sb3["CheckpointCallback"](
-        save_freq=save_freq // n_envs,
-        save_path=str(model_dir),
-        name_prefix=f"stage{stage}",
-        save_vecnormalize=True,
-    )
-    callbacks.append(checkpoint_callback)
-
-    callbacks.append(DiagnosticsCallback(log_dir=str(log_path), verbose=verbose))
-
-    # Early stopping on eval reward collapse
-    callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, verbose=verbose))
-
-    if use_wandb:
-        callbacks.append(WandbCallback())
 
     if stage > 1 and load_path:
         cur_kwargs = config.get("curriculum_kwargs", {})
@@ -471,18 +566,9 @@ def train(
         stage_config=config,
     )
 
-    # Save final model
-    final_path = model_dir / f"stage{stage}_final"
-    model.save(str(final_path))
-    train_env.save(str(final_path) + "_vecnorm.pkl")
-
-    # Sync locally-buffered TensorBoard events to GCS (best-effort, after
-    # model save so a sync failure never prevents checkpoint writes).
-    if local_tb_dir is not None:
-        try:
-            _sync_tb_to_gcs(local_tb_dir, gcs_tb_path)
-        except Exception:
-            logger.warning("TensorBoard sync to GCS failed.", exc_info=True)
+    final_path = _save_final_and_sync_tb(
+        model, train_env, model_dir, stage, local_tb_dir, gcs_tb_path,
+    )
 
     train_env.close()
     eval_env.close()
@@ -683,15 +769,11 @@ def train_curriculum(
     from .curriculum import (
         CurriculumCallback,
         CurriculumManager,
-        EvalCollapseEarlyStopCallback,
         RewardRampCallback,
-        SaveVecNormalizeCallback,
         StageWarmupCallback,
-        load_vecnorm_stats,
         thresholds_from_configs,
     )
-    from .diagnostics import DiagnosticsCallback  # noqa: F811
-    from .wandb_integration import WandbCallback, init_wandb
+    from .wandb_integration import init_wandb
 
     sb3 = _ensure_sb3()
     species = species_cfg.species
@@ -744,95 +826,22 @@ def train_curriculum(
         train_env = create_vec_env(species_cfg, stage_configs, stage, n_envs, seed, use_subproc)
         eval_env = create_vec_env(species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False)
 
-        if prev_vecnorm_path:
-            if not load_vecnorm_stats(prev_vecnorm_path, train_env, eval_env):
-                logger.warning("VecNormalize file not found: %s — eval env will use defaults", prev_vecnorm_path)
-                eval_env.training = False
-                eval_env.norm_reward = False
-        else:
-            eval_env.training = False
-            eval_env.norm_reward = False
+        _load_vecnorm_into_envs(prev_vecnorm_path, train_env, eval_env)
 
-        alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
-        alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
-        alg_kwargs["verbose"] = verbose
-        # Buffer TensorBoard writes locally when on GCS FUSE mount
-        local_tb_dir = None
-        gcs_tb_path = stage_dir / "tensorboard"
-        if use_tensorboard:
-            if _is_gcs_path(stage_dir):
-                local_tb_dir = _make_local_tb_dir(gcs_tb_path)
-                alg_kwargs["tensorboard_log"] = str(local_tb_dir)
-                logger.info("TensorBoard buffering locally at %s", local_tb_dir)
-            else:
-                alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
-        else:
-            logger.info("TensorBoard logging disabled")
-
-        if algorithm == "ppo":
-            lr_end = alg_kwargs.pop("learning_rate_end", None)
-            lr_schedule_type = alg_kwargs.pop("lr_schedule", "linear")
-            if lr_end is not None:
-                lr_start = alg_kwargs["learning_rate"]
-                if lr_schedule_type == "cosine":
-                    alg_kwargs["learning_rate"] = cosine_schedule(lr_start, lr_end)
-                else:
-                    alg_kwargs["learning_rate"] = linear_schedule(lr_start, lr_end)
-                logger.info("Using %s LR schedule: %s -> %s", lr_schedule_type, lr_start, lr_end)
-
-            # Clip range annealing
-            clip_range_end = alg_kwargs.pop("clip_range_end", None)
-            if clip_range_end is not None:
-                clip_start = alg_kwargs["clip_range"]
-                alg_kwargs["clip_range"] = linear_schedule(clip_start, clip_range_end)
-                logger.info("Using clip_range schedule: %s -> %s", clip_start, clip_range_end)
+        alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
+            config, algorithm, verbose, stage_dir, use_tensorboard,
+        )
 
         wandb_run = None
         if use_wandb:
             wandb_run = init_wandb(species=species, stage=stage, config=config)
 
-        policy_kwargs = alg_kwargs.pop("policy_kwargs", None)
+        model = _create_or_load_model(sb3, algorithm, alg_kwargs, train_env, load_path)
 
-        if load_path:
-            logger.info("Loading model from previous stage: %s", load_path)
-            model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
-        else:
-            model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
-
-        # Build callbacks
-        callbacks = []
-
-        best_vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
-        save_vecnorm_cb = SaveVecNormalizeCallback(save_path=best_vecnorm_path)
-
-        eval_callback = sb3["EvalCallback"](
-            eval_env,
-            best_model_save_path=str(model_dir),
-            log_path=str(stage_dir),
-            eval_freq=eval_freq // n_envs,
-            n_eval_episodes=30,
-            deterministic=True,
-            render=False,
-            verbose=max(verbose, 1),
-            callback_on_new_best=save_vecnorm_cb,
+        callbacks, eval_callback, _ = _build_core_callbacks(
+            sb3, eval_env, model_dir, stage_dir, stage, n_envs,
+            eval_freq, save_freq, verbose, use_wandb,
         )
-        callbacks.append(eval_callback)
-
-        checkpoint_callback = sb3["CheckpointCallback"](
-            save_freq=save_freq // n_envs,
-            save_path=str(model_dir),
-            name_prefix=f"stage{stage}",
-            save_vecnormalize=True,
-        )
-        callbacks.append(checkpoint_callback)
-
-        callbacks.append(DiagnosticsCallback(log_dir=str(stage_dir), verbose=verbose))
-
-        # Early stopping on eval reward collapse
-        callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, verbose=verbose))
-
-        if use_wandb:
-            callbacks.append(WandbCallback())
 
         curriculum_cb = CurriculumCallback(
             curriculum_manager=manager,
@@ -876,23 +885,16 @@ def train_curriculum(
         if wandb_run is not None:
             wandb_run.finish()
 
-        # Save stage checkpoint (before TB sync so checkpoint is never lost)
-        final_path = model_dir / f"stage{stage}_final"
-        model.save(str(final_path))
-        train_env.save(str(final_path) + "_vecnorm.pkl")
-
-        # Sync locally-buffered TensorBoard events to GCS (best-effort)
-        if local_tb_dir is not None:
-            try:
-                _sync_tb_to_gcs(local_tb_dir, gcs_tb_path)
-            except Exception:
-                logger.warning("TensorBoard sync to GCS failed.", exc_info=True)
+        final_path = _save_final_and_sync_tb(
+            model, train_env, model_dir, stage, local_tb_dir, gcs_tb_path,
+        )
 
         # Prefer loading the best model + its matched VecNormalize for the
         # next stage.  SaveVecNormalizeCallback (wired to EvalCallback's
         # callback_on_new_best) saves best_model_vecnorm.pkl alongside
         # best_model.zip so the obs normalization matches the policy weights.
         best_model_zip = model_dir / "best_model.zip"
+        best_vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
         if best_model_zip.exists() and Path(best_vecnorm_path).exists():
             load_path = str(model_dir / "best_model")
             prev_vecnorm_path = best_vecnorm_path
