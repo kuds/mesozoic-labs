@@ -382,7 +382,9 @@ def _build_core_callbacks(
 
     callbacks.append(_DiagCB(log_dir=str(log_path), verbose=verbose))
 
-    callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, min_evals=8, patience=5, verbose=verbose))
+    callbacks.append(
+        EvalCollapseEarlyStopCallback(eval_callback=eval_callback, min_evals=8, patience=5, verbose=verbose)
+    )
 
     if use_wandb:
         callbacks.append(WandbCallback())
