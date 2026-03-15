@@ -52,7 +52,7 @@ def detect_gpu_model() -> str:
         for short in _GPU_SHORT_NAMES:
             if short in full_name.upper():
                 return short
-        return full_name  # return full name if no known short-name matches
+        return str(full_name)  # return full name if no known short-name matches
     except Exception:  # pragma: no cover – torch may not be installed
         return ""
 
