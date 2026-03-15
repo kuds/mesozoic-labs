@@ -23,7 +23,7 @@ from .constants import (
     _SweepJobFailed,
 )
 from .orchestration import _eager_refresh, launch_all_stages, launch_sweep
-from .ray_search_space import build_search_space, save_search_space, to_ray_tune
+from .ray_search_space import build_search_space, detect_gpu_model, save_search_space, to_ray_tune
 from .ray_tune import (
     ExperimentStateSyncCallback,
     RayTuneReportCallback,
@@ -98,5 +98,6 @@ __all__ = [
     "train_trial",
     "write_results_csv",
     "compute_quality_scores",
+    "detect_gpu_model",
     "load_scoring_config",
 ]
