@@ -477,7 +477,7 @@ def train_trial(config: dict[str, Any]) -> None:
 
         callbacks.append(
             CheckpointCallback(
-                save_freq=max(100_000 // n_envs, 1),
+                save_freq=max(10 * eval_freq // n_envs, 1),
                 save_path=str(model_dir),
                 name_prefix=f"stage{stage}",
                 save_vecnormalize=True,
