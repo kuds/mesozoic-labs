@@ -277,6 +277,90 @@ def ExperimentStateSyncCallback(*args: Any, **kwargs: Any):
 
 
 # ---------------------------------------------------------------------------
+# Ray Tune callback: write trial progress CSV to Drive
+# ---------------------------------------------------------------------------
+
+
+def _make_drive_progress_log_callback_class():
+    """Build DriveProgressLogCallback as a proper Callback subclass at runtime."""
+    import csv
+
+    from ray.tune import Callback
+
+    class _DriveProgressLogCallback(Callback):
+        """Writes a ``trial_progress.csv`` to Google Drive on each trial completion.
+
+        This provides a simple, human-readable log of completed trials and their
+        reward metrics that can be checked directly on Drive even when the
+        notebook is disconnected.  Unlike ``collected_results.csv`` (which is
+        written post-sweep with full evaluation metrics), this file is updated
+        incrementally during the sweep with the metrics reported to ASHA.
+
+        Columns: ``trial_id``, ``status``, ``best_mean_reward``,
+        ``last_mean_reward``, ``timesteps``, ``timestamp``, plus any
+        hyperparameters from the trial config.
+        """
+
+        METRIC_COLS = ("best_mean_reward", "last_mean_reward", "timesteps")
+
+        def __init__(self, drive_sweep_dir: str | Path) -> None:
+            self._csv_path = Path(drive_sweep_dir) / "trial_progress.csv"
+            self._written_header = False
+
+        def _write_row(self, trial: Any, status: str) -> None:
+            """Append a single row to the progress CSV."""
+            from datetime import datetime
+
+            row: dict[str, Any] = {
+                "trial_id": trial.trial_id,
+                "status": status,
+            }
+            for col in self.METRIC_COLS:
+                val = trial.last_result.get(col)
+                if isinstance(val, float):
+                    row[col] = round(val, 4)
+                else:
+                    row[col] = val
+
+            row["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Include hyperparameters (skip internal _ prefixed keys)
+            for key, value in trial.config.items():
+                if not key.startswith("_"):
+                    row[key] = value
+
+            try:
+                file_exists = self._csv_path.exists()
+                self._csv_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(self._csv_path, "a", newline="") as f:
+                    writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+                    if not file_exists and not self._written_header:
+                        writer.writeheader()
+                        self._written_header = True
+                    writer.writerow(row)
+            except OSError as e:
+                logger.warning("Failed to write trial progress to %s: %s", self._csv_path, e)
+
+        def on_trial_complete(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
+            self._write_row(trial, status="COMPLETED")
+
+        def on_trial_error(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
+            self._write_row(trial, status="ERROR")
+
+    return _DriveProgressLogCallback
+
+
+def DriveProgressLogCallback(*args: Any, **kwargs: Any):
+    """Create a DriveProgressLogCallback instance.
+
+    Defers importing ``ray.tune.Callback`` until first call to avoid importing
+    Ray at module level.
+    """
+    cls = _make_drive_progress_log_callback_class()
+    return cls(*args, **kwargs)
+
+
+# ---------------------------------------------------------------------------
 # Config application
 # ---------------------------------------------------------------------------
 
