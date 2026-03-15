@@ -32,6 +32,7 @@ Reward components:
     - Tail stability
     - Bite bonus (head contacts prey)
     - Approach shaping (distance to prey)
+    - Head proximity shaping (reward for positioning head near prey)
     - Posture (continuous tilt penalty)
     - Nosedive penalty
     - Height maintenance
@@ -76,6 +77,7 @@ class TRexEnv(BaseDinoEnv):
         tail_stability_weight: float = 0.05,
         bite_bonus: float = 10.0,
         bite_approach_weight: float = 1.0,
+        bite_head_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
         natural_pitch: float = 0.17,
@@ -102,6 +104,7 @@ class TRexEnv(BaseDinoEnv):
         self.tail_stability_weight = tail_stability_weight
         self.bite_bonus = bite_bonus
         self.bite_approach_weight = bite_approach_weight
+        self.bite_head_proximity_weight = bite_head_proximity_weight
         self.posture_weight = posture_weight
         self.nosedive_weight = nosedive_weight
         self.height_weight = height_weight
@@ -194,6 +197,9 @@ class TRexEnv(BaseDinoEnv):
         self.l_foot_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "l_foot")
         self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
         self.head_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "head_tip")
+
+        # Prey mocap body
+        self.prey_mocap_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "prey")
 
         # Sensor indices (order matches MJCF sensor definition)
         # pelvis_gyro(3), pelvis_accel(3), pelvis_orientation(4),
@@ -323,6 +329,19 @@ class TRexEnv(BaseDinoEnv):
         info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
+        # 6b. Head-to-prey proximity shaping
+        # Uses the head tip position (not the pelvis) to give the agent a
+        # gradient for aiming its head toward the prey.  Analogous to the
+        # raptor's claw proximity reward.
+        head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
+        head_prey_dist = float(np.linalg.norm(prey_pos - head_tip_pos))
+        head_proximity_max_dist = 3.0
+        head_proximity = max(0.0, 1.0 - head_prey_dist / head_proximity_max_dist)
+        reward_head_proximity = self.bite_head_proximity_weight * head_proximity
+        info["head_prey_distance"] = head_prey_dist
+        info["head_proximity"] = head_proximity
+        info["reward_head_proximity"] = reward_head_proximity
+
         # 7. Continuous posture reward
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         reward_posture, tilt_angle = self._compute_posture_reward(pelvis_quat, self.posture_weight)
@@ -407,6 +426,7 @@ class TRexEnv(BaseDinoEnv):
             + reward_tail
             + reward_bite
             + reward_approach
+            + reward_head_proximity
             + reward_posture
             + reward_nosedive
             + reward_height
