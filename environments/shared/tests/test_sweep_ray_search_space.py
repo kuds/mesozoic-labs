@@ -101,6 +101,50 @@ class TestSaveSearchSpace:
         assert "ppo_lr" in data["parameters"]
         assert "env_bonus" in data["parameters"]
 
+    def test_writes_runtime_section(self, tmp_path):
+        space = {"ppo_lr": {"type": "double", "min": 1e-5, "max": 1e-3, "scale": "log"}}
+        result_path = save_search_space(
+            space,
+            tmp_path,
+            species="velociraptor",
+            stage=1,
+            algorithm="ppo",
+            gpu_model="A100",
+            max_concurrent=3,
+            n_envs=8,
+            timesteps_per_trial=6_000_000,
+            num_trials=50,
+            eval_freq=50_000,
+            seed=42,
+        )
+        data = json.loads(result_path.read_text())
+        assert "runtime" in data
+        rt = data["runtime"]
+        assert rt["gpu_model"] == "A100"
+        assert rt["max_concurrent"] == 3
+        assert rt["n_envs"] == 8
+        assert rt["timesteps_per_trial"] == 6_000_000
+        assert rt["num_trials"] == 50
+        assert rt["eval_freq"] == 50_000
+        assert rt["seed"] == 42
+
+    def test_runtime_omitted_when_no_fields(self, tmp_path):
+        space = {"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}
+        result_path = save_search_space(space, tmp_path, species="trex", stage=2, algorithm="sac")
+        data = json.loads(result_path.read_text())
+        assert "runtime" not in data
+
+    def test_runtime_partial_fields(self, tmp_path):
+        space = {"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}
+        result_path = save_search_space(space, tmp_path, species="trex", stage=1, algorithm="ppo", n_envs=4, seed=7)
+        data = json.loads(result_path.read_text())
+        assert "runtime" in data
+        rt = data["runtime"]
+        assert rt["n_envs"] == 4
+        assert rt["seed"] == 7
+        assert "gpu_model" not in rt
+        assert "max_concurrent" not in rt
+
     def test_creates_dest_dir(self, tmp_path):
         dest = tmp_path / "nested" / "dir"
         save_search_space({"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}, dest)

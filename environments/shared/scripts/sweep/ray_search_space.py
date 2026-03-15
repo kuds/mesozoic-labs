@@ -37,6 +37,26 @@ from .search_space import _load_search_space_file, _search_space_for_stage
 
 logger = logging.getLogger(__name__)
 
+# Known GPU short-names extracted from full device strings.
+_GPU_SHORT_NAMES = ("A100", "H100", "L4", "L40", "T4", "V100", "A10G", "A10", "RTX")
+
+
+def detect_gpu_model() -> str:
+    """Return a short GPU model name (e.g. ``"A100"``) or ``""`` if unavailable."""
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            return ""
+        full_name = torch.cuda.get_device_name(0)
+        for short in _GPU_SHORT_NAMES:
+            if short in full_name.upper():
+                return short
+        return str(full_name)  # return full name if no known short-name matches
+    except Exception:  # pragma: no cover – torch may not be installed
+        return ""
+
+
 # Type alias for a single parameter spec dict.
 _ParamSpec = dict[str, Any]
 _SearchSpace = dict[str, _ParamSpec]
@@ -129,12 +149,22 @@ def save_search_space(
     species: str = "",
     stage: int = 0,
     algorithm: str = "",
+    gpu_model: str = "",
+    max_concurrent: int = 0,
+    n_envs: int = 0,
+    timesteps_per_trial: int = 0,
+    num_trials: int = 0,
+    eval_freq: int = 0,
+    seed: int = 0,
 ) -> Path:
     """Write the resolved search space to *dest_dir* as JSON for record keeping.
 
     The file is named ``search_space_stage{stage}_{algorithm}.json`` and
     includes metadata (species, stage, algorithm, parameter count) alongside the
     full parameter definitions so each sweep run is fully reproducible.
+
+    When any runtime keyword arguments are provided, a ``"runtime"`` section is
+    added to the JSON with GPU, concurrency, environment, and training settings.
 
     Returns the path to the written file.
     """
@@ -149,8 +179,28 @@ def save_search_space(
         "stage": stage,
         "algorithm": algorithm,
         "num_parameters": len(search_space),
-        "parameters": search_space,
     }
+
+    # Build runtime section from provided keyword arguments.
+    runtime: dict[str, Any] = {}
+    if gpu_model:
+        runtime["gpu_model"] = gpu_model
+    if max_concurrent:
+        runtime["max_concurrent"] = max_concurrent
+    if n_envs:
+        runtime["n_envs"] = n_envs
+    if timesteps_per_trial:
+        runtime["timesteps_per_trial"] = timesteps_per_trial
+    if num_trials:
+        runtime["num_trials"] = num_trials
+    if eval_freq:
+        runtime["eval_freq"] = eval_freq
+    if seed:
+        runtime["seed"] = seed
+    if runtime:
+        payload["runtime"] = runtime
+
+    payload["parameters"] = search_space
 
     filepath.write_text(json.dumps(payload, indent=2, default=str) + "\n")
     logger.info("Search space saved to %s (%d params)", filepath, len(search_space))
