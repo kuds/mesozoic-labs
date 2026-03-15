@@ -355,3 +355,166 @@ reliability.
 | 8 | ppo_20260225_002644 | Feb 25 | 1-2 | S2 826 reward, 588 ep_len | fwd_vel=3.0 |
 | 9 | ppo_20260226_141130 | Feb 26 | 1-2 | S2 catastrophic (55 ep_len) | fwd_vel=2.0, alive=1.0 |
 | 10 | ppo_20260227_125127 | Feb 27 | 1-2 | S2 catastrophic (42 ep_len) | posture=0.8, alive=1.5 |
+
+---
+
+## Velociraptor Stage 3 Review — March 15, 2026
+
+> **Run:** Seed 42, PPO, 3-stage curriculum (6M + 8M + 8M steps)
+> **Result:** Stage 3 **failed** — success_rate 0.0% vs 10% threshold
+
+### Results Summary
+
+| Stage | Best Reward | Ep Length | fwd_vel | Success Rate | Passed? |
+|-------|-------------|-----------|---------|--------------|---------|
+| 1 (balance) | 1501.96 | 958.1 | 0.32 m/s | — | **Yes** |
+| 2 (locomotion) | 2654.81 | 1000.0 | 3.88 m/s | 3.3% | **Yes** |
+| 3 (strike) | 2377.02 | 955.0 | 0.47 m/s | **0.0%** | **No** |
+
+This is the **first full 3-stage run** where stages 1 and 2 both passed their
+curriculum gates. Stage 3 trained for 8M steps but achieved zero strike success.
+
+### Key Observations from Training Curves
+
+**Reward:** Climbs steadily from ~100 to ~2000-2500, with high variance
+(shaded band from ~500 to ~2800). The agent is accumulating meaningful
+per-step reward but not from strikes.
+
+**Speed:** Drops from ~3.0 m/s (inherited from Stage 2) to ~0.4-0.5 m/s by 2M
+steps and stays there. The agent actively unlearns running. This is rational:
+approaching the prey slowly maximizes per-step proximity/approach rewards without
+overshooting and losing claw_proximity bonus.
+
+**Prey Distance:** Drops from ~12m to ~1.5m by 3M steps, then plateaus. The
+raptor gets very close but refuses to make contact.
+
+**Strike Success Rate:** Essentially zero throughout training (~0.0001-0.0007).
+The rare contacts are accidental, not learned behavior.
+
+**Termination Breakdown:** `strike_success` is the #1 termination reason at ~42%
+but this is misleading — these are likely accidental contacts during early
+exploration that the agent then learns to *avoid*.
+
+**Cost of Transport:** Rises steadily, suggesting increasingly inefficient
+movement — the agent is "creeping" near the prey rather than locomoting
+efficiently.
+
+---
+
+### Question 1: Why is net_arch different across stages?
+
+**Stage 1 uses `[512, 256]`, stages 2-3 use `[256, 256]`.**
+
+This is a config inconsistency. The notebook has `VALIDATION_SETTING = 4`, which
+loads hyperparameters from `configs/velociraptor/sweep_validation.toml`. All four
+validation settings specify `net_arch = [512, 256]` (the "tapered" preset from
+the sweep). This overrides stage 1's default `[256, 256]` from
+`stage1_balance.toml`.
+
+However, this override only applies to stage 1. Stages 2 and 3 load their
+net_arch from their own TOML files (`stage2_locomotion.toml`,
+`stage3_strike.toml`), which both specify `[256, 256]`.
+
+**The net_arch propagation that exists in the sweep infrastructure
+(`orchestration.py` lines 1139-1145) does NOT run in the notebook.** In sweep
+mode, the winning stage 1 net_arch is explicitly propagated to stages 2-3. The
+notebook's `train_stage()` function does not replicate this logic.
+
+**Impact:** When stage 2 loads the stage 1 checkpoint (which has a `[512, 256]`
+policy network) into a `[256, 256]` model, SB3's `AlgoClass.load()` creates a
+new policy with the target architecture and loads compatible weights. The first
+hidden layer (512 -> 256 shrink) means half the stage 1 neurons are discarded.
+This causes unnecessary capacity loss at the stage transition and may partially
+explain why stages 2-3 need warmup periods to recover.
+
+**Fix:** Either propagate stage 1's net_arch to subsequent stages in the
+notebook, or use `[256, 256]` consistently across all stages (remove the
+`[512, 256]` from `sweep_validation.toml`).
+
+---
+
+### Question 2: Why does prey distance change between stages?
+
+This is intentional curriculum design:
+
+| Stage | prey_distance_range | Rationale |
+|-------|-------------------|-----------|
+| 1 (balance) | `[10.0, 15.0]` | Prey is far away — the agent should focus on standing, not chasing |
+| 2 (locomotion) | `[8.0, 12.0]` | Slightly closer to encourage forward movement toward a target |
+| 3 (strike) | `[2.0, 6.0]` | Close enough that the agent can discover strikes through exploration |
+
+The stage 3 config comment in `stage3_strike.toml` explains: *"Tightened from
+[3.0, 8.0]: closer prey makes strike discovery much more likely during
+exploration."*
+
+This is sound design — sparse rewards (like the one-time strike bonus) need the
+agent to be close enough to accidentally contact the prey during random
+exploration, which then gets reinforced. At 10-15m, the probability of a random
+walk reaching the prey is negligible.
+
+---
+
+### Question 3: Why does the raptor approach but never strike?
+
+**The strike bonus is far too low relative to the opportunity cost of episode
+termination.** The raptor has correctly learned that striking is net-negative.
+
+**The math:**
+
+At convergence, the agent earns ~2.0-2.5 reward per step from combined per-step
+rewards (forward velocity, alive bonus, proximity, claw proximity, heading,
+posture, etc.). With `gamma = 0.995` and ~500 steps remaining in a typical
+episode, the discounted future reward from staying alive is:
+
+```
+Future value ≈ Σ(0.995^i × 2.5) for i=0..499
+             ≈ 2.5 × (1 - 0.995^500) / 0.005
+             ≈ 2.5 × 183.6
+             ≈ 459
+```
+
+The strike bonus is **50.0** but immediately terminates the episode. So striking
+costs the agent ~459 in expected future reward and pays only 50 — a net loss
+of ~409. The agent rationally avoids striking.
+
+**The reward decomposition chart confirms this:** The cyan "S3 strike" line is
+flat at zero, while approach/proximity/claw_proximity rewards are positive and
+sustained. The agent has found the optimal strategy *within the current reward
+structure*: get as close as possible to the prey (maximizing proximity rewards)
+without actually touching it (which would terminate the episode).
+
+**The alive_bonus was already reduced from 0.5 to 0.05** (the config comment
+says: *"survival is learned in stages 1-2; high alive_bonus made striking
+net-negative"*). But 0.05/step is only one component — the agent also earns
+forward_vel (0.5 weight), heading (0.3), proximity (0.5), claw_proximity (2.0),
+posture (0.1), etc. every step. The total per-step reward dwarfs the one-time
+strike bonus.
+
+**Recommended fixes (pick one or combine):**
+
+1. **Increase strike_bonus dramatically** — to at least 500-1000 to exceed the
+   discounted future value. The config comment says it was raised "10x from 5.0"
+   but it needs another 10-20x increase.
+
+2. **Don't terminate on strike success.** Instead, respawn the prey at a new
+   random location and let the agent strike multiple times per episode. This
+   makes striking additive rather than episode-ending, removing the opportunity
+   cost entirely.
+
+3. **Add a per-step strike penalty** — a small negative reward for being close
+   to the prey WITHOUT striking (e.g., `-0.1 × claw_proximity`). This makes
+   "hovering near prey" costly and breaks the local optimum.
+
+4. **Reduce the per-step reward budget in Stage 3.** Currently forward_vel_weight
+   is 0.5, which gives continuous reward for moving. In a hunting stage, the agent
+   should be incentivized to strike, not to meander. Consider zeroing out
+   forward_vel_weight and proximity rewards, keeping only approach_weight (which
+   is delta-based and goes to zero at the prey) and the strike bonus.
+
+5. **Use a shaped terminal reward** — instead of a flat 50.0, scale the strike
+   bonus by remaining episode time: `strike_bonus × (remaining_steps / max_steps)`.
+   Early strikes are worth more, incentivizing speed.
+
+**Recommendation 2 (prey respawn) is likely the most robust fix** because it
+fundamentally changes the problem from "one-shot sparse reward vs episode
+termination" to "repeated dense reward," which PPO handles much better.
