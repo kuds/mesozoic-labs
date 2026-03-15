@@ -342,7 +342,14 @@ def _make_drive_progress_log_callback_class():
                 logger.warning("Failed to write trial progress to %s: %s", self._csv_path, e)
 
         def on_trial_complete(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
-            self._write_row(trial, status="COMPLETED")
+            # Distinguish ASHA-pruned trials from those that ran to completion.
+            # train_trial() reports done=True only in its final metrics; trials
+            # stopped early by ASHA will not have this flag.
+            if trial.last_result.get("done"):
+                status = "COMPLETED"
+            else:
+                status = "PRUNED"
+            self._write_row(trial, status=status)
 
         def on_trial_error(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
             self._write_row(trial, status="ERROR")
