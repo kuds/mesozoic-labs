@@ -382,7 +382,7 @@ def _build_core_callbacks(
 
     callbacks.append(_DiagCB(log_dir=str(log_path), verbose=verbose))
 
-    callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, verbose=verbose))
+    callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, min_evals=8, patience=5, verbose=verbose))
 
     if use_wandb:
         callbacks.append(WandbCallback())
@@ -728,21 +728,22 @@ def _report_hpt_metrics(
     )
     if fwd_vels:
         mean_fwd = float(_np.mean(fwd_vels))
+        std_fwd = float(_np.std(fwd_vels))
         aux_metrics["mean_forward_vel"] = mean_fwd
+        aux_metrics["std_forward_vel"] = std_fwd
         # Keep backward-compat alias used by existing sweep analysis.
         aux_metrics["best_mean_forward_vel"] = mean_fwd
-        logger.info("HPT metric reported: mean_forward_vel=%.4f", mean_fwd)
+        logger.info("HPT metric reported: mean_forward_vel=%.4f (std=%.4f)", mean_fwd, std_fwd)
     if distances:
         mean_dist = float(_np.mean(distances))
         aux_metrics["mean_distance_traveled"] = mean_dist
         logger.info("HPT metric reported: mean_distance_traveled=%.4f", mean_dist)
-    if stage >= 3 and success_flags:
-        best_success = float(_np.mean(success_flags))
-        aux_metrics["best_mean_success_rate"] = best_success
-        logger.info(
-            "HPT metric reported: best_mean_success_rate=%.4f",
-            best_success,
-        )
+    if success_flags:
+        mean_success = float(_np.mean(success_flags))
+        aux_metrics["mean_success_rate"] = mean_success
+        # Keep backward-compat alias used by existing sweep analysis.
+        aux_metrics["best_mean_success_rate"] = mean_success
+        logger.info("HPT metric reported: mean_success_rate=%.4f", mean_success)
 
     # Include key hyperparameters in the sidecar so offline result
     # collection works even when stage_config.json is missing.
