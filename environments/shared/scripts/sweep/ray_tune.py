@@ -482,7 +482,7 @@ def train_trial(config: dict[str, Any]) -> None:
             )
         )
 
-        callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, verbose=0))
+        callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, min_evals=8, patience=5, verbose=0))
 
         # Stage transition callbacks (stages 2+)
         cur_kwargs = stage_config.get("curriculum_kwargs", {})
