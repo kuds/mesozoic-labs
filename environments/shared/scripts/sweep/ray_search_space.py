@@ -156,6 +156,10 @@ def save_search_space(
     num_trials: int = 0,
     eval_freq: int = 0,
     seed: int = 0,
+    grace_period: int = 0,
+    reduction_factor: int = 0,
+    collapse_min_evals: int = 0,
+    collapse_patience: int = 0,
 ) -> Path:
     """Write the resolved search space to *dest_dir* as JSON for record keeping.
 
@@ -197,6 +201,14 @@ def save_search_space(
         runtime["eval_freq"] = eval_freq
     if seed:
         runtime["seed"] = seed
+    if grace_period:
+        runtime["grace_period"] = grace_period
+    if reduction_factor:
+        runtime["reduction_factor"] = reduction_factor
+    if collapse_min_evals:
+        runtime["collapse_min_evals"] = collapse_min_evals
+    if collapse_patience:
+        runtime["collapse_patience"] = collapse_patience
     if runtime:
         payload["runtime"] = runtime
 

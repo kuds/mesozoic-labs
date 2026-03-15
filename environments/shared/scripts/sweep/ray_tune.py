@@ -375,6 +375,8 @@ def train_trial(config: dict[str, Any]) -> None:
     seed = config["_seed"]
     eval_freq = config["_eval_freq"]
     load_path = config.get("_load_path") or None
+    collapse_min_evals = config.get("_collapse_min_evals", 8)
+    collapse_patience = config.get("_collapse_patience", 5)
     local_trials_dir = config.get("_local_trials_dir")
     drive_sweep_dir = config.get("_drive_sweep_dir")
 
@@ -475,14 +477,18 @@ def train_trial(config: dict[str, Any]) -> None:
 
         callbacks.append(
             CheckpointCallback(
-                save_freq=max(5 * eval_freq // n_envs, 1),
+                save_freq=max(10 * eval_freq // n_envs, 1),
                 save_path=str(model_dir),
                 name_prefix=f"stage{stage}",
                 save_vecnormalize=True,
             )
         )
 
-        callbacks.append(EvalCollapseEarlyStopCallback(eval_callback=eval_callback, verbose=0))
+        callbacks.append(
+            EvalCollapseEarlyStopCallback(
+                eval_callback=eval_callback, min_evals=collapse_min_evals, patience=collapse_patience, verbose=0
+            )
+        )
 
         # Stage transition callbacks (stages 2+)
         cur_kwargs = stage_config.get("curriculum_kwargs", {})
