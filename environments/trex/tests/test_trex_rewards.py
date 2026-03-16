@@ -27,11 +27,14 @@ class TestTRexRewardComponents:
         _, _, terminated, _, info = env.step(action)
         expected = (
             info["reward_forward"]
+            + info["reward_backward"]
+            + info["reward_drift"]
             + info["reward_alive"]
             + info["reward_energy"]
             + info["reward_tail"]
             + info["reward_bite"]
             + info["reward_approach"]
+            + info["reward_head_proximity"]
             + info["reward_posture"]
             + info["reward_nosedive"]
             + info["reward_height"]
@@ -39,6 +42,8 @@ class TestTRexRewardComponents:
             + info["reward_smoothness"]
             + info["reward_heading"]
             + info["reward_lateral"]
+            + info["reward_spin"]
+            + info["reward_speed"]
         )
         if terminated:
             expected += env.fall_penalty
@@ -128,6 +133,25 @@ class TestTRexRewardWeightEffects:
         action2 = env.action_space.sample()
         _, _, _, _, info = env.step(action2)
         assert info["reward_smoothness"] == 0.0
+        env.close()
+
+    def test_zero_head_proximity_weight_zeroes_head_proximity_reward(self):
+        env = TRexEnv(bite_head_proximity_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_head_proximity"] == 0.0
+        env.close()
+
+    def test_positive_head_proximity_weight_gives_reward(self):
+        env = TRexEnv(bite_head_proximity_weight=1.0)
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        # Head proximity should be non-negative
+        assert info["reward_head_proximity"] >= 0.0
+        assert info["head_proximity"] >= 0.0
+        assert info["head_prey_distance"] >= 0.0
         env.close()
 
     def test_zero_height_weight_zeroes_height_reward(self):
