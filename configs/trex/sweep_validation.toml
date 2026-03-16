@@ -9,6 +9,7 @@
 # | 1       | Baseline (TOML)    | TBD         | TBD       | Default stage1_balance.toml values  |
 # | 2       | Anti-rotation      | TBD         | TBD       | Stronger heading/spin penalties     |
 # | 3       | High alive bonus   | TBD         | TBD       | Boosted alive bonus, tuned posture  |
+# | 4       | Raptor S4 port     | TBD         | TBD       | Velociraptor setting 4 (anti-rot.)  |
 
 # --- Setting 1: Baseline — default stage1_balance.toml with reset_noise_scale=0.05 ---
 
@@ -119,4 +120,42 @@ clip_range = 0.2
 ent_coef = 0.0015
 
 [setting_3.ppo.policy_kwargs]
+net_arch = [512, 256]
+
+# --- Setting 4: Anti-rotation (velociraptor setting 4 port) ---
+# Direct port of the velociraptor sweep validation setting 4, which worked
+# well for raptor balance training.  Same reward weights and PPO hyperparams
+# with strike_bonus/strike_approach_weight mapped to bite_bonus/bite_approach_weight.
+
+[setting_4.env]
+alive_bonus = 1.75
+backward_vel_penalty_weight = 0.0
+drift_penalty_weight = 0.5
+energy_penalty_weight = 0.075
+forward_vel_weight = 0.0
+gait_symmetry_weight = 0.0
+heading_weight = 0.3
+spin_penalty_weight = 0.3
+nosedive_weight = 1.5
+posture_weight = 1.5
+smoothness_weight = 0.05
+bite_bonus = 0.0
+bite_approach_weight = 0.0
+bite_head_proximity_weight = 0.0
+tail_stability_weight = 0.02
+prey_distance_range = [10.0, 15.0]
+max_episode_steps = 1000
+reset_noise_scale = 0.05
+
+[setting_4.ppo]
+learning_rate = 3.227259919476763e-05
+n_steps = 2048
+batch_size = 128
+n_epochs = 6
+gamma = 0.9796799988368609
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.0007740928167426532
+
+[setting_4.ppo.policy_kwargs]
 net_arch = [512, 256]
