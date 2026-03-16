@@ -151,7 +151,13 @@ class TestSaveSearchSpace:
     def test_runtime_use_asha_false(self, tmp_path):
         space = {"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}
         result_path = save_search_space(
-            space, tmp_path, species="trex", stage=1, algorithm="ppo", use_asha=False, n_envs=4,
+            space,
+            tmp_path,
+            species="trex",
+            stage=1,
+            algorithm="ppo",
+            use_asha=False,
+            n_envs=4,
         )
         data = json.loads(result_path.read_text())
         assert data["runtime"]["use_asha"] is False
