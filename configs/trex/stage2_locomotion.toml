@@ -3,19 +3,23 @@ name = "locomotion"
 description = "Learn forward walking/running"
 
 [env]
-forward_vel_weight = 0.8               # Reduce slightly: your best run (743 reward, 682 ep_len) used 1.0
-                                       # but agent was sprinting and falling; 0.8 favors stable walking
-alive_bonus = 0.5                      # Reduce from Stage 1 (2.0): high alive_bonus traps agent in standing posture
-fall_penalty = -50.0                   # Reduce from -100: lower risk/reward asymmetry encourages locomotion attempts
-energy_penalty_weight = 0.001
-tail_stability_weight = 0.08           # Increase from 0.05: T-Rex tail is a major instability source
-posture_weight = 0.5                    # Reduce from Stage 1 (2.0): allow forward lean for locomotion
-nosedive_weight = 1.0                  # Reduce from Stage 1 (3.0): permit head-forward walking posture
-height_weight = 1.0                    # Match Stage 1: reward maintaining pelvis height near target
+forward_vel_weight = 2.0               # Match raptor: was 0.8, far too low. Primary driver of locomotion speed.
+                                       # At 2.0, forward velocity dominates the reward landscape and
+                                       # pushes the agent past the slow-walking local optimum.
+alive_bonus = 0.5                      # Keep: already reduced from Stage 1
+fall_penalty = -50.0                   # Keep: reasonable risk/reward balance
+energy_penalty_weight = 0.002          # Increase from 0.001: CoT was near 0, provide some efficiency signal
+tail_stability_weight = 0.05           # Reduce from 0.08 to match raptor: tail oscillation is less
+                                       # critical than forward progress at this stage
+posture_weight = 0.2                   # Reduce from 0.5 to match raptor: allow dynamic forward lean for running
+nosedive_weight = 0.5                  # Reduce from 1.0 (raptor uses 0.3): allow head-forward running posture
+                                       # Keep slightly above raptor since head_contact is major termination cause
+height_weight = 0.3                    # Reduce from 1.0: pelvis already at 0.932m (above 0.90 target),
+                                       # this was wasting reward budget; raptor doesn't use height at all
 gait_symmetry_weight = 0.0            # Keep disabled: formula is inverted
-smoothness_weight = 0.1               # Increase from 0.05: reduce jerky actions that topple the T-Rex
-heading_weight = 0.5
-lateral_penalty_weight = 0.3
+smoothness_weight = 0.05              # Reduce from 0.1 to match raptor: less penalty for dynamic motion
+heading_weight = 0.3                   # Reduce from 0.5 to match raptor: heading is already ~0.99
+lateral_penalty_weight = 0.1           # Reduce from 0.3 to match raptor: allow lateral dynamics for gait
 bite_bonus = 0.0
 bite_approach_weight = 0.0
 prey_distance_range = [8.0, 12.0]
@@ -25,7 +29,7 @@ max_episode_steps = 1000
 learning_rate = 5e-5                    # Reduce from 1e-4: prevent catastrophic forgetting of Stage 1 balance
 learning_rate_end = 1e-5
 n_steps = 4096                          # Increase from 2048: larger rollout buffer for more stable gradients
-batch_size = 128
+batch_size = 256                       # Increase from 128 to match raptor: more stable gradient estimates
 n_epochs = 10
 gamma = 0.995                           # Increase from 0.99: longer horizon values sustained locomotion
 gae_lambda = 0.95
@@ -33,7 +37,7 @@ clip_range = 0.2
 ent_coef = 0.005
 
 [ppo.policy_kwargs]
-net_arch = [256, 256]
+net_arch = [512, 256]                  # Larger first layer for T-Rex's higher-dimensional obs space (83 vs raptor's 67)
 
 [sac]
 learning_rate = 1e-4
