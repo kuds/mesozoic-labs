@@ -38,11 +38,12 @@ class TestSplitStageBlock:
             "trials": 30,
             "timesteps": 1000000,
             "parallel": 5,
+            "use_asha": True,
         }
         search_space, settings = _split_stage_block(block)
         assert "ppo_learning_rate" in search_space
         assert search_space["ppo_learning_rate"]["type"] == "double"
-        assert settings == {"trials": 30, "timesteps": 1000000, "parallel": 5}
+        assert settings == {"trials": 30, "timesteps": 1000000, "parallel": 5, "use_asha": True}
 
     def test_all_search_params(self):
         block = {

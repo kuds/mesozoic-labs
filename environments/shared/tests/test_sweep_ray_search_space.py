@@ -127,12 +127,14 @@ class TestSaveSearchSpace:
         assert rt["num_trials"] == 50
         assert rt["eval_freq"] == 50_000
         assert rt["seed"] == 42
+        assert rt["use_asha"] is True
 
-    def test_runtime_omitted_when_no_fields(self, tmp_path):
+    def test_runtime_includes_use_asha_even_with_no_other_fields(self, tmp_path):
         space = {"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}
         result_path = save_search_space(space, tmp_path, species="trex", stage=2, algorithm="sac")
         data = json.loads(result_path.read_text())
-        assert "runtime" not in data
+        # use_asha is always written (defaults to True), so runtime is present
+        assert data["runtime"] == {"use_asha": True}
 
     def test_runtime_partial_fields(self, tmp_path):
         space = {"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}
@@ -142,8 +144,17 @@ class TestSaveSearchSpace:
         rt = data["runtime"]
         assert rt["n_envs"] == 4
         assert rt["seed"] == 7
+        assert rt["use_asha"] is True
         assert "gpu_model" not in rt
         assert "max_concurrent" not in rt
+
+    def test_runtime_use_asha_false(self, tmp_path):
+        space = {"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}
+        result_path = save_search_space(
+            space, tmp_path, species="trex", stage=1, algorithm="ppo", use_asha=False, n_envs=4,
+        )
+        data = json.loads(result_path.read_text())
+        assert data["runtime"]["use_asha"] is False
 
     def test_creates_dest_dir(self, tmp_path):
         dest = tmp_path / "nested" / "dir"
