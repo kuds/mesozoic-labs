@@ -160,6 +160,7 @@ def save_search_space(
     reduction_factor: int = 0,
     collapse_min_evals: int = 0,
     collapse_patience: int = 0,
+    use_asha: bool = True,
 ) -> Path:
     """Write the resolved search space to *dest_dir* as JSON for record keeping.
 
@@ -201,6 +202,7 @@ def save_search_space(
         runtime["eval_freq"] = eval_freq
     if seed:
         runtime["seed"] = seed
+    runtime["use_asha"] = use_asha
     if grace_period:
         runtime["grace_period"] = grace_period
     if reduction_factor:
