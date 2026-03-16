@@ -122,6 +122,17 @@ def _make_ray_tune_report_callback_class():
                 best_src = Path(self.eval_callback.best_model_save_path)
                 _sync_to_drive(best_src, self._drive_best_model_dir, label=f"best@{self.num_timesteps}")
 
+                # Sync evaluations.npz to the Drive trial dir (one level up from models/)
+                # so post-analysis can rank trials without local /tmp/ storage.
+                eval_npz = Path(self.eval_callback.log_path) / "evaluations.npz"
+                if eval_npz.exists():
+                    drive_trial_dir = self._drive_best_model_dir.parent
+                    drive_trial_dir.mkdir(parents=True, exist_ok=True)
+                    try:
+                        shutil.copy2(str(eval_npz), str(drive_trial_dir / "evaluations.npz"))
+                    except OSError as e:
+                        logger.warning("Drive sync failed for evaluations.npz: %s", e)
+
             return True
 
     return _RayTuneReportCallback
@@ -616,6 +627,15 @@ def train_trial(config: dict[str, Any]) -> None:
 
         if drive_best_model_dir:
             _sync_to_drive(model_dir, drive_best_model_dir, label="final")
+            # Sync evaluations.npz to the Drive trial dir (one level up from models/)
+            eval_npz = trial_dir / "evaluations.npz"
+            if eval_npz.exists():
+                drive_trial_dir = drive_best_model_dir.parent
+                drive_trial_dir.mkdir(parents=True, exist_ok=True)
+                try:
+                    shutil.copy2(str(eval_npz), str(drive_trial_dir / "evaluations.npz"))
+                except OSError as e:
+                    logger.warning("Drive sync failed for evaluations.npz: %s", e)
 
         # Post-training evaluation for distance + forward velocity metrics.
         # Load the best model for evaluation (matches what gets handed off).

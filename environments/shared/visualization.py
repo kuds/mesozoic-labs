@@ -19,6 +19,13 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
+def _safe_legend(ax: Any, **kwargs: Any) -> None:
+    """Call ``ax.legend()`` only when the axes has labeled artists."""
+    handles, labels = ax.get_legend_handles_labels()
+    if labels:
+        ax.legend(**kwargs)
+
 # Type alias for the (stage_num, stage_dir) tuples used throughout.
 StageDirs = Sequence[tuple[int, str | Path]]
 
@@ -105,25 +112,25 @@ def plot_training_curves(
     axes[0, 0].set_xlabel("Timesteps")
     axes[0, 0].set_ylabel("Mean Reward")
     axes[0, 0].set_title(f"{species_title} {algorithm} - Eval Reward")
-    axes[0, 0].legend()
+    _safe_legend(axes[0, 0])
     axes[0, 0].grid(True, alpha=0.3)
 
     axes[0, 1].set_xlabel("Timesteps")
     axes[0, 1].set_ylabel("Mean Episode Length (steps)")
     axes[0, 1].set_title(f"{species_title} {algorithm} - Episode Length")
-    axes[0, 1].legend()
+    _safe_legend(axes[0, 1])
     axes[0, 1].grid(True, alpha=0.3)
 
     axes[1, 0].set_xlabel("Timesteps")
     axes[1, 0].set_ylabel("Mean Tilt Angle (degrees)")
     axes[1, 0].set_title(f"{species_title} {algorithm} - Tilt Angle")
-    axes[1, 0].legend()
+    _safe_legend(axes[1, 0])
     axes[1, 0].grid(True, alpha=0.3)
 
     axes[1, 1].set_xlabel("Timesteps")
     axes[1, 1].set_ylabel("Mean Forward Velocity (m/s)")
     axes[1, 1].set_title(f"{species_title} {algorithm} - Speed")
-    axes[1, 1].legend()
+    _safe_legend(axes[1, 1])
     axes[1, 1].grid(True, alpha=0.3)
 
     fig.tight_layout()
@@ -269,7 +276,7 @@ def plot_diagnostics_graphs(
             ha="right",
             fontsize=8,
         )
-        _ax_term.legend(fontsize=7, loc="upper right")
+        _safe_legend(_ax_term, fontsize=7, loc="upper right")
     else:
         _ax_term.text(
             0.5,
@@ -288,19 +295,19 @@ def plot_diagnostics_graphs(
     axes1[0, 1].set_xlabel("Timesteps")
     axes1[0, 1].set_ylabel("Cost of Transport (energy / speed)")
     axes1[0, 1].set_title(f"{species_title} {algorithm} \u2013 Cost of Transport")
-    axes1[0, 1].legend(fontsize=8)
+    _safe_legend(axes1[0, 1], fontsize=8)
     axes1[0, 1].grid(True, alpha=0.3)
 
     axes1[1, 0].set_xlabel("Timesteps")
     axes1[1, 0].set_ylabel("Pelvis Height (m)")
     axes1[1, 0].set_title(f"{species_title} {algorithm} \u2013 Pelvis Height")
-    axes1[1, 0].legend()
+    _safe_legend(axes1[1, 0])
     axes1[1, 0].grid(True, alpha=0.3)
 
     axes1[1, 1].set_xlabel("Timesteps")
     axes1[1, 1].set_ylabel("Mean Reward Component")
     axes1[1, 1].set_title(f"{species_title} {algorithm} \u2013 Reward Decomposition")
-    axes1[1, 1].legend(fontsize=7, loc="upper left")
+    _safe_legend(axes1[1, 1], fontsize=7, loc="upper left")
     axes1[1, 1].grid(True, alpha=0.3)
 
     fig1.tight_layout()
@@ -388,37 +395,37 @@ def plot_diagnostics_graphs(
     axes2[0, 0].set_xlabel("Timesteps")
     axes2[0, 0].set_ylabel("Gait Symmetry (\u2013) / Stride Freq proxy (--)")
     axes2[0, 0].set_title(f"{species_title} {algorithm} \u2013 Gait Symmetry + Stride Frequency")
-    axes2[0, 0].legend(fontsize=8)
+    _safe_legend(axes2[0, 0], fontsize=8)
     axes2[0, 0].grid(True, alpha=0.3)
 
     axes2[0, 1].set_xlabel("Timesteps")
     axes2[0, 1].set_ylabel("Heading Alignment (cos \u03b8)")
     axes2[0, 1].set_title(f"{species_title} {algorithm} \u2013 Heading Alignment")
-    axes2[0, 1].legend()
+    _safe_legend(axes2[0, 1])
     axes2[0, 1].grid(True, alpha=0.3)
 
     axes2[1, 0].set_xlabel("Timesteps")
     axes2[1, 0].set_ylabel("Prey Distance (m)")
     axes2[1, 0].set_title(f"{species_title} {algorithm} \u2013 Prey Distance")
-    axes2[1, 0].legend()
+    _safe_legend(axes2[1, 0])
     axes2[1, 0].grid(True, alpha=0.3)
 
     axes2[1, 1].set_xlabel("Timesteps")
     axes2[1, 1].set_ylabel("Strike Success Rate")
     axes2[1, 1].set_title(f"{species_title} {algorithm} \u2013 Strike Success Rate")
-    axes2[1, 1].legend()
+    _safe_legend(axes2[1, 1])
     axes2[1, 1].grid(True, alpha=0.3)
 
     axes2[2, 0].set_xlabel("Timesteps")
     axes2[2, 0].set_ylabel("Distance Traveled (m)")
     axes2[2, 0].set_title(f"{species_title} {algorithm} \u2013 Distance Traveled (path length)")
-    axes2[2, 0].legend()
+    _safe_legend(axes2[2, 0])
     axes2[2, 0].grid(True, alpha=0.3)
 
     axes2[2, 1].set_xlabel("Timesteps")
     axes2[2, 1].set_ylabel("Drift Distance (m)")
     axes2[2, 1].set_title(f"{species_title} {algorithm} \u2013 Drift Distance (displacement from spawn)")
-    axes2[2, 1].legend()
+    _safe_legend(axes2[2, 1])
     axes2[2, 1].grid(True, alpha=0.3)
 
     fig2.tight_layout()
