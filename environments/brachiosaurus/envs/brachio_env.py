@@ -19,13 +19,25 @@ Action space:
 
 Reward components:
     - Forward velocity toward food
+    - Backward velocity penalty
+    - Drift penalty (horizontal displacement from spawn)
     - Alive bonus
     - Fall penalty
     - Energy penalty
-    - Gait stability (encourage coordinated quadrupedal gait)
+    - Gait stability (penalize torso angular velocity)
+    - Gait symmetry (alternating foot contacts)
+    - Action smoothness (penalize jerky action changes)
+    - Posture (continuous tilt penalty)
+    - Nosedive penalty (excessive forward pitch)
+    - Height maintenance (reward maintaining target torso height)
+    - Heading alignment (facing toward food)
+    - Lateral velocity penalty (anti crab-walk)
+    - Spin penalty (penalize torso angular velocity)
+    - Speed penalty (penalise absolute speed above threshold)
+    - Tail stability (penalize tail tip angular velocity)
     - Food reach bonus (when head gets close to food)
     - Approach shaping (distance to food)
-    - Speed penalty (penalise absolute speed above threshold)
+    - Head proximity shaping (continuous head-to-food distance reward)
 """
 
 from __future__ import annotations
@@ -59,26 +71,59 @@ class BrachioEnv(BaseDinoEnv):
         energy_penalty_weight: float = 0.001,
         fall_penalty: float = -100.0,
         gait_stability_weight: float = 0.05,
+        gait_symmetry_weight: float = 0.0,
+        smoothness_weight: float = 0.0,
+        posture_weight: float = 0.0,
+        nosedive_weight: float = 0.0,
+        natural_pitch: float = 0.0,
+        height_weight: float = 0.0,
+        heading_weight: float = 0.0,
+        lateral_penalty_weight: float = 0.0,
+        backward_vel_penalty_weight: float = 0.0,
+        drift_penalty_weight: float = 0.0,
+        spin_penalty_weight: float = 0.0,
+        tail_stability_weight: float = 0.0,
         speed_penalty_weight: float = 0.0,
         speed_penalty_threshold: float = 0.10,
+        forward_vel_max: float = 3.0,
         food_reach_bonus: float = 10.0,
         food_reach_threshold: float = 0.5,
         food_approach_weight: float = 1.0,
+        food_head_proximity_weight: float = 0.0,
         # Environment settings
         food_distance_range: tuple[float, float] = (3.0, 8.0),
         food_lateral_range: tuple[float, float] = (-2.0, 2.0),
         food_height_range: tuple[float, float] = (2.0, 4.0),
         healthy_z_range: tuple[float, float] = (1.2, 3.5),
+        reset_noise_scale: float = 0.01,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus.xml")
 
         # Brachio-specific reward weights
+        self.gait_stability_weight = gait_stability_weight
+        self.gait_symmetry_weight = gait_symmetry_weight
+        self.smoothness_weight = smoothness_weight
+        self.posture_weight = posture_weight
+        self.nosedive_weight = nosedive_weight
+        self.height_weight = height_weight
+        self.heading_weight = heading_weight
+        self.lateral_penalty_weight = lateral_penalty_weight
+        self.backward_vel_penalty_weight = backward_vel_penalty_weight
+        self.drift_penalty_weight = drift_penalty_weight
+        self.spin_penalty_weight = spin_penalty_weight
+        self.tail_stability_weight = tail_stability_weight
         self.speed_penalty_weight = speed_penalty_weight
         self.speed_penalty_threshold = speed_penalty_threshold
-        self.gait_stability_weight = gait_stability_weight
+        self.forward_vel_max = forward_vel_max
         self.food_reach_bonus = food_reach_bonus
         self.food_reach_threshold = food_reach_threshold
         self.food_approach_weight = food_approach_weight
+        self.food_head_proximity_weight = food_head_proximity_weight
+
+        # Natural forward pitch. The nosedive penalty is measured relative to
+        # this angle so the Brachiosaurus isn't punished for its natural stance.
+        # Default 0.0 (upright quadruped); override if the model has a natural lean.
+        self._natural_forward_z = -np.sin(natural_pitch)
 
         # Brachio-specific env settings
         self.food_distance_range = food_distance_range
@@ -87,6 +132,21 @@ class BrachioEnv(BaseDinoEnv):
 
         # State tracking for delta-based rewards
         self._prev_head_food_distance: float | None = None
+        self._prev_action: np.ndarray | None = None
+
+        # Gait symmetry: track foot touchdown events for alternation reward.
+        # Uses front-right / front-left as the tracked pair (analogous to
+        # the bipedal right/left foot tracking in T-Rex/Raptor).
+        self._init_gait_state()
+
+        # Cached initial direction to food (set in _spawn_target).
+        # Used by forward-velocity and heading rewards so the "forward"
+        # reference direction stays fixed for the whole episode.
+        self._initial_food_dir_2d: np.ndarray = np.array([1.0, 0.0])
+
+        # Cached initial torso position (set in _spawn_target).
+        # Used by the drift penalty to discourage horizontal displacement.
+        self._initial_pos_2d: np.ndarray = np.array([0.0, 0.0])
 
         super().__init__(
             model_path=model_path,
@@ -98,6 +158,7 @@ class BrachioEnv(BaseDinoEnv):
             energy_penalty_weight=energy_penalty_weight,
             fall_penalty=fall_penalty,
             healthy_z_range=healthy_z_range,
+            reset_noise_scale=reset_noise_scale,
         )
 
     def _cache_ids(self):
@@ -108,7 +169,31 @@ class BrachioEnv(BaseDinoEnv):
         # Geom IDs for contact detection
         self.food_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "food_geom")
         self.torso_main_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "torso_main")
+        self.belly_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "belly")
         self.floor_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+
+        # Head geom ID — head_geom has default contype=1 so it CAN produce
+        # floor contacts.  Neck geoms (neck_1 through neck_4) have contype=0
+        # and cannot collide with the floor.
+        self.head_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "head_geom")
+
+        # Tail geom IDs — distal segments (tail_3, tail_4) that should not
+        # contact floor.  Proximal tail_1/tail_2 may touch during walking.
+        self.tail_3_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_3_geom")
+        self.tail_4_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "tail_4_geom")
+
+        # Geoms that should terminate the episode on ground contact.
+        # Only includes geoms with contype != 0 (capable of floor collision).
+        self._body_ground_geoms = {
+            self.torso_main_geom_id,
+            self.belly_geom_id,
+            self.head_geom_id,
+            self.tail_3_geom_id,
+            self.tail_4_geom_id,
+        }
+        self._head_ground_geoms = {self.head_geom_id}
+        self._tail_ground_geoms = {self.tail_3_geom_id, self.tail_4_geom_id}
+        self._torso_ground_geoms = {self.torso_main_geom_id, self.belly_geom_id}
 
         # Site IDs for sensors
         self.imu_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "imu")
@@ -186,22 +271,31 @@ class BrachioEnv(BaseDinoEnv):
         """Compute reward and breakdown for logging."""
         info = {}
 
-        # 1. Forward velocity reward (toward food) — normalized
         torso_pos = self.data.xpos[self.torso_id]
         food_pos = self.data.mocap_pos[0]
-        food_dir_2d = food_pos[:2] - torso_pos[:2]
-        food_dist_2d = np.linalg.norm(food_dir_2d)
-        if food_dist_2d > 1e-6:
-            food_dir_2d = food_dir_2d / food_dist_2d
-
-        # Project velocity onto food direction
+        forward_ref_2d = self._initial_food_dir_2d
         vel_2d = self.data.qvel[0:2]
-        forward_vel = np.dot(vel_2d, food_dir_2d)
-        # Assume max walking speed of ~3.0 m/s for Brachiosaurus
-        forward_vel_norm = np.clip(forward_vel / 3.0, -1.0, 1.0)
+
+        # 1. Forward velocity reward (toward food)
+        reward_forward, forward_vel = self._compute_forward_velocity(
+            vel_2d, forward_ref_2d, self.forward_vel_max, self.forward_vel_weight
+        )
         info["forward_vel"] = forward_vel
-        reward_forward = self.forward_vel_weight * forward_vel_norm
         info["reward_forward"] = reward_forward
+
+        # 1b. Backward velocity penalty
+        reward_backward, backward_vel = self._compute_backward_penalty(
+            forward_vel, self.forward_vel_max, self.backward_vel_penalty_weight
+        )
+        info["backward_vel"] = backward_vel
+        info["reward_backward"] = reward_backward
+
+        # 1c. Drift penalty
+        reward_drift, drift_dist = self._compute_drift_penalty(
+            torso_pos[:2], self._initial_pos_2d, self.drift_penalty_weight
+        )
+        info["drift_distance"] = drift_dist
+        info["reward_drift"] = reward_drift
 
         # 2. Alive bonus (shared helper)
         reward_alive = self._reward_alive()
@@ -212,29 +306,92 @@ class BrachioEnv(BaseDinoEnv):
         info["reward_energy"] = reward_energy
 
         # 4. Gait stability (penalize high angular velocity of torso)
-        reward_gait, gait_instability = self._compute_angular_velocity_penalty(
+        reward_gait_stability, gait_instability = self._compute_angular_velocity_penalty(
             self.gait_stability_weight, max_angvel=5.0
         )
         info["gait_instability"] = gait_instability
-        info["reward_gait"] = reward_gait
+        info["reward_gait"] = reward_gait_stability
+
+        # 5. Tail stability
+        reward_tail, tail_instability = self._compute_tail_stability(self.tail_tip_site_id, self.tail_stability_weight)
+        info["tail_instability"] = tail_instability
+        info["reward_tail"] = reward_tail
+
+        # 6. Posture reward (continuous tilt penalty)
+        torso_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
+        reward_posture, tilt_angle = self._compute_posture_reward(torso_quat, self.posture_weight)
+        info["tilt_angle"] = tilt_angle
+        info["reward_posture"] = reward_posture
+
+        # 7. Nosedive penalty
+        reward_nosedive, forward_z = self._compute_nosedive_penalty(
+            torso_quat, self.nosedive_weight, self._natural_forward_z
+        )
+        info["forward_z"] = forward_z
+        info["reward_nosedive"] = reward_nosedive
+
+        # 8. Height maintenance reward
+        torso_height = float(torso_pos[2])
+        info["pelvis_height"] = torso_height
+        min_z = self.healthy_z_range[0]
+        target_z = 2.0  # Brachiosaurus target torso height
+        height_frac = float(np.clip((torso_height - min_z) / (target_z - min_z), 0.0, 1.0))
+        reward_height = self.height_weight * height_frac
+        info["reward_height"] = reward_height
+
+        # 9. Gait symmetry (reward alternating foot contacts)
+        fr_contact = self.data.sensordata[self._sensor_fr_foot]
+        fl_contact = self.data.sensordata[self._sensor_fl_foot]
+        info["r_foot_contact"] = float(fr_contact)
+        info["l_foot_contact"] = float(fl_contact)
+
+        reward_gait_sym, alternation_ratio = self._compute_gait_symmetry(
+            float(fr_contact), float(fl_contact), self.gait_symmetry_weight
+        )
+        info["alternation_ratio"] = alternation_ratio
+        info["contact_asymmetry"] = alternation_ratio
+        info["reward_gait_symmetry"] = reward_gait_sym
+
+        # 10. Action smoothness (shared helper)
+        reward_smoothness, action_delta = self._reward_action_smoothness(action)
+        info["action_delta"] = action_delta
+        info["reward_smoothness"] = reward_smoothness
+
+        # 11. Heading alignment
+        body_forward_2d = self._quat_to_forward_2d(torso_quat)
+        reward_heading, heading_alignment = self._compute_heading_alignment(
+            body_forward_2d, forward_ref_2d, self.heading_weight
+        )
+        info["heading_alignment"] = heading_alignment
+        info["reward_heading"] = reward_heading
+
+        # 12. Lateral velocity penalty
+        reward_lateral, lateral_vel = self._compute_lateral_velocity_penalty(
+            vel_2d, body_forward_2d, self.lateral_penalty_weight
+        )
+        info["lateral_vel"] = lateral_vel
+        info["reward_lateral"] = reward_lateral
 
         # Torso angular velocity (for spinning detection in shared diagnostics)
         pelvis_angular_vel, pelvis_yaw_vel = self._compute_pelvis_diagnostics()
         info["pelvis_angular_vel"] = pelvis_angular_vel
         info["pelvis_yaw_vel"] = pelvis_yaw_vel
 
-        # Torso height (for LocomotionMetrics tracking — aliased as pelvis_height)
-        info["pelvis_height"] = float(torso_pos[2])
+        # 13. Spin penalty
+        reward_spin, spin_instability = self._compute_angular_velocity_penalty(self.spin_penalty_weight)
+        info["spin_instability"] = spin_instability
+        info["reward_spin"] = reward_spin
 
-        # Foot contacts (for LocomotionMetrics gait tracking)
-        fr_contact = self.data.sensordata[self._sensor_fr_foot]
-        fl_contact = self.data.sensordata[self._sensor_fl_foot]
-        info["r_foot_contact"] = float(fr_contact)
-        info["l_foot_contact"] = float(fl_contact)
+        # 14. Speed penalty (penalise absolute speed above threshold)
+        reward_speed, abs_speed = self._compute_speed_penalty(
+            vel_2d, self.speed_penalty_weight, self.speed_penalty_threshold
+        )
+        info["abs_speed"] = abs_speed
+        info["reward_speed"] = reward_speed
 
-        # 5. Food reach bonus (head tip close to food)
+        # 15. Food reach bonus (head tip close to food)
         head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
-        head_food_dist = np.linalg.norm(head_tip_pos - food_pos)
+        head_food_dist = float(np.linalg.norm(head_tip_pos - food_pos))
         info["head_food_distance"] = head_food_dist
         info["prey_distance"] = float(head_food_dist)  # alias for LocomotionMetrics
 
@@ -248,14 +405,7 @@ class BrachioEnv(BaseDinoEnv):
         reward_food = food_reward
         info["reward_food"] = reward_food
 
-        # 5b. Speed penalty (penalise absolute speed above threshold)
-        reward_speed, abs_speed = self._compute_speed_penalty(
-            vel_2d, self.speed_penalty_weight, self.speed_penalty_threshold
-        )
-        info["abs_speed"] = abs_speed
-        info["reward_speed"] = reward_speed
-
-        # 6. Approach shaping
+        # 16. Approach shaping (delta-based)
         head_food_dist_f = float(head_food_dist)
         reward_approach, approach_delta = self._compute_approach_shaping(
             head_food_dist_f, self._prev_head_food_distance, self.food_approach_weight, 3.0
@@ -264,9 +414,35 @@ class BrachioEnv(BaseDinoEnv):
         info["approach_delta"] = approach_delta
         info["reward_approach"] = reward_approach
 
+        # 17. Head-to-food proximity shaping (continuous distance reward)
+        head_proximity_max_dist = 5.0  # Larger range than T-Rex due to long neck
+        head_proximity = max(0.0, 1.0 - head_food_dist_f / head_proximity_max_dist)
+        reward_head_proximity = self.food_head_proximity_weight * head_proximity
+        info["head_proximity"] = head_proximity
+        info["head_food_proximity_distance"] = head_food_dist_f
+        info["reward_head_proximity"] = reward_head_proximity
+
         # Total reward
         total_reward = (
-            reward_forward + reward_alive + reward_energy + reward_gait + reward_food + reward_approach + reward_speed
+            reward_forward
+            + reward_backward
+            + reward_drift
+            + reward_alive
+            + reward_energy
+            + reward_gait_stability
+            + reward_tail
+            + reward_posture
+            + reward_nosedive
+            + reward_height
+            + reward_gait_sym
+            + reward_smoothness
+            + reward_heading
+            + reward_lateral
+            + reward_spin
+            + reward_speed
+            + reward_food
+            + reward_approach
+            + reward_head_proximity
         )
         info["reward_total"] = total_reward
 
@@ -298,8 +474,16 @@ class BrachioEnv(BaseDinoEnv):
             info["success"] = True
             return True, info
 
-        # Floor contact termination (shared)
-        terminated, reason = self._check_floor_contact({self.torso_main_geom_id}, self.floor_geom_id)
+        # Floor contact termination (shared) — categorized by body part
+        terminated, reason = self._check_floor_contact(
+            self._body_ground_geoms,
+            self.floor_geom_id,
+            geom_categories={
+                "head": self._head_ground_geoms,
+                "tail": self._tail_ground_geoms,
+                "torso": self._torso_ground_geoms,
+            },
+        )
         if terminated:
             info["termination_reason"] = reason
             return True, info
@@ -320,8 +504,16 @@ class BrachioEnv(BaseDinoEnv):
         food_pos = np.array([distance, lateral, height])
         self.data.mocap_pos[0] = food_pos
 
+        # Cache initial direction and position for fixed-reference rewards
+        self._initial_food_dir_2d = self._compute_initial_direction_2d(food_pos)
+        self._initial_pos_2d = self.data.qpos[0:2].copy()
+
         # Reset delta-based tracking (first step will produce zero deltas)
         self._prev_head_food_distance = None
+        self._prev_action = None
+
+        # Reset gait symmetry tracking
+        self._reset_gait_state()
 
 
 # Register with Gymnasium (MesozoicLabs namespace)

@@ -3,30 +3,39 @@ name = "food_reach"
 description = "Walk to food and reach with neck"
 
 [env]
-forward_vel_weight = 1.0
-alive_bonus = 0.1
+forward_vel_weight = 0.5               # Halved from 1.0: prevent forward reward from dominating approach/food signals (matches T-Rex stage 3 pattern)
+alive_bonus = 0.0                      # Zeroed: survival is learned in stages 1-2; any per-step alive reward adds opportunity cost that discourages food-reaching attempts
+fall_penalty = -10.0                   # Reduced from default -100: prevents agent from being overly conservative about approaching food
 energy_penalty_weight = 0.001
+tail_stability_weight = 0.02           # Light tail stability penalty
 gait_stability_weight = 0.02
-food_reach_bonus = 10.0
+smoothness_weight = 0.02               # Light action smoothness penalty
+posture_weight = 0.1                   # Light posture maintenance during reach
+nosedive_weight = 0.2                  # Penalize excessive forward pitch
+heading_weight = 0.5                   # Face toward food for effective reach (matches T-Rex stage 3)
+lateral_penalty_weight = 0.3           # Penalize crab-walking toward food (matches T-Rex stage 3)
+food_reach_bonus = 1000.0              # Must greatly exceed discounted future per-step value; makes reaching food immediately net-positive (matches T-Rex bite_bonus)
 food_reach_threshold = 0.5
-food_approach_weight = 1.0
-food_distance_range = [3.0, 8.0]
+food_approach_weight = 3.0             # 3x increase from 1.0: stronger delta-based gradient toward food (matches T-Rex bite_approach_weight)
+food_head_proximity_weight = 1.0       # Head-to-food proximity shaping: continuous gradient for head positioning near food (matches T-Rex bite_head_proximity_weight)
+food_distance_range = [2.0, 6.0]       # Tightened from [3.0, 8.0]: closer food makes reach discovery much more likely during exploration (matches T-Rex prey range)
 food_lateral_range = [-1.5, 1.5]
 food_height_range = [2.5, 4.0]
 max_episode_steps = 1000
 
 [ppo]
 learning_rate = 5e-5
+learning_rate_end = 1e-5
 n_steps = 4096
 batch_size = 256
 n_epochs = 10
 gamma = 0.995
 gae_lambda = 0.95
-clip_range = 0.1
-ent_coef = 0.001
+clip_range = 0.15                      # Widened from 0.1: allow larger policy updates to escape local optimum (matches T-Rex stage 3)
+ent_coef = 0.005                       # 5x increase from 0.001: more exploration needed to discover sparse food reach reward (matches T-Rex stage 3)
 
 [ppo.policy_kwargs]
-net_arch = [256, 256]
+net_arch = [512, 256]                  # Match Stage 1 setting 4 architecture to avoid weight truncation on checkpoint load
 
 [sac]
 learning_rate = 5e-5
