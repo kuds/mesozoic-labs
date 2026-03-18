@@ -7,6 +7,8 @@ from unittest.mock import patch
 import pytest
 
 from environments.shared.config import (
+    _detect_gpu_info,
+    _detect_gpu_info_nvidia_smi,
     _find_stage_file,
     _upload_to_gcs,
     append_stage_result_csv,
@@ -313,6 +315,51 @@ class TestSaveStageConfig:
             out = save_stage_config(tmp_path / "cpu_run", 1, stage_config, "PPO")
         data = json.loads(out.read_text())
         assert "gpu" not in data
+
+
+class TestDetectGpuInfo:
+    """Tests for GPU detection with torch and nvidia-smi fallback."""
+
+    def test_falls_back_to_nvidia_smi_when_torch_unavailable(self):
+        fake_smi = {
+            "gpu_model": "T4",
+            "gpu_full_name": "Tesla T4",
+            "gpu_memory_gb": 15.0,
+            "driver_version": "535.104.05",
+        }
+        with (
+            patch.dict("sys.modules", {"torch": None}),
+            patch("environments.shared.config._detect_gpu_info_nvidia_smi", return_value=fake_smi),
+        ):
+            result = _detect_gpu_info()
+        assert result["gpu_model"] == "T4"
+        assert result["gpu_memory_gb"] == 15.0
+
+    def test_nvidia_smi_parses_output(self):
+        import subprocess
+
+        fake_result = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="Tesla T4, 15360, 535.104.05\n", stderr=""
+        )
+        with patch("subprocess.run", return_value=fake_result):
+            result = _detect_gpu_info_nvidia_smi()
+        assert result["gpu_model"] == "T4"
+        assert result["gpu_full_name"] == "Tesla T4"
+        assert result["gpu_memory_gb"] == 15.0
+        assert result["driver_version"] == "535.104.05"
+
+    def test_nvidia_smi_returns_empty_on_failure(self):
+        import subprocess
+
+        fake_result = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="not found")
+        with patch("subprocess.run", return_value=fake_result):
+            result = _detect_gpu_info_nvidia_smi()
+        assert result == {}
+
+    def test_nvidia_smi_returns_empty_when_not_installed(self):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            result = _detect_gpu_info_nvidia_smi()
+        assert result == {}
 
 
 class TestAppendStageResultCsv:
