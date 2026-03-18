@@ -313,9 +313,7 @@ class BrachioEnv(BaseDinoEnv):
         info["reward_gait"] = reward_gait_stability
 
         # 5. Tail stability
-        reward_tail, tail_instability = self._compute_tail_stability(
-            self.tail_tip_site_id, self.tail_stability_weight
-        )
+        reward_tail, tail_instability = self._compute_tail_stability(self.tail_tip_site_id, self.tail_stability_weight)
         info["tail_instability"] = tail_instability
         info["reward_tail"] = reward_tail
 
