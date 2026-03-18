@@ -55,6 +55,19 @@ After each training stage the `eval` command reports:
 | `success_rate` | Fraction of steps with food-reached event |
 | `min_prey_distance` | Closest approach to food (m, `head_food_distance`) |
 
+## Training Videos
+
+import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
+
+<SpeciesVideoSection
+  species="Brachiosaurus"
+  stages={[
+    { number: 1, title: 'Balance', description: 'Standing on all four legs without falling', video: '/videos/brachiosaurus_ppo_stage1_best.mp4' },
+    { number: 2, title: 'Locomotion', description: 'Coordinated quadrupedal walking', video: '/videos/brachiosaurus_ppo_stage2_best.mp4' },
+    { number: 3, title: 'Food Reach', description: 'Navigating to food and extending neck', video: '/videos/brachiosaurus_ppo_stage3_best.mp4' },
+  ]}
+/>
+
 ## Usage
 
 ```bash
