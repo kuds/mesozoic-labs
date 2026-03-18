@@ -1,0 +1,128 @@
+# Validation configurations for Stage 1 (balance) — candidates for
+# hyperparameter sweep validation.
+#
+# Select one by setting VALIDATION_SETTING = 1..4 in the training notebook.
+# Set to None to skip the override and use the default stage1_balance.toml.
+#
+# | Setting | Source             | Best Reward | Ep Length | Key Traits                          |
+# |---------|--------------------|-------------|-----------|-------------------------------------|
+# | 1       | Baseline (TOML)    | TBD         | TBD       | Default stage1_balance.toml values  |
+# | 2       | Anti-rotation      | TBD         | TBD       | Stronger gait stability penalties   |
+# | 3       | High alive bonus   | TBD         | TBD       | Boosted alive bonus, tuned energy   |
+# | 4       | Raptor S4 port     | TBD         | TBD       | Velociraptor setting 4 (anti-rot.)  |
+
+# --- Setting 1: Baseline — default stage1_balance.toml values ---
+
+[setting_1.env]
+alive_bonus = 1.0
+energy_penalty_weight = 0.0005
+forward_vel_weight = 0.0
+gait_stability_weight = 0.1
+speed_penalty_weight = 0.3
+speed_penalty_threshold = 0.10
+food_reach_bonus = 0.0
+food_approach_weight = 0.0
+food_distance_range = [10.0, 15.0]
+food_height_range = [2.0, 3.0]
+max_episode_steps = 1000
+
+[setting_1.ppo]
+learning_rate = 3e-4
+n_steps = 2048
+batch_size = 64
+n_epochs = 10
+gamma = 0.99
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.01
+
+[setting_1.ppo.policy_kwargs]
+net_arch = [256, 256]
+
+# --- Setting 2: Anti-rotation — Stronger gait stability to prevent wobble ---
+
+[setting_2.env]
+alive_bonus = 1.75
+energy_penalty_weight = 0.075
+forward_vel_weight = 0.0
+gait_stability_weight = 0.2
+speed_penalty_weight = 0.3
+speed_penalty_threshold = 0.10
+food_reach_bonus = 0.0
+food_approach_weight = 0.0
+food_distance_range = [10.0, 15.0]
+food_height_range = [2.0, 3.0]
+max_episode_steps = 1000
+
+[setting_2.ppo]
+learning_rate = 3e-5
+n_steps = 2048
+batch_size = 128
+n_epochs = 6
+gamma = 0.98
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.001
+
+[setting_2.ppo.policy_kwargs]
+net_arch = [512, 256]
+
+# --- Setting 3: High alive bonus — Boosted survival signal ---
+
+[setting_3.env]
+alive_bonus = 4.5
+energy_penalty_weight = 0.02
+forward_vel_weight = 0.0
+gait_stability_weight = 0.1
+speed_penalty_weight = 0.0
+speed_penalty_threshold = 0.10
+food_reach_bonus = 0.0
+food_approach_weight = 0.0
+food_distance_range = [10.0, 15.0]
+food_height_range = [2.0, 3.0]
+max_episode_steps = 1000
+
+[setting_3.ppo]
+learning_rate = 5e-5
+n_steps = 1024
+batch_size = 128
+n_epochs = 10
+gamma = 0.988
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.0015
+
+[setting_3.ppo.policy_kwargs]
+net_arch = [512, 256]
+
+# --- Setting 4: Anti-rotation (velociraptor setting 4 port) ---
+# Direct port of the proven raptor/trex PPO hyperparameters that worked
+# for balance training.  Reward weights adapted for Brachiosaurus's
+# quadrupedal reward components (gait_stability instead of posture/nosedive/
+# heading/spin/drift).
+
+[setting_4.env]
+alive_bonus = 1.75
+energy_penalty_weight = 0.075
+forward_vel_weight = 0.0
+gait_stability_weight = 0.15
+speed_penalty_weight = 0.3
+speed_penalty_threshold = 0.10
+food_reach_bonus = 0.0
+food_approach_weight = 0.0
+food_distance_range = [10.0, 15.0]
+food_height_range = [2.0, 3.0]
+max_episode_steps = 1000
+
+[setting_4.ppo]
+learning_rate = 3.227259919476763e-05
+n_steps = 2048
+batch_size = 128
+n_epochs = 6
+gamma = 0.9796799988368609
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.0007740928167426532
+
+[setting_4.ppo.policy_kwargs]
+net_arch = [512, 256]
