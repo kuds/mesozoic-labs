@@ -16,6 +16,7 @@ The [curriculum] table contains per-stage training and advancement settings:
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 from pathlib import Path
@@ -185,12 +186,18 @@ def save_stage_config(
     stage_config: dict[str, Any],
     algorithm: str,
     extra: dict[str, Any] | None = None,
+    env_class: type | None = None,
 ) -> Path:
     """Save the reward weights and model hyperparameters for a stage to JSON.
 
     Writes ``stage_config.json`` into *stage_dir* with the full reward signal
     (env_kwargs), the algorithm hyperparameters, curriculum thresholds, and any
     extra run-level metadata (seed, n_envs, etc.).
+
+    When *env_class* is provided, constructor defaults for parameters not
+    already present in the TOML-derived ``env_kwargs`` are merged in so
+    that the saved JSON captures the effective configuration (including
+    values like ``healthy_z_range`` that may rely on class defaults).
 
     Args:
         stage_dir: Directory for this stage (e.g. ``run_dir/stage1``).
@@ -199,6 +206,8 @@ def save_stage_config(
         algorithm: Algorithm name (``"PPO"`` or ``"SAC"``).
         extra: Optional dict of additional metadata to include at the top level
             (e.g. ``{"seed": 42, "n_envs": 4}``).
+        env_class: Optional environment class whose ``__init__`` defaults are
+            merged into ``env_kwargs`` for completeness.
 
     Returns:
         Path to the written JSON file.
@@ -208,10 +217,29 @@ def save_stage_config(
 
     algo_key = "ppo_kwargs" if algorithm.upper() == "PPO" else "sac_kwargs"
 
-    # Convert tuples back to lists for JSON serialisation
-    env_kwargs = {}
+    # Start with env class constructor defaults so that the saved JSON
+    # captures the full effective configuration, then overlay with
+    # explicit TOML values (which take precedence).
+    env_kwargs: dict[str, Any] = {}
+    if env_class is not None:
+        try:
+            sig = inspect.signature(env_class)
+            skip = {"self", "render_mode"}
+            for name, param in sig.parameters.items():
+                if name in skip or param.default is inspect.Parameter.empty:
+                    continue
+                env_kwargs[name] = param.default
+        except (ValueError, TypeError):
+            pass
+
+    # Overlay TOML-derived values and convert tuples to lists for JSON
     for key, value in stage_config.get("env_kwargs", {}).items():
         env_kwargs[key] = list(value) if isinstance(value, tuple) else value
+
+    # Also convert any defaults that were tuples
+    for key, value in env_kwargs.items():
+        if isinstance(value, tuple):
+            env_kwargs[key] = list(value)
 
     data: dict[str, Any] = {
         "stage": stage,

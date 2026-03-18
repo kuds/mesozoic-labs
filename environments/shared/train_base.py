@@ -479,6 +479,7 @@ def train(
         config,
         algorithm.upper(),
         extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
+        env_class=species_cfg.env_class,
     )
 
     # Create environments
@@ -850,6 +851,7 @@ def train_curriculum(
             config,
             algorithm.upper(),
             extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
+            env_class=species_cfg.env_class,
         )
 
         train_env = create_vec_env(species_cfg, stage_configs, stage, n_envs, seed, use_subproc)
