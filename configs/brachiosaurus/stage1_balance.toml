@@ -9,7 +9,7 @@ drift_penalty_weight = 0.0
 spin_penalty_weight = 0.0
 speed_penalty_weight = 0.3                     # Penalize absolute 2D speed above threshold — complements gait stability with instantaneous signal
 speed_penalty_threshold = 0.10                 # m/s — any speed above this incurs penalty
-alive_bonus = 1.0
+alive_bonus = 2.0
 energy_penalty_weight = 0.0005
 gait_stability_weight = 0.1
 gait_symmetry_weight = 0.0                     # Disabled: balance stage doesn't need alternation
@@ -25,6 +25,7 @@ food_approach_weight = 0.0
 food_head_proximity_weight = 0.0
 food_distance_range = [10.0, 15.0]
 food_height_range = [2.0, 3.0]
+healthy_z_range = [0.8, 3.5]              # Lowered from (1.2, 3.5) — keyframe starts at 1.20m, so 1.2 floor caused ~50% of resets to terminate immediately due to noise
 max_episode_steps = 1000                  # Match stage 2/3 for consistent episode horizon across curriculum
 reset_noise_scale = 0.05                  # Increased from 0.01 default to improve robustness (matches raptor/trex)
 
