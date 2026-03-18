@@ -58,6 +58,21 @@ After each training stage the `eval` command reports:
 | `success_rate` | Fraction of steps with sickle-claw strike |
 | `min_prey_distance` | Closest approach to prey (m) |
 
+## Training Results (PPO, 2026-03-15)
+
+Full 3-stage curriculum training with seed 42, 4 parallel environments. Total training time: **11h 25m 15s**.
+
+| Stage | Description | Timesteps | Best Eval Reward | Final Eval Reward | Avg Fwd Vel | Avg Ep Length | Duration |
+|-------|-------------|-----------|------------------|-------------------|-------------|---------------|----------|
+| 1 — Balance | Stand and balance without falling | 6,000,000 | 1964.43 +/- 27.39 | 1839.99 +/- 252.17 | 0.11 +/- 0.07 m/s | 969.5 steps (9.70s) | 2h 57m |
+| 2 — Locomotion | Forward walking/running | 8,000,000 | 2678.68 +/- 4.07 | 2677.51 +/- 5.86 | 3.47 +/- 0.02 m/s | 1000.0 steps (10.00s) | 4h 36m |
+| 3 — Strike | Sprint and strike prey with sickle claw | 8,000,000 | 1366.19 +/- 76.29 | 1258.93 +/- 305.56 | 2.02 +/- 0.30 m/s | 191.2 steps (1.91s) | 3h 52m |
+
+**Key observations:**
+- Stage 2 achieves perfect episode length (1000/1000 steps) with very low velocity variance (3.47 +/- 0.02 m/s), indicating extremely stable locomotion
+- Stage 2 final and best rewards are nearly identical (2677.51 vs 2678.68), showing no overfitting or collapse
+- Stage 3 achieves 93.3% strike success rate with short episodes (191.2 steps), demonstrating efficient prey pursuit
+
 ## Usage
 
 ```bash

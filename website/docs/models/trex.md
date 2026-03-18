@@ -58,6 +58,21 @@ After each training stage the `eval` command reports:
 | `success_rate` | Fraction of steps with jaw-bite event |
 | `min_prey_distance` | Closest approach to prey (m) |
 
+## Training Results (PPO, 2026-03-18)
+
+Full 3-stage curriculum training with seed 42, 4 parallel environments. Total training time: **13h 2m 32s**.
+
+| Stage | Description | Timesteps | Best Eval Reward | Final Eval Reward | Avg Fwd Vel | Avg Ep Length | Duration |
+|-------|-------------|-----------|------------------|-------------------|-------------|---------------|----------|
+| 1 — Balance | Stand and balance without falling | 6,000,000 | 3008.66 +/- 7.62 | 2998.07 +/- 34.52 | 0.02 +/- 0.06 m/s | 999.5 steps (9.99s) | 3h 35m |
+| 2 — Locomotion | Forward walking/running | 8,000,000 | 1936.01 +/- 13.12 | 1905.66 +/- 182.70 | 3.47 +/- 0.11 m/s | 984.6 steps (9.85s) | 5h 17m |
+| 3 — Bite | Sprint and bite prey with jaws | 8,000,000 | 1294.28 +/- 67.19 | 1234.49 +/- 189.97 | 1.68 +/- 0.24 m/s | 175.9 steps (1.76s) | 4h 10m |
+
+**Key observations:**
+- Stage 1 achieves near-perfect episode length (999.5/1000 steps), indicating excellent balance stability
+- Stage 2 reaches 3.47 m/s forward velocity — strong locomotion performance
+- Stage 3 has short episodes (175.9 steps) because the T-Rex quickly sprints to prey and delivers a bite, ending the episode on success (96.7% success rate)
+
 ## Usage
 
 ```bash
