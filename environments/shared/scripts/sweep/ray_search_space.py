@@ -43,7 +43,7 @@ def detect_gpu_model() -> str:
     from environments.shared.config import _detect_gpu_info
 
     info = _detect_gpu_info()
-    return info.get("gpu_model", "")
+    return str(info.get("gpu_model", ""))
 
 
 # Type alias for a single parameter spec dict.
