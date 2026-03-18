@@ -91,6 +91,7 @@ class DiagnosticsCallback(_BaseCallback):
         "forward_z",
         "approach_delta",
         "strike_success",
+        "bite_success",
         "r_foot_contact",
         "l_foot_contact",
         "pelvis_angular_vel",
