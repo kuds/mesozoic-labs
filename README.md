@@ -157,7 +157,7 @@ See [Vertex AI training docs](website/docs/training/vertex-ai.md) for cloud depl
 
 ## Training Results
 
-Hardware: Google Colab T4 GPU
+Hardware: Google Colab L4 GPU
 
 ### Velociraptor (PPO) — All 3 stages passed | 22M steps | 11:25:15 total
 
