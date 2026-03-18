@@ -6,19 +6,19 @@ const stages = [
     number: 1,
     title: 'Balance',
     description: 'Raptor learning to stand without falling',
-    video: '/videos/raptor_stage1_balance.mp4',
+    video: '/videos/velociraptor_ppo_stage1_best.mp4',
   },
   {
     number: 2,
     title: 'Locomotion',
     description: 'Raptor learning to walk and run forward',
-    video: '/videos/raptor_stage2_locomotion.mp4',
+    video: '/videos/velociraptor_ppo_stage2_best.mp4',
   },
   {
     number: 3,
     title: 'Strike',
     description: 'Raptor sprinting and attacking with sickle claws',
-    video: '/videos/raptor_stage3_strike.mp4',
+    video: '/videos/velociraptor_ppo_stage3_best.mp4',
   },
 ];
 
@@ -27,6 +27,7 @@ function VideoCard({ stage }: { stage: (typeof stages)[number] }) {
     <div className={styles.card}>
       <div className={styles.cardBorder} aria-hidden="true" />
       <div className={styles.stageLabel}>STAGE {stage.number}</div>
+      <div className={styles.algorithmBadge}>PPO</div>
       <h3 className={styles.stageTitle}>{stage.title}</h3>
       <p className={styles.stageDescription}>{stage.description}</p>
       <div className={styles.videoContainer}>
@@ -53,7 +54,7 @@ export default function RaptorVideoUpload(): React.JSX.Element {
           Training Stage Videos
         </h2>
         <p className={styles.sectionSubtitle}>
-          Velociraptor training progression across each curriculum stage
+          Velociraptor PPO training progression across each curriculum stage
         </p>
       </div>
       <div className={styles.grid}>
