@@ -175,6 +175,14 @@ Hardware: Google Colab T4 GPU
 | 2 | Locomotion | 1936.01 | 3.47 m/s | — | 5:17:18 |
 | 3 | Bite | 1294.28 | 1.68 m/s | 96.7% | 4:09:49 |
 
+### Brachiosaurus (PPO) — In progress
+
+| Stage | Name | Best Reward | Avg Fwd Vel | Success Rate | Time |
+|-------|------|-------------|-------------|--------------|------|
+| 1 | Balance | - | - | — | - |
+| 2 | Locomotion | - | - | — | - |
+| 3 | Food Reach | - | - | - | - |
+
 ## Notebooks
 
 | Notebook | Description |
