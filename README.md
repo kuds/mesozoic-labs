@@ -159,19 +159,7 @@ See [Vertex AI training docs](website/docs/training/vertex-ai.md) for cloud depl
 
 Hardware: Google Colab T4 GPU
 
-| Dinosaur       | Algorithm | Avg Reward | Training Time | Steps      |
-|----------------|-----------|------------|---------------|------------|
-| Basic Dinosaur | PPO       | 319.94     | 1:29:43       | 2,600,000  |
-| Basic Dinosaur | SAC       | 3091.31    | 4:36:59       | 3,600,000  |
-| T-Rex          | PPO       | 1234.49    | 13:02:32      | 22,000,000 |
-| T-Rex          | SAC       | -          | -             | 5,000,000  |
-| Velociraptor   | PPO       | 1258.93    | 11:25:15      | 22,000,000 |
-| Velociraptor   | SAC       | -          | -             | 5,000,000  |
-| Brachiosaurus  | PPO       | -          | -             | 3,500,000  |
-
-### Stage Breakdown
-
-**Velociraptor (PPO)** — All 3 stages passed
+### Velociraptor (PPO) — All 3 stages passed | 22M steps | 11:25:15 total
 
 | Stage | Name | Best Reward | Avg Fwd Vel | Success Rate | Time |
 |-------|------|-------------|-------------|--------------|------|
@@ -179,7 +167,7 @@ Hardware: Google Colab T4 GPU
 | 2 | Locomotion | 2678.68 | 3.47 m/s | — | 4:35:55 |
 | 3 | Strike | 1366.19 | 2.02 m/s | 93.3% | 3:51:54 |
 
-**T-Rex (PPO)** — All 3 stages passed
+### T-Rex (PPO) — All 3 stages passed | 22M steps | 13:02:32 total
 
 | Stage | Name | Best Reward | Avg Fwd Vel | Success Rate | Time |
 |-------|------|-------------|-------------|--------------|------|
@@ -199,8 +187,9 @@ Hardware: Google Colab T4 GPU
 ## Roadmap
 
 - [x] Complete velociraptor 3-stage training (PPO, 93.3% strike success)
-- [ ] Complete brachiosaurus 3-stage training
 - [x] Complete T-Rex 3-stage training (PPO, 96.7% bite success)
+- [ ] Complete brachiosaurus 3-stage training
+- [ ] SAC training for velociraptor and T-Rex
 - [ ] Domain randomization (friction, damping, gravity, actuator strength, external pushes, observation noise)
 - [ ] Terrain adaptation (uneven ground, obstacles)
 - [ ] JAX/MJX migration for faster training
