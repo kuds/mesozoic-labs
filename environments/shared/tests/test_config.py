@@ -7,7 +7,6 @@ from unittest.mock import patch
 import pytest
 
 from environments.shared.config import (
-    _detect_gpu_info,
     _find_stage_file,
     _upload_to_gcs,
     append_stage_result_csv,
