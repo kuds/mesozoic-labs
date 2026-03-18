@@ -36,23 +36,63 @@ _GPU_SHORT_NAMES = ("A100", "H100", "L4", "L40", "T4", "V100", "A10G", "A10", "R
 
 def _detect_gpu_info() -> dict[str, Any]:
     """Return a dict with GPU details, or an empty dict if no GPU is available."""
+    # Try torch first (most accurate when available).
     try:
         import torch
 
-        if not torch.cuda.is_available():
+        if torch.cuda.is_available():
+            full_name = torch.cuda.get_device_name(0)
+            short_name = full_name
+            for short in _GPU_SHORT_NAMES:
+                if short in full_name.upper():
+                    short_name = short
+                    break
+            props = torch.cuda.get_device_properties(0)
+            return {
+                "gpu_model": short_name,
+                "gpu_full_name": full_name,
+                "gpu_memory_gb": round(props.total_mem / 1e9, 1),
+                "cuda_version": torch.version.cuda or "",
+            }
+    except Exception:
+        pass
+
+    # Fallback: query nvidia-smi directly (works without torch).
+    return _detect_gpu_info_nvidia_smi()
+
+
+def _detect_gpu_info_nvidia_smi() -> dict[str, Any]:
+    """Detect GPU info via nvidia-smi. Returns empty dict on failure."""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total,driver_version",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
             return {}
-        full_name = torch.cuda.get_device_name(0)
+        line = result.stdout.strip().split("\n")[0]
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) < 3:
+            return {}
+        full_name, memory_mb, driver_version = parts[0], parts[1], parts[2]
         short_name = full_name
         for short in _GPU_SHORT_NAMES:
             if short in full_name.upper():
                 short_name = short
                 break
-        props = torch.cuda.get_device_properties(0)
         return {
             "gpu_model": short_name,
             "gpu_full_name": full_name,
-            "gpu_memory_gb": round(props.total_mem / 1e9, 1),
-            "cuda_version": torch.version.cuda or "",
+            "gpu_memory_gb": round(float(memory_mb) / 1024, 1),
+            "driver_version": driver_version,
         }
     except Exception:
         return {}
