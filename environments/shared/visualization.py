@@ -376,6 +376,8 @@ def plot_diagnostics_graphs(
         # [1,1] Strike / Bite / Food Success Rate
         if "strike_success" in diag:
             axes2[1, 1].plot(ts, diag["strike_success"], label=label, color=color)
+        if "bite_success" in diag:
+            axes2[1, 1].plot(ts, diag["bite_success"], label=label, color=color)
 
         # [2,0] Distance Traveled (cumulative XY path length)
         if "distance_traveled" in diag:
