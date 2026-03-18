@@ -223,7 +223,7 @@ def save_stage_config(
     env_kwargs: dict[str, Any] = {}
     if env_class is not None:
         try:
-            sig = inspect.signature(env_class.__init__)
+            sig = inspect.signature(env_class)
             skip = {"self", "render_mode"}
             for name, param in sig.parameters.items():
                 if name in skip or param.default is inspect.Parameter.empty:
