@@ -29,6 +29,35 @@ except ImportError:
     import tomli as tomllib
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# Known GPU short-names extracted from full device strings.
+_GPU_SHORT_NAMES = ("A100", "H100", "L4", "L40", "T4", "V100", "A10G", "A10", "RTX")
+
+
+def _detect_gpu_info() -> dict[str, Any]:
+    """Return a dict with GPU details, or an empty dict if no GPU is available."""
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            return {}
+        full_name = torch.cuda.get_device_name(0)
+        short_name = full_name
+        for short in _GPU_SHORT_NAMES:
+            if short in full_name.upper():
+                short_name = short
+                break
+        props = torch.cuda.get_device_properties(0)
+        return {
+            "gpu_model": short_name,
+            "gpu_full_name": full_name,
+            "gpu_memory_gb": round(props.total_mem / 1e9, 1),
+            "cuda_version": torch.version.cuda or "",
+        }
+    except Exception:
+        return {}
+
+
 _CONFIGS_DIR = _REPO_ROOT / "configs"
 
 # Map stage number -> filename pattern per species (discovered automatically)
@@ -155,6 +184,10 @@ def save_stage_config(
     }
     if extra:
         data["run"] = extra
+
+    gpu_info = _detect_gpu_info()
+    if gpu_info:
+        data["gpu"] = gpu_info
 
     out_path = stage_dir / "stage_config.json"
     out_path.write_text(json.dumps(data, indent=2) + "\n")

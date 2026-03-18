@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from environments.shared.config import (
+    _detect_gpu_info,
     _find_stage_file,
     _upload_to_gcs,
     append_stage_result_csv,
@@ -291,6 +292,28 @@ class TestSaveStageConfig:
         stage_config = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
         out = save_stage_config(tmp_path / "a" / "b" / "c", 1, stage_config, "PPO")
         assert out.exists()
+
+    def test_includes_gpu_info_when_available(self, tmp_path):
+        stage_config = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
+        fake_gpu = {
+            "gpu_model": "A100",
+            "gpu_full_name": "NVIDIA A100-SXM4-40GB",
+            "gpu_memory_gb": 40.0,
+            "cuda_version": "12.1",
+        }
+        with patch("environments.shared.config._detect_gpu_info", return_value=fake_gpu):
+            out = save_stage_config(tmp_path / "gpu_run", 1, stage_config, "PPO")
+        data = json.loads(out.read_text())
+        assert data["gpu"]["gpu_model"] == "A100"
+        assert data["gpu"]["gpu_memory_gb"] == 40.0
+        assert data["gpu"]["cuda_version"] == "12.1"
+
+    def test_omits_gpu_key_when_no_gpu(self, tmp_path):
+        stage_config = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
+        with patch("environments.shared.config._detect_gpu_info", return_value={}):
+            out = save_stage_config(tmp_path / "cpu_run", 1, stage_config, "PPO")
+        data = json.loads(out.read_text())
+        assert "gpu" not in data
 
 
 class TestAppendStageResultCsv:

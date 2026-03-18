@@ -37,24 +37,13 @@ from .search_space import _load_search_space_file, _search_space_for_stage
 
 logger = logging.getLogger(__name__)
 
-# Known GPU short-names extracted from full device strings.
-_GPU_SHORT_NAMES = ("A100", "H100", "L4", "L40", "T4", "V100", "A10G", "A10", "RTX")
-
 
 def detect_gpu_model() -> str:
     """Return a short GPU model name (e.g. ``"A100"``) or ``""`` if unavailable."""
-    try:
-        import torch
+    from environments.shared.config import _detect_gpu_info
 
-        if not torch.cuda.is_available():
-            return ""
-        full_name = torch.cuda.get_device_name(0)
-        for short in _GPU_SHORT_NAMES:
-            if short in full_name.upper():
-                return short
-        return str(full_name)  # return full name if no known short-name matches
-    except Exception:  # pragma: no cover – torch may not be installed
-        return ""
+    info = _detect_gpu_info()
+    return info.get("gpu_model", "")
 
 
 # Type alias for a single parameter spec dict.
