@@ -26,7 +26,9 @@ We're bringing prehistoric creatures back to life—as robots. Using state-of-th
 | T-Rex | PPO | 1 — Balance | 3008.66 +/- 7.62 | 0.02 m/s | 6.0M | 3h 35m |
 | T-Rex | PPO | 2 — Locomotion | 1936.01 +/- 13.12 | 3.47 m/s | 8.0M | 5h 17m |
 | T-Rex | PPO | 3 — Bite | 1294.28 +/- 67.19 | 1.68 m/s | 8.0M | 4h 10m |
-| Velociraptor | PPO | Full curriculum | 118.37 | — | 6.0M | 3h 39m |
+| Velociraptor | PPO | 1 — Balance | 1964.43 +/- 27.39 | 0.11 m/s | 6.0M | 2h 57m |
+| Velociraptor | PPO | 2 — Locomotion | 2678.68 +/- 4.07 | 3.47 m/s | 8.0M | 4h 36m |
+| Velociraptor | PPO | 3 — Strike | 1366.19 +/- 76.29 | 2.02 m/s | 8.0M | 3h 52m |
 | Basic Dinosaur | PPO | Full curriculum | 319.94 | — | 2.6M | 1h 30m |
 | Basic Dinosaur | SAC | Full curriculum | 3091.31 | — | 3.6M | — |
 
