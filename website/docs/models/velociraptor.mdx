@@ -73,6 +73,19 @@ Full 3-stage curriculum training with seed 42, 4 parallel environments. Total tr
 - Stage 2 final and best rewards are nearly identical (2677.51 vs 2678.68), showing no overfitting or collapse
 - Stage 3 achieves 93.3% strike success rate with short episodes (191.2 steps), demonstrating efficient prey pursuit
 
+## Training Videos
+
+import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
+
+<SpeciesVideoSection
+  species="Velociraptor"
+  stages={[
+    { number: 1, title: 'Balance', description: 'Standing without falling', video: '/videos/velociraptor_ppo_stage1_best.mp4' },
+    { number: 2, title: 'Locomotion', description: 'Walking and running forward', video: '/videos/velociraptor_ppo_stage2_best.mp4' },
+    { number: 3, title: 'Strike', description: 'Sprinting and attacking with sickle claws', video: '/videos/velociraptor_ppo_stage3_best.mp4' },
+  ]}
+/>
+
 ## Usage
 
 ```bash

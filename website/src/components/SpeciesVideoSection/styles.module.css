@@ -1,0 +1,78 @@
+.section {
+  margin-top: 2rem;
+}
+
+.subtitle {
+  color: var(--ifm-color-secondary-darkest);
+  margin-bottom: 1.5rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.card {
+  position: relative;
+  background: var(--ifm-background-surface-color, var(--ifm-background-color));
+  padding: 1.25rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 6px;
+  transition: border-color 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--ifm-color-primary);
+}
+
+.cardBorder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50px;
+  height: 3px;
+  background: var(--ifm-color-primary);
+  border-radius: 6px 0 0 0;
+}
+
+.stageLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--ifm-color-primary-dark);
+  margin-bottom: 0.4rem;
+  font-family: 'Courier New', monospace;
+}
+
+.stageTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.4rem 0;
+}
+
+.stageDescription {
+  font-size: 0.85rem;
+  color: var(--ifm-color-secondary-darkest);
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+
+.videoContainer {
+  display: flex;
+  flex-direction: column;
+}
+
+.videoPlayer {
+  width: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  background: #000;
+}
+
+@media (max-width: 968px) {
+  .grid {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+  }
+}

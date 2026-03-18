@@ -73,6 +73,19 @@ Full 3-stage curriculum training with seed 42, 4 parallel environments. Total tr
 - Stage 2 reaches 3.47 m/s forward velocity — strong locomotion performance
 - Stage 3 has short episodes (175.9 steps) because the T-Rex quickly sprints to prey and delivers a bite, ending the episode on success (96.7% success rate)
 
+## Training Videos
+
+import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
+
+<SpeciesVideoSection
+  species="T-Rex"
+  stages={[
+    { number: 1, title: 'Balance', description: 'Stable bipedal stance', video: '/videos/trex_ppo_stage1_best.mp4' },
+    { number: 2, title: 'Locomotion', description: 'Walk and run toward prey', video: '/videos/trex_ppo_stage2_best.mp4' },
+    { number: 3, title: 'Hunting', description: 'Sprint and bite prey with jaws', video: '/videos/trex_ppo_stage3_best.mp4' },
+  ]}
+/>
+
 ## Usage
 
 ```bash
