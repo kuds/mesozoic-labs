@@ -15,9 +15,9 @@
       <joint damping="20.0" armature="0.1"/>
     </default>
 
-    <!-- Neck joints: moderate stiffness, wide range -->
+    <!-- Neck joints: passive stiffness to counteract gravity on heavy neck -->
     <default class="neck_joint">
-      <joint damping="12.0" armature="0.05" range="-25 25"/>
+      <joint damping="12.0" stiffness="30.0" armature="0.05" range="-25 25"/>
     </default>
 
     <!-- Tail joints: moderate stiffness, limited range -->
@@ -254,12 +254,12 @@
          does NOT convert actuator attributes, only joint attributes. -->
 
     <!-- Neck control (5 joints: 4 pitch + 1 yaw on base) -->
-    <position name="neck_1_pitch_act" joint="neck_1_pitch" kp="120" ctrlrange="-0.3491 0.5236"/>
-    <position name="neck_1_yaw_act" joint="neck_1_yaw" kp="80" ctrlrange="-0.2618 0.2618"/>
-    <position name="neck_2_pitch_act" joint="neck_2_pitch" kp="100" ctrlrange="-0.3491 0.4363"/>
-    <position name="neck_3_pitch_act" joint="neck_3_pitch" kp="80" ctrlrange="-0.4363 0.4363"/>
-    <position name="neck_4_pitch_act" joint="neck_4_pitch" kp="60" ctrlrange="-0.5236 0.5236"/>
-    <position name="head_pitch_act" joint="head_pitch" kp="40" ctrlrange="-0.6981 0.6981"/>
+    <position name="neck_1_pitch_act" joint="neck_1_pitch" kp="240" ctrlrange="-0.3491 0.5236"/>
+    <position name="neck_1_yaw_act" joint="neck_1_yaw" kp="160" ctrlrange="-0.2618 0.2618"/>
+    <position name="neck_2_pitch_act" joint="neck_2_pitch" kp="200" ctrlrange="-0.3491 0.4363"/>
+    <position name="neck_3_pitch_act" joint="neck_3_pitch" kp="160" ctrlrange="-0.4363 0.4363"/>
+    <position name="neck_4_pitch_act" joint="neck_4_pitch" kp="120" ctrlrange="-0.5236 0.5236"/>
+    <position name="head_pitch_act" joint="head_pitch" kp="80" ctrlrange="-0.6981 0.6981"/>
 
     <!-- Front right leg -->
     <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="200" ctrlrange="-0.6981 0.8727"/>
