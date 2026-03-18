@@ -391,7 +391,7 @@ class BrachioEnv(BaseDinoEnv):
 
         # 15. Food reach bonus (head tip close to food)
         head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
-        head_food_dist = np.linalg.norm(head_tip_pos - food_pos)
+        head_food_dist = float(np.linalg.norm(head_tip_pos - food_pos))
         info["head_food_distance"] = head_food_dist
         info["prey_distance"] = float(head_food_dist)  # alias for LocomotionMetrics
 
