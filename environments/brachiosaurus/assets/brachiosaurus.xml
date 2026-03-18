@@ -15,6 +15,11 @@
       <joint damping="20.0" armature="0.1"/>
     </default>
 
+    <!-- Metatarsal joints: semi-digitigrade stance -->
+    <default class="meta_joint">
+      <joint damping="15.0" armature="0.08"/>
+    </default>
+
     <!-- Neck joints: moderate stiffness, wide range -->
     <default class="neck_joint">
       <joint damping="12.0" armature="0.05" range="-25 25"/>
@@ -67,6 +72,8 @@
       - Front legs longer than rear legs (giraffe-like posture)
       - Nostrils on top of head (crest)
       - Relatively short tail compared to other sauropods
+      - Semi-digitigrade stance: metacarpals/metatarsals held sub-vertically
+        with fleshy pads at the digits (similar to modern elephants)
     -->
 
     <body name="torso" pos="0 0 2.0">
@@ -154,7 +161,8 @@
 
       <!-- ==================== FRONT RIGHT LEG ==================== -->
       <!-- Brachiosaurus front legs are longer than rear (unique feature) -->
-      <!-- Columnar, elephant-like legs with limited range of motion -->
+      <!-- Semi-digitigrade stance: metacarpals held sub-vertically with
+           a fleshy pad at the base. The manus is compact (short metacarpal). -->
 
       <body name="fr_thigh" pos="0.55 -0.3 -0.2">
         <joint name="fr_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-40 50"/>
@@ -164,14 +172,22 @@
 
         <body name="fr_shin" pos="0 0 -0.55">
           <joint name="fr_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
-          <geom name="fr_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.55" size="0.09"
+          <geom name="fr_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.09"
                 mass="5.0" material="body_mat"/>
 
-          <body name="fr_foot" pos="0 0 -0.55">
-            <joint name="fr_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-20 30"/>
-            <geom name="fr_foot_geom" type="ellipsoid" pos="0.03 0 -0.04" size="0.12 0.1 0.05"
-                  mass="2.0" material="foot_mat"/>
-            <site name="fr_foot_contact" pos="0.03 0 -0.08" size="0.03"/>
+          <!-- Metacarpus: short, sub-vertical (sauropod manus was compact) -->
+          <body name="fr_meta" pos="0 0 -0.45">
+            <joint name="fr_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40"/>
+            <geom name="fr_meta_geom" type="capsule" fromto="0 0 0  0.03 0 -0.12" size="0.07"
+                  mass="1.5" material="body_mat"/>
+
+            <!-- Foot pad: fleshy digital pad at ground contact -->
+            <body name="fr_foot" pos="0.03 0 -0.12">
+              <joint name="fr_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25"/>
+              <geom name="fr_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
+                    mass="1.5" material="foot_mat"/>
+              <site name="fr_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
+            </body>
           </body>
         </body>
       </body>
@@ -186,20 +202,27 @@
 
         <body name="fl_shin" pos="0 0 -0.55">
           <joint name="fl_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
-          <geom name="fl_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.55" size="0.09"
+          <geom name="fl_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.09"
                 mass="5.0" material="body_mat"/>
 
-          <body name="fl_foot" pos="0 0 -0.55">
-            <joint name="fl_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-20 30"/>
-            <geom name="fl_foot_geom" type="ellipsoid" pos="0.03 0 -0.04" size="0.12 0.1 0.05"
-                  mass="2.0" material="foot_mat"/>
-            <site name="fl_foot_contact" pos="0.03 0 -0.08" size="0.03"/>
+          <body name="fl_meta" pos="0 0 -0.45">
+            <joint name="fl_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40"/>
+            <geom name="fl_meta_geom" type="capsule" fromto="0 0 0  0.03 0 -0.12" size="0.07"
+                  mass="1.5" material="body_mat"/>
+
+            <body name="fl_foot" pos="0.03 0 -0.12">
+              <joint name="fl_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25"/>
+              <geom name="fl_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
+                    mass="1.5" material="foot_mat"/>
+              <site name="fl_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
+            </body>
           </body>
         </body>
       </body>
 
       <!-- ==================== REAR RIGHT LEG ==================== -->
       <!-- Rear legs shorter than front (characteristic of Brachiosaurus) -->
+      <!-- Semi-digitigrade stance: metatarsals longer than front metacarpals -->
 
       <body name="rr_thigh" pos="-0.55 -0.3 -0.2">
         <joint name="rr_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-40 50"/>
@@ -209,14 +232,21 @@
 
         <body name="rr_shin" pos="0 0 -0.45">
           <joint name="rr_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
-          <geom name="rr_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.09"
+          <geom name="rr_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.35" size="0.09"
                 mass="4.0" material="body_mat"/>
 
-          <body name="rr_foot" pos="0 0 -0.45">
-            <joint name="rr_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-20 30"/>
-            <geom name="rr_foot_geom" type="ellipsoid" pos="0.03 0 -0.04" size="0.12 0.1 0.05"
-                  mass="2.0" material="foot_mat"/>
-            <site name="rr_foot_contact" pos="0.03 0 -0.08" size="0.03"/>
+          <!-- Metatarsus: longer than front metacarpus (hind foot digitigrade) -->
+          <body name="rr_meta" pos="0 0 -0.35">
+            <joint name="rr_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40"/>
+            <geom name="rr_meta_geom" type="capsule" fromto="0 0 0  0.04 0 -0.15" size="0.065"
+                  mass="1.5" material="body_mat"/>
+
+            <body name="rr_foot" pos="0.04 0 -0.15">
+              <joint name="rr_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25"/>
+              <geom name="rr_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
+                    mass="1.5" material="foot_mat"/>
+              <site name="rr_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
+            </body>
           </body>
         </body>
       </body>
@@ -231,14 +261,20 @@
 
         <body name="rl_shin" pos="0 0 -0.45">
           <joint name="rl_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
-          <geom name="rl_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.09"
+          <geom name="rl_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.35" size="0.09"
                 mass="4.0" material="body_mat"/>
 
-          <body name="rl_foot" pos="0 0 -0.45">
-            <joint name="rl_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-20 30"/>
-            <geom name="rl_foot_geom" type="ellipsoid" pos="0.03 0 -0.04" size="0.12 0.1 0.05"
-                  mass="2.0" material="foot_mat"/>
-            <site name="rl_foot_contact" pos="0.03 0 -0.08" size="0.03"/>
+          <body name="rl_meta" pos="0 0 -0.35">
+            <joint name="rl_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40"/>
+            <geom name="rl_meta_geom" type="capsule" fromto="0 0 0  0.04 0 -0.15" size="0.065"
+                  mass="1.5" material="body_mat"/>
+
+            <body name="rl_foot" pos="0.04 0 -0.15">
+              <joint name="rl_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25"/>
+              <geom name="rl_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
+                    mass="1.5" material="foot_mat"/>
+              <site name="rl_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
+            </body>
           </body>
         </body>
       </body>
@@ -261,29 +297,33 @@
     <position name="neck_4_pitch_act" joint="neck_4_pitch" kp="60" ctrlrange="-0.5236 0.5236"/>
     <position name="head_pitch_act" joint="head_pitch" kp="40" ctrlrange="-0.6981 0.6981"/>
 
-    <!-- Front right leg -->
+    <!-- Front right leg (6 actuators: hip pitch/roll, knee, ankle, toe) -->
     <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="200" ctrlrange="-0.6981 0.8727"/>
     <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="150" ctrlrange="-0.3491 0.3491"/>
     <position name="fr_knee_act" joint="fr_knee" kp="250" ctrlrange="-1.0472 0"/>
-    <position name="fr_ankle_act" joint="fr_ankle" kp="120" ctrlrange="-0.3491 0.5236"/>
+    <position name="fr_ankle_act" joint="fr_ankle" kp="120" ctrlrange="-0.3491 0.6981"/>
+    <position name="fr_toe_act" joint="fr_toe" kp="80" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Front left leg -->
     <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="200" ctrlrange="-0.6981 0.8727"/>
     <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="150" ctrlrange="-0.3491 0.3491"/>
     <position name="fl_knee_act" joint="fl_knee" kp="250" ctrlrange="-1.0472 0"/>
-    <position name="fl_ankle_act" joint="fl_ankle" kp="120" ctrlrange="-0.3491 0.5236"/>
+    <position name="fl_ankle_act" joint="fl_ankle" kp="120" ctrlrange="-0.3491 0.6981"/>
+    <position name="fl_toe_act" joint="fl_toe" kp="80" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Rear right leg -->
     <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="180" ctrlrange="-0.6981 0.8727"/>
     <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="130" ctrlrange="-0.3491 0.3491"/>
     <position name="rr_knee_act" joint="rr_knee" kp="220" ctrlrange="-1.0472 0"/>
-    <position name="rr_ankle_act" joint="rr_ankle" kp="100" ctrlrange="-0.3491 0.5236"/>
+    <position name="rr_ankle_act" joint="rr_ankle" kp="100" ctrlrange="-0.3491 0.6981"/>
+    <position name="rr_toe_act" joint="rr_toe" kp="80" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Rear left leg -->
     <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="180" ctrlrange="-0.6981 0.8727"/>
     <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="130" ctrlrange="-0.3491 0.3491"/>
     <position name="rl_knee_act" joint="rl_knee" kp="220" ctrlrange="-1.0472 0"/>
-    <position name="rl_ankle_act" joint="rl_ankle" kp="100" ctrlrange="-0.3491 0.5236"/>
+    <position name="rl_ankle_act" joint="rl_ankle" kp="100" ctrlrange="-0.3491 0.6981"/>
+    <position name="rl_toe_act" joint="rl_toe" kp="80" ctrlrange="-0.2618 0.4363"/>
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
@@ -330,31 +370,41 @@
     <exclude body1="torso" body2="fl_thigh"/>
     <exclude body1="torso" body2="rr_thigh"/>
     <exclude body1="torso" body2="rl_thigh"/>
+
+    <!-- Shin-metatarsal chain -->
+    <exclude body1="fr_shin" body2="fr_meta"/>
+    <exclude body1="fl_shin" body2="fl_meta"/>
+    <exclude body1="rr_shin" body2="rr_meta"/>
+    <exclude body1="rl_shin" body2="rl_meta"/>
+    <exclude body1="fr_meta" body2="fr_foot"/>
+    <exclude body1="fl_meta" body2="fl_foot"/>
+    <exclude body1="rr_meta" body2="rr_foot"/>
+    <exclude body1="rl_meta" body2="rl_foot"/>
   </contact>
 
   <!-- ==================== KEYFRAMES ==================== -->
   <!-- Standing pose with all four feet on the ground.
        Front legs are longer than rear (brachiosaurus characteristic), so
        front knees are bent more deeply (-45 deg) to match the shorter
-       rear legs (-10 deg). Torso height (1.20 m) is set so all feet
-       approximately contact the floor after a few settling steps.
-       Without this keyframe, all joints start at 0 deg which leaves the
-       brachiosaurus floating ~0.6 m above the ground. -->
+       rear legs (-10 deg). Ankle and toe joints position the digitigrade
+       foot with metacarpals/metatarsals angled and pads on the ground.
+       Torso height (1.20 m) is set so all feet approximately contact
+       the floor after a few settling steps. -->
 
   <keyframe>
     <key name="home"
          qpos="0 0 1.20 1 0 0 0
                0 0 0 0 0 0
                0 0 0 0 0
-               0 0 -0.7854 0
-               0 0 -0.7854 0
-               0 0 -0.1745 0
-               0 0 -0.1745 0"
+               0 0 -0.7854 0.35 0.1
+               0 0 -0.7854 0.35 0.1
+               0 0 -0.1745 0.35 0.1
+               0 0 -0.1745 0.35 0.1"
          ctrl="0 0 0 0 0 0
-               0 0 -0.7854 0
-               0 0 -0.7854 0
-               0 0 -0.1745 0
-               0 0 -0.1745 0"/>
+               0 0 -0.7854 0.35 0.1
+               0 0 -0.7854 0.35 0.1
+               0 0 -0.1745 0.35 0.1
+               0 0 -0.1745 0.35 0.1"/>
   </keyframe>
 
 </mujoco>

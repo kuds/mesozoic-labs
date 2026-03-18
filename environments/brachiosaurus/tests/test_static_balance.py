@@ -109,15 +109,19 @@ class TestMassDistribution(MassDistributionBase):
     leg_body_names = [
         "fr_thigh",
         "fr_shin",
+        "fr_meta",
         "fr_foot",
         "fl_thigh",
         "fl_shin",
+        "fl_meta",
         "fl_foot",
         "rr_thigh",
         "rr_shin",
+        "rr_meta",
         "rr_foot",
         "rl_thigh",
         "rl_shin",
+        "rl_meta",
         "rl_foot",
     ]
     min_leg_fraction = 0.20
@@ -126,16 +130,18 @@ class TestMassDistribution(MassDistributionBase):
     symmetry_pairs = [
         ("fr_thigh", "fl_thigh"),
         ("fr_shin", "fl_shin"),
+        ("fr_meta", "fl_meta"),
         ("fr_foot", "fl_foot"),
         ("rr_thigh", "rl_thigh"),
         ("rr_shin", "rl_shin"),
+        ("rr_meta", "rl_meta"),
         ("rr_foot", "rl_foot"),
     ]
 
     def test_front_legs_heavier_than_rear(self, env):
         """Front legs should be heavier than rear legs (longer in Brachiosaurus)."""
-        front_names = ["fr_thigh", "fr_shin", "fr_foot", "fl_thigh", "fl_shin", "fl_foot"]
-        rear_names = ["rr_thigh", "rr_shin", "rr_foot", "rl_thigh", "rl_shin", "rl_foot"]
+        front_names = ["fr_thigh", "fr_shin", "fr_meta", "fr_foot", "fl_thigh", "fl_shin", "fl_meta", "fl_foot"]
+        rear_names = ["rr_thigh", "rr_shin", "rr_meta", "rr_foot", "rl_thigh", "rl_shin", "rl_meta", "rl_foot"]
         front_mass = body_group_mass(env.model, front_names)
         rear_mass = body_group_mass(env.model, rear_names)
         assert front_mass > rear_mass, (
