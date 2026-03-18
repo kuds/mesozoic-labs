@@ -94,7 +94,7 @@ class BrachioEnv(BaseDinoEnv):
         food_distance_range: tuple[float, float] = (3.0, 8.0),
         food_lateral_range: tuple[float, float] = (-2.0, 2.0),
         food_height_range: tuple[float, float] = (2.0, 4.0),
-        healthy_z_range: tuple[float, float] = (1.2, 3.5),
+        healthy_z_range: tuple[float, float] = (0.8, 3.5),
         reset_noise_scale: float = 0.01,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus.xml")

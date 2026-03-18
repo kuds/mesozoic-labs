@@ -14,7 +14,6 @@
 # --- Setting 1: Baseline — default stage1_balance.toml values ---
 
 [setting_1.env]
-healthy_z_range = [0.8, 3.5]
 alive_bonus = 1.0
 energy_penalty_weight = 0.0005
 forward_vel_weight = 0.0
@@ -44,7 +43,6 @@ net_arch = [256, 256]
 # --- Setting 2: Anti-rotation — Stronger gait stability + posture to prevent wobble ---
 
 [setting_2.env]
-healthy_z_range = [0.8, 3.5]
 alive_bonus = 1.75
 energy_penalty_weight = 0.075
 forward_vel_weight = 0.0
@@ -82,7 +80,6 @@ net_arch = [512, 256]
 # --- Setting 3: High alive bonus — Boosted survival signal ---
 
 [setting_3.env]
-healthy_z_range = [0.8, 3.5]
 alive_bonus = 4.5
 energy_penalty_weight = 0.02
 forward_vel_weight = 0.0
@@ -120,7 +117,6 @@ net_arch = [512, 256]
 # and anti-rotation signals now available in BrachioEnv.
 
 [setting_4.env]
-healthy_z_range = [0.8, 3.5]
 alive_bonus = 1.75
 energy_penalty_weight = 0.075
 forward_vel_weight = 0.0
