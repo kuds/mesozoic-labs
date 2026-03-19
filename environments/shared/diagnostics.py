@@ -71,12 +71,15 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_heading",
         "reward_lateral",
         "reward_spin",
+        "reward_speed",
         # Species-specific reward components
         "reward_bite",  # T-Rex
         "reward_food",  # Brachiosaurus
-        "reward_height",  # T-Rex
+        "reward_height",  # T-Rex, Brachiosaurus
         "reward_proximity",  # Velociraptor
         "reward_claw_proximity",  # Velociraptor
+        "reward_head_proximity",  # T-Rex, Brachiosaurus
+        "reward_gait_symmetry",  # Brachiosaurus
     ]
     INFO_KEYS = [
         "forward_vel",
@@ -99,6 +102,8 @@ class DiagnosticsCallback(_BaseCallback):
         "drift_distance",
         "spin_instability",
         "distance_traveled",
+        "abs_speed",
+        "food_reached",
     ]
 
     def __init__(self, plateau_window=10, plateau_threshold=1.0, log_dir=None, verbose=0):
@@ -199,10 +204,11 @@ class DiagnosticsCallback(_BaseCallback):
                 variation = max(recent) - min(recent)
                 self.logger.record("diagnostics/reward_variation", _sanitize(variation))
                 if variation < self.plateau_threshold:
-                    print(
-                        f"\n*** PLATEAU WARNING: Reward variation over last "
-                        f"{self.plateau_window} rollouts is only {variation:.4f}. "
-                        f"Consider adjusting learning rate or stopping. ***\n"
+                    logger.warning(
+                        "PLATEAU WARNING: Reward variation over last %d rollouts is only %.4f. "
+                        "Consider adjusting learning rate or stopping.",
+                        self.plateau_window,
+                        variation,
                     )
 
     def _save_diagnostics(self) -> None:
