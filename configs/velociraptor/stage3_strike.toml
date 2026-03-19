@@ -39,11 +39,21 @@ ent_coef = 0.005                       # 5x increase from 0.001: more exploratio
 net_arch = [256, 256]
 
 [sac]
-learning_rate = 5e-5
+learning_rate = 1e-4              # Higher than PPO's 5e-5 — replay buffer stabilizes updates; faster convergence on sparse reward
 batch_size = 256
-gamma = 0.995
+gamma = 0.99                     # Critical: at gamma=0.99 discounted future ≈ 250 (vs 459 at 0.995),
+                                 # so strike_bonus=1000 is 4x the opportunity cost — the strike-avoidance
+                                 # problem that plagued PPO is structurally weaker here
 tau = 0.005
-ent_coef = "auto"
+ent_coef = "auto"                # Auto-entropy is especially valuable for sparse rewards — maintains
+                                 # exploration without the manual tuning PPO required (ent_coef=0.005)
+buffer_size = 1_000_000          # Large buffer retains locomotion transitions from Stage 2
+learning_starts = 10_000
+train_freq = 1
+gradient_steps = 1
+
+[sac.policy_kwargs]
+net_arch = [256, 256]
 
 [curriculum]
 timesteps = 8000000

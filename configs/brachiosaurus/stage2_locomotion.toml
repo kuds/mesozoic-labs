@@ -39,11 +39,21 @@ ent_coef = 0.005
 net_arch = [512, 256]                  # Larger first layer to match Stage 1 setting 4 architecture
 
 [sac]
-learning_rate = 1e-4
+learning_rate = 1e-4              # 3x reduction from Stage 1 — gentler than PPO's 6x drop; replay buffer smooths gradients
 batch_size = 256
-gamma = 0.99
+gamma = 0.99                     # Keep at 0.99 — quadruped locomotion is mechanically simpler than biped,
+                                 # doesn't need longer horizon; replay staleness risk at higher gamma
 tau = 0.005
-ent_coef = "auto"
+ent_coef = "auto"                # Auto-entropy handles the standing-still exploit naturally —
+                                 # maintains exploration when alive_bonus=0.1 could trap the policy
+buffer_size = 1_000_000          # Large buffer retains Stage 1 balance transitions;
+                                 # Brachiosaurus (75 obs dims) × 1M ≈ 570MB — fits in Colab RAM
+learning_starts = 10_000
+train_freq = 1
+gradient_steps = 1
+
+[sac.policy_kwargs]
+net_arch = [512, 256]            # Larger first layer to match PPO's tapered architecture for Brachiosaurus's 75 obs dims
 
 [curriculum]
 timesteps = 8000000

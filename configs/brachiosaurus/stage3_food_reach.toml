@@ -38,11 +38,20 @@ ent_coef = 0.005                       # 5x increase from 0.001: more exploratio
 net_arch = [512, 256]                  # Match Stage 1 setting 4 architecture to avoid weight truncation on checkpoint load
 
 [sac]
-learning_rate = 5e-5
+learning_rate = 1e-4              # Higher than PPO's 5e-5 — replay buffer stabilizes updates for faster sparse reward convergence
 batch_size = 256
-gamma = 0.995
+gamma = 0.99                     # At gamma=0.99, discounted future ≈ 250 vs food_reach_bonus=1000 — reaching is clearly net-positive;
+                                 # PPO's gamma=0.995 risks the hovering-near-food exploit seen in raptor Stage 3
 tau = 0.005
-ent_coef = "auto"
+ent_coef = "auto"                # Auto-entropy is especially valuable for the neck-reaching task —
+                                 # Brachiosaurus needs to discover a novel motion (neck extension) not learned in Stages 1-2
+buffer_size = 1_000_000          # Large buffer retains locomotion transitions from Stage 2
+learning_starts = 10_000
+train_freq = 1
+gradient_steps = 1
+
+[sac.policy_kwargs]
+net_arch = [512, 256]            # Match Stage 2 architecture to avoid weight truncation on checkpoint load
 
 [curriculum]
 timesteps = 8000000

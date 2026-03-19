@@ -43,11 +43,20 @@ ent_coef = 0.01
 net_arch = [256, 256]
 
 [sac]
-learning_rate = 3e-4
-batch_size = 256
-gamma = 0.99
+learning_rate = 3e-4              # Match PPO starting LR — SAC tolerates this well with replay buffer
+batch_size = 256                  # Larger than PPO's 64 for Brachiosaurus — SAC benefits from bigger batches;
+                                 # PPO needed small batches for on-policy variance, SAC does not
+gamma = 0.99                     # Match PPO — appropriate for balance task horizon
 tau = 0.005
-ent_coef = "auto"
+ent_coef = "auto"                # Replaces PPO's manual ent_coef=0.01 (highest among species);
+                                 # auto-tuning should discover appropriate exploration for quadruped stability
+buffer_size = 300_000            # Sufficient for 6M-step Stage 1
+learning_starts = 10_000
+train_freq = 1
+gradient_steps = 1
+
+[sac.policy_kwargs]
+net_arch = [256, 256]            # Match PPO architecture
 
 [curriculum]
 timesteps = 6000000

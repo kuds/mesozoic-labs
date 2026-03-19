@@ -41,11 +41,18 @@ ent_coef = 0.005
 net_arch = [256, 256]
 
 [sac]
-learning_rate = 3e-4
-batch_size = 256
-gamma = 0.99
-tau = 0.005
-ent_coef = "auto"
+learning_rate = 3e-4              # Match PPO starting LR — SAC tolerates higher LR due to replay buffer stability
+batch_size = 256                  # Standard SAC batch size; matches PPO
+gamma = 0.99                     # Match PPO Stage 1; shorter horizon suits balance task
+tau = 0.005                      # Soft target update rate — standard default
+ent_coef = "auto"                # SAC's key advantage: auto-tuned entropy eliminates manual exploration tuning
+buffer_size = 300_000            # Sufficient for 6M-step Stage 1; smaller buffer keeps transitions recent
+learning_starts = 10_000         # Collect 10K random transitions before gradient updates begin
+train_freq = 1                   # Update policy every environment step (SAC standard)
+gradient_steps = 1               # One gradient step per env step — balances speed and stability
+
+[sac.policy_kwargs]
+net_arch = [256, 256]            # Match PPO architecture for fair comparison
 
 [curriculum]
 timesteps = 6000000
