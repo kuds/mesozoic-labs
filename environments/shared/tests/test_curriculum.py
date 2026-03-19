@@ -503,12 +503,20 @@ class TestPickleSafety:
         cb = object.__new__(StageWarmupCallback)
         cb.warmup_clip_range = 0.02
         cb.warmup_ent_coef = 0.02
+        cb.warmup_lr_scale = 0.1
         cb.warmup_timesteps = 100_000
         cb._warmup_done = False
+        cb._original_clip_range = None
+        cb._original_ent_coef = None
+        cb._original_lr_schedule = None
+        cb._original_log_ent_coef = None
+        cb._is_sac = False
 
         mock_model = MagicMock()
         mock_model.clip_range = lambda _: 0.2  # original PPO schedule
         mock_model.ent_coef = 0.01
+        # Ensure it's detected as PPO (no log_ent_coef)
+        del mock_model.log_ent_coef
         cb.model = mock_model
 
         # Simulate _on_training_start
@@ -643,16 +651,14 @@ class TestStageWarmupCallbackMocked:
     """Test StageWarmupCallback lifecycle without SB3 training."""
 
     def test_warmup_applies_reduced_clip_range(self):
-        """Warmup should set clip_range to the configured small value."""
-        cb = object.__new__(StageWarmupCallback)
-        cb.warmup_timesteps = 100_000
-        cb.warmup_clip_range = 0.02
-        cb.warmup_ent_coef = 0.02
-        cb._warmup_done = False
+        """Warmup should set clip_range to the configured small value (PPO)."""
+        cb = StageWarmupCallback(warmup_timesteps=100_000, warmup_clip_range=0.02, warmup_ent_coef=0.02)
 
         mock_model = MagicMock()
         mock_model.clip_range = lambda _: 0.2
         mock_model.ent_coef = 0.01
+        # Ensure detected as PPO (no log_ent_coef)
+        del mock_model.log_ent_coef
         cb.model = mock_model
 
         cb._on_training_start()
@@ -662,18 +668,16 @@ class TestStageWarmupCallbackMocked:
         assert mock_model.ent_coef == 0.02
 
     def test_warmup_restores_original_values(self):
-        """After warmup_timesteps, original clip_range and ent_coef should be restored."""
-        cb = object.__new__(StageWarmupCallback)
-        cb.warmup_timesteps = 100
-        cb.warmup_clip_range = 0.02
-        cb.warmup_ent_coef = 0.02
-        cb._warmup_done = False
+        """After warmup_timesteps, original clip_range and ent_coef should be restored (PPO)."""
+        cb = StageWarmupCallback(warmup_timesteps=100, warmup_clip_range=0.02, warmup_ent_coef=0.02)
 
         original_clip = MagicMock()
         original_ent = 0.005
         mock_model = MagicMock()
         mock_model.clip_range = original_clip
         mock_model.ent_coef = original_ent
+        # Ensure detected as PPO (no log_ent_coef)
+        del mock_model.log_ent_coef
         cb.model = mock_model
 
         cb._on_training_start()
@@ -685,20 +689,50 @@ class TestStageWarmupCallbackMocked:
         assert mock_model.clip_range == original_clip
         assert mock_model.ent_coef == original_ent
 
-    def test_warmup_noop_for_sac(self):
-        """StageWarmupCallback should skip models without clip_range (SAC)."""
-        cb = object.__new__(StageWarmupCallback)
-        cb.warmup_timesteps = 100_000
-        cb.warmup_clip_range = 0.02
-        cb.warmup_ent_coef = 0.02
-        cb._warmup_done = False
+    def test_warmup_applies_reduced_lr_for_sac(self):
+        """Warmup should reduce LR and fix ent_coef for SAC models."""
+        import torch
 
-        # SAC model has no clip_range attribute
-        mock_model = MagicMock(spec=["ent_coef", "learning_rate"])
+        cb = StageWarmupCallback(
+            warmup_timesteps=100_000, warmup_ent_coef=0.02, warmup_lr_scale=0.1,
+        )
+
+        mock_model = MagicMock()
+        mock_model.lr_schedule = lambda _: 3e-4
+        mock_model.ent_coef = "auto"
+        mock_model.log_ent_coef = torch.tensor(0.0)
         cb.model = mock_model
 
         cb._on_training_start()
+
+        assert cb._is_sac is True
+        # LR should be reduced by warmup_lr_scale
+        assert mock_model.lr_schedule(1.0) == pytest.approx(3e-5)
+        assert mock_model.ent_coef == 0.02
+
+    def test_warmup_restores_sac_values(self):
+        """After warmup, SAC LR schedule and auto-entropy should be restored."""
+        import torch
+
+        cb = StageWarmupCallback(
+            warmup_timesteps=100, warmup_ent_coef=0.02, warmup_lr_scale=0.1,
+        )
+
+        original_lr_schedule = lambda _: 3e-4
+        mock_model = MagicMock()
+        mock_model.lr_schedule = original_lr_schedule
+        mock_model.ent_coef = "auto"
+        mock_model.log_ent_coef = torch.tensor(0.5)
+        cb.model = mock_model
+
+        cb._on_training_start()
+
+        # Simulate reaching warmup_timesteps
+        cb.num_timesteps = 100
+        assert cb._on_step() is True
         assert cb._warmup_done is True
+        assert mock_model.lr_schedule is original_lr_schedule
+        assert mock_model.ent_coef == "auto"
 
     def test_on_step_noop_after_warmup(self):
         """_on_step returns True immediately once warmup is done."""

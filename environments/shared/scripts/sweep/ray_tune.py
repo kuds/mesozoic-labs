@@ -602,14 +602,14 @@ def train_trial(config: dict[str, Any]) -> None:
         # Stage transition callbacks (stages 2+)
         cur_kwargs = stage_config.get("curriculum_kwargs", {})
         if stage > 1 and load_path:
-            if algorithm == "ppo":
-                callbacks.append(
-                    StageWarmupCallback(
-                        warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
-                        warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
-                        warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
-                    )
+            callbacks.append(
+                StageWarmupCallback(
+                    warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
+                    warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
+                    warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
+                    warmup_lr_scale=cur_kwargs.get("warmup_lr_scale", 0.1),
                 )
+            )
             target_fwd_weight = stage_config["env_kwargs"].get("forward_vel_weight", 1.0)
             callbacks.append(
                 RewardRampCallback(
