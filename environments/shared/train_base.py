@@ -30,6 +30,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .constants import DEFAULT_CLIP_OBS, DEFAULT_CLIP_REWARD, DEFAULT_NORM_OBS, DEFAULT_NORM_REWARD
+
 logger = logging.getLogger(__name__)
 
 # Suppress noisy tensorboardX NaN/Inf warnings (handled by _sanitize in diagnostics.py)
@@ -221,10 +223,10 @@ def create_vec_env(
 
     env = sb3["VecNormalize"](
         env,
-        norm_obs=True,
-        norm_reward=True,
-        clip_obs=10.0,
-        clip_reward=50.0,
+        norm_obs=DEFAULT_NORM_OBS,
+        norm_reward=DEFAULT_NORM_REWARD,
+        clip_obs=DEFAULT_CLIP_OBS,
+        clip_reward=DEFAULT_CLIP_REWARD,
     )
     return env
 

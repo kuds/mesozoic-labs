@@ -8,6 +8,16 @@ environments/shared/tests/test_species_integration.py::TestRewardConsistency.
 import numpy as np
 import pytest
 
+from environments.shared.tests.reward_test_helpers import (
+    assert_backward_vel_penalty_non_positive,
+    assert_drift_penalty_non_positive,
+    assert_gait_reward_non_negative,
+    assert_heading_reward_bounded,
+    assert_nosedive_penalty_non_positive,
+    assert_posture_reward_non_positive,
+    assert_smoothness_penalty_for_action_change,
+    assert_smoothness_zero_on_first_step,
+)
 from environments.trex.envs.trex_env import TRexEnv
 
 
@@ -50,38 +60,43 @@ class TestTRexRewardComponents:
         assert abs(info["reward_total"] - expected) < 1e-6
 
     def test_posture_reward_negative_or_zero(self, env):
-        """Posture reward should be non-positive (penalty for tilt)."""
+        assert_posture_reward_non_positive(env)
+
+    def test_gait_reward_non_negative(self, env):
+        assert_gait_reward_non_negative(env)
+
+    def test_smoothness_zero_on_first_step(self, env):
+        assert_smoothness_zero_on_first_step(env)
+
+    def test_smoothness_penalty_for_action_change(self, env):
+        assert_smoothness_penalty_for_action_change(env)
+
+    def test_nosedive_penalty_non_positive(self, env):
+        assert_nosedive_penalty_non_positive(env)
+
+    def test_backward_vel_penalty_non_positive(self, env):
+        assert_backward_vel_penalty_non_positive(env)
+
+    def test_drift_penalty_non_positive(self, env):
+        assert_drift_penalty_non_positive(env)
+
+    def test_heading_alignment_bounded(self, env):
+        assert_heading_reward_bounded(env)
+
+    def test_bite_success_is_zero_initially(self, env):
+        """No bite success on the first step (prey is far away)."""
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
-        assert info["reward_posture"] <= 0.0
-        assert info["tilt_angle"] >= 0.0
+        assert info["bite_success"] == 0.0
+        assert info["reward_bite"] == 0.0
 
-    def test_gait_reward_non_negative(self, env):
-        """Gait symmetry reward should be non-negative."""
+    def test_height_reward_non_negative(self, env):
+        """Height maintenance reward should be non-negative."""
         env.reset(seed=42)
-        action = env.action_space.sample()
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
-        assert info["reward_gait"] >= 0.0
-        assert 0.0 <= info["contact_asymmetry"] <= 1.0
-
-    def test_smoothness_zero_on_first_step(self, env):
-        """Smoothness penalty should be zero on first step (no prior action)."""
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_smoothness"] == 0.0
-        assert info["action_delta"] == 0.0
-
-    def test_smoothness_penalty_for_action_change(self, env):
-        """Smoothness penalty should be negative when action changes between steps."""
-        env.reset(seed=42)
-        action1 = np.ones(env.action_space.shape, dtype=np.float32)
-        env.step(action1)
-        action2 = -np.ones(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action2)
-        assert info["reward_smoothness"] < 0.0
-        assert info["action_delta"] > 0.0
+        assert info["reward_height"] >= 0.0
 
 
 class TestTRexRewardWeightEffects:
@@ -148,7 +163,6 @@ class TestTRexRewardWeightEffects:
         env.reset(seed=42)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
-        # Head proximity should be non-negative
         assert info["reward_head_proximity"] >= 0.0
         assert info["head_proximity"] >= 0.0
         assert info["head_prey_distance"] >= 0.0
@@ -160,6 +174,49 @@ class TestTRexRewardWeightEffects:
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert info["reward_height"] == 0.0
+        env.close()
+
+    def test_nonzero_height_weight_gives_positive_reward(self):
+        """Height reward should be positive when the T-Rex is standing."""
+        env = TRexEnv(height_weight=1.0)
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, terminated, _, info = env.step(action)
+        if not terminated:
+            assert info["reward_height"] > 0.0
+        env.close()
+
+    def test_zero_spin_weight_zeroes_spin_reward(self):
+        env = TRexEnv(spin_penalty_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_spin"] == 0.0
+        env.close()
+
+    def test_nonzero_spin_weight_gives_nonpositive_reward(self):
+        env = TRexEnv(spin_penalty_weight=0.5)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_spin"] <= 0.0
+        assert info["spin_instability"] >= 0.0
+        env.close()
+
+    def test_zero_drift_weight_zeroes_drift_reward(self):
+        env = TRexEnv(drift_penalty_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_drift"] == 0.0
+        env.close()
+
+    def test_zero_backward_vel_weight_zeroes_backward_reward(self):
+        env = TRexEnv(backward_vel_penalty_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_backward"] == 0.0
         env.close()
 
     def test_actuator_count(self):
@@ -198,4 +255,14 @@ class TestCurriculumStageRewards:
         assert "approach_delta" in info
         assert "reward_approach" in info
         assert info["approach_delta"] != 0.0
+        env.close()
+
+    def test_stage2_locomotion_has_heading_and_gait(self):
+        """Stage 2 enables heading alignment and gait symmetry."""
+        env = TRexEnv(heading_weight=0.5, gait_symmetry_weight=0.3)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert "reward_heading" in info
+        assert "reward_gait" in info
         env.close()

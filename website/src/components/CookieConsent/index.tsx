@@ -114,12 +114,6 @@ export default function CookieConsent(): React.JSX.Element | null {
   );
 }
 
-// Export a function to check/update consent status programmatically
-export function getConsentStatus(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(CONSENT_COOKIE_NAME);
-}
-
 export function resetConsentStatus(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(CONSENT_COOKIE_NAME);

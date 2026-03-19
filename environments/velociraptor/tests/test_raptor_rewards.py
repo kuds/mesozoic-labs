@@ -8,6 +8,15 @@ environments/shared/tests/test_species_integration.py::TestRewardConsistency.
 import numpy as np
 import pytest
 
+from environments.shared.tests.reward_test_helpers import (
+    assert_backward_vel_penalty_non_positive,
+    assert_drift_penalty_non_positive,
+    assert_gait_reward_non_negative,
+    assert_nosedive_penalty_non_positive,
+    assert_posture_reward_non_positive,
+    assert_smoothness_penalty_for_action_change,
+    assert_smoothness_zero_on_first_step,
+)
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 
@@ -58,54 +67,25 @@ class TestRaptorRewardComponents:
         assert abs(info["reward_total"] - expected) < 1e-6
 
     def test_posture_reward_negative_or_zero(self, env):
-        """Posture reward should be non-positive (penalty for tilt)."""
-        env.reset(seed=42)
-        action = np.zeros(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action)
-        assert info["reward_posture"] <= 0.0
-        assert info["tilt_angle"] >= 0.0
+        assert_posture_reward_non_positive(env)
 
     def test_gait_reward_non_negative(self, env):
-        """Gait symmetry reward should be non-negative."""
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_gait"] >= 0.0
-        assert 0.0 <= info["contact_asymmetry"] <= 1.0
+        assert_gait_reward_non_negative(env)
 
     def test_smoothness_zero_on_first_step(self, env):
-        """Smoothness penalty should be zero on first step (no prior action)."""
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_smoothness"] == 0.0
-        assert info["action_delta"] == 0.0
+        assert_smoothness_zero_on_first_step(env)
 
     def test_smoothness_penalty_for_action_change(self, env):
-        """Smoothness penalty should be negative when action changes between steps."""
-        env.reset(seed=42)
-        action1 = np.ones(env.action_space.shape, dtype=np.float32)
-        env.step(action1)
-        action2 = -np.ones(env.action_space.shape, dtype=np.float32)
-        _, _, _, _, info = env.step(action2)
-        assert info["reward_smoothness"] < 0.0
-        assert info["action_delta"] > 0.0
+        assert_smoothness_penalty_for_action_change(env)
+
+    def test_nosedive_penalty_non_positive(self, env):
+        assert_nosedive_penalty_non_positive(env)
 
     def test_backward_vel_penalty_non_positive(self, env):
-        """Backward velocity penalty should be non-positive."""
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_backward"] <= 0.0
-        assert info["backward_vel"] >= 0.0
+        assert_backward_vel_penalty_non_positive(env)
 
     def test_drift_penalty_non_positive(self, env):
-        """Drift penalty should be non-positive."""
-        env.reset(seed=42)
-        action = env.action_space.sample()
-        _, _, _, _, info = env.step(action)
-        assert info["reward_drift"] <= 0.0
-        assert info["drift_distance"] >= 0.0
+        assert_drift_penalty_non_positive(env)
 
     def test_claw_proximity_zero_by_default(self, env):
         """Claw proximity reward should be zero when weight is zero (default)."""
