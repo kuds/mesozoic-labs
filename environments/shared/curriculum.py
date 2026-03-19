@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable, Optional
 
 import numpy as np
 
@@ -664,7 +664,7 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
         self.warmup_lr_scale = warmup_lr_scale
         self._original_clip_range = None
         self._original_ent_coef = None
-        self._original_lr_schedule = None
+        self._original_lr_schedule: Optional[Callable[[float], float]] = None
         self._original_log_ent_coef = None
         self._is_sac = False
         self._warmup_done = False
