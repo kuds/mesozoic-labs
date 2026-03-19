@@ -10,14 +10,17 @@
     <geom contype="1" conaffinity="1" friction="1.2 0.005 0.0001"/>
     <motor ctrllimited="true" ctrlrange="-1 1"/>
 
-    <!-- Leg joints: high stiffness for heavy quadruped -->
+    <!-- Leg joints: high damping + passive stiffness for heavy quadruped.
+         Stiffness pulls joints toward 0 (straight), preventing crouch exploits
+         and reducing actuator burden during stance phase. -->
     <default class="leg_joint">
-      <joint damping="20.0" armature="0.1"/>
+      <joint damping="20.0" stiffness="10.0" armature="0.1"/>
     </default>
 
-    <!-- Neck joints: passive stiffness to counteract gravity on heavy neck -->
+    <!-- Neck joints: passive stiffness to counteract gravity on heavy neck.
+         Increased from 30 to 50 to prevent neck collapse during locomotion. -->
     <default class="neck_joint">
-      <joint damping="12.0" stiffness="30.0" armature="0.05" range="-25 25"/>
+      <joint damping="12.0" stiffness="50.0" armature="0.05" range="-25 25"/>
     </default>
 
     <!-- Tail joints: moderate stiffness, limited range -->
@@ -158,7 +161,7 @@
 
       <body name="fr_thigh" pos="0.55 -0.3 -0.2">
         <joint name="fr_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-40 50"/>
-        <joint name="fr_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-20 20"/>
+        <joint name="fr_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-10 10"/>
         <geom name="fr_thigh_geom" type="capsule" fromto="0 0 0  0 0 -0.55" size="0.1"
               mass="8.0" material="body_mat"/>
 
@@ -180,7 +183,7 @@
 
       <body name="fl_thigh" pos="0.55 0.3 -0.2">
         <joint name="fl_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-40 50"/>
-        <joint name="fl_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-20 20"/>
+        <joint name="fl_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-10 10"/>
         <geom name="fl_thigh_geom" type="capsule" fromto="0 0 0  0 0 -0.55" size="0.1"
               mass="8.0" material="body_mat"/>
 
@@ -203,7 +206,7 @@
 
       <body name="rr_thigh" pos="-0.55 -0.3 -0.2">
         <joint name="rr_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-40 50"/>
-        <joint name="rr_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-20 20"/>
+        <joint name="rr_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-10 10"/>
         <geom name="rr_thigh_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.1"
               mass="7.0" material="body_mat"/>
 
@@ -225,7 +228,7 @@
 
       <body name="rl_thigh" pos="-0.55 0.3 -0.2">
         <joint name="rl_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-40 50"/>
-        <joint name="rl_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-20 20"/>
+        <joint name="rl_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-10 10"/>
         <geom name="rl_thigh_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.1"
               mass="7.0" material="body_mat"/>
 
@@ -263,25 +266,25 @@
 
     <!-- Front right leg -->
     <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="200" ctrlrange="-0.6981 0.8727"/>
-    <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="150" ctrlrange="-0.3491 0.3491"/>
+    <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="150" ctrlrange="-0.1745 0.1745"/>
     <position name="fr_knee_act" joint="fr_knee" kp="250" ctrlrange="-1.0472 0"/>
     <position name="fr_ankle_act" joint="fr_ankle" kp="120" ctrlrange="-0.3491 0.5236"/>
 
     <!-- Front left leg -->
     <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="200" ctrlrange="-0.6981 0.8727"/>
-    <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="150" ctrlrange="-0.3491 0.3491"/>
+    <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="150" ctrlrange="-0.1745 0.1745"/>
     <position name="fl_knee_act" joint="fl_knee" kp="250" ctrlrange="-1.0472 0"/>
     <position name="fl_ankle_act" joint="fl_ankle" kp="120" ctrlrange="-0.3491 0.5236"/>
 
     <!-- Rear right leg -->
     <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="180" ctrlrange="-0.6981 0.8727"/>
-    <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="130" ctrlrange="-0.3491 0.3491"/>
+    <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="130" ctrlrange="-0.1745 0.1745"/>
     <position name="rr_knee_act" joint="rr_knee" kp="220" ctrlrange="-1.0472 0"/>
     <position name="rr_ankle_act" joint="rr_ankle" kp="100" ctrlrange="-0.3491 0.5236"/>
 
     <!-- Rear left leg -->
     <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="180" ctrlrange="-0.6981 0.8727"/>
-    <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="130" ctrlrange="-0.3491 0.3491"/>
+    <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="130" ctrlrange="-0.1745 0.1745"/>
     <position name="rl_knee_act" joint="rl_knee" kp="220" ctrlrange="-1.0472 0"/>
     <position name="rl_ankle_act" joint="rl_ankle" kp="100" ctrlrange="-0.3491 0.5236"/>
   </actuator>

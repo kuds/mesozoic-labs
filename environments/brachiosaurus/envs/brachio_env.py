@@ -85,7 +85,7 @@ class BrachioEnv(BaseDinoEnv):
         tail_stability_weight: float = 0.0,
         speed_penalty_weight: float = 0.0,
         speed_penalty_threshold: float = 0.10,
-        forward_vel_max: float = 3.0,
+        forward_vel_max: float = 1.0,
         food_reach_bonus: float = 10.0,
         food_reach_threshold: float = 0.5,
         food_approach_weight: float = 1.0,
@@ -94,7 +94,7 @@ class BrachioEnv(BaseDinoEnv):
         food_distance_range: tuple[float, float] = (3.0, 8.0),
         food_lateral_range: tuple[float, float] = (-2.0, 2.0),
         food_height_range: tuple[float, float] = (2.0, 4.0),
-        healthy_z_range: tuple[float, float] = (0.8, 3.5),
+        healthy_z_range: tuple[float, float] = (1.0, 3.5),
         reset_noise_scale: float = 0.01,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "brachiosaurus.xml")
@@ -334,7 +334,7 @@ class BrachioEnv(BaseDinoEnv):
         torso_height = float(torso_pos[2])
         info["pelvis_height"] = torso_height
         min_z = self.healthy_z_range[0]
-        target_z = 2.0  # Brachiosaurus target torso height
+        target_z = 1.2  # Brachiosaurus natural standing torso height (from XML keyframe)
         height_frac = float(np.clip((torso_height - min_z) / (target_z - min_z), 0.0, 1.0))
         reward_height = self.height_weight * height_frac
         info["reward_height"] = reward_height

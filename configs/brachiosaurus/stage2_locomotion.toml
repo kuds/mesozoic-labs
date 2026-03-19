@@ -4,7 +4,8 @@ description = "Learn coordinated quadrupedal walking"
 
 [env]
 forward_vel_weight = 2.0               # Match T-Rex/raptor: was 1.0, too low. Primary driver of locomotion speed.
-alive_bonus = 0.5
+forward_vel_max = 1.0                  # Reduced from 3.0: Brachiosaurus max realistic speed ~1 m/s. Lower ceiling makes achievable speeds return meaningful reward.
+alive_bonus = 0.1                      # Reduced from 0.5: high alive_bonus created standing-still optimum (0.5/step >> forward reward at low speeds)
 fall_penalty = -50.0                   # Match T-Rex stage 2
 energy_penalty_weight = 0.002          # Increase from 0.001: provide some efficiency signal (matches T-Rex stage 2)
 tail_stability_weight = 0.05           # Penalize tail thrashing during locomotion
@@ -13,7 +14,7 @@ gait_symmetry_weight = 0.0             # Disabled: formula rewards alternation, 
 smoothness_weight = 0.05               # Penalize jerky actions for smoother movement
 posture_weight = 0.2                   # Moderate tilt penalty to maintain upright stance
 nosedive_weight = 0.5                  # Penalize excessive forward pitch
-height_weight = 0.3                    # Encourage maintaining target torso height
+height_weight = 1.5                    # Increased from 0.3: prevent crouching exploit where agent drops low for stability
 heading_weight = 0.3                   # Reward facing toward food
 lateral_penalty_weight = 0.1           # Mild anti-crab-walk penalty
 food_reach_bonus = 0.0
@@ -48,7 +49,7 @@ ent_coef = "auto"
 timesteps = 8000000
 min_avg_reward = 100.0
 min_avg_episode_length = 750
-min_avg_forward_vel = 2.0              # Gate on actual locomotion; without this, a standing-still policy passes on alive_bonus alone. Lower than raptor (0.4) and T-Rex (0.3) — Brachiosaurus is slower.
+min_avg_forward_vel = 0.75             # Gate on actual locomotion; without this, a standing-still policy passes on alive_bonus alone. Realistic walking speed for a heavy sauropod.
 required_consecutive = 3
 warmup_timesteps = 300000               # Increased from 100k: give critic more time to adapt to new reward landscape (matches T-Rex stage 2)
 warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change
