@@ -694,7 +694,9 @@ class TestStageWarmupCallbackMocked:
         import torch
 
         cb = StageWarmupCallback(
-            warmup_timesteps=100_000, warmup_ent_coef=0.02, warmup_lr_scale=0.1,
+            warmup_timesteps=100_000,
+            warmup_ent_coef=0.02,
+            warmup_lr_scale=0.1,
         )
 
         mock_model = MagicMock()
@@ -715,11 +717,14 @@ class TestStageWarmupCallbackMocked:
         import torch
 
         cb = StageWarmupCallback(
-            warmup_timesteps=100, warmup_ent_coef=0.02, warmup_lr_scale=0.1,
+            warmup_timesteps=100,
+            warmup_ent_coef=0.02,
+            warmup_lr_scale=0.1,
         )
 
         def original_lr_schedule(_):
             return 3e-4
+
         mock_model = MagicMock()
         mock_model.lr_schedule = original_lr_schedule
         mock_model.ent_coef = "auto"

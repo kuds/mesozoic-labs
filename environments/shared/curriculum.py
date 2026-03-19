@@ -685,8 +685,7 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
             self._original_log_ent_coef = self.model.log_ent_coef.item()
             self.model.ent_coef = self.warmup_ent_coef
             logger.info(
-                "StageWarmupCallback [SAC]: warm-up active for %d timesteps "
-                "(lr=%.2e → %.2e, ent_coef=%.3f)",
+                "StageWarmupCallback [SAC]: warm-up active for %d timesteps (lr=%.2e → %.2e, ent_coef=%.3f)",
                 self.warmup_timesteps,
                 original_lr,
                 warmup_lr,
@@ -699,8 +698,7 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
             self.model.clip_range = _ConstantSchedule(self.warmup_clip_range)
             self.model.ent_coef = self.warmup_ent_coef
             logger.info(
-                "StageWarmupCallback [PPO]: warm-up active for %d timesteps "
-                "(clip_range=%.3f, ent_coef=%.3f)",
+                "StageWarmupCallback [PPO]: warm-up active for %d timesteps (clip_range=%.3f, ent_coef=%.3f)",
                 self.warmup_timesteps,
                 self.warmup_clip_range,
                 self.warmup_ent_coef,
