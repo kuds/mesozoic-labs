@@ -19,6 +19,8 @@ import gymnasium as gym
 import mujoco
 import numpy as np
 
+from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
+
 
 class BaseDinoEnv(gym.Env, ABC):
     """Abstract base class for dinosaur locomotion environments."""
@@ -144,9 +146,9 @@ class BaseDinoEnv(gym.Env, ABC):
     # ------------------------------------------------------------------
     # Common sensor layout (overridable by subclasses)
     # ------------------------------------------------------------------
-    _sensor_gyro_start: int = 0
-    _sensor_accel_start: int = 3
-    _sensor_quat_start: int = 6
+    _sensor_gyro_start: int = SENSOR_GYRO_START
+    _sensor_accel_start: int = SENSOR_ACCEL_START
+    _sensor_quat_start: int = SENSOR_QUAT_START
 
     # ------------------------------------------------------------------
     # Shared reward helpers
@@ -263,7 +265,9 @@ class BaseDinoEnv(gym.Env, ABC):
         reward = -weight * nosedive_excess
         return reward, forward_z
 
-    def _compute_angular_velocity_penalty(self, weight: float, max_angvel: float = 10.0) -> tuple[float, float]:
+    def _compute_angular_velocity_penalty(
+        self, weight: float, max_angvel: float = TAIL_ANGULAR_VEL_MAX
+    ) -> tuple[float, float]:
         """Compute angular velocity (spin) penalty from root freejoint.
 
         Args:
@@ -280,7 +284,7 @@ class BaseDinoEnv(gym.Env, ABC):
         return reward, instability
 
     def _compute_tail_stability(
-        self, tail_tip_site_id: int, weight: float, max_angvel: float = 10.0
+        self, tail_tip_site_id: int, weight: float, max_angvel: float = TAIL_ANGULAR_VEL_MAX
     ) -> tuple[float, float]:
         """Compute tail tip angular velocity penalty.
 

@@ -27,15 +27,57 @@ class TestBrachioRewardComponents:
         _, _, terminated, _, info = env.step(action)
         expected = (
             info["reward_forward"]
+            + info["reward_backward"]
+            + info["reward_drift"]
             + info["reward_alive"]
             + info["reward_energy"]
             + info["reward_gait"]
+            + info["reward_tail"]
+            + info["reward_posture"]
+            + info["reward_nosedive"]
+            + info["reward_height"]
+            + info["reward_gait_symmetry"]
+            + info["reward_smoothness"]
+            + info["reward_heading"]
+            + info["reward_lateral"]
+            + info["reward_spin"]
+            + info["reward_speed"]
             + info["reward_food"]
             + info["reward_approach"]
+            + info["reward_head_proximity"]
         )
         if terminated:
             expected += env.fall_penalty
         assert abs(info["reward_total"] - expected) < 1e-6
+
+    def test_gait_reward_non_positive(self, env):
+        """Brachio gait reward is an angular velocity penalty (always <= 0)."""
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_gait"] <= 0.0
+
+    def test_food_reached_is_zero_initially(self, env):
+        """Food should not be reached on the first step (food is far away)."""
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        assert info["food_reached"] == 0.0
+        assert info["reward_food"] == 0.0
+
+    def test_gait_instability_non_negative(self, env):
+        """Gait instability metric should be non-negative."""
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["gait_instability"] >= 0.0
+
+    def test_speed_penalty_non_positive(self, env):
+        """Speed penalty should be non-positive."""
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_speed"] <= 0.0
 
 
 class TestBrachioRewardWeightEffects:
@@ -69,6 +111,33 @@ class TestBrachioRewardWeightEffects:
         action = env.action_space.sample()
         _, _, _, _, info = env.step(action)
         assert info["reward_gait"] == 0.0
+        env.close()
+
+    def test_nonzero_gait_weight_gives_nonpositive_reward(self):
+        """Gait stability penalty should be non-positive when weight > 0."""
+        env = BrachioEnv(gait_stability_weight=0.5)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_gait"] <= 0.0
+        env.close()
+
+    def test_zero_speed_weight_zeroes_speed_reward(self):
+        env = BrachioEnv(speed_penalty_weight=0.0)
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_speed"] == 0.0
+        env.close()
+
+    def test_food_reach_threshold_respected(self):
+        """Food reach should only trigger within threshold distance."""
+        env = BrachioEnv(food_reach_threshold=0.001)
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        # With a tiny threshold, food should not be reached
+        assert info["food_reached"] == 0.0
         env.close()
 
     def test_actuator_count(self):

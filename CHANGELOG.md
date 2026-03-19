@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Codebase Consolidation (v0.3.0)
+
+### Added
+- `environments/shared/train_base.py` — shared training logic with `SpeciesConfig` dataclass (~1,100 lines), reducing each species' `train_sb3.py` from ~950 lines to ~44 lines
+- `environments/shared/test_env_base.py` — shared test utilities for environment validation (~214 lines)
+- `environments/shared/constants.py` — centralized simulation-wide constants (sensor layout, VecNormalize defaults, physics defaults)
+- `environments/shared/tests/reward_test_helpers.py` — reusable reward assertion functions for cross-species test consistency
+- Expanded T-Rex reward tests (nosedive, height, heading, spin, drift, backward velocity)
+- Expanded Brachiosaurus reward tests (gait instability, speed penalty, food reach threshold)
+- Consolidated training notebooks into single parameterized `notebooks/training.ipynb`
+
+### Changed
+- Species training scripts (`train_sb3.py`) are now thin wrappers around shared `train_base.py`
+- Species test scripts use shared `test_env_base.py` utilities
+- `BaseDinoEnv` now provides concrete helper methods for common reward computations, gait symmetry, and termination checks
+- Raptor, T-Rex, and Brachio reward tests refactored to use shared helpers
+- `CookieResetButton` now uses shared `resetConsentStatus()` instead of duplicating localStorage logic
+
+### Removed
+- ~3,000+ lines of duplicated code across training scripts, test utilities, and environment methods
+- Unused `getConsentStatus()` export from CookieConsent component
+
 ## [0.2.0] - 2026-02-09
 
 ### Added

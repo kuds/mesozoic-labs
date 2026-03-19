@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
+import { resetConsentStatus } from '../CookieConsent';
 
 export default function CookieResetButton(): React.JSX.Element {
   const [isReset, setIsReset] = useState(false);
 
   const handleReset = () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('mesozoic_cookie_consent');
+      resetConsentStatus();
       setIsReset(true);
 
       // Reload the page after a short delay
