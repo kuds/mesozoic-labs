@@ -1,7 +1,34 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Layout from '@theme/Layout';
-import RaptorVideoUpload from '@site/src/components/RaptorVideoUpload';
 import styles from './index.module.css';
+
+/* =============================================================================
+   SCROLL ANIMATION HOOK
+   ============================================================================= */
+
+function useScrollReveal() {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          el.classList.add(styles.revealed);
+          observer.unobserve(el);
+        }
+      },
+      { threshold: 0.15 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
+
+/* =============================================================================
+   HERO SECTION
+   ============================================================================= */
 
 function HeroSection() {
   return (
@@ -9,13 +36,27 @@ function HeroSection() {
       <div className={styles.heroOverlay} aria-hidden="true"></div>
       <div className={styles.gridLines} aria-hidden="true"></div>
       <div className={styles.scanLines} aria-hidden="true"></div>
+      <div className={styles.heroParticles} aria-hidden="true">
+        {Array.from({ length: 20 }).map((_, i) => (
+          <div
+            key={i}
+            className={styles.particle}
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 6}s`,
+              animationDuration: `${4 + Math.random() * 4}s`,
+            }}
+          />
+        ))}
+      </div>
 
       <div className={styles.heroContent}>
         <div className={styles.logoContainer}>
           <div className={styles.logoGlow} aria-hidden="true"></div>
           <div className={styles.logo} role="img" aria-label="Mesozoic Labs">
-            <span className={styles.logoDino} aria-hidden="true">MESOZOIC</span>
-            <span className={styles.logoLabs} aria-hidden="true">LABS</span>
+            <span className={styles.logoDino}>MESOZOIC</span>
+            <span className={styles.logoLabs}>LABS</span>
           </div>
         </div>
 
@@ -37,6 +78,22 @@ function HeroSection() {
           powered by physics simulation and reinforcement learning
         </p>
 
+        <div className={styles.heroButtons}>
+          <a href="/docs/" className={styles.heroPrimaryBtn}>
+            GET STARTED
+            <span className={styles.btnArrow} aria-hidden="true">&rarr;</span>
+          </a>
+          <a
+            href="https://github.com/kuds/mesozoic-labs"
+            className={styles.heroSecondaryBtn}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            VIEW ON GITHUB
+            <span className="sr-only"> (opens in new tab)</span>
+          </a>
+        </div>
+
         <dl className={styles.statsContainer}>
           <div className={styles.statItem}>
             <dt className={styles.statLabel}>SPECIES</dt>
@@ -55,48 +112,64 @@ function HeroSection() {
         </dl>
       </div>
 
-      <div className={styles.dinoSilhouette} aria-hidden="true"></div>
+      <div className={styles.heroScrollIndicator} aria-hidden="true">
+        <span className={styles.scrollChevron}></span>
+      </div>
     </header>
   );
 }
+
+/* =============================================================================
+   FEATURES SECTION
+   ============================================================================= */
 
 const features = [
   {
     icon: '\u2699\uFE0F',
     title: 'MuJoCo Physics',
     description:
-      'Accurate dinosaur biomechanics simulation with articulated joints, contact dynamics, and actuator models using MuJoCo.',
+      'Accurate dinosaur biomechanics simulation with articulated joints, contact dynamics, and actuator models.',
   },
   {
     icon: '\uD83E\uDDE0',
     title: 'Reinforcement Learning',
     description:
-      'PPO and SAC algorithms via Stable-Baselines3 with automated 3-stage curriculum learning: balance, locomotion, behavior.',
+      'PPO and SAC algorithms via Stable-Baselines3 with automated 3-stage curriculum learning.',
   },
   {
     icon: '\uD83E\uDD96',
     title: '3 Species',
     description:
-      'T-Rex (18 actuators), Velociraptor (17 actuators), and Brachiosaurus (22 actuators) — bipedal and quadrupedal gaits.',
+      'T-Rex (18 actuators), Velociraptor (17 actuators), and Brachiosaurus (22 actuators).',
   },
   {
     icon: '\uD83D\uDCE6',
     title: 'Open Source',
     description:
-      'MIT licensed. TOML configs, Gymnasium registration, W&B tracking, Docker support, and Vertex AI cloud training.',
+      'MIT licensed with TOML configs, Gymnasium registration, W&B tracking, and Docker support.',
   },
 ];
 
 function FeaturesSection() {
+  const ref = useScrollReveal();
   return (
-    <section className={styles.featuresSection} aria-labelledby="features-heading">
+    <section
+      className={`${styles.featuresSection} ${styles.scrollReveal}`}
+      aria-labelledby="features-heading"
+      ref={ref}
+    >
       <div className={styles.sectionHeader}>
         <div className={styles.sectionIcon} aria-hidden="true">{'[ CAPABILITIES ]'}</div>
         <h2 className={styles.sectionTitle} id="features-heading">Core Features</h2>
       </div>
       <div className={styles.featuresGrid} role="list">
         {features.map((feature, idx) => (
-          <div className={styles.featureCard} key={idx} role="listitem">
+          <div
+            className={styles.featureCard}
+            key={idx}
+            role="listitem"
+            style={{ transitionDelay: `${idx * 0.1}s` }}
+          >
             <div className={styles.featureCardBorder} aria-hidden="true"></div>
             <div className={styles.featureIcon} aria-hidden="true">{feature.icon}</div>
             <h3 className={styles.featureTitle}>{feature.title}</h3>
@@ -109,9 +182,87 @@ function FeaturesSection() {
   );
 }
 
-function SimulationSection() {
+/* =============================================================================
+   HOW IT WORKS (Curriculum Pipeline)
+   ============================================================================= */
+
+const curriculumSteps = [
+  {
+    stage: 1,
+    title: 'Balance',
+    subtitle: 'Stand & Stabilize',
+    description: 'The agent learns to stand upright and maintain balance using proprioceptive feedback and joint torques.',
+    color: '#00ff88',
+  },
+  {
+    stage: 2,
+    title: 'Locomotion',
+    subtitle: 'Walk & Run',
+    description: 'Building on balance skills, the agent develops forward locomotion with natural gait patterns.',
+    color: '#00d4ff',
+  },
+  {
+    stage: 3,
+    title: 'Behavior',
+    subtitle: 'Strike & Hunt',
+    description: 'Advanced species-specific behaviors emerge: sickle claw strikes, head attacks, and tail defense.',
+    color: '#ff6b35',
+  },
+];
+
+function HowItWorksSection() {
+  const ref = useScrollReveal();
   return (
-    <section className={styles.simulationSection} aria-labelledby="simulation-heading">
+    <section
+      className={`${styles.howItWorksSection} ${styles.scrollReveal}`}
+      aria-labelledby="howitworks-heading"
+      ref={ref}
+    >
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionIcon} aria-hidden="true">{'[ CURRICULUM ]'}</div>
+        <h2 className={styles.sectionTitle} id="howitworks-heading">How It Works</h2>
+        <p className={styles.sectionSubtitle}>
+          Each species learns through a 3-stage curriculum, progressively mastering more complex behaviors
+        </p>
+      </div>
+      <div className={styles.pipelineContainer}>
+        <div className={styles.pipelineLine} aria-hidden="true"></div>
+        {curriculumSteps.map((step, idx) => (
+          <div className={styles.pipelineStep} key={idx}>
+            <div
+              className={styles.pipelineNode}
+              style={{ borderColor: step.color, boxShadow: `0 0 20px ${step.color}40` }}
+              aria-hidden="true"
+            >
+              <span style={{ color: step.color }}>{step.stage}</span>
+            </div>
+            <div className={styles.pipelineContent}>
+              <div className={styles.pipelineStage} style={{ color: step.color }}>
+                STAGE {step.stage}
+              </div>
+              <h3 className={styles.pipelineTitle}>{step.title}</h3>
+              <div className={styles.pipelineSubtitle}>{step.subtitle}</div>
+              <p className={styles.pipelineDescription}>{step.description}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* =============================================================================
+   SIMULATION PREVIEW SECTION
+   ============================================================================= */
+
+function SimulationSection() {
+  const ref = useScrollReveal();
+  return (
+    <section
+      className={`${styles.simulationSection} ${styles.scrollReveal}`}
+      aria-labelledby="simulation-heading"
+      ref={ref}
+    >
       <div className={styles.sectionHeader}>
         <div className={styles.sectionIcon} aria-hidden="true">{'[ SIMULATION ]'}</div>
         <h2 className={styles.sectionTitle} id="simulation-heading">See It In Action</h2>
@@ -169,15 +320,6 @@ function SimulationSection() {
                 <span className={styles.codeOutput}>{'>>> Obs shape: (73,)'}</span>
               </div>
               <div className={styles.codeLine}>
-                <span className={styles.codeKeyword}>print</span>
-                <span>(</span>
-                <span className={styles.codeString}>"Actions:"</span>
-                <span>, env.action_space.shape)</span>
-              </div>
-              <div className={styles.codeLine}>
-                <span className={styles.codeOutput}>{'>>> Actions: (17,)'}</span>
-              </div>
-              <div className={styles.codeLine}>
                 <span className={styles.cursor}>_</span>
               </div>
             </div>
@@ -199,6 +341,113 @@ function SimulationSection() {
   );
 }
 
+/* =============================================================================
+   SPECIES SHOWCASE (Tabbed)
+   ============================================================================= */
+
+const speciesData = [
+  {
+    id: 'velociraptor',
+    name: 'Velociraptor',
+    tagline: 'Swift Bipedal Predator',
+    actuators: 17,
+    gait: 'Bipedal',
+    specialty: 'Sickle claw strikes',
+    stages: [
+      { number: 1, title: 'Balance', desc: 'Learning to stand upright', video: '/videos/velociraptor_ppo_stage1_best.mp4' },
+      { number: 2, title: 'Locomotion', desc: 'Walking and running forward', video: '/videos/velociraptor_ppo_stage2_best.mp4' },
+      { number: 3, title: 'Strike', desc: 'Sprinting and attacking with claws', video: '/videos/velociraptor_ppo_stage3_best.mp4' },
+    ],
+  },
+  {
+    id: 'trex',
+    name: 'T-Rex',
+    tagline: 'Apex Predator',
+    actuators: 18,
+    gait: 'Bipedal',
+    specialty: 'Jaw strike attacks',
+    stages: [
+      { number: 1, title: 'Balance', desc: 'Stabilizing massive frame', video: '/videos/trex_ppo_stage1_best.mp4' },
+      { number: 2, title: 'Locomotion', desc: 'Heavy bipedal gait', video: '/videos/trex_ppo_stage2_best.mp4' },
+      { number: 3, title: 'Strike', desc: 'Head-strike attack patterns', video: '/videos/trex_ppo_stage3_best.mp4' },
+    ],
+  },
+];
+
+function SpeciesShowcase() {
+  const [activeSpecies, setActiveSpecies] = useState(0);
+  const ref = useScrollReveal();
+  const species = speciesData[activeSpecies];
+
+  return (
+    <section
+      className={`${styles.speciesSection} ${styles.scrollReveal}`}
+      aria-labelledby="species-heading"
+      ref={ref}
+    >
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionIcon} aria-hidden="true">{'[ SPECIES ]'}</div>
+        <h2 className={styles.sectionTitle} id="species-heading">Training Results</h2>
+        <p className={styles.sectionSubtitle}>
+          Watch each species progress through the curriculum stages
+        </p>
+      </div>
+
+      <div className={styles.speciesTabs} role="tablist" aria-label="Select species">
+        {speciesData.map((sp, idx) => (
+          <button
+            key={sp.id}
+            className={`${styles.speciesTab} ${idx === activeSpecies ? styles.speciesTabActive : ''}`}
+            onClick={() => setActiveSpecies(idx)}
+            role="tab"
+            aria-selected={idx === activeSpecies}
+            aria-controls={`species-panel-${sp.id}`}
+          >
+            <span className={styles.speciesTabName}>{sp.name}</span>
+            <span className={styles.speciesTabMeta}>{sp.actuators} actuators &middot; {sp.gait}</span>
+          </button>
+        ))}
+      </div>
+
+      <div
+        className={styles.speciesPanel}
+        role="tabpanel"
+        id={`species-panel-${species.id}`}
+        aria-label={species.name}
+      >
+        <div className={styles.speciesInfo}>
+          <span className={styles.speciesBadge}>{species.specialty}</span>
+        </div>
+
+        <div className={styles.speciesVideos}>
+          {species.stages.map((stage) => (
+            <div className={styles.speciesVideoCard} key={stage.number}>
+              <div className={styles.speciesVideoHeader}>
+                <span className={styles.speciesStageLabel}>STAGE {stage.number}</span>
+                <span className={styles.speciesAlgoBadge}>PPO</span>
+              </div>
+              <h3 className={styles.speciesStageTitle}>{stage.title}</h3>
+              <p className={styles.speciesStageDesc}>{stage.desc}</p>
+              <div className={styles.speciesVideoWrap}>
+                <video
+                  src={stage.video}
+                  controls
+                  className={styles.speciesVideoPlayer}
+                  aria-label={`${species.name} stage ${stage.number}: ${stage.title}`}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* =============================================================================
+   ROADMAP SECTION (Timeline)
+   ============================================================================= */
+
 const milestones = [
   {
     phase: 'PHASE 0 — v0.2.0',
@@ -212,12 +461,7 @@ const milestones = [
     title: 'First Steps',
     status: 'active' as const,
     statusLabel: 'IN PROGRESS',
-    items: [
-      'Curriculum manager',
-      'W&B tracking',
-      'Locomotion metrics',
-      'Species training runs',
-    ],
+    items: ['Curriculum manager', 'W&B tracking', 'Locomotion metrics', 'Species training runs'],
   },
   {
     phase: 'PHASE 2 — v0.4.0',
@@ -250,35 +494,51 @@ const milestones = [
 ];
 
 function RoadmapSection() {
+  const ref = useScrollReveal();
   return (
-    <section className={styles.roadmapSection} aria-labelledby="roadmap-heading">
+    <section
+      className={`${styles.roadmapSection} ${styles.scrollReveal}`}
+      aria-labelledby="roadmap-heading"
+      ref={ref}
+    >
       <div className={styles.sectionHeader}>
         <div className={styles.sectionIcon} aria-hidden="true">{'[ ROADMAP ]'}</div>
         <h2 className={styles.sectionTitle} id="roadmap-heading">Project Roadmap</h2>
       </div>
-      <div className={styles.roadmapContainer} role="list">
+      <div className={styles.timelineContainer}>
+        <div className={styles.timelineLine} aria-hidden="true"></div>
         {milestones.map((milestone, idx) => (
           <article
-            className={`${styles.milestoneCard} ${styles[milestone.status]}`}
+            className={`${styles.timelineItem} ${styles[milestone.status]}`}
             key={idx}
             role="listitem"
           >
-            <div className={styles.milestonePhase}>{milestone.phase}</div>
-            <h3 className={styles.milestoneTitle}>{milestone.title}</h3>
-            <ul className={styles.milestoneItems} aria-label={`${milestone.title} items`}>
-              {milestone.items.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-            <span className={styles.milestoneStatus} aria-label={`Status: ${milestone.statusLabel}`}>
-              {milestone.statusLabel}
-            </span>
+            <div
+              className={styles.timelineDot}
+              aria-hidden="true"
+            ></div>
+            <div className={styles.timelineCard}>
+              <div className={styles.milestonePhase}>{milestone.phase}</div>
+              <h3 className={styles.milestoneTitle}>{milestone.title}</h3>
+              <ul className={styles.milestoneItems} aria-label={`${milestone.title} items`}>
+                {milestone.items.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+              <span className={styles.milestoneStatus} aria-label={`Status: ${milestone.statusLabel}`}>
+                {milestone.statusLabel}
+              </span>
+            </div>
           </article>
         ))}
       </div>
     </section>
   );
 }
+
+/* =============================================================================
+   CTA SECTION
+   ============================================================================= */
 
 function CTASection() {
   return (
@@ -291,8 +551,8 @@ function CTASection() {
         </p>
         <div className={styles.ctaButtons}>
           <a href="/docs/" className={styles.ctaButton}>
-            <span className={styles.ctaButtonIcon} aria-hidden="true">📖</span>
             GET STARTED
+            <span className={styles.btnArrow} aria-hidden="true">&rarr;</span>
           </a>
           <a
             href="https://github.com/kuds/mesozoic-labs"
@@ -300,7 +560,6 @@ function CTASection() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <span className={styles.ctaButtonIcon} aria-hidden="true">⭐</span>
             VIEW ON GITHUB
             <span className="sr-only"> (opens in new tab)</span>
           </a>
@@ -309,6 +568,10 @@ function CTASection() {
     </section>
   );
 }
+
+/* =============================================================================
+   MAIN PAGE
+   ============================================================================= */
 
 export default function Home(): React.JSX.Element {
   return (
@@ -321,10 +584,17 @@ export default function Home(): React.JSX.Element {
       </a>
       <main className={styles.main} id="main-content">
         <HeroSection />
+        <div className={styles.sectionDivider} aria-hidden="true"></div>
         <FeaturesSection />
+        <div className={styles.sectionDivider} aria-hidden="true"></div>
+        <HowItWorksSection />
+        <div className={styles.sectionDivider} aria-hidden="true"></div>
         <SimulationSection />
-        <RaptorVideoUpload />
+        <div className={styles.sectionDivider} aria-hidden="true"></div>
+        <SpeciesShowcase />
+        <div className={styles.sectionDivider} aria-hidden="true"></div>
         <RoadmapSection />
+        <div className={styles.sectionDivider} aria-hidden="true"></div>
         <CTASection />
       </main>
     </Layout>

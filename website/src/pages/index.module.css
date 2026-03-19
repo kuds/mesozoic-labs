@@ -1,5 +1,5 @@
 /* =============================================================================
-   MESOZOIC LABS - Landing Page
+   MESOZOIC LABS - Landing Page (Redesigned)
    Theme: Prehistoric meets Cyberpunk/Robotics
    ============================================================================= */
 
@@ -17,6 +17,66 @@
   --color-text-dim: #9a9aad;
   --glow-primary: 0 0 20px var(--color-primary-dim);
   --glow-accent: 0 0 30px #00d4ff40;
+}
+
+/* =============================================================================
+   SCROLL REVEAL ANIMATION
+   ============================================================================= */
+
+.scrollReveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+
+.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* =============================================================================
+   SECTION DIVIDER
+   ============================================================================= */
+
+.sectionDivider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-primary-dim), var(--color-accent), var(--color-primary-dim), transparent);
+  max-width: 800px;
+  margin: 0 auto;
+  opacity: 0.5;
+}
+
+/* =============================================================================
+   SHARED SECTION STYLES
+   ============================================================================= */
+
+.sectionHeader {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.sectionIcon {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: var(--color-primary);
+  margin-bottom: 0.75rem;
+  font-family: 'Courier New', monospace;
+}
+
+.sectionTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.sectionSubtitle {
+  font-size: 1.05rem;
+  color: var(--color-text-dim);
+  margin: 0.75rem auto 0;
+  max-width: 550px;
+  line-height: 1.6;
 }
 
 /* Main Container */
@@ -72,12 +132,42 @@
   pointer-events: none;
 }
 
+/* Floating particles */
+.heroParticles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  opacity: 0;
+  animation: particleFloat 6s ease-in-out infinite;
+}
+
+@keyframes particleFloat {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  20% { opacity: 0.8; }
+  80% { opacity: 0.4; }
+  100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
+}
+
 .heroContent {
   position: relative;
   z-index: 10;
   text-align: center;
   padding: 2rem;
   max-width: 900px;
+  animation: heroFadeIn 1s ease-out;
+}
+
+@keyframes heroFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Logo */
@@ -173,38 +263,68 @@
   margin-right: auto;
 }
 
-/* Coming Soon Badge */
-.comingSoonBadge {
+/* Hero Buttons */
+.heroButtons {
+  display: flex;
+  gap: 1.25rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 3rem;
+}
+
+.heroPrimaryBtn {
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 2rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-primary);
-  border-radius: 0;
-  margin-bottom: 3rem;
-  position: relative;
-  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-}
-
-.badgePulse {
-  width: 10px;
-  height: 10px;
+  gap: 0.6rem;
+  padding: 0.9rem 2.2rem;
   background: var(--color-primary);
-  border-radius: 50%;
-  animation: badgePulse 2s ease-in-out infinite;
-}
-
-@keyframes badgePulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--color-primary); }
-  50% { opacity: 0.5; box-shadow: 0 0 0 10px transparent; }
-}
-
-.badgeText {
-  font-size: 0.875rem;
+  color: var(--color-dark);
+  font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  border: 2px solid var(--color-primary);
+  transition: all 0.3s ease;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+.heroPrimaryBtn:hover {
+  background: transparent;
   color: var(--color-primary);
+  box-shadow: var(--glow-primary);
+  text-decoration: none;
+}
+
+.heroSecondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 2.2rem;
+  background: transparent;
+  color: var(--color-text-dim);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  border: 2px solid var(--color-text-dim);
+  transition: all 0.3s ease;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+.heroSecondaryBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  box-shadow: var(--glow-accent);
+  text-decoration: none;
+}
+
+.btnArrow {
+  font-size: 1.1rem;
+  transition: transform 0.3s ease;
+}
+
+.heroPrimaryBtn:hover .btnArrow {
+  transform: translateX(4px);
 }
 
 /* Stats */
@@ -245,23 +365,29 @@
   background: linear-gradient(180deg, transparent, var(--color-primary-dim), transparent);
 }
 
-/* Dinosaur Silhouette */
-.dinoSilhouette {
+/* Scroll indicator */
+.heroScrollIndicator {
   position: absolute;
-  bottom: 0;
-  right: 5%;
-  width: 400px;
-  height: 300px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 150'%3E%3Cpath d='M180 120 L170 100 L175 95 L168 80 L170 60 L165 45 L160 50 L155 45 L145 50 L140 55 L130 50 L120 52 L100 55 L80 58 L60 62 L50 70 L45 80 L50 90 L45 100 L50 110 L45 115 L50 120 L60 122 L55 140 L60 142 L65 125 L80 122 L85 140 L90 142 L95 125 L120 120 L140 118 L160 115 L180 120 Z' fill='%2300ff8815' stroke='%2300ff8830' stroke-width='1'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-size: contain;
-  opacity: 0.6;
-  animation: dinoFloat 6s ease-in-out infinite;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
 }
 
-@keyframes dinoFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+.scrollChevron {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-right: 2px solid var(--color-primary);
+  border-bottom: 2px solid var(--color-primary);
+  transform: rotate(45deg);
+  animation: scrollBounce 2s ease-in-out infinite;
+  opacity: 0.6;
+}
+
+@keyframes scrollBounce {
+  0%, 100% { transform: rotate(45deg) translateY(0); opacity: 0.6; }
+  50% { transform: rotate(45deg) translateY(8px); opacity: 1; }
 }
 
 /* =============================================================================
@@ -274,30 +400,9 @@
   position: relative;
 }
 
-.sectionHeader {
-  text-align: center;
-  margin-bottom: 4rem;
-}
-
-.sectionIcon {
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.3em;
-  color: var(--color-primary);
-  margin-bottom: 0.75rem;
-  font-family: 'Courier New', monospace;
-}
-
-.sectionTitle {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-
 .featuresGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 2rem;
   max-width: 1200px;
   margin: 0 auto;
@@ -308,13 +413,22 @@
   background: var(--color-surface);
   padding: 2rem;
   border: 1px solid #ffffff10;
-  transition: all 0.3s ease;
+  transition: all 0.4s ease;
 }
 
 .featureCard:hover {
   border-color: var(--color-primary-dim);
   transform: translateY(-5px);
   box-shadow: var(--glow-primary);
+}
+
+.revealed .featureCard {
+  animation: cardSlideUp 0.5s ease-out both;
+}
+
+@keyframes cardSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .featureCardBorder {
@@ -356,12 +470,105 @@
 }
 
 /* =============================================================================
+   HOW IT WORKS (Curriculum Pipeline)
+   ============================================================================= */
+
+.howItWorksSection {
+  padding: 6rem 2rem;
+  background: var(--color-darker);
+}
+
+.pipelineContainer {
+  display: flex;
+  gap: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  position: relative;
+  justify-content: center;
+}
+
+.pipelineLine {
+  display: none;
+}
+
+.pipelineStep {
+  flex: 1;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+
+.pipelineStep:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 30px;
+  right: -1rem;
+  width: 2rem;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-primary-dim), var(--color-accent));
+  opacity: 0.5;
+}
+
+.pipelineNode {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid;
+  background: var(--color-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.pipelineContent {
+  padding: 0 0.5rem;
+}
+
+.pipelineStage {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  margin-bottom: 0.5rem;
+  font-family: 'Courier New', monospace;
+}
+
+.pipelineTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 0.25rem 0;
+}
+
+.pipelineSubtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-dim);
+  font-style: italic;
+  margin-bottom: 0.75rem;
+}
+
+.pipelineDescription {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--color-text-dim);
+  margin: 0;
+}
+
+/* =============================================================================
    SIMULATION PREVIEW SECTION
    ============================================================================= */
 
 .simulationSection {
   padding: 6rem 2rem;
-  background: var(--color-darker);
+  background: var(--color-dark);
 }
 
 .simulationContainer {
@@ -460,10 +667,6 @@
   color: #f1fa8c;
 }
 
-.codeNumber {
-  color: #bd93f9;
-}
-
 .codeOutput {
   color: var(--color-primary);
 }
@@ -478,7 +681,161 @@
 }
 
 /* =============================================================================
-   ROADMAP SECTION
+   SPECIES SHOWCASE (Tabbed)
+   ============================================================================= */
+
+.speciesSection {
+  padding: 6rem 2rem;
+  background: var(--color-darker);
+}
+
+.speciesTabs {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.speciesTab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1rem 2rem;
+  background: var(--color-surface);
+  border: 1px solid #ffffff10;
+  color: var(--color-text-dim);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.speciesTab:hover {
+  border-color: var(--color-primary-dim);
+  color: var(--color-text);
+}
+
+.speciesTabActive {
+  border-color: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-surface) 0%, #0a1a10 100%);
+  box-shadow: var(--glow-primary);
+}
+
+.speciesTabActive .speciesTabName {
+  color: var(--color-primary);
+}
+
+.speciesTabName {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.speciesTabMeta {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+  font-family: 'Courier New', monospace;
+}
+
+.speciesPanel {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.speciesInfo {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.speciesBadge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: var(--color-secondary);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+  padding: 0.3rem 1rem;
+  font-family: 'Courier New', monospace;
+  background: rgba(255, 107, 53, 0.05);
+  text-transform: uppercase;
+}
+
+.speciesVideos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+.speciesVideoCard {
+  position: relative;
+  background: var(--color-surface);
+  padding: 1.5rem;
+  border: 1px solid #ffffff10;
+  transition: all 0.3s ease;
+}
+
+.speciesVideoCard:hover {
+  border-color: var(--color-primary-dim);
+  box-shadow: var(--glow-primary);
+}
+
+.speciesVideoHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.speciesStageLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--color-accent);
+  font-family: 'Courier New', monospace;
+}
+
+.speciesAlgoBadge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary-dim);
+  padding: 0.1rem 0.4rem;
+  font-family: 'Courier New', monospace;
+  background: rgba(0, 255, 136, 0.05);
+}
+
+.speciesStageTitle {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 0.35rem 0;
+}
+
+.speciesStageDesc {
+  font-size: 0.85rem;
+  color: var(--color-text-dim);
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+
+.speciesVideoWrap {
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #ffffff10;
+}
+
+.speciesVideoPlayer {
+  width: 100%;
+  display: block;
+  background: #000;
+}
+
+/* =============================================================================
+   ROADMAP SECTION (Timeline)
    ============================================================================= */
 
 .roadmapSection {
@@ -486,32 +843,84 @@
   background: var(--color-dark);
 }
 
-.roadmapContainer {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  max-width: 1100px;
+.timelineContainer {
+  position: relative;
+  max-width: 700px;
   margin: 0 auto;
+  padding-left: 40px;
 }
 
-.milestoneCard {
+.timelineLine {
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-accent), var(--color-text-dim));
+  opacity: 0.3;
+}
+
+.timelineItem {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.timelineItem:last-child {
+  margin-bottom: 0;
+}
+
+.timelineDot {
+  position: absolute;
+  left: -33px;
+  top: 1.5rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--color-text-dim);
+  background: var(--color-dark);
+  z-index: 1;
+}
+
+.timelineItem.complete .timelineDot {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  box-shadow: 0 0 10px var(--color-primary-dim);
+}
+
+.timelineItem.active .timelineDot {
+  border-color: var(--color-secondary);
+  background: var(--color-secondary);
+  box-shadow: 0 0 10px rgba(255, 107, 53, 0.4);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 107, 53, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(255, 107, 53, 0.7); }
+}
+
+.timelineCard {
   background: var(--color-surface);
   padding: 1.5rem;
   border: 1px solid #ffffff10;
-  position: relative;
+  border-left: 3px solid var(--color-text-dim);
+  transition: all 0.3s ease;
 }
 
-.milestoneCard.complete {
-  border-left: 3px solid var(--color-primary);
+.timelineCard:hover {
+  border-color: #ffffff20;
 }
 
-.milestoneCard.active {
-  border-left: 3px solid var(--color-secondary);
+.timelineItem.complete .timelineCard {
+  border-left-color: var(--color-primary);
+}
+
+.timelineItem.active .timelineCard {
+  border-left-color: var(--color-secondary);
   background: linear-gradient(135deg, var(--color-surface) 0%, #1f1a15 100%);
 }
 
-.milestoneCard.upcoming {
-  border-left: 3px solid var(--color-text-dim);
+.timelineItem.upcoming .timelineCard {
   opacity: 0.7;
 }
 
@@ -559,15 +968,15 @@
   letter-spacing: 0.1em;
 }
 
-.milestoneCard.complete .milestoneStatus {
+.timelineItem.complete .milestoneStatus {
   color: var(--color-primary);
 }
 
-.milestoneCard.active .milestoneStatus {
+.timelineItem.active .milestoneStatus {
   color: var(--color-secondary);
 }
 
-.milestoneCard.upcoming .milestoneStatus {
+.timelineItem.upcoming .milestoneStatus {
   color: var(--color-text-dim);
 }
 
@@ -607,13 +1016,13 @@
 .ctaButton {
   display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   padding: 1rem 2.5rem;
-  background: transparent;
+  background: var(--color-primary);
   border: 2px solid var(--color-primary);
-  color: var(--color-primary);
+  color: var(--color-dark);
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-decoration: none;
   transition: all 0.3s ease;
@@ -621,8 +1030,8 @@
 }
 
 .ctaButton:hover {
-  background: var(--color-primary);
-  color: var(--color-dark);
+  background: transparent;
+  color: var(--color-primary);
   box-shadow: var(--glow-primary);
   text-decoration: none;
 }
@@ -657,10 +1066,6 @@
   text-decoration: none;
 }
 
-.ctaButtonIcon {
-  font-size: 1.25rem;
-}
-
 .ctaDinoTrack {
   position: absolute;
   bottom: 20px;
@@ -676,6 +1081,27 @@
 /* =============================================================================
    RESPONSIVE
    ============================================================================= */
+
+@media (max-width: 968px) {
+  .speciesVideos {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .pipelineContainer {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .pipelineStep {
+    max-width: 400px;
+  }
+
+  .pipelineStep:not(:last-child)::after {
+    display: none;
+  }
+}
 
 @media (max-width: 768px) {
   .logoDino {
@@ -710,13 +1136,6 @@
     font-size: 2rem;
   }
 
-  .dinoSilhouette {
-    width: 200px;
-    height: 150px;
-    right: -20px;
-    opacity: 0.3;
-  }
-
   .sectionTitle {
     font-size: 1.75rem;
   }
@@ -733,5 +1152,32 @@
   .ctaButtons {
     flex-direction: column;
     align-items: center;
+  }
+
+  .heroButtons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .speciesTabs {
+    gap: 0.5rem;
+  }
+
+  .speciesTab {
+    padding: 0.75rem 1.25rem;
+  }
+
+  .timelineContainer {
+    padding-left: 30px;
+  }
+
+  .timelineDot {
+    left: -23px;
+    width: 10px;
+    height: 10px;
+  }
+
+  .timelineLine {
+    left: 10px;
   }
 }
