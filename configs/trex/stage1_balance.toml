@@ -37,7 +37,7 @@ clip_range = 0.2
 ent_coef = 0.005
 
 [ppo.policy_kwargs]
-net_arch = [256, 256]
+net_arch = [512, 256]
 
 [sac]
 learning_rate = 3e-4              # Match PPO starting LR — SAC tolerates higher LR due to replay buffer stability
@@ -52,7 +52,7 @@ train_freq = 1
 gradient_steps = 1
 
 [sac.policy_kwargs]
-net_arch = [256, 256]            # Match PPO architecture; T-Rex's 83 obs dims handled by input layer, not hidden width
+net_arch = [512, 256]            # Match PPO architecture; T-Rex's 83 obs dims handled by input layer, not hidden width
 
 [curriculum]
 timesteps = 6000000

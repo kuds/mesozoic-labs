@@ -36,7 +36,7 @@ clip_range = 0.15                      # Widened from 0.1: allow larger policy u
 ent_coef = 0.005                       # 5x increase from 0.001: more exploration needed to discover sparse strike reward
 
 [ppo.policy_kwargs]
-net_arch = [256, 256]
+net_arch = [512, 256]
 
 [sac]
 learning_rate = 1e-4              # Higher than PPO's 5e-5 — replay buffer stabilizes updates; faster convergence on sparse reward
@@ -53,7 +53,7 @@ train_freq = 1
 gradient_steps = 1
 
 [sac.policy_kwargs]
-net_arch = [256, 256]
+net_arch = [512, 256]
 
 [curriculum]
 timesteps = 8000000
