@@ -652,6 +652,7 @@ class TestStageWarmupCallbackMocked:
 
     def test_warmup_applies_reduced_clip_range(self):
         """Warmup should set clip_range to the configured small value (PPO)."""
+        pytest.importorskip("stable_baselines3")
         cb = StageWarmupCallback(warmup_timesteps=100_000, warmup_clip_range=0.02, warmup_ent_coef=0.02)
 
         mock_model = MagicMock()
@@ -669,6 +670,7 @@ class TestStageWarmupCallbackMocked:
 
     def test_warmup_restores_original_values(self):
         """After warmup_timesteps, original clip_range and ent_coef should be restored (PPO)."""
+        pytest.importorskip("stable_baselines3")
         cb = StageWarmupCallback(warmup_timesteps=100, warmup_clip_range=0.02, warmup_ent_coef=0.02)
 
         original_clip = MagicMock()
@@ -691,7 +693,8 @@ class TestStageWarmupCallbackMocked:
 
     def test_warmup_applies_reduced_lr_for_sac(self):
         """Warmup should reduce LR and fix ent_coef for SAC models."""
-        import torch
+        pytest.importorskip("stable_baselines3")
+        torch = pytest.importorskip("torch")
 
         cb = StageWarmupCallback(
             warmup_timesteps=100_000,
@@ -714,7 +717,8 @@ class TestStageWarmupCallbackMocked:
 
     def test_warmup_restores_sac_values(self):
         """After warmup, SAC LR schedule and auto-entropy should be restored."""
-        import torch
+        pytest.importorskip("stable_baselines3")
+        torch = pytest.importorskip("torch")
 
         cb = StageWarmupCallback(
             warmup_timesteps=100,
