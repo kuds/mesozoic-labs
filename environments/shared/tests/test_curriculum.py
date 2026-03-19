@@ -718,7 +718,8 @@ class TestStageWarmupCallbackMocked:
             warmup_timesteps=100, warmup_ent_coef=0.02, warmup_lr_scale=0.1,
         )
 
-        original_lr_schedule = lambda _: 3e-4
+        def original_lr_schedule(_):
+            return 3e-4
         mock_model = MagicMock()
         mock_model.lr_schedule = original_lr_schedule
         mock_model.ent_coef = "auto"
