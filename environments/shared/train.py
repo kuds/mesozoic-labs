@@ -33,7 +33,7 @@ def _main():
 
     species_name = sys.argv[idx + 1]
     # Remove --species and its value from argv so argparse in main() doesn't choke
-    sys.argv = [sys.argv[0]] + sys.argv[:idx] + sys.argv[idx + 2 :]
+    sys.argv = [sys.argv[0]] + sys.argv[1:idx] + sys.argv[idx + 2 :]
 
     from environments.shared.species_registry import get_species_config
     from environments.shared.train_base import main

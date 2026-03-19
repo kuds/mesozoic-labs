@@ -190,21 +190,21 @@ class TestPlateauDetection:
         callback._on_rollout_end()
         # Not enough history for plateau detection, no warning printed
 
-    def test_plateau_warning(self, callback, capsys):
+    def test_plateau_warning(self, callback, caplog):
         # Fill the history to reach the plateau window
         callback._rollout_ep_rewards = [50.0] * 9  # 9 entries, need 10
         callback.locals = {"infos": [{"episode": {"r": 50.0}}]}
-        callback._on_rollout_end()
-        captured = capsys.readouterr()
-        assert "PLATEAU WARNING" in captured.out
+        with caplog.at_level("WARNING", logger="environments.shared.diagnostics"):
+            callback._on_rollout_end()
+        assert "PLATEAU WARNING" in caplog.text
 
-    def test_no_plateau_when_varying(self, callback, capsys):
+    def test_no_plateau_when_varying(self, callback, caplog):
         # Rewards with enough variation to avoid plateau
         callback._rollout_ep_rewards = list(range(9))  # 0-8
         callback.locals = {"infos": [{"episode": {"r": 100.0}}]}
-        callback._on_rollout_end()
-        captured = capsys.readouterr()
-        assert "PLATEAU WARNING" not in captured.out
+        with caplog.at_level("WARNING", logger="environments.shared.diagnostics"):
+            callback._on_rollout_end()
+        assert "PLATEAU WARNING" not in caplog.text
 
     def test_logs_reward_variation(self, callback):
         callback._rollout_ep_rewards = [50.0] * 9
