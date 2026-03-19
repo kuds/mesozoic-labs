@@ -3,9 +3,9 @@ name = "locomotion"
 description = "Learn coordinated quadrupedal walking"
 
 [env]
-forward_vel_weight = 8.0               # Increased from 2.0: must dominate reward to prevent standing-still exploit. Agent was earning ~2000 reward without walking.
+forward_vel_weight = 4.0               # Increased from 2.0: stronger forward signal to prevent standing-still exploit. Agent was earning ~2000 reward without walking.
 forward_vel_max = 0.4                  # Reduced from 1.0: saturate reward at achievable speed for better gradient signal at low velocities.
-alive_bonus = 0.0                      # Removed: was 0.1. Even small alive_bonus creates standing-still optimum when forward reward is weak.
+alive_bonus = 0.1                      # Kept: small survival signal to maintain balance learning from Stage 1.
 fall_penalty = -50.0                   # Match T-Rex stage 2
 energy_penalty_weight = 0.002          # Increase from 0.001: provide some efficiency signal (matches T-Rex stage 2)
 tail_stability_weight = 0.05           # Penalize tail thrashing during locomotion
