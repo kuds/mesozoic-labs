@@ -39,7 +39,9 @@ _DEFAULT_PPO_SEARCH_SPACE = {
 _DEFAULT_SAC_SEARCH_SPACE = {
     "sac_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
     "sac_batch_size": {"type": "discrete", "values": [128, 256, 512]},
-    "sac_gamma": {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
+    "sac_gamma": {"type": "double", "min": 0.97, "max": 0.995, "scale": "linear"},
+    "sac_tau": {"type": "double", "min": 0.001, "max": 0.01, "scale": "log"},
+    "sac_buffer_size": {"type": "discrete", "values": [100000, 300000, 1000000]},
 }
 
 _DEFAULT_SEARCH_SPACES = {

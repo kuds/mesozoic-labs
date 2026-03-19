@@ -40,11 +40,20 @@ ent_coef = 0.005
 net_arch = [512, 256]                  # Larger first layer for T-Rex's higher-dimensional obs space (83 vs raptor's 67)
 
 [sac]
-learning_rate = 1e-4
+learning_rate = 1e-4              # 3x reduction from Stage 1 — replay buffer provides natural gradient smoothing
 batch_size = 256
-gamma = 0.99
+gamma = 0.99                     # Keep at 0.99 — replay staleness + T-Rex's high obs dimensionality (83) makes
+                                 # high gamma risky; the buffer naturally handles temporal credit assignment
 tau = 0.005
-ent_coef = "auto"
+ent_coef = "auto"                # Auto-entropy handles Stage 1→2 transition exploration naturally
+buffer_size = 1_000_000          # Large buffer retains Stage 1 balance transitions — key advantage over PPO
+                                 # for mitigating catastrophic forgetting (PPO's biggest pain point for T-Rex)
+learning_starts = 10_000
+train_freq = 1
+gradient_steps = 1
+
+[sac.policy_kwargs]
+net_arch = [512, 256]            # Larger first layer for T-Rex's higher-dimensional obs space (83 vs raptor's 67)
 
 [curriculum]
 timesteps = 8000000                     # Increase from 5M: your best T-Rex stage2 was only at 2M steps and still improving

@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable, Optional
 
 import numpy as np
 
@@ -619,6 +619,8 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
     must adapt to the new reward landscape before the policy (actor) should
     change significantly.  This callback temporarily:
 
+    **PPO mode:**
+
     * Reduces ``clip_range`` to a small value (default 0.02) so PPO's clipped
       surrogate objective barely moves the policy per update while the critic
       adapts via its own loss.
@@ -626,14 +628,22 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
       exploration breadth during the transition instead of committing to
       stale stage-1 action patterns.
 
-    After ``warmup_timesteps`` have elapsed the original values are restored.
+    **SAC mode:**
 
-    Only affects PPO models (SAC has no clip_range).
+    * Reduces the actor ``learning_rate`` to ``warmup_lr_scale`` × original
+      (default 0.1×) so gradient updates to the actor are small while the
+      twin critics adapt to the new reward landscape.  The critic learning
+      rate is unchanged so Q-values converge quickly.
+    * Temporarily fixes ``ent_coef`` to ``warmup_ent_coef`` (overriding
+      ``"auto"``) to maintain exploration breadth during the transition.
+
+    After ``warmup_timesteps`` have elapsed the original values are restored.
 
     Args:
         warmup_timesteps: Number of timesteps for the warm-up period.
-        warmup_clip_range: Clip range during warm-up (small = less policy change).
-        warmup_ent_coef: Entropy coefficient during warm-up.
+        warmup_clip_range: Clip range during warm-up (PPO only).
+        warmup_ent_coef: Entropy coefficient during warm-up (PPO and SAC).
+        warmup_lr_scale: Factor to scale actor LR during warm-up (SAC only).
         verbose: Verbosity level.
     """
 
@@ -642,6 +652,7 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
         warmup_timesteps: int = 100_000,
         warmup_clip_range: float = 0.02,
         warmup_ent_coef: float = 0.02,
+        warmup_lr_scale: float = 0.1,
         verbose: int = 0,
     ):
         if not _SB3_AVAILABLE:
@@ -650,36 +661,66 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
         self.warmup_timesteps = warmup_timesteps
         self.warmup_clip_range = warmup_clip_range
         self.warmup_ent_coef = warmup_ent_coef
+        self.warmup_lr_scale = warmup_lr_scale
         self._original_clip_range = None
         self._original_ent_coef = None
+        self._original_lr_schedule: Optional[Callable[[float], float]] = None
+        self._original_log_ent_coef = None
+        self._is_sac = False
         self._warmup_done = False
 
     def _on_training_start(self) -> None:
-        # Only apply to PPO (SAC has no clip_range)
-        if not hasattr(self.model, "clip_range"):
-            self._warmup_done = True
-            return
+        self._is_sac = hasattr(self.model, "log_ent_coef")
 
-        self._original_clip_range = self.model.clip_range
-        self._original_ent_coef = self.model.ent_coef
-        self.model.clip_range = _ConstantSchedule(self.warmup_clip_range)
-        self.model.ent_coef = self.warmup_ent_coef
-        logger.info(
-            "StageWarmupCallback: warm-up active for %d timesteps (clip_range=%.3f, ent_coef=%.3f)",
-            self.warmup_timesteps,
-            self.warmup_clip_range,
-            self.warmup_ent_coef,
-        )
+        if self._is_sac:
+            # SAC warmup: reduce LR and fix entropy coefficient.
+            # Store the original lr_schedule callable (not the raw learning_rate
+            # float) so we can restore it exactly after warmup.
+            self._original_lr_schedule = self.model.lr_schedule
+            original_lr = self._original_lr_schedule(1.0)
+            warmup_lr = original_lr * self.warmup_lr_scale
+            self.model.lr_schedule = lambda _: warmup_lr
+            # Override auto-entropy by fixing ent_coef to a constant
+            self._original_ent_coef = self.model.ent_coef
+            self._original_log_ent_coef = self.model.log_ent_coef.item()
+            self.model.ent_coef = self.warmup_ent_coef
+            logger.info(
+                "StageWarmupCallback [SAC]: warm-up active for %d timesteps (lr=%.2e → %.2e, ent_coef=%.3f)",
+                self.warmup_timesteps,
+                original_lr,
+                warmup_lr,
+                self.warmup_ent_coef,
+            )
+        elif hasattr(self.model, "clip_range"):
+            # PPO warmup: reduce clip_range and set entropy coefficient
+            self._original_clip_range = self.model.clip_range
+            self._original_ent_coef = self.model.ent_coef
+            self.model.clip_range = _ConstantSchedule(self.warmup_clip_range)
+            self.model.ent_coef = self.warmup_ent_coef
+            logger.info(
+                "StageWarmupCallback [PPO]: warm-up active for %d timesteps (clip_range=%.3f, ent_coef=%.3f)",
+                self.warmup_timesteps,
+                self.warmup_clip_range,
+                self.warmup_ent_coef,
+            )
+        else:
+            self._warmup_done = True
 
     def _on_step(self) -> bool:
         if self._warmup_done:
             return True
         if self.num_timesteps >= self.warmup_timesteps:
-            self.model.clip_range = self._original_clip_range
-            self.model.ent_coef = self._original_ent_coef
+            if self._is_sac:
+                self.model.lr_schedule = self._original_lr_schedule
+                self.model.ent_coef = self._original_ent_coef
+                # Restore the learned log_ent_coef so auto-tuning resumes
+                self.model.log_ent_coef.data.fill_(self._original_log_ent_coef)
+            else:
+                self.model.clip_range = self._original_clip_range
+                self.model.ent_coef = self._original_ent_coef
             self._warmup_done = True
             logger.info(
-                "StageWarmupCallback: warm-up complete at step %d. Restored original clip_range and ent_coef.",
+                "StageWarmupCallback: warm-up complete at step %d. Restored original parameters.",
                 self.num_timesteps,
             )
         return True

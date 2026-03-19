@@ -528,14 +528,14 @@ def train(
 
     if stage > 1 and load_path:
         cur_kwargs = config.get("curriculum_kwargs", {})
-        if algorithm == "ppo":
-            callbacks.append(
-                StageWarmupCallback(
-                    warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
-                    warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
-                    warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
-                )
+        callbacks.append(
+            StageWarmupCallback(
+                warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
+                warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
+                warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
+                warmup_lr_scale=cur_kwargs.get("warmup_lr_scale", 0.1),
             )
+        )
         target_fwd_weight = config["env_kwargs"].get("forward_vel_weight", 1.0)
         callbacks.append(
             RewardRampCallback(
@@ -755,7 +755,12 @@ def _report_hpt_metrics(
     if stage_config is not None:
         algo_key = "sac_kwargs" if algorithm == "sac" else "ppo_kwargs"
         algo_kwargs = stage_config.get(algo_key, {})
-        for k in ("learning_rate", "batch_size", "gamma", "n_steps", "ent_coef"):
+        _metric_keys = (
+            ("learning_rate", "batch_size", "gamma", "n_steps", "ent_coef")
+            if algorithm == "ppo"
+            else ("learning_rate", "batch_size", "gamma", "tau", "buffer_size", "ent_coef")
+        )
+        for k in _metric_keys:
             if k in algo_kwargs:
                 val = algo_kwargs[k]
                 # Skip callable schedules — store the initial value description
@@ -897,12 +902,13 @@ def train_curriculum(
         )
         callbacks.append(curriculum_cb)
 
-        if stage > 1 and algorithm == "ppo":
+        if stage > 1:
             callbacks.append(
                 StageWarmupCallback(
                     warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
                     warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
                     warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
+                    warmup_lr_scale=cur_kwargs.get("warmup_lr_scale", 0.1),
                 )
             )
         if stage > 1:

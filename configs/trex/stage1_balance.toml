@@ -37,14 +37,22 @@ clip_range = 0.2
 ent_coef = 0.005
 
 [ppo.policy_kwargs]
-net_arch = [256, 256]
+net_arch = [512, 256]
 
 [sac]
-learning_rate = 3e-4
-batch_size = 256
-gamma = 0.99
+learning_rate = 3e-4              # Match PPO starting LR — SAC tolerates higher LR due to replay buffer stability
+batch_size = 256                  # Larger than PPO's 128 for T-Rex — SAC benefits from bigger batches with replay buffer
+gamma = 0.99                     # Lower than PPO's 0.998 — off-policy replay staleness at high gamma causes value overestimation;
+                                 # 0.99 is sufficient for balance (PPO needed 0.998 due to on-policy variance, not task structure)
 tau = 0.005
-ent_coef = "auto"
+ent_coef = "auto"                # Auto-tuned entropy — replaces PPO's manual ent_coef=0.005
+buffer_size = 300_000            # Sufficient for 6M-step Stage 1; smaller buffer keeps transitions recent
+learning_starts = 10_000         # Collect 10K random transitions before gradient updates begin
+train_freq = 1
+gradient_steps = 1
+
+[sac.policy_kwargs]
+net_arch = [512, 256]            # Match PPO architecture; T-Rex's 83 obs dims handled by input layer, not hidden width
 
 [curriculum]
 timesteps = 6000000
