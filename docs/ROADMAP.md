@@ -1,6 +1,6 @@
 # Mesozoic Labs - Roadmap & Timeline
 
-> Last updated: 2026-03-03
+> Last updated: 2026-03-19
 
 This roadmap organizes the project's growth into six phases. Each phase builds on
 the previous one. Items within a phase can often be worked in parallel.
@@ -14,7 +14,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | Phase | Name | Status | Done | Remaining |
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
-| **1** | First Steps (v0.3.0) | **In Progress** | 6/10 items | 3 training runs + codebase consolidation |
+| **1** | First Steps (v0.3.0) | **In Progress** | 7/10 items | 3 training runs |
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | Not Started | 0/7 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
@@ -22,8 +22,9 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-5 |
 
 **Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
-W&B tracking, metrics, Dockerfile, Vertex AI guide). The remaining work is
-executing full 3-stage training runs for each species and publishing results/checkpoints.
+W&B tracking, metrics, Dockerfile, Vertex AI guide) and codebase consolidation
+is complete. The remaining work is executing full 3-stage training runs for each
+species and publishing results/checkpoints.
 
 ---
 
@@ -140,14 +141,16 @@ curriculum with published results and reproducible checkpoints.
   - All 155 tests passing with pytest
   - _Dependency: Phase 0 developer tooling_
 
-- [ ] **Codebase consolidation**
-  - Extract shared training logic into `environments/shared/train_base.py` (~2,000 lines of duplication)
-  - Extract shared test utilities into `environments/shared/test_env_base.py` (~500 lines)
-  - Move common reward calculations to `BaseDinoEnv` helper methods (~300 lines)
-  - Centralize sensor constants and VecNormalize defaults
-  - Clean up unused website exports and naming inconsistencies
-  - See [REFACTORING.md](REFACTORING.md) for full analysis and implementation plan
-  - _Dependency: Training runs complete (avoid changing training scripts mid-run)_
+- [x] **Codebase consolidation**
+  - Extracted shared training logic into `environments/shared/train_base.py` (~2,000 lines removed)
+  - Extracted shared test utilities into `environments/shared/test_env_base.py` (~500 lines removed)
+  - Moved common reward calculations to `BaseDinoEnv` helper methods (~300 lines removed)
+  - Centralized sensor constants and VecNormalize defaults in `environments/shared/constants.py`
+  - Created shared reward test helpers in `environments/shared/tests/reward_test_helpers.py`
+  - Cleaned up unused website exports and naming inconsistencies
+  - Consolidated training notebooks into single parameterized `notebooks/training.ipynb`
+  - See [CODE_CONSOLIDATION.md](CODE_CONSOLIDATION.md) for full implementation plan
+  - _Completed: 2026-03-19_
 
 **Exit criteria:** All three species have published training results (PPO + SAC),
 downloadable checkpoints, a fully automated end-to-end curriculum pipeline, and

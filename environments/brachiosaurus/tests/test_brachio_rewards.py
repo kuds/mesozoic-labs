@@ -9,9 +9,6 @@ import numpy as np
 import pytest
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.shared.tests.reward_test_helpers import (
-    assert_gait_reward_non_negative,
-)
 
 
 @pytest.fixture
@@ -30,19 +27,35 @@ class TestBrachioRewardComponents:
         _, _, terminated, _, info = env.step(action)
         expected = (
             info["reward_forward"]
+            + info["reward_backward"]
+            + info["reward_drift"]
             + info["reward_alive"]
             + info["reward_energy"]
             + info["reward_gait"]
+            + info["reward_tail"]
+            + info["reward_posture"]
+            + info["reward_nosedive"]
+            + info["reward_height"]
+            + info["reward_gait_symmetry"]
+            + info["reward_smoothness"]
+            + info["reward_heading"]
+            + info["reward_lateral"]
+            + info["reward_spin"]
+            + info["reward_speed"]
             + info["reward_food"]
             + info["reward_approach"]
-            + info["reward_speed"]
+            + info["reward_head_proximity"]
         )
         if terminated:
             expected += env.fall_penalty
         assert abs(info["reward_total"] - expected) < 1e-6
 
-    def test_gait_reward_non_negative(self, env):
-        assert_gait_reward_non_negative(env)
+    def test_gait_reward_non_positive(self, env):
+        """Brachio gait reward is an angular velocity penalty (always <= 0)."""
+        env.reset(seed=42)
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert info["reward_gait"] <= 0.0
 
     def test_food_reached_is_zero_initially(self, env):
         """Food should not be reached on the first step (food is far away)."""
