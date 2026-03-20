@@ -9,10 +9,9 @@ tags:
 - locomotion
 - robotics
 - curriculum-learning
-- dinosaurs
 - gymnasium
 model-index:
-- name: PPO-Velociraptor
+- name: PPO-Velociraptor-Locomotion
   results:
   - task:
       type: reinforcement-learning
@@ -22,102 +21,56 @@ model-index:
       type: MesozoicLabs/Raptor-v0
     metrics:
     - type: mean_reward
-      value: 1366.19 +/- 76.29
+      value: 2678.68 +/- 4.07
       name: mean_reward
       verified: false
-    - type: success_rate
-      value: 93.3%
-      name: strike_success_rate
-      verified: false
-- name: PPO-TRex
-  results:
-  - task:
-      type: reinforcement-learning
-      name: reinforcement-learning
-    dataset:
-      name: MesozoicLabs/TRex-v0
-      type: MesozoicLabs/TRex-v0
-    metrics:
-    - type: mean_reward
-      value: 1294.28 +/- 67.19
-      name: mean_reward
-      verified: false
-    - type: success_rate
-      value: 96.7%
-      name: bite_success_rate
+    - type: mean_forward_velocity
+      value: 3.47 m/s
+      name: mean_forward_velocity
       verified: false
 ---
 
-# **PPO** Agents for Robotic Dinosaur Locomotion — **Mesozoic Labs**
+# **PPO** Agent playing **MesozoicLabs/Raptor-v0** (Locomotion)
 
 ![Trained PPO Agent](/results/velociraptor/ppo/stage1_balance.gif)
 
-This repository contains **PPO** (Proximal Policy Optimization) agents trained to control robotic dinosaurs in MuJoCo physics simulation. Each species is trained using a 3-stage curriculum learning approach.
+This is a trained **PPO** (Proximal Policy Optimization) agent that controls a bipedal velociraptor in MuJoCo physics simulation, learning to walk and run forward.
 
 - [GitHub Repository](https://github.com/kuds/mesozoic-labs)
 - [Documentation](https://mesozoiclabs.com)
 - [Blog: From Zero to Dino-Roar](https://www.findingtheta.com/blog/from-zero-to-dino-roar-teaching-a-t-rex-to-walk-with-mujoco-and-reinforcement-learning)
 
-## Species & Training Results
+## Training Results
 
-### Velociraptor (PPO) — All 3 stages passed | 22M steps | 11:25:15 total
+The agent is trained using a 2-stage curriculum (Balance → Locomotion) over 14M total timesteps on a Google Colab L4 GPU:
 
-A bipedal predator with sickle claws, trained on 3 curriculum stages:
-
-| Stage | Name | Best Reward | Avg Forward Vel | Success Rate | Time |
-|-------|------|-------------|-----------------|--------------|------|
-| 1 | Balance | 1964.43 +/- 27.39 | 0.11 m/s | — | 2:57:25 |
-| 2 | Locomotion | 2678.68 +/- 4.07 | 3.47 m/s | — | 4:35:55 |
-| 3 | Strike | 1366.19 +/- 76.29 | 2.02 m/s | 93.3% | 3:51:54 |
-
-### T-Rex (PPO) — All 3 stages passed | 22M steps | 13:02:32 total
-
-A large bipedal predator with powerful jaws, trained on 3 curriculum stages:
-
-| Stage | Name | Best Reward | Avg Forward Vel | Success Rate | Time |
-|-------|------|-------------|-----------------|--------------|------|
-| 1 | Balance | 3008.66 +/- 7.62 | 0.02 m/s | — | 3:35:24 |
-| 2 | Locomotion | 1936.01 +/- 13.12 | 3.47 m/s | — | 5:17:18 |
-| 3 | Bite | 1294.28 +/- 67.19 | 1.68 m/s | 96.7% | 4:09:49 |
-
-### Brachiosaurus (PPO) — In progress
-
-A quadrupedal sauropod herbivore with a long neck for reaching elevated food sources.
+| Stage | Name | Best Reward | Avg Forward Vel | Time |
+|-------|------|-------------|-----------------|------|
+| 1 | Balance | 1964.43 +/- 27.39 | 0.11 m/s | 2:57:25 |
+| 2 | Locomotion | 2678.68 +/- 4.07 | 3.47 m/s | 4:35:55 |
 
 ## Training Details
 
-- **Algorithm:** PPO (Proximal Policy Optimization) via [Stable-Baselines3](https://github.com/DLR-RM/stable-baselines3)
+- **Algorithm:** PPO via [Stable-Baselines3](https://github.com/DLR-RM/stable-baselines3)
 - **Physics Engine:** [MuJoCo](https://mujoco.org/) (>= 3.0)
 - **Environment Framework:** [Gymnasium](https://gymnasium.farama.org/) (>= 0.29)
 - **Hardware:** Google Colab L4 GPU
 - **Seed:** 42
 - **Parallel Envs:** 4
-- **Curriculum:** 3-stage progressive training (Balance → Locomotion → Species-specific task)
+- **Total Timesteps:** 14M (6M balance + 8M locomotion)
 
-## Environment Details
+## Environment
 
-| Species | Observation Dims | Action Dims | Gymnasium ID |
-|---------|-----------------|-------------|--------------|
-| Velociraptor | 67 | 22 | `MesozoicLabs/Raptor-v0` |
-| T-Rex | 83 | 21 | `MesozoicLabs/TRex-v0` |
-| Brachiosaurus | 75 | 22 | `MesozoicLabs/Brachio-v0` |
+| Feature | Details |
+|---------|---------|
+| Gymnasium ID | `MesozoicLabs/Raptor-v0` |
+| Observation | 67 dims (joints, pelvis, prey tracking) |
+| Action | 22 dims (legs, claws, tail, arms) |
+| MJCF Model | `environments/velociraptor/assets/raptor.xml` |
 
 ## Usage
 
-### Installation
-
-```bash
-git clone https://github.com/kuds/mesozoic-labs.git
-cd mesozoic-labs
-
-python -m venv venv
-source venv/bin/activate
-
-# Install with training dependencies
-pip install -e ".[train]"
-```
-
-### Loading a Trained Model
+Then, you can load the model using the following Python code:
 
 ```python
 from stable_baselines3 import PPO
@@ -126,13 +79,13 @@ import gymnasium as gym
 # Register Mesozoic Labs environments
 import environments
 
-# Load the trained model (e.g., velociraptor stage 3)
-model = PPO.load("path/to/best_model.zip")
+# Load the trained model
+model = PPO.load("best_model.zip")
 
 # Create the environment
 env = gym.make("MesozoicLabs/Raptor-v0", render_mode="human")
 
-# Run the trained agent
+# Enjoy the trained agent
 obs, info = env.reset()
 for _ in range(1000):
     action, _states = model.predict(obs, deterministic=True)
@@ -145,19 +98,24 @@ env.close()
 ### Training from Scratch
 
 ```bash
-# Full 3-stage curriculum for velociraptor
 cd environments/velociraptor
-python scripts/train_sb3.py curriculum --algorithm ppo
 
-# Single stage training
+# Stage 1: Balance
 python scripts/train_sb3.py train --stage 1 --timesteps 6000000 --n-envs 4
+
+# Stage 2: Locomotion
+python scripts/train_sb3.py train --stage 2 --timesteps 8000000 --n-envs 4
 ```
 
-### Loading from Hugging Face Hub
+### Hugging Face Hub
+
+You can also use the Hugging Face Hub to load the model. First, you need to install the Hugging Face Hub library:
 
 ```bash
 pip install huggingface_hub
 ```
+
+Then, you can load the model from the hub using the following code:
 
 ```python
 from huggingface_hub import hf_hub_download
@@ -177,7 +135,7 @@ model = PPO.load(model_path)
 # Create the environment
 env = gym.make("MesozoicLabs/Raptor-v0", render_mode="human")
 
-# Run the trained agent
+# Enjoy the trained agent
 obs, info = env.reset()
 for _ in range(1000):
     action, _states = model.predict(obs, deterministic=True)
@@ -185,46 +143,6 @@ for _ in range(1000):
     if terminated or truncated:
         obs, info = env.reset()
 env.close()
-```
-
-### Docker
-
-```bash
-# Build
-docker build -t mesozoic-labs:latest .
-
-# Quick smoke-test
-docker run --rm mesozoic-labs:latest \
-  environments/velociraptor/scripts/train_sb3.py \
-  train --stage 1 --timesteps 1000 --n-envs 1
-
-# Full curriculum with GPU
-docker run --rm --gpus all \
-  -v "$(pwd)/outputs:/app/outputs" \
-  mesozoic-labs:latest \
-  environments/velociraptor/scripts/train_sb3.py \
-  curriculum --algorithm ppo --n-envs 4 --output-dir /app/outputs/velociraptor
-```
-
-## Notebooks
-
-| Notebook | Description |
-|----------|-------------|
-| `notebooks/training.ipynb` | Unified 3-stage curriculum training for all species (Colab-ready) |
-| `notebooks/jax_trex_training.ipynb` | JAX/MJX T-Rex training for GPU acceleration (Colab-ready) |
-| `notebooks/ray_tune_sweep.ipynb` | Ray Tune hyperparameter sweep with ASHA early stopping (Colab-ready) |
-| `notebooks/google_drive_summary.ipynb` | Training runs summary and comparison across all species (Colab-ready) |
-
-## Citation
-
-```bibtex
-@misc{mesozoic-labs,
-  author = {Mesozoic Labs Contributors},
-  title = {Mesozoic Labs: Robotic Dinosaur Locomotion with Reinforcement Learning},
-  year = {2026},
-  publisher = {GitHub / Hugging Face},
-  url = {https://github.com/kuds/mesozoic-labs}
-}
 ```
 
 ## License
