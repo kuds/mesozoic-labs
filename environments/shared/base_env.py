@@ -520,6 +520,122 @@ class BaseDinoEnv(gym.Env, ABC):
         reward = weight * alternation_ratio
         return reward, alternation_ratio
 
+    # ── quadrupedal gait symmetry ──────────────────────────────────────
+
+    def _init_quadruped_gait_state(
+        self,
+        contact_threshold: float = 0.1,
+        max_touchdown_history: int = 20,
+    ) -> None:
+        """Initialise quadrupedal gait symmetry tracking state.
+
+        For quadrupedal animals, gait symmetry is measured by diagonal pair
+        alternation.  Diagonal-A = front-right + rear-left, Diagonal-B =
+        front-left + rear-right.  A proper walk or trot produces alternating
+        diagonal pair touchdowns (A→B→A→B).
+
+        Call this in the subclass ``__init__`` (before ``super().__init__``
+        is fine) to enable :meth:`_compute_quadruped_gait_symmetry`.
+
+        Also initialises the bipedal gait state so
+        :meth:`_compute_gait_symmetry` remains callable (e.g. for front-pair
+        only analysis).
+
+        Args:
+            contact_threshold: Force (N) above which a foot is considered
+                in contact.
+            max_touchdown_history: Maximum number of diagonal touchdown
+                events to keep in the sliding window.
+        """
+        # Reuse bipedal state init (keeps _compute_gait_symmetry working)
+        self._init_gait_state(contact_threshold, max_touchdown_history)
+
+        # Quadrupedal diagonal pair tracking
+        self._quad_contact_threshold = contact_threshold
+        self._quad_max_touchdown_history = max_touchdown_history
+        self._prev_diag_a_in_contact = False  # FR + RL
+        self._prev_diag_b_in_contact = False  # FL + RR
+        self._quad_touchdown_sequence: list[str] = []
+
+    def _reset_quadruped_gait_state(self) -> None:
+        """Reset quadrupedal gait symmetry tracking for a new episode.
+
+        Call this from the subclass ``_spawn_target`` / reset path.
+        """
+        self._reset_gait_state()
+        self._prev_diag_a_in_contact = False
+        self._prev_diag_b_in_contact = False
+        self._quad_touchdown_sequence = []
+
+    def _compute_quadruped_gait_symmetry(
+        self,
+        fr_contact_force: float,
+        fl_contact_force: float,
+        rr_contact_force: float,
+        rl_contact_force: float,
+        weight: float,
+    ) -> tuple[float, float]:
+        """Compute quadrupedal gait symmetry based on diagonal pair alternation.
+
+        Diagonal pairs for a proper walk/trot:
+            - Diagonal A: front-right (FR) + rear-left (RL)
+            - Diagonal B: front-left (FL) + rear-right (RR)
+
+        A good quadrupedal gait alternates these diagonal pairs.  This method
+        tracks off→on transitions of each diagonal pair (at least one foot in
+        the pair touching down while the pair was previously airborne) and
+        rewards alternation between A and B touchdowns.
+
+        Args:
+            fr_contact_force: Front-right foot contact sensor reading (N).
+            fl_contact_force: Front-left foot contact sensor reading (N).
+            rr_contact_force: Rear-right foot contact sensor reading (N).
+            rl_contact_force: Rear-left foot contact sensor reading (N).
+            weight: Gait symmetry reward weight.
+
+        Returns:
+            (reward, alternation_ratio) tuple.
+        """
+        threshold = self._quad_contact_threshold
+
+        # Diagonal pair contact: either foot in the pair is grounded
+        diag_a_in_contact = (
+            fr_contact_force > threshold or rl_contact_force > threshold
+        )
+        diag_b_in_contact = (
+            fl_contact_force > threshold or rr_contact_force > threshold
+        )
+
+        # Detect off→on transitions for each diagonal pair
+        diag_a_touchdown = diag_a_in_contact and not self._prev_diag_a_in_contact
+        diag_b_touchdown = diag_b_in_contact and not self._prev_diag_b_in_contact
+
+        self._prev_diag_a_in_contact = diag_a_in_contact
+        self._prev_diag_b_in_contact = diag_b_in_contact
+
+        if diag_a_touchdown:
+            self._quad_touchdown_sequence.append("A")
+        if diag_b_touchdown:
+            self._quad_touchdown_sequence.append("B")
+        if len(self._quad_touchdown_sequence) > self._quad_max_touchdown_history:
+            self._quad_touchdown_sequence = self._quad_touchdown_sequence[
+                -self._quad_max_touchdown_history :
+            ]
+
+        n_touchdowns = len(self._quad_touchdown_sequence)
+        if n_touchdowns > 1:
+            alternations = sum(
+                1
+                for i in range(1, n_touchdowns)
+                if self._quad_touchdown_sequence[i] != self._quad_touchdown_sequence[i - 1]
+            )
+            alternation_ratio = alternations / (n_touchdowns - 1)
+        else:
+            alternation_ratio = 0.0
+
+        reward = weight * alternation_ratio
+        return reward, alternation_ratio
+
     def _compute_pelvis_diagnostics(self) -> tuple[float, float]:
         """Compute pelvis angular velocity metrics for spinning detection.
 

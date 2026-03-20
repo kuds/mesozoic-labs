@@ -42,6 +42,8 @@ class LocomotionMetrics:
     _energies: list[float] = field(default_factory=list)
     _left_contacts: list[float] = field(default_factory=list)
     _right_contacts: list[float] = field(default_factory=list)
+    _rear_left_contacts: list[float] = field(default_factory=list)
+    _rear_right_contacts: list[float] = field(default_factory=list)
     _pelvis_heights: list[float] = field(default_factory=list)
     _prey_distances: list[float] = field(default_factory=list)
     _tilt_angles: list[float] = field(default_factory=list)
@@ -62,6 +64,8 @@ class LocomotionMetrics:
         self._energies.clear()
         self._left_contacts.clear()
         self._right_contacts.clear()
+        self._rear_left_contacts.clear()
+        self._rear_right_contacts.clear()
         self._pelvis_heights.clear()
         self._prey_distances.clear()
         self._tilt_angles.clear()
@@ -85,6 +89,8 @@ class LocomotionMetrics:
                 - ``pelvis_height``: pelvis z-position
                 - ``prey_distance``: distance to target (optional)
                 - ``r_foot_contact`` / ``l_foot_contact``: binary (optional)
+                - ``rr_foot_contact`` / ``rl_foot_contact``: rear feet for
+                  quadrupeds (optional, enables diagonal pair symmetry)
                 - ``heading_alignment``: cos θ alignment to prey (optional)
                 - ``bite_success`` / ``strike_success`` / ``food_reached``:
                   binary success signal — the first present key is used (optional)
@@ -104,6 +110,11 @@ class LocomotionMetrics:
 
         self._left_contacts.append(info.get("l_foot_contact", 0.0))
         self._right_contacts.append(info.get("r_foot_contact", 0.0))
+        # Quadrupedal rear feet (only present for 4-legged species)
+        if "rl_foot_contact" in info:
+            self._rear_left_contacts.append(info["rl_foot_contact"])
+        if "rr_foot_contact" in info:
+            self._rear_right_contacts.append(info["rr_foot_contact"])
 
         if "heading_alignment" in info:
             self._heading_alignments.append(float(info["heading_alignment"]))
@@ -194,6 +205,17 @@ class LocomotionMetrics:
             left = np.array(self._left_contacts)
             right = np.array(self._right_contacts)
             result["gait_symmetry"] = self._compute_gait_symmetry(left, right)
+
+        # Quadrupedal diagonal pair symmetry (when rear foot data available)
+        if self._rear_left_contacts and self._rear_right_contacts:
+            fr = np.array(self._right_contacts)  # r_foot_contact = FR for brachio
+            fl = np.array(self._left_contacts)   # l_foot_contact = FL for brachio
+            rr = np.array(self._rear_right_contacts)
+            rl = np.array(self._rear_left_contacts)
+            # Diagonal-A = FR + RL, Diagonal-B = FL + RR
+            diag_a = np.maximum(fr, rl)
+            diag_b = np.maximum(fl, rr)
+            result["quad_gait_symmetry"] = self._compute_gait_symmetry(diag_a, diag_b)
 
         # --- Stride frequency ---
         if self._left_contacts or self._right_contacts:
