@@ -49,7 +49,7 @@ def get_library_version() -> str:
     if pyproject.exists():
         with open(pyproject, "rb") as f:
             data = tomllib.load(f)
-        return data.get("project", {}).get("version", "unknown")
+        return str(data.get("project", {}).get("version", "unknown"))
 
     return "unknown"
 
