@@ -168,10 +168,13 @@ def save_search_space(
     filename = f"search_space_stage{stage}_{algorithm}.json" if stage and algorithm else "search_space.json"
     filepath = dest / filename
 
+    from environments.shared.config import get_library_version
+
     payload: dict[str, Any] = {
         "species": species,
         "stage": stage,
         "algorithm": algorithm,
+        "library_version": get_library_version(),
         "num_parameters": len(search_space),
     }
 
