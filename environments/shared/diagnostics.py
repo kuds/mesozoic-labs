@@ -97,6 +97,8 @@ class DiagnosticsCallback(_BaseCallback):
         "bite_success",
         "r_foot_contact",
         "l_foot_contact",
+        "rr_foot_contact",
+        "rl_foot_contact",
         "pelvis_angular_vel",
         "pelvis_yaw_vel",
         "drift_distance",

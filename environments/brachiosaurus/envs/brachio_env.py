@@ -134,10 +134,10 @@ class BrachioEnv(BaseDinoEnv):
         self._prev_head_food_distance: float | None = None
         self._prev_action: np.ndarray | None = None
 
-        # Gait symmetry: track foot touchdown events for alternation reward.
-        # Uses front-right / front-left as the tracked pair (analogous to
-        # the bipedal right/left foot tracking in T-Rex/Raptor).
-        self._init_gait_state()
+        # Gait symmetry: track diagonal pair alternation for quadrupedal gait.
+        # Diagonal-A = FR+RL, Diagonal-B = FL+RR.  A proper walk/trot
+        # alternates these pairs.
+        self._init_quadruped_gait_state()
 
         # Cached initial direction to food (set in _spawn_target).
         # Used by forward-velocity and heading rewards so the "forward"
@@ -339,14 +339,22 @@ class BrachioEnv(BaseDinoEnv):
         reward_height = self.height_weight * height_frac
         info["reward_height"] = reward_height
 
-        # 9. Gait symmetry (reward alternating foot contacts)
+        # 9. Gait symmetry (reward alternating diagonal pair contacts)
         fr_contact = self.data.sensordata[self._sensor_fr_foot]
         fl_contact = self.data.sensordata[self._sensor_fl_foot]
+        rr_contact = self.data.sensordata[self._sensor_rr_foot]
+        rl_contact = self.data.sensordata[self._sensor_rl_foot]
         info["r_foot_contact"] = float(fr_contact)
         info["l_foot_contact"] = float(fl_contact)
+        info["rr_foot_contact"] = float(rr_contact)
+        info["rl_foot_contact"] = float(rl_contact)
 
-        reward_gait_sym, alternation_ratio = self._compute_gait_symmetry(
-            float(fr_contact), float(fl_contact), self.gait_symmetry_weight
+        reward_gait_sym, alternation_ratio = self._compute_quadruped_gait_symmetry(
+            float(fr_contact),
+            float(fl_contact),
+            float(rr_contact),
+            float(rl_contact),
+            self.gait_symmetry_weight,
         )
         info["alternation_ratio"] = alternation_ratio
         info["contact_asymmetry"] = alternation_ratio
@@ -512,8 +520,8 @@ class BrachioEnv(BaseDinoEnv):
         self._prev_head_food_distance = None
         self._prev_action = None
 
-        # Reset gait symmetry tracking
-        self._reset_gait_state()
+        # Reset gait symmetry tracking (quadrupedal diagonal pairs)
+        self._reset_quadruped_gait_state()
 
 
 # Register with Gymnasium (MesozoicLabs namespace)

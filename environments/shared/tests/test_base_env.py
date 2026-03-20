@@ -337,3 +337,106 @@ class TestGaitSymmetry:
         assert hasattr(env, "_touchdown_sequence")
         assert env._touchdown_sequence == []
         env.close()
+
+
+class TestQuadrupedGaitSymmetry:
+    """Test the quadrupedal diagonal pair gait symmetry helper."""
+
+    @pytest.fixture
+    def env(self):
+        from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+
+        e = BrachioEnv(gait_symmetry_weight=1.0)
+        e.reset(seed=42)
+        yield e
+        e.close()
+
+    def test_no_touchdowns_gives_zero(self, env):
+        """With no foot contacts, alternation ratio should be 0."""
+        reward, ratio = env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        assert ratio == 0.0
+        assert reward == 0.0
+
+    def test_single_diagonal_touchdown_gives_zero(self, env):
+        """A single diagonal touchdown cannot produce alternation."""
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        # Diagonal A (FR + RL) lands
+        reward, ratio = env._compute_quadruped_gait_symmetry(1.0, 0.0, 0.0, 1.0, 1.0)
+        assert ratio == 0.0
+
+    def test_perfect_diagonal_alternation(self, env):
+        """A→B→A should produce alternation_ratio = 1.0."""
+        # Start: no contact
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        # Diagonal A: FR + RL land
+        env._compute_quadruped_gait_symmetry(1.0, 0.0, 0.0, 1.0, 1.0)
+        # All off
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        # Diagonal B: FL + RR land
+        env._compute_quadruped_gait_symmetry(0.0, 1.0, 1.0, 0.0, 1.0)
+        # All off
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        # Diagonal A again
+        reward, ratio = env._compute_quadruped_gait_symmetry(1.0, 0.0, 0.0, 1.0, 1.0)
+        assert ratio == pytest.approx(1.0)
+        assert reward == pytest.approx(1.0)
+
+    def test_same_diagonal_repeated(self, env):
+        """A→A→A (same diagonal) should produce alternation_ratio = 0.0."""
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        # Diagonal A lands
+        env._compute_quadruped_gait_symmetry(1.0, 0.0, 0.0, 1.0, 1.0)
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        # Diagonal A again
+        env._compute_quadruped_gait_symmetry(1.0, 0.0, 0.0, 1.0, 1.0)
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        # Diagonal A again
+        reward, ratio = env._compute_quadruped_gait_symmetry(1.0, 0.0, 0.0, 1.0, 1.0)
+        assert ratio == pytest.approx(0.0)
+        assert reward == pytest.approx(0.0)
+
+    def test_partial_diagonal_triggers_pair(self, env):
+        """A single foot from a diagonal pair should trigger that pair."""
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        # Only FR lands (partial diagonal A)
+        env._compute_quadruped_gait_symmetry(1.0, 0.0, 0.0, 0.0, 1.0)
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        # Only FL lands (partial diagonal B)
+        reward, ratio = env._compute_quadruped_gait_symmetry(0.0, 1.0, 0.0, 0.0, 1.0)
+        assert ratio == pytest.approx(1.0)
+
+    def test_weight_scales_reward(self, env):
+        """Reward should scale linearly with weight."""
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        env._compute_quadruped_gait_symmetry(1.0, 0.0, 0.0, 1.0, 1.0)
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        _, ratio = env._compute_quadruped_gait_symmetry(0.0, 1.0, 1.0, 0.0, 1.0)
+        # Reset and redo with weight=0.5
+        env._reset_quadruped_gait_state()
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 0.5)
+        env._compute_quadruped_gait_symmetry(1.0, 0.0, 0.0, 1.0, 0.5)
+        env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 0.5)
+        reward, _ = env._compute_quadruped_gait_symmetry(0.0, 1.0, 1.0, 0.0, 0.5)
+        assert reward == pytest.approx(0.5 * ratio)
+
+    def test_reset_clears_state(self, env):
+        """After _reset_quadruped_gait_state, history should be empty."""
+        env._compute_quadruped_gait_symmetry(1.0, 0.0, 0.0, 1.0, 1.0)
+        env._compute_quadruped_gait_symmetry(0.0, 1.0, 1.0, 0.0, 1.0)
+        env._reset_quadruped_gait_state()
+        reward, ratio = env._compute_quadruped_gait_symmetry(0.0, 0.0, 0.0, 0.0, 1.0)
+        assert ratio == 0.0
+
+    def test_brachio_uses_quadruped_helper(self, env):
+        """BrachioEnv should use quadrupedal gait state."""
+        assert hasattr(env, "_quad_touchdown_sequence")
+        assert env._quad_touchdown_sequence == []
+
+    def test_brachio_info_has_all_foot_contacts(self, env):
+        """BrachioEnv step info should include all 4 foot contacts."""
+        action = env.action_space.sample()
+        _, _, _, _, info = env.step(action)
+        assert "r_foot_contact" in info
+        assert "l_foot_contact" in info
+        assert "rr_foot_contact" in info
+        assert "rl_foot_contact" in info

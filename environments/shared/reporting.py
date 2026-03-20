@@ -657,6 +657,7 @@ def generate_stage_artifacts(
         try:
             from environments.shared.visualization import (
                 plot_diagnostics_graphs,
+                plot_foot_contacts,
                 plot_training_curves,
             )
 
@@ -677,6 +678,14 @@ def generate_stage_artifacts(
                 species,
                 algorithm,
                 save_dir=stage_dir,
+                show=False,
+            )
+            plot_foot_contacts(
+                stage_dirs,
+                stage_configs,
+                species,
+                algorithm,
+                save_path=stage_dir / "foot_contacts.png",
                 show=False,
             )
         except ImportError:
