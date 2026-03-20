@@ -15,7 +15,7 @@ Observation space:
 
 Action space:
     - Continuous control for all actuators [-1, 1] normalized
-    - 22 actuators: 6 neck + 16 legs (4 per leg)
+    - 26 actuators: 6 neck + 20 legs (5 per leg: hip pitch/roll, knee, ankle, toe)
 
 Reward components:
     - Forward velocity toward food
@@ -199,6 +199,12 @@ class BrachioEnv(BaseDinoEnv):
         self.imu_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "imu")
         self.head_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "head_tip")
         self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
+
+        # Metatarsal geom IDs (digitigrade stance — metacarpus/metatarsus)
+        self.fr_meta_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "fr_meta_geom")
+        self.fl_meta_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "fl_meta_geom")
+        self.rr_meta_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "rr_meta_geom")
+        self.rl_meta_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "rl_meta_geom")
 
         # Foot site IDs
         self.foot_site_ids = {

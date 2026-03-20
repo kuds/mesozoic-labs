@@ -140,7 +140,7 @@ const features = [
     icon: '\uD83E\uDD96',
     title: '3 Species',
     description:
-      'T-Rex (18 actuators), Velociraptor (17 actuators), and Brachiosaurus (22 actuators).',
+      'T-Rex (18 actuators), Velociraptor (17 actuators), and Brachiosaurus (26 actuators).',
   },
   {
     icon: '\uD83D\uDCE6',
