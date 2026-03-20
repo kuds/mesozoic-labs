@@ -539,24 +539,34 @@ def plot_foot_contacts(
                 diag_a = np.maximum(fr, rl)  # FR + RL
                 diag_b = np.maximum(fl, rr)  # FL + RR
                 ax_diag.plot(
-                    ts, diag_a,
+                    ts,
+                    diag_a,
                     label=f"{label_base} \u2013 Diag A (FR+RL)",
-                    color="tab:blue", linewidth=1.5,
+                    color="tab:blue",
+                    linewidth=1.5,
                 )
                 ax_diag.plot(
-                    ts, diag_b,
+                    ts,
+                    diag_b,
                     label=f"{label_base} \u2013 Diag B (FL+RR)",
-                    color="tab:orange", linewidth=1.5,
+                    color="tab:orange",
+                    linewidth=1.5,
                 )
         elif has_r and has_l:
             # Bipedal: 2 feet
             ax_feet.plot(
-                ts, diag["r_foot_contact"],
-                label=f"{label_base} \u2013 Right", color="tab:blue", alpha=0.8,
+                ts,
+                diag["r_foot_contact"],
+                label=f"{label_base} \u2013 Right",
+                color="tab:blue",
+                alpha=0.8,
             )
             ax_feet.plot(
-                ts, diag["l_foot_contact"],
-                label=f"{label_base} \u2013 Left", color="tab:orange", alpha=0.8,
+                ts,
+                diag["l_foot_contact"],
+                label=f"{label_base} \u2013 Left",
+                color="tab:orange",
+                alpha=0.8,
             )
 
     ax_feet.set_xlabel("Timesteps")
@@ -568,9 +578,7 @@ def plot_foot_contacts(
     if ax_diag is not None:
         ax_diag.set_xlabel("Timesteps")
         ax_diag.set_ylabel("Mean Diagonal Pair Contact")
-        ax_diag.set_title(
-            f"{species_title} {algorithm} \u2013 Diagonal Pair Contact (walk/trot pattern)"
-        )
+        ax_diag.set_title(f"{species_title} {algorithm} \u2013 Diagonal Pair Contact (walk/trot pattern)")
         _safe_legend(ax_diag, fontsize=8)
         ax_diag.grid(True, alpha=0.3)
 

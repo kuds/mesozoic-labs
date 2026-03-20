@@ -209,7 +209,7 @@ class LocomotionMetrics:
         # Quadrupedal diagonal pair symmetry (when rear foot data available)
         if self._rear_left_contacts and self._rear_right_contacts:
             fr = np.array(self._right_contacts)  # r_foot_contact = FR for brachio
-            fl = np.array(self._left_contacts)   # l_foot_contact = FL for brachio
+            fl = np.array(self._left_contacts)  # l_foot_contact = FL for brachio
             rr = np.array(self._rear_right_contacts)
             rl = np.array(self._rear_left_contacts)
             # Diagonal-A = FR + RL, Diagonal-B = FL + RR

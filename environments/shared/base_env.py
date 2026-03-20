@@ -599,12 +599,8 @@ class BaseDinoEnv(gym.Env, ABC):
         threshold = self._quad_contact_threshold
 
         # Diagonal pair contact: either foot in the pair is grounded
-        diag_a_in_contact = (
-            fr_contact_force > threshold or rl_contact_force > threshold
-        )
-        diag_b_in_contact = (
-            fl_contact_force > threshold or rr_contact_force > threshold
-        )
+        diag_a_in_contact = fr_contact_force > threshold or rl_contact_force > threshold
+        diag_b_in_contact = fl_contact_force > threshold or rr_contact_force > threshold
 
         # Detect off→on transitions for each diagonal pair
         diag_a_touchdown = diag_a_in_contact and not self._prev_diag_a_in_contact
@@ -618,9 +614,7 @@ class BaseDinoEnv(gym.Env, ABC):
         if diag_b_touchdown:
             self._quad_touchdown_sequence.append("B")
         if len(self._quad_touchdown_sequence) > self._quad_max_touchdown_history:
-            self._quad_touchdown_sequence = self._quad_touchdown_sequence[
-                -self._quad_max_touchdown_history :
-            ]
+            self._quad_touchdown_sequence = self._quad_touchdown_sequence[-self._quad_max_touchdown_history :]
 
         n_touchdowns = len(self._quad_touchdown_sequence)
         if n_touchdowns > 1:
