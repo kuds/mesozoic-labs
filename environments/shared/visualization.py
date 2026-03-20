@@ -441,6 +441,135 @@ def plot_diagnostics_graphs(
     return fig1, fig2
 
 
+def plot_foot_contacts(
+    stage_dirs: StageDirs,
+    stage_configs: dict[int, dict[str, Any]],
+    species: str,
+    algorithm: str,
+    save_path: "str | Path | None" = None,
+    show: bool = True,
+) -> "Any":
+    """Plot per-foot contact force over training time.
+
+    Auto-detects bipedal (2 feet: R/L) vs quadrupedal (4 feet: FR/FL/RR/RL)
+    from the diagnostics data.  For bipeds, plots 2 lines per stage.  For
+    quadrupeds, plots 4 individual lines plus 2 diagonal-pair composite
+    signals (Diag-A = FR+RL, Diag-B = FL+RR).
+
+    Args:
+        stage_dirs: Sequence of ``(stage_num, stage_dir)`` tuples.
+        stage_configs: Mapping of stage number to config dict.
+        species: Species name for the figure title.
+        algorithm: Algorithm name for the figure title.
+        save_path: If provided, save the figure to this path.
+        show: If ``False``, close the figure after saving (headless mode).
+
+    Returns:
+        The matplotlib Figure object.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    species_title = species.title()
+
+    # Detect whether any stage has quadrupedal data
+    is_quadruped = False
+    for _, stage_dir in stage_dirs:
+        diag_log = Path(stage_dir) / "diagnostics.npz"
+        if diag_log.exists():
+            diag = np.load(diag_log)
+            if "rr_foot_contact" in diag or "rl_foot_contact" in diag:
+                is_quadruped = True
+                break
+
+    if is_quadruped:
+        fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+        ax_feet = axes[0]
+        ax_diag = axes[1]
+    else:
+        fig, ax_feet = plt.subplots(1, 1, figsize=(14, 5))
+        ax_diag = None
+
+    for stage_num, stage_dir in stage_dirs:
+        stage_dir = Path(stage_dir)
+        diag_log = stage_dir / "diagnostics.npz"
+        if not diag_log.exists():
+            continue
+        diag = np.load(diag_log)
+        ts = diag.get("timesteps")
+        if ts is None or len(ts) == 0:
+            continue
+
+        label_base = f"Stage {stage_num}: {stage_configs[stage_num]['name']}"
+
+        has_r = "r_foot_contact" in diag
+        has_l = "l_foot_contact" in diag
+        has_rr = "rr_foot_contact" in diag
+        has_rl = "rl_foot_contact" in diag
+
+        if has_r and has_l and has_rr and has_rl:
+            # Quadrupedal: 4 individual feet
+            fr = diag["r_foot_contact"]
+            fl = diag["l_foot_contact"]
+            rr = diag["rr_foot_contact"]
+            rl = diag["rl_foot_contact"]
+
+            ax_feet.plot(ts, fr, label=f"{label_base} \u2013 FR", color="tab:blue", alpha=0.8)
+            ax_feet.plot(ts, fl, label=f"{label_base} \u2013 FL", color="tab:orange", alpha=0.8)
+            ax_feet.plot(ts, rr, label=f"{label_base} \u2013 RR", color="tab:green", alpha=0.8)
+            ax_feet.plot(ts, rl, label=f"{label_base} \u2013 RL", color="tab:red", alpha=0.8)
+
+            # Diagonal pair composites
+            if ax_diag is not None:
+                diag_a = np.maximum(fr, rl)  # FR + RL
+                diag_b = np.maximum(fl, rr)  # FL + RR
+                ax_diag.plot(
+                    ts, diag_a,
+                    label=f"{label_base} \u2013 Diag A (FR+RL)",
+                    color="tab:blue", linewidth=1.5,
+                )
+                ax_diag.plot(
+                    ts, diag_b,
+                    label=f"{label_base} \u2013 Diag B (FL+RR)",
+                    color="tab:orange", linewidth=1.5,
+                )
+        elif has_r and has_l:
+            # Bipedal: 2 feet
+            ax_feet.plot(
+                ts, diag["r_foot_contact"],
+                label=f"{label_base} \u2013 Right", color="tab:blue", alpha=0.8,
+            )
+            ax_feet.plot(
+                ts, diag["l_foot_contact"],
+                label=f"{label_base} \u2013 Left", color="tab:orange", alpha=0.8,
+            )
+
+    ax_feet.set_xlabel("Timesteps")
+    ax_feet.set_ylabel("Mean Contact Force")
+    ax_feet.set_title(f"{species_title} {algorithm} \u2013 Per-Foot Contact Force")
+    _safe_legend(ax_feet, fontsize=8)
+    ax_feet.grid(True, alpha=0.3)
+
+    if ax_diag is not None:
+        ax_diag.set_xlabel("Timesteps")
+        ax_diag.set_ylabel("Mean Diagonal Pair Contact")
+        ax_diag.set_title(
+            f"{species_title} {algorithm} \u2013 Diagonal Pair Contact (walk/trot pattern)"
+        )
+        _safe_legend(ax_diag, fontsize=8)
+        ax_diag.grid(True, alpha=0.3)
+
+    fig.tight_layout()
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
+        logger.info("Foot contact plot saved to: %s", save_path)
+    if not show:
+        plt.close(fig)
+
+    return fig
+
+
 def plot_trial_comparison(
     analysis_rows: "list[dict[str, Any]]",
     species: str,
