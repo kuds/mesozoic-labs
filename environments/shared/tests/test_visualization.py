@@ -257,7 +257,7 @@ class TestPlotFootContacts:
         stage_configs = {1: {"name": "Balance"}}
         save_path = tmp_path / "foot_contacts.png"
 
-        fig = plot_foot_contacts(
+        plot_foot_contacts(
             [(1, tmp_path)],
             stage_configs,
             species="trex",

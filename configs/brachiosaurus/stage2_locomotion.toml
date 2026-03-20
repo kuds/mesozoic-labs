@@ -4,16 +4,16 @@ description = "Learn coordinated quadrupedal walking"
 
 [env]
 forward_vel_weight = 3.0               # Increased from 2.0: stronger forward signal to prevent standing-still exploit. Agent was earning ~2000 reward without walking.
-forward_vel_max = 0.5                  # Reduced from 1.0: saturate reward at achievable speed for better gradient signal at low velocities.
-alive_bonus = 0.25                      # Kept: small survival signal to maintain balance learning from Stage 1.
+forward_vel_max = 1.0                  # Raised from 0.5: previous cap saturated reward at 0.5 m/s, removing gradient toward 0.75 m/s graduation target.
+alive_bonus = 0.75                     # Raised from 0.25: episodes averaged only 457/1000 steps with 80% fall rate. Stronger survival incentive to extend episodes.
 fall_penalty = -50.0                   # Match T-Rex stage 2
 energy_penalty_weight = 0.002          # Increase from 0.001: provide some efficiency signal (matches T-Rex stage 2)
 tail_stability_weight = 0.05           # Penalize tail thrashing during locomotion
 gait_stability_weight = 0.05
-gait_symmetry_weight = 0.0            # Enabled: encourage alternating leg movement for quadruped gait. Was 0.0, agent showed no gait cycle.
+gait_symmetry_weight = 0.15           # Enabled: encourage diagonal-pair alternation for proper quadrupedal walk/trot. Was 0.0, agent showed collapsed gait symmetry and shuffling.
 smoothness_weight = 0.05               # Penalize jerky actions for smoother movement
-posture_weight = 0.2                   # Moderate tilt penalty to maintain upright stance
-nosedive_weight = 0.8                  # Increased from 0.5: agent's neck collapsed to horizontal within 5 frames. Stronger penalty to maintain neck posture.
+posture_weight = 0.6                   # Raised from 0.2: agent reached 7.8° tilt causing chronic nosedives. Stronger upright signal provides earlier correction than nosedive penalty.
+nosedive_weight = 0.4                  # Reduced from 0.8: nosedive fires too late (after agent is already leaning). Shifted budget to posture_weight for proactive correction.
 natural_pitch = -0.15                  # Slight upward neck angle target (radians). Was 0.0 which allowed flat neck as optimal.
 height_weight = 0.3                    # Reduced from 1.5: high value rewarded crouching for stability over walking. Minimal signal sufficient.
 heading_weight = 0.3                   # Reward facing toward food
@@ -57,7 +57,7 @@ gradient_steps = 1
 net_arch = [512, 256]            # Larger first layer to match PPO's tapered architecture for Brachiosaurus's 75 obs dims
 
 [curriculum]
-timesteps = 8000000
+timesteps = 12000000                   # Extended from 8M: reward was still trending upward at 8M cutoff, agent may not have converged.
 min_avg_reward = 100.0
 min_avg_episode_length = 750
 min_avg_forward_vel = 0.75             # Gate on actual locomotion; without this, a standing-still policy passes on alive_bonus alone. Realistic walking speed for a heavy sauropod.
