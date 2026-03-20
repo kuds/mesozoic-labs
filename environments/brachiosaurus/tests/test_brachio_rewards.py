@@ -141,10 +141,10 @@ class TestBrachioRewardWeightEffects:
         env.close()
 
     def test_actuator_count(self):
-        """22 actuators: 6 neck + 16 legs (4 per leg)."""
+        """26 actuators: 6 neck + 20 legs (5 per leg: hip pitch/roll, knee, ankle, toe)."""
         env = BrachioEnv()
-        assert env.model.nu == 22, f"Expected 22 actuators, got {env.model.nu}"
-        assert env.action_space.shape == (22,)
+        assert env.model.nu == 26, f"Expected 26 actuators, got {env.model.nu}"
+        assert env.action_space.shape == (26,)
         env.close()
 
 

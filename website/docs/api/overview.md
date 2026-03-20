@@ -109,8 +109,8 @@ from environments.brachiosaurus.envs.brachio_env import BrachioEnv
 env = BrachioEnv(render_mode="human")
 ```
 
-- **Observation:** 75 dimensions
-- **Action:** 22 dimensions (6 neck + 16 legs)
+- **Observation:** 83 dimensions
+- **Action:** 26 dimensions (6 neck + 20 legs)
 
 ## Training with Stable-Baselines3
 
