@@ -53,6 +53,7 @@ def get_library_version() -> str:
 
     return "unknown"
 
+
 # Known GPU short-names extracted from full device strings.
 _GPU_SHORT_NAMES = ("A100", "H100", "L4", "L40", "T4", "V100", "A10G", "A10", "RTX")
 
