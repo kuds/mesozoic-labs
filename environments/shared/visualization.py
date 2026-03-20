@@ -319,9 +319,21 @@ def plot_diagnostics_graphs(
         plt.close(fig1)
 
     # -----------------------------------------------------------
-    # Figure 2: Behavioral Metrics
+    # Figure 2: Behavioral Metrics (2x2, or 3x2 when hunting data present)
     # -----------------------------------------------------------
-    fig2, axes2 = plt.subplots(3, 2, figsize=(14, 15))
+    # Pre-scan: check if any stage has hunting/food data (prey_distance,
+    # strike_success, bite_success).  If so, add a third row for those.
+    _has_hunting_data = False
+    for _, _sd in stage_dirs:
+        _dl = Path(_sd) / "diagnostics.npz"
+        if _dl.exists():
+            _d = np.load(_dl)
+            if any(k in _d for k in ("prey_distance", "strike_success", "bite_success")):
+                _has_hunting_data = True
+                break
+
+    _n_rows = 3 if _has_hunting_data else 2
+    fig2, axes2 = plt.subplots(_n_rows, 2, figsize=(14, 5 * _n_rows))
     fig2.suptitle(
         f"{species_title} {algorithm} \u2013 Behavioral Metrics",
         fontsize=14,
@@ -376,23 +388,25 @@ def plot_diagnostics_graphs(
                     color=color,
                 )
 
-        # [1,0] Prey / Food Distance
-        if "prey_distance" in diag:
-            axes2[1, 0].plot(ts, diag["prey_distance"], label=label, color=color)
-
-        # [1,1] Strike / Bite / Food Success Rate
-        if "strike_success" in diag:
-            axes2[1, 1].plot(ts, diag["strike_success"], label=label, color=color)
-        if "bite_success" in diag:
-            axes2[1, 1].plot(ts, diag["bite_success"], label=label, color=color)
-
-        # [2,0] Distance Traveled (cumulative XY path length)
+        # [1,0] Distance Traveled (cumulative XY path length)
         if "distance_traveled" in diag:
-            axes2[2, 0].plot(ts, diag["distance_traveled"], label=label, color=color)
+            axes2[1, 0].plot(ts, diag["distance_traveled"], label=label, color=color)
 
-        # [2,1] Drift Distance (displacement from spawn)
+        # [1,1] Drift Distance (displacement from spawn)
         if "drift_distance" in diag:
-            axes2[2, 1].plot(ts, diag["drift_distance"], label=label, color=color)
+            axes2[1, 1].plot(ts, diag["drift_distance"], label=label, color=color)
+
+        # Row 3 (only when hunting data present)
+        if _has_hunting_data:
+            # [2,0] Prey / Food Distance
+            if "prey_distance" in diag:
+                axes2[2, 0].plot(ts, diag["prey_distance"], label=label, color=color)
+
+            # [2,1] Strike / Bite / Food Success Rate
+            if "strike_success" in diag:
+                axes2[2, 1].plot(ts, diag["strike_success"], label=label, color=color)
+            if "bite_success" in diag:
+                axes2[2, 1].plot(ts, diag["bite_success"], label=label, color=color)
 
     axes2[0, 0].set_xlabel("Timesteps")
     axes2[0, 0].set_ylabel("Gait Symmetry (\u2013) / Stride Freq proxy (--)")
@@ -407,28 +421,29 @@ def plot_diagnostics_graphs(
     axes2[0, 1].grid(True, alpha=0.3)
 
     axes2[1, 0].set_xlabel("Timesteps")
-    axes2[1, 0].set_ylabel("Prey Distance (m)")
-    axes2[1, 0].set_title(f"{species_title} {algorithm} \u2013 Prey Distance")
+    axes2[1, 0].set_ylabel("Distance Traveled (m)")
+    axes2[1, 0].set_title(f"{species_title} {algorithm} \u2013 Distance Traveled (path length)")
     _safe_legend(axes2[1, 0])
     axes2[1, 0].grid(True, alpha=0.3)
 
     axes2[1, 1].set_xlabel("Timesteps")
-    axes2[1, 1].set_ylabel("Strike Success Rate")
-    axes2[1, 1].set_title(f"{species_title} {algorithm} \u2013 Strike Success Rate")
+    axes2[1, 1].set_ylabel("Drift Distance (m)")
+    axes2[1, 1].set_title(f"{species_title} {algorithm} \u2013 Drift Distance (displacement from spawn)")
     _safe_legend(axes2[1, 1])
     axes2[1, 1].grid(True, alpha=0.3)
 
-    axes2[2, 0].set_xlabel("Timesteps")
-    axes2[2, 0].set_ylabel("Distance Traveled (m)")
-    axes2[2, 0].set_title(f"{species_title} {algorithm} \u2013 Distance Traveled (path length)")
-    _safe_legend(axes2[2, 0])
-    axes2[2, 0].grid(True, alpha=0.3)
+    if _has_hunting_data:
+        axes2[2, 0].set_xlabel("Timesteps")
+        axes2[2, 0].set_ylabel("Prey Distance (m)")
+        axes2[2, 0].set_title(f"{species_title} {algorithm} \u2013 Prey Distance")
+        _safe_legend(axes2[2, 0])
+        axes2[2, 0].grid(True, alpha=0.3)
 
-    axes2[2, 1].set_xlabel("Timesteps")
-    axes2[2, 1].set_ylabel("Drift Distance (m)")
-    axes2[2, 1].set_title(f"{species_title} {algorithm} \u2013 Drift Distance (displacement from spawn)")
-    _safe_legend(axes2[2, 1])
-    axes2[2, 1].grid(True, alpha=0.3)
+        axes2[2, 1].set_xlabel("Timesteps")
+        axes2[2, 1].set_ylabel("Strike Success Rate")
+        axes2[2, 1].set_title(f"{species_title} {algorithm} \u2013 Strike Success Rate")
+        _safe_legend(axes2[2, 1])
+        axes2[2, 1].grid(True, alpha=0.3)
 
     fig2.tight_layout()
     if save_dir is not None:
