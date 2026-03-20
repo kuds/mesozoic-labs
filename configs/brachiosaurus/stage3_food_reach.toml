@@ -47,8 +47,8 @@ ent_coef = "auto"                # Auto-entropy is especially valuable for the n
                                  # Brachiosaurus needs to discover a novel motion (neck extension) not learned in Stages 1-2
 buffer_size = 1_000_000          # Large buffer retains locomotion transitions from Stage 2
 learning_starts = 10_000
-train_freq = 1
-gradient_steps = 1
+train_freq = 4                   # Batch env steps before training — 4× less Python loop overhead
+gradient_steps = 4               # Match train_freq to maintain update-to-data ratio
 
 [sac.policy_kwargs]
 net_arch = [512, 256]            # Match Stage 2 architecture to avoid weight truncation on checkpoint load

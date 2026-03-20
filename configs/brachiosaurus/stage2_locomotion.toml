@@ -50,8 +50,8 @@ ent_coef = "auto"                # Auto-entropy handles the standing-still explo
 buffer_size = 1_000_000          # Large buffer retains Stage 1 balance transitions;
                                  # Brachiosaurus (75 obs dims) × 1M ≈ 570MB — fits in Colab RAM
 learning_starts = 10_000
-train_freq = 1
-gradient_steps = 1
+train_freq = 4                   # Batch env steps before training — 4× less Python loop overhead
+gradient_steps = 4               # Match train_freq to maintain update-to-data ratio
 
 [sac.policy_kwargs]
 net_arch = [512, 256]            # Larger first layer to match PPO's tapered architecture for Brachiosaurus's 75 obs dims
