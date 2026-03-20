@@ -31,6 +31,29 @@ except ImportError:
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
+
+def get_library_version() -> str:
+    """Return the mesozoic-labs package version string.
+
+    Tries ``importlib.metadata`` first (works when the package is installed),
+    then falls back to parsing ``pyproject.toml`` at the repository root.
+    """
+    try:
+        from importlib.metadata import version
+
+        return version("mesozoic-labs")
+    except Exception:
+        pass
+
+    pyproject = _REPO_ROOT / "pyproject.toml"
+    if pyproject.exists():
+        with open(pyproject, "rb") as f:
+            data = tomllib.load(f)
+        return str(data.get("project", {}).get("version", "unknown"))
+
+    return "unknown"
+
+
 # Known GPU short-names extracted from full device strings.
 _GPU_SHORT_NAMES = ("A100", "H100", "L4", "L40", "T4", "V100", "A10G", "A10", "RTX")
 
@@ -246,6 +269,7 @@ def save_stage_config(
         "name": stage_config.get("name", ""),
         "description": stage_config.get("description", ""),
         "algorithm": algorithm.upper(),
+        "library_version": get_library_version(),
         "reward_weights": env_kwargs,
         "hyperparameters": stage_config.get(algo_key, {}),
         "curriculum": stage_config.get("curriculum_kwargs", {}),
