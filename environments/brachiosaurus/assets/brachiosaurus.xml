@@ -28,9 +28,10 @@
       <joint damping="12.0" stiffness="50.0" armature="0.05" range="-25 25"/>
     </default>
 
-    <!-- Tail joints: moderate stiffness, limited range -->
+    <!-- Tail joints: increased stiffness/damping for active control.
+         Proximal segments actuated; distal remain passive. -->
     <default class="tail_joint">
-      <joint damping="8.0" stiffness="15.0" armature="0.02" range="-15 15"/>
+      <joint damping="15.0" stiffness="30.0" armature="0.04" range="-15 25"/>
     </default>
   </default>
 
@@ -327,6 +328,13 @@
     <position name="rl_knee_act" joint="rl_knee" kp="220" ctrlrange="-1.0472 0"/>
     <position name="rl_ankle_act" joint="rl_ankle" kp="100" ctrlrange="-0.3491 0.6981"/>
     <position name="rl_toe_act" joint="rl_toe" kp="80" ctrlrange="-0.2618 0.4363"/>
+
+    <!-- Tail actuators for active balance control (match T-Rex/Raptor pattern:
+         actuate proximal segments, leave distal tail_4 passive) -->
+    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="100" ctrlrange="-0.2618 0.4363"/>
+    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="80" ctrlrange="-0.1745 0.1745"/>
+    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="80" ctrlrange="-0.2618 0.4363"/>
+    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="60" ctrlrange="-0.2618 0.4363"/>
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
@@ -407,7 +415,8 @@
                0 0 -0.7854 0.35 0.1
                0 0 -0.7854 0.35 0.1
                0 0 -0.1745 0.35 0.1
-               0 0 -0.1745 0.35 0.1"/>
+               0 0 -0.1745 0.35 0.1
+               0 0 0 0"/>
   </keyframe>
 
 </mujoco>
