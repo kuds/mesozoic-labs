@@ -120,40 +120,44 @@ function HeroSection() {
 
 const FeatureIcons = {
   physics: (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-      <circle cx="12" cy="12" r="8" strokeDasharray="4 2" opacity="0.4" />
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3" fill="#00ff88" />
+      <rect x="11" y="1" width="2" height="3" rx="1" fill="#00ff88" />
+      <rect x="11" y="20" width="2" height="3" rx="1" fill="#00ff88" />
+      <rect x="1" y="11" width="3" height="2" rx="1" fill="#00ff88" />
+      <rect x="20" y="11" width="3" height="2" rx="1" fill="#00ff88" />
+      <rect x="4.93" y="4.22" width="2" height="3" rx="1" fill="#00ff88" opacity="0.6" transform="rotate(-45 5.93 5.72)" />
+      <rect x="17.07" y="16.78" width="2" height="3" rx="1" fill="#00ff88" opacity="0.6" transform="rotate(-45 18.07 18.28)" />
+      <rect x="4.93" y="16.78" width="2" height="3" rx="1" fill="#00ff88" opacity="0.6" transform="rotate(45 5.93 18.28)" />
+      <rect x="17.07" y="4.22" width="2" height="3" rx="1" fill="#00ff88" opacity="0.6" transform="rotate(45 18.07 5.72)" />
     </svg>
   ),
   brain: (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2a5 5 0 0 1 4.5 2.8A4 4 0 0 1 20 9a4 4 0 0 1-1.5 3.1A4.5 4.5 0 0 1 16 17H8a4.5 4.5 0 0 1-2.5-4.9A4 4 0 0 1 4 9a4 4 0 0 1 3.5-4.2A5 5 0 0 1 12 2z" />
-      <path d="M12 2v15" opacity="0.4" />
-      <path d="M8 9h8" opacity="0.4" />
-      <path d="M9 13h6" opacity="0.4" />
-      <circle cx="12" cy="20" r="2" />
-      <line x1="12" y1="17" x2="12" y2="18" />
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+      <path d="M12 2C9.8 2 8 3.5 7.5 5.5C5.5 5.8 4 7.5 4 9.5c0 1.5.8 2.8 2 3.5C5.5 14.2 5 15.5 5 17c0 2.8 2.2 5 5 5h4c2.8 0 5-2.2 5-5 0-1.5-.5-2.8-1-4 1.2-.7 2-2 2-3.5 0-2-1.5-3.7-3.5-4C16 3.5 14.2 2 12 2z" fill="#00ff88" opacity="0.2" />
+      <path d="M12 2C9.8 2 8 3.5 7.5 5.5C5.5 5.8 4 7.5 4 9.5c0 1.5.8 2.8 2 3.5C5.5 14.2 5 15.5 5 17c0 2.8 2.2 5 5 5h4c2.8 0 5-2.2 5-5 0-1.5-.5-2.8-1-4 1.2-.7 2-2 2-3.5 0-2-1.5-3.7-3.5-4C16 3.5 14.2 2 12 2z" fill="none" stroke="#00ff88" strokeWidth="1.5" />
+      <circle cx="9" cy="10" r="1.5" fill="#00ff88" />
+      <circle cx="15" cy="10" r="1.5" fill="#00ff88" />
+      <circle cx="12" cy="15" r="1.5" fill="#00ff88" />
+      <line x1="9" y1="10" x2="15" y2="10" stroke="#00ff88" strokeWidth="1" opacity="0.5" />
+      <line x1="9" y1="10" x2="12" y2="15" stroke="#00ff88" strokeWidth="1" opacity="0.5" />
+      <line x1="15" y1="10" x2="12" y2="15" stroke="#00ff88" strokeWidth="1" opacity="0.5" />
     </svg>
   ),
   species: (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 20l2-4 3 1 2-5 2 3 3-2 4-8" />
-      <circle cx="4" cy="20" r="1.5" fill="#00ff8830" />
-      <circle cx="13" cy="12" r="1.5" fill="#00ff8830" />
-      <circle cx="20" cy="5" r="1.5" fill="#00ff8830" />
-      <path d="M2 22h20" opacity="0.3" />
-      <path d="M2 22V2" opacity="0.3" />
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+      <path d="M17 4c-1 0-3 1-4 3l-1 2-2-1c-1.5 0-3 1-3.5 2.5L5 14l-2 1v4h3l2-2h4l3 2h3v-4l-1-3c0-1-.5-2-1.5-2.5L15 8l1-2c.5-1 .5-2 0-2z" fill="#00ff88" opacity="0.2" />
+      <path d="M17 4c-1 0-3 1-4 3l-1 2-2-1c-1.5 0-3 1-3.5 2.5L5 14l-2 1v4h3l2-2h4l3 2h3v-4l-1-3c0-1-.5-2-1.5-2.5L15 8l1-2c.5-1 .5-2 0-2z" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinejoin="round" />
+      <circle cx="16" cy="6" r="1" fill="#00ff88" />
     </svg>
   ),
   openSource: (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3" />
-      <path d="M15 3h6v6" />
-      <path d="M10 14L21 3" />
-      <path d="M7 8h4" opacity="0.4" />
-      <path d="M7 12h3" opacity="0.4" />
-      <path d="M7 16h6" opacity="0.4" />
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="18" height="18" rx="3" fill="#00ff88" opacity="0.2" />
+      <rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="#00ff88" strokeWidth="1.5" />
+      <path d="M9 8l-3 4 3 4" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M15 8l3 4-3 4" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="13" y1="7" x2="11" y2="17" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
     </svg>
   ),
 };
