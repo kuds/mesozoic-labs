@@ -85,6 +85,8 @@ class BrachioEnv(BaseDinoEnv):
         tail_stability_weight: float = 0.0,
         speed_penalty_weight: float = 0.0,
         speed_penalty_threshold: float = 0.10,
+        idle_penalty_weight: float = 0.0,
+        idle_velocity_threshold: float = 0.05,
         forward_vel_max: float = 1.0,
         food_reach_bonus: float = 10.0,
         food_reach_threshold: float = 0.5,
@@ -114,6 +116,8 @@ class BrachioEnv(BaseDinoEnv):
         self.tail_stability_weight = tail_stability_weight
         self.speed_penalty_weight = speed_penalty_weight
         self.speed_penalty_threshold = speed_penalty_threshold
+        self.idle_penalty_weight = idle_penalty_weight
+        self.idle_velocity_threshold = idle_velocity_threshold
         self.forward_vel_max = forward_vel_max
         self.food_reach_bonus = food_reach_bonus
         self.food_reach_threshold = food_reach_threshold
@@ -403,6 +407,12 @@ class BrachioEnv(BaseDinoEnv):
         info["abs_speed"] = abs_speed
         info["reward_speed"] = reward_speed
 
+        # 14b. Idle penalty (penalise standing still / barely moving)
+        reward_idle, idle_speed = self._compute_idle_penalty(
+            vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold
+        )
+        info["reward_idle"] = reward_idle
+
         # 15. Food reach bonus (head tip close to food)
         head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
         head_food_dist = float(np.linalg.norm(head_tip_pos - food_pos))
@@ -454,6 +464,7 @@ class BrachioEnv(BaseDinoEnv):
             + reward_lateral
             + reward_spin
             + reward_speed
+            + reward_idle
             + reward_food
             + reward_approach
             + reward_head_proximity

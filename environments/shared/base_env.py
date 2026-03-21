@@ -442,6 +442,29 @@ class BaseDinoEnv(gym.Env, ABC):
         reward = -weight * excess_norm
         return reward, speed
 
+    def _compute_idle_penalty(
+        self, vel_2d: np.ndarray, weight: float, threshold: float = 0.05
+    ) -> tuple[float, float]:
+        """Penalise low 2D speed (standing still / barely moving).
+
+        Applies a penalty that is strongest at zero speed and linearly
+        decreases to zero when speed reaches *threshold*.
+
+        Args:
+            vel_2d: 2D velocity vector (qvel[0:2]).
+            weight: Penalty weight (positive value; returned reward is negative).
+            threshold: Speed (m/s) at or above which no penalty applies.
+
+        Returns:
+            (reward, absolute_speed) tuple.
+        """
+        speed = float(np.linalg.norm(vel_2d))
+        if speed >= threshold:
+            return 0.0, speed
+        idle_frac = 1.0 - speed / threshold
+        reward = -weight * idle_frac
+        return reward, speed
+
     def _init_gait_state(
         self,
         contact_threshold: float = 0.1,
