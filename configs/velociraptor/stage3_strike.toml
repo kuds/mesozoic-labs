@@ -50,7 +50,7 @@ ent_coef = "auto"                # Auto-entropy is especially valuable for spars
 buffer_size = 1_000_000          # Large buffer retains locomotion transitions from Stage 2
 learning_starts = 10_000
 train_freq = 16                  # Collect 16 env steps before training — amortises gradient cost over more env steps
-gradient_steps = 2               # 8:1 data-to-update ratio — SAC is sample-efficient enough; halves GPU stalls per env batch
+gradient_steps = 8               # 2:1 data-to-update ratio — more gradient updates per env batch smooths learning curves
 
 [sac.policy_kwargs]
 net_arch = [512, 256]
