@@ -154,6 +154,10 @@ def main(species_cfg):
     # -- dispatch ------------------------------------------------------
     args = parser.parse_args()
 
+    # SAC benefits from more envs (CPU-bound MuJoCo + off-policy replay).
+    # Bump n_envs from default 4→8 when using SAC, unless user overrode it.
+    _SAC_DEFAULT_N_ENVS = 8
+
     if args.command == "train" or args.command is None:
         if args.command is None:
             args.stage = 1
@@ -170,6 +174,10 @@ def main(species_cfg):
             args.wandb = False
             args.override = None
             args.output_dir = None
+
+        if args.algorithm == "sac" and args.n_envs == 4:
+            args.n_envs = _SAC_DEFAULT_N_ENVS
+            logger.info("SAC: defaulting to %d parallel envs (override with --n-envs)", _SAC_DEFAULT_N_ENVS)
 
         _apply_overrides(stage_configs, args.override)
         train(
@@ -191,6 +199,10 @@ def main(species_cfg):
         )
 
     elif args.command == "curriculum":
+        if args.algorithm == "sac" and args.n_envs == 4:
+            args.n_envs = _SAC_DEFAULT_N_ENVS
+            logger.info("SAC: defaulting to %d parallel envs (override with --n-envs)", _SAC_DEFAULT_N_ENVS)
+
         _apply_overrides(stage_configs, args.override)
         train_curriculum(
             species_cfg=species_cfg,

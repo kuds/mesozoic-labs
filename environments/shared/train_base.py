@@ -485,8 +485,14 @@ def train(
     )
 
     # Create environments
+    # SAC benefits from SubprocVecEnv: MuJoCo is CPU-bound and SAC's off-policy
+    # nature means env collection and gradient updates can overlap better when
+    # envs run in separate processes.
+    effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
+    if effective_subproc and not use_subproc:
+        logger.info("Auto-enabling SubprocVecEnv for SAC (use --subproc to make explicit)")
     logger.info("Creating %d training environments...", n_envs)
-    train_env = create_vec_env(species_cfg, stage_configs, stage, n_envs, seed, use_subproc)
+    train_env = create_vec_env(species_cfg, stage_configs, stage, n_envs, seed, effective_subproc)
 
     logger.info("Creating evaluation environment...")
     eval_env = create_vec_env(species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False)
@@ -861,7 +867,8 @@ def train_curriculum(
             env_class=species_cfg.env_class,
         )
 
-        train_env = create_vec_env(species_cfg, stage_configs, stage, n_envs, seed, use_subproc)
+        effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
+        train_env = create_vec_env(species_cfg, stage_configs, stage, n_envs, seed, effective_subproc)
         eval_env = create_vec_env(species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False)
 
         _load_vecnorm_into_envs(prev_vecnorm_path, train_env, eval_env)
