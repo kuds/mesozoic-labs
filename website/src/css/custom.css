@@ -71,6 +71,7 @@ body {
 
 /* Navbar customization */
 .navbar {
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
 
@@ -79,19 +80,47 @@ body {
 }
 
 .navbar__logo {
-  height: 2.5rem;
-  width: auto;
+  height: 2rem;
+  width: 2rem;
   margin-right: 0.5rem;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .navbar__logo img {
   height: 100%;
-  width: auto;
+  width: 100%;
   display: block;
+  object-fit: contain;
 }
 
 [data-theme='dark'] .navbar__logo img {
   filter: invert(1);
+}
+
+/* Mobile navbar sidebar fixes */
+.navbar-sidebar {
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+}
+
+.navbar-sidebar__brand {
+  align-items: center;
+}
+
+.navbar-sidebar__brand .navbar__logo {
+  height: 2rem;
+  width: 2rem;
+}
+
+/* Ensure hamburger toggle is tappable on mobile */
+.navbar__toggle {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .navbar__title {
