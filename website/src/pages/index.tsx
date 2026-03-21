@@ -101,11 +101,6 @@ function HeroSection() {
           </div>
           <div className={styles.statDivider} aria-hidden="true"></div>
           <div className={styles.statItem}>
-            <dt className={styles.statLabel}>TESTS PASSING</dt>
-            <dd className={styles.statNumber}>155</dd>
-          </div>
-          <div className={styles.statDivider} aria-hidden="true"></div>
-          <div className={styles.statItem}>
             <dt className={styles.statLabel}>TRAINING STAGES</dt>
             <dd className={styles.statNumber}>3</dd>
           </div>
@@ -123,27 +118,67 @@ function HeroSection() {
    FEATURES SECTION
    ============================================================================= */
 
+const FeatureIcons = {
+  physics: (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+      <circle cx="12" cy="12" r="8" strokeDasharray="4 2" opacity="0.4" />
+    </svg>
+  ),
+  brain: (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2a5 5 0 0 1 4.5 2.8A4 4 0 0 1 20 9a4 4 0 0 1-1.5 3.1A4.5 4.5 0 0 1 16 17H8a4.5 4.5 0 0 1-2.5-4.9A4 4 0 0 1 4 9a4 4 0 0 1 3.5-4.2A5 5 0 0 1 12 2z" />
+      <path d="M12 2v15" opacity="0.4" />
+      <path d="M8 9h8" opacity="0.4" />
+      <path d="M9 13h6" opacity="0.4" />
+      <circle cx="12" cy="20" r="2" />
+      <line x1="12" y1="17" x2="12" y2="18" />
+    </svg>
+  ),
+  species: (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20l2-4 3 1 2-5 2 3 3-2 4-8" />
+      <circle cx="4" cy="20" r="1.5" fill="#00ff8830" />
+      <circle cx="13" cy="12" r="1.5" fill="#00ff8830" />
+      <circle cx="20" cy="5" r="1.5" fill="#00ff8830" />
+      <path d="M2 22h20" opacity="0.3" />
+      <path d="M2 22V2" opacity="0.3" />
+    </svg>
+  ),
+  openSource: (
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3" />
+      <path d="M15 3h6v6" />
+      <path d="M10 14L21 3" />
+      <path d="M7 8h4" opacity="0.4" />
+      <path d="M7 12h3" opacity="0.4" />
+      <path d="M7 16h6" opacity="0.4" />
+    </svg>
+  ),
+};
+
 const features = [
   {
-    icon: '\u2699\uFE0F',
+    icon: FeatureIcons.physics,
     title: 'MuJoCo Physics',
     description:
       'Accurate dinosaur biomechanics simulation with articulated joints, contact dynamics, and actuator models.',
   },
   {
-    icon: '\uD83E\uDDE0',
+    icon: FeatureIcons.brain,
     title: 'Reinforcement Learning',
     description:
       'PPO and SAC algorithms via Stable-Baselines3 with automated 3-stage curriculum learning.',
   },
   {
-    icon: '\uD83E\uDD96',
+    icon: FeatureIcons.species,
     title: '3 Species',
     description:
       'T-Rex (18 actuators), Velociraptor (17 actuators), and Brachiosaurus (26 actuators).',
   },
   {
-    icon: '\uD83D\uDCE6',
+    icon: FeatureIcons.openSource,
     title: 'Open Source',
     description:
       'MIT licensed with TOML configs, Gymnasium registration, W&B tracking, and Docker support.',
