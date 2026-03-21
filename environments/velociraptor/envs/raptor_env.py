@@ -93,6 +93,8 @@ class RaptorEnv(BaseDinoEnv):
         spin_penalty_weight: float = 0.0,
         speed_penalty_weight: float = 0.0,
         speed_penalty_threshold: float = 0.10,
+        idle_penalty_weight: float = 0.0,
+        idle_velocity_threshold: float = 0.05,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
@@ -119,6 +121,8 @@ class RaptorEnv(BaseDinoEnv):
         self.spin_penalty_weight = spin_penalty_weight
         self.speed_penalty_weight = speed_penalty_weight
         self.speed_penalty_threshold = speed_penalty_threshold
+        self.idle_penalty_weight = idle_penalty_weight
+        self.idle_velocity_threshold = idle_velocity_threshold
 
         # Natural forward pitch (~20°). The nosedive penalty and termination
         # are measured relative to this angle so the raptor isn't punished for
@@ -427,6 +431,12 @@ class RaptorEnv(BaseDinoEnv):
         info["abs_speed"] = abs_speed
         info["reward_speed"] = reward_speed
 
+        # 11b. Idle penalty (penalise standing still / barely moving)
+        reward_idle, idle_speed = self._compute_idle_penalty(
+            vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold
+        )
+        info["reward_idle"] = reward_idle
+
         # Total reward
         total_reward = (
             reward_forward
@@ -447,6 +457,7 @@ class RaptorEnv(BaseDinoEnv):
             + reward_heading
             + reward_lateral
             + reward_speed
+            + reward_idle
         )
         info["reward_total"] = total_reward
 

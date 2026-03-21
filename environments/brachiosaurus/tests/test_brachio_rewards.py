@@ -42,6 +42,7 @@ class TestBrachioRewardComponents:
             + info["reward_lateral"]
             + info["reward_spin"]
             + info["reward_speed"]
+            + info["reward_idle"]
             + info["reward_food"]
             + info["reward_approach"]
             + info["reward_head_proximity"]

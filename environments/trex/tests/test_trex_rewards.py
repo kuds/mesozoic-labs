@@ -54,6 +54,7 @@ class TestTRexRewardComponents:
             + info["reward_lateral"]
             + info["reward_spin"]
             + info["reward_speed"]
+            + info["reward_idle"]
         )
         if terminated:
             expected += env.fall_penalty
