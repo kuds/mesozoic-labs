@@ -210,6 +210,7 @@ def save_stage_config(
     algorithm: str,
     extra: dict[str, Any] | None = None,
     env_class: type | None = None,
+    species: str | None = None,
 ) -> Path:
     """Save the reward weights and model hyperparameters for a stage to JSON.
 
@@ -231,6 +232,7 @@ def save_stage_config(
             (e.g. ``{"seed": 42, "n_envs": 4}``).
         env_class: Optional environment class whose ``__init__`` defaults are
             merged into ``env_kwargs`` for completeness.
+        species: Optional species name (e.g. ``"velociraptor"``, ``"trex"``).
 
     Returns:
         Path to the written JSON file.
@@ -265,6 +267,7 @@ def save_stage_config(
             env_kwargs[key] = list(value)
 
     data: dict[str, Any] = {
+        "species": species or "",
         "stage": stage,
         "name": stage_config.get("name", ""),
         "description": stage_config.get("description", ""),
