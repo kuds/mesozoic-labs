@@ -29,7 +29,7 @@ SPECIES_ENVS = [
 SPECIES_DIMS = {
     "velociraptor": {"obs": 67, "act": 22},
     "trex": {"obs": 83, "act": 21},
-    "brachiosaurus": {"obs": 83, "act": 26},
+    "brachiosaurus": {"obs": 83, "act": 30},
 }
 
 # Expected reward component keys per species
