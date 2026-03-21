@@ -49,8 +49,8 @@ ent_coef = "auto"                # Auto-entropy is especially valuable for spars
                                  # exploration without the manual tuning PPO required (ent_coef=0.005)
 buffer_size = 1_000_000          # Large buffer retains locomotion transitions from Stage 2
 learning_starts = 10_000
-train_freq = 4                   # Batch env steps before training — 4× less Python loop overhead
-gradient_steps = 4               # Match train_freq to maintain update-to-data ratio
+train_freq = 16                  # Collect 16 env steps before training — amortises gradient cost over more env steps
+gradient_steps = 2               # 8:1 data-to-update ratio — SAC is sample-efficient enough; halves GPU stalls per env batch
 
 [sac.policy_kwargs]
 net_arch = [512, 256]
