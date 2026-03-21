@@ -482,6 +482,7 @@ def train(
         algorithm.upper(),
         extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
         env_class=species_cfg.env_class,
+        species=species_cfg.species,
     )
 
     # Create environments
@@ -865,6 +866,7 @@ def train_curriculum(
             algorithm.upper(),
             extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
             env_class=species_cfg.env_class,
+            species=species_cfg.species,
         )
 
         effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)

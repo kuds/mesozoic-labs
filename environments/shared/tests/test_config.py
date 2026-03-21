@@ -250,9 +250,10 @@ class TestSaveStageConfig:
             "sac_kwargs": {"learning_rate": 1e-4},
             "curriculum_kwargs": {"min_avg_reward": 10.0},
         }
-        out = save_stage_config(tmp_path / "stage1", 1, stage_config, "PPO")
+        out = save_stage_config(tmp_path / "stage1", 1, stage_config, "PPO", species="velociraptor")
         assert out.exists()
         data = json.loads(out.read_text())
+        assert data["species"] == "velociraptor"
         assert data["stage"] == 1
         assert data["name"] == "balance"
         assert data["algorithm"] == "PPO"
