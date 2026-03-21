@@ -18,7 +18,8 @@ velociraptor/
 │   └── train_sb3.py            # Training with Stable-Baselines3
 ├── tests/
 │   ├── test_raptor_env.py      # Species-specific env tests
-│   └── test_raptor_rewards.py  # Species-specific reward tests
+│   ├── test_raptor_rewards.py  # Species-specific reward tests
+│   └── test_static_balance.py  # Static balance tests
 └── README.md
 ```
 
@@ -95,8 +96,8 @@ python scripts/train_sb3.py eval logs/<run_dir>/models/stage3_final.zip
 ### Observation Space (dim=67)
 | Component | Dimensions | Description |
 |-----------|------------|-------------|
-| Joint positions | 28 | All qpos except root freejoint (20 hinge + 2×4 ball) |
-| Joint velocities | 26 | All qvel except root freejoint (20 hinge + 2×3 ball) |
+| Joint positions | 24 | All qpos except root freejoint (24 hinge) |
+| Joint velocities | 24 | All qvel except root freejoint (24 hinge) |
 | Pelvis quaternion | 4 | Orientation from framequat sensor |
 | Pelvis gyro | 3 | Angular velocity |
 | Pelvis linear vel | 3 | Linear velocity |

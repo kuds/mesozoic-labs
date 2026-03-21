@@ -73,6 +73,7 @@ brachiosaurus/
 │   └── view_model.py            # MuJoCo passive viewer
 ├── tests/
 │   ├── test_brachio_env.py      # Species-specific env tests
-│   └── test_brachio_rewards.py  # Species-specific reward tests
+│   ├── test_brachio_rewards.py  # Species-specific reward tests
+│   └── test_static_balance.py   # Static balance tests
 └── README.md
 ```
