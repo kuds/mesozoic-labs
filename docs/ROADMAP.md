@@ -16,7 +16,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
 | **1** | First Steps (v0.3.0) | **In Progress** | 7/10 items | 3 training runs |
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
-| **3** | Evolution (v0.5.0) | Not Started | 0/7 items | Blocked on Phases 1-2 |
+| **3** | Evolution (v0.5.0) | Not Started | 0/8 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
 | **5** | Hyperdrive (v0.7.0) | Not Started | 0/4 items | Blocked on Phase 1 training |
 | **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-5 |
@@ -298,14 +298,39 @@ Deepen the RL capabilities and expand the species roster.
   - Good candidate for eventual physical robot (small, cheap)
   - _Dependency: Phase 1 (use Velociraptor as template)_
 
+- [ ] **Stegosaurus (armored quadrupedal defender)**
+  - MJCF model: heavy quadruped with dorsal plates and thagomizer tail weapon
+  - **First defensive species** — fundamentally different from all existing
+    forward-attack species. Agent must orient its *rear* toward threats and
+    swing the thagomizer, flipping the reward structure entirely.
+  - **Unique biomechanics:**
+    - High center of mass from dorsal plates creates a harder balance problem
+    - Tail is the active weapon (unlike head-forward predators), requiring
+      rotational/pivoting locomotion rather than linear sprinting
+    - Asymmetric mass distribution from plates affects turning inertia
+    - Slow, deliberate quadrupedal gait — emphasis on stability over speed
+  - **Curriculum (3 stages):**
+    1. **Balance** — learn stable stance with elevated CoM from dorsal plates
+    2. **Locomotion** — slow quadrupedal walking with turning/pivoting emphasis
+    3. **Tail Defense** — detect approaching threat, pivot to orient rear
+       toward threat, swing thagomizer for contact (defensive strike bonus)
+  - **What makes it different from Brachiosaurus:**
+    - Brachiosaurus reaches *up* (neck); Stegosaurus strikes *behind* (tail)
+    - Brachiosaurus moves toward food; Stegosaurus holds ground against threats
+    - Dorsal plates vs. long neck create opposite CoM challenges
+    - Introduces rotational control as the primary locomotion objective
+  - Reuses quadrupedal infrastructure from `BaseDinoEnv` and Brachiosaurus
+  - _Dependency: Phase 1 (use Brachiosaurus as quadrupedal template)_
+
 - [ ] **Benchmark suite**
   - Standardized evaluation scenarios: flat, slope, rough, perturbation
   - Automated benchmark runner producing structured JSON reports
   - Leaderboard across species, algorithms, and training configs
   - _Dependency: Phase 2 terrain diversity_
 
-**Exit criteria:** 5 species in the roster, hierarchical policies demonstrating
-goal-directed behavior, published benchmark results across algorithms.
+**Exit criteria:** 6 species in the roster (including first defensive species),
+hierarchical policies demonstrating goal-directed behavior, published benchmark
+results across algorithms.
 
 ---
 
