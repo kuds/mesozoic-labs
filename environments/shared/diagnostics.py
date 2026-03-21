@@ -72,6 +72,7 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_lateral",
         "reward_spin",
         "reward_speed",
+        "reward_idle",
         # Species-specific reward components
         "reward_bite",  # T-Rex
         "reward_food",  # Brachiosaurus

@@ -61,6 +61,8 @@ class TestRaptorRewardComponents:
             + info["reward_smoothness"]
             + info["reward_heading"]
             + info["reward_lateral"]
+            + info["reward_speed"]
+            + info["reward_idle"]
         )
         if terminated:
             expected += env.fall_penalty

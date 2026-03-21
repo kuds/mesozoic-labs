@@ -44,6 +44,7 @@ SPECIES_REWARD_KEYS = {
         "reward_posture",
         "reward_gait",
         "reward_smoothness",
+        "reward_idle",
         "reward_total",
     ],
     "trex": [
@@ -60,6 +61,7 @@ SPECIES_REWARD_KEYS = {
         "reward_smoothness",
         "reward_heading",
         "reward_lateral",
+        "reward_idle",
         "reward_total",
     ],
     "brachiosaurus": [
@@ -69,6 +71,7 @@ SPECIES_REWARD_KEYS = {
         "reward_gait",
         "reward_food",
         "reward_approach",
+        "reward_idle",
         "reward_total",
     ],
 }

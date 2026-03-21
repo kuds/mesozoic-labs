@@ -198,6 +198,7 @@ def plot_diagnostics_graphs(
         "reward_claw_proximity": ("strike_claw_proximity_weight",),
         "reward_bite": ("bite_bonus",),
         "reward_food": ("food_reach_bonus",),
+        "reward_idle": ("idle_penalty_weight",),
     }
 
     def _signal_active(reward_key: str, stage_num: int) -> bool:

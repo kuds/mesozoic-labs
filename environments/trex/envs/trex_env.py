@@ -91,6 +91,8 @@ class TRexEnv(BaseDinoEnv):
         spin_penalty_weight: float = 0.0,
         speed_penalty_weight: float = 0.0,
         speed_penalty_threshold: float = 0.10,
+        idle_penalty_weight: float = 0.0,
+        idle_velocity_threshold: float = 0.05,
         forward_vel_max: float = 8.0,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
@@ -117,6 +119,8 @@ class TRexEnv(BaseDinoEnv):
         self.spin_penalty_weight = spin_penalty_weight
         self.speed_penalty_weight = speed_penalty_weight
         self.speed_penalty_threshold = speed_penalty_threshold
+        self.idle_penalty_weight = idle_penalty_weight
+        self.idle_velocity_threshold = idle_velocity_threshold
         self.forward_vel_max = forward_vel_max
 
         # Natural forward pitch (~10°). The nosedive penalty and termination
@@ -416,6 +420,12 @@ class TRexEnv(BaseDinoEnv):
         info["abs_speed"] = abs_speed
         info["reward_speed"] = reward_speed
 
+        # 14b. Idle penalty (penalise standing still / barely moving)
+        reward_idle, idle_speed = self._compute_idle_penalty(
+            vel_2d, self.idle_penalty_weight, self.idle_velocity_threshold
+        )
+        info["reward_idle"] = reward_idle
+
         # Total reward
         total_reward = (
             reward_forward
@@ -436,6 +446,7 @@ class TRexEnv(BaseDinoEnv):
             + reward_lateral
             + reward_spin
             + reward_speed
+            + reward_idle
         )
         info["reward_total"] = total_reward
 
