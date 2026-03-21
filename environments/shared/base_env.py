@@ -442,9 +442,7 @@ class BaseDinoEnv(gym.Env, ABC):
         reward = -weight * excess_norm
         return reward, speed
 
-    def _compute_idle_penalty(
-        self, vel_2d: np.ndarray, weight: float, threshold: float = 0.05
-    ) -> tuple[float, float]:
+    def _compute_idle_penalty(self, vel_2d: np.ndarray, weight: float, threshold: float = 0.05) -> tuple[float, float]:
         """Penalise low 2D speed (standing still / barely moving).
 
         Applies a penalty that is strongest at zero speed and linearly
