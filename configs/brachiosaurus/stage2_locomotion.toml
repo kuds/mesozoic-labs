@@ -5,12 +5,12 @@ description = "Learn coordinated quadrupedal walking"
 [env]
 forward_vel_weight = 4.0               # Reduced from 8.0: was 13:1 vs gait signals, agent exploited speed over gait quality. At 0.75 m/s this gives ~3.0/step — still dominant but leaves room for posture/symmetry.
 forward_vel_max = 1.0                  # Keep at 1.0: allows gradient up to graduation target of 0.75 m/s.
-alive_bonus = 0.2                      # Increased from 0.1: complement higher fall_penalty to incentivize survival. Not enough to re-enable crouch exploit (idle penalty handles that).
-fall_penalty = -100.0                  # Increased from -50: 85% fallen termination rate means short fast episodes are rewarded. Make dying expensive so agent invests in stability.
-energy_penalty_weight = 0.005          # Increased from 0.002: CoT collapsed to near-zero. With 4 new tail actuators, also prevents wasteful tail thrashing.
+alive_bonus = 0.3                      # Increased from 0.2: reduce the 85% fall rate by rewarding survival more. Idle penalty still prevents crouch exploit.
+fall_penalty = -50.0                   # Reduced from -100: overly harsh penalty caused conservative policies that avoid movement. Align with T-Rex/Velociraptor.
+energy_penalty_weight = 0.003          # Reduced from 0.005: agent may be "saving energy" by lifting FR leg. Less pressure allows all four legs to engage.
 tail_stability_weight = 0.15           # Increased from 0.05: now that tail has actuators, give meaningful signal to use them.
 gait_stability_weight = 0.05
-gait_symmetry_weight = 0.5             # Increased from 0.15: gait symmetry was *worsening* over training (reaching 8-12). At 0.5 perfect alternation gives ~0.5/step, visible next to forward vel.
+gait_symmetry_weight = 2.0             # Increased from 0.5: agent developed tripedal gait with FR leg at zero contact. 0.5 was insufficient — needs strong signal to enforce all four legs.
 smoothness_weight = 0.05               # Penalize jerky actions for smoother movement
 posture_weight = 0.3                   # Increased from 0.15: 8° forward tilt is excessive, double the signal to keep body upright.
 nosedive_weight = 0.8                  # Increased from 0.4: 15% head_contact terminations — agent is nose-diving into ground. Needs much stronger penalty.
@@ -18,7 +18,7 @@ natural_pitch = -0.15                  # Slight upward neck angle target (radian
 height_weight = 0.2                    # Increased from 0.1: pelvis dropped from 1.22 to 1.15m, strengthen signal to maintain standing height.
 heading_weight = 0.1                   # Keep: heading already at 0.98, minimal directional signal sufficient.
 lateral_penalty_weight = 0.1           # Mild anti-crab-walk penalty
-idle_penalty_weight = 0.5              # Mild penalty for standing still. Insurance against static-crouch exploit on this stable quadruped.
+idle_penalty_weight = 0.3              # Reduced from 0.5: less pressure to move at all costs; let gait_symmetry_weight shape *how* it moves.
 idle_velocity_threshold = 0.1          # Speed (m/s) at which idle penalty reaches zero. Below this, agent is penalised for inaction.
 food_reach_bonus = 0.0
 food_approach_weight = 0.0
@@ -59,7 +59,7 @@ gradient_steps = 4               # Match train_freq to maintain update-to-data r
 net_arch = [512, 256]            # Larger first layer to match PPO's tapered architecture for Brachiosaurus's 75 obs dims
 
 [curriculum]
-timesteps = 16000000                   # Extended from 12M: reward was still climbing at 12M. With rebalanced rewards agent needs more time to find proper gait instead of fast exploit.
+timesteps = 20000000                   # Extended from 16M: reward was still climbing at 16M. Higher gait_symmetry_weight means agent needs more time to find a proper quadrupedal gait.
 min_avg_reward = 100.0
 min_avg_episode_length = 750
 min_avg_forward_vel = 0.75             # Gate on actual locomotion; without this, a standing-still policy passes on alive_bonus alone. Realistic walking speed for a heavy sauropod.
