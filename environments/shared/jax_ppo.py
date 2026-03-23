@@ -48,7 +48,7 @@ class Transition(NamedTuple):
     done: Any
 
 
-def make_actor_critic(action_dim: int, hidden_dims: tuple[int, ...] = (256, 256)):
+def make_actor_critic(action_dim: int, hidden_dims: tuple[int, ...] = (512, 256)):
     """Create a Flax actor-critic network.
 
     Returns:

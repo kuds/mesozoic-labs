@@ -18,7 +18,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | Not Started | 0/8 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
-| **5** | Hyperdrive (v0.7.0) | Not Started | 0/4 items | Blocked on Phase 1 training |
+| **5** | Hyperdrive (v0.7.0) | **In Progress** | 2/5 items | JAX SAC, large-scale experiments |
 | **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-5 |
 
 **Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
@@ -187,6 +187,8 @@ critical bridge between "cool demo" and "transferable research."
     balance recovery.
   - Introduce in Stage 2+ configs only — Stage 1 (balance) should train
     without perturbations so the agent learns to stand first.
+  - JAX/MJX path will need its own domain randomization approach (functional
+    `model.replace()` instead of in-place mutation) — coordinate with Phase 5
   - _Dependency: Phase 1 (need working trained policies to evaluate against)_
 
 - [ ] **Sensor noise & action delay**
@@ -387,21 +389,32 @@ Parallel track that can start alongside Phase 4. GPU-accelerated batch simulatio
 
 ### Milestone: v0.7.0 — "Hyperdrive"
 
-- [ ] **MJX environment for Velociraptor**
-  - Port `VelociraptorEnv` to JAX/MJX backend
-  - Batch simulation (512-4096 parallel environments on GPU)
-  - API-compatible with existing Gymnasium interface
-  - _Dependency: Phase 1 Velociraptor training (for validation)_
+- [x] **MJX environment for all species**
+  - Implemented `MJXDinoEnv` in `environments/shared/mjx_env.py` with
+    functional JAX-native API (`jax.jit`/`jax.vmap` compatible)
+  - Batch simulation (2048 parallel environments on GPU by default)
+  - All three species (T-Rex, Velociraptor, Brachiosaurus) supported
+    via per-species `mjx_config.py` registration modules
+  - _Completed_
 
-- [ ] **Brax PPO training pipeline**
-  - Use Brax's JAX-native PPO instead of SB3
-  - Benchmark: steps/second on CPU vs. T4 GPU vs. A100 vs. TPU
-  - _Dependency: MJX Velociraptor environment_
+- [x] **JAX-native PPO training pipeline**
+  - Implemented `jax_ppo.py` (Flax actor-critic, GAE, PPO clipped loss)
+    and `jax_training.py` (full training loop with curriculum support)
+  - `jax_training.ipynb` Colab notebook with A100 GPU support
+  - Network architecture matches SB3 configs: `[512, 256]`
+  - _Completed_
 
-- [ ] **Port remaining species to MJX**
-  - T-Rex, Brachiosaurus, new species
-  - Validate that MJX-trained policies match CPU MuJoCo behavior
-  - _Dependency: MJX Velociraptor proven out_
+- [ ] **JAX-native SAC implementation**
+  - Build `jax_sac.py` module with replay buffer, twin Q-networks, and
+    automatic entropy tuning (analogous to `jax_ppo.py`)
+  - Add SAC option to `jax_training.ipynb` notebook alongside PPO
+  - Compare sample efficiency and final performance vs JAX PPO and SB3 SAC
+  - _Dependency: Brax PPO pipeline (reuse actor-critic infrastructure)_
+
+- [x] **Port remaining species to MJX**
+  - All three species (T-Rex, Velociraptor, Brachiosaurus) ported
+  - Shared `MJXDinoEnv` with per-species config registration
+  - _Completed (included in MJX environment implementation above)_
 
 - [ ] **Large-scale training experiments**
   - Sweep over billions of steps (feasible with MJX speedup)
