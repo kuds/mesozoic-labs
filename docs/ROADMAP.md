@@ -398,6 +398,13 @@ Parallel track that can start alongside Phase 4. GPU-accelerated batch simulatio
   - Benchmark: steps/second on CPU vs. T4 GPU vs. A100 vs. TPU
   - _Dependency: MJX Velociraptor environment_
 
+- [ ] **JAX-native SAC implementation**
+  - Build `jax_sac.py` module with replay buffer, twin Q-networks, and
+    automatic entropy tuning (analogous to `jax_ppo.py`)
+  - Add SAC option to `jax_training.ipynb` notebook alongside PPO
+  - Compare sample efficiency and final performance vs JAX PPO and SB3 SAC
+  - _Dependency: Brax PPO pipeline (reuse actor-critic infrastructure)_
+
 - [ ] **Port remaining species to MJX**
   - T-Rex, Brachiosaurus, new species
   - Validate that MJX-trained policies match CPU MuJoCo behavior
