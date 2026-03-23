@@ -1,0 +1,44 @@
+{
+  "stage2": {
+    "trials": 40,
+    "timesteps": 16000000,
+    "parallel": 4,
+    "n_envs": 4,
+
+    "_comment_ppo": "PPO: narrow around proven values (lr=5e-5, batch=256, gamma=0.995)",
+    "ppo_learning_rate":       {"type": "double", "min": 2e-5, "max": 1.5e-4, "scale": "log"},
+    "ppo_ent_coef":            {"type": "double", "min": 0.005, "max": 0.03,  "scale": "log"},
+    "ppo_batch_size":          {"type": "discrete", "values": [128, 256, 512]},
+    "ppo_gamma":               {"type": "double", "min": 0.99, "max": 0.999, "scale": "linear"},
+    "ppo_n_steps":             {"type": "discrete", "values": [2048, 4096]},
+    "ppo_n_epochs":            {"type": "discrete", "values": [6, 10]},
+
+    "_comment_core": "Core reward: the statue-vs-lunge tradeoff lives here",
+    "env_forward_vel_weight":       {"type": "double", "min": 2.0, "max": 5.0,  "scale": "linear"},
+    "env_forward_vel_max":          {"type": "double", "min": 0.75, "max": 1.5, "scale": "linear"},
+    "env_alive_bonus":              {"type": "double", "min": 0.1, "max": 0.5,  "scale": "linear"},
+    "env_energy_penalty_weight":    {"type": "double", "min": 0.003, "max": 0.01, "scale": "log"},
+
+    "_comment_gait": "Gait shaping: biggest unknowns — these need the widest ranges",
+    "env_gait_symmetry_weight":     {"type": "double", "min": 1.0, "max": 3.0,  "scale": "linear"},
+    "env_gait_stability_weight":    {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"},
+    "env_idle_penalty_weight":      {"type": "double", "min": 0.1, "max": 0.5,  "scale": "linear"},
+
+    "_comment_posture": "Posture/safety: narrower — we have reasonable values but want to confirm",
+    "env_posture_weight":           {"type": "double", "min": 0.15, "max": 0.5, "scale": "linear"},
+    "env_nosedive_weight":          {"type": "double", "min": 0.4, "max": 1.0,  "scale": "linear"},
+    "env_height_weight":            {"type": "double", "min": 0.1, "max": 0.3,  "scale": "linear"},
+    "env_tail_stability_weight":    {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"},
+
+    "_comment_nav": "Navigation: low priority — heading is already good",
+    "env_heading_weight":           {"type": "double", "min": 0.0, "max": 0.2,  "scale": "linear"},
+    "env_lateral_penalty_weight":   {"type": "double", "min": 0.0, "max": 0.2,  "scale": "linear"},
+
+    "_comment_curriculum": "Curriculum: ramp schedule is critical for the statue→walking transition",
+    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [200000, 300000, 500000]},
+    "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
+    "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.01, "max": 0.05, "scale": "log"},
+    "curriculum_ramp_timesteps":    {"type": "discrete", "values": [2000000, 3000000, 5000000]},
+    "curriculum_ramp_start_value":  {"type": "double", "min": 0.1, "max": 0.3,   "scale": "linear"}
+  }
+}

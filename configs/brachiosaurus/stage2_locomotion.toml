@@ -5,12 +5,12 @@ description = "Learn coordinated quadrupedal walking"
 [env]
 forward_vel_weight = 4.0               # Reduced from 8.0: was 13:1 vs gait signals, agent exploited speed over gait quality. At 0.75 m/s this gives ~3.0/step — still dominant but leaves room for posture/symmetry.
 forward_vel_max = 1.0                  # Keep at 1.0: allows gradient up to graduation target of 0.75 m/s.
-alive_bonus = 0.3                      # Increased from 0.2: reduce the 85% fall rate by rewarding survival more. Idle penalty still prevents crouch exploit.
+alive_bonus = 0.2                      # Reverted to 0.2: the 0.3 run (03-22) collapsed from 2396→809 reward. 0.2 was the only config to pass S2 (03-21 14:47).
 fall_penalty = -50.0                   # Reduced from -100: overly harsh penalty caused conservative policies that avoid movement. Align with T-Rex/Velociraptor.
-energy_penalty_weight = 0.003          # Reduced from 0.005: agent may be "saving energy" by lifting FR leg. Less pressure allows all four legs to engage.
+energy_penalty_weight = 0.005          # Reverted to 0.005: the only S2 pass used this value. Higher penalty forces efficient gaits rather than flailing. 0.003 correlated with training collapse.
 tail_stability_weight = 0.15           # Increased from 0.05: now that tail has actuators, give meaningful signal to use them.
 gait_stability_weight = 0.05
-gait_symmetry_weight = 2.0             # Increased from 0.5: agent developed tripedal gait with FR leg at zero contact. 0.5 was insufficient — needs strong signal to enforce all four legs.
+gait_symmetry_weight = 2.0             # Keep at 2.0: proven value from the only S2 pass (03-21). 0.5 was too low (tripedal gait), but increasing beyond 2.0 is untested and risky.
 smoothness_weight = 0.05               # Penalize jerky actions for smoother movement
 posture_weight = 0.3                   # Increased from 0.15: 8° forward tilt is excessive, double the signal to keep body upright.
 nosedive_weight = 0.8                  # Increased from 0.4: 15% head_contact terminations — agent is nose-diving into ground. Needs much stronger penalty.
@@ -59,7 +59,7 @@ gradient_steps = 4               # Match train_freq to maintain update-to-data r
 net_arch = [512, 256]            # Larger first layer to match PPO's tapered architecture for Brachiosaurus's 75 obs dims
 
 [curriculum]
-timesteps = 20000000                   # Extended from 16M: reward was still climbing at 16M. Higher gait_symmetry_weight means agent needs more time to find a proper quadrupedal gait.
+timesteps = 16000000                   # Reverted to 16M: 20M run (03-22) showed late-training collapse (2396→809). 16M was sufficient for the only S2 pass.
 min_avg_reward = 100.0
 min_avg_episode_length = 750
 min_avg_forward_vel = 0.75             # Gate on actual locomotion; without this, a standing-still policy passes on alive_bonus alone. Realistic walking speed for a heavy sauropod.

@@ -518,3 +518,253 @@ strike bonus.
 **Recommendation 2 (prey respawn) is likely the most robust fix** because it
 fundamentally changes the problem from "one-shot sparse reward vs episode
 termination" to "repeated dense reward," which PPO handles much better.
+
+---
+
+## Brachiosaurus Stage 2 Review — March 23, 2026
+
+> **Run:** `ppo_20260322_203554`, Seed 42, PPO, L4 GPU
+> **Stage:** 2 (locomotion) — Learn coordinated quadrupedal walking
+> **Result:** Stage 2 **failed** — did not meet curriculum gates
+
+### Results Summary
+
+| Metric | Final (20M steps) | Best (14.3M steps) | Best Model Eval (30 ep) | Curriculum Gate |
+|--------|-------------------|---------------------|------------------------|----------------|
+| Eval Reward | 798.88 ± 80.24 | **2495.14 ± 404.96** | 2396.38 ± 504.04 | ≥ 100 ✅ |
+| Episode Length | **199.6 ± 17.9 steps** | 960.9 ± 146.3 steps | 921.1 ± 203.4 steps | ≥ 750 ❌ |
+| Forward Velocity | **0.59 ± 0.07 m/s** | — | **0.13 ± 0.11 m/s** | ≥ 0.75 m/s ❌ |
+| Duration | 10h 47m 56s | — | — | — |
+
+**The run failed both the episode length and forward velocity gates.** The best
+checkpoint (14.3M steps) had excellent episode length (921 steps) but essentially
+zero forward velocity (0.13 m/s). The agent learned to survive but not walk.
+
+---
+
+### Phase Analysis
+
+The training curves reveal three distinct phases:
+
+**Phase 1: Warm-up & Balance Retention (0–5M steps)**
+- Episode length holds at ~1000 steps (max), indicating the agent retained Stage 1
+  balance through the warm-up and ramp periods
+- Forward velocity stays near zero — the agent is standing still
+- Reward climbs from ~1000 to ~1800 purely from alive/posture/height rewards
+- Contact forces are asymmetric: RL (rear-left) dominates at ~200 force units,
+  FR (front-right) peaks later at ~100 — the agent leans heavily on a diagonal pair
+- Gait symmetry spikes dramatically (30–60) as the agent experiments with leg
+  movements but doesn't achieve coordinated walking
+- Cost of transport peaks at 0.20 — high energy expenditure for zero locomotion
+
+**Phase 2: Collapse & Speed Discovery (5–10M steps)**
+- **Catastrophic episode length collapse** from ~1000 to ~200 steps around 5M
+- Forward velocity suddenly jumps from 0 to ~0.35 m/s
+- The forward velocity ramp reaches full weight at 3M steps, and by 5M the
+  gradient signal overwhelms the stability rewards
+- All foot contact forces drop to near-zero — the agent is airborne/falling quickly
+- Gait symmetry crashes to zero (no coordinated leg alternation)
+- Pelvis height drops from 1.22m to 1.17m (the creature slouches forward)
+- Tilt angle increases from 3° to 7° (forward lean)
+- Distance traveled jumps from 0.2m to 0.6m per episode
+
+**Phase 3: Unstable Plateau & Late Degradation (10–20M steps)**
+- Reward oscillates wildly between 800–2500 with the peak around 14M
+- Episode length fluctuates between 200–1000 — highly unstable policy
+- Forward velocity reaches ~0.35–0.40 m/s but never approaches the 0.75 gate
+- A **second collapse** occurs around 17M steps, with episode length crashing to ~200
+- Speed dips to ~0.30 m/s by 20M
+- Heading alignment remains high (~0.95) — the agent moves straight but slowly
+- Final distance traveled ~1.0m, drift ~0.9m per episode
+
+---
+
+### Termination Analysis
+
+| Termination Reason | Fraction |
+|-------------------|----------|
+| **Fallen** | ~85% |
+| **Tail contact** | ~45% |
+| **Head contact** | ~14% |
+
+The agent is overwhelmingly terminated by falling. The high tail_contact fraction
+(45%) suggests the creature is tipping backward or its tail is dragging the ground.
+Head contact at 14% indicates nose-diving, which the nosedive_weight=0.8 is
+supposed to prevent but isn't sufficient.
+
+---
+
+### Reward Decomposition
+
+The reward decomposition reveals a clear hierarchy at convergence:
+
+| Component | Approximate Value | Notes |
+|-----------|-------------------|-------|
+| S2 forward | ~0.2–0.4 (growing) | Dominant learned component after 5M steps |
+| S2 alive | ~0.3 (constant) | Fixed bonus per step |
+| S2 gait_symmetry | ~0.5–0.7 | High early, but this reflects the penalty *not being applied* when stationary |
+| S2 height | ~0.1 | Small positive signal |
+| S2 energy | ~-0.05 | Very small penalty |
+| All others | ~0 | Posture, smoothness, heading, lateral — negligible contribution |
+
+The forward reward is the dominant learned signal but caps at ~0.4 per step because
+the agent only reaches ~0.35 m/s × 4.0 weight / forward_vel_max = ~1.4 before
+the episode terminates. Short episodes mean less total reward accumulation.
+
+---
+
+### Diagnosis: Two Competing Failure Modes
+
+**Failure Mode 1: The "Statue" (0–5M steps)**
+The agent learns that standing still maximizes alive_bonus + height + posture
+rewards without any fall risk. With forward_vel_weight ramping slowly from 0.2,
+the gradient signal for movement is initially too weak to overcome the stable
+equilibrium of standing still. The gait_symmetry reward (2.0 weight) is maximized
+when all four feet touch the ground — which they do when standing.
+
+**Failure Mode 2: The "Lunge and Fall" (5–20M steps)**
+Once the forward velocity reward reaches full weight (4.0), the agent discovers
+that lunging forward yields high instantaneous reward. But it hasn't developed the
+coordinated quadrupedal gait needed to sustain locomotion, so it falls within
+~200 steps (2 seconds). The 85% fall termination rate confirms this.
+
+**The core issue:** The agent transitions directly from standing to lunging without
+passing through stable walking. The reward landscape has a valley between the two
+attractors — walking requires simultaneously maintaining balance AND moving forward,
+which is harder than either alone.
+
+---
+
+### Contact Force Analysis
+
+The per-foot contact patterns are revealing:
+
+- **Early training (0–1M):** RL (rear-left) carries ~200 force, FR (front-right)
+  carries ~25. The creature leans heavily on a single diagonal pair (RL+FR)
+- **Mid-training (3–5M):** FR force spikes to ~100, FL and RR rise to ~50.
+  A second diagonal pair activates but forces are still asymmetric
+- **Late training (7M+):** ALL foot forces drop to near-zero. The creature is
+  barely in contact with the ground before falling
+
+The diagonal pair contact chart confirms the asymmetry: Diag A (FR+RL) peaks at
+~200 while Diag B (FL+RR) peaks at ~90. A healthy quadrupedal walk should show
+alternating, roughly equal diagonal pairs.
+
+---
+
+### Best Model Paradox
+
+The best checkpoint (14.3M steps) achieves 921 steps episode length but only
+0.13 m/s forward velocity. The 30-episode evaluation confirms this: 2396 reward
+over 921 steps ≈ 2.6 reward/step, mostly from alive + gait + height bonuses.
+
+**This checkpoint is essentially a refined "statue."** It mastered standing
+(achieving near-maximum episode length) with perhaps slight swaying that registers
+as minimal forward velocity. It would not pass the 0.75 m/s velocity gate.
+
+This creates a dilemma for checkpoint selection: the best-reward model can't walk,
+while the models that walk (Phase 3) can't survive long enough.
+
+---
+
+### Comparison with Cross-Species Patterns
+
+This run echoes several patterns from the T-Rex and Velociraptor analysis:
+
+| Pattern | Velociraptor/T-Rex | Brachiosaurus (this run) |
+|---------|-------------------|-------------------------|
+| Forward vel weight too high | fwd=2.0-3.0 → reckless sprinting | fwd=4.0 → lunging and falling |
+| Standing-still optimum | Alive + posture trap | Alive + gait_symmetry + height trap |
+| Catastrophic collapse | ep_len drops to 42-55 | ep_len drops from 1000 to 200 |
+| Contact asymmetry | — | RL leg carries 4x more force than others |
+| Best model = best stander | — | Best model: 921 steps, 0.13 m/s velocity |
+
+The forward_vel_weight=4.0 for Brachiosaurus is **even more aggressive** than the
+3.0 that caused catastrophic failures in Velociraptor. For a heavy sauropod that
+needs stable footing, this is too much velocity pressure.
+
+---
+
+### Recommendations
+
+#### 1. Reduce forward_vel_weight to 2.0 (from 4.0)
+
+The Velociraptor data showed that fwd_vel=1.0 was the sweet spot for bipeds. For a
+quadruped with more complex gait coordination, 2.0 should provide sufficient
+gradient signal without overwhelming stability rewards. At 0.75 m/s target speed,
+this gives 1.5/step — meaningful but not dominant.
+
+#### 2. Increase alive_bonus to 0.5 (from 0.3)
+
+The 85% fall rate is the primary failure mode. A stronger survival signal
+prioritizes learning to stay upright while moving. The Velociraptor's successful
+Stage 2 runs used alive=0.5.
+
+#### 3. Extend the ramp period to 5M steps (from 3M)
+
+The current 3M ramp means full velocity pressure hits at exactly the time the
+agent is still discovering how to use its legs. A 5M ramp gives more time for
+gait coordination to develop before speed pressure becomes dominant.
+
+#### 4. Increase gait_stability_weight to 0.2 (from 0.05)
+
+The 0.05 weight is too small to meaningfully penalize the angular velocity of the
+torso. The agent's increasing tilt angle (3° → 8°) shows this isn't being
+controlled. A 4x increase makes this comparable to posture_weight.
+
+#### 5. Add a minimum contact reward
+
+The drop to zero foot contact forces suggests the agent doesn't value ground
+contact. Consider adding a reward component that specifically rewards having ≥3
+feet in contact with the ground, separate from gait_symmetry. This bridges the
+gap between "standing" and "walking" by ensuring the agent maintains ground
+contact during locomotion.
+
+#### 6. Reduce training to 15M steps or add early stopping
+
+Performance peaked at 14.3M and then collapsed. Training past this point
+destroyed a good policy. Either cap training earlier or implement early stopping
+that saves the checkpoint when eval metrics decline for >1M consecutive steps.
+
+#### 7. Try 3 seeds
+
+The high run-to-run variance observed across species means this single run may
+not be representative. Running 3 seeds with the adjusted config and picking the
+best would improve reliability.
+
+#### Proposed Config Changes
+
+```toml
+[env]
+forward_vel_weight = 2.0        # Was 4.0: too aggressive for heavy quadruped
+alive_bonus = 0.5               # Was 0.3: reduce 85% fall rate
+fall_penalty = -50.0            # Keep
+gait_stability_weight = 0.2    # Was 0.05: control body angular velocity
+gait_symmetry_weight = 2.0     # Keep: still needed for four-leg coordination
+posture_weight = 0.3            # Keep
+nosedive_weight = 0.8           # Keep
+idle_penalty_weight = 0.2       # Was 0.3: less pressure to move at all costs
+
+[curriculum]
+timesteps = 15000000            # Was 20M: performance collapsed after 14M
+ramp_timesteps = 5000000        # Was 3M: slower ramp for gait development
+```
+
+---
+
+### Open Questions
+
+1. **Is the gait_symmetry reward correctly formulated for a sauropod?** At 2.0
+   weight, it's the second-largest reward signal, but the agent achieves it by
+   standing still (all four feet on ground). It may need to be conditioned on
+   forward velocity — only reward symmetry when the agent is actually moving.
+
+2. **Should the VecNormalize running stats be frozen during warm-up?** The
+   300K-step warm-up with low clip range may not be enough if the observation
+   distribution shifts significantly between standing (Stage 1) and walking
+   (Stage 2).
+
+3. **Is the natural_pitch target (-0.15 rad ≈ -8.6°) appropriate?** The tilt
+   angle chart shows the agent converging toward 8°, which is close to this
+   target. If the Brachiosaurus should be more upright, this target needs
+   adjustment.
