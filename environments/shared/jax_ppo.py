@@ -118,9 +118,7 @@ def sample_action(params, network, obs, rng):
 
     # Log probability (diagonal Gaussian)
     log_prob = -0.5 * jnp.sum(
-        jnp.square((action - action_mean) / (action_std + 1e-8))
-        + 2.0 * action_log_std
-        + jnp.log(2.0 * jnp.pi),
+        jnp.square((action - action_mean) / (action_std + 1e-8)) + 2.0 * action_log_std + jnp.log(2.0 * jnp.pi),
         axis=-1,
     )
 

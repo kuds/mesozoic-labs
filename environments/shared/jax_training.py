@@ -186,11 +186,7 @@ def train_jax(
         history.append(step_info)
 
         if update % 10 == 0:
-            print(
-                f"[Update {update:4d}/{num_updates}] "
-                f"steps={total_steps:,} reward={mean_reward:.2f} "
-                f"fps={fps:.0f}"
-            )
+            print(f"[Update {update:4d}/{num_updates}] steps={total_steps:,} reward={mean_reward:.2f} fps={fps:.0f}")
 
     elapsed = time.time() - t0
     print(f"[JAX Training] Done. {total_steps:,} steps in {elapsed:.1f}s ({total_steps / elapsed:.0f} fps)")

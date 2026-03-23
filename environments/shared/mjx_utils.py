@@ -15,8 +15,7 @@ def check_jax() -> None:
         import mujoco.mjx  # noqa: F401
     except ImportError as exc:
         raise ImportError(
-            "JAX/MJX training requires the [jax] extras.  Install with:\n"
-            "  pip install mesozoic-labs[jax]"
+            "JAX/MJX training requires the [jax] extras.  Install with:\n  pip install mesozoic-labs[jax]"
         ) from exc
 
 
