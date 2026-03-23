@@ -68,6 +68,7 @@ const config: Config = {
       logo: {
         alt: 'Mesozoic Labs Logo',
         src: 'img/logo.svg',
+        srcDark: 'img/logo-dark.svg',
       },
       items: [
         {

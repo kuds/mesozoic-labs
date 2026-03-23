@@ -85,6 +85,9 @@ body {
   margin-right: 0.5rem;
   overflow: hidden;
   flex-shrink: 0;
+  /* Prevent Safari from collapsing the logo container */
+  min-width: 2rem;
+  min-height: 2rem;
 }
 
 .navbar__logo img {
@@ -92,11 +95,14 @@ body {
   width: 100%;
   display: block;
   object-fit: contain;
+  /* Force consistent rasterization across browsers */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  image-rendering: -webkit-optimize-contrast;
 }
 
-[data-theme='dark'] .navbar__logo img {
-  filter: invert(1);
-}
+/* Dark mode logo is handled via srcDark in docusaurus.config.ts
+   instead of CSS filter: invert(1) for better cross-browser consistency */
 
 /* Mobile navbar sidebar fixes */
 .navbar-sidebar {
@@ -112,6 +118,8 @@ body {
 .navbar-sidebar__brand .navbar__logo {
   height: 2rem;
   width: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
 }
 
 /* Ensure hamburger toggle is tappable on mobile */
