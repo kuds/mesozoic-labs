@@ -17,19 +17,14 @@ from environments.shared.reward_functions import (
     reward_alive,
     reward_approach_shaping,
     reward_backward_penalty,
-    reward_drift_penalty,
     reward_energy,
     reward_forward_velocity,
-    reward_heading_alignment,
     reward_height_maintenance,
     reward_idle_penalty,
-    reward_lateral_velocity_penalty,
-    reward_nosedive,
     reward_posture,
     reward_proximity,
     reward_speed_penalty,
 )
-
 
 # ---------------------------------------------------------------------------
 # Quaternion helpers

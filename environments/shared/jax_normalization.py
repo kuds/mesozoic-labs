@@ -12,7 +12,7 @@ Usage::
 
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from .mjx_utils import check_jax
 
@@ -20,8 +20,8 @@ from .mjx_utils import check_jax
 class RunningMeanStd(NamedTuple):
     """Welford online mean/variance tracker as a JAX-compatible NamedTuple."""
 
-    mean: "jnp.ndarray"  # type: ignore[name-defined]
-    var: "jnp.ndarray"  # type: ignore[name-defined]
+    mean: Any  # jnp.ndarray (lazy import)
+    var: Any  # jnp.ndarray (lazy import)
     count: float
 
     @classmethod
@@ -41,7 +41,7 @@ class RunningMeanStd(NamedTuple):
 
 def update_running_stats(
     stats: RunningMeanStd,
-    batch: "jnp.ndarray",
+    batch: Any,
 ) -> RunningMeanStd:
     """Update running mean/variance with a new batch of observations.
 
@@ -74,10 +74,10 @@ def update_running_stats(
 
 
 def normalize_obs(
-    obs: "jnp.ndarray",
+    obs: Any,
     stats: RunningMeanStd,
     clip: float = 10.0,
-) -> "jnp.ndarray":
+) -> Any:
     """Normalise observations using running mean and variance.
 
     Args:

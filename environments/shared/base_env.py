@@ -20,26 +20,24 @@ import mujoco
 import numpy as np
 
 from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
-from .reward_functions import (
-    check_height_tilt_termination as _check_height_tilt_pure,
-    quat_to_forward_2d as _quat_to_forward_2d_pure,
-    quat_to_forward_z as _quat_to_forward_z_pure,
-    quat_to_tilt as _quat_to_tilt_pure,
-    reward_action_smoothness as _reward_action_smoothness_pure,
-    reward_alive as _reward_alive_pure,
-    reward_angular_velocity_penalty as _reward_angular_velocity_penalty_pure,
-    reward_approach_shaping as _reward_approach_shaping_pure,
-    reward_backward_penalty as _reward_backward_penalty_pure,
-    reward_drift_penalty as _reward_drift_penalty_pure,
-    reward_energy as _reward_energy_pure,
-    reward_forward_velocity as _reward_forward_velocity_pure,
-    reward_heading_alignment as _reward_heading_alignment_pure,
-    reward_idle_penalty as _reward_idle_penalty_pure,
-    reward_lateral_velocity_penalty as _reward_lateral_velocity_penalty_pure,
-    reward_nosedive as _reward_nosedive_pure,
-    reward_posture as _reward_posture_pure,
-    reward_speed_penalty as _reward_speed_penalty_pure,
-)
+from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
+from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
+from .reward_functions import quat_to_forward_z as _quat_to_forward_z_pure
+from .reward_functions import quat_to_tilt as _quat_to_tilt_pure
+from .reward_functions import reward_action_smoothness as _reward_action_smoothness_pure
+from .reward_functions import reward_alive as _reward_alive_pure
+from .reward_functions import reward_angular_velocity_penalty as _reward_angular_velocity_penalty_pure
+from .reward_functions import reward_approach_shaping as _reward_approach_shaping_pure
+from .reward_functions import reward_backward_penalty as _reward_backward_penalty_pure
+from .reward_functions import reward_drift_penalty as _reward_drift_penalty_pure
+from .reward_functions import reward_energy as _reward_energy_pure
+from .reward_functions import reward_forward_velocity as _reward_forward_velocity_pure
+from .reward_functions import reward_heading_alignment as _reward_heading_alignment_pure
+from .reward_functions import reward_idle_penalty as _reward_idle_penalty_pure
+from .reward_functions import reward_lateral_velocity_penalty as _reward_lateral_velocity_penalty_pure
+from .reward_functions import reward_nosedive as _reward_nosedive_pure
+from .reward_functions import reward_posture as _reward_posture_pure
+from .reward_functions import reward_speed_penalty as _reward_speed_penalty_pure
 
 
 class BaseDinoEnv(gym.Env, ABC):

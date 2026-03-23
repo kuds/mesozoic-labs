@@ -31,7 +31,6 @@ def scale_action_jax(action, ctrl_range):
     Returns:
         Scaled control array.
     """
-    import jax.numpy as jnp
 
     ctrl_min = ctrl_range[:, 0]
     ctrl_max = ctrl_range[:, 1]
@@ -40,7 +39,6 @@ def scale_action_jax(action, ctrl_range):
 
 def unscale_action_jax(ctrl, ctrl_range):
     """Inverse of :func:`scale_action_jax`: control range → [-1, 1]."""
-    import jax.numpy as jnp
 
     ctrl_min = ctrl_range[:, 0]
     ctrl_max = ctrl_range[:, 1]

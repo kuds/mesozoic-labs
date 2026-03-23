@@ -7,8 +7,8 @@ import pytest
 
 _has_jax = False
 try:
-    import jax
-    import mujoco.mjx
+    import jax  # noqa: F401
+    import mujoco.mjx  # noqa: F401
 
     _has_jax = True
 except ImportError:

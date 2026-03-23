@@ -19,7 +19,6 @@ from typing import Any
 
 import numpy as np
 
-
 # ---------------------------------------------------------------------------
 # Type alias: works with both numpy and jax arrays
 # ---------------------------------------------------------------------------
@@ -135,7 +134,7 @@ def reward_action_smoothness(
 def quat_to_tilt(quat: Array) -> float:
     """Tilt angle (radians) between body up-axis and world up."""
     xp = _array_mod(quat)
-    w, x, y, z = quat[0], quat[1], quat[2], quat[3]
+    _w, x, y, _z = quat[0], quat[1], quat[2], quat[3]
     body_up_z = 1.0 - 2.0 * (x * x + y * y)
     return float(xp.arccos(xp.clip(body_up_z, -1.0, 1.0)))
 

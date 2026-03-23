@@ -163,7 +163,6 @@ class MJXDinoEnv:
         from .mjx_utils import scale_action_jax
         from .obs_functions import SensorLayout, build_bipedal_obs
         from .reward_functions import (
-            quat_to_tilt,
             reward_alive,
             reward_approach_shaping,
             reward_energy,

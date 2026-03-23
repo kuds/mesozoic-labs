@@ -7,6 +7,7 @@ files used by the SB3 path.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from .config import load_stage_config
@@ -33,7 +34,7 @@ def check_stage_gate(
 
 def run_curriculum(
     species: str,
-    train_fn: "Callable",
+    train_fn: Callable,
     stages: tuple[int, ...] = (1, 2, 3),
     **train_kwargs: Any,
 ) -> dict[int, Any]:
