@@ -185,7 +185,7 @@ Per-species constants stay in their respective env files.
 
 | Notebook | Status | Action |
 |----------|--------|--------|
-| `jax_trex_training.ipynb` | Potentially stale | Verify if JAX path is still maintained; archive or mark experimental if not |
+| `jax_training.ipynb` | Potentially stale | Verify if JAX path is still maintained; archive or mark experimental if not |
 | `google_drive_summary.ipynb` | Utility | Verify relevance |
 
 ---

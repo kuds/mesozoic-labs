@@ -46,7 +46,7 @@ mesozoic-labs/
 ├── configs/                   # TOML hyperparameter configs per species/stage
 ├── notebooks/                 # Jupyter notebooks for experiments
 │   ├── training.ipynb
-│   ├── jax_trex_training.ipynb
+│   ├── jax_training.ipynb
 │   ├── ray_tune_sweep.ipynb
 │   └── google_drive_summary.ipynb
 ├── website/                   # Documentation site (Docusaurus)
@@ -188,7 +188,7 @@ Hardware: Google Colab L4 GPU
 | Notebook | Description |
 |----------|-------------|
 | `notebooks/training.ipynb` | Unified 3-stage curriculum training for all species (Colab-ready) |
-| `notebooks/jax_trex_training.ipynb` | JAX/MJX T-Rex training for GPU acceleration (Colab-ready) |
+| `notebooks/jax_training.ipynb` | JAX/MJX training for all species with GPU acceleration (Colab-ready) |
 | `notebooks/ray_tune_sweep.ipynb` | Ray Tune hyperparameter sweep with ASHA early stopping (Colab-ready) |
 | `notebooks/google_drive_summary.ipynb` | Training runs summary and comparison across all species (Colab-ready) |
 
