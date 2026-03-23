@@ -22,7 +22,7 @@ class RunningMeanStd(NamedTuple):
 
     mean: Any  # jnp.ndarray (lazy import)
     var: Any  # jnp.ndarray (lazy import)
-    count: float
+    count: float  # type: ignore[assignment]  # shadows tuple.count; intentional for NamedTuple field
 
     @classmethod
     def create(cls, shape: int | tuple[int, ...]) -> "RunningMeanStd":

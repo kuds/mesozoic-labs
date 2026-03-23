@@ -215,7 +215,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             Normalised 2D forward direction vector.
         """
-        return _quat_to_forward_2d_pure(quat)
+        return np.asarray(_quat_to_forward_2d_pure(quat))
 
     @staticmethod
     def _quat_to_forward_z(quat: np.ndarray) -> float:

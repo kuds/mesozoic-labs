@@ -29,7 +29,7 @@ def check_stage_gate(
     """
     curriculum = stage_config.get("curriculum", {})
     min_reward = curriculum.get("min_avg_reward", float("inf"))
-    return eval_metrics.get("mean_reward", 0.0) >= min_reward
+    return bool(eval_metrics.get("mean_reward", 0.0) >= min_reward)
 
 
 def run_curriculum(
