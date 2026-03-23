@@ -40,6 +40,20 @@ ent_coef = 0.01
 [setting_1.ppo.policy_kwargs]
 net_arch = [256, 256]
 
+[setting_1.sac]
+learning_rate = 3e-4
+batch_size = 256
+gamma = 0.99
+tau = 0.005
+ent_coef = "auto"
+buffer_size = 300_000
+learning_starts = 10_000
+train_freq = 4
+gradient_steps = 4
+
+[setting_1.sac.policy_kwargs]
+net_arch = [256, 256]
+
 # --- Setting 2: Anti-rotation — Stronger gait stability + posture to prevent wobble ---
 
 [setting_2.env]
@@ -77,6 +91,20 @@ ent_coef = 0.001
 [setting_2.ppo.policy_kwargs]
 net_arch = [512, 256]
 
+[setting_2.sac]
+learning_rate = 3e-4
+batch_size = 256
+gamma = 0.98
+tau = 0.005
+ent_coef = "auto"
+buffer_size = 300_000
+learning_starts = 10_000
+train_freq = 4
+gradient_steps = 4
+
+[setting_2.sac.policy_kwargs]
+net_arch = [512, 256]
+
 # --- Setting 3: High alive bonus — Boosted survival signal ---
 
 [setting_3.env]
@@ -109,6 +137,20 @@ clip_range = 0.2
 ent_coef = 0.0015
 
 [setting_3.ppo.policy_kwargs]
+net_arch = [512, 256]
+
+[setting_3.sac]
+learning_rate = 3e-4
+batch_size = 256
+gamma = 0.988
+tau = 0.005
+ent_coef = "auto"
+buffer_size = 300_000
+learning_starts = 10_000
+train_freq = 4
+gradient_steps = 4
+
+[setting_3.sac.policy_kwargs]
 net_arch = [512, 256]
 
 # --- Setting 4: Anti-rotation (velociraptor setting 4 port) ---
@@ -150,4 +192,18 @@ clip_range = 0.2
 ent_coef = 0.0007740928167426532
 
 [setting_4.ppo.policy_kwargs]
+net_arch = [512, 256]
+
+[setting_4.sac]
+learning_rate = 3e-4
+batch_size = 256
+gamma = 0.9796799988368609
+tau = 0.005
+ent_coef = "auto"
+buffer_size = 300_000
+learning_starts = 10_000
+train_freq = 4
+gradient_steps = 4
+
+[setting_4.sac.policy_kwargs]
 net_arch = [512, 256]

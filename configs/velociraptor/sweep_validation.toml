@@ -44,6 +44,20 @@ ent_coef = 0.0014883260316447084
 [setting_1.ppo.policy_kwargs]
 net_arch = [512, 256]
 
+[setting_1.sac]
+learning_rate = 3e-4
+batch_size = 256
+gamma = 0.9882306956920238
+tau = 0.005
+ent_coef = "auto"
+buffer_size = 300_000
+learning_starts = 10_000
+train_freq = 16
+gradient_steps = 8
+
+[setting_1.sac.policy_kwargs]
+net_arch = [512, 256]
+
 # --- Setting 2: Trial 9 — Very stable (4383.09), max episode length ---
 
 [setting_2.env]
@@ -77,6 +91,20 @@ ent_coef = 0.0007740928167426532
 [setting_2.ppo.policy_kwargs]
 net_arch = [512, 256]
 
+[setting_2.sac]
+learning_rate = 3e-4
+batch_size = 256
+gamma = 0.9796799988368609
+tau = 0.005
+ent_coef = "auto"
+buffer_size = 300_000
+learning_starts = 10_000
+train_freq = 16
+gradient_steps = 8
+
+[setting_2.sac.policy_kwargs]
+net_arch = [512, 256]
+
 # --- Setting 3: Trial 21 — Stable (4380.45), lowest LR, max episode length ---
 
 [setting_3.env]
@@ -108,6 +136,20 @@ clip_range = 0.2
 ent_coef = 0.00012015156147932175
 
 [setting_3.ppo.policy_kwargs]
+net_arch = [512, 256]
+
+[setting_3.sac]
+learning_rate = 3e-4
+batch_size = 256
+gamma = 0.975529372002336
+tau = 0.005
+ent_coef = "auto"
+buffer_size = 300_000
+learning_starts = 10_000
+train_freq = 16
+gradient_steps = 8
+
+[setting_3.sac.policy_kwargs]
 net_arch = [512, 256]
 
 # --- Setting 4: Anti-rotation — Reduced alive bonus, stronger heading/spin ---
@@ -148,4 +190,18 @@ clip_range = 0.2
 ent_coef = 0.0007740928167426532
 
 [setting_4.ppo.policy_kwargs]
+net_arch = [512, 256]
+
+[setting_4.sac]
+learning_rate = 3e-4
+batch_size = 256
+gamma = 0.9796799988368609
+tau = 0.005
+ent_coef = "auto"
+buffer_size = 300_000
+learning_starts = 10_000
+train_freq = 16
+gradient_steps = 8
+
+[setting_4.sac.policy_kwargs]
 net_arch = [512, 256]
