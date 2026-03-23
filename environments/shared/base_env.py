@@ -20,6 +20,24 @@ import mujoco
 import numpy as np
 
 from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
+from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
+from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
+from .reward_functions import quat_to_forward_z as _quat_to_forward_z_pure
+from .reward_functions import quat_to_tilt as _quat_to_tilt_pure
+from .reward_functions import reward_action_smoothness as _reward_action_smoothness_pure
+from .reward_functions import reward_alive as _reward_alive_pure
+from .reward_functions import reward_angular_velocity_penalty as _reward_angular_velocity_penalty_pure
+from .reward_functions import reward_approach_shaping as _reward_approach_shaping_pure
+from .reward_functions import reward_backward_penalty as _reward_backward_penalty_pure
+from .reward_functions import reward_drift_penalty as _reward_drift_penalty_pure
+from .reward_functions import reward_energy as _reward_energy_pure
+from .reward_functions import reward_forward_velocity as _reward_forward_velocity_pure
+from .reward_functions import reward_heading_alignment as _reward_heading_alignment_pure
+from .reward_functions import reward_idle_penalty as _reward_idle_penalty_pure
+from .reward_functions import reward_lateral_velocity_penalty as _reward_lateral_velocity_penalty_pure
+from .reward_functions import reward_nosedive as _reward_nosedive_pure
+from .reward_functions import reward_posture as _reward_posture_pure
+from .reward_functions import reward_speed_penalty as _reward_speed_penalty_pure
 
 
 class BaseDinoEnv(gym.Env, ABC):
@@ -114,10 +132,7 @@ class BaseDinoEnv(gym.Env, ABC):
             Angle in radians between the body's Z-axis and world Z-axis.
             0 means perfectly upright, pi/2 means horizontal.
         """
-        w, x, y, z = quat
-        # Body Z-axis (up) rotated into world frame
-        body_up_z = 1.0 - 2.0 * (x * x + y * y)
-        return float(np.arccos(np.clip(body_up_z, -1.0, 1.0)))
+        return _quat_to_tilt_pure(quat)
 
     # ------------------------------------------------------------------
     # Abstract methods: subclasses MUST implement these
@@ -156,7 +171,7 @@ class BaseDinoEnv(gym.Env, ABC):
 
     def _reward_alive(self) -> float:
         """Return the alive bonus. Identical across all species."""
-        return self.alive_bonus
+        return _reward_alive_pure(self.alive_bonus)
 
     # Subclass attributes used by shared helpers.  Declared here for type
     # checking; actual values are set in subclass ``__init__``.
@@ -169,10 +184,8 @@ class BaseDinoEnv(gym.Env, ABC):
         Energy is ``sum(action**2) / n_actuators``, so it ranges [0, 1]
         when actions are in [-1, 1].
         """
-        energy = float(np.sum(np.square(action)))
         n_actuators: int = self.action_space.shape[0]  # type: ignore[index]
-        energy_norm = energy / n_actuators
-        return -self.energy_penalty_weight * energy_norm
+        return _reward_energy_pure(action, n_actuators, self.energy_penalty_weight)
 
     def _reward_action_smoothness(self, action: np.ndarray) -> tuple[float, float]:
         """Compute action-smoothness penalty and raw action delta.
@@ -181,15 +194,10 @@ class BaseDinoEnv(gym.Env, ABC):
         sum of squared differences from the previous action.  Callers
         must set ``self._prev_action`` before the first call.
         """
-        if self._prev_action is not None:
-            action_delta = float(np.sum(np.square(action - self._prev_action)))
-            n_actuators: int = self.action_space.shape[0]  # type: ignore[index]
-            max_action_delta = n_actuators * 4.0
-            action_delta_norm = action_delta / max_action_delta
-            reward = -self.smoothness_weight * action_delta_norm
-        else:
-            action_delta = 0.0
-            reward = 0.0
+        n_actuators: int = self.action_space.shape[0]  # type: ignore[index]
+        reward, action_delta = _reward_action_smoothness_pure(
+            action, self._prev_action, n_actuators, self.smoothness_weight
+        )
         self._prev_action = action.copy()
         return reward, action_delta
 
@@ -207,14 +215,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             Normalised 2D forward direction vector.
         """
-        w, x, y, z = quat
-        body_forward_x = 1.0 - 2.0 * (y * y + z * z)
-        body_forward_y = 2.0 * (x * y + w * z)
-        body_forward_2d = np.array([body_forward_x, body_forward_y])
-        length = np.linalg.norm(body_forward_2d)
-        if length > 1e-6:
-            body_forward_2d = body_forward_2d / length
-        return body_forward_2d
+        return np.asarray(_quat_to_forward_2d_pure(quat))
 
     @staticmethod
     def _quat_to_forward_z(quat: np.ndarray) -> float:
@@ -229,8 +230,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             Scalar Z-component of forward direction.
         """
-        w, x, y, z = quat
-        return float(2.0 * (x * z - w * y))
+        return _quat_to_forward_z_pure(quat)
 
     def _compute_posture_reward(self, quat: np.ndarray, weight: float) -> tuple[float, float]:
         """Compute quadratic tilt penalty.
@@ -242,10 +242,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (reward, tilt_angle) tuple.
         """
-        tilt_angle = self._quat_to_tilt(quat)
-        tilt_angle_norm = min(tilt_angle / self.max_tilt_angle, 1.0)
-        reward = -weight * (tilt_angle_norm**2)
-        return reward, tilt_angle
+        return _reward_posture_pure(quat, self.max_tilt_angle, weight)
 
     def _compute_nosedive_penalty(
         self, quat: np.ndarray, weight: float, natural_forward_z: float
@@ -260,10 +257,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (reward, forward_z) tuple.
         """
-        forward_z = self._quat_to_forward_z(quat)
-        nosedive_excess = max(0.0, -(forward_z - natural_forward_z))
-        reward = -weight * nosedive_excess
-        return reward, forward_z
+        return _reward_nosedive_pure(quat, weight, natural_forward_z)
 
     def _compute_angular_velocity_penalty(
         self, weight: float, max_angvel: float = TAIL_ANGULAR_VEL_MAX
@@ -278,10 +272,7 @@ class BaseDinoEnv(gym.Env, ABC):
             (reward, instability_magnitude) tuple.
         """
         angvel = self.data.qvel[3:6]
-        instability = float(np.linalg.norm(angvel))
-        instability_norm = min(instability / max_angvel, 1.0)
-        reward = -weight * instability_norm
-        return reward, instability
+        return _reward_angular_velocity_penalty_pure(angvel, weight, max_angvel)
 
     def _compute_tail_stability(
         self, tail_tip_site_id: int, weight: float, max_angvel: float = TAIL_ANGULAR_VEL_MAX
@@ -322,16 +313,8 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (reward, approach_delta) tuple.
         """
-        if prev_distance is not None:
-            approach_delta = prev_distance - current_distance
-        else:
-            approach_delta = 0.0
-
         dt = self.frame_skip * self.model.opt.timestep
-        max_delta = max_speed * dt
-        approach_delta_norm = float(np.clip(approach_delta / max_delta, -1.0, 1.0))
-        reward = weight * approach_delta_norm
-        return reward, approach_delta
+        return _reward_approach_shaping_pure(current_distance, prev_distance, weight, max_speed, dt)
 
     def _compute_forward_velocity(
         self, vel_2d: np.ndarray, forward_ref_2d: np.ndarray, vel_max: float, weight: float
@@ -347,10 +330,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (reward, raw_forward_vel) tuple.
         """
-        forward_vel = float(np.dot(vel_2d, forward_ref_2d))
-        forward_vel_norm = float(np.clip(forward_vel / vel_max, -1.0, 1.0))
-        reward = weight * forward_vel_norm
-        return reward, forward_vel
+        return _reward_forward_velocity_pure(vel_2d, forward_ref_2d, vel_max, weight)
 
     def _compute_backward_penalty(self, forward_vel: float, vel_max: float, weight: float) -> tuple[float, float]:
         """Compute backward velocity penalty.
@@ -363,10 +343,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (reward, backward_vel) tuple.
         """
-        backward_vel = max(0.0, -forward_vel)
-        backward_vel_norm = min(backward_vel / vel_max, 1.0)
-        reward = -weight * backward_vel_norm
-        return reward, backward_vel
+        return _reward_backward_penalty_pure(forward_vel, vel_max, weight)
 
     def _compute_drift_penalty(
         self, current_pos_2d: np.ndarray, initial_pos_2d: np.ndarray, weight: float
@@ -381,11 +358,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (reward, drift_distance) tuple.
         """
-        drift_2d = current_pos_2d - initial_pos_2d
-        drift_dist = float(np.linalg.norm(drift_2d))
-        drift_norm = drift_dist / 2.0
-        reward = -weight * (drift_norm**2)
-        return reward, drift_dist
+        return _reward_drift_penalty_pure(current_pos_2d, initial_pos_2d, weight)
 
     def _compute_heading_alignment(
         self, body_forward_2d: np.ndarray, forward_ref_2d: np.ndarray, weight: float
@@ -400,9 +373,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (reward, heading_alignment_cos) tuple.
         """
-        heading_alignment = float(np.dot(body_forward_2d, forward_ref_2d))
-        reward = weight * heading_alignment
-        return reward, heading_alignment
+        return _reward_heading_alignment_pure(body_forward_2d, forward_ref_2d, weight)
 
     def _compute_lateral_velocity_penalty(
         self, vel_2d: np.ndarray, body_forward_2d: np.ndarray, weight: float
@@ -417,10 +388,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (reward, lateral_vel) tuple.
         """
-        lateral_vel = abs(vel_2d[0] * body_forward_2d[1] - vel_2d[1] * body_forward_2d[0])
-        lateral_vel_norm = float(np.clip(lateral_vel / 5.0, 0.0, 1.0))
-        reward = -weight * lateral_vel_norm
-        return reward, float(lateral_vel)
+        return _reward_lateral_velocity_penalty_pure(vel_2d, body_forward_2d, weight)
 
     def _compute_speed_penalty(
         self, vel_2d: np.ndarray, weight: float, threshold: float = 0.10, max_excess: float = 1.0
@@ -436,11 +404,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (reward, absolute_speed) tuple.
         """
-        speed = float(np.linalg.norm(vel_2d))
-        excess = max(0.0, speed - threshold)
-        excess_norm = min(excess / max_excess, 1.0)
-        reward = -weight * excess_norm
-        return reward, speed
+        return _reward_speed_penalty_pure(vel_2d, weight, threshold, max_excess)
 
     def _compute_idle_penalty(self, vel_2d: np.ndarray, weight: float, threshold: float = 0.05) -> tuple[float, float]:
         """Penalise low 2D speed (standing still / barely moving).
@@ -456,12 +420,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (reward, absolute_speed) tuple.
         """
-        speed = float(np.linalg.norm(vel_2d))
-        if speed >= threshold:
-            return 0.0, speed
-        idle_frac = 1.0 - speed / threshold
-        reward = -weight * idle_frac
-        return reward, speed
+        return _reward_idle_penalty_pure(vel_2d, weight, threshold)
 
     def _init_gait_state(
         self,
@@ -674,13 +633,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (terminated, reason) where reason is None if not terminated.
         """
-        if body_z < self.healthy_z_range[0]:
-            return True, "fallen"
-        if body_z > self.healthy_z_range[1]:
-            return True, "too_high"
-        if tilt_angle > self.max_tilt_angle:
-            return True, "excessive_tilt"
-        return False, None
+        return _check_height_tilt_pure(body_z, tilt_angle, self.healthy_z_range, self.max_tilt_angle)
 
     def _check_floor_contact(
         self, body_ground_geoms: set, floor_geom_id: int, geom_categories: "dict[str, set] | None" = None

@@ -41,6 +41,12 @@ train = [
     "wandb>=0.16.0",
     "cloudml-hypertune>=0.1.0.dev0",
 ]
+jax = [
+    "mujoco-mjx>=3.0.0",
+    "jax[cuda12]>=0.4.20",
+    "flax>=0.8.0",
+    "optax>=0.1.7",
+]
 viz = [
     "mediapy>=1.1.0",
     "matplotlib>=3.7.0",
@@ -58,7 +64,7 @@ dev = [
     "pre-commit>=3.0",
 ]
 all = [
-    "mesozoic-labs[train,viz,dev]",
+    "mesozoic-labs[train,jax,viz,dev]",
 ]
 
 # Gymnasium environment entry points — allows gym.make("MesozoicLabs/Raptor-v0")
@@ -126,6 +132,16 @@ omit = [
     # that were already excluded by */scripts/*). Utility helpers in this module
     # are tested via test_train_base.py.
     "environments/shared/train_base.py",
+    # JAX/MJX modules require the [jax] optional dependency which is not
+    # available in the standard CI test environment.  These are tested
+    # separately when JAX is installed.
+    "environments/shared/mjx_env.py",
+    "environments/shared/mjx_utils.py",
+    "environments/shared/jax_ppo.py",
+    "environments/shared/jax_training.py",
+    "environments/shared/jax_normalization.py",
+    "environments/shared/jax_curriculum.py",
+    "environments/*/mjx_config.py",
 ]
 
 [tool.coverage.report]

@@ -274,7 +274,7 @@ tuned to match the contact geometry radius from the MJCF model.
 
 ## 4. Phase 3 — JAX Training Infrastructure
 
-**Goal:** Consolidate the inline PPO code from `jax_trex_training.ipynb` into
+**Goal:** Consolidate the inline PPO code from `jax_training.ipynb` into
 reusable modules, add observation normalization, and support curriculum training.
 
 ### 4.1 New File: `environments/shared/jax_ppo.py`
@@ -358,43 +358,21 @@ def run_curriculum(species, stages=(1, 2, 3), ...):
 
 ## 5. Phase 4 — JAX Training Notebooks
 
-**Goal:** Update the existing JAX T-Rex notebook and create species-specific
-notebooks that use the new shared modules instead of inline code.
+**Goal:** Refactor the JAX notebook to use the shared modules and make it
+species-agnostic so a single notebook supports all species.
 
-### 5.1 Refactor `notebooks/jax_trex_training.ipynb`
+### 5.1 Refactored `notebooks/jax_training.ipynb` ✅
 
-The current notebook has ~800 lines of inline PPO, reward, and env code. Refactor
-to import from the new shared modules:
+The notebook (formerly `jax_trex_training.ipynb`) has been refactored to:
+- Import from shared modules (`reward_functions`, `obs_functions`, `jax_ppo`, `mjx_utils`)
+- Use a `SPECIES` configuration variable to select any species
+- Auto-resolve model paths, body IDs, healthy ranges, and sensor layouts
+- Load reward configs from the species' TOML stage files
 
-```python
-# Before (inline)
-class ActorCritic(nn.Module): ...
-def compute_reward(data, action, reward_cfg): ...
-# ... 500+ lines of training loop ...
+No per-species notebooks are needed — a single `SPECIES = "trex"` /
+`"velociraptor"` / `"brachiosaurus"` selector drives everything.
 
-# After (clean imports)
-from environments.shared.mjx_env import MJXDinoEnv
-from environments.shared.jax_ppo import ActorCritic, train_ppo
-from environments.shared.jax_training import train_jax
-
-env = MJXDinoEnv("trex", stage=1, num_envs=2048)
-params, history = train_jax("trex", stage=1, num_updates=500)
-```
-
-The notebook should remain Colab-friendly with setup cells for GPU detection,
-pip installs, and Google Drive mounting.
-
-### 5.2 New Notebooks
-
-| Notebook | Description |
-|----------|-------------|
-| `notebooks/jax_raptor_training.ipynb` | Velociraptor JAX/MJX training (3-stage curriculum) |
-| `notebooks/jax_brachio_training.ipynb` | Brachiosaurus JAX/MJX training (3-stage curriculum) |
-
-These follow the same structure as the refactored T-Rex notebook but with
-species-specific configuration.
-
-### 5.3 Existing SB3 Notebook
+### 5.2 Existing SB3 Notebook
 
 `notebooks/training.ipynb` (the SB3 Colab notebook) is **not modified**. It
 continues to work exactly as before via the Gymnasium API.
@@ -403,7 +381,7 @@ continues to work exactly as before via the Gymnasium API.
 
 | File | Action |
 |------|--------|
-| `notebooks/jax_trex_training.ipynb` | **Edit** — Refactor to use shared modules |
+| `notebooks/jax_training.ipynb` | **Edit** — Refactor to use shared modules |
 | `notebooks/jax_raptor_training.ipynb` | **New** — Raptor JAX training |
 | `notebooks/jax_brachio_training.ipynb` | **New** — Brachio JAX training |
 
@@ -560,10 +538,8 @@ Mark MJX integration as part of the project roadmap.
 - [ ] Verify PPO converges on T-Rex Stage 1 (balance)
 
 ### Phase 4 — Notebooks
-- [ ] Refactor `notebooks/jax_trex_training.ipynb`
-- [ ] Create `notebooks/jax_raptor_training.ipynb`
-- [ ] Create `notebooks/jax_brachio_training.ipynb`
-- [ ] Test all notebooks on Colab with GPU runtime
+- [x] Refactor `notebooks/jax_training.ipynb` (species-agnostic, all 3 species)
+- [ ] Test notebook on Colab with GPU runtime for each species
 
 ### Phase 5 — Packaging
 - [ ] Add `[jax]` optional dependency group to `pyproject.toml`
@@ -618,9 +594,7 @@ environments/velociraptor/mjx_config.py
 environments/brachiosaurus/mjx_config.py
 
 notebooks/
-├── jax_trex_training.ipynb      # Refactored (uses shared modules)
-├── jax_raptor_training.ipynb    # New
-└── jax_brachio_training.ipynb   # New
+└── jax_training.ipynb      # Refactored, species-agnostic (supports all species)
 ```
 
 ## Estimated Scope

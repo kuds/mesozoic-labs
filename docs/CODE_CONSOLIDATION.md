@@ -341,7 +341,7 @@ while eliminating source duplication.
   before training starts
 - **Error handling**: Add try/except around imports with clear error messages
 
-### 6.3 JAX notebook cleanup (`jax_trex_training.ipynb`)
+### 6.3 JAX notebook cleanup (`jax_training.ipynb`)
 
 - Extract hardcoded sensor indices (`S_GYRO`, `S_ACCEL`, etc.) to use
   shared constants from `environments.shared.constants`

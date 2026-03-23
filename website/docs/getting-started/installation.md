@@ -71,7 +71,7 @@ Available notebooks:
 - `notebooks/velociraptor_training.ipynb` - Velociraptor 3-stage curriculum
 - `notebooks/brachiosaurus_training.ipynb` - Brachiosaurus 3-stage curriculum
 - `notebooks/trex_training.ipynb` - T-Rex 3-stage curriculum
-- `notebooks/jax_trex_training.ipynb` - JAX/MJX T-Rex training (TPU-ready)
+- `notebooks/jax_training.ipynb` - JAX/MJX T-Rex training (TPU-ready)
 
 ## Dependencies
 
