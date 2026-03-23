@@ -187,6 +187,8 @@ critical bridge between "cool demo" and "transferable research."
     balance recovery.
   - Introduce in Stage 2+ configs only — Stage 1 (balance) should train
     without perturbations so the agent learns to stand first.
+  - JAX/MJX path will need its own domain randomization approach (functional
+    `model.replace()` instead of in-place mutation) — coordinate with Phase 5
   - _Dependency: Phase 1 (need working trained policies to evaluate against)_
 
 - [ ] **Sensor noise & action delay**
