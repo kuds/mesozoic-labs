@@ -18,10 +18,13 @@ Or from Python::
 from __future__ import annotations
 
 import argparse
+import logging
 import time
 from typing import Any
 
 from .mjx_utils import check_jax
+
+_logger = logging.getLogger(__name__)
 
 
 def train_jax(
@@ -73,8 +76,8 @@ def train_jax(
     # Import species config to trigger registration
     _import_species_config(species)
 
-    print(f"[JAX Training] species={species} stage={stage} num_envs={num_envs}")
-    print(f"[JAX Training] device: {jax.devices()[0]}")
+    _logger.info("species=%s stage=%d num_envs=%d", species, stage, num_envs)
+    _logger.info("device: %s", jax.devices()[0])
 
     # Create environment
     env = MJXDinoEnv(species, stage=stage, num_envs=num_envs)
@@ -186,10 +189,10 @@ def train_jax(
         history.append(step_info)
 
         if update % 10 == 0:
-            print(f"[Update {update:4d}/{num_updates}] steps={total_steps:,} reward={mean_reward:.2f} fps={fps:.0f}")
+            _logger.info("Update %4d/%d | steps=%s reward=%.2f fps=%.0f", update, num_updates, f"{total_steps:,}", mean_reward, fps)
 
     elapsed = time.time() - t0
-    print(f"[JAX Training] Done. {total_steps:,} steps in {elapsed:.1f}s ({total_steps / elapsed:.0f} fps)")
+    _logger.info("Done. %s steps in %.1fs (%.0f fps)", f"{total_steps:,}", elapsed, total_steps / elapsed)
 
     eval_metrics = {
         "mean_reward": float(jnp.mean(jnp.array([h["mean_reward"] for h in history[-10:]]))),
@@ -242,7 +245,7 @@ def main():
             learning_rate=args.learning_rate,
         )
         for stage, (params, metrics) in results.items():
-            print(f"Stage {stage}: reward={metrics['mean_reward']:.2f}")
+            _logger.info("Stage %d: reward=%.2f", stage, metrics["mean_reward"])
     else:
         train_jax(
             species=args.species,

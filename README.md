@@ -40,8 +40,13 @@ mesozoic-labs/
 │       ├── base_env.py        # BaseDinoEnv abstract class
 │       ├── config.py          # TOML configuration loading
 │       ├── curriculum.py      # Curriculum learning manager
+│       ├── train_base.py      # Shared SB3 training infrastructure
+│       ├── species_registry.py # Species configuration registry
 │       ├── metrics.py         # Locomotion evaluation metrics
-│       ├── wandb_integration.py
+│       ├── wandb_integration.py # W&B experiment tracking
+│       ├── mjx_env.py         # JAX/MJX batched environment
+│       ├── jax_ppo.py         # JAX-native PPO implementation
+│       ├── jax_training.py    # JAX training loop
 │       └── tests/             # Shared utility tests
 ├── configs/                   # TOML hyperparameter configs per species/stage
 ├── notebooks/                 # Jupyter notebooks for experiments
@@ -83,8 +88,8 @@ Trained using 3-stage curriculum learning:
 
 | Feature | Details |
 |---------|---------|
-| Observation | 75 dims (joints, torso, food tracking) |
-| Action | 22 dims (6 neck + 16 leg controls) |
+| Observation | 83 dims (joints, torso, food tracking) |
+| Action | 30 dims (6 neck + 24 leg controls) |
 | Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
 
 [Full documentation →](environments/brachiosaurus/README.md)
@@ -107,8 +112,8 @@ Trained using 3-stage curriculum learning:
 
 ### Planned Species
 - Deinonychus (pack hunter)
-- Allosaurus (large theropod)
 - Compsognathus (small, fast biped)
+- Stegosaurus (armored quadrupedal defender)
 
 ## Quick Start
 
@@ -200,7 +205,7 @@ Hardware: Google Colab L4 GPU
 - [ ] SAC training for velociraptor and T-Rex
 - [ ] Domain randomization (friction, damping, gravity, actuator strength, external pushes, observation noise)
 - [ ] Terrain adaptation (uneven ground, obstacles)
-- [ ] JAX/MJX migration for faster training
+- [-] JAX/MJX migration for faster training (PPO pipeline complete, SAC pending)
 - [ ] Multi-agent pack hunting scenarios
 - [ ] Sim-to-real transfer experiments
 

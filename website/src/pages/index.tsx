@@ -179,7 +179,7 @@ const features = [
     icon: FeatureIcons.species,
     title: '3 Species',
     description:
-      'T-Rex (18 actuators), Velociraptor (17 actuators), and Brachiosaurus (26 actuators).',
+      'T-Rex (21 actuators), Velociraptor (22 actuators), and Brachiosaurus (30 actuators).',
   },
   {
     icon: FeatureIcons.openSource,
@@ -389,7 +389,7 @@ const speciesData = [
     id: 'velociraptor',
     name: 'Velociraptor',
     tagline: 'Swift Bipedal Predator',
-    actuators: 17,
+    actuators: 22,
     gait: 'Bipedal',
     specialty: 'Sickle claw strikes',
     stages: [
@@ -402,13 +402,26 @@ const speciesData = [
     id: 'trex',
     name: 'T-Rex',
     tagline: 'Apex Predator',
-    actuators: 18,
+    actuators: 21,
     gait: 'Bipedal',
     specialty: 'Jaw strike attacks',
     stages: [
       { number: 1, title: 'Balance', desc: 'Stabilizing massive frame', video: '/videos/trex_ppo_stage1_best.mp4' },
       { number: 2, title: 'Locomotion', desc: 'Heavy bipedal gait', video: '/videos/trex_ppo_stage2_best.mp4' },
       { number: 3, title: 'Strike', desc: 'Head-strike attack patterns', video: '/videos/trex_ppo_stage3_best.mp4' },
+    ],
+  },
+  {
+    id: 'brachiosaurus',
+    name: 'Brachiosaurus',
+    tagline: 'Gentle Giant Herbivore',
+    actuators: 30,
+    gait: 'Quadrupedal',
+    specialty: 'Neck food reaching',
+    stages: [
+      { number: 1, title: 'Balance', desc: 'Stable quadrupedal stance', video: '/videos/brachiosaurus_ppo_stage1_best.mp4' },
+      { number: 2, title: 'Locomotion', desc: 'Coordinated four-legged walking', video: '/videos/brachiosaurus_ppo_stage2_best.mp4' },
+      { number: 3, title: 'Food Reach', desc: 'Walking to food and reaching with neck', video: '/videos/brachiosaurus_ppo_stage3_best.mp4' },
     ],
   },
 ];
