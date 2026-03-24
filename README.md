@@ -50,7 +50,7 @@ mesozoic-labs/
 │   ├── ray_tune_sweep.ipynb
 │   └── google_drive_summary.ipynb
 ├── website/                   # Documentation site (Docusaurus)
-└── results/                   # Training results (GIFs + summary.json per species/algorithm)
+└── results/                   # Training results (GIFs + collected_results.csv per species/algorithm)
 ```
 
 ## Environments

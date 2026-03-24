@@ -122,13 +122,14 @@ def _make_ray_tune_report_callback_class():
                 best_src = Path(self.eval_callback.best_model_save_path)
                 _sync_to_drive(best_src, self._drive_best_model_dir, label=f"best@{self.num_timesteps}")
 
-                # Sync evaluations.npz and diagnostics.npz to the Drive trial dir
-                # (one level up from models/) so post-analysis can rank trials and
-                # generate training curve / diagnostics graphs without local /tmp/.
+                # Sync evaluations.npz, diagnostics.npz, and stage_config.json to
+                # the Drive trial dir (one level up from models/) so post-analysis
+                # can rank trials and generate training curve / diagnostics graphs
+                # without local /tmp/.
                 drive_trial_dir = self._drive_best_model_dir.parent
                 drive_trial_dir.mkdir(parents=True, exist_ok=True)
                 _log_dir = Path(self.eval_callback.log_path)
-                for _npz_name in ("evaluations.npz", "diagnostics.npz"):
+                for _npz_name in ("evaluations.npz", "diagnostics.npz", "stage_config.json"):
                     _npz = _log_dir / _npz_name
                     if _npz.exists():
                         try:
@@ -456,7 +457,7 @@ def train_trial(config: dict[str, Any]) -> None:
         EvalCallback,
     )
 
-    from environments.shared.config import load_all_stages
+    from environments.shared.config import load_all_stages, save_stage_config
     from environments.shared.curriculum import (
         EvalCollapseEarlyStopCallback,
         RewardRampCallback,
@@ -500,6 +501,16 @@ def train_trial(config: dict[str, Any]) -> None:
     trial_dir.mkdir(parents=True, exist_ok=True)
     model_dir = trial_dir / "models"
     model_dir.mkdir(exist_ok=True)
+
+    save_stage_config(
+        trial_dir,
+        stage,
+        stage_config,
+        algorithm.upper(),
+        extra={"seed": seed, "n_envs": n_envs, "trial_id": trial_id},
+        env_class=species_cfg.env_class,
+        species=species,
+    )
 
     drive_best_model_dir = None
     if drive_sweep_dir:
@@ -637,10 +648,10 @@ def train_trial(config: dict[str, Any]) -> None:
 
         if drive_best_model_dir:
             _sync_to_drive(model_dir, drive_best_model_dir, label="final")
-            # Sync evaluations.npz and diagnostics.npz to the Drive trial dir
+            # Sync evaluations.npz, diagnostics.npz, and stage_config.json to Drive
             drive_trial_dir = drive_best_model_dir.parent
             drive_trial_dir.mkdir(parents=True, exist_ok=True)
-            for _npz_name in ("evaluations.npz", "diagnostics.npz"):
+            for _npz_name in ("evaluations.npz", "diagnostics.npz", "stage_config.json"):
                 _npz = trial_dir / _npz_name
                 if _npz.exists():
                     try:
