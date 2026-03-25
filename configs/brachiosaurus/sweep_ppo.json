@@ -1,0 +1,116 @@
+{
+  "stage1": {
+    "_comment": "Stage 1 already passes reliably (reward=3010). Included for completeness but recommend skipping.",
+    "trials": 30,
+    "timesteps": 6000000,
+    "parallel": 4,
+    "n_envs": 4,
+
+    "ppo_learning_rate":       {"type": "double", "min": 1e-4, "max": 3e-4, "scale": "log"},
+    "ppo_ent_coef":            {"type": "double", "min": 0.005, "max": 0.02, "scale": "log"},
+    "ppo_batch_size":          {"type": "discrete", "values": [64, 128]},
+    "ppo_gamma":               {"type": "double", "min": 0.98, "max": 0.999, "scale": "linear"},
+    "ppo_n_steps":             {"type": "discrete", "values": [2048]},
+    "ppo_n_epochs":            {"type": "discrete", "values": [10]},
+
+    "env_alive_bonus":              {"type": "double", "min": 1.5, "max": 3.0, "scale": "linear"},
+    "env_nosedive_weight":          {"type": "double", "min": 0.2, "max": 0.5, "scale": "linear"},
+    "env_energy_penalty_weight":    {"type": "double", "min": 0.0003, "max": 0.001, "scale": "log"},
+    "env_gait_stability_weight":    {"type": "double", "min": 0.05, "max": 0.2, "scale": "linear"},
+    "env_speed_penalty_weight":     {"type": "double", "min": 0.1, "max": 0.5, "scale": "linear"}
+  },
+
+  "stage2": {
+    "_comment": "Passed but fragile — late-training collapse observed. Tightened ranges around proven values.",
+    "trials": 40,
+    "timesteps": 16000000,
+    "parallel": 4,
+    "n_envs": 4,
+
+    "_comment_ppo": "PPO: narrow around proven values (lr=5e-5, batch=256, gamma=0.995, ent=0.015)",
+    "ppo_learning_rate":       {"type": "double", "min": 2e-5, "max": 1.5e-4, "scale": "log"},
+    "ppo_ent_coef":            {"type": "double", "min": 0.005, "max": 0.02,  "scale": "log"},
+    "ppo_batch_size":          {"type": "discrete", "values": [128, 256, 512]},
+    "ppo_gamma":               {"type": "double", "min": 0.99, "max": 0.999, "scale": "linear"},
+    "ppo_n_steps":             {"type": "discrete", "values": [2048, 4096]},
+    "ppo_n_epochs":            {"type": "discrete", "values": [6, 10]},
+
+    "_comment_core": "Core reward: tightened forward_vel to avoid statue/lunge extremes",
+    "env_forward_vel_weight":       {"type": "double", "min": 2.5, "max": 4.5,  "scale": "linear"},
+    "env_forward_vel_max":          {"type": "double", "min": 0.75, "max": 1.25, "scale": "linear"},
+    "env_alive_bonus":              {"type": "double", "min": 0.1, "max": 0.4,  "scale": "linear"},
+    "env_energy_penalty_weight":    {"type": "double", "min": 0.003, "max": 0.007, "scale": "log"},
+
+    "_comment_gait": "Gait shaping: symmetry=2.0 is the only proven pass — bracket tightly",
+    "env_gait_symmetry_weight":     {"type": "double", "min": 1.5, "max": 2.5,  "scale": "linear"},
+    "env_gait_stability_weight":    {"type": "double", "min": 0.03, "max": 0.1, "scale": "linear"},
+    "env_idle_penalty_weight":      {"type": "double", "min": 0.15, "max": 0.4,  "scale": "linear"},
+
+    "_comment_posture": "Posture/safety: nosedive is critical — agent nose-dives at 15% rate",
+    "env_posture_weight":           {"type": "double", "min": 0.2, "max": 0.5, "scale": "linear"},
+    "env_nosedive_weight":          {"type": "double", "min": 0.5, "max": 1.0,  "scale": "linear"},
+    "env_height_weight":            {"type": "double", "min": 0.1, "max": 0.3,  "scale": "linear"},
+    "env_tail_stability_weight":    {"type": "double", "min": 0.05, "max": 0.2, "scale": "linear"},
+
+    "_comment_nav": "Navigation: heading already good, keep minimal",
+    "env_heading_weight":           {"type": "double", "min": 0.0, "max": 0.15,  "scale": "linear"},
+    "env_lateral_penalty_weight":   {"type": "double", "min": 0.0, "max": 0.15,  "scale": "linear"},
+
+    "_comment_curriculum": "Curriculum: ramp schedule is critical for statue-to-walking transition",
+    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [200000, 300000, 500000]},
+    "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.04, "scale": "linear"},
+    "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.01, "max": 0.04, "scale": "log"},
+    "curriculum_ramp_timesteps":    {"type": "discrete", "values": [2000000, 3000000, 4000000]},
+    "curriculum_ramp_start_value":  {"type": "double", "min": 0.15, "max": 0.3,   "scale": "linear"}
+  },
+
+  "stage3": {
+    "_comment": "FAILED at 16.7% success vs 50% target. Highest priority — sweep the nosedive-vs-reach tradeoff.",
+    "trials": 50,
+    "timesteps": 12000000,
+    "parallel": 4,
+    "n_envs": 4,
+
+    "_comment_ppo": "PPO: more exploration needed for novel neck-extension behavior",
+    "ppo_learning_rate":       {"type": "double", "min": 2e-5, "max": 1e-4, "scale": "log"},
+    "ppo_ent_coef":            {"type": "double", "min": 0.008, "max": 0.04, "scale": "log"},
+    "ppo_batch_size":          {"type": "discrete", "values": [128, 256, 512]},
+    "ppo_gamma":               {"type": "double", "min": 0.99, "max": 0.998, "scale": "linear"},
+    "ppo_n_steps":             {"type": "discrete", "values": [2048, 4096]},
+    "ppo_n_epochs":            {"type": "discrete", "values": [6, 10]},
+
+    "_comment_food": "Food reach: the core objective — sweep the bonus and shaping signals aggressively",
+    "env_food_reach_bonus":            {"type": "double", "min": 500.0, "max": 2000.0, "scale": "log"},
+    "env_food_reach_threshold":        {"type": "double", "min": 0.6, "max": 1.0, "scale": "linear"},
+    "env_food_approach_weight":        {"type": "double", "min": 2.0, "max": 5.0, "scale": "linear"},
+    "env_food_head_proximity_weight":  {"type": "double", "min": 1.0, "max": 4.0, "scale": "linear"},
+
+    "_comment_locomotion": "Locomotion: minimal — just enough to walk to food without forgetting",
+    "env_forward_vel_weight":       {"type": "double", "min": 0.1, "max": 0.5,  "scale": "linear"},
+    "env_heading_weight":           {"type": "double", "min": 0.3, "max": 0.8,  "scale": "linear"},
+    "env_lateral_penalty_weight":   {"type": "double", "min": 0.1, "max": 0.4,  "scale": "linear"},
+
+    "_comment_posture": "Posture: nosedive is the KEY tradeoff — too high blocks reaching, too low causes face-plants",
+    "env_nosedive_weight":          {"type": "double", "min": 0.03, "max": 0.2,  "scale": "log"},
+    "env_posture_weight":           {"type": "double", "min": 0.05, "max": 0.2, "scale": "linear"},
+    "env_fall_penalty":             {"type": "double", "min": -20.0, "max": -5.0, "scale": "linear"},
+
+    "_comment_secondary": "Secondary rewards: keep low to not distract from food reaching",
+    "env_energy_penalty_weight":    {"type": "double", "min": 0.0005, "max": 0.002, "scale": "log"},
+    "env_gait_stability_weight":    {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
+    "env_tail_stability_weight":    {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
+
+    "_comment_spawning": "Food spawning: closer food = denser reward signal for reach discovery",
+    "env_food_distance_range_min":  {"type": "double", "min": 1.0, "max": 2.0, "scale": "linear"},
+    "env_food_distance_range_max":  {"type": "double", "min": 3.0, "max": 5.0, "scale": "linear"},
+    "env_food_height_range_min":    {"type": "double", "min": 1.5, "max": 2.5, "scale": "linear"},
+    "env_food_height_range_max":    {"type": "double", "min": 3.0, "max": 4.0, "scale": "linear"},
+
+    "_comment_curriculum": "Curriculum: longer warmup/ramp to protect locomotion while learning reach",
+    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [200000, 300000, 500000]},
+    "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.04, "scale": "linear"},
+    "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.015, "max": 0.05, "scale": "log"},
+    "curriculum_ramp_timesteps":    {"type": "discrete", "values": [1000000, 1500000, 2500000]},
+    "curriculum_ramp_start_value":  {"type": "double", "min": 0.15, "max": 0.3,   "scale": "linear"}
+  }
+}
