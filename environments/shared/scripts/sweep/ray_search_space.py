@@ -159,6 +159,7 @@ def save_search_space(
     collapse_min_evals: int = 0,
     collapse_patience: int = 0,
     use_asha: bool = True,
+    load_path: str = "",
 ) -> Path:
     """Write the resolved search space to *dest_dir* as JSON for record keeping.
 
@@ -212,6 +213,8 @@ def save_search_space(
         runtime["collapse_min_evals"] = collapse_min_evals
     if collapse_patience:
         runtime["collapse_patience"] = collapse_patience
+    if load_path:
+        runtime["load_path"] = load_path
     if runtime:
         payload["runtime"] = runtime
 
