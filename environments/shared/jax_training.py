@@ -189,7 +189,14 @@ def train_jax(
         history.append(step_info)
 
         if update % 10 == 0:
-            _logger.info("Update %4d/%d | steps=%s reward=%.2f fps=%.0f", update, num_updates, f"{total_steps:,}", mean_reward, fps)
+            _logger.info(
+                "Update %4d/%d | steps=%s reward=%.2f fps=%.0f",
+                update,
+                num_updates,
+                f"{total_steps:,}",
+                mean_reward,
+                fps,
+            )
 
     elapsed = time.time() - t0
     _logger.info("Done. %s steps in %.1fs (%.0f fps)", f"{total_steps:,}", elapsed, total_steps / elapsed)
