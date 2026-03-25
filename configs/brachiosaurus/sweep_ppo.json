@@ -36,7 +36,7 @@
     "ppo_n_epochs":            {"type": "discrete", "values": [6, 10]},
 
     "_comment_core": "Core reward: tightened forward_vel to avoid statue/lunge extremes",
-    "env_forward_vel_weight":       {"type": "double", "min": 2.5, "max": 4.5,  "scale": "linear"},
+    "env_forward_vel_weight":       {"type": "double", "min": 2.0, "max": 4.5,  "scale": "linear"},
     "env_forward_vel_max":          {"type": "double", "min": 0.75, "max": 1.25, "scale": "linear"},
     "env_alive_bonus":              {"type": "double", "min": 0.1, "max": 0.4,  "scale": "linear"},
     "env_energy_penalty_weight":    {"type": "double", "min": 0.003, "max": 0.007, "scale": "log"},
@@ -57,7 +57,7 @@
     "env_lateral_penalty_weight":   {"type": "double", "min": 0.0, "max": 0.15,  "scale": "linear"},
 
     "_comment_curriculum": "Curriculum: ramp schedule is critical for statue-to-walking transition",
-    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [200000, 300000, 500000]},
+    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [200000, 300000, 500000, 1000000]},
     "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.04, "scale": "linear"},
     "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.01, "max": 0.04, "scale": "log"},
     "curriculum_ramp_timesteps":    {"type": "discrete", "values": [2000000, 3000000, 4000000]},
