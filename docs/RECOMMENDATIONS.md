@@ -1,6 +1,6 @@
 # Mesozoic Labs - Codebase Review & Recommendations
 
-> Last updated: 2026-03-01
+> Last updated: 2026-03-25
 
 ## Codebase Assessment
 
@@ -183,13 +183,13 @@ See [REFACTORING.md](REFACTORING.md) for the full consolidation plan. Key items:
 
 | # | Recommendation | Impact | Effort | Status |
 |---|---------------|--------|--------|--------|
-| 1 | Codebase consolidation | High | Medium | Planned (v0.3.0) — see [REFACTORING.md](REFACTORING.md) |
+| 1 | Codebase consolidation | High | Medium | **Done** (v0.3.0) — see [CODE_CONSOLIDATION.md](CODE_CONSOLIDATION.md) |
 | 2 | Scripted prey (moving target) | High | Medium | Not started |
 | 3 | Sensor noise + action delay | High | Medium | Not started |
 | 4 | Domain randomization | High | Medium | Not started |
 | 5 | Terrain heightfields | High | Medium | Not started |
 | 6 | Custom policy networks | High | Medium | Not started |
-| 7 | MJX migration (Velociraptor) | Very High | High | Not started |
+| 7 | MJX migration (Velociraptor) | Very High | High | **Done** — all 3 species ported to MJX |
 | 8 | Multi-agent pack hunting | Very High | High | Not started |
 | 9 | Pre-trained model zoo | Medium | Medium | Not started |
 | 10 | Physical robot prototype | Very High | Very High | Not started |

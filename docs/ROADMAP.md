@@ -1,6 +1,6 @@
 # Mesozoic Labs - Roadmap & Timeline
 
-> Last updated: 2026-03-24
+> Last updated: 2026-03-25
 
 This roadmap organizes the project's growth into six phases. Each phase builds on
 the previous one. Items within a phase can often be worked in parallel.
@@ -14,7 +14,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | Phase | Name | Status | Done | Remaining |
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
-| **1** | First Steps (v0.3.0) | **In Progress** | 9/10 items | 1 training run (Brachiosaurus) |
+| **1** | First Steps (v0.3.0) | **In Progress** | 9/10 items | Brachiosaurus Stage 3 (food_reach at 16.7% vs 50% target) |
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | Not Started | 0/8 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
@@ -23,8 +23,9 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 
 **Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
 W&B tracking, metrics, Dockerfile, Vertex AI guide) and codebase consolidation
-is complete. The remaining work is executing full 3-stage training runs for each
-species and publishing results/checkpoints.
+is complete. Velociraptor PPO and SAC, and T-Rex PPO have all 3 stages passing.
+Brachiosaurus PPO passes Stages 1-2 but Stage 3 (food_reach) is at 16.7%
+success vs 50% target. T-Rex SAC training not yet attempted.
 
 ---
 
@@ -80,13 +81,15 @@ curriculum with published results and reproducible checkpoints.
 
 - [x] **Complete Velociraptor 3-stage training**
   - [x] Run Stages 1-3 with PPO (93.3% strike success, 22M steps, 11:25:15)
-  - [ ] Run Stages 1-3 with SAC
+  - [x] Run Stages 1-3 with SAC (90.0% strike success, 22M steps, 22:59:18)
   - [x] Record reward curves, training GIFs, final evaluation metrics
   - [ ] Publish checkpoints as GitHub release artifacts
   - _Dependency: Phase 0 config externalization (helpful, not blocking)_
 
 - [-] **Complete Brachiosaurus 3-stage training**
-  - Same as above for quadrupedal locomotion + food reach
+  - [x] Stages 1-2 passing with PPO (best reward 4176.95 in Stage 2, 1.12 m/s fwd vel)
+  - [-] Stage 3 food_reach at 16.7% success rate vs 50% target (best run: ppo_20260321_144730)
+  - 10 training runs completed (Mar 18 - Mar 22), iterating on Stage 2-3 hyperparameters
   - _Dependency: None (parallel with Velociraptor)_
 
 - [x] **T-Rex environment buildout**

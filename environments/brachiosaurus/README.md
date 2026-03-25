@@ -33,14 +33,14 @@ Brachiosaurus is a massive quadrupedal herbivore, notable for having front legs 
 
 ## Curriculum Learning
 
-### Stage 1: Balance (500K steps)
-Learn to maintain a stable four-legged stance.
+### Stage 1: Balance (6M steps) — Passed
+Learn to maintain a stable four-legged stance. Best reward: 3002.52, episode length: 1000 steps.
 
-### Stage 2: Locomotion (1M steps)
-Learn coordinated quadrupedal walking toward a target.
+### Stage 2: Locomotion (16M steps) — Passed
+Learn coordinated quadrupedal walking toward a target. Best reward: 4176.95, forward velocity: 1.12 m/s.
 
-### Stage 3: Food Reach (2M steps)
-Walk to food and extend neck to reach elevated food sources.
+### Stage 3: Food Reach (8M steps) — In Progress
+Walk to food and extend neck to reach elevated food sources. Current best: 16.7% success rate (target: 50%).
 
 ## Quick Start
 

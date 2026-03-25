@@ -1,21 +1,25 @@
 # Training Results Review
 
-> **Date:** 2026-03-01
-> **Data:** 80+ training runs across T-Rex and Velociraptor (Feb 12 - Feb 27)
-> **Algorithm:** PPO (all runs)
+> **Date:** 2026-03-25 (updated)
+> **Data:** 140+ training runs across T-Rex, Velociraptor, and Brachiosaurus (Feb 12 - Mar 23)
+> **Algorithms:** PPO and SAC
 
 ---
 
 ## Executive Summary
 
-| Species | Stage 1 (Balance) | Stage 2 (Locomotion) | Stage 3 (Behavior) |
-|---------|-------------------|---------------------|-------------------|
-| **T-Rex** | Nearly solved (299.3 vs 300 threshold) | Struggling (best: 682 ep_len) | Untested from passing Stage 2 |
-| **Velociraptor** | Reliable (passes consistently) | Solved once (882 ep_len), not reproduced | Never attempted from passing Stage 2 |
+| Species | Algorithm | Stage 1 (Balance) | Stage 2 (Locomotion) | Stage 3 (Behavior) |
+|---------|-----------|-------------------|---------------------|-------------------|
+| **Velociraptor** | PPO | Solved (1960.64 reward) | Solved (3.47 m/s) | Solved (93.3% strike) |
+| **Velociraptor** | SAC | Solved (970.19 reward) | Solved (2.91 m/s) | Solved (90.0% strike) |
+| **T-Rex** | PPO | Solved (2994.34 reward) | Solved (3.47 m/s) | Solved (96.7% bite) |
+| **Brachiosaurus** | PPO | Solved (3002.52 reward) | Solved (1.12 m/s) | **Failing** (16.7% vs 50% food_reach) |
 
-**Bottom line:** Both species have Stage 1 under control. Stage 2 locomotion is
-the bottleneck — it was solved once for Velociraptor but recent config changes
-broke it. T-Rex Stage 2 has shown promise but suffers catastrophic forgetting.
+**Bottom line:** Velociraptor (PPO and SAC) and T-Rex (PPO) have completed all
+3 stages. Brachiosaurus passes Stages 1-2 but Stage 3 (food_reach) remains the
+bottleneck at 16.7% success rate vs the 50% threshold. The original review below
+covers the early Feb 12-27 training history, followed by updated sections for
+March results.
 
 ---
 
@@ -768,3 +772,202 @@ ramp_timesteps = 5000000        # Was 3M: slower ramp for gait development
    angle chart shows the agent converging toward 8°, which is close to this
    target. If the Brachiosaurus should be more upright, this target needs
    adjustment.
+
+---
+
+## Velociraptor SAC Results — March 21, 2026
+
+> **Run:** `sac_20260321_170055`, Seed 42, SAC, 8 parallel envs, L4 GPU
+> **Result:** All 3 stages **PASSED** — first successful SAC training
+
+### Results Summary
+
+| Stage | Name | Best Reward | Ep Length | Fwd Vel | Success Rate | Time | Passed? |
+|-------|------|-------------|-----------|---------|--------------|------|---------|
+| 1 | Balance | 970.19 | 945.7 | -0.64 m/s | — | 5:08:59 | **Yes** |
+| 2 | Locomotion | 2078.62 | 874.4 | 2.91 m/s | — | 8:36:12 | **Yes** |
+| 3 | Strike | 1195.43 | 257.6 | 1.63 m/s | **90.0%** | 9:14:06 | **Yes** |
+
+**Total:** 22M steps, 22:59:18 training time (8 parallel envs)
+
+### Key Observations
+
+1. **SAC is ~2x slower than PPO** (22:59 vs 11:25 for the same 22M steps) due to
+   the replay buffer and twin Q-network updates. Using 8 parallel envs (vs 4 for
+   PPO) partially offset this.
+
+2. **Lower balance reward than PPO** (970 vs 1960) but still passes the threshold.
+   SAC's entropy-maximizing objective produces more diverse balance behaviors with
+   lower average reward but sufficient stability.
+
+3. **Slightly lower forward velocity** (2.91 vs 3.47 m/s) in Stage 2, but still
+   well above the 2.0 m/s threshold.
+
+4. **90% strike success** vs PPO's 93.3%. Both are well above the 25% threshold
+   but SAC's exploration-driven policy may be slightly less precise in the final
+   strike execution.
+
+5. **SAC used `gamma=0.99`** (vs PPO's `0.9797`/`0.995`) and `lr=0.0003`/`0.0001`,
+   with `[512, 256]` network architecture matching the PPO sweep winner.
+
+### SAC vs PPO Comparison
+
+| Metric | PPO (ppo_20260315_041632) | SAC (sac_20260321_170055) |
+|--------|--------------------------|--------------------------|
+| Stage 1 Best Reward | 1960.64 | 970.19 |
+| Stage 2 Fwd Vel | 3.47 m/s | 2.91 m/s |
+| Stage 3 Success Rate | 93.3% | 90.0% |
+| Total Training Time | 11:25:15 | 22:59:18 |
+| Parallel Envs | 4 | 8 |
+
+PPO remains the more efficient algorithm for this task, but SAC's success
+validates the curriculum design works across algorithm families.
+
+### Other SAC Attempts
+
+| Run | Date | Envs | Stage 1 | Stage 2 | Stage 3 | Notes |
+|-----|------|------|---------|---------|---------|-------|
+| sac_20260320_004309 | Mar 20 | 4 | Failed (222.0) | — | — | Only 400K steps, gamma=0.99 |
+| sac_20260320_151527 | Mar 20 | 4 | Passed (1302.83) | — | — | 2M steps, lib v0.3.0.dev0 |
+| sac_20260321_170055 | **Mar 21** | **8** | **Passed** | **Passed** | **Passed (90%)** | **Best run** |
+| sac_20260322_210152 | Mar 22 | 8 | Passed (1484.66) | — | — | 4.6M steps, incomplete |
+| sac_20260323_010349 | Mar 23 | 4 | Failed (1229.71) | — | — | gamma=0.9797, 6M steps |
+
+The Mar 23 run with `gamma=0.9797` (PPO's optimized value) failed, suggesting
+SAC prefers its own gamma schedule rather than borrowing from PPO sweep results.
+
+---
+
+## Brachiosaurus Stage 3 (Food Reach) Review — March 21, 2026
+
+> **Run:** `ppo_20260321_144730`, Seed 42, PPO, 4 envs, L4 GPU
+> **Result:** Stage 3 **FAILED** — 16.7% success rate vs 50% threshold
+> **This is the furthest any Brachiosaurus run has progressed** (first to reach Stage 3)
+
+### Full Run Results
+
+| Stage | Name | Best Reward | Ep Length | Fwd Vel | Success Rate | Steps | Time | Passed? |
+|-------|------|-------------|-----------|---------|--------------|-------|------|---------|
+| 1 | Balance | 3002.52 | 1000.0 | 0.02 m/s | — | 6M | 3:46:42 | **Yes** |
+| 2 | Locomotion | 4176.95 | 957.4 | 1.12 m/s | 3.3% | 16M | 8:18:51 | **Yes** |
+| 3 | Food Reach | 732.20 | 460.5 | 0.52 m/s | **16.7%** | 8M | 3:54:06 | **No** |
+
+### Stage 2 Breakthrough
+
+This run achieved the **first successful Brachiosaurus Stage 2**, with:
+- Forward velocity of **1.12 m/s** (threshold: 0.75 m/s)
+- Episode length of **957.4 steps** (threshold: 750)
+- Best reward of **4176.95** — the highest Stage 2 reward across all species
+
+Key config differences from earlier failed Stage 2 runs:
+
+| Parameter | Failed runs (Mar 18-20) | This run (Mar 21) |
+|-----------|------------------------|-------------------|
+| forward_vel_weight | 2.0-3.0 | **4.0** |
+| energy_penalty_weight | 0.002 | **0.005** |
+| alive_bonus | 0.1-0.75 | **0.2** |
+| timesteps | 8-12M | **16M** |
+
+The higher forward_vel_weight (4.0) combined with longer training (16M steps)
+finally overcame the "statue" failure mode, while the increased energy penalty
+prevented the "lunge and fall" mode.
+
+### Stage 3 Analysis
+
+Stage 3 (food_reach) ran for 8M steps with the following config:
+- `alive_bonus=0.0`, `energy_penalty=0.001`, `forward_vel_weight=0.5`, `posture_weight=0.1`
+- Food reach uses neck extension to touch elevated food targets
+- 16.7% success rate with only 460.5 step average episode length
+
+**Why it's failing:**
+1. **Short episodes (460 steps)** suggest the agent falls before reaching food
+2. **Forward velocity drops** from 1.12 (Stage 2) to 0.52 m/s — the agent slows
+   down but doesn't compensate with neck reaching
+3. **Low success rate (16.7%)** indicates the neck extension behavior is rarely
+   triggered — the agent reaches the food location but doesn't extend its neck
+4. Similar to the velociraptor Stage 3 "approach but don't strike" pattern:
+   the continuous per-step rewards outweigh the sparse food_reach bonus
+
+### Brachiosaurus Training History
+
+| Run | Date | S1 Passed | S2 Passed | S2 Best Reward | S2 Fwd Vel | S3 Result |
+|-----|------|-----------|-----------|----------------|------------|-----------|
+| ppo_20260318_144535 | Mar 18 | No (825.0) | — | — | — | — |
+| ppo_20260318_181308 | Mar 18 | No (1445.74) | — | — | — | — |
+| ppo_20260319_001536 | Mar 19 | **Yes** | No | 952.56 | 0.19 m/s | — |
+| ppo_20260319_133946 | Mar 19 | **Yes** | No | 2023.02 | 0.18 m/s | — |
+| ppo_20260319_232800 | Mar 19 | **Yes** | No | 1623.33 | 0.56 m/s | — |
+| ppo_20260320_151735 | Mar 20 | **Yes** | No | 1675.35 | 0.24 m/s | — |
+| ppo_20260321_024127 | Mar 21 | **Yes** | No | 2692.80 | 0.89 m/s | — |
+| ppo_20260321_144730 | **Mar 21** | **Yes** | **Yes** | **4176.95** | **1.12 m/s** | **16.7% food_reach** |
+| ppo_20260322_203554 | Mar 22 | **Yes** | No | 2396.38 | 0.59 m/s | — |
+
+### Stage 2 Config Evolution
+
+The progression shows forward_vel_weight and timesteps as the key levers:
+
+| Config | fwd_vel_weight | timesteps | Best fwd_vel |
+|--------|---------------|-----------|-------------|
+| Mar 19 (001536) | 2.0 | 8M | 0.19 m/s |
+| Mar 19 (232800) | 3.0 | 8M | 0.56 m/s |
+| Mar 21 (024127) | 8.0 | 12M | 0.89 m/s |
+| **Mar 21 (144730)** | **4.0** | **16M** | **1.12 m/s** |
+| Mar 22 (203554) | 4.0 | 20M | 0.59 m/s |
+
+The Mar 22 run at 20M steps actually performed worse than the Mar 21 run at 16M,
+suggesting 16M is near-optimal and longer training risks overtraining.
+
+### Recommendations for Brachiosaurus Stage 3
+
+1. **Increase food_reach bonus significantly** — same pattern as the velociraptor
+   strike bonus issue. The per-step rewards dominate the sparse food_reach reward.
+
+2. **Try non-terminating food reach** — respawn food at a new position after
+   successful reach instead of ending the episode, making food_reach additive.
+
+3. **Reduce per-step reward budget** — zero out forward_vel_weight in Stage 3
+   to remove the incentive for aimless walking vs purposeful neck reaching.
+
+4. **Increase training steps** — 8M may be insufficient. The successful Stage 2
+   needed 16M; Stage 3 likely needs similar or more.
+
+5. **Add a proximity-to-food shaping reward** that specifically rewards the
+   head (not body) being close to the food target, guiding neck extension.
+
+---
+
+## Updated Cross-Species Summary — March 25, 2026
+
+### Training Completion Status
+
+| Species | Algorithm | Balance | Locomotion | Behavior | Total Time | Status |
+|---------|-----------|---------|------------|----------|------------|--------|
+| Velociraptor | PPO | 1960.64 | 3.47 m/s | 93.3% strike | 11:25:15 | **Complete** |
+| Velociraptor | SAC | 970.19 | 2.91 m/s | 90.0% strike | 22:59:18 | **Complete** |
+| T-Rex | PPO | 2994.34 | 3.47 m/s | 96.7% bite | 13:02:32 | **Complete** |
+| Brachiosaurus | PPO | 3002.52 | 1.12 m/s | 16.7% food_reach | 15:59:39 | Stage 3 failing |
+
+### Total Training Runs
+
+| Species | PPO Runs | SAC Runs | Total |
+|---------|----------|----------|-------|
+| Velociraptor | ~60 | 5 | ~65 |
+| T-Rex | ~50 | 0 | ~50 |
+| Brachiosaurus | ~10 | 0 | ~10 |
+| **Total** | **~120** | **5** | **~125** |
+
+### Key Learnings (Updated)
+
+1. **Curriculum design is algorithm-agnostic** — the same 3-stage structure works
+   for both PPO and SAC, validating the pedagogical approach.
+
+2. **Quadrupedal locomotion is significantly harder** than bipedal. Brachiosaurus
+   needed 16M steps for Stage 2 (vs 8M for bipeds) and Stage 3 remains unsolved.
+
+3. **Behavior stages (3) share a common failure pattern** across all species:
+   per-step rewards dominate sparse terminal bonuses, causing "approach but don't
+   act" behavior. Each species required reward rebalancing to fix this.
+
+4. **SAC needs 2x wall-clock time** for comparable results but provides a useful
+   second opinion on reward function design — if both PPO and SAC solve a stage,
+   the curriculum gates are well-calibrated.
