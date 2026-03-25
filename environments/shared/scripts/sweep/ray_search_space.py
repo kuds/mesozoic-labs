@@ -88,7 +88,16 @@ def build_search_space(
         Optional path to a sweep config JSON file.  Defaults to
         ``configs/sweep_{algorithm}.json``.
     """
-    path = Path(config_path) if config_path else _default_config_path(algorithm)
+    if config_path:
+        path = Path(config_path)
+        if not path.is_absolute():
+            # Resolve relative paths against the repo root so that paths like
+            # "configs/brachiosaurus/sweep_ppo.json" work regardless of cwd
+            # (e.g. when running from a notebook or Colab).
+            repo_root = Path(__file__).resolve().parents[4]
+            path = repo_root / path
+    else:
+        path = _default_config_path(algorithm)
     logger.info(
         "Loading search space from %s (species=%s, stage=%d, algorithm=%s)",
         path,
@@ -150,6 +159,7 @@ def save_search_space(
     collapse_min_evals: int = 0,
     collapse_patience: int = 0,
     use_asha: bool = True,
+    load_path: str = "",
 ) -> Path:
     """Write the resolved search space to *dest_dir* as JSON for record keeping.
 
@@ -203,6 +213,8 @@ def save_search_space(
         runtime["collapse_min_evals"] = collapse_min_evals
     if collapse_patience:
         runtime["collapse_patience"] = collapse_patience
+    if load_path:
+        runtime["load_path"] = load_path
     if runtime:
         payload["runtime"] = runtime
 
