@@ -1,6 +1,6 @@
 # Mesozoic Labs - Roadmap & Timeline
 
-> Last updated: 2026-03-19
+> Last updated: 2026-03-24
 
 This roadmap organizes the project's growth into six phases. Each phase builds on
 the previous one. Items within a phase can often be worked in parallel.
@@ -14,11 +14,11 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | Phase | Name | Status | Done | Remaining |
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
-| **1** | First Steps (v0.3.0) | **In Progress** | 7/10 items | 3 training runs |
+| **1** | First Steps (v0.3.0) | **In Progress** | 9/10 items | 1 training run (Brachiosaurus) |
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | Not Started | 0/8 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
-| **5** | Hyperdrive (v0.7.0) | **In Progress** | 2/5 items | JAX SAC, large-scale experiments |
+| **5** | Hyperdrive (v0.7.0) | **In Progress** | 3/5 items | JAX SAC, large-scale experiments |
 | **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-5 |
 
 **Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
@@ -78,20 +78,22 @@ curriculum with published results and reproducible checkpoints.
 
 ### Milestone: v0.3.0 — "First Steps"
 
-- [ ] **Complete Velociraptor 3-stage training**
-  - Run Stages 1-3 with PPO and SAC
-  - Record reward curves, training GIFs, final evaluation metrics
-  - Publish checkpoints as GitHub release artifacts
+- [x] **Complete Velociraptor 3-stage training**
+  - [x] Run Stages 1-3 with PPO (93.3% strike success, 22M steps, 11:25:15)
+  - [ ] Run Stages 1-3 with SAC
+  - [x] Record reward curves, training GIFs, final evaluation metrics
+  - [ ] Publish checkpoints as GitHub release artifacts
   - _Dependency: Phase 0 config externalization (helpful, not blocking)_
 
-- [ ] **Complete Brachiosaurus 3-stage training**
+- [-] **Complete Brachiosaurus 3-stage training**
   - Same as above for quadrupedal locomotion + food reach
   - _Dependency: None (parallel with Velociraptor)_
 
-- [-] **T-Rex environment buildout**
+- [x] **T-Rex environment buildout**
   - [x] Implement `TRexEnv` subclass (env, tests, training script)
   - [x] The MJCF model, assets, and Gymnasium registration exist
-  - [ ] Complete 3-stage training with PPO and SAC
+  - [x] Run Stages 1-3 with PPO (96.7% bite success, 22M steps, 13:02:32)
+  - [ ] Run Stages 1-3 with SAC
   - _Dependency: None (parallel with other species)_
 
 - [x] **Automated curriculum transitions**

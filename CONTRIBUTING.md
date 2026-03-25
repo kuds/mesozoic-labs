@@ -64,7 +64,7 @@ Follow this checklist:
 
 > **Note:** The training and test scripts use shared base modules in
 > `environments/shared/`. Species-specific scripts are thin wrappers around
-> this shared infrastructure. See `docs/REFACTORING.md` for the consolidation
+> this shared infrastructure. See `docs/CODE_CONSOLIDATION.md` for the consolidation
 > plan and architecture details.
 
 1. **Create the directory structure:**

@@ -110,7 +110,7 @@ env = BrachioEnv(render_mode="human")
 ```
 
 - **Observation:** 83 dimensions
-- **Action:** 26 dimensions (6 neck + 20 legs)
+- **Action:** 30 dimensions (6 neck + 24 legs)
 
 ## Training with Stable-Baselines3
 

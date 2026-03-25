@@ -22,13 +22,13 @@ if _repo_root not in sys.path:
 def _main():
     # Parse --species before handing off to the shared main()
     if "--species" not in sys.argv:
-        print("Usage: python -m environments.shared.train --species <name> <command> [options]")
-        print("Species: velociraptor, trex, brachiosaurus")
+        print("Usage: python -m environments.shared.train --species <name> <command> [options]", file=sys.stderr)
+        print("Species: velociraptor, trex, brachiosaurus", file=sys.stderr)
         sys.exit(1)
 
     idx = sys.argv.index("--species")
     if idx + 1 >= len(sys.argv):
-        print("Error: --species requires a value")
+        print("Error: --species requires a value", file=sys.stderr)
         sys.exit(1)
 
     species_name = sys.argv[idx + 1]

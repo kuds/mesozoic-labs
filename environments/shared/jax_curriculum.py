@@ -7,10 +7,13 @@ files used by the SB3 path.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
 from .config import load_stage_config
+
+_logger = logging.getLogger(__name__)
 
 
 def check_stage_gate(
@@ -66,12 +69,12 @@ def run_curriculum(
         # Check gate (skip for last stage)
         if stage != stages[-1]:
             if not check_stage_gate(eval_metrics, stage_config):
-                print(
-                    f"[Curriculum] Stage {stage} gate NOT passed "
-                    f"(reward={eval_metrics.get('mean_reward', 0.0):.1f}). "
-                    f"Stopping early."
+                _logger.warning(
+                    "Stage %d gate NOT passed (reward=%.1f). Stopping early.",
+                    stage,
+                    eval_metrics.get("mean_reward", 0.0),
                 )
                 break
-            print(f"[Curriculum] Stage {stage} gate passed. Advancing to stage {stage + 1}.")
+            _logger.info("Stage %d gate passed. Advancing to stage %d.", stage, stage + 1)
 
     return results
