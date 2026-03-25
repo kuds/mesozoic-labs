@@ -5,9 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Codebase Consolidation (v0.3.0)
+## [Unreleased] — Codebase Consolidation & Training Results (v0.3.0)
 
 ### Added
+- Velociraptor SAC training results — all 3 stages passed (90.0% strike success, 22M steps, 22:59:18)
+- Brachiosaurus PPO training results — Stages 1-2 passed, Stage 3 (food_reach) at 16.7% success (target: 50%)
+- Updated training review with Brachiosaurus Stage 2/3 analysis and Velociraptor SAC comparison
 - `environments/shared/train_base.py` — shared training logic with `SpeciesConfig` dataclass (~1,100 lines), reducing each species' `train_sb3.py` from ~950 lines to ~44 lines
 - `environments/shared/test_env_base.py` — shared test utilities for environment validation (~214 lines)
 - `environments/shared/constants.py` — centralized simulation-wide constants (sensor layout, VecNormalize defaults, physics defaults)

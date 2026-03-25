@@ -172,6 +172,14 @@ Hardware: Google Colab L4 GPU
 | 2 | Locomotion | 2678.68 | 3.47 m/s | — | 4:35:55 |
 | 3 | Strike | 1366.19 | 2.02 m/s | 93.3% | 3:51:54 |
 
+### Velociraptor (SAC) — All 3 stages passed | 22M steps | 22:59:18 total
+
+| Stage | Name | Best Reward | Avg Fwd Vel | Success Rate | Time |
+|-------|------|-------------|-------------|--------------|------|
+| 1 | Balance | 970.19 | -0.64 m/s | — | 5:08:59 |
+| 2 | Locomotion | 2078.62 | 2.91 m/s | — | 8:36:12 |
+| 3 | Strike | 1195.43 | 1.63 m/s | 90.0% | 9:14:06 |
+
 ### T-Rex (PPO) — All 3 stages passed | 22M steps | 13:02:32 total
 
 | Stage | Name | Best Reward | Avg Fwd Vel | Success Rate | Time |
@@ -180,13 +188,13 @@ Hardware: Google Colab L4 GPU
 | 2 | Locomotion | 1936.01 | 3.47 m/s | — | 5:17:18 |
 | 3 | Bite | 1294.28 | 1.68 m/s | 96.7% | 4:09:49 |
 
-### Brachiosaurus (PPO) — In progress
+### Brachiosaurus (PPO) — Stages 1-2 passed, Stage 3 in progress | 30M steps | 15:59:39 total
 
 | Stage | Name | Best Reward | Avg Fwd Vel | Success Rate | Time |
 |-------|------|-------------|-------------|--------------|------|
-| 1 | Balance | - | - | — | - |
-| 2 | Locomotion | - | - | — | - |
-| 3 | Food Reach | - | - | - | - |
+| 1 | Balance | 3002.52 | 0.02 m/s | — | 3:46:42 |
+| 2 | Locomotion | 4176.95 | 1.12 m/s | — | 8:18:51 |
+| 3 | Food Reach | 732.20 | 0.52 m/s | 16.7% (target: 50%) | 3:54:06 |
 
 ## Notebooks
 
@@ -200,9 +208,10 @@ Hardware: Google Colab L4 GPU
 ## Roadmap
 
 - [x] Complete velociraptor 3-stage training (PPO, 93.3% strike success)
+- [x] Complete velociraptor 3-stage training (SAC, 90.0% strike success)
 - [x] Complete T-Rex 3-stage training (PPO, 96.7% bite success)
-- [ ] Complete brachiosaurus 3-stage training
-- [ ] SAC training for velociraptor and T-Rex
+- [-] Complete brachiosaurus 3-stage training (Stages 1-2 passed, Stage 3 food_reach at 16.7% vs 50% target)
+- [-] SAC training for T-Rex (velociraptor SAC complete)
 - [ ] Domain randomization (friction, damping, gravity, actuator strength, external pushes, observation noise)
 - [ ] Terrain adaptation (uneven ground, obstacles)
 - [-] JAX/MJX migration for faster training (PPO pipeline complete, SAC pending)
