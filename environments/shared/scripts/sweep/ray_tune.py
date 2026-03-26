@@ -516,6 +516,18 @@ def train_trial(config: dict[str, Any]) -> None:
     if drive_sweep_dir:
         drive_best_model_dir = Path(drive_sweep_dir) / "trials" / trial_id / "models"
 
+        # Sync stage_config.json to Drive immediately so it survives session
+        # crashes.  Later syncs (in RayTuneReportCallback and post-training)
+        # will overwrite with the same content, which is harmless.
+        drive_trial_dir = Path(drive_sweep_dir) / "trials" / trial_id
+        drive_trial_dir.mkdir(parents=True, exist_ok=True)
+        _stage_cfg_src = trial_dir / "stage_config.json"
+        if _stage_cfg_src.exists():
+            try:
+                shutil.copy2(str(_stage_cfg_src), str(drive_trial_dir / "stage_config.json"))
+            except OSError as e:
+                logger.warning("Early Drive sync of stage_config.json failed: %s", e)
+
     _train_start_time = time.time()
 
     # Create environments.
