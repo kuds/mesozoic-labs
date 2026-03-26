@@ -45,8 +45,8 @@ ent_coef = "auto"                # Auto-entropy handles sparse reward exploratio
                                  # suggests the task structure is sound; SAC should solve it more sample-efficiently
 buffer_size = 1_000_000          # Large buffer retains locomotion transitions from Stage 2
 learning_starts = 10_000
-train_freq = 4                   # Batch env steps before training — 4× less Python loop overhead
-gradient_steps = 4               # Match train_freq to maintain update-to-data ratio
+train_freq = 16                  # Collect 16 env steps before training — matches proven raptor SAC config
+gradient_steps = 8               # 2:1 data-to-update ratio — matches raptor; reduces overfitting risk on replay buffer
 
 [sac.policy_kwargs]
 net_arch = [512, 256]            # Standard width — Stage 3 task (approach + bite) is lower-dimensional than locomotion
