@@ -50,6 +50,7 @@ def create_ray_tuner(
     load_path: str = "",
     collapse_min_evals: int = 8,
     collapse_patience: int = 5,
+    n_eval_episodes: int = 30,
     use_asha: bool = True,
     grace_period: int = 30,
     reduction_factor: int = 2,
@@ -80,6 +81,8 @@ def create_ray_tuner(
         Optional warm-start checkpoint path.
     collapse_min_evals, collapse_patience:
         Reward-collapse early stopping settings.
+    n_eval_episodes:
+        Number of episodes per evaluation round (default 30; use 15 on T4).
     use_asha:
         If True, use ASHA scheduler; otherwise FIFO (no pruning).
     grace_period, reduction_factor:
@@ -151,6 +154,7 @@ def create_ray_tuner(
         "_drive_sweep_dir": str(sweep_dir),
         "_collapse_min_evals": collapse_min_evals,
         "_collapse_patience": collapse_patience,
+        "_n_eval_episodes": n_eval_episodes,
     }
     full_config = {**fixed_config, **search_space}
 
@@ -198,6 +202,7 @@ def run_ray_sweep(
     load_path: str = "",
     collapse_min_evals: int = 8,
     collapse_patience: int = 5,
+    n_eval_episodes: int = 30,
     use_asha: bool = True,
     grace_period: int = 30,
     reduction_factor: int = 2,
@@ -249,6 +254,7 @@ def run_ray_sweep(
         "_drive_sweep_dir": str(sweep_dir),
         "_collapse_min_evals": collapse_min_evals,
         "_collapse_patience": collapse_patience,
+        "_n_eval_episodes": n_eval_episodes,
     }
     full_config = {**fixed_config, **search_space}
 
@@ -288,6 +294,7 @@ def run_ray_sweep(
             load_path=load_path,
             collapse_min_evals=collapse_min_evals,
             collapse_patience=collapse_patience,
+            n_eval_episodes=n_eval_episodes,
             use_asha=use_asha,
             grace_period=grace_period,
             reduction_factor=reduction_factor,
@@ -408,50 +415,238 @@ def _quick_rank_trials(
     stage_configs: dict[int, dict[str, Any]],
     stage: int,
 ) -> list[tuple[Path, float]]:
-    """Run a quick 1-episode eval for trials missing evaluations.npz."""
-    from stable_baselines3 import PPO, SAC
+    """Run quick 1-episode evals in parallel using Ray tasks.
 
-    from ...train_base import _ensure_sb3
+    Trials that already have a reward from evaluations.npz are kept as-is.
+    Only trials with reward == -inf are evaluated. Uses Ray remote tasks
+    to parallelize across available CPUs.
+    """
+    import ray
 
-    sb3 = _ensure_sb3()
-    stage_cfg = stage_configs[stage]
-    env_kwargs = stage_cfg["env_kwargs"].copy()
-    alg_cls = SAC if algorithm == "sac" else PPO
+    need_eval = [(td, reward) for td, reward in trials if reward == float("-inf")]
+    have_reward = [(td, reward) for td, reward in trials if reward != float("-inf")]
 
-    reranked: list[tuple[Path, float]] = []
-    for td, reward in trials:
-        if reward != float("-inf"):
-            reranked.append((td, reward))
-            continue
+    if not need_eval:
+        return trials
 
+    env_kwargs = stage_configs[stage]["env_kwargs"].copy()
+
+    @ray.remote(num_cpus=1, num_gpus=0)
+    def _eval_one_trial(model_dir: str, vecnorm_path: str, alg: str, env_kw: dict, species: str) -> float:
+        """Evaluate a single trial for 1 episode inside a Ray task."""
+        import os
+
+        os.environ["MUJOCO_GL"] = "egl"
+        from stable_baselines3 import PPO, SAC
+
+        from environments.shared.species_registry import get_species_config
+        from environments.shared.train_base import _ensure_sb3
+
+        sb3 = _ensure_sb3()
+        sp_cfg = get_species_config(species)
+        alg_cls = SAC if alg == "sac" else PPO
+
+        def _mk():
+            return sb3["Monitor"](sp_cfg.env_class(**env_kw))
+
+        ev = sb3["DummyVecEnv"]([_mk])
+        vn_path = Path(vecnorm_path)
+        if vn_path.exists():
+            ev = sb3["VecNormalize"].load(str(vn_path), ev)
+            ev.training = False
+            ev.norm_reward = False
+        m = alg_cls.load(model_dir, env=ev)
+        obs = ev.reset()
+        total = 0.0
+        while True:
+            action, _ = m.predict(obs, deterministic=True)
+            obs, rews, dones, _ = ev.step(action)
+            total += float(rews[0])
+            if dones[0]:
+                break
+        ev.close()
+        return total
+
+    # Launch all eval tasks in parallel
+    futures = {}
+    for td, _ in need_eval:
         model_path = str(td / "models" / "best_model")
-        vecnorm_path = td / "models" / "best_model_vecnorm.pkl"
+        vecnorm_path = str(td / "models" / "best_model_vecnorm.pkl")
+        ref = _eval_one_trial.remote(
+            model_path,
+            vecnorm_path,
+            algorithm,
+            env_kwargs,
+            species_cfg.species_name,
+        )
+        futures[ref] = td
+
+    # Collect results
+    reranked = list(have_reward)
+    for ref, td in futures.items():
         try:
-
-            def _mk():
-                return sb3["Monitor"](species_cfg.env_class(**env_kwargs))
-
-            ev = sb3["DummyVecEnv"]([_mk])
-            if vecnorm_path.exists():
-                ev = sb3["VecNormalize"].load(str(vecnorm_path), ev)
-                ev.training = False
-                ev.norm_reward = False
-            m = alg_cls.load(model_path, env=ev)
-            obs = ev.reset()
-            total = 0.0
-            while True:
-                action, _ = m.predict(obs, deterministic=True)
-                obs, rews, dones, _ = ev.step(action)
-                total += float(rews[0])
-                if dones[0]:
-                    break
-            ev.close()
-            reranked.append((td, total))
+            reward = ray.get(ref)
+            reranked.append((td, reward))
         except Exception as e:
             logger.warning("Could not eval %s: %s", td.name, e)
             reranked.append((td, float("-inf")))
 
     return reranked
+
+
+# ---------------------------------------------------------------------------
+# Parallel post-sweep evaluation
+# ---------------------------------------------------------------------------
+
+
+def evaluate_trials_parallel(
+    top_trials: list[tuple[Path, float]],
+    *,
+    species: str,
+    algorithm: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    n_eval_episodes: int = 30,
+) -> list[dict[str, Any]]:
+    """Evaluate multiple trials in parallel using Ray tasks.
+
+    Each trial runs ``n_eval_episodes`` episodes with full LocomotionMetrics
+    collection. Uses Ray remote tasks to parallelize across CPUs, which is
+    significantly faster than sequential evaluation for multiple trials.
+
+    Parameters
+    ----------
+    top_trials:
+        List of ``(trial_dir, sweep_reward)`` tuples to evaluate.
+    species:
+        Species name (for loading species config inside Ray tasks).
+    algorithm:
+        Algorithm name (``"ppo"`` or ``"sac"``).
+    stage:
+        Curriculum stage number.
+    stage_config:
+        Stage configuration dict (for env_kwargs).
+    n_eval_episodes:
+        Number of evaluation episodes per trial.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        One row dict per trial with evaluation metrics, in the same order
+        as ``top_trials``.
+    """
+    import ray
+
+    env_kwargs = stage_config["env_kwargs"].copy()
+
+    @ray.remote(num_cpus=1, num_gpus=0)
+    def _eval_trial(
+        trial_dir: str,
+        model_path: str,
+        vecnorm_path: str,
+        alg: str,
+        species_name: str,
+        env_kw: dict,
+        n_episodes: int,
+        rank: int,
+        sweep_reward: float,
+    ) -> dict[str, Any]:
+        """Evaluate one trial with full LocomotionMetrics inside a Ray task."""
+        import os
+
+        os.environ["MUJOCO_GL"] = "egl"
+
+        from pathlib import Path as _Path
+
+        from stable_baselines3 import PPO, SAC
+
+        from environments.shared.metrics import LocomotionMetrics
+        from environments.shared.species_registry import get_species_config
+        from environments.shared.train_base import _ensure_sb3
+
+        sb3 = _ensure_sb3()
+        sp_cfg = get_species_config(species_name)
+        alg_cls = SAC if alg == "sac" else PPO
+
+        def _mk():
+            return sb3["Monitor"](sp_cfg.env_class(**env_kw))
+
+        eval_env = sb3["DummyVecEnv"]([_mk])
+        vn = _Path(vecnorm_path)
+        if vn.exists():
+            eval_env = sb3["VecNormalize"].load(str(vn), eval_env)
+            eval_env.training = False
+            eval_env.norm_reward = False
+
+        model = alg_cls.load(model_path, env=eval_env)
+
+        episode_reports = []
+        for _ in range(n_episodes):
+            obs = eval_env.reset()
+            metrics = LocomotionMetrics()
+            while True:
+                action, _ = model.predict(obs, deterministic=True)
+                obs, rewards, dones, infos = eval_env.step(action)
+                metrics.record_step(infos[0], float(rewards[0]))
+                if dones[0]:
+                    break
+            episode_reports.append(metrics.compute())
+
+        eval_env.close()
+        agg = LocomotionMetrics.aggregate_episodes(episode_reports)
+
+        return {
+            "rank": rank,
+            "trial": _Path(trial_dir).name,
+            "sweep_reward": round(sweep_reward, 2),
+            "eval_reward": round(agg.get("mean_total_reward", 0), 2),
+            "eval_reward_std": round(agg.get("std_total_reward", 0), 2),
+            "ep_length": round(agg.get("mean_episode_length", 0), 1),
+            "std_episode_length": round(agg.get("std_episode_length", 0), 1),
+            "fwd_vel_m/s": round(agg.get("mean_mean_forward_velocity", 0), 3),
+            "fwd_vel_std": round(agg.get("std_mean_forward_velocity", 0), 3),
+            "max_fwd_vel": round(agg.get("mean_max_forward_velocity", 0), 3),
+            "distance_m": round(agg.get("mean_total_distance", 0), 3),
+            "vel_consistency": round(agg.get("mean_velocity_consistency", 0), 3),
+            "gait_symmetry": round(agg.get("mean_gait_symmetry", 0), 3),
+            "stride_freq_Hz": round(agg.get("mean_stride_frequency", 0), 3),
+            "cost_of_transport": round(agg.get("mean_cost_of_transport", 0), 4),
+            "tilt_rad": round(agg.get("mean_mean_tilt_angle", 0), 3),
+            "pelvis_height_m": round(agg.get("mean_mean_pelvis_height", 0), 3),
+            "mean_success_rate": round(agg.get("mean_success_rate", 0), 4),
+        }
+
+    # Launch all evaluations in parallel
+    refs = []
+    for rank, (trial_dir, sweep_reward) in enumerate(top_trials, 1):
+        model_dir = trial_dir / "models"
+        ref = _eval_trial.remote(
+            str(trial_dir),
+            str(model_dir / "best_model"),
+            str(model_dir / "best_model_vecnorm.pkl"),
+            algorithm,
+            species,
+            env_kwargs,
+            n_eval_episodes,
+            rank,
+            sweep_reward,
+        )
+        refs.append(ref)
+
+    # Collect results in submission order (preserves ranking)
+    results = ray.get(refs)
+    for row in results:
+        logger.info(
+            "Trial %d/%d %s: reward=%.2f  fwd_vel=%.3f m/s  distance=%.2f m",
+            row["rank"],
+            len(top_trials),
+            row["trial"],
+            row["eval_reward"],
+            row["fwd_vel_m/s"],
+            row["distance_m"],
+        )
+
+    return results
 
 
 # ---------------------------------------------------------------------------

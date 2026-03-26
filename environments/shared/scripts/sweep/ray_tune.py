@@ -44,6 +44,23 @@ def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") 
                 logger.warning("Drive sync failed for %s: %s", src_file.name, e)
 
 
+def _sync_best_model(src_dir: str | Path, drive_dir: str | Path) -> None:
+    """Copy only best_model* and final* files to Drive (skip periodic checkpoints)."""
+    src_dir = Path(src_dir)
+    drive_dir = Path(drive_dir)
+    if not src_dir.exists():
+        return
+    drive_dir.mkdir(parents=True, exist_ok=True)
+    for src_file in src_dir.iterdir():
+        if src_file.is_file() and (
+            src_file.name.startswith("best_model") or src_file.name.startswith("stage") and "final" in src_file.name
+        ):
+            try:
+                shutil.copy2(str(src_file), str(drive_dir / src_file.name))
+            except OSError as e:
+                logger.warning("Drive sync failed for %s: %s", src_file.name, e)
+
+
 def _sync_trial_metadata(
     source_dir: str | Path,
     drive_trial_dir: str | Path,
@@ -138,7 +155,7 @@ def _make_ray_tune_report_callback_class():
             if self._drive_best_model_dir and self.eval_callback.best_mean_reward > self._best_mean_reward:
                 self._best_mean_reward = self.eval_callback.best_mean_reward
                 best_src = Path(self.eval_callback.best_model_save_path)
-                _sync_to_drive(best_src, self._drive_best_model_dir, label=f"best@{self.num_timesteps}")
+                _sync_best_model(best_src, self._drive_best_model_dir)
 
                 # Sync evaluations.npz, diagnostics.npz, and stage_config.json to
                 # the Drive trial dir (one level up from models/) so post-analysis
@@ -243,6 +260,10 @@ def _make_experiment_state_sync_callback_class():
         the experiment state can be restored from Drive on the next session
         so that ``Tuner.restore()`` can pick up where it left off.
 
+        Uses incremental sync: only copies files that are newer than the
+        Drive copy (by mtime), avoiding redundant I/O as the experiment
+        directory grows with completed trials.
+
         Syncs happen:
         - After every trial completes (captures newly finished results)
         - Periodically based on ``sync_interval_s`` (captures in-progress state)
@@ -260,18 +281,25 @@ def _make_experiment_state_sync_callback_class():
             self._last_sync_time = 0.0
 
         def _sync(self, reason: str = "") -> None:
-            """Copy local experiment state to Drive."""
+            """Incrementally copy local experiment state to Drive."""
             if not self._local_dir.exists():
                 return
             try:
                 self._drive_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copytree(
-                    str(self._local_dir),
-                    str(self._drive_dir),
-                    dirs_exist_ok=True,
-                )
+                copied = 0
+                for src_file in self._local_dir.rglob("*"):
+                    if not src_file.is_file():
+                        continue
+                    rel = src_file.relative_to(self._local_dir)
+                    dst = self._drive_dir / rel
+                    # Skip if destination is up-to-date
+                    if dst.exists() and dst.stat().st_mtime >= src_file.stat().st_mtime:
+                        continue
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(str(src_file), str(dst))
+                    copied += 1
                 self._last_sync_time = time.time()
-                logger.info("Experiment state synced to Drive (%s)", reason)
+                logger.info("Experiment state synced to Drive (%s, %d files copied)", reason, copied)
             except OSError as e:
                 logger.warning("Experiment state sync failed: %s", e)
 
@@ -494,6 +522,7 @@ def train_trial(config: dict[str, Any]) -> None:
     load_path = config.get("_load_path") or None
     collapse_min_evals = config.get("_collapse_min_evals", 8)
     collapse_patience = config.get("_collapse_patience", 5)
+    n_eval_episodes = config.get("_n_eval_episodes", 30)
     local_trials_dir = config.get("_local_trials_dir")
     drive_sweep_dir = config.get("_drive_sweep_dir")
 
@@ -595,7 +624,7 @@ def train_trial(config: dict[str, Any]) -> None:
             best_model_save_path=str(model_dir),
             log_path=str(trial_dir),
             eval_freq=eval_freq // n_envs,
-            n_eval_episodes=30,
+            n_eval_episodes=n_eval_episodes,
             deterministic=True,
             render=False,
             verbose=0,
@@ -668,7 +697,7 @@ def train_trial(config: dict[str, Any]) -> None:
         train_env.save(str(final_path) + "_vecnorm.pkl")
 
         if drive_best_model_dir:
-            _sync_to_drive(model_dir, drive_best_model_dir, label="final")
+            _sync_best_model(model_dir, drive_best_model_dir)
             _sync_trial_metadata(trial_dir, drive_best_model_dir.parent)
 
         # Post-training evaluation for distance + forward velocity metrics.
@@ -689,7 +718,7 @@ def train_trial(config: dict[str, Any]) -> None:
             eval_model,
             eval_env,
             species_cfg.success_keys,
-            n_episodes=30,
+            n_episodes=n_eval_episodes,
         )
         import numpy as _np
 

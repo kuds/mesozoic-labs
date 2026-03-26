@@ -26,6 +26,7 @@ from .orchestration import _eager_refresh, launch_all_stages, launch_sweep
 from .ray_orchestration import (
     create_ray_tuner,
     discover_and_rank_trials,
+    evaluate_trials_parallel,
     export_best_trial,
     run_ray_sweep,
 )
@@ -110,6 +111,7 @@ __all__ = [
     "detect_gpu_info",
     "detect_gpu_model",
     "discover_and_rank_trials",
+    "evaluate_trials_parallel",
     "export_best_trial",
     "load_scoring_config",
     "run_ray_sweep",
