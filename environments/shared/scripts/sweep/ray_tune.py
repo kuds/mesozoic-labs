@@ -44,6 +44,22 @@ def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") 
                 logger.warning("Drive sync failed for %s: %s", src_file.name, e)
 
 
+def _sync_trial_metadata(
+    source_dir: str | Path, drive_trial_dir: str | Path, filenames: tuple[str, ...] = ("evaluations.npz", "diagnostics.npz", "stage_config.json")
+) -> None:
+    """Copy trial metadata files (evaluations, diagnostics, config) to Drive."""
+    source_dir = Path(source_dir)
+    drive_trial_dir = Path(drive_trial_dir)
+    drive_trial_dir.mkdir(parents=True, exist_ok=True)
+    for name in filenames:
+        src = source_dir / name
+        if src.exists():
+            try:
+                shutil.copy2(str(src), str(drive_trial_dir / name))
+            except OSError as e:
+                logger.warning("Drive sync failed for %s: %s", name, e)
+
+
 # ---------------------------------------------------------------------------
 # SB3 callback: report metrics + checkpoints to Ray Tune
 # ---------------------------------------------------------------------------
@@ -126,16 +142,10 @@ def _make_ray_tune_report_callback_class():
                 # the Drive trial dir (one level up from models/) so post-analysis
                 # can rank trials and generate training curve / diagnostics graphs
                 # without local /tmp/.
-                drive_trial_dir = self._drive_best_model_dir.parent
-                drive_trial_dir.mkdir(parents=True, exist_ok=True)
-                _log_dir = Path(self.eval_callback.log_path)
-                for _npz_name in ("evaluations.npz", "diagnostics.npz", "stage_config.json"):
-                    _npz = _log_dir / _npz_name
-                    if _npz.exists():
-                        try:
-                            shutil.copy2(str(_npz), str(drive_trial_dir / _npz_name))
-                        except OSError as e:
-                            logger.warning("Drive sync failed for %s: %s", _npz_name, e)
+                _sync_trial_metadata(
+                    Path(self.eval_callback.log_path),
+                    self._drive_best_model_dir.parent,
+                )
 
             return True
 
@@ -320,7 +330,7 @@ def _make_drive_progress_log_callback_class():
 
         def __init__(self, drive_sweep_dir: str | Path) -> None:
             self._csv_path = Path(drive_sweep_dir) / "trial_progress.csv"
-            self._written_header = False
+            self._written_header = self._csv_path.exists()
 
         def _write_row(self, trial: Any, status: str) -> None:
             """Append a single row to the progress CSV."""
@@ -345,11 +355,10 @@ def _make_drive_progress_log_callback_class():
                     row[key] = value
 
             try:
-                file_exists = self._csv_path.exists()
                 self._csv_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(self._csv_path, "a", newline="") as f:
                     writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-                    if not file_exists and not self._written_header:
+                    if not self._written_header:
                         writer.writeheader()
                         self._written_header = True
                     writer.writerow(row)
@@ -564,8 +573,6 @@ def train_trial(config: dict[str, Any]) -> None:
 
         if load_path:
             vecnorm_path = load_path.replace(".zip", "") + "_vecnorm.pkl"
-            if not vecnorm_path.endswith("_vecnorm.pkl"):
-                vecnorm_path = load_path + "_vecnorm.pkl"
             if not load_vecnorm_stats(vecnorm_path, train_env, eval_env):
                 eval_env.training = False
                 eval_env.norm_reward = False
@@ -660,16 +667,7 @@ def train_trial(config: dict[str, Any]) -> None:
 
         if drive_best_model_dir:
             _sync_to_drive(model_dir, drive_best_model_dir, label="final")
-            # Sync evaluations.npz, diagnostics.npz, and stage_config.json to Drive
-            drive_trial_dir = drive_best_model_dir.parent
-            drive_trial_dir.mkdir(parents=True, exist_ok=True)
-            for _npz_name in ("evaluations.npz", "diagnostics.npz", "stage_config.json"):
-                _npz = trial_dir / _npz_name
-                if _npz.exists():
-                    try:
-                        shutil.copy2(str(_npz), str(drive_trial_dir / _npz_name))
-                    except OSError as e:
-                        logger.warning("Drive sync failed for %s: %s", _npz_name, e)
+            _sync_trial_metadata(trial_dir, drive_best_model_dir.parent)
 
         # Post-training evaluation for distance + forward velocity metrics.
         # Load the best model for evaluation (matches what gets handed off).
