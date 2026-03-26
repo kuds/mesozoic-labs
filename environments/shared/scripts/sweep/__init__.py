@@ -23,6 +23,12 @@ from .constants import (
     _SweepJobFailed,
 )
 from .orchestration import _eager_refresh, launch_all_stages, launch_sweep
+from .ray_orchestration import (
+    create_ray_tuner,
+    discover_and_rank_trials,
+    export_best_trial,
+    run_ray_sweep,
+)
 from .ray_search_space import build_search_space, detect_gpu_info, detect_gpu_model, save_search_space, to_ray_tune
 from .ray_tune import (
     DriveProgressLogCallback,
@@ -100,7 +106,11 @@ __all__ = [
     "train_trial",
     "write_results_csv",
     "compute_quality_scores",
+    "create_ray_tuner",
     "detect_gpu_info",
     "detect_gpu_model",
+    "discover_and_rank_trials",
+    "export_best_trial",
     "load_scoring_config",
+    "run_ray_sweep",
 ]
