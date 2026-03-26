@@ -49,8 +49,8 @@ ent_coef = "auto"                # Auto-entropy handles Stage 1→2 transition e
 buffer_size = 1_000_000          # Large buffer retains Stage 1 balance transitions — key advantage over PPO
                                  # for mitigating catastrophic forgetting (PPO's biggest pain point for T-Rex)
 learning_starts = 10_000
-train_freq = 4                   # Batch env steps before training — 4× less Python loop overhead
-gradient_steps = 4               # Match train_freq to maintain update-to-data ratio
+train_freq = 16                  # Collect 16 env steps before training — matches proven raptor SAC config
+gradient_steps = 8               # 2:1 data-to-update ratio — matches raptor; reduces overfitting risk on replay buffer
 
 [sac.policy_kwargs]
 net_arch = [512, 256]            # Larger first layer for T-Rex's higher-dimensional obs space (83 vs raptor's 67)
