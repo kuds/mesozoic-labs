@@ -162,6 +162,40 @@ class TestSaveSearchSpace:
         data = json.loads(result_path.read_text())
         assert data["runtime"]["use_asha"] is False
 
+    def test_writes_gpu_info_section(self, tmp_path):
+        space = {"ppo_lr": {"type": "double", "min": 1e-5, "max": 1e-3, "scale": "log"}}
+        gpu = {
+            "gpu_model": "A100",
+            "gpu_full_name": "NVIDIA A100-SXM4-40GB",
+            "gpu_memory_gb": 40.0,
+            "cuda_version": "12.1",
+        }
+        result_path = save_search_space(
+            space,
+            tmp_path,
+            species="velociraptor",
+            stage=1,
+            algorithm="ppo",
+            gpu_model="A100",
+            gpu_info=gpu,
+            max_concurrent=3,
+        )
+        data = json.loads(result_path.read_text())
+        # Full GPU info at top level (like stage_config.json)
+        assert "gpu" in data
+        assert data["gpu"]["gpu_model"] == "A100"
+        assert data["gpu"]["gpu_full_name"] == "NVIDIA A100-SXM4-40GB"
+        assert data["gpu"]["gpu_memory_gb"] == 40.0
+        assert data["gpu"]["cuda_version"] == "12.1"
+        # Short gpu_model still in runtime for backward compat
+        assert data["runtime"]["gpu_model"] == "A100"
+
+    def test_gpu_info_absent_when_not_provided(self, tmp_path):
+        space = {"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}
+        result_path = save_search_space(space, tmp_path, species="trex", stage=1, algorithm="ppo")
+        data = json.loads(result_path.read_text())
+        assert "gpu" not in data
+
     def test_creates_dest_dir(self, tmp_path):
         dest = tmp_path / "nested" / "dir"
         save_search_space({"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}, dest)
