@@ -109,7 +109,6 @@ class TestSaveSearchSpace:
             species="velociraptor",
             stage=1,
             algorithm="ppo",
-            gpu_model="A100",
             max_concurrent=3,
             n_envs=8,
             timesteps_per_trial=6_000_000,
@@ -120,7 +119,7 @@ class TestSaveSearchSpace:
         data = json.loads(result_path.read_text())
         assert "runtime" in data
         rt = data["runtime"]
-        assert rt["gpu_model"] == "A100"
+        assert "gpu_model" not in rt
         assert rt["max_concurrent"] == 3
         assert rt["n_envs"] == 8
         assert rt["timesteps_per_trial"] == 6_000_000
@@ -161,6 +160,39 @@ class TestSaveSearchSpace:
         )
         data = json.loads(result_path.read_text())
         assert data["runtime"]["use_asha"] is False
+
+    def test_writes_gpu_info_section(self, tmp_path):
+        space = {"ppo_lr": {"type": "double", "min": 1e-5, "max": 1e-3, "scale": "log"}}
+        gpu = {
+            "gpu_model": "A100",
+            "gpu_full_name": "NVIDIA A100-SXM4-40GB",
+            "gpu_memory_gb": 40.0,
+            "cuda_version": "12.1",
+        }
+        result_path = save_search_space(
+            space,
+            tmp_path,
+            species="velociraptor",
+            stage=1,
+            algorithm="ppo",
+            gpu_info=gpu,
+            max_concurrent=3,
+        )
+        data = json.loads(result_path.read_text())
+        # Full GPU info at top level (like stage_config.json)
+        assert "gpu" in data
+        assert data["gpu"]["gpu_model"] == "A100"
+        assert data["gpu"]["gpu_full_name"] == "NVIDIA A100-SXM4-40GB"
+        assert data["gpu"]["gpu_memory_gb"] == 40.0
+        assert data["gpu"]["cuda_version"] == "12.1"
+        # gpu_model should NOT be in runtime (lives in gpu section only)
+        assert "gpu_model" not in data["runtime"]
+
+    def test_gpu_info_absent_when_not_provided(self, tmp_path):
+        space = {"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}
+        result_path = save_search_space(space, tmp_path, species="trex", stage=1, algorithm="ppo")
+        data = json.loads(result_path.read_text())
+        assert "gpu" not in data
 
     def test_creates_dest_dir(self, tmp_path):
         dest = tmp_path / "nested" / "dir"

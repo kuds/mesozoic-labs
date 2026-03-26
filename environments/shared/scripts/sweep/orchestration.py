@@ -491,6 +491,10 @@ def launch_sweep(args: argparse.Namespace) -> None:
         "location": args.location,
     }
 
+    from environments.shared.config import _detect_gpu_info
+
+    gpu_info = _detect_gpu_info()
+
     sweep_state: dict = {
         "species": args.species,
         "algorithm": args.algorithm,
@@ -498,6 +502,8 @@ def launch_sweep(args: argparse.Namespace) -> None:
         "cli_args": cli_args_snapshot,
         "stages": {},
     }
+    if gpu_info:
+        sweep_state["gpu"] = gpu_info
 
     partial_rows: list[dict] = []
     resume_run = 0
@@ -837,6 +843,10 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     }
 
     # ── Resume: restore state from a previous (possibly interrupted) run ─────
+    from environments.shared.config import _detect_gpu_info
+
+    gpu_info = _detect_gpu_info()
+
     completed_stages: set[int] = set()
     partial_stages: dict[int, dict] = {}
     in_progress_stages: dict[int, dict] = {}
@@ -847,6 +857,8 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         "cli_args": cli_args_snapshot,
         "stages": {},
     }
+    if gpu_info:
+        sweep_state["gpu"] = gpu_info
     logger.info("Resume mode: %s", "enabled" if args.resume else "disabled")
     if args.resume:
         prev_state = _load_sweep_state(args.species, args.algorithm, bucket=args.bucket, project=args.project)

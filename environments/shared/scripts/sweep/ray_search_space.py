@@ -46,6 +46,18 @@ def detect_gpu_model() -> str:
     return str(info.get("gpu_model", ""))
 
 
+def detect_gpu_info() -> dict[str, Any]:
+    """Return full GPU details dict, matching the format used by ``stage_config.json``.
+
+    Keys (when a GPU is available): ``gpu_model``, ``gpu_full_name``,
+    ``gpu_memory_gb``, ``cuda_version`` (or ``driver_version``).
+    Returns an empty dict when no GPU is detected.
+    """
+    from environments.shared.config import _detect_gpu_info
+
+    return _detect_gpu_info()
+
+
 # Type alias for a single parameter spec dict.
 _ParamSpec = dict[str, Any]
 _SearchSpace = dict[str, _ParamSpec]
@@ -147,7 +159,7 @@ def save_search_space(
     species: str = "",
     stage: int = 0,
     algorithm: str = "",
-    gpu_model: str = "",
+    gpu_info: dict[str, Any] | None = None,
     max_concurrent: int = 0,
     n_envs: int = 0,
     timesteps_per_trial: int = 0,
@@ -170,6 +182,12 @@ def save_search_space(
     When any runtime keyword arguments are provided, a ``"runtime"`` section is
     added to the JSON with GPU, concurrency, environment, and training settings.
 
+    GPU details are supplied as a full dict via *gpu_info* (matching the
+    ``stage_config.json`` format with keys like ``gpu_model``,
+    ``gpu_full_name``, ``gpu_memory_gb``, ``cuda_version``).  When provided it
+    is stored under a ``"gpu"`` key at the top level, consistent with
+    ``stage_config.json``.
+
     Returns the path to the written file.
     """
     dest = Path(dest_dir)
@@ -188,10 +206,12 @@ def save_search_space(
         "num_parameters": len(search_space),
     }
 
+    # Full GPU details — same format as stage_config.json.
+    if gpu_info:
+        payload["gpu"] = gpu_info
+
     # Build runtime section from provided keyword arguments.
     runtime: dict[str, Any] = {}
-    if gpu_model:
-        runtime["gpu_model"] = gpu_model
     if max_concurrent:
         runtime["max_concurrent"] = max_concurrent
     if n_envs:
