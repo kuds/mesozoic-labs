@@ -45,7 +45,9 @@ def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") 
 
 
 def _sync_trial_metadata(
-    source_dir: str | Path, drive_trial_dir: str | Path, filenames: tuple[str, ...] = ("evaluations.npz", "diagnostics.npz", "stage_config.json")
+    source_dir: str | Path,
+    drive_trial_dir: str | Path,
+    filenames: tuple[str, ...] = ("evaluations.npz", "diagnostics.npz", "stage_config.json"),
 ) -> None:
     """Copy trial metadata files (evaluations, diagnostics, config) to Drive."""
     source_dir = Path(source_dir)

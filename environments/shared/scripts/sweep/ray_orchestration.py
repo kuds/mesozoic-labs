@@ -265,8 +265,7 @@ def run_ray_sweep(
         restored = True
     elif resume:
         logger.warning(
-            "RESUME=True but no experiment state found at %s. "
-            "Starting a fresh sweep instead.",
+            "RESUME=True but no experiment state found at %s. Starting a fresh sweep instead.",
             local_experiment_dir,
         )
 
@@ -384,7 +383,8 @@ def discover_and_rank_trials(
     if have_npz < len(valid_trials) // 2 and species_cfg is not None and stage_configs is not None:
         logger.info(
             "%d/%d trials missing evaluations.npz. Running quick 1-episode ranking...",
-            missing_npz_count, len(valid_trials),
+            missing_npz_count,
+            len(valid_trials),
         )
         valid_trials = _quick_rank_trials(
             valid_trials,
@@ -427,6 +427,7 @@ def _quick_rank_trials(
         model_path = str(td / "models" / "best_model")
         vecnorm_path = td / "models" / "best_model_vecnorm.pkl"
         try:
+
             def _mk():
                 return sb3["Monitor"](species_cfg.env_class(**env_kwargs))
 
