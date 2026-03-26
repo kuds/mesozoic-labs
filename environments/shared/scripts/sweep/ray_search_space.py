@@ -159,7 +159,6 @@ def save_search_space(
     species: str = "",
     stage: int = 0,
     algorithm: str = "",
-    gpu_model: str = "",
     gpu_info: dict[str, Any] | None = None,
     max_concurrent: int = 0,
     n_envs: int = 0,
@@ -183,12 +182,11 @@ def save_search_space(
     When any runtime keyword arguments are provided, a ``"runtime"`` section is
     added to the JSON with GPU, concurrency, environment, and training settings.
 
-    GPU details can be supplied either as a short string via *gpu_model* (legacy)
-    or as a full dict via *gpu_info* (matching the ``stage_config.json`` format
-    with keys like ``gpu_model``, ``gpu_full_name``, ``gpu_memory_gb``,
-    ``cuda_version``).  When *gpu_info* is provided it is stored under a ``"gpu"``
-    key at the top level (consistent with ``stage_config.json``); *gpu_model* is
-    still written into the ``"runtime"`` section for backward compatibility.
+    GPU details are supplied as a full dict via *gpu_info* (matching the
+    ``stage_config.json`` format with keys like ``gpu_model``,
+    ``gpu_full_name``, ``gpu_memory_gb``, ``cuda_version``).  When provided it
+    is stored under a ``"gpu"`` key at the top level, consistent with
+    ``stage_config.json``.
 
     Returns the path to the written file.
     """
@@ -214,8 +212,6 @@ def save_search_space(
 
     # Build runtime section from provided keyword arguments.
     runtime: dict[str, Any] = {}
-    if gpu_model:
-        runtime["gpu_model"] = gpu_model
     if max_concurrent:
         runtime["max_concurrent"] = max_concurrent
     if n_envs:
