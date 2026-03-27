@@ -634,7 +634,7 @@ def evaluate_trials_parallel(
         refs.append(ref)
 
     # Collect results in submission order (preserves ranking)
-    results = ray.get(refs)
+    results: list[dict[str, Any]] = ray.get(refs)
     for row in results:
         logger.info(
             "Trial %d/%d %s: reward=%.2f  fwd_vel=%.3f m/s  distance=%.2f m",
