@@ -64,7 +64,7 @@ def _sync_best_model(src_dir: str | Path, drive_dir: str | Path) -> None:
 def _sync_trial_metadata(
     source_dir: str | Path,
     drive_trial_dir: str | Path,
-    filenames: tuple[str, ...] = ("evaluations.npz", "diagnostics.npz", "stage_config.json"),
+    filenames: tuple[str, ...] = ("evaluations.npz", "diagnostics.npz", "stage_config.json", "metrics.json"),
 ) -> None:
     """Copy trial metadata files (evaluations, diagnostics, config) to Drive."""
     source_dir = Path(source_dir)
@@ -720,6 +720,8 @@ def train_trial(config: dict[str, Any]) -> None:
             species_cfg.success_keys,
             n_episodes=n_eval_episodes,
         )
+        import json as _json
+
         import numpy as _np
 
         _training_duration_s = time.time() - _train_start_time
@@ -735,6 +737,105 @@ def train_trial(config: dict[str, Any]) -> None:
             "timesteps": timesteps,
             "done": True,
         }
+
+        # ── Quality evaluation (matches Vertex AI's _report_hpt_metrics) ──
+        # Collect spinning detection, heading alignment, and reward
+        # component breakdown so Ray Tune trials produce the same eval_*
+        # metrics that Vertex AI trials write to metrics.json.
+        try:
+            from ...evaluation import eval_policy_quality
+
+            quality_metrics = eval_policy_quality(
+                eval_model, eval_env, species_cfg.success_keys, n_episodes=n_eval_episodes,
+            )
+            final_metrics.update(quality_metrics)
+            logger.info(
+                "Quality eval complete: %d metrics (angular_vel=%.3f, heading_align=%.3f)",
+                len(quality_metrics),
+                quality_metrics.get("eval_mean_pelvis_angular_velocity", float("nan")),
+                quality_metrics.get("eval_mean_heading_alignment", float("nan")),
+            )
+        except Exception:
+            logger.warning("Quality evaluation failed — skipping quality metrics.", exc_info=True)
+
+        # ── Write metrics.json sidecar (matches Vertex AI trial output) ───
+        # Enables offline result collection via collect_results_from_disk()
+        # and provides a consistent artifact format across both backends.
+        aux_metrics: dict[str, Any] = {
+            "best_mean_reward": final_metrics["best_mean_reward"],
+            "best_mean_episode_length": final_metrics["best_mean_episode_length"],
+            "last_mean_reward": float(eval_callback.last_mean_reward)
+            if hasattr(eval_callback, "last_mean_reward") and eval_callback.last_mean_reward is not None
+            else final_metrics["best_mean_reward"],
+            "last_mean_episode_length": float(_np.mean(eval_lengths)) if eval_lengths else 0.0,
+            "mean_forward_vel": final_metrics["mean_forward_vel"],
+            "std_forward_vel": final_metrics["std_forward_vel"],
+            "best_mean_forward_vel": final_metrics["mean_forward_vel"],
+            "mean_distance_traveled": final_metrics["mean_distance_traveled"],
+            "mean_success_rate": final_metrics["mean_success_rate"],
+            "best_mean_success_rate": final_metrics["mean_success_rate"],
+            "training_duration_seconds": final_metrics["training_duration_seconds"],
+        }
+        # Include eval_* quality metrics
+        for key, value in final_metrics.items():
+            if key.startswith("eval_"):
+                aux_metrics[key] = value
+        # Include key hyperparameters so offline collection works even
+        # without stage_config.json
+        algo_key_cfg = f"{algorithm}_kwargs"
+        algo_kwargs_cfg = stage_config.get(algo_key_cfg, {})
+        _hparam_keys = (
+            ("learning_rate", "batch_size", "gamma", "n_steps", "ent_coef")
+            if algorithm == "ppo"
+            else ("learning_rate", "batch_size", "gamma", "tau", "buffer_size", "ent_coef")
+        )
+        for k in _hparam_keys:
+            if k in algo_kwargs_cfg:
+                val = algo_kwargs_cfg[k]
+                if not callable(val):
+                    aux_metrics[f"{algorithm}_{k}"] = val
+        net_arch = algo_kwargs_cfg.get("policy_kwargs", {}).get("net_arch")
+        if net_arch is not None:
+            aux_metrics[f"{algorithm}_net_arch"] = str(net_arch)
+
+        metrics_path = trial_dir / "metrics.json"
+        with open(metrics_path, "w") as f:
+            _json.dump(aux_metrics, f, indent=2)
+        logger.info("Metrics sidecar written to: %s", metrics_path)
+
+        # ── Generate stage artifacts (summary, graphs) ────────────────────
+        # Produces the same training_curves.png, diagnostics graphs, and
+        # stage_summary.txt that Vertex AI trials generate, making Ray Tune
+        # trial directories self-contained for post-analysis.
+        try:
+            from ...reporting import generate_stage_artifacts
+
+            generate_stage_artifacts(
+                species_cfg=species_cfg,
+                stage_config=stage_config,
+                stage=stage,
+                algorithm=algorithm,
+                stage_dir=str(trial_dir),
+                seed=seed,
+                timesteps=timesteps,
+                record_videos=False,
+                generate_graphs=True,
+            )
+        except Exception:
+            logger.warning("Stage artifact generation failed.", exc_info=True)
+
+        # Sync metrics.json to Drive alongside other trial metadata
+        if drive_best_model_dir:
+            _sync_trial_metadata(
+                trial_dir,
+                drive_best_model_dir.parent,
+                filenames=(
+                    "evaluations.npz",
+                    "diagnostics.npz",
+                    "stage_config.json",
+                    "metrics.json",
+                ),
+            )
 
         # Final report
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -787,6 +888,11 @@ def collect_ray_results(
             "training_duration_seconds",
         ):
             row[metric] = rt_row.get(metric)
+
+        # Quality evaluation metrics (eval_* keys from eval_policy_quality)
+        for col in results_df.columns:
+            if col.startswith("eval_"):
+                row[col] = rt_row[col]
 
         # Curriculum thresholds
         row["reward_threshold"] = cur.get("min_avg_reward")
