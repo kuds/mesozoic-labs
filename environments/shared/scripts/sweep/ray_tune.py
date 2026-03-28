@@ -800,7 +800,10 @@ def train_trial(config: dict[str, Any]) -> None:
             from ...evaluation import eval_policy_quality
 
             quality_metrics = eval_policy_quality(
-                eval_model, eval_env, species_cfg.success_keys, n_episodes=n_eval_episodes,
+                eval_model,
+                eval_env,
+                species_cfg.success_keys,
+                n_episodes=n_eval_episodes,
             )
             final_metrics.update(quality_metrics)
             logger.info(

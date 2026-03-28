@@ -94,7 +94,7 @@ def main(species_cfg):
     train_parser.add_argument("--load", type=str, default=None, help="Path to model to continue from")
     train_parser.add_argument("--seed", type=int, default=42, help="Random seed")
     train_parser.add_argument("--eval-freq", type=int, default=50000, help="Evaluation frequency")
-    train_parser.add_argument("--save-freq", type=int, default=50000, help="Checkpoint frequency")
+    train_parser.add_argument("--save-freq", type=int, default=500000, help="Checkpoint frequency")
     train_parser.add_argument("--log-dir", type=str, default=None, help="Custom log directory")
     train_parser.add_argument("--subproc", action="store_true", help="Use subprocess vectorization")
     train_parser.add_argument(
@@ -126,7 +126,7 @@ def main(species_cfg):
     cur_parser.add_argument("--n-envs", type=int, default=4)
     cur_parser.add_argument("--seed", type=int, default=42)
     cur_parser.add_argument("--eval-freq", type=int, default=50000)
-    cur_parser.add_argument("--save-freq", type=int, default=50000)
+    cur_parser.add_argument("--save-freq", type=int, default=500000)
     cur_parser.add_argument("--log-dir", type=str, default=None)
     cur_parser.add_argument("--subproc", action="store_true")
     cur_parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=1)
@@ -166,7 +166,7 @@ def main(species_cfg):
             args.load = None
             args.seed = 42
             args.eval_freq = 50000
-            args.save_freq = 50000
+            args.save_freq = 500000
             args.log_dir = None
             args.subproc = False
             args.verbose = 1

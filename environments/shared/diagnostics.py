@@ -81,9 +81,11 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_claw_proximity",  # Velociraptor
         "reward_head_proximity",  # T-Rex, Brachiosaurus
         "reward_gait_symmetry",  # Brachiosaurus
+        "reward_total",
     ]
     INFO_KEYS = [
         "forward_vel",
+        "backward_vel",
         "prey_distance",
         "pelvis_height",
         "tilt_angle",
@@ -107,6 +109,9 @@ class DiagnosticsCallback(_BaseCallback):
         "distance_traveled",
         "abs_speed",
         "food_reached",
+        "head_food_distance",  # Brachiosaurus
+        "torso_height",  # Brachiosaurus
+        "jaw_distance",  # T-Rex
     ]
 
     def __init__(self, plateau_window=10, plateau_threshold=1.0, log_dir=None, verbose=0):

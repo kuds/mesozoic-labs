@@ -243,6 +243,20 @@ mypy environments/
 
 Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+## Citation
+
+If you use Mesozoic Labs in your research, please cite:
+
+```bibtex
+@software{mesozoic_labs,
+  title     = {Mesozoic Labs: Dinosaur Locomotion via Reinforcement Learning},
+  author    = {Michael Kudlaty},
+  year      = {2025},
+  url       = {https://github.com/kuds/mesozoic-labs},
+  license   = {MIT}
+}
+```
+
 ## License
 
 MIT License

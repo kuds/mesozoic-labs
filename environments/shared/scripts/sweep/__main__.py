@@ -41,7 +41,7 @@ def _build_parser() -> argparse.ArgumentParser:
     trial.add_argument("--n-envs", type=int, default=4, help="Parallel environments per trial")
     trial.add_argument("--seed", type=int, default=42)
     trial.add_argument("--eval-freq", type=int, default=50000)
-    trial.add_argument("--save-freq", type=int, default=50000)
+    trial.add_argument("--save-freq", type=int, default=500000)
     trial.add_argument("--load", type=str, default=None, help="Path to model checkpoint to warm-start from")
     trial.add_argument("--output-dir", type=str, default=None, help="Base output dir (GCS mount path on Vertex AI)")
     trial.add_argument("--wandb", action="store_true", help="Enable W&B logging")
@@ -87,7 +87,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     launch.add_argument("--eval-freq", type=int, default=None, help="Eval frequency per trial (default: 50000)")
     launch.add_argument(
-        "--save-freq", type=int, default=None, help="Checkpoint save frequency per trial (default: 50000)"
+        "--save-freq", type=int, default=None, help="Checkpoint save frequency per trial (default: 500000)"
     )
     launch.add_argument("--machine-type", default="n1-standard-8", help="Vertex AI machine type")
     launch.add_argument(
@@ -228,7 +228,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     launch_all.add_argument("--eval-freq", type=int, default=None, help="Eval frequency per trial (default: 50000)")
     launch_all.add_argument(
-        "--save-freq", type=int, default=None, help="Checkpoint save frequency per trial (default: 50000)"
+        "--save-freq", type=int, default=None, help="Checkpoint save frequency per trial (default: 500000)"
     )
     launch_all.add_argument("--machine-type", default="n1-standard-8", help="Vertex AI machine type")
     launch_all.add_argument(
