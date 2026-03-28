@@ -232,7 +232,7 @@ class TestCatastrophicForgettingMitigation:
     def test_stage2_has_warmup_for_catastrophic_forgetting(self, species):
         """Stage 2 must have warmup to mitigate catastrophic forgetting (replaces LR-drop requirement)."""
         stages = load_all_stages(species)
-        cur = stages[2].get("curriculum", {})
+        cur = stages[2].get("curriculum_kwargs", {})
         assert cur.get("warmup_timesteps", 0) > 0, (
             f"{species}: Stage 2 needs warmup_timesteps > 0 to mitigate catastrophic forgetting"
         )
