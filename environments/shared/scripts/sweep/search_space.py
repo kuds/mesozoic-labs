@@ -106,10 +106,12 @@ def _split_stage_block(block: dict) -> tuple[dict, dict]:
 def _search_space_for_stage(config: dict, stage: int) -> dict:
     """Extract the search space for a specific stage.
 
-    If *config* has ``"stage1"``/``"stage2"``/``"stage3"`` keys, return
-    the search-space parameters for the requested stage (job settings like
-    ``trials`` and ``timesteps`` are filtered out).  Otherwise return
-    *config* as-is (flat format — same space for all stages).
+    Supports three JSON formats:
+
+    1. **Per-stage** — top-level ``"stage1"``/``"stage2"``/``"stage3"`` keys.
+    2. **Saved snapshot** — has a ``"parameters"`` key (written by
+       :func:`save_search_space`).  Parameters are returned directly.
+    3. **Flat** — a plain dict of parameter specs applied to all stages.
     """
     if _is_per_stage(config):
         key = f"stage{stage}"
@@ -118,6 +120,9 @@ def _search_space_for_stage(config: dict, stage: int) -> dict:
             sys.exit(1)
         search_space, _ = _split_stage_block(config[key])
         return search_space
+    # Saved snapshot format (from save_search_space): extract parameters dict.
+    if "parameters" in config and isinstance(config["parameters"], dict):
+        return config["parameters"]
     return config
 
 

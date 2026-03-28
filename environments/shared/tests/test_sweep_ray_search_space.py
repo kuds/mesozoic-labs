@@ -5,6 +5,7 @@ from pathlib import Path
 
 from environments.shared.scripts.sweep import (
     build_search_space,
+    load_resume_settings,
     save_search_space,
 )
 
@@ -202,3 +203,105 @@ class TestSaveSearchSpace:
     def test_fallback_filename_without_metadata(self, tmp_path):
         path = save_search_space({"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}, tmp_path)
         assert path.name == "search_space.json"
+
+    def test_writes_resume_section(self, tmp_path):
+        space = {"ppo_lr": {"type": "double", "min": 1e-5, "max": 1e-3, "scale": "log"}}
+        result_path = save_search_space(
+            space,
+            tmp_path,
+            species="brachiosaurus",
+            stage=2,
+            algorithm="ppo",
+            config_path="/some/custom/config.json",
+        )
+        data = json.loads(result_path.read_text())
+        assert "resume" in data
+        assert data["resume"]["sweep_dir"] == str(tmp_path)
+        assert data["resume"]["config_path"] == "/some/custom/config.json"
+
+    def test_resume_section_without_config_path(self, tmp_path):
+        space = {"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}
+        result_path = save_search_space(space, tmp_path, species="trex", stage=1, algorithm="ppo")
+        data = json.loads(result_path.read_text())
+        assert "resume" in data
+        assert data["resume"]["sweep_dir"] == str(tmp_path)
+        assert "config_path" not in data["resume"]
+
+
+# ── load_resume_settings ─────────────────────────────────────────────────
+
+
+class TestLoadResumeSettings:
+    """load_resume_settings reads back settings from a saved search space file."""
+
+    def test_loads_all_settings(self, tmp_path):
+        space = {
+            "ppo_lr": {"type": "double", "min": 1e-5, "max": 1e-3, "scale": "log"},
+            "env_bonus": {"type": "double", "min": 0.1, "max": 5.0, "scale": "linear"},
+        }
+        saved_path = save_search_space(
+            space,
+            tmp_path,
+            species="brachiosaurus",
+            stage=2,
+            algorithm="ppo",
+            max_concurrent=3,
+            n_envs=8,
+            timesteps_per_trial=16_000_000,
+            num_trials=50,
+            eval_freq=50_000,
+            seed=42,
+            use_asha=True,
+            grace_period=40,
+            reduction_factor=2,
+            collapse_min_evals=8,
+            collapse_patience=5,
+            load_path="/some/model/path",
+            config_path="/some/config.json",
+        )
+        settings = load_resume_settings(saved_path)
+        assert settings["species"] == "brachiosaurus"
+        assert settings["stage"] == 2
+        assert settings["algorithm"] == "ppo"
+        assert settings["resume"] is True
+        assert settings["resume_sweep_dir"] == str(tmp_path)
+        assert settings["sweep_config_path"] == "/some/config.json"
+        assert settings["max_concurrent"] == 3
+        assert settings["n_envs"] == 8
+        assert settings["timesteps_per_trial"] == 16_000_000
+        assert settings["num_trials"] == 50
+        assert settings["eval_freq"] == 50_000
+        assert settings["seed"] == 42
+        assert settings["use_asha"] is True
+        assert settings["grace_period"] == 40
+        assert settings["reduction_factor"] == 2
+        assert settings["collapse_min_evals"] == 8
+        assert settings["collapse_patience"] == 5
+        assert settings["load_path"] == "/some/model/path"
+
+    def test_defaults_config_path_to_file_itself(self, tmp_path):
+        space = {"x": {"type": "double", "min": 0, "max": 1, "scale": "linear"}}
+        saved_path = save_search_space(space, tmp_path, species="trex", stage=1, algorithm="ppo")
+        settings = load_resume_settings(saved_path)
+        # When no config_path was stored, falls back to the file itself
+        assert settings["sweep_config_path"] == str(saved_path)
+
+    def test_file_not_found(self, tmp_path):
+        import pytest
+
+        with pytest.raises(FileNotFoundError):
+            load_resume_settings(tmp_path / "nonexistent.json")
+
+    def test_build_search_space_from_saved_file(self, tmp_path):
+        """Saved search space JSON can be used as config_path for build_search_space."""
+        space = {
+            "ppo_lr": {"type": "double", "min": 1e-5, "max": 1e-3, "scale": "log"},
+            "env_bonus": {"type": "double", "min": 0.1, "max": 5.0, "scale": "linear"},
+        }
+        saved_path = save_search_space(space, tmp_path, species="velociraptor", stage=1, algorithm="ppo")
+        # Loading the saved file back via build_search_space should work
+        result = build_search_space("velociraptor", 1, "ppo", config_path=saved_path)
+        assert "ppo_lr" in result
+        assert "env_bonus" in result
+        assert "species" not in result
+        assert "runtime" not in result
