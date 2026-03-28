@@ -407,33 +407,9 @@ efficiently.
 
 ### Question 1: Why is net_arch different across stages?
 
-**Stage 1 uses `[512, 256]`, stages 2-3 use `[256, 256]`.**
-
-This is a config inconsistency. The notebook has `VALIDATION_SETTING = 4`, which
-loads hyperparameters from `configs/velociraptor/sweep_validation.toml`. All four
-validation settings specify `net_arch = [512, 256]` (the "tapered" preset from
-the sweep). This overrides stage 1's default `[256, 256]` from
-`stage1_balance.toml`.
-
-However, this override only applies to stage 1. Stages 2 and 3 load their
-net_arch from their own TOML files (`stage2_locomotion.toml`,
-`stage3_strike.toml`), which both specify `[256, 256]`.
-
-**The net_arch propagation that exists in the sweep infrastructure
-(`orchestration.py` lines 1139-1145) does NOT run in the notebook.** In sweep
-mode, the winning stage 1 net_arch is explicitly propagated to stages 2-3. The
-notebook's `train_stage()` function does not replicate this logic.
-
-**Impact:** When stage 2 loads the stage 1 checkpoint (which has a `[512, 256]`
-policy network) into a `[256, 256]` model, SB3's `AlgoClass.load()` creates a
-new policy with the target architecture and loads compatible weights. The first
-hidden layer (512 -> 256 shrink) means half the stage 1 neurons are discarded.
-This causes unnecessary capacity loss at the stage transition and may partially
-explain why stages 2-3 need warmup periods to recover.
-
-**Fix:** Either propagate stage 1's net_arch to subsequent stages in the
-notebook, or use `[256, 256]` consistently across all stages (remove the
-`[512, 256]` from `sweep_validation.toml`).
+**Resolved.** All stage TOMLs now specify `net_arch = [512, 256]` directly,
+and the `sweep_validation.toml` / `VALIDATION_SETTING` override system has
+been removed. Net_arch is consistent across all stages for all species.
 
 ---
 
