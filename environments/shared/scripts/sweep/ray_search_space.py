@@ -172,6 +172,7 @@ def save_search_space(
     collapse_patience: int = 0,
     use_asha: bool = True,
     load_path: str = "",
+    config_path: str = "",
 ) -> Path:
     """Write the resolved search space to *dest_dir* as JSON for record keeping.
 
@@ -238,8 +239,95 @@ def save_search_space(
     if runtime:
         payload["runtime"] = runtime
 
+    # Resume settings — stored so the notebook can reload them when resuming
+    # a sweep without needing to manually re-enter paths.
+    resume: dict[str, Any] = {}
+    resume["sweep_dir"] = str(dest_dir)
+    if config_path:
+        resume["config_path"] = config_path
+    payload["resume"] = resume
+
     payload["parameters"] = search_space
 
     filepath.write_text(json.dumps(payload, indent=2, default=str) + "\n")
     logger.info("Search space saved to %s (%d params)", filepath, len(search_space))
     return filepath
+
+
+def load_resume_settings(search_space_path: str | Path) -> dict[str, Any]:
+    """Load resume and runtime settings from a saved search space JSON file.
+
+    Returns a dict with keys that map directly to notebook configuration
+    variables::
+
+        {
+            "species": "brachiosaurus",
+            "stage": 2,
+            "algorithm": "ppo",
+            "resume": True,
+            "resume_sweep_dir": "/content/drive/.../stage2_ppo_20260326_160015",
+            "sweep_config_path": "/content/drive/.../search_space_stage2_ppo.json",
+            # Runtime settings (from the "runtime" section):
+            "max_concurrent": 3,
+            "n_envs": 8,
+            "timesteps_per_trial": 16000000,
+            "num_trials": 50,
+            "eval_freq": 50000,
+            "seed": 42,
+            "use_asha": True,
+            "grace_period": 40,
+            "reduction_factor": 2,
+            "collapse_min_evals": 8,
+            "collapse_patience": 5,
+            "load_path": "...",
+        }
+
+    Parameters
+    ----------
+    search_space_path:
+        Path to a ``search_space_stage{N}_{algo}.json`` file previously
+        written by :func:`save_search_space`.
+    """
+    path = Path(search_space_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Search space file not found: {path}")
+
+    data: dict[str, Any] = json.loads(path.read_text())
+
+    settings: dict[str, Any] = {
+        "species": data.get("species", ""),
+        "stage": data.get("stage", 0),
+        "algorithm": data.get("algorithm", ""),
+        "resume": True,
+    }
+
+    # Resume section — sweep_dir and config_path.
+    resume_section = data.get("resume", {})
+    settings["resume_sweep_dir"] = resume_section.get("sweep_dir", "")
+    # Point config_path back to this file itself so the same parameters are
+    # used on resume.
+    settings["sweep_config_path"] = resume_section.get(
+        "config_path", str(path)
+    )
+
+    # Flatten runtime settings into top-level keys.
+    runtime = data.get("runtime", {})
+    for key in (
+        "max_concurrent",
+        "n_envs",
+        "timesteps_per_trial",
+        "num_trials",
+        "eval_freq",
+        "seed",
+        "use_asha",
+        "grace_period",
+        "reduction_factor",
+        "collapse_min_evals",
+        "collapse_patience",
+        "load_path",
+        "gpu_model",
+    ):
+        if key in runtime:
+            settings[key] = runtime[key]
+
+    return settings
