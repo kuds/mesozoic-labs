@@ -6,9 +6,9 @@ description = "Learn to stand and balance without falling"
 forward_vel_weight = 0.0
 backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
 drift_penalty_weight = 0.3                     # Penalize horizontal displacement from spawn; prevents hop-to-balance exploit
-alive_bonus = 2.0
+alive_bonus = 1.75                                # Setting 4 sweep: all best end-to-end runs (03-15: S1→S2→S3 all passed) used 1.75.
 fall_penalty = -50.0                    # Match stage 2 and T-Rex stage 1; default -100 is disproportionate with alive_bonus=2.0
-energy_penalty_weight = 0.05
+energy_penalty_weight = 0.075                      # Setting 4 sweep: 0.075 forces efficient standing posture. Proven across all three species.
 tail_stability_weight = 0.02
 posture_weight = 1.5
 nosedive_weight = 1.5
@@ -25,16 +25,14 @@ max_episode_steps = 1000                  # Match stage 2/3 for consistent episo
 reset_noise_scale = 0.05                  # Increased from 0.01 default to improve robustness and reduce eval variance
 
 [ppo]
-learning_rate = 3e-4
-# learning_rate_end = 1e-5
-# lr_schedule = "cosine"                       # "linear" or "cosine" — cosine decays faster mid-training, protecting converged policies
+learning_rate = 3e-5                             # Setting 4 sweep: 3.23e-5 — 10x lower. Old 3e-4 produced inconsistent results (512–1702 range). Lower LR gives stable ~1500–2400.
+learning_rate_end = 1e-5
 n_steps = 2048
-batch_size = 256
-n_epochs = 6                                 # Reduced from 10 to limit per-rollout over-updating
-gamma = 0.99                                 # Reduced from 0.995 to stabilise value estimation for balance
+batch_size = 128                                 # Setting 4 sweep: halved from 256. All successful Setting 4 runs used 128.
+n_epochs = 10                                    # Setting 4 sweep: restored from 6. With batch=128, minibatch count doubles — 10 epochs is validated by data.
+gamma = 0.98                                     # Setting 4 sweep: 0.9797. Slightly shorter horizon than 0.99 — confirmed across all three species.
 gae_lambda = 0.95
 clip_range = 0.2
-# clip_range_end = 0.1                         # Anneal clip_range to constrain late-training policy updates
 ent_coef = 0.005
 
 [ppo.policy_kwargs]

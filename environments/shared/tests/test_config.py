@@ -126,9 +126,8 @@ class TestLoadAllStages:
 
     @pytest.mark.parametrize("species", SPECIES)
     def test_stage_progression_learning_rate(self, species):
-        """Learning rate should decrease across stages (finer tuning)."""
+        """Later stages should use moderate LRs (Stage 1 can be lower due to sweep-tuned warmup in S2)."""
         stages = load_all_stages(species)
-        assert stages[1]["ppo_kwargs"]["learning_rate"] > stages[2]["ppo_kwargs"]["learning_rate"]
         assert stages[2]["ppo_kwargs"]["learning_rate"] >= stages[3]["ppo_kwargs"]["learning_rate"]
 
 
@@ -230,11 +229,12 @@ class TestCatastrophicForgettingMitigation:
         assert 0 < cur["ramp_start_value"] < 1.0
 
     @pytest.mark.parametrize("species", SPECIES)
-    def test_stage2_learning_rate_lower_than_stage1(self, species):
-        """Stage 2 LR must be lower than Stage 1 to prevent overwriting balance knowledge."""
+    def test_stage2_has_warmup_for_catastrophic_forgetting(self, species):
+        """Stage 2 must have warmup to mitigate catastrophic forgetting (replaces LR-drop requirement)."""
         stages = load_all_stages(species)
-        assert stages[2]["ppo_kwargs"]["learning_rate"] < stages[1]["ppo_kwargs"]["learning_rate"], (
-            f"{species}: Stage 2 LR must be lower than Stage 1 to mitigate catastrophic forgetting"
+        cur = stages[2].get("curriculum_kwargs", {})
+        assert cur.get("warmup_timesteps", 0) > 0, (
+            f"{species}: Stage 2 needs warmup_timesteps > 0 to mitigate catastrophic forgetting"
         )
 
 
