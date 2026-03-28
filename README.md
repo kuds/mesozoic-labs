@@ -250,7 +250,7 @@ If you use Mesozoic Labs in your research, please cite:
 ```bibtex
 @software{mesozoic_labs,
   title     = {Mesozoic Labs: Dinosaur Locomotion via Reinforcement Learning},
-  author    = {Mesozoic Labs Contributors},
+  author    = {Michael Kudlaty},
   year      = {2025},
   url       = {https://github.com/kuds/mesozoic-labs},
   license   = {MIT}
