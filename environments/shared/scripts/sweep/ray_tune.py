@@ -65,16 +65,32 @@ def _sync_trial_metadata(
     source_dir: str | Path,
     drive_trial_dir: str | Path,
     filenames: tuple[str, ...] = ("evaluations.npz", "diagnostics.npz", "stage_config.json", "metrics.json"),
+    *,
+    skip_unchanged: bool = True,
 ) -> None:
-    """Copy trial metadata files (evaluations, diagnostics, config) to Drive."""
+    """Copy trial metadata files (evaluations, diagnostics, config) to Drive.
+
+    When *skip_unchanged* is True (the default), files whose size has not
+    changed since the last copy are skipped.  This avoids re-copying
+    ``stage_config.json`` (which never changes) on every best-reward
+    improvement, and reduces redundant writes of large ``evaluations.npz``
+    files that haven't grown since the last sync.
+    """
     source_dir = Path(source_dir)
     drive_trial_dir = Path(drive_trial_dir)
     drive_trial_dir.mkdir(parents=True, exist_ok=True)
     for name in filenames:
         src = source_dir / name
         if src.exists():
+            dst = drive_trial_dir / name
+            if skip_unchanged and dst.exists():
+                try:
+                    if src.stat().st_size == dst.stat().st_size:
+                        continue
+                except OSError:
+                    pass  # stat failed — fall through to copy
             try:
-                shutil.copy2(str(src), str(drive_trial_dir / name))
+                shutil.copy2(str(src), str(dst))
             except OSError as e:
                 logger.warning("Drive sync failed for %s: %s", name, e)
 
@@ -279,6 +295,10 @@ def _make_experiment_state_sync_callback_class():
             self._drive_dir = Path(drive_ray_results_dir) / self._local_dir.name
             self._sync_interval_s = sync_interval_s
             self._last_sync_time = 0.0
+            # Cache of {relative_path: (size, mtime)} for files already
+            # synced to Drive.  Avoids expensive stat() calls on the FUSE
+            # mount for files that haven't changed since the last sync.
+            self._synced_file_cache: dict[str, tuple[int, float]] = {}
 
         def _sync(self, reason: str = "") -> None:
             """Incrementally copy local experiment state to Drive."""
@@ -290,16 +310,20 @@ def _make_experiment_state_sync_callback_class():
                 for src_file in self._local_dir.rglob("*"):
                     if not src_file.is_file():
                         continue
-                    rel = src_file.relative_to(self._local_dir)
-                    dst = self._drive_dir / rel
-                    # Skip if destination is up-to-date
-                    if dst.exists() and dst.stat().st_mtime >= src_file.stat().st_mtime:
+                    rel = str(src_file.relative_to(self._local_dir))
+                    src_stat = src_file.stat()
+                    src_key = (src_stat.st_size, src_stat.st_mtime)
+                    # Skip if we already synced this exact version
+                    if self._synced_file_cache.get(rel) == src_key:
                         continue
+                    dst = self._drive_dir / rel
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(str(src_file), str(dst))
+                    self._synced_file_cache[rel] = src_key
                     copied += 1
                 self._last_sync_time = time.time()
-                logger.info("Experiment state synced to Drive (%s, %d files copied)", reason, copied)
+                if copied:
+                    logger.info("Experiment state synced to Drive (%s, %d files copied)", reason, copied)
             except OSError as e:
                 logger.warning("Experiment state sync failed: %s", e)
 

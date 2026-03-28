@@ -303,15 +303,26 @@ def run_ray_sweep(
 
     results = tuner.fit()
 
-    # Final sync of experiment state to Drive
+    # Final incremental sync of experiment state to Drive.
+    # ExperimentStateSyncCallback already synced periodically during the
+    # sweep, so most files are already on Drive.  Only copy files that are
+    # newer (by mtime) to avoid redundant I/O on the FUSE mount.
     if local_experiment_dir.exists():
-        logger.info("Syncing final Ray results to Drive: %s", drive_ray_results_dir)
+        drive_dest = drive_ray_results_dir / local_experiment_dir.name
+        logger.info("Final incremental sync to Drive: %s", drive_dest)
         try:
-            shutil.copytree(
-                str(local_experiment_dir),
-                str(drive_ray_results_dir / local_experiment_dir.name),
-                dirs_exist_ok=True,
-            )
+            copied = 0
+            for src_file in local_experiment_dir.rglob("*"):
+                if not src_file.is_file():
+                    continue
+                rel = src_file.relative_to(local_experiment_dir)
+                dst = drive_dest / rel
+                if dst.exists() and dst.stat().st_mtime >= src_file.stat().st_mtime:
+                    continue
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(src_file), str(dst))
+                copied += 1
+            logger.info("Final sync complete: %d files copied", copied)
         except OSError as e:
             logger.warning("Drive sync of Ray results failed: %s", e)
 
