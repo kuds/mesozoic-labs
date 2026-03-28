@@ -3,7 +3,7 @@
     "_comment": "Stage 1 already passes reliably (reward=3010). Included for completeness but recommend skipping.",
     "trials": 30,
     "timesteps": 6000000,
-    "parallel": 4,
+    "parallel": 7,
     "n_envs": 4,
 
     "ppo_learning_rate":       {"type": "double", "min": 1e-4, "max": 3e-4, "scale": "log"},
@@ -24,7 +24,7 @@
     "_comment": "Passed but fragile — late-training collapse observed. Tightened ranges around proven values.",
     "trials": 40,
     "timesteps": 16000000,
-    "parallel": 4,
+    "parallel": 7,
     "n_envs": 4,
 
     "_comment_ppo": "PPO: narrow around proven values (lr=5e-5, batch=256, gamma=0.995, ent=0.015)",
@@ -68,7 +68,7 @@
     "_comment": "FAILED at 16.7% success vs 50% target. Highest priority — sweep the nosedive-vs-reach tradeoff.",
     "trials": 50,
     "timesteps": 12000000,
-    "parallel": 4,
+    "parallel": 7,
     "n_envs": 4,
 
     "_comment_ppo": "PPO: more exploration needed for novel neck-extension behavior",
