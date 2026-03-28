@@ -25,8 +25,45 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Drive sync helper
+# Drive sync helpers
 # ---------------------------------------------------------------------------
+
+# Retry settings for Google Drive FUSE writes.  Transient FUSE errors
+# (EIO, ETIMEDOUT, spurious ENOSPC from buffer pressure) typically
+# resolve within a few seconds.
+_DRIVE_RETRY_DELAYS = (1, 3, 5)  # seconds between retries
+
+
+def _copy_to_drive(src: str | Path, dst: str | Path) -> bool:
+    """Copy a single file to Drive with retry on transient FUSE errors.
+
+    Returns True if the copy succeeded, False if all retries failed.
+    """
+    for attempt in range(len(_DRIVE_RETRY_DELAYS) + 1):
+        try:
+            shutil.copy2(str(src), str(dst))
+            return True
+        except OSError as e:
+            if attempt < len(_DRIVE_RETRY_DELAYS):
+                delay = _DRIVE_RETRY_DELAYS[attempt]
+                logger.warning(
+                    "Drive write failed for %s (attempt %d/%d): %s — retrying in %ds",
+                    Path(src).name,
+                    attempt + 1,
+                    len(_DRIVE_RETRY_DELAYS) + 1,
+                    e,
+                    delay,
+                )
+                time.sleep(delay)
+            else:
+                logger.warning(
+                    "Drive write failed for %s after %d attempts: %s",
+                    Path(src).name,
+                    len(_DRIVE_RETRY_DELAYS) + 1,
+                    e,
+                )
+                return False
+    return False  # unreachable, but keeps type checkers happy
 
 
 def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") -> None:
@@ -38,10 +75,7 @@ def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") 
     drive_dir.mkdir(parents=True, exist_ok=True)
     for src_file in src_dir.iterdir():
         if src_file.is_file():
-            try:
-                shutil.copy2(str(src_file), str(drive_dir / src_file.name))
-            except OSError as e:
-                logger.warning("Drive sync failed for %s: %s", src_file.name, e)
+            _copy_to_drive(src_file, drive_dir / src_file.name)
 
 
 def _sync_best_model(src_dir: str | Path, drive_dir: str | Path) -> None:
@@ -55,28 +89,38 @@ def _sync_best_model(src_dir: str | Path, drive_dir: str | Path) -> None:
         if src_file.is_file() and (
             src_file.name.startswith("best_model") or src_file.name.startswith("stage") and "final" in src_file.name
         ):
-            try:
-                shutil.copy2(str(src_file), str(drive_dir / src_file.name))
-            except OSError as e:
-                logger.warning("Drive sync failed for %s: %s", src_file.name, e)
+            _copy_to_drive(src_file, drive_dir / src_file.name)
 
 
 def _sync_trial_metadata(
     source_dir: str | Path,
     drive_trial_dir: str | Path,
-    filenames: tuple[str, ...] = ("evaluations.npz", "diagnostics.npz", "stage_config.json"),
+    filenames: tuple[str, ...] = ("evaluations.npz", "diagnostics.npz", "stage_config.json", "metrics.json"),
+    *,
+    skip_unchanged: bool = True,
 ) -> None:
-    """Copy trial metadata files (evaluations, diagnostics, config) to Drive."""
+    """Copy trial metadata files (evaluations, diagnostics, config) to Drive.
+
+    When *skip_unchanged* is True (the default), files whose size has not
+    changed since the last copy are skipped.  This avoids re-copying
+    ``stage_config.json`` (which never changes) on every best-reward
+    improvement, and reduces redundant writes of large ``evaluations.npz``
+    files that haven't grown since the last sync.
+    """
     source_dir = Path(source_dir)
     drive_trial_dir = Path(drive_trial_dir)
     drive_trial_dir.mkdir(parents=True, exist_ok=True)
     for name in filenames:
         src = source_dir / name
         if src.exists():
-            try:
-                shutil.copy2(str(src), str(drive_trial_dir / name))
-            except OSError as e:
-                logger.warning("Drive sync failed for %s: %s", name, e)
+            dst = drive_trial_dir / name
+            if skip_unchanged and dst.exists():
+                try:
+                    if src.stat().st_size == dst.stat().st_size:
+                        continue
+                except OSError:
+                    pass  # stat failed — fall through to copy
+            _copy_to_drive(src, dst)
 
 
 # ---------------------------------------------------------------------------
@@ -279,6 +323,10 @@ def _make_experiment_state_sync_callback_class():
             self._drive_dir = Path(drive_ray_results_dir) / self._local_dir.name
             self._sync_interval_s = sync_interval_s
             self._last_sync_time = 0.0
+            # Cache of {relative_path: (size, mtime)} for files already
+            # synced to Drive.  Avoids expensive stat() calls on the FUSE
+            # mount for files that haven't changed since the last sync.
+            self._synced_file_cache: dict[str, tuple[int, float]] = {}
 
         def _sync(self, reason: str = "") -> None:
             """Incrementally copy local experiment state to Drive."""
@@ -290,16 +338,20 @@ def _make_experiment_state_sync_callback_class():
                 for src_file in self._local_dir.rglob("*"):
                     if not src_file.is_file():
                         continue
-                    rel = src_file.relative_to(self._local_dir)
-                    dst = self._drive_dir / rel
-                    # Skip if destination is up-to-date
-                    if dst.exists() and dst.stat().st_mtime >= src_file.stat().st_mtime:
+                    rel = str(src_file.relative_to(self._local_dir))
+                    src_stat = src_file.stat()
+                    src_key = (src_stat.st_size, src_stat.st_mtime)
+                    # Skip if we already synced this exact version
+                    if self._synced_file_cache.get(rel) == src_key:
                         continue
+                    dst = self._drive_dir / rel
                     dst.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(str(src_file), str(dst))
-                    copied += 1
+                    if _copy_to_drive(src_file, dst):
+                        self._synced_file_cache[rel] = src_key
+                        copied += 1
                 self._last_sync_time = time.time()
-                logger.info("Experiment state synced to Drive (%s, %d files copied)", reason, copied)
+                if copied:
+                    logger.info("Experiment state synced to Drive (%s, %d files copied)", reason, copied)
             except OSError as e:
                 logger.warning("Experiment state sync failed: %s", e)
 
@@ -384,16 +436,21 @@ def _make_drive_progress_log_callback_class():
                 if not key.startswith("_"):
                     row[key] = value
 
-            try:
-                self._csv_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(self._csv_path, "a", newline="") as f:
-                    writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-                    if not self._written_header:
-                        writer.writeheader()
-                        self._written_header = True
-                    writer.writerow(row)
-            except OSError as e:
-                logger.warning("Failed to write trial progress to %s: %s", self._csv_path, e)
+            self._csv_path.parent.mkdir(parents=True, exist_ok=True)
+            for attempt in range(len(_DRIVE_RETRY_DELAYS) + 1):
+                try:
+                    with open(self._csv_path, "a", newline="") as f:
+                        writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+                        if not self._written_header:
+                            writer.writeheader()
+                            self._written_header = True
+                        writer.writerow(row)
+                    break  # success
+                except OSError as e:
+                    if attempt < len(_DRIVE_RETRY_DELAYS):
+                        time.sleep(_DRIVE_RETRY_DELAYS[attempt])
+                    else:
+                        logger.warning("Failed to write trial progress to %s: %s", self._csv_path, e)
 
         def on_trial_complete(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
             # Distinguish ASHA-pruned trials from those that ran to completion.
@@ -563,10 +620,7 @@ def train_trial(config: dict[str, Any]) -> None:
         drive_trial_dir.mkdir(parents=True, exist_ok=True)
         _stage_cfg_src = trial_dir / "stage_config.json"
         if _stage_cfg_src.exists():
-            try:
-                shutil.copy2(str(_stage_cfg_src), str(drive_trial_dir / "stage_config.json"))
-            except OSError as e:
-                logger.warning("Early Drive sync of stage_config.json failed: %s", e)
+            _copy_to_drive(_stage_cfg_src, drive_trial_dir / "stage_config.json")
 
     _train_start_time = time.time()
 
@@ -720,6 +774,8 @@ def train_trial(config: dict[str, Any]) -> None:
             species_cfg.success_keys,
             n_episodes=n_eval_episodes,
         )
+        import json as _json
+
         import numpy as _np
 
         _training_duration_s = time.time() - _train_start_time
@@ -735,6 +791,105 @@ def train_trial(config: dict[str, Any]) -> None:
             "timesteps": timesteps,
             "done": True,
         }
+
+        # ── Quality evaluation (matches Vertex AI's _report_hpt_metrics) ──
+        # Collect spinning detection, heading alignment, and reward
+        # component breakdown so Ray Tune trials produce the same eval_*
+        # metrics that Vertex AI trials write to metrics.json.
+        try:
+            from ...evaluation import eval_policy_quality
+
+            quality_metrics = eval_policy_quality(
+                eval_model, eval_env, species_cfg.success_keys, n_episodes=n_eval_episodes,
+            )
+            final_metrics.update(quality_metrics)
+            logger.info(
+                "Quality eval complete: %d metrics (angular_vel=%.3f, heading_align=%.3f)",
+                len(quality_metrics),
+                quality_metrics.get("eval_mean_pelvis_angular_velocity", float("nan")),
+                quality_metrics.get("eval_mean_heading_alignment", float("nan")),
+            )
+        except Exception:
+            logger.warning("Quality evaluation failed — skipping quality metrics.", exc_info=True)
+
+        # ── Write metrics.json sidecar (matches Vertex AI trial output) ───
+        # Enables offline result collection via collect_results_from_disk()
+        # and provides a consistent artifact format across both backends.
+        aux_metrics: dict[str, Any] = {
+            "best_mean_reward": final_metrics["best_mean_reward"],
+            "best_mean_episode_length": final_metrics["best_mean_episode_length"],
+            "last_mean_reward": float(eval_callback.last_mean_reward)
+            if hasattr(eval_callback, "last_mean_reward") and eval_callback.last_mean_reward is not None
+            else final_metrics["best_mean_reward"],
+            "last_mean_episode_length": float(_np.mean(eval_lengths)) if eval_lengths else 0.0,
+            "mean_forward_vel": final_metrics["mean_forward_vel"],
+            "std_forward_vel": final_metrics["std_forward_vel"],
+            "best_mean_forward_vel": final_metrics["mean_forward_vel"],
+            "mean_distance_traveled": final_metrics["mean_distance_traveled"],
+            "mean_success_rate": final_metrics["mean_success_rate"],
+            "best_mean_success_rate": final_metrics["mean_success_rate"],
+            "training_duration_seconds": final_metrics["training_duration_seconds"],
+        }
+        # Include eval_* quality metrics
+        for key, value in final_metrics.items():
+            if key.startswith("eval_"):
+                aux_metrics[key] = value
+        # Include key hyperparameters so offline collection works even
+        # without stage_config.json
+        algo_key_cfg = f"{algorithm}_kwargs"
+        algo_kwargs_cfg = stage_config.get(algo_key_cfg, {})
+        _hparam_keys = (
+            ("learning_rate", "batch_size", "gamma", "n_steps", "ent_coef")
+            if algorithm == "ppo"
+            else ("learning_rate", "batch_size", "gamma", "tau", "buffer_size", "ent_coef")
+        )
+        for k in _hparam_keys:
+            if k in algo_kwargs_cfg:
+                val = algo_kwargs_cfg[k]
+                if not callable(val):
+                    aux_metrics[f"{algorithm}_{k}"] = val
+        net_arch = algo_kwargs_cfg.get("policy_kwargs", {}).get("net_arch")
+        if net_arch is not None:
+            aux_metrics[f"{algorithm}_net_arch"] = str(net_arch)
+
+        metrics_path = trial_dir / "metrics.json"
+        with open(metrics_path, "w") as f:
+            _json.dump(aux_metrics, f, indent=2)
+        logger.info("Metrics sidecar written to: %s", metrics_path)
+
+        # ── Generate stage artifacts (summary, graphs) ────────────────────
+        # Produces the same training_curves.png, diagnostics graphs, and
+        # stage_summary.txt that Vertex AI trials generate, making Ray Tune
+        # trial directories self-contained for post-analysis.
+        try:
+            from ...reporting import generate_stage_artifacts
+
+            generate_stage_artifacts(
+                species_cfg=species_cfg,
+                stage_config=stage_config,
+                stage=stage,
+                algorithm=algorithm,
+                stage_dir=str(trial_dir),
+                seed=seed,
+                timesteps=timesteps,
+                record_videos=False,
+                generate_graphs=True,
+            )
+        except Exception:
+            logger.warning("Stage artifact generation failed.", exc_info=True)
+
+        # Sync metrics.json to Drive alongside other trial metadata
+        if drive_best_model_dir:
+            _sync_trial_metadata(
+                trial_dir,
+                drive_best_model_dir.parent,
+                filenames=(
+                    "evaluations.npz",
+                    "diagnostics.npz",
+                    "stage_config.json",
+                    "metrics.json",
+                ),
+            )
 
         # Final report
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -787,6 +942,11 @@ def collect_ray_results(
             "training_duration_seconds",
         ):
             row[metric] = rt_row.get(metric)
+
+        # Quality evaluation metrics (eval_* keys from eval_policy_quality)
+        for col in results_df.columns:
+            if col.startswith("eval_"):
+                row[col] = rt_row[col]
 
         # Curriculum thresholds
         row["reward_threshold"] = cur.get("min_avg_reward")
