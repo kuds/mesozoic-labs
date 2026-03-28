@@ -30,6 +30,29 @@ def _safe_legend(ax, **kwargs) -> None:
         ax.legend(**kwargs)
 
 
+def _smooth(values, window: int = 50):
+    """Apply a rolling-mean smoothing filter to *values*.
+
+    Uses ``numpy.convolve`` with a uniform kernel.  Returns the original
+    array unmodified when it has fewer points than *window*.
+    """
+    import numpy as np
+
+    values = np.asarray(values, dtype=float)
+    if len(values) < window:
+        return values
+    kernel = np.ones(window) / window
+    # 'same' keeps the output length equal to the input length
+    smoothed = np.convolve(values, kernel, mode="same")
+    # Fix edge effects: at the borders the convolution averages over
+    # fewer elements, so we leave the raw values for the first/last
+    # half-window points.
+    hw = window // 2
+    smoothed[:hw] = values[:hw]
+    smoothed[-hw:] = values[-hw:]
+    return smoothed
+
+
 def plot_training_curves(
     stage_dirs: StageDirs,
     stage_configs: dict[int, dict[str, Any]],
@@ -103,11 +126,11 @@ def plot_training_curves(
             if "tilt_angle" in diag and "timesteps" in diag:
                 diag_ts = diag["timesteps"]
                 tilt = np.degrees(diag["tilt_angle"])
-                axes[1, 0].plot(diag_ts, tilt, label=label, color=color)
+                axes[1, 0].plot(diag_ts, _smooth(tilt), label=label, color=color)
             if "forward_vel" in diag and "timesteps" in diag:
                 diag_ts = diag["timesteps"]
                 fwd_vel = diag["forward_vel"]
-                axes[1, 1].plot(diag_ts, fwd_vel, label=label, color=color)
+                axes[1, 1].plot(diag_ts, _smooth(fwd_vel), label=label, color=color)
 
     axes[0, 0].set_xlabel("Timesteps")
     axes[0, 0].set_ylabel("Mean Reward")
@@ -243,18 +266,18 @@ def plot_diagnostics_graphs(
         if "reward_energy" in diag and "forward_vel" in diag:
             _energy = np.abs(diag["reward_energy"])
             _fwd = np.maximum(diag["forward_vel"], 0.01)
-            axes1[0, 1].plot(ts, _energy / _fwd, label=label, color=color)
+            axes1[0, 1].plot(ts, _smooth(_energy / _fwd), label=label, color=color)
 
         # [1,0] Pelvis Height
         if "pelvis_height" in diag:
-            axes1[1, 0].plot(ts, diag["pelvis_height"], label=label, color=color)
+            axes1[1, 0].plot(ts, _smooth(diag["pelvis_height"]), label=label, color=color)
 
         # [1,1] Reward Decomposition — only signals with non-zero weight
         for _ci, _rkey in enumerate(_REWARD_COMPONENTS):
             if _rkey in diag and _signal_active(_rkey, stage_num):
                 axes1[1, 1].plot(
                     ts,
-                    diag[_rkey],
+                    _smooth(diag[_rkey]),
                     label=f"S{stage_num} {_rkey.replace('reward_', '')}",
                     color=_reward_colors[_ci % len(_reward_colors)],
                     linestyle=["-", "--", "-."][stage_num % 3],
@@ -361,14 +384,14 @@ def plot_diagnostics_graphs(
             _stride_proxy = (_l + _r) / 2.0
             axes2[0, 0].plot(
                 ts,
-                _gait_sym,
+                _smooth(_gait_sym),
                 label=f"{label} \u2013 gait sym",
                 color=color,
                 linestyle="-",
             )
             axes2[0, 0].plot(
                 ts,
-                _stride_proxy,
+                _smooth(_stride_proxy),
                 label=f"{label} \u2013 stride freq",
                 color=color,
                 linestyle="--",
@@ -377,10 +400,10 @@ def plot_diagnostics_graphs(
 
         # [0,1] Heading Alignment (with std band to reveal spinning)
         if "heading_alignment" in diag:
-            ha = diag["heading_alignment"]
+            ha = _smooth(diag["heading_alignment"])
             axes2[0, 1].plot(ts, ha, label=label, color=color)
             if "heading_alignment_std" in diag:
-                ha_std = diag["heading_alignment_std"]
+                ha_std = _smooth(diag["heading_alignment_std"])
                 axes2[0, 1].fill_between(
                     ts,
                     ha - ha_std,
@@ -391,23 +414,23 @@ def plot_diagnostics_graphs(
 
         # [1,0] Distance Traveled (cumulative XY path length)
         if "distance_traveled" in diag:
-            axes2[1, 0].plot(ts, diag["distance_traveled"], label=label, color=color)
+            axes2[1, 0].plot(ts, _smooth(diag["distance_traveled"]), label=label, color=color)
 
         # [1,1] Drift Distance (displacement from spawn)
         if "drift_distance" in diag:
-            axes2[1, 1].plot(ts, diag["drift_distance"], label=label, color=color)
+            axes2[1, 1].plot(ts, _smooth(diag["drift_distance"]), label=label, color=color)
 
         # Row 3 (only when hunting data present)
         if _has_hunting_data:
             # [2,0] Prey / Food Distance
             if "prey_distance" in diag:
-                axes2[2, 0].plot(ts, diag["prey_distance"], label=label, color=color)
+                axes2[2, 0].plot(ts, _smooth(diag["prey_distance"]), label=label, color=color)
 
             # [2,1] Strike / Bite / Food Success Rate
             if "strike_success" in diag:
-                axes2[2, 1].plot(ts, diag["strike_success"], label=label, color=color)
+                axes2[2, 1].plot(ts, _smooth(diag["strike_success"]), label=label, color=color)
             if "bite_success" in diag:
-                axes2[2, 1].plot(ts, diag["bite_success"], label=label, color=color)
+                axes2[2, 1].plot(ts, _smooth(diag["bite_success"]), label=label, color=color)
 
     axes2[0, 0].set_xlabel("Timesteps")
     axes2[0, 0].set_ylabel("Gait Symmetry (\u2013) / Stride Freq proxy (--)")
@@ -530,10 +553,10 @@ def plot_foot_contacts(
             rr = diag["rr_foot_contact"]
             rl = diag["rl_foot_contact"]
 
-            ax_feet.plot(ts, fr, label=f"{label_base} \u2013 FR", color="tab:blue", alpha=0.8)
-            ax_feet.plot(ts, fl, label=f"{label_base} \u2013 FL", color="tab:orange", alpha=0.8)
-            ax_feet.plot(ts, rr, label=f"{label_base} \u2013 RR", color="tab:green", alpha=0.8)
-            ax_feet.plot(ts, rl, label=f"{label_base} \u2013 RL", color="tab:red", alpha=0.8)
+            ax_feet.plot(ts, _smooth(fr), label=f"{label_base} \u2013 FR", color="tab:blue", alpha=0.8)
+            ax_feet.plot(ts, _smooth(fl), label=f"{label_base} \u2013 FL", color="tab:orange", alpha=0.8)
+            ax_feet.plot(ts, _smooth(rr), label=f"{label_base} \u2013 RR", color="tab:green", alpha=0.8)
+            ax_feet.plot(ts, _smooth(rl), label=f"{label_base} \u2013 RL", color="tab:red", alpha=0.8)
 
             # Diagonal pair composites
             if ax_diag is not None:
@@ -541,14 +564,14 @@ def plot_foot_contacts(
                 diag_b = np.maximum(fl, rr)  # FL + RR
                 ax_diag.plot(
                     ts,
-                    diag_a,
+                    _smooth(diag_a),
                     label=f"{label_base} \u2013 Diag A (FR+RL)",
                     color="tab:blue",
                     linewidth=1.5,
                 )
                 ax_diag.plot(
                     ts,
-                    diag_b,
+                    _smooth(diag_b),
                     label=f"{label_base} \u2013 Diag B (FL+RR)",
                     color="tab:orange",
                     linewidth=1.5,
@@ -557,14 +580,14 @@ def plot_foot_contacts(
             # Bipedal: 2 feet
             ax_feet.plot(
                 ts,
-                diag["r_foot_contact"],
+                _smooth(diag["r_foot_contact"]),
                 label=f"{label_base} \u2013 Right",
                 color="tab:blue",
                 alpha=0.8,
             )
             ax_feet.plot(
                 ts,
-                diag["l_foot_contact"],
+                _smooth(diag["l_foot_contact"]),
                 label=f"{label_base} \u2013 Left",
                 color="tab:orange",
                 alpha=0.8,

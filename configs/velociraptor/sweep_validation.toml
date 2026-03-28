@@ -9,7 +9,7 @@
 # | 1       | Sweep Trial 20     | 4516.53     | 972       | Highest reward, perfectly stable    |
 # | 2       | Sweep Trial 9      | 4383.09     | 1000      | Max episode length, very stable     |
 # | 3       | Sweep Trial 21     | 4380.45     | 1000      | Lowest LR, max episode length       |
-# | 4       | Manual (anti-rot.) | TBD         | TBD       | Reduced alive bonus, heading/spin   |
+# | 4       | Manual (anti-rot.) | TBD         | TBD       | Fix forgetting: higher γ, larger buffer, no speed penalty |
 
 # --- Setting 1: Trial 20 — Highest reward (4516.53), perfectly stable ---
 
@@ -152,22 +152,27 @@ gradient_steps = 8
 [setting_3.sac.policy_kwargs]
 net_arch = [512, 256]
 
-# --- Setting 4: Anti-rotation — Reduced alive bonus, stronger heading/spin ---
+# --- Setting 4: Anti-rotation v2 — Fixes catastrophic forgetting in SAC ---
 # Addresses heading drift observed in Settings 1-3 where alive_bonus (~4.5-4.8)
 # drowns the heading signal (0.1), allowing the agent to rotate ~90 deg unchecked.
-# Key changes: alive_bonus 1.5 (down from ~4.5), heading_weight 0.5 (up from 0.1),
-# spin_penalty_weight 0.3 (up from 0.1). Reverts posture/nosedive/energy to TOML
-# defaults since the sweep over-tuned them alongside the inflated alive_bonus.
+# Key changes from original Setting 4:
+#   - gamma 0.98 → 0.993: longer horizon so agent values sustained balance
+#   - tau 0.005 → 0.002: softer target updates to reduce forgetting
+#   - buffer_size 300K → 1M: retain more diverse experience
+#   - speed_penalty_weight 0.3 → 0.0: remove contradiction with drift penalty
+#   - drift_penalty_weight 0.5 → 0.3: softer drift penalty, let agent self-correct
 # PPO hyperparams based on Setting 2 (most stable episode length).
 
 [setting_4.env]
 alive_bonus = 1.75
 backward_vel_penalty_weight = 0.0
-drift_penalty_weight = 0.5
+drift_penalty_weight = 0.3
 energy_penalty_weight = 0.075
 forward_vel_weight = 0.0
 gait_symmetry_weight = 0.0
 heading_weight = 0.3
+speed_penalty_weight = 0.0
+speed_penalty_threshold = 0.10
 spin_penalty_weight = 0.3
 nosedive_weight = 1.5
 posture_weight = 1.5
@@ -184,7 +189,7 @@ learning_rate = 3.227259919476763e-05
 n_steps = 2048
 batch_size = 128
 n_epochs = 6
-gamma = 0.9796799988368609
+gamma = 0.993
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.0007740928167426532
@@ -195,10 +200,10 @@ net_arch = [512, 256]
 [setting_4.sac]
 learning_rate = 3e-4
 batch_size = 256
-gamma = 0.9796799988368609
-tau = 0.005
+gamma = 0.993
+tau = 0.002
 ent_coef = "auto"
-buffer_size = 300_000
+buffer_size = 1_000_000
 learning_starts = 10_000
 train_freq = 16
 gradient_steps = 8
