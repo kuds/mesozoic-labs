@@ -25,8 +25,45 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Drive sync helper
+# Drive sync helpers
 # ---------------------------------------------------------------------------
+
+# Retry settings for Google Drive FUSE writes.  Transient FUSE errors
+# (EIO, ETIMEDOUT, spurious ENOSPC from buffer pressure) typically
+# resolve within a few seconds.
+_DRIVE_RETRY_DELAYS = (1, 3, 5)  # seconds between retries
+
+
+def _copy_to_drive(src: str | Path, dst: str | Path) -> bool:
+    """Copy a single file to Drive with retry on transient FUSE errors.
+
+    Returns True if the copy succeeded, False if all retries failed.
+    """
+    for attempt in range(len(_DRIVE_RETRY_DELAYS) + 1):
+        try:
+            shutil.copy2(str(src), str(dst))
+            return True
+        except OSError as e:
+            if attempt < len(_DRIVE_RETRY_DELAYS):
+                delay = _DRIVE_RETRY_DELAYS[attempt]
+                logger.warning(
+                    "Drive write failed for %s (attempt %d/%d): %s — retrying in %ds",
+                    Path(src).name,
+                    attempt + 1,
+                    len(_DRIVE_RETRY_DELAYS) + 1,
+                    e,
+                    delay,
+                )
+                time.sleep(delay)
+            else:
+                logger.warning(
+                    "Drive write failed for %s after %d attempts: %s",
+                    Path(src).name,
+                    len(_DRIVE_RETRY_DELAYS) + 1,
+                    e,
+                )
+                return False
+    return False  # unreachable, but keeps type checkers happy
 
 
 def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") -> None:
@@ -38,10 +75,7 @@ def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") 
     drive_dir.mkdir(parents=True, exist_ok=True)
     for src_file in src_dir.iterdir():
         if src_file.is_file():
-            try:
-                shutil.copy2(str(src_file), str(drive_dir / src_file.name))
-            except OSError as e:
-                logger.warning("Drive sync failed for %s: %s", src_file.name, e)
+            _copy_to_drive(src_file, drive_dir / src_file.name)
 
 
 def _sync_best_model(src_dir: str | Path, drive_dir: str | Path) -> None:
@@ -55,10 +89,7 @@ def _sync_best_model(src_dir: str | Path, drive_dir: str | Path) -> None:
         if src_file.is_file() and (
             src_file.name.startswith("best_model") or src_file.name.startswith("stage") and "final" in src_file.name
         ):
-            try:
-                shutil.copy2(str(src_file), str(drive_dir / src_file.name))
-            except OSError as e:
-                logger.warning("Drive sync failed for %s: %s", src_file.name, e)
+            _copy_to_drive(src_file, drive_dir / src_file.name)
 
 
 def _sync_trial_metadata(
@@ -89,10 +120,7 @@ def _sync_trial_metadata(
                         continue
                 except OSError:
                     pass  # stat failed — fall through to copy
-            try:
-                shutil.copy2(str(src), str(dst))
-            except OSError as e:
-                logger.warning("Drive sync failed for %s: %s", name, e)
+            _copy_to_drive(src, dst)
 
 
 # ---------------------------------------------------------------------------
@@ -318,9 +346,9 @@ def _make_experiment_state_sync_callback_class():
                         continue
                     dst = self._drive_dir / rel
                     dst.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(str(src_file), str(dst))
-                    self._synced_file_cache[rel] = src_key
-                    copied += 1
+                    if _copy_to_drive(src_file, dst):
+                        self._synced_file_cache[rel] = src_key
+                        copied += 1
                 self._last_sync_time = time.time()
                 if copied:
                     logger.info("Experiment state synced to Drive (%s, %d files copied)", reason, copied)
@@ -408,16 +436,21 @@ def _make_drive_progress_log_callback_class():
                 if not key.startswith("_"):
                     row[key] = value
 
-            try:
-                self._csv_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(self._csv_path, "a", newline="") as f:
-                    writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-                    if not self._written_header:
-                        writer.writeheader()
-                        self._written_header = True
-                    writer.writerow(row)
-            except OSError as e:
-                logger.warning("Failed to write trial progress to %s: %s", self._csv_path, e)
+            self._csv_path.parent.mkdir(parents=True, exist_ok=True)
+            for attempt in range(len(_DRIVE_RETRY_DELAYS) + 1):
+                try:
+                    with open(self._csv_path, "a", newline="") as f:
+                        writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+                        if not self._written_header:
+                            writer.writeheader()
+                            self._written_header = True
+                        writer.writerow(row)
+                    break  # success
+                except OSError as e:
+                    if attempt < len(_DRIVE_RETRY_DELAYS):
+                        time.sleep(_DRIVE_RETRY_DELAYS[attempt])
+                    else:
+                        logger.warning("Failed to write trial progress to %s: %s", self._csv_path, e)
 
         def on_trial_complete(self, iteration: int, trials: list[Any], trial: Any, **info: Any) -> None:
             # Distinguish ASHA-pruned trials from those that ran to completion.
@@ -587,10 +620,7 @@ def train_trial(config: dict[str, Any]) -> None:
         drive_trial_dir.mkdir(parents=True, exist_ok=True)
         _stage_cfg_src = trial_dir / "stage_config.json"
         if _stage_cfg_src.exists():
-            try:
-                shutil.copy2(str(_stage_cfg_src), str(drive_trial_dir / "stage_config.json"))
-            except OSError as e:
-                logger.warning("Early Drive sync of stage_config.json failed: %s", e)
+            _copy_to_drive(_stage_cfg_src, drive_trial_dir / "stage_config.json")
 
     _train_start_time = time.time()
 
