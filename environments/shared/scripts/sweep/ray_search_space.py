@@ -306,9 +306,7 @@ def load_resume_settings(search_space_path: str | Path) -> dict[str, Any]:
     settings["resume_sweep_dir"] = resume_section.get("sweep_dir", "")
     # Point config_path back to this file itself so the same parameters are
     # used on resume.
-    settings["sweep_config_path"] = resume_section.get(
-        "config_path", str(path)
-    )
+    settings["sweep_config_path"] = resume_section.get("config_path", str(path))
 
     # Flatten runtime settings into top-level keys.
     runtime = data.get("runtime", {})
