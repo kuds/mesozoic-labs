@@ -2,7 +2,7 @@
   "stage1": {
     "trials": 15,
     "timesteps": 6000000,
-    "parallel": 5,
+    "parallel": 6,
     "n_envs": 8,
     "sac_learning_rate":  {"type": "double", "min": 5e-5, "max": 5e-4, "scale": "log"},
     "sac_batch_size":     {"type": "discrete", "values": [128, 256, 512]},
@@ -16,7 +16,7 @@
   "stage2": {
     "trials": 20,
     "timesteps": 8000000,
-    "parallel": 5,
+    "parallel": 6,
     "n_envs": 8,
     "sac_learning_rate":           {"type": "double", "min": 5e-5, "max": 3e-4, "scale": "log"},
     "sac_batch_size":              {"type": "discrete", "values": [128, 256, 512]},
@@ -32,7 +32,7 @@
   "stage3": {
     "trials": 20,
     "timesteps": 8000000,
-    "parallel": 5,
+    "parallel": 6,
     "n_envs": 8,
     "sac_learning_rate":                {"type": "double", "min": 5e-5, "max": 3e-4, "scale": "log"},
     "sac_batch_size":                   {"type": "discrete", "values": [128, 256, 512]},

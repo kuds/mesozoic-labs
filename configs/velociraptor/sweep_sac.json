@@ -27,7 +27,7 @@
   "stage2": {
     "trials": 20,
     "timesteps": 10000000,
-    "parallel": 3,
+    "parallel": 6,
     "n_envs": 8,
 
     "_comment_sac": "SAC locomotion: only one successful SAC run exists (lr=1e-4, gamma=0.99). Widen LR range and test whether higher gamma helps or hurts with replay buffer.",
@@ -57,7 +57,7 @@
   "stage3": {
     "trials": 25,
     "timesteps": 10000000,
-    "parallel": 3,
+    "parallel": 6,
     "n_envs": 8,
 
     "_comment_sac": "SAC strike: this is where SAC shines — auto-entropy keeps exploring for sparse strike_bonus. Only one config tested (lr=1e-4, gamma=0.99) hit 0.9 success. More budget here to find reliable configs.",
