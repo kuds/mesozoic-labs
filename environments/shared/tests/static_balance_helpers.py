@@ -7,6 +7,7 @@ the configuration (body names, thresholds, joint lists).
 import mujoco
 import numpy as np
 import pytest
+from scipy.spatial import ConvexHull
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -159,6 +160,80 @@ class MassDistributionBase:
             r_mass = env.model.body_mass[r_id]
             l_mass = env.model.body_mass[l_id]
             assert abs(r_mass - l_mass) < 1e-6, f"Mass asymmetry: {rn}={r_mass:.4f} kg vs {ln}={l_mass:.4f} kg"
+
+
+class HomePoseCOMBase:
+    """Verify the home keyframe places COM over the support polygon.
+
+    Subclasses must provide:
+        - ``env`` fixture
+        - ``foot_geom_names``: list of foot geom names for contact detection
+        - ``root_body``: root body name for COM computation
+        - ``ankle_body_names``: pair of (right, left) ankle/metatarsus body names
+        - ``max_ankle_offset``: max distance COM can be behind the ankle midpoint
+        - ``max_support_distance``: max distance COM can be from nearest foot contact
+        - ``species_label``: display name for error messages
+    """
+
+    foot_geom_names: list[str] = []
+    root_body: str = ""
+    ankle_body_names: tuple[str, str] = ("", "")
+    max_ankle_offset: float = 0.15
+    max_support_distance: float = 0.20
+    species_label: str = "dinosaur"
+
+    def test_foot_contacts_exist(self, env):
+        contacts = get_foot_contacts_xy(env.model, env.data, self.foot_geom_names)
+        assert len(contacts) >= 2, (
+            f"Expected at least 2 foot-floor contacts at home pose, got {len(contacts)}. "
+            f"The {self.species_label} may be floating or the keyframe places feet above the floor."
+        )
+
+    def test_com_inside_support_polygon(self, env):
+        contacts = get_foot_contacts_xy(env.model, env.data, self.foot_geom_names)
+        if len(contacts) < 3:
+            if len(contacts) == 0:
+                pytest.skip("No foot contacts detected (model may need ground settling)")
+            com = com_xy(env.model, env.data, self.root_body)
+            bbox_min = contacts.min(axis=0) - 0.05
+            bbox_max = contacts.max(axis=0) + 0.05
+            assert np.all(com >= bbox_min) and np.all(com <= bbox_max), (
+                f"COM XY {com} is outside bounding box of foot contacts [{bbox_min}, {bbox_max}]"
+            )
+            return
+
+        com = com_xy(env.model, env.data, self.root_body)
+        hull = ConvexHull(contacts)
+        inside = np.all(hull.equations[:, :2] @ com + hull.equations[:, 2] <= 0)
+        assert inside, (
+            f"COM XY {com} is outside the convex hull of foot contacts. "
+            f"Contact points: {contacts.tolist()}. "
+            "The model's mass distribution may not balance over its feet."
+        )
+
+    def test_com_not_too_far_back(self, env):
+        com = com_xy(env.model, env.data, self.root_body)
+        r_name, l_name = self.ankle_body_names
+        r_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, r_name)
+        l_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_BODY, l_name)
+        avg_ankle_x = (env.data.xpos[r_id, 0] + env.data.xpos[l_id, 0]) / 2.0
+        assert com[0] >= avg_ankle_x - self.max_ankle_offset, (
+            f"COM X ({com[0]:.3f}) is more than {self.max_ankle_offset * 100:.0f} cm behind "
+            f"the ankle midpoint ({avg_ankle_x:.3f}). The tail mass may be pulling the COM "
+            "too far rearward for stable bipedal balance."
+        )
+
+    def test_com_distance_from_support(self, env):
+        contacts = get_foot_contacts_xy(env.model, env.data, self.foot_geom_names)
+        com = com_xy(env.model, env.data, self.root_body)
+        if len(contacts) == 0:
+            pytest.skip("No foot contacts")
+        dists = np.linalg.norm(contacts - com, axis=1)
+        min_dist = dists.min()
+        assert min_dist < self.max_support_distance, (
+            f"COM is {min_dist:.3f} m from nearest foot contact. "
+            f"COM: {com}, nearest contact: {contacts[dists.argmin()]}"
+        )
 
 
 class ZeroTorqueStabilityBase:

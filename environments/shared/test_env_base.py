@@ -212,3 +212,34 @@ def test_observation_bounds(env_class):
 
     print("\nObservation bounds test passed!")
     return True
+
+
+def run_env_tests(env_class, reward_keys: list[str], description: str) -> int:
+    """CLI entry point shared by all species ``scripts/test_env.py``.
+
+    Parses ``--render``, ``--episodes``, ``--steps`` and runs the standard
+    smoke-test suite.  Returns 0 on success, 1 on failure.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description=f"Test {description} Gymnasium environment")
+    parser.add_argument("--render", action="store_true", help="Enable rendering")
+    parser.add_argument("--episodes", type=int, default=3, help="Number of episodes for rollout test")
+    parser.add_argument("--steps", type=int, default=100, help="Max steps per episode")
+    args = parser.parse_args()
+
+    all_passed = True
+    all_passed &= test_basic_functionality(env_class, render=args.render)
+    all_passed &= test_episode_rollout(env_class, args.episodes, args.steps, render=args.render)
+    all_passed &= test_reward_components(env_class, reward_keys, render=args.render)
+    all_passed &= test_determinism(env_class)
+    all_passed &= test_observation_bounds(env_class)
+
+    print("\n" + "=" * 60)
+    if all_passed:
+        print("ALL TESTS PASSED")
+    else:
+        print("SOME TESTS FAILED")
+    print("=" * 60)
+
+    return 0 if all_passed else 1
