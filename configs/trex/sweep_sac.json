@@ -1,0 +1,94 @@
+{
+  "_comment": "T-Rex SAC sweep — massive bipedal predator with bite-based attack",
+
+  "stage1": {
+    "trials": 15,
+    "timesteps": 6000000,
+    "parallel": 6,
+    "n_envs": 8,
+
+    "sac_learning_rate":  {"type": "double", "min": 5e-5, "max": 5e-4, "scale": "log"},
+    "sac_batch_size":     {"type": "discrete", "values": [128, 256, 512]},
+    "sac_gamma":          {"type": "double", "min": 0.985, "max": 0.995, "scale": "linear"},
+    "sac_buffer_size":    {"type": "discrete", "values": [300000, 500000, 1000000]},
+    "sac_tau":            {"type": "double", "min": 0.001, "max": 0.01, "scale": "log"},
+    "sac_train_freq":     {"type": "discrete", "values": [4, 8, 16]},
+    "sac_gradient_steps": {"type": "discrete", "values": [4, 8, 16]},
+
+    "_comment_env": "Bipedal balance: highest nosedive weight — massive skull creates extreme front-loading",
+    "env_alive_bonus":              {"type": "double", "min": 1.0, "max": 2.5, "scale": "linear"},
+    "env_posture_weight":           {"type": "double", "min": 1.0, "max": 2.5, "scale": "linear"},
+    "env_nosedive_weight":          {"type": "double", "min": 2.0, "max": 4.0, "scale": "linear"},
+    "env_drift_penalty_weight":     {"type": "double", "min": 0.1, "max": 0.5, "scale": "linear"},
+    "env_speed_penalty_weight":     {"type": "double", "min": 0.1, "max": 0.5, "scale": "linear"},
+    "env_spin_penalty_weight":      {"type": "double", "min": 0.0, "max": 0.3, "scale": "linear"},
+    "env_energy_penalty_weight":    {"type": "double", "min": 0.01, "max": 0.1, "scale": "log"},
+    "env_tail_stability_weight":    {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"},
+    "env_height_weight":            {"type": "double", "min": 0.5, "max": 1.5, "scale": "linear"}
+  },
+
+  "stage2": {
+    "trials": 20,
+    "timesteps": 10000000,
+    "parallel": 6,
+    "n_envs": 8,
+
+    "sac_learning_rate":  {"type": "double", "min": 5e-5, "max": 3e-4, "scale": "log"},
+    "sac_batch_size":     {"type": "discrete", "values": [128, 256, 512]},
+    "sac_gamma":          {"type": "double", "min": 0.985, "max": 0.995, "scale": "linear"},
+    "sac_buffer_size":    {"type": "discrete", "values": [500000, 1000000, 2000000]},
+    "sac_tau":            {"type": "double", "min": 0.001, "max": 0.01, "scale": "log"},
+    "sac_train_freq":     {"type": "discrete", "values": [4, 8, 16]},
+    "sac_gradient_steps": {"type": "discrete", "values": [4, 8, 16]},
+
+    "_comment_env": "Bipedal locomotion: higher nosedive weight than Raptor due to massive skull",
+    "env_forward_vel_weight":       {"type": "double", "min": 1.0, "max": 3.5, "scale": "linear"},
+    "env_forward_vel_max":          {"type": "double", "min": 2.0, "max": 4.0, "scale": "linear"},
+    "env_alive_bonus":              {"type": "double", "min": 0.2, "max": 0.75, "scale": "linear"},
+    "env_posture_weight":           {"type": "double", "min": 0.05, "max": 0.4, "scale": "linear"},
+    "env_nosedive_weight":          {"type": "double", "min": 0.2, "max": 0.8, "scale": "linear"},
+    "env_height_weight":            {"type": "double", "min": 0.1, "max": 0.5, "scale": "linear"},
+    "env_heading_weight":           {"type": "double", "min": 0.0, "max": 0.5, "scale": "linear"},
+    "env_lateral_penalty_weight":   {"type": "double", "min": 0.0, "max": 0.2, "scale": "linear"},
+    "env_energy_penalty_weight":    {"type": "double", "min": 0.001, "max": 0.01, "scale": "log"},
+    "env_tail_stability_weight":    {"type": "double", "min": 0.0, "max": 0.1, "scale": "linear"},
+
+    "curriculum_ramp_timesteps":    {"type": "discrete", "values": [200000, 500000, 1000000, 2000000]},
+    "curriculum_ramp_start_value":  {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"}
+  },
+
+  "stage3": {
+    "_comment": "Bite: sprint toward prey and bite with jaws — SAC auto-entropy helps explore sparse bite_bonus",
+    "trials": 25,
+    "timesteps": 10000000,
+    "parallel": 6,
+    "n_envs": 8,
+
+    "sac_learning_rate":  {"type": "double", "min": 3e-5, "max": 2e-4, "scale": "log"},
+    "sac_batch_size":     {"type": "discrete", "values": [256, 512]},
+    "sac_gamma":          {"type": "double", "min": 0.985, "max": 0.995, "scale": "linear"},
+    "sac_buffer_size":    {"type": "discrete", "values": [1000000, 2000000]},
+    "sac_tau":            {"type": "double", "min": 0.002, "max": 0.01, "scale": "log"},
+    "sac_train_freq":     {"type": "discrete", "values": [8, 16]},
+    "sac_gradient_steps": {"type": "discrete", "values": [8, 16]},
+
+    "_comment_bite": "Bite reward: sweep the sparse bonus and approach shaping",
+    "env_bite_bonus":                   {"type": "double", "min": 500.0, "max": 2000.0, "scale": "log"},
+    "env_bite_approach_weight":         {"type": "double", "min": 2.0, "max": 5.0, "scale": "linear"},
+    "env_bite_head_proximity_weight":   {"type": "double", "min": 0.5, "max": 2.0, "scale": "linear"},
+
+    "_comment_locomotion": "Locomotion: enough to sprint toward prey",
+    "env_forward_vel_weight":           {"type": "double", "min": 0.2, "max": 1.0, "scale": "linear"},
+    "env_forward_vel_max":              {"type": "double", "min": 2.0, "max": 4.0, "scale": "linear"},
+    "env_heading_weight":               {"type": "double", "min": 0.2, "max": 0.8, "scale": "linear"},
+    "env_lateral_penalty_weight":       {"type": "double", "min": 0.1, "max": 0.5, "scale": "linear"},
+    "env_nosedive_weight":              {"type": "double", "min": 0.1, "max": 0.4, "scale": "linear"},
+
+    "_comment_spawning": "Prey spawning: sweep distance for reward density",
+    "env_prey_distance_min":            {"type": "double", "min": 1.5, "max": 3.0, "scale": "linear"},
+    "env_prey_distance_max":            {"type": "double", "min": 5.0, "max": 8.0, "scale": "linear"},
+
+    "curriculum_ramp_timesteps":        {"type": "discrete", "values": [200000, 500000, 1000000]},
+    "curriculum_ramp_start_value":      {"type": "double", "min": 0.05, "max": 0.2, "scale": "linear"}
+  }
+}
