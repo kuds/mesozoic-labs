@@ -75,8 +75,8 @@ def _default_config_path(algorithm: str, species: str = "") -> Path:
     """
     if not species:
         raise FileNotFoundError(
-            f"No species specified and no generic sweep config fallback. "
-            f"Provide a species name or an explicit config_path."
+            "No species specified and no generic sweep config fallback. "
+            "Provide a species name or an explicit config_path."
         )
     path = _CONFIGS_DIR / species / f"sweep_{algorithm}.json"
     if not path.exists():

@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from environments.shared.scripts.sweep import (
     build_search_space,
     load_resume_settings,

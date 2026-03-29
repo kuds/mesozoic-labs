@@ -5,8 +5,6 @@ import logging
 import sys
 from pathlib import Path
 
-from .constants import _DEFAULT_SEARCH_SPACES
-
 logger = logging.getLogger(__name__)
 
 
