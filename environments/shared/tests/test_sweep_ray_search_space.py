@@ -225,7 +225,7 @@ class TestSaveSearchSpace:
         data = json.loads(result_path.read_text())
         assert "resume" in data
         assert data["resume"]["sweep_dir"] == str(tmp_path)
-        assert "config_path" not in data["resume"]
+        assert data["resume"]["config_path"] == ""
 
 
 # ── load_resume_settings ─────────────────────────────────────────────────
