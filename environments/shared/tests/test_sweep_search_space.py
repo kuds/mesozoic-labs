@@ -133,38 +133,24 @@ class TestResolveSearchSpace:
         with pytest.raises(SystemExit):
             _resolve_search_space("{bad json", None, "ppo")
 
-    def test_default_ppo_space(self):
-        result = _resolve_search_space(None, None, "ppo")
-        assert "ppo_learning_rate" in result
-        assert "ppo_ent_coef" in result
-        assert "ppo_batch_size" in result
+    def test_species_specific_config(self):
+        """Species-specific config is loaded when species is provided."""
+        result = _resolve_search_space(None, None, "ppo", species="brachiosaurus")
+        assert _is_per_stage(result)
 
-    def test_default_sac_space(self):
-        result = _resolve_search_space(None, None, "sac")
-        assert "sac_learning_rate" in result
-        assert "sac_batch_size" in result
+    def test_missing_species_config_exits(self):
+        """Missing species config exits with error."""
+        with pytest.raises(SystemExit):
+            _resolve_search_space(None, None, "ppo", species="nonexistent_species")
+
+    def test_no_species_and_no_file_exits(self):
+        """No species and no file/json exits with error."""
+        with pytest.raises(SystemExit):
+            _resolve_search_space(None, None, "ppo")
 
     def test_unknown_algorithm_exits_with_error(self):
         with pytest.raises(SystemExit):
-            _resolve_search_space(None, None, "unknown_algo")
-
-    def test_species_specific_config_takes_priority_over_default(self):
-        """When a species-specific config exists, it should be used over the hardcoded default."""
-        from environments.shared.scripts.sweep.search_space import _species_config_path
-
-        # Only run this test if a species-specific config actually exists.
-        species_path = _species_config_path("brachiosaurus", "ppo")
-        if species_path is None:
-            pytest.skip("No species-specific config for brachiosaurus/ppo")
-        result = _resolve_search_space(None, None, "ppo", species="brachiosaurus")
-        # The species config is per-stage, so it should have stage keys.
-        assert _is_per_stage(result)
-
-    def test_species_without_config_falls_back_to_default(self):
-        """When no species-specific config exists, falls back to the algorithm default."""
-        result = _resolve_search_space(None, None, "ppo", species="nonexistent_species")
-        # Should still work — falls back to _DEFAULT_SEARCH_SPACES["ppo"]
-        assert "ppo_learning_rate" in result
+            _resolve_search_space(None, None, "unknown_algo", species="brachiosaurus")
 
 
 class TestResolveSearchSpaceLogging:
@@ -175,9 +161,9 @@ class TestResolveSearchSpaceLogging:
             _resolve_search_space('{"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 1e-3}}', None, "ppo")
         assert "inline --search-space JSON" in caplog.text
 
-    def test_default_space_logs_algorithm(self, caplog):
+    def test_species_config_logs_path(self, caplog):
         import logging
 
         with caplog.at_level(logging.INFO):
-            _resolve_search_space(None, None, "sac")
-        assert "default sac search space" in caplog.text
+            _resolve_search_space(None, None, "sac", species="velociraptor")
+        assert "species-specific search space" in caplog.text

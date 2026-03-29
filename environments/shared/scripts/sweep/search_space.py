@@ -59,8 +59,7 @@ def _resolve_search_space(
     """Resolve the search space from CLI args.
 
     Priority: ``--search-space`` (inline JSON) > ``--search-space-file`` >
-    species-specific config (``configs/{species}/sweep_{algorithm}.json``) >
-    algorithm default.
+    species-specific config (``configs/{species}/sweep_{algorithm}.json``).
 
     Returns either a flat search-space dict (all stages share the same space)
     or a dict with ``"stage1"``/``"stage2"``/``"stage3"`` keys for per-stage
@@ -79,22 +78,26 @@ def _resolve_search_space(
         logger.info("Search space resolved from file: %s", search_space_file)
         return _load_search_space_file(search_space_file)
 
-    # Prefer species-specific config when available.
-    if species:
-        species_path = _species_config_path(species, algorithm)
-        if species_path is not None:
-            logger.info("Using species-specific search space: %s", species_path)
-            return _load_search_space_file(str(species_path))
-
-    if algorithm not in _DEFAULT_SEARCH_SPACES:
+    # Use species-specific config.
+    if not species:
         logger.error(
-            "No default search space for algorithm %r. Available: %s",
-            algorithm,
-            list(_DEFAULT_SEARCH_SPACES.keys()),
+            "No species specified and no search space provided. "
+            "Pass --search-space, --search-space-file, or specify a species."
         )
         sys.exit(1)
-    logger.info("Using default %s search space", algorithm)
-    return _DEFAULT_SEARCH_SPACES[algorithm]
+
+    species_path = _species_config_path(species, algorithm)
+    if species_path is None:
+        logger.error(
+            "No sweep config found for species=%r, algorithm=%r. Expected: configs/%s/sweep_%s.json",
+            species,
+            algorithm,
+            species,
+            algorithm,
+        )
+        sys.exit(1)
+    logger.info("Using species-specific search space: %s", species_path)
+    return _load_search_space_file(str(species_path))
 
 
 def _is_per_stage(config: dict) -> bool:

@@ -1,9 +1,7 @@
 """Per-species, per-stage search spaces for Ray Tune sweeps.
 
-Search spaces are loaded from JSON config files.  When no explicit path is
-provided, the loader prefers a species-specific config
-(``configs/{species}/sweep_{algorithm}.json``) and falls back to the generic
-``configs/sweep_{algorithm}.json``.  The JSON format uses the same per-stage
+Search spaces are loaded from species-specific JSON config files
+(``configs/{species}/sweep_{algorithm}.json``).  The JSON format uses the same per-stage
 layout as the Vertex AI sweep configs::
 
     {
@@ -69,16 +67,23 @@ _CONFIGS_DIR = Path(__file__).resolve().parents[4] / "configs"
 
 
 def _default_config_path(algorithm: str, species: str = "") -> Path:
-    """Return the default JSON config path for an algorithm.
+    """Return the species-specific sweep config path.
 
-    Prefers ``configs/{species}/sweep_{algorithm}.json`` when it exists,
-    falling back to ``configs/sweep_{algorithm}.json``.
+    Returns ``configs/{species}/sweep_{algorithm}.json``.  Raises
+    :class:`FileNotFoundError` when *species* is empty or the file does not
+    exist.
     """
-    if species:
-        species_path = _CONFIGS_DIR / species / f"sweep_{algorithm}.json"
-        if species_path.exists():
-            return species_path
-    return _CONFIGS_DIR / f"sweep_{algorithm}.json"
+    if not species:
+        raise FileNotFoundError(
+            f"No species specified and no generic sweep config fallback. "
+            f"Provide a species name or an explicit config_path."
+        )
+    path = _CONFIGS_DIR / species / f"sweep_{algorithm}.json"
+    if not path.exists():
+        raise FileNotFoundError(
+            f"No sweep config found for species={species!r}, algorithm={algorithm!r}. Expected: {path}"
+        )
+    return path
 
 
 def resolve_config_path(
@@ -89,8 +94,8 @@ def resolve_config_path(
     """Resolve the sweep config file path.
 
     When *config_path* is provided, relative paths are resolved against the
-    repo root.  Otherwise the species-aware default is returned (see
-    :func:`_default_config_path`).
+    repo root.  Otherwise the species-specific default is returned.  Raises
+    :class:`FileNotFoundError` when no config exists for the species/algorithm.
     """
     if config_path:
         path = Path(config_path)
@@ -129,8 +134,7 @@ def build_search_space(
         Algorithm name (``"ppo"`` or ``"sac"``).
     config_path:
         Optional path to a sweep config JSON file.  Defaults to
-        ``configs/{species}/sweep_{algorithm}.json`` when present, otherwise
-        ``configs/sweep_{algorithm}.json``.
+        ``configs/{species}/sweep_{algorithm}.json``.
     """
     path = resolve_config_path(algorithm, species, config_path)
     logger.info(
