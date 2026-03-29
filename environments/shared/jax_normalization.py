@@ -73,6 +73,39 @@ def update_running_stats(
     return RunningMeanStd(mean=new_mean, var=new_var, count=total_count)
 
 
+def decay_running_stats(
+    stats: RunningMeanStd,
+    decay_factor: float = 0.01,
+) -> RunningMeanStd:
+    """Reduce the effective sample count so new data adapts the stats faster.
+
+    Useful when transitioning between curriculum stages: the obs distribution
+    shifts (e.g. near-zero velocity in balance → sustained velocity in
+    locomotion) but a count of millions from the prior stage makes
+    ``update_running_stats`` nearly a no-op.  Decaying the count lets the
+    mean/var track the new distribution within a few updates.
+
+    The mean and variance are preserved — only ``count`` is reduced so the
+    next ``update_running_stats`` call gives proportionally more weight to
+    incoming data.
+
+    Args:
+        stats: Current running statistics (from prior stage checkpoint).
+        decay_factor: Multiply count by this factor.  ``0.01`` means new
+            batches of 131K samples (2048 envs × 64 steps) will dominate
+            the statistics within 1-2 updates.  Set to ``1.0`` to keep
+            the prior stats unchanged (no decay).
+
+    Returns:
+        ``RunningMeanStd`` with reduced count.
+    """
+    return RunningMeanStd(
+        mean=stats.mean,
+        var=stats.var,
+        count=max(stats.count * decay_factor, 1e-4),
+    )
+
+
 def normalize_obs(
     obs: Any,
     stats: RunningMeanStd,
