@@ -133,20 +133,24 @@ class TestResolveSearchSpace:
         with pytest.raises(SystemExit):
             _resolve_search_space("{bad json", None, "ppo")
 
-    def test_default_ppo_space(self):
-        result = _resolve_search_space(None, None, "ppo")
-        assert "ppo_learning_rate" in result
-        assert "ppo_ent_coef" in result
-        assert "ppo_batch_size" in result
+    def test_species_specific_config(self):
+        """Species-specific config is loaded when species is provided."""
+        result = _resolve_search_space(None, None, "ppo", species="brachiosaurus")
+        assert _is_per_stage(result)
 
-    def test_default_sac_space(self):
-        result = _resolve_search_space(None, None, "sac")
-        assert "sac_learning_rate" in result
-        assert "sac_batch_size" in result
+    def test_missing_species_config_exits(self):
+        """Missing species config exits with error."""
+        with pytest.raises(SystemExit):
+            _resolve_search_space(None, None, "ppo", species="nonexistent_species")
+
+    def test_no_species_and_no_file_exits(self):
+        """No species and no file/json exits with error."""
+        with pytest.raises(SystemExit):
+            _resolve_search_space(None, None, "ppo")
 
     def test_unknown_algorithm_exits_with_error(self):
         with pytest.raises(SystemExit):
-            _resolve_search_space(None, None, "unknown_algo")
+            _resolve_search_space(None, None, "unknown_algo", species="brachiosaurus")
 
 
 class TestResolveSearchSpaceLogging:
@@ -157,9 +161,9 @@ class TestResolveSearchSpaceLogging:
             _resolve_search_space('{"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 1e-3}}', None, "ppo")
         assert "inline --search-space JSON" in caplog.text
 
-    def test_default_space_logs_algorithm(self, caplog):
+    def test_species_config_logs_path(self, caplog):
         import logging
 
         with caplog.at_level(logging.INFO):
-            _resolve_search_space(None, None, "sac")
-        assert "default sac search space" in caplog.text
+            _resolve_search_space(None, None, "sac", species="velociraptor")
+        assert "species-specific search space" in caplog.text

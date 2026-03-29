@@ -35,6 +35,7 @@ from .ray_search_space import (
     detect_gpu_info,
     detect_gpu_model,
     load_resume_settings,
+    resolve_config_path,
     save_search_space,
     to_ray_tune,
 )
@@ -106,6 +107,7 @@ __all__ = [
     "_sweep_state_local_path",
     "_validate_machine_type",
     "load_resume_settings",
+    "resolve_config_path",
     "launch_all_stages",
     "launch_sweep",
     "plot_sweep_results",

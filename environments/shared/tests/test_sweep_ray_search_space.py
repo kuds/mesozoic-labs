@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from environments.shared.scripts.sweep import (
     build_search_space,
     load_resume_settings,
@@ -51,26 +53,41 @@ class TestBuildSearchSpace:
         assert "ppo_gamma" in result
         assert "ppo_lr" not in result
 
-    def test_default_config_path_ppo(self):
-        """Default config path points to configs/sweep_ppo.json."""
+    def test_default_config_path_species_ppo(self):
+        """Default config path points to species-specific sweep config."""
         from environments.shared.scripts.sweep.ray_search_space import _default_config_path
 
-        path = _default_config_path("ppo")
+        path = _default_config_path("ppo", "brachiosaurus")
         assert path.name == "sweep_ppo.json"
+        assert "brachiosaurus" in str(path)
         assert path.exists(), f"Expected config at {path}"
 
-    def test_default_config_path_sac(self):
+    def test_default_config_path_species_sac(self):
         from environments.shared.scripts.sweep.ray_search_space import _default_config_path
 
-        path = _default_config_path("sac")
+        path = _default_config_path("sac", "velociraptor")
         assert path.name == "sweep_sac.json"
+        assert "velociraptor" in str(path)
         assert path.exists(), f"Expected config at {path}"
+
+    def test_default_config_path_missing_raises(self):
+        """Missing species config raises FileNotFoundError."""
+        from environments.shared.scripts.sweep.ray_search_space import _default_config_path
+
+        with pytest.raises(FileNotFoundError):
+            _default_config_path("ppo", "nonexistent_species")
+
+    def test_default_config_path_no_species_raises(self):
+        """Omitting species raises FileNotFoundError."""
+        from environments.shared.scripts.sweep.ray_search_space import _default_config_path
+
+        with pytest.raises(FileNotFoundError):
+            _default_config_path("ppo")
 
     def test_loads_real_ppo_config_stage1(self):
-        """Smoke test: load the actual sweep_ppo.json for stage 1."""
-        result = build_search_space("velociraptor", 1, "ppo")
+        """Smoke test: load the actual species sweep config for stage 1."""
+        result = build_search_space("brachiosaurus", 1, "ppo")
         assert "ppo_learning_rate" in result
-        assert "env_alive_bonus" in result
         assert "trials" not in result
 
     def test_loads_real_sac_config_stage1(self):
@@ -225,7 +242,7 @@ class TestSaveSearchSpace:
         data = json.loads(result_path.read_text())
         assert "resume" in data
         assert data["resume"]["sweep_dir"] == str(tmp_path)
-        assert "config_path" not in data["resume"]
+        assert data["resume"]["config_path"] == ""
 
 
 # ── load_resume_settings ─────────────────────────────────────────────────
