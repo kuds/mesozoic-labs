@@ -220,6 +220,8 @@ def ppo_loss(params, network, batch, config: PPOConfig):
         "value_loss": value_loss,
         "entropy": jnp.mean(entropy),
         "approx_kl": jnp.mean((ratio - 1) - jnp.log(ratio)),
+        "clip_fraction": jnp.mean((jnp.abs(ratio - 1.0) > config.clip_range).astype(jnp.float32)),
+        "mean_std": jnp.mean(action_std),
     }
 
     return total_loss, info
@@ -256,13 +258,12 @@ def ppo_update(params, opt_state, optimizer, network, batch, config: PPOConfig):
     """
     check_jax()
     import jax
+    import optax
 
     grad_fn = jax.grad(ppo_loss, has_aux=True)
     grads, info = grad_fn(params, network, batch, config)
+    info["grad_norm"] = optax.global_norm(grads)
     updates, new_opt_state = optimizer.update(grads, opt_state, params)
-
-    import optax
-
     new_params = optax.apply_updates(params, updates)
 
     return new_params, new_opt_state, info
