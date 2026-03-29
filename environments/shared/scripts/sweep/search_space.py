@@ -83,9 +83,7 @@ def _resolve_search_space(
     if species:
         species_path = _species_config_path(species, algorithm)
         if species_path is not None:
-            logger.info(
-                "Using species-specific search space: %s", species_path
-            )
+            logger.info("Using species-specific search space: %s", species_path)
             return _load_search_space_file(str(species_path))
 
     if algorithm not in _DEFAULT_SEARCH_SPACES:

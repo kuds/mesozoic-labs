@@ -148,7 +148,6 @@ class TestResolveSearchSpace:
         with pytest.raises(SystemExit):
             _resolve_search_space(None, None, "unknown_algo")
 
-
     def test_species_specific_config_takes_priority_over_default(self):
         """When a species-specific config exists, it should be used over the hardcoded default."""
         from environments.shared.scripts.sweep.search_space import _species_config_path
