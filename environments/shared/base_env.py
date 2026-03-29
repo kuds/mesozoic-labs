@@ -132,7 +132,7 @@ class BaseDinoEnv(gym.Env, ABC):
             Angle in radians between the body's Z-axis and world Z-axis.
             0 means perfectly upright, pi/2 means horizontal.
         """
-        return _quat_to_tilt_pure(quat)
+        return float(_quat_to_tilt_pure(quat))
 
     # ------------------------------------------------------------------
     # Abstract methods: subclasses MUST implement these
@@ -185,7 +185,7 @@ class BaseDinoEnv(gym.Env, ABC):
         when actions are in [-1, 1].
         """
         n_actuators: int = self.action_space.shape[0]  # type: ignore[index]
-        return _reward_energy_pure(action, n_actuators, self.energy_penalty_weight)
+        return float(_reward_energy_pure(action, n_actuators, self.energy_penalty_weight))
 
     def _reward_action_smoothness(self, action: np.ndarray) -> tuple[float, float]:
         """Compute action-smoothness penalty and raw action delta.
@@ -230,7 +230,7 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             Scalar Z-component of forward direction.
         """
-        return _quat_to_forward_z_pure(quat)
+        return float(_quat_to_forward_z_pure(quat))
 
     def _compute_posture_reward(self, quat: np.ndarray, weight: float) -> tuple[float, float]:
         """Compute quadratic tilt penalty.

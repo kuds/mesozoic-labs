@@ -53,6 +53,10 @@ class MJXEnvConfig:
     target_distance_range: tuple[float, float] = (3.0, 8.0)
     target_lateral_range: tuple[float, float] = (-2.0, 2.0)
     target_z: float = 0.5
+    # Reset noise parameters
+    reset_noise_scale: float = 0.0  # Joint angle perturbation range
+    init_qpos_noise: float = 0.0  # XY position jitter range
+    init_yaw_noise: float = 0.0  # Yaw rotation perturbation range (radians)
 
 
 @dataclass
@@ -295,6 +299,53 @@ class MJXDinoEnv:
                 maxval=config.target_lateral_range[1],
             )
             target_pos = jnp.array([distance, lateral, config.target_z])
+
+            # Apply reset noise (joint, position, yaw perturbations)
+            qpos = data.qpos
+            if config.reset_noise_scale > 0:
+                rng, rng_joint = jax.random.split(rng)
+                joint_noise = jax.random.uniform(
+                    rng_joint,
+                    (qpos.shape[0] - 7,),
+                    minval=-config.reset_noise_scale,
+                    maxval=config.reset_noise_scale,
+                )
+                qpos = qpos.at[7:].add(joint_noise)
+
+            if config.init_qpos_noise > 0:
+                rng, rng_xy = jax.random.split(rng)
+                xy_noise = jax.random.uniform(
+                    rng_xy,
+                    (2,),
+                    minval=-config.init_qpos_noise,
+                    maxval=config.init_qpos_noise,
+                )
+                qpos = qpos.at[0:2].add(xy_noise)
+
+            if config.init_yaw_noise > 0:
+                rng, rng_yaw = jax.random.split(rng)
+                yaw_angle = jax.random.uniform(
+                    rng_yaw,
+                    (),
+                    minval=-config.init_yaw_noise,
+                    maxval=config.init_yaw_noise,
+                )
+                half_yaw = yaw_angle / 2.0
+                yaw_quat = jnp.array([jnp.cos(half_yaw), 0.0, 0.0, jnp.sin(half_yaw)])
+                base_quat = qpos[3:7]
+                w1, x1, y1, z1 = yaw_quat
+                w2, x2, y2, z2 = base_quat
+                new_quat = jnp.array(
+                    [
+                        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+                        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+                        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+                        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+                    ]
+                )
+                qpos = qpos.at[3:7].set(new_quat)
+
+            data = data.replace(qpos=qpos)
 
             # Forward kinematics
             data = mjx.forward(model, data)
