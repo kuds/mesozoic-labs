@@ -58,6 +58,26 @@ gradient_steps = 4               # Match train_freq to maintain update-to-data r
 [sac.policy_kwargs]
 net_arch = [512, 256]            # Larger first layer to match PPO's tapered architecture for Brachiosaurus's 75 obs dims
 
+[jax]
+num_envs = 2048
+rollout_len = 64
+num_updates = 1200                      # Extra updates for quadruped — Brachio needs more time to develop coordinated 4-leg gait
+ppo_epochs = 4
+minibatch_size = 512
+learning_rate = 1e-4
+max_grad_norm = 0.5
+gamma = 0.993                           # Match SB3 PPO sweep winner
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.01                         # Match SB3 PPO sweep winner — higher entropy for quadruped exploration
+fall_penalty = -10.0
+reset_noise_scale = 0.05
+init_qpos_noise = 0.01
+init_yaw_noise = 0.1
+
+[jax.policy_kwargs]
+net_arch = [512, 256]
+
 [curriculum]
 timesteps = 16000000                   # Reverted to 16M: 20M run (03-22) showed late-training collapse (2396→809). 16M was sufficient for the only S2 pass.
 min_avg_reward = 100.0

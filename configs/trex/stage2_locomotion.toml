@@ -55,6 +55,26 @@ gradient_steps = 8               # 2:1 data-to-update ratio — matches raptor; 
 [sac.policy_kwargs]
 net_arch = [512, 256]            # Larger first layer for T-Rex's higher-dimensional obs space (83 vs raptor's 67)
 
+[jax]
+num_envs = 2048
+rollout_len = 64
+num_updates = 800                       # More updates for locomotion — needs longer to develop stable gait
+ppo_epochs = 4
+minibatch_size = 512
+learning_rate = 1e-4                    # Lower than Stage 1 — protect balance skills from catastrophic forgetting
+max_grad_norm = 0.5
+gamma = 0.995                           # Longer horizon for sustained locomotion (match SB3 PPO)
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.005                        # Lower entropy — exploit learned balance, less random exploration needed
+fall_penalty = -10.0
+reset_noise_scale = 0.05
+init_qpos_noise = 0.01
+init_yaw_noise = 0.1
+
+[jax.policy_kwargs]
+net_arch = [512, 256]
+
 [curriculum]
 timesteps = 8000000                     # Increase from 5M: your best T-Rex stage2 was only at 2M steps and still improving
 min_avg_reward = 100.0

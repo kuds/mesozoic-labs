@@ -55,6 +55,26 @@ gradient_steps = 8               # 2:1 data-to-update ratio — more gradient up
 [sac.policy_kwargs]
 net_arch = [512, 256]
 
+[jax]
+num_envs = 2048
+rollout_len = 64
+num_updates = 800
+ppo_epochs = 4
+minibatch_size = 512
+learning_rate = 1e-4
+max_grad_norm = 0.5
+gamma = 0.995
+gae_lambda = 0.95
+clip_range = 0.15                       # Tighter clip to protect locomotion skills (match SB3 PPO)
+ent_coef = 0.005
+fall_penalty = -10.0
+reset_noise_scale = 0.05
+init_qpos_noise = 0.01
+init_yaw_noise = 0.1
+
+[jax.policy_kwargs]
+net_arch = [512, 256]
+
 [curriculum]
 timesteps = 8000000
 min_avg_reward = 100.0

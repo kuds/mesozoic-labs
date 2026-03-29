@@ -53,6 +53,26 @@ gradient_steps = 4               # Match train_freq to maintain update-to-data r
 [sac.policy_kwargs]
 net_arch = [512, 256]            # Match Stage 2 architecture to avoid weight truncation on checkpoint load
 
+[jax]
+num_envs = 2048
+rollout_len = 64
+num_updates = 1000                      # Neck-reaching is a novel motion — needs extended training
+ppo_epochs = 4
+minibatch_size = 512
+learning_rate = 1e-4
+max_grad_norm = 0.5
+gamma = 0.995
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.01                         # Higher entropy to discover neck-extension behavior
+fall_penalty = -10.0
+reset_noise_scale = 0.05
+init_qpos_noise = 0.01
+init_yaw_noise = 0.1
+
+[jax.policy_kwargs]
+net_arch = [512, 256]
+
 [curriculum]
 timesteps = 12000000                   # Extended from 8M: best model was at 3.9M and policy degraded after — more time with stable config gives room to recover and converge
 min_avg_reward = 100.0                  # Minimum average reward to confirm food-reaching behavior
