@@ -315,7 +315,8 @@ class MJXDinoEnv:
             if config.init_qpos_noise > 0:
                 rng, rng_xy = jax.random.split(rng)
                 xy_noise = jax.random.uniform(
-                    rng_xy, (2,),
+                    rng_xy,
+                    (2,),
                     minval=-config.init_qpos_noise,
                     maxval=config.init_qpos_noise,
                 )
@@ -324,7 +325,8 @@ class MJXDinoEnv:
             if config.init_yaw_noise > 0:
                 rng, rng_yaw = jax.random.split(rng)
                 yaw_angle = jax.random.uniform(
-                    rng_yaw, (),
+                    rng_yaw,
+                    (),
                     minval=-config.init_yaw_noise,
                     maxval=config.init_yaw_noise,
                 )
@@ -333,12 +335,14 @@ class MJXDinoEnv:
                 base_quat = qpos[3:7]
                 w1, x1, y1, z1 = yaw_quat
                 w2, x2, y2, z2 = base_quat
-                new_quat = jnp.array([
-                    w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
-                    w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
-                    w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
-                    w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
-                ])
+                new_quat = jnp.array(
+                    [
+                        w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+                        w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+                        w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+                        w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+                    ]
+                )
                 qpos = qpos.at[3:7].set(new_quat)
 
             data = data.replace(qpos=qpos)

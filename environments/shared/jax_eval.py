@@ -167,9 +167,7 @@ def evaluate_policy_cpu(
             fwd_vel = float(mj_data.qvel[0])
             body_z = float(mj_data.xpos[config.root_body_id, 2])
             root_quat = mj_data.sensordata[config.sensor_quat_start : config.sensor_quat_start + 4]
-            tilt = float(
-                np.arccos(np.clip(1.0 - 2.0 * (root_quat[1] ** 2 + root_quat[2] ** 2), -1, 1))
-            )
+            tilt = float(np.arccos(np.clip(1.0 - 2.0 * (root_quat[1] ** 2 + root_quat[2] ** 2), -1, 1)))
             energy = float(np.sum(np.square(np.array(action)))) / act_dim
 
             ep_fwd_vels.append(fwd_vel)
@@ -189,19 +187,11 @@ def evaluate_policy_cpu(
 
             # Reward decomposition
             fwd_norm = float(np.clip(fwd_vel / config.forward_vel_max, -1.0, 1.0))
-            results.diag_reward_components["forward"].append(
-                reward_cfg.get("forward_vel_weight", 0.0) * fwd_norm
-            )
-            results.diag_reward_components["alive"].append(
-                reward_cfg.get("alive_bonus", 0.0)
-            )
-            results.diag_reward_components["energy"].append(
-                -reward_cfg.get("energy_penalty_weight", 0.0) * energy
-            )
+            results.diag_reward_components["forward"].append(reward_cfg.get("forward_vel_weight", 0.0) * fwd_norm)
+            results.diag_reward_components["alive"].append(reward_cfg.get("alive_bonus", 0.0))
+            results.diag_reward_components["energy"].append(-reward_cfg.get("energy_penalty_weight", 0.0) * energy)
             tilt_norm = min(tilt / config.max_tilt_angle, 1.0)
-            results.diag_reward_components["posture"].append(
-                -reward_cfg.get("posture_weight", 0.2) * tilt_norm**2
-            )
+            results.diag_reward_components["posture"].append(-reward_cfg.get("posture_weight", 0.2) * tilt_norm**2)
 
             cpu_data = mjx.put_data(mj_model, mj_data)
             r = float(reward_fn(cpu_data, action, reward_cfg))

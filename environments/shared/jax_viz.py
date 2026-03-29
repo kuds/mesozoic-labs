@@ -72,8 +72,7 @@ def plot_training_curves(
     ax.plot(reward_history, "b-", alpha=0.3, label="per-update")
     if window > 1 and len(reward_history) >= window:
         smoothed = np.convolve(reward_history, np.ones(window) / window, mode="valid")
-        ax.plot(range(window - 1, len(reward_history)), smoothed, "b-", linewidth=2,
-                label=f"{window}-update avg")
+        ax.plot(range(window - 1, len(reward_history)), smoothed, "b-", linewidth=2, label=f"{window}-update avg")
     ax.set_xlabel("PPO Update")
     ax.set_ylabel("Mean Reward/Step")
     ax.set_title("Reward per Step")
@@ -88,8 +87,13 @@ def plot_training_curves(
         ax.plot(idxs, vals, "g-", alpha=0.3, label="per-update")
         if window > 1 and len(vals) >= window:
             smoothed_ret = np.convolve(vals, np.ones(window) / window, mode="valid")
-            ax.plot(range(idxs[0] + window - 1, idxs[0] + window - 1 + len(smoothed_ret)),
-                    smoothed_ret, "g-", linewidth=2, label=f"{window}-update avg")
+            ax.plot(
+                range(idxs[0] + window - 1, idxs[0] + window - 1 + len(smoothed_ret)),
+                smoothed_ret,
+                "g-",
+                linewidth=2,
+                label=f"{window}-update avg",
+            )
     ax.set_xlabel("PPO Update")
     ax.set_ylabel("Episode Return")
     ax.set_title("Episode Return")
@@ -156,7 +160,8 @@ def plot_training_curves(
     # Episode length
     ax = axes[2, 1]
     valid_lengths = [
-        (i, d["episode_length"]) for i, d in enumerate(diagnostics_history)
+        (i, d["episode_length"])
+        for i, d in enumerate(diagnostics_history)
         if not np.isnan(d.get("episode_length", float("nan")))
     ]
     if valid_lengths:
@@ -164,8 +169,12 @@ def plot_training_curves(
         ax.plot(idxs_l, vals_l, "teal", alpha=0.5)
         if window > 1 and len(vals_l) >= window:
             smoothed_len = np.convolve(vals_l, np.ones(window) / window, mode="valid")
-            ax.plot(range(idxs_l[0] + window - 1, idxs_l[0] + window - 1 + len(smoothed_len)),
-                    smoothed_len, "teal", linewidth=2)
+            ax.plot(
+                range(idxs_l[0] + window - 1, idxs_l[0] + window - 1 + len(smoothed_len)),
+                smoothed_len,
+                "teal",
+                linewidth=2,
+            )
     ax.set_xlabel("PPO Update")
     ax.set_ylabel("Steps")
     ax.set_title("Mean Episode Length")
@@ -453,6 +462,7 @@ def record_training_video(
     if output_path:
         try:
             import mediapy
+
             mediapy.write_video(str(output_path), frames, fps=fps)
         except ImportError:
             pass
@@ -460,6 +470,7 @@ def record_training_video(
     if show:
         try:
             import mediapy
+
             mediapy.show_video(frames, fps=fps)
         except ImportError:
             pass
