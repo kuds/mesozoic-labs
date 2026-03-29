@@ -81,6 +81,26 @@ def _default_config_path(algorithm: str, species: str = "") -> Path:
     return _CONFIGS_DIR / f"sweep_{algorithm}.json"
 
 
+def resolve_config_path(
+    algorithm: str,
+    species: str = "",
+    config_path: str | Path | None = None,
+) -> Path:
+    """Resolve the sweep config file path.
+
+    When *config_path* is provided, relative paths are resolved against the
+    repo root.  Otherwise the species-aware default is returned (see
+    :func:`_default_config_path`).
+    """
+    if config_path:
+        path = Path(config_path)
+        if not path.is_absolute():
+            repo_root = Path(__file__).resolve().parents[4]
+            path = repo_root / path
+        return path
+    return _default_config_path(algorithm, species)
+
+
 def build_search_space(
     species: str,
     stage: int,
@@ -90,9 +110,10 @@ def build_search_space(
 ) -> dict[str, dict[str, Any]]:
     """Build the search space from a JSON config file.
 
-    Loads the per-stage config from ``configs/sweep_{algorithm}.json`` (or the
-    path given by *config_path*), extracts the search-space parameters for the
-    requested *stage*, and returns them in generic dict format::
+    Loads the per-stage config from the species-specific or generic sweep
+    config (or the path given by *config_path*), extracts the search-space
+    parameters for the requested *stage*, and returns them in generic dict
+    format::
 
         {"param_name": {"type": "double", "min": ..., "max": ..., "scale": ...}, ...}
 
@@ -101,25 +122,17 @@ def build_search_space(
     Parameters
     ----------
     species:
-        Species name (currently informational — logged for record-keeping).
+        Species name — used to locate a species-specific config file.
     stage:
         Curriculum stage number (1, 2, or 3).
     algorithm:
         Algorithm name (``"ppo"`` or ``"sac"``).
     config_path:
         Optional path to a sweep config JSON file.  Defaults to
+        ``configs/{species}/sweep_{algorithm}.json`` when present, otherwise
         ``configs/sweep_{algorithm}.json``.
     """
-    if config_path:
-        path = Path(config_path)
-        if not path.is_absolute():
-            # Resolve relative paths against the repo root so that paths like
-            # "configs/brachiosaurus/sweep_ppo.json" work regardless of cwd
-            # (e.g. when running from a notebook or Colab).
-            repo_root = Path(__file__).resolve().parents[4]
-            path = repo_root / path
-    else:
-        path = _default_config_path(algorithm, species)
+    path = resolve_config_path(algorithm, species, config_path)
     logger.info(
         "Loading search space from %s (species=%s, stage=%d, algorithm=%s)",
         path,
@@ -253,8 +266,7 @@ def save_search_space(
     # a sweep without needing to manually re-enter paths.
     resume: dict[str, Any] = {}
     resume["sweep_dir"] = str(dest_dir)
-    if config_path:
-        resume["config_path"] = config_path
+    resume["config_path"] = config_path or ""
     payload["resume"] = resume
 
     payload["parameters"] = search_space
