@@ -1,8 +1,10 @@
 """Per-species, per-stage search spaces for Ray Tune sweeps.
 
-Search spaces are loaded from JSON config files (``configs/sweep_ppo.json``,
-``configs/sweep_sac.json``) rather than being hardcoded.  The JSON format uses
-the same per-stage layout as the Vertex AI sweep configs::
+Search spaces are loaded from JSON config files.  When no explicit path is
+provided, the loader prefers a species-specific config
+(``configs/{species}/sweep_{algorithm}.json``) and falls back to the generic
+``configs/sweep_{algorithm}.json``.  The JSON format uses the same per-stage
+layout as the Vertex AI sweep configs::
 
     {
       "stage1": {
@@ -66,8 +68,16 @@ _SearchSpace = dict[str, _ParamSpec]
 _CONFIGS_DIR = Path(__file__).resolve().parents[4] / "configs"
 
 
-def _default_config_path(algorithm: str) -> Path:
-    """Return the default JSON config path for an algorithm."""
+def _default_config_path(algorithm: str, species: str = "") -> Path:
+    """Return the default JSON config path for an algorithm.
+
+    Prefers ``configs/{species}/sweep_{algorithm}.json`` when it exists,
+    falling back to ``configs/sweep_{algorithm}.json``.
+    """
+    if species:
+        species_path = _CONFIGS_DIR / species / f"sweep_{algorithm}.json"
+        if species_path.exists():
+            return species_path
     return _CONFIGS_DIR / f"sweep_{algorithm}.json"
 
 
@@ -109,7 +119,7 @@ def build_search_space(
             repo_root = Path(__file__).resolve().parents[4]
             path = repo_root / path
     else:
-        path = _default_config_path(algorithm)
+        path = _default_config_path(algorithm, species)
     logger.info(
         "Loading search space from %s (species=%s, stage=%d, algorithm=%s)",
         path,
