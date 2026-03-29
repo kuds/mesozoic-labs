@@ -43,14 +43,23 @@ def _load_search_space_file(path: str) -> dict:
         sys.exit(1)
 
 
+def _species_config_path(species: str, algorithm: str) -> Path | None:
+    """Return the species-specific sweep config if it exists, else ``None``."""
+    configs_dir = Path(__file__).resolve().parents[4] / "configs"
+    path = configs_dir / species / f"sweep_{algorithm}.json"
+    return path if path.exists() else None
+
+
 def _resolve_search_space(
     search_space_json: str | None,
     search_space_file: str | None,
     algorithm: str,
+    species: str = "",
 ) -> dict:
     """Resolve the search space from CLI args.
 
     Priority: ``--search-space`` (inline JSON) > ``--search-space-file`` >
+    species-specific config (``configs/{species}/sweep_{algorithm}.json``) >
     algorithm default.
 
     Returns either a flat search-space dict (all stages share the same space)
@@ -69,6 +78,15 @@ def _resolve_search_space(
     if search_space_file:
         logger.info("Search space resolved from file: %s", search_space_file)
         return _load_search_space_file(search_space_file)
+
+    # Prefer species-specific config when available.
+    if species:
+        species_path = _species_config_path(species, algorithm)
+        if species_path is not None:
+            logger.info(
+                "Using species-specific search space: %s", species_path
+            )
+            return _load_search_space_file(str(species_path))
 
     if algorithm not in _DEFAULT_SEARCH_SPACES:
         logger.error(

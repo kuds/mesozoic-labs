@@ -149,6 +149,25 @@ class TestResolveSearchSpace:
             _resolve_search_space(None, None, "unknown_algo")
 
 
+    def test_species_specific_config_takes_priority_over_default(self):
+        """When a species-specific config exists, it should be used over the hardcoded default."""
+        from environments.shared.scripts.sweep.search_space import _species_config_path
+
+        # Only run this test if a species-specific config actually exists.
+        species_path = _species_config_path("brachiosaurus", "ppo")
+        if species_path is None:
+            pytest.skip("No species-specific config for brachiosaurus/ppo")
+        result = _resolve_search_space(None, None, "ppo", species="brachiosaurus")
+        # The species config is per-stage, so it should have stage keys.
+        assert _is_per_stage(result)
+
+    def test_species_without_config_falls_back_to_default(self):
+        """When no species-specific config exists, falls back to the algorithm default."""
+        result = _resolve_search_space(None, None, "ppo", species="nonexistent_species")
+        # Should still work — falls back to _DEFAULT_SEARCH_SPACES["ppo"]
+        assert "ppo_learning_rate" in result
+
+
 class TestResolveSearchSpaceLogging:
     def test_inline_json_logs_source(self, caplog):
         import logging

@@ -431,7 +431,7 @@ def launch_sweep(args: argparse.Namespace) -> None:
     resume = getattr(args, "resume", True)
 
     # Load search space: inline JSON > file > algorithm default
-    resolved = _resolve_search_space(args.search_space, args.search_space_file, args.algorithm)
+    resolved = _resolve_search_space(args.search_space, args.search_space_file, args.algorithm, species=args.species)
     search_space = _search_space_for_stage(resolved, stage)
 
     # Resolve job settings: CLI args (if set) > search-space file > hardcoded defaults.
@@ -759,7 +759,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
     # Load search space: inline JSON > file > algorithm default
     # If the file uses per-stage keys ("stage1", "stage2", "stage3"), each
     # stage gets its own search space.  Otherwise the same space is reused.
-    resolved = _resolve_search_space(args.search_space, args.search_space_file, args.algorithm)
+    resolved = _resolve_search_space(args.search_space, args.search_space_file, args.algorithm, species=args.species)
 
     # Per-stage budgets: CLI flags > search-space file settings > shared defaults
     # The search-space file can include "trials", "timesteps", "parallel",
