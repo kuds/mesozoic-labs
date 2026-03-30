@@ -89,7 +89,7 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
     """
     path = Path(path)
     with open(path, "rb") as f:
-        data = pickle.load(f)
+        data: dict[str, Any] = pickle.load(f)  # noqa: S301
     _logger.info("Checkpoint loaded: %s (update %d)", path, data.get("update", -1))
     return data
 
