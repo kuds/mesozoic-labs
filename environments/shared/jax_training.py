@@ -117,8 +117,9 @@ def train_jax(
 
             obs = normalize_obs(states.obs, obs_stats_arg)
             action, log_prob, value = jax.vmap(
-                lambda o, r: sample_action(params, network, o, r),
-            )(obs, jax.random.split(action_rng, num_envs))
+                sample_action,
+                in_axes=(None, None, 0, 0),
+            )(params, network, obs, jax.random.split(action_rng, num_envs))
 
             rng, step_rng = jax.random.split(rng)
             new_states, rewards, terminated, truncated = env.step(states, action, step_rng)
