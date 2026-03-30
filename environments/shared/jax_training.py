@@ -125,7 +125,9 @@ def train_jax(
             new_states, rewards, terminated, truncated = env.step(states, action, step_rng)
             dones = (terminated | truncated).astype(jnp.float32)
 
-            return (new_states, rng), (obs, action, log_prob, value, rewards, dones)
+            # Return raw observations so the caller can update RunningMeanStd
+            # correctly (normalised obs would corrupt the running statistics).
+            return (new_states, rng), (states.obs, action, log_prob, value, rewards, dones)
 
         return jax.lax.scan(step_fn, (states, rng), None, length=rollout_len)
 
@@ -154,8 +156,11 @@ def train_jax(
 
         total_steps += num_envs * rollout_len
 
-        # Update obs stats once per update (not per step)
+        # Update obs stats with raw (unnormalized) observations
         obs_stats = update_running_stats(obs_stats, rollout_obs.reshape(-1, obs_dim))
+
+        # Normalize raw observations for PPO training
+        rollout_obs_norm = normalize_obs(rollout_obs.reshape(-1, obs_dim), obs_stats)
 
         # Bootstrap value
         rng, bootstrap_rng = jax.random.split(rng)
@@ -173,7 +178,7 @@ def train_jax(
 
         # Flatten rollout for minibatch updates
         batch = {
-            "obs": rollout_obs.reshape(-1, obs_dim),
+            "obs": rollout_obs_norm,
             "action": rollout_actions.reshape(-1, env.action_dim),
             "old_log_prob": rollout_log_probs.reshape(-1),
             "advantage": advantages.reshape(-1),
