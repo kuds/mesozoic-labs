@@ -111,6 +111,7 @@ def train_jax(
     # ---- Build scan-based rollout collector ----
     def _make_rollout_step(network_fn, obs_stats_ref):
         """Create a scan-compatible rollout step function."""
+
         def step_fn(carry, _):
             states, rng = carry
             rng, action_rng = jax.random.split(rng)
@@ -125,6 +126,7 @@ def train_jax(
             dones = (terminated | truncated).astype(jnp.float32)
 
             return (new_states, rng), (obs, action, log_prob, value, rewards, dones)
+
         return step_fn
 
     # ---- Build scan-based PPO updater ----
@@ -132,13 +134,10 @@ def train_jax(
     def _scan_ppo_update(params, opt_state, batch, rng):
         def epoch_fn(carry, _):
             params, opt_state, rng = carry
-            params, opt_state, loss_info = ppo_update(
-                params, opt_state, optimizer, network, batch, ppo_config
-            )
+            params, opt_state, loss_info = ppo_update(params, opt_state, optimizer, network, batch, ppo_config)
             return (params, opt_state, rng), loss_info
-        (params, opt_state, _), _ = jax.lax.scan(
-            epoch_fn, (params, opt_state, rng), None, length=ppo_config.n_epochs
-        )
+
+        (params, opt_state, _), _ = jax.lax.scan(epoch_fn, (params, opt_state, rng), None, length=ppo_config.n_epochs)
         return params, opt_state
 
     # Training loop
@@ -150,6 +149,7 @@ def train_jax(
     for update in range(num_updates):
         # Collect rollout via jax.lax.scan (fully on-device)
         step_fn = _make_rollout_step(network, obs_stats)
+
         @jax.jit
         def _collect(states, rng):
             return jax.lax.scan(step_fn, (states, rng), None, length=rollout_len)
