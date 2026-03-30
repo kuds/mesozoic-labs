@@ -108,17 +108,16 @@ def train_jax(
     rng, reset_rng = jax.random.split(rng)
     states = env.reset(reset_rng)
 
-    # ---- Build scan-based rollout collector ----
-    def _make_rollout_step(network_fn, obs_stats_ref):
-        """Create a scan-compatible rollout step function."""
-
+    # ---- JIT-compiled rollout collector (params & obs_stats as args, not closures) ----
+    @jax.jit
+    def _collect_rollout(states, rng, params, obs_stats_arg):
         def step_fn(carry, _):
             states, rng = carry
             rng, action_rng = jax.random.split(rng)
 
-            obs = normalize_obs(states.obs, obs_stats_ref)
+            obs = normalize_obs(states.obs, obs_stats_arg)
             action, log_prob, value = jax.vmap(
-                lambda o, r: sample_action(params, network_fn, o, r),
+                lambda o, r: sample_action(params, network, o, r),
             )(obs, jax.random.split(action_rng, num_envs))
 
             rng, step_rng = jax.random.split(rng)
@@ -127,9 +126,9 @@ def train_jax(
 
             return (new_states, rng), (obs, action, log_prob, value, rewards, dones)
 
-        return step_fn
+        return jax.lax.scan(step_fn, (states, rng), None, length=rollout_len)
 
-    # ---- Build scan-based PPO updater ----
+    # ---- JIT-compiled PPO updater ----
     @jax.jit
     def _scan_ppo_update(params, opt_state, batch, rng):
         def epoch_fn(carry, _):
@@ -147,15 +146,9 @@ def train_jax(
     t0 = time.time()
     _logger.info("Compiling scan functions (first update only)...")
     for update in range(num_updates):
-        # Collect rollout via jax.lax.scan (fully on-device)
-        step_fn = _make_rollout_step(network, obs_stats)
-
-        @jax.jit
-        def _collect(states, rng):
-            return jax.lax.scan(step_fn, (states, rng), None, length=rollout_len)
-
+        # Collect rollout via jax.lax.scan (fully on-device, compiled once)
         rng, collect_rng = jax.random.split(rng)
-        (states, _), rollout_data = _collect(states, collect_rng)
+        (states, _), rollout_data = _collect_rollout(states, collect_rng, params, obs_stats)
         rollout_obs, rollout_actions, rollout_log_probs, rollout_values, rollout_rewards, rollout_dones = rollout_data
 
         total_steps += num_envs * rollout_len
