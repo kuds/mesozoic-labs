@@ -282,4 +282,13 @@ def main():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.INFO,
+    )
+    # Silence verbose JAX dispatch/pxla WARNING logs that duplicate
+    # every jax_log_compiles message via Python logging.
+    for _noisy in ("jax._src.dispatch", "jax._src.interpreters.pxla"):
+        logging.getLogger(_noisy).setLevel(logging.ERROR)
     main()

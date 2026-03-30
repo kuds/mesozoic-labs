@@ -125,6 +125,9 @@ def sample_action(params, network, obs, rng):
     return action, log_prob, value
 
 
+_compute_gae_jit = None
+
+
 def compute_gae(
     rewards,
     values,
@@ -148,26 +151,38 @@ def compute_gae(
     import jax
     import jax.numpy as jnp
 
-    T = rewards.shape[0]
+    global _compute_gae_jit
+    if _compute_gae_jit is None:
 
-    def body_fn(carry, t):
-        gae = carry
-        delta = rewards[t] + gamma * values[t + 1] * (1 - dones[t]) - values[t]
-        gae = delta + gamma * gae_lambda * (1 - dones[t]) * gae
-        return gae, gae
+        @jax.jit
+        def _impl(rewards, values, dones, gamma, gae_lambda):
+            T = rewards.shape[0]
 
-    # Scan backwards through time
-    indices = jnp.arange(T - 1, -1, -1)
-    _, advantages = jax.lax.scan(
-        body_fn,
-        jnp.zeros_like(values[0]),
-        indices,
+            def body_fn(carry, t):
+                gae = carry
+                delta = (
+                    rewards[t]
+                    + gamma * values[t + 1] * (1 - dones[t])
+                    - values[t]
+                )
+                gae = delta + gamma * gae_lambda * (1 - dones[t]) * gae
+                return gae, gae
+
+            indices = jnp.arange(T - 1, -1, -1)
+            _, advantages = jax.lax.scan(
+                body_fn,
+                jnp.zeros_like(values[0]),
+                indices,
+            )
+            advantages = advantages[::-1]
+            returns = advantages + values[:T]
+            return advantages, returns
+
+        _compute_gae_jit = _impl
+
+    return _compute_gae_jit(
+        rewards, values, dones, jnp.float32(gamma), jnp.float32(gae_lambda)
     )
-    # Reverse to get chronological order
-    advantages = advantages[::-1]
-    returns = advantages + values[:T]
-
-    return advantages, returns
 
 
 def ppo_loss(params, network, batch, config: PPOConfig):
