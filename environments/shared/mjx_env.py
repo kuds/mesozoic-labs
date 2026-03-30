@@ -72,6 +72,7 @@ class EnvState:
     prev_action: Any  # jnp.ndarray
     prev_target_distance: Any  # jnp.float32
     target_pos: Any  # jnp.ndarray (3,)
+    initial_pos_2d: Any  # jnp.ndarray (2,) — spawn XY for drift penalty
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +126,7 @@ class MJXDinoEnv:
         num_envs: Number of parallel environments (default 2048).
     """
 
-    def __init__(self, species: str, stage: int = 1, num_envs: int = 2048):
+    def __init__(self, species: str, stage: int = 1, num_envs: int = 2048, env_kwargs: dict[str, Any] | None = None):
         check_jax()
 
         import jax
@@ -144,8 +145,30 @@ class MJXDinoEnv:
         self.action_dim = self.mj_model.nu
         self.ctrl_range = jnp.array(self.mj_model.actuator_ctrlrange)
 
-        # Build config from species registration + TOML stage config
+        # Build config from species registration, then overlay TOML stage config
         species_kwargs = _SPECIES_CONFIGS.get(species, {})
+
+        # Merge TOML env_kwargs over species defaults.  Reward weights are
+        # merged at the dict level so that stage-specific weights override
+        # the species defaults while keeping any keys not mentioned in TOML.
+        if env_kwargs:
+            # Separate reward-weight keys from top-level MJXEnvConfig fields
+            config_fields = {f.name for f in MJXEnvConfig.__dataclass_fields__.values()}
+            merged_reward_weights = dict(species_kwargs.get("reward_weights", {}))
+
+            for key, value in env_kwargs.items():
+                if key == "reward_weights":
+                    merged_reward_weights.update(value)
+                elif key in config_fields:
+                    species_kwargs[key] = value
+                else:
+                    # Keys not in MJXEnvConfig but present in TOML [env]
+                    # are reward weight overrides (e.g. alive_bonus,
+                    # posture_weight) — merge into reward_weights dict.
+                    merged_reward_weights[key] = value
+
+            species_kwargs["reward_weights"] = merged_reward_weights
+
         self.config = MJXEnvConfig(
             species=species,
             stage=stage,
@@ -167,11 +190,17 @@ class MJXDinoEnv:
         from .mjx_utils import scale_action_jax
         from .obs_functions import SensorLayout, build_bipedal_obs
         from .reward_functions import (
+            reward_action_smoothness,
             reward_alive,
+            reward_angular_velocity_penalty,
             reward_approach_shaping,
+            reward_drift_penalty,
             reward_energy,
             reward_forward_velocity,
+            reward_height_maintenance,
+            reward_nosedive,
             reward_posture,
+            reward_speed_penalty,
         )
 
         model = self.mjx_model
@@ -203,6 +232,7 @@ class MJXDinoEnv:
             pelvis_id = config.body_ids.get("pelvis", config.body_ids.get("torso", 0))
             pelvis_xpos = data.xpos[pelvis_id]
             target_pos = state.target_pos
+            initial_pos_2d = state.initial_pos_2d
 
             obs = build_bipedal_obs(
                 qpos=data.qpos,
@@ -215,8 +245,8 @@ class MJXDinoEnv:
 
             # Compute core rewards
             vel_2d = data.qvel[:2]
-            # Use initial direction toward target as forward reference
-            target_rel_2d = target_pos[:2] - jnp.zeros(2)
+            # Use direction from agent toward target as forward reference
+            target_rel_2d = target_pos[:2] - pelvis_xpos[:2]
             forward_ref = target_rel_2d / (jnp.linalg.norm(target_rel_2d) + 1e-8)
 
             weights = config.reward_weights
@@ -231,14 +261,50 @@ class MJXDinoEnv:
 
             target_dist = jnp.linalg.norm(target_pos - pelvis_xpos)
             r_approach, _ = reward_approach_shaping(
-                float(target_dist),
-                float(state.prev_target_distance),
+                target_dist,
+                state.prev_target_distance,
                 weights.get("approach_weight", 1.0),
                 config.forward_vel_max,
                 dt,
             )
 
             total_reward = r_forward + r_alive + r_energy + r_posture + r_approach
+
+            # Stage-specific reward components (active when weight > 0 in TOML config)
+            drift_w = weights.get("drift_penalty_weight", 0.0)
+            if drift_w > 0:
+                r_drift, _ = reward_drift_penalty(pelvis_xpos[:2], initial_pos_2d, drift_w)
+                total_reward = total_reward + r_drift
+
+            speed_w = weights.get("speed_penalty_weight", 0.0)
+            if speed_w > 0:
+                r_speed, _ = reward_speed_penalty(
+                    vel_2d, speed_w, weights.get("speed_penalty_threshold", 0.10)
+                )
+                total_reward = total_reward + r_speed
+
+            nosedive_w = weights.get("nosedive_weight", 0.0)
+            if nosedive_w > 0:
+                r_nosedive, _ = reward_nosedive(pelvis_quat, nosedive_w, config.natural_forward_z)
+                total_reward = total_reward + r_nosedive
+
+            spin_w = weights.get("spin_penalty_weight", 0.0)
+            if spin_w > 0:
+                pelvis_angvel = data.sensordata[config.sensor_gyro_start : config.sensor_gyro_start + 3]
+                r_spin, _ = reward_angular_velocity_penalty(pelvis_angvel, spin_w)
+                total_reward = total_reward + r_spin
+
+            smoothness_w = weights.get("smoothness_weight", 0.0)
+            if smoothness_w > 0:
+                r_smooth, _ = reward_action_smoothness(action, state.prev_action, ctrl_range.shape[0], smoothness_w)
+                total_reward = total_reward + r_smooth
+
+            height_w = weights.get("height_weight", 0.0)
+            if height_w > 0:
+                r_height = reward_height_maintenance(
+                    pelvis_xpos[2], config.healthy_z_range[0], 0.90, height_w
+                )
+                total_reward = total_reward + r_height
 
             # Termination
             body_z = pelvis_xpos[2]
@@ -258,6 +324,7 @@ class MJXDinoEnv:
                 prev_action=action,
                 prev_target_distance=target_dist,
                 target_pos=target_pos,
+                initial_pos_2d=initial_pos_2d,
             )
 
             return new_state, total_reward, terminated, truncated
@@ -372,6 +439,7 @@ class MJXDinoEnv:
                 prev_action=jnp.zeros(action_dim),
                 prev_target_distance=target_dist,
                 target_pos=target_pos,
+                initial_pos_2d=pelvis_xpos[:2],
             )
             return state
 

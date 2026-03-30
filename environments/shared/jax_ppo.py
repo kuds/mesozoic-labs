@@ -27,6 +27,7 @@ class PPOConfig(NamedTuple):
     """Hyperparameters for a PPO training run."""
 
     learning_rate: float = 3e-4
+    learning_rate_end: float | None = None  # Final LR for linear decay (None = constant)
     clip_range: float = 0.2
     vf_coef: float = 0.5
     ent_coef: float = 0.01
@@ -35,6 +36,8 @@ class PPOConfig(NamedTuple):
     max_grad_norm: float = 0.5
     n_epochs: int = 10
     n_minibatches: int = 4
+    target_kl: float | None = 0.05  # Early-stop epochs when approx KL exceeds this
+    total_updates: int = 500  # Total training updates (for LR schedule)
 
 
 class Transition(NamedTuple):
@@ -230,15 +233,29 @@ def ppo_loss(params, network, batch, config: PPOConfig):
 def make_optimizer(config: PPOConfig):
     """Create an Optax optimizer for PPO training.
 
+    When ``config.learning_rate_end`` is set, the learning rate is
+    linearly decayed from ``learning_rate`` to ``learning_rate_end``
+    over ``config.total_updates * config.n_epochs`` gradient steps.
+
     Returns:
         An ``optax.GradientTransformation``.
     """
     check_jax()
     import optax
 
+    if config.learning_rate_end is not None and config.learning_rate_end != config.learning_rate:
+        total_steps = config.total_updates * config.n_epochs
+        lr_schedule = optax.linear_schedule(
+            init_value=config.learning_rate,
+            end_value=config.learning_rate_end,
+            transition_steps=total_steps,
+        )
+    else:
+        lr_schedule = config.learning_rate
+
     return optax.chain(
         optax.clip_by_global_norm(config.max_grad_norm),
-        optax.adam(config.learning_rate),
+        optax.adam(lr_schedule),
     )
 
 
