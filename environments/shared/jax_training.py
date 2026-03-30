@@ -82,6 +82,10 @@ def train_jax(
     """
     check_jax()
 
+    # Silence noisy JAX tracing/compilation warnings (one per pytree leaf)
+    logging.getLogger("jax._src.dispatch").setLevel(logging.ERROR)
+    logging.getLogger("jax._src.interpreters.pxla").setLevel(logging.ERROR)
+
     import jax
     import jax.numpy as jnp
 
