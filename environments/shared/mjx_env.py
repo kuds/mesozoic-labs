@@ -278,9 +278,7 @@ class MJXDinoEnv:
 
             speed_w = weights.get("speed_penalty_weight", 0.0)
             if speed_w > 0:
-                r_speed, _ = reward_speed_penalty(
-                    vel_2d, speed_w, weights.get("speed_penalty_threshold", 0.10)
-                )
+                r_speed, _ = reward_speed_penalty(vel_2d, speed_w, weights.get("speed_penalty_threshold", 0.10))
                 total_reward = total_reward + r_speed
 
             nosedive_w = weights.get("nosedive_weight", 0.0)
@@ -301,9 +299,7 @@ class MJXDinoEnv:
 
             height_w = weights.get("height_weight", 0.0)
             if height_w > 0:
-                r_height = reward_height_maintenance(
-                    pelvis_xpos[2], config.healthy_z_range[0], 0.90, height_w
-                )
+                r_height = reward_height_maintenance(pelvis_xpos[2], config.healthy_z_range[0], 0.90, height_w)
                 total_reward = total_reward + r_height
 
             # Termination

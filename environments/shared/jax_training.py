@@ -160,9 +160,7 @@ def train_jax(
         def epoch_fn(carry, _):
             params, opt_state, rng, kl_exceeded = carry
             # Run the update but keep old params/opt_state if KL was exceeded
-            new_params, new_opt_state, loss_info = ppo_update(
-                params, opt_state, optimizer, network, batch, ppo_config
-            )
+            new_params, new_opt_state, loss_info = ppo_update(params, opt_state, optimizer, network, batch, ppo_config)
             approx_kl = loss_info["approx_kl"]
 
             # Check KL threshold (skip further updates if exceeded)
@@ -173,19 +171,19 @@ def train_jax(
             # Conditionally apply update
             out_params = jax.tree.map(
                 lambda new, old: jnp.where(should_skip, old, new),
-                new_params, params,
+                new_params,
+                params,
             )
             out_opt_state = jax.tree.map(
                 lambda new, old: jnp.where(should_skip, old, new) if hasattr(new, "shape") else new,
-                new_opt_state, opt_state,
+                new_opt_state,
+                opt_state,
             )
 
             return (out_params, out_opt_state, rng, should_skip), loss_info
 
         init_carry = (params, opt_state, rng, jnp.bool_(False))
-        (params, opt_state, _, _), all_info = jax.lax.scan(
-            epoch_fn, init_carry, None, length=ppo_config.n_epochs
-        )
+        (params, opt_state, _, _), all_info = jax.lax.scan(epoch_fn, init_carry, None, length=ppo_config.n_epochs)
         return params, opt_state
 
     # Training loop
