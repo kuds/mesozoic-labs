@@ -108,75 +108,90 @@ def train_jax(
     rng, reset_rng = jax.random.split(rng)
     states = env.reset(reset_rng)
 
+    # ---- Build scan-based rollout collector ----
+    def _make_rollout_step(network_fn, obs_stats_ref):
+        """Create a scan-compatible rollout step function."""
+        def step_fn(carry, _):
+            states, rng = carry
+            rng, action_rng = jax.random.split(rng)
+
+            obs = normalize_obs(states.obs, obs_stats_ref)
+            action, log_prob, value = jax.vmap(
+                lambda o, r: sample_action(params, network_fn, o, r),
+            )(obs, jax.random.split(action_rng, num_envs))
+
+            rng, step_rng = jax.random.split(rng)
+            new_states, rewards, terminated, truncated = env.step(states, action, step_rng)
+            dones = (terminated | truncated).astype(jnp.float32)
+
+            return (new_states, rng), (obs, action, log_prob, value, rewards, dones)
+        return step_fn
+
+    # ---- Build scan-based PPO updater ----
+    @jax.jit
+    def _scan_ppo_update(params, opt_state, batch, rng):
+        def epoch_fn(carry, _):
+            params, opt_state, rng = carry
+            params, opt_state, loss_info = ppo_update(
+                params, opt_state, optimizer, network, batch, ppo_config
+            )
+            return (params, opt_state, rng), loss_info
+        (params, opt_state, _), _ = jax.lax.scan(
+            epoch_fn, (params, opt_state, rng), None, length=ppo_config.n_epochs
+        )
+        return params, opt_state
+
     # Training loop
     total_steps = 0
     history: list[dict[str, float]] = []
 
     t0 = time.time()
+    _logger.info("Compiling scan functions (first update only)...")
     for update in range(num_updates):
-        # Collect rollout
-        rollout_obs = []
-        rollout_actions = []
-        rollout_log_probs = []
-        rollout_values = []
-        rollout_rewards = []
-        rollout_dones = []
+        # Collect rollout via jax.lax.scan (fully on-device)
+        step_fn = _make_rollout_step(network, obs_stats)
+        @jax.jit
+        def _collect(states, rng):
+            return jax.lax.scan(step_fn, (states, rng), None, length=rollout_len)
 
-        for step in range(rollout_len):
-            rng, action_rng, step_rng = jax.random.split(rng, 3)
+        rng, collect_rng = jax.random.split(rng)
+        (states, _), rollout_data = _collect(states, collect_rng)
+        rollout_obs, rollout_actions, rollout_log_probs, rollout_values, rollout_rewards, rollout_dones = rollout_data
 
-            obs = normalize_obs(states.obs, obs_stats)
-            action, log_prob, value = jax.vmap(
-                lambda o, r: sample_action(params, network, o, r),
-            )(obs, jax.random.split(action_rng, num_envs))
+        total_steps += num_envs * rollout_len
 
-            new_states, rewards, terminated, truncated = env.step(states, action, step_rng)
-            dones = terminated | truncated
-
-            rollout_obs.append(obs)
-            rollout_actions.append(action)
-            rollout_log_probs.append(log_prob)
-            rollout_values.append(value)
-            rollout_rewards.append(rewards)
-            rollout_dones.append(dones.astype(jnp.float32))
-
-            # Update obs stats
-            obs_stats = update_running_stats(obs_stats, states.obs)
-
-            states = new_states
-            total_steps += num_envs
+        # Update obs stats once per update (not per step)
+        obs_stats = update_running_stats(obs_stats, rollout_obs.reshape(-1, obs_dim))
 
         # Bootstrap value
+        rng, bootstrap_rng = jax.random.split(rng)
         final_obs = normalize_obs(states.obs, obs_stats)
         _, _, bootstrap_value = jax.vmap(
             lambda o, r: sample_action(params, network, o, r),
-        )(final_obs, jax.random.split(rng, num_envs))
+        )(final_obs, jax.random.split(bootstrap_rng, num_envs))
 
-        # Stack rollout
-        rollout_rewards_arr = jnp.stack(rollout_rewards)
-        rollout_values_arr = jnp.concatenate([jnp.stack(rollout_values), bootstrap_value[None]], axis=0)
-        rollout_dones_arr = jnp.stack(rollout_dones)
+        # Stack and compute GAE
+        rollout_values_arr = jnp.concatenate([rollout_values, bootstrap_value[None]], axis=0)
 
-        # Compute GAE
         advantages, returns = compute_gae(
-            rollout_rewards_arr, rollout_values_arr, rollout_dones_arr, ppo_config.gamma, ppo_config.gae_lambda
+            rollout_rewards, rollout_values_arr, rollout_dones, ppo_config.gamma, ppo_config.gae_lambda
         )
 
         # Flatten rollout for minibatch updates
         batch = {
-            "obs": jnp.concatenate([jnp.stack(rollout_obs).reshape(-1, obs_dim)]),
-            "action": jnp.concatenate([jnp.stack(rollout_actions).reshape(-1, env.action_dim)]),
-            "old_log_prob": jnp.concatenate([jnp.stack(rollout_log_probs).reshape(-1)]),
+            "obs": rollout_obs.reshape(-1, obs_dim),
+            "action": rollout_actions.reshape(-1, env.action_dim),
+            "old_log_prob": rollout_log_probs.reshape(-1),
             "advantage": advantages.reshape(-1),
             "return_": returns.reshape(-1),
         }
 
-        # PPO update epochs
-        for epoch in range(ppo_config.n_epochs):
-            params, opt_state, loss_info = ppo_update(params, opt_state, optimizer, network, batch, ppo_config)
+        # PPO update epochs (scanned)
+        rng, ppo_rng = jax.random.split(rng)
+        params, opt_state = _scan_ppo_update(params, opt_state, batch, ppo_rng)
 
         # Logging
-        mean_reward = float(jnp.mean(rollout_rewards_arr))
+        mean_reward = float(jnp.mean(rollout_rewards))
         elapsed = time.time() - t0
         fps = total_steps / elapsed if elapsed > 0 else 0
 
