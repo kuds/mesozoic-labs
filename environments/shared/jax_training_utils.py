@@ -161,6 +161,7 @@ def compute_episode_stats(
 
     if accumulator is not None:
         accumulator._init_if_needed(num_envs)
+        assert accumulator.run_ret is not None and accumulator.run_len is not None
         run_ret = accumulator.run_ret
         run_len = accumulator.run_len
     else:
