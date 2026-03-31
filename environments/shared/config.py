@@ -243,7 +243,8 @@ def save_stage_config(
     stage_dir = Path(stage_dir)
     stage_dir.mkdir(parents=True, exist_ok=True)
 
-    algo_key = "ppo_kwargs" if algorithm.upper() == "PPO" else "sac_kwargs"
+    _ALGO_KEY_MAP = {"PPO": "ppo_kwargs", "SAC": "sac_kwargs", "JAX_PPO": "jax_kwargs"}
+    algo_key = _ALGO_KEY_MAP.get(algorithm.upper(), f"{algorithm.lower()}_kwargs")
 
     # Start with env class constructor defaults so that the saved JSON
     # captures the full effective configuration, then overlay with
