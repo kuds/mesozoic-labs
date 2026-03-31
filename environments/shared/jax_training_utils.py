@@ -111,9 +111,33 @@ class StabilityMonitor:
 # ---------------------------------------------------------------------------
 
 
+@dataclass
+class EpisodeStatsAccumulator:
+    """Persistent state for tracking episode returns across rollouts.
+
+    In JAX/MJX training the rollout length (e.g. 64 steps) is typically much
+    shorter than the maximum episode length (e.g. 1000 steps).  Without
+    carrying accumulator state across rollouts, only episodes that happen to
+    complete within a single rollout are captured — biasing ``ep_ret`` and
+    ``ep_length`` toward short (often failed) episodes.
+
+    Create one instance before the training loop and pass it to
+    :func:`compute_episode_stats` on every update.
+    """
+
+    run_ret: np.ndarray | None = None
+    run_len: np.ndarray | None = None
+
+    def _init_if_needed(self, num_envs: int) -> None:
+        if self.run_ret is None:
+            self.run_ret = np.zeros(num_envs)
+            self.run_len = np.zeros(num_envs, dtype=np.int32)
+
+
 def compute_episode_stats(
     rewards: np.ndarray,
     dones: np.ndarray,
+    accumulator: EpisodeStatsAccumulator | None = None,
 ) -> tuple[list[float], list[int]]:
     """Reconstruct per-episode returns and lengths from rollout data.
 
@@ -123,14 +147,26 @@ def compute_episode_stats(
     Args:
         rewards: Array of shape ``(T, num_envs)`` — per-step rewards.
         dones: Array of shape ``(T, num_envs)`` — done flags (>0.5 = done).
+        accumulator: Optional persistent state that carries running returns
+            and lengths across rollouts.  When provided, episodes spanning
+            multiple rollouts are tracked correctly.  When ``None``, the
+            function behaves as before (only episodes completing within this
+            rollout are captured).
 
     Returns:
         ``(completed_returns, completed_lengths)`` — lists of floats/ints
         for each completed episode in the rollout.
     """
     T, num_envs = rewards.shape
-    run_ret = np.zeros(num_envs)
-    run_len = np.zeros(num_envs, dtype=np.int32)
+
+    if accumulator is not None:
+        accumulator._init_if_needed(num_envs)
+        assert accumulator.run_ret is not None and accumulator.run_len is not None
+        run_ret = accumulator.run_ret
+        run_len = accumulator.run_len
+    else:
+        run_ret = np.zeros(num_envs)
+        run_len = np.zeros(num_envs, dtype=np.int32)
 
     completed_returns: list[float] = []
     completed_lengths: list[int] = []
