@@ -442,9 +442,7 @@ def record_training_video(
     camera = mujoco.MjvCamera()
     if camera_track_body is not None:
         camera.type = mujoco.mjtCamera.mjCAMERA_TRACKING
-        camera.trackbodyid = mujoco.mj_name2id(
-            mj_model, mujoco.mjtObj.mjOBJ_BODY, camera_track_body
-        )
+        camera.trackbodyid = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, camera_track_body)
     camera.distance = camera_distance
     camera.azimuth = camera_azimuth
     camera.elevation = camera_elevation
