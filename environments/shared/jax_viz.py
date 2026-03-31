@@ -388,10 +388,16 @@ def record_training_video(
     frame_skip: int = 5,
     root_body_id: int = 1,
     healthy_z_range: tuple[float, float] = (0.3, 2.0),
+    max_tilt_angle: float = 1.047,
+    sensor_quat_start: int = 6,
     output_path: str | Path | None = None,
     fps: int = 50,
     height: int = 480,
     width: int = 640,
+    camera_track_body: str | None = None,
+    camera_distance: float = 3.0,
+    camera_azimuth: float = 135.0,
+    camera_elevation: float = -20.0,
     show: bool = True,
 ) -> tuple[list, float]:
     """Record a video of the trained policy using CPU MuJoCo.
@@ -410,10 +416,16 @@ def record_training_video(
         frame_skip: Number of physics steps per action.
         root_body_id: MuJoCo body ID of root body (for termination check).
         healthy_z_range: (min, max) height for termination.
+        max_tilt_angle: Maximum tilt angle (radians) for termination.
+        sensor_quat_start: Index into sensordata where root quaternion starts.
         output_path: If provided, save video to this path (requires mediapy).
         fps: Frames per second for the video.
         height: Render height in pixels.
         width: Render width in pixels.
+        camera_track_body: Name of MuJoCo body to track (e.g. "pelvis", "torso").
+        camera_distance: Camera distance from tracked body.
+        camera_azimuth: Camera azimuth angle in degrees.
+        camera_elevation: Camera elevation angle in degrees.
         show: Whether to display the video inline (requires mediapy).
 
     Returns:
@@ -425,6 +437,15 @@ def record_training_video(
 
     mj_data = mujoco.MjData(mj_model)
     renderer = mujoco.Renderer(mj_model, height=height, width=width)
+
+    # Configure camera with tracking and zoom (matching SB3 render behaviour)
+    camera = mujoco.MjvCamera()
+    if camera_track_body is not None:
+        camera.type = mujoco.mjtCamera.mjCAMERA_TRACKING
+        camera.trackbodyid = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, camera_track_body)
+    camera.distance = camera_distance
+    camera.azimuth = camera_azimuth
+    camera.elevation = camera_elevation
 
     mujoco.mj_resetData(mj_model, mj_data)
     mujoco.mj_forward(mj_model, mj_data)
@@ -445,7 +466,7 @@ def record_training_video(
         for _ in range(frame_skip):
             mujoco.mj_step(mj_model, mj_data)
 
-        renderer.update_scene(mj_data)
+        renderer.update_scene(mj_data, camera)
         frames.append(renderer.render())
 
         if reward_fn is not None and reward_cfg is not None:
@@ -453,8 +474,15 @@ def record_training_video(
             r = float(reward_fn(cpu_data, action, reward_cfg))
             episode_reward += r
 
+        # Height termination
         body_z = mj_data.xpos[root_body_id, 2]
         if body_z < healthy_z_range[0] or body_z > healthy_z_range[1]:
+            break
+
+        # Tilt termination (matches jax_eval and mjx_env logic)
+        root_quat = mj_data.sensordata[sensor_quat_start : sensor_quat_start + 4]
+        tilt = float(np.arccos(np.clip(1.0 - 2.0 * (root_quat[1] ** 2 + root_quat[2] ** 2), -1, 1)))
+        if tilt > max_tilt_angle:
             break
 
     renderer.close()
