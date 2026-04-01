@@ -10,6 +10,7 @@ Usage::
         plot_training_curves,
         plot_locomotion_diagnostics,
         record_training_video,
+        extract_video_frames,
     )
 """
 
@@ -552,3 +553,111 @@ def record_training_video(
             pass
 
     return frames, episode_reward
+
+
+def extract_video_frames(
+    source: str | Path | list[np.ndarray],
+    output_dir: str | Path,
+    *,
+    num_frames: int = 10,
+    fmt: str = "png",
+    prefix: str = "frame",
+) -> list[Path]:
+    """Extract evenly-spaced frames from a video file or frame list.
+
+    Works in Google Colab and standard Python environments.  Accepts
+    either a video file path (MP4, etc.) or a list of numpy RGB arrays
+    (as returned by :func:`record_training_video`).
+
+    Args:
+        source: Path to a video file, or list of RGB numpy arrays.
+        output_dir: Directory to save extracted frames.
+        num_frames: Number of frames to extract (evenly spaced).
+        fmt: Image format — ``"png"`` or ``"jpg"``.
+        prefix: Filename prefix (files are ``{prefix}_001.png``, etc.).
+
+    Returns:
+        List of paths to the saved frame images.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if isinstance(source, (str, Path)):
+        frames = _read_video_frames(Path(source))
+    else:
+        frames = source
+
+    if not frames:
+        return []
+
+    # Select evenly-spaced frame indices
+    n = len(frames)
+    num_frames = min(num_frames, n)
+    indices = [int(round(i * (n - 1) / (num_frames - 1))) for i in range(num_frames)] if num_frames > 1 else [0]
+
+    saved: list[Path] = []
+    for seq, idx in enumerate(indices, start=1):
+        filename = f"{prefix}_{seq:03d}.{fmt}"
+        path = output_dir / filename
+        _save_frame(frames[idx], path, fmt)
+        saved.append(path)
+
+    return saved
+
+
+def _read_video_frames(video_path: Path) -> list[np.ndarray]:
+    """Read all frames from a video file using available backend."""
+    # Try mediapy first (common in Colab), then imageio, then cv2
+    try:
+        import mediapy
+        return list(mediapy.read_video(str(video_path)))
+    except (ImportError, Exception):
+        pass
+
+    try:
+        import imageio.v3 as iio
+        return [np.array(f) for f in iio.imread(str(video_path), plugin="pyav")]
+    except (ImportError, Exception):
+        pass
+
+    try:
+        import cv2
+        frames = []
+        cap = cv2.VideoCapture(str(video_path))
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        cap.release()
+        return frames
+    except ImportError:
+        raise ImportError(
+            "No video backend available. Install one of: mediapy, imageio[pyav], or opencv-python"
+        )
+
+
+def _save_frame(frame: np.ndarray, path: Path, fmt: str) -> None:
+    """Save a single RGB numpy frame as an image file."""
+    try:
+        from PIL import Image
+        Image.fromarray(frame).save(str(path))
+        return
+    except ImportError:
+        pass
+
+    try:
+        import imageio.v3 as iio
+        iio.imwrite(str(path), frame)
+        return
+    except ImportError:
+        pass
+
+    try:
+        import cv2
+        cv2.imwrite(str(path), cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+        return
+    except ImportError:
+        raise ImportError(
+            "No image backend available. Install one of: Pillow, imageio, or opencv-python"
+        )
