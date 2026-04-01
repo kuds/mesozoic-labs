@@ -291,7 +291,14 @@ class MJXDinoEnv:
             r_forward, fwd_vel = reward_forward_velocity(
                 vel_2d, forward_ref, config.forward_vel_max, weights.get("forward_vel_weight", 1.0)
             )
-            r_alive = reward_alive(weights.get("alive_bonus", 0.1))
+            # Condition alive bonus on height: no reward for lying flat
+            raw_alive = reward_alive(weights.get("alive_bonus", 0.1))
+            height_frac = jnp.clip(
+                (pelvis_xpos[2] - config.healthy_z_range[0]) / (0.90 - config.healthy_z_range[0]),
+                0.0,
+                1.0,
+            )
+            r_alive = raw_alive * height_frac
             r_energy = reward_energy(action, ctrl_range.shape[0], weights.get("energy_penalty_weight", 0.001))
 
             pelvis_quat = data.sensordata[config.sensor_quat_start : config.sensor_quat_start + 4]
