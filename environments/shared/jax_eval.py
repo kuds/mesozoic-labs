@@ -40,6 +40,7 @@ class EvalConfig:
     success_threshold: float = 0.3
     target_body: str | None = None
     root_body_id: int = 1
+    sensor_gyro_start: int = 0
     sensor_quat_start: int = 6
     reset_noise_scale: float = 0.01
     forward_vel_max: float = 8.0
@@ -65,7 +66,18 @@ class EvalResults:
     diag_r_foot: list[float] = field(default_factory=list)
     diag_energy: list[float] = field(default_factory=list)
     diag_reward_components: dict[str, list[float]] = field(
-        default_factory=lambda: {"forward": [], "alive": [], "energy": [], "posture": []}
+        default_factory=lambda: {
+            "forward": [],
+            "alive": [],
+            "energy": [],
+            "posture": [],
+            "height": [],
+            "nosedive": [],
+            "drift": [],
+            "speed": [],
+            "spin": [],
+            "smoothness": [],
+        }
     )
 
     @property
@@ -173,6 +185,7 @@ def evaluate_policy_cpu(
         ep_tilts = []
         ep_heights = []
         start_pos = mj_data.qpos[:2].copy()
+        prev_action = None
 
         for step in range(config.max_episode_steps):
             cpu_data = mjx.put_data(mj_model, mj_data)
@@ -209,13 +222,76 @@ def evaluate_policy_cpu(
                     target_list = results.diag_r_foot if i == 0 else results.diag_l_foot
                     target_list.append(float(mj_data.sensordata[idx]))
 
-            # Reward decomposition
+            # Reward decomposition — all active components
             fwd_norm = float(np.clip(fwd_vel / config.forward_vel_max, -1.0, 1.0))
             results.diag_reward_components["forward"].append(reward_cfg.get("forward_vel_weight", 0.0) * fwd_norm)
             results.diag_reward_components["alive"].append(reward_cfg.get("alive_bonus", 0.0))
             results.diag_reward_components["energy"].append(-reward_cfg.get("energy_penalty_weight", 0.0) * energy)
             tilt_norm = min(tilt / config.max_tilt_angle, 1.0)
             results.diag_reward_components["posture"].append(-reward_cfg.get("posture_weight", 0.2) * tilt_norm**2)
+
+            # Height maintenance
+            height_w = reward_cfg.get("height_weight", 0.0)
+            if height_w > 0:
+                healthy_z_min = config.healthy_z_range[0]
+                target_z = 0.90  # species default standing height
+                height_frac = float(np.clip((body_z - healthy_z_min) / (target_z - healthy_z_min), 0.0, 1.0))
+                results.diag_reward_components["height"].append(height_w * height_frac)
+            else:
+                results.diag_reward_components["height"].append(0.0)
+
+            # Nosedive penalty
+            nosedive_w = reward_cfg.get("nosedive_weight", 0.0)
+            root_quat_nd = mj_data.sensordata[config.sensor_quat_start : config.sensor_quat_start + 4]
+            w_q, x_q, y_q, z_q = root_quat_nd[0], root_quat_nd[1], root_quat_nd[2], root_quat_nd[3]
+            forward_z_nd = float(2.0 * (x_q * z_q - w_q * y_q))
+            if nosedive_w > 0:
+                nosedive_excess = max(0.0, -(forward_z_nd - config.natural_forward_z))
+                results.diag_reward_components["nosedive"].append(-nosedive_w * nosedive_excess)
+            else:
+                results.diag_reward_components["nosedive"].append(0.0)
+
+            # Drift penalty
+            drift_w = reward_cfg.get("drift_penalty_weight", 0.0)
+            if drift_w > 0:
+                drift_dist = float(np.linalg.norm(mj_data.qpos[:2] - start_pos))
+                drift_norm = drift_dist / 2.0
+                results.diag_reward_components["drift"].append(-drift_w * drift_norm**2)
+            else:
+                results.diag_reward_components["drift"].append(0.0)
+
+            # Speed penalty
+            speed_w = reward_cfg.get("speed_penalty_weight", 0.0)
+            if speed_w > 0:
+                speed_2d = float(np.linalg.norm(mj_data.qvel[:2]))
+                speed_thresh = reward_cfg.get("speed_penalty_threshold", 0.10)
+                excess = max(0.0, speed_2d - speed_thresh)
+                excess_norm = min(excess / 1.0, 1.0)
+                results.diag_reward_components["speed"].append(-speed_w * excess_norm)
+            else:
+                results.diag_reward_components["speed"].append(0.0)
+
+            # Spin penalty
+            spin_w = reward_cfg.get("spin_penalty_weight", 0.0)
+            if spin_w > 0:
+                gyro = mj_data.sensordata[config.sensor_gyro_start : config.sensor_gyro_start + 3]
+                angvel_mag = float(np.linalg.norm(gyro))
+                angvel_norm = min(angvel_mag / 10.0, 1.0)
+                results.diag_reward_components["spin"].append(-spin_w * angvel_norm)
+            else:
+                results.diag_reward_components["spin"].append(0.0)
+
+            # Action smoothness
+            smoothness_w = reward_cfg.get("smoothness_weight", 0.0)
+            if smoothness_w > 0 and prev_action is not None:
+                action_delta = float(np.sum(np.square(np.array(action) - np.array(prev_action))))
+                max_delta = act_dim * 4.0
+                delta_norm = min(action_delta / max_delta, 1.0)
+                results.diag_reward_components["smoothness"].append(-smoothness_w * delta_norm)
+            else:
+                results.diag_reward_components["smoothness"].append(0.0)
+
+            prev_action = action
 
             cpu_data = mjx.put_data(mj_model, mj_data)
             r = float(reward_fn(cpu_data, action, reward_cfg))
