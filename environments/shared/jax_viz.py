@@ -11,6 +11,7 @@ Usage::
         plot_locomotion_diagnostics,
         record_training_video,
         extract_video_frames,
+        create_frame_collage,
     )
 """
 
@@ -661,3 +662,93 @@ def _save_frame(frame: np.ndarray, path: Path, fmt: str) -> None:
         raise ImportError(
             "No image backend available. Install one of: Pillow, imageio, or opencv-python"
         )
+
+
+def create_frame_collage(
+    source: str | Path | list[np.ndarray],
+    output_path: str | Path | None = None,
+    *,
+    num_frames: int = 10,
+    cols: int = 5,
+    frame_height: int = 360,
+    title: str | None = None,
+    fps: int = 50,
+    show: bool = True,
+) -> Any:
+    """Create a collage of evenly-spaced frames with frame numbers.
+
+    Works in Google Colab and standard Python environments.  Accepts
+    either a video file path (MP4, etc.) or a list of numpy RGB arrays
+    (as returned by :func:`record_training_video`).
+
+    Args:
+        source: Path to a video file, or list of RGB numpy arrays.
+        output_path: If provided, save collage image to this path.
+        num_frames: Number of frames to include in the collage.
+        cols: Number of columns in the grid.
+        frame_height: Height of each frame thumbnail in pixels.
+        title: Optional super-title for the collage.
+        fps: Frames per second (used to compute timestamps).
+        show: Whether to call ``plt.show()``.
+
+    Returns:
+        The matplotlib Figure object.
+    """
+    import matplotlib.pyplot as plt
+
+    if isinstance(source, (str, Path)):
+        frames = _read_video_frames(Path(source))
+    else:
+        frames = source
+
+    if not frames:
+        fig, ax = plt.subplots(1, 1)
+        ax.text(0.5, 0.5, "No frames", ha="center", va="center")
+        return fig
+
+    n = len(frames)
+    num_frames = min(num_frames, n)
+    indices = [int(round(i * (n - 1) / (num_frames - 1))) for i in range(num_frames)] if num_frames > 1 else [0]
+
+    rows = (num_frames + cols - 1) // cols
+
+    # Scale figure size from frame aspect ratio
+    sample = frames[0]
+    aspect = sample.shape[1] / sample.shape[0]
+    cell_w = 3.5 * aspect
+    cell_h = 3.5
+    fig, axes = plt.subplots(rows, cols, figsize=(cell_w * cols, cell_h * rows))
+
+    if rows == 1 and cols == 1:
+        axes = np.array([[axes]])
+    elif rows == 1:
+        axes = axes[np.newaxis, :]
+    elif cols == 1:
+        axes = axes[:, np.newaxis]
+
+    for i, (ax_row, ax_col) in enumerate(
+        [(r, c) for r in range(rows) for c in range(cols)]
+    ):
+        ax = axes[ax_row, ax_col]
+        if i < len(indices):
+            idx = indices[i]
+            t = idx / fps
+            ax.imshow(frames[idx])
+            ax.set_title(f"Frame {idx}  ({t:.1f}s)", fontsize=10, fontweight="bold")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        if i >= len(indices):
+            ax.set_visible(False)
+
+    if title:
+        fig.suptitle(title, fontsize=14, fontweight="bold", y=1.01)
+
+    plt.tight_layout()
+
+    if output_path:
+        fig.savefig(str(output_path), dpi=150, bbox_inches="tight")
+
+    if show:
+        plt.show()
+
+    return fig
