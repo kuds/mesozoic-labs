@@ -32,13 +32,16 @@ register_species_mjx(
     target_z=0.5,
     body_ids={"pelvis": 1},  # MuJoCo body ID for pelvis
     termination_body_heights={
-        "skull": 0.15,  # skull_upper capsule radius=0.1 + margin
+        "skull": 0.45,  # raised from 0.15: skull body origin must stay above ~half standing height
         "torso": 0.25,  # torso capsule radius=0.18 + margin
         "r_thigh": 0.20,  # prevent lying on thighs
         "l_thigh": 0.20,  # prevent lying on thighs
         "tail_3": 0.10,  # tail_3 capsule radius=0.08 + margin
         "tail_4": 0.08,  # tail_4 capsule radius=0.06 + margin
         "tail_5": 0.05,  # tail_5 capsule radius=0.035 + margin
+    },
+    termination_site_heights={
+        "head_tip": 0.20,  # snout tip — terminates nose-balancing (tip is ~0.48m from skull origin)
     },
     # Stage 3 success: head_tip site proximity to prey.
     # Gated by reward_weights["bite_bonus"] — inactive when 0 (stages 1-2).
