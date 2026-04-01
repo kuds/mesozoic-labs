@@ -294,8 +294,7 @@ class MJXDinoEnv:
             # Condition alive bonus on height: no reward for lying flat
             raw_alive = reward_alive(weights.get("alive_bonus", 0.1))
             height_frac = jnp.clip(
-                (pelvis_xpos[2] - config.healthy_z_range[0])
-                / (0.90 - config.healthy_z_range[0]),
+                (pelvis_xpos[2] - config.healthy_z_range[0]) / (0.90 - config.healthy_z_range[0]),
                 0.0,
                 1.0,
             )
