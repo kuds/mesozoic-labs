@@ -389,6 +389,12 @@ def record_training_video(
     root_body_id: int = 1,
     healthy_z_range: tuple[float, float] = (0.3, 2.0),
     max_tilt_angle: float = 1.047,
+    natural_forward_z: float = 0.0,
+    nosedive_threshold: float = 0.5,
+    termination_body_heights: dict[str, float] | None = None,
+    success_sites: tuple[str, ...] = (),
+    success_threshold: float = 0.3,
+    target_body: str | None = None,
     sensor_quat_start: int = 6,
     output_path: str | Path | None = None,
     fps: int = 50,
@@ -417,6 +423,11 @@ def record_training_video(
         root_body_id: MuJoCo body ID of root body (for termination check).
         healthy_z_range: (min, max) height for termination.
         max_tilt_angle: Maximum tilt angle (radians) for termination.
+        natural_forward_z: Natural forward-Z for the species (nosedive baseline).
+        nosedive_threshold: How far below natural_forward_z triggers termination.
+        termination_body_heights: Dict mapping body name -> z threshold for
+            floor contact termination. Episode ends if any body drops below
+            its threshold.
         sensor_quat_start: Index into sensordata where root quaternion starts.
         output_path: If provided, save video to this path (requires mediapy).
         fps: Frames per second for the video.
@@ -449,6 +460,24 @@ def record_training_video(
 
     mujoco.mj_resetData(mj_model, mj_data)
     mujoco.mj_forward(mj_model, mj_data)
+
+    # Resolve body-height termination checks
+    _body_checks: list[tuple[int, float]] = []
+    if termination_body_heights:
+        for bname, z_thresh in termination_body_heights.items():
+            bid = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, bname)
+            if bid >= 0:
+                _body_checks.append((bid, z_thresh))
+
+    # Resolve success site IDs and target (prey/food) body
+    _success_site_ids: list[int] = []
+    for sname in success_sites:
+        sid = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_SITE, sname)
+        if sid >= 0:
+            _success_site_ids.append(sid)
+    _target_body_id = -1
+    if target_body is not None:
+        _target_body_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, target_body)
 
     frames = []
     episode_reward = 0.0
@@ -484,6 +513,25 @@ def record_training_video(
         tilt = float(np.arccos(np.clip(1.0 - 2.0 * (root_quat[1] ** 2 + root_quat[2] ** 2), -1, 1)))
         if tilt > max_tilt_angle:
             break
+
+        # Nosedive termination (excessive forward pitch)
+        w, x, y, z = root_quat[0], root_quat[1], root_quat[2], root_quat[3]
+        forward_z = float(2.0 * (x * z - w * y))
+        if forward_z < natural_forward_z - nosedive_threshold:
+            break
+
+        # Body-height floor contact termination
+        if any(mj_data.xpos[bid, 2] < zt for bid, zt in _body_checks):
+            break
+
+        # Stage 3 success: proximity-based contact detection
+        if _success_site_ids and _target_body_id >= 0:
+            target_pos = mj_data.xpos[_target_body_id]
+            if any(
+                float(np.linalg.norm(mj_data.site_xpos[sid] - target_pos)) < success_threshold
+                for sid in _success_site_ids
+            ):
+                break
 
     renderer.close()
 

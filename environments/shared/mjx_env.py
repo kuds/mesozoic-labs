@@ -53,6 +53,22 @@ class MJXEnvConfig:
     target_distance_range: tuple[float, float] = (3.0, 8.0)
     target_lateral_range: tuple[float, float] = (-2.0, 2.0)
     target_z: float = 0.5
+    # Body-height termination: maps body name -> z threshold.
+    # If a monitored body's xpos z drops below its threshold, the episode
+    # terminates (JAX-compatible alternative to contact-pair iteration).
+    termination_body_heights: dict[str, float] = field(default_factory=dict)
+    # Stage 3 success: proximity-based contact detection.
+    # success_sites: MuJoCo site names checked against target_pos.
+    #   Success triggers if ANY site is within success_threshold of target.
+    #   E.g. ("head_tip",) for T-Rex, ("r_claw_tip", "l_claw_tip") for raptor.
+    # success_threshold: distance below which success is triggered.
+    # success_bonus_key: reward_weights key for success bonus (e.g. "bite_bonus",
+    #   "strike_bonus", "food_reach_bonus").  Success detection is gated on
+    #   this value being > 0, so stages 1-2 automatically disable it via
+    #   their TOML configs which set the bonus to 0.
+    success_sites: tuple[str, ...] = ()
+    success_threshold: float = 0.3
+    success_bonus_key: str = ""
     # Reset noise parameters
     reset_noise_scale: float = 0.0  # Joint angle perturbation range
     init_qpos_noise: float = 0.0  # XY position jitter range
@@ -175,6 +191,20 @@ class MJXDinoEnv:
             **species_kwargs,
         )
 
+        # Resolve termination body names to (body_id, z_threshold) pairs
+        self._termination_body_checks: list[tuple[int, float]] = []
+        for body_name, z_thresh in self.config.termination_body_heights.items():
+            bid = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_BODY, body_name)
+            if bid >= 0:
+                self._termination_body_checks.append((bid, z_thresh))
+
+        # Resolve stage 3 success site IDs
+        self._success_site_ids: tuple[int, ...] = tuple(
+            mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, name)
+            for name in self.config.success_sites
+            if mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, name) >= 0
+        )
+
         # Pre-compile step and reset functions
         self._step_single = jax.jit(self._make_step_fn())
         self._reset_single = jax.jit(self._make_reset_fn())
@@ -190,6 +220,8 @@ class MJXDinoEnv:
         from .mjx_utils import scale_action_jax
         from .obs_functions import SensorLayout, build_bipedal_obs
         from .reward_functions import (
+            check_nosedive_termination,
+            quat_to_forward_z,
             reward_action_smoothness,
             reward_alive,
             reward_angular_velocity_penalty,
@@ -208,6 +240,12 @@ class MJXDinoEnv:
         ctrl_range = self.ctrl_range
         frame_skip = config.frame_skip
         dt = float(self.mj_model.opt.timestep) * frame_skip
+        # Pre-resolved body-height termination pairs (body_id, z_threshold)
+        body_height_checks = tuple(self._termination_body_checks)
+        # Stage 3 success detection
+        success_site_ids = self._success_site_ids
+        success_threshold = config.success_threshold
+        success_bonus = config.reward_weights.get(config.success_bonus_key, 0.0)
 
         sensor_layout = SensorLayout(
             gyro_start=config.sensor_gyro_start,
@@ -307,8 +345,26 @@ class MJXDinoEnv:
             terminated = (body_z < config.healthy_z_range[0]) | (body_z > config.healthy_z_range[1])
             terminated = terminated | (tilt > config.max_tilt_angle)
 
-            # Add fall penalty if terminated
-            total_reward = jnp.where(terminated, total_reward + config.fall_penalty, total_reward)
+            # Nosedive termination (forward pitch beyond natural lean)
+            forward_z = quat_to_forward_z(pelvis_quat)
+            nosedive_terminated, _ = check_nosedive_termination(forward_z, config.natural_forward_z, threshold=0.5)
+            terminated = terminated | nosedive_terminated
+
+            # Body-height floor contact termination
+            for body_id, z_thresh in body_height_checks:
+                terminated = terminated | (data.xpos[body_id, 2] < z_thresh)
+
+            # Stage 3 success: proximity-based contact detection
+            success = jnp.bool_(False)
+            if success_bonus > 0 and success_site_ids:
+                for sid in success_site_ids:
+                    dist = jnp.linalg.norm(data.site_xpos[sid] - target_pos)
+                    success = success | (dist < success_threshold)
+                total_reward = jnp.where(success, total_reward + success_bonus, total_reward)
+
+            # Add fall penalty if terminated (but not on success)
+            total_reward = jnp.where(terminated & ~success, total_reward + config.fall_penalty, total_reward)
+            terminated = terminated | success
 
             step_count = state.step_count + 1
             truncated = step_count >= config.max_episode_steps

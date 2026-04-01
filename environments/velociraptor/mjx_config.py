@@ -31,6 +31,16 @@ register_species_mjx(
     target_lateral_range=(-2.0, 2.0),
     target_z=0.3,
     body_ids={"pelvis": 1},  # MuJoCo body ID for pelvis
+    termination_body_heights={
+        "tail_3": 0.05,  # tail_3 capsule radius=0.035 + margin
+        "tail_4": 0.04,  # tail_4 capsule radius=0.025 + margin
+        "tail_5": 0.03,  # tail_5 capsule radius=0.015 + margin
+    },
+    # Stage 3 success: either sickle claw tip proximity to prey.
+    # Gated by reward_weights["strike_bonus"] — inactive when 0 (stages 1-2).
+    success_sites=("r_claw_tip", "l_claw_tip"),
+    success_threshold=0.20,  # claw capsule (0.01) + prey sphere (0.15) + margin
+    success_bonus_key="strike_bonus",
     reward_weights={
         "forward_vel_weight": 1.0,
         "alive_bonus": 0.1,
