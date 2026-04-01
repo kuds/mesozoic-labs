@@ -611,18 +611,21 @@ def _read_video_frames(video_path: Path) -> list[np.ndarray]:
     # Try mediapy first (common in Colab), then imageio, then cv2
     try:
         import mediapy
+
         return list(mediapy.read_video(str(video_path)))
     except (ImportError, Exception):
         pass
 
     try:
         import imageio.v3 as iio
+
         return [np.array(f) for f in iio.imread(str(video_path), plugin="pyav")]
     except (ImportError, Exception):
         pass
 
     try:
         import cv2
+
         frames = []
         cap = cv2.VideoCapture(str(video_path))
         while cap.isOpened():
@@ -633,15 +636,14 @@ def _read_video_frames(video_path: Path) -> list[np.ndarray]:
         cap.release()
         return frames
     except ImportError:
-        raise ImportError(
-            "No video backend available. Install one of: mediapy, imageio[pyav], or opencv-python"
-        )
+        raise ImportError("No video backend available. Install one of: mediapy, imageio[pyav], or opencv-python")
 
 
 def _save_frame(frame: np.ndarray, path: Path, fmt: str) -> None:
     """Save a single RGB numpy frame as an image file."""
     try:
         from PIL import Image
+
         Image.fromarray(frame).save(str(path))
         return
     except ImportError:
@@ -649,6 +651,7 @@ def _save_frame(frame: np.ndarray, path: Path, fmt: str) -> None:
 
     try:
         import imageio.v3 as iio
+
         iio.imwrite(str(path), frame)
         return
     except ImportError:
@@ -656,12 +659,11 @@ def _save_frame(frame: np.ndarray, path: Path, fmt: str) -> None:
 
     try:
         import cv2
+
         cv2.imwrite(str(path), cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
         return
     except ImportError:
-        raise ImportError(
-            "No image backend available. Install one of: Pillow, imageio, or opencv-python"
-        )
+        raise ImportError("No image backend available. Install one of: Pillow, imageio, or opencv-python")
 
 
 def create_frame_collage(
@@ -726,9 +728,7 @@ def create_frame_collage(
     elif cols == 1:
         axes = axes[:, np.newaxis]
 
-    for i, (ax_row, ax_col) in enumerate(
-        [(r, c) for r in range(rows) for c in range(cols)]
-    ):
+    for i, (ax_row, ax_col) in enumerate([(r, c) for r in range(rows) for c in range(cols)]):
         ax = axes[ax_row, ax_col]
         if i < len(indices):
             idx = indices[i]
