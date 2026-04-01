@@ -36,6 +36,11 @@ register_species_mjx(
         "tail_4": 0.04,  # tail_4 capsule radius=0.025 + margin
         "tail_5": 0.03,  # tail_5 capsule radius=0.015 + margin
     },
+    # Stage 3 success: either sickle claw tip proximity to prey.
+    # Gated by reward_weights["strike_bonus"] — inactive when 0 (stages 1-2).
+    success_sites=("r_claw_tip", "l_claw_tip"),
+    success_threshold=0.20,  # claw capsule (0.01) + prey sphere (0.15) + margin
+    success_bonus_key="strike_bonus",
     reward_weights={
         "forward_vel_weight": 1.0,
         "alive_bonus": 0.1,

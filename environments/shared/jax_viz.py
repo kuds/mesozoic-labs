@@ -392,6 +392,9 @@ def record_training_video(
     natural_forward_z: float = 0.0,
     nosedive_threshold: float = 0.5,
     termination_body_heights: dict[str, float] | None = None,
+    success_sites: tuple[str, ...] = (),
+    success_threshold: float = 0.3,
+    target_body: str | None = None,
     sensor_quat_start: int = 6,
     output_path: str | Path | None = None,
     fps: int = 50,
@@ -466,6 +469,16 @@ def record_training_video(
             if bid >= 0:
                 _body_checks.append((bid, z_thresh))
 
+    # Resolve success site IDs and target (prey/food) body
+    _success_site_ids: list[int] = []
+    for sname in success_sites:
+        sid = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_SITE, sname)
+        if sid >= 0:
+            _success_site_ids.append(sid)
+    _target_body_id = -1
+    if target_body is not None:
+        _target_body_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, target_body)
+
     frames = []
     episode_reward = 0.0
 
@@ -510,6 +523,15 @@ def record_training_video(
         # Body-height floor contact termination
         if any(mj_data.xpos[bid, 2] < zt for bid, zt in _body_checks):
             break
+
+        # Stage 3 success: proximity-based contact detection
+        if _success_site_ids and _target_body_id >= 0:
+            target_pos = mj_data.xpos[_target_body_id]
+            if any(
+                float(np.linalg.norm(mj_data.site_xpos[sid] - target_pos)) < success_threshold
+                for sid in _success_site_ids
+            ):
+                break
 
     renderer.close()
 

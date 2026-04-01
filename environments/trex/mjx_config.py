@@ -37,6 +37,11 @@ register_species_mjx(
         "tail_4": 0.08,  # tail_4 capsule radius=0.06 + margin
         "tail_5": 0.05,  # tail_5 capsule radius=0.035 + margin
     },
+    # Stage 3 success: head_tip site proximity to prey.
+    # Gated by reward_weights["bite_bonus"] — inactive when 0 (stages 1-2).
+    success_sites=("head_tip",),
+    success_threshold=0.35,  # head_bite box (0.06) + prey sphere (0.25) + margin
+    success_bonus_key="bite_bonus",
     reward_weights={
         "forward_vel_weight": 1.0,
         "alive_bonus": 0.1,

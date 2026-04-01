@@ -38,6 +38,11 @@ register_species_mjx(
         "tail_3": 0.10,  # tail_3 capsule radius=0.08 + margin
         "tail_4": 0.07,  # tail_4 capsule radius=0.05 + margin
     },
+    # Stage 3 success: head_tip site proximity to food.
+    # Gated by reward_weights["food_reach_bonus"] — inactive when 0 (stages 1-2).
+    success_sites=("head_tip",),
+    success_threshold=0.50,  # matches Gymnasium food_reach_threshold
+    success_bonus_key="food_reach_bonus",
     reward_weights={
         "forward_vel_weight": 1.0,
         "alive_bonus": 0.1,

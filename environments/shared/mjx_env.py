@@ -57,6 +57,18 @@ class MJXEnvConfig:
     # If a monitored body's xpos z drops below its threshold, the episode
     # terminates (JAX-compatible alternative to contact-pair iteration).
     termination_body_heights: dict[str, float] = field(default_factory=dict)
+    # Stage 3 success: proximity-based contact detection.
+    # success_sites: MuJoCo site names checked against target_pos.
+    #   Success triggers if ANY site is within success_threshold of target.
+    #   E.g. ("head_tip",) for T-Rex, ("r_claw_tip", "l_claw_tip") for raptor.
+    # success_threshold: distance below which success is triggered.
+    # success_bonus_key: reward_weights key for success bonus (e.g. "bite_bonus",
+    #   "strike_bonus", "food_reach_bonus").  Success detection is gated on
+    #   this value being > 0, so stages 1-2 automatically disable it via
+    #   their TOML configs which set the bonus to 0.
+    success_sites: tuple[str, ...] = ()
+    success_threshold: float = 0.3
+    success_bonus_key: str = ""
     # Reset noise parameters
     reset_noise_scale: float = 0.0  # Joint angle perturbation range
     init_qpos_noise: float = 0.0  # XY position jitter range
@@ -186,6 +198,13 @@ class MJXDinoEnv:
             if bid >= 0:
                 self._termination_body_checks.append((bid, z_thresh))
 
+        # Resolve stage 3 success site IDs
+        self._success_site_ids: tuple[int, ...] = tuple(
+            mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, name)
+            for name in self.config.success_sites
+            if mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, name) >= 0
+        )
+
         # Pre-compile step and reset functions
         self._step_single = jax.jit(self._make_step_fn())
         self._reset_single = jax.jit(self._make_reset_fn())
@@ -223,6 +242,10 @@ class MJXDinoEnv:
         dt = float(self.mj_model.opt.timestep) * frame_skip
         # Pre-resolved body-height termination pairs (body_id, z_threshold)
         body_height_checks = tuple(self._termination_body_checks)
+        # Stage 3 success detection
+        success_site_ids = self._success_site_ids
+        success_threshold = config.success_threshold
+        success_bonus = config.reward_weights.get(config.success_bonus_key, 0.0)
 
         sensor_layout = SensorLayout(
             gyro_start=config.sensor_gyro_start,
@@ -331,8 +354,17 @@ class MJXDinoEnv:
             for body_id, z_thresh in body_height_checks:
                 terminated = terminated | (data.xpos[body_id, 2] < z_thresh)
 
-            # Add fall penalty if terminated
-            total_reward = jnp.where(terminated, total_reward + config.fall_penalty, total_reward)
+            # Stage 3 success: proximity-based contact detection
+            success = jnp.bool_(False)
+            if success_bonus > 0 and success_site_ids:
+                for sid in success_site_ids:
+                    dist = jnp.linalg.norm(data.site_xpos[sid] - target_pos)
+                    success = success | (dist < success_threshold)
+                total_reward = jnp.where(success, total_reward + success_bonus, total_reward)
+
+            # Add fall penalty if terminated (but not on success)
+            total_reward = jnp.where(terminated & ~success, total_reward + config.fall_penalty, total_reward)
+            terminated = terminated | success
 
             step_count = state.step_count + 1
             truncated = step_count >= config.max_episode_steps
