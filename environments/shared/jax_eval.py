@@ -33,6 +33,8 @@ class EvalConfig:
     frame_skip: int = 5
     healthy_z_range: tuple[float, float] = (0.3, 2.0)
     max_tilt_angle: float = 1.047
+    natural_forward_z: float = 0.0
+    nosedive_threshold: float = 0.5
     root_body_id: int = 1
     sensor_quat_start: int = 6
     reset_noise_scale: float = 0.01
@@ -200,6 +202,13 @@ def evaluate_policy_cpu(
             if body_z < config.healthy_z_range[0] or body_z > config.healthy_z_range[1]:
                 break
             if tilt > config.max_tilt_angle:
+                break
+
+            # Nosedive termination (excessive forward pitch)
+            root_quat = mj_data.sensordata[config.sensor_quat_start : config.sensor_quat_start + 4]
+            w, x, y, z = root_quat[0], root_quat[1], root_quat[2], root_quat[3]
+            forward_z = float(2.0 * (x * z - w * y))
+            if forward_z < config.natural_forward_z - config.nosedive_threshold:
                 break
 
         ep_length = step + 1

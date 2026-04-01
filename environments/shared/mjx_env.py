@@ -190,6 +190,8 @@ class MJXDinoEnv:
         from .mjx_utils import scale_action_jax
         from .obs_functions import SensorLayout, build_bipedal_obs
         from .reward_functions import (
+            check_nosedive_termination,
+            quat_to_forward_z,
             reward_action_smoothness,
             reward_alive,
             reward_angular_velocity_penalty,
@@ -306,6 +308,13 @@ class MJXDinoEnv:
             body_z = pelvis_xpos[2]
             terminated = (body_z < config.healthy_z_range[0]) | (body_z > config.healthy_z_range[1])
             terminated = terminated | (tilt > config.max_tilt_angle)
+
+            # Nosedive termination (forward pitch beyond natural lean)
+            forward_z = quat_to_forward_z(pelvis_quat)
+            nosedive_terminated, _ = check_nosedive_termination(
+                forward_z, config.natural_forward_z, threshold=0.5
+            )
+            terminated = terminated | nosedive_terminated
 
             # Add fall penalty if terminated
             total_reward = jnp.where(terminated, total_reward + config.fall_penalty, total_reward)
