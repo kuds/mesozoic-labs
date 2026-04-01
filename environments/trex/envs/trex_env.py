@@ -94,6 +94,9 @@ class TRexEnv(BaseDinoEnv):
         idle_penalty_weight: float = 0.0,
         idle_velocity_threshold: float = 0.05,
         forward_vel_max: float = 8.0,
+        foot_contact_weight: float = 0.0,
+        foot_contact_gate: float = 0.0,
+        nosedive_termination_threshold: float = 0.5,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
@@ -122,6 +125,9 @@ class TRexEnv(BaseDinoEnv):
         self.idle_penalty_weight = idle_penalty_weight
         self.idle_velocity_threshold = idle_velocity_threshold
         self.forward_vel_max = forward_vel_max
+        self.foot_contact_weight = foot_contact_weight
+        self.foot_contact_gate = foot_contact_gate
+        self.nosedive_termination_threshold = nosedive_termination_threshold
 
         # Natural forward pitch (~10°). The nosedive penalty and termination
         # are measured relative to this angle so the T-Rex isn't punished for
