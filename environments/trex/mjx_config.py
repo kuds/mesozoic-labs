@@ -18,8 +18,8 @@ register_species_mjx(
     species="trex",
     frame_skip=5,
     max_episode_steps=1000,
-    healthy_z_range=(0.65, 1.6),
-    max_tilt_angle=1.047,
+    healthy_z_range=(0.75, 1.6),
+    max_tilt_angle=0.7,
     sensor_foot_indices=(_SENSOR_R_FOOT, _SENSOR_L_FOOT),
     sensor_gyro_start=0,
     sensor_accel_start=3,
@@ -33,7 +33,9 @@ register_species_mjx(
     body_ids={"pelvis": 1},  # MuJoCo body ID for pelvis
     termination_body_heights={
         "skull": 0.15,  # skull_upper capsule radius=0.1 + margin
-        "torso": 0.25,  # torso capsule radius=0.18 + margin (was missing)
+        "torso": 0.25,  # torso capsule radius=0.18 + margin
+        "r_thigh": 0.20,  # prevent lying on thighs
+        "l_thigh": 0.20,  # prevent lying on thighs
         "tail_3": 0.10,  # tail_3 capsule radius=0.08 + margin
         "tail_4": 0.08,  # tail_4 capsule radius=0.06 + margin
         "tail_5": 0.05,  # tail_5 capsule radius=0.035 + margin
