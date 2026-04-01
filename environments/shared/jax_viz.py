@@ -298,11 +298,14 @@ def plot_locomotion_diagnostics(
         ax.set_title("Foot Contacts (N/A)")
     ax.grid(True, alpha=0.3)
 
-    # Reward decomposition
+    # Reward decomposition — only show components with non-zero signal
     ax = axes_d[1, 1]
-    _comp_steps = np.arange(len(diag_reward_components["forward"]))
+    _comp_steps = np.arange(len(diag_reward_components.get("forward", diag_reward_components.get("alive", []))))
     for comp_name, comp_vals in diag_reward_components.items():
-        ax.plot(_comp_steps, _smooth(comp_vals), alpha=0.7, label=comp_name)
+        arr = np.asarray(comp_vals)
+        if len(arr) == 0 or np.allclose(arr, 0.0):
+            continue
+        ax.plot(_comp_steps[: len(arr)], _smooth(comp_vals), alpha=0.7, label=comp_name)
     ax.set_xlabel("Eval Step")
     ax.set_ylabel("Reward Component")
     ax.set_title("Reward Decomposition")
