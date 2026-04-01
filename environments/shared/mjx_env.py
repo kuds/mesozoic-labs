@@ -69,6 +69,10 @@ class MJXEnvConfig:
     success_sites: tuple[str, ...] = ()
     success_threshold: float = 0.3
     success_bonus_key: str = ""
+    # Site-height termination: maps site name -> z threshold.
+    # Like body-height termination but uses site_xpos (more precise for
+    # extremities like snout tips that are far from their parent body origin).
+    termination_site_heights: dict[str, float] = field(default_factory=dict)
     # Reset noise parameters
     reset_noise_scale: float = 0.0  # Joint angle perturbation range
     init_qpos_noise: float = 0.0  # XY position jitter range
@@ -198,6 +202,13 @@ class MJXDinoEnv:
             if bid >= 0:
                 self._termination_body_checks.append((bid, z_thresh))
 
+        # Resolve termination site names to (site_id, z_threshold) pairs
+        self._termination_site_checks: list[tuple[int, float]] = []
+        for site_name, z_thresh in self.config.termination_site_heights.items():
+            sid = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+            if sid >= 0:
+                self._termination_site_checks.append((sid, z_thresh))
+
         # Resolve stage 3 success site IDs
         self._success_site_ids: tuple[int, ...] = tuple(
             mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, name)
@@ -242,6 +253,8 @@ class MJXDinoEnv:
         dt = float(self.mj_model.opt.timestep) * frame_skip
         # Pre-resolved body-height termination pairs (body_id, z_threshold)
         body_height_checks = tuple(self._termination_body_checks)
+        # Pre-resolved site-height termination pairs (site_id, z_threshold)
+        site_height_checks = tuple(self._termination_site_checks)
         # Stage 3 success detection
         success_site_ids = self._success_site_ids
         success_threshold = config.success_threshold
@@ -291,14 +304,27 @@ class MJXDinoEnv:
             r_forward, fwd_vel = reward_forward_velocity(
                 vel_2d, forward_ref, config.forward_vel_max, weights.get("forward_vel_weight", 1.0)
             )
-            # Condition alive bonus on height: no reward for lying flat
+            # Foot contact: read touch sensors
+            foot_contact_threshold = 0.1  # Newtons
+            has_foot_contact = jnp.bool_(False)
+            for foot_idx in config.sensor_foot_indices:
+                has_foot_contact = has_foot_contact | (data.sensordata[foot_idx] > foot_contact_threshold)
+
+            # Condition alive bonus on height AND foot contact:
+            # no reward for lying flat or balancing on head/nose
             raw_alive = reward_alive(weights.get("alive_bonus", 0.1))
             height_frac = jnp.clip(
                 (pelvis_xpos[2] - config.healthy_z_range[0]) / (0.90 - config.healthy_z_range[0]),
                 0.0,
                 1.0,
             )
-            r_alive = raw_alive * height_frac
+            foot_contact_gate = weights.get("foot_contact_gate", 0.0)
+            alive_gate = jnp.where(
+                foot_contact_gate > 0,
+                height_frac * has_foot_contact.astype(jnp.float32),
+                height_frac,
+            )
+            r_alive = raw_alive * alive_gate
             r_energy = reward_energy(action, ctrl_range.shape[0], weights.get("energy_penalty_weight", 0.001))
 
             pelvis_quat = data.sensordata[config.sensor_quat_start : config.sensor_quat_start + 4]
@@ -314,6 +340,12 @@ class MJXDinoEnv:
             )
 
             total_reward = r_forward + r_alive + r_energy + r_posture + r_approach
+
+            # Foot-contact bonus: reward having at least one foot on the ground
+            foot_contact_w = weights.get("foot_contact_weight", 0.0)
+            if foot_contact_w > 0:
+                r_foot = foot_contact_w * has_foot_contact.astype(jnp.float32)
+                total_reward = total_reward + r_foot
 
             # Stage-specific reward components (active when weight > 0 in TOML config)
             drift_w = weights.get("drift_penalty_weight", 0.0)
@@ -354,12 +386,19 @@ class MJXDinoEnv:
 
             # Nosedive termination (forward pitch beyond natural lean)
             forward_z = quat_to_forward_z(pelvis_quat)
-            nosedive_terminated, _ = check_nosedive_termination(forward_z, config.natural_forward_z, threshold=0.5)
+            nosedive_threshold = weights.get("nosedive_termination_threshold", 0.5)
+            nosedive_terminated, _ = check_nosedive_termination(
+                forward_z, config.natural_forward_z, threshold=nosedive_threshold
+            )
             terminated = terminated | nosedive_terminated
 
             # Body-height floor contact termination
             for body_id, z_thresh in body_height_checks:
                 terminated = terminated | (data.xpos[body_id, 2] < z_thresh)
+
+            # Site-height floor contact termination (more precise for extremities)
+            for site_id, z_thresh in site_height_checks:
+                terminated = terminated | (data.site_xpos[site_id, 2] < z_thresh)
 
             # Stage 3 success: proximity-based contact detection
             success = jnp.bool_(False)
