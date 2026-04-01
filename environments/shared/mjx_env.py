@@ -53,6 +53,10 @@ class MJXEnvConfig:
     target_distance_range: tuple[float, float] = (3.0, 8.0)
     target_lateral_range: tuple[float, float] = (-2.0, 2.0)
     target_z: float = 0.5
+    # Body-height termination: maps body name -> z threshold.
+    # If a monitored body's xpos z drops below its threshold, the episode
+    # terminates (JAX-compatible alternative to contact-pair iteration).
+    termination_body_heights: dict[str, float] = field(default_factory=dict)
     # Reset noise parameters
     reset_noise_scale: float = 0.0  # Joint angle perturbation range
     init_qpos_noise: float = 0.0  # XY position jitter range
@@ -175,6 +179,13 @@ class MJXDinoEnv:
             **species_kwargs,
         )
 
+        # Resolve termination body names to (body_id, z_threshold) pairs
+        self._termination_body_checks: list[tuple[int, float]] = []
+        for body_name, z_thresh in self.config.termination_body_heights.items():
+            bid = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_BODY, body_name)
+            if bid >= 0:
+                self._termination_body_checks.append((bid, z_thresh))
+
         # Pre-compile step and reset functions
         self._step_single = jax.jit(self._make_step_fn())
         self._reset_single = jax.jit(self._make_reset_fn())
@@ -210,6 +221,8 @@ class MJXDinoEnv:
         ctrl_range = self.ctrl_range
         frame_skip = config.frame_skip
         dt = float(self.mj_model.opt.timestep) * frame_skip
+        # Pre-resolved body-height termination pairs (body_id, z_threshold)
+        body_height_checks = tuple(self._termination_body_checks)
 
         sensor_layout = SensorLayout(
             gyro_start=config.sensor_gyro_start,
@@ -311,10 +324,12 @@ class MJXDinoEnv:
 
             # Nosedive termination (forward pitch beyond natural lean)
             forward_z = quat_to_forward_z(pelvis_quat)
-            nosedive_terminated, _ = check_nosedive_termination(
-                forward_z, config.natural_forward_z, threshold=0.5
-            )
+            nosedive_terminated, _ = check_nosedive_termination(forward_z, config.natural_forward_z, threshold=0.5)
             terminated = terminated | nosedive_terminated
+
+            # Body-height floor contact termination
+            for body_id, z_thresh in body_height_checks:
+                terminated = terminated | (data.xpos[body_id, 2] < z_thresh)
 
             # Add fall penalty if terminated
             total_reward = jnp.where(terminated, total_reward + config.fall_penalty, total_reward)

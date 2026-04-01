@@ -35,6 +35,7 @@ class EvalConfig:
     max_tilt_angle: float = 1.047
     natural_forward_z: float = 0.0
     nosedive_threshold: float = 0.5
+    termination_body_heights: dict[str, float] | None = None
     root_body_id: int = 1
     sensor_quat_start: int = 6
     reset_noise_scale: float = 0.01
@@ -137,6 +138,14 @@ def evaluate_policy_cpu(
     act_dim = mj_model.nu
     results = EvalResults()
 
+    # Resolve body-height termination checks
+    _body_checks: list[tuple[int, float]] = []
+    if config.termination_body_heights:
+        for bname, z_thresh in config.termination_body_heights.items():
+            bid = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, bname)
+            if bid >= 0:
+                _body_checks.append((bid, z_thresh))
+
     for ep in range(config.n_episodes):
         mujoco.mj_resetData(mj_model, mj_data)
         mj_data.qpos[7:] += np.random.uniform(
@@ -209,6 +218,10 @@ def evaluate_policy_cpu(
             w, x, y, z = root_quat[0], root_quat[1], root_quat[2], root_quat[3]
             forward_z = float(2.0 * (x * z - w * y))
             if forward_z < config.natural_forward_z - config.nosedive_threshold:
+                break
+
+            # Body-height floor contact termination
+            if any(mj_data.xpos[bid, 2] < zt for bid, zt in _body_checks):
                 break
 
         ep_length = step + 1

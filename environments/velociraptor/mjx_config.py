@@ -31,6 +31,11 @@ register_species_mjx(
     target_lateral_range=(-2.0, 2.0),
     target_z=0.3,
     body_ids={"pelvis": 1},  # MuJoCo body ID for pelvis
+    termination_body_heights={
+        "tail_3": 0.05,  # tail_3 capsule radius=0.035 + margin
+        "tail_4": 0.04,  # tail_4 capsule radius=0.025 + margin
+        "tail_5": 0.03,  # tail_5 capsule radius=0.015 + margin
+    },
     reward_weights={
         "forward_vel_weight": 1.0,
         "alive_bonus": 0.1,

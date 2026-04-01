@@ -33,6 +33,11 @@ register_species_mjx(
     target_lateral_range=(-2.0, 2.0),
     target_z=3.0,  # Brachiosaurus browses high
     body_ids={"torso": 1},  # MuJoCo body ID for torso
+    termination_body_heights={
+        "head": 0.20,  # head ellipsoid size=0.15 + margin
+        "tail_3": 0.10,  # tail_3 capsule radius=0.08 + margin
+        "tail_4": 0.07,  # tail_4 capsule radius=0.05 + margin
+    },
     reward_weights={
         "forward_vel_weight": 1.0,
         "alive_bonus": 0.1,
