@@ -387,7 +387,9 @@ class MJXDinoEnv:
             # Nosedive termination (forward pitch beyond natural lean)
             forward_z = quat_to_forward_z(pelvis_quat)
             nosedive_threshold = weights.get("nosedive_termination_threshold", 0.5)
-            nosedive_terminated, _ = check_nosedive_termination(forward_z, config.natural_forward_z, threshold=nosedive_threshold)
+            nosedive_terminated, _ = check_nosedive_termination(
+                forward_z, config.natural_forward_z, threshold=nosedive_threshold
+            )
             terminated = terminated | nosedive_terminated
 
             # Body-height floor contact termination
