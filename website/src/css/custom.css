@@ -77,8 +77,24 @@ body {
 
 /* Navbar customization */
 .navbar {
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  background-color: var(--ifm-navbar-background-color);
+  z-index: 200;
+}
+
+@supports (backdrop-filter: blur(10px)) {
+  .navbar {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+}
+
+@supports not (backdrop-filter: blur(10px)) {
+  :root {
+    --ifm-navbar-background-color: #0a0a0f;
+  }
+  [data-theme='dark'] {
+    --ifm-navbar-background-color: #0a0a0f;
+  }
 }
 
 .navbar__brand {
@@ -112,13 +128,20 @@ body {
 
 /* Mobile navbar sidebar fixes */
 .navbar-sidebar {
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  z-index: 100;
+  background-color: var(--ifm-background-surface-color);
+  z-index: 200;
+  width: 80vw;
+  max-width: 350px;
+}
+
+.navbar-sidebar__backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 199;
 }
 
 .navbar-sidebar__brand {
   align-items: center;
+  padding: 0.75rem 1rem;
 }
 
 .navbar-sidebar__brand .navbar__logo {
@@ -126,6 +149,17 @@ body {
   width: 2rem;
   min-width: 2rem;
   min-height: 2rem;
+}
+
+.navbar-sidebar .menu {
+  padding: 0.5rem 0;
+}
+
+.navbar-sidebar .menu__link {
+  padding: 0.75rem 1rem;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 /* Ensure hamburger toggle is tappable on mobile */
