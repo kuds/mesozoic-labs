@@ -203,10 +203,10 @@ def evaluate_policy_cpu(
             results.diag_pelvis_h.append(body_z)
             results.diag_energy.append(energy)
 
-            # Foot contacts
+            # Foot contacts — indices follow sensor order: (R, L, ...)
             for i, idx in enumerate(foot_sensor_indices):
                 if len(mj_data.sensordata) > idx:
-                    target_list = results.diag_l_foot if i == 0 else results.diag_r_foot
+                    target_list = results.diag_r_foot if i == 0 else results.diag_l_foot
                     target_list.append(float(mj_data.sensordata[idx]))
 
             # Reward decomposition

@@ -47,7 +47,7 @@ register_species_mjx(
         "alive_bonus": 0.1,
         "energy_penalty_weight": 0.001,
         "posture_weight": 0.2,
-        "approach_weight": 1.0,
+        "bite_approach_weight": 1.0,
         "tail_stability_weight": 0.05,
         "smoothness_weight": 0.05,
         "bite_bonus": 10.0,

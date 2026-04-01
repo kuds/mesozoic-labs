@@ -301,7 +301,7 @@ class MJXDinoEnv:
             r_approach, _ = reward_approach_shaping(
                 target_dist,
                 state.prev_target_distance,
-                weights.get("approach_weight", 1.0),
+                weights.get("bite_approach_weight", weights.get("approach_weight", 0.0)),
                 config.forward_vel_max,
                 dt,
             )

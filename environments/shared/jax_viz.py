@@ -10,6 +10,8 @@ Usage::
         plot_training_curves,
         plot_locomotion_diagnostics,
         record_training_video,
+        extract_video_frames,
+        create_frame_collage,
     )
 """
 
@@ -552,3 +554,201 @@ def record_training_video(
             pass
 
     return frames, episode_reward
+
+
+def extract_video_frames(
+    source: str | Path | list[np.ndarray],
+    output_dir: str | Path,
+    *,
+    num_frames: int = 10,
+    fmt: str = "png",
+    prefix: str = "frame",
+) -> list[Path]:
+    """Extract evenly-spaced frames from a video file or frame list.
+
+    Works in Google Colab and standard Python environments.  Accepts
+    either a video file path (MP4, etc.) or a list of numpy RGB arrays
+    (as returned by :func:`record_training_video`).
+
+    Args:
+        source: Path to a video file, or list of RGB numpy arrays.
+        output_dir: Directory to save extracted frames.
+        num_frames: Number of frames to extract (evenly spaced).
+        fmt: Image format — ``"png"`` or ``"jpg"``.
+        prefix: Filename prefix (files are ``{prefix}_001.png``, etc.).
+
+    Returns:
+        List of paths to the saved frame images.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if isinstance(source, (str, Path)):
+        frames = _read_video_frames(Path(source))
+    else:
+        frames = source
+
+    if not frames:
+        return []
+
+    # Select evenly-spaced frame indices
+    n = len(frames)
+    num_frames = min(num_frames, n)
+    indices = [int(round(i * (n - 1) / (num_frames - 1))) for i in range(num_frames)] if num_frames > 1 else [0]
+
+    saved: list[Path] = []
+    for seq, idx in enumerate(indices, start=1):
+        filename = f"{prefix}_{seq:03d}.{fmt}"
+        path = output_dir / filename
+        _save_frame(frames[idx], path, fmt)
+        saved.append(path)
+
+    return saved
+
+
+def _read_video_frames(video_path: Path) -> list[np.ndarray]:
+    """Read all frames from a video file using available backend."""
+    # Try mediapy first (common in Colab), then imageio, then cv2
+    try:
+        import mediapy
+
+        return list(mediapy.read_video(str(video_path)))
+    except (ImportError, Exception):
+        pass
+
+    try:
+        import imageio.v3 as iio
+
+        return [np.array(f) for f in iio.imread(str(video_path), plugin="pyav")]
+    except (ImportError, Exception):
+        pass
+
+    try:
+        import cv2
+
+        frames = []
+        cap = cv2.VideoCapture(str(video_path))
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        cap.release()
+        return frames
+    except ImportError:
+        raise ImportError("No video backend available. Install one of: mediapy, imageio[pyav], or opencv-python")
+
+
+def _save_frame(frame: np.ndarray, path: Path, fmt: str) -> None:
+    """Save a single RGB numpy frame as an image file."""
+    try:
+        from PIL import Image
+
+        Image.fromarray(frame).save(str(path))
+        return
+    except ImportError:
+        pass
+
+    try:
+        import imageio.v3 as iio
+
+        iio.imwrite(str(path), frame)
+        return
+    except ImportError:
+        pass
+
+    try:
+        import cv2
+
+        cv2.imwrite(str(path), cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+        return
+    except ImportError:
+        raise ImportError("No image backend available. Install one of: Pillow, imageio, or opencv-python")
+
+
+def create_frame_collage(
+    source: str | Path | list[np.ndarray],
+    output_path: str | Path | None = None,
+    *,
+    num_frames: int = 10,
+    cols: int = 5,
+    frame_height: int = 360,
+    title: str | None = None,
+    fps: int = 50,
+    show: bool = True,
+) -> Any:
+    """Create a collage of evenly-spaced frames with frame numbers.
+
+    Works in Google Colab and standard Python environments.  Accepts
+    either a video file path (MP4, etc.) or a list of numpy RGB arrays
+    (as returned by :func:`record_training_video`).
+
+    Args:
+        source: Path to a video file, or list of RGB numpy arrays.
+        output_path: If provided, save collage image to this path.
+        num_frames: Number of frames to include in the collage.
+        cols: Number of columns in the grid.
+        frame_height: Height of each frame thumbnail in pixels.
+        title: Optional super-title for the collage.
+        fps: Frames per second (used to compute timestamps).
+        show: Whether to call ``plt.show()``.
+
+    Returns:
+        The matplotlib Figure object.
+    """
+    import matplotlib.pyplot as plt
+
+    if isinstance(source, (str, Path)):
+        frames = _read_video_frames(Path(source))
+    else:
+        frames = source
+
+    if not frames:
+        fig, ax = plt.subplots(1, 1)
+        ax.text(0.5, 0.5, "No frames", ha="center", va="center")
+        return fig
+
+    n = len(frames)
+    num_frames = min(num_frames, n)
+    indices = [int(round(i * (n - 1) / (num_frames - 1))) for i in range(num_frames)] if num_frames > 1 else [0]
+
+    rows = (num_frames + cols - 1) // cols
+
+    # Scale figure size from frame aspect ratio
+    sample = frames[0]
+    aspect = sample.shape[1] / sample.shape[0]
+    cell_w = 3.5 * aspect
+    cell_h = 3.5
+    fig, axes = plt.subplots(rows, cols, figsize=(cell_w * cols, cell_h * rows))
+
+    if rows == 1 and cols == 1:
+        axes = np.array([[axes]])
+    elif rows == 1:
+        axes = axes[np.newaxis, :]
+    elif cols == 1:
+        axes = axes[:, np.newaxis]
+
+    for i, (ax_row, ax_col) in enumerate([(r, c) for r in range(rows) for c in range(cols)]):
+        ax = axes[ax_row, ax_col]
+        if i < len(indices):
+            idx = indices[i]
+            t = idx / fps
+            ax.imshow(frames[idx])
+            ax.set_title(f"Frame {idx}  ({t:.1f}s)", fontsize=10, fontweight="bold")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        if i >= len(indices):
+            ax.set_visible(False)
+
+    if title:
+        fig.suptitle(title, fontsize=14, fontweight="bold", y=1.01)
+
+    plt.tight_layout()
+
+    if output_path:
+        fig.savefig(str(output_path), dpi=150, bbox_inches="tight")
+
+    if show:
+        plt.show()
+
+    return fig

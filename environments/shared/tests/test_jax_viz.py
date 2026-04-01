@@ -8,7 +8,13 @@ from pathlib import Path
 import numpy as np
 
 from environments.shared.jax_eval import EvalResults
-from environments.shared.jax_viz import _smooth, plot_locomotion_diagnostics, plot_training_curves
+from environments.shared.jax_viz import (
+    _smooth,
+    create_frame_collage,
+    extract_video_frames,
+    plot_locomotion_diagnostics,
+    plot_training_curves,
+)
 
 
 class TestSmooth:
@@ -209,3 +215,144 @@ class TestPlotLocomotionDiagnostics:
         import matplotlib.pyplot as plt
 
         plt.close(fig_main)
+
+
+def _make_fake_frames(n=20, h=48, w=64):
+    """Generate a list of random RGB frames for testing."""
+    rng = np.random.RandomState(42)
+    return [rng.randint(0, 255, (h, w, 3), dtype=np.uint8) for _ in range(n)]
+
+
+class TestExtractVideoFrames:
+    def test_extracts_correct_count(self):
+        frames = _make_fake_frames(100)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            saved = extract_video_frames(frames, tmpdir, num_frames=5)
+            assert len(saved) == 5
+            for p in saved:
+                assert p.exists()
+                assert p.suffix == ".png"
+
+    def test_num_frames_exceeds_total(self):
+        frames = _make_fake_frames(3)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            saved = extract_video_frames(frames, tmpdir, num_frames=10)
+            assert len(saved) == 3
+
+    def test_single_frame(self):
+        frames = _make_fake_frames(1)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            saved = extract_video_frames(frames, tmpdir, num_frames=1)
+            assert len(saved) == 1
+
+    def test_empty_frames(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            saved = extract_video_frames([], tmpdir, num_frames=5)
+            assert saved == []
+
+    def test_jpg_format(self):
+        frames = _make_fake_frames(10)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            saved = extract_video_frames(frames, tmpdir, num_frames=3, fmt="jpg")
+            assert len(saved) == 3
+            for p in saved:
+                assert p.suffix == ".jpg"
+
+    def test_custom_prefix(self):
+        frames = _make_fake_frames(10)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            saved = extract_video_frames(frames, tmpdir, num_frames=2, prefix="trex_s1")
+            assert all("trex_s1" in p.name for p in saved)
+
+    def test_creates_output_dir(self):
+        frames = _make_fake_frames(5)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            nested = Path(tmpdir) / "a" / "b" / "c"
+            saved = extract_video_frames(frames, nested, num_frames=2)
+            assert len(saved) == 2
+            assert nested.exists()
+
+    def test_evenly_spaced_indices(self):
+        """First and last frames should always be included."""
+        frames = _make_fake_frames(100)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            saved = extract_video_frames(frames, tmpdir, num_frames=3)
+            assert "001" in saved[0].name
+            assert "003" in saved[-1].name
+
+
+class TestCreateFrameCollage:
+    def test_returns_figure(self):
+        import matplotlib
+
+        matplotlib.use("Agg")
+
+        frames = _make_fake_frames(50)
+        fig = create_frame_collage(frames, num_frames=6, cols=3, show=False)
+        assert fig is not None
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+    def test_saves_to_file(self):
+        import matplotlib
+
+        matplotlib.use("Agg")
+
+        frames = _make_fake_frames(50)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out = Path(tmpdir) / "collage.png"
+            fig = create_frame_collage(frames, output_path=out, num_frames=4, show=False)
+            assert out.exists()
+            assert out.stat().st_size > 0
+            import matplotlib.pyplot as plt
+
+            plt.close(fig)
+
+    def test_with_title(self):
+        import matplotlib
+
+        matplotlib.use("Agg")
+
+        frames = _make_fake_frames(20)
+        fig = create_frame_collage(frames, num_frames=4, cols=2, title="Test Collage", show=False)
+        assert fig._suptitle.get_text() == "Test Collage"
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+    def test_empty_frames(self):
+        import matplotlib
+
+        matplotlib.use("Agg")
+
+        fig = create_frame_collage([], num_frames=5, show=False)
+        assert fig is not None
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+    def test_single_frame(self):
+        import matplotlib
+
+        matplotlib.use("Agg")
+
+        frames = _make_fake_frames(1)
+        fig = create_frame_collage(frames, num_frames=1, cols=1, show=False)
+        assert fig is not None
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+    def test_fewer_frames_than_grid(self):
+        """Grid should hide unused cells when num_frames < rows*cols."""
+        import matplotlib
+
+        matplotlib.use("Agg")
+
+        frames = _make_fake_frames(20)
+        fig = create_frame_collage(frames, num_frames=3, cols=5, show=False)
+        assert fig is not None
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
