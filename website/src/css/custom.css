@@ -47,10 +47,15 @@
   --ifm-footer-background-color: #050508;
 }
 
-/* Light mode - still use dark theme for consistency */
+/* Light mode */
 [data-theme='light'] {
   --ifm-background-color: #f5f5f5;
+  --ifm-background-surface-color: #ffffff;
   --ifm-navbar-background-color: #ffffff;
+  --ifm-footer-background-color: #e8e8e8;
+  --ifm-footer-color: #444444;
+  --ifm-footer-link-color: #333333;
+  --ifm-footer-title-color: #00994d;
   --ifm-color-primary: #00994d;
   --ifm-color-primary-dark: #008a45;
   --ifm-color-primary-darker: #008241;
@@ -58,6 +63,7 @@
   --ifm-color-primary-light: #00a855;
   --ifm-color-primary-lighter: #00b059;
   --ifm-color-primary-lightest: #00c767;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 153, 77, 0.1);
 }
 
 /* Global text styling */
@@ -154,6 +160,10 @@ body {
   border-top: 1px solid rgba(0, 255, 136, 0.1);
 }
 
+[data-theme='light'] .footer {
+  border-top-color: rgba(0, 153, 77, 0.2);
+}
+
 .footer__title {
   color: var(--ifm-color-primary);
   font-weight: 600;
@@ -178,16 +188,29 @@ body {
   padding-bottom: 0.5rem;
 }
 
+[data-theme='light'] .markdown h2 {
+  border-bottom-color: rgba(0, 153, 77, 0.2);
+}
+
 /* Code block styling */
-.prism-code {
+[data-theme='dark'] .prism-code {
   background: #1a1a25 !important;
   border: 1px solid rgba(0, 255, 136, 0.1);
+}
+
+[data-theme='light'] .prism-code {
+  background: #ffffff !important;
+  border: 1px solid #d0d7de;
 }
 
 /* Sidebar customization */
 .menu__link--active:not(.menu__link--sublist) {
   background: rgba(0, 255, 136, 0.1);
   border-left: 3px solid var(--ifm-color-primary);
+}
+
+[data-theme='light'] .menu__link--active:not(.menu__link--sublist) {
+  background: rgba(0, 153, 77, 0.1);
 }
 
 /* Table of contents */
@@ -221,10 +244,19 @@ body {
   border: 1px solid rgba(0, 255, 136, 0.2) !important;
 }
 
+[data-theme='light'] .DocSearch-Button {
+  border: 1px solid rgba(0, 153, 77, 0.2) !important;
+}
+
 /* Selection */
 ::selection {
   background: rgba(0, 255, 136, 0.3);
   color: #ffffff;
+}
+
+[data-theme='light'] ::selection {
+  background: rgba(0, 153, 77, 0.3);
+  color: #000000;
 }
 
 /* Scrollbar */
@@ -244,6 +276,18 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #3a3a45;
+}
+
+[data-theme='light'] ::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
 }
 
 /* Screen reader only utility */
