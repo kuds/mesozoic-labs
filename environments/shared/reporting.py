@@ -272,7 +272,10 @@ def write_stage_summary(
             lines.append(f"  Fwd vel:      {bm_vel} +/- {bm_vel_s} m/s")
         if bm_sr != "":
             lines.append(f"  Success rate: {bm_sr:.0%}")
-    model_lines = [f"Best model:     {results_dict['model_path']}.zip"]
+    _model_path = str(results_dict["model_path"])
+    if not Path(_model_path).suffix:
+        _model_path += ".zip"
+    model_lines = [f"Best model:     {_model_path}"]
     if "vecnorm_path" in results_dict:
         model_lines.append(f"VecNormalize:   {results_dict['vecnorm_path']}")
     model_lines.append("")
@@ -335,9 +338,12 @@ def write_training_summary(
             best_ts = r.get("best_eval_timestep", "")
             ts_label = f"  (at {best_ts:,} steps)" if isinstance(best_ts, int) else ""
             lines.append(f"  Best eval:      {best_r} +/- {best_s}{ts_label}")
+        model_path_str = str(r["model_path"])
+        if not Path(model_path_str).suffix:
+            model_path_str += ".zip"
         lines.extend(
             [
-                f"  Best model:     {r['model_path']}.zip",
+                f"  Best model:     {model_path_str}",
                 "",
             ]
         )
@@ -741,3 +747,167 @@ def generate_stage_artifacts(
         logger.warning("Video recording failed.", exc_info=True)
 
     return stage_results
+
+
+def save_jax_stage_artifacts(
+    species: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_results: dict[str, Any],
+    stage_dir: "str | Path",
+    run_dir: "str | Path",
+    eval_results: Any,
+    params: Any,
+    obs_rms: Any,
+    *,
+    seed: int = 42,
+    num_envs: int = 2048,
+    reward_cfg: dict[str, float] | None = None,
+    best_params: Any | None = None,
+    best_reward: float = 0.0,
+    best_update: int = 0,
+) -> dict[str, Path]:
+    """Save all post-training artifacts for a JAX/MJX training stage.
+
+    Orchestrates the same artifact generation that the SB3 path performs
+    via :func:`generate_stage_artifacts`, but using JAX-native checkpoint
+    formats and without requiring an SB3 ``SpeciesConfig``.
+
+    Artifacts saved:
+
+    * ``stage_summary.txt`` — human-readable stage summary
+    * ``stage_config.json`` — frozen config snapshot
+    * ``collected_results.csv`` — one row per stage (append-safe)
+    * ``diagnostics.npz`` — per-step evaluation diagnostics
+    * ``best_model.pkl`` — best checkpoint (params + obs stats)
+    * ``stage{N}_final.pkl`` — final checkpoint
+    * ``training_summary.txt`` — run-level summary
+
+    Args:
+        species: Species identifier (e.g. ``"velociraptor"``).
+        stage: Curriculum stage number (1, 2, or 3).
+        stage_config: Config dict from :func:`config.load_stage_config`.
+        stage_results: Results dict with keys like ``mean_reward``,
+            ``timesteps``, ``duration_seconds``, ``model_path``, etc.
+        stage_dir: Directory for this stage's output files.
+        run_dir: Parent run directory (for CSV and training summary).
+        eval_results: :class:`jax_eval.EvalResults` instance with
+            per-step diagnostic data.
+        params: Final JAX network parameters.
+        obs_rms: Observation normalisation statistics.
+        seed: Random seed used for training.
+        num_envs: Number of parallel environments.
+        reward_cfg: Reward weight dict (included in config snapshot).
+        best_params: Best-performing parameters (falls back to *params*).
+        best_reward: Best evaluation reward achieved during training.
+        best_update: Update number at which *best_params* was recorded.
+
+    Returns:
+        Dict mapping artifact name to its file path.
+    """
+    import numpy as _np
+
+    from .config import save_stage_config
+    from .jax_checkpoint import save_checkpoint
+
+    stage_dir = Path(stage_dir)
+    run_dir = Path(run_dir)
+    model_dir = stage_dir / "models"
+    model_dir.mkdir(parents=True, exist_ok=True)
+    paths: dict[str, Path] = {}
+
+    # 1. Stage summary text file
+    summary_path = write_stage_summary(stage_dir, stage_results, species, "JAX/MJX PPO")
+    paths["stage_summary"] = summary_path
+    logger.info("Stage summary saved: %s", summary_path)
+
+    # 2. Stage config snapshot
+    config_path = save_stage_config(
+        stage_dir,
+        stage=stage,
+        stage_config=stage_config,
+        algorithm="jax_ppo",
+        species=species,
+        extra={
+            "seed": seed,
+            "num_envs": num_envs,
+            "reward_cfg": reward_cfg or {},
+        },
+    )
+    paths["stage_config"] = config_path
+    logger.info("Stage config saved: %s", config_path)
+
+    # 3. Collected results CSV (append-safe for multi-stage runs)
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    csv_row = {
+        "species": species,
+        "algorithm": "jax_ppo",
+        "seed": seed,
+        "stage": stage,
+        "best_mean_reward": stage_results.get("best_eval_reward", ""),
+        "last_mean_reward": stage_results.get("mean_reward", ""),
+        "last_mean_episode_length": stage_results.get("mean_episode_length", ""),
+        "mean_forward_vel": stage_results.get("mean_forward_vel", ""),
+        "std_forward_vel": stage_results.get("std_forward_vel", ""),
+        "mean_distance_traveled": stage_results.get("mean_distance_traveled", ""),
+        "training_duration_seconds": round(stage_results.get("duration_seconds", 0.0), 1),
+        "reward_threshold": curriculum.get("min_avg_reward", ""),
+        "ep_length_threshold": curriculum.get("min_avg_episode_length", ""),
+        "stage_passed": stage_results.get("gate_passed", ""),
+    }
+    csv_path = write_results_csv(
+        [csv_row],
+        run_dir / "collected_results.csv",
+        fixed_columns=["species", "algorithm", "seed", "stage"],
+        append=True,
+    )
+    paths["collected_results_csv"] = csv_path
+    logger.info("Results CSV saved: %s", csv_path)
+
+    # 4. Diagnostics NPZ from eval results
+    diag_data: dict[str, Any] = {
+        "tilt_angle": _np.array(eval_results.diag_tilt),
+        "forward_vel": _np.array(eval_results.diag_fwd_vel),
+        "pelvis_height": _np.array(eval_results.diag_pelvis_h),
+        "energy": _np.array(eval_results.diag_energy),
+    }
+    if eval_results.diag_l_foot:
+        diag_data["l_foot_contact"] = _np.array(eval_results.diag_l_foot)
+        diag_data["r_foot_contact"] = _np.array(eval_results.diag_r_foot)
+    for comp_name, comp_vals in eval_results.diag_reward_components.items():
+        diag_data[f"reward_{comp_name}"] = _np.array(comp_vals)
+
+    diag_path = stage_dir / "diagnostics.npz"
+    _np.savez(diag_path, **diag_data)
+    paths["diagnostics"] = diag_path
+    logger.info("Diagnostics saved: %s", diag_path)
+
+    # 5. Model checkpoints (best + final)
+    effective_best = best_params if best_params is not None else params
+    best_model_path = model_dir / "best_model.pkl"
+    save_checkpoint(
+        best_model_path,
+        effective_best,
+        obs_rms=obs_rms,
+        extra={"best_reward": best_reward, "best_update": best_update},
+    )
+    paths["best_model"] = best_model_path
+
+    final_model_path = model_dir / f"stage{stage}_final.pkl"
+    save_checkpoint(final_model_path, params, obs_rms=obs_rms)
+    paths["final_model"] = final_model_path
+    logger.info("Models saved: %s, %s", best_model_path, final_model_path)
+
+    # 6. Training summary (run-level)
+    training_summary_path = write_training_summary(
+        run_dir,
+        [stage_results],
+        species,
+        algorithm="JAX/MJX PPO",
+        seed=seed,
+        n_envs=num_envs,
+    )
+    paths["training_summary"] = training_summary_path
+    logger.info("Training summary saved: %s", training_summary_path)
+
+    return paths
