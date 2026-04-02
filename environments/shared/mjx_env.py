@@ -620,10 +620,9 @@ class MJXDinoEnv:
 
         # Where done, use reset state; otherwise keep new state
         new_states = jax.tree.map(
-            lambda new, rst, d: jax.numpy.where(d, rst, new) if hasattr(new, "shape") else new,
+            lambda new, rst: jax.numpy.where(dones, rst, new) if hasattr(new, "shape") else new,
             new_states,
             reset_states,
-            dones,
         )
 
         return new_states, rewards, terminated, truncated
