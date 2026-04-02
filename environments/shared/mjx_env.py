@@ -622,9 +622,11 @@ class MJXDinoEnv:
         # Reshape dones to (N, 1, 1, ...) so it broadcasts along the batch
         # axis for leaves of any rank (e.g. (N,), (N,D), (N,D1,D2)).
         new_states = jax.tree.map(
-            lambda new, rst: jax.numpy.where(
-                dones.reshape(dones.shape + (1,) * (new.ndim - 1)), rst, new
-            ) if hasattr(new, "shape") else new,
+            lambda new, rst: (
+                jax.numpy.where(dones.reshape(dones.shape + (1,) * (new.ndim - 1)), rst, new)
+                if hasattr(new, "shape")
+                else new
+            ),
             new_states,
             reset_states,
         )

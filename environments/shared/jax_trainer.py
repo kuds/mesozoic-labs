@@ -85,9 +85,9 @@ class TrainConfig:
     verbose: int = 1  # 0=summary only, 1=periodic, 2=every update
     reward_component_interval: int = 10
 
-    # Output paths
-    output_dir: Path | str = "."
-    model_dir: Path | str = "."
+    # Output paths (converted to Path in __post_init__)
+    output_dir: Any = "."
+    model_dir: Any = "."
 
     # Resume
     start_update: int = 0
@@ -168,16 +168,31 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
     def _sample_action(params, obs, rng):
         return sample_action(params, network, obs, rng)
 
-    def _ppo_loss(params, obs, actions, old_log_probs, advantages, returns,
-                  old_values=None, clip_range=0.2, vf_coef=0.5, ent_coef=0.01,
-                  vf_clip_range=None):
-        batch = {"obs": obs, "action": actions, "old_log_prob": old_log_probs,
-                 "advantage": advantages, "return_": returns}
+    def _ppo_loss(
+        params,
+        obs,
+        actions,
+        old_log_probs,
+        advantages,
+        returns,
+        old_values=None,
+        clip_range=0.2,
+        vf_coef=0.5,
+        ent_coef=0.01,
+        vf_clip_range=None,
+    ):
+        batch = {
+            "obs": obs,
+            "action": actions,
+            "old_log_prob": old_log_probs,
+            "advantage": advantages,
+            "return_": returns,
+        }
         if old_values is not None:
             batch["old_value"] = old_values
         from .jax_ppo import PPOConfig as _PPOConfig
-        cfg = _PPOConfig(clip_range=clip_range, vf_coef=vf_coef, ent_coef=ent_coef,
-                         vf_clip_range=vf_clip_range)
+
+        cfg = _PPOConfig(clip_range=clip_range, vf_coef=vf_coef, ent_coef=ent_coef, vf_clip_range=vf_clip_range)
         return ppo_loss(params, network, batch, cfg)
 
     # --- Batched action sampling ---
@@ -190,11 +205,29 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
     # --- Single PPO gradient step ---
 
     @jax.jit
-    def ppo_update(params, opt_state, obs, actions, log_probs, advantages, returns,
-                   old_values=None, clip_range=0.2, ent_coef=0.01, vf_clip_range=None):
+    def ppo_update(
+        params,
+        opt_state,
+        obs,
+        actions,
+        log_probs,
+        advantages,
+        returns,
+        old_values=None,
+        clip_range=0.2,
+        ent_coef=0.01,
+        vf_clip_range=None,
+    ):
         (loss, aux), grads = jax.value_and_grad(_ppo_loss, has_aux=True)(
-            params, obs, actions, log_probs, advantages, returns,
-            old_values=old_values, clip_range=clip_range, ent_coef=ent_coef,
+            params,
+            obs,
+            actions,
+            log_probs,
+            advantages,
+            returns,
+            old_values=old_values,
+            clip_range=clip_range,
+            ent_coef=ent_coef,
             vf_clip_range=vf_clip_range,
         )
         grad_norm = optax.global_norm(grads)
@@ -205,8 +238,9 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
     # --- Fused scan PPO epochs with KL early stopping ---
 
     @jax.jit
-    def scan_ppo_epochs(params, opt_state, flat_obs, flat_act, flat_lp, flat_adv,
-                        flat_ret, flat_val, rng, clip_range, ent_coef):
+    def scan_ppo_epochs(
+        params, opt_state, flat_obs, flat_act, flat_lp, flat_adv, flat_ret, flat_val, rng, clip_range, ent_coef
+    ):
         total_samples = flat_obs.shape[0]
         n_minibatches = total_samples // MINIBATCH_SIZE
 
@@ -216,40 +250,49 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
             perm = jax.random.permutation(rng_perm, total_samples)
 
             def to_mbs(arr):
-                return arr[perm[:n_minibatches * MINIBATCH_SIZE]].reshape(
-                    n_minibatches, MINIBATCH_SIZE, *arr.shape[1:])
+                return arr[perm[: n_minibatches * MINIBATCH_SIZE]].reshape(
+                    n_minibatches, MINIBATCH_SIZE, *arr.shape[1:]
+                )
 
-            mb_data = (to_mbs(flat_obs), to_mbs(flat_act), to_mbs(flat_lp),
-                       to_mbs(flat_adv), to_mbs(flat_ret), to_mbs(flat_val))
+            mb_data = (
+                to_mbs(flat_obs),
+                to_mbs(flat_act),
+                to_mbs(flat_lp),
+                to_mbs(flat_adv),
+                to_mbs(flat_ret),
+                to_mbs(flat_val),
+            )
 
             def mb_step(carry, mb):
                 params, opt_state, kl_exceeded = carry
                 obs, act, lp, adv, ret, val = mb
                 new_params, new_opt_state, loss, aux, gn = ppo_update(
-                    params, opt_state, obs, act, lp, adv, ret,
-                    old_values=val, clip_range=clip_range, ent_coef=ent_coef)
+                    params, opt_state, obs, act, lp, adv, ret, old_values=val, clip_range=clip_range, ent_coef=ent_coef
+                )
 
                 approx_kl = aux["approx_kl"]
                 use_target_kl = TARGET_KL is not None
                 kl_over = use_target_kl & (approx_kl > TARGET_KL)
                 should_skip = kl_exceeded | kl_over
 
-                out_params = jax.tree.map(
-                    lambda new, old: jnp.where(should_skip, old, new),
-                    new_params, params)
+                out_params = jax.tree.map(lambda new, old: jnp.where(should_skip, old, new), new_params, params)
                 out_opt_state = jax.tree.map(
                     lambda new, old: jnp.where(should_skip, old, new) if hasattr(new, "shape") else new,
-                    new_opt_state, opt_state)
+                    new_opt_state,
+                    opt_state,
+                )
 
                 return (out_params, out_opt_state, should_skip), (loss, aux, gn)
 
             (params, opt_state, kl_exceeded), (losses, auxs, gns) = jax.lax.scan(
-                mb_step, (params, opt_state, kl_exceeded), mb_data)
+                mb_step, (params, opt_state, kl_exceeded), mb_data
+            )
             return (params, opt_state, rng, kl_exceeded), (losses, auxs, gns)
 
         init_carry = (params, opt_state, rng, jnp.bool_(False))
         (params, opt_state, _, _), (all_losses, all_auxs, all_gns) = jax.lax.scan(
-            epoch_fn, init_carry, None, length=PPO_EPOCHS)
+            epoch_fn, init_carry, None, length=PPO_EPOCHS
+        )
 
         mean_loss = jnp.mean(all_losses)
         mean_gn = jnp.mean(all_gns)
@@ -260,6 +303,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
 
     batched_reward_components = None
     if reward_detail_fn is not None:
+
         @jax.jit
         def batched_reward_components(states, action_batch):
             return jax.vmap(reward_detail_fn, in_axes=(0, 0))(states.data, action_batch)
@@ -380,19 +424,27 @@ def train(
     # Print banner
     _batch_size_total = ROLLOUT_LEN * NUM_ENVS
     print(f"Batch size: {_batch_size_total:,} ({ROLLOUT_LEN} steps x {NUM_ENVS} envs)")
-    print(f"PPO:        {config.ppo_epochs} epochs x "
-          f"{_batch_size_total // config.minibatch_size} minibatches of {config.minibatch_size}")
+    print(
+        f"PPO:        {config.ppo_epochs} epochs x "
+        f"{_batch_size_total // config.minibatch_size} minibatches of {config.minibatch_size}"
+    )
     print(f"Total:      {config.total_env_steps:,} env steps over {config.num_updates} updates")
-    print(f"\nStarting training: updates {_start_update}..{_start_update + config.num_updates - 1} "
-          f"({ROLLOUT_LEN} steps x {NUM_ENVS} envs)")
+    print(
+        f"\nStarting training: updates {_start_update}..{_start_update + config.num_updates - 1} "
+        f"({ROLLOUT_LEN} steps x {NUM_ENVS} envs)"
+    )
     print(f"Checkpoint frequency: every {CHECKPOINT_FREQ} updates (keep last {config.max_checkpoints})")
     if _warmup_active:
-        print(f"Warmup: updates 0..{config.warmup_updates - 1} "
-              f"(clip_range={config.warmup_clip_range}, ent_coef={config.warmup_ent_coef})")
+        print(
+            f"Warmup: updates 0..{config.warmup_updates - 1} "
+            f"(clip_range={config.warmup_clip_range}, ent_coef={config.warmup_ent_coef})"
+        )
     if _ramp_active:
-        print(f"Reward ramp: {config.ramp_attr} from "
-              f"{_ramp_target_value * config.ramp_start_fraction:.4f} to "
-              f"{_ramp_target_value:.4f} over updates 0..{config.ramp_updates - 1}")
+        print(
+            f"Reward ramp: {config.ramp_attr} from "
+            f"{_ramp_target_value * config.ramp_start_fraction:.4f} to "
+            f"{_ramp_target_value:.4f} over updates 0..{config.ramp_updates - 1}"
+        )
     print(f"CSV log: {csv_path}")
     print("=" * 70)
 
@@ -415,8 +467,10 @@ def train(
                 _active_clip_range = config.clip_range
                 _active_ent_coef = config.ent_coef
                 if _warmup_active and relative_update == config.warmup_updates and _log_interval is not None:
-                    print(f"  >>> Warmup complete at update {update}: "
-                          f"restoring clip_range={config.clip_range}, ent_coef={config.ent_coef}")
+                    print(
+                        f"  >>> Warmup complete at update {update}: "
+                        f"restoring clip_range={config.clip_range}, ent_coef={config.ent_coef}"
+                    )
 
             # ---------- Reward ramp ----------
             if _ramp_active:
@@ -476,9 +530,7 @@ def train(
             full_done_np = np.array(full_done_t)
             rew_np = np.array(rew_t)
             fall_rate = float(full_done_np.sum()) / (ROLLOUT_LEN * NUM_ENVS)
-            _completed_returns, _completed_lengths = compute_episode_stats(
-                rew_np, full_done_np, _ep_stats_acc
-            )
+            _completed_returns, _completed_lengths = compute_episode_stats(rew_np, full_done_np, _ep_stats_acc)
 
             # ---------- Update obs normalisation ----------
             obs_batch_flat = obs_t.reshape(-1, OBS_DIM)
@@ -504,8 +556,15 @@ def train(
             _t_phase = time.time()
             rng, rng_ppo = jax.random.split(rng)
             params, opt_state, avg_loss, avg_aux, avg_grad_norm = scan_ppo_epochs(
-                params, opt_state, flat_obs, flat_act, flat_lp, flat_adv, flat_ret,
-                flat_val, rng_ppo,
+                params,
+                opt_state,
+                flat_obs,
+                flat_act,
+                flat_lp,
+                flat_adv,
+                flat_ret,
+                flat_val,
+                rng_ppo,
                 jnp.float32(_active_clip_range),
                 jnp.float32(_active_ent_coef),
             )
@@ -529,21 +588,22 @@ def train(
 
             reward_history.append(avg_reward)
             loss_history.append(avg_loss)
-            diagnostics_history.append({
-                "reward": avg_reward,
-                "episode_return": mean_ep_return,
-                "episode_length": mean_ep_length,
-                "loss": avg_loss,
-                "grad_norm": avg_grad_norm,
-                "fall_rate": fall_rate,
-                "t_rollout": _t_rollout,
-                "t_ppo": _t_ppo,
-                **avg_aux,
-            })
+            diagnostics_history.append(
+                {
+                    "reward": avg_reward,
+                    "episode_return": mean_ep_return,
+                    "episode_length": mean_ep_length,
+                    "loss": avg_loss,
+                    "grad_norm": avg_grad_norm,
+                    "fall_rate": fall_rate,
+                    "t_rollout": _t_rollout,
+                    "t_ppo": _t_ppo,
+                    **avg_aux,
+                }
+            )
 
             # Per-component reward diagnostics
-            if (relative_update % config.reward_component_interval == 0
-                    and batched_reward_components is not None):
+            if relative_update % config.reward_component_interval == 0 and batched_reward_components is not None:
                 try:
                     _comp = batched_reward_components(states, all_actions[-1])
                     _comp_means = {k: float(jnp.mean(v)) for k, v in _comp.items()}
@@ -554,9 +614,7 @@ def train(
 
             # ---------- Stability watchdog ----------
             _kl = avg_aux.get("approx_kl", 0.0)
-            should_halt, _is_unstable, _stab_msg = _stability.check(
-                _kl, avg_grad_norm, avg_loss, update
-            )
+            should_halt, _is_unstable, _stab_msg = _stability.check(_kl, avg_grad_norm, avg_loss, update)
             if _stab_msg:
                 print(f"  {_stab_msg}")
             if should_halt:
@@ -573,38 +631,38 @@ def train(
             elapsed = time.time() - t_start
             steps_done = (update - _start_update + 1) * ROLLOUT_LEN * NUM_ENVS
             sps = steps_done / elapsed
-            _csv_logger.log({
-                "update": update,
-                "reward_per_step": f"{avg_reward:.4f}",
-                "episode_return": f"{mean_ep_return:.2f}" if not np.isnan(mean_ep_return) else "",
-                "episode_length": f"{mean_ep_length:.1f}" if not np.isnan(mean_ep_length) else "",
-                "total_loss": f"{avg_loss:.4f}",
-                "policy_loss": f"{avg_aux['policy_loss']:.4f}",
-                "value_loss": f"{avg_aux['value_loss']:.4f}",
-                "entropy": f"{avg_aux['entropy']:.4f}",
-                "approx_kl": f"{avg_aux['approx_kl']:.6f}",
-                "clip_fraction": f"{avg_aux['clip_fraction']:.4f}",
-                "grad_norm": f"{avg_grad_norm:.4f}",
-                "mean_std": f"{avg_aux['mean_std']:.4f}",
-                "steps": steps_done,
-                "sps": f"{sps:.0f}",
-                "fall_rate": f"{fall_rate:.4f}",
-                "elapsed": f"{elapsed:.1f}",
-                "t_rollout": f"{_t_rollout:.3f}",
-                "t_ppo": f"{_t_ppo:.3f}",
-            })
+            _csv_logger.log(
+                {
+                    "update": update,
+                    "reward_per_step": f"{avg_reward:.4f}",
+                    "episode_return": f"{mean_ep_return:.2f}" if not np.isnan(mean_ep_return) else "",
+                    "episode_length": f"{mean_ep_length:.1f}" if not np.isnan(mean_ep_length) else "",
+                    "total_loss": f"{avg_loss:.4f}",
+                    "policy_loss": f"{avg_aux['policy_loss']:.4f}",
+                    "value_loss": f"{avg_aux['value_loss']:.4f}",
+                    "entropy": f"{avg_aux['entropy']:.4f}",
+                    "approx_kl": f"{avg_aux['approx_kl']:.6f}",
+                    "clip_fraction": f"{avg_aux['clip_fraction']:.4f}",
+                    "grad_norm": f"{avg_grad_norm:.4f}",
+                    "mean_std": f"{avg_aux['mean_std']:.4f}",
+                    "steps": steps_done,
+                    "sps": f"{sps:.0f}",
+                    "fall_rate": f"{fall_rate:.4f}",
+                    "elapsed": f"{elapsed:.1f}",
+                    "t_rollout": f"{_t_rollout:.3f}",
+                    "t_ppo": f"{_t_ppo:.3f}",
+                }
+            )
 
             # Console logging
             if _log_interval is not None and (
-                relative_update % _log_interval == 0
-                or update == _start_update + config.num_updates - 1
+                relative_update % _log_interval == 0 or update == _start_update + config.num_updates - 1
             ):
                 updates_done = update - _start_update + 1
                 updates_left = config.num_updates - updates_done
                 eta = (elapsed / updates_done) * updates_left if updates_done > 0 else 0
                 eta_str = f"{eta / 60:.0f}m" if eta > 60 else f"{eta:.0f}s"
-                ep_ret_str = (f"ep_ret={mean_ep_return:+.1f}"
-                              if not np.isnan(mean_ep_return) else "ep_ret=n/a")
+                ep_ret_str = f"ep_ret={mean_ep_return:+.1f}" if not np.isnan(mean_ep_return) else "ep_ret=n/a"
                 print(
                     f"[{update:4d}/{_start_update + config.num_updates}]  "
                     f"r/step={avg_reward:+.3f}  {ep_ret_str}  "
@@ -623,7 +681,9 @@ def train(
             # Periodic checkpointing
             if (relative_update + 1) % CHECKPOINT_FREQ == 0:
                 _ckpt_mgr.save(
-                    params, update + 1, obs_rms=obs_rms,
+                    params,
+                    update + 1,
+                    obs_rms=obs_rms,
                     history={
                         "reward": reward_history,
                         "loss": loss_history,
@@ -654,8 +714,10 @@ def train(
 
     _physics_steps = actual_updates * ROLLOUT_LEN * NUM_ENVS * config.frame_skip
     if _cum_t_rollout > 0:
-        print(f"\nMJX physics: {_physics_steps:,} steps in {_cum_t_rollout:.1f}s "
-              f"({_physics_steps / _cum_t_rollout:,.0f} physics steps/sec)")
+        print(
+            f"\nMJX physics: {_physics_steps:,} steps in {_cum_t_rollout:.1f}s "
+            f"({_physics_steps / _cum_t_rollout:,.0f} physics steps/sec)"
+        )
 
     if len(reward_history) >= 10:
         _first10 = np.mean(reward_history[:10])
@@ -673,7 +735,9 @@ def train(
     # Save final parameters
     params_path = config.model_dir / "params.pkl"
     save_checkpoint(
-        params_path, params, obs_rms=obs_rms,
+        params_path,
+        params,
+        obs_rms=obs_rms,
         extra={
             "best_params": best_params,
             "best_reward": best_reward,
@@ -865,7 +929,12 @@ class JaxTrainer:
             def epoch_fn(carry, _):
                 params, opt_state, rng, kl_exceeded = carry
                 new_params, new_opt_state, loss_info = ppo_update(
-                    params, opt_state, optimizer, network, batch, ppo_config,
+                    params,
+                    opt_state,
+                    optimizer,
+                    network,
+                    batch,
+                    ppo_config,
                 )
                 approx_kl = loss_info["approx_kl"]
 
@@ -875,18 +944,23 @@ class JaxTrainer:
 
                 out_params = jax.tree.map(
                     lambda new, old: jnp.where(should_skip, old, new),
-                    new_params, params,
+                    new_params,
+                    params,
                 )
                 out_opt_state = jax.tree.map(
                     lambda new, old: jnp.where(should_skip, old, new) if hasattr(new, "shape") else new,
-                    new_opt_state, opt_state,
+                    new_opt_state,
+                    opt_state,
                 )
 
                 return (out_params, out_opt_state, rng, should_skip), loss_info
 
             init_carry = (params, opt_state, rng, jnp.bool_(False))
             (params, opt_state, _, _), all_info = jax.lax.scan(
-                epoch_fn, init_carry, None, length=ppo_config.n_epochs,
+                epoch_fn,
+                init_carry,
+                None,
+                length=ppo_config.n_epochs,
             )
             return params, opt_state
 
@@ -937,8 +1011,11 @@ class JaxTrainer:
         self._scan_ppo_update = self._build_scan_ppo_update()
 
         state = TrainerState(
-            params=params, opt_state=opt_state, obs_stats=obs_stats,
-            env_states=states, rng=rng,
+            params=params,
+            opt_state=opt_state,
+            obs_stats=obs_stats,
+            env_states=states,
+            rng=rng,
         )
 
         self._dispatch("on_train_start", state)
@@ -957,10 +1034,15 @@ class JaxTrainer:
                 rng, collect_rng = jax.random.split(state.rng)
                 state.rng = rng
                 (states, _), rollout_data = self._collect_rollout(
-                    state.env_states, collect_rng, state.params, state.obs_stats,
+                    state.env_states,
+                    collect_rng,
+                    state.params,
+                    state.obs_stats,
                 )
                 state.env_states = states
-                rollout_obs, rollout_actions, rollout_log_probs, rollout_values, rollout_rewards, rollout_dones = rollout_data
+                rollout_obs, rollout_actions, rollout_log_probs, rollout_values, rollout_rewards, rollout_dones = (
+                    rollout_data
+                )
 
                 jax.block_until_ready(rollout_dones)
                 t_rollout = time.time() - t_rollout_start
@@ -968,7 +1050,8 @@ class JaxTrainer:
                 state.total_steps += self.num_envs * self.rollout_len
 
                 state.obs_stats = update_running_stats(
-                    state.obs_stats, rollout_obs.reshape(-1, obs_dim),
+                    state.obs_stats,
+                    rollout_obs.reshape(-1, obs_dim),
                 )
 
                 mean_reward = float(jnp.mean(rollout_rewards))
@@ -983,9 +1066,13 @@ class JaxTrainer:
                 mean_ep_length = float(np.mean(completed_lengths)) if completed_lengths else float("nan")
 
                 rollout_metrics = {
-                    "mean_reward": mean_reward, "episode_return": mean_ep_return,
-                    "episode_length": mean_ep_length, "fall_rate": fall_rate,
-                    "fps": fps, "elapsed": elapsed, "t_rollout": t_rollout,
+                    "mean_reward": mean_reward,
+                    "episode_return": mean_ep_return,
+                    "episode_length": mean_ep_length,
+                    "fall_rate": fall_rate,
+                    "fps": fps,
+                    "elapsed": elapsed,
+                    "t_rollout": t_rollout,
                 }
                 self._dispatch("on_rollout_end", state, rollout_metrics)
 
@@ -1000,8 +1087,11 @@ class JaxTrainer:
 
                 rollout_values_arr = jnp.concatenate([rollout_values, bootstrap_value[None]], axis=0)
                 advantages, returns = compute_gae(
-                    rollout_rewards, rollout_values_arr, rollout_dones,
-                    self.ppo_config.gamma, self.ppo_config.gae_lambda,
+                    rollout_rewards,
+                    rollout_values_arr,
+                    rollout_dones,
+                    self.ppo_config.gamma,
+                    self.ppo_config.gae_lambda,
                 )
 
                 batch = {
@@ -1017,7 +1107,10 @@ class JaxTrainer:
                 rng, ppo_rng = jax.random.split(state.rng)
                 state.rng = rng
                 state.params, state.opt_state = self._scan_ppo_update(
-                    state.params, state.opt_state, batch, ppo_rng,
+                    state.params,
+                    state.opt_state,
+                    batch,
+                    ppo_rng,
                 )
                 t_ppo = time.time() - t_ppo_start
                 state.t_ppo_cumulative += t_ppo
@@ -1026,11 +1119,16 @@ class JaxTrainer:
                 state.episode_return_history.append(mean_ep_return)
 
                 update_metrics = {
-                    "update": update, "total_steps": state.total_steps,
-                    "mean_reward": mean_reward, "episode_return": mean_ep_return,
-                    "episode_length": mean_ep_length, "fall_rate": fall_rate,
-                    "fps": fps, "elapsed": elapsed,
-                    "t_rollout": t_rollout, "t_ppo": t_ppo,
+                    "update": update,
+                    "total_steps": state.total_steps,
+                    "mean_reward": mean_reward,
+                    "episode_return": mean_ep_return,
+                    "episode_length": mean_ep_length,
+                    "fall_rate": fall_rate,
+                    "fps": fps,
+                    "elapsed": elapsed,
+                    "t_rollout": t_rollout,
+                    "t_ppo": t_ppo,
                 }
                 state.history.append(update_metrics)
                 self._dispatch("on_update_end", state, update_metrics)
@@ -1042,14 +1140,17 @@ class JaxTrainer:
         if state.total_steps > 0:
             _logger.info(
                 "Done. %s steps in %.1fs (%.0f fps)",
-                f"{state.total_steps:,}", elapsed, state.total_steps / elapsed,
+                f"{state.total_steps:,}",
+                elapsed,
+                state.total_steps / elapsed,
             )
 
         self._dispatch("on_train_end", state)
 
         eval_metrics = {
             "mean_reward": float(jnp.mean(jnp.array([h["mean_reward"] for h in state.history[-10:]])))
-            if state.history else 0.0,
+            if state.history
+            else 0.0,
             "total_steps": state.total_steps,
             "elapsed": elapsed,
             "t_rollout_cumulative": state.t_rollout_cumulative,
