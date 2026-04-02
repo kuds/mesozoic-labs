@@ -17,8 +17,8 @@ from typing import Any
 from .reward_functions import (
     check_height_tilt_termination,
     check_nosedive_termination,
-    quat_to_forward_z,
     quat_to_forward_2d,
+    quat_to_forward_z,
     quat_to_tilt,
     reward_action_smoothness,
     reward_alive,
