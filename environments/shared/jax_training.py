@@ -115,7 +115,7 @@ def train_jax(
     optimizer = make_optimizer(ppo_config)
 
     # Assemble hooks
-    hooks = [LoggingHook(interval=10, num_updates=num_updates)]
+    hooks: list[Any] = [LoggingHook(interval=10, num_updates=num_updates)]
 
     if checkpoint_dir:
         hooks.append(

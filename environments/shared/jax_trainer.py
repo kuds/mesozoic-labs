@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
@@ -155,8 +156,8 @@ class JaxTrainer:
         self.hooks = list(hooks) if hooks else []
 
         # JIT-compiled functions (created lazily in train())
-        self._collect_rollout = None
-        self._scan_ppo_update = None
+        self._collect_rollout: Callable | None = None
+        self._scan_ppo_update: Callable | None = None
 
     # -- Hook dispatch helpers -----------------------------------------------
 
@@ -219,7 +220,12 @@ class JaxTrainer:
             def epoch_fn(carry, _):
                 params, opt_state, rng, kl_exceeded = carry
                 new_params, new_opt_state, loss_info = ppo_update(
-                    params, opt_state, optimizer, network, batch, ppo_config,
+                    params,
+                    opt_state,
+                    optimizer,
+                    network,
+                    batch,
+                    ppo_config,
                 )
                 approx_kl = loss_info["approx_kl"]
 
@@ -229,18 +235,23 @@ class JaxTrainer:
 
                 out_params = jax.tree.map(
                     lambda new, old: jnp.where(should_skip, old, new),
-                    new_params, params,
+                    new_params,
+                    params,
                 )
                 out_opt_state = jax.tree.map(
                     lambda new, old: jnp.where(should_skip, old, new) if hasattr(new, "shape") else new,
-                    new_opt_state, opt_state,
+                    new_opt_state,
+                    opt_state,
                 )
 
                 return (out_params, out_opt_state, rng, should_skip), loss_info
 
             init_carry = (params, opt_state, rng, jnp.bool_(False))
             (params, opt_state, _, _), all_info = jax.lax.scan(
-                epoch_fn, init_carry, None, length=ppo_config.n_epochs,
+                epoch_fn,
+                init_carry,
+                None,
+                length=ppo_config.n_epochs,
             )
             return params, opt_state
 
@@ -283,11 +294,7 @@ class JaxTrainer:
         dummy_obs = jnp.zeros(
             self.env.mj_model.nq - 7 + self.env.mj_model.nv - 6 + 17,
         )
-        params = (
-            self.network.init(init_rng, dummy_obs)
-            if init_params is None
-            else init_params
-        )
+        params = self.network.init(init_rng, dummy_obs) if init_params is None else init_params
         opt_state = self.optimizer.init(params)
 
         obs_dim = dummy_obs.shape[0]
@@ -324,7 +331,10 @@ class JaxTrainer:
                 rng, collect_rng = jax.random.split(state.rng)
                 state.rng = rng
                 (states, _), rollout_data = self._collect_rollout(
-                    state.env_states, collect_rng, state.params, state.obs_stats,
+                    state.env_states,
+                    collect_rng,
+                    state.params,
+                    state.obs_stats,
                 )
                 state.env_states = states
                 (
@@ -340,7 +350,8 @@ class JaxTrainer:
 
                 # Update obs stats
                 state.obs_stats = update_running_stats(
-                    state.obs_stats, rollout_obs.reshape(-1, obs_dim),
+                    state.obs_stats,
+                    rollout_obs.reshape(-1, obs_dim),
                 )
 
                 mean_reward = float(jnp.mean(rollout_rewards))
@@ -357,7 +368,8 @@ class JaxTrainer:
 
                 # -- Normalise observations for PPO --
                 rollout_obs_norm = normalize_obs(
-                    rollout_obs.reshape(-1, obs_dim), state.obs_stats,
+                    rollout_obs.reshape(-1, obs_dim),
+                    state.obs_stats,
                 )
 
                 # Bootstrap value
@@ -370,7 +382,8 @@ class JaxTrainer:
 
                 # GAE
                 rollout_values_arr = jnp.concatenate(
-                    [rollout_values, bootstrap_value[None]], axis=0,
+                    [rollout_values, bootstrap_value[None]],
+                    axis=0,
                 )
                 advantages, returns = compute_gae(
                     rollout_rewards,
@@ -392,7 +405,10 @@ class JaxTrainer:
                 rng, ppo_rng = jax.random.split(state.rng)
                 state.rng = rng
                 state.params, state.opt_state = self._scan_ppo_update(
-                    state.params, state.opt_state, batch, ppo_rng,
+                    state.params,
+                    state.opt_state,
+                    batch,
+                    ppo_rng,
                 )
 
                 # Metrics
@@ -423,9 +439,9 @@ class JaxTrainer:
         self._dispatch("on_train_end", state)
 
         eval_metrics = {
-            "mean_reward": float(
-                jnp.mean(jnp.array([h["mean_reward"] for h in state.history[-10:]]))
-            ) if state.history else 0.0,
+            "mean_reward": float(jnp.mean(jnp.array([h["mean_reward"] for h in state.history[-10:]])))
+            if state.history
+            else 0.0,
             "total_steps": state.total_steps,
         }
 
