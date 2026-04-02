@@ -98,21 +98,25 @@ class EnvState:
 
 
 # Register EnvState as a JAX pytree so it can be returned from jit/vmap.
-import jax  # noqa: E402  (module-level import needed for pytree registration)
+# Guarded: JAX is optional (not installed in CPU-only test environments).
+try:
+    import jax  # noqa: E402
 
-jax.tree_util.register_dataclass(
-    EnvState,
-    data_fields=[
-        "data",
-        "obs",
-        "step_count",
-        "prev_action",
-        "prev_target_distance",
-        "target_pos",
-        "initial_pos_2d",
-    ],
-    meta_fields=[],
-)
+    jax.tree_util.register_dataclass(
+        EnvState,
+        data_fields=[
+            "data",
+            "obs",
+            "step_count",
+            "prev_action",
+            "prev_target_distance",
+            "target_pos",
+            "initial_pos_2d",
+        ],
+        meta_fields=[],
+    )
+except ImportError:
+    pass
 
 # ---------------------------------------------------------------------------
 # Species registration
