@@ -56,16 +56,22 @@ def compute_total_reward(
     foot_indices: tuple[int, ...] = (10, 11),
     prev_action: Array | None = None,
     sensor_tail_gyro_start: int | None = None,
+    forward_ref_2d: Array | None = None,
 ) -> Array:
     """Compute total scalar reward matching ``mjx_env.py`` step logic.
 
     Parameters are split into ``reward_cfg`` (per-stage, read at trace time)
     and keyword arguments (per-species constants).
+
+    ``forward_ref_2d`` is the 2D direction used for forward-velocity and
+    heading-alignment rewards.  When tracking a target, pass the normalised
+    agent-to-target direction so that both rewards are consistent with
+    ``MJXDinoEnv.step()``.  Defaults to world +X ``[1, 0]``.
     """
     import jax.numpy as jnp
 
     vel_2d = data.qvel[:2]
-    forward_dir = jnp.array([1.0, 0.0])
+    forward_dir = forward_ref_2d if forward_ref_2d is not None else jnp.array([1.0, 0.0])
     pelvis_z = data.xpos[root_body_id, 2]
     root_quat = data.sensordata[sensor_quat_start : sensor_quat_start + 4]
 
@@ -145,7 +151,6 @@ def compute_total_reward(
     heading_w = reward_cfg.get("heading_weight", 0.0)
     if heading_w > 0:
         body_fwd_2d = quat_to_forward_2d(root_quat)
-        forward_dir = jnp.array([1.0, 0.0])
         r_heading, _ = reward_heading_alignment(body_fwd_2d, forward_dir, heading_w)
         total = total + r_heading
 
@@ -167,6 +172,7 @@ def compute_reward_components(
     foot_indices: tuple[int, ...] = (10, 11),
     prev_action: Array | None = None,
     sensor_tail_gyro_start: int | None = None,
+    forward_ref_2d: Array | None = None,
 ) -> dict[str, Array]:
     """Compute per-component reward breakdown for diagnostics.
 
@@ -176,7 +182,7 @@ def compute_reward_components(
     import jax.numpy as jnp
 
     vel_2d = data.qvel[:2]
-    forward_dir = jnp.array([1.0, 0.0])
+    forward_dir = forward_ref_2d if forward_ref_2d is not None else jnp.array([1.0, 0.0])
     pelvis_z = data.xpos[root_body_id, 2]
     root_quat = data.sensordata[sensor_quat_start : sensor_quat_start + 4]
 
@@ -252,7 +258,6 @@ def compute_reward_components(
     heading_w = reward_cfg.get("heading_weight", 0.0)
     if heading_w > 0:
         body_fwd_2d = quat_to_forward_2d(root_quat)
-        forward_dir = jnp.array([1.0, 0.0])
         r_heading, _ = reward_heading_alignment(body_fwd_2d, forward_dir, heading_w)
         components["heading"] = r_heading
 
