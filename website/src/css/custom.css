@@ -126,17 +126,23 @@ body {
 /* Dark mode logo is handled via srcDark in docusaurus.config.ts
    instead of CSS filter: invert(1) for better cross-browser consistency */
 
+/* When the mobile sidebar is open, remove backdrop-filter from navbar
+   so the sidebar's position:fixed isn't trapped in the navbar's stacking context
+   (backdrop-filter creates a new containing block for fixed descendants) */
+.navbar-sidebar--show.navbar {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
 /* Mobile navbar sidebar fixes */
 .navbar-sidebar {
   background-color: var(--ifm-background-surface-color);
-  z-index: 200;
   width: 80vw;
   max-width: 350px;
 }
 
 .navbar-sidebar__backdrop {
   background-color: rgba(0, 0, 0, 0.5);
-  z-index: 199;
 }
 
 .navbar-sidebar__brand {
@@ -160,15 +166,6 @@ body {
   min-height: 44px;
   display: flex;
   align-items: center;
-}
-
-/* Ensure hamburger toggle is tappable on mobile */
-.navbar__toggle {
-  min-width: 44px;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .navbar__title {
