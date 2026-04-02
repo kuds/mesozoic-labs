@@ -80,6 +80,7 @@ def run_curriculum(
             "gamma": "gamma",
             "gae_lambda": "gae_lambda",
             "clip_range": "clip_range",
+            "vf_clip_range": "vf_clip_range",
             "ent_coef": "ent_coef",
             "ppo_epochs": "n_epochs",
             "target_kl": "target_kl",

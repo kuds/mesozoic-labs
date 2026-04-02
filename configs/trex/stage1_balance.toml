@@ -69,6 +69,7 @@ max_grad_norm = 0.5                     # Gradient clipping threshold
 gamma = 0.98                            # Match SB3 PPO — shorter horizon for balance task
 gae_lambda = 0.95
 clip_range = 0.2
+vf_clip_range = 10.0                    # Clip value function updates to prevent catastrophic value loss spikes
 ent_coef = 0.005                        # Match SB3 PPO — 0.01 caused entropy to increase and policy std to diverge
 target_kl = 0.05                        # Early-stop PPO epochs when approx KL exceeds this — prevents policy collapse
 fall_penalty = -50.0                    # Less punitive than SB3 (-50) — high env count means more recovery samples

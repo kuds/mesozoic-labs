@@ -104,6 +104,33 @@ The stage 1 curriculum requirements were **NOT met**:
 The best checkpoint likely met `min_avg_reward` but may not have sustained
 `min_avg_episode_length >= 750` for 3 consecutive evaluations.
 
+## Value Function Catastrophe (Training Diagnostics)
+
+The JAX/MJX training diagnostics reveal the precise mechanism of collapse:
+
+1. **Update 0-175**: Episodes grow from ~200 to ~1000 steps (max). Reward per step
+   climbs to ~3.0. Everything looks healthy.
+
+2. **Update 175-200**: Value loss explodes from ~5 to **400+**. The value function
+   can't predict returns ranging from -100 (fall) to +3000 (full episode).
+
+3. **Gradient norms spike to 2000** pre-clip. With `max_grad_norm=0.5`, gradients
+   are being clipped by 4000x — the optimizer takes effectively random steps.
+
+4. **Clip fraction shoots from 0.4 to 0.9** — 90% of policy updates are clipped.
+   PPO's trust region has completely broken down.
+
+5. **Policy collapses**: episodes shorten, falls spike, reward crashes.
+
+**Root cause**: No value function clipping in `jax_ppo.py`. The value loss was
+bare MSE (`0.5 * mean((value - return)^2)`), allowing unbounded value updates that
+corrupted the shared actor-critic network through gradient backpropagation.
+
+**Fix**: Added `vf_clip_range` parameter to `PPOConfig`. When enabled, value function
+updates are clipped relative to the old value prediction (matching SB3's implementation).
+Set to 10.0 for stage 1 — large enough to allow normal learning, small enough to
+prevent the 400x value loss spikes that caused the collapse.
+
 ## Recommendations
 
 1. **Use the best checkpoint for downstream stages**: The best model at 23M steps

@@ -397,6 +397,7 @@ class JaxTrainer:
                     "obs": rollout_obs_norm,
                     "action": rollout_actions.reshape(-1, self.env.action_dim),
                     "old_log_prob": rollout_log_probs.reshape(-1),
+                    "old_value": rollout_values.reshape(-1),
                     "advantage": advantages.reshape(-1),
                     "return_": returns.reshape(-1),
                 }

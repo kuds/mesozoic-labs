@@ -29,6 +29,7 @@ class PPOConfig(NamedTuple):
     learning_rate: float = 3e-4
     learning_rate_end: float | None = None  # Final LR for linear decay (None = constant)
     clip_range: float = 0.2
+    vf_clip_range: float | None = None  # Clip value function updates (None = no clipping)
     vf_coef: float = 0.5
     ent_coef: float = 0.01
     gamma: float = 0.99
@@ -209,8 +210,18 @@ def ppo_loss(params, network, batch, config: PPOConfig):
     pg_loss2 = -advantage * jnp.clip(ratio, 1.0 - config.clip_range, 1.0 + config.clip_range)
     policy_loss = jnp.mean(jnp.maximum(pg_loss1, pg_loss2))
 
-    # Value loss
-    value_loss = 0.5 * jnp.mean(jnp.square(value - batch["return_"]))
+    # Value loss (with optional clipping to prevent catastrophic value updates)
+    if config.vf_clip_range is not None and "old_value" in batch:
+        value_clipped = batch["old_value"] + jnp.clip(
+            value - batch["old_value"],
+            -config.vf_clip_range,
+            config.vf_clip_range,
+        )
+        vf_loss1 = jnp.square(value - batch["return_"])
+        vf_loss2 = jnp.square(value_clipped - batch["return_"])
+        value_loss = 0.5 * jnp.mean(jnp.maximum(vf_loss1, vf_loss2))
+    else:
+        value_loss = 0.5 * jnp.mean(jnp.square(value - batch["return_"]))
 
     # Entropy bonus
     entropy = 0.5 * jnp.sum(jnp.log(2.0 * jnp.pi * jnp.e * action_std**2), axis=-1)
