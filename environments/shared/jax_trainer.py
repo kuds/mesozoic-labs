@@ -579,8 +579,8 @@ def train(
 
             # Episode return stats
             if _completed_returns:
-                mean_ep_return = np.mean(_completed_returns)
-                mean_ep_length = np.mean(_completed_lengths)
+                mean_ep_return = float(np.mean(_completed_returns))
+                mean_ep_length = float(np.mean(_completed_lengths))
             else:
                 mean_ep_return = float("nan")
                 mean_ep_length = float("nan")
@@ -621,7 +621,7 @@ def train(
                 break
 
             # Track best model
-            _track_metric = mean_ep_return if not np.isnan(mean_ep_return) else avg_reward
+            _track_metric: float = mean_ep_return if not np.isnan(mean_ep_return) else avg_reward
             if _track_metric > best_reward and not _is_unstable:
                 best_reward = _track_metric
                 best_params = jax.device_get(params)
