@@ -605,12 +605,13 @@ class MJXDinoEnv:
         """
         import jax
 
-        rngs = jax.random.split(rng, self.num_envs)
+        rng_step, rng_reset = jax.random.split(rng)
+        rngs = jax.random.split(rng_step, self.num_envs)
         new_states, rewards, terminated, truncated = self._batched_step(states, actions, rngs)
 
         # Auto-reset terminated or truncated environments
         dones = terminated | truncated
-        reset_rngs = jax.random.split(rng, self.num_envs)
+        reset_rngs = jax.random.split(rng_reset, self.num_envs)
         reset_states = self._batched_reset(reset_rngs)
 
         # Where done, use reset state; otherwise keep new state
