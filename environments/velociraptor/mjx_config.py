@@ -13,6 +13,8 @@ from environments.shared.mjx_env import register_species_mjx
 # r_foot_touch(1), l_foot_touch(1)
 _SENSOR_R_FOOT = 10
 _SENSOR_L_FOOT = 11
+# Tail tip gyro starts after: gyro(3)+accel(3)+quat(4)+touch(2)+r_claw_pos(3)+l_claw_pos(3)+tail_pos(3)+tail_linvel(3)=24
+_SENSOR_TAIL_GYRO_START = 24
 
 register_species_mjx(
     species="velociraptor",
@@ -25,6 +27,7 @@ register_species_mjx(
     sensor_accel_start=3,
     sensor_quat_start=6,
     natural_forward_z=-0.342,  # -sin(0.35)  ~20° natural pitch
+    sensor_tail_gyro_start=_SENSOR_TAIL_GYRO_START,
     forward_vel_max=10.0,
     fall_penalty=-100.0,
     target_distance_range=(3.0, 8.0),

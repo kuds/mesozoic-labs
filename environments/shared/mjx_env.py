@@ -73,6 +73,8 @@ class MJXEnvConfig:
     # Like body-height termination but uses site_xpos (more precise for
     # extremities like snout tips that are far from their parent body origin).
     termination_site_heights: dict[str, float] = field(default_factory=dict)
+    # Tail stability sensor index (gyro sensor for tail tip angular velocity)
+    sensor_tail_gyro_start: int | None = None
     # Reset noise parameters
     reset_noise_scale: float = 0.0  # Joint angle perturbation range
     init_qpos_noise: float = 0.0  # XY position jitter range
@@ -232,6 +234,7 @@ class MJXDinoEnv:
         from .obs_functions import SensorLayout, build_bipedal_obs
         from .reward_functions import (
             check_nosedive_termination,
+            quat_to_forward_2d,
             quat_to_forward_z,
             reward_action_smoothness,
             reward_alive,
@@ -240,6 +243,7 @@ class MJXDinoEnv:
             reward_drift_penalty,
             reward_energy,
             reward_forward_velocity,
+            reward_heading_alignment,
             reward_height_maintenance,
             reward_nosedive,
             reward_posture,
@@ -378,6 +382,20 @@ class MJXDinoEnv:
             if height_w > 0:
                 r_height = reward_height_maintenance(pelvis_xpos[2], config.healthy_z_range[0], 0.90, height_w)
                 total_reward = total_reward + r_height
+
+            # Tail stability: penalise tail tip angular velocity
+            tail_w = weights.get("tail_stability_weight", 0.0)
+            if tail_w > 0 and config.sensor_tail_gyro_start is not None:
+                tail_angvel = data.sensordata[config.sensor_tail_gyro_start : config.sensor_tail_gyro_start + 3]
+                r_tail, _ = reward_angular_velocity_penalty(tail_angvel, tail_w)
+                total_reward = total_reward + r_tail
+
+            # Heading alignment: reward facing toward target
+            heading_w = weights.get("heading_weight", 0.0)
+            if heading_w > 0:
+                body_fwd_2d = quat_to_forward_2d(pelvis_quat)
+                r_heading, _ = reward_heading_alignment(body_fwd_2d, forward_ref, heading_w)
+                total_reward = total_reward + r_heading
 
             # Termination
             body_z = pelvis_xpos[2]
