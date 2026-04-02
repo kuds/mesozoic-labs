@@ -47,21 +47,48 @@ With ideal standing posture, the maximum per-step reward is:
 | **Ideal total** | | **~3.8-4.0** | With minimal penalties |
 
 Best eval: 2410.69 / ~4.0 per step = ~600 steps, consistent with mid-training performance.
-Final eval: 17.26 / 196 steps = ~0.09 per step (mostly penalties + fall penalty of -50).
+Final eval: 17.26 / 196 steps = ~0.09 per step (mostly penalties + fall penalty of -100).
+
+## Bug: fall_penalty override silently ignored
+
+**Files:** `jax_training.py:202`, `jax_curriculum.py:96`
+
+The `[jax]` section sets `fall_penalty = -50.0`, intending to be less punitive than
+the SB3 default of `-100.0`. However, the override code used `setdefault`:
+
+```python
+env_kwargs.setdefault("fall_penalty", jax_kwargs["fall_penalty"])
+```
+
+Since `[env]` already defines `fall_penalty = -100.0`, `setdefault` is a no-op. The
+run config confirms: `run.reward_cfg.fall_penalty = -100.0`. The T-Rex was trained
+with **double the intended fall penalty**.
+
+**Impact:** A -100 penalty on a ~200-step episode (where positive reward is ~800 max)
+represents 12.5% of the entire episode's reward budget in a single timestep. This creates:
+- High variance in episode returns (some get +800, early falls get -100)
+- Value function instability from the bimodal return distribution
+- Overly conservative policy that paradoxically becomes more rigid and fall-prone
+
+**Fix:** Changed both files to use direct assignment (`env_kwargs["fall_penalty"] = ...`)
+instead of `setdefault`.
 
 ## Contributing Factors
 
-1. **No early stopping on performance degradation**: Training continued for all 500 updates
+1. **Wrong fall penalty (-100 instead of -50)**: See bug above. This is likely the
+   primary contributor to the policy collapse.
+
+2. **No early stopping on performance degradation**: Training continued for all 500 updates
    even after performance peaked at ~update 175 and began collapsing.
 
-2. **Value function divergence**: The height reward (weight=2.0) dominates and creates
+3. **Value function divergence**: The height reward (weight=2.0) dominates and creates
    high variance in value targets. With gamma=0.98, value overestimation may drive
    increasingly aggressive updates that destabilize the policy.
 
-3. **Entropy collapse**: ent_coef=0.005 is quite low. Once the policy starts leaning
+4. **Entropy collapse**: ent_coef=0.005 is quite low. Once the policy starts leaning
    forward, it may lack the exploration capacity to recover an upright stance.
 
-4. **Nosedive cascade**: As forward_z decreases (forward lean), the nosedive penalty
+5. **Nosedive cascade**: As forward_z decreases (forward lean), the nosedive penalty
    (-4.0 weight) becomes a strong gradient toward "don't lean forward", but the policy
    has already committed to a forward-leaning stance. This creates conflicting gradients
    that destabilize learning.

@@ -198,11 +198,13 @@ def main():
         env_kwargs = stage_config.get("env_kwargs", {})
 
         # Override fall_penalty / noise from [jax] section
+        # Use direct assignment — setdefault is a no-op when [env] already
+        # defines the key, which silently ignores the JAX-specific override.
         if "fall_penalty" in jax_kwargs:
-            env_kwargs.setdefault("fall_penalty", jax_kwargs["fall_penalty"])
+            env_kwargs["fall_penalty"] = jax_kwargs["fall_penalty"]
         for noise_key in ("reset_noise_scale", "init_qpos_noise", "init_yaw_noise"):
             if noise_key in jax_kwargs:
-                env_kwargs.setdefault(noise_key, jax_kwargs[noise_key])
+                env_kwargs[noise_key] = jax_kwargs[noise_key]
 
         train_jax(
             species=args.species,
