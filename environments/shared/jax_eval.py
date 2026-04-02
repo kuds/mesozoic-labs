@@ -36,6 +36,7 @@ class EvalConfig:
     natural_forward_z: float = 0.0
     nosedive_threshold: float = 0.5
     termination_body_heights: dict[str, float] | None = None
+    termination_site_heights: dict[str, float] | None = None
     success_sites: tuple[str, ...] = ()
     success_threshold: float = 0.3
     target_body: str | None = None
@@ -160,6 +161,14 @@ def evaluate_policy_cpu(
             bid = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, bname)
             if bid >= 0:
                 _body_checks.append((bid, z_thresh))
+
+    # Resolve site-height termination checks
+    _site_checks: list[tuple[int, float]] = []
+    if config.termination_site_heights:
+        for sname, z_thresh in config.termination_site_heights.items():
+            sid = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_SITE, sname)
+            if sid >= 0:
+                _site_checks.append((sid, z_thresh))
 
     # Resolve success site IDs and target body
     _success_site_ids: list[int] = []
@@ -311,6 +320,10 @@ def evaluate_policy_cpu(
 
             # Body-height floor contact termination
             if any(mj_data.xpos[bid, 2] < zt for bid, zt in _body_checks):
+                break
+
+            # Site-height termination (extremities like snout tip)
+            if any(mj_data.site_xpos[sid, 2] < zt for sid, zt in _site_checks):
                 break
 
             # Stage 3 success: proximity-based contact detection
