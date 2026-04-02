@@ -142,3 +142,85 @@ class StabilityHook:
     def monitor(self) -> StabilityMonitor:
         """Access the underlying stability monitor."""
         return self._monitor
+
+
+class CSVLoggingHook:
+    """Writes per-update metrics to a CSV file.
+
+    Provides a persistent training log compatible with notebook
+    ``TrainingCSVLogger`` but driven by the hook system.
+
+    Args:
+        path: Path to the CSV file.
+        extra_fields: Optional extra field names to include.
+    """
+
+    def __init__(self, path: str | Any, extra_fields: list[str] | None = None):
+        from pathlib import Path as _Path
+
+        from .jax_training_utils import TrainingCSVLogger
+
+        self._logger = TrainingCSVLogger(_Path(path) if not isinstance(path, _Path) else path)
+        self._extra_fields = extra_fields or []
+
+    def on_update_end(self, state: TrainerState, metrics: dict[str, float]) -> None:
+        row = {
+            "update": int(metrics.get("update", state.update)),
+            "reward_per_step": f"{metrics.get('mean_reward', 0.0):.4f}",
+            "episode_return": f"{metrics.get('episode_return', float('nan')):.2f}",
+            "episode_length": f"{metrics.get('episode_length', float('nan')):.1f}",
+            "total_loss": f"{metrics.get('total_loss', 0.0):.4f}",
+            "policy_loss": f"{metrics.get('policy_loss', 0.0):.4f}",
+            "value_loss": f"{metrics.get('value_loss', 0.0):.4f}",
+            "entropy": f"{metrics.get('entropy', 0.0):.4f}",
+            "approx_kl": f"{metrics.get('approx_kl', 0.0):.6f}",
+            "clip_fraction": f"{metrics.get('clip_fraction', 0.0):.4f}",
+            "grad_norm": f"{metrics.get('grad_norm', 0.0):.4f}",
+            "mean_std": f"{metrics.get('mean_std', 0.0):.4f}",
+            "steps": int(metrics.get("total_steps", state.total_steps)),
+            "sps": f"{metrics.get('fps', 0.0):.0f}",
+            "fall_rate": f"{metrics.get('fall_rate', 0.0):.4f}",
+            "elapsed": f"{metrics.get('elapsed', 0.0):.1f}",
+        }
+        for field in self._extra_fields:
+            if field in metrics:
+                row[field] = metrics[field]
+        self._logger.log(row)
+
+    def on_train_end(self, state: TrainerState) -> None:
+        self._logger.close()
+
+    @property
+    def path(self) -> Any:
+        """Path to the CSV file."""
+        return self._logger.path
+
+
+class BestModelHook:
+    """Tracks the best model parameters during training.
+
+    Saves a copy of params whenever the tracked metric improves.
+    Provides ``best_params``, ``best_reward``, and ``best_update``
+    attributes after training.
+
+    Args:
+        metric_key: Metrics dict key to track (default: ``"mean_reward"``).
+    """
+
+    def __init__(self, metric_key: str = "mean_reward"):
+        self.metric_key = metric_key
+        self.best_reward: float = -float("inf")
+        self.best_params: Any = None
+        self.best_update: int = -1
+
+    def on_update_end(self, state: TrainerState, metrics: dict[str, float]) -> None:
+        value = metrics.get(self.metric_key, -float("inf"))
+        if value > self.best_reward:
+            self.best_reward = value
+            try:
+                import jax
+
+                self.best_params = jax.device_get(state.params)
+            except ImportError:
+                self.best_params = state.params
+            self.best_update = int(metrics.get("update", state.update))

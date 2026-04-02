@@ -25,7 +25,7 @@ Usage::
         ppo_config=config,
         hooks=[LoggingHook(interval=10)],
     )
-    params, metrics = trainer.train(num_updates=500, seed=42)
+    params, metrics, state = trainer.train(num_updates=500, seed=42)
 """
 
 from __future__ import annotations
@@ -62,6 +62,11 @@ class TrainerState:
     update: int = 0
     total_steps: int = 0
     history: list[dict[str, float]] = field(default_factory=list)
+    reward_history: list[float] = field(default_factory=list)
+    loss_history: list[float] = field(default_factory=list)
+    episode_return_history: list[float] = field(default_factory=list)
+    t_rollout_cumulative: float = 0.0
+    t_ppo_cumulative: float = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +269,7 @@ class JaxTrainer:
         num_updates: int = 500,
         seed: int = 42,
         init_params: Any | None = None,
-    ) -> tuple[Any, dict[str, float]]:
+    ) -> tuple[Any, dict[str, float], TrainerState]:
         """Run the training loop.
 
         Args:
@@ -274,7 +279,8 @@ class JaxTrainer:
                 a previous curriculum stage).
 
         Returns:
-            ``(params, eval_metrics)`` tuple.
+            ``(params, eval_metrics, state)`` tuple.  The ``state``
+            is a :class:`TrainerState` with full training history.
         """
         check_jax()
 
@@ -323,11 +329,18 @@ class JaxTrainer:
         t0 = time.time()
         _logger.info("Compiling scan functions (first update only)...")
 
+        import numpy as np
+
+        from .jax_training_utils import EpisodeStatsAccumulator, compute_episode_stats
+
+        ep_stats_acc = EpisodeStatsAccumulator()
+
         try:
             for update in range(num_updates):
                 state.update = update
 
                 # -- Collect rollout --
+                t_rollout_start = time.time()
                 rng, collect_rng = jax.random.split(state.rng)
                 state.rng = rng
                 (states, _), rollout_data = self._collect_rollout(
@@ -346,6 +359,11 @@ class JaxTrainer:
                     rollout_dones,
                 ) = rollout_data
 
+                # Block for accurate timing
+                jax.block_until_ready(rollout_dones)
+                t_rollout = time.time() - t_rollout_start
+                state.t_rollout_cumulative += t_rollout
+
                 state.total_steps += self.num_envs * self.rollout_len
 
                 # Update obs stats
@@ -358,10 +376,30 @@ class JaxTrainer:
                 elapsed = time.time() - t0
                 fps = state.total_steps / elapsed if elapsed > 0 else 0
 
+                # Episode stats
+                rew_np = np.array(rollout_rewards)
+                done_np = np.array(rollout_dones)
+                fall_rate = float(done_np.sum()) / (self.rollout_len * self.num_envs)
+                completed_returns, completed_lengths = compute_episode_stats(
+                    rew_np,
+                    done_np,
+                    ep_stats_acc,
+                )
+                if completed_returns:
+                    mean_ep_return = float(np.mean(completed_returns))
+                    mean_ep_length = float(np.mean(completed_lengths))
+                else:
+                    mean_ep_return = float("nan")
+                    mean_ep_length = float("nan")
+
                 rollout_metrics = {
                     "mean_reward": mean_reward,
+                    "episode_return": mean_ep_return,
+                    "episode_length": mean_ep_length,
+                    "fall_rate": fall_rate,
                     "fps": fps,
                     "elapsed": elapsed,
+                    "t_rollout": t_rollout,
                 }
 
                 self._dispatch("on_rollout_end", state, rollout_metrics)
@@ -403,6 +441,7 @@ class JaxTrainer:
                 }
 
                 # -- PPO update --
+                t_ppo_start = time.time()
                 rng, ppo_rng = jax.random.split(state.rng)
                 state.rng = rng
                 state.params, state.opt_state = self._scan_ppo_update(
@@ -411,14 +450,24 @@ class JaxTrainer:
                     batch,
                     ppo_rng,
                 )
+                t_ppo = time.time() - t_ppo_start
+                state.t_ppo_cumulative += t_ppo
 
                 # Metrics
+                state.reward_history.append(mean_reward)
+                state.episode_return_history.append(mean_ep_return)
+
                 update_metrics = {
                     "update": update,
                     "total_steps": state.total_steps,
                     "mean_reward": mean_reward,
+                    "episode_return": mean_ep_return,
+                    "episode_length": mean_ep_length,
+                    "fall_rate": fall_rate,
                     "fps": fps,
                     "elapsed": elapsed,
+                    "t_rollout": t_rollout,
+                    "t_ppo": t_ppo,
                 }
                 state.history.append(update_metrics)
 
@@ -444,6 +493,9 @@ class JaxTrainer:
             if state.history
             else 0.0,
             "total_steps": state.total_steps,
+            "elapsed": elapsed,
+            "t_rollout_cumulative": state.t_rollout_cumulative,
+            "t_ppo_cumulative": state.t_ppo_cumulative,
         }
 
-        return state.params, eval_metrics
+        return state.params, eval_metrics, state

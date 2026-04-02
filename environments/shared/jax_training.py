@@ -141,11 +141,12 @@ def train_jax(
         hooks=hooks,
     )
 
-    return trainer.train(
+    params, eval_metrics, _state = trainer.train(
         num_updates=num_updates,
         seed=seed,
         init_params=init_params,
     )
+    return params, eval_metrics
 
 
 def _import_species_config(species: str) -> None:

@@ -97,6 +97,27 @@ class EnvState:
     initial_pos_2d: Any  # jnp.ndarray (2,) — spawn XY for drift penalty
 
 
+# Register EnvState as a JAX pytree so it can be returned from jit/vmap.
+# Guarded: JAX is optional (not installed in CPU-only test environments).
+try:
+    import jax  # noqa: E402
+
+    jax.tree_util.register_dataclass(
+        EnvState,
+        data_fields=[
+            "data",
+            "obs",
+            "step_count",
+            "prev_action",
+            "prev_target_distance",
+            "target_pos",
+            "initial_pos_2d",
+        ],
+        meta_fields=[],
+    )
+except ImportError:
+    pass
+
 # ---------------------------------------------------------------------------
 # Species registration
 # ---------------------------------------------------------------------------
@@ -588,12 +609,13 @@ class MJXDinoEnv:
         """
         import jax
 
-        rngs = jax.random.split(rng, self.num_envs)
+        rng_step, rng_reset = jax.random.split(rng)
+        rngs = jax.random.split(rng_step, self.num_envs)
         new_states, rewards, terminated, truncated = self._batched_step(states, actions, rngs)
 
         # Auto-reset terminated or truncated environments
         dones = terminated | truncated
-        reset_rngs = jax.random.split(rng, self.num_envs)
+        reset_rngs = jax.random.split(rng_reset, self.num_envs)
         reset_states = self._batched_reset(reset_rngs)
 
         # Where done, use reset state; otherwise keep new state
