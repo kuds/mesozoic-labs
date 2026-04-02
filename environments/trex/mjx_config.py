@@ -41,7 +41,7 @@ register_species_mjx(
         "tail_5": 0.05,  # tail_5 capsule radius=0.035 + margin
     },
     termination_site_heights={
-        "head_tip": 0.20,  # snout tip — terminates nose-balancing (tip is ~0.48m from skull origin)
+        "head_tip": 0.12,  # snout tip — terminates nose-balancing (exploit z ~0.06, natural droop reaches ~0.15 at step 100)
     },
     # Stage 3 success: head_tip site proximity to prey.
     # Gated by reward_weights["bite_bonus"] — inactive when 0 (stages 1-2).

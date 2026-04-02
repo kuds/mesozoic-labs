@@ -487,7 +487,7 @@ class TRexEnv(BaseDinoEnv):
         # This catches nose-balancing that geom contact detection may miss
         head_tip_z = self.data.site_xpos[self.head_tip_site_id, 2]
         info["head_tip_z"] = head_tip_z
-        if head_tip_z < 0.20:
+        if head_tip_z < 0.12:
             info["termination_reason"] = "head_contact"
             return True, info
 
