@@ -172,6 +172,7 @@ class TRexEnv(BaseDinoEnv):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
         # Body IDs
         self.pelvis_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
+        self.skull_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "skull")
 
         # Geom IDs for contact detection
         self.prey_geom_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "prey_geom")
@@ -478,8 +479,22 @@ class TRexEnv(BaseDinoEnv):
         # Nosedive termination
         forward_z = self._quat_to_forward_z(pelvis_quat)
         info["forward_z"] = forward_z
-        if forward_z < self._natural_forward_z - 0.5:
+        if forward_z < self._natural_forward_z - self.nosedive_termination_threshold:
             info["termination_reason"] = "nosedive"
+            return True, info
+
+        # Site-height termination: snout tip must stay above threshold
+        # This catches nose-balancing that geom contact detection may miss
+        head_tip_z = self.data.site_xpos[self.head_tip_site_id, 2]
+        info["head_tip_z"] = head_tip_z
+        if head_tip_z < 0.20:
+            info["termination_reason"] = "head_contact"
+            return True, info
+
+        # Body-height termination: skull origin must stay above threshold
+        skull_z = self.data.xpos[self.skull_body_id, 2]
+        if skull_z < 0.45:
+            info["termination_reason"] = "skull_low"
             return True, info
 
         # Check contacts: head-prey (success)
