@@ -381,7 +381,9 @@ class JaxTrainer:
                 done_np = np.array(rollout_dones)
                 fall_rate = float(done_np.sum()) / (self.rollout_len * self.num_envs)
                 completed_returns, completed_lengths = compute_episode_stats(
-                    rew_np, done_np, ep_stats_acc,
+                    rew_np,
+                    done_np,
+                    ep_stats_acc,
                 )
                 if completed_returns:
                     mean_ep_return = float(np.mean(completed_returns))

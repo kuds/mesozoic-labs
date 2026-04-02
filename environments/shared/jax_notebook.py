@@ -132,7 +132,7 @@ class SpeciesContext:
     @property
     def success_sites(self) -> tuple[str, ...]:
         if self.env_config and self.stage >= 3:
-            return self.env_config.success_sites
+            return tuple(self.env_config.success_sites)
         return ()
 
     @property
@@ -181,16 +181,21 @@ def setup_species(species: str, stage: int = 1) -> SpeciesContext:
     mj_model = mujoco.MjModel.from_xml_path(model_path)
 
     # Resolve body/geom IDs
-    root_body_name = next(iter(
-        # MJX config registers body_ids as e.g. {"pelvis": 1}
-        # but we want the name to look up from the model directly
-        k for k in _get_registered_body_ids(species)
-    ), "pelvis")
+    root_body_name = next(
+        iter(
+            # MJX config registers body_ids as e.g. {"pelvis": 1}
+            # but we want the name to look up from the model directly
+            k
+            for k in _get_registered_body_ids(species)
+        ),
+        "pelvis",
+    )
     root_body_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, root_body_name)
     floor_geom_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
 
     # Resolve termination checks
     from .mjx_env import _SPECIES_CONFIGS
+
     species_kw = _SPECIES_CONFIGS.get(species, {})
 
     term_body_heights = species_kw.get("termination_body_heights", {})
@@ -261,8 +266,13 @@ def setup_species(species: str, stage: int = 1) -> SpeciesContext:
 
     _logger.info(
         "%s stage %d (%s): obs=%d act=%d root=%s(%d)",
-        species, stage, stage_name, ctx.obs_dim, ctx.act_dim,
-        root_body_name, root_body_id,
+        species,
+        stage,
+        stage_name,
+        ctx.obs_dim,
+        ctx.act_dim,
+        root_body_name,
+        root_body_id,
     )
 
     return ctx
@@ -272,7 +282,8 @@ def _get_registered_body_ids(species: str) -> dict[str, int]:
     """Get registered body_ids for a species from MJX config."""
     from .mjx_env import _SPECIES_CONFIGS
 
-    return _SPECIES_CONFIGS.get(species, {}).get("body_ids", {"pelvis": 1})
+    result: dict[str, int] = _SPECIES_CONFIGS.get(species, {}).get("body_ids", {"pelvis": 1})
+    return result
 
 
 def setup_output_dirs(
@@ -422,11 +433,8 @@ def make_reward_fns(ctx: SpeciesContext):
     Returns:
         ``(compute_reward, compute_reward_detailed, is_terminated)`` tuple.
     """
-    from .jax_reward_termination import (
-        compute_reward_components,
-        compute_total_reward,
-        is_terminated as is_terminated_fn,
-    )
+    from .jax_reward_termination import compute_reward_components, compute_total_reward
+    from .jax_reward_termination import is_terminated as is_terminated_fn
 
     reward_kw = dict(
         root_body_id=ctx.root_body_id,
@@ -483,7 +491,7 @@ def run_stage_evaluation(
     best_update: int = -1,
     total_steps: int = 0,
     elapsed: float = 0.0,
-) -> tuple[Any, dict[str, Any]]:
+) -> tuple[Any, dict[str, Any], bool, list[str]]:
     """Run stage gate evaluation and build stage results dict.
 
     Replaces notebook cell 25 (~127 lines) with a single call.
@@ -504,13 +512,12 @@ def run_stage_evaluation(
     Returns:
         ``(eval_results, stage_results)`` tuple.
     """
+    import jax
     import numpy as np
 
     from .config import load_stage_config
     from .jax_eval import EvalConfig, check_stage_gate, evaluate_policy_cpu
     from .jax_normalization import normalize_obs
-
-    import jax
 
     get_obs = make_obs_fn(ctx)
     scale_action = make_scale_action_fn(ctx)
@@ -539,7 +546,10 @@ def run_stage_evaluation(
     foot_indices = tuple(ctx.sensor_layout.foot_indices)
 
     eval_results = evaluate_policy_cpu(
-        ctx.mj_model, eval_params, network, obs_rms,
+        ctx.mj_model,
+        eval_params,
+        network,
+        obs_rms,
         get_obs_fn=get_obs,
         normalize_obs_fn=normalize_obs,
         scale_action_fn=scale_action,
@@ -555,7 +565,9 @@ def run_stage_evaluation(
     gate_min_reward = curriculum.get("min_avg_reward", -float("inf"))
     gate_min_length = curriculum.get("min_avg_episode_length", 0)
     gate_passed, gate_failures = check_stage_gate(
-        eval_results, gate_min_reward, gate_min_length,
+        eval_results,
+        gate_min_reward,
+        gate_min_length,
     )
 
     num_envs = env.num_envs
@@ -582,7 +594,9 @@ def run_stage_evaluation(
         "best_model_length": round(eval_results.mean_length, 1),
         "best_model_std_length": round(eval_results.std_length, 1),
         "best_model_fwd_vel": round(eval_results.mean_forward_vel, 3),
-        "best_model_std_fwd_vel": round(float(np.std(eval_results.forward_vels)) if eval_results.forward_vels else 0.0, 3),
+        "best_model_std_fwd_vel": round(
+            float(np.std(eval_results.forward_vels)) if eval_results.forward_vels else 0.0, 3
+        ),
         "best_model_distance": round(eval_results.mean_distance, 2),
         "best_model_n_episodes": n_episodes,
         "gate_passed": gate_passed,
