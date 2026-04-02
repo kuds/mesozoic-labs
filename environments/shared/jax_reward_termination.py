@@ -18,6 +18,7 @@ from .reward_functions import (
     check_height_tilt_termination,
     check_nosedive_termination,
     quat_to_forward_z,
+    quat_to_forward_2d,
     quat_to_tilt,
     reward_action_smoothness,
     reward_alive,
@@ -25,6 +26,7 @@ from .reward_functions import (
     reward_drift_penalty,
     reward_energy,
     reward_forward_velocity,
+    reward_heading_alignment,
     reward_height_maintenance,
     reward_nosedive,
     reward_posture,
@@ -52,6 +54,8 @@ def compute_total_reward(
     sensor_quat_start: int = 6,
     sensor_gyro_start: int = 0,
     foot_indices: tuple[int, ...] = (10, 11),
+    prev_action: Array | None = None,
+    sensor_tail_gyro_start: int | None = None,
 ) -> Array:
     """Compute total scalar reward matching ``mjx_env.py`` step logic.
 
@@ -126,9 +130,24 @@ def compute_total_reward(
 
     smoothness_w = reward_cfg.get("smoothness_weight", 0.0)
     if smoothness_w > 0:
-        # prev_action unavailable here — approximate with zeros (small term)
-        r_sm, _ = reward_action_smoothness(action, jnp.zeros_like(action), n_actuators, smoothness_w)
+        smooth_ref = prev_action if prev_action is not None else jnp.zeros_like(action)
+        r_sm, _ = reward_action_smoothness(action, smooth_ref, n_actuators, smoothness_w)
         total = total + r_sm
+
+    # Tail stability: penalise tail tip angular velocity
+    tail_w = reward_cfg.get("tail_stability_weight", 0.0)
+    if tail_w > 0 and sensor_tail_gyro_start is not None:
+        tail_angvel = data.sensordata[sensor_tail_gyro_start : sensor_tail_gyro_start + 3]
+        r_tail, _ = reward_angular_velocity_penalty(tail_angvel, tail_w)
+        total = total + r_tail
+
+    # Heading alignment: reward facing the forward direction
+    heading_w = reward_cfg.get("heading_weight", 0.0)
+    if heading_w > 0:
+        body_fwd_2d = quat_to_forward_2d(root_quat)
+        forward_dir = jnp.array([1.0, 0.0])
+        r_heading, _ = reward_heading_alignment(body_fwd_2d, forward_dir, heading_w)
+        total = total + r_heading
 
     return total
 
@@ -146,6 +165,8 @@ def compute_reward_components(
     sensor_quat_start: int = 6,
     sensor_gyro_start: int = 0,
     foot_indices: tuple[int, ...] = (10, 11),
+    prev_action: Array | None = None,
+    sensor_tail_gyro_start: int | None = None,
 ) -> dict[str, Array]:
     """Compute per-component reward breakdown for diagnostics.
 
@@ -218,8 +239,22 @@ def compute_reward_components(
 
     smoothness_w = reward_cfg.get("smoothness_weight", 0.0)
     if smoothness_w > 0:
-        r_sm, _ = reward_action_smoothness(action, jnp.zeros_like(action), n_actuators, smoothness_w)
+        smooth_ref = prev_action if prev_action is not None else jnp.zeros_like(action)
+        r_sm, _ = reward_action_smoothness(action, smooth_ref, n_actuators, smoothness_w)
         components["smoothness"] = r_sm
+
+    tail_w = reward_cfg.get("tail_stability_weight", 0.0)
+    if tail_w > 0 and sensor_tail_gyro_start is not None:
+        tail_angvel = data.sensordata[sensor_tail_gyro_start : sensor_tail_gyro_start + 3]
+        r_tail, _ = reward_angular_velocity_penalty(tail_angvel, tail_w)
+        components["tail_stability"] = r_tail
+
+    heading_w = reward_cfg.get("heading_weight", 0.0)
+    if heading_w > 0:
+        body_fwd_2d = quat_to_forward_2d(root_quat)
+        forward_dir = jnp.array([1.0, 0.0])
+        r_heading, _ = reward_heading_alignment(body_fwd_2d, forward_dir, heading_w)
+        components["heading"] = r_heading
 
     # Diagnostic state variables
     components["_pelvis_z"] = pelvis_z
