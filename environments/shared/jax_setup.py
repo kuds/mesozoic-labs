@@ -1,14 +1,14 @@
-"""Notebook and Docker helpers for JAX/MJX training.
+"""High-level setup helpers for JAX/MJX training.
 
 Provides high-level setup functions that replace hundreds of lines of
-inline notebook code.  These helpers wire together the existing library
-modules (``config``, ``mjx_env``, ``jax_ppo``, ``jax_eval``, etc.) so
-that a Colab notebook or Docker script can set up and run training in
-a handful of calls.
+boilerplate.  These helpers wire together the existing library modules
+(``config``, ``mjx_env``, ``jax_ppo``, ``jax_eval``, etc.) so that a
+notebook, Docker script, or any other caller can set up and run
+training in a handful of calls.
 
-Usage (notebook)::
+Usage::
 
-    from environments.shared.jax_notebook import (
+    from environments.shared.jax_setup import (
         setup_species,
         setup_training,
         setup_output_dirs,
