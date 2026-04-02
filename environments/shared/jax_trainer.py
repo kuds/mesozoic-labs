@@ -317,9 +317,9 @@ def train(
     from .jax_ppo import compute_gae
     from .jax_training_utils import (
         EpisodeStatsAccumulator,
+        RolloutProfiler,
         StabilityMonitor,
         TrainingCSVLogger,
-        RolloutProfiler,
         compute_episode_stats,
     )
     from .reporting import format_duration
@@ -647,7 +647,7 @@ def train(
     _pct_rollout = 100 * _cum_t_rollout / elapsed if elapsed > 0 else 0
     _pct_ppo = 100 * _cum_t_ppo / elapsed if elapsed > 0 else 0
     _pct_other = 100 - _pct_rollout - _pct_ppo
-    print(f"\nTiming breakdown:")
+    print("\nTiming breakdown:")
     print(f"  Rollout (MJX physics): {_cum_t_rollout:7.1f}s  ({_pct_rollout:4.1f}%)")
     print(f"  PPO updates:           {_cum_t_ppo:7.1f}s  ({_pct_ppo:4.1f}%)")
     print(f"  Other (GAE/IO/log):    {elapsed - _cum_t_rollout - _cum_t_ppo:7.1f}s  ({_pct_other:4.1f}%)")
