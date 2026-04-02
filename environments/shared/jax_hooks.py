@@ -214,10 +214,13 @@ class BestModelHook:
         self.best_update: int = -1
 
     def on_update_end(self, state: TrainerState, metrics: dict[str, float]) -> None:
-        import jax
-
         value = metrics.get(self.metric_key, -float("inf"))
         if value > self.best_reward:
             self.best_reward = value
-            self.best_params = jax.device_get(state.params)
+            try:
+                import jax
+
+                self.best_params = jax.device_get(state.params)
+            except ImportError:
+                self.best_params = state.params
             self.best_update = int(metrics.get("update", state.update))

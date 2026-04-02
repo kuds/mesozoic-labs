@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from environments.shared.jax_hooks import LoggingHook, StabilityHook
+from environments.shared.jax_hooks import BestModelHook, CSVLoggingHook, LoggingHook, StabilityHook
 from environments.shared.jax_trainer import JaxTrainer, StopTraining, TrainerState
 
 
@@ -20,6 +20,11 @@ class TestTrainerState:
         assert state.update == 0
         assert state.total_steps == 0
         assert state.history == []
+        assert state.reward_history == []
+        assert state.loss_history == []
+        assert state.episode_return_history == []
+        assert state.t_rollout_cumulative == 0.0
+        assert state.t_ppo_cumulative == 0.0
 
     def test_history_is_independent(self):
         s1 = TrainerState(
@@ -37,7 +42,9 @@ class TestTrainerState:
             rng=None,
         )
         s1.history.append({"x": 1})
+        s1.reward_history.append(1.0)
         assert len(s2.history) == 0
+        assert len(s2.reward_history) == 0
 
 
 class TestStopTraining:
@@ -191,3 +198,64 @@ class TestTrainingHookProtocol:
         assert not hook.called
         trainer._dispatch("on_train_end", None)
         assert hook.called
+
+
+class TestBestModelHook:
+    def test_tracks_improvement(self):
+        hook = BestModelHook(metric_key="mean_reward")
+        state = TrainerState(
+            params={"w": 1.0},
+            opt_state=None,
+            obs_stats=None,
+            env_states=None,
+            rng=None,
+            update=0,
+        )
+        hook.on_update_end(state, {"update": 0, "mean_reward": 1.0})
+        assert hook.best_reward == 1.0
+        assert hook.best_update == 0
+
+        state.params = {"w": 2.0}
+        hook.on_update_end(state, {"update": 5, "mean_reward": 2.0})
+        assert hook.best_reward == 2.0
+        assert hook.best_update == 5
+
+    def test_ignores_regression(self):
+        hook = BestModelHook()
+        state = TrainerState(
+            params={"w": 1.0},
+            opt_state=None,
+            obs_stats=None,
+            env_states=None,
+            rng=None,
+        )
+        hook.on_update_end(state, {"update": 0, "mean_reward": 5.0})
+        hook.on_update_end(state, {"update": 1, "mean_reward": 3.0})
+        assert hook.best_reward == 5.0
+        assert hook.best_update == 0
+
+
+class TestCSVLoggingHook:
+    def test_creates_and_writes(self, tmp_path):
+        csv_path = tmp_path / "log.csv"
+        hook = CSVLoggingHook(path=csv_path)
+        state = TrainerState(
+            params=None,
+            opt_state=None,
+            obs_stats=None,
+            env_states=None,
+            rng=None,
+            update=0,
+            total_steps=1000,
+        )
+        hook.on_update_end(state, {"update": 0, "mean_reward": 1.5, "fps": 500.0})
+        hook.on_train_end(state)
+        assert csv_path.exists()
+        content = csv_path.read_text()
+        assert "update" in content
+        assert "1.5" in content
+
+    def test_path_property(self, tmp_path):
+        csv_path = tmp_path / "log2.csv"
+        hook = CSVLoggingHook(path=csv_path)
+        assert hook.path == csv_path
