@@ -75,7 +75,9 @@ class CheckpointHook:
     ):
         self.interval = interval
         self._manager = CheckpointManager(
-            directory=directory, prefix=prefix, max_keep=max_keep,
+            directory=directory,
+            prefix=prefix,
+            max_keep=max_keep,
         )
 
     def on_update_end(self, state: TrainerState, metrics: dict[str, float]) -> None:
