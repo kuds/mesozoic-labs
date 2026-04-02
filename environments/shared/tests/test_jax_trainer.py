@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from environments.shared.jax_trainer import JaxTrainer, StopTraining, TrainerState
 from environments.shared.jax_hooks import LoggingHook, StabilityHook
+from environments.shared.jax_trainer import JaxTrainer, StopTraining, TrainerState
 
 
 class TestTrainerState:
