@@ -11,6 +11,7 @@ from environments.shared.reporting import (
     build_stage_results_from_eval_data,
     format_duration,
     format_duration_hms,
+    save_jax_stage_artifacts,
     save_results_json,
     write_results_csv,
     write_stage_summary,
@@ -605,3 +606,184 @@ class TestBuildStageResultsFromEvalData:
         assert result["mean_reward"] == 0.0
         assert result["best_eval_reward"] == ""
         assert result["duration_seconds"] == 0.0
+
+
+# ── save_jax_stage_artifacts ─────────────────────────────────────────────
+
+
+class _FakeEvalResults:
+    """Minimal stand-in for jax_eval.EvalResults."""
+
+    def __init__(self):
+        self.diag_tilt = [0.1, 0.2, 0.15]
+        self.diag_fwd_vel = [0.5, 0.6, 0.55]
+        self.diag_pelvis_h = [0.7, 0.72, 0.71]
+        self.diag_energy = [0.01, 0.02, 0.015]
+        self.diag_l_foot = [1.0, 0.0, 1.0]
+        self.diag_r_foot = [0.0, 1.0, 0.0]
+        self.diag_reward_components = {
+            "forward": [0.3, 0.4, 0.35],
+            "alive": [0.1, 0.1, 0.1],
+        }
+
+
+class TestSaveJaxStageArtifacts:
+    """Tests for save_jax_stage_artifacts."""
+
+    def _call(self, tmp_path, **overrides):
+        stage_dir = tmp_path / "stage1"
+        stage_dir.mkdir()
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+
+        stage_config = {
+            "name": "Balance",
+            "description": "Stand upright",
+            "env_kwargs": {"forward_vel_weight": 1.0},
+            "curriculum_kwargs": {"min_avg_reward": 50.0},
+        }
+        stage_results = _make_stage_result(
+            stage=1,
+            model_path=str(stage_dir / "models" / "best_model.pkl"),
+            best_eval_reward=55.0,
+            best_eval_timestep=50000,
+            mean_distance_traveled=2.5,
+        )
+
+        kwargs = dict(
+            species="velociraptor",
+            stage=1,
+            stage_config=stage_config,
+            stage_results=stage_results,
+            stage_dir=stage_dir,
+            run_dir=run_dir,
+            eval_results=_FakeEvalResults(),
+            params={"dense": [1.0, 2.0]},
+            obs_rms=None,
+            seed=42,
+            num_envs=2048,
+            reward_cfg={"forward_vel_weight": 1.0},
+            best_params={"dense": [3.0, 4.0]},
+            best_reward=55.0,
+            best_update=10,
+        )
+        kwargs.update(overrides)
+        return save_jax_stage_artifacts(**kwargs), stage_dir, run_dir
+
+    def test_returns_all_artifact_paths(self, tmp_path):
+        paths, _, _ = self._call(tmp_path)
+        expected_keys = {
+            "stage_summary",
+            "stage_config",
+            "collected_results_csv",
+            "diagnostics",
+            "best_model",
+            "final_model",
+            "training_summary",
+        }
+        assert set(paths.keys()) == expected_keys
+
+    def test_all_files_exist(self, tmp_path):
+        paths, _, _ = self._call(tmp_path)
+        for name, path in paths.items():
+            assert path.exists(), f"{name} not found at {path}"
+
+    def test_stage_summary_content(self, tmp_path):
+        paths, _, _ = self._call(tmp_path)
+        text = paths["stage_summary"].read_text()
+        assert "Velociraptor" in text
+        assert "Stage 1" in text
+
+    def test_stage_config_json(self, tmp_path):
+        paths, _, _ = self._call(tmp_path)
+        data = json.loads(paths["stage_config"].read_text())
+        assert data["species"] == "velociraptor"
+        assert data["stage"] == 1
+        assert data["algorithm"] == "JAX_PPO"
+
+    def test_collected_results_csv(self, tmp_path):
+        paths, _, _ = self._call(tmp_path)
+        with open(paths["collected_results_csv"]) as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 1
+        assert rows[0]["species"] == "velociraptor"
+        assert rows[0]["algorithm"] == "jax_ppo"
+
+    def test_diagnostics_npz(self, tmp_path):
+        import numpy as np
+
+        paths, _, _ = self._call(tmp_path)
+        data = np.load(paths["diagnostics"])
+        assert "tilt_angle" in data
+        assert "forward_vel" in data
+        assert "l_foot_contact" in data
+        assert "reward_forward" in data
+
+    def test_diagnostics_npz_no_foot_data(self, tmp_path):
+        import numpy as np
+
+        eval_results = _FakeEvalResults()
+        eval_results.diag_l_foot = []
+        eval_results.diag_r_foot = []
+
+        paths, _, _ = self._call(tmp_path, eval_results=eval_results)
+        data = np.load(paths["diagnostics"])
+        assert "tilt_angle" in data
+        assert "l_foot_contact" not in data
+
+    def test_best_model_checkpoint(self, tmp_path):
+        import pickle
+
+        paths, _, _ = self._call(tmp_path)
+        with open(paths["best_model"], "rb") as f:
+            ckpt = pickle.load(f)  # noqa: S301
+        assert ckpt["params"] == {"dense": [3.0, 4.0]}
+        assert ckpt["best_reward"] == 55.0
+
+    def test_final_model_checkpoint(self, tmp_path):
+        import pickle
+
+        paths, _, _ = self._call(tmp_path)
+        with open(paths["final_model"], "rb") as f:
+            ckpt = pickle.load(f)  # noqa: S301
+        assert ckpt["params"] == {"dense": [1.0, 2.0]}
+
+    def test_training_summary_content(self, tmp_path):
+        paths, _, _ = self._call(tmp_path)
+        text = paths["training_summary"].read_text()
+        assert "Velociraptor" in text
+        assert "JAX/MJX PPO" in text
+
+    def test_csv_appends_across_stages(self, tmp_path):
+        """Running for two stages appends to the same CSV."""
+        paths1, stage_dir, run_dir = self._call(tmp_path)
+
+        stage2_dir = tmp_path / "stage2"
+        stage2_dir.mkdir()
+        stage_config2 = {
+            "name": "Locomotion",
+            "description": "Walk forward",
+            "env_kwargs": {},
+            "curriculum_kwargs": {},
+        }
+        stage_results2 = _make_stage_result(
+            stage=2,
+            model_path=str(stage2_dir / "models" / "best_model.pkl"),
+        )
+        save_jax_stage_artifacts(
+            species="velociraptor",
+            stage=2,
+            stage_config=stage_config2,
+            stage_results=stage_results2,
+            stage_dir=stage2_dir,
+            run_dir=run_dir,
+            eval_results=_FakeEvalResults(),
+            params={"dense": [5.0]},
+            obs_rms=None,
+        )
+
+        with open(run_dir / "collected_results.csv") as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 2
+        assert rows[0]["stage"] == "1"
+        assert rows[1]["stage"] == "2"
