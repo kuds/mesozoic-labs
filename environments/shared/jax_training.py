@@ -2,8 +2,8 @@
 
 This module is the JAX equivalent of ``train_base.py``.  It loads the
 species + stage configuration from TOML files, creates an MJX batched
-environment, runs a JIT-compiled PPO training loop, and optionally logs
-to Weights & Biases.
+environment, runs a JIT-compiled PPO training loop via
+:class:`~jax_trainer.JaxTrainer`, and optionally logs to Weights & Biases.
 
 Usage::
 
@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import time
 from typing import Any
 
 from .mjx_utils import check_jax
@@ -51,7 +50,8 @@ def train_jax(
 ) -> tuple[Any, dict[str, float]]:
     """Train a species with JAX/MJX PPO.
 
-    Loads config from TOML, creates MJX env, runs PPO training loop.
+    Loads config from TOML, creates MJX env, runs PPO training loop
+    via :class:`~jax_trainer.JaxTrainer`.
 
     Args:
         species: One of ``"trex"``, ``"velociraptor"``, ``"brachiosaurus"``.
@@ -82,18 +82,15 @@ def train_jax(
     """
     check_jax()
 
-    import jax
-    import jax.numpy as jnp
-
-    from .jax_normalization import RunningMeanStd, normalize_obs, update_running_stats
-    from .jax_ppo import PPOConfig, compute_gae, make_actor_critic, make_optimizer, ppo_update, sample_action
+    from .jax_hooks import CheckpointHook, LoggingHook
+    from .jax_ppo import PPOConfig, make_actor_critic, make_optimizer
+    from .jax_trainer import JaxTrainer
     from .mjx_env import MJXDinoEnv
 
     # Import species config to trigger registration
     _import_species_config(species)
 
     _logger.info("species=%s stage=%d num_envs=%d", species, stage, num_envs)
-    _logger.info("device: %s", jax.devices()[0])
 
     # Create environment with TOML-derived reward weights
     env = MJXDinoEnv(species, stage=stage, num_envs=num_envs, env_kwargs=env_kwargs)
@@ -114,157 +111,37 @@ def train_jax(
     )
 
     # Create network and optimizer
-    rng = jax.random.PRNGKey(seed)
-    rng, init_rng = jax.random.split(rng)
-
     network = make_actor_critic(env.action_dim)
-    dummy_obs = jnp.zeros(env.mj_model.nq - 7 + env.mj_model.nv - 6 + 17)  # approximate obs dim
-    params = network.init(init_rng, dummy_obs) if init_params is None else init_params
     optimizer = make_optimizer(ppo_config)
-    opt_state = optimizer.init(params)
 
-    # Running observation normalisation
-    obs_dim = dummy_obs.shape[0]
-    obs_stats = RunningMeanStd.create(obs_dim)
+    # Assemble hooks
+    hooks: list[Any] = [LoggingHook(interval=10, num_updates=num_updates)]
 
-    # Reset environments
-    rng, reset_rng = jax.random.split(rng)
-    states = env.reset(reset_rng)
-
-    # ---- JIT-compiled rollout collector (params & obs_stats as args, not closures) ----
-    @jax.jit
-    def _collect_rollout(states, rng, params, obs_stats_arg):
-        def step_fn(carry, _):
-            states, rng = carry
-            rng, action_rng = jax.random.split(rng)
-
-            obs = normalize_obs(states.obs, obs_stats_arg)
-            action, log_prob, value = jax.vmap(
-                sample_action,
-                in_axes=(None, None, 0, 0),
-            )(params, network, obs, jax.random.split(action_rng, num_envs))
-
-            rng, step_rng = jax.random.split(rng)
-            new_states, rewards, terminated, truncated = env.step(states, action, step_rng)
-            dones = (terminated | truncated).astype(jnp.float32)
-
-            # Return raw observations so the caller can update RunningMeanStd
-            # correctly (normalised obs would corrupt the running statistics).
-            return (new_states, rng), (states.obs, action, log_prob, value, rewards, dones)
-
-        return jax.lax.scan(step_fn, (states, rng), None, length=rollout_len)
-
-    # ---- JIT-compiled PPO updater with KL early stopping ----
-    @jax.jit
-    def _scan_ppo_update(params, opt_state, batch, rng):
-        def epoch_fn(carry, _):
-            params, opt_state, rng, kl_exceeded = carry
-            # Run the update but keep old params/opt_state if KL was exceeded
-            new_params, new_opt_state, loss_info = ppo_update(params, opt_state, optimizer, network, batch, ppo_config)
-            approx_kl = loss_info["approx_kl"]
-
-            # Check KL threshold (skip further updates if exceeded)
-            use_target_kl = ppo_config.target_kl is not None
-            kl_over = use_target_kl & (approx_kl > ppo_config.target_kl)
-            should_skip = kl_exceeded | kl_over
-
-            # Conditionally apply update
-            out_params = jax.tree.map(
-                lambda new, old: jnp.where(should_skip, old, new),
-                new_params,
-                params,
+    if checkpoint_dir:
+        hooks.append(
+            CheckpointHook(
+                directory=checkpoint_dir,
+                prefix=f"{species}_s{stage}",
+                interval=50,
             )
-            out_opt_state = jax.tree.map(
-                lambda new, old: jnp.where(should_skip, old, new) if hasattr(new, "shape") else new,
-                new_opt_state,
-                opt_state,
-            )
-
-            return (out_params, out_opt_state, rng, should_skip), loss_info
-
-        init_carry = (params, opt_state, rng, jnp.bool_(False))
-        (params, opt_state, _, _), all_info = jax.lax.scan(epoch_fn, init_carry, None, length=ppo_config.n_epochs)
-        return params, opt_state
-
-    # Training loop
-    total_steps = 0
-    history: list[dict[str, float]] = []
-
-    t0 = time.time()
-    _logger.info("Compiling scan functions (first update only)...")
-    for update in range(num_updates):
-        # Collect rollout via jax.lax.scan (fully on-device, compiled once)
-        rng, collect_rng = jax.random.split(rng)
-        (states, _), rollout_data = _collect_rollout(states, collect_rng, params, obs_stats)
-        rollout_obs, rollout_actions, rollout_log_probs, rollout_values, rollout_rewards, rollout_dones = rollout_data
-
-        total_steps += num_envs * rollout_len
-
-        # Update obs stats with raw (unnormalized) observations
-        obs_stats = update_running_stats(obs_stats, rollout_obs.reshape(-1, obs_dim))
-
-        # Normalize raw observations for PPO training
-        rollout_obs_norm = normalize_obs(rollout_obs.reshape(-1, obs_dim), obs_stats)
-
-        # Bootstrap value
-        rng, bootstrap_rng = jax.random.split(rng)
-        final_obs = normalize_obs(states.obs, obs_stats)
-        _, _, bootstrap_value = jax.vmap(
-            lambda o, r: sample_action(params, network, o, r),
-        )(final_obs, jax.random.split(bootstrap_rng, num_envs))
-
-        # Stack and compute GAE
-        rollout_values_arr = jnp.concatenate([rollout_values, bootstrap_value[None]], axis=0)
-
-        advantages, returns = compute_gae(
-            rollout_rewards, rollout_values_arr, rollout_dones, ppo_config.gamma, ppo_config.gae_lambda
         )
 
-        # Flatten rollout for minibatch updates
-        batch = {
-            "obs": rollout_obs_norm,
-            "action": rollout_actions.reshape(-1, env.action_dim),
-            "old_log_prob": rollout_log_probs.reshape(-1),
-            "advantage": advantages.reshape(-1),
-            "return_": returns.reshape(-1),
-        }
+    # Create trainer and run
+    trainer = JaxTrainer(
+        env=env,
+        network=network,
+        optimizer=optimizer,
+        ppo_config=ppo_config,
+        num_envs=num_envs,
+        rollout_len=rollout_len,
+        hooks=hooks,
+    )
 
-        # PPO update epochs (scanned)
-        rng, ppo_rng = jax.random.split(rng)
-        params, opt_state = _scan_ppo_update(params, opt_state, batch, ppo_rng)
-
-        # Logging
-        mean_reward = float(jnp.mean(rollout_rewards))
-        elapsed = time.time() - t0
-        fps = total_steps / elapsed if elapsed > 0 else 0
-
-        step_info = {
-            "update": update,
-            "total_steps": total_steps,
-            "mean_reward": mean_reward,
-            "fps": fps,
-        }
-        history.append(step_info)
-
-        if update % 10 == 0:
-            _logger.info(
-                "Update %4d/%d | steps=%s reward=%.2f fps=%.0f",
-                update,
-                num_updates,
-                f"{total_steps:,}",
-                mean_reward,
-                fps,
-            )
-
-    elapsed = time.time() - t0
-    _logger.info("Done. %s steps in %.1fs (%.0f fps)", f"{total_steps:,}", elapsed, total_steps / elapsed)
-
-    eval_metrics = {
-        "mean_reward": float(jnp.mean(jnp.array([h["mean_reward"] for h in history[-10:]]))),
-        "total_steps": total_steps,
-    }
-
-    return params, eval_metrics
+    return trainer.train(
+        num_updates=num_updates,
+        seed=seed,
+        init_params=init_params,
+    )
 
 
 def _import_species_config(species: str) -> None:
