@@ -67,7 +67,8 @@ def compute_total_reward(
 
     # Forward velocity
     r_forward, _ = reward_forward_velocity(
-        vel_2d, forward_dir,
+        vel_2d,
+        forward_dir,
         reward_cfg.get("forward_vel_max", 8.0),
         reward_cfg.get("forward_vel_weight", 0.0),
     )
@@ -75,7 +76,9 @@ def compute_total_reward(
     # Alive bonus (height-gated, optionally foot-contact-gated)
     raw_alive = reward_alive(reward_cfg.get("alive_bonus", 0.1))
     height_frac = jnp.clip(
-        (pelvis_z - healthy_z_min) / (0.90 - healthy_z_min), 0.0, 1.0,
+        (pelvis_z - healthy_z_min) / (0.90 - healthy_z_min),
+        0.0,
+        1.0,
     )
     foot_contact_gate = reward_cfg.get("foot_contact_gate", 0.0)
     if foot_contact_gate > 0:
@@ -157,14 +160,17 @@ def compute_reward_components(
     root_quat = data.sensordata[sensor_quat_start : sensor_quat_start + 4]
 
     r_forward, _ = reward_forward_velocity(
-        vel_2d, forward_dir,
+        vel_2d,
+        forward_dir,
         reward_cfg.get("forward_vel_max", 8.0),
         reward_cfg.get("forward_vel_weight", 0.0),
     )
 
     raw_alive = reward_alive(reward_cfg.get("alive_bonus", 0.1))
     height_frac = jnp.clip(
-        (pelvis_z - healthy_z_min) / (0.90 - healthy_z_min), 0.0, 1.0,
+        (pelvis_z - healthy_z_min) / (0.90 - healthy_z_min),
+        0.0,
+        1.0,
     )
     has_foot_contact = _check_foot_contact(data, foot_indices)
     foot_contact_gate = reward_cfg.get("foot_contact_gate", 0.0)
@@ -246,12 +252,17 @@ def is_terminated(
     tilt = quat_to_tilt(root_quat)
 
     terminated, _ = check_height_tilt_termination(
-        body_z, tilt, healthy_z_range, max_tilt_angle,
+        body_z,
+        tilt,
+        healthy_z_range,
+        max_tilt_angle,
     )
 
     forward_z = quat_to_forward_z(root_quat)
     nosedive_terminated, _ = check_nosedive_termination(
-        forward_z, natural_forward_z, threshold=nosedive_threshold,
+        forward_z,
+        natural_forward_z,
+        threshold=nosedive_threshold,
     )
     terminated = terminated | nosedive_terminated
 
