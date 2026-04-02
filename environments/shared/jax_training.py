@@ -39,6 +39,7 @@ def train_jax(
     learning_rate: float = 3e-4,
     learning_rate_end: float | None = None,
     clip_range: float = 0.2,
+    vf_clip_range: float | None = None,
     gamma: float = 0.99,
     gae_lambda: float = 0.95,
     ent_coef: float = 0.01,
@@ -66,6 +67,8 @@ def train_jax(
         learning_rate: PPO learning rate.
         learning_rate_end: Final LR for linear decay (None = constant LR).
         clip_range: PPO clip range.
+        vf_clip_range: Clip value function updates to prevent catastrophic
+            value loss spikes.  Set to ``None`` to disable (default).
         gamma: Discount factor.
         gae_lambda: GAE lambda.
         ent_coef: Entropy coefficient.
@@ -100,6 +103,7 @@ def train_jax(
         learning_rate=learning_rate,
         learning_rate_end=learning_rate_end,
         clip_range=clip_range,
+        vf_clip_range=vf_clip_range,
         gamma=gamma,
         gae_lambda=gae_lambda,
         ent_coef=ent_coef,
@@ -198,11 +202,13 @@ def main():
         env_kwargs = stage_config.get("env_kwargs", {})
 
         # Override fall_penalty / noise from [jax] section
+        # Use direct assignment — setdefault is a no-op when [env] already
+        # defines the key, which silently ignores the JAX-specific override.
         if "fall_penalty" in jax_kwargs:
-            env_kwargs.setdefault("fall_penalty", jax_kwargs["fall_penalty"])
+            env_kwargs["fall_penalty"] = jax_kwargs["fall_penalty"]
         for noise_key in ("reset_noise_scale", "init_qpos_noise", "init_yaw_noise"):
             if noise_key in jax_kwargs:
-                env_kwargs.setdefault(noise_key, jax_kwargs[noise_key])
+                env_kwargs[noise_key] = jax_kwargs[noise_key]
 
         train_jax(
             species=args.species,
@@ -218,6 +224,7 @@ def main():
             gamma=jax_kwargs.get("gamma", 0.99),
             gae_lambda=jax_kwargs.get("gae_lambda", 0.95),
             clip_range=jax_kwargs.get("clip_range", 0.2),
+            vf_clip_range=jax_kwargs.get("vf_clip_range"),
             ent_coef=jax_kwargs.get("ent_coef", 0.01),
             max_grad_norm=jax_kwargs.get("max_grad_norm", 0.5),
             n_epochs=jax_kwargs.get("ppo_epochs", 10),
