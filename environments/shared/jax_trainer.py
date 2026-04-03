@@ -488,8 +488,10 @@ def train(
                 rng, rng_act, rng_step = jax.random.split(rng, 3)
 
                 obs = normalize_obs(states.obs, obs_rms)
-                actions, log_probs, values = batched_sample(params, obs, rng_act)
+                raw_actions, log_probs, values = batched_sample(params, obs, rng_act)
 
+                # Clip actions for the environment; store raw actions for PPO
+                actions = jnp.clip(raw_actions, -1.0, 1.0)
                 states, rewards, terminated, truncated = env.step(states, actions, rng_step)
                 dones = terminated | truncated
 
@@ -497,7 +499,7 @@ def train(
                 gae_dones = terminated
 
                 all_obs.append(obs)
-                all_actions.append(actions)
+                all_actions.append(raw_actions)  # raw actions for PPO ratio consistency
                 all_log_probs.append(log_probs)
                 all_values.append(values)
                 all_rewards.append(rewards)
@@ -896,16 +898,18 @@ class JaxTrainer:
                 rng, action_rng = jax.random.split(rng)
 
                 obs = normalize_obs(states.obs, obs_stats_arg)
-                action, log_prob, value = jax.vmap(
+                raw_action, log_prob, value = jax.vmap(
                     sample_action,
                     in_axes=(None, None, 0, 0),
                 )(params, network, obs, jax.random.split(action_rng, num_envs))
 
+                # Clip for env; store raw action for PPO ratio consistency
+                action = jnp.clip(raw_action, -1.0, 1.0)
                 rng, step_rng = jax.random.split(rng)
                 new_states, rewards, terminated, truncated = env.step(states, action, step_rng)
                 dones = (terminated | truncated).astype(jnp.float32)
 
-                return (new_states, rng), (states.obs, action, log_prob, value, rewards, dones)
+                return (new_states, rng), (states.obs, raw_action, log_prob, value, rewards, dones)
 
             return jax.lax.scan(step_fn, (states, rng), None, length=rollout_len)
 
