@@ -64,11 +64,8 @@ gamma = 0.98                            # Match SB3 PPO — shorter horizon for 
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.01
-fall_penalty = -10.0
-reset_noise_scale = 0.05
-init_qpos_noise = 0.01
-init_yaw_noise = 0.1
-
+init_qpos_noise = 0.01                   # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
+init_yaw_noise = 0.1                     # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
 [jax.policy_kwargs]
 net_arch = [512, 256]
 

@@ -29,8 +29,10 @@ from .reward_functions import (
     reward_forward_velocity,
     reward_heading_alignment,
     reward_height_maintenance,
+    reward_lateral_velocity_penalty,
     reward_nosedive,
     reward_posture,
+    reward_proximity,
     reward_speed_penalty,
 )
 
@@ -178,6 +180,25 @@ def compute_total_reward(
         r_heading, _ = reward_heading_alignment(body_fwd_2d, forward_dir, heading_w)
         total = total + r_heading
 
+    # Lateral velocity penalty: penalise crab-walking
+    lateral_w = reward_cfg.get("lateral_penalty_weight", 0.0)
+    if lateral_w > 0:
+        body_fwd_2d_lat = quat_to_forward_2d(root_quat)
+        r_lateral, _ = reward_lateral_velocity_penalty(vel_2d, body_fwd_2d_lat, lateral_w)
+        total = total + r_lateral
+
+    # Head/claw proximity reward: continuous gradient for final positioning
+    proximity_w = reward_cfg.get(
+        "bite_head_proximity_weight",
+        reward_cfg.get("strike_claw_proximity_weight",
+                       reward_cfg.get("food_head_proximity_weight", 0.0)),
+    )
+    if proximity_w > 0 and success_site_positions is not None and target_pos is not None:
+        for i in range(success_site_positions.shape[0]):
+            site_dist = jnp.linalg.norm(success_site_positions[i] - target_pos)
+            r_prox, _ = reward_proximity(site_dist, forward_vel_max, proximity_w)
+            total = total + r_prox
+
     # Success bonus (stage 3 proximity-based contact detection)
     success = jnp.bool_(False)
     if success_bonus > 0 and success_site_positions is not None:
@@ -304,6 +325,12 @@ def compute_reward_components(
         body_fwd_2d = quat_to_forward_2d(root_quat)
         r_heading, _ = reward_heading_alignment(body_fwd_2d, forward_dir, heading_w)
         components["heading"] = r_heading
+
+    lateral_w = reward_cfg.get("lateral_penalty_weight", 0.0)
+    if lateral_w > 0:
+        body_fwd_2d_lat = quat_to_forward_2d(root_quat)
+        r_lateral, _ = reward_lateral_velocity_penalty(vel_2d, body_fwd_2d_lat, lateral_w)
+        components["lateral"] = r_lateral
 
     # Diagnostic state variables
     components["_pelvis_z"] = pelvis_z

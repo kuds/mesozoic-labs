@@ -25,6 +25,7 @@ food_approach_weight = 0.0
 food_head_proximity_weight = 0.0
 food_distance_range = [10.0, 15.0]
 food_height_range = [2.0, 3.0]
+fall_penalty = -50.0                      # Match raptor/trex stage 1 convention; species default -100 is disproportionate for balance task
 max_episode_steps = 1000                  # Match stage 2/3 for consistent episode horizon across curriculum
 reset_noise_scale = 0.05                  # Increased from 0.01 default to improve robustness (matches raptor/trex)
 
@@ -70,11 +71,8 @@ gamma = 0.98                            # Match SB3 PPO — shorter horizon for 
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.01                         # Match SB3 PPO (Brachio uses higher entropy than bipeds)
-fall_penalty = -10.0
-reset_noise_scale = 0.05
-init_qpos_noise = 0.01
-init_yaw_noise = 0.1
-
+init_qpos_noise = 0.01                   # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
+init_yaw_noise = 0.1                     # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
 [jax.policy_kwargs]
 net_arch = [512, 256]
 

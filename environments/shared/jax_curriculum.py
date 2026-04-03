@@ -92,14 +92,10 @@ def run_curriculum(
         # Always pass env_kwargs so reward weights reach the MJX env
         stage_train_kwargs["env_kwargs"] = env_kwargs
 
-        # Override fall_penalty from [jax] section if specified
-        # Use direct assignment — setdefault is a no-op when [env] already
-        # defines the key, which silently ignores the JAX-specific override.
-        if "fall_penalty" in jax_kwargs:
-            env_kwargs["fall_penalty"] = jax_kwargs["fall_penalty"]
-
-        # Carry over reset noise settings from [jax] section
-        for noise_key in ("reset_noise_scale", "init_qpos_noise", "init_yaw_noise"):
+        # Carry over JAX-only env config params (not reward weights) from
+        # [jax] section.  These are MJXEnvConfig fields that SB3 envs don't
+        # accept, so they live in [jax] rather than [env].
+        for noise_key in ("init_qpos_noise", "init_yaw_noise"):
             if noise_key in jax_kwargs:
                 env_kwargs[noise_key] = jax_kwargs[noise_key]
 
