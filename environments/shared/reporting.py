@@ -898,6 +898,7 @@ def save_jax_stage_artifacts(
     logger.info("Models saved: %s, %s", best_model_path, final_model_path)
 
     # 6. Training summary (run-level)
+    stage_results.setdefault("model_path", str(best_model_path))
     training_summary_path = write_training_summary(
         run_dir,
         [stage_results],
