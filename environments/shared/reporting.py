@@ -272,14 +272,15 @@ def write_stage_summary(
             lines.append(f"  Fwd vel:      {bm_vel} +/- {bm_vel_s} m/s")
         if bm_sr != "":
             lines.append(f"  Success rate: {bm_sr:.0%}")
-    _model_path = str(results_dict["model_path"])
-    if not Path(_model_path).suffix:
-        _model_path += ".zip"
-    model_lines = [f"Best model:     {_model_path}"]
-    if "vecnorm_path" in results_dict:
-        model_lines.append(f"VecNormalize:   {results_dict['vecnorm_path']}")
-    model_lines.append("")
-    lines.extend(model_lines)
+    _model_path = results_dict.get("model_path", "")
+    if _model_path:
+        _model_path = str(_model_path)
+        if not Path(_model_path).suffix:
+            _model_path += ".zip"
+        lines.append(f"Best model:     {_model_path}")
+        if "vecnorm_path" in results_dict:
+            lines.append(f"VecNormalize:   {results_dict['vecnorm_path']}")
+        lines.append("")
     summary_text = "\n".join(lines) + "\n"
     summary_path.write_text(summary_text)
     return summary_path
