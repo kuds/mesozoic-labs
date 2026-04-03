@@ -73,8 +73,11 @@ vf_coef = 0.25                          # Reduced from 0.5: prevents value loss 
 vf_clip_range = 10.0                    # Clip value function updates to prevent catastrophic value loss spikes
 ent_coef = 0.005                        # Match SB3 PPO — 0.01 caused entropy to increase and policy std to diverge
 target_kl = 0.05                        # Early-stop PPO epochs when approx KL exceeds this — prevents policy collapse
-init_qpos_noise = 0.01                  # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
-init_yaw_noise = 0.1                    # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
+fall_penalty = -10.0                    # Reduced from -50: large penalties cause value loss to dominate early training (v≈1174 at init → divergence)
+reset_noise_scale = 0.05               # Joint angle perturbation range (radians) at reset
+init_qpos_noise = 0.01                 # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
+init_yaw_noise = 0.1                   # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
+
 [jax.policy_kwargs]
 net_arch = [512, 256]                  # Match SB3 PPO architecture
 
