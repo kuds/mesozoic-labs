@@ -5,7 +5,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Fix #1: log_prob must be computed BEFORE action clipping
 # ---------------------------------------------------------------------------
@@ -66,11 +65,7 @@ class TestSampleActionLogProb:
         # the unclipped sample. For actions well within [-1, 1] (std is
         # initially small from zeros init), clipped == unclipped, so
         # manual computation should match.
-        manual_lp = -0.5 * jnp.sum(
-            jnp.square((action - mean) / (std + 1e-8))
-            + 2.0 * log_std
-            + jnp.log(2.0 * jnp.pi)
-        )
+        manual_lp = -0.5 * jnp.sum(jnp.square((action - mean) / (std + 1e-8)) + 2.0 * log_std + jnp.log(2.0 * jnp.pi))
         # When action is within bounds, clipped == raw, so they must match
         if jnp.all(jnp.abs(action) < 0.99):
             assert float(log_prob) == pytest.approx(float(manual_lp), abs=1e-5)
@@ -84,7 +79,7 @@ class TestSampleActionLogProb:
 class TestActorCriticDefaults:
     def test_default_hidden_dims_match(self):
         """The inner class default should match the outer function default."""
-        jax = pytest.importorskip("jax")
+        pytest.importorskip("jax")
         from environments.shared.jax_ppo import make_actor_critic
 
         network = make_actor_critic(action_dim=3)
@@ -93,7 +88,7 @@ class TestActorCriticDefaults:
 
     def test_custom_hidden_dims_propagated(self):
         """Custom hidden_dims should be passed through correctly."""
-        jax = pytest.importorskip("jax")
+        pytest.importorskip("jax")
         from environments.shared.jax_ppo import make_actor_critic
 
         network = make_actor_critic(action_dim=3, hidden_dims=(64, 32))
@@ -107,7 +102,7 @@ class TestActorCriticDefaults:
 
 class TestMakeOptimizer:
     def test_constant_lr(self):
-        optax = pytest.importorskip("optax")
+        pytest.importorskip("optax")
         from environments.shared.jax_ppo import PPOConfig, make_optimizer
 
         cfg = PPOConfig(learning_rate=1e-3, learning_rate_end=None)
@@ -115,7 +110,7 @@ class TestMakeOptimizer:
         assert opt is not None
 
     def test_linear_decay_lr(self):
-        optax = pytest.importorskip("optax")
+        pytest.importorskip("optax")
         from environments.shared.jax_ppo import PPOConfig, make_optimizer
 
         cfg = PPOConfig(

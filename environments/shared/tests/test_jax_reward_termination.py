@@ -67,7 +67,9 @@ class TestHealthyZMax:
         # With healthy_z_max=1.5, a pelvis at 1.2 should get partial credit
         data = _make_mock_data(pelvis_z=1.2)
         r_high_max = compute_total_reward(
-            data, action, reward_cfg,
+            data,
+            action,
+            reward_cfg,
             root_body_id=1,
             healthy_z_min=0.3,
             healthy_z_max=1.5,
@@ -80,7 +82,9 @@ class TestHealthyZMax:
         # (fully healthy), but with 1.5 it should be partial
         data2 = _make_mock_data(pelvis_z=1.2)
         r_low_max = compute_total_reward(
-            data2, action, reward_cfg,
+            data2,
+            action,
+            reward_cfg,
             root_body_id=1,
             healthy_z_min=0.3,
             healthy_z_max=0.9,
@@ -103,7 +107,9 @@ class TestHealthyZMax:
         data = _make_mock_data(pelvis_z=0.6)
 
         components = compute_reward_components(
-            data, action, reward_cfg,
+            data,
+            action,
+            reward_cfg,
             root_body_id=1,
             healthy_z_min=0.3,
             healthy_z_max=1.5,
@@ -133,7 +139,9 @@ class TestRewardAlignment:
         # Pelvis below healthy_z_min -> terminated
         data = _make_mock_data(pelvis_z=0.1)
         r_with_penalty = compute_total_reward(
-            data, action, reward_cfg,
+            data,
+            action,
+            reward_cfg,
             root_body_id=1,
             healthy_z_min=0.3,
             healthy_z_max=1.5,
@@ -144,7 +152,9 @@ class TestRewardAlignment:
         )
 
         r_without_penalty = compute_total_reward(
-            data, action, reward_cfg,
+            data,
+            action,
+            reward_cfg,
             root_body_id=1,
             healthy_z_min=0.3,
             healthy_z_max=1.5,
@@ -155,9 +165,7 @@ class TestRewardAlignment:
         )
 
         assert float(r_with_penalty) < float(r_without_penalty)
-        assert float(r_with_penalty) == pytest.approx(
-            float(r_without_penalty) - 100.0, abs=0.01
-        )
+        assert float(r_with_penalty) == pytest.approx(float(r_without_penalty) - 100.0, abs=0.01)
 
     def test_no_fall_penalty_when_healthy(self):
         """Fall penalty should NOT be applied when agent is healthy."""
@@ -169,7 +177,9 @@ class TestRewardAlignment:
         # Pelvis well within healthy range
         data = _make_mock_data(pelvis_z=0.8)
         r_with = compute_total_reward(
-            data, action, reward_cfg,
+            data,
+            action,
+            reward_cfg,
             root_body_id=1,
             healthy_z_min=0.3,
             healthy_z_max=1.5,
@@ -179,7 +189,9 @@ class TestRewardAlignment:
             fall_penalty=-100.0,
         )
         r_without = compute_total_reward(
-            data, action, reward_cfg,
+            data,
+            action,
+            reward_cfg,
             root_body_id=1,
             healthy_z_min=0.3,
             healthy_z_max=1.5,
@@ -195,8 +207,7 @@ class TestRewardAlignment:
         from environments.shared.jax_reward_termination import compute_total_reward
 
         action = np.zeros(5)
-        reward_cfg = {"alive_bonus": 0.0, "forward_vel_weight": 0.0,
-                      "approach_weight": 1.0}
+        reward_cfg = {"alive_bonus": 0.0, "forward_vel_weight": 0.0, "approach_weight": 1.0}
 
         # Agent at x=2, target at x=5
         xpos = np.zeros((15, 3))
@@ -205,7 +216,9 @@ class TestRewardAlignment:
         target = jnp.array([5.0, 0.0, 0.5])
 
         r_closer = compute_total_reward(
-            data, action, reward_cfg,
+            data,
+            action,
+            reward_cfg,
             root_body_id=1,
             healthy_z_min=0.3,
             healthy_z_max=1.5,
@@ -219,7 +232,9 @@ class TestRewardAlignment:
         )
 
         r_farther = compute_total_reward(
-            data, action, reward_cfg,
+            data,
+            action,
+            reward_cfg,
             root_body_id=1,
             healthy_z_min=0.3,
             healthy_z_max=1.5,

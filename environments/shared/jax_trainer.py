@@ -569,7 +569,9 @@ def train(
             if config.learning_rate_end is not None and config.learning_rate_end != config.learning_rate:
                 total_lr_steps = config.num_updates * config.ppo_epochs
                 lr_step = min(relative_update * config.ppo_epochs, total_lr_steps)
-                current_lr = config.learning_rate + (config.learning_rate_end - config.learning_rate) * lr_step / total_lr_steps
+                current_lr = (
+                    config.learning_rate + (config.learning_rate_end - config.learning_rate) * lr_step / total_lr_steps
+                )
             else:
                 current_lr = config.learning_rate
 

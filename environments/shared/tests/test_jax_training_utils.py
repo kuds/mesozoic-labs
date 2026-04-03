@@ -15,7 +15,6 @@ from environments.shared.jax_training_utils import (
     compute_episode_stats,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fix #8: learning_rate in CSV fields
 # ---------------------------------------------------------------------------
@@ -30,11 +29,13 @@ class TestCSVFields:
         """CSV logger should accept and write a learning_rate column."""
         path = tmp_path / "test.csv"
         logger = TrainingCSVLogger(path)
-        logger.log({
-            "update": 0,
-            "reward_per_step": "0.1",
-            "learning_rate": "3.00e-04",
-        })
+        logger.log(
+            {
+                "update": 0,
+                "reward_per_step": "0.1",
+                "learning_rate": "3.00e-04",
+            }
+        )
         logger.close()
 
         with open(path) as f:
@@ -136,6 +137,7 @@ class TestCurriculumTomlOverride:
 
         # Patch load_stage_config to return a config with jax_kwargs
         import environments.shared.jax_curriculum as jc
+
         original_load = jc.load_stage_config
 
         def mock_load(species, stage):

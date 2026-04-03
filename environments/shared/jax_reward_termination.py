@@ -119,7 +119,11 @@ def compute_total_reward(
     if approach_w > 0 and target_pos is not None and prev_target_distance is not None:
         target_dist = jnp.linalg.norm(target_pos - pelvis_xpos)
         r_approach, _ = reward_approach_shaping(
-            target_dist, prev_target_distance, approach_w, forward_vel_max, dt,
+            target_dist,
+            prev_target_distance,
+            approach_w,
+            forward_vel_max,
+            dt,
         )
         total = total + r_approach
 
@@ -189,9 +193,7 @@ def compute_total_reward(
         terminated = terminated | (tilt > max_tilt_angle)
         forward_z = quat_to_forward_z(root_quat)
         nosedive_threshold = reward_cfg.get("nosedive_termination_threshold", 0.5)
-        nosedive_terminated, _ = check_nosedive_termination(
-            forward_z, natural_forward_z, threshold=nosedive_threshold
-        )
+        nosedive_terminated, _ = check_nosedive_termination(forward_z, natural_forward_z, threshold=nosedive_threshold)
         terminated = terminated | nosedive_terminated
         total = jnp.where(terminated & ~success, total + fall_penalty, total)
 
