@@ -190,8 +190,7 @@ def compute_total_reward(
     # Head/claw proximity reward: continuous gradient for final positioning
     proximity_w = reward_cfg.get(
         "bite_head_proximity_weight",
-        reward_cfg.get("strike_claw_proximity_weight",
-                       reward_cfg.get("food_head_proximity_weight", 0.0)),
+        reward_cfg.get("strike_claw_proximity_weight", reward_cfg.get("food_head_proximity_weight", 0.0)),
     )
     if proximity_w > 0 and success_site_positions is not None and target_pos is not None:
         for i in range(success_site_positions.shape[0]):

@@ -434,8 +434,7 @@ class MJXDinoEnv:
             # strike_claw_proximity_weight (raptor), food_head_proximity_weight (brachio).
             proximity_w = weights.get(
                 "bite_head_proximity_weight",
-                weights.get("strike_claw_proximity_weight",
-                            weights.get("food_head_proximity_weight", 0.0)),
+                weights.get("strike_claw_proximity_weight", weights.get("food_head_proximity_weight", 0.0)),
             )
             if proximity_w > 0 and success_site_ids and target_pos is not None:
                 for sid in success_site_ids:
