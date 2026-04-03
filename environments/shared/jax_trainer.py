@@ -234,13 +234,13 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
             vf_clip_range=vf_clip_range,
         )
         grad_norm = optax.global_norm(grads)
-        updates, opt_state = optimizer.update(grads, opt_state)
+        updates, opt_state = optimizer.update(grads, opt_state, params)
         params = optax.apply_updates(params, updates)
         return params, opt_state, loss, aux, grad_norm
 
     # --- Fused scan PPO epochs with KL early stopping ---
 
-    @jax.jit
+    @jax.jit(donate_argnums=(0, 1))
     def scan_ppo_epochs(
         params, opt_state, flat_obs, flat_act, flat_lp, flat_adv, flat_ret, flat_val, rng, clip_range, ent_coef
     ):

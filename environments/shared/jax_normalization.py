@@ -54,7 +54,6 @@ def update_running_stats(
     Returns:
         Updated ``RunningMeanStd``.
     """
-    check_jax()
     import jax.numpy as jnp
 
     batch_mean = jnp.mean(batch, axis=0)
@@ -121,7 +120,6 @@ def normalize_obs(
     Returns:
         Normalised observation array.
     """
-    check_jax()
     import jax.numpy as jnp
 
     normed = (obs - stats.mean) / jnp.sqrt(stats.var + 1e-8)
