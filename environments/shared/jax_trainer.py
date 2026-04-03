@@ -240,7 +240,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
 
     # --- Fused scan PPO epochs with KL early stopping ---
 
-    @jax.jit(donate_argnames=("params", "opt_state"))
+    @jax.jit
     def scan_ppo_epochs(
         params, opt_state, flat_obs, flat_act, flat_lp, flat_adv, flat_ret, flat_val, rng, clip_range, ent_coef
     ):
