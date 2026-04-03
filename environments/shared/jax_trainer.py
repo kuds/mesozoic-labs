@@ -59,6 +59,7 @@ class TrainConfig:
     gamma: float = 0.99
     gae_lambda: float = 0.95
     clip_range: float = 0.2
+    vf_coef: float = 0.5
     ent_coef: float = 0.01
     vf_clip_range: float | None = None
     target_kl: float | None = 0.05
@@ -168,6 +169,8 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
     def _sample_action(params, obs, rng):
         return sample_action(params, network, obs, rng)
 
+    VF_COEF = config.vf_coef
+
     def _ppo_loss(
         params,
         obs,
@@ -177,7 +180,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
         returns,
         old_values=None,
         clip_range=0.2,
-        vf_coef=0.5,
+        vf_coef=VF_COEF,
         ent_coef=0.01,
         vf_clip_range=None,
     ):
