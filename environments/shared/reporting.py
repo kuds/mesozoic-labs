@@ -339,15 +339,13 @@ def write_training_summary(
             best_ts = r.get("best_eval_timestep", "")
             ts_label = f"  (at {best_ts:,} steps)" if isinstance(best_ts, int) else ""
             lines.append(f"  Best eval:      {best_r} +/- {best_s}{ts_label}")
-        model_path_str = str(r["model_path"])
-        if not Path(model_path_str).suffix:
-            model_path_str += ".zip"
-        lines.extend(
-            [
-                f"  Best model:     {model_path_str}",
-                "",
-            ]
-        )
+        model_path = r.get("model_path")
+        if model_path is not None:
+            model_path_str = str(model_path)
+            if not Path(model_path_str).suffix:
+                model_path_str += ".zip"
+            lines.append(f"  Best model:     {model_path_str}")
+        lines.append("")
 
     lines.extend(
         [
@@ -900,6 +898,7 @@ def save_jax_stage_artifacts(
     logger.info("Models saved: %s, %s", best_model_path, final_model_path)
 
     # 6. Training summary (run-level)
+    stage_results.setdefault("model_path", str(best_model_path))
     training_summary_path = write_training_summary(
         run_dir,
         [stage_results],
