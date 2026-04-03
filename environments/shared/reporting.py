@@ -339,15 +339,13 @@ def write_training_summary(
             best_ts = r.get("best_eval_timestep", "")
             ts_label = f"  (at {best_ts:,} steps)" if isinstance(best_ts, int) else ""
             lines.append(f"  Best eval:      {best_r} +/- {best_s}{ts_label}")
-        model_path_str = str(r["model_path"])
-        if not Path(model_path_str).suffix:
-            model_path_str += ".zip"
-        lines.extend(
-            [
-                f"  Best model:     {model_path_str}",
-                "",
-            ]
-        )
+        model_path = r.get("model_path")
+        if model_path is not None:
+            model_path_str = str(model_path)
+            if not Path(model_path_str).suffix:
+                model_path_str += ".zip"
+            lines.append(f"  Best model:     {model_path_str}")
+        lines.append("")
 
     lines.extend(
         [
