@@ -23,6 +23,7 @@ from .reward_functions import (
     reward_action_smoothness,
     reward_alive,
     reward_angular_velocity_penalty,
+    reward_approach_shaping,
     reward_drift_penalty,
     reward_energy,
     reward_forward_velocity,
@@ -48,6 +49,7 @@ def compute_total_reward(
     *,
     root_body_id: int,
     healthy_z_min: float,
+    healthy_z_max: float = 2.0,
     max_tilt_angle: float,
     natural_forward_z: float,
     n_actuators: int,
@@ -57,6 +59,14 @@ def compute_total_reward(
     prev_action: Array | None = None,
     sensor_tail_gyro_start: int | None = None,
     forward_ref_2d: Array | None = None,
+    target_pos: Array | None = None,
+    prev_target_distance: Array | None = None,
+    forward_vel_max: float = 8.0,
+    dt: float = 0.01,
+    fall_penalty: float = 0.0,
+    success_site_positions: Array | None = None,
+    success_threshold: float = 0.3,
+    success_bonus: float = 0.0,
 ) -> Array:
     """Compute total scalar reward matching ``mjx_env.py`` step logic.
 
@@ -73,20 +83,21 @@ def compute_total_reward(
     vel_2d = data.qvel[:2]
     forward_dir = forward_ref_2d if forward_ref_2d is not None else jnp.array([1.0, 0.0])
     pelvis_z = data.xpos[root_body_id, 2]
+    pelvis_xpos = data.xpos[root_body_id]
     root_quat = data.sensordata[sensor_quat_start : sensor_quat_start + 4]
 
     # Forward velocity
     r_forward, _ = reward_forward_velocity(
         vel_2d,
         forward_dir,
-        reward_cfg.get("forward_vel_max", 8.0),
+        reward_cfg.get("forward_vel_max", forward_vel_max),
         reward_cfg.get("forward_vel_weight", 0.0),
     )
 
     # Alive bonus (height-gated, optionally foot-contact-gated)
     raw_alive = reward_alive(reward_cfg.get("alive_bonus", 0.1))
     height_frac = jnp.clip(
-        (pelvis_z - healthy_z_min) / (0.90 - healthy_z_min),
+        (pelvis_z - healthy_z_min) / (healthy_z_max - healthy_z_min),
         0.0,
         1.0,
     )
@@ -103,6 +114,15 @@ def compute_total_reward(
 
     total = r_forward + r_alive + r_energy + r_posture
 
+    # Approach shaping (reward moving toward target)
+    approach_w = reward_cfg.get("bite_approach_weight", reward_cfg.get("approach_weight", 0.0))
+    if approach_w > 0 and target_pos is not None and prev_target_distance is not None:
+        target_dist = jnp.linalg.norm(target_pos - pelvis_xpos)
+        r_approach, _ = reward_approach_shaping(
+            target_dist, prev_target_distance, approach_w, forward_vel_max, dt,
+        )
+        total = total + r_approach
+
     # Conditional components (weight > 0 resolved at trace time)
     foot_contact_w = reward_cfg.get("foot_contact_weight", 0.0)
     if foot_contact_w > 0:
@@ -111,7 +131,7 @@ def compute_total_reward(
 
     height_w = reward_cfg.get("height_weight", 0.0)
     if height_w > 0:
-        total = total + reward_height_maintenance(pelvis_z, healthy_z_min, 0.90, height_w)
+        total = total + reward_height_maintenance(pelvis_z, healthy_z_min, healthy_z_max, height_w)
 
     nosedive_w = reward_cfg.get("nosedive_weight", 0.0)
     if nosedive_w > 0:
@@ -154,6 +174,27 @@ def compute_total_reward(
         r_heading, _ = reward_heading_alignment(body_fwd_2d, forward_dir, heading_w)
         total = total + r_heading
 
+    # Success bonus (stage 3 proximity-based contact detection)
+    success = jnp.bool_(False)
+    if success_bonus > 0 and success_site_positions is not None:
+        for i in range(success_site_positions.shape[0]):
+            dist = jnp.linalg.norm(success_site_positions[i] - target_pos)
+            success = success | (dist < success_threshold)
+        total = jnp.where(success, total + success_bonus, total)
+
+    # Fall penalty on termination (but not on success)
+    if fall_penalty != 0.0:
+        tilt = quat_to_tilt(root_quat)
+        terminated = (pelvis_z < healthy_z_min) | (pelvis_z > healthy_z_max)
+        terminated = terminated | (tilt > max_tilt_angle)
+        forward_z = quat_to_forward_z(root_quat)
+        nosedive_threshold = reward_cfg.get("nosedive_termination_threshold", 0.5)
+        nosedive_terminated, _ = check_nosedive_termination(
+            forward_z, natural_forward_z, threshold=nosedive_threshold
+        )
+        terminated = terminated | nosedive_terminated
+        total = jnp.where(terminated & ~success, total + fall_penalty, total)
+
     return total
 
 
@@ -164,6 +205,7 @@ def compute_reward_components(
     *,
     root_body_id: int,
     healthy_z_min: float,
+    healthy_z_max: float = 2.0,
     max_tilt_angle: float,
     natural_forward_z: float,
     n_actuators: int,
@@ -195,7 +237,7 @@ def compute_reward_components(
 
     raw_alive = reward_alive(reward_cfg.get("alive_bonus", 0.1))
     height_frac = jnp.clip(
-        (pelvis_z - healthy_z_min) / (0.90 - healthy_z_min),
+        (pelvis_z - healthy_z_min) / (healthy_z_max - healthy_z_min),
         0.0,
         1.0,
     )
@@ -220,7 +262,7 @@ def compute_reward_components(
 
     height_w = reward_cfg.get("height_weight", 0.0)
     if height_w > 0:
-        components["height"] = reward_height_maintenance(pelvis_z, healthy_z_min, 0.90, height_w)
+        components["height"] = reward_height_maintenance(pelvis_z, healthy_z_min, healthy_z_max, height_w)
 
     nosedive_w = reward_cfg.get("nosedive_weight", 0.0)
     if nosedive_w > 0:

@@ -86,7 +86,7 @@ def run_curriculum(
             "target_kl": "target_kl",
         }
         for toml_key, param_name in _JAX_KEY_MAP.items():
-            if toml_key in jax_kwargs and param_name not in stage_train_kwargs:
+            if toml_key in jax_kwargs:
                 stage_train_kwargs[param_name] = jax_kwargs[toml_key]
 
         # Always pass env_kwargs so reward weights reach the MJX env

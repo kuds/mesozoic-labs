@@ -439,6 +439,7 @@ def make_reward_fns(ctx: SpeciesContext):
     reward_kw = dict(
         root_body_id=ctx.root_body_id,
         healthy_z_min=ctx.healthy_z_range[0],
+        healthy_z_max=ctx.healthy_z_range[1],
         max_tilt_angle=ctx.max_tilt_angle,
         natural_forward_z=ctx.natural_forward_z,
         n_actuators=ctx.mj_model.nu,

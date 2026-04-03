@@ -205,6 +205,7 @@ DEFAULT_CSV_FIELDS: list[str] = [
     "steps",
     "sps",
     "fall_rate",
+    "learning_rate",
     "elapsed",
     "t_rollout",
     "t_ppo",

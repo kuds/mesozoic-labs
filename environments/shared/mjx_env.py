@@ -339,7 +339,7 @@ class MJXDinoEnv:
             # no reward for lying flat or balancing on head/nose
             raw_alive = reward_alive(weights.get("alive_bonus", 0.1))
             height_frac = jnp.clip(
-                (pelvis_xpos[2] - config.healthy_z_range[0]) / (0.90 - config.healthy_z_range[0]),
+                (pelvis_xpos[2] - config.healthy_z_range[0]) / (config.healthy_z_range[1] - config.healthy_z_range[0]),
                 0.0,
                 1.0,
             )
@@ -401,7 +401,7 @@ class MJXDinoEnv:
 
             height_w = weights.get("height_weight", 0.0)
             if height_w > 0:
-                r_height = reward_height_maintenance(pelvis_xpos[2], config.healthy_z_range[0], 0.90, height_w)
+                r_height = reward_height_maintenance(pelvis_xpos[2], config.healthy_z_range[0], config.healthy_z_range[1], height_w)
                 total_reward = total_reward + r_height
 
             # Tail stability: penalise tail tip angular velocity

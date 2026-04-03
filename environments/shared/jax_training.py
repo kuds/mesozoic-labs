@@ -34,7 +34,6 @@ def train_jax(
     rollout_len: int = 64,
     seed: int = 42,
     checkpoint_dir: str | None = None,
-    wandb_project: str | None = None,
     init_params: Any | None = None,
     learning_rate: float = 3e-4,
     learning_rate_end: float | None = None,
@@ -62,7 +61,6 @@ def train_jax(
         rollout_len: Number of steps per rollout.
         seed: Random seed.
         checkpoint_dir: Optional directory for saving checkpoints.
-        wandb_project: Optional W&B project name for logging.
         init_params: Optional initial network parameters (for curriculum).
         learning_rate: PPO learning rate.
         learning_rate_end: Final LR for linear decay (None = constant LR).
@@ -173,7 +171,6 @@ def main():
     parser.add_argument("--rollout-len", type=int, default=64)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint-dir", type=str, default=None)
-    parser.add_argument("--wandb-project", type=str, default=None)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--curriculum", action="store_true", help="Run full 3-stage curriculum")
 
@@ -219,7 +216,6 @@ def main():
             rollout_len=jax_kwargs.get("rollout_len", args.rollout_len),
             seed=args.seed,
             checkpoint_dir=args.checkpoint_dir,
-            wandb_project=args.wandb_project,
             learning_rate=jax_kwargs.get("learning_rate", args.learning_rate),
             learning_rate_end=jax_kwargs.get("learning_rate_end"),
             gamma=jax_kwargs.get("gamma", 0.99),

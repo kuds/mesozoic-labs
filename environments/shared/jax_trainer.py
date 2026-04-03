@@ -361,7 +361,6 @@ def train(
     from .jax_ppo import compute_gae
     from .jax_training_utils import (
         EpisodeStatsAccumulator,
-        RolloutProfiler,
         StabilityMonitor,
         TrainingCSVLogger,
         compute_episode_stats,
@@ -400,15 +399,12 @@ def train(
     best_params = None
     best_update = -1
 
-    # Episode tracking (on-device)
-    _ep_returns = jnp.zeros(NUM_ENVS)
-    _ep_lengths = jnp.zeros(NUM_ENVS, dtype=jnp.int32)
+    # Episode tracking
     _ep_stats_acc = EpisodeStatsAccumulator()
 
     # Library utilities
     _ckpt_mgr = CheckpointManager(config.model_dir, prefix="checkpoint", max_keep=config.max_checkpoints)
     _stability = StabilityMonitor()
-    _profiler = RolloutProfiler(interval=50)
     _csv_logger = TrainingCSVLogger(config.output_dir / "training_log.csv")
     csv_path = _csv_logger.path
 
@@ -497,9 +493,6 @@ def train(
                 states, rewards, terminated, truncated = env.step(states, actions, rng_step)
                 dones = terminated | truncated
 
-                _ep_returns = _ep_returns + rewards
-                _ep_lengths = _ep_lengths + 1
-
                 # For GAE: only zero bootstrap on true termination, not truncation
                 gae_dones = terminated
 
@@ -510,9 +503,6 @@ def train(
                 all_rewards.append(rewards)
                 all_dones.append(gae_dones.astype(jnp.float32))
                 all_full_dones.append(dones.astype(jnp.float32))
-
-                _ep_returns = jnp.where(dones, 0.0, _ep_returns)
-                _ep_lengths = jnp.where(dones, 0, _ep_lengths)
 
             obs_t = jnp.stack(all_obs)
             act_t = jnp.stack(all_actions)
@@ -575,6 +565,14 @@ def train(
             _t_ppo = time.time() - _t_phase
             _cum_t_ppo += _t_ppo
 
+            # Compute current learning rate for logging
+            if config.learning_rate_end is not None and config.learning_rate_end != config.learning_rate:
+                total_lr_steps = config.num_updates * config.ppo_epochs
+                lr_step = min(relative_update * config.ppo_epochs, total_lr_steps)
+                current_lr = config.learning_rate + (config.learning_rate_end - config.learning_rate) * lr_step / total_lr_steps
+            else:
+                current_lr = config.learning_rate
+
             avg_reward = float(rew_t.mean())
 
             # Episode return stats
@@ -596,6 +594,7 @@ def train(
                     "loss": avg_loss,
                     "grad_norm": avg_grad_norm,
                     "fall_rate": fall_rate,
+                    "learning_rate": current_lr,
                     "t_rollout": _t_rollout,
                     "t_ppo": _t_ppo,
                     **avg_aux,
@@ -610,7 +609,7 @@ def train(
                     _comp_means["update"] = update
                     reward_component_history.append(_comp_means)
                 except Exception:
-                    pass
+                    _logger.debug("Reward component diagnostics failed at update %d", update, exc_info=True)
 
             # ---------- Stability watchdog ----------
             _kl = avg_aux.get("approx_kl", 0.0)
@@ -648,6 +647,7 @@ def train(
                     "steps": steps_done,
                     "sps": f"{sps:.0f}",
                     "fall_rate": f"{fall_rate:.4f}",
+                    "learning_rate": f"{current_lr:.2e}",
                     "elapsed": f"{elapsed:.1f}",
                     "t_rollout": f"{_t_rollout:.3f}",
                     "t_ppo": f"{_t_ppo:.3f}",
@@ -727,10 +727,6 @@ def train(
 
     if _stability.total_warnings > 0:
         print(f"\nTotal stability warnings: {_stability.total_warnings}")
-
-    _prof_summary = _profiler.summary()
-    if _prof_summary:
-        print(f"\n{_prof_summary}")
 
     # Save final parameters
     params_path = config.model_dir / "params.pkl"
@@ -914,7 +910,7 @@ class JaxTrainer:
         return collect_rollout
 
     def _build_scan_ppo_update(self):
-        """Build the JIT-compiled PPO updater with KL early stopping."""
+        """Build the JIT-compiled PPO updater with minibatch shuffling and KL early stopping."""
         import jax
         import jax.numpy as jnp
 
@@ -923,37 +919,58 @@ class JaxTrainer:
         optimizer = self.optimizer
         network = self.network
         ppo_config = self.ppo_config
+        n_minibatches = ppo_config.n_minibatches
 
         @jax.jit
         def scan_ppo_update(params, opt_state, batch, rng):
+            total_samples = batch["obs"].shape[0]
+            minibatch_size = total_samples // n_minibatches
+
             def epoch_fn(carry, _):
                 params, opt_state, rng, kl_exceeded = carry
-                new_params, new_opt_state, loss_info = ppo_update(
-                    params,
-                    opt_state,
-                    optimizer,
-                    network,
-                    batch,
-                    ppo_config,
-                )
-                approx_kl = loss_info["approx_kl"]
+                rng, rng_perm = jax.random.split(rng)
+                perm = jax.random.permutation(rng_perm, total_samples)
 
-                use_target_kl = ppo_config.target_kl is not None
-                kl_over = use_target_kl & (approx_kl > ppo_config.target_kl)
-                should_skip = kl_exceeded | kl_over
+                def to_mbs(arr):
+                    return arr[perm[: n_minibatches * minibatch_size]].reshape(
+                        n_minibatches, minibatch_size, *arr.shape[1:]
+                    )
 
-                out_params = jax.tree.map(
-                    lambda new, old: jnp.where(should_skip, old, new),
-                    new_params,
-                    params,
-                )
-                out_opt_state = jax.tree.map(
-                    lambda new, old: jnp.where(should_skip, old, new) if hasattr(new, "shape") else new,
-                    new_opt_state,
-                    opt_state,
-                )
+                mb_batch = jax.tree.map(to_mbs, batch)
 
-                return (out_params, out_opt_state, rng, should_skip), loss_info
+                def mb_step(carry, mb):
+                    params, opt_state, kl_exceeded = carry
+                    new_params, new_opt_state, loss_info = ppo_update(
+                        params,
+                        opt_state,
+                        optimizer,
+                        network,
+                        mb,
+                        ppo_config,
+                    )
+                    approx_kl = loss_info["approx_kl"]
+
+                    use_target_kl = ppo_config.target_kl is not None
+                    kl_over = use_target_kl & (approx_kl > ppo_config.target_kl)
+                    should_skip = kl_exceeded | kl_over
+
+                    out_params = jax.tree.map(
+                        lambda new, old: jnp.where(should_skip, old, new),
+                        new_params,
+                        params,
+                    )
+                    out_opt_state = jax.tree.map(
+                        lambda new, old: jnp.where(should_skip, old, new) if hasattr(new, "shape") else new,
+                        new_opt_state,
+                        opt_state,
+                    )
+
+                    return (out_params, out_opt_state, should_skip), loss_info
+
+                (params, opt_state, kl_exceeded), all_mb_info = jax.lax.scan(
+                    mb_step, (params, opt_state, kl_exceeded), mb_batch
+                )
+                return (params, opt_state, rng, kl_exceeded), all_mb_info
 
             init_carry = (params, opt_state, rng, jnp.bool_(False))
             (params, opt_state, _, _), all_info = jax.lax.scan(
@@ -962,7 +979,8 @@ class JaxTrainer:
                 None,
                 length=ppo_config.n_epochs,
             )
-            return params, opt_state
+            mean_info = jax.tree.map(jnp.mean, all_info)
+            return params, opt_state, mean_info
 
         return scan_ppo_update
 
@@ -1106,12 +1124,13 @@ class JaxTrainer:
                 t_ppo_start = time.time()
                 rng, ppo_rng = jax.random.split(state.rng)
                 state.rng = rng
-                state.params, state.opt_state = self._scan_ppo_update(
+                state.params, state.opt_state, ppo_info = self._scan_ppo_update(
                     state.params,
                     state.opt_state,
                     batch,
                     ppo_rng,
                 )
+                ppo_info = {k: float(v) for k, v in ppo_info.items()}
                 t_ppo = time.time() - t_ppo_start
                 state.t_ppo_cumulative += t_ppo
 
@@ -1129,6 +1148,7 @@ class JaxTrainer:
                     "elapsed": elapsed,
                     "t_rollout": t_rollout,
                     "t_ppo": t_ppo,
+                    **ppo_info,
                 }
                 state.history.append(update_metrics)
                 self._dispatch("on_update_end", state, update_metrics)
