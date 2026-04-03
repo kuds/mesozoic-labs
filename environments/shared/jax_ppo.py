@@ -111,7 +111,6 @@ def sample_action(params, network, obs, rng):
         (raw_action, log_prob, value) tuple.  Clip ``raw_action`` before
         passing to ``env.step()``.
     """
-    check_jax()
     import jax
     import jax.numpy as jnp
 
@@ -152,7 +151,6 @@ def compute_gae(
     Returns:
         (advantages, returns) tuple, each of shape ``(T, num_envs)``.
     """
-    check_jax()
     import jax
     import jax.numpy as jnp
 
@@ -191,7 +189,6 @@ def ppo_loss(params, network, batch, config: PPOConfig):
     Returns:
         (total_loss, info_dict) tuple.
     """
-    check_jax()
     import jax.numpy as jnp
 
     action_mean, action_log_std, value = network.apply(params, batch["obs"])
@@ -255,7 +252,7 @@ def make_optimizer(config: PPOConfig):
     Returns:
         An ``optax.GradientTransformation``.
     """
-    check_jax()
+    check_jax()  # guard: called once at setup time
     import optax
 
     if config.learning_rate_end is not None and config.learning_rate_end != config.learning_rate:
@@ -288,7 +285,6 @@ def ppo_update(params, opt_state, optimizer, network, batch, config: PPOConfig):
     Returns:
         (new_params, new_opt_state, loss_info) tuple.
     """
-    check_jax()
     import jax
     import optax
 
