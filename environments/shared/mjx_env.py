@@ -619,11 +619,16 @@ class MJXDinoEnv:
         reset_states = self._batched_reset(reset_rngs)
 
         # Where done, use reset state; otherwise keep new state
+        # Reshape dones to (N, 1, 1, ...) so it broadcasts along the batch
+        # axis for leaves of any rank (e.g. (N,), (N,D), (N,D1,D2)).
         new_states = jax.tree.map(
-            lambda new, rst, d: jax.numpy.where(d, rst, new) if hasattr(new, "shape") else new,
+            lambda new, rst: (
+                jax.numpy.where(dones.reshape(dones.shape + (1,) * (new.ndim - 1)), rst, new)
+                if hasattr(new, "shape")
+                else new
+            ),
             new_states,
             reset_states,
-            dones,
         )
 
         return new_states, rewards, terminated, truncated
