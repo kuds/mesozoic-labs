@@ -9,6 +9,7 @@ Usage::
     from environments.shared.jax_viz import (
         plot_training_curves,
         plot_locomotion_diagnostics,
+        plot_reward_components,
         record_training_video,
         extract_video_frames,
         create_frame_collage,
@@ -376,6 +377,157 @@ def plot_locomotion_diagnostics(
             plt.show()
 
     return fig_diag, fig_foot
+
+
+def plot_reward_components(
+    reward_component_history: list[dict[str, float]],
+    *,
+    species: str = "",
+    stage: int = 1,
+    healthy_z_min: float | None = None,
+    natural_forward_z: float | None = None,
+    nosedive_threshold: float | None = None,
+    output_path: str | Path | None = None,
+    show: bool = True,
+) -> Any:
+    """Plot reward component diagnostics over training.
+
+    Creates a 2x2 grid: per-component curves, stacked area chart,
+    body state vs termination thresholds, and foot contact rate.
+
+    Args:
+        reward_component_history: List of per-update dicts with reward
+            component values. Keys starting with ``_`` are treated as
+            internal state diagnostics (``_pelvis_z``, ``_forward_z``,
+            ``_has_foot_contact``). The ``update`` key holds the update
+            number.
+        species: Species name for the plot title.
+        stage: Curriculum stage number.
+        healthy_z_min: Minimum healthy pelvis height (for reference line).
+        natural_forward_z: Natural forward-Z value (for nosedive line).
+        nosedive_threshold: How far below *natural_forward_z* triggers
+            termination (for reference line).
+        output_path: If provided, save the figure to this path.
+        show: Whether to call ``plt.show()``.
+
+    Returns:
+        The matplotlib Figure object, or ``None`` if no data.
+    """
+    if not reward_component_history:
+        return None
+
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle(
+        f"Reward Component Diagnostics — {species} Stage {stage}",
+        fontsize=14,
+    )
+
+    updates = [d["update"] for d in reward_component_history]
+    reward_keys = [
+        k
+        for k in reward_component_history[0]
+        if not k.startswith("_") and k != "update"
+    ]
+
+    # --- Plot 1: Per-component reward curves ---
+    ax = axes[0, 0]
+    for key in reward_keys:
+        vals = [d.get(key, 0.0) for d in reward_component_history]
+        ax.plot(updates, vals, label=key, linewidth=1.5)
+    ax.set_xlabel("Update")
+    ax.set_ylabel("Mean reward component")
+    ax.set_title("Per-component rewards")
+    ax.legend(fontsize=8, ncol=2)
+    ax.grid(True, alpha=0.3)
+
+    # --- Plot 2: Stacked area chart ---
+    ax = axes[0, 1]
+    pos_keys = [
+        k
+        for k in reward_keys
+        if any(d.get(k, 0) > 0 for d in reward_component_history)
+    ]
+    neg_keys = [
+        k
+        for k in reward_keys
+        if any(d.get(k, 0) < 0 for d in reward_component_history)
+    ]
+    for key in pos_keys:
+        vals = [d.get(key, 0.0) for d in reward_component_history]
+        ax.fill_between(updates, 0, vals, alpha=0.4, label=key)
+    for key in neg_keys:
+        vals = [d.get(key, 0.0) for d in reward_component_history]
+        ax.fill_between(updates, 0, vals, alpha=0.4, label=key)
+    ax.set_xlabel("Update")
+    ax.set_ylabel("Reward")
+    ax.set_title("Reward composition")
+    ax.legend(fontsize=7, ncol=2)
+    ax.grid(True, alpha=0.3)
+
+    # --- Plot 3: State diagnostics (pelvis_z, forward_z) ---
+    ax = axes[1, 0]
+    if "_pelvis_z" in reward_component_history[0]:
+        ax.plot(
+            updates,
+            [d["_pelvis_z"] for d in reward_component_history],
+            label="pelvis_z",
+            color="blue",
+        )
+        if healthy_z_min is not None:
+            ax.axhline(
+                y=healthy_z_min,
+                color="blue",
+                linestyle="--",
+                alpha=0.5,
+                label=f"z_min={healthy_z_min}",
+            )
+    if "_forward_z" in reward_component_history[0]:
+        ax2 = ax.twinx()
+        ax2.plot(
+            updates,
+            [d["_forward_z"] for d in reward_component_history],
+            label="forward_z",
+            color="red",
+        )
+        if natural_forward_z is not None and nosedive_threshold is not None:
+            nd_thresh = natural_forward_z - nosedive_threshold
+            ax2.axhline(
+                y=nd_thresh,
+                color="red",
+                linestyle="--",
+                alpha=0.5,
+                label=f"nosedive={nd_thresh:.2f}",
+            )
+        ax2.set_ylabel("forward_z", color="red")
+        ax2.legend(loc="lower right", fontsize=8)
+    ax.set_xlabel("Update")
+    ax.set_ylabel("pelvis_z", color="blue")
+    ax.set_title("Body state vs termination thresholds")
+    ax.legend(loc="upper left", fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    # --- Plot 4: Foot contact rate ---
+    ax = axes[1, 1]
+    if "_has_foot_contact" in reward_component_history[0]:
+        fc_vals = [d["_has_foot_contact"] for d in reward_component_history]
+        ax.plot(updates, fc_vals, label="foot contact rate", color="green", linewidth=2)
+        ax.set_ylim(-0.05, 1.05)
+    ax.set_xlabel("Update")
+    ax.set_ylabel("Foot contact rate")
+    ax.set_title("Foot contact (alive bonus gate)")
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+
+    if output_path:
+        plt.savefig(str(output_path), dpi=150, bbox_inches="tight")
+    if show:
+        plt.show()
+
+    return fig
 
 
 def record_training_video(
