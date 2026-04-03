@@ -6,12 +6,12 @@ import numpy as np
 import pytest
 
 # ---------------------------------------------------------------------------
-# Fix #1: log_prob must be computed BEFORE action clipping
+# Fix #1: sample_action returns raw (unclipped) action with matching log_prob
 # ---------------------------------------------------------------------------
 
 
 class TestSampleActionLogProb:
-    """Verify that log_prob is computed on the raw (unclipped) action."""
+    """Verify that sample_action returns raw actions with consistent log_prob."""
 
     @pytest.fixture()
     def _jax(self):
@@ -43,9 +43,29 @@ class TestSampleActionLogProb:
         assert all(np.isfinite(lp) for lp in log_probs)
         assert np.std(log_probs) > 0, "log_probs should vary across samples"
 
+    def test_raw_action_not_clipped(self, _jax):
+        """sample_action should return raw (unclipped) actions that may exceed [-1, 1]."""
+        jax, jnp = _jax
+        from environments.shared.jax_ppo import make_actor_critic, sample_action
+
+        network = make_actor_critic(action_dim=8, hidden_dims=(8,))
+        rng = jax.random.PRNGKey(99)
+        dummy = jnp.zeros(4)
+        params = network.init(rng, dummy)
+
+        # With std=1.0 (log_std init zeros) and 8 dims, some samples should exceed [-1, 1]
+        found_outside = False
+        rng, *rngs = jax.random.split(rng, 201)
+        for r in rngs:
+            action, _, _ = sample_action(params, network, dummy, r)
+            if float(jnp.max(jnp.abs(action))) > 1.0:
+                found_outside = True
+                break
+        assert found_outside, "Raw actions should sometimes exceed [-1, 1] bounds"
+
     def test_log_prob_matches_manual_gaussian(self, _jax):
         """log_prob should match the analytical diagonal-Gaussian formula
-        applied to the raw (pre-clip) action."""
+        applied to the raw (unclipped) action."""
         jax, jnp = _jax
         from environments.shared.jax_ppo import make_actor_critic, sample_action
 
@@ -61,14 +81,9 @@ class TestSampleActionLogProb:
         mean, log_std, _ = network.apply(params, dummy)
         std = jnp.exp(log_std)
 
-        # The action returned is clipped, but log_prob should be based on
-        # the unclipped sample. For actions well within [-1, 1] (std is
-        # initially small from zeros init), clipped == unclipped, so
-        # manual computation should match.
+        # action is raw (unclipped), so manual Gaussian log_prob must match exactly
         manual_lp = -0.5 * jnp.sum(jnp.square((action - mean) / (std + 1e-8)) + 2.0 * log_std + jnp.log(2.0 * jnp.pi))
-        # When action is within bounds, clipped == raw, so they must match
-        if jnp.all(jnp.abs(action) < 0.99):
-            assert float(log_prob) == pytest.approx(float(manual_lp), abs=1e-5)
+        assert float(log_prob) == pytest.approx(float(manual_lp), abs=1e-5)
 
 
 # ---------------------------------------------------------------------------

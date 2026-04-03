@@ -95,7 +95,11 @@ def make_actor_critic(action_dim: int, hidden_dims: tuple[int, ...] = (512, 256)
 
 
 def sample_action(params, network, obs, rng):
-    """Sample an action from the policy and return (action, log_prob, value).
+    """Sample an action from the policy and return (raw_action, log_prob, value).
+
+    Returns the **unclipped** action so that ``log_prob`` and the stored action
+    are consistent for PPO ratio computation.  Callers must clip to ``[-1, 1]``
+    before sending to the environment.
 
     Args:
         params: Network parameters.
@@ -104,7 +108,8 @@ def sample_action(params, network, obs, rng):
         rng: JAX PRNGKey.
 
     Returns:
-        (action, log_prob, value) tuple.
+        (raw_action, log_prob, value) tuple.  Clip ``raw_action`` before
+        passing to ``env.step()``.
     """
     check_jax()
     import jax
@@ -117,18 +122,15 @@ def sample_action(params, network, obs, rng):
     noise = jax.random.normal(rng, shape=action_mean.shape)
     raw_action = action_mean + action_std * noise
 
-    # Log probability computed on the *unclipped* action so the Gaussian
-    # PDF is correct (clipping squashes probability mass at the boundaries,
-    # biasing the PPO ratio if log_prob is computed after clipping).
+    # Log probability of the raw (unclipped) action under the Gaussian.
+    # The PPO loss must recompute log_prob using this same raw_action
+    # (stored in the batch) to keep the importance-sampling ratio correct.
     log_prob = -0.5 * jnp.sum(
         jnp.square((raw_action - action_mean) / (action_std + 1e-8)) + 2.0 * action_log_std + jnp.log(2.0 * jnp.pi),
         axis=-1,
     )
 
-    # Clamp to [-1, 1] after computing log_prob
-    action = jnp.clip(raw_action, -1.0, 1.0)
-
-    return action, log_prob, value
+    return raw_action, log_prob, value
 
 
 def compute_gae(
