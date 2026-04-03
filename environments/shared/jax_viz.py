@@ -425,11 +425,7 @@ def plot_reward_components(
     )
 
     updates = [d["update"] for d in reward_component_history]
-    reward_keys = [
-        k
-        for k in reward_component_history[0]
-        if not k.startswith("_") and k != "update"
-    ]
+    reward_keys = [k for k in reward_component_history[0] if not k.startswith("_") and k != "update"]
 
     # --- Plot 1: Per-component reward curves ---
     ax = axes[0, 0]
@@ -444,16 +440,8 @@ def plot_reward_components(
 
     # --- Plot 2: Stacked area chart ---
     ax = axes[0, 1]
-    pos_keys = [
-        k
-        for k in reward_keys
-        if any(d.get(k, 0) > 0 for d in reward_component_history)
-    ]
-    neg_keys = [
-        k
-        for k in reward_keys
-        if any(d.get(k, 0) < 0 for d in reward_component_history)
-    ]
+    pos_keys = [k for k in reward_keys if any(d.get(k, 0) > 0 for d in reward_component_history)]
+    neg_keys = [k for k in reward_keys if any(d.get(k, 0) < 0 for d in reward_component_history)]
     for key in pos_keys:
         vals = [d.get(key, 0.0) for d in reward_component_history]
         ax.fill_between(updates, 0, vals, alpha=0.4, label=key)
