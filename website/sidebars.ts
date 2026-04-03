@@ -16,7 +16,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Training',
-      items: ['training/ppo', 'training/sac', 'training/hyperparameters', 'training/sweeps', 'training/vertex-ai'],
+      items: ['training/ppo', 'training/sac', 'training/jax', 'training/hyperparameters', 'training/sweeps', 'training/vertex-ai'],
     },
     {
       type: 'category',

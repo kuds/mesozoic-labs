@@ -46,10 +46,13 @@ cd mesozoic-labs
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install the package with training dependencies
+# Install the package with SB3 training dependencies
 pip install -e ".[train]"
 
-# Or install all optional dependencies (training, visualization, dev tools)
+# Install JAX/MJX for GPU-accelerated training
+pip install -e ".[jax]"
+
+# Or install all optional dependencies (training, JAX, visualization, dev tools)
 pip install -e ".[all]"
 ```
 
@@ -89,3 +92,12 @@ Optional training dependencies (`pip install -e ".[train]"`):
 |---------|---------|---------|
 | stable-baselines3 | >= 2.2.0 | RL algorithms (PPO, SAC) |
 | wandb | >= 0.16.0 | Experiment tracking |
+
+Optional JAX dependencies (`pip install -e ".[jax]"`):
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| mujoco-mjx | >= 3.0.0 | GPU-accelerated MuJoCo simulation |
+| jax[cuda12] | >= 0.4.20 | JAX with CUDA support |
+| flax | >= 0.8.0 | Neural network library for JAX |
+| optax | >= 0.1.7 | Gradient-based optimization for JAX |

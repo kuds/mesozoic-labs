@@ -15,6 +15,7 @@ We're bringing prehistoric creatures back to life—as robots. Using state-of-th
 
 - **Accurate Physics Models** - MuJoCo-based simulations of dinosaur anatomy
 - **Reinforcement Learning** - PPO and SAC algorithms for training locomotion
+- **JAX/MJX Integration** - GPU-accelerated training with 2,048+ parallel environments for 10-100x speedup
 - **Multiple Species** - T-Rex, Velociraptor, Brachiosaurus, and more
 - **Sim-to-Real** - Transfer learned behaviors to physical robots
 - **Open Source** - Fully open codebase for research and education
@@ -39,6 +40,7 @@ All results use 3-stage curriculum learning (balance → locomotion → behavior
 - [Getting Started](/docs/getting-started/installation) - Set up your development environment
 - [Models](/docs/models/trex) - Explore available dinosaur models
 - [Training](/docs/training/sac) - Learn how to train your own dinosaur
+- [JAX/MJX Training](/docs/training/jax) - GPU-accelerated training with JAX
 - [GitHub](https://github.com/kuds/mesozoic-labs) - View the source code
 
 ## Project Status
