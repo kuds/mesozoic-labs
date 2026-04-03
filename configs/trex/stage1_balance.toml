@@ -10,8 +10,8 @@ spin_penalty_weight = 0.1                      # Penalize pelvis angular velocit
 speed_penalty_weight = 0.3                     # Penalize absolute 2D speed above threshold — complements drift penalty with instantaneous signal
 speed_penalty_threshold = 0.10                 # m/s — any speed above this incurs penalty
 alive_bonus = 1.75                              # Now gated on height AND foot contact in mjx_env: no reward for nose-balancing
-foot_contact_gate = 1.0                        # Gate alive bonus on foot contact (>0 enables gating)
-foot_contact_weight = 0.8                      # Per-step bonus for having at least one foot on the ground
+foot_contact_gate = 1.0                        # Gate alive bonus on foot contact (>0 enables gating). JAX-only: SB3 handles this via head-contact termination instead.
+foot_contact_weight = 0.8                      # Per-step bonus for having at least one foot on the ground. JAX-only: SB3 does not use this signal.
 energy_penalty_weight = 0.075                  # Setting 4 sweep: 0.075 forces efficient posture. Led to best downstream S2/S3 results (03-16, 03-17).
 tail_stability_weight = 0.15
 posture_weight = 1.5                           # Increased from 1.5: with lower alive_bonus, stronger tilt penalty drives upright stance
@@ -75,8 +75,8 @@ ent_coef = 0.005                        # Match SB3 PPO — 0.01 caused entropy 
 target_kl = 0.05                        # Early-stop PPO epochs when approx KL exceeds this — prevents policy collapse
 fall_penalty = -10.0                    # Reduced from -50: large penalties cause value loss to dominate early training (v≈1174 at init → divergence)
 reset_noise_scale = 0.05               # Joint angle perturbation range (radians) at reset
-init_qpos_noise = 0.01                 # XY position jitter at reset (meters)
-init_yaw_noise = 0.1                   # Yaw rotation perturbation at reset (radians)
+init_qpos_noise = 0.01                 # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
+init_yaw_noise = 0.1                   # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
 
 [jax.policy_kwargs]
 net_arch = [512, 256]                  # Match SB3 PPO architecture

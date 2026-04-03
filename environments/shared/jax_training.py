@@ -199,7 +199,7 @@ def main():
         jax_kwargs = stage_config.get("jax_kwargs", {})
         env_kwargs = stage_config.get("env_kwargs", {})
 
-        # Override fall_penalty / noise from [jax] section
+        # Override fall_penalty / reset noise from [jax] section if specified.
         # Use direct assignment — setdefault is a no-op when [env] already
         # defines the key, which silently ignores the JAX-specific override.
         if "fall_penalty" in jax_kwargs:

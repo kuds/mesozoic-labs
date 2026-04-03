@@ -266,8 +266,10 @@ class MJXDinoEnv:
             reward_forward_velocity,
             reward_heading_alignment,
             reward_height_maintenance,
+            reward_lateral_velocity_penalty,
             reward_nosedive,
             reward_posture,
+            reward_proximity,
             reward_speed_penalty,
         )
 
@@ -419,6 +421,26 @@ class MJXDinoEnv:
                 body_fwd_2d = quat_to_forward_2d(pelvis_quat)
                 r_heading, _ = reward_heading_alignment(body_fwd_2d, forward_ref, heading_w)
                 total_reward = total_reward + r_heading
+
+            # Lateral velocity penalty: penalise crab-walking
+            lateral_w = weights.get("lateral_penalty_weight", 0.0)
+            if lateral_w > 0:
+                body_fwd_2d_lat = quat_to_forward_2d(pelvis_quat)
+                r_lateral, _ = reward_lateral_velocity_penalty(vel_2d, body_fwd_2d_lat, lateral_w)
+                total_reward = total_reward + r_lateral
+
+            # Head/claw proximity reward: continuous gradient for final positioning
+            # Supports species-specific keys: bite_head_proximity_weight (T-Rex),
+            # strike_claw_proximity_weight (raptor), food_head_proximity_weight (brachio).
+            proximity_w = weights.get(
+                "bite_head_proximity_weight",
+                weights.get("strike_claw_proximity_weight", weights.get("food_head_proximity_weight", 0.0)),
+            )
+            if proximity_w > 0 and success_site_ids and target_pos is not None:
+                for sid in success_site_ids:
+                    site_dist = jnp.linalg.norm(data.site_xpos[sid] - target_pos)
+                    r_prox, _ = reward_proximity(site_dist, config.forward_vel_max, proximity_w)
+                    total_reward = total_reward + r_prox
 
             # Termination
             body_z = pelvis_xpos[2]

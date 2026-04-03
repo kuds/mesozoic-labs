@@ -322,7 +322,8 @@ def build_env_kwargs(
     """Merge TOML [env] reward config with [jax] overrides.
 
     Applies fall_penalty and reset noise overrides from the ``[jax]``
-    section, mirroring the logic in ``jax_training.py``.
+    section, mirroring the logic in ``jax_training.py``.  Uses direct
+    assignment — setdefault is a no-op when [env] already defines the key.
 
     Args:
         reward_cfg: Full TOML ``[env]`` section (reward weights + env params).
