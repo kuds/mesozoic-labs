@@ -67,7 +67,7 @@ def make_actor_critic(action_dim: int, hidden_dims: tuple[int, ...] = (512, 256)
         """Shared-backbone actor-critic for continuous control."""
 
         action_dim: int
-        hidden_dims: tuple[int, ...] = (256, 256)
+        hidden_dims: tuple[int, ...] = (512, 256)
 
         @nn.compact
         def __call__(self, obs):
@@ -115,16 +115,18 @@ def sample_action(params, network, obs, rng):
 
     # Sample from Gaussian
     noise = jax.random.normal(rng, shape=action_mean.shape)
-    action = action_mean + action_std * noise
+    raw_action = action_mean + action_std * noise
 
-    # Clamp to [-1, 1]
-    action = jnp.clip(action, -1.0, 1.0)
-
-    # Log probability (diagonal Gaussian)
+    # Log probability computed on the *unclipped* action so the Gaussian
+    # PDF is correct (clipping squashes probability mass at the boundaries,
+    # biasing the PPO ratio if log_prob is computed after clipping).
     log_prob = -0.5 * jnp.sum(
-        jnp.square((action - action_mean) / (action_std + 1e-8)) + 2.0 * action_log_std + jnp.log(2.0 * jnp.pi),
+        jnp.square((raw_action - action_mean) / (action_std + 1e-8)) + 2.0 * action_log_std + jnp.log(2.0 * jnp.pi),
         axis=-1,
     )
+
+    # Clamp to [-1, 1] after computing log_prob
+    action = jnp.clip(raw_action, -1.0, 1.0)
 
     return action, log_prob, value
 

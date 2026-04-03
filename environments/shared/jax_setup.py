@@ -439,6 +439,7 @@ def make_reward_fns(ctx: SpeciesContext):
     reward_kw = dict(
         root_body_id=ctx.root_body_id,
         healthy_z_min=ctx.healthy_z_range[0],
+        healthy_z_max=ctx.healthy_z_range[1],
         max_tilt_angle=ctx.max_tilt_angle,
         natural_forward_z=ctx.natural_forward_z,
         n_actuators=ctx.mj_model.nu,
@@ -628,7 +629,7 @@ def print_eval_summary(
     """Print evaluation results and gate status."""
     import numpy as np
 
-    print(f"\nEvaluation results ({eval_results.n_episodes} episodes):")
+    print(f"\nEvaluation results ({len(eval_results.rewards)} episodes):")
     print(f"  Mean reward:   {eval_results.mean_reward:.2f} +/- {eval_results.std_reward:.2f}")
     print(f"  Mean length:   {eval_results.mean_length:.1f} +/- {eval_results.std_length:.1f}")
     print(f"  Mean fwd vel:  {eval_results.mean_forward_vel:.3f} m/s")
