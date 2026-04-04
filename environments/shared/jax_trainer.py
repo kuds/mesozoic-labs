@@ -148,7 +148,7 @@ class TrainResult:
 # ---------------------------------------------------------------------------
 
 
-def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
+def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, env=None):
     """Build all JIT-compiled functions for the training loop.
 
     Returns a dict of JIT functions.  These close over the network, optimizer,
@@ -302,6 +302,43 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
         mean_aux = jax.tree.map(jnp.mean, all_auxs)
         return params, opt_state, mean_loss, mean_aux, mean_gn
 
+    # --- Scan-based rollout collection (replaces Python for-loop) ---
+
+    collect_rollout = None
+    if env is not None:
+        from .jax_normalization import normalize_obs
+
+        ROLLOUT_LEN = config.rollout_len
+        NUM_ENVS = config.num_envs
+
+        @jax.jit
+        def collect_rollout(states, rng, params, obs_rms):
+            def step_fn(carry, _):
+                states, rng = carry
+                rng, action_rng, step_rng = jax.random.split(rng, 3)
+
+                obs = normalize_obs(states.obs, obs_rms)
+                rngs = jax.random.split(action_rng, NUM_ENVS)
+                raw_actions, log_probs, values = jax.vmap(_sample_action, in_axes=(None, 0, 0))(params, obs, rngs)
+
+                actions = jnp.clip(raw_actions, -1.0, 1.0)
+                new_states, rewards, terminated, truncated = env.step(states, actions, step_rng)
+                dones = terminated | truncated
+                gae_dones = terminated
+
+                return (new_states, rng), (
+                    obs,
+                    raw_actions,
+                    log_probs,
+                    values,
+                    rewards,
+                    gae_dones.astype(jnp.float32),
+                    dones.astype(jnp.float32),
+                )
+
+            (states, _), rollout = jax.lax.scan(step_fn, (states, rng), None, length=ROLLOUT_LEN)
+            return states, rollout
+
     # --- Reward component diagnostics ---
 
     batched_reward_components = None
@@ -315,6 +352,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn):
         "batched_sample": batched_sample,
         "ppo_update": ppo_update,
         "scan_ppo_epochs": scan_ppo_epochs,
+        "collect_rollout": collect_rollout,
         "batched_reward_components": batched_reward_components,
     }
 
@@ -373,9 +411,10 @@ def train(
     assert optimizer is not None, "optimizer is required"
 
     # Build JIT functions
-    jit_fns = _build_jit_fns(config, network, optimizer, reward_detail_fn)
+    jit_fns = _build_jit_fns(config, network, optimizer, reward_detail_fn, env=env)
     batched_sample = jit_fns["batched_sample"]
     scan_ppo_epochs = jit_fns["scan_ppo_epochs"]
+    collect_rollout = jit_fns["collect_rollout"]
     batched_reward_components = jit_fns["batched_reward_components"]
 
     # Aliases
@@ -484,47 +523,20 @@ def train(
 
             # ---------- Collect rollout ----------
             _t_phase = time.time()
-            all_obs, all_actions, all_log_probs, all_values = [], [], [], []
-            all_rewards, all_dones, all_full_dones = [], [], []
-
-            for t in range(ROLLOUT_LEN):
-                rng, rng_act, rng_step = jax.random.split(rng, 3)
-
-                obs = normalize_obs(states.obs, obs_rms)
-                raw_actions, log_probs, values = batched_sample(params, obs, rng_act)
-
-                # Clip actions for the environment; store raw actions for PPO
-                actions = jnp.clip(raw_actions, -1.0, 1.0)
-                states, rewards, terminated, truncated = env.step(states, actions, rng_step)
-                dones = terminated | truncated
-
-                # For GAE: only zero bootstrap on true termination, not truncation
-                gae_dones = terminated
-
-                all_obs.append(obs)
-                all_actions.append(raw_actions)  # raw actions for PPO ratio consistency
-                all_log_probs.append(log_probs)
-                all_values.append(values)
-                all_rewards.append(rewards)
-                all_dones.append(gae_dones.astype(jnp.float32))
-                all_full_dones.append(dones.astype(jnp.float32))
-
-            obs_t = jnp.stack(all_obs)
-            act_t = jnp.stack(all_actions)
-            lp_t = jnp.stack(all_log_probs)
-            val_t = jnp.stack(all_values)
-            rew_t = jnp.stack(all_rewards)
-            done_t = jnp.stack(all_dones)
+            rng, rng_collect = jax.random.split(rng)
+            states, rollout = collect_rollout(states, rng_collect, params, obs_rms)
+            obs_t, act_t, lp_t, val_t, rew_t, done_t, full_done_t = rollout
 
             jax.block_until_ready(done_t)
             _t_rollout = time.time() - _t_phase
             _cum_t_rollout += _t_rollout
 
             # ---------- Episode stats ----------
-            full_done_t = jnp.stack(all_full_dones)
-            full_done_np = np.array(full_done_t)
+            # Compute fall rate on-device; only transfer scalars
+            fall_rate = float(jnp.sum(full_done_t)) / (ROLLOUT_LEN * NUM_ENVS)
+            # Defer full GPU→CPU transfer for episode tracking
             rew_np = np.array(rew_t)
-            fall_rate = float(full_done_np.sum()) / (ROLLOUT_LEN * NUM_ENVS)
+            full_done_np = np.array(full_done_t)
             _completed_returns, _completed_lengths = compute_episode_stats(rew_np, full_done_np, _ep_stats_acc)
 
             # ---------- Update obs normalisation ----------
@@ -611,7 +623,7 @@ def train(
             # Per-component reward diagnostics
             if relative_update % config.reward_component_interval == 0 and batched_reward_components is not None:
                 try:
-                    _comp = batched_reward_components(states, all_actions[-1])
+                    _comp = batched_reward_components(states, act_t[-1])
                     _comp_means = {k: float(jnp.mean(v)) for k, v in _comp.items()}
                     _comp_means["update"] = update
                     reward_component_history.append(_comp_means)
@@ -1037,6 +1049,19 @@ class JaxTrainer:
         self._collect_rollout = self._build_collect_rollout()
         self._scan_ppo_update = self._build_scan_ppo_update()
 
+        # Jitted bootstrap sampler — avoids re-tracing a lambda each update
+        _network = self.network
+        _num_envs = self.num_envs
+
+        @jax.jit
+        def _batched_bootstrap(params, obs_batch, rng):
+            rngs = jax.random.split(rng, _num_envs)
+            _, _, values = jax.vmap(
+                lambda o, r: sample_action(params, _network, o, r),
+                in_axes=(0, 0),
+            )(obs_batch, rngs)
+            return values
+
         state = TrainerState(
             params=params,
             opt_state=opt_state,
@@ -1085,9 +1110,11 @@ class JaxTrainer:
                 elapsed = time.time() - t0
                 fps = state.total_steps / elapsed if elapsed > 0 else 0
 
+                # Compute fall rate on-device; only transfer scalars
+                fall_rate = float(jnp.sum(rollout_dones)) / (self.rollout_len * self.num_envs)
+                # Defer full GPU→CPU transfer for episode tracking
                 rew_np = np.array(rollout_rewards)
                 done_np = np.array(rollout_dones)
-                fall_rate = float(done_np.sum()) / (self.rollout_len * self.num_envs)
                 completed_returns, completed_lengths = compute_episode_stats(rew_np, done_np, ep_stats_acc)
                 mean_ep_return = float(np.mean(completed_returns)) if completed_returns else float("nan")
                 mean_ep_length = float(np.mean(completed_lengths)) if completed_lengths else float("nan")
@@ -1108,9 +1135,7 @@ class JaxTrainer:
                 rng, bootstrap_rng = jax.random.split(state.rng)
                 state.rng = rng
                 final_obs = normalize_obs(state.env_states.obs, state.obs_stats)
-                _, _, bootstrap_value = jax.vmap(
-                    lambda o, r: sample_action(state.params, self.network, o, r),
-                )(final_obs, jax.random.split(bootstrap_rng, self.num_envs))
+                bootstrap_value = _batched_bootstrap(state.params, final_obs, bootstrap_rng)
 
                 rollout_values_arr = jnp.concatenate([rollout_values, bootstrap_value[None]], axis=0)
                 advantages, returns = compute_gae(

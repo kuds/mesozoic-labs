@@ -239,11 +239,18 @@ class MJXDinoEnv:
             if mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, name) >= 0
         )
 
+        # Cache default MJX data once (avoids mjx.make_data per env per step)
+        self._default_data = mjx.make_data(self.mjx_model)
+
         # Pre-compile step and reset functions
         self._step_single = jax.jit(self._make_step_fn())
         self._reset_single = jax.jit(self._make_reset_fn())
         self._batched_step = jax.jit(jax.vmap(self._step_single, in_axes=(0, 0, 0)))
         self._batched_reset = jax.jit(jax.vmap(self._reset_single, in_axes=(0,)))
+
+        # Fused step + auto-reset: runs step and reset in a single vmapped
+        # kernel, selecting the reset state only where episodes ended.
+        self._batched_step_autoreset = jax.jit(jax.vmap(self._make_fused_step_fn(), in_axes=(0, 0, 0)))
 
     def _make_step_fn(self):
         """Build the single-env step function as a closure over model/config."""
@@ -502,6 +509,7 @@ class MJXDinoEnv:
 
         model = self.mjx_model
         config = self.config
+        default_data = self._default_data
 
         sensor_layout = SensorLayout(
             gyro_start=config.sensor_gyro_start,
@@ -512,7 +520,8 @@ class MJXDinoEnv:
 
         def reset_fn(rng):
             """Pure single-environment reset function."""
-            data = mjx.make_data(model)
+            # Reuse cached default data instead of calling mjx.make_data each time
+            data = jax.tree.map(lambda x: x, default_data)
 
             # Spawn target at random position
             rng, rng_dist, rng_lat = jax.random.split(rng, 3)
@@ -606,6 +615,36 @@ class MJXDinoEnv:
 
         return reset_fn
 
+    def _make_fused_step_fn(self):
+        """Build a single-env function that steps, then auto-resets if done.
+
+        Fusing step + reset into one function means a single ``vmap`` call
+        handles both, avoiding a second batched reset kernel and the
+        Python-level ``tree_map`` / ``where`` selection.
+        """
+        step_fn = self._make_step_fn()
+        reset_fn = self._make_reset_fn()
+
+        import jax
+        import jax.numpy as jnp
+
+        def fused_step(state: EnvState, action, rng):
+            rng_step, rng_reset = jax.random.split(rng)
+            new_state, reward, terminated, truncated = step_fn(state, action, rng_step)
+            done = terminated | truncated
+
+            reset_state = reset_fn(rng_reset)
+
+            # Select reset state where episode ended
+            out_state = jax.tree.map(
+                lambda s, r: jnp.where(done, r, s) if hasattr(s, "shape") else s,
+                new_state,
+                reset_state,
+            )
+            return out_state, reward, terminated, truncated
+
+        return fused_step
+
     def reset(self, rng):
         """Reset all environments.
 
@@ -621,38 +660,21 @@ class MJXDinoEnv:
         return self._batched_reset(rngs)
 
     def step(self, states: EnvState, actions, rng):
-        """Step all environments.
+        """Step all environments with fused auto-reset.
+
+        Uses a single vmapped kernel that computes both the physics step
+        and the reset state, selecting the reset only where episodes ended.
+        This avoids a separate batched reset call and host-level tree_map.
 
         Args:
             states: Batched ``EnvState``.
             actions: Actions array of shape ``(num_envs, action_dim)``.
-            rng: JAX PRNGKey (used for auto-reset).
+            rng: JAX PRNGKey (used for step and auto-reset).
 
         Returns:
             (new_states, rewards, terminated, truncated) tuple.
         """
         import jax
 
-        rng_step, rng_reset = jax.random.split(rng)
-        rngs = jax.random.split(rng_step, self.num_envs)
-        new_states, rewards, terminated, truncated = self._batched_step(states, actions, rngs)
-
-        # Auto-reset terminated or truncated environments
-        dones = terminated | truncated
-        reset_rngs = jax.random.split(rng_reset, self.num_envs)
-        reset_states = self._batched_reset(reset_rngs)
-
-        # Where done, use reset state; otherwise keep new state
-        # Reshape dones to (N, 1, 1, ...) so it broadcasts along the batch
-        # axis for leaves of any rank (e.g. (N,), (N,D), (N,D1,D2)).
-        new_states = jax.tree.map(
-            lambda new, rst: (
-                jax.numpy.where(dones.reshape(dones.shape + (1,) * (new.ndim - 1)), rst, new)
-                if hasattr(new, "shape")
-                else new
-            ),
-            new_states,
-            reset_states,
-        )
-
-        return new_states, rewards, terminated, truncated
+        rngs = jax.random.split(rng, self.num_envs)
+        return self._batched_step_autoreset(states, actions, rngs)
