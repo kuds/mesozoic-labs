@@ -256,7 +256,7 @@ def make_optimizer(config: PPOConfig):
     import optax
 
     if config.learning_rate_end is not None and config.learning_rate_end != config.learning_rate:
-        total_steps = config.total_updates * config.n_epochs
+        total_steps = config.total_updates * config.n_epochs * config.n_minibatches
         lr_schedule = optax.linear_schedule(
             init_value=config.learning_rate,
             end_value=config.learning_rate_end,
