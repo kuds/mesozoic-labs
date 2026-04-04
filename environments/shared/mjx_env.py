@@ -250,9 +250,7 @@ class MJXDinoEnv:
 
         # Fused step + auto-reset: runs step and reset in a single vmapped
         # kernel, selecting the reset state only where episodes ended.
-        self._batched_step_autoreset = jax.jit(
-            jax.vmap(self._make_fused_step_fn(), in_axes=(0, 0, 0))
-        )
+        self._batched_step_autoreset = jax.jit(jax.vmap(self._make_fused_step_fn(), in_axes=(0, 0, 0)))
 
     def _make_step_fn(self):
         """Build the single-env step function as a closure over model/config."""

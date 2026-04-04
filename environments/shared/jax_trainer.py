@@ -319,9 +319,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
 
                 obs = normalize_obs(states.obs, obs_rms)
                 rngs = jax.random.split(action_rng, NUM_ENVS)
-                raw_actions, log_probs, values = jax.vmap(
-                    _sample_action, in_axes=(None, 0, 0)
-                )(params, obs, rngs)
+                raw_actions, log_probs, values = jax.vmap(_sample_action, in_axes=(None, 0, 0))(params, obs, rngs)
 
                 actions = jnp.clip(raw_actions, -1.0, 1.0)
                 new_states, rewards, terminated, truncated = env.step(states, actions, step_rng)
