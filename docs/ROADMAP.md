@@ -18,7 +18,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | Not Started | 0/8 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
-| **5** | Hyperdrive (v0.7.0) | **In Progress** | 3/5 items | JAX SAC, large-scale experiments |
+| **5** | Hyperdrive (v0.7.0) | **In Progress** | 3/6 items | JAX SAC, large-scale experiments, mjlab pilot |
 | **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-5 |
 
 **Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
@@ -426,8 +426,26 @@ Parallel track that can start alongside Phase 4. GPU-accelerated batch simulatio
   - Discover training regimes not possible at CPU scale
   - _Dependency: Brax PPO pipeline_
 
+- [-] **mjlab pilot — evaluate manager-based GPU backend**
+  - Scaffold landed in `environments/shared/mjlab_env.py` and
+    `environments/velociraptor/mjlab_config.py` with an `[mjlab]`
+    optional extra in `pyproject.toml`
+  - mjlab pairs Isaac-Lab's manager-based API with MuJoCo-Warp
+    (GPU-accelerated MuJoCo); paper: Zakka et al., arXiv:2601.22074
+  - Pilot target: velociraptor Stage 1 balance on a single NVIDIA GPU
+    - Reach reward >= 1900 in <= 30 min (baseline: SB3 PPO 2:57:25)
+    - Achieve >= 2x envs/sec vs existing `MJXDinoEnv`
+    - Express env + curriculum in <= 60% of current MJX LOC
+  - If pilot succeeds: migrate all species to mjlab for the GPU track,
+    retire bespoke `jax_ppo.py` / `jax_training.py`, and fold domain
+    randomization (Phase 2) into mjlab event managers
+  - If pilot fails: keep existing MJX path, document findings, close out
+  - _Dependency: MJX environment for all species (completed above);
+    NVIDIA GPU in Colab / Vertex AI_
+
 **Exit criteria:** 100x+ speedup demonstrated. All species available on MJX backend.
-Published benchmark comparison (CPU vs. GPU vs. TPU).
+Published benchmark comparison (CPU vs. GPU vs. TPU). mjlab pilot concluded
+with a keep/retire decision on the custom JAX training stack.
 
 ---
 
@@ -519,6 +537,7 @@ Locomotion (P1) → Turning (P2) → Stage 4 prey pursuit (P2) → Reactive prey
                                                                                  → Learned prey (P4)
 
 Velociraptor trained (P1) → MJX port (P5) → Brax PPO (P5) → Scale experiments (P5)
+                                          → mjlab pilot (P5) → DR via event managers (P2)
 
 Compsognathus species (P3) → Physical prototype (P6) → Sim-to-real (P6)
 Sensor noise policies (P2) → HAL (P6) → ROS 2 bridge (P6)
