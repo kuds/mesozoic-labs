@@ -215,6 +215,7 @@ Hardware: Google Colab L4 GPU
 - [ ] Domain randomization (friction, damping, gravity, actuator strength, external pushes, observation noise)
 - [ ] Terrain adaptation (uneven ground, obstacles)
 - [-] JAX/MJX migration for faster training (PPO pipeline complete, SAC pending)
+- [-] mjlab pilot (MuJoCo-Warp + Isaac-Lab manager API) — scaffold landed, velociraptor Stage 1 spike pending
 - [ ] Multi-agent pack hunting scenarios
 - [ ] Sim-to-real transfer experiments
 

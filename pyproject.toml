@@ -47,6 +47,12 @@ jax = [
     "flax>=0.8.0",
     "optax>=0.1.7",
 ]
+mjlab = [
+    # mjlab (GPU-accelerated MuJoCo-Warp + Isaac-Lab-style manager API).
+    # Requires an NVIDIA GPU for training; macOS is evaluation-only.
+    # See https://github.com/mujocolab/mjlab
+    "mjlab",
+]
 viz = [
     "mediapy>=1.1.0",
     "matplotlib>=3.7.0",
@@ -145,6 +151,10 @@ omit = [
     "environments/shared/jax_setup.py",
     "environments/shared/jax_trainer.py",
     "environments/*/mjx_config.py",
+    # mjlab adapter — scaffold only, requires the optional [mjlab] extra
+    # and an NVIDIA GPU, so it's excluded from default CI coverage.
+    "environments/shared/mjlab_env.py",
+    "environments/*/mjlab_config.py",
 ]
 
 [tool.coverage.report]
