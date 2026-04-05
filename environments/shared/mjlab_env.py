@@ -171,7 +171,9 @@ def make_mjlab_env(
     # return ManagerBasedRLEnv(cfg=env_cfg)
     raise NotImplementedError(
         "mjlab integration is a scaffold. Wire up ManagerBasedRLEnv once the "
-        "mjlab dep is installed locally. See module docstring for the pilot plan."
+        "mjlab dep is installed locally. See module docstring for the pilot plan. "
+        f"(species={cfg.species}, stage={stage}, reward_keys={sorted(reward_weights)}, "
+        f"num_envs={num_envs or cfg.num_envs_default}, device={device})"
     )
 
 
