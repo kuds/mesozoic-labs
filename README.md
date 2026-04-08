@@ -76,6 +76,8 @@ A bipedal predator with distinctive sickle claws, trained using 3-stage curricul
 
 [Full documentation →](environments/velociraptor/README.md)
 
+[HuggingFace Models →](https://huggingface.co/kuds/mesozoic-labs-velocipastor)
+
 ### Brachiosaurus
 **Status:** Active development
 
