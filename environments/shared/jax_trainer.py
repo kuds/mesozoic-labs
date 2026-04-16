@@ -29,10 +29,11 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Any
 
 import numpy as np
 
+from .jax_trainer_types import StopTraining, TrainerState, TrainingHook  # noqa: F401  (re-exported)
 from .mjx_utils import check_jax
 
 _logger = logging.getLogger(__name__)
@@ -791,56 +792,10 @@ def train(
 # Library API — JaxTrainer class with hook-based architecture
 # ===========================================================================
 # Used by jax_training.py (CLI), jax_hooks.py, and tests.
-
-
-@dataclass
-class TrainerState:
-    """All mutable state for a training run.
-
-    Passed to hooks so they can inspect (but should not mutate) training
-    progress.  The trainer itself updates state between steps.
-    """
-
-    params: Any
-    opt_state: Any
-    obs_stats: Any  # RunningMeanStd
-    env_states: Any  # EnvState (batched)
-    rng: Any  # jax PRNGKey
-    update: int = 0
-    total_steps: int = 0
-    history: list[dict[str, float]] = field(default_factory=list)
-    reward_history: list[float] = field(default_factory=list)
-    loss_history: list[float] = field(default_factory=list)
-    episode_return_history: list[float] = field(default_factory=list)
-    t_rollout_cumulative: float = 0.0
-    t_ppo_cumulative: float = 0.0
-
-
-# ---------------------------------------------------------------------------
-# Hook protocol
-# ---------------------------------------------------------------------------
-
-
-@runtime_checkable
-class TrainingHook(Protocol):
-    """Lifecycle hook for the JAX training loop.
-
-    All methods are optional — implement only the ones you need.
-    The default implementations are no-ops.
-    """
-
-    def on_train_start(self, state: TrainerState) -> None: ...
-    def on_rollout_end(self, state: TrainerState, rollout_metrics: dict[str, float]) -> None: ...
-    def on_update_end(self, state: TrainerState, update_metrics: dict[str, float]) -> None: ...
-    def on_train_end(self, state: TrainerState) -> None: ...
-
-
-class StopTraining(Exception):
-    """Raise from a hook to halt training early."""
-
-    def __init__(self, reason: str = ""):
-        self.reason = reason
-        super().__init__(reason)
+#
+# ``TrainerState``, ``TrainingHook``, and ``StopTraining`` are defined in
+# :mod:`environments.shared.jax_trainer_types` and re-exported at the top
+# of this module for backward compatibility.
 
 
 # ---------------------------------------------------------------------------

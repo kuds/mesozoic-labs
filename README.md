@@ -35,7 +35,8 @@ mesozoic-labs/
 │   │   ├── assets/            # MJCF model files
 │   │   ├── envs/              # Gymnasium environments
 │   │   ├── scripts/           # Training & utility scripts
-│   │   └── tests/             # Pytest test suite
+│   │   ├── tests/             # Pytest test suite
+│   │   └── README.md
 │   └── shared/                # Shared base classes and utilities
 │       ├── base_env.py        # BaseDinoEnv abstract class
 │       ├── config.py          # TOML configuration loading
@@ -91,7 +92,7 @@ Trained using 3-stage curriculum learning:
 | Feature | Details |
 |---------|---------|
 | Observation | 83 dims (joints, torso, food tracking) |
-| Action | 30 dims (6 neck + 24 leg controls) |
+| Action | 26 dims (6 neck + 20 leg controls) |
 | Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
 
 [Full documentation →](environments/brachiosaurus/README.md)
@@ -111,6 +112,8 @@ Trained using 3-stage curriculum learning:
 | Observation | 83 dims (joints, pelvis, prey tracking) |
 | Action | 21 dims (3 neck/head + 7 per leg + 4 tail) |
 | Model | `environments/trex/assets/trex.xml` |
+
+[Full documentation →](environments/trex/README.md)
 
 ### Planned Species
 - Deinonychus (pack hunter)
