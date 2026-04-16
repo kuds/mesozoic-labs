@@ -13,6 +13,8 @@ maintainability:
   ``record_stage_video``
 - :mod:`~environments.shared.cli` -- ``main``, ``_apply_overrides``,
   ``_cast_value``
+- :mod:`~environments.shared.tb_sync` -- ``_is_gcs_path``,
+  ``_make_local_tb_dir``, ``_sync_tb_to_gcs``
 
 All public names are re-exported here so existing ``from
 environments.shared.train_base import ...`` statements continue to work.
@@ -22,15 +24,14 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-import shutil
 import sys
-import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from .constants import DEFAULT_CLIP_OBS, DEFAULT_CLIP_REWARD, DEFAULT_NORM_OBS, DEFAULT_NORM_REWARD
+from .tb_sync import _is_gcs_path, _make_local_tb_dir, _sync_tb_to_gcs  # noqa: F401  (re-exported for backward compat)
 
 logger = logging.getLogger(__name__)
 
@@ -134,49 +135,7 @@ def cosine_schedule(initial_lr: float, final_lr: float):
     return schedule
 
 
-# ── TensorBoard local buffering ───────────────────────────────────────────
-
-
-def _is_gcs_path(path: str | Path) -> bool:
-    """Return True if *path* is on a GCS FUSE mount (``/gcs/...``)."""
-    return str(path).startswith("/gcs/")
-
-
-def _make_local_tb_dir(gcs_tb_path: str | Path) -> Path:
-    """Create a local temp directory for TensorBoard event buffering.
-
-    Returns a ``Path`` under ``/tmp`` that mirrors the GCS structure so
-    concurrent trials don't collide.
-    """
-    # Use a stable suffix derived from the GCS path so restarts reuse the dir.
-    suffix = str(gcs_tb_path).replace("/", "_")
-    local_dir = Path(tempfile.gettempdir()) / "tb_buffer" / suffix
-    local_dir.mkdir(parents=True, exist_ok=True)
-    return local_dir
-
-
-def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path) -> None:
-    """Copy locally-buffered TensorBoard events to the GCS FUSE mount.
-
-    Uses :func:`shutil.copy` (not ``copy2``) because GCS FUSE does not
-    support the ``os.utime`` / ``os.chmod`` calls that ``copy2`` makes
-    to preserve file metadata, which causes ``OSError`` on FUSE mounts.
-    """
-    gcs_dest = Path(gcs_tb_path)
-    if not local_tb_dir.exists():
-        return
-    gcs_dest.mkdir(parents=True, exist_ok=True)
-    n_copied = 0
-    for src_file in local_tb_dir.rglob("*"):
-        if src_file.is_file():
-            rel = src_file.relative_to(local_tb_dir)
-            dest = gcs_dest / rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(src_file, dest)
-            n_copied += 1
-    logger.info("Synced %d TensorBoard files to %s", n_copied, gcs_dest)
-    # Clean up temp dir
-    shutil.rmtree(local_tb_dir, ignore_errors=True)
+# TensorBoard local-buffer helpers live in ``tb_sync.py`` (re-exported above).
 
 
 # ── Environment creation ─────────────────────────────────────────────────
