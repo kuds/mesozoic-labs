@@ -516,44 +516,57 @@ Mark MJX integration as part of the project roadmap.
 
 ## 9. Migration Checklist
 
+> **Status as of 2026-04-18:** Plan is substantially complete. All source files
+> and tests described in this document exist in the repo. Remaining items are
+> operational validation and post-landing documentation polish. Subsequent
+> stabilization work (Apr 2–3 JAX training fixes: LR bug, PPO ratio
+> explosion, value-loss domination, dones broadcasting, reward-signal
+> unification between SB3 and JAX) was not part of the original plan but has
+> since landed.
+
 ### Phase 1 — Shared Pure Functions
-- [ ] Create `environments/shared/reward_functions.py`
-- [ ] Create `environments/shared/obs_functions.py`
-- [ ] Refactor `TRexEnv` to use shared functions
-- [ ] Refactor `RaptorEnv` to use shared functions
-- [ ] Refactor `BrachioEnv` to use shared functions
-- [ ] Run existing tests — all pass
+- [x] Create `environments/shared/reward_functions.py`
+- [x] Create `environments/shared/obs_functions.py`
+- [x] Refactor `TRexEnv` to use shared functions
+- [x] Refactor `RaptorEnv` to use shared functions
+- [x] Refactor `BrachioEnv` to use shared functions
+- [x] Run existing tests — all pass
 
 ### Phase 2 — MJX Environment
-- [ ] Create `environments/shared/mjx_env.py`
-- [ ] Create `environments/shared/mjx_utils.py`
-- [ ] Create species MJX configs (`trex/mjx_config.py`, etc.)
-- [ ] Verify MJX env produces same obs as Gymnasium env for same state
+- [x] Create `environments/shared/mjx_env.py`
+- [x] Create `environments/shared/mjx_utils.py`
+- [x] Create species MJX configs (`trex/mjx_config.py`, etc.)
+- [x] Verify MJX env produces same obs as Gymnasium env for same state
 
 ### Phase 3 — JAX Training
-- [ ] Create `environments/shared/jax_ppo.py`
-- [ ] Create `environments/shared/jax_normalization.py`
-- [ ] Create `environments/shared/jax_training.py`
-- [ ] Create `environments/shared/jax_curriculum.py`
-- [ ] Verify PPO converges on T-Rex Stage 1 (balance)
+- [x] Create `environments/shared/jax_ppo.py`
+- [x] Create `environments/shared/jax_normalization.py`
+- [x] Create `environments/shared/jax_training.py`
+- [x] Create `environments/shared/jax_curriculum.py`
+- [x] Verify PPO converges on T-Rex Stage 1 (balance)
+- [x] Post-landing stabilization: LR schedule fix, PPO ratio explosion fix,
+      value-loss domination fix, dones broadcasting fix, SB3/JAX reward-signal
+      unification (2026-04-02 / 2026-04-03)
 
 ### Phase 4 — Notebooks
 - [x] Refactor `notebooks/jax_training.ipynb` (species-agnostic, all 3 species)
-- [ ] Test notebook on Colab with GPU runtime for each species
+- [ ] Test notebook on Colab with GPU runtime for each species (ongoing
+      operational validation)
 
 ### Phase 5 — Packaging
-- [ ] Add `[jax]` optional dependency group to `pyproject.toml`
-- [ ] Verify lazy imports (no errors without JAX installed)
-- [ ] Verify `pip install mesozoic-labs[jax]` works
+- [x] Add `[jax]` optional dependency group to `pyproject.toml`
+- [x] Verify lazy imports (no errors without JAX installed)
+- [x] Verify `pip install mesozoic-labs[jax]` works
 
 ### Phase 6 — Testing
-- [ ] Write reward/obs function tests (NumPy + JAX parity)
-- [ ] Write MJX env tests (shapes, reset, step)
-- [ ] Full regression test (`pytest environments/`)
+- [x] Write reward/obs function tests (NumPy + JAX parity)
+- [x] Write MJX env tests (shapes, reset, step)
+- [x] Full regression test (`pytest environments/`)
 
 ### Phase 7 — Documentation
-- [ ] Update README with dual-backend instructions
-- [ ] Update ROADMAP
+- [x] Update README with dual-backend instructions
+- [x] Update ROADMAP (Phase 5 "Hyperdrive" tracks JAX/MJX status)
+- [x] Website JAX/MJX integration docs published
 
 ---
 

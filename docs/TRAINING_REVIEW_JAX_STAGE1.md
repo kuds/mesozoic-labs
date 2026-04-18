@@ -3,6 +3,16 @@
 > **Run:** `20260401_141554` | **Algorithm:** JAX PPO | **GPU:** A100-SXM4-80GB
 > **Steps:** 65.5M (160/500 updates before KL halt) | **Duration:** 43m 28s
 > **Best eval:** 992.7 @ update 132 | **Final eval:** 520.7 ± 63.8
+>
+> **Postscript (2026-04-18):** The bugs identified below are **fixed**.
+> Termination body-height checks in `environments/trex/mjx_config.py` now
+> include `torso` and other missing bodies. JAX reward-signal unification
+> (commit `1957671`, 2026-04-03) brought the JAX path into parity with the
+> SB3 `reward_functions.py`, and `a6d906f` restored the `fall_penalty` /
+> `reset_noise_scale` overrides. Additional stabilization landed Apr 2–3
+> (PPO ratio explosion, value-loss domination, dones broadcasting, LR
+> schedule bug). This review is preserved for historical context; a re-run
+> is needed to confirm convergence on current main.
 
 ---
 
