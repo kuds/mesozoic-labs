@@ -477,14 +477,26 @@ def train(
     alg_gamma = config.get(alg_kwargs_key, {}).get("gamma")
     logger.info("Creating %d training environments...", n_envs)
     train_env = create_vec_env(
-        species_cfg, stage_configs, stage, n_envs, seed, effective_subproc,
-        algorithm=algorithm, gamma=alg_gamma,
+        species_cfg,
+        stage_configs,
+        stage,
+        n_envs,
+        seed,
+        effective_subproc,
+        algorithm=algorithm,
+        gamma=alg_gamma,
     )
 
     logger.info("Creating evaluation environment...")
     eval_env = create_vec_env(
-        species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False,
-        algorithm=algorithm, gamma=alg_gamma,
+        species_cfg,
+        stage_configs,
+        stage,
+        1,
+        seed + 1000,
+        use_subproc=False,
+        algorithm=algorithm,
+        gamma=alg_gamma,
     )
 
     _load_vecnorm_into_envs(load_path, train_env, eval_env)
@@ -862,12 +874,24 @@ def train_curriculum(
         alg_kwargs_key = f"{algorithm}_kwargs"
         alg_gamma = config.get(alg_kwargs_key, {}).get("gamma")
         train_env = create_vec_env(
-            species_cfg, stage_configs, stage, n_envs, seed, effective_subproc,
-            algorithm=algorithm, gamma=alg_gamma,
+            species_cfg,
+            stage_configs,
+            stage,
+            n_envs,
+            seed,
+            effective_subproc,
+            algorithm=algorithm,
+            gamma=alg_gamma,
         )
         eval_env = create_vec_env(
-            species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False,
-            algorithm=algorithm, gamma=alg_gamma,
+            species_cfg,
+            stage_configs,
+            stage,
+            1,
+            seed + 1000,
+            use_subproc=False,
+            algorithm=algorithm,
+            gamma=alg_gamma,
         )
 
         _load_vecnorm_into_envs(prev_vecnorm_path, train_env, eval_env)
