@@ -949,7 +949,9 @@ def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:
     Args:
         vecnorm_path: Path to a ``_vecnorm.pkl`` file saved by a previous stage.
         train_env: The new stage's training ``VecNormalize`` wrapper.
-            ``training`` is left ``True`` so stats keep updating.
+            Its existing ``training`` / ``norm_reward`` flags are preserved
+            (set by ``create_vec_env`` based on the algorithm — SAC keeps
+            ``norm_reward=False`` to avoid replay-buffer reward-scale drift).
         eval_env: Optional evaluation ``VecNormalize`` wrapper.
             ``training`` is set to ``False``; ``norm_reward`` is disabled.
 
@@ -973,12 +975,12 @@ def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:
     prev_norm = VecNormalize.load(str(path), train_env.venv)
 
     # Carry forward observation statistics — the observation space is identical
-    # across stages, so the running mean/var remain valid.
+    # across stages, so the running mean/var remain valid.  ret_rms is
+    # intentionally NOT copied: reward distribution changes between stages, so
+    # stale return statistics would produce incorrectly scaled normalised
+    # rewards for PPO.  train_env.training / norm_reward are left as configured
+    # by create_vec_env (algorithm-aware).
     train_env.obs_rms = prev_norm.obs_rms
-    # Reset ret_rms: reward distribution changes between stages, so stale
-    # return statistics would produce incorrectly scaled normalised rewards.
-    train_env.training = True
-    train_env.norm_reward = True
     logger.info("obs_rms carried forward; ret_rms reset (reward distribution changed)")
 
     if eval_env is not None:

@@ -169,8 +169,23 @@ def create_vec_env(
     n_envs: int,
     seed: int = 0,
     use_subproc: bool = False,
+    *,
+    algorithm: str | None = None,
+    gamma: float | None = None,
 ):
-    """Create vectorized environment with observation/reward normalization."""
+    """Create vectorized environment with observation/reward normalization.
+
+    ``norm_reward`` is forced off for off-policy SAC: its replay buffer stores
+    rewards at write-time, but VecNormalize's running return statistics keep
+    drifting during training, so old buffer samples end up with an
+    inconsistent reward scale relative to new samples — which also destabilises
+    SAC's auto entropy coefficient. PPO (on-policy) is unaffected and keeps
+    reward normalization on.
+
+    ``gamma`` is forwarded to ``VecNormalize`` so its discounted-return
+    statistics match the algorithm's discount factor; otherwise it silently
+    drifts from SB3's hard-coded default of 0.99.
+    """
     sb3 = _ensure_sb3()
 
     env_fns = [make_env(species_cfg, stage_configs, stage, i, seed) for i in range(n_envs)]
@@ -180,13 +195,20 @@ def create_vec_env(
     else:
         env = sb3["DummyVecEnv"](env_fns)
 
-    env = sb3["VecNormalize"](
-        env,
+    norm_reward = DEFAULT_NORM_REWARD
+    if algorithm is not None and algorithm.lower() == "sac":
+        norm_reward = False
+
+    vecnorm_kwargs: dict[str, Any] = dict(
         norm_obs=DEFAULT_NORM_OBS,
-        norm_reward=DEFAULT_NORM_REWARD,
+        norm_reward=norm_reward,
         clip_obs=DEFAULT_CLIP_OBS,
         clip_reward=DEFAULT_CLIP_REWARD,
     )
+    if gamma is not None:
+        vecnorm_kwargs["gamma"] = gamma
+
+    env = sb3["VecNormalize"](env, **vecnorm_kwargs)
     return env
 
 
@@ -451,11 +473,19 @@ def train(
     effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
     if effective_subproc and not use_subproc:
         logger.info("Auto-enabling SubprocVecEnv for SAC (use --subproc to make explicit)")
+    alg_kwargs_key = f"{algorithm}_kwargs"
+    alg_gamma = config.get(alg_kwargs_key, {}).get("gamma")
     logger.info("Creating %d training environments...", n_envs)
-    train_env = create_vec_env(species_cfg, stage_configs, stage, n_envs, seed, effective_subproc)
+    train_env = create_vec_env(
+        species_cfg, stage_configs, stage, n_envs, seed, effective_subproc,
+        algorithm=algorithm, gamma=alg_gamma,
+    )
 
     logger.info("Creating evaluation environment...")
-    eval_env = create_vec_env(species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False)
+    eval_env = create_vec_env(
+        species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False,
+        algorithm=algorithm, gamma=alg_gamma,
+    )
 
     _load_vecnorm_into_envs(load_path, train_env, eval_env)
 
@@ -829,8 +859,16 @@ def train_curriculum(
         )
 
         effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
-        train_env = create_vec_env(species_cfg, stage_configs, stage, n_envs, seed, effective_subproc)
-        eval_env = create_vec_env(species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False)
+        alg_kwargs_key = f"{algorithm}_kwargs"
+        alg_gamma = config.get(alg_kwargs_key, {}).get("gamma")
+        train_env = create_vec_env(
+            species_cfg, stage_configs, stage, n_envs, seed, effective_subproc,
+            algorithm=algorithm, gamma=alg_gamma,
+        )
+        eval_env = create_vec_env(
+            species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False,
+            algorithm=algorithm, gamma=alg_gamma,
+        )
 
         _load_vecnorm_into_envs(prev_vecnorm_path, train_env, eval_env)
 
