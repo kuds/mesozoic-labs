@@ -895,6 +895,16 @@ suggesting 16M is near-optimal and longer training risks overtraining.
 
 ### Recommendations for Brachiosaurus Stage 3
 
+> **Note (2026-04-18):** A deeper analysis in
+> [REWARD_SCALE_REDESIGN.md](REWARD_SCALE_REDESIGN.md) argues the opposite
+> direction — that the +1000 terminal bonus across all Stage 3 configs is
+> already too large relative to accumulated per-step shaping, producing a
+> bimodal non-stationary return distribution that VecNormalize was papering
+> over. The food-reach problem may stem from the sparsity of the trigger
+> (`neck extension`) rather than the magnitude of the bonus. See that doc
+> for the proposed rescale + validation plan; recommendation 1 below should
+> be reframed or reversed before acting on it.
+
 1. **Increase food_reach bonus significantly** — same pattern as the velociraptor
    strike bonus issue. The per-step rewards dominate the sparse food_reach reward.
 

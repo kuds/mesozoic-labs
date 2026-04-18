@@ -552,7 +552,11 @@ class TestLoadVecnormStatsMocked:
         mock_prev = MagicMock()
         mock_vec_env_mod.VecNormalize.load.return_value = mock_prev
 
+        # Caller-configured flags (e.g. SAC sets norm_reward=False in
+        # create_vec_env).  load_vecnorm_stats must leave them alone.
         mock_train = MagicMock()
+        mock_train.training = True
+        mock_train.norm_reward = False
         mock_eval = MagicMock()
 
         with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
@@ -561,7 +565,7 @@ class TestLoadVecnormStatsMocked:
         assert result is True
         assert mock_train.obs_rms == mock_prev.obs_rms
         assert mock_train.training is True
-        assert mock_train.norm_reward is True
+        assert mock_train.norm_reward is False
         assert mock_eval.training is False
         assert mock_eval.norm_reward is False
 

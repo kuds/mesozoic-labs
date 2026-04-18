@@ -628,8 +628,27 @@ def train_trial(config: dict[str, Any]) -> None:
     # SAC benefits from SubprocVecEnv (parallel env stepping) since it
     # interleaves gradient updates with env steps in a tight loop.
     use_subproc = algorithm == "sac" and n_envs > 1
-    train_env = create_vec_env(species_cfg, stage_configs, stage, n_envs, seed, use_subproc=use_subproc)
-    eval_env = create_vec_env(species_cfg, stage_configs, stage, 1, seed + 1000, use_subproc=False)
+    alg_gamma = stage_config.get(f"{algorithm}_kwargs", {}).get("gamma")
+    train_env = create_vec_env(
+        species_cfg,
+        stage_configs,
+        stage,
+        n_envs,
+        seed,
+        use_subproc=use_subproc,
+        algorithm=algorithm,
+        gamma=alg_gamma,
+    )
+    eval_env = create_vec_env(
+        species_cfg,
+        stage_configs,
+        stage,
+        1,
+        seed + 1000,
+        use_subproc=False,
+        algorithm=algorithm,
+        gamma=alg_gamma,
+    )
 
     try:
         # Create or load model

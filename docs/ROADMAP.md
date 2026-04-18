@@ -1,6 +1,6 @@
 # Mesozoic Labs - Roadmap & Timeline
 
-> Last updated: 2026-03-25
+> Last updated: 2026-04-18
 
 This roadmap organizes the project's growth into six phases. Each phase builds on
 the previous one. Items within a phase can often be worked in parallel.
@@ -14,7 +14,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | Phase | Name | Status | Done | Remaining |
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
-| **1** | First Steps (v0.3.0) | **In Progress** | 9/10 items | Brachiosaurus Stage 3 (food_reach at 16.7% vs 50% target) |
+| **1** | First Steps (v0.3.0) | **In Progress** | 10/12 items | Brachiosaurus Stage 3 (food_reach at 16.7% vs 50% target); Stage 3 terminal-bonus rescale (design debt) |
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | Not Started | 0/8 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
@@ -156,6 +156,30 @@ curriculum with published results and reproducible checkpoints.
   - Consolidated training notebooks into single parameterized `notebooks/training.ipynb`
   - See [CODE_CONSOLIDATION.md](CODE_CONSOLIDATION.md) for full implementation plan
   - _Completed: 2026-03-19_
+
+- [x] **SAC VecNormalize reward-normalization fix**
+  - Disabled `norm_reward` for SAC in `create_vec_env` (replay buffer stores
+    rewards at write time — running return stats drift across training, so old
+    samples end up with inconsistent scale relative to new ones; also
+    destabilises SAC's auto entropy coefficient)
+  - Forwarded `gamma` to VecNormalize so discounted-return stats match the
+    algorithm's discount factor instead of silently defaulting to `0.99`
+  - PPO unchanged (on-policy, no replay buffer)
+  - _Completed: 2026-04-18_
+
+- [ ] **Stage 3 terminal-bonus rescale (reward design debt)**
+  - Stage 3 `strike_bonus_weight` / `bite_bonus_weight` /
+    `food_reach_bonus_weight` are all `1000`, ~2 orders of magnitude larger
+    than accumulated per-step shaping. This produces a bimodal,
+    non-stationary return distribution that VecNormalize was papering over.
+  - Likely contributor to Brachiosaurus Stage 3 being stuck at 16.7%
+    success (food_reach is the sparsest of the three Stage 3 tasks).
+  - Proposed fix, validation plan, open questions, and risks captured in
+    [REWARD_SCALE_REDESIGN.md](REWARD_SCALE_REDESIGN.md).
+  - Breaking change to reward landscape — no cross-boundary checkpoint
+    resume; historical reward curves get a discontinuity.
+  - _Dependency: SAC VecNormalize fix (done) so the rescale is evaluated
+    against a clean algorithm configuration_
 
 **Exit criteria:** All three species have published training results (PPO + SAC),
 downloadable checkpoints, a fully automated end-to-end curriculum pipeline, and
@@ -407,6 +431,11 @@ Parallel track that can start alongside Phase 4. GPU-accelerated batch simulatio
     and `jax_training.py` (full training loop with curriculum support)
   - `jax_training.ipynb` Colab notebook with A100 GPU support
   - Network architecture matches SB3 configs: `[512, 256]`
+  - Post-landing stabilization (2026-04-02 / 2026-04-03): LR schedule fix,
+    PPO ratio explosion fix (store raw actions for PPO, clip only at env
+    boundary), value-loss domination fix, dones broadcasting fix,
+    SB3/JAX reward-signal unification (`fall_penalty`, `reset_noise_scale`
+    overrides restored), extracted `jax_trainer.py`
   - _Completed_
 
 - [ ] **JAX-native SAC implementation**
@@ -427,15 +456,16 @@ Parallel track that can start alongside Phase 4. GPU-accelerated batch simulatio
   - _Dependency: Brax PPO pipeline_
 
 - [-] **mjlab pilot — evaluate manager-based GPU backend**
-  - Scaffold landed in `environments/shared/mjlab_env.py` and
+  - Scaffold landed 2026-04-05 in `environments/shared/mjlab_env.py` and
     `environments/velociraptor/mjlab_config.py` with an `[mjlab]`
-    optional extra in `pyproject.toml`
+    optional extra in `pyproject.toml` (PR #418)
   - mjlab pairs Isaac-Lab's manager-based API with MuJoCo-Warp
     (GPU-accelerated MuJoCo); paper: Zakka et al., arXiv:2601.22074
   - Pilot target: velociraptor Stage 1 balance on a single NVIDIA GPU
     - Reach reward >= 1900 in <= 30 min (baseline: SB3 PPO 2:57:25)
     - Achieve >= 2x envs/sec vs existing `MJXDinoEnv`
     - Express env + curriculum in <= 60% of current MJX LOC
+  - Remaining: run pilot on GPU and make keep/retire decision
   - If pilot succeeds: migrate all species to mjlab for the GPU track,
     retire bespoke `jax_ppo.py` / `jax_training.py`, and fold domain
     randomization (Phase 2) into mjlab event managers

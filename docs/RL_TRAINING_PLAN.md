@@ -1,8 +1,19 @@
 # RL Training Plan
 
-> **Date:** 2026-03-26
+> **Date:** 2026-03-26 *(last reviewed 2026-04-18)*
 > **Scope:** Remaining SAC & PPO training across all species
 > **Notebooks:** `training.ipynb`, `ray_tune_sweep.ipynb`
+>
+> **Update (2026-04-18):** Active priority shifted to JAX training
+> stabilization (Apr 2–3) and then to the SAC VecNormalize fix (Apr 18).
+> The status matrix below still reflects the last known SB3 run results —
+> no new SB3 runs between Mar 26 and Apr 18. Before resuming SB3 trials,
+> factor in (1) the SAC reward-normalization fix (see
+> `environments/shared/train_base.py`, which now disables `norm_reward` for
+> SAC), and (2) the pending Stage 3 terminal-bonus rescale documented in
+> [REWARD_SCALE_REDESIGN.md](REWARD_SCALE_REDESIGN.md). Running SAC trials
+> before the rescale will test the normalization fix in isolation; running
+> them after will confound the two changes.
 
 ---
 
