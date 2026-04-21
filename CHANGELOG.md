@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Codebase Consolidation & Training Results (v0.3.0)
 
+### Changed (breaking — reward landscape)
+- **Stage 3 terminal-bonus rescale.** Reduced `strike_bonus`, `bite_bonus`, and
+  `food_reach_bonus` from `1000` to `75`, `75`, and `100` respectively
+  (Velociraptor / T-Rex / Brachiosaurus). The previous `1000` was calibrated to
+  beat PPO's strike-avoidance opportunity cost but relied on `VecNormalize`
+  silently rescaling it; once `norm_reward` was disabled for SAC (see previous
+  entry), the raw +1000 spike risked destabilising the critic and SAC's
+  auto-entropy coefficient. New values keep the bonus comparable to
+  accumulated shaping (~100–300 per episode) rather than dwarfing it. This is
+  a breaking change to the reward landscape — no cross-boundary checkpoint
+  resume, and historical W&B/TensorBoard reward curves get a discontinuity at
+  this commit. Also scaled `[curriculum] min_avg_reward` from `100 → 10`
+  proportionally (the binding graduation gate remains `min_success_rate`).
+  Sweep JSON `env_*_bonus` ranges tightened to stay centered on the new
+  defaults. Added a reward-scale contract header comment to each Stage 3
+  config. Full rationale in `docs/REWARD_SCALE_REDESIGN.md`.
+
 ### Added
 - Velociraptor SAC training results — all 3 stages passed (90.0% strike success, 22M steps, 22:59:18)
 - Brachiosaurus PPO training results — Stages 1-2 passed, Stage 3 (food_reach) at 16.7% success (target: 50%)

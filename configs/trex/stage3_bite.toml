@@ -1,3 +1,12 @@
+# Reward scale contract:
+# - Per-step components are clipped to [-1, 1] then weighted; total per-step
+#   magnitude should stay within ~[-3, +3].
+# - Terminal bonus should be roughly 10-30% of a typical successful episode
+#   return (comparable to accumulated shaping, not dwarfing it).
+# - Exceeding these bounds destabilises SAC's critic and makes the reward
+#   distribution non-stationary for both algorithms. See
+#   docs/REWARD_SCALE_REDESIGN.md.
+
 [stage]
 name = "bite"
 description = "Sprint and bite prey with jaws"
@@ -14,7 +23,7 @@ gait_symmetry_weight = 0.0             # Disabled: formula rewards asymmetry, no
 smoothness_weight = 0.02
 heading_weight = 0.5                   # Match stage 2: face toward prey for bite
 lateral_penalty_weight = 0.3           # Match stage 2: penalize crab-walking toward prey
-bite_bonus = 1000.0                    # Must greatly exceed discounted future per-step value; makes biting immediately net-positive (matches raptor strike_bonus)
+bite_bonus = 75.0                      # Rescaled from 1000 (see docs/REWARD_SCALE_REDESIGN.md): comparable to accumulated shaping (~100-300 per episode) instead of dwarfing it; ~25x a single per-step reward, still unambiguously net-positive against the ~0 opportunity cost of continuing
 bite_approach_weight = 3.0             # 3x increase from 1.0: stronger delta-based gradient toward prey
 bite_head_proximity_weight = 1.0       # Head-to-prey proximity shaping: provides final aiming gradient for head positioning near prey
 prey_distance_range = [2.0, 6.0]       # Tightened from [3.0, 8.0]: closer prey makes bite discovery much more likely during exploration
@@ -38,8 +47,10 @@ net_arch = [512, 256]
 [sac]
 learning_rate = 1e-4              # Higher than PPO's 5e-5 — replay buffer stabilizes updates; faster convergence on sparse bite reward
 batch_size = 256
-gamma = 0.99                     # At gamma=0.99, discounted future ≈ 250 vs bite_bonus=1000 — biting is clearly net-positive;
-                                 # PPO's gamma=0.995 made future value ~460, closer to the bonus threshold
+gamma = 0.99                     # Shorter horizon than PPO's 0.995: with alive_bonus=0 and the new
+                                 # bite_bonus=75 (post-rescale), the opportunity cost of biting is dominated
+                                 # by a few steps of approach-delta shaping that rapidly decays to 0 near
+                                 # prey, so the bonus is comfortably net-positive at any gamma
 tau = 0.005
 ent_coef = "auto"                # Auto-entropy handles sparse reward exploration — T-Rex's 96.7% PPO success rate
                                  # suggests the task structure is sound; SAC should solve it more sample-efficiently
@@ -80,7 +91,7 @@ net_arch = [512, 256]
 
 [curriculum]
 timesteps = 8000000
-min_avg_reward = 100.0
+min_avg_reward = 10.0                 # Scaled down with bite_bonus 1000→75 (see docs/REWARD_SCALE_REDESIGN.md); acts as a shaping-floor sanity check — real graduation gate is min_success_rate
 min_success_rate = 0.5                # At least 25% bite success — confirms hunting behavior emerged
 required_consecutive = 3
 warmup_timesteps = 100000               # Timesteps to constrain policy updates while critic adapts (PPO only)

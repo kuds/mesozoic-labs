@@ -70,7 +70,7 @@
     "sac_gradient_steps": {"type": "discrete", "values": [8, 16]},
 
     "_comment_env": "Strike reward: sweep the sparse bonus magnitude and approach shaping. Lower strike_bonus may train faster if approach_weight provides enough gradient. Also sweep prey distance — closer prey means faster strike discovery.",
-    "env_strike_bonus":                 {"type": "double", "min": 500.0, "max": 2000.0, "scale": "log"},
+    "env_strike_bonus":                 {"type": "double", "min": 40.0, "max": 150.0, "scale": "log"},
     "env_strike_approach_weight":       {"type": "double", "min": 2.0, "max": 5.0, "scale": "linear"},
     "env_strike_claw_proximity_weight": {"type": "double", "min": 0.5, "max": 2.0, "scale": "linear"},
     "env_forward_vel_weight":           {"type": "double", "min": 0.5, "max": 2.0, "scale": "linear"},

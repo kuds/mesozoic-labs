@@ -70,7 +70,7 @@ defaults -- T-Rex should behave similarly.
 |-------|---------------|-------|-------------|------------|---------------|
 | 1 (balance) | 3e-4 | 0.99 | 300K | 4 | alive_bonus=2.0, posture_weight=2.0 |
 | 2 (locomotion) | 1e-4 | 0.99 | 1M | 4 | forward_vel_weight=2.0 |
-| 3 (bite) | 1e-4 | 0.99 | 1M | 4 | bite_bonus=1000, bite_approach_weight=3.0 |
+| 3 (bite) | 1e-4 | 0.99 | 1M | 4 | bite_bonus=75 (rescaled from 1000 — see REWARD_SCALE_REDESIGN.md), bite_approach_weight=3.0 |
 
 ---
 
@@ -147,7 +147,7 @@ Try the defaults first.
 |-------|---------------|-------|-------------|---------------|
 | 1 (balance) | 3e-4 | 0.99 | 300K | alive_bonus=2.0 |
 | 2 (locomotion) | 1e-4 | 0.99 | 1M | gait_symmetry_weight=2.0, forward_vel_weight=4.0 |
-| 3 (food_reach) | 1e-4 | 0.99 | 1M | food_reach_bonus=1000, food_approach_weight=3.0 |
+| 3 (food_reach) | 1e-4 | 0.99 | 1M | food_reach_bonus=100 (rescaled from 1000 — see REWARD_SCALE_REDESIGN.md), food_approach_weight=3.0 |
 
 #### Watch For
 

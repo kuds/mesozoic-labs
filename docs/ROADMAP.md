@@ -14,7 +14,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | Phase | Name | Status | Done | Remaining |
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
-| **1** | First Steps (v0.3.0) | **In Progress** | 10/12 items | Brachiosaurus Stage 3 (food_reach at 16.7% vs 50% target); Stage 3 terminal-bonus rescale (design debt) |
+| **1** | First Steps (v0.3.0) | **In Progress** | 10/12 items | Brachiosaurus Stage 3 (food_reach at 16.7% vs 50% target); Stage 3 terminal-bonus rescale (configs landed, validation runs pending) |
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | Not Started | 0/8 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
@@ -167,13 +167,22 @@ curriculum with published results and reproducible checkpoints.
   - PPO unchanged (on-policy, no replay buffer)
   - _Completed: 2026-04-18_
 
-- [ ] **Stage 3 terminal-bonus rescale (reward design debt)**
-  - Stage 3 `strike_bonus_weight` / `bite_bonus_weight` /
-    `food_reach_bonus_weight` are all `1000`, ~2 orders of magnitude larger
-    than accumulated per-step shaping. This produces a bimodal,
-    non-stationary return distribution that VecNormalize was papering over.
+- [-] **Stage 3 terminal-bonus rescale (reward design debt)**
+  - Stage 3 `strike_bonus` / `bite_bonus` / `food_reach_bonus` were all `1000`,
+    ~2 orders of magnitude larger than accumulated per-step shaping. This
+    produced a bimodal, non-stationary return distribution that VecNormalize
+    was papering over.
   - Likely contributor to Brachiosaurus Stage 3 being stuck at 16.7%
     success (food_reach is the sparsest of the three Stage 3 tasks).
+  - Configs landed: rescaled to `75 / 75 / 100` (Velociraptor / T-Rex /
+    Brachiosaurus), proportionally scaled `min_avg_reward` to `10`, tightened
+    sweep `env_*_bonus` ranges, added reward-scale contract header comments,
+    CHANGELOG entry flagging the breaking reward-landscape change.
+  - **Remaining: validation runs.** One SAC Stage 3 run per species at the
+    new scale to confirm the curriculum gate passes and SAC's auto-entropy
+    coefficient settles; T-Rex SAC naturally doubles as a Phase 1 deliverable
+    here. If success rates regress, walk the bonus up toward `150–200`
+    before retreating to `1000`.
   - Proposed fix, validation plan, open questions, and risks captured in
     [REWARD_SCALE_REDESIGN.md](REWARD_SCALE_REDESIGN.md).
   - Breaking change to reward landscape — no cross-boundary checkpoint

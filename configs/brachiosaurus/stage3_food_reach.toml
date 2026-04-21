@@ -1,3 +1,15 @@
+# Reward scale contract:
+# - Per-step components are clipped to [-1, 1] then weighted; total per-step
+#   magnitude should stay within ~[-3, +3].
+# - Terminal bonus should be roughly 10-30% of a typical successful episode
+#   return (comparable to accumulated shaping, not dwarfing it).
+# - food_reach gets a slightly larger bonus than strike/bite (100 vs 75) because
+#   it is the sparsest Stage 3 task (novel neck-extension motion not learned in
+#   Stages 1-2) and needs a marginally stronger success signal.
+# - Exceeding these bounds destabilises SAC's critic and makes the reward
+#   distribution non-stationary for both algorithms. See
+#   docs/REWARD_SCALE_REDESIGN.md.
+
 [stage]
 name = "food_reach"
 description = "Walk to food and reach with neck"
@@ -14,7 +26,7 @@ posture_weight = 0.1                   # Light posture maintenance during reach
 nosedive_weight = 0.1                  # Reduced from 0.2: agent needs to pitch neck forward/downward to reach food — high nosedive penalty fights this
 heading_weight = 0.5                   # Face toward food for effective reach (matches T-Rex stage 3)
 lateral_penalty_weight = 0.3           # Penalize crab-walking toward food (matches T-Rex stage 3)
-food_reach_bonus = 1000.0              # Must greatly exceed discounted future per-step value; makes reaching food immediately net-positive (matches T-Rex bite_bonus)
+food_reach_bonus = 100.0               # Rescaled from 1000 (see docs/REWARD_SCALE_REDESIGN.md): comparable to accumulated shaping (~100-300 per episode) instead of dwarfing it; slightly larger than strike/bite (75) because food-reach is sparsest of the Stage 3 tasks
 food_reach_threshold = 0.8             # Widened from 0.5: easier success criterion for initial discovery — agent gets close but can't position head precisely enough
 food_approach_weight = 3.0             # 3x increase from 1.0: stronger delta-based gradient toward food (matches T-Rex bite_approach_weight)
 food_head_proximity_weight = 2.0       # Doubled from 1.0: stronger gradient pulling head toward food — this was the missing signal for the last-mile positioning
@@ -40,8 +52,10 @@ net_arch = [512, 256]                  # Match Stage 1 setting 4 architecture to
 [sac]
 learning_rate = 1e-4              # Higher than PPO's 5e-5 — replay buffer stabilizes updates for faster sparse reward convergence
 batch_size = 256
-gamma = 0.99                     # At gamma=0.99, discounted future ≈ 250 vs food_reach_bonus=1000 — reaching is clearly net-positive;
-                                 # PPO's gamma=0.995 risks the hovering-near-food exploit seen in raptor Stage 3
+gamma = 0.99                     # Shorter horizon than PPO's 0.995: with alive_bonus=0 and the new
+                                 # food_reach_bonus=100 (post-rescale), the opportunity cost of reaching
+                                 # is dominated by a few steps of approach-delta shaping that decays
+                                 # toward 0 near food, so the bonus is comfortably net-positive at any gamma
 tau = 0.005
 ent_coef = "auto"                # Auto-entropy is especially valuable for the neck-reaching task —
                                  # Brachiosaurus needs to discover a novel motion (neck extension) not learned in Stages 1-2
@@ -82,7 +96,7 @@ net_arch = [512, 256]
 
 [curriculum]
 timesteps = 12000000                   # Extended from 8M: best model was at 3.9M and policy degraded after — more time with stable config gives room to recover and converge
-min_avg_reward = 100.0                  # Minimum average reward to confirm food-reaching behavior
+min_avg_reward = 10.0                   # Scaled down with food_reach_bonus 1000→100 (see docs/REWARD_SCALE_REDESIGN.md); acts as a shaping-floor sanity check — real graduation gate is min_success_rate
 min_success_rate = 0.5                 # At least 25% food reach success — confirms behavior emerged
 required_consecutive = 3
 warmup_timesteps = 300000               # Tripled from 100k: agent needs more time to adapt from locomotion to food-reach reward landscape without losing walking ability
