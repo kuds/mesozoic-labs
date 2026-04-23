@@ -219,6 +219,8 @@ def write_stage_summary(
 
     Returns the path to the written summary file.
     """
+    from .config import get_library_version
+
     summary_path = Path(stage_dir) / "stage_summary.txt"
     mean_len = results_dict.get("mean_episode_length", 0)
     std_len = results_dict.get("std_episode_length", 0)
@@ -234,6 +236,7 @@ def write_stage_summary(
         f"Stage:          {results_dict['stage']} ({results_dict['name']})",
         f"Description:    {results_dict['description']}",
         f"Algorithm:      {algorithm}",
+        f"Version:        {get_library_version()}",
         f"Date:           {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"Timesteps:      {results_dict['timesteps']:,}",
         f"Duration:       {format_duration(results_dict['duration_seconds'])}",
