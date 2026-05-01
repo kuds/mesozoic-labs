@@ -302,8 +302,10 @@ def evaluate_policy_cpu(
 
             prev_action = action
 
-            cpu_data = mjx.put_data(mj_model, mj_data)
-            r = float(reward_fn(cpu_data, action, reward_cfg))
+            # Reuse a single mjx.put_data call for the post-step data;
+            # mj_data has already been advanced by frame_skip mj_step calls.
+            post_step_data = mjx.put_data(mj_model, mj_data)
+            r = float(reward_fn(post_step_data, action, reward_cfg))
             ep_reward += r
 
             if body_z < config.healthy_z_range[0] or body_z > config.healthy_z_range[1]:

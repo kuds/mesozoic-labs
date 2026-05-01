@@ -275,10 +275,22 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
                 )
 
                 approx_kl = aux["approx_kl"]
-                use_target_kl = TARGET_KL is not None
-                kl_over = use_target_kl & (approx_kl > TARGET_KL)
-                should_skip = kl_exceeded | kl_over
+                # Compare in Python (TARGET_KL is closure-captured) so we
+                # never evaluate ``traced > None`` when target_kl is disabled.
+                if TARGET_KL is not None:
+                    should_skip = kl_exceeded | (approx_kl > TARGET_KL)
+                else:
+                    should_skip = kl_exceeded
 
+                # On KL early-stop we revert BOTH params and the full
+                # opt_state — that includes Optax counters/moments and any
+                # LR-schedule step counter, so the schedule effectively
+                # rewinds to its pre-update value.  This is intentional
+                # (a skipped update consumes no schedule step), but it is
+                # subtle.  Under jit every leaf is a traced array, so the
+                # ``hasattr(new, "shape")`` check is always True and the
+                # ``else`` branch is dead — kept defensively for any
+                # future non-array opt-state field.
                 out_params = jax.tree.map(lambda new, old: jnp.where(should_skip, old, new), new_params, params)
                 out_opt_state = jax.tree.map(
                     lambda new, old: jnp.where(should_skip, old, new) if hasattr(new, "shape") else new,
@@ -313,28 +325,45 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
         NUM_ENVS = config.num_envs
 
         @jax.jit
-        def collect_rollout(states, rng, params, obs_rms):
+        def collect_rollout(states, rng, params, obs_rms, forward_vel_scale):
+            """Collect a rollout under the current obs stats.
+
+            Stores RAW (un-normalized) observations and the pre-reset
+            ``final_obs`` for each step.  The caller normalizes once
+            with the same stats — that keeps the PPO importance ratio
+            consistent and lets running stats track raw obs only.
+
+            ``forward_vel_scale`` is a scalar JAX array routed through to
+            the env so the reward ramp can take effect without retracing.
+            """
+
             def step_fn(carry, _):
                 states, rng = carry
                 rng, action_rng, step_rng = jax.random.split(rng, 3)
 
-                obs = normalize_obs(states.obs, obs_rms)
+                raw_obs = states.obs
+                obs_normed = normalize_obs(raw_obs, obs_rms)
                 rngs = jax.random.split(action_rng, NUM_ENVS)
-                raw_actions, log_probs, values = jax.vmap(_sample_action, in_axes=(None, 0, 0))(params, obs, rngs)
+                raw_actions, log_probs, values = jax.vmap(_sample_action, in_axes=(None, 0, 0))(
+                    params, obs_normed, rngs
+                )
 
                 actions = jnp.clip(raw_actions, -1.0, 1.0)
-                new_states, rewards, terminated, truncated = env.step(states, actions, step_rng)
-                dones = terminated | truncated
-                gae_dones = terminated
+                new_states, rewards, terminated, truncated, final_obs = env.step(
+                    states, actions, step_rng, return_final_obs=True, forward_vel_scale=forward_vel_scale
+                )
+                full_done = terminated | truncated
+                gae_done = terminated
 
                 return (new_states, rng), (
-                    obs,
+                    raw_obs,
                     raw_actions,
                     log_probs,
                     values,
                     rewards,
-                    gae_dones.astype(jnp.float32),
-                    dones.astype(jnp.float32),
+                    gae_done.astype(jnp.float32),
+                    full_done.astype(jnp.float32),
+                    final_obs,
                 )
 
             (states, _), rollout = jax.lax.scan(step_fn, (states, rng), None, length=ROLLOUT_LEN)
@@ -455,6 +484,15 @@ def train(
     _warmup_active = config.warmup_updates > 0
     _ramp_active = config.ramp_updates > 0
     _ramp_target_value = reward_cfg.get(config.ramp_attr, 0.0) if _ramp_active else 0.0
+    if _ramp_active and config.ramp_attr != "forward_vel_weight":
+        # The MJX env captures most weights as Python constants at trace
+        # time, so they cannot be ramped without recompilation.  Only
+        # ``forward_vel_weight`` is wired through ``env.step`` as a
+        # runtime scale.  Fail loud rather than silently doing nothing.
+        raise ValueError(
+            f"Reward ramp on attr={config.ramp_attr!r} is not supported by the MJX path; "
+            "only 'forward_vel_weight' is dynamic at runtime."
+        )
 
     # Reset environments
     rng, reset_rng = jax.random.split(rng)
@@ -512,23 +550,32 @@ def train(
                     )
 
             # ---------- Reward ramp ----------
-            if _ramp_active:
-                if relative_update < config.ramp_updates:
-                    ramp_progress = relative_update / config.ramp_updates
-                    ramp_value = _ramp_target_value * (
-                        config.ramp_start_fraction + (1.0 - config.ramp_start_fraction) * ramp_progress
-                    )
-                else:
-                    ramp_value = _ramp_target_value
-                reward_cfg[config.ramp_attr] = ramp_value
+            # The ramp scales forward_vel_weight in [start_fraction, 1.0]
+            # and is passed through to env.step at runtime so the JIT
+            # trace doesn't need to be invalidated.
+            if _ramp_active and relative_update < config.ramp_updates:
+                ramp_progress = relative_update / config.ramp_updates
+                forward_vel_scale = config.ramp_start_fraction + (1.0 - config.ramp_start_fraction) * ramp_progress
+                # Mirror the effective weight into reward_cfg so callers
+                # inspecting it (e.g. diagnostics) see the current value.
+                reward_cfg[config.ramp_attr] = _ramp_target_value * forward_vel_scale
+            else:
+                forward_vel_scale = 1.0
+                if _ramp_active:
+                    reward_cfg[config.ramp_attr] = _ramp_target_value
+            forward_vel_scale_arr = jnp.float32(forward_vel_scale)
 
             # ---------- Collect rollout ----------
             _t_phase = time.time()
             rng, rng_collect = jax.random.split(rng)
-            states, rollout = collect_rollout(states, rng_collect, params, obs_rms)
-            obs_t, act_t, lp_t, val_t, rew_t, done_t, full_done_t = rollout
+            # Snapshot the obs stats used during this rollout — PPO must
+            # see the same normalization, otherwise the importance ratio
+            # is biased.  We update obs_rms only after consuming the batch.
+            rollout_obs_rms = obs_rms
+            states, rollout = collect_rollout(states, rng_collect, params, rollout_obs_rms, forward_vel_scale_arr)
+            obs_t, act_t, lp_t, val_t, rew_t, gae_done_t, full_done_t, final_obs_t = rollout
 
-            jax.block_until_ready(done_t)
+            jax.block_until_ready(full_done_t)
             _t_rollout = time.time() - _t_phase
             _cum_t_rollout += _t_rollout
 
@@ -540,25 +587,35 @@ def train(
             full_done_np = np.array(full_done_t)
             _completed_returns, _completed_lengths = compute_episode_stats(rew_np, full_done_np, _ep_stats_acc)
 
-            # ---------- Update obs normalisation ----------
-            obs_batch_flat = obs_t.reshape(-1, OBS_DIM)
-            obs_rms = update_running_stats(obs_rms, obs_batch_flat)
-
             # ---------- Bootstrap value for GAE ----------
+            # Use the per-step ``final_obs`` (pre-auto-reset) for the last
+            # step so truncations bootstrap their true s_T value.  Natural
+            # terminations are masked out by the GAE done flag anyway.
             rng, rng_bootstrap = jax.random.split(rng)
-            obs_final = normalize_obs(states.obs, obs_rms)
-            _, _, bootstrap_values = batched_sample(params, obs_final, rng_bootstrap)
+            last_final_obs = final_obs_t[-1]
+            bootstrap_obs = normalize_obs(last_final_obs, rollout_obs_rms)
+            _, _, bootstrap_values = batched_sample(params, bootstrap_obs, rng_bootstrap)
             val_t_plus1 = jnp.concatenate([val_t, bootstrap_values[None]], axis=0)
 
             # ---------- Compute advantages ----------
-            advantages, returns = compute_gae(rew_t, val_t_plus1, done_t, GAMMA, GAE_LAMBDA)
+            # gae_done_t masks ONLY natural termination so truncated
+            # rollout steps still bootstrap V(s_{t+1}) correctly.
+            advantages, returns = compute_gae(rew_t, val_t_plus1, gae_done_t, GAMMA, GAE_LAMBDA)
 
-            flat_obs = obs_t.reshape(-1, OBS_DIM)
+            # Normalize PPO inputs with the rollout-time stats so the new
+            # policy sees the same scaled inputs as the behaviour policy.
+            flat_obs_raw = obs_t.reshape(-1, OBS_DIM)
+            flat_obs = normalize_obs(flat_obs_raw, rollout_obs_rms)
             flat_act = act_t.reshape(-1, ACT_DIM)
             flat_lp = lp_t.reshape(-1)
             flat_adv = advantages.reshape(-1)
             flat_ret = returns.reshape(-1)
             flat_val = val_t.reshape(-1)
+
+            # ---------- Update obs normalisation (from RAW obs) ----------
+            # Done after the rollout has been consumed so PPO sees stats
+            # that match what the behaviour policy used.
+            obs_rms = update_running_stats(obs_rms, flat_obs_raw)
 
             # ---------- PPO update ----------
             _t_phase = time.time()
@@ -849,7 +906,21 @@ class JaxTrainer:
                 fn(*args)
 
     def _build_collect_rollout(self):
-        """Build the JIT-compiled rollout collector."""
+        """Build the JIT-compiled rollout collector.
+
+        Returned tuple ordering (per timestep):
+        ``(raw_obs, raw_action, log_prob, value, reward, gae_done, full_done, final_obs)``.
+
+        - ``raw_obs`` is the unnormalized obs at the input to the policy.
+          Callers normalize once on the host with the *same* stats used
+          inside this rollout to keep PPO importance sampling consistent.
+        - ``gae_done`` masks ONLY natural termination — used by GAE so
+          that time-limit truncations still bootstrap their value.
+        - ``full_done`` marks any episode boundary (terminated or
+          truncated) — used for episode tracking and fall-rate stats.
+        - ``final_obs`` is the post-step pre-auto-reset obs, needed to
+          bootstrap value correctly at truncation boundaries.
+        """
         import jax
         import jax.numpy as jnp
 
@@ -867,19 +938,28 @@ class JaxTrainer:
                 states, rng = carry
                 rng, action_rng = jax.random.split(rng)
 
-                obs = normalize_obs(states.obs, obs_stats_arg)
+                # Normalize for the policy but store the RAW obs so the
+                # caller can re-normalize with the exact same stats later.
+                raw_obs = states.obs
+                obs_normed = normalize_obs(raw_obs, obs_stats_arg)
                 raw_action, log_prob, value = jax.vmap(
                     sample_action,
                     in_axes=(None, None, 0, 0),
-                )(params, network, obs, jax.random.split(action_rng, num_envs))
+                )(params, network, obs_normed, jax.random.split(action_rng, num_envs))
 
                 # Clip for env; store raw action for PPO ratio consistency
                 action = jnp.clip(raw_action, -1.0, 1.0)
                 rng, step_rng = jax.random.split(rng)
-                new_states, rewards, terminated, truncated = env.step(states, action, step_rng)
-                dones = (terminated | truncated).astype(jnp.float32)
+                new_states, rewards, terminated, truncated, final_obs = env.step(
+                    states, action, step_rng, return_final_obs=True
+                )
+                gae_done = terminated.astype(jnp.float32)
+                full_done = (terminated | truncated).astype(jnp.float32)
 
-                return (new_states, rng), (states.obs, raw_action, log_prob, value, rewards, dones)
+                return (
+                    (new_states, rng),
+                    (raw_obs, raw_action, log_prob, value, rewards, gae_done, full_done, final_obs),
+                )
 
             return jax.lax.scan(step_fn, (states, rng), None, length=rollout_len)
 
@@ -926,10 +1006,16 @@ class JaxTrainer:
                     )
                     approx_kl = loss_info["approx_kl"]
 
-                    use_target_kl = ppo_config.target_kl is not None
-                    kl_over = use_target_kl & (approx_kl > ppo_config.target_kl)
-                    should_skip = kl_exceeded | kl_over
+                    # Compare in Python so we never evaluate ``traced > None``
+                    # when target_kl is disabled.
+                    if ppo_config.target_kl is not None:
+                        should_skip = kl_exceeded | (approx_kl > ppo_config.target_kl)
+                    else:
+                        should_skip = kl_exceeded
 
+                    # See note in scan_ppo_epochs: skipped updates revert
+                    # the entire opt_state (including LR-schedule step), so
+                    # the schedule effectively pauses on KL early-stop.
                     out_params = jax.tree.map(
                         lambda new, old: jnp.where(should_skip, old, new),
                         new_params,
@@ -987,19 +1073,17 @@ class JaxTrainer:
         _logger.info("num_envs=%d rollout_len=%d num_updates=%d", self.num_envs, self.rollout_len, num_updates)
 
         rng = jax.random.PRNGKey(seed)
-        rng, init_rng = jax.random.split(rng)
+        rng, init_rng, reset_rng = jax.random.split(rng, 3)
 
-        dummy_obs = jnp.zeros(
-            self.env.mj_model.nq - 7 + self.env.mj_model.nv - 6 + 17,
-        )
+        # Derive obs_dim from a real reset rather than reconstructing it from
+        # nq/nv arithmetic — the latter forgets foot-contact channels.
+        states = self.env.reset(reset_rng)
+        obs_dim = int(states.obs.shape[-1])
+        dummy_obs = jnp.zeros((obs_dim,))
         params = self.network.init(init_rng, dummy_obs) if init_params is None else init_params
         opt_state = self.optimizer.init(params)
 
-        obs_dim = dummy_obs.shape[0]
         obs_stats = RunningMeanStd.create(obs_dim)
-
-        rng, reset_rng = jax.random.split(rng)
-        states = self.env.reset(reset_rng)
 
         self._collect_rollout = self._build_collect_rollout()
         self._scan_ppo_update = self._build_scan_ppo_update()
@@ -1040,36 +1124,43 @@ class JaxTrainer:
                 t_rollout_start = time.time()
                 rng, collect_rng = jax.random.split(state.rng)
                 state.rng = rng
+                # Snapshot the obs stats used during this rollout — we'll
+                # normalize all PPO inputs with the SAME stats so the
+                # importance-sampling ratio stays consistent.  Stats are
+                # updated AFTER PPO consumes the rollout.
+                rollout_obs_stats = state.obs_stats
                 (states, _), rollout_data = self._collect_rollout(
                     state.env_states,
                     collect_rng,
                     state.params,
-                    state.obs_stats,
+                    rollout_obs_stats,
                 )
                 state.env_states = states
-                rollout_obs, rollout_actions, rollout_log_probs, rollout_values, rollout_rewards, rollout_dones = (
-                    rollout_data
-                )
+                (
+                    rollout_obs,
+                    rollout_actions,
+                    rollout_log_probs,
+                    rollout_values,
+                    rollout_rewards,
+                    rollout_gae_dones,
+                    rollout_full_dones,
+                    rollout_final_obs,
+                ) = rollout_data
 
-                jax.block_until_ready(rollout_dones)
+                jax.block_until_ready(rollout_full_dones)
                 t_rollout = time.time() - t_rollout_start
                 state.t_rollout_cumulative += t_rollout
                 state.total_steps += self.num_envs * self.rollout_len
-
-                state.obs_stats = update_running_stats(
-                    state.obs_stats,
-                    rollout_obs.reshape(-1, obs_dim),
-                )
 
                 mean_reward = float(jnp.mean(rollout_rewards))
                 elapsed = time.time() - t0
                 fps = state.total_steps / elapsed if elapsed > 0 else 0
 
                 # Compute fall rate on-device; only transfer scalars
-                fall_rate = float(jnp.sum(rollout_dones)) / (self.rollout_len * self.num_envs)
+                fall_rate = float(jnp.sum(rollout_full_dones)) / (self.rollout_len * self.num_envs)
                 # Defer full GPU→CPU transfer for episode tracking
                 rew_np = np.array(rollout_rewards)
-                done_np = np.array(rollout_dones)
+                done_np = np.array(rollout_full_dones)
                 completed_returns, completed_lengths = compute_episode_stats(rew_np, done_np, ep_stats_acc)
                 mean_ep_return = float(np.mean(completed_returns)) if completed_returns else float("nan")
                 mean_ep_length = float(np.mean(completed_lengths)) if completed_lengths else float("nan")
@@ -1085,20 +1176,35 @@ class JaxTrainer:
                 }
                 self._dispatch("on_rollout_end", state, rollout_metrics)
 
-                rollout_obs_norm = normalize_obs(rollout_obs.reshape(-1, obs_dim), state.obs_stats)
+                # Bootstrap value at the end of the rollout.  When the last
+                # step truncated, ``state.env_states.obs`` is the post-reset
+                # obs, so use the per-step ``rollout_final_obs`` for the
+                # last index — that's the true s_T.  When the last step
+                # terminated, the (1 - gae_done) GAE mask zeros it out.
+                last_final_obs = rollout_final_obs[-1]
+
+                # Normalize PPO inputs with the SAME stats used during sampling
+                rollout_obs_norm = normalize_obs(rollout_obs.reshape(-1, obs_dim), rollout_obs_stats)
 
                 rng, bootstrap_rng = jax.random.split(state.rng)
                 state.rng = rng
-                final_obs = normalize_obs(state.env_states.obs, state.obs_stats)
-                bootstrap_value = _batched_bootstrap(state.params, final_obs, bootstrap_rng)
+                bootstrap_obs_norm = normalize_obs(last_final_obs, rollout_obs_stats)
+                bootstrap_value = _batched_bootstrap(state.params, bootstrap_obs_norm, bootstrap_rng)
 
                 rollout_values_arr = jnp.concatenate([rollout_values, bootstrap_value[None]], axis=0)
                 advantages, returns = compute_gae(
                     rollout_rewards,
                     rollout_values_arr,
-                    rollout_dones,
+                    rollout_gae_dones,
                     self.ppo_config.gamma,
                     self.ppo_config.gae_lambda,
+                )
+
+                # Update running obs stats AFTER the rollout has been fully
+                # consumed for normalization, using RAW obs (never normalized).
+                state.obs_stats = update_running_stats(
+                    state.obs_stats,
+                    rollout_obs.reshape(-1, obs_dim),
                 )
 
                 batch = {
