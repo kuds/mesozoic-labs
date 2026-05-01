@@ -136,3 +136,83 @@ class TestMakeOptimizer:
         )
         opt = make_optimizer(cfg)
         assert opt is not None
+
+
+# ---------------------------------------------------------------------------
+# compute_gae: verify done masking distinguishes termination from truncation
+# ---------------------------------------------------------------------------
+
+
+class TestComputeGAE:
+    """The trainer feeds compute_gae a done mask that is 1 ONLY for natural
+    termination — truncation must keep the bootstrap value alive."""
+
+    @pytest.fixture()
+    def _jnp(self):
+        jnp = pytest.importorskip("jax.numpy")
+        return jnp
+
+    def test_terminal_done_zeros_bootstrap(self, _jnp):
+        """When done=1 at step T-1, GAE must not propagate V(s_T)."""
+        from environments.shared.jax_ppo import compute_gae
+
+        jnp = _jnp
+        # 1 env, 3 steps; done at the last step.
+        rewards = jnp.array([[0.0], [0.0], [1.0]])
+        # values = [V(s_0), V(s_1), V(s_2), V(s_3)]; bootstrap at index 3.
+        values = jnp.array([[0.0], [0.0], [0.0], [10.0]])
+        dones = jnp.array([[0.0], [0.0], [1.0]])
+
+        adv, ret = compute_gae(rewards, values, dones, gamma=0.99, gae_lambda=0.95)
+        # Step 2 done=1 → δ_2 = r_2 + 0 - V(s_2) = 1.0; A_2 = 1.0
+        # The bootstrap V(s_3)=10 must NOT enter A_2.
+        assert float(adv[-1, 0]) == pytest.approx(1.0, abs=1e-5)
+        assert float(ret[-1, 0]) == pytest.approx(1.0, abs=1e-5)
+
+    def test_no_done_bootstraps_value(self, _jnp):
+        """When done=0 (truncation, in our convention), bootstrap V(s_T)."""
+        from environments.shared.jax_ppo import compute_gae
+
+        jnp = _jnp
+        rewards = jnp.array([[1.0]])
+        values = jnp.array([[0.0], [10.0]])  # V(s_0)=0, bootstrap V(s_1)=10
+        dones = jnp.array([[0.0]])
+
+        adv, _ = compute_gae(rewards, values, dones, gamma=0.99, gae_lambda=0.95)
+        # δ_0 = r + γ * V(s_1) - V(s_0) = 1 + 0.99*10 - 0 = 10.9; A_0 = 10.9
+        assert float(adv[0, 0]) == pytest.approx(10.9, abs=1e-4)
+
+    def test_truncation_vs_termination_diverge(self, _jnp):
+        """Same trajectory, two done patterns — bootstrap behavior must differ."""
+        from environments.shared.jax_ppo import compute_gae
+
+        jnp = _jnp
+        rewards = jnp.array([[0.0]])
+        values = jnp.array([[0.0], [5.0]])
+
+        adv_truncated, _ = compute_gae(
+            rewards, values, jnp.array([[0.0]]), gamma=1.0, gae_lambda=1.0
+        )
+        adv_terminated, _ = compute_gae(
+            rewards, values, jnp.array([[1.0]]), gamma=1.0, gae_lambda=1.0
+        )
+        # Truncation bootstraps: A_0 = 0 + 5 - 0 = 5
+        # Termination zeros bootstrap: A_0 = 0 + 0 - 0 = 0
+        assert float(adv_truncated[0, 0]) == pytest.approx(5.0, abs=1e-5)
+        assert float(adv_terminated[0, 0]) == pytest.approx(0.0, abs=1e-5)
+
+    def test_chronological_order(self, _jnp):
+        """Output advantages must be in chronological (forward) order."""
+        from environments.shared.jax_ppo import compute_gae
+
+        jnp = _jnp
+        rewards = jnp.array([[1.0], [2.0], [3.0]])
+        values = jnp.array([[0.0], [0.0], [0.0], [0.0]])
+        dones = jnp.array([[0.0], [0.0], [0.0]])
+
+        adv, ret = compute_gae(rewards, values, dones, gamma=1.0, gae_lambda=1.0)
+        # With γ=λ=1, advantage at step t = sum of future rewards.
+        # A_0 = r_0 + r_1 + r_2 = 6; A_1 = 5; A_2 = 3
+        assert float(adv[0, 0]) == pytest.approx(6.0, abs=1e-5)
+        assert float(adv[1, 0]) == pytest.approx(5.0, abs=1e-5)
+        assert float(adv[2, 0]) == pytest.approx(3.0, abs=1e-5)

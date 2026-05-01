@@ -242,15 +242,18 @@ class MJXDinoEnv:
         # Cache default MJX data once (avoids mjx.make_data per env per step)
         self._default_data = mjx.make_data(self.mjx_model)
 
-        # Pre-compile step and reset functions
+        # Pre-compile step and reset functions.  ``forward_vel_scale`` is
+        # passed as a JAX scalar (broadcast via in_axes=None) so the reward
+        # ramp can adjust the forward-velocity weight at runtime without
+        # forcing a re-trace.
         self._step_single = jax.jit(self._make_step_fn())
         self._reset_single = jax.jit(self._make_reset_fn())
-        self._batched_step = jax.jit(jax.vmap(self._step_single, in_axes=(0, 0, 0)))
+        self._batched_step = jax.jit(jax.vmap(self._step_single, in_axes=(0, 0, 0, None)))
         self._batched_reset = jax.jit(jax.vmap(self._reset_single, in_axes=(0,)))
 
         # Fused step + auto-reset: runs step and reset in a single vmapped
         # kernel, selecting the reset state only where episodes ended.
-        self._batched_step_autoreset = jax.jit(jax.vmap(self._make_fused_step_fn(), in_axes=(0, 0, 0)))
+        self._batched_step_autoreset = jax.jit(jax.vmap(self._make_fused_step_fn(), in_axes=(0, 0, 0, None)))
 
     def _make_step_fn(self):
         """Build the single-env step function as a closure over model/config."""
@@ -301,8 +304,13 @@ class MJXDinoEnv:
             foot_indices=config.sensor_foot_indices,
         )
 
-        def step_fn(state: EnvState, action, rng):
-            """Pure single-environment step function."""
+        def step_fn(state: EnvState, action, rng, forward_vel_scale):
+            """Pure single-environment step function.
+
+            ``forward_vel_scale`` (a scalar JAX array) multiplies the
+            ``forward_vel_weight`` reward at runtime so the trainer can
+            ramp it without retracing this kernel.
+            """
             # Scale action
             ctrl = scale_action_jax(action, ctrl_range)
             data = state.data.replace(ctrl=ctrl)
@@ -335,8 +343,10 @@ class MJXDinoEnv:
             forward_ref = target_rel_2d / (jnp.linalg.norm(target_rel_2d) + 1e-8)
 
             weights = config.reward_weights
+            # Apply runtime ramp scale (default 1.0) to forward_vel_weight.
+            forward_vel_weight = weights.get("forward_vel_weight", 1.0) * forward_vel_scale
             r_forward, fwd_vel = reward_forward_velocity(
-                vel_2d, forward_ref, config.forward_vel_max, weights.get("forward_vel_weight", 1.0)
+                vel_2d, forward_ref, config.forward_vel_max, forward_vel_weight
             )
             # Foot contact: read touch sensors
             foot_contact_threshold = 0.1  # Newtons
@@ -621,6 +631,12 @@ class MJXDinoEnv:
         Fusing step + reset into one function means a single ``vmap`` call
         handles both, avoiding a second batched reset kernel and the
         Python-level ``tree_map`` / ``where`` selection.
+
+        The fused step also returns ``final_obs`` — the post-step obs
+        BEFORE auto-reset.  Callers that need to bootstrap value at a
+        truncation boundary (where the episode ends without termination)
+        must use ``final_obs``, not ``new_state.obs``, since the latter
+        is the reset-episode obs once auto-reset fires.
         """
         step_fn = self._make_step_fn()
         reset_fn = self._make_reset_fn()
@@ -628,10 +644,13 @@ class MJXDinoEnv:
         import jax
         import jax.numpy as jnp
 
-        def fused_step(state: EnvState, action, rng):
+        def fused_step(state: EnvState, action, rng, forward_vel_scale):
             rng_step, rng_reset = jax.random.split(rng)
-            new_state, reward, terminated, truncated = step_fn(state, action, rng_step)
+            new_state, reward, terminated, truncated = step_fn(state, action, rng_step, forward_vel_scale)
             done = terminated | truncated
+
+            # Capture the pre-reset obs so callers can bootstrap at truncation.
+            final_obs = new_state.obs
 
             reset_state = reset_fn(rng_reset)
 
@@ -641,7 +660,7 @@ class MJXDinoEnv:
                 new_state,
                 reset_state,
             )
-            return out_state, reward, terminated, truncated
+            return out_state, reward, terminated, truncated, final_obs
 
         return fused_step
 
@@ -659,7 +678,15 @@ class MJXDinoEnv:
         rngs = jax.random.split(rng, self.num_envs)
         return self._batched_reset(rngs)
 
-    def step(self, states: EnvState, actions, rng):
+    def step(
+        self,
+        states: EnvState,
+        actions,
+        rng,
+        *,
+        return_final_obs: bool = False,
+        forward_vel_scale: Any = None,
+    ):
         """Step all environments with fused auto-reset.
 
         Uses a single vmapped kernel that computes both the physics step
@@ -670,11 +697,28 @@ class MJXDinoEnv:
             states: Batched ``EnvState``.
             actions: Actions array of shape ``(num_envs, action_dim)``.
             rng: JAX PRNGKey (used for step and auto-reset).
+            return_final_obs: When ``True``, also return the pre-reset
+                observation so callers can bootstrap at truncation.
+            forward_vel_scale: Optional scalar (``float`` or 0-d JAX array)
+                that multiplies the ``forward_vel_weight`` reward
+                component at runtime.  ``None`` (default) is treated as
+                ``1.0`` — no scaling.  Use this from a curriculum / ramp
+                so the policy sees a smoothly-changing reward without
+                forcing JIT recompilation.
 
         Returns:
-            (new_states, rewards, terminated, truncated) tuple.
+            ``(new_states, rewards, terminated, truncated)`` by default,
+            or ``(new_states, rewards, terminated, truncated, final_obs)``
+            when ``return_final_obs=True``.
         """
         import jax
+        import jax.numpy as jnp
 
+        scale = jnp.float32(1.0) if forward_vel_scale is None else jnp.asarray(forward_vel_scale, dtype=jnp.float32)
         rngs = jax.random.split(rng, self.num_envs)
-        return self._batched_step_autoreset(states, actions, rngs)
+        new_states, rewards, terminated, truncated, final_obs = self._batched_step_autoreset(
+            states, actions, rngs, scale
+        )
+        if return_final_obs:
+            return new_states, rewards, terminated, truncated, final_obs
+        return new_states, rewards, terminated, truncated

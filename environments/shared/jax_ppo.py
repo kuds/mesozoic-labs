@@ -247,7 +247,14 @@ def make_optimizer(config: PPOConfig):
 
     When ``config.learning_rate_end`` is set, the learning rate is
     linearly decayed from ``learning_rate`` to ``learning_rate_end``
-    over ``config.total_updates * config.n_epochs`` gradient steps.
+    over ``config.total_updates * config.n_epochs * config.n_minibatches``
+    gradient steps — i.e. one step per minibatch update.
+
+    Note: the schedule is per-run.  In a multi-stage curriculum each
+    call to ``make_optimizer`` builds an independent schedule sized to
+    the stage's ``total_updates``, so the LR decays to
+    ``learning_rate_end`` once per stage rather than once across the
+    whole curriculum.
 
     Returns:
         An ``optax.GradientTransformation``.

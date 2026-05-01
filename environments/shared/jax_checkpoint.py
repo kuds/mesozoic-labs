@@ -113,7 +113,23 @@ class CheckpointManager:
         self.directory.mkdir(parents=True, exist_ok=True)
         self.prefix = prefix
         self.max_keep = max_keep
-        self._recent: list[Path] = []
+        # Discover any pre-existing checkpoints (sorted oldest -> newest by
+        # update number) so a resumed run continues to enforce ``max_keep``
+        # instead of silently letting old files accumulate on disk.
+        existing = list(self.directory.glob(f"{prefix}_*.pkl"))
+
+        def _update_idx(p: Path) -> int:
+            stem = p.stem  # e.g. "checkpoint_42"
+            suffix = stem[len(prefix) + 1 :]
+            try:
+                return int(suffix)
+            except ValueError:
+                return -1
+
+        self._recent: list[Path] = sorted(
+            (p for p in existing if _update_idx(p) >= 0),
+            key=_update_idx,
+        )
 
     def save(
         self,
