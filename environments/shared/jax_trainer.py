@@ -555,9 +555,7 @@ def train(
             # trace doesn't need to be invalidated.
             if _ramp_active and relative_update < config.ramp_updates:
                 ramp_progress = relative_update / config.ramp_updates
-                forward_vel_scale = (
-                    config.ramp_start_fraction + (1.0 - config.ramp_start_fraction) * ramp_progress
-                )
+                forward_vel_scale = config.ramp_start_fraction + (1.0 - config.ramp_start_fraction) * ramp_progress
                 # Mirror the effective weight into reward_cfg so callers
                 # inspecting it (e.g. diagnostics) see the current value.
                 reward_cfg[config.ramp_attr] = _ramp_target_value * forward_vel_scale

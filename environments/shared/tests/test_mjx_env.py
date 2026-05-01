@@ -150,9 +150,7 @@ class TestStepReturnFinalObs:
         rng = jax.random.PRNGKey(0)
         states = env.reset(rng)
         actions = jnp.zeros((2, env.action_dim))
-        new_states, _r, terminated, _trunc, final_obs = env.step(
-            states, actions, rng, return_final_obs=True
-        )
+        new_states, _r, terminated, _trunc, final_obs = env.step(states, actions, rng, return_final_obs=True)
         assert bool(terminated[0])
         # After termination + auto-reset, new_states.obs is the freshly
         # reset obs.  final_obs should NOT match the reset state because

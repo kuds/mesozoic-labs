@@ -190,12 +190,8 @@ class TestComputeGAE:
         rewards = jnp.array([[0.0]])
         values = jnp.array([[0.0], [5.0]])
 
-        adv_truncated, _ = compute_gae(
-            rewards, values, jnp.array([[0.0]]), gamma=1.0, gae_lambda=1.0
-        )
-        adv_terminated, _ = compute_gae(
-            rewards, values, jnp.array([[1.0]]), gamma=1.0, gae_lambda=1.0
-        )
+        adv_truncated, _ = compute_gae(rewards, values, jnp.array([[0.0]]), gamma=1.0, gae_lambda=1.0)
+        adv_terminated, _ = compute_gae(rewards, values, jnp.array([[1.0]]), gamma=1.0, gae_lambda=1.0)
         # Truncation bootstraps: A_0 = 0 + 5 - 0 = 5
         # Termination zeros bootstrap: A_0 = 0 + 0 - 0 = 0
         assert float(adv_truncated[0, 0]) == pytest.approx(5.0, abs=1e-5)
