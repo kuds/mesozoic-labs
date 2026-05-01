@@ -321,19 +321,16 @@ class TestJaxTrainerSmoke:
         import jax
 
         trainer, env = self._build()
-        # Monkeypatch in init so we exercise the build but stop early.
         rng = jax.random.PRNGKey(0)
         states = env.reset(rng)
         collect = trainer._build_collect_rollout()
-        from environments.shared.jax_normalization import RunningMeanStd
 
-        stats = RunningMeanStd.create(int(states.obs.shape[-1]))
         # We need params to actually run the network — re-use trainer.train
-        # to do init then call collect with returned params.
+        # to do init then call collect with the returned params.
         params, _metrics, tstate = trainer.train(num_updates=1, seed=0)
         (_states, _), rollout = collect(tstate.env_states, rng, params, tstate.obs_stats)
         assert len(rollout) == 8
-        raw_obs, raw_action, log_prob, value, reward, gae_done, full_done, final_obs = rollout
+        raw_obs, _raw_action, _log_prob, _value, _reward, gae_done, full_done, final_obs = rollout
         assert raw_obs.shape[-1] == int(states.obs.shape[-1])
         assert final_obs.shape == raw_obs.shape
         # gae_done <= full_done elementwise (truncation cannot fire without
@@ -350,12 +347,11 @@ class TestNotebookTrainRewardRamp:
     ramp targets rather than silently doing nothing."""
 
     def _make_train_inputs(self, *, ramp_attr="forward_vel_weight", ramp_updates=2):
-        import environments.trex.mjx_config  # noqa: F401
         import jax
-        import jax.numpy as jnp  # noqa: F401
 
-        from environments.shared.jax_ppo import PPOConfig, make_actor_critic, make_optimizer
+        import environments.trex.mjx_config  # noqa: F401
         from environments.shared.jax_normalization import RunningMeanStd
+        from environments.shared.jax_ppo import PPOConfig, make_actor_critic, make_optimizer
         from environments.shared.jax_trainer import TrainConfig
         from environments.shared.mjx_env import MJXDinoEnv
 

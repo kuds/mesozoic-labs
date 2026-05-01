@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import pickle
 
-import pytest
-
 from environments.shared.jax_checkpoint import (
     CheckpointManager,
     load_checkpoint,
