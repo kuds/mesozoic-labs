@@ -143,6 +143,104 @@ class TestMakeOptimizer:
 # ---------------------------------------------------------------------------
 
 
+class TestExplainedVariance:
+    """ppo_loss exposes explained_variance as a diagnostic (not part of loss)."""
+
+    @pytest.fixture()
+    def _jax(self):
+        jax = pytest.importorskip("jax")
+        jnp = pytest.importorskip("jax.numpy")
+        return jax, jnp
+
+    def test_explained_variance_in_info_and_finite(self, _jax):
+        jax, jnp = _jax
+        from environments.shared.jax_ppo import PPOConfig, make_actor_critic, ppo_loss
+
+        network = make_actor_critic(action_dim=2, hidden_dims=(8,))
+        params = network.init(jax.random.PRNGKey(0), jnp.zeros(3))
+        batch = {
+            "obs": jnp.zeros((4, 3)),
+            "action": jnp.zeros((4, 2)),
+            "old_log_prob": jnp.zeros(4),
+            "advantage": jnp.array([1.0, -1.0, 0.5, -0.5]),
+            "return_": jnp.array([1.0, 2.0, 3.0, 4.0]),
+        }
+        _, info = ppo_loss(params, network, batch, PPOConfig())
+        assert "explained_variance" in info
+        assert np.isfinite(float(info["explained_variance"]))
+        assert float(info["explained_variance"]) <= 1.0 + 1e-6
+
+    def test_explained_variance_nan_for_constant_returns(self, _jax):
+        jax, jnp = _jax
+        from environments.shared.jax_ppo import PPOConfig, make_actor_critic, ppo_loss
+
+        network = make_actor_critic(action_dim=2, hidden_dims=(8,))
+        params = network.init(jax.random.PRNGKey(0), jnp.zeros(3))
+        batch = {
+            "obs": jnp.zeros((4, 3)),
+            "action": jnp.zeros((4, 2)),
+            "old_log_prob": jnp.zeros(4),
+            "advantage": jnp.zeros(4),
+            "return_": jnp.ones(4) * 5.0,  # zero variance → NaN (matches SB3)
+        }
+        _, info = ppo_loss(params, network, batch, PPOConfig())
+        assert np.isnan(float(info["explained_variance"]))
+
+
+class TestLogStdClamp:
+    """A collapsing/exploding policy must not push the Gaussian std to 0/inf
+    and blow up the log-prob and entropy terms — log-std is clamped."""
+
+    @pytest.fixture()
+    def _jax(self):
+        jax = pytest.importorskip("jax")
+        jnp = pytest.importorskip("jax.numpy")
+        return jax, jnp
+
+    def test_clamp_constants_sane(self):
+        from environments.shared.jax_ppo import LOG_STD_MAX, LOG_STD_MIN
+
+        assert LOG_STD_MIN < 0 < LOG_STD_MAX
+
+    def test_extreme_log_std_is_floored(self, _jax):
+        jax, jnp = _jax
+        pytest.importorskip("flax")
+        from flax.core import freeze, unfreeze
+
+        from environments.shared.jax_ppo import (
+            LOG_STD_MIN,
+            PPOConfig,
+            make_actor_critic,
+            ppo_loss,
+            sample_action,
+        )
+
+        network = make_actor_critic(action_dim=3, hidden_dims=(8,))
+        params = network.init(jax.random.PRNGKey(0), jnp.zeros(4))
+        # Force log_std far below the clamp floor (std would otherwise be ~0).
+        try:
+            mp = unfreeze(params)
+            mp["params"]["log_std"] = jnp.full((3,), -100.0)
+            params = freeze(mp)
+        except Exception:
+            pytest.skip("flax param container API changed")
+
+        action, log_prob, _ = sample_action(params, network, jnp.zeros(4), jax.random.PRNGKey(1))
+        assert np.isfinite(float(log_prob)), "log_prob must stay finite despite tiny log_std"
+
+        batch = {
+            "obs": jnp.zeros((1, 4)),
+            "action": action[None],
+            "old_log_prob": log_prob[None],
+            "advantage": jnp.zeros(1),
+            "return_": jnp.zeros(1),
+        }
+        _, info = ppo_loss(params, network, batch, PPOConfig())
+        # std must be floored at exp(LOG_STD_MIN), not exp(-100) ≈ 0.
+        assert float(info["mean_std"]) == pytest.approx(float(jnp.exp(LOG_STD_MIN)), rel=1e-5)
+        assert np.isfinite(float(info["entropy"]))
+
+
 class TestComputeGAE:
     """The trainer feeds compute_gae a done mask that is 1 ONLY for natural
     termination — truncation must keep the bootstrap value alive."""

@@ -25,6 +25,10 @@ class TestCSVFields:
         """DEFAULT_CSV_FIELDS should include learning_rate."""
         assert "learning_rate" in DEFAULT_CSV_FIELDS
 
+    def test_explained_variance_in_default_fields(self):
+        """DEFAULT_CSV_FIELDS should include explained_variance (value-fn fit)."""
+        assert "explained_variance" in DEFAULT_CSV_FIELDS
+
     def test_csv_logger_writes_learning_rate(self, tmp_path):
         """CSV logger should accept and write a learning_rate column."""
         path = tmp_path / "test.csv"

@@ -22,6 +22,15 @@ from typing import Any, NamedTuple
 
 from .mjx_utils import check_jax
 
+# Safe range for the Gaussian policy's log-std.  Clamping keeps the action
+# std in roughly [6.7e-3, 7.4] so a degenerate (collapsing or exploding)
+# policy cannot drive the log-prob denominator to 0 (NaN) or push the entropy
+# term to ±inf.  The clamp is applied identically in ``sample_action`` and
+# ``ppo_loss`` so the stored and recomputed log-probs stay consistent — i.e.
+# the PPO importance ratio is exactly 1 on the first epoch.
+LOG_STD_MIN = -5.0
+LOG_STD_MAX = 2.0
+
 
 class PPOConfig(NamedTuple):
     """Hyperparameters for a PPO training run."""
@@ -115,6 +124,8 @@ def sample_action(params, network, obs, rng):
     import jax.numpy as jnp
 
     action_mean, action_log_std, value = network.apply(params, obs)
+    # Floor/ceil the log-std before exponentiating (see LOG_STD_MIN/MAX).
+    action_log_std = jnp.clip(action_log_std, LOG_STD_MIN, LOG_STD_MAX)
     action_std = jnp.exp(action_log_std)
 
     # Sample from Gaussian
@@ -192,6 +203,8 @@ def ppo_loss(params, network, batch, config: PPOConfig):
     import jax.numpy as jnp
 
     action_mean, action_log_std, value = network.apply(params, batch["obs"])
+    # Same clamp as sample_action so old/new log-probs stay consistent.
+    action_log_std = jnp.clip(action_log_std, LOG_STD_MIN, LOG_STD_MAX)
     action_std = jnp.exp(action_log_std)
 
     # New log probability
@@ -230,6 +243,17 @@ def ppo_loss(params, network, batch, config: PPOConfig):
 
     total_loss = policy_loss + config.vf_coef * value_loss + config.ent_coef * entropy_loss
 
+    # Explained variance — diagnostic only (not part of the loss).  Measures
+    # how much of the return variance the value head captures: 1.0 is perfect,
+    # 0.0 is no better than predicting the mean, <0 is worse.  NaN when returns
+    # have ~zero variance (matches SB3's ``explained_variance``).
+    var_returns = jnp.var(batch["return_"])
+    explained_variance = jnp.where(
+        var_returns > 1e-8,
+        1.0 - jnp.var(batch["return_"] - value) / (var_returns + 1e-8),
+        jnp.nan,
+    )
+
     info = {
         "policy_loss": policy_loss,
         "value_loss": value_loss,
@@ -237,6 +261,7 @@ def ppo_loss(params, network, batch, config: PPOConfig):
         "approx_kl": jnp.mean((ratio - 1) - jnp.log(ratio)),
         "clip_fraction": jnp.mean((jnp.abs(ratio - 1.0) > config.clip_range).astype(jnp.float32)),
         "mean_std": jnp.mean(action_std),
+        "explained_variance": explained_variance,
     }
 
     return total_loss, info
