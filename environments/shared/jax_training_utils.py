@@ -197,6 +197,7 @@ DEFAULT_CSV_FIELDS: list[str] = [
     "total_loss",
     "policy_loss",
     "value_loss",
+    "explained_variance",
     "entropy",
     "approx_kl",
     "clip_fraction",

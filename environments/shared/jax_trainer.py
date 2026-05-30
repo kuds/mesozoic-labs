@@ -716,6 +716,7 @@ def train(
                     "total_loss": f"{avg_loss:.4f}",
                     "policy_loss": f"{avg_aux['policy_loss']:.4f}",
                     "value_loss": f"{avg_aux['value_loss']:.4f}",
+                    "explained_variance": f"{avg_aux['explained_variance']:.4f}",
                     "entropy": f"{avg_aux['entropy']:.4f}",
                     "approx_kl": f"{avg_aux['approx_kl']:.6f}",
                     "clip_fraction": f"{avg_aux['clip_fraction']:.4f}",
@@ -745,6 +746,7 @@ def train(
                     f"r/step={avg_reward:+.3f}  {ep_ret_str}  "
                     f"loss={avg_loss:.4f}  "
                     f"pi={avg_aux['policy_loss']:.3f}  v={avg_aux['value_loss']:.3f}  "
+                    f"ev={avg_aux['explained_variance']:+.2f}  "
                     f"ent={avg_aux['entropy']:.3f}  kl={avg_aux['approx_kl']:.4f}  "
                     f"grad={avg_grad_norm:.3f}  falls={fall_rate:.1%}  "
                     f"SPS={sps:,.0f}  ETA={eta_str}  "

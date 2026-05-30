@@ -170,7 +170,8 @@ class TestOnRolloutEnd:
         cb.logger.record.assert_any_call("diagnostics/obs_mean", 2.5)
         cb.logger.record.assert_any_call("diagnostics/obs_std", pytest.approx(np.std([[1, 2], [3, 4]])))
         cb.logger.record.assert_any_call("diagnostics/obs_max_abs", 4.0)
-        cb.logger.record.assert_any_call("diagnostics/action_mean", 0.0)
+        # Action stats now come from the per-step accumulator (see
+        # TestActionStats), not the rollout buffer — works for SAC too.
 
     def test_logs_vecnorm_stats(self, tmp_path):
         cb = DiagnosticsCallback(log_dir=str(tmp_path), verbose=0)
@@ -184,9 +185,14 @@ class TestOnRolloutEnd:
 
 
 class TestPlateauDetection:
+    """Episode returns are captured in _on_step (every completed episode), then
+    the per-rollout mean is appended in _on_rollout_end.  This avoids the old
+    bias of only sampling episodes that ended on the rollout's final step."""
+
     def test_no_warning_below_window(self, callback):
         callback._rollout_ep_rewards = [1.0] * 5
         callback.locals = {"infos": [{"episode": {"r": 1.0}}]}
+        callback._on_step()
         callback._on_rollout_end()
         # Not enough history for plateau detection, no warning printed
 
@@ -194,6 +200,7 @@ class TestPlateauDetection:
         # Fill the history to reach the plateau window
         callback._rollout_ep_rewards = [50.0] * 9  # 9 entries, need 10
         callback.locals = {"infos": [{"episode": {"r": 50.0}}]}
+        callback._on_step()
         with caplog.at_level("WARNING", logger="environments.shared.diagnostics"):
             callback._on_rollout_end()
         assert "PLATEAU WARNING" in caplog.text
@@ -202,6 +209,7 @@ class TestPlateauDetection:
         # Rewards with enough variation to avoid plateau
         callback._rollout_ep_rewards = list(range(9))  # 0-8
         callback.locals = {"infos": [{"episode": {"r": 100.0}}]}
+        callback._on_step()
         with caplog.at_level("WARNING", logger="environments.shared.diagnostics"):
             callback._on_rollout_end()
         assert "PLATEAU WARNING" not in caplog.text
@@ -209,8 +217,22 @@ class TestPlateauDetection:
     def test_logs_reward_variation(self, callback):
         callback._rollout_ep_rewards = [50.0] * 9
         callback.locals = {"infos": [{"episode": {"r": 50.0}}]}
+        callback._on_step()
         callback._on_rollout_end()
         callback.logger.record.assert_any_call("diagnostics/reward_variation", 0.0)
+
+    def test_captures_all_episodes_not_just_final_step(self, callback):
+        """Every episode completing mid-rollout must count — the whole point of
+        the fix.  Three episodes across two steps → mean over all three."""
+        callback._rollout_ep_rewards = []
+        callback.locals = {"infos": [{"episode": {"r": 10.0}}, {"episode": {"r": 20.0}}]}
+        callback._on_step()
+        callback.locals = {"infos": [{"episode": {"r": 30.0}}]}
+        callback._on_step()
+        assert callback._rollout_ep_returns == [10.0, 20.0, 30.0]
+        callback._on_rollout_end()
+        assert callback._rollout_ep_rewards[-1] == pytest.approx(20.0)  # mean(10,20,30)
+        assert callback._rollout_ep_returns == []  # buffer flushed
 
 
 class TestSaveDiagnostics:
@@ -279,6 +301,143 @@ class TestSaveDiagnostics:
         assert data["timesteps"][1] == 200
         assert data["forward_vel"][0] == pytest.approx(1.0)
         assert data["forward_vel"][1] == pytest.approx(2.0)
+
+
+class TestActionStats:
+    """Action stats + saturation come from the actions actually taken each step
+    (self.locals["actions"]), so they work for PPO and SAC alike."""
+
+    def test_logs_action_stats_and_saturation(self, callback):
+        # 4 components; 2 saturated at |a| >= 0.99 (1.0 and -0.995).
+        callback.locals = {"infos": [], "actions": np.array([[1.0, 0.5], [-0.995, 0.0]])}
+        callback._on_step()
+        callback._on_rollout_end()
+        callback.logger.record.assert_any_call("diagnostics/action_saturation", pytest.approx(0.5))
+        callback.logger.record.assert_any_call("diagnostics/action_abs_max", pytest.approx(1.0))
+        callback.logger.record.assert_any_call(
+            "diagnostics/action_mean", pytest.approx(float(np.mean([1.0, 0.5, -0.995, 0.0])))
+        )
+
+    def test_accumulates_actions_across_steps_then_clears(self, callback):
+        callback.locals = {"infos": [], "actions": np.array([[0.1, 0.2]])}
+        callback._on_step()
+        callback.locals = {"infos": [], "actions": np.array([[0.3, 0.4]])}
+        callback._on_step()
+        assert len(callback._step_actions) == 2
+        callback._on_rollout_end()
+        assert callback._step_actions == []  # flushed after rollout
+
+    def test_no_actions_no_record(self, callback):
+        callback.locals = {"infos": []}  # no "actions" key
+        callback._on_step()
+        callback._on_rollout_end()
+        recorded = {c.args[0] for c in callback.logger.record.call_args_list}
+        assert "diagnostics/action_saturation" not in recorded
+
+    def test_custom_saturation_threshold(self):
+        cb = DiagnosticsCallback(action_saturation_threshold=0.5)
+        assert cb.action_saturation_threshold == 0.5
+
+
+class TestGradNorm:
+    def test_global_grad_norm_none_without_grads(self):
+        from environments.shared.diagnostics import _global_grad_norm
+
+        class _P:
+            grad = None
+
+        assert _global_grad_norm([]) is None
+        assert _global_grad_norm([_P(), _P()]) is None
+
+    def test_global_grad_norm_value(self):
+        torch = pytest.importorskip("torch")
+        from environments.shared.diagnostics import _global_grad_norm
+
+        p1 = torch.nn.Parameter(torch.zeros(2))
+        p1.grad = torch.tensor([3.0, 0.0])
+        p2 = torch.nn.Parameter(torch.zeros(1))
+        p2.grad = torch.tensor([4.0])
+        assert _global_grad_norm([p1, p2]) == pytest.approx(5.0)  # sqrt(9 + 16)
+
+    def test_logs_grad_norm_for_ppo(self, tmp_path):
+        torch = pytest.importorskip("torch")
+        cb = DiagnosticsCallback(log_dir=str(tmp_path), verbose=0)
+        model = _make_mock_model()
+        buffer = MagicMock()
+        buffer.observations = np.array([[1.0]])
+        buffer.actions = np.array([[0.5]])
+        model.rollout_buffer = buffer  # PPO-like
+        p1 = torch.nn.Parameter(torch.zeros(1))
+        p1.grad = torch.tensor([3.0])
+        p2 = torch.nn.Parameter(torch.zeros(1))
+        p2.grad = torch.tensor([4.0])
+        model.policy.parameters.return_value = [p1, p2]
+        cb.init_callback(model)
+        cb.num_timesteps = 100
+        cb.locals = {"infos": []}
+        cb._on_rollout_end()
+        cb.logger.record.assert_any_call("diagnostics/grad_norm", pytest.approx(5.0))
+
+    def test_no_grad_norm_for_sac(self, callback):
+        # Default fixture model has no rollout_buffer (SAC-like) → grad norm skipped.
+        callback.locals = {"infos": []}
+        callback._on_rollout_end()
+        recorded = {c.args[0] for c in callback.logger.record.call_args_list}
+        assert "diagnostics/grad_norm" not in recorded
+
+
+class TestAlgoMetrics:
+    """SB3's algorithm-specific train/* metrics (PPO clip_fraction/
+    explained_variance, SAC critic_loss/ent_coef) are captured into the
+    durable diagnostics.npz, not just TensorBoard."""
+
+    def test_collect_filters_train_keys(self, callback):
+        callback.model.logger.name_to_value = {
+            "train/clip_fraction": 0.1,
+            "train/explained_variance": 0.8,
+            "train/n_updates": 12,
+            "train/some_flag": True,  # bool → skipped
+            "rollout/ep_rew_mean": 5.0,  # not train/ → skipped
+        }
+        m = callback._collect_algo_metrics()
+        assert m == {"clip_fraction": 0.1, "explained_variance": 0.8, "n_updates": 12.0}
+
+    def test_collect_handles_non_dict_logger(self, callback):
+        # The default MagicMock name_to_value is not a real dict → empty.
+        assert callback._collect_algo_metrics() == {}
+
+    def test_saves_algo_metrics_to_npz(self, tmp_path):
+        cb = DiagnosticsCallback(log_dir=str(tmp_path), verbose=0)
+        model = _make_mock_model()
+        model.logger.name_to_value = {
+            "train/clip_fraction": 0.1,
+            "train/explained_variance": 0.8,
+            "rollout/x": 1.0,
+        }
+        cb.init_callback(model)
+        cb.num_timesteps = 100
+        cb.locals = {"infos": []}
+        cb._on_rollout_end()
+        data = np.load(str(tmp_path / "diagnostics.npz"))
+        assert "algo_timesteps" in data and data["algo_timesteps"][0] == 100
+        assert data["algo_clip_fraction"][0] == pytest.approx(0.1)
+        assert data["algo_explained_variance"][0] == pytest.approx(0.8)
+        assert "algo_x" not in data  # non-train/ key excluded
+
+    def test_algo_history_backfills_new_keys(self):
+        cb = DiagnosticsCallback(log_dir=None, verbose=0)
+        model = _make_mock_model()
+        cb.init_callback(model)
+        cb.num_timesteps = 100
+        model.logger.name_to_value = {"train/clip_fraction": 0.1}
+        cb._record_algo_metrics()
+        cb.num_timesteps = 200
+        model.logger.name_to_value = {"train/clip_fraction": 0.2, "train/approx_kl": 0.05}
+        cb._record_algo_metrics()
+        assert cb._history_algo["clip_fraction"] == [0.1, 0.2]
+        assert np.isnan(cb._history_algo["approx_kl"][0])  # back-filled for prior rollout
+        assert cb._history_algo["approx_kl"][1] == pytest.approx(0.05)
+        assert all(len(v) == len(cb._history_algo_timesteps) for v in cb._history_algo.values())
 
 
 class TestWithoutSB3:

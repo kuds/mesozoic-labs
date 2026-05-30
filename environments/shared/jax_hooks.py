@@ -172,6 +172,7 @@ class CSVLoggingHook:
             "total_loss": f"{metrics.get('total_loss', 0.0):.4f}",
             "policy_loss": f"{metrics.get('policy_loss', 0.0):.4f}",
             "value_loss": f"{metrics.get('value_loss', 0.0):.4f}",
+            "explained_variance": f"{metrics.get('explained_variance', float('nan')):.4f}",
             "entropy": f"{metrics.get('entropy', 0.0):.4f}",
             "approx_kl": f"{metrics.get('approx_kl', 0.0):.6f}",
             "clip_fraction": f"{metrics.get('clip_fraction', 0.0):.4f}",

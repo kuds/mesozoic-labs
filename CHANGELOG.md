@@ -18,9 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded T-Rex reward tests (nosedive, height, heading, spin, drift, backward velocity)
 - Expanded Brachiosaurus reward tests (gait instability, speed penalty, food reach threshold)
 - Consolidated training notebooks into single parameterized `notebooks/training.ipynb`
+- Algorithm-specific training diagnostics persisted to `diagnostics.npz` for **both PPO and SAC** (previously only on TensorBoard): captured SB3 `train/*` metrics (PPO `clip_fraction`/`approx_kl`/`explained_variance`/`entropy_loss`, SAC `critic_loss`/`actor_loss`/`ent_coef`) under `algo_*` keys
+- `diagnostics/action_saturation` and `diagnostics/action_abs_max` — fraction of action components pinned at the control limit and the peak magnitude, computed for both PPO and SAC (SAC previously had no action logging at all)
+- `diagnostics/grad_norm` — PPO post-update (clipped) gradient norm, surfacing when the clip ceiling binds or the policy stalls
+- `explained_variance` in the JAX PPO loss info dict, per-update CSV log, and console output (value-function fit diagnostic)
 
 ### Changed
 - Species training scripts (`train_sb3.py`) are now thin wrappers around shared `train_base.py`
+- `DiagnosticsCallback` plateau detection now averages every episode that completed during a rollout (accumulated per-step) instead of only episodes that happened to end on the rollout's final step — the old sampling was biased and sparse
+- JAX PPO clamps the Gaussian policy's log-std to `[-5, 2]` (applied identically in `sample_action` and `ppo_loss`, preserving the importance ratio) so a collapsing/exploding policy can no longer drive the action std to 0/inf and NaN the log-prob and entropy terms
 - Species test scripts use shared `test_env_base.py` utilities
 - `BaseDinoEnv` now provides concrete helper methods for common reward computations, gait symmetry, and termination checks
 - Raptor, T-Rex, and Brachio reward tests refactored to use shared helpers
