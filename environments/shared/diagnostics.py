@@ -5,6 +5,7 @@ self-contained and depends only on NumPy and the SB3 BaseCallback interface.
 """
 
 import logging
+import math
 from collections import Counter
 from pathlib import Path
 
@@ -57,7 +58,7 @@ def _global_grad_norm(parameters) -> float | None:
         found = True
     if not found:
         return None
-    return total_sq**0.5
+    return math.sqrt(total_sq)
 
 
 class DiagnosticsCallback(_BaseCallback):
