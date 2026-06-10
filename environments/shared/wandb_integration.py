@@ -62,6 +62,7 @@ def init_wandb(
     project: str = "mesozoic-labs",
     tags: list | None = None,
     notes: str | None = None,
+    run_id: str | None = None,
 ) -> Any:
     """Initialize a W&B run for a training session.
 
@@ -72,6 +73,9 @@ def init_wandb(
         project: W&B project name.
         tags: Optional list of tags.
         notes: Optional run notes.
+        run_id: Optional stable W&B run id.  Pass the id of a previous run
+            to resume it (``resume="allow"``) instead of creating a split
+            run after a crash/reconnect.  Default: a fresh timestamped id.
 
     Returns:
         The ``wandb.Run`` object, or ``None`` if wandb is not installed.
@@ -104,16 +108,21 @@ def init_wandb(
     if tags:
         all_tags.extend(tags)
 
+    from datetime import datetime as _dt
+
+    effective_id = run_id or f"{species}-s{stage}-{_dt.now().strftime('%Y%m%d-%H%M%S')}"
     run = wandb.init(
         project=project,
         name=run_name,
+        id=effective_id,
+        resume="allow",
         config=flat_config,
         tags=all_tags,
         notes=notes,
         reinit=True,
     )
 
-    logger.info("W&B run initialized: %s (%s)", run.name, run.url)
+    logger.info("W&B run initialized: %s id=%s (%s)", run.name, effective_id, run.url)
 
     # Configure metric display and dashboard panels
     setup_wandb_metrics(stage)

@@ -696,7 +696,13 @@ class TestStageWarmupCallbackMocked:
         assert mock_model.ent_coef == original_ent
 
     def test_warmup_applies_reduced_lr_for_sac(self):
-        """Warmup should reduce LR and fix ent_coef for SAC models."""
+        """Warmup should reduce LR and seed log_ent_coef for SAC models.
+
+        SAC's train() reads log_ent_coef (auto mode), not the ent_coef
+        attribute, so the warm-up value must be written into the tensor.
+        """
+        import math
+
         pytest.importorskip("stable_baselines3")
         torch = pytest.importorskip("torch")
 
@@ -717,7 +723,10 @@ class TestStageWarmupCallbackMocked:
         assert cb._is_sac is True
         # LR should be reduced by warmup_lr_scale
         assert mock_model.lr_schedule(1.0) == pytest.approx(3e-5)
-        assert mock_model.ent_coef == 0.02
+        # The ent_coef attribute is left alone (SAC ignores it in auto mode);
+        # the learned tensor is seeded at log(warmup_ent_coef) instead.
+        assert mock_model.ent_coef == "auto"
+        assert mock_model.log_ent_coef.item() == pytest.approx(math.log(0.02))
 
     def test_warmup_restores_sac_values(self):
         """After warmup, SAC LR schedule and auto-entropy should be restored."""
@@ -741,12 +750,17 @@ class TestStageWarmupCallbackMocked:
 
         cb._on_training_start()
 
+        # Simulate auto-tuning progress during the warm-up window
+        mock_model.log_ent_coef.data.fill_(-1.25)
+
         # Simulate reaching warmup_timesteps
         cb.num_timesteps = 100
         assert cb._on_step() is True
         assert cb._warmup_done is True
         assert mock_model.lr_schedule is original_lr_schedule
         assert mock_model.ent_coef == "auto"
+        # Tuning progress made during warm-up is kept, not rolled back
+        assert mock_model.log_ent_coef.item() == pytest.approx(-1.25)
 
     def test_on_step_noop_after_warmup(self):
         """_on_step returns True immediately once warmup is done."""
@@ -852,16 +866,17 @@ class TestReadLatestEval:
         cb = object.__new__(CurriculumCallback)
         cb.eval_callback = MagicMock(spec=[])  # no log_path attr
         cb._last_seen_n_evals = 0
-        rewards, lengths, n = cb._read_latest_eval()
+        rewards, lengths, successes, n = cb._read_latest_eval()
         assert rewards is None
         assert lengths is None
+        assert successes is None
 
     def test_returns_none_when_npz_missing(self, tmp_path):
         cb = object.__new__(CurriculumCallback)
         cb.eval_callback = MagicMock()
         cb.eval_callback.log_path = str(tmp_path)
         cb._last_seen_n_evals = 0
-        rewards, lengths, n = cb._read_latest_eval()
+        rewards, lengths, successes, n = cb._read_latest_eval()
         assert rewards is None
 
     def test_reads_latest_eval_from_npz(self, tmp_path):
@@ -881,10 +896,11 @@ class TestReadLatestEval:
         cb.eval_callback.log_path = str(tmp_path)
         cb._last_seen_n_evals = 0
 
-        rewards, lengths, n = cb._read_latest_eval()
+        rewards, lengths, successes, n = cb._read_latest_eval()
 
         assert rewards == [30.0, 40.0]  # last row
         assert lengths == [300.0, 400.0]
+        assert successes is None  # npz has no successes array
         assert n == 2
         assert cb._last_seen_n_evals == 2
 
@@ -904,7 +920,7 @@ class TestReadLatestEval:
         cb.eval_callback.log_path = str(tmp_path)
         cb._last_seen_n_evals = 1  # Already seen
 
-        rewards, lengths, n = cb._read_latest_eval()
+        rewards, lengths, successes, n = cb._read_latest_eval()
         assert rewards is None
 
 
@@ -1028,3 +1044,26 @@ class TestEvalCollapseEarlyStopCallback:
         # 45.0 >= 35.0 -> consecutive_drops reset to 0
         assert result is True
         assert cb._consecutive_drops == 0
+
+
+class TestReadLatestEvalSuccesses:
+    """_read_latest_eval returns per-episode successes when SB3 saved them."""
+
+    def test_reads_successes_array(self, tmp_path):
+        import numpy as np
+
+        np.savez(
+            str(tmp_path / "evaluations.npz"),
+            results=np.array([[10.0, 20.0], [30.0, 40.0]]),
+            ep_lengths=np.array([[100.0, 200.0], [300.0, 400.0]]),
+            successes=np.array([[0.0, 1.0], [1.0, 1.0]]),
+        )
+
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(tmp_path)
+        cb._last_seen_n_evals = 0
+
+        rewards, lengths, successes, n = cb._read_latest_eval()
+        assert successes == [1.0, 1.0]  # latest eval row
+        assert n == 2

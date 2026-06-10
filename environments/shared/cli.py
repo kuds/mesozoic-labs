@@ -12,11 +12,15 @@ logger = logging.getLogger(__name__)
 
 
 def _cast_value(v: str):
-    """Auto-cast a string value to int, float, or keep as string.
+    """Auto-cast a string value to bool, int, float, or keep as string.
 
     Handles float-encoded integers (e.g. ``"128.0"`` -> ``128``) which
-    Vertex AI HPT sends for ``DiscreteParameterSpec`` values.
+    Vertex AI HPT sends for ``DiscreteParameterSpec`` values, and
+    ``true``/``false`` literals (otherwise ``bool("false")`` truthiness
+    bites anyone overriding a boolean kwarg).
     """
+    if v.lower() in ("true", "false"):
+        return v.lower() == "true"
     try:
         return int(v)
     except ValueError:
@@ -89,7 +93,12 @@ def main(species_cfg):
         default=1,
         help=f"Curriculum stage ({species_cfg.stage_descriptions})",
     )
-    train_parser.add_argument("--timesteps", type=int, default=500000, help="Total training timesteps")
+    train_parser.add_argument(
+        "--timesteps",
+        type=int,
+        default=None,
+        help="Total training timesteps (default: the stage's curriculum.timesteps from its TOML config)",
+    )
     train_parser.add_argument("--n-envs", type=int, default=4, help="Number of parallel environments")
     train_parser.add_argument("--load", type=str, default=None, help="Path to model to continue from")
     train_parser.add_argument("--seed", type=int, default=42, help="Random seed")
@@ -161,7 +170,7 @@ def main(species_cfg):
     if args.command == "train" or args.command is None:
         if args.command is None:
             args.stage = 1
-            args.timesteps = 500000
+            args.timesteps = None
             args.n_envs = 4
             args.load = None
             args.seed = 42
@@ -180,6 +189,16 @@ def main(species_cfg):
             logger.info("SAC: defaulting to %d parallel envs (override with --n-envs)", _SAC_DEFAULT_N_ENVS)
 
         _apply_overrides(stage_configs, args.override)
+
+        # Resolve after overrides so --override curriculum.timesteps=... wins
+        if args.timesteps is None:
+            args.timesteps = stage_configs[args.stage].get("curriculum_kwargs", {}).get("timesteps", 500_000)
+            logger.info(
+                "No --timesteps given: using stage %d config value (%s)",
+                args.stage,
+                f"{args.timesteps:,}",
+            )
+
         train(
             species_cfg=species_cfg,
             stage_configs=stage_configs,

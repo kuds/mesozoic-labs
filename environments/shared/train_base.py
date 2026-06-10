@@ -929,6 +929,7 @@ def train_curriculum(
             eval_freq=eval_freq,
             n_eval_episodes=30,
             eval_callback=eval_callback,
+            supplementary_episodes=cur_kwargs.get("supplementary_episodes", 10),
         )
         callbacks.append(curriculum_cb)
 
@@ -953,6 +954,7 @@ def train_curriculum(
             )
 
         interrupted = False
+        stage_start = time.monotonic()
         try:
             model.learn(
                 total_timesteps=total_timesteps,
@@ -962,6 +964,7 @@ def train_curriculum(
         except KeyboardInterrupt:
             logger.warning("Training interrupted by user.")
             interrupted = True
+        stage_duration = time.monotonic() - stage_start
 
         if wandb_run is not None:
             wandb_run.finish()
@@ -1011,6 +1014,7 @@ def train_curriculum(
             n_envs,
             total_timesteps,
             curriculum_cb,
+            training_duration_seconds=stage_duration,
         )
 
         if interrupted:
@@ -1056,6 +1060,7 @@ def _record_stage_result(
     n_envs,
     total_timesteps,
     curriculum_cb,
+    training_duration_seconds: float | None = None,
 ):
     """Record stage hyperparameters and outcome to CSV."""
     import numpy as _np
@@ -1115,7 +1120,9 @@ def _record_stage_result(
         "best_mean_episode_length": best_mean_episode_length,
         "last_mean_reward": last_mean_reward,
         "last_mean_episode_length": last_mean_episode_length,
-        "training_duration_seconds": "",
+        "training_duration_seconds": (
+            round(training_duration_seconds, 1) if training_duration_seconds is not None else ""
+        ),
         "reward_threshold": cur_kwargs.get("min_avg_reward", ""),
         "ep_length_threshold": cur_kwargs.get("min_avg_episode_length", ""),
         "forward_vel_threshold": cur_kwargs.get("min_avg_forward_vel", ""),

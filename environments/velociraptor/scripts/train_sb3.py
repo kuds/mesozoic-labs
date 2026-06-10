@@ -37,7 +37,7 @@ SPECIES_CONFIG = SpeciesConfig(
     stage_descriptions="1=balance, 2=locomotion, 3=strike",
     height_label="Pelvis height",
     stage3_section_label="Hunting",
-    success_keys=["strike_success", "bite_success"],
+    success_keys=["strike_success"],
 )
 
 if __name__ == "__main__":

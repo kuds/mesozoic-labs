@@ -280,7 +280,7 @@ class TestCSVLoggingHook:
 class TestJaxTrainerSmoke:
     """One-update smoke run that catches obs-dim and rollout-tuple bugs."""
 
-    def _build(self, num_envs=4, rollout_len=4, n_minibatches=2):
+    def _build(self, num_envs=4, rollout_len=4, n_minibatches=2, **trainer_kwargs):
         import environments.trex.mjx_config  # noqa: F401
         from environments.shared.jax_ppo import PPOConfig, make_actor_critic, make_optimizer
         from environments.shared.mjx_env import MJXDinoEnv
@@ -301,6 +301,7 @@ class TestJaxTrainerSmoke:
             ppo_config=ppo_cfg,
             num_envs=num_envs,
             rollout_len=rollout_len,
+            **trainer_kwargs,
         )
         return trainer, env
 
@@ -327,8 +328,10 @@ class TestJaxTrainerSmoke:
 
         # We need params to actually run the network — re-use trainer.train
         # to do init then call collect with the returned params.
+        import jax.numpy as _jnp
+
         params, _metrics, tstate = trainer.train(num_updates=1, seed=0)
-        (_states, _), rollout = collect(tstate.env_states, rng, params, tstate.obs_stats)
+        (_states, _), rollout = collect(tstate.env_states, rng, params, tstate.obs_stats, _jnp.float32(1.0))
         assert len(rollout) == 8
         raw_obs, _raw_action, _log_prob, _value, _reward, gae_done, full_done, final_obs = rollout
         assert raw_obs.shape[-1] == int(states.obs.shape[-1])
@@ -338,6 +341,36 @@ class TestJaxTrainerSmoke:
         import jax.numpy as jnp
 
         assert bool(jnp.all(gae_done <= full_done))
+
+    def test_warmup_and_ramp_smoke(self):
+        """warmup_updates / ramp_updates are wired through the class
+        trainer (previously TOML warmup_*/ramp_* were silently inert on
+        the CLI path)."""
+        trainer, _env = self._build(
+            warmup_updates=1,
+            warmup_clip_range=0.05,
+            warmup_ent_coef=0.03,
+            ramp_updates=2,
+            ramp_start_fraction=0.5,
+        )
+        params, metrics, state = trainer.train(num_updates=2, seed=0)
+        assert trainer._scan_ppo_update_warmup is not None
+        assert state.update == 1
+        assert "mean_reward" in metrics
+
+    def test_resume_accepts_opt_state_and_obs_stats(self):
+        """init_opt_state / init_obs_stats round-trip through train()."""
+        trainer, _env = self._build()
+        params, _metrics, state = trainer.train(num_updates=1, seed=0)
+        trainer2, _ = self._build()
+        params2, _m2, state2 = trainer2.train(
+            num_updates=1,
+            seed=1,
+            init_params=state.params,
+            init_opt_state=state.opt_state,
+            init_obs_stats=state.obs_stats,
+        )
+        assert state2.total_steps == trainer2.num_envs * trainer2.rollout_len
 
 
 @pytest.mark.skipif(not _has_jax, reason="JAX/MJX not installed")

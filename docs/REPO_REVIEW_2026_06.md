@@ -4,6 +4,27 @@ Scope: all documentation, training code (SB3 + JAX/MJX), sweep/eval/reporting
 infrastructure, configs, and shipped experiment results. Focus: RL-correctness
 bugs, robustness, and training/debugging quality-of-life.
 
+> **Status update (same branch, follow-up commit):** the following findings
+> are now **fixed** with regression tests: §1.1 (metrics dt), §1.2
+> (per-episode success rate), §1.3 (SAC warmup entropy), §1.4 (gates now use
+> EvalCallback's 30-episode successes via `info["is_success"]`; supplementary
+> eval default raised to 10), §1.5 (brachio success gating), §1.7 (action
+> clipping), §2.1 (JAX curriculum gate key), §2.2 (TOML→MJX key translation
+> via `canonicalize_env_kwargs`, incl. spawn ranges / natural_pitch /
+> food_reach_threshold, with unknown-key warnings), §2.3 (per-species
+> `target_standing_z`), §2.4 (opt_state saved in all JAX checkpoints +
+> `restore_train_state` helper + `JaxTrainer.train(init_opt_state=…)`),
+> §2.6 (per-species eval target body / forward_vel_max), §2.7 seeded JAX
+> eval, and the JaxTrainer CLI path now supports TOML `warmup_*` / `ramp_*`
+> / `minibatch_size`. Also fixed: §3.1 (scoring aliases), §3.2 (W&B stable
+> run id + resume), diagnostics term-series alignment, curriculum CSV
+> duration, per-trial sweep seeds, CLI `--timesteps` TOML default, bool
+> `--override` casting, raptor `success_keys`, stage-3 TOML comment fixes,
+> and stale brachiosaurus actuator counts (the model has **30** actuators —
+> 6 neck + 20 leg + 4 tail; README/test said 26).
+> Still open: §1.6, §2.5 (forward-vel reference frame — deliberate
+> SB3/JAX divergence for now), §2.7 minor items, §3.3 minor items, §4–§6.
+
 Severity legend: **CRITICAL** = corrupts results or breaks a documented workflow,
 **HIGH** = wrong results in common cases, **MEDIUM** = wrong in edge cases /
 robustness, **LOW** = cosmetic / QoL. Items marked *(verified)* were confirmed

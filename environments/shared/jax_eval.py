@@ -45,6 +45,12 @@ class EvalConfig:
     sensor_quat_start: int = 6
     reset_noise_scale: float = 0.01
     forward_vel_max: float = 8.0
+    # Species standing height for the height-reward decomposition (matches
+    # the SB3 envs' target_z: 0.90 trex, 1.2 brachio).
+    target_standing_z: float = 0.90
+    # Seed for reset noise — evaluation is otherwise non-reproducible and
+    # curriculum gate decisions would vary run-to-run for borderline policies.
+    seed: int = 42
 
 
 @dataclass
@@ -153,6 +159,7 @@ def evaluate_policy_cpu(
     mj_data = mujoco.MjData(mj_model)
     act_dim = mj_model.nu
     results = EvalResults()
+    reset_rng = np.random.default_rng(config.seed)
 
     # Resolve body-height termination checks
     _body_checks: list[tuple[int, float]] = []
@@ -182,7 +189,7 @@ def evaluate_policy_cpu(
 
     for ep in range(config.n_episodes):
         mujoco.mj_resetData(mj_model, mj_data)
-        mj_data.qpos[7:] += np.random.uniform(
+        mj_data.qpos[7:] += reset_rng.uniform(
             -config.reset_noise_scale,
             config.reset_noise_scale,
             size=mj_data.qpos[7:].shape,
@@ -243,7 +250,7 @@ def evaluate_policy_cpu(
             height_w = reward_cfg.get("height_weight", 0.0)
             if height_w > 0:
                 healthy_z_min = config.healthy_z_range[0]
-                target_z = 0.90  # species default standing height
+                target_z = config.target_standing_z
                 height_frac = float(np.clip((body_z - healthy_z_min) / (target_z - healthy_z_min), 0.0, 1.0))
                 results.diag_reward_components["height"].append(height_w * height_frac)
             else:

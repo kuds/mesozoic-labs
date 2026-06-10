@@ -594,6 +594,17 @@ def train_trial(config: dict[str, Any]) -> None:
 
     # Setup output directory
     trial_id = tune.get_context().get_trial_id() or "local"
+
+    # Give every trial its own seed (base_seed + stable hash of trial id).
+    # With a shared seed, all trials start from identical network init and
+    # env randomness, so the "best" config partly wins on seed luck and the
+    # ranking does not generalise.  The effective seed is recorded in
+    # stage_config.json / the results CSV.
+    if config.get("_vary_seed_per_trial", True) and trial_id != "local":
+        import zlib
+
+        seed = seed + (zlib.crc32(trial_id.encode()) % 10_000)
+        logger.info("Per-trial seed: %d (trial %s)", seed, trial_id)
     trial_dir = Path(local_trials_dir) / trial_id if local_trials_dir else Path(f"/tmp/ray_tune_trial_{trial_id}")
     trial_dir.mkdir(parents=True, exist_ok=True)
     model_dir = trial_dir / "models"

@@ -763,6 +763,7 @@ def train(
                     params,
                     update + 1,
                     obs_rms=obs_rms,
+                    opt_state=jax.device_get(opt_state),
                     history={
                         "reward": reward_history,
                         "loss": loss_history,
@@ -813,6 +814,8 @@ def train(
         params_path,
         params,
         obs_rms=obs_rms,
+        opt_state=jax.device_get(opt_state),
+        update=update + 1,
         extra={
             "best_params": best_params,
             "best_reward": best_reward,
@@ -877,6 +880,15 @@ class JaxTrainer:
         num_envs: Number of parallel environments.
         rollout_len: Steps per rollout.
         hooks: Optional list of ``TrainingHook`` instances.
+        warmup_updates: Constrain policy updates for the first N updates of
+            a curriculum stage (smaller clip range, higher entropy) while
+            the critic adapts to the new reward landscape.  0 disables.
+        warmup_clip_range: Clip range during warm-up.
+        warmup_ent_coef: Entropy coefficient during warm-up.
+        ramp_updates: Linearly ramp the forward-velocity reward scale from
+            ``ramp_start_fraction`` to 1.0 over the first N updates
+            (TOML ``ramp_updates``).  0 disables.
+        ramp_start_fraction: Starting fraction of forward_vel_weight.
     """
 
     def __init__(
@@ -889,6 +901,11 @@ class JaxTrainer:
         num_envs: int = 2048,
         rollout_len: int = 64,
         hooks: list[TrainingHook] | None = None,
+        warmup_updates: int = 0,
+        warmup_clip_range: float = 0.02,
+        warmup_ent_coef: float = 0.02,
+        ramp_updates: int = 0,
+        ramp_start_fraction: float = 0.1,
     ):
         self.env = env
         self.network = network
@@ -897,9 +914,15 @@ class JaxTrainer:
         self.num_envs = num_envs
         self.rollout_len = rollout_len
         self.hooks = list(hooks) if hooks else []
+        self.warmup_updates = warmup_updates
+        self.warmup_clip_range = warmup_clip_range
+        self.warmup_ent_coef = warmup_ent_coef
+        self.ramp_updates = ramp_updates
+        self.ramp_start_fraction = ramp_start_fraction
 
         self._collect_rollout: Callable | None = None
         self._scan_ppo_update: Callable | None = None
+        self._scan_ppo_update_warmup: Callable | None = None
 
     def _dispatch(self, method: str, *args: Any) -> None:
         for hook in self.hooks:
@@ -935,7 +958,7 @@ class JaxTrainer:
         rollout_len = self.rollout_len
 
         @jax.jit
-        def collect_rollout(states, rng, params, obs_stats_arg):
+        def collect_rollout(states, rng, params, obs_stats_arg, forward_vel_scale):
             def step_fn(carry, _):
                 states, rng = carry
                 rng, action_rng = jax.random.split(rng)
@@ -953,7 +976,7 @@ class JaxTrainer:
                 action = jnp.clip(raw_action, -1.0, 1.0)
                 rng, step_rng = jax.random.split(rng)
                 new_states, rewards, terminated, truncated, final_obs = env.step(
-                    states, action, step_rng, return_final_obs=True
+                    states, action, step_rng, return_final_obs=True, forward_vel_scale=forward_vel_scale
                 )
                 gae_done = terminated.astype(jnp.float32)
                 full_done = (terminated | truncated).astype(jnp.float32)
@@ -967,8 +990,14 @@ class JaxTrainer:
 
         return collect_rollout
 
-    def _build_scan_ppo_update(self):
-        """Build the JIT-compiled PPO updater with minibatch shuffling and KL early stopping."""
+    def _build_scan_ppo_update(self, ppo_config: Any | None = None):
+        """Build the JIT-compiled PPO updater with minibatch shuffling and KL early stopping.
+
+        Args:
+            ppo_config: PPO hyperparameters baked into the jitted update
+                (defaults to ``self.ppo_config``).  A separate warm-up
+                variant is built with reduced clip range / raised entropy.
+        """
         import jax
         import jax.numpy as jnp
 
@@ -976,7 +1005,7 @@ class JaxTrainer:
 
         optimizer = self.optimizer
         network = self.network
-        ppo_config = self.ppo_config
+        ppo_config = self.ppo_config if ppo_config is None else ppo_config
         n_minibatches = ppo_config.n_minibatches
 
         @jax.jit
@@ -1053,6 +1082,8 @@ class JaxTrainer:
         num_updates: int = 500,
         seed: int = 42,
         init_params: Any | None = None,
+        init_opt_state: Any | None = None,
+        init_obs_stats: Any | None = None,
     ) -> tuple[Any, dict[str, float], TrainerState]:
         """Run the training loop.
 
@@ -1060,6 +1091,11 @@ class JaxTrainer:
             num_updates: Number of PPO update iterations.
             seed: Random seed.
             init_params: Optional initial network parameters.
+            init_opt_state: Optional optimizer state to resume from (see
+                :func:`environments.shared.jax_checkpoint.restore_train_state`).
+                Ignored unless *init_params* is also provided.
+            init_obs_stats: Optional observation RunningMeanStd to resume
+                from (must match *init_params*' normalization).
 
         Returns:
             ``(params, eval_metrics, state)`` tuple.
@@ -1083,12 +1119,33 @@ class JaxTrainer:
         obs_dim = int(states.obs.shape[-1])
         dummy_obs = jnp.zeros((obs_dim,))
         params = self.network.init(init_rng, dummy_obs) if init_params is None else init_params
-        opt_state = self.optimizer.init(params)
+        if init_params is not None and init_opt_state is not None:
+            opt_state = init_opt_state
+        else:
+            opt_state = self.optimizer.init(params)
 
-        obs_stats = RunningMeanStd.create(obs_dim)
+        obs_stats = init_obs_stats if init_obs_stats is not None else RunningMeanStd.create(obs_dim)
 
         self._collect_rollout = self._build_collect_rollout()
         self._scan_ppo_update = self._build_scan_ppo_update()
+        if self.warmup_updates > 0:
+            warmup_cfg = self.ppo_config._replace(
+                clip_range=self.warmup_clip_range,
+                ent_coef=self.warmup_ent_coef,
+            )
+            self._scan_ppo_update_warmup = self._build_scan_ppo_update(warmup_cfg)
+            _logger.info(
+                "Warmup: updates 0..%d (clip_range=%s, ent_coef=%s)",
+                self.warmup_updates - 1,
+                self.warmup_clip_range,
+                self.warmup_ent_coef,
+            )
+        if self.ramp_updates > 0:
+            _logger.info(
+                "Ramp: forward_vel scale %s -> 1.0 over %d updates",
+                self.ramp_start_fraction,
+                self.ramp_updates,
+            )
 
         # Jitted bootstrap sampler — avoids re-tracing a lambda each update
         _network = self.network
@@ -1131,11 +1188,19 @@ class JaxTrainer:
                 # importance-sampling ratio stays consistent.  Stats are
                 # updated AFTER PPO consumes the rollout.
                 rollout_obs_stats = state.obs_stats
+                # Reward ramp: scale forward_vel_weight from
+                # ramp_start_fraction up to 1.0 over the first ramp_updates.
+                if self.ramp_updates > 0 and update < self.ramp_updates:
+                    ramp_progress = update / self.ramp_updates
+                    forward_vel_scale = self.ramp_start_fraction + (1.0 - self.ramp_start_fraction) * ramp_progress
+                else:
+                    forward_vel_scale = 1.0
                 (states, _), rollout_data = self._collect_rollout(
                     state.env_states,
                     collect_rng,
                     state.params,
                     rollout_obs_stats,
+                    jnp.float32(forward_vel_scale),
                 )
                 state.env_states = states
                 (
@@ -1221,7 +1286,10 @@ class JaxTrainer:
                 t_ppo_start = time.time()
                 rng, ppo_rng = jax.random.split(state.rng)
                 state.rng = rng
-                state.params, state.opt_state, ppo_info = self._scan_ppo_update(
+                in_warmup = self._scan_ppo_update_warmup is not None and update < self.warmup_updates
+                _updater = self._scan_ppo_update_warmup if in_warmup else self._scan_ppo_update
+                assert _updater is not None  # built above
+                state.params, state.opt_state, ppo_info = _updater(
                     state.params,
                     state.opt_state,
                     batch,

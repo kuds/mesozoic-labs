@@ -43,7 +43,7 @@ class TestMJXDinoEnv:
         from environments.shared.mjx_env import MJXDinoEnv
 
         env = MJXDinoEnv("brachiosaurus", stage=1, num_envs=4)
-        assert env.action_dim == 26
+        assert env.action_dim == 30
         assert env.num_envs == 4
 
     def test_reset_returns_state(self):

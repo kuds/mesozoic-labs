@@ -59,3 +59,35 @@ class TestBrachioSpecific:
         _, _, _, _, info = env.step(action)
         assert info["reward_gait"] <= 0.0
         assert info["gait_instability"] >= 0.0
+
+
+class TestFoodReachGating:
+    """Success termination must be gated on food_reach_bonus > 0 (matches
+    raptor/trex strike/bite gating) so stages 1-2 don't end episodes on
+    accidental head-food proximity."""
+
+    def test_no_success_termination_when_bonus_zero(self):
+        env = BrachioEnv(food_reach_bonus=0.0)
+        try:
+            env.reset(seed=42)
+            # Teleport food onto the head tip to force proximity
+            head_tip = env.data.site_xpos[env.head_tip_site_id].copy()
+            env.data.mocap_pos[0] = head_tip
+            terminated, info = env._is_terminated()
+            assert info.get("termination_reason") != "food_reached"
+            assert not info.get("success", False)
+        finally:
+            env.close()
+
+    def test_success_termination_when_bonus_positive(self):
+        env = BrachioEnv(food_reach_bonus=10.0)
+        try:
+            env.reset(seed=42)
+            head_tip = env.data.site_xpos[env.head_tip_site_id].copy()
+            env.data.mocap_pos[0] = head_tip
+            terminated, info = env._is_terminated()
+            assert terminated
+            assert info["termination_reason"] == "food_reached"
+            assert info["success"] is True
+        finally:
+            env.close()

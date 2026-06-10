@@ -1,5 +1,14 @@
 # Code Review: Mesozoic Labs
 
+> **Status update (2026-06):** Most of this review has been implemented.
+> The consolidation work in §1 (shared reward helpers, quaternion utilities,
+> observation/termination/target-spawning extraction, thin training scripts)
+> is **done** — see `base_env.py`, `reward_functions.py`, `train_base.py`.
+> Of the §2.1 critical issues: #2 (empty metrics dict), #3 (WandB video
+> numpy guard), and #4 (VecNormalize flag restoration) are **fixed**;
+> #1 (thread-unsafe CSV writes under concurrent runs) remains **open**.
+> For the current list of known issues see `docs/REPO_REVIEW_2026_06.md`.
+
 ## Executive Summary
 
 This review covers the entire Mesozoic Labs codebase — a reinforcement learning platform

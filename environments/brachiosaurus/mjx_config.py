@@ -32,9 +32,11 @@ register_species_mjx(
     sensor_tail_gyro_start=_SENSOR_TAIL_GYRO_START,
     forward_vel_max=1.0,
     fall_penalty=-100.0,
+    target_standing_z=1.2,  # SB3 height-maintenance target (brachio_env.py)
     target_distance_range=(3.0, 8.0),
     target_lateral_range=(-2.0, 2.0),
     target_z=3.0,  # Brachiosaurus browses high
+    target_body_name="food",
     body_ids={"torso": 1},  # MuJoCo body ID for torso
     termination_body_heights={
         "head": 0.20,  # head ellipsoid size=0.15 + margin

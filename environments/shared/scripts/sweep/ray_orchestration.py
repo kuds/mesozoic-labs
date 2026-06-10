@@ -574,7 +574,7 @@ def evaluate_trials_parallel(
 
         from stable_baselines3 import PPO, SAC
 
-        from environments.shared.metrics import LocomotionMetrics
+        from environments.shared.metrics import LocomotionMetrics, env_dt
         from environments.shared.species_registry import get_species_config
         from environments.shared.train_base import _ensure_sb3
 
@@ -595,9 +595,10 @@ def evaluate_trials_parallel(
         model = alg_cls.load(model_path, env=eval_env)
 
         episode_reports = []
+        eval_dt = env_dt(eval_env)
         for _ in range(n_episodes):
             obs = eval_env.reset()
-            metrics = LocomotionMetrics()
+            metrics = LocomotionMetrics(dt=eval_dt)
             while True:
                 action, _ = model.predict(obs, deterministic=True)
                 obs, rewards, dones, infos = eval_env.step(action)

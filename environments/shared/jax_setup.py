@@ -139,6 +139,21 @@ class SpeciesContext:
     def success_threshold(self) -> float:
         return self.env_config.success_threshold if self.env_config else 0.3
 
+    @property
+    def target_body_name(self) -> str:
+        return self.env_config.target_body_name if self.env_config else "prey"
+
+    @property
+    def forward_vel_max(self) -> float:
+        # TOML [env] forward_vel_max overrides the species registration
+        if "forward_vel_max" in self.reward_cfg:
+            return float(self.reward_cfg["forward_vel_max"])
+        return self.env_config.forward_vel_max if self.env_config else 8.0
+
+    @property
+    def target_standing_z(self) -> float | None:
+        return self.env_config.target_standing_z if self.env_config else None
+
 
 # ---------------------------------------------------------------------------
 # Setup helpers
@@ -174,7 +189,11 @@ def setup_species(species: str, stage: int = 1) -> SpeciesContext:
     stage_config = load_stage_config(species, stage)
     env_kw = stage_config.get("env_kwargs", {})
     jax_kw = stage_config.get("jax_kwargs", {})
-    reward_cfg = dict(env_kw)
+    # Canonicalize species-flavoured TOML keys (strike_approach_weight ->
+    # approach_weight, etc.) so the JAX reward functions actually see them.
+    from .mjx_env import canonicalize_env_kwargs
+
+    reward_cfg = canonicalize_env_kwargs(env_kw)
 
     # Load MuJoCo model (CPU)
     model_path = _get_model_path(species)
@@ -441,6 +460,7 @@ def make_reward_fns(ctx: SpeciesContext):
         root_body_id=ctx.root_body_id,
         healthy_z_min=ctx.healthy_z_range[0],
         healthy_z_max=ctx.healthy_z_range[1],
+        target_standing_z=ctx.target_standing_z,
         max_tilt_angle=ctx.max_tilt_angle,
         natural_forward_z=ctx.natural_forward_z,
         n_actuators=ctx.mj_model.nu,
@@ -493,6 +513,7 @@ def run_stage_evaluation(
     best_update: int = -1,
     total_steps: int = 0,
     elapsed: float = 0.0,
+    eval_seed: int = 42,
 ) -> tuple[Any, dict[str, Any], bool, list[str]]:
     """Run stage gate evaluation and build stage results dict.
 
@@ -510,6 +531,7 @@ def run_stage_evaluation(
         best_update: Update index of best reward.
         total_steps: Total environment steps completed.
         elapsed: Total training time in seconds.
+        eval_seed: Seed for evaluation reset noise (reproducible gates).
 
     Returns:
         ``(eval_results, stage_results)`` tuple.
@@ -538,11 +560,13 @@ def run_stage_evaluation(
         termination_site_heights=ctx.termination_site_heights,
         success_sites=ctx.success_sites,
         success_threshold=ctx.success_threshold,
-        target_body="prey",
+        target_body=ctx.target_body_name,
         root_body_id=ctx.root_body_id,
         sensor_quat_start=ctx.sensor_layout.quat_start,
         reset_noise_scale=0.01,
-        forward_vel_max=8.0,
+        forward_vel_max=ctx.forward_vel_max,
+        target_standing_z=(ctx.target_standing_z if ctx.target_standing_z is not None else 0.90),
+        seed=eval_seed,
     )
 
     foot_indices = tuple(ctx.sensor_layout.foot_indices)

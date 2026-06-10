@@ -440,3 +440,47 @@ class TestQuadrupedGaitSymmetry:
         assert "l_foot_contact" in info
         assert "rr_foot_contact" in info
         assert "rl_foot_contact" in info
+
+
+class TestIsSuccessInfo:
+    """info["is_success"] is reported at episode end (SB3 EvalCallback
+    consumes it to record per-episode success rates in evaluations.npz)."""
+
+    def test_truncated_episode_reports_is_success_false(self):
+        env = RaptorEnv(max_episode_steps=3)
+        try:
+            env.reset(seed=42)
+            action = np.zeros(env.action_space.shape, dtype=np.float32)
+            for _ in range(3):
+                _, _, terminated, truncated, info = env.step(action)
+                if terminated or truncated:
+                    break
+            assert terminated or truncated
+            assert info["is_success"] is False
+        finally:
+            env.close()
+
+    def test_mid_episode_steps_omit_is_success(self):
+        env = RaptorEnv(max_episode_steps=1000)
+        try:
+            env.reset(seed=42)
+            action = np.zeros(env.action_space.shape, dtype=np.float32)
+            _, _, terminated, truncated, info = env.step(action)
+            if not (terminated or truncated):
+                assert "is_success" not in info
+        finally:
+            env.close()
+
+
+class TestScaleActionClipping:
+    """_scale_action clips out-of-range actions before mapping to ctrl."""
+
+    def test_out_of_range_action_clipped_to_ctrl_range(self):
+        env = RaptorEnv()
+        try:
+            big = np.full(env.action_space.shape, 5.0, dtype=np.float32)
+            scaled = env._scale_action(big)
+            ctrl_max = env.model.actuator_ctrlrange[:, 1]
+            np.testing.assert_allclose(scaled, ctrl_max, atol=1e-6)
+        finally:
+            env.close()

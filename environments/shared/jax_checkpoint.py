@@ -94,6 +94,39 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
     return data
 
 
+def restore_train_state(
+    path: str | Path,
+    optimizer: Any | None = None,
+) -> tuple[Any, Any, Any, int]:
+    """Load a checkpoint and return ``(params, opt_state, obs_rms, update)``.
+
+    When the checkpoint predates opt_state saving (or *optimizer* is given
+    and the checkpoint has no opt_state), a fresh ``optimizer.init(params)``
+    state is returned with a warning — resuming then restarts Adam moments,
+    which is what the old checkpoints silently did.
+
+    Args:
+        path: Path to a ``.pkl`` checkpoint file.
+        optimizer: Optional optax optimizer used to initialise a fresh
+            opt_state when the checkpoint lacks one.
+
+    Returns:
+        ``(params, opt_state, obs_rms, update)`` — ``opt_state`` is ``None``
+        if missing and no *optimizer* was provided.
+    """
+    data = load_checkpoint(path)
+    params = data["params"]
+    opt_state = data.get("opt_state")
+    if opt_state is None:
+        if optimizer is not None:
+            opt_state = optimizer.init(params)
+        _logger.warning(
+            "Checkpoint %s has no opt_state — optimizer moments restart from zero on resume.",
+            path,
+        )
+    return params, opt_state, data.get("obs_rms"), int(data.get("update", 0))
+
+
 class CheckpointManager:
     """Rotating checkpoint manager that keeps only the N most recent saves.
 
