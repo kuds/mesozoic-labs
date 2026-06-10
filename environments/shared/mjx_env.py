@@ -23,11 +23,108 @@ Usage::
 
 from __future__ import annotations
 
+import logging
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from .mjx_utils import check_jax
+
+_logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# TOML [env] key translation
+# ---------------------------------------------------------------------------
+# The Gymnasium envs use species-flavoured kwarg names (strike_*, bite_*,
+# food_*, prey_*); the MJX env uses species-neutral names.  Stage TOMLs are
+# shared between both backends, so translate here.  Without this, keys like
+# velociraptor's ``strike_approach_weight`` were silently ignored while the
+# species registry's ``approach_weight`` default leaked into every stage.
+_ENV_KEY_ALIASES: dict[str, str] = {
+    "strike_approach_weight": "approach_weight",
+    "bite_approach_weight": "approach_weight",
+    "food_approach_weight": "approach_weight",
+    "prey_distance_range": "target_distance_range",
+    "food_distance_range": "target_distance_range",
+    "prey_lateral_range": "target_lateral_range",
+    "food_lateral_range": "target_lateral_range",
+    "food_reach_threshold": "success_threshold",
+}
+
+# Reward-weight keys actually read by the MJX step / jax_reward_termination.
+_KNOWN_REWARD_KEYS: frozenset = frozenset(
+    {
+        "forward_vel_weight",
+        "forward_vel_max",
+        "alive_bonus",
+        "energy_penalty_weight",
+        "posture_weight",
+        "approach_weight",
+        "foot_contact_gate",
+        "foot_contact_weight",
+        "drift_penalty_weight",
+        "speed_penalty_weight",
+        "speed_penalty_threshold",
+        "nosedive_weight",
+        "nosedive_termination_threshold",
+        "spin_penalty_weight",
+        "smoothness_weight",
+        "height_weight",
+        "tail_stability_weight",
+        "heading_weight",
+        "lateral_penalty_weight",
+        "bite_head_proximity_weight",
+        "strike_claw_proximity_weight",
+        "food_head_proximity_weight",
+        "strike_bonus",
+        "bite_bonus",
+        "food_reach_bonus",
+    }
+)
+
+# TOML [env] keys implemented only by the SB3 (Gymnasium) reward path.
+# Accepted without warning (the TOMLs are shared) but have no effect in MJX.
+_SB3_ONLY_ENV_KEYS: frozenset = frozenset(
+    {
+        "backward_vel_penalty_weight",
+        "gait_symmetry_weight",
+        "gait_stability_weight",
+        "idle_penalty_weight",
+        "idle_velocity_threshold",
+        "strike_proximity_weight",
+        "food_height_range",
+    }
+)
+
+
+def canonicalize_env_kwargs(env_kwargs: dict[str, Any]) -> dict[str, Any]:
+    """Translate species-flavoured TOML ``[env]`` keys to MJX names.
+
+    Applies :data:`_ENV_KEY_ALIASES`, converts ``natural_pitch`` (radians)
+    to ``natural_forward_z``, and warns about keys that neither the MJX
+    config nor its reward functions recognise (likely typos).  Returns a
+    new dict; the input is not modified.
+    """
+    config_fields = {f.name for f in MJXEnvConfig.__dataclass_fields__.values()}
+    out: dict[str, Any] = {}
+    for key, value in env_kwargs.items():
+        canonical = _ENV_KEY_ALIASES.get(key, key)
+        if canonical == "natural_pitch":
+            out["natural_forward_z"] = -math.sin(float(value))
+            continue
+        if (
+            canonical not in config_fields
+            and canonical not in _KNOWN_REWARD_KEYS
+            and canonical not in _SB3_ONLY_ENV_KEYS
+            and canonical != "reward_weights"
+        ):
+            _logger.warning(
+                "Unknown [env] key %r for MJX env — it will be ignored. Check for typos or add it to the MJX reward path.",
+                key,
+            )
+        out[canonical] = value
+    return out
 
 
 @dataclass(frozen=True)
@@ -53,6 +150,15 @@ class MJXEnvConfig:
     target_distance_range: tuple[float, float] = (3.0, 8.0)
     target_lateral_range: tuple[float, float] = (-2.0, 2.0)
     target_z: float = 0.5
+    # Name of the mocap target body in the MJCF ("prey" for the bipeds,
+    # "food" for brachiosaurus).  Used by CPU evaluation to resolve the
+    # target position.
+    target_body_name: str = "prey"
+    # Species standing height for the height-maintenance reward gradient
+    # (the SB3 envs use e.g. 0.90m for T-Rex, 1.2m for Brachiosaurus).
+    # None falls back to healthy_z_range[1] — a much flatter gradient —
+    # for species that don't use height_weight.
+    target_standing_z: float | None = None
     # Body-height termination: maps body name -> z threshold.
     # If a monitored body's xpos z drops below its threshold, the episode
     # terminates (JAX-compatible alternative to contact-pair iteration).
@@ -194,7 +300,11 @@ class MJXDinoEnv:
         # Merge TOML env_kwargs over species defaults.  Reward weights are
         # merged at the dict level so that stage-specific weights override
         # the species defaults while keeping any keys not mentioned in TOML.
+        # TOML keys are canonicalized first (strike_approach_weight ->
+        # approach_weight, prey_distance_range -> target_distance_range, …)
+        # so the shared SB3/JAX TOMLs actually take effect here.
         if env_kwargs:
+            env_kwargs = canonicalize_env_kwargs(env_kwargs)
             # Separate reward-weight keys from top-level MJXEnvConfig fields
             config_fields = {f.name for f in MJXEnvConfig.__dataclass_fields__.values()}
             merged_reward_weights = dict(species_kwargs.get("reward_weights", {}))
@@ -420,9 +530,12 @@ class MJXDinoEnv:
 
             height_w = weights.get("height_weight", 0.0)
             if height_w > 0:
-                r_height = reward_height_maintenance(
-                    pelvis_xpos[2], config.healthy_z_range[0], config.healthy_z_range[1], height_w
+                # Gradient saturates at the species standing height (matches
+                # the SB3 envs' target_z), not the termination ceiling.
+                target_z = (
+                    config.target_standing_z if config.target_standing_z is not None else config.healthy_z_range[1]
                 )
+                r_height = reward_height_maintenance(pelvis_xpos[2], config.healthy_z_range[0], target_z, height_w)
                 total_reward = total_reward + r_height
 
             # Tail stability: penalise tail tip angular velocity

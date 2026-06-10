@@ -78,6 +78,19 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
     """
     # ── Log system info for debugging failed Vertex AI trials ──────────
     trial_id = os.environ.get("CLOUD_ML_TRIAL_ID", "local")
+
+    # Give every trial its own seed (see ray_tune.py: identical seeds make
+    # the sweep ranking partly an artifact of one RNG stream).  Vertex AI
+    # trial IDs are small integers, so the offset is simply additive.
+    if trial_id != "local":
+        try:
+            args.seed = args.seed + int(trial_id)
+        except ValueError:
+            import zlib
+
+            args.seed = args.seed + (zlib.crc32(trial_id.encode()) % 10_000)
+        logger.info("Per-trial seed: %d (trial %s)", args.seed, trial_id)
+
     logger.info("=" * 60)
     logger.info(
         "TRIAL START  |  species=%s  stage=%d  algorithm=%s  trial_id=%s",

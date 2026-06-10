@@ -13,7 +13,7 @@ Brachiosaurus is a massive quadrupedal herbivore, notable for having front legs 
 | Torso height | 2.0m (simulated) |
 | Total mass | ~205 kg (simulated) |
 | Joints | 32 (1 free + 31 hinge) |
-| Actuators | 26 (6 neck + 20 legs) |
+| Actuators | 30 (6 neck + 20 legs + 4 tail) |
 | Observation dim | 83 |
 | Action dim | 26 |
 

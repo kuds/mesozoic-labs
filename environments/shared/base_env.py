@@ -768,6 +768,12 @@ class BaseDinoEnv(gym.Env, ABC):
         info["step"] = self._step_count
         info["distance_traveled"] = self._distance_traveled
 
+        # SB3 convention: report episode success at episode end so
+        # EvalCallback records per-episode success rates (evaluations.npz
+        # "successes" array). CurriculumCallback reads these for gating.
+        if terminated or truncated:
+            info["is_success"] = bool(term_info.get("success", False))
+
         # Render if needed
         if self.render_mode == "human":
             self.render()
@@ -775,7 +781,13 @@ class BaseDinoEnv(gym.Env, ABC):
         return obs, reward, terminated, truncated, info
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
-        """Scale normalized action [-1, 1] to actuator control range."""
+        """Scale normalized action [-1, 1] to actuator control range.
+
+        Clips the incoming action to [-1, 1] first: SB3 already clips
+        before stepping, but direct callers (custom scripts, raw Gaussian
+        policy outputs) would otherwise command out-of-range ctrl values.
+        """
+        action = np.clip(action, -1.0, 1.0)
         ctrl_range = self.model.actuator_ctrlrange
         ctrl_min = ctrl_range[:, 0]
         ctrl_max = ctrl_range[:, 1]

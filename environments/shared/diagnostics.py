@@ -240,10 +240,19 @@ class DiagnosticsCallback(_BaseCallback):
         total_terminations = sum(self._rollout_terminations.values())
         if total_terminations > 0:
             self._history_term_timesteps.append(self.num_timesteps)
+            n_term_points = len(self._history_term_timesteps)
             for reason, count in self._rollout_terminations.items():
                 frac = count / total_terminations
                 self.logger.record(f"terminations/{reason}", _sanitize(frac))
-                self._history_terminations.setdefault(reason, []).append(frac)
+                # Back-fill newly-seen reasons with 0.0 for prior rollouts so
+                # every series stays aligned with term_timesteps (otherwise
+                # plots shift whenever a reason skips a rollout).
+                series = self._history_terminations.setdefault(reason, [0.0] * (n_term_points - 1))
+                series.append(frac)
+            # Reasons absent from THIS rollout get an explicit 0.0
+            for reason, series in self._history_terminations.items():
+                if len(series) < n_term_points:
+                    series.append(0.0)
             self.logger.record("terminations/total_count", total_terminations)
             self._save_diagnostics()
         self._rollout_terminations.clear()

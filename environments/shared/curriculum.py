@@ -37,7 +37,7 @@ from typing import Any, Callable, Optional
 import numpy as np
 
 from environments.shared.config import load_all_stages
-from environments.shared.metrics import LocomotionMetrics
+from environments.shared.metrics import LocomotionMetrics, env_dt
 from environments.shared.wandb_integration import log_eval_metrics
 
 try:
@@ -349,11 +349,15 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         n_eval_episodes: Number of episodes per evaluation (used only
             when no *eval_callback* is provided).
         eval_callback: Optional ``EvalCallback`` to read results from.
-            When set, the callback reads reward/length from the
-            evaluations.npz and only runs a short supplementary eval
-            for forward velocity and success rate.
+            When set, the callback reads reward/length (and per-episode
+            successes, when the env reports ``info["is_success"]``) from
+            the evaluations.npz and only runs a short supplementary eval
+            for forward velocity and locomotion metrics.
         supplementary_episodes: Number of episodes for the supplementary
-            eval when *eval_callback* is provided (default 5).
+            eval when *eval_callback* is provided (default 10).  Drives the
+            forward-velocity gate sample (and the success gate only when
+            the npz has no ``successes`` array), so keep it >= 10 when
+            ``min_avg_forward_vel`` gating is enabled.
         verbose: Verbosity level.
     """
 
@@ -364,7 +368,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         eval_freq: int = 50000,
         n_eval_episodes: int = 30,
         eval_callback: Any = None,
-        supplementary_episodes: int = 5,
+        supplementary_episodes: int = 10,
         verbose: int = 0,
     ):
         if not _SB3_AVAILABLE:
@@ -393,20 +397,22 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         return self._on_step_standalone()
 
     def _read_latest_eval(self) -> tuple:
-        """Read the latest per-episode rewards/lengths from EvalCallback's npz.
+        """Read the latest per-episode rewards/lengths/successes from EvalCallback's npz.
 
-        Returns ``(rewards, lengths, n_evals)`` or ``(None, None, 0)``
-        if no new evaluation data is available.
+        Returns ``(rewards, lengths, successes, n_evals)`` where *successes*
+        is ``None`` when the npz has no ``successes`` array (envs that never
+        emit ``info["is_success"]``), or ``(None, None, None, 0)`` if no new
+        evaluation data is available.
         """
         log_path = getattr(self.eval_callback, "log_path", None)
         if log_path is None:
-            return None, None, 0
+            return None, None, None, 0
 
         from pathlib import Path
 
         npz_path = Path(log_path) / "evaluations.npz"
         if not npz_path.exists():
-            return None, None, 0
+            return None, None, None, 0
 
         data = np.load(str(npz_path))
         eval_rewards = data["results"]  # (n_evals, n_episodes)
@@ -414,12 +420,19 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
         n_evals = eval_rewards.shape[0]
         if n_evals <= self._last_seen_n_evals:
-            return None, None, n_evals  # No new eval
+            return None, None, None, n_evals  # No new eval
 
         self._last_seen_n_evals = n_evals
         latest_rewards = eval_rewards[-1].tolist()
         latest_lengths = eval_lengths[-1].tolist()
-        return latest_rewards, latest_lengths, n_evals
+        # SB3 saves a "successes" array when the env reports
+        # info["is_success"] at episode end (BaseDinoEnv does).  Using it
+        # gives the success-rate gate the full n_eval_episodes sample
+        # instead of the small supplementary eval.
+        latest_successes = None
+        if "successes" in data.files and data["successes"].shape[0] == n_evals:
+            latest_successes = [float(s) for s in data["successes"][-1]]
+        return latest_rewards, latest_lengths, latest_successes, n_evals
 
     def _run_supplementary_eval(self) -> tuple:
         """Run a small eval pass to collect forward velocity and success rate.
@@ -444,9 +457,10 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         episode_reports: list[dict[str, Any]] = []
 
         try:
+            eval_dt = env_dt(self.eval_env)
             for _ in range(self.supplementary_episodes):
                 obs = self.eval_env.reset()
-                metrics = LocomotionMetrics()
+                metrics = LocomotionMetrics(dt=eval_dt)
                 ep_forward_vels: list[float] = []
                 ep_success = 0.0
                 done = False
@@ -519,16 +533,21 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
     def _on_step_with_eval_callback(self) -> bool:
         """Advancement check using EvalCallback results + supplementary eval."""
-        rewards, lengths, _n_evals = self._read_latest_eval()
+        rewards, lengths, npz_successes, _n_evals = self._read_latest_eval()
         if rewards is None:
             return True  # EvalCallback hasn't produced new results yet
 
-        # Run supplementary eval for forward_vel / success_rate
+        # Run supplementary eval for forward_vel / locomotion metrics
         forward_vels, success_flags, episode_reports = self._run_supplementary_eval()
         self._log_locomotion_metrics(episode_reports)
 
         fwd_vel_arg = forward_vels if forward_vels else None
-        success_arg = success_flags if success_flags else None
+        # Prefer the EvalCallback's per-episode successes (full
+        # n_eval_episodes sample) over the small supplementary eval.
+        if npz_successes is not None:
+            success_arg = npz_successes
+        else:
+            success_arg = success_flags if success_flags else None
         if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg):
             self.ready_to_advance = True
             logger.info(
@@ -562,9 +581,10 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         episode_reports: list[dict[str, Any]] = []
 
         try:
+            eval_dt = env_dt(self.eval_env)
             for _ in range(self.n_eval_episodes):
                 obs = self.eval_env.reset()
-                metrics = LocomotionMetrics()
+                metrics = LocomotionMetrics(dt=eval_dt)
                 episode_reward = 0.0
                 episode_length = 0
                 ep_forward_vels: list[float] = []
@@ -630,14 +650,19 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
 
     **SAC mode:**
 
-    * Reduces the actor ``learning_rate`` to ``warmup_lr_scale`` × original
-      (default 0.1×) so gradient updates to the actor are small while the
-      twin critics adapt to the new reward landscape.  The critic learning
-      rate is unchanged so Q-values converge quickly.
-    * Temporarily fixes ``ent_coef`` to ``warmup_ent_coef`` (overriding
-      ``"auto"``) to maintain exploration breadth during the transition.
+    * Reduces the ``learning_rate`` to ``warmup_lr_scale`` × original
+      (default 0.1×).  Note SB3 applies ``lr_schedule`` to **all** SAC
+      optimizers (actor, critics, and entropy coefficient alike), so the
+      whole agent updates slowly while adapting to the new reward landscape.
+    * Re-seeds the auto-tuned entropy coefficient at ``warmup_ent_coef`` by
+      writing ``log_ent_coef`` directly (SAC's ``train()`` reads
+      ``log_ent_coef``, not the ``ent_coef`` attribute, so setting the
+      attribute alone has no effect).  Auto-tuning continues from that
+      value — at the reduced warm-up LR — and is NOT rolled back when the
+      warm-up ends, so tuning progress made during warm-up is kept.
 
-    After ``warmup_timesteps`` have elapsed the original values are restored.
+    After ``warmup_timesteps`` have elapsed the original learning rate
+    schedule (and, for PPO, clip range / entropy coefficient) is restored.
 
     Args:
         warmup_timesteps: Number of timesteps for the warm-up period.
@@ -665,7 +690,6 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
         self._original_clip_range = None
         self._original_ent_coef = None
         self._original_lr_schedule: Optional[Callable[[float], float]] = None
-        self._original_log_ent_coef = None
         self._is_sac = False
         self._warmup_done = False
 
@@ -673,19 +697,24 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
         self._is_sac = hasattr(self.model, "log_ent_coef")
 
         if self._is_sac:
-            # SAC warmup: reduce LR and fix entropy coefficient.
+            # SAC warmup: reduce LR and re-seed the entropy coefficient.
             # Store the original lr_schedule callable (not the raw learning_rate
             # float) so we can restore it exactly after warmup.
             self._original_lr_schedule = self.model.lr_schedule
             original_lr = self._original_lr_schedule(1.0)
             warmup_lr = original_lr * self.warmup_lr_scale
-            self.model.lr_schedule = lambda _: warmup_lr
-            # Override auto-entropy by fixing ent_coef to a constant
-            self._original_ent_coef = self.model.ent_coef
-            self._original_log_ent_coef = self.model.log_ent_coef.item()
-            self.model.ent_coef = self.warmup_ent_coef
+            self.model.lr_schedule = _ConstantSchedule(warmup_lr)
+            # SAC's train() reads log_ent_coef (auto mode), NOT the ent_coef
+            # attribute — write the warm-up value into the learned tensor so
+            # it actually takes effect.  Auto-tuning then continues from
+            # there (at the reduced warm-up LR) and is deliberately not
+            # rolled back at the end of the warm-up: clobbering it would
+            # discard the tuning progress made during the warm-up window.
+            import math as _math
+
+            self.model.log_ent_coef.data.fill_(_math.log(self.warmup_ent_coef))
             logger.info(
-                "StageWarmupCallback [SAC]: warm-up active for %d timesteps (lr=%.2e → %.2e, ent_coef=%.3f)",
+                "StageWarmupCallback [SAC]: warm-up active for %d timesteps (lr=%.2e → %.2e, ent_coef seeded at %.3f)",
                 self.warmup_timesteps,
                 original_lr,
                 warmup_lr,
@@ -712,9 +741,8 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
         if self.num_timesteps >= self.warmup_timesteps:
             if self._is_sac:
                 self.model.lr_schedule = self._original_lr_schedule
-                self.model.ent_coef = self._original_ent_coef
-                # Restore the learned log_ent_coef so auto-tuning resumes
-                self.model.log_ent_coef.data.fill_(self._original_log_ent_coef)
+                # log_ent_coef is intentionally left at its current
+                # (auto-tuned) value — see _on_training_start.
             else:
                 self.model.clip_range = self._original_clip_range
                 self.model.ent_coef = self._original_ent_coef

@@ -28,6 +28,24 @@ import numpy as np
 from environments.shared.diagnostics import DiagnosticsCallback
 
 
+def env_dt(env: Any, default: float = 0.01) -> float:
+    """Best-effort extraction of the control timestep from an env.
+
+    Works with a raw ``BaseDinoEnv`` (``env.dt``) and with vectorized /
+    ``VecNormalize``-wrapped envs (``env.get_attr("dt")``).  Falls back to
+    *default* when the attribute cannot be resolved.
+    """
+    try:
+        dt = getattr(env, "dt", None)
+        if dt is None and hasattr(env, "get_attr"):
+            dt = env.get_attr("dt")[0]
+        if dt is not None:
+            return float(dt)
+    except Exception:  # noqa: BLE001 - any failure means "unknown", use default
+        pass
+    return default
+
+
 @dataclass
 class LocomotionMetrics:
     """Collects per-step data and computes locomotion quality metrics.
@@ -55,7 +73,11 @@ class LocomotionMetrics:
     _pelvis_yaw_velocities: list[float] = field(default_factory=list)
     _distances_traveled: list[float] = field(default_factory=list)
     _reward_components: dict[str, list[float]] = field(default_factory=dict)
-    _dt: float = 0.02  # default timestep * frame_skip
+    # Control timestep in seconds (model timestep x frame_skip).  All current
+    # species use 0.002 x 5 = 0.01.  Pass the env's actual ``dt`` (see
+    # :func:`env_dt`) so distance / stride-frequency / time-to-target stay
+    # correct if a model changes its timestep or frame_skip.
+    dt: float = 0.01
     _termination_reason: str | None = None
 
     def reset(self):
@@ -184,7 +206,7 @@ class LocomotionMetrics:
         result["velocity_consistency"] = float(1.0 - np.std(fwd) / (np.abs(np.mean(fwd)) + 1e-8))
 
         # --- Distance traveled ---
-        distance = float(np.sum(fwd * self._dt))
+        distance = float(np.sum(fwd * self.dt))
         result["total_distance"] = distance
 
         # --- Cost of transport ---
@@ -245,7 +267,7 @@ class LocomotionMetrics:
             # Time to reach within 0.5m of target (or -1 if never reached)
             close_steps = np.where(distances < 0.5)[0]
             if len(close_steps) > 0:
-                result["time_to_target"] = float(close_steps[0] * self._dt)
+                result["time_to_target"] = float(close_steps[0] * self.dt)
             else:
                 result["time_to_target"] = -1.0
 
@@ -260,9 +282,14 @@ class LocomotionMetrics:
             result["mean_heading_alignment"] = float(np.mean(self._heading_alignments))
             result["std_heading_alignment"] = float(np.std(self._heading_alignments))
 
-        # --- Success rate (bite / strike / food) ---
+        # --- Success (bite / strike / food) ---
+        # success_rate is EPISODE-level: 1.0 if the success signal fired on
+        # any step of this episode, else 0.0.  Averaging across episodes in
+        # aggregate_episodes then yields the fraction of successful episodes,
+        # matching eval_policy's definition.  (The old per-step mean reported
+        # ~1/episode_length for a successful episode — misleading.)
         if self._success_events:
-            result["success_rate"] = float(np.mean(self._success_events))
+            result["success_rate"] = 1.0 if any(v > 0 for v in self._success_events) else 0.0
             result["total_successes"] = float(np.sum(self._success_events))
 
         # --- Contact asymmetry ---
@@ -339,7 +366,7 @@ class LocomotionMetrics:
             return 0.0
 
         mean_period_steps = np.mean(np.diff(onsets))
-        mean_period_seconds = mean_period_steps * self._dt
+        mean_period_seconds = mean_period_steps * self.dt
 
         if mean_period_seconds < 1e-8:
             return 0.0

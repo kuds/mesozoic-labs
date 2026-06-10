@@ -92,7 +92,7 @@ Trained using 3-stage curriculum learning:
 | Feature | Details |
 |---------|---------|
 | Observation | 83 dims (joints, torso, food tracking) |
-| Action | 26 dims (6 neck + 20 leg controls) |
+| Action | 30 dims (6 neck + 20 leg + 4 tail controls) |
 | Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
 
 [Full documentation →](environments/brachiosaurus/README.md)

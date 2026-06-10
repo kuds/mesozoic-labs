@@ -29,14 +29,14 @@ class TestLocomotionMetrics:
         assert result["std_forward_velocity"] == pytest.approx(0.0, abs=1e-6)
 
     def test_total_distance(self, metrics):
-        metrics._dt = 0.1
+        metrics.dt = 0.1
         for _ in range(10):
             metrics.record_step({"forward_vel": 1.0}, reward=1.0)
         result = metrics.compute()
         assert result["total_distance"] == pytest.approx(1.0)  # 10 * 1.0 * 0.1
 
     def test_cost_of_transport(self, metrics):
-        metrics._dt = 0.1
+        metrics.dt = 0.1
         for _ in range(10):
             metrics.record_step(
                 {"forward_vel": 1.0, "reward_energy": -0.5},
@@ -72,7 +72,7 @@ class TestLocomotionMetrics:
         assert result["min_prey_distance"] == 0.3
 
     def test_time_to_target(self, metrics):
-        metrics._dt = 0.5
+        metrics.dt = 0.5
         distances = [5.0, 3.0, 1.0, 0.4]  # reaches <0.5 at step 3
         for d in distances:
             metrics.record_step({"forward_vel": 1.0, "prey_distance": d})
@@ -172,3 +172,64 @@ class TestAggregateEpisodes:
 
     def test_aggregate_empty(self):
         assert LocomotionMetrics.aggregate_episodes([]) == {}
+
+
+class TestSuccessRate:
+    """Episode-level success semantics (success_rate is 0/1 per episode)."""
+
+    def test_success_on_final_step_counts_as_full_success(self):
+        metrics = LocomotionMetrics()
+        for _ in range(99):
+            metrics.record_step({"forward_vel": 1.0, "strike_success": 0.0})
+        metrics.record_step({"forward_vel": 1.0, "strike_success": 1.0})
+        result = metrics.compute()
+        assert result["success_rate"] == 1.0
+        assert result["total_successes"] == 1.0
+
+    def test_no_success_is_zero(self):
+        metrics = LocomotionMetrics()
+        for _ in range(10):
+            metrics.record_step({"forward_vel": 1.0, "bite_success": 0.0})
+        result = metrics.compute()
+        assert result["success_rate"] == 0.0
+
+    def test_aggregated_success_rate_is_episode_fraction(self):
+        reports = []
+        for success in (1.0, 0.0, 1.0, 1.0):
+            m = LocomotionMetrics()
+            m.record_step({"forward_vel": 1.0, "food_reached": success})
+            reports.append(m.compute())
+        agg = LocomotionMetrics.aggregate_episodes(reports)
+        assert agg["mean_success_rate"] == pytest.approx(0.75)
+
+
+class TestDt:
+    """Control-timestep handling."""
+
+    def test_default_dt_matches_species_models(self):
+        # All species XMLs use timestep=0.002 with frame_skip=5 -> dt=0.01
+        assert LocomotionMetrics().dt == pytest.approx(0.01)
+
+    def test_env_dt_reads_plain_attribute(self):
+        from environments.shared.metrics import env_dt
+
+        class FakeEnv:
+            dt = 0.025
+
+        assert env_dt(FakeEnv()) == pytest.approx(0.025)
+
+    def test_env_dt_reads_vec_env_get_attr(self):
+        from environments.shared.metrics import env_dt
+
+        class FakeVecEnv:
+            def get_attr(self, name):
+                assert name == "dt"
+                return [0.05]
+
+        assert env_dt(FakeVecEnv()) == pytest.approx(0.05)
+
+    def test_env_dt_falls_back_to_default(self):
+        from environments.shared.metrics import env_dt
+
+        assert env_dt(object()) == pytest.approx(0.01)
+        assert env_dt(object(), default=0.02) == pytest.approx(0.02)

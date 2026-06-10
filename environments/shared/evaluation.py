@@ -89,13 +89,14 @@ def eval_policy_quality(
     Returns:
         Dict of aggregated eval metrics (prefixed with ``eval_``).
     """
-    from .metrics import LocomotionMetrics
+    from .metrics import LocomotionMetrics, env_dt
 
     episode_reports = []
+    dt = env_dt(eval_env)
 
     for _ in range(n_episodes):
         obs = eval_env.reset()
-        metrics = LocomotionMetrics()
+        metrics = LocomotionMetrics(dt=dt)
         done = False
         while not done:
             action, _ = model.predict(obs, deterministic=True)
@@ -246,6 +247,7 @@ def evaluate(
 ):
     """Evaluate a trained model with full locomotion metrics."""
     from .metrics import LocomotionMetrics
+    from .metrics import env_dt as _env_dt
     from .train_base import _ensure_sb3
 
     sb3 = _ensure_sb3()
@@ -293,10 +295,11 @@ def evaluate(
     )
 
     episode_reports = []
+    eval_dt = _env_dt(vec_env)
 
     for ep in range(n_episodes):
         obs = vec_env.reset()
-        metrics = LocomotionMetrics()
+        metrics = LocomotionMetrics(dt=eval_dt)
         total_reward = 0.0
         step = 0
 

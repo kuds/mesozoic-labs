@@ -30,6 +30,7 @@ register_species_mjx(
     sensor_tail_gyro_start=_SENSOR_TAIL_GYRO_START,
     forward_vel_max=8.0,
     fall_penalty=-100.0,
+    target_standing_z=0.90,  # SB3 height-maintenance target (trex_env.py)
     target_distance_range=(3.0, 8.0),
     target_lateral_range=(-2.0, 2.0),
     target_z=0.5,

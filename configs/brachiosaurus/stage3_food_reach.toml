@@ -83,7 +83,7 @@ net_arch = [512, 256]
 [curriculum]
 timesteps = 12000000                   # Extended from 8M: best model was at 3.9M and policy degraded after — more time with stable config gives room to recover and converge
 min_avg_reward = 100.0                  # Minimum average reward to confirm food-reaching behavior
-min_success_rate = 0.5                 # At least 25% food reach success — confirms behavior emerged
+min_success_rate = 0.5                 # At least 50% food reach success — confirms behavior emerged
 required_consecutive = 3
 warmup_timesteps = 300000               # Tripled from 100k: agent needs more time to adapt from locomotion to food-reach reward landscape without losing walking ability
 warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change

@@ -24,14 +24,18 @@ def check_stage_gate(
 
     Args:
         eval_metrics: Evaluation metrics dict (keys like ``"mean_reward"``).
-        stage_config: Stage configuration dict from TOML (must contain
-            ``[curriculum]`` section with ``min_avg_reward``).
+        stage_config: Stage configuration dict as returned by
+            :func:`~environments.shared.config.load_stage_config` (the TOML
+            ``[curriculum]`` section lives under ``"curriculum_kwargs"``).
 
     Returns:
         ``True`` if the gate is passed and training should advance.
     """
-    curriculum = stage_config.get("curriculum", {})
-    min_reward = curriculum.get("min_avg_reward", float("inf"))
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    min_reward = curriculum.get("min_avg_reward")
+    if min_reward is None:
+        _logger.warning("Stage config has no curriculum_kwargs.min_avg_reward — gate passes by default.")
+        return True
     return bool(eval_metrics.get("mean_reward", 0.0) >= min_reward)
 
 
@@ -84,6 +88,12 @@ def run_curriculum(
             "ent_coef": "ent_coef",
             "ppo_epochs": "n_epochs",
             "target_kl": "target_kl",
+            "minibatch_size": "minibatch_size",
+            "warmup_updates": "warmup_updates",
+            "warmup_clip_range": "warmup_clip_range",
+            "warmup_ent_coef": "warmup_ent_coef",
+            "ramp_updates": "ramp_updates",
+            "ramp_start_fraction": "ramp_start_fraction",
         }
         for toml_key, param_name in _JAX_KEY_MAP.items():
             if toml_key in jax_kwargs:

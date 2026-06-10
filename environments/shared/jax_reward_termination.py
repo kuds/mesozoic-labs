@@ -52,6 +52,7 @@ def compute_total_reward(
     root_body_id: int,
     healthy_z_min: float,
     healthy_z_max: float = 2.0,
+    target_standing_z: float | None = None,
     max_tilt_angle: float,
     natural_forward_z: float,
     n_actuators: int,
@@ -137,7 +138,10 @@ def compute_total_reward(
 
     height_w = reward_cfg.get("height_weight", 0.0)
     if height_w > 0:
-        total = total + reward_height_maintenance(pelvis_z, healthy_z_min, healthy_z_max, height_w)
+        # Saturate at the species standing height (SB3 parity), not the
+        # termination ceiling — the latter flattens the gradient 5-10x.
+        _target_z = target_standing_z if target_standing_z is not None else healthy_z_max
+        total = total + reward_height_maintenance(pelvis_z, healthy_z_min, _target_z, height_w)
 
     nosedive_w = reward_cfg.get("nosedive_weight", 0.0)
     if nosedive_w > 0:
@@ -228,6 +232,7 @@ def compute_reward_components(
     root_body_id: int,
     healthy_z_min: float,
     healthy_z_max: float = 2.0,
+    target_standing_z: float | None = None,
     max_tilt_angle: float,
     natural_forward_z: float,
     n_actuators: int,
@@ -284,7 +289,8 @@ def compute_reward_components(
 
     height_w = reward_cfg.get("height_weight", 0.0)
     if height_w > 0:
-        components["height"] = reward_height_maintenance(pelvis_z, healthy_z_min, healthy_z_max, height_w)
+        _target_z = target_standing_z if target_standing_z is not None else healthy_z_max
+        components["height"] = reward_height_maintenance(pelvis_z, healthy_z_min, _target_z, height_w)
 
     nosedive_w = reward_cfg.get("nosedive_weight", 0.0)
     if nosedive_w > 0:

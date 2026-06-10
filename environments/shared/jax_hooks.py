@@ -87,6 +87,7 @@ class CheckpointHook:
             params=state.params,
             update=state.update,
             obs_rms=state.obs_stats,
+            opt_state=state.opt_state,
         )
 
     def on_train_end(self, state: TrainerState) -> None:
@@ -94,6 +95,7 @@ class CheckpointHook:
             params=state.params,
             update=state.update,
             obs_rms=state.obs_stats,
+            opt_state=state.opt_state,
         )
 
     @property

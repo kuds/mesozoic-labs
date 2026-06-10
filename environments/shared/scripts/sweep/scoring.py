@@ -24,6 +24,34 @@ logger = logging.getLogger(__name__)
 # Default config path relative to repo root.
 _DEFAULT_CONFIG_NAME = "configs/quality_scoring.toml"
 
+# The scoring TOML uses the short metric names emitted by the Ray Tune
+# post-analysis path.  Rows produced by the Vertex AI / train_base path
+# (metrics.json -> collected_results.csv) use different column names for the
+# same quantities.  Each TOML metric is resolved against the row by trying
+# the TOML name first, then these aliases in order.  Without this mapping,
+# scoring silently produced empty quality_score columns for non-Ray rows.
+_METRIC_ALIASES: dict[str, tuple[str, ...]] = {
+    "fwd_vel_m/s": ("mean_forward_vel", "best_mean_forward_vel"),
+    "ep_length": ("best_mean_episode_length", "eval_mean_episode_length"),
+    "distance_m": ("mean_distance_traveled", "eval_distance_traveled"),
+    "tilt_rad": ("eval_mean_tilt_angle",),
+    "pelvis_height_m": ("eval_mean_pelvis_height",),
+    "mean_success_rate": ("best_mean_success_rate",),
+    "eval_reward": ("last_mean_reward",),
+}
+
+
+def _row_metric(row: dict[str, Any], metric_name: str) -> Any:
+    """Look up *metric_name* in *row*, falling back to known aliases."""
+    value = row.get(metric_name)
+    if value not in (None, "", "N/A"):
+        return value
+    for alias in _METRIC_ALIASES.get(metric_name, ()):
+        value = row.get(alias)
+        if value not in (None, "", "N/A"):
+            return value
+    return None
+
 
 def _find_config_path() -> Path | None:
     """Locate the quality scoring TOML config by walking up from this file."""
@@ -168,8 +196,8 @@ def compute_quality_scores(
         vals: list[float] = []
         all_present = True
         for row in rows:
-            raw = row.get(metric_name)
-            if raw is None or raw == "" or raw == "N/A":
+            raw = _row_metric(row, metric_name)
+            if raw is None:
                 all_present = False
                 break
             try:

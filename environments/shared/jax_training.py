@@ -45,8 +45,14 @@ def train_jax(
     max_grad_norm: float = 0.5,
     n_epochs: int = 10,
     n_minibatches: int = 4,
+    minibatch_size: int | None = None,
     target_kl: float | None = 0.05,
     env_kwargs: dict[str, Any] | None = None,
+    warmup_updates: int = 0,
+    warmup_clip_range: float = 0.02,
+    warmup_ent_coef: float = 0.02,
+    ramp_updates: int = 0,
+    ramp_start_fraction: float = 0.1,
 ) -> tuple[Any, dict[str, float]]:
     """Train a species with JAX/MJX PPO.
 
@@ -75,8 +81,17 @@ def train_jax(
         n_minibatches: Number of minibatches per epoch.
         target_kl: Early-stop PPO epochs when approx KL exceeds this
             threshold.  Set to ``None`` to disable.
+        minibatch_size: TOML-style minibatch size; when given it overrides
+            *n_minibatches* via ``num_envs * rollout_len // minibatch_size``.
         env_kwargs: Stage-specific environment kwargs (reward weights etc.)
             from the TOML ``[env]`` section, overlaid onto species defaults.
+        warmup_updates: Constrain policy updates for the first N updates
+            (TOML ``warmup_updates``).  0 disables.
+        warmup_clip_range: Clip range during warm-up.
+        warmup_ent_coef: Entropy coefficient during warm-up.
+        ramp_updates: Ramp forward_vel_weight scale over the first N
+            updates (TOML ``ramp_updates``).  0 disables.
+        ramp_start_fraction: Starting fraction of forward_vel_weight.
 
     Returns:
         ``(params, eval_metrics)`` tuple.
@@ -95,6 +110,10 @@ def train_jax(
 
     # Create environment with TOML-derived reward weights
     env = MJXDinoEnv(species, stage=stage, num_envs=num_envs, env_kwargs=env_kwargs)
+
+    # TOML configs specify minibatch_size; PPOConfig wants a count.
+    if minibatch_size is not None:
+        n_minibatches = max(1, (num_envs * rollout_len) // int(minibatch_size))
 
     # PPO config
     ppo_config = PPOConfig(
@@ -137,6 +156,11 @@ def train_jax(
         num_envs=num_envs,
         rollout_len=rollout_len,
         hooks=hooks,
+        warmup_updates=warmup_updates,
+        warmup_clip_range=warmup_clip_range,
+        warmup_ent_coef=warmup_ent_coef,
+        ramp_updates=ramp_updates,
+        ramp_start_fraction=ramp_start_fraction,
     )
 
     params, eval_metrics, _state = trainer.train(

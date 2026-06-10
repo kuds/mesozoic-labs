@@ -15,7 +15,7 @@ Observation space:
 
 Action space:
     - Continuous control for all actuators [-1, 1] normalized
-    - 26 actuators: 6 neck + 20 legs (5 per leg: hip pitch/roll, knee, ankle, toe)
+    - 30 actuators: 6 neck + 20 legs (5 per leg: hip pitch/roll, knee, ankle, toe) + 4 tail
 
 Reward components:
     - Forward velocity toward food
@@ -490,11 +490,13 @@ class BrachioEnv(BaseDinoEnv):
             info["termination_reason"] = reason
             return True, info
 
-        # Success: head reached food
+        # Success: head reached food (only terminate when reaching is rewarded,
+        # matching the raptor/trex strike/bite gating — otherwise stages 1-2
+        # end episodes early on accidental head-food proximity)
         head_tip_pos = self.data.site_xpos[self.head_tip_site_id]
         food_pos = self.data.mocap_pos[0]
         head_food_dist = float(np.linalg.norm(head_tip_pos - food_pos))
-        if head_food_dist < self.food_reach_threshold:
+        if self.food_reach_bonus > 0 and head_food_dist < self.food_reach_threshold:
             info["termination_reason"] = "food_reached"
             info["success"] = True
             return True, info
