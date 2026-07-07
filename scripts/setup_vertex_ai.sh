@@ -118,6 +118,7 @@ if [[ "${SUBMIT_JOB}" =~ ^[Yy]$ ]]; then
   if [ -z "${BUCKET_NAME:-}" ]; then
     read -rp "GCS bucket name for output (without gs://): " BUCKET_NAME
   fi
+  BUCKET_NAME="${BUCKET_NAME#gs://}"  # strip gs:// prefix if provided
 
   OUTPUT_DIR="/gcs/${BUCKET_NAME}/training/${SPECIES}"
 
@@ -130,6 +131,10 @@ if [[ "${SUBMIT_JOB}" =~ ^[Yy]$ ]]; then
 
   if [ "${MODE_CHOICE}" = "2" ]; then
     read -rp "Stage number (1, 2, or 3): " STAGE_NUM
+    if [[ ! "${STAGE_NUM}" =~ ^[123]$ ]]; then
+      error "Invalid stage number: '${STAGE_NUM}' (must be 1, 2, or 3)"
+      exit 1
+    fi
     DISPLAY_NAME="${SPECIES}-stage${STAGE_NUM}"
     ARGS="environments/${SPECIES}/scripts/train_sb3.py,train,--stage,${STAGE_NUM},--n-envs,4,--output-dir,${OUTPUT_DIR}/stage${STAGE_NUM}"
   else

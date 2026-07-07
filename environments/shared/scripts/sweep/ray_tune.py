@@ -849,6 +849,11 @@ def train_trial(config: dict[str, Any]) -> None:
         # Enables offline result collection via collect_results_from_disk()
         # and provides a consistent artifact format across both backends.
         aux_metrics: dict[str, Any] = {
+            # Run identity + effective per-trial seed, so trials remain
+            # reproducible from the collected CSV alone.
+            "species": species,
+            "algorithm": algorithm,
+            "seed": seed,
             "best_mean_reward": final_metrics["best_mean_reward"],
             "best_mean_episode_length": final_metrics["best_mean_episode_length"],
             "last_mean_reward": float(eval_callback.last_mean_reward)

@@ -152,6 +152,7 @@ class DiagnosticsCallback(_BaseCallback):
         log_dir=None,
         verbose=0,
         action_saturation_threshold=0.99,
+        save_interval_seconds=60.0,
     ):
         if _SB3_AVAILABLE:
             super().__init__(verbose)
@@ -187,6 +188,9 @@ class DiagnosticsCallback(_BaseCallback):
         # SAC critic_loss/ent_coef/…) captured from SB3's logger.
         self._history_algo_timesteps: list[int] = []
         self._history_algo: dict[str, list[float]] = {}
+        # Throttle for diagnostics.npz rewrites (see _on_rollout_end).
+        self.save_interval_seconds = save_interval_seconds
+        self._last_save_time: float | None = None
 
     if not _SB3_AVAILABLE:
 
@@ -233,7 +237,6 @@ class DiagnosticsCallback(_BaseCallback):
             # Track heading alignment std to distinguish spinning from stable heading
             heading_vals = self._step_infos.get("heading_alignment", [])
             self._history_heading_std.append(float(_np.std(heading_vals)) if len(heading_vals) > 1 else float("nan"))
-            self._save_diagnostics()
 
         self._step_infos = {k: [] for k in self.REWARD_KEYS + self.INFO_KEYS}
 
@@ -254,7 +257,6 @@ class DiagnosticsCallback(_BaseCallback):
                 if len(series) < n_term_points:
                     series.append(0.0)
             self.logger.record("terminations/total_count", total_terminations)
-            self._save_diagnostics()
         self._rollout_terminations.clear()
 
         if hasattr(self.model, "rollout_buffer") and self.model.rollout_buffer.observations is not None:
@@ -314,6 +316,22 @@ class DiagnosticsCallback(_BaseCallback):
                         variation,
                     )
 
+        # Persist once per rollout-end, throttled: _save_diagnostics rewrites
+        # the ENTIRE accumulated history, and SAC fires on_rollout_end every
+        # train_freq steps (~hundreds of times more often than PPO), which
+        # made per-event saves O(n^2) I/O on a growing file — brutal on GCS
+        # FUSE mounts.  A final flush happens in _on_training_end.
+        import time as _time
+
+        now = _time.monotonic()
+        if self._last_save_time is None or now - self._last_save_time >= self.save_interval_seconds:
+            self._last_save_time = now
+            self._save_diagnostics()
+
+    def _on_training_end(self) -> None:
+        """Final flush so the npz always contains the complete history."""
+        self._save_diagnostics()
+
     def _collect_algo_metrics(self) -> dict:
         """Snapshot SB3's algorithm-specific ``train/*`` metrics.
 
@@ -328,6 +346,11 @@ class DiagnosticsCallback(_BaseCallback):
         hold a finite scalar.  Empty when the logger is unavailable (before the
         first update, or under a test mock where ``name_to_value`` is not a
         real dict).
+
+        Note: SB3 fires ``on_rollout_end`` *before* the iteration's
+        ``train()``, so the snapshot holds the **previous** update's values
+        tagged with the current ``num_timesteps`` — the ``algo_*`` series are
+        shifted one rollout to the right.  Acceptable for offline plots.
         """
         logger_obj = getattr(self.model, "logger", None)
         name_to_value = getattr(logger_obj, "name_to_value", None)
@@ -365,7 +388,6 @@ class DiagnosticsCallback(_BaseCallback):
                 self._history_algo[key] = [float("nan")] * (n - 1)
         for key, series in self._history_algo.items():
             series.append(float(metrics[key]) if key in metrics else float("nan"))
-        self._save_diagnostics()
 
     def _save_diagnostics(self) -> None:
         """Persist accumulated diagnostics to an npz file in the stage dir."""

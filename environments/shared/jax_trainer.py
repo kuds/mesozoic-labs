@@ -164,6 +164,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
     MINIBATCH_SIZE = config.minibatch_size
     PPO_EPOCHS = config.ppo_epochs
     TARGET_KL = config.target_kl
+    VF_CLIP_RANGE = config.vf_clip_range
 
     # --- Thin wrappers for the network ---
 
@@ -271,7 +272,20 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
                 params, opt_state, kl_exceeded = carry
                 obs, act, lp, adv, ret, val = mb
                 new_params, new_opt_state, loss, aux, gn = ppo_update(
-                    params, opt_state, obs, act, lp, adv, ret, old_values=val, clip_range=clip_range, ent_coef=ent_coef
+                    params,
+                    opt_state,
+                    obs,
+                    act,
+                    lp,
+                    adv,
+                    ret,
+                    old_values=val,
+                    clip_range=clip_range,
+                    ent_coef=ent_coef,
+                    # Without this the scan path silently ran with value
+                    # clipping off while the TOML (and the printed config)
+                    # said it was on.
+                    vf_clip_range=VF_CLIP_RANGE,
                 )
 
                 approx_kl = aux["approx_kl"]
@@ -1335,6 +1349,12 @@ class JaxTrainer:
         eval_metrics = {
             "mean_reward": float(jnp.mean(jnp.array([h["mean_reward"] for h in state.history[-10:]])))
             if state.history
+            else 0.0,
+            # Episode-level return (comparable to SB3's mean episode reward
+            # and the TOML min_avg_reward gates); mean_reward above is the
+            # mean PER-STEP rollout reward, orders of magnitude smaller.
+            "mean_episode_return": float(jnp.mean(jnp.array(state.episode_return_history[-10:])))
+            if state.episode_return_history
             else 0.0,
             "total_steps": state.total_steps,
             "elapsed": elapsed,

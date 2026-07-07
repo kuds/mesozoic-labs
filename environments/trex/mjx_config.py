@@ -57,7 +57,10 @@ register_species_mjx(
         "alive_bonus": 0.1,
         "energy_penalty_weight": 0.001,
         "posture_weight": 0.2,
-        "bite_approach_weight": 1.0,
+        # Canonical key: registry weights bypass canonicalize_env_kwargs, so a
+        # legacy "bite_approach_weight" here would shadow the TOML-configured
+        # approach_weight in every stage.
+        "approach_weight": 1.0,
         "tail_stability_weight": 0.05,
         "smoothness_weight": 0.05,
         "bite_bonus": 10.0,

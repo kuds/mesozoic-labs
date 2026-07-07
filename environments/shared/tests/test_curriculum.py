@@ -823,6 +823,7 @@ class TestRewardRampCallbackMocked:
         cb.end_value = 1.0
         cb.ramp_timesteps = 1000
         cb._last_set_value = None
+        cb._last_update_bucket = -1
 
         mock_venv = MagicMock()
         mock_model = MagicMock()
@@ -845,6 +846,7 @@ class TestRewardRampCallbackMocked:
         cb.end_value = 1.0
         cb.ramp_timesteps = 1_000_000
         cb._last_set_value = 0.0  # Already set to quantised value
+        cb._last_update_bucket = -1
 
         mock_venv = MagicMock()
         mock_model = MagicMock()
@@ -932,32 +934,28 @@ class TestEvalCollapseEarlyStopCallback:
             with pytest.raises(ImportError, match="stable-baselines3"):
                 EvalCollapseEarlyStopCallback(eval_callback=MagicMock())
 
-    def test_returns_true_when_no_log_path(self):
+    def test_returns_true_without_eval_results(self):
         cb = object.__new__(EvalCollapseEarlyStopCallback)
-        cb.eval_callback = MagicMock(spec=[])  # no log_path
+        cb.eval_callback = MagicMock(spec=[])  # no evaluations_results
         cb._last_seen_n_evals = 0
         cb._peak_reward = float("-inf")
         cb._consecutive_drops = 0
         assert cb._on_step() is True
 
-    def test_returns_true_when_npz_missing(self, tmp_path):
+    def test_returns_true_when_eval_results_empty(self):
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.log_path = str(tmp_path)
+        cb.eval_callback.evaluations_results = []
         cb._last_seen_n_evals = 0
         cb._peak_reward = float("-inf")
         cb._consecutive_drops = 0
         assert cb._on_step() is True
 
     def test_returns_true_before_min_evals(self, tmp_path):
-        import numpy as np
-
-        eval_rewards = np.array([[10.0, 20.0], [15.0, 25.0]])
-        np.savez(str(tmp_path / "evaluations.npz"), results=eval_rewards)
 
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.log_path = str(tmp_path)
+        cb.eval_callback.evaluations_results = [[10.0, 20.0], [15.0, 25.0]]
         cb._last_seen_n_evals = 0
         cb._peak_reward = float("-inf")
         cb._consecutive_drops = 0
@@ -967,38 +965,28 @@ class TestEvalCollapseEarlyStopCallback:
         assert cb._on_step() is True
 
     def test_returns_true_no_new_eval(self, tmp_path):
-        import numpy as np
-
-        eval_rewards = np.array([[10.0]])
-        np.savez(str(tmp_path / "evaluations.npz"), results=eval_rewards)
 
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.log_path = str(tmp_path)
+        cb.eval_callback.evaluations_results = [[10.0]]
         cb._last_seen_n_evals = 1  # Already seen this eval
         cb._peak_reward = float("-inf")
         cb._consecutive_drops = 0
         assert cb._on_step() is True
 
     def test_stops_after_patience_drops(self, tmp_path):
-        import numpy as np
 
         # 6 evals: peak at eval 3 (50.0), then drops to 20.0
-        eval_rewards = np.array(
-            [
-                [10.0, 10.0],
-                [30.0, 30.0],
-                [50.0, 50.0],  # peak
-                [20.0, 20.0],  # drop 1
-                [15.0, 15.0],  # drop 2
-                [10.0, 10.0],  # drop 3 -> stop
-            ]
-        )
-        np.savez(str(tmp_path / "evaluations.npz"), results=eval_rewards)
-
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.log_path = str(tmp_path)
+        cb.eval_callback.evaluations_results = [
+            [10.0, 10.0],
+            [30.0, 30.0],
+            [50.0, 50.0],  # peak
+            [20.0, 20.0],  # drop 1
+            [15.0, 15.0],  # drop 2
+            [10.0, 10.0],  # drop 3 -> stop
+        ]
         cb._last_seen_n_evals = 0
         cb._peak_reward = float("-inf")
         cb._consecutive_drops = 0
@@ -1013,24 +1001,18 @@ class TestEvalCollapseEarlyStopCallback:
         assert result is False
 
     def test_resets_drops_on_recovery(self, tmp_path):
-        import numpy as np
 
         # Evals: peak, drop, recovery
-        eval_rewards = np.array(
-            [
-                [50.0, 50.0],
-                [40.0, 40.0],
-                [30.0, 30.0],
-                [20.0, 20.0],
-                [10.0, 10.0],
-                [45.0, 45.0],  # recovery
-            ]
-        )
-        np.savez(str(tmp_path / "evaluations.npz"), results=eval_rewards)
-
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.log_path = str(tmp_path)
+        cb.eval_callback.evaluations_results = [
+            [50.0, 50.0],
+            [40.0, 40.0],
+            [30.0, 30.0],
+            [20.0, 20.0],
+            [10.0, 10.0],
+            [45.0, 45.0],  # recovery
+        ]
         cb._last_seen_n_evals = 0
         cb._peak_reward = float("-inf")
         cb._consecutive_drops = 0

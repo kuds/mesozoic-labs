@@ -117,7 +117,7 @@ This section walks through running a trial sweep specifically for **Stage 1 (Bal
 
 ### Stage 1 search space
 
-The `configs/sweep_ppo.json` file defines these Stage 1-specific parameters:
+Each species' `configs/<species>/sweep_ppo.json` file defines these Stage 1-specific parameters:
 
 | Parameter | Type | Range / Values | Description |
 |---|---|---|---|
@@ -168,7 +168,7 @@ python -m environments.shared.scripts.sweep launch \
 
 Short accelerator aliases are accepted: `T4` → `NVIDIA_TESLA_T4`, `V100` → `NVIDIA_TESLA_V100`, `A100` → `NVIDIA_TESLA_A100`, `L4` → `NVIDIA_L4`. Use `None` for CPU-only.
 
-This runs 5 trials (3 in parallel) at 100K steps each. Stage 1 (balance) is CPU-bound and doesn't need a GPU. Once you're confident the pipeline works, scale up to 20 trials at 500K steps with `--search-space-file configs/sweep_ppo.json`.
+This runs 5 trials (3 in parallel) at 100K steps each. Stage 1 (balance) is CPU-bound and doesn't need a GPU. Once you're confident the pipeline works, scale up to 20 trials at 500K steps with the species' pre-built search space (`configs/<species>/sweep_ppo.json`, used automatically when `--search-space-file` is omitted).
 
 ### Full Stage 1 sweep
 
@@ -180,7 +180,7 @@ python -m environments.shared.scripts.sweep launch \
   --project ${PROJECT_ID} \
   --bucket YOUR_BUCKET_NAME \
   --image ${IMAGE_URI} \
-  --search-space-file configs/sweep_ppo.json \
+  --search-space-file configs/velociraptor/sweep_ppo.json \
   --machine-type n1-standard-8 \
   --accelerator-type NVIDIA_TESLA_T4
 ```
@@ -252,10 +252,10 @@ python -m environments.shared.scripts.sweep launch-all \
   --species trex --algorithm ppo \
   --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
   --trials 20 --trials-stage1 10 --parallel 5 \
-  --search-space-file configs/sweep_ppo.json
+  --search-space-file configs/trex/sweep_ppo.json
 ```
 
-Example per-stage file (`configs/sweep_ppo.json`):
+Example per-stage file (`configs/trex/sweep_ppo.json`):
 
 ```json
 {
@@ -329,13 +329,13 @@ CLI flags always override file settings. This means you can set your baseline co
 python -m environments.shared.scripts.sweep launch-all \
   --species trex --algorithm ppo \
   --project YOUR_PROJECT --bucket YOUR_BUCKET --image IMAGE_URI \
-  --search-space-file configs/sweep_ppo.json \
+  --search-space-file configs/trex/sweep_ppo.json \
   --trials-stage1 15
 ```
 
 Notice that each stage sweeps different reward signals: Stage 1 sweeps `env_alive_bonus`, `env_posture_weight`, and `env_nosedive_weight` (the key balance rewards), Stage 2 sweeps `env_alive_bonus` alongside curriculum schedule parameters, and Stage 3 replaces those with `env_strike_bonus`, `env_strike_approach_weight`, and `env_strike_proximity_weight` (where the strike reward dominates). `ppo_net_arch` is only swept in Stage 1 — the winning architecture is automatically propagated to stages 2 and 3. A flat file (no `stageN` keys) applies the same space to all stages.
 
-Pre-built search space files for PPO and SAC are included in the repo at `configs/sweep_ppo.json` and `configs/sweep_sac.json`.
+Pre-built search space files for PPO and SAC are included per species at `configs/<species>/sweep_ppo.json` and `configs/<species>/sweep_sac.json`; they are used automatically when `--search-space-file` is omitted.
 
 ### Parameter types
 

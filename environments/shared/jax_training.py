@@ -12,7 +12,7 @@ Usage::
 Or from Python::
 
     from environments.shared.jax_training import train_jax
-    params, history = train_jax("trex", stage=1, num_envs=2048)
+    params, eval_metrics, obs_stats = train_jax("trex", stage=1, num_envs=2048)
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ def train_jax(
     seed: int = 42,
     checkpoint_dir: str | None = None,
     init_params: Any | None = None,
+    init_obs_stats: Any | None = None,
     learning_rate: float = 3e-4,
     learning_rate_end: float | None = None,
     clip_range: float = 0.2,
@@ -53,7 +54,7 @@ def train_jax(
     warmup_ent_coef: float = 0.02,
     ramp_updates: int = 0,
     ramp_start_fraction: float = 0.1,
-) -> tuple[Any, dict[str, float]]:
+) -> tuple[Any, dict[str, float], Any]:
     """Train a species with JAX/MJX PPO.
 
     Loads config from TOML, creates MJX env, runs PPO training loop
@@ -68,6 +69,8 @@ def train_jax(
         seed: Random seed.
         checkpoint_dir: Optional directory for saving checkpoints.
         init_params: Optional initial network parameters (for curriculum).
+        init_obs_stats: Optional observation RunningMeanStd to carry over
+            (for curriculum — must match *init_params*' normalization).
         learning_rate: PPO learning rate.
         learning_rate_end: Final LR for linear decay (None = constant LR).
         clip_range: PPO clip range.
@@ -94,7 +97,10 @@ def train_jax(
         ramp_start_fraction: Starting fraction of forward_vel_weight.
 
     Returns:
-        ``(params, eval_metrics)`` tuple.
+        ``(params, eval_metrics, obs_stats)`` tuple.  *obs_stats* is the
+        final observation ``RunningMeanStd`` — feed it (with *params*) into
+        the next curriculum stage so the policy keeps seeing inputs scaled
+        the way it was trained.
     """
     check_jax()
 
@@ -167,8 +173,9 @@ def train_jax(
         num_updates=num_updates,
         seed=seed,
         init_params=init_params,
+        init_obs_stats=init_obs_stats,
     )
-    return params, eval_metrics
+    return params, eval_metrics, _state.obs_stats
 
 
 def _import_species_config(species: str) -> None:
@@ -213,7 +220,12 @@ def main():
             learning_rate=args.learning_rate,
         )
         for stage, (params, metrics) in results.items():
-            _logger.info("Stage %d: reward=%.2f", stage, metrics["mean_reward"])
+            _logger.info(
+                "Stage %d: episode return=%.2f (per-step reward=%.2f)",
+                stage,
+                metrics.get("mean_episode_return", 0.0),
+                metrics.get("mean_reward", 0.0),
+            )
     else:
         # Load TOML config for single-stage runs so that reward weights
         # and JAX-specific hyperparameters are applied correctly.

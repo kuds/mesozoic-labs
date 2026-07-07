@@ -424,7 +424,7 @@ gcloud storage cp \
   ./models/
 ```
 
-## 9. Cost Estimation
+## 10. Cost Estimation
 
 Approximate costs per training run (as of early 2026, `us-central1`):
 
@@ -442,7 +442,7 @@ Approximate costs per training run (as of early 2026, `us-central1`):
 - Use [preemptible/spot VMs](https://cloud.google.com/vertex-ai/docs/training/create-custom-job#spot-vms) for up to 60-91% savings on compute.
 - Set the `--timesteps` flag conservatively and check results before running longer.
 
-## 10. Using Spot (Preemptible) VMs
+## 11. Using Spot (Preemptible) VMs
 
 For significant cost savings on non-urgent training:
 
@@ -472,9 +472,13 @@ job = aiplatform.CustomJob(
     ],
 )
 
-# Enable spot VMs via the scheduling config
+# scheduling_strategy=SPOT provisions Spot VMs (the discounted, preemptible
+# capacity); restart_job_on_worker_restart re-queues the job after a preemption.
+from google.cloud.aiplatform_v1.types import custom_job as custom_job_types
+
 job.run(
     sync=False,
+    scheduling_strategy=custom_job_types.Scheduling.Strategy.SPOT,
     restart_job_on_worker_restart=True,  # Auto-restart on preemption
 )
 ```
@@ -532,16 +536,16 @@ tmux new -s sweep
 source .venv/bin/activate
 
 # Example: T-Rex sweep — all settings (trials, timesteps, parallel,
-# n_envs, search space) are defined per stage in the JSON file
-python environments/shared/scripts/sweep.py launch-all \
+# n_envs, search space) are defined per stage in the species' JSON file,
+# which is picked up automatically (configs/trex/sweep_ppo.json here)
+python -m environments.shared.scripts.sweep launch-all \
   --species trex --algorithm ppo \
   --project ${PROJECT_ID} \
   --bucket YOUR_GCS_BUCKET \
-  --image us-central1-docker.pkg.dev/${PROJECT_ID}/mesozoic-labs/trainer:latest \
-  --search-space-file configs/sweep_ppo.json
+  --image us-central1-docker.pkg.dev/${PROJECT_ID}/mesozoic-labs/trainer:latest
 ```
 
-The `--search-space-file` flag loads per-stage search spaces from a JSON file (see [Customising the Search Space](sweeps.md#customising-the-search-space) for the file format). Pre-built files are included at `configs/sweep_ppo.json` and `configs/sweep_sac.json`.
+When no `--search-space-file` is given, the sweep tool automatically loads the species' pre-built search space from `configs/<species>/sweep_<algorithm>.json` (e.g. `configs/trex/sweep_ppo.json`). Pass `--search-space-file` to use a custom JSON file instead (see [Customising the Search Space](sweeps.md#customising-the-search-space) for the file format).
 
 Detach from tmux with `Ctrl+B` then `D`. The sweep continues running.
 
@@ -551,12 +555,11 @@ To run multiple species in parallel, open additional tmux windows:
 # In the same tmux session, create a new window for velociraptor
 tmux new-window -t sweep
 
-python environments/shared/scripts/sweep.py launch-all \
+python -m environments.shared.scripts.sweep launch-all \
   --species velociraptor --algorithm ppo \
   --project ${PROJECT_ID} \
   --bucket YOUR_GCS_BUCKET \
-  --image us-central1-docker.pkg.dev/${PROJECT_ID}/mesozoic-labs/trainer:latest \
-  --search-space-file configs/sweep_ppo.json
+  --image us-central1-docker.pkg.dev/${PROJECT_ID}/mesozoic-labs/trainer:latest
 ```
 
 ### 4. Reconnect and monitor

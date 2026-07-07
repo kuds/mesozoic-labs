@@ -30,6 +30,22 @@ def _evaluate_curriculum_gate(
         when all criteria are met and *fail_reasons* lists human-readable
         explanations of which criteria were not met.
     """
+    import math
+
+    def _get(*keys: str) -> float | None:
+        """First finite value among alias keys (NaN/None treated as missing).
+
+        The Vertex ``metrics.json`` sidecar writes ``best_mean_*`` aliases,
+        but the Ray results-DataFrame path reports plain ``mean_*`` keys —
+        without the fallback every stage-2/3 Ray trial failed its gate.
+        ASHA-pruned trials surface as NaN, which must not silently pass.
+        """
+        for key in keys:
+            value = aux_metrics.get(key)
+            if value is not None and not (isinstance(value, float) and math.isnan(value)):
+                return value
+        return None
+
     passed = best_reward is not None
     fail_reasons: list[str] = []
 
@@ -39,17 +55,17 @@ def _evaluate_curriculum_gate(
         passed = False
         fail_reasons.append(f"reward {best_reward} < threshold {reward_threshold}")
     if ep_length_threshold is not None:
-        best_ep_length = aux_metrics.get("best_mean_episode_length")
+        best_ep_length = _get("best_mean_episode_length", "mean_episode_length")
         if best_ep_length is None or best_ep_length < ep_length_threshold:
             passed = False
             fail_reasons.append(f"ep_length {best_ep_length} < threshold {ep_length_threshold}")
     if forward_vel_threshold is not None:
-        trial_fwd_vel = aux_metrics.get("best_mean_forward_vel")
+        trial_fwd_vel = _get("best_mean_forward_vel", "mean_forward_vel")
         if trial_fwd_vel is None or trial_fwd_vel < forward_vel_threshold:
             passed = False
             fail_reasons.append(f"forward_vel {trial_fwd_vel} < threshold {forward_vel_threshold}")
     if success_rate_threshold is not None:
-        trial_success_rate = aux_metrics.get("best_mean_success_rate")
+        trial_success_rate = _get("best_mean_success_rate", "mean_success_rate")
         if trial_success_rate is None or trial_success_rate < success_rate_threshold:
             passed = False
             fail_reasons.append(f"success_rate {trial_success_rate} < threshold {success_rate_threshold}")
@@ -131,7 +147,10 @@ def _load_trial_metrics(output_base: str, trial_id: str) -> dict[str, float]:
         except json.JSONDecodeError as exc:
             logger.warning("  Trial %s: failed to parse metrics.json from GCS: %s", trial_id, exc)
             return {}
-        except OSError as exc:
+        except Exception as exc:
+            # google-api-core errors (Forbidden, DefaultCredentialsError, ...)
+            # are neither OSError nor ImportError -- one flaky trial must not
+            # crash the whole collection run.
             logger.warning("  Trial %s: failed to read metrics.json from GCS: %s", trial_id, exc)
             return {}
 

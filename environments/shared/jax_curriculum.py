@@ -36,7 +36,18 @@ def check_stage_gate(
     if min_reward is None:
         _logger.warning("Stage config has no curriculum_kwargs.min_avg_reward — gate passes by default.")
         return True
-    return bool(eval_metrics.get("mean_reward", 0.0) >= min_reward)
+    # min_avg_reward is an EPISODE-level threshold (shared with the SB3
+    # TOMLs, e.g. 100.0).  The trainer's "mean_reward" is the mean PER-STEP
+    # rollout reward (~0.5-2 for a good policy), so gating on it would fail
+    # every well-trained policy.
+    episode_return = eval_metrics.get("mean_episode_return")
+    if episode_return is None:
+        _logger.warning(
+            "eval_metrics has no mean_episode_return — falling back to per-step "
+            "mean_reward, which is NOT comparable to TOML min_avg_reward."
+        )
+        episode_return = eval_metrics.get("mean_reward", 0.0)
+    return bool(episode_return >= min_reward)
 
 
 def run_curriculum(
@@ -50,7 +61,8 @@ def run_curriculum(
     Args:
         species: Species name (``"trex"``, ``"velociraptor"``, ``"brachiosaurus"``).
         train_fn: Training function with signature
-            ``train_fn(species, stage, **kwargs) -> (params, eval_metrics)``.
+            ``train_fn(species, stage, **kwargs) -> (params, eval_metrics, obs_stats)``
+            (a legacy 2-tuple without *obs_stats* is also accepted).
         stages: Tuple of stage numbers to train through.
         **train_kwargs: Extra keyword arguments forwarded to ``train_fn``.
 
@@ -60,12 +72,18 @@ def run_curriculum(
     results: dict[int, Any] = {}
 
     params = None
+    obs_stats = None
     for stage in stages:
         stage_config = load_stage_config(species, stage)
 
-        # Pass previous stage params as init for next stage
+        # Pass previous stage's params AND observation-normalization stats to
+        # the next stage — carrying only the weights would feed the policy
+        # freshly re-scaled inputs it was never trained on (the SB3 path
+        # carries obs_rms across stages for the same reason).
         if params is not None:
             train_kwargs["init_params"] = params
+        if obs_stats is not None:
+            train_kwargs["init_obs_stats"] = obs_stats
 
         # Merge TOML [jax] and [env] sections into train_kwargs so that
         # stage-specific hyperparameters and reward weights reach train_jax.
@@ -111,16 +129,21 @@ def run_curriculum(
             if noise_key in jax_kwargs:
                 env_kwargs[noise_key] = jax_kwargs[noise_key]
 
-        params, eval_metrics = train_fn(species=species, stage=stage, **stage_train_kwargs)
+        result = train_fn(species=species, stage=stage, **stage_train_kwargs)
+        if len(result) == 3:
+            params, eval_metrics, obs_stats = result
+        else:  # legacy 2-tuple train_fn
+            params, eval_metrics = result
+            obs_stats = None
         results[stage] = (params, eval_metrics)
 
         # Check gate (skip for last stage)
         if stage != stages[-1]:
             if not check_stage_gate(eval_metrics, stage_config):
                 _logger.warning(
-                    "Stage %d gate NOT passed (reward=%.1f). Stopping early.",
+                    "Stage %d gate NOT passed (episode return=%.1f). Stopping early.",
                     stage,
-                    eval_metrics.get("mean_reward", 0.0),
+                    eval_metrics.get("mean_episode_return", eval_metrics.get("mean_reward", 0.0)),
                 )
                 break
             _logger.info("Stage %d gate passed. Advancing to stage %d.", stage, stage + 1)

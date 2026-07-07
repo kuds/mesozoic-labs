@@ -69,7 +69,7 @@ def _build_parser() -> argparse.ArgumentParser:
     launch.add_argument(
         "--n-envs",
         type=int,
-        default=4,
+        default=None,
         help="Parallel environments per trial (default: 4, or from search-space file)",
     )
     launch.add_argument("--project", required=True, help="GCP project ID")
@@ -188,7 +188,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     launch_all.add_argument("--species", required=True, choices=["velociraptor", "brachiosaurus", "trex"])
     launch_all.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
-    launch_all.add_argument("--n-envs", type=int, default=4, help="Parallel environments per trial")
+    launch_all.add_argument(
+        "--n-envs",
+        type=int,
+        default=None,
+        help="Parallel environments per trial (default: 4, or from search-space file)",
+    )
     launch_all.add_argument("--project", required=True, help="GCP project ID")
     launch_all.add_argument("--location", default="us-central1", help="GCP region")
     launch_all.add_argument("--bucket", required=True, help="GCS bucket name (without gs:// prefix)")

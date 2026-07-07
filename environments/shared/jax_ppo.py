@@ -257,6 +257,10 @@ def ppo_loss(params, network, batch, config: PPOConfig):
     info = {
         "policy_loss": policy_loss,
         "value_loss": value_loss,
+        # ppo_update uses jax.grad(has_aux=True) which discards the loss
+        # value itself — expose it in the aux dict so hook consumers
+        # (CSVLoggingHook, StabilityHook's loss watchdog) see a real value.
+        "total_loss": total_loss,
         "entropy": jnp.mean(entropy),
         "approx_kl": jnp.mean((ratio - 1) - jnp.log(ratio)),
         "clip_fraction": jnp.mean((jnp.abs(ratio - 1.0) > config.clip_range).astype(jnp.float32)),

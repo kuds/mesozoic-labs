@@ -791,6 +791,7 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
         self.end_value = end_value
         self.ramp_timesteps = ramp_timesteps
         self._last_set_value: float | None = None
+        self._last_update_bucket = -1
 
     def _set_env_attr(self, value: float) -> None:
         """Set the reward weight on all underlying envs."""
@@ -821,10 +822,17 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
                 )
             return True
 
+        # Only update on 10k-step boundaries: each update is an env_method
+        # RPC round-trip to every SubprocVecEnv worker, so a value-based
+        # check would broadcast every few dozen steps on a long ramp.
+        bucket = self.num_timesteps // 10_000
+        if bucket == self._last_update_bucket:
+            return True
+        self._last_update_bucket = bucket
+
         progress = self.num_timesteps / self.ramp_timesteps
         current = self.start_value + progress * (self.end_value - self.start_value)
 
-        # Only update every 10k steps to avoid overhead
         quantised = round(current, 3)
         if quantised != self._last_set_value:
             self._set_env_attr(quantised)
@@ -872,19 +880,15 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         self._last_seen_n_evals = 0
 
     def _on_step(self) -> bool:
-        log_path = getattr(self.eval_callback, "log_path", None)
-        if log_path is None:
+        # EvalCallback keeps per-eval episode rewards in memory (populated
+        # whenever its log_path is set); using it avoids re-opening
+        # evaluations.npz — a GCS FUSE file on Vertex AI — on every single
+        # training step.
+        results = getattr(self.eval_callback, "evaluations_results", None)
+        if not results:
             return True
 
-        from pathlib import Path
-
-        npz_path = Path(log_path) / "evaluations.npz"
-        if not npz_path.exists():
-            return True
-
-        data = np.load(str(npz_path))
-        eval_rewards = data["results"]  # (n_evals, n_episodes)
-        n_evals = eval_rewards.shape[0]
+        n_evals = len(results)
 
         if n_evals <= self._last_seen_n_evals:
             return True  # No new eval yet
@@ -893,7 +897,7 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         if n_evals < self.min_evals:
             return True
 
-        mean_rewards = eval_rewards.mean(axis=1)
+        mean_rewards = np.array([float(np.mean(r)) for r in results])
         current_peak = float(mean_rewards.max())
         self._peak_reward = max(self._peak_reward, current_peak)
 
