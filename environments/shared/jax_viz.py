@@ -772,14 +772,14 @@ def _read_video_frames(video_path: Path) -> list[np.ndarray]:
         import mediapy
 
         return list(mediapy.read_video(str(video_path)))
-    except (ImportError, Exception):
+    except Exception:
         pass
 
     try:
         import imageio.v3 as iio
 
         return [np.array(f) for f in iio.imread(str(video_path), plugin="pyav")]
-    except (ImportError, Exception):
+    except Exception:
         pass
 
     try:

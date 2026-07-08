@@ -104,6 +104,7 @@ def run_curriculum(
             "clip_range": "clip_range",
             "vf_clip_range": "vf_clip_range",
             "ent_coef": "ent_coef",
+            "vf_coef": "vf_coef",
             "ppo_epochs": "n_epochs",
             "target_kl": "target_kl",
             "minibatch_size": "minibatch_size",

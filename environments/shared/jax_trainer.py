@@ -491,7 +491,9 @@ def train(
     # Library utilities
     _ckpt_mgr = CheckpointManager(config.model_dir, prefix="checkpoint", max_keep=config.max_checkpoints)
     _stability = StabilityMonitor()
-    _csv_logger = TrainingCSVLogger(config.output_dir / "training_log.csv")
+    # Append on resume (start_update > 0) so the prior stage-run's rows
+    # aren't truncated away.
+    _csv_logger = TrainingCSVLogger(config.output_dir / "training_log.csv", append=_start_update > 0)
     csv_path = _csv_logger.path
 
     # Warmup/ramp state
@@ -594,8 +596,10 @@ def train(
             _cum_t_rollout += _t_rollout
 
             # ---------- Episode stats ----------
-            # Compute fall rate on-device; only transfer scalars
-            fall_rate = float(jnp.sum(full_done_t)) / (ROLLOUT_LEN * NUM_ENVS)
+            # Compute fall rate on-device; only transfer scalars.
+            # gae_done marks natural termination only -- counting full_done
+            # would book every time-limit truncation as a "fall".
+            fall_rate = float(jnp.sum(gae_done_t)) / (ROLLOUT_LEN * NUM_ENVS)
             # Defer full GPU→CPU transfer for episode tracking
             rew_np = np.array(rew_t)
             full_done_np = np.array(full_done_t)
@@ -1237,8 +1241,10 @@ class JaxTrainer:
                 elapsed = time.time() - t0
                 fps = state.total_steps / elapsed if elapsed > 0 else 0
 
-                # Compute fall rate on-device; only transfer scalars
-                fall_rate = float(jnp.sum(rollout_full_dones)) / (self.rollout_len * self.num_envs)
+                # Compute fall rate on-device; only transfer scalars.
+                # gae_dones marks natural termination only -- counting
+                # full_dones would book time-limit truncations as "falls".
+                fall_rate = float(jnp.sum(rollout_gae_dones)) / (self.rollout_len * self.num_envs)
                 # Defer full GPU→CPU transfer for episode tracking
                 rew_np = np.array(rollout_rewards)
                 done_np = np.array(rollout_full_dones)

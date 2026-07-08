@@ -133,3 +133,41 @@ class TestCheckStageGate:
         passed, failures = check_stage_gate(results, gate_min_reward=50.0, gate_min_length=100)
         assert passed is True
         assert failures == []
+
+
+class TestSuccessAndVelGates:
+    """New gate criteria: forward velocity (stage 2) and success rate (stage 3)."""
+
+    def _results(self):
+        results = EvalResults()
+        results.rewards = [100.0] * 4
+        results.lengths = [500] * 4
+        results.forward_vels = [1.0, 2.0, 3.0, 2.0]
+        results.successes = [True, True, False, False]
+        return results
+
+    def test_mean_success_rate_property(self):
+        assert self._results().mean_success_rate == 0.5
+        assert EvalResults().mean_success_rate == 0.0
+
+    def test_forward_vel_gate(self):
+        passed, failures = check_stage_gate(self._results(), gate_min_forward_vel=1.5)
+        assert passed
+        passed, failures = check_stage_gate(self._results(), gate_min_forward_vel=5.0)
+        assert not passed
+        assert any("forward vel" in f for f in failures)
+
+    def test_success_rate_gate(self):
+        passed, failures = check_stage_gate(self._results(), gate_min_success_rate=0.5)
+        assert passed
+        passed, failures = check_stage_gate(self._results(), gate_min_success_rate=0.75)
+        assert not passed
+        assert any("success rate" in f for f in failures)
+
+    def test_zero_thresholds_disable_new_gates(self):
+        results = EvalResults()
+        results.rewards = [1.0]
+        results.lengths = [10]
+        # No forward_vels/successes recorded at all -- gates must not fire.
+        passed, failures = check_stage_gate(results)
+        assert passed

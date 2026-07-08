@@ -94,7 +94,7 @@ breaks a documented workflow, **HIGH** = wrong results in common cases,
 - **LOW** — the JAX `TrainingCSVLogger` opens the CSV directly on the output
   path and flushes per update; on a `/gcs` FUSE mount that is one network
   write per update (the exact pattern `tb_sync` exists to avoid). Buffer
-  locally when `_is_gcs_path(path)`.
+  locally when `_is_gcs_path(path)`. (Resume truncation is fixed — see §3.)
 
 ## 2. SB3 training stack (delta vs June)
 
@@ -182,40 +182,68 @@ breaks a documented workflow, **HIGH** = wrong results in common cases,
   `total_loss=0.0` and `StabilityHook`'s loss watchdog could never fire.
   **FIXED** (`total_loss` added to the loss info dict).
 
-### Open
+### Fixed in the follow-up JAX pass (same branch)
 
-- **HIGH (eval)** — `jax_setup.make_obs_fn` hardcodes
+- **HIGH (eval)** — `jax_setup.make_obs_fn` hardcoded
   `target_pos=jnp.zeros(3)`, so during `evaluate_policy_cpu` /
-  `record_training_video` the policy is told the target is at the world
-  origin while success detection uses the real prey/food body — stage-3
-  gates and videos evaluate a policy pursuing the wrong goal. Fix: resolve
-  the target body position into the obs (and randomize per episode like
-  training).
+  `record_training_video` the policy was told the target is at the world
+  origin while success detection used the real prey/food body — stage-3
+  gates and videos evaluated a policy pursuing the wrong goal. **FIXED** —
+  the obs function resolves the model's target body and feeds its position
+  (the same body success detection uses); videos get this for free via the
+  shared obs fn. (Remaining nuance: training randomizes the virtual target
+  3–8 m ahead; eval uses the model's fixed target placement.)
 - **MEDIUM (eval fidelity)** — `run_stage_evaluation`'s reward/termination
-  config diverges from the training env: registry default weights aren't
-  merged into `ctx.reward_cfg`; `compute_reward` omits `target_pos` /
-  `prev_target_distance` / `prev_action` / success bonus / fall penalty; and
-  the TOML `nosedive_termination_threshold` never reaches `EvalConfig`.
-- **MEDIUM** — single-stage CLI (`jax_training.main`) still drops tuned TOML
-  `[jax]` keys (`minibatch_size`, `warmup_*`, `ramp_*`, `num_envs`), and
-  `vf_coef` is ignored on **all** CLI paths (`train_jax` has no such
-  parameter; trex TOMLs deliberately tune it to 0.25).
-- **MEDIUM (artifacts)** — the JAX CLI path saves nothing by default: no
-  final params, no CSV, no eval, and `--curriculum` ignores
-  `--checkpoint-dir` entirely. All durable artifacts exist only on the
-  notebook path (`save_jax_stage_artifacts`).
-- **MEDIUM (logging)** — JAX eval detects success (it `break`s on it) but
-  `EvalResults` has no success field, so stage-3 artifacts carry no success
-  rate and TOML `min_success_rate` is unused by any JAX gate.
-- **LOW** — `fall_rate` counts truncations as falls; `TrainingCSVLogger`
-  truncates (`"w"`) the prior CSV on notebook resume; brachio's 4 foot
-  sensors are folded into 2 eval series (3 of 4 feet logged as "left");
-  `jax_setup` docstrings reference a nonexistent `setup_training` and a
-  2-tuple return that is actually 4; two same-named `check_stage_gate`
-  functions with different semantics (`jax_eval` vs `jax_curriculum`);
-  `except (ImportError, Exception)` in `jax_viz.py`; `website/docs/training/jax.md`
-  documents a `train_jax(wandb_project=…)` parameter and `WandbHook` that
-  don't exist.
+  config diverged from the training env. **FIXED** — `setup_species` merges
+  the species-registry default weights under the TOML (same merge
+  `MJXDinoEnv` performs); `evaluate_policy_cpu` now supplies per-step
+  `target_pos` / `prev_target_distance` / `prev_action` / `forward_ref_2d` /
+  `success_site_positions` to the reward closure, which also carries
+  `forward_vel_max`, `dt`, `fall_penalty`, and the species' success bonus;
+  and the TOML `nosedive_termination_threshold` reaches `EvalConfig`. The
+  eval loop's `prev_action` is now updated *after* the reward call (it was
+  compared against itself). Verified end-to-end with a CPU smoke run
+  (stage-3 velociraptor reward changes when the parity kwargs engage).
+- **MEDIUM (CLI fidelity)** — single-stage CLI dropped tuned TOML `[jax]`
+  keys, and `vf_coef` was ignored on all CLI paths. **FIXED** — the CLI now
+  passes `minibatch_size`, `warmup_*`, `ramp_*`, and `num_envs`; `train_jax`
+  grew a `vf_coef` parameter wired into `PPOConfig`, the curriculum key map,
+  and the CLI (trex's tuned 0.25 now applies).
+- **MEDIUM (artifacts)** — the JAX CLI path saved nothing by default and
+  `--curriculum` ignored `--checkpoint-dir`. **FIXED** — with
+  `--checkpoint-dir`, headless runs now write a per-update training CSV
+  (`<species>_s<N>_training_log.csv`), rotating + final checkpoints
+  (params/obs_rms/opt_state via `CheckpointHook`), and a
+  `<species>_s<N>_best.pkl` best-episode-return snapshot; the curriculum
+  branch forwards the checkpoint dir to every stage (stage-prefixed
+  filenames keep them apart).
+- **MEDIUM (logging)** — JAX eval detected success but never recorded it.
+  **FIXED** — `EvalResults.successes` / `mean_success_rate`, surfaced in
+  `stage_results` and the eval summary, and `check_stage_gate` now enforces
+  the TOML `min_success_rate` (stage 3) and `min_avg_forward_vel` (stage 2)
+  thresholds — full gate parity with the SB3 `CurriculumManager`.
+- **LOW** — `fall_rate` counted time-limit truncations as falls (both
+  trainer paths now count natural terminations only); `TrainingCSVLogger`
+  grew an `append` mode used on notebook resume (no more truncated logs);
+  brachio's 4 foot sensors now split right/left by parity instead of
+  lumping 3 of 4 feet as "left"; `jax_setup` docstrings corrected
+  (no more `setup_training`, 4-tuple return documented);
+  `except (ImportError, Exception)` in `jax_viz.py` replaced with
+  `except Exception`; `jax.md` no longer documents the nonexistent
+  `wandb_project` / `WandbHook` and now shows the real
+  checkpoint/CSV/best-model artifacts and `restore_train_state` resume flow.
+
+### Still open (JAX)
+
+- **LOW** — eval evaluates against the model's fixed target placement
+  rather than randomized target distances like training; consider sampling
+  target positions per eval episode for distribution parity.
+- **LOW** — two same-named `check_stage_gate` functions with different
+  signatures (`jax_eval` — eval-results based, now 4-criteria — vs
+  `jax_curriculum` — metrics-dict based); worth renaming one.
+- **LOW** — per-step eval reward diagnostics (`diag_reward_components`)
+  still decompose forward velocity in world-X rather than the
+  agent-to-target frame the total reward now uses; display-only.
 
 ## 4. Sweep / reporting infrastructure (delta vs June)
 
@@ -328,12 +356,13 @@ breaks a documented workflow, **HIGH** = wrong results in common cases,
 
 ## 6. Suggested follow-ups (priority order)
 
-1. JAX eval target-position bug (§3 Open, HIGH) — stage-3 JAX gates/videos
-   are currently evaluating the wrong task.
-2. JAX CLI artifact wiring + success-rate recording (§3 Open) — headless JAX
-   runs currently produce no durable outputs.
-3. Consolidate `ray_orchestration.py` with the notebook (§4/§5) and the
+*(Items 1, 2, and 4 of the original list — the JAX eval target bug, JAX CLI
+artifacts/success recording, and eval reward parity — were fixed in the
+follow-up JAX pass on this branch; see §3.)*
+
+1. Consolidate `ray_orchestration.py` with the notebook (§4/§5) and the
    duplicate `SpeciesConfig` definitions (registry vs `train_sb3.py`).
-4. `run_stage_evaluation` reward parity (§3 Open, MEDIUM).
-5. The artifact opportunities in §4 — the Vertex manifest and model manifest
+2. The artifact opportunities in §4 — the Vertex manifest and model manifest
    are small and make sweeps auditable end-to-end.
+3. Remaining JAX polish (§3 "Still open"): randomized eval targets,
+   `check_stage_gate` naming, world-X eval diagnostics.

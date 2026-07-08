@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from pathlib import Path
 from typing import Any
 
 from .mjx_utils import check_jax
@@ -43,6 +44,7 @@ def train_jax(
     gamma: float = 0.99,
     gae_lambda: float = 0.95,
     ent_coef: float = 0.01,
+    vf_coef: float = 0.5,
     max_grad_norm: float = 0.5,
     n_epochs: int = 10,
     n_minibatches: int = 4,
@@ -79,6 +81,7 @@ def train_jax(
         gamma: Discount factor.
         gae_lambda: GAE lambda.
         ent_coef: Entropy coefficient.
+        vf_coef: Value-loss coefficient (TOML ``vf_coef``).
         max_grad_norm: Max gradient norm for clipping.
         n_epochs: PPO gradient epochs per update.
         n_minibatches: Number of minibatches per epoch.
@@ -104,7 +107,7 @@ def train_jax(
     """
     check_jax()
 
-    from .jax_hooks import CheckpointHook, LoggingHook
+    from .jax_hooks import BestModelHook, CheckpointHook, CSVLoggingHook, LoggingHook
     from .jax_ppo import PPOConfig, make_actor_critic, make_optimizer
     from .jax_trainer import JaxTrainer
     from .mjx_env import MJXDinoEnv
@@ -130,6 +133,7 @@ def train_jax(
         gamma=gamma,
         gae_lambda=gae_lambda,
         ent_coef=ent_coef,
+        vf_coef=vf_coef,
         max_grad_norm=max_grad_norm,
         n_epochs=n_epochs,
         n_minibatches=n_minibatches,
@@ -141,10 +145,14 @@ def train_jax(
     network = make_actor_critic(env.action_dim)
     optimizer = make_optimizer(ppo_config)
 
-    # Assemble hooks
+    # Assemble hooks.  When a checkpoint dir is given, the headless run also
+    # produces the durable artifacts the notebook path gets: a per-update
+    # training CSV, best-model tracking, and rotating + final checkpoints.
     hooks: list[Any] = [LoggingHook(interval=10, num_updates=num_updates)]
 
+    best_hook: Any = None
     if checkpoint_dir:
+        _ckpt_dir = Path(checkpoint_dir)
         hooks.append(
             CheckpointHook(
                 directory=checkpoint_dir,
@@ -152,6 +160,9 @@ def train_jax(
                 interval=50,
             )
         )
+        hooks.append(CSVLoggingHook(_ckpt_dir / f"{species}_s{stage}_training_log.csv"))
+        best_hook = BestModelHook(metric_key="episode_return")
+        hooks.append(best_hook)
 
     # Create trainer and run
     trainer = JaxTrainer(
@@ -175,6 +186,21 @@ def train_jax(
         init_params=init_params,
         init_obs_stats=init_obs_stats,
     )
+
+    # Persist the best-return checkpoint alongside the rotating ones so the
+    # strongest policy survives late-training regressions.
+    if best_hook is not None and best_hook.best_params is not None:
+        from .jax_checkpoint import save_checkpoint
+
+        save_checkpoint(
+            Path(checkpoint_dir) / f"{species}_s{stage}_best.pkl",
+            params=best_hook.best_params,
+            obs_rms=_state.obs_stats,
+            update=best_hook.best_update,
+            extra={"best_episode_return": best_hook.best_reward},
+        )
+        eval_metrics["best_episode_return"] = best_hook.best_reward
+
     return params, eval_metrics, _state.obs_stats
 
 
@@ -210,14 +236,21 @@ def main():
     if args.curriculum:
         from .jax_curriculum import run_curriculum
 
-        results = run_curriculum(
-            species=args.species,
-            train_fn=train_jax,
+        curriculum_kwargs: dict[str, Any] = dict(
             num_envs=args.num_envs,
             num_updates=args.num_updates,
             rollout_len=args.rollout_len,
             seed=args.seed,
             learning_rate=args.learning_rate,
+        )
+        # Stage-prefixed checkpoints/CSVs keep the stages apart in one dir.
+        if args.checkpoint_dir:
+            curriculum_kwargs["checkpoint_dir"] = args.checkpoint_dir
+
+        results = run_curriculum(
+            species=args.species,
+            train_fn=train_jax,
+            **curriculum_kwargs,
         )
         for stage, (params, metrics) in results.items():
             _logger.info(
@@ -247,7 +280,7 @@ def main():
         train_jax(
             species=args.species,
             stage=args.stage,
-            num_envs=args.num_envs,
+            num_envs=jax_kwargs.get("num_envs", args.num_envs),
             num_updates=jax_kwargs.get("num_updates", args.num_updates),
             rollout_len=jax_kwargs.get("rollout_len", args.rollout_len),
             seed=args.seed,
@@ -259,9 +292,19 @@ def main():
             clip_range=jax_kwargs.get("clip_range", 0.2),
             vf_clip_range=jax_kwargs.get("vf_clip_range"),
             ent_coef=jax_kwargs.get("ent_coef", 0.01),
+            vf_coef=jax_kwargs.get("vf_coef", 0.5),
             max_grad_norm=jax_kwargs.get("max_grad_norm", 0.5),
             n_epochs=jax_kwargs.get("ppo_epochs", 10),
             target_kl=jax_kwargs.get("target_kl", 0.05),
+            # Tuned TOML keys the single-stage path previously dropped
+            # (warmup/ramp were silently inert; minibatch_size fell back
+            # to the default 4 minibatches).
+            minibatch_size=jax_kwargs.get("minibatch_size"),
+            warmup_updates=jax_kwargs.get("warmup_updates", 0),
+            warmup_clip_range=jax_kwargs.get("warmup_clip_range", 0.02),
+            warmup_ent_coef=jax_kwargs.get("warmup_ent_coef", 0.02),
+            ramp_updates=jax_kwargs.get("ramp_updates", 0),
+            ramp_start_fraction=jax_kwargs.get("ramp_start_fraction", 0.1),
             env_kwargs=env_kwargs,
         )
 
