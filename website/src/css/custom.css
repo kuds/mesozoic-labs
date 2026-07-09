@@ -189,35 +189,46 @@ body {
 /* The homepage commits to its dark identity in light mode too: a white
    navbar over the dark hero looked disjointed.  Detected via the stable
    .mz-homepage-hero class on the hero header; browsers without :has()
-   gracefully keep the standard light navbar. */
+   gracefully keep the standard light navbar.
+
+   Everything except the background is scoped to .navbar__inner (the top
+   bar) so the mobile drawer (.navbar-sidebar), which keeps its light
+   surface, is unaffected. */
 [data-theme='light'] body:has(.mz-homepage-hero) .navbar {
   --ifm-navbar-background-color: rgba(10, 10, 15, 0.87);
-  --ifm-navbar-link-color: #e6e6f0;
-  --ifm-menu-color: #e6e6f0;
-  --ifm-color-emphasis-200: #2a2a35;
   background-color: var(--ifm-navbar-background-color);
 }
 
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__title {
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner {
+  --ifm-navbar-link-color: #e6e6f0;
+  --ifm-menu-color: #e6e6f0;
+  --ifm-color-emphasis-200: #2a2a35;
+}
+
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner .navbar__title {
   color: #ffffff;
 }
 
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__link--active {
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner .navbar__link--active {
   color: #00ff88;
 }
 
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__toggle,
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar [class*='colorModeToggle'] button {
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner .navbar__toggle,
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner [class*='colorModeToggle'] button {
   color: #e6e6f0;
 }
 
-/* Swap to the dark-theme logo variant on the forced-dark homepage navbar */
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__logo img[class*='themedComponent--light'] {
-  display: none;
+/* Swap to the dark-background logo variant on the forced-dark homepage
+   navbar.  Docusaurus's ThemedImage renders ONLY the active theme's <img>
+   once hydrated, so the dark variant can't be revealed with display rules
+   (that left no logo at all).  Instead hide the light artwork and paint
+   the dark variant as a background on the fixed-size logo container. */
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner .navbar__logo img {
+  visibility: hidden;
 }
 
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__logo img[class*='themedComponent--dark'] {
-  display: inline-block;
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner .navbar__logo {
+  background: url('/img/logo-dark.svg') center / contain no-repeat;
 }
 
 /* Footer customization */
