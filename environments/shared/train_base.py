@@ -38,11 +38,6 @@ logger = logging.getLogger(__name__)
 # Suppress noisy tensorboardX NaN/Inf warnings (handled by _sanitize in diagnostics.py)
 logging.getLogger("tensorboardX").setLevel(logging.ERROR)
 
-try:
-    import numpy as _np
-except ImportError:
-    _np = None  # type: ignore[assignment]
-
 
 def _ensure_sb3():
     """Import SB3 or exit with a helpful error."""
@@ -323,6 +318,8 @@ def _build_core_callbacks(
     save_freq: int,
     verbose: int,
     use_wandb: bool = False,
+    local_tb_dir: Path | None = None,
+    gcs_tb_path: Path | None = None,
 ) -> tuple[list, Any, Any]:
     """Build the standard callback set shared by train() and train_curriculum().
 
@@ -334,6 +331,7 @@ def _build_core_callbacks(
         SaveVecNormalizeCallback,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
+    from .tb_sync import PeriodicTbSyncCallback
     from .wandb_integration import WandbCallback
 
     callbacks = []
@@ -371,6 +369,11 @@ def _build_core_callbacks(
 
     if use_wandb:
         callbacks.append(WandbCallback())
+
+    # Flush buffered TensorBoard events to GCS on the checkpoint cadence so
+    # a preempted worker (spot VMs) doesn't lose the whole stage's logs.
+    if local_tb_dir is not None and gcs_tb_path is not None:
+        callbacks.append(PeriodicTbSyncCallback(local_tb_dir, gcs_tb_path, sync_freq=save_freq, verbose=verbose))
 
     return callbacks, eval_callback, save_vecnorm_cb
 
@@ -511,8 +514,7 @@ def train(
 
     wandb_run = None
     if use_wandb:
-        wandb_run = init_wandb(species=species, stage=stage, config=config)
-        logger.info("W&B run initialized.")
+        wandb_run = init_wandb(species=species, stage=stage, config=config, run_dir=str(log_path))
 
     model = _create_or_load_model(sb3, algorithm, alg_kwargs, train_env, load_path)
 
@@ -532,6 +534,8 @@ def train(
         save_freq,
         verbose,
         use_wandb,
+        local_tb_dir=local_tb_dir,
+        gcs_tb_path=gcs_tb_path,
     )
 
     if stage > 1 and load_path:
@@ -574,6 +578,18 @@ def train(
     if wandb_run is not None:
         wandb_run.finish()
 
+    # Save the final checkpoint *before* the post-training evaluation so a
+    # failure (or second Ctrl-C) during the ~80 serial eval episodes can't
+    # lose the model.
+    final_path = _save_final_and_sync_tb(
+        model,
+        train_env,
+        model_dir,
+        stage,
+        local_tb_dir,
+        gcs_tb_path,
+    )
+
     # Report metrics to Vertex AI HPT (no-op when cloudml-hypertune not installed)
     _report_hpt_metrics(
         species_cfg,
@@ -587,15 +603,7 @@ def train(
         algorithm,
         training_duration_seconds=training_duration,
         stage_config=config,
-    )
-
-    final_path = _save_final_and_sync_tb(
-        model,
-        train_env,
-        model_dir,
-        stage,
-        local_tb_dir,
-        gcs_tb_path,
+        seed=seed,
     )
 
     train_env.close()
@@ -625,6 +633,7 @@ def _report_hpt_metrics(
     algorithm: str,
     training_duration_seconds: float = 0.0,
     stage_config: dict[str, Any] | None = None,
+    seed: int | None = None,
 ):
     """Report metrics to Vertex AI Hypertune and write a local JSON sidecar.
 
@@ -644,28 +653,38 @@ def _report_hpt_metrics(
 
     sb3 = _ensure_sb3()
 
-    # Accumulate all metrics for the JSON sidecar.
-    aux_metrics: dict[str, float | str] = {
+    from .config import get_library_version
+
+    # Accumulate all metrics for the JSON sidecar.  Run identity + effective
+    # seed make each trial reproducible from the collected CSV alone.
+    aux_metrics: dict[str, Any] = {
+        "species": species_cfg.species,
+        "algorithm": algorithm,
+        "library_version": get_library_version(),
         "best_mean_reward": float(eval_callback.best_mean_reward),
         "training_duration_seconds": round(training_duration_seconds, 1),
     }
+    if seed is not None:
+        aux_metrics["seed"] = seed
 
     # Report the primary optimisation metric to HPT (if available).
     try:
         import hypertune as _hypertune
 
-        _hpt = _hypertune.HyperTune()
-        _hpt.report_hyperparameter_tuning_metric(
+        _hypertune.HyperTune().report_hyperparameter_tuning_metric(
             hyperparameter_metric_tag="best_mean_reward",
             metric_value=eval_callback.best_mean_reward,
             global_step=total_timesteps,
         )
+        logger.info(
+            "HPT metric reported: best_mean_reward=%.4f",
+            eval_callback.best_mean_reward,
+        )
     except ImportError:
-        _hpt = None
-    logger.info(
-        "HPT metric reported: best_mean_reward=%.4f",
-        eval_callback.best_mean_reward,
-    )
+        logger.info(
+            "cloudml-hypertune not installed — HPT metric not reported (best_mean_reward=%.4f)",
+            eval_callback.best_mean_reward,
+        )
 
     eval_npz_path = Path(log_path) / "evaluations.npz"
     if eval_npz_path.exists():
@@ -733,12 +752,18 @@ def _report_hpt_metrics(
 
     # Forward velocity, distance, and success rate evaluation.
     # Run for all stages so mean_distance_traveled is always captured.
-    _, _, fwd_vels, success_flags, distances = eval_policy(
-        eval_model,
-        eval_env,
-        species_cfg.success_keys,
-        n_episodes=30,
-    )
+    # Guarded so a mid-eval failure still writes the metrics.json sidecar
+    # with whatever was collected above.
+    try:
+        _, _, fwd_vels, success_flags, distances = eval_policy(
+            eval_model,
+            eval_env,
+            species_cfg.success_keys,
+            n_episodes=30,
+        )
+    except Exception:
+        logger.warning("Post-training eval_policy failed — skipping velocity/success metrics.", exc_info=True)
+        fwd_vels, success_flags, distances = [], [], []
     if fwd_vels:
         mean_fwd = float(_np.mean(fwd_vels))
         std_fwd = float(_np.std(fwd_vels))
@@ -906,7 +931,7 @@ def train_curriculum(
 
         wandb_run = None
         if use_wandb:
-            wandb_run = init_wandb(species=species, stage=stage, config=config)
+            wandb_run = init_wandb(species=species, stage=stage, config=config, run_dir=str(stage_dir))
 
         model = _create_or_load_model(sb3, algorithm, alg_kwargs, train_env, load_path)
 
@@ -921,6 +946,8 @@ def train_curriculum(
             save_freq,
             verbose,
             use_wandb,
+            local_tb_dir=local_tb_dir,
+            gcs_tb_path=gcs_tb_path,
         )
 
         curriculum_cb = CurriculumCallback(

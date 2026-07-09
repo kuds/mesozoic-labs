@@ -39,12 +39,18 @@ def _make_local_tb_dir(gcs_tb_path: str | Path) -> Path:
     return local_dir
 
 
-def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path) -> None:
+def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path, cleanup: bool = True) -> None:
     """Copy locally-buffered TensorBoard events to the GCS FUSE mount.
 
     Uses :func:`shutil.copy` (not ``copy2``) because GCS FUSE does not
     support the ``os.utime`` / ``os.chmod`` calls that ``copy2`` makes
     to preserve file metadata, which causes ``OSError`` on FUSE mounts.
+
+    Args:
+        local_tb_dir: The local buffer directory.
+        gcs_tb_path: Destination directory on the GCS FUSE mount.
+        cleanup: Remove the local buffer after copying.  Pass ``False``
+            for mid-training syncs where the writer still holds the files.
     """
     gcs_dest = Path(gcs_tb_path)
     if not local_tb_dir.exists():
@@ -59,4 +65,50 @@ def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path) -> None:
             shutil.copy(src_file, dest)
             n_copied += 1
     logger.info("Synced %d TensorBoard files to %s", n_copied, gcs_dest)
-    shutil.rmtree(local_tb_dir, ignore_errors=True)
+    if cleanup:
+        shutil.rmtree(local_tb_dir, ignore_errors=True)
+
+
+try:
+    from stable_baselines3.common.callbacks import BaseCallback as _BaseCallback
+except ImportError:  # SB3 is an optional dependency
+    _BaseCallback = object  # type: ignore[misc,assignment]
+
+
+class PeriodicTbSyncCallback(_BaseCallback):
+    """Periodically flush the local TensorBoard buffer to GCS.
+
+    Without this, buffered events reach GCS only at stage end
+    (:func:`_sync_tb_to_gcs` from ``_save_final_and_sync_tb``), so a
+    preempted or crashed Vertex AI worker — e.g. on spot VMs — loses the
+    entire stage's TensorBoard logs.
+
+    Args:
+        local_tb_dir: Local buffer directory (from ``_make_local_tb_dir``).
+        gcs_tb_path: Destination on the GCS FUSE mount.
+        sync_freq: Sync every N timesteps (compared against
+            ``num_timesteps``, which advances by ``n_envs`` per step).
+    """
+
+    def __init__(
+        self,
+        local_tb_dir: Path,
+        gcs_tb_path: str | Path,
+        sync_freq: int = 500_000,
+        verbose: int = 0,
+    ):
+        if _BaseCallback is not object:
+            super().__init__(verbose)
+        self.local_tb_dir = Path(local_tb_dir)
+        self.gcs_tb_path = gcs_tb_path
+        self.sync_freq = sync_freq
+        self._last_sync_step = 0
+
+    def _on_step(self) -> bool:
+        if self.num_timesteps - self._last_sync_step >= self.sync_freq:
+            self._last_sync_step = self.num_timesteps
+            try:
+                _sync_tb_to_gcs(self.local_tb_dir, self.gcs_tb_path, cleanup=False)
+            except Exception:
+                logger.warning("Periodic TensorBoard sync to GCS failed.", exc_info=True)
+        return True

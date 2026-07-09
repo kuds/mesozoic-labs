@@ -7,7 +7,7 @@
 > Of the §2.1 critical issues: #2 (empty metrics dict), #3 (WandB video
 > numpy guard), and #4 (VecNormalize flag restoration) are **fixed**;
 > #1 (thread-unsafe CSV writes under concurrent runs) remains **open**.
-> For the current list of known issues see `docs/REPO_REVIEW_2026_06.md`.
+> **Archived.** For the current list of known issues see `docs/KNOWN_ISSUES.md`.
 
 ## Executive Summary
 

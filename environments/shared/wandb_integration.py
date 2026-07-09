@@ -63,6 +63,7 @@ def init_wandb(
     tags: list | None = None,
     notes: str | None = None,
     run_id: str | None = None,
+    run_dir: str | None = None,
 ) -> Any:
     """Initialize a W&B run for a training session.
 
@@ -76,9 +77,17 @@ def init_wandb(
         run_id: Optional stable W&B run id.  Pass the id of a previous run
             to resume it (``resume="allow"``) instead of creating a split
             run after a crash/reconnect.  Default: a fresh timestamped id.
+        run_dir: Optional output directory for this training run.  When
+            given (and *run_id* is not), the generated run id is persisted
+            to ``<run_dir>/wandb_run_id.txt`` and reused on the next call,
+            so a relaunch that writes to the same directory (e.g. a Vertex
+            AI job restarted after preemption) resumes the same W&B run
+            instead of creating a split run.
 
     Returns:
-        The ``wandb.Run`` object, or ``None`` if wandb is not installed.
+        The ``wandb.Run`` object, or ``None`` if wandb is not installed
+        or initialization failed (e.g. no API key on a headless worker —
+        training proceeds without W&B logging).
     """
     if not is_available():
         logger.warning("wandb not installed. Skipping W&B initialization.")
@@ -110,17 +119,42 @@ def init_wandb(
 
     from datetime import datetime as _dt
 
-    effective_id = run_id or f"{species}-s{stage}-{_dt.now().strftime('%Y%m%d-%H%M%S')}"
-    run = wandb.init(
-        project=project,
-        name=run_name,
-        id=effective_id,
-        resume="allow",
-        config=flat_config,
-        tags=all_tags,
-        notes=notes,
-        reinit=True,
-    )
+    effective_id = run_id
+    id_sidecar = None
+    if effective_id is None and run_dir is not None:
+        # Reuse the id from a previous launch that wrote to the same
+        # directory so resume="allow" continues that run.
+        from pathlib import Path as _Path
+
+        id_sidecar = _Path(run_dir) / "wandb_run_id.txt"
+        if id_sidecar.exists():
+            effective_id = id_sidecar.read_text().strip() or None
+    if effective_id is None:
+        effective_id = f"{species}-s{stage}-{_dt.now().strftime('%Y%m%d-%H%M%S')}"
+
+    try:
+        run = wandb.init(
+            project=project,
+            name=run_name,
+            id=effective_id,
+            resume="allow",
+            config=flat_config,
+            tags=all_tags,
+            notes=notes,
+            reinit=True,
+        )
+    except Exception as exc:
+        # Most common cause: no WANDB_API_KEY on a headless worker.  A
+        # multi-hour training job should not die over telemetry.
+        logger.warning("W&B initialization failed (%s). Continuing without W&B logging.", exc)
+        return None
+
+    if id_sidecar is not None and not id_sidecar.exists():
+        try:
+            id_sidecar.parent.mkdir(parents=True, exist_ok=True)
+            id_sidecar.write_text(effective_id + "\n")
+        except OSError as exc:
+            logger.warning("Could not persist W&B run id to %s: %s", id_sidecar, exc)
 
     logger.info("W&B run initialized: %s id=%s (%s)", run.name, effective_id, run.url)
 
@@ -179,13 +213,17 @@ class WandbCallback(BaseCallback):
         self.video_freq = video_freq
         self.video_length = video_length
         self._last_video_step = 0
+        self._last_log_step = 0
 
     def _on_step(self) -> bool:
         if not is_available() or wandb.run is None:
             return True
 
-        if self.num_timesteps % self.log_freq != 0:
+        # num_timesteps advances by n_envs per callback call, so a modulo
+        # check misses whenever n_envs doesn't divide log_freq.
+        if self.num_timesteps - self._last_log_step < self.log_freq:
             return True
+        self._last_log_step = self.num_timesteps
 
         metrics: dict[str, Any] = {
             "train/timesteps": self.num_timesteps,

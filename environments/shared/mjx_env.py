@@ -294,8 +294,14 @@ class MJXDinoEnv:
         self.action_dim = self.mj_model.nu
         self.ctrl_range = jnp.array(self.mj_model.actuator_ctrlrange)
 
-        # Build config from species registration, then overlay TOML stage config
-        species_kwargs = _SPECIES_CONFIGS.get(species, {})
+        # Build config from species registration, then overlay TOML stage
+        # config.  Deep-copy the registry entry: the merge below writes into
+        # this dict, and mutating the live registry would bake one stage's
+        # TOML into every env constructed later in the same process (e.g.
+        # stage-1 penalties leaking into a stage-2 curriculum env).
+        species_kwargs = dict(_SPECIES_CONFIGS.get(species, {}))
+        if "reward_weights" in species_kwargs:
+            species_kwargs["reward_weights"] = dict(species_kwargs["reward_weights"])
 
         # Merge TOML env_kwargs over species defaults.  Reward weights are
         # merged at the dict level so that stage-specific weights override
@@ -488,7 +494,9 @@ class MJXDinoEnv:
             r_approach, _ = reward_approach_shaping(
                 target_dist,
                 state.prev_target_distance,
-                weights.get("bite_approach_weight", weights.get("approach_weight", 0.0)),
+                # Canonical key only: TOML keys are canonicalized on the way
+                # in, and a legacy first-choice key would shadow it.
+                weights.get("approach_weight", 0.0),
                 config.forward_vel_max,
                 dt,
             )

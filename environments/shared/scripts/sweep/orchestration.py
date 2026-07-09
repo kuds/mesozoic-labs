@@ -48,17 +48,30 @@ def _reconnect_or_collect_partial(
     job_resource_name = None
     reconnected = False
 
+    # Only the initial lookup may fall through to "submit a new job".  A
+    # blanket except around the whole flow used to swallow TimeoutError /
+    # _SweepJobFailed raised by the reconnect poll below — the caller then
+    # submitted a DUPLICATE job while the original was still running (or
+    # replaced a failed job without collecting its partial trials).
     try:
         prev_job = aiplatform.HyperparameterTuningJob.get(prev_resource)
         prev_state_name = prev_job.state.name if hasattr(prev_job.state, "name") else str(prev_job.state)
+    except Exception as reconnect_exc:
+        logger.warning(
+            "Could not reconnect to previous job %s: %s. Will submit a new job.",
+            prev_resource,
+            reconnect_exc,
+        )
+        return hpt_job, job_resource_name, reconnected, partial_rows, resume_run
 
-        if "SUCCEEDED" in prev_state_name:
-            logger.info("Previous job already completed successfully.")
-            hpt_job = prev_job
-            job_resource_name = prev_resource
-            reconnected = True
-        elif any(s in prev_state_name for s in ("RUNNING", "QUEUED", "PENDING")):
-            logger.info("Previous job still running (state=%s) — resuming poll.", prev_state_name)
+    if "SUCCEEDED" in prev_state_name:
+        logger.info("Previous job already completed successfully.")
+        hpt_job = prev_job
+        job_resource_name = prev_resource
+        reconnected = True
+    elif any(s in prev_state_name for s in ("RUNNING", "QUEUED", "PENDING")):
+        logger.info("Previous job still running (state=%s) — resuming poll.", prev_state_name)
+        try:
             hpt_job = _wait_for_job(
                 prev_job,
                 aiplatform,
@@ -67,25 +80,37 @@ def _reconnect_or_collect_partial(
             )
             job_resource_name = prev_resource
             reconnected = True
-        else:
-            # Failed/cancelled — collect partial results
+        except TimeoutError as exc:
+            # Job still running in the cloud; the in-progress state (with
+            # this job's resource name) is already saved on disk/GCS.
+            logger.error("%s", exc)
+            sys.exit(1)
+        except _SweepJobFailed as exc:
             logger.warning(
-                "Previous job in state %s — collecting partial results.",
-                prev_state_name,
+                "Previous job failed while we were reconnected — collecting partial results. (%s)",
+                exc,
             )
             partial_rows, resume_run = _try_collect_partial_from_job(
-                prev_job,
+                exc.hpt_job if exc.hpt_job is not None else prev_job,
                 stage,
                 species,
                 bucket,
                 partial_rows,
                 resume_run,
             )
-    except Exception as reconnect_exc:
+    else:
+        # Failed/cancelled — collect partial results
         logger.warning(
-            "Could not reconnect to previous job %s: %s. Will submit a new job.",
-            prev_resource,
-            reconnect_exc,
+            "Previous job in state %s — collecting partial results.",
+            prev_state_name,
+        )
+        partial_rows, resume_run = _try_collect_partial_from_job(
+            prev_job,
+            stage,
+            species,
+            bucket,
+            partial_rows,
+            resume_run,
         )
 
     return hpt_job, job_resource_name, reconnected, partial_rows, resume_run
@@ -221,7 +246,9 @@ def _upload_results_to_gcs(
         for graph_name in ("sweep_trial_metrics.png", "sweep_hyperparameter_analysis.png"):
             graph_path = csv_path.parent / graph_name
             if graph_path.exists():
-                gcs_graph_path = f"sweeps/{species}/{graph_name}"
+                # Prefix with the CSV stem (species_algorithm_stageN) so a
+                # later stage/algorithm sweep doesn't overwrite these graphs.
+                gcs_graph_path = f"sweeps/{species}/{csv_path.stem}_{graph_name}"
                 _gcs_bucket.blob(gcs_graph_path).upload_from_filename(str(graph_path))
                 logger.info("Sweep graph uploaded to: gs://%s/%s", bucket, gcs_graph_path)
     except Exception as exc:
@@ -789,7 +816,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             all_timesteps[s] = cli_timesteps[s - 1] or fs.get("timesteps") or [500_000, 1_000_000, 1_500_000][s - 1]
             all_trials[s] = cli_trials[s - 1] or fs.get("trials", args.trials)
             all_parallel[s] = cli_parallel[s - 1] or fs.get("parallel", args.parallel)
-            all_n_envs[s] = fs.get("n_envs", args.n_envs)
+            all_n_envs[s] = args.n_envs if args.n_envs is not None else fs.get("n_envs", 4)
         _print_dry_run_summary(
             species=args.species,
             algorithm=args.algorithm,
@@ -947,7 +974,9 @@ def launch_all_stages(args: argparse.Namespace) -> None:
         if parallel is None:
             parallel = file_settings.get("parallel", args.parallel)
 
-        n_envs = file_settings.get("n_envs", args.n_envs)
+        # CLI flag wins when explicitly passed (argparse default is None),
+        # then the search-space file, then the shared default of 4.
+        n_envs = args.n_envs if args.n_envs is not None else file_settings.get("n_envs", 4)
 
         # ── Partial recovery: check for trial results from a previous
         #    interrupted run of this stage ──────────────────────────────────

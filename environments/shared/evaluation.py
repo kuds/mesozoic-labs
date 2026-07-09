@@ -403,7 +403,16 @@ def _log_eval_results(
         )
         logger.info("  Final dist:     %.3f m", agg.get("mean_final_prey_distance", 0))
         logger.info("  Min dist:       %.3f m", agg.get("mean_min_prey_distance", 0))
-        logger.info("  Time to target: %.3f s", agg.get("mean_time_to_target", -1))
+        if "mean_time_to_target" in agg:
+            # Mean over episodes that reached the target (never-reached
+            # episodes report NaN and are excluded by aggregate_episodes).
+            logger.info(
+                "  Time to target: %.3f s (reached in %.0f%% of episodes)",
+                agg["mean_time_to_target"],
+                100.0 * agg.get("mean_target_reached", 0.0),
+            )
+        else:
+            logger.info("  Time to target: never reached")
     if "mean_heading_alignment" in agg:
         logger.info("  Heading align:  %.3f", agg.get("mean_heading_alignment", 0))
     if "mean_success_rate" in agg:

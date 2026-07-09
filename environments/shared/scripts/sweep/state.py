@@ -25,7 +25,7 @@ def _save_sweep_state(
 
     The state dict is written as JSON to a local file and, if *bucket* is
     provided, also uploaded to
-    ``gs://<bucket>/sweeps/<species>/_sweep_state.json``.
+    ``gs://<bucket>/sweeps/<species>/_sweep_state_<algorithm>.json``.
     """
     local_path = _sweep_state_local_path(species, algorithm)
     # Write to a temp file then atomically rename to avoid corruption

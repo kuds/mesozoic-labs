@@ -317,6 +317,7 @@ def _upload_to_gcs(
     bucket_name: str,
     gcs_path: str,
     project: str | None = None,
+    client=None,
 ) -> bool:
     """Upload a local file to Google Cloud Storage.
 
@@ -325,6 +326,8 @@ def _upload_to_gcs(
         bucket_name: GCS bucket name (without ``gs://`` prefix).
         gcs_path: Destination blob path inside the bucket.
         project: GCP project ID (optional, uses default if *None*).
+        client: Optional pre-built ``google.cloud.storage.Client`` to reuse
+            across uploads (avoids one auth handshake per file).
 
     Returns:
         *True* if the upload succeeded, *False* otherwise.
@@ -335,9 +338,10 @@ def _upload_to_gcs(
         return False
 
     try:
-        from google.cloud import storage as _gcs
+        if client is None:
+            from google.cloud import storage as _gcs
 
-        client = _gcs.Client(project=project)
+            client = _gcs.Client(project=project)
         bucket = client.bucket(bucket_name)
         bucket.blob(gcs_path).upload_from_filename(str(local_path))
         _logger.info("Uploaded to GCS: gs://%s/%s", bucket_name, gcs_path)
@@ -395,17 +399,24 @@ def upload_curriculum_artifacts(
     run_name = base_dir.name  # e.g. curriculum_20240228_150000
     gcs_run_prefix = f"training/{species}/{run_name}"
 
-    # 1. Upload curriculum_results.csv
-    csv_path = base_dir / "curriculum_results.csv"
-    if csv_path.exists():
-        _upload_to_gcs(csv_path, bucket, f"{gcs_run_prefix}/curriculum_results.csv", project=project)
+    # One client for the whole batch (each _upload_to_gcs call would
+    # otherwise perform its own auth handshake).  Best-effort: on failure,
+    # fall back to per-file client creation inside _upload_to_gcs.
+    client = None
+    try:
+        from google.cloud import storage as _gcs
 
-    # 2. Upload training_summary.txt
-    training_summary = base_dir / "training_summary.txt"
-    if training_summary.exists():
-        _upload_to_gcs(training_summary, bucket, f"{gcs_run_prefix}/training_summary.txt", project=project)
+        client = _gcs.Client(project=project)
+    except Exception as exc:
+        _logger.warning("Could not create shared GCS client (%s).", exc)
 
-    # 3. Upload per-stage artifacts
+    # 1. Upload run-level artifacts
+    for name in ("curriculum_results.csv", "training_summary.txt"):
+        run_file = base_dir / name
+        if run_file.exists():
+            _upload_to_gcs(run_file, bucket, f"{gcs_run_prefix}/{name}", project=project, client=client)
+
+    # 2. Upload per-stage artifacts
     for stage in range(1, 4):
         stage_dir = base_dir / f"stage{stage}"
         if not stage_dir.is_dir():
@@ -413,14 +424,23 @@ def upload_curriculum_artifacts(
 
         gcs_stage_prefix = f"{gcs_run_prefix}/stage{stage}"
 
-        # stage_summary.txt
-        stage_summary = stage_dir / "stage_summary.txt"
-        if stage_summary.exists():
-            _upload_to_gcs(stage_summary, bucket, f"{gcs_stage_prefix}/stage_summary.txt", project=project)
+        # Summaries and analysis sidecars.  metrics.json / stage_config.json
+        # are what `sweep collect-results` consumes, so uploading them makes
+        # the run collectable from GCS alone.
+        for name in (
+            "stage_summary.txt",
+            "stage_config.json",
+            "metrics.json",
+            "evaluations.npz",
+            "diagnostics.npz",
+        ):
+            sidecar = stage_dir / name
+            if sidecar.exists():
+                _upload_to_gcs(sidecar, bucket, f"{gcs_stage_prefix}/{name}", project=project, client=client)
 
         # Replay videos (*.mp4)
         for video in stage_dir.glob("*.mp4"):
-            _upload_to_gcs(video, bucket, f"{gcs_stage_prefix}/{video.name}", project=project)
+            _upload_to_gcs(video, bucket, f"{gcs_stage_prefix}/{video.name}", project=project, client=client)
 
         # Models
         stage_model_dir = stage_dir / "models"
@@ -429,19 +449,14 @@ def upload_curriculum_artifacts(
 
         gcs_model_prefix = f"{gcs_stage_prefix}/models"
 
-        # best_model.zip + matched vecnorm (from EvalCallback + SaveVecNormalizeCallback)
-        best_model = stage_model_dir / "best_model.zip"
-        if best_model.exists():
-            _upload_to_gcs(best_model, bucket, f"{gcs_model_prefix}/best_model.zip", project=project)
-        best_vecnorm = stage_model_dir / "best_model_vecnorm.pkl"
-        if best_vecnorm.exists():
-            _upload_to_gcs(best_vecnorm, bucket, f"{gcs_model_prefix}/best_model_vecnorm.pkl", project=project)
-
-        # stage<N>_final.zip + vecnorm
-        final_model = stage_model_dir / f"stage{stage}_final.zip"
-        if final_model.exists():
-            _upload_to_gcs(final_model, bucket, f"{gcs_model_prefix}/stage{stage}_final.zip", project=project)
-
-        vecnorm = stage_model_dir / f"stage{stage}_final_vecnorm.pkl"
-        if vecnorm.exists():
-            _upload_to_gcs(vecnorm, bucket, f"{gcs_model_prefix}/stage{stage}_final_vecnorm.pkl", project=project)
+        # best_model.zip + matched vecnorm (from EvalCallback +
+        # SaveVecNormalizeCallback), stage<N>_final.zip + vecnorm.
+        for name in (
+            "best_model.zip",
+            "best_model_vecnorm.pkl",
+            f"stage{stage}_final.zip",
+            f"stage{stage}_final_vecnorm.pkl",
+        ):
+            model_file = stage_model_dir / name
+            if model_file.exists():
+                _upload_to_gcs(model_file, bucket, f"{gcs_model_prefix}/{name}", project=project, client=client)

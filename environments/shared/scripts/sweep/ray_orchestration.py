@@ -491,7 +491,7 @@ def _quick_rank_trials(
             vecnorm_path,
             algorithm,
             env_kwargs,
-            species_cfg.species_name,
+            species_cfg.species,
         )
         futures[ref] = td
 

@@ -164,6 +164,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
     MINIBATCH_SIZE = config.minibatch_size
     PPO_EPOCHS = config.ppo_epochs
     TARGET_KL = config.target_kl
+    VF_CLIP_RANGE = config.vf_clip_range
 
     # --- Thin wrappers for the network ---
 
@@ -271,7 +272,20 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
                 params, opt_state, kl_exceeded = carry
                 obs, act, lp, adv, ret, val = mb
                 new_params, new_opt_state, loss, aux, gn = ppo_update(
-                    params, opt_state, obs, act, lp, adv, ret, old_values=val, clip_range=clip_range, ent_coef=ent_coef
+                    params,
+                    opt_state,
+                    obs,
+                    act,
+                    lp,
+                    adv,
+                    ret,
+                    old_values=val,
+                    clip_range=clip_range,
+                    ent_coef=ent_coef,
+                    # Without this the scan path silently ran with value
+                    # clipping off while the TOML (and the printed config)
+                    # said it was on.
+                    vf_clip_range=VF_CLIP_RANGE,
                 )
 
                 approx_kl = aux["approx_kl"]
@@ -477,7 +491,9 @@ def train(
     # Library utilities
     _ckpt_mgr = CheckpointManager(config.model_dir, prefix="checkpoint", max_keep=config.max_checkpoints)
     _stability = StabilityMonitor()
-    _csv_logger = TrainingCSVLogger(config.output_dir / "training_log.csv")
+    # Append on resume (start_update > 0) so the prior stage-run's rows
+    # aren't truncated away.
+    _csv_logger = TrainingCSVLogger(config.output_dir / "training_log.csv", append=_start_update > 0)
     csv_path = _csv_logger.path
 
     # Warmup/ramp state
@@ -580,8 +596,10 @@ def train(
             _cum_t_rollout += _t_rollout
 
             # ---------- Episode stats ----------
-            # Compute fall rate on-device; only transfer scalars
-            fall_rate = float(jnp.sum(full_done_t)) / (ROLLOUT_LEN * NUM_ENVS)
+            # Compute fall rate on-device; only transfer scalars.
+            # gae_done marks natural termination only -- counting full_done
+            # would book every time-limit truncation as a "fall".
+            fall_rate = float(jnp.sum(gae_done_t)) / (ROLLOUT_LEN * NUM_ENVS)
             # Defer full GPU→CPU transfer for episode tracking
             rew_np = np.array(rew_t)
             full_done_np = np.array(full_done_t)
@@ -1223,8 +1241,10 @@ class JaxTrainer:
                 elapsed = time.time() - t0
                 fps = state.total_steps / elapsed if elapsed > 0 else 0
 
-                # Compute fall rate on-device; only transfer scalars
-                fall_rate = float(jnp.sum(rollout_full_dones)) / (self.rollout_len * self.num_envs)
+                # Compute fall rate on-device; only transfer scalars.
+                # gae_dones marks natural termination only -- counting
+                # full_dones would book time-limit truncations as "falls".
+                fall_rate = float(jnp.sum(rollout_gae_dones)) / (self.rollout_len * self.num_envs)
                 # Defer full GPU→CPU transfer for episode tracking
                 rew_np = np.array(rollout_rewards)
                 done_np = np.array(rollout_full_dones)
@@ -1335,6 +1355,12 @@ class JaxTrainer:
         eval_metrics = {
             "mean_reward": float(jnp.mean(jnp.array([h["mean_reward"] for h in state.history[-10:]])))
             if state.history
+            else 0.0,
+            # Episode-level return (comparable to SB3's mean episode reward
+            # and the TOML min_avg_reward gates); mean_reward above is the
+            # mean PER-STEP rollout reward, orders of magnitude smaller.
+            "mean_episode_return": float(jnp.mean(jnp.array(state.episode_return_history[-10:])))
+            if state.episode_return_history
             else 0.0,
             "total_steps": state.total_steps,
             "elapsed": elapsed,

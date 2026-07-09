@@ -45,6 +45,11 @@ class EvalConfig:
     sensor_quat_start: int = 6
     reset_noise_scale: float = 0.01
     forward_vel_max: float = 8.0
+    # Success bonus added to the reward when a success site reaches the
+    # target (stage 3), and penalty applied on fall termination — both
+    # mirror the training env so eval episode rewards are comparable.
+    success_bonus: float = 0.0
+    fall_penalty: float = 0.0
     # Species standing height for the height-reward decomposition (matches
     # the SB3 envs' target_z: 0.90 trex, 1.2 brachio).
     target_standing_z: float = 0.90
@@ -64,6 +69,8 @@ class EvalResults:
     distances: list[float] = field(default_factory=list)
     tilt_angles: list[float] = field(default_factory=list)
     pelvis_heights: list[float] = field(default_factory=list)
+    # True for episodes that ended by reaching the success target (stage 3).
+    successes: list[bool] = field(default_factory=list)
 
     # Per-step diagnostics (across all episodes)
     diag_tilt: list[float] = field(default_factory=list)
@@ -118,6 +125,10 @@ class EvalResults:
     @property
     def mean_height(self) -> float:
         return float(np.mean(self.pelvis_heights)) if self.pelvis_heights else 0.0
+
+    @property
+    def mean_success_rate(self) -> float:
+        return float(np.mean(self.successes)) if self.successes else 0.0
 
 
 def evaluate_policy_cpu(
@@ -200,8 +211,14 @@ def evaluate_policy_cpu(
         ep_fwd_vels = []
         ep_tilts = []
         ep_heights = []
+        ep_success = False
         start_pos = mj_data.qpos[:2].copy()
         prev_action = None
+        # Track the target for reward parity with the training env (approach
+        # shaping compares against the previous step's distance).
+        prev_target_dist: float | None = None
+        if _target_body_id >= 0:
+            prev_target_dist = float(np.linalg.norm(mj_data.xpos[_target_body_id] - mj_data.xpos[config.root_body_id]))
 
         for step in range(config.max_episode_steps):
             cpu_data = mjx.put_data(mj_model, mj_data)
@@ -232,10 +249,12 @@ def evaluate_policy_cpu(
             results.diag_pelvis_h.append(body_z)
             results.diag_energy.append(energy)
 
-            # Foot contacts — indices follow sensor order: (R, L, ...)
+            # Foot contacts — sensor order alternates right/left (bipeds:
+            # R, L; quadrupeds: R, L, RR, RL), so split by parity rather
+            # than lumping every non-first foot into the left series.
             for i, idx in enumerate(foot_sensor_indices):
                 if len(mj_data.sensordata) > idx:
-                    target_list = results.diag_r_foot if i == 0 else results.diag_l_foot
+                    target_list = results.diag_r_foot if i % 2 == 0 else results.diag_l_foot
                     target_list.append(float(mj_data.sensordata[idx]))
 
             # Reward decomposition — all active components
@@ -307,13 +326,43 @@ def evaluate_policy_cpu(
             else:
                 results.diag_reward_components["smoothness"].append(0.0)
 
-            prev_action = action
+            # Per-step state for reward parity with the training env:
+            # target position/direction, previous-step target distance
+            # (approach shaping), previous action (smoothness), and success
+            # site positions (proximity reward + success bonus).  Passed as
+            # kwargs so simple 3-arg reward_fns keep working when absent.
+            step_kwargs: dict[str, Any] = {}
+            if _target_body_id >= 0:
+                target_pos_np = np.array(mj_data.xpos[_target_body_id])
+                pelvis_np = np.array(mj_data.xpos[config.root_body_id])
+                step_kwargs["target_pos"] = jnp.asarray(target_pos_np)
+                step_kwargs["prev_target_distance"] = jnp.asarray(prev_target_dist)
+                rel_2d = target_pos_np[:2] - pelvis_np[:2]
+                rel_norm = float(np.linalg.norm(rel_2d))
+                if rel_norm > 1e-8:
+                    # Training projects velocity onto the current
+                    # agent-to-target direction; mirror it here.
+                    step_kwargs["forward_ref_2d"] = jnp.asarray(rel_2d / rel_norm)
+            if prev_action is not None:
+                step_kwargs["prev_action"] = prev_action
+            if _success_site_ids:
+                step_kwargs["success_site_positions"] = jnp.asarray(
+                    np.stack([np.array(mj_data.site_xpos[sid]) for sid in _success_site_ids])
+                )
 
             # Reuse a single mjx.put_data call for the post-step data;
             # mj_data has already been advanced by frame_skip mj_step calls.
             post_step_data = mjx.put_data(mj_model, mj_data)
-            r = float(reward_fn(post_step_data, action, reward_cfg))
+            r = float(reward_fn(post_step_data, action, reward_cfg, **step_kwargs))
             ep_reward += r
+
+            # Update AFTER the reward call: the training env compares the
+            # current action/distance against the previous step's values.
+            prev_action = action
+            if _target_body_id >= 0:
+                prev_target_dist = float(
+                    np.linalg.norm(mj_data.xpos[_target_body_id] - mj_data.xpos[config.root_body_id])
+                )
 
             if body_z < config.healthy_z_range[0] or body_z > config.healthy_z_range[1]:
                 break
@@ -342,6 +391,7 @@ def evaluate_policy_cpu(
                     float(np.linalg.norm(mj_data.site_xpos[sid] - target_pos)) < config.success_threshold
                     for sid in _success_site_ids
                 ):
+                    ep_success = True
                     break
 
         ep_length = step + 1
@@ -353,6 +403,7 @@ def evaluate_policy_cpu(
         results.distances.append(distance)
         results.tilt_angles.append(float(np.mean(ep_tilts)))
         results.pelvis_heights.append(float(np.mean(ep_heights)))
+        results.successes.append(ep_success)
 
     return results
 
@@ -361,6 +412,8 @@ def check_stage_gate(
     results: EvalResults,
     gate_min_reward: float = -float("inf"),
     gate_min_length: float = 0,
+    gate_min_forward_vel: float = 0.0,
+    gate_min_success_rate: float = 0.0,
 ) -> tuple[bool, list[str]]:
     """Check curriculum stage gate conditions.
 
@@ -368,6 +421,10 @@ def check_stage_gate(
         results: Evaluation results.
         gate_min_reward: Minimum average reward to pass.
         gate_min_length: Minimum average episode length to pass.
+        gate_min_forward_vel: Minimum average forward velocity to pass
+            (stage-2 TOML ``min_avg_forward_vel``; 0 disables).
+        gate_min_success_rate: Minimum success rate to pass (stage-3 TOML
+            ``min_success_rate``; 0 disables).
 
     Returns:
         (passed, failures) tuple where failures is a list of failure descriptions.
@@ -377,4 +434,8 @@ def check_stage_gate(
         failures.append(f"mean reward {results.mean_reward:.2f} < {gate_min_reward}")
     if results.mean_length < gate_min_length:
         failures.append(f"mean episode length {results.mean_length:.1f} < {gate_min_length}")
+    if gate_min_forward_vel > 0 and results.mean_forward_vel < gate_min_forward_vel:
+        failures.append(f"mean forward vel {results.mean_forward_vel:.2f} < {gate_min_forward_vel}")
+    if gate_min_success_rate > 0 and results.mean_success_rate < gate_min_success_rate:
+        failures.append(f"success rate {results.mean_success_rate:.2f} < {gate_min_success_rate}")
     return len(failures) == 0, failures

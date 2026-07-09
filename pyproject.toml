@@ -57,6 +57,11 @@ viz = [
     "mediapy>=1.1.0",
     "matplotlib>=3.7.0",
 ]
+gcp = [
+    # Vertex AI sweep orchestration + GCS artifact upload/collection.
+    "google-cloud-aiplatform>=1.38.0",
+    "google-cloud-storage>=2.10.0",
+]
 test = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -70,7 +75,7 @@ dev = [
     "pre-commit>=3.0",
 ]
 all = [
-    "mesozoic-labs[train,jax,viz,dev]",
+    "mesozoic-labs[train,jax,viz,gcp,dev]",
 ]
 
 # Gymnasium environment entry points — allows gym.make("MesozoicLabs/Raptor-v0")

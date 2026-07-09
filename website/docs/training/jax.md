@@ -135,31 +135,42 @@ The JAX path follows the same curriculum as SB3:
 
 Stage transitions use the same threshold-based advancement as the SB3 path. The `jax_curriculum.py` module checks evaluation metrics against the TOML-defined thresholds and advances when criteria are met for consecutive evaluations.
 
-## W&B Integration
+## Training Logs & Metrics
 
-Enable Weights & Biases logging by passing `wandb_project`:
+There is no W&B integration on the JAX path (that is SB3-only for now).
+Instead, pass `checkpoint_dir` (or `--checkpoint-dir` on the CLI) and the
+trainer writes durable artifacts alongside the checkpoints:
 
-```python
-train_jax(
-    species="trex",
-    stage=1,
-    num_envs=2048,
-    wandb_project="mesozoic-labs",
-)
-```
-
-The JAX trainer logs per-update metrics (reward, episode length, policy loss, value loss, entropy) to W&B via the built-in `WandbHook`.
+- `<species>_s<stage>_training_log.csv` — per-update metrics (reward,
+  episode return/length, losses, KL, gradient norm, fall rate, FPS)
+- `<species>_s<stage>_best.pkl` — the best-episode-return parameters, so a
+  late-training regression can't cost you the strongest policy
 
 ## Checkpointing
 
-Model parameters, optimizer state, and running normalization statistics are saved periodically during training. Checkpoints use JAX-compatible serialization so training can be resumed from any saved state.
+Model parameters, optimizer state, and running normalization statistics are
+saved periodically during training (rotating checkpoints plus a final one).
 
 ```python
-# Resume from a checkpoint
+# Save checkpoints + training CSV + best-model snapshot
 train_jax(
     species="trex",
-    stage=2,
+    stage=1,
     checkpoint_dir="results/trex/jax/stage1",
+)
+
+# Resume / warm-start from a saved checkpoint
+from environments.shared.jax_checkpoint import restore_train_state
+
+params, opt_state, obs_rms, update = restore_train_state(
+    "results/trex/jax/stage1/trex_s1_00450.pkl"
+)
+params, metrics, obs_stats = train_jax(
+    species="trex",
+    stage=2,
+    init_params=params,
+    init_obs_stats=obs_rms,
+    checkpoint_dir="results/trex/jax/stage2",
 )
 ```
 

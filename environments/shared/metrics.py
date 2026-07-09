@@ -264,12 +264,16 @@ class LocomotionMetrics:
             result["final_prey_distance"] = float(distances[-1])
             result["min_prey_distance"] = float(np.min(distances))
 
-            # Time to reach within 0.5m of target (or -1 if never reached)
+            # Time to reach within 0.5m of target.  NaN when never reached:
+            # aggregate_episodes filters non-finite values, so the mean only
+            # covers episodes that actually reached the target (a -1 sentinel
+            # would be averaged in and corrupt mean_time_to_target).
             close_steps = np.where(distances < 0.5)[0]
+            result["target_reached"] = 1.0 if len(close_steps) > 0 else 0.0
             if len(close_steps) > 0:
                 result["time_to_target"] = float(close_steps[0] * self.dt)
             else:
-                result["time_to_target"] = -1.0
+                result["time_to_target"] = float("nan")
 
         # --- Reward statistics ---
         rewards = np.array(self._rewards)

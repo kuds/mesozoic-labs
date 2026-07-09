@@ -223,19 +223,26 @@ class TrainingCSVLogger:
     Args:
         path: Path to the CSV file.
         fields: Column names.  Defaults to :data:`DEFAULT_CSV_FIELDS`.
+        append: Append to an existing file instead of truncating it --
+            pass ``True`` when resuming training (``start_update > 0``) so
+            the prior run's rows survive.  The header is only written when
+            the file is new/empty.
     """
 
     def __init__(
         self,
         path: str | Path,
         fields: list[str] | None = None,
+        append: bool = False,
     ):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.fields = fields or list(DEFAULT_CSV_FIELDS)
-        self._file = open(self.path, "w", newline="")
+        write_header = not (append and self.path.exists() and self.path.stat().st_size > 0)
+        self._file = open(self.path, "a" if append else "w", newline="")
         self._writer = csv.DictWriter(self._file, fieldnames=self.fields)
-        self._writer.writeheader()
+        if write_header:
+            self._writer.writeheader()
 
     def log(self, row: dict[str, Any]) -> None:
         """Write a single row.  Extra keys not in ``fields`` are ignored."""

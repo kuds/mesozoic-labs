@@ -78,12 +78,18 @@ class TestLocomotionMetrics:
             metrics.record_step({"forward_vel": 1.0, "prey_distance": d})
         result = metrics.compute()
         assert result["time_to_target"] == pytest.approx(3 * 0.5)  # 1.5 seconds
+        assert result["target_reached"] == 1.0
 
     def test_time_to_target_never_reached(self, metrics):
+        import math
+
         for d in [5.0, 4.0, 3.0]:
             metrics.record_step({"forward_vel": 1.0, "prey_distance": d})
         result = metrics.compute()
-        assert result["time_to_target"] == -1.0
+        # NaN (not a -1 sentinel) so aggregate_episodes excludes it from
+        # mean_time_to_target; target_reached carries the reach fraction.
+        assert math.isnan(result["time_to_target"])
+        assert result["target_reached"] == 0.0
 
     def test_reward_statistics(self, metrics):
         rewards = [1.0, 2.0, 3.0, 4.0]

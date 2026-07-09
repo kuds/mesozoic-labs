@@ -288,6 +288,9 @@ class TestSaveDiagnostics:
         assert np.isnan(data["heading_alignment_std"][0])
 
     def test_accumulates_over_multiple_rollouts(self, callback, tmp_path):
+        # Disable the save throttle: this test checks accumulation, and the
+        # two rollout-ends happen within one save interval.
+        callback.save_interval_seconds = 0.0
         callback._step_infos["forward_vel"] = [1.0]
         callback._on_rollout_end()
 
@@ -468,3 +471,31 @@ class TestWithoutSB3:
             # SB3 present — init_callback comes from BaseCallback
             cb = DiagnosticsCallback()
             assert hasattr(cb, "init_callback")
+
+
+class TestSaveThrottle:
+    """diagnostics.npz rewrites are throttled; _on_training_end always flushes."""
+
+    def test_throttled_save_then_final_flush(self, tmp_path):
+        from environments.shared.diagnostics import DiagnosticsCallback
+
+        cb = DiagnosticsCallback(log_dir=str(tmp_path), save_interval_seconds=3600.0)
+        cb.logger = MagicMock()
+        cb.num_timesteps = 100
+        cb.locals = {"infos": []}
+        cb.model = MagicMock()
+        cb.model.rollout_buffer.observations = None
+        cb.training_env = None
+
+        cb._step_infos["forward_vel"] = [1.0]
+        cb._on_rollout_end()  # first save always happens (last_save_time=0)
+        cb.num_timesteps = 200
+        cb._step_infos["forward_vel"] = [2.0]
+        cb._on_rollout_end()  # throttled — no rewrite
+
+        data = np.load(str(tmp_path / "diagnostics.npz"))
+        assert len(data["timesteps"]) == 1
+
+        cb._on_training_end()  # final flush writes the full history
+        data = np.load(str(tmp_path / "diagnostics.npz"))
+        assert len(data["timesteps"]) == 2

@@ -160,6 +160,15 @@ def _wait_for_job(
             refreshed = aiplatform.HyperparameterTuningJob.get(resource_name)
         except Exception as exc:
             logger.warning("Failed to refresh job state (will retry): %s", exc)
+            # Honor the timeout even when the API keeps failing —
+            # otherwise a persistent auth/network problem polls forever.
+            if timeout is not None and elapsed > timeout:
+                raise TimeoutError(
+                    f"Job {resource_name} timed out after {elapsed_min:.1f} min "
+                    f"(limit: {timeout / 60:.1f} min) while the job state could not "
+                    f"be refreshed. The job may still be running in the cloud — "
+                    f"re-run with --resume to reconnect."
+                ) from exc
             continue
 
         state = _state_name(refreshed.state)

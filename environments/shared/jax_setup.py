@@ -10,16 +10,18 @@ Usage::
 
     from environments.shared.jax_setup import (
         setup_species,
-        setup_training,
         setup_output_dirs,
+        create_env,
         run_stage_evaluation,
     )
 
     ctx = setup_species("trex", stage=1)
     dirs = setup_output_dirs("trex", stage=1, storage_root="logs")
-    env, network, params, obs_rms, optimizer, ppo_cfg, train_cfg = setup_training(ctx)
+    env = create_env(ctx, num_envs=2048)
     # ... training via JaxTrainer ...
-    eval_results, stage_results = run_stage_evaluation(ctx, env, params, network, obs_rms)
+    eval_results, stage_results, gate_passed, gate_failures = run_stage_evaluation(
+        ctx, env, params, network, obs_rms
+    )
 
 Usage (Docker)::
 
@@ -190,10 +192,16 @@ def setup_species(species: str, stage: int = 1) -> SpeciesContext:
     env_kw = stage_config.get("env_kwargs", {})
     jax_kw = stage_config.get("jax_kwargs", {})
     # Canonicalize species-flavoured TOML keys (strike_approach_weight ->
-    # approach_weight, etc.) so the JAX reward functions actually see them.
+    # approach_weight, etc.) so the JAX reward functions actually see them,
+    # and merge them OVER the species-registry default weights — the same
+    # registry+TOML merge MJXDinoEnv performs.  Without the registry layer,
+    # eval rewards silently dropped species defaults (e.g. trex
+    # tail_stability_weight) that training applied.
+    from .mjx_env import _SPECIES_CONFIGS as _MJX_SPECIES_CONFIGS
     from .mjx_env import canonicalize_env_kwargs
 
-    reward_cfg = canonicalize_env_kwargs(env_kw)
+    _registry_weights = dict(_MJX_SPECIES_CONFIGS.get(species, {}).get("reward_weights", {}))
+    reward_cfg = {**_registry_weights, **canonicalize_env_kwargs(env_kw)}
 
     # Load MuJoCo model (CPU)
     model_path = _get_model_path(species)
@@ -414,21 +422,33 @@ def make_obs_fn(ctx: SpeciesContext):
 
     Returns a function ``get_obs(data) -> obs_array`` suitable for
     ``evaluate_policy_cpu`` and ``record_training_video``.
+
+    The observation embeds the target direction/distance, so it must point
+    at the same target the evaluation's success detection uses — the
+    model's target body (prey/food).  A hardcoded origin target used to
+    flip the perceived target direction backwards as the agent walked
+    away, so stage-3 gates and videos evaluated the wrong task.
     """
     import jax.numpy as jnp
+    import mujoco
 
     from .obs_functions import build_bipedal_obs
 
     root_body_id = ctx.root_body_id
     sensor_layout = ctx.sensor_layout
+    target_body_id = mujoco.mj_name2id(ctx.mj_model, mujoco.mjtObj.mjOBJ_BODY, ctx.target_body_name)
 
     def get_obs(data):
+        if target_body_id >= 0:
+            target_pos = data.xpos[target_body_id]
+        else:
+            target_pos = jnp.zeros(3)
         return build_bipedal_obs(
             qpos=data.qpos,
             qvel=data.qvel,
             sensordata=data.sensordata,
             pelvis_xpos=data.xpos[root_body_id],
-            target_pos=jnp.zeros(3),
+            target_pos=target_pos,
             sensor_layout=sensor_layout,
         )
 
@@ -452,9 +472,22 @@ def make_reward_fns(ctx: SpeciesContext):
 
     Returns:
         ``(compute_reward, compute_reward_detailed, is_terminated)`` tuple.
+
+    ``compute_reward`` accepts optional per-step keyword arguments
+    (``target_pos``, ``prev_target_distance``, ``prev_action``,
+    ``forward_ref_2d``, ``success_site_positions``) which
+    ``evaluate_policy_cpu`` supplies so eval episode rewards include the
+    same approach/proximity/success/fall components as training.
     """
     from .jax_reward_termination import compute_reward_components, compute_total_reward
     from .jax_reward_termination import is_terminated as is_terminated_fn
+    from .mjx_env import _SPECIES_CONFIGS as _MJX_SPECIES_CONFIGS
+
+    # Success bonus resolves through the species' bonus key (bite_bonus /
+    # strike_bonus / food_reach_bonus), matching MJXDinoEnv.step; the
+    # machinery only engages when success sites exist (stage 3).
+    success_bonus_key = _MJX_SPECIES_CONFIGS.get(ctx.species, {}).get("success_bonus_key", "")
+    success_bonus = float(ctx.reward_cfg.get(success_bonus_key, 0.0)) if success_bonus_key else 0.0
 
     reward_kw = dict(
         root_body_id=ctx.root_body_id,
@@ -468,6 +501,11 @@ def make_reward_fns(ctx: SpeciesContext):
         sensor_gyro_start=ctx.sensor_layout.gyro_start,
         foot_indices=ctx.sensor_layout.foot_indices,
         sensor_tail_gyro_start=ctx.sensor_tail_gyro_start,
+        forward_vel_max=ctx.forward_vel_max,
+        dt=float(ctx.mj_model.opt.timestep) * ctx.frame_skip,
+        fall_penalty=float(ctx.jax_kwargs.get("fall_penalty", ctx.reward_cfg.get("fall_penalty", 0.0))),
+        success_threshold=ctx.success_threshold,
+        success_bonus=success_bonus if ctx.stage >= 3 else 0.0,
     )
 
     nosedive_threshold = ctx.reward_cfg.get("nosedive_termination_threshold", 0.5)
@@ -483,11 +521,18 @@ def make_reward_fns(ctx: SpeciesContext):
         sensor_quat_start=ctx.sensor_layout.quat_start,
     )
 
-    def compute_reward(data, action, reward_cfg):
-        return compute_total_reward(data, action, reward_cfg, **reward_kw)
+    def compute_reward(data, action, reward_cfg, **step_kwargs):
+        return compute_total_reward(data, action, reward_cfg, **reward_kw, **step_kwargs)
 
-    def compute_reward_detailed(data, action, reward_cfg):
-        return compute_reward_components(data, action, reward_cfg, **reward_kw)
+    def compute_reward_detailed(data, action, reward_cfg, **step_kwargs):
+        # compute_reward_components takes a subset of the per-step kwargs.
+        allowed = {k: v for k, v in step_kwargs.items() if k in ("prev_action", "forward_ref_2d")}
+        detail_kw = {
+            k: v
+            for k, v in reward_kw.items()
+            if k not in ("forward_vel_max", "dt", "fall_penalty", "success_threshold", "success_bonus")
+        }
+        return compute_reward_components(data, action, reward_cfg, **detail_kw, **allowed)
 
     def is_terminated(data):
         return is_terminated_fn(data, **termination_kw)
@@ -534,7 +579,7 @@ def run_stage_evaluation(
         eval_seed: Seed for evaluation reset noise (reproducible gates).
 
     Returns:
-        ``(eval_results, stage_results)`` tuple.
+        ``(eval_results, stage_results, gate_passed, gate_failures)`` tuple.
     """
     import jax
     import numpy as np
@@ -556,6 +601,9 @@ def run_stage_evaluation(
         healthy_z_range=ctx.healthy_z_range,
         max_tilt_angle=ctx.max_tilt_angle,
         natural_forward_z=ctx.natural_forward_z,
+        # TOML can tighten the nosedive threshold (e.g. trex stage 1);
+        # without this the eval terminated later than training.
+        nosedive_threshold=ctx.reward_cfg.get("nosedive_termination_threshold", 0.5),
         termination_body_heights=ctx.termination_body_heights,
         termination_site_heights=ctx.termination_site_heights,
         success_sites=ctx.success_sites,
@@ -563,6 +611,7 @@ def run_stage_evaluation(
         target_body=ctx.target_body_name,
         root_body_id=ctx.root_body_id,
         sensor_quat_start=ctx.sensor_layout.quat_start,
+        sensor_gyro_start=ctx.sensor_layout.gyro_start,
         reset_noise_scale=0.01,
         forward_vel_max=ctx.forward_vel_max,
         target_standing_z=(ctx.target_standing_z if ctx.target_standing_z is not None else 0.90),
@@ -585,15 +634,20 @@ def run_stage_evaluation(
         foot_sensor_indices=foot_indices,
     )
 
-    # Gate check
+    # Gate check — all four TOML curriculum thresholds, matching the SB3
+    # CurriculumManager (forward-vel gates stage 2, success-rate stage 3).
     stage_config = load_stage_config(ctx.species, ctx.stage)
     curriculum = stage_config.get("curriculum_kwargs", {})
     gate_min_reward = curriculum.get("min_avg_reward", -float("inf"))
     gate_min_length = curriculum.get("min_avg_episode_length", 0)
+    gate_min_forward_vel = curriculum.get("min_avg_forward_vel", 0.0)
+    gate_min_success_rate = curriculum.get("min_success_rate", 0.0)
     gate_passed, gate_failures = check_stage_gate(
         eval_results,
         gate_min_reward,
         gate_min_length,
+        gate_min_forward_vel=gate_min_forward_vel,
+        gate_min_success_rate=gate_min_success_rate,
     )
 
     num_envs = env.num_envs
@@ -612,6 +666,7 @@ def run_stage_evaluation(
         "mean_forward_vel": round(eval_results.mean_forward_vel, 3),
         "std_forward_vel": round(float(np.std(eval_results.forward_vels)) if eval_results.forward_vels else 0.0, 3),
         "mean_distance_traveled": round(eval_results.mean_distance, 2),
+        "mean_success_rate": round(eval_results.mean_success_rate, 3),
         "best_eval_reward": round(best_reward, 2),
         "best_eval_timestep": best_update * rollout_len * num_envs,
         "sim_dt": ctx.mj_model.opt.timestep * ctx.frame_skip,
@@ -661,6 +716,8 @@ def print_eval_summary(
     print(f"  Mean distance: {eval_results.mean_distance:.2f} m")
     print(f"  Mean tilt:     {np.degrees(eval_results.mean_tilt):.1f} deg")
     print(f"  Mean pelvis H: {eval_results.mean_height:.3f} m")
+    if stage >= 3:
+        print(f"  Success rate:  {100.0 * eval_results.mean_success_rate:.0f}%")
 
     if gate_failures:
         print(f"\n*** STAGE {stage} GATE NOT PASSED ***")
