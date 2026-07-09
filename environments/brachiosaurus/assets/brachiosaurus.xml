@@ -1,7 +1,7 @@
 <mujoco model="brachiosaurus">
   <compiler angle="degree" autolimits="true"/>
 
-  <option timestep="0.002" gravity="0 0 -9.81">
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast">
     <flag warmstart="enable"/>
   </option>
 
@@ -10,16 +10,20 @@
     <geom contype="1" conaffinity="1" friction="1.2 0.005 0.0001"/>
     <motor ctrllimited="true" ctrlrange="-1 1"/>
 
-    <!-- Leg joints: high damping + passive stiffness for heavy quadruped.
-         Stiffness pulls joints toward 0 (straight), preventing crouch exploits
-         and reducing actuator burden during stance phase. -->
+    <!-- Leg joints: high damping + strong passive stiffness for the ~175 kg
+         quadruped.  Springs reference the STANCE angles (per-joint springref
+         below), elephant-style columnar load-bearing: gravity is carried by
+         the springs, actuators modulate around stance.  With the old
+         stiffness=10 (springref 0) the legs collapsed to torso z~0.70 under
+         load -- below the healthy_z floor (1.0) -- even when commanded
+         straight. -->
     <default class="leg_joint">
-      <joint damping="20.0" stiffness="10.0" armature="0.1"/>
+      <joint damping="35.0" stiffness="120.0" armature="0.1"/>
     </default>
 
     <!-- Metatarsal joints: semi-digitigrade stance -->
     <default class="meta_joint">
-      <joint damping="15.0" stiffness="10.0" armature="0.08"/>
+      <joint damping="25.0" stiffness="80.0" armature="0.08"/>
     </default>
 
     <!-- Neck joints: passive stiffness to counteract gravity on heavy neck.
@@ -70,7 +74,7 @@
       Shoulder height: 2.2m (front legs longer)
       Neck length: 2.5m
       Tail length: 1.8m
-      Total mass: ~200kg (scaled)
+      Total mass: ~175kg (scaled)
 
     Brachiosaurus is unique among sauropods:
       - Front legs longer than rear legs (giraffe-like posture)
@@ -175,19 +179,19 @@
               mass="8.0" material="body_mat"/>
 
         <body name="fr_shin" pos="0 0 -0.55">
-          <joint name="fr_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
+          <joint name="fr_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0" springref="-45"/>
           <geom name="fr_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.09"
                 mass="5.0" material="body_mat"/>
 
           <!-- Metacarpus: short, sub-vertical (sauropod manus was compact) -->
           <body name="fr_meta" pos="0 0 -0.45">
-            <joint name="fr_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40"/>
+            <joint name="fr_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40" springref="20"/>
             <geom name="fr_meta_geom" type="capsule" fromto="0 0 0  0.03 0 -0.12" size="0.07"
                   mass="1.5" material="body_mat"/>
 
             <!-- Foot pad: fleshy digital pad at ground contact -->
             <body name="fr_foot" pos="0.03 0 -0.12">
-              <joint name="fr_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25"/>
+              <joint name="fr_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25" springref="5.7"/>
               <geom name="fr_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
                     mass="1.5" material="foot_mat"/>
               <site name="fr_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
@@ -205,17 +209,17 @@
               mass="8.0" material="body_mat"/>
 
         <body name="fl_shin" pos="0 0 -0.55">
-          <joint name="fl_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
+          <joint name="fl_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0" springref="-45"/>
           <geom name="fl_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.45" size="0.09"
                 mass="5.0" material="body_mat"/>
 
           <body name="fl_meta" pos="0 0 -0.45">
-            <joint name="fl_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40"/>
+            <joint name="fl_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40" springref="20"/>
             <geom name="fl_meta_geom" type="capsule" fromto="0 0 0  0.03 0 -0.12" size="0.07"
                   mass="1.5" material="body_mat"/>
 
             <body name="fl_foot" pos="0.03 0 -0.12">
-              <joint name="fl_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25"/>
+              <joint name="fl_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25" springref="5.7"/>
               <geom name="fl_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
                     mass="1.5" material="foot_mat"/>
               <site name="fl_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
@@ -235,18 +239,18 @@
               mass="7.0" material="body_mat"/>
 
         <body name="rr_shin" pos="0 0 -0.45">
-          <joint name="rr_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
+          <joint name="rr_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0" springref="-10"/>
           <geom name="rr_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.35" size="0.09"
                 mass="4.0" material="body_mat"/>
 
           <!-- Metatarsus: longer than front metacarpus (hind foot digitigrade) -->
           <body name="rr_meta" pos="0 0 -0.35">
-            <joint name="rr_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40"/>
+            <joint name="rr_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40" springref="20"/>
             <geom name="rr_meta_geom" type="capsule" fromto="0 0 0  0.04 0 -0.15" size="0.065"
                   mass="1.5" material="body_mat"/>
 
             <body name="rr_foot" pos="0.04 0 -0.15">
-              <joint name="rr_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25"/>
+              <joint name="rr_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25" springref="5.7"/>
               <geom name="rr_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
                     mass="1.5" material="foot_mat"/>
               <site name="rr_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
@@ -264,17 +268,17 @@
               mass="7.0" material="body_mat"/>
 
         <body name="rl_shin" pos="0 0 -0.45">
-          <joint name="rl_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0"/>
+          <joint name="rl_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-60 0" springref="-10"/>
           <geom name="rl_shin_geom" type="capsule" fromto="0 0 0  0 0 -0.35" size="0.09"
                 mass="4.0" material="body_mat"/>
 
           <body name="rl_meta" pos="0 0 -0.35">
-            <joint name="rl_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40"/>
+            <joint name="rl_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40" springref="20"/>
             <geom name="rl_meta_geom" type="capsule" fromto="0 0 0  0.04 0 -0.15" size="0.065"
                   mass="1.5" material="body_mat"/>
 
             <body name="rl_foot" pos="0.04 0 -0.15">
-              <joint name="rl_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25"/>
+              <joint name="rl_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25" springref="5.7"/>
               <geom name="rl_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
                     mass="1.5" material="foot_mat"/>
               <site name="rl_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
@@ -294,52 +298,55 @@
          does NOT convert actuator attributes, only joint attributes. -->
 
     <!-- Neck control (5 joints: 4 pitch + 1 yaw on base) -->
-    <position name="neck_1_pitch_act" joint="neck_1_pitch" kp="240" ctrlrange="-0.3491 0.5236"/>
-    <position name="neck_1_yaw_act" joint="neck_1_yaw" kp="160" ctrlrange="-0.2618 0.2618"/>
-    <position name="neck_2_pitch_act" joint="neck_2_pitch" kp="200" ctrlrange="-0.3491 0.4363"/>
-    <position name="neck_3_pitch_act" joint="neck_3_pitch" kp="160" ctrlrange="-0.4363 0.4363"/>
-    <position name="neck_4_pitch_act" joint="neck_4_pitch" kp="120" ctrlrange="-0.5236 0.5236"/>
-    <position name="head_pitch_act" joint="head_pitch" kp="80" ctrlrange="-0.6981 0.6981"/>
+    <position name="neck_1_pitch_act" joint="neck_1_pitch" kp="240" forcerange="-160 160" ctrlrange="-0.3491 0.5236"/>
+    <position name="neck_1_yaw_act" joint="neck_1_yaw" kp="160" forcerange="-110 110" ctrlrange="-0.2618 0.2618"/>
+    <position name="neck_2_pitch_act" joint="neck_2_pitch" kp="200" forcerange="-140 140" ctrlrange="-0.3491 0.4363"/>
+    <position name="neck_3_pitch_act" joint="neck_3_pitch" kp="160" forcerange="-110 110" ctrlrange="-0.4363 0.4363"/>
+    <position name="neck_4_pitch_act" joint="neck_4_pitch" kp="120" forcerange="-80 80" ctrlrange="-0.5236 0.5236"/>
+    <position name="head_pitch_act" joint="head_pitch" kp="80" forcerange="-55 55" ctrlrange="-0.6981 0.6981"/>
 
     <!-- Front right leg (5 actuators: hip pitch/roll, knee, ankle, toe) -->
-    <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="200" ctrlrange="-0.6981 0.8727"/>
-    <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="150" ctrlrange="-0.1745 0.1745"/>
-    <position name="fr_knee_act" joint="fr_knee" kp="250" ctrlrange="-1.0472 0"/>
-    <position name="fr_ankle_act" joint="fr_ankle" kp="120" ctrlrange="-0.3491 0.6981"/>
-    <position name="fr_toe_act" joint="fr_toe" kp="80" ctrlrange="-0.2618 0.4363"/>
+    <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="600" forcerange="-400 400" ctrlrange="-0.6981 0.8727"/>
+    <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="300" forcerange="-200 200" ctrlrange="-0.1745 0.1745"/>
+    <position name="fr_knee_act" joint="fr_knee" kp="800" forcerange="-500 500" ctrlrange="-1.0472 0"/>
+    <position name="fr_ankle_act" joint="fr_ankle" kp="350" forcerange="-250 250" ctrlrange="-0.3491 0.6981"/>
+    <position name="fr_toe_act" joint="fr_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Front left leg -->
-    <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="200" ctrlrange="-0.6981 0.8727"/>
-    <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="150" ctrlrange="-0.1745 0.1745"/>
-    <position name="fl_knee_act" joint="fl_knee" kp="250" ctrlrange="-1.0472 0"/>
-    <position name="fl_ankle_act" joint="fl_ankle" kp="120" ctrlrange="-0.3491 0.6981"/>
-    <position name="fl_toe_act" joint="fl_toe" kp="80" ctrlrange="-0.2618 0.4363"/>
+    <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="600" forcerange="-400 400" ctrlrange="-0.6981 0.8727"/>
+    <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="300" forcerange="-200 200" ctrlrange="-0.1745 0.1745"/>
+    <position name="fl_knee_act" joint="fl_knee" kp="800" forcerange="-500 500" ctrlrange="-1.0472 0"/>
+    <position name="fl_ankle_act" joint="fl_ankle" kp="350" forcerange="-250 250" ctrlrange="-0.3491 0.6981"/>
+    <position name="fl_toe_act" joint="fl_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Rear right leg -->
-    <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="180" ctrlrange="-0.6981 0.8727"/>
-    <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="130" ctrlrange="-0.1745 0.1745"/>
-    <position name="rr_knee_act" joint="rr_knee" kp="220" ctrlrange="-1.0472 0"/>
-    <position name="rr_ankle_act" joint="rr_ankle" kp="100" ctrlrange="-0.3491 0.6981"/>
-    <position name="rr_toe_act" joint="rr_toe" kp="80" ctrlrange="-0.2618 0.4363"/>
+    <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="550" forcerange="-350 350" ctrlrange="-0.6981 0.8727"/>
+    <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="260" forcerange="-180 180" ctrlrange="-0.1745 0.1745"/>
+    <position name="rr_knee_act" joint="rr_knee" kp="700" forcerange="-450 450" ctrlrange="-1.0472 0"/>
+    <position name="rr_ankle_act" joint="rr_ankle" kp="300" forcerange="-220 220" ctrlrange="-0.3491 0.6981"/>
+    <position name="rr_toe_act" joint="rr_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Rear left leg -->
-    <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="180" ctrlrange="-0.6981 0.8727"/>
-    <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="130" ctrlrange="-0.1745 0.1745"/>
-    <position name="rl_knee_act" joint="rl_knee" kp="220" ctrlrange="-1.0472 0"/>
-    <position name="rl_ankle_act" joint="rl_ankle" kp="100" ctrlrange="-0.3491 0.6981"/>
-    <position name="rl_toe_act" joint="rl_toe" kp="80" ctrlrange="-0.2618 0.4363"/>
+    <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="550" forcerange="-350 350" ctrlrange="-0.6981 0.8727"/>
+    <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="260" forcerange="-180 180" ctrlrange="-0.1745 0.1745"/>
+    <position name="rl_knee_act" joint="rl_knee" kp="700" forcerange="-450 450" ctrlrange="-1.0472 0"/>
+    <position name="rl_ankle_act" joint="rl_ankle" kp="300" forcerange="-220 220" ctrlrange="-0.3491 0.6981"/>
+    <position name="rl_toe_act" joint="rl_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Tail actuators for active balance control (match T-Rex/Raptor pattern:
          actuate proximal segments, leave distal tail_4 passive) -->
-    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="100" ctrlrange="-0.2618 0.4363"/>
-    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="80" ctrlrange="-0.1745 0.1745"/>
-    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="80" ctrlrange="-0.2618 0.4363"/>
-    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="60" ctrlrange="-0.2618 0.4363"/>
+    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="100" forcerange="-70 70" ctrlrange="-0.2618 0.4363"/>
+    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="80" forcerange="-55 55" ctrlrange="-0.1745 0.1745"/>
+    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="80" forcerange="-55 55" ctrlrange="-0.2618 0.4363"/>
+    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="60" forcerange="-40 40" ctrlrange="-0.2618 0.4363"/>
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
 
   <sensor>
+    <!-- WARNING: the Python envs index sensordata by POSITION (gyro 0-2,
+         accel 3-5, quat 6-9, touch 10-13, ...).  Do not reorder or insert
+         sensors without updating mjx_config.py / obs_functions.py. -->
     <!-- IMU-like sensors on torso -->
     <gyro name="torso_gyro" site="imu"/>
     <accelerometer name="torso_accel" site="imu"/>
