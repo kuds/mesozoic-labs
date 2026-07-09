@@ -24,7 +24,7 @@
    ============================================================================= */
 
 .scrollReveal {
-  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  transition: opacity 0.45s ease-out, transform 0.45s ease-out;
 }
 
 /* Hidden state — added by JS after first paint, and only for sections
@@ -32,7 +32,7 @@
    always see the content. */
 .scrollRevealPending {
   opacity: 0;
-  transform: translateY(30px);
+  transform: translateY(24px);
 }
 
 .revealed {
@@ -388,6 +388,13 @@
   z-index: 10;
 }
 
+/* On short laptop viewports the chevron overlapped the hero stats */
+@media (max-height: 750px) {
+  .heroScrollIndicator {
+    display: none;
+  }
+}
+
 .scrollChevron {
   display: block;
   width: 20px;
@@ -437,13 +444,43 @@
 }
 
 .revealed .featureCard {
-  animation: cardSlideUp 0.5s ease-out both;
+  animation: cardSlideUp 0.45s ease-out both;
 }
 
 @keyframes cardSlideUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Staggered entrances — animation-delay only, so hover transitions stay
+   instant.  Same rhythm across features, pipeline, videos, roadmap. */
+.revealed .featureCard:nth-child(2) { animation-delay: 0.08s; }
+.revealed .featureCard:nth-child(3) { animation-delay: 0.16s; }
+.revealed .featureCard:nth-child(4) { animation-delay: 0.24s; }
+
+.revealed .pipelineStep {
+  animation: cardSlideUp 0.45s ease-out both;
+}
+
+.revealed .pipelineStep:nth-child(3) { animation-delay: 0.1s; }
+.revealed .pipelineStep:nth-child(4) { animation-delay: 0.2s; }
+
+.revealed .speciesVideoCard {
+  animation: cardSlideUp 0.45s ease-out both;
+}
+
+.revealed .speciesVideoCard:nth-child(2) { animation-delay: 0.08s; }
+.revealed .speciesVideoCard:nth-child(3) { animation-delay: 0.16s; }
+
+.revealed .timelineCard {
+  animation: cardSlideUp 0.45s ease-out both;
+}
+
+.revealed article.timelineItem:nth-of-type(2) .timelineCard { animation-delay: 0.06s; }
+.revealed article.timelineItem:nth-of-type(3) .timelineCard { animation-delay: 0.12s; }
+.revealed article.timelineItem:nth-of-type(4) .timelineCard { animation-delay: 0.18s; }
+.revealed article.timelineItem:nth-of-type(5) .timelineCard { animation-delay: 0.24s; }
+.revealed article.timelineItem:nth-of-type(6) .timelineCard { animation-delay: 0.3s; }
 
 .featureCardBorder {
   position: absolute;
