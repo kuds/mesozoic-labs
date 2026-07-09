@@ -189,7 +189,7 @@ def train_jax(
 
     # Persist the best-return checkpoint alongside the rotating ones so the
     # strongest policy survives late-training regressions.
-    if best_hook is not None and best_hook.best_params is not None:
+    if checkpoint_dir and best_hook is not None and best_hook.best_params is not None:
         from .jax_checkpoint import save_checkpoint
 
         save_checkpoint(
