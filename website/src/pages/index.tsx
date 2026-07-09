@@ -234,12 +234,7 @@ function FeaturesSection() {
       </div>
       <div className={styles.featuresGrid} role="list">
         {features.map((feature, idx) => (
-          <div
-            className={styles.featureCard}
-            key={idx}
-            role="listitem"
-            style={{ transitionDelay: `${idx * 0.1}s` }}
-          >
+          <div className={styles.featureCard} key={idx} role="listitem">
             <div className={styles.featureCardBorder} aria-hidden="true"></div>
             <div className={styles.featureIcon} aria-hidden="true">{feature.icon}</div>
             <h3 className={styles.featureTitle}>{feature.title}</h3>
