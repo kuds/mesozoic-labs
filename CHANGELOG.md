@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — RL/GCP Review Fixes & Model Physics (v0.3.2)
+
+### Fixed
+- **JAX pipeline correctness** (July 2026 review, PR #426): curriculum gate
+  now compares episode-level return against the TOML threshold (it compared
+  per-step reward and never advanced past stage 1); observation-normalization
+  stats carry across curriculum stages; `MJXDinoEnv` no longer mutates the
+  live species registry (stage config leaked across stages); trex TOML
+  `approach_weight` was shadowed by a legacy registry key; `vf_clip_range`
+  now reaches the fused PPO update; CPU evaluation observes the real target
+  body (was hardcoded to the world origin) and its reward includes the same
+  approach/proximity/success/fall components as training; eval records
+  per-episode success and gates on TOML `min_avg_forward_vel` /
+  `min_success_rate`
+- **SB3 pipeline**: eval-collapse callback re-read `evaluations.npz` every
+  training step (a GCS network read on Vertex); `diagnostics.npz` was fully
+  rewritten up to 3× per rollout-end (O(n²) I/O, severe for SAC); final
+  model now saved before the post-training eval; `time_to_target` no longer
+  averages a `-1` sentinel into the mean
+- **Sweeps / Google Cloud**: sweep resume no longer submits duplicate Vertex
+  HPT jobs after a swallowed timeout; Ray Tune stage-2/3 curriculum gates no
+  longer fail unconditionally (metric-alias mismatch; NaN treated as
+  missing); `--wandb` with a missing API key no longer kills headless
+  training and relaunches resume the same W&B run; TensorBoard events sync
+  to GCS periodically (spot-VM preemption no longer loses a stage's logs);
+  `_wait_for_job` honors `--stage-timeout` during persistent API failures;
+  effective per-trial seed and run identity recorded in `metrics.json`
+- `ray_tune_sweep.ipynb` shipped with a `SyntaxError` in the
+  save-search-space cell
+- Broken sweep commands in `vertex-ai.md`; stale `configs/sweep_*.json`
+  paths; nonexistent `wandb_project`/`WandbHook` in `jax.md`
+
+### Changed
+- **Brachiosaurus model physics (breaking for trained policies)**: leg
+  springs now reference stance angles with stronger, force-bounded servos —
+  the model can now statically stand at torso z≈1.13 (previously collapsed
+  to z≈0.70, below the z=1.0 alive floor, even when commanded straight).
+  Pre-existing brachiosaurus checkpoints will not transfer.
+- All three models use `integrator="implicitfast"` and bounded `forcerange`
+  on position actuators (raptor/trex bounds sized to leave settle behavior
+  unchanged)
+- Headless JAX runs with `--checkpoint-dir` now produce a per-update
+  training CSV, rotating + final checkpoints, and a best-episode-return
+  snapshot; `--curriculum` forwards the checkpoint dir per stage; the
+  single-stage CLI passes previously-dropped TOML `[jax]` keys
+  (`minibatch_size`, `warmup_*`, `ramp_*`, `num_envs`, `vf_coef`)
+- New `gcp` extra (`google-cloud-aiplatform`, `google-cloud-storage`),
+  installed in the Docker image
+- Code reviews consolidated: `docs/KNOWN_ISSUES.md` is the living list of
+  open findings; dated reviews archived under `docs/reviews/`
+
 ## [Unreleased] — Codebase Consolidation & Training Results (v0.3.0)
 
 ### Added
