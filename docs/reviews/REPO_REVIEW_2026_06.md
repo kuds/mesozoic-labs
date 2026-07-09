@@ -1,5 +1,9 @@
 # Full Repository Review — June 2026
 
+> **Archived review.** Still-open items from this review are tracked in
+> [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md); this document is kept as the
+> historical record with full context.
+
 Scope: all documentation, training code (SB3 + JAX/MJX), sweep/eval/reporting
 infrastructure, configs, and shipped experiment results. Focus: RL-correctness
 bugs, robustness, and training/debugging quality-of-life.

@@ -1,9 +1,13 @@
 # RL Pipeline + Google Cloud Review — July 2026
 
+> **Archived review.** Still-open items from this review are tracked in
+> [`docs/KNOWN_ISSUES.md`](../KNOWN_ISSUES.md); this document is kept as the
+> historical record with full context.
+
 Scope: the Google Cloud integration (Vertex AI job submission/orchestration,
 GCS artifact handling, TensorBoard sync, docs, packaging), a fresh delta pass
 over the SB3 and JAX/MJX training stacks (relative to
-`docs/REPO_REVIEW_2026_06.md` — nothing from that review is re-reported), the
+`docs/reviews/REPO_REVIEW_2026_06.md` — nothing from that review is re-reported), the
 sweep/reporting infrastructure, and all four Jupyter notebooks.
 
 > **Status:** items marked **FIXED** were fixed on this branch in the same
