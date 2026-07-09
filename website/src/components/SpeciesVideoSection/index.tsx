@@ -1,4 +1,5 @@
 import React from 'react';
+import { posterFor } from '@site/src/data/species';
 import styles from './styles.module.css';
 
 interface Stage {
@@ -25,7 +26,7 @@ function VideoCard({ species, stage }: { species: string; stage: Stage }) {
           src={stage.video}
           controls
           preload="none"
-          poster={stage.video.replace('/videos/', '/img/posters/').replace('.mp4', '.jpg')}
+          poster={posterFor(stage.video)}
           className={styles.videoPlayer}
           aria-label={`${species} stage ${stage.number}: ${stage.title}`}
         />

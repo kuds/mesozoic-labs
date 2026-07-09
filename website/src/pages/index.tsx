@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Layout from '@theme/Layout';
+import { ALL_SPECIES, posterFor } from '@site/src/data/species';
 import styles from './index.module.css';
 
 /* =============================================================================
@@ -409,52 +410,29 @@ function SimulationSection() {
    SPECIES SHOWCASE (Tabbed)
    ============================================================================= */
 
-const speciesData = [
-  {
-    id: 'velociraptor',
-    name: 'Velociraptor',
-    tagline: 'Swift Bipedal Predator',
-    actuators: 22,
-    gait: 'Bipedal',
-    specialty: 'Sickle claw strikes',
-    stages: [
-      { number: 1, title: 'Balance', desc: 'Learning to stand upright', video: '/videos/velociraptor_ppo_stage1_best.mp4' },
-      { number: 2, title: 'Locomotion', desc: 'Walking and running forward', video: '/videos/velociraptor_ppo_stage2_best.mp4' },
-      { number: 3, title: 'Strike', desc: 'Sprinting and attacking with claws', video: '/videos/velociraptor_ppo_stage3_best.mp4' },
-    ],
-  },
-  {
-    id: 'trex',
-    name: 'T-Rex',
-    tagline: 'Apex Predator',
-    actuators: 21,
-    gait: 'Bipedal',
-    specialty: 'Jaw strike attacks',
-    stages: [
-      { number: 1, title: 'Balance', desc: 'Stabilizing massive frame', video: '/videos/trex_ppo_stage1_best.mp4' },
-      { number: 2, title: 'Locomotion', desc: 'Heavy bipedal gait', video: '/videos/trex_ppo_stage2_best.mp4' },
-      { number: 3, title: 'Strike', desc: 'Head-strike attack patterns', video: '/videos/trex_ppo_stage3_best.mp4' },
-    ],
-  },
-  {
-    id: 'brachiosaurus',
-    name: 'Brachiosaurus',
-    tagline: 'Gentle Giant Herbivore',
-    actuators: 30,
-    gait: 'Quadrupedal',
-    specialty: 'Neck food reaching',
-    stages: [
-      { number: 1, title: 'Balance', desc: 'Stable quadrupedal stance', video: '/videos/brachiosaurus_ppo_stage1_best.mp4' },
-      { number: 2, title: 'Locomotion', desc: 'Coordinated four-legged walking', video: '/videos/brachiosaurus_ppo_stage2_best.mp4' },
-      { number: 3, title: 'Food Reach', desc: 'Walking to food and reaching with neck', video: '/videos/brachiosaurus_ppo_stage3_best.mp4' },
-    ],
-  },
-];
+// Species/stage/video data lives in src/data/species.ts (shared with the
+// model docs pages so the two can't drift apart).
 
 function SpeciesShowcase() {
   const [activeSpecies, setActiveSpecies] = useState(0);
   const ref = useScrollReveal();
-  const species = speciesData[activeSpecies];
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const species = ALL_SPECIES[activeSpecies];
+
+  // WAI-ARIA tabs keyboard support: arrows move + activate, Home/End jump.
+  const onTabKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    const last = ALL_SPECIES.length - 1;
+    let next: number | null = null;
+    if (e.key === 'ArrowRight') next = idx === last ? 0 : idx + 1;
+    else if (e.key === 'ArrowLeft') next = idx === 0 ? last : idx - 1;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = last;
+    if (next !== null) {
+      e.preventDefault();
+      setActiveSpecies(next);
+      tabRefs.current[next]?.focus();
+    }
+  };
 
   return (
     <section
@@ -471,12 +449,17 @@ function SpeciesShowcase() {
       </div>
 
       <div className={styles.speciesTabs} role="tablist" aria-label="Select species">
-        {speciesData.map((sp, idx) => (
+        {ALL_SPECIES.map((sp, idx) => (
           <button
             key={sp.id}
+            ref={(el) => {
+              tabRefs.current[idx] = el;
+            }}
             className={`${styles.speciesTab} ${idx === activeSpecies ? styles.speciesTabActive : ''}`}
             onClick={() => setActiveSpecies(idx)}
+            onKeyDown={(e) => onTabKeyDown(e, idx)}
             role="tab"
+            tabIndex={idx === activeSpecies ? 0 : -1}
             aria-selected={idx === activeSpecies}
             aria-controls={`species-panel-${sp.id}`}
           >
@@ -504,13 +487,13 @@ function SpeciesShowcase() {
                 <span className={styles.speciesAlgoBadge}>PPO</span>
               </div>
               <h3 className={styles.speciesStageTitle}>{stage.title}</h3>
-              <p className={styles.speciesStageDesc}>{stage.desc}</p>
+              <p className={styles.speciesStageDesc}>{stage.description}</p>
               <div className={styles.speciesVideoWrap}>
                 <video
                   src={stage.video}
                   controls
                   preload="none"
-                  poster={stage.video.replace('/videos/', '/img/posters/').replace('.mp4', '.jpg')}
+                  poster={posterFor(stage.video)}
                   className={styles.speciesVideoPlayer}
                   aria-label={`${species.name} stage ${stage.number}: ${stage.title}`}
                 />
@@ -584,7 +567,7 @@ function RoadmapSection() {
         <div className={styles.sectionIcon} aria-hidden="true">{'[ ROADMAP ]'}</div>
         <h2 className={styles.sectionTitle} id="roadmap-heading">Project Roadmap</h2>
       </div>
-      <div className={styles.timelineContainer}>
+      <div className={styles.timelineContainer} role="list">
         <div className={styles.timelineLine} aria-hidden="true"></div>
         {milestones.map((milestone, idx) => (
           <article

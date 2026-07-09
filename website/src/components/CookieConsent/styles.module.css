@@ -1,16 +1,25 @@
-/* Cookie Consent Banner - Mesozoic Labs Theme */
+/* Cookie Consent — compact corner card, theme-aware.
+   Previously a full-width bottom slab that covered the hero stats on first
+   visit and the bottom fifth of every docs page, hard-coded to the dark
+   palette even in light mode. */
 
 .cookieBanner {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 1rem;
+  right: 1rem;
   z-index: 1000;
-  background: linear-gradient(180deg, #12121a 0%, #0a0a0f 100%);
-  border-top: 1px solid rgba(0, 255, 136, 0.3);
-  padding: 1.25rem 1.5rem;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+  max-width: 360px;
+  background: var(--ifm-background-surface-color);
+  border: 1px solid rgba(0, 255, 136, 0.35);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
   animation: slideUp 0.3s ease-out;
+}
+
+:global([data-theme='light']) .cookieBanner {
+  border-color: rgba(0, 153, 77, 0.45);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
 }
 
 .cookieBanner.closing {
@@ -19,7 +28,7 @@
 
 @keyframes slideUp {
   from {
-    transform: translateY(100%);
+    transform: translateY(1rem);
     opacity: 0;
   }
   to {
@@ -34,188 +43,128 @@
     opacity: 1;
   }
   to {
-    transform: translateY(100%);
+    transform: translateY(1rem);
     opacity: 0;
   }
 }
 
 .bannerContent {
   display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
 }
 
 .iconContainer {
   flex-shrink: 0;
-  width: 50px;
-  height: 50px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(0, 255, 136, 0.1);
-  border: 1px solid rgba(0, 255, 136, 0.2);
+  border: 1px solid rgba(0, 255, 136, 0.25);
   border-radius: 8px;
 }
 
-.cookieIcon {
-  font-size: 1.75rem;
-  animation: bounce 2s ease-in-out infinite;
+:global([data-theme='light']) .iconContainer {
+  background: rgba(0, 153, 77, 0.08);
+  border-color: rgba(0, 153, 77, 0.3);
 }
 
-@keyframes bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-3px);
-  }
+.cookieIcon {
+  font-size: 1.25rem;
+  line-height: 1;
 }
 
 .textContent {
   flex: 1;
-  min-width: 0;
+  min-width: 200px;
 }
 
 .title {
-  margin: 0 0 0.25rem 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #00ff88;
-  letter-spacing: 0.02em;
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--ifm-color-primary);
 }
 
 .description {
   margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: #b8b8c8;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--ifm-font-color-base);
+  opacity: 0.85;
 }
 
 .buttonContainer {
   display: flex;
-  gap: 0.75rem;
-  flex-shrink: 0;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.25rem;
 }
 
 .acceptButton,
 .declineButton {
-  padding: 0.625rem 1.25rem;
-  font-size: 0.875rem;
+  flex: 1;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
-  border: none;
+  letter-spacing: 0.03em;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .acceptButton {
-  background: #00ff88;
+  background: var(--ifm-color-primary);
+  border: 1px solid var(--ifm-color-primary);
   color: #0a0a0f;
 }
 
 .acceptButton:hover {
-  background: #00e67a;
-  box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
-  transform: translateY(-1px);
+  background: var(--ifm-color-primary-dark);
+  border-color: var(--ifm-color-primary-dark);
 }
 
-.acceptButton:active {
-  transform: translateY(0);
+:global([data-theme='light']) .acceptButton {
+  color: #ffffff;
 }
 
 .declineButton {
   background: transparent;
-  color: #9a9aad;
-  border: 1px solid #404050;
+  border: 1px solid var(--ifm-color-emphasis-400);
+  color: var(--ifm-font-color-base);
 }
 
 .declineButton:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: #606070;
-  color: #c0c0d0;
-}
-
-.acceptButton:focus-visible,
-.declineButton:focus-visible {
-  outline: 2px solid #00ff88;
-  outline-offset: 2px;
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
 }
 
 .privacyLink {
-  text-align: center;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
+  margin-top: 0.6rem;
+  text-align: left;
 }
 
 .link {
   font-size: 0.75rem;
-  color: #8888a0;
-  text-decoration: none;
-  transition: color 0.2s ease;
+  color: var(--ifm-color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .link:hover {
-  color: #00ff88;
-  text-decoration: underline;
+  color: var(--ifm-color-primary-light);
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .cookieBanner {
-    padding: 1rem;
-  }
-
-  .bannerContent {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-
-  .iconContainer {
-    width: 40px;
-    height: 40px;
-  }
-
-  .cookieIcon {
-    font-size: 1.5rem;
-  }
-
-  .title {
-    font-size: 0.9375rem;
-  }
-
-  .description {
-    font-size: 0.8125rem;
-  }
-
-  .buttonContainer {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .acceptButton,
-  .declineButton {
-    flex: 1;
-    max-width: 150px;
-  }
-}
-
+/* Small screens: span the bottom edge but stay compact */
 @media (max-width: 480px) {
-  .buttonContainer {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .acceptButton,
-  .declineButton {
+  .cookieBanner {
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: 0.75rem;
     max-width: none;
-    width: 100%;
   }
 }

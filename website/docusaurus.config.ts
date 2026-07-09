@@ -15,13 +15,17 @@ const config: Config = {
   baseUrl: '/',
 
   // GitHub Pages config
-  organizationName: 'mesozoic-labs',
-  projectName: 'mesozoic-labs.github.io',
+  organizationName: 'kuds',
+  projectName: 'mesozoic-labs',
   deploymentBranch: 'gh-pages',
   trailingSlash: false,
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
+  },
 
   i18n: {
     defaultLocale: 'en',
