@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Layout from '@theme/Layout';
-import { ALL_SPECIES, posterFor } from '@site/src/data/species';
+import { ALL_SPECIES, posterFor, TOTAL_ACTUATORS, TOTAL_TRAINED_STEPS } from '@site/src/data/species';
 import styles from './index.module.css';
 
 /* =============================================================================
@@ -67,7 +67,7 @@ const PARTICLES = Array.from({ length: 20 }, () => ({
 
 function HeroSection() {
   return (
-    <header className={styles.heroBanner}>
+    <header className={`${styles.heroBanner} mz-homepage-hero`}>
       <div className={styles.heroOverlay} aria-hidden="true"></div>
       <div className={styles.gridLines} aria-hidden="true"></div>
       <div className={styles.scanLines} aria-hidden="true"></div>
@@ -123,12 +123,17 @@ function HeroSection() {
         <dl className={styles.statsContainer}>
           <div className={styles.statItem}>
             <dt className={styles.statLabel}>SPECIES</dt>
-            <dd className={styles.statNumber}>3</dd>
+            <dd className={styles.statNumber}>{ALL_SPECIES.length}</dd>
           </div>
           <div className={styles.statDivider} aria-hidden="true"></div>
           <div className={styles.statItem}>
-            <dt className={styles.statLabel}>TRAINING STAGES</dt>
-            <dd className={styles.statNumber}>3</dd>
+            <dt className={styles.statLabel}>ACTUATORS</dt>
+            <dd className={styles.statNumber}>{TOTAL_ACTUATORS}</dd>
+          </div>
+          <div className={styles.statDivider} aria-hidden="true"></div>
+          <div className={styles.statItem}>
+            <dt className={styles.statLabel}>STEPS TRAINED</dt>
+            <dd className={styles.statNumber}>{Math.round(TOTAL_TRAINED_STEPS / 1e6)}M</dd>
           </div>
         </dl>
       </div>
@@ -477,6 +482,27 @@ function SpeciesShowcase() {
       >
         <div className={styles.speciesInfo}>
           <span className={styles.speciesBadge}>{species.specialty}</span>
+          <dl
+            className={styles.speciesStats}
+            aria-label={`${species.name} training results (${species.results.algorithm}, ${species.results.date})`}
+          >
+            <div className={styles.speciesStat}>
+              <dt>Task success</dt>
+              <dd>{Math.round(species.results.successRate * 100)}%</dd>
+            </div>
+            <div className={styles.speciesStat}>
+              <dt>Top speed</dt>
+              <dd>{species.results.topSpeed.toFixed(2)} m/s</dd>
+            </div>
+            <div className={styles.speciesStat}>
+              <dt>Timesteps</dt>
+              <dd>{Math.round(species.results.totalTimesteps / 1e6)}M</dd>
+            </div>
+            <div className={styles.speciesStat}>
+              <dt>Run</dt>
+              <dd>{species.results.algorithm} &middot; {species.results.date}</dd>
+            </div>
+          </dl>
         </div>
 
         <div className={styles.speciesVideos}>

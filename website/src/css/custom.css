@@ -186,6 +186,40 @@ body {
   display: none;
 }
 
+/* The homepage commits to its dark identity in light mode too: a white
+   navbar over the dark hero looked disjointed.  Detected via the stable
+   .mz-homepage-hero class on the hero header; browsers without :has()
+   gracefully keep the standard light navbar. */
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar {
+  --ifm-navbar-background-color: rgba(10, 10, 15, 0.87);
+  --ifm-navbar-link-color: #e6e6f0;
+  --ifm-menu-color: #e6e6f0;
+  --ifm-color-emphasis-200: #2a2a35;
+  background-color: var(--ifm-navbar-background-color);
+}
+
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__title {
+  color: #ffffff;
+}
+
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__link--active {
+  color: #00ff88;
+}
+
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__toggle,
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar [class*='colorModeToggle'] button {
+  color: #e6e6f0;
+}
+
+/* Swap to the dark-theme logo variant on the forced-dark homepage navbar */
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__logo img[class*='themedComponent--light'] {
+  display: none;
+}
+
+[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__logo img[class*='themedComponent--dark'] {
+  display: inline-block;
+}
+
 /* Footer customization */
 .footer {
   border-top: 1px solid rgba(0, 255, 136, 0.1);
