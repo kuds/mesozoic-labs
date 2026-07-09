@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Layout from '@theme/Layout';
+import { ALL_SPECIES, posterFor, TOTAL_ACTUATORS, TOTAL_TRAINED_STEPS } from '@site/src/data/species';
 import styles from './index.module.css';
 
 /* =============================================================================
@@ -10,15 +11,24 @@ function useScrollReveal() {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    // Sections are VISIBLE by default; the hidden "pending" state is added
+    // here (after first paint) and only for sections below the fold — so
+    // no-JS visitors, printing, and full-page rendering always see content.
+    if (el.getBoundingClientRect().top >= window.innerHeight) {
+      el.classList.add(styles.scrollRevealPending);
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
+          el.classList.remove(styles.scrollRevealPending);
           el.classList.add(styles.revealed);
           observer.unobserve(el);
         }
       },
-      { threshold: 0.15 },
+      // Pre-reveal 150px before the section enters so fast scrolling
+      // doesn't flash blank sections.
+      { threshold: 0.05, rootMargin: '0px 0px 150px 0px' },
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -27,27 +37,43 @@ function useScrollReveal() {
 }
 
 /* =============================================================================
+   HERO PARTICLES (deterministic)
+   ============================================================================= */
+
+// Seeded PRNG so the particle field is IDENTICAL on server and client —
+// Math.random() in render caused a hydration mismatch (React #418/#423)
+// and a full client re-render on every page load.
+function mulberry32(seed: number) {
+  return function () {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const particleRand = mulberry32(0x5eed);
+const PARTICLES = Array.from({ length: 20 }, () => ({
+  left: `${particleRand() * 100}%`,
+  top: `${particleRand() * 100}%`,
+  animationDelay: `${particleRand() * 6}s`,
+  animationDuration: `${4 + particleRand() * 4}s`,
+}));
+
+/* =============================================================================
    HERO SECTION
    ============================================================================= */
 
 function HeroSection() {
   return (
-    <header className={styles.heroBanner}>
+    <header className={`${styles.heroBanner} mz-homepage-hero`}>
       <div className={styles.heroOverlay} aria-hidden="true"></div>
       <div className={styles.gridLines} aria-hidden="true"></div>
       <div className={styles.scanLines} aria-hidden="true"></div>
       <div className={styles.heroParticles} aria-hidden="true">
-        {Array.from({ length: 20 }).map((_, i) => (
-          <div
-            key={i}
-            className={styles.particle}
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 6}s`,
-              animationDuration: `${4 + Math.random() * 4}s`,
-            }}
-          />
+        {PARTICLES.map((style, i) => (
+          <div key={i} className={styles.particle} style={style} />
         ))}
       </div>
 
@@ -79,7 +105,7 @@ function HeroSection() {
         </p>
 
         <div className={styles.heroButtons}>
-          <a href="/docs/" className={styles.heroPrimaryBtn}>
+          <a href="/docs" className={styles.heroPrimaryBtn}>
             GET STARTED
             <span className={styles.btnArrow} aria-hidden="true">&rarr;</span>
           </a>
@@ -97,12 +123,17 @@ function HeroSection() {
         <dl className={styles.statsContainer}>
           <div className={styles.statItem}>
             <dt className={styles.statLabel}>SPECIES</dt>
-            <dd className={styles.statNumber}>3</dd>
+            <dd className={styles.statNumber}>{ALL_SPECIES.length}</dd>
           </div>
           <div className={styles.statDivider} aria-hidden="true"></div>
           <div className={styles.statItem}>
-            <dt className={styles.statLabel}>TRAINING STAGES</dt>
-            <dd className={styles.statNumber}>3</dd>
+            <dt className={styles.statLabel}>ACTUATORS</dt>
+            <dd className={styles.statNumber}>{TOTAL_ACTUATORS}</dd>
+          </div>
+          <div className={styles.statDivider} aria-hidden="true"></div>
+          <div className={styles.statItem}>
+            <dt className={styles.statLabel}>STEPS TRAINED</dt>
+            <dd className={styles.statNumber}>{Math.round(TOTAL_TRAINED_STEPS / 1e6)}M</dd>
           </div>
         </dl>
       </div>
@@ -356,7 +387,7 @@ function SimulationSection() {
                 <span>, obs.shape)</span>
               </div>
               <div className={styles.codeLine}>
-                <span className={styles.codeOutput}>{'>>> Obs shape: (73,)'}</span>
+                <span className={styles.codeOutput}>{'>>> Obs shape: (67,)'}</span>
               </div>
               <div className={styles.codeLine}>
                 <span className={styles.cursor}>_</span>
@@ -384,52 +415,29 @@ function SimulationSection() {
    SPECIES SHOWCASE (Tabbed)
    ============================================================================= */
 
-const speciesData = [
-  {
-    id: 'velociraptor',
-    name: 'Velociraptor',
-    tagline: 'Swift Bipedal Predator',
-    actuators: 22,
-    gait: 'Bipedal',
-    specialty: 'Sickle claw strikes',
-    stages: [
-      { number: 1, title: 'Balance', desc: 'Learning to stand upright', video: '/videos/velociraptor_ppo_stage1_best.mp4' },
-      { number: 2, title: 'Locomotion', desc: 'Walking and running forward', video: '/videos/velociraptor_ppo_stage2_best.mp4' },
-      { number: 3, title: 'Strike', desc: 'Sprinting and attacking with claws', video: '/videos/velociraptor_ppo_stage3_best.mp4' },
-    ],
-  },
-  {
-    id: 'trex',
-    name: 'T-Rex',
-    tagline: 'Apex Predator',
-    actuators: 21,
-    gait: 'Bipedal',
-    specialty: 'Jaw strike attacks',
-    stages: [
-      { number: 1, title: 'Balance', desc: 'Stabilizing massive frame', video: '/videos/trex_ppo_stage1_best.mp4' },
-      { number: 2, title: 'Locomotion', desc: 'Heavy bipedal gait', video: '/videos/trex_ppo_stage2_best.mp4' },
-      { number: 3, title: 'Strike', desc: 'Head-strike attack patterns', video: '/videos/trex_ppo_stage3_best.mp4' },
-    ],
-  },
-  {
-    id: 'brachiosaurus',
-    name: 'Brachiosaurus',
-    tagline: 'Gentle Giant Herbivore',
-    actuators: 30,
-    gait: 'Quadrupedal',
-    specialty: 'Neck food reaching',
-    stages: [
-      { number: 1, title: 'Balance', desc: 'Stable quadrupedal stance', video: '/videos/brachiosaurus_ppo_stage1_best.mp4' },
-      { number: 2, title: 'Locomotion', desc: 'Coordinated four-legged walking', video: '/videos/brachiosaurus_ppo_stage2_best.mp4' },
-      { number: 3, title: 'Food Reach', desc: 'Walking to food and reaching with neck', video: '/videos/brachiosaurus_ppo_stage3_best.mp4' },
-    ],
-  },
-];
+// Species/stage/video data lives in src/data/species.ts (shared with the
+// model docs pages so the two can't drift apart).
 
 function SpeciesShowcase() {
   const [activeSpecies, setActiveSpecies] = useState(0);
   const ref = useScrollReveal();
-  const species = speciesData[activeSpecies];
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const species = ALL_SPECIES[activeSpecies];
+
+  // WAI-ARIA tabs keyboard support: arrows move + activate, Home/End jump.
+  const onTabKeyDown = (e: React.KeyboardEvent, idx: number) => {
+    const last = ALL_SPECIES.length - 1;
+    let next: number | null = null;
+    if (e.key === 'ArrowRight') next = idx === last ? 0 : idx + 1;
+    else if (e.key === 'ArrowLeft') next = idx === 0 ? last : idx - 1;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = last;
+    if (next !== null) {
+      e.preventDefault();
+      setActiveSpecies(next);
+      tabRefs.current[next]?.focus();
+    }
+  };
 
   return (
     <section
@@ -446,12 +454,17 @@ function SpeciesShowcase() {
       </div>
 
       <div className={styles.speciesTabs} role="tablist" aria-label="Select species">
-        {speciesData.map((sp, idx) => (
+        {ALL_SPECIES.map((sp, idx) => (
           <button
             key={sp.id}
+            ref={(el) => {
+              tabRefs.current[idx] = el;
+            }}
             className={`${styles.speciesTab} ${idx === activeSpecies ? styles.speciesTabActive : ''}`}
             onClick={() => setActiveSpecies(idx)}
+            onKeyDown={(e) => onTabKeyDown(e, idx)}
             role="tab"
+            tabIndex={idx === activeSpecies ? 0 : -1}
             aria-selected={idx === activeSpecies}
             aria-controls={`species-panel-${sp.id}`}
           >
@@ -469,6 +482,27 @@ function SpeciesShowcase() {
       >
         <div className={styles.speciesInfo}>
           <span className={styles.speciesBadge}>{species.specialty}</span>
+          <dl
+            className={styles.speciesStats}
+            aria-label={`${species.name} training results (${species.results.algorithm}, ${species.results.date})`}
+          >
+            <div className={styles.speciesStat}>
+              <dt>Task success</dt>
+              <dd>{Math.round(species.results.successRate * 100)}%</dd>
+            </div>
+            <div className={styles.speciesStat}>
+              <dt>Top speed</dt>
+              <dd>{species.results.topSpeed.toFixed(2)} m/s</dd>
+            </div>
+            <div className={styles.speciesStat}>
+              <dt>Timesteps</dt>
+              <dd>{Math.round(species.results.totalTimesteps / 1e6)}M</dd>
+            </div>
+            <div className={styles.speciesStat}>
+              <dt>Run</dt>
+              <dd>{species.results.algorithm} &middot; {species.results.date}</dd>
+            </div>
+          </dl>
         </div>
 
         <div className={styles.speciesVideos}>
@@ -479,11 +513,13 @@ function SpeciesShowcase() {
                 <span className={styles.speciesAlgoBadge}>PPO</span>
               </div>
               <h3 className={styles.speciesStageTitle}>{stage.title}</h3>
-              <p className={styles.speciesStageDesc}>{stage.desc}</p>
+              <p className={styles.speciesStageDesc}>{stage.description}</p>
               <div className={styles.speciesVideoWrap}>
                 <video
                   src={stage.video}
                   controls
+                  preload="none"
+                  poster={posterFor(stage.video)}
                   className={styles.speciesVideoPlayer}
                   aria-label={`${species.name} stage ${stage.number}: ${stage.title}`}
                 />
@@ -511,8 +547,8 @@ const milestones = [
   {
     phase: 'PHASE 1 — v0.3.0',
     title: 'First Steps',
-    status: 'active' as const,
-    statusLabel: 'IN PROGRESS',
+    status: 'complete' as const,
+    statusLabel: 'COMPLETE',
     items: ['Curriculum manager', 'W&B tracking', 'Locomotion metrics', 'Species training runs'],
   },
   {
@@ -539,8 +575,8 @@ const milestones = [
   {
     phase: 'PHASES 5-6',
     title: 'Hyperdrive & Sim-to-Real',
-    status: 'upcoming' as const,
-    statusLabel: 'PLANNED',
+    status: 'active' as const,
+    statusLabel: 'IN PROGRESS',
     items: ['JAX/MJX backend', 'Hardware prototype', 'ROS 2 bridge'],
   },
 ];
@@ -557,7 +593,7 @@ function RoadmapSection() {
         <div className={styles.sectionIcon} aria-hidden="true">{'[ ROADMAP ]'}</div>
         <h2 className={styles.sectionTitle} id="roadmap-heading">Project Roadmap</h2>
       </div>
-      <div className={styles.timelineContainer}>
+      <div className={styles.timelineContainer} role="list">
         <div className={styles.timelineLine} aria-hidden="true"></div>
         {milestones.map((milestone, idx) => (
           <article
@@ -602,7 +638,7 @@ function CTASection() {
           Explore the docs, train your first model, or contribute to the project.
         </p>
         <div className={styles.ctaButtons}>
-          <a href="/docs/" className={styles.ctaButton}>
+          <a href="/docs" className={styles.ctaButton}>
             GET STARTED
             <span className={styles.btnArrow} aria-hidden="true">&rarr;</span>
           </a>

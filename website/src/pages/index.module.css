@@ -24,14 +24,28 @@
    ============================================================================= */
 
 .scrollReveal {
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+
+/* Hidden state — added by JS after first paint, and only for sections
+   below the fold, so no-JS visitors / printing / full-page rendering
+   always see the content. */
+.scrollRevealPending {
   opacity: 0;
   transform: translateY(30px);
-  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
 }
 
 .revealed {
   opacity: 1;
   transform: translateY(0);
+}
+
+@media print {
+  .scrollRevealPending {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
 }
 
 /* =============================================================================
@@ -857,6 +871,34 @@
   background: var(--color-dark);
 }
 
+.speciesStats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem 2.5rem;
+  margin: 1.25rem 0 0;
+}
+
+.speciesStat {
+  text-align: center;
+}
+
+.speciesStat dt {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+}
+
+.speciesStat dd {
+  margin: 0.15rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
 .timelineContainer {
   position: relative;
   max-width: 700px;
@@ -936,6 +978,38 @@
 
 .timelineItem.upcoming .timelineCard {
   opacity: 0.7;
+}
+
+@media (min-width: 997px) {
+  .timelineContainer {
+    max-width: 1050px;
+    padding-left: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 88px;
+    align-items: start;
+  }
+
+  .timelineLine {
+    left: 50%;
+    margin-left: -1px;
+  }
+
+  .timelineItem {
+    margin-bottom: 2rem;
+  }
+
+  /* Dots sit on the center line: left column to the card's right,
+     right column to the card's left (timelineLine is a div, items are
+     articles, so nth-of-type counts only the cards). */
+  article.timelineItem:nth-of-type(odd) .timelineDot {
+    left: auto;
+    right: -50px;
+  }
+
+  article.timelineItem:nth-of-type(even) .timelineDot {
+    left: -50px;
+  }
 }
 
 .milestonePhase {

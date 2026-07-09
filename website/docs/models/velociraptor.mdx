@@ -55,7 +55,7 @@ After each training stage the `eval` command reports:
 | `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Upright stability (m) |
 | `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
-| `success_rate` | Fraction of steps with sickle-claw strike |
+| `success_rate` | Fraction of episodes with a successful strike |
 | `min_prey_distance` | Closest approach to prey (m) |
 
 ## Training Results (PPO, 2026-03-15)
@@ -76,15 +76,9 @@ Full 3-stage curriculum training with seed 42, 4 parallel environments. Total tr
 ## Training Videos
 
 import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
+import {VELOCIRAPTOR} from '@site/src/data/species';
 
-<SpeciesVideoSection
-  species="Velociraptor"
-  stages={[
-    { number: 1, title: 'Balance', description: 'Standing without falling', video: '/videos/velociraptor_ppo_stage1_best.mp4' },
-    { number: 2, title: 'Locomotion', description: 'Walking and running forward', video: '/videos/velociraptor_ppo_stage2_best.mp4' },
-    { number: 3, title: 'Strike', description: 'Sprinting and attacking with sickle claws', video: '/videos/velociraptor_ppo_stage3_best.mp4' },
-  ]}
-/>
+<SpeciesVideoSection species={VELOCIRAPTOR.name} stages={VELOCIRAPTOR.stages} />
 
 ## Usage
 

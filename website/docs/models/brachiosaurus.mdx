@@ -52,21 +52,15 @@ After each training stage the `eval` command reports:
 | `stride_frequency` | Step frequency (Hz) |
 | `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Torso height stability (m) |
-| `success_rate` | Fraction of steps with food-reached event |
+| `success_rate` | Fraction of episodes where the food was reached |
 | `min_prey_distance` | Closest approach to food (m, `head_food_distance`) |
 
 ## Training Videos
 
 import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
+import {BRACHIOSAURUS} from '@site/src/data/species';
 
-<SpeciesVideoSection
-  species="Brachiosaurus"
-  stages={[
-    { number: 1, title: 'Balance', description: 'Standing on all four legs without falling', video: '/videos/brachiosaurus_ppo_stage1_best.mp4' },
-    { number: 2, title: 'Locomotion', description: 'Coordinated quadrupedal walking', video: '/videos/brachiosaurus_ppo_stage2_best.mp4' },
-    { number: 3, title: 'Food Reach', description: 'Navigating to food and extending neck', video: '/videos/brachiosaurus_ppo_stage3_best.mp4' },
-  ]}
-/>
+<SpeciesVideoSection species={BRACHIOSAURUS.name} stages={BRACHIOSAURUS.stages} />
 
 ## Usage
 

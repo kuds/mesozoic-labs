@@ -1,7 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import CookieConsent from '@site/src/components/CookieConsent';
-
-const CONSENT_COOKIE_NAME = 'mesozoic_cookie_consent';
 
 declare global {
   interface Window {
@@ -10,36 +8,13 @@ declare global {
   }
 }
 
-// Initialize Google Analytics with consent mode
-function initializeGtagConsent() {
-  if (typeof window === 'undefined') return;
+// NOTE: the Google Consent Mode default (analytics_storage denied until the
+// visitor accepts) is set by an inline <head> script injected via
+// `headTags` in docusaurus.config.ts.  It must run before gtag.js processes
+// its command queue — a React effect here would fire long after the first
+// page_view, setting analytics cookies before consent.
 
-  // Set default consent to denied
-  window.dataLayer = window.dataLayer || [];
-  function gtag(...args: unknown[]) {
-    window.dataLayer?.push(args);
-  }
-  window.gtag = gtag;
-
-  // Check for existing consent
-  const existingConsent = localStorage.getItem(CONSENT_COOKIE_NAME);
-
-  // Set default consent state
-  gtag('consent', 'default', {
-    analytics_storage: existingConsent === 'granted' ? 'granted' : 'denied',
-    wait_for_update: 500,
-  });
-}
-
-interface RootProps {
-  children: React.ReactNode;
-}
-
-export default function Root({ children }: RootProps): React.JSX.Element {
-  useEffect(() => {
-    initializeGtagConsent();
-  }, []);
-
+export default function Root({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
     <>
       {children}

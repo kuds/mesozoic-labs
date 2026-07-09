@@ -15,13 +15,17 @@ const config: Config = {
   baseUrl: '/',
 
   // GitHub Pages config
-  organizationName: 'mesozoic-labs',
-  projectName: 'mesozoic-labs.github.io',
+  organizationName: 'kuds',
+  projectName: 'mesozoic-labs',
   deploymentBranch: 'gh-pages',
   trailingSlash: false,
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
+  },
 
   i18n: {
     defaultLocale: 'en',
@@ -32,6 +36,42 @@ const config: Config = {
   customFields: {
     gaMeasurementId: GA_MEASUREMENT_ID,
   },
+
+  // Google Analytics with Consent Mode.  Order inside this inline script is
+  // what makes consent work: the consent DEFAULT must be pushed onto the
+  // dataLayer before gtag('config') — gtag.js replays the queue in order,
+  // so a default set any later (e.g. from a React effect) would let the
+  // first page_view set analytics cookies before the visitor answered the
+  // cookie banner.
+  headTags: [
+    {
+      tagName: 'link',
+      attributes: {rel: 'preconnect', href: 'https://www.googletagmanager.com'},
+    },
+    {
+      tagName: 'script',
+      attributes: {},
+      innerHTML:
+        'window.dataLayer = window.dataLayer || [];' +
+        'function gtag(){dataLayer.push(arguments);}' +
+        'window.gtag = gtag;' +
+        "var mzConsent=null;try{mzConsent=localStorage.getItem('mesozoic_cookie_consent');}catch(e){}" +
+        "gtag('consent','default',{analytics_storage:mzConsent==='granted'?'granted':'denied',wait_for_update:500});" +
+        "gtag('js',new Date());" +
+        `gtag('config','${GA_MEASUREMENT_ID}',{anonymize_ip:true});`,
+    },
+    {
+      tagName: 'script',
+      attributes: {
+        async: 'true',
+        src: `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`,
+      },
+    },
+  ],
+
+  // Sends page_view on SPA route changes (replaces the preset gtag plugin's
+  // client module).
+  clientModules: ['./src/clientModules/gtag.ts'],
 
   presets: [
     [
@@ -52,11 +92,11 @@ const config: Config = {
         theme: {
           customCss: './src/css/custom.css',
         },
-        // Google Analytics - disabled by default, enabled via cookie consent
-        gtag: {
-          trackingID: GA_MEASUREMENT_ID,
-          anonymizeIP: true,
-        },
+        // NOTE: the preset's `gtag` plugin is intentionally NOT used — it
+        // injects its gtag('config') snippet before any siteConfig headTags,
+        // so a Consent Mode default could never precede it.  GA is loaded
+        // manually below (headTags) with consent-default-first ordering,
+        // and SPA page views are sent by src/clientModules/gtag.ts.
       } satisfies Preset.Options,
     ],
   ],
@@ -93,7 +133,7 @@ const config: Config = {
           items: [
             {
               label: 'Getting Started',
-              to: '/docs/',
+              to: '/docs',
             },
             {
               label: 'Models',
