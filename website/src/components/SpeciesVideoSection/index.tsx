@@ -24,6 +24,8 @@ function VideoCard({ species, stage }: { species: string; stage: Stage }) {
         <video
           src={stage.video}
           controls
+          preload="none"
+          poster={stage.video.replace('/videos/', '/img/posters/').replace('.mp4', '.jpg')}
           className={styles.videoPlayer}
           aria-label={`${species} stage ${stage.number}: ${stage.title}`}
         />

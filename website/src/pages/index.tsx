@@ -10,21 +10,55 @@ function useScrollReveal() {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    // Sections are VISIBLE by default; the hidden "pending" state is added
+    // here (after first paint) and only for sections below the fold — so
+    // no-JS visitors, printing, and full-page rendering always see content.
+    if (el.getBoundingClientRect().top >= window.innerHeight) {
+      el.classList.add(styles.scrollRevealPending);
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
+          el.classList.remove(styles.scrollRevealPending);
           el.classList.add(styles.revealed);
           observer.unobserve(el);
         }
       },
-      { threshold: 0.15 },
+      // Pre-reveal 150px before the section enters so fast scrolling
+      // doesn't flash blank sections.
+      { threshold: 0.05, rootMargin: '0px 0px 150px 0px' },
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
   return ref;
 }
+
+/* =============================================================================
+   HERO PARTICLES (deterministic)
+   ============================================================================= */
+
+// Seeded PRNG so the particle field is IDENTICAL on server and client —
+// Math.random() in render caused a hydration mismatch (React #418/#423)
+// and a full client re-render on every page load.
+function mulberry32(seed: number) {
+  return function () {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const particleRand = mulberry32(0x5eed);
+const PARTICLES = Array.from({ length: 20 }, () => ({
+  left: `${particleRand() * 100}%`,
+  top: `${particleRand() * 100}%`,
+  animationDelay: `${particleRand() * 6}s`,
+  animationDuration: `${4 + particleRand() * 4}s`,
+}));
 
 /* =============================================================================
    HERO SECTION
@@ -37,17 +71,8 @@ function HeroSection() {
       <div className={styles.gridLines} aria-hidden="true"></div>
       <div className={styles.scanLines} aria-hidden="true"></div>
       <div className={styles.heroParticles} aria-hidden="true">
-        {Array.from({ length: 20 }).map((_, i) => (
-          <div
-            key={i}
-            className={styles.particle}
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 6}s`,
-              animationDuration: `${4 + Math.random() * 4}s`,
-            }}
-          />
+        {PARTICLES.map((style, i) => (
+          <div key={i} className={styles.particle} style={style} />
         ))}
       </div>
 
@@ -79,7 +104,7 @@ function HeroSection() {
         </p>
 
         <div className={styles.heroButtons}>
-          <a href="/docs/" className={styles.heroPrimaryBtn}>
+          <a href="/docs" className={styles.heroPrimaryBtn}>
             GET STARTED
             <span className={styles.btnArrow} aria-hidden="true">&rarr;</span>
           </a>
@@ -356,7 +381,7 @@ function SimulationSection() {
                 <span>, obs.shape)</span>
               </div>
               <div className={styles.codeLine}>
-                <span className={styles.codeOutput}>{'>>> Obs shape: (73,)'}</span>
+                <span className={styles.codeOutput}>{'>>> Obs shape: (67,)'}</span>
               </div>
               <div className={styles.codeLine}>
                 <span className={styles.cursor}>_</span>
@@ -484,6 +509,8 @@ function SpeciesShowcase() {
                 <video
                   src={stage.video}
                   controls
+                  preload="none"
+                  poster={stage.video.replace('/videos/', '/img/posters/').replace('.mp4', '.jpg')}
                   className={styles.speciesVideoPlayer}
                   aria-label={`${species.name} stage ${stage.number}: ${stage.title}`}
                 />
@@ -511,8 +538,8 @@ const milestones = [
   {
     phase: 'PHASE 1 — v0.3.0',
     title: 'First Steps',
-    status: 'active' as const,
-    statusLabel: 'IN PROGRESS',
+    status: 'complete' as const,
+    statusLabel: 'COMPLETE',
     items: ['Curriculum manager', 'W&B tracking', 'Locomotion metrics', 'Species training runs'],
   },
   {
@@ -539,8 +566,8 @@ const milestones = [
   {
     phase: 'PHASES 5-6',
     title: 'Hyperdrive & Sim-to-Real',
-    status: 'upcoming' as const,
-    statusLabel: 'PLANNED',
+    status: 'active' as const,
+    statusLabel: 'IN PROGRESS',
     items: ['JAX/MJX backend', 'Hardware prototype', 'ROS 2 bridge'],
   },
 ];
@@ -602,7 +629,7 @@ function CTASection() {
           Explore the docs, train your first model, or contribute to the project.
         </p>
         <div className={styles.ctaButtons}>
-          <a href="/docs/" className={styles.ctaButton}>
+          <a href="/docs" className={styles.ctaButton}>
             GET STARTED
             <span className={styles.btnArrow} aria-hidden="true">&rarr;</span>
           </a>
