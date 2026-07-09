@@ -108,6 +108,43 @@ would pin these down and catch regressions. (June §6.8)
 6. Sweep CSV rows lack a run timestamp / `resume_run` id, so rows merged
    across resume cycles are indistinguishable. (July §4)
 
+## MuJoCo models (July 2026 model review)
+
+Fixed on this branch: the brachiosaurus could not physically hold any torso
+height in its alive region (passive settle z≈0.68, straight-leg command
+z≈0.70, vs `healthy_z_range` floor 1.0 and height target 1.2) — leg springs
+now reference the stance angles and the leg servos are stronger with
+bounded force, giving a static stand at z≈1.13, level, all four feet
+grounded. All three models now use `integrator="implicitfast"` and bounded
+`forcerange` on position actuators (sized to clip impact/reset spikes only
+for raptor/trex, whose settle behavior is unchanged).
+
+> **Note:** these changes alter the physics plant. Brachiosaurus policies
+> trained before this change will NOT transfer; raptor/trex plants changed
+> only marginally (integrator + rarely-binding force caps) but expect small
+> behavioral differences.
+
+Still open:
+
+- **MEDIUM** — the T-Rex home keyframe (pitch 0) is ~35° from its passive
+  equilibrium (settles to forward_z −0.583), which is *past* the stage-1
+  nosedive termination line (−0.519 with the TOML's 0.35 threshold): every
+  episode opens with a dive the policy must catch, and pure passivity is
+  death. Move the passive equilibrium near the intended ~10° natural pitch
+  (tail `springref`, neck stiffness, or hip `ref`/keyframe lean).
+- **LOW** — scene boilerplate (skybox/grid/floor/option) is copy-pasted
+  across the three XMLs → extract a shared `scene.xml` include; limbs are
+  hand-mirrored sign-flips → generate via script/PyMJCF or add a left/right
+  symmetry test.
+- **LOW** — raptor claw `motor gear="50"` on a 0.05 kg claw (huge
+  torque-to-inertia; slams its limits); trex passive ball-joint arms are
+  8 of 37 DOF doing nothing (weld to cut MJX cost ~20%); contype-0 neck
+  geoms can visually clip the floor; no `<light>`/`<visual>` block for
+  nicer renders; brachio food has no collision partner (distance-only
+  success) unlike raptor/trex weapon geoms — fine, but undocumented.
+- **Experiment** — with `implicitfast`, a `timestep` 0.002→0.004 A/B is
+  worth running (halves sim cost if stable).
+
 ## Configs, docs & website
 
 - Website hyperparameter/dimension tables are stale (old single-stage runs,

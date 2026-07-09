@@ -1,7 +1,7 @@
 <mujoco model="velociraptor">
   <compiler angle="degree" autolimits="true"/>
 
-  <option timestep="0.002" gravity="0 0 -9.81">
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast">
     <flag warmstart="enable"/>
   </option>
 
@@ -55,7 +55,7 @@
       Body length: 0.6m
       Hip height: 0.5m (in neutral crouch)
       Tail length: 0.8m
-      Total mass: ~15kg
+      Total mass: ~13.5kg
     -->
 
     <body name="pelvis" pos="0 0 0.50">
@@ -234,39 +234,42 @@
          does NOT convert actuator attributes, only joint attributes. -->
 
     <!-- Right leg -->
-    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="150" ctrlrange="-1.0472 1.5708"/>
-    <position name="r_hip_roll_act" joint="r_hip_roll" kp="100" ctrlrange="-0.5236 0.5236"/>
-    <position name="r_knee_act" joint="r_knee" kp="180" ctrlrange="-2.0944 -0.0872"/>
-    <position name="r_ankle_act" joint="r_ankle" kp="100" ctrlrange="1.0472 2.7925"/>
-    <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="50" ctrlrange="-0.5236 1.0472"/>
-    <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="50" ctrlrange="-0.5236 1.0472"/>
+    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="150" forcerange="-120 120" ctrlrange="-1.0472 1.5708"/>
+    <position name="r_hip_roll_act" joint="r_hip_roll" kp="100" forcerange="-80 80" ctrlrange="-0.5236 0.5236"/>
+    <position name="r_knee_act" joint="r_knee" kp="180" forcerange="-145 145" ctrlrange="-2.0944 -0.0872"/>
+    <position name="r_ankle_act" joint="r_ankle" kp="100" forcerange="-80 80" ctrlrange="1.0472 2.7925"/>
+    <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
+    <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
     <motor name="r_claw_act" joint="r_claw" gear="50" ctrlrange="-1 1"/>
 
     <!-- Left leg -->
-    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="150" ctrlrange="-1.0472 1.5708"/>
-    <position name="l_hip_roll_act" joint="l_hip_roll" kp="100" ctrlrange="-0.5236 0.5236"/>
-    <position name="l_knee_act" joint="l_knee" kp="180" ctrlrange="-2.0944 -0.0872"/>
-    <position name="l_ankle_act" joint="l_ankle" kp="100" ctrlrange="1.0472 2.7925"/>
-    <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="50" ctrlrange="-0.5236 1.0472"/>
-    <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="50" ctrlrange="-0.5236 1.0472"/>
+    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="150" forcerange="-120 120" ctrlrange="-1.0472 1.5708"/>
+    <position name="l_hip_roll_act" joint="l_hip_roll" kp="100" forcerange="-80 80" ctrlrange="-0.5236 0.5236"/>
+    <position name="l_knee_act" joint="l_knee" kp="180" forcerange="-145 145" ctrlrange="-2.0944 -0.0872"/>
+    <position name="l_ankle_act" joint="l_ankle" kp="100" forcerange="-80 80" ctrlrange="1.0472 2.7925"/>
+    <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
+    <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
     <motor name="l_claw_act" joint="l_claw" gear="50" ctrlrange="-1 1"/>
 
     <!-- Tail actuators for active balance control -->
-    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="60" ctrlrange="-0.2618 0.2618"/>
-    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="50" ctrlrange="-0.1745 0.1745"/>
-    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="50" ctrlrange="-0.2618 0.2618"/>
-    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="40" ctrlrange="-0.2618 0.2618"/>
+    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="60" forcerange="-50 50" ctrlrange="-0.2618 0.2618"/>
+    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="50" forcerange="-40 40" ctrlrange="-0.1745 0.1745"/>
+    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="50" forcerange="-40 40" ctrlrange="-0.2618 0.2618"/>
+    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="40" forcerange="-32 32" ctrlrange="-0.2618 0.2618"/>
 
     <!-- Forelimb actuators (lightweight — for grappling/balance assist) -->
-    <position name="r_shoulder_pitch_act" joint="r_shoulder_pitch" kp="15" ctrlrange="-0.5236 0.7854"/>
-    <position name="r_shoulder_roll_act" joint="r_shoulder_roll" kp="15" ctrlrange="-0.3491 0.3491"/>
-    <position name="l_shoulder_pitch_act" joint="l_shoulder_pitch" kp="15" ctrlrange="-0.5236 0.7854"/>
-    <position name="l_shoulder_roll_act" joint="l_shoulder_roll" kp="15" ctrlrange="-0.3491 0.3491"/>
+    <position name="r_shoulder_pitch_act" joint="r_shoulder_pitch" kp="15" forcerange="-12 12" ctrlrange="-0.5236 0.7854"/>
+    <position name="r_shoulder_roll_act" joint="r_shoulder_roll" kp="15" forcerange="-12 12" ctrlrange="-0.3491 0.3491"/>
+    <position name="l_shoulder_pitch_act" joint="l_shoulder_pitch" kp="15" forcerange="-12 12" ctrlrange="-0.5236 0.7854"/>
+    <position name="l_shoulder_roll_act" joint="l_shoulder_roll" kp="15" forcerange="-12 12" ctrlrange="-0.3491 0.3491"/>
   </actuator>
 
   <!-- ==================== SENSORS ==================== -->
 
   <sensor>
+    <!-- WARNING: the Python envs index sensordata by POSITION (gyro 0-2,
+         accel 3-5, quat 6-9, touch 10-11, ...).  Do not reorder or insert
+         sensors without updating mjx_config.py / obs_functions.py. -->
     <!-- IMU-like sensors -->
     <gyro name="pelvis_gyro" site="imu"/>
     <accelerometer name="pelvis_accel" site="imu"/>
