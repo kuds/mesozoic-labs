@@ -8,7 +8,7 @@ Get started with Mesozoic Labs by setting up your development environment.
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11+ (tested on 3.11–3.13)
 - CUDA-compatible GPU (recommended for training, not required)
 - [Docker](https://docs.docker.com/get-docker/) (optional, recommended for reproducible training)
 

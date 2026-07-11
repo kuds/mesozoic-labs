@@ -16,6 +16,7 @@ manual reference values are needed.
 from __future__ import annotations
 
 import logging
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -77,15 +78,6 @@ def load_scoring_config(
         Dict mapping metric names to ``{"weight": float, "direction": str}``.
         Returns an empty dict if no config is found for the stage.
     """
-    try:
-        import tomllib
-    except ImportError:
-        try:
-            import tomli as tomllib  # type: ignore[no-redef]
-        except ImportError:
-            logger.warning("tomllib/tomli not available — quality scoring disabled")
-            return {}
-
     if config_path is None:
         config_path = _find_config_path()
     if config_path is None:

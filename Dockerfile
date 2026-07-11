@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.13-slim
 
 LABEL org.opencontainers.image.source="https://github.com/kuds/mesozoic-labs" \
       org.opencontainers.image.description="Mesozoic Labs – robotic dinosaur locomotion training"
