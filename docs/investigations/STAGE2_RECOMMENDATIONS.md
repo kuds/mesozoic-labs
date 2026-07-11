@@ -31,6 +31,16 @@ To get past stage 2, in order of leverage:
    were killed at 1.1M/8M steps, mid-ramp, so no bounded-plant run has ever
    trained with the full speed incentive.
 
+> **Status (2026-07-11, this branch):** R2 and R4 are **implemented** here.
+> Hip-pitch/ankle `forcerange` is raised to 1.5×kp — re-measured with
+> `actuator_saturation_report.py`: **0.0% gait clipping** on both groups
+> (was 34–40% / 22–25%) and **zero** pelvis-z RMS divergence vs an unbounded
+> plant (was 4.5 cm) — with the `test_actuator_bounds.py` pins updated to
+> guard the new contract. The stage-2 TOML now sets `ent_coef_end = 0.001`,
+> `forward_vel_max = 2.5`, `fall_penalty = -150`. R1 remains a run-time
+> notebook step; R3 (gate) is deliberately untouched pending the first run
+> on the fixed plant; R5/R6 are open.
+
 ---
 
 ## 1. What the run showed
@@ -167,7 +177,7 @@ Payoff: ~3h21m saved per experiment; a collapsing stage-2 run costs ~40min.
 Consider adding a `START_STAGE` / checkpoint-path knob to the notebook config
 cell so this doesn't require cell surgery each time.
 
-### R2 — Run the plant experiment that never ran (highest information)
+### R2 — Run the plant experiment that never ran (highest information) — *plant change implemented on this branch*
 
 Both July runs were the *control* arm. The treatment arm — more actuator
 headroom — is still untested. Recommended sizing (Experiment B of the
@@ -215,7 +225,7 @@ out near 1.5 m/s, a 2.0 gate guarantees failure no matter how good the
 training is; keeping the gate honest is what makes the rest of the plan
 falsifiable. If the plant fix (R2) restores 3+ m/s, keep the 2.0 gate.
 
-### R4 — Cheap config changes for any bounded-plant rerun (Experiment C, corrected)
+### R4 — Cheap config changes for any bounded-plant rerun (Experiment C, corrected) — *implemented on this branch*
 
 In `configs/velociraptor/stage2_locomotion.toml` (merge to `main`):
 
