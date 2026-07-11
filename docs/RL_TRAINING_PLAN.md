@@ -11,7 +11,7 @@
 > factor in (1) the SAC reward-normalization fix (see
 > `environments/shared/train_base.py`, which now disables `norm_reward` for
 > SAC), and (2) the pending Stage 3 terminal-bonus rescale documented in
-> [REWARD_SCALE_REDESIGN.md](REWARD_SCALE_REDESIGN.md). Running SAC trials
+> [investigations/REWARD_SCALE_REDESIGN.md](investigations/REWARD_SCALE_REDESIGN.md). Running SAC trials
 > before the rescale will test the normalization fix in isolation; running
 > them after will confound the two changes.
 

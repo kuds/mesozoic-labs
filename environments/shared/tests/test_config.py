@@ -165,7 +165,7 @@ class TestCatastrophicForgettingMitigation:
     Stage 2 must relax balance-centric reward weights below Stage 1 values.
     Keeping them equal (or higher) traps the agent in a standing posture and
     prevents locomotion learning — the "inverse forgetting" pattern documented
-    in TRAINING_REVIEW.md.
+    in docs/investigations/TRAINING_REVIEW.md.
     """
 
     def test_velociraptor_stage2_reduces_posture_weight(self):

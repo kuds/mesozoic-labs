@@ -4,9 +4,12 @@ Measures what fraction of simulation steps each position actuator spends
 at its ``forcerange`` cap, under (a) static settling and (b) gait-like
 alternating-leg sinusoids, and how much the bounded plant diverges from
 an unbounded copy under identical commands. Written for the stage-2
-locomotion investigation (docs/STAGE2_INVESTIGATION.md): forcerange was
-sized to ~0.8x kp against *static* behavior, but dynamic gaits live in
-the clipped regime.
+locomotion investigation (docs/investigations/STAGE2_INVESTIGATION.md):
+the original ~0.8x kp sizing was validated against *static* behavior
+only, while dynamic gaits lived in the clipped regime; hip pitch and
+ankle now carry 1.5x kp headroom (docs/investigations/
+STAGE2_RECOMMENDATIONS.md R2), which this report measures at 0% gait
+clipping. Re-run after any actuator re-sizing.
 
 Usage::
 

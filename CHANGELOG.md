@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — RL/GCP Review Fixes & Model Physics (v0.3.2)
 
 ### Changed
+- **Raptor hip-pitch/ankle actuator headroom raised to 1.5×kp** (breaking —
+  plant change): the blanket 0.8×kp `forcerange` from the July 9 model
+  hardening clipped 34–40 % of hip and 22–25 % of ankle torque during a
+  moderate gait cycle and collapsed stage-2 locomotion twice (runs
+  `20260709_185946` and `20260711_165924`, bitwise-identical failures). At
+  1.5×kp the same excitation measures 0 % clipping and zero pelvis-z
+  divergence from an unbounded plant; `test_actuator_bounds.py` now pins
+  the per-group ratios and asserts the gait regime stays *unclipped*.
+  Velociraptor policies trained on the 0.8×kp plant will not transfer.
+- **Velociraptor stage-2 config hardened against the fragile-fast-gait
+  collapse**: `ent_coef_end = 0.001` (entropy decay — action std grew
+  1.18→1.49 in both collapses), `forward_vel_max` 3.0 → 2.5 (saturate the
+  speed incentive just past the 2.0 m/s gate), `fall_penalty` −50 → −150
+  (late-fall hedge; the corrected break-even math is in
+  `docs/investigations/STAGE2_RECOMMENDATIONS.md` §2.1).
+- **Docs reorganized**: dated run analyses and reward investigations moved
+  to `docs/investigations/` (TRAINING_REVIEW, TRAINING_REVIEW_JAX_STAGE1,
+  REWARD_DISCREPANCY_INVESTIGATION, REWARD_SCALE_REDESIGN,
+  STAGE2_INVESTIGATION, STAGE2_RECOMMENDATIONS); `docs/README.md` now maps
+  the four doc categories (living reference / plans / investigations /
+  reviews) and their lifecycles.
 - **Python 3.11+ required; Python 3.13 supported** (breaking): dropped
   Python 3.10 support (`requires-python >= 3.11`), added 3.13 to the
   trove classifiers and the CI test matrix (3.11 + 3.13), and bumped the

@@ -175,7 +175,7 @@ curriculum with published results and reproducible checkpoints.
   - Likely contributor to Brachiosaurus Stage 3 being stuck at 16.7%
     success (food_reach is the sparsest of the three Stage 3 tasks).
   - Proposed fix, validation plan, open questions, and risks captured in
-    [REWARD_SCALE_REDESIGN.md](REWARD_SCALE_REDESIGN.md).
+    [investigations/REWARD_SCALE_REDESIGN.md](investigations/REWARD_SCALE_REDESIGN.md).
   - Breaking change to reward landscape — no cross-boundary checkpoint
     resume; historical reward curves get a discontinuity.
   - _Dependency: SAC VecNormalize fix (done) so the rescale is evaluated

@@ -111,7 +111,7 @@ per-step reward) without producing a Q-target spike.
    #   episode return (comparable to accumulated shaping, not dwarfing it).
    # - Exceeding these bounds destabilises SAC's critic and makes the reward
    #   distribution non-stationary for both algorithms. See
-   #   docs/REWARD_SCALE_REDESIGN.md.
+   #   docs/investigations/REWARD_SCALE_REDESIGN.md.
    ```
 
 4. **Optional cleanup once validated:**
@@ -159,7 +159,7 @@ toward `150–200` rather than back to `1000`.
 - **Stage 3 success rate could regress** if the bonus is too weak relative
   to shaping noise. The empirical validation run is the gate.
 - **Brachio Stage 3 might still fail** even after the rescale — the reward
-  design isn't the only suspect (see `RL_TRAINING_PLAN.md` for other
+  design isn't the only suspect (see `docs/RL_TRAINING_PLAN.md` for other
   factors). This fix removes one confounding variable.
 - **Previous eval rewards become incomparable.** The leaderboards in
   `docs/RL_TRAINING_PLAN.md` will need footnotes or re-runs.

@@ -2,16 +2,20 @@
 
 Commit 156a933 added ``forcerange`` (~0.8x kp) to every position actuator
 and switched to the implicitfast integrator, verifying only *static*
-settling ("settle behavior unchanged"). Stage-2 locomotion collapsed on
-the first run against the new plant (20260709_185946) while four earlier
-runs with the identical training config passed on the old plant, so these
-tests pin down both halves of that verification gap:
+settling. That sizing clipped 34-40% of hip-pitch and 22-25% of ankle
+torque during a moderate gait cycle and broke stage-2 locomotion twice
+(runs 20260709_185946 and 20260711_165924, bitwise-identical collapses).
+The hip-pitch and ankle caps were re-sized to 1.5x kp, which measures 0%
+gait-cycle clipping and zero pelvis-z divergence from an unbounded plant
+under identical commands (see docs/investigations/STAGE2_RECOMMENDATIONS.md
+R2). These tests pin the resulting contract:
 
-* the static no-saturation claim stays true (regression guard), and
-* the dynamic regime is *documented*: under gait-like excitation the hip
-  and ankle actuators saturate a large fraction of the time, meaning the
-  force caps — not the reward or curriculum — bound what gaits are
-  physically learnable.
+* the static no-saturation claim stays true (regression guard),
+* every position actuator keeps a symmetric forcerange at its documented
+  kp ratio (0.8x default, 1.5x for the gait-critical hip pitch/ankle), and
+* the dynamic regime stays unclipped: gait-like excitation must not
+  saturate the leg actuators, so the force caps bound impact/reset spikes
+  rather than learnable gaits.
 
 Run ``environments/velociraptor/scripts/actuator_saturation_report.py``
 for the full per-actuator numbers on the current model.
@@ -23,7 +27,11 @@ import pytest
 
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
-FORCERANGE_KP_RATIO = 0.8  # documented sizing from commit 156a933
+# Default sizing from commit 156a933; gait-critical actuators carry extra
+# headroom so the caps only bind on impact/reset spikes, not gait torques.
+FORCERANGE_KP_RATIO = 0.8
+GAIT_HEADROOM_RATIO = 1.5
+GAIT_HEADROOM_ACTUATORS = frozenset({"r_hip_pitch_act", "l_hip_pitch_act", "r_ankle_act", "l_ankle_act"})
 CLIP_EPS = 0.999
 
 
@@ -78,16 +86,17 @@ class TestForceBoundsConfiguration:
             assert fr[0] == -fr[1], f"{name} forcerange is not symmetric"
 
     def test_forcerange_matches_documented_kp_ratio(self, model):
-        """forcerange was sized to ~0.8x kp; catch silent re-sizing."""
+        """Each actuator's forcerange matches its documented kp ratio; catch silent re-sizing."""
         for i in _position_actuator_ids(model):
             kp = model.actuator_gainprm[i, 0]
             fr = model.actuator_forcerange[i, 1]
             name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, i)
+            expected = GAIT_HEADROOM_RATIO if name in GAIT_HEADROOM_ACTUATORS else FORCERANGE_KP_RATIO
             ratio = fr / kp
-            assert ratio == pytest.approx(FORCERANGE_KP_RATIO, abs=0.05), (
-                f"{name}: forcerange/kp = {ratio:.2f}, expected ~{FORCERANGE_KP_RATIO}. "
-                "If this changed intentionally, update FORCERANGE_KP_RATIO and the "
-                "saturation numbers in docs/STAGE2_INVESTIGATION.md."
+            assert ratio == pytest.approx(expected, abs=0.05), (
+                f"{name}: forcerange/kp = {ratio:.2f}, expected ~{expected}. "
+                "If this changed intentionally, update the ratios here and the "
+                "saturation numbers in docs/investigations/STAGE2_RECOMMENDATIONS.md."
             )
 
 
@@ -112,14 +121,15 @@ class TestStaticSaturation:
 
 
 class TestDynamicSaturation:
-    def test_gait_excitation_saturates_leg_actuators(self):
-        """Documents the plant limitation behind the stage-2 collapse.
+    def test_gait_excitation_stays_unclipped(self):
+        """Guards the actuator headroom the stage-2 fix depends on.
 
-        Under moderate (0.8-amplitude) alternating-leg sinusoids, the hip
-        pitch and ankle servos hit their force caps a substantial fraction
-        of the time. If this test starts failing because saturation
-        *dropped*, the plant gained actuator headroom — re-run stage 2 and
-        update docs/STAGE2_INVESTIGATION.md.
+        The 0.8x-kp caps clipped hips 34-40% and ankles 22-25% of a
+        moderate (0.8-amplitude) alternating-leg gait cycle and collapsed
+        stage-2 locomotion twice; at 1.5x kp the same excitation measures
+        0% clipping. If this test starts failing because saturation *rose*,
+        the plant lost gait headroom again — see
+        docs/investigations/STAGE2_RECOMMENDATIONS.md before re-sizing.
         """
         env = RaptorEnv()
         try:
@@ -140,8 +150,10 @@ class TestDynamicSaturation:
 
             hip = max(actuator_frac("r_hip_pitch_act"), actuator_frac("l_hip_pitch_act"))
             ankle = max(actuator_frac("r_ankle_act"), actuator_frac("l_ankle_act"))
-            # Measured on the 156a933 plant: hips ~0.34-0.40, ankles ~0.22-0.25.
-            assert hip > 0.10, f"hip saturation {hip:.1%} — plant gained headroom, revisit stage-2 tuning"
-            assert ankle > 0.05, f"ankle saturation {ankle:.1%} — plant gained headroom, revisit stage-2 tuning"
+            # Measured at 1.5x kp: 0.0% on both groups (was hips 0.34-0.40,
+            # ankles 0.22-0.25 at 0.8x kp). Thresholds keep margin for
+            # timestep/integrator jitter while catching any real regression.
+            assert hip < 0.10, f"hip saturation {hip:.1%} — plant lost gait headroom, stage 2 will clip"
+            assert ankle < 0.05, f"ankle saturation {ankle:.1%} — plant lost gait headroom, stage 2 will clip"
         finally:
             env.close()

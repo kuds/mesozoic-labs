@@ -116,16 +116,15 @@ z≈0.70, vs `healthy_z_range` floor 1.0 and height target 1.2) — leg springs
 now reference the stance angles and the leg servos are stronger with
 bounded force, giving a static stand at z≈1.13, level, all four feet
 grounded. All three models now use `integrator="implicitfast"` and bounded
-`forcerange` on position actuators (sized to clip impact/reset spikes only
-for raptor/trex, whose settle behavior is unchanged).
-
-- **HIGH: raptor `forcerange` clips dynamic gaits** — the 0.8×kp sizing was
-  verified against *static settling* only; under gait-like excitation the
-  hip pitch servos saturate 34–40 % of the cycle and ankles 22–25 %, and
-  the first stage-2 run on the new plant (20260709_185946) collapsed where
-  four runs with the identical config had passed on the old plant. See
-  [STAGE2_INVESTIGATION.md](STAGE2_INVESTIGATION.md) for the analysis and
-  the ranked experiment plan (plant A/B first).
+`forcerange` on position actuators, sized to clip impact/reset spikes only:
+0.8×kp by default, with the raptor's gait-critical hip pitch and ankle
+servos at 1.5×kp. (The original blanket 0.8×kp sizing clipped 34–40 % of
+the hip and 22–25 % of the ankle gait cycle and collapsed stage-2
+locomotion twice — see
+[investigations/STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md);
+at 1.5×kp the same excitation measures 0 % clipping and zero divergence
+from an unbounded plant, pinned by
+`environments/velociraptor/tests/test_actuator_bounds.py`.)
 
 > **Note:** these changes alter the physics plant. Brachiosaurus policies
 > trained before this change will NOT transfer; raptor/trex plants changed
@@ -167,8 +166,8 @@ Still open:
   intentional? (June §4)
 - `pyproject.toml` gymnasium entry-point groups are likely dead config
   (envs self-register at import); `[all]` omits `[mjlab]`. (June §4)
-- `docs/REWARD_SCALE_REDESIGN.md` uses `*_bonus_weight` key names that
-  don't exist. (June §5)
+- `docs/investigations/REWARD_SCALE_REDESIGN.md` uses `*_bonus_weight` key
+  names that don't exist. (June §5)
 
 ## Notebooks
 

@@ -5,10 +5,16 @@ description = "Learn forward walking/running"
 [env]
 forward_vel_weight = 2.0                # With forward_vel_max=3.0 gives max reward 2.0; at 1.3 m/s (current avg) reward = 0.87/step
                                         # Still provides meaningful gradient without saturating at walking speeds
-forward_vel_max = 3.0                   # Increased from 1.5: agent plateaued at 1.3 m/s (87% of old max), needs headroom to push past waddle
+forward_vel_max = 2.5                   # Reduced from 3.0: saturate the speed incentive just past the 2.0 m/s
+                                        # gate instead of paying for robustness-destroying top speed. Both July
+                                        # collapses traded stability for speed (see docs/investigations/
+                                        # STAGE2_RECOMMENDATIONS.md R4).
 backward_vel_penalty_weight = 0.0       # Redundant: forward_vel_weight already penalizes backward motion (forward_vel_norm goes negative)
 alive_bonus = 0.5                       # Reduce from 2.0: was 99% of total reward, drowning forward signal
-fall_penalty = -50.0                    # Reduce from -100: less punitive with lower alive_bonus
+fall_penalty = -150.0                   # Raised from -50: hedge against late-episode falls, which stay cheap in
+                                        # the discounted objective at gamma=0.995 (corrected break-even math in
+                                        # docs/investigations/STAGE2_RECOMMENDATIONS.md section 2.1 — the -250
+                                        # figure from the original investigation overstated the requirement).
 energy_penalty_weight = 0.003
 tail_stability_weight = 0.05
 posture_weight = 0.2                    # Reduced from 0.8: successful runs used 0.0-0.2; high values trap agent in standing posture
@@ -32,10 +38,11 @@ gamma = 0.995
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
-# ent_coef_end = 0.001              # Uncomment to linearly decay the entropy bonus over the
-                                    # stage (EntCoefDecayCallback); action std grew 1.18->1.49
-                                    # during the 20260709_185946 collapse under constant ent_coef.
-                                    # See docs/STAGE2_INVESTIGATION.md experiment C.
+ent_coef_end = 0.001                # Linearly decay the entropy bonus over the stage
+                                    # (EntCoefDecayCallback): action std grew 1.18->1.49 during
+                                    # BOTH July collapses under constant ent_coef, with entropy
+                                    # still rising at the early stop.
+                                    # See docs/investigations/STAGE2_RECOMMENDATIONS.md R4.
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]
