@@ -1074,6 +1074,138 @@ class TestReadLatestEvalSuccesses:
         assert n == 1
 
 
+class TestRobustBestModelCallback:
+    """RobustBestModelCallback saves by risk-adjusted (mean - std) score."""
+
+    @staticmethod
+    def _make_cb(model_dir, risk_coef=1.0):
+        import numpy as np
+
+        from environments.shared.curriculum import RobustBestModelCallback
+
+        cb = object.__new__(RobustBestModelCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_results = []
+        cb.model_dir = model_dir
+        cb.risk_coef = risk_coef
+        cb.best_score = -np.inf
+        cb._last_seen_n = 0
+        cb.num_timesteps = 0
+        cb.model = MagicMock()
+        cb.model.get_vec_normalize_env.return_value = None
+        return cb
+
+    def test_saves_on_first_eval(self, tmp_path):
+        cb = self._make_cb(tmp_path)
+        cb.eval_callback.evaluations_results = [[100.0, 100.0, 100.0]]
+
+        assert cb._on_step() is True
+
+        cb.model.save.assert_called_once_with(str(tmp_path / "robust_best_model"))
+        assert cb.best_score == pytest.approx(100.0)
+
+    def test_high_mean_high_variance_does_not_beat_consistent(self, tmp_path):
+        """The 20260709_185946 failure mode: bimodal eval with a higher mean loses."""
+        cb = self._make_cb(tmp_path)
+        # Consistent checkpoint (like the ~450k eval): mean 1040, small std.
+        consistent = [1040.0, 1090.0, 990.0]
+        cb.eval_callback.evaluations_results = [consistent]
+        cb._on_step()
+        assert cb.model.save.call_count == 1
+
+        # Later checkpoint with higher mean but a catastrophic tail
+        # (like the 800k "peak"): mean-based selection would switch,
+        # risk-adjusted selection must not.
+        bimodal = [1400.0, 1380.0, 1350.0, 1300.0, 76.0]
+        import numpy as np
+
+        assert np.mean(bimodal) > np.mean(consistent)
+        assert np.mean(bimodal) - np.std(bimodal) < cb.best_score
+        cb.eval_callback.evaluations_results = [consistent, bimodal]
+        cb._on_step()
+        assert cb.model.save.call_count == 1  # no new save
+
+    def test_saves_vecnorm_when_present(self, tmp_path):
+        cb = self._make_cb(tmp_path)
+        vec_env = MagicMock()
+        cb.model.get_vec_normalize_env.return_value = vec_env
+        cb.eval_callback.evaluations_results = [[50.0, 52.0]]
+
+        cb._on_step()
+
+        vec_env.save.assert_called_once_with(str(tmp_path / "robust_best_model") + "_vecnorm.pkl")
+
+    def test_no_new_eval_is_noop(self, tmp_path):
+        cb = self._make_cb(tmp_path)
+        cb.eval_callback.evaluations_results = [[100.0]]
+        cb._on_step()
+        cb._on_step()  # same eval count — no re-save
+        assert cb.model.save.call_count == 1
+
+    def test_risk_coef_scales_penalty(self, tmp_path):
+        import numpy as np
+
+        cb = self._make_cb(tmp_path, risk_coef=2.0)
+        rewards = [100.0, 60.0]
+        cb.eval_callback.evaluations_results = [rewards]
+        cb._on_step()
+        expected = float(np.mean(rewards) - 2.0 * np.std(rewards))
+        assert cb.best_score == pytest.approx(expected)
+
+    def test_raises_without_sb3(self):
+        from environments.shared.curriculum import RobustBestModelCallback
+
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+            with pytest.raises(ImportError, match="stable-baselines3"):
+                RobustBestModelCallback(eval_callback=MagicMock(), model_dir="/tmp/x")
+
+
+class TestEntCoefDecayCallback:
+    """EntCoefDecayCallback linearly decays model.ent_coef."""
+
+    @staticmethod
+    def _make_cb(end_value=0.0005, decay_timesteps=1000, initial=0.005):
+        from environments.shared.curriculum import EntCoefDecayCallback
+
+        cb = object.__new__(EntCoefDecayCallback)
+        cb.end_value = end_value
+        cb.decay_timesteps = decay_timesteps
+        cb._initial = None
+        cb.model = MagicMock()
+        cb.model.ent_coef = initial
+        cb.num_timesteps = 0
+        return cb
+
+    def test_decays_linearly(self):
+        cb = self._make_cb()
+        cb._on_training_start()
+
+        cb.num_timesteps = 500
+        cb._on_step()
+        assert cb.model.ent_coef == pytest.approx(0.005 + 0.5 * (0.0005 - 0.005))
+
+    def test_holds_at_end_value(self):
+        cb = self._make_cb()
+        cb._on_training_start()
+
+        cb.num_timesteps = 5000  # past decay_timesteps
+        cb._on_step()
+        assert cb.model.ent_coef == pytest.approx(0.0005)
+
+    def test_noop_before_training_start(self):
+        cb = self._make_cb()
+        cb.num_timesteps = 500
+        assert cb._on_step() is True
+        assert cb.model.ent_coef == 0.005  # untouched
+
+    def test_raises_without_sb3(self):
+        from environments.shared.curriculum import EntCoefDecayCallback
+
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+            with pytest.raises(ImportError, match="stable-baselines3"):
+                EntCoefDecayCallback()
+
+
 class TestPublishEvalArtifactsCallback:
     """PublishEvalArtifactsCallback atomically copies evaluations.npz."""
 

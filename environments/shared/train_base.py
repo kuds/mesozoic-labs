@@ -243,6 +243,11 @@ def _prepare_alg_kwargs(
 
     # PPO-specific schedule setup
     if algorithm == "ppo":
+        # Callback-driven schedule keys — not PPO constructor kwargs.
+        # Callers read them from config["ppo_kwargs"] to build
+        # EntCoefDecayCallback (see _maybe_ent_coef_decay_callback).
+        alg_kwargs.pop("ent_coef_end", None)
+        alg_kwargs.pop("ent_coef_decay_timesteps", None)
         lr_end = alg_kwargs.pop("learning_rate_end", None)
         lr_schedule_type = alg_kwargs.pop("lr_schedule", "linear")
         if lr_end is not None:
@@ -329,6 +334,7 @@ def _build_core_callbacks(
     from .curriculum import (
         EvalCollapseEarlyStopCallback,
         PublishEvalArtifactsCallback,
+        RobustBestModelCallback,
         SaveVecNormalizeCallback,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
@@ -361,6 +367,9 @@ def _build_core_callbacks(
     )
     callbacks.append(eval_callback)
     callbacks.append(PublishEvalArtifactsCallback(eval_callback, publish_dir=log_path))
+    # Risk-adjusted (mean - std) checkpoint alongside SB3's mean-reward
+    # best_model; next-stage loading prefers it when present.
+    callbacks.append(RobustBestModelCallback(eval_callback, model_dir=model_dir, verbose=verbose))
 
     checkpoint_callback = sb3["CheckpointCallback"](
         save_freq=save_freq // n_envs,
@@ -385,6 +394,27 @@ def _build_core_callbacks(
         callbacks.append(PeriodicTbSyncCallback(local_tb_dir, gcs_tb_path, sync_freq=save_freq, verbose=verbose))
 
     return callbacks, eval_callback, save_vecnorm_cb
+
+
+def _maybe_ent_coef_decay_callback(config: dict, algorithm: str, total_timesteps: int):
+    """Build an EntCoefDecayCallback when the PPO config asks for one.
+
+    Reads ``ent_coef_end`` (and optional ``ent_coef_decay_timesteps``,
+    defaulting to the stage budget) from ``config["ppo_kwargs"]``.
+    Returns ``None`` for SAC or when no decay is configured.
+    """
+    if algorithm != "ppo":
+        return None
+    ppo_kwargs = config.get("ppo_kwargs", {})
+    end_value = ppo_kwargs.get("ent_coef_end")
+    if end_value is None:
+        return None
+    from .curriculum import EntCoefDecayCallback
+
+    return EntCoefDecayCallback(
+        end_value=float(end_value),
+        decay_timesteps=int(ppo_kwargs.get("ent_coef_decay_timesteps", total_timesteps)),
+    )
 
 
 def _save_final_and_sync_tb(
@@ -546,6 +576,10 @@ def train(
         local_tb_dir=local_tb_dir,
         gcs_tb_path=gcs_tb_path,
     )
+
+    ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, total_timesteps)
+    if ent_decay_cb is not None:
+        callbacks.append(ent_decay_cb)
 
     if stage > 1 and load_path:
         cur_kwargs = config.get("curriculum_kwargs", {})
@@ -972,6 +1006,10 @@ def train_curriculum(
             gcs_tb_path=gcs_tb_path,
         )
 
+        ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, total_timesteps)
+        if ent_decay_cb is not None:
+            callbacks.append(ent_decay_cb)
+
         curriculum_cb = CurriculumCallback(
             curriculum_manager=manager,
             eval_env=eval_env,
@@ -1039,23 +1077,26 @@ def train_curriculum(
             gcs_tb_path,
         )
 
-        # Prefer loading the best model + its matched VecNormalize for the
-        # next stage.  SaveVecNormalizeCallback (wired to EvalCallback's
-        # callback_on_new_best) saves best_model_vecnorm.pkl alongside
-        # best_model.zip so the obs normalization matches the policy weights.
-        best_model_zip = model_dir / "best_model.zip"
-        best_vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
-        if best_model_zip.exists() and Path(best_vecnorm_path).exists():
-            load_path = str(model_dir / "best_model")
-            prev_vecnorm_path = best_vecnorm_path
-            logger.info(
-                "Next stage will load best model (%s) with VecNormalize: %s",
-                load_path,
-                prev_vecnorm_path,
-            )
-        else:
-            load_path = str(final_path)
-            prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
+        # Prefer loading the risk-adjusted robust_best_model (highest
+        # mean - std eval, saved by RobustBestModelCallback), then SB3's
+        # mean-reward best_model, then the final checkpoint — each with
+        # its matched VecNormalize so obs normalization matches the
+        # policy weights.
+        load_path = str(final_path)
+        prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
+        for candidate in ("robust_best_model", "best_model"):
+            cand_zip = model_dir / f"{candidate}.zip"
+            cand_vecnorm = str(model_dir / f"{candidate}_vecnorm.pkl")
+            if cand_zip.exists() and Path(cand_vecnorm).exists():
+                load_path = str(model_dir / candidate)
+                prev_vecnorm_path = cand_vecnorm
+                logger.info(
+                    "Next stage will load %s (%s) with VecNormalize: %s",
+                    candidate,
+                    load_path,
+                    prev_vecnorm_path,
+                )
+                break
 
         train_env.close()
         eval_env.close()

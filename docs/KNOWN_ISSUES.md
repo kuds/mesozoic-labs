@@ -119,6 +119,14 @@ grounded. All three models now use `integrator="implicitfast"` and bounded
 `forcerange` on position actuators (sized to clip impact/reset spikes only
 for raptor/trex, whose settle behavior is unchanged).
 
+- **HIGH: raptor `forcerange` clips dynamic gaits** — the 0.8×kp sizing was
+  verified against *static settling* only; under gait-like excitation the
+  hip pitch servos saturate 34–40 % of the cycle and ankles 22–25 %, and
+  the first stage-2 run on the new plant (20260709_185946) collapsed where
+  four runs with the identical config had passed on the old plant. See
+  [STAGE2_INVESTIGATION.md](STAGE2_INVESTIGATION.md) for the analysis and
+  the ranked experiment plan (plant A/B first).
+
 > **Note:** these changes alter the physics plant. Brachiosaurus policies
 > trained before this change will NOT transfer; raptor/trex plants changed
 > only marginally (integrator + rarely-binding force caps) but expect small
