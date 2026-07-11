@@ -16,9 +16,8 @@ Usage::
 import re
 from pathlib import Path
 
-import numpy as np
-
 import mujoco
+import numpy as np
 
 XML_PATH = Path(__file__).resolve().parents[1] / "assets" / "raptor.xml"
 CLIP_EPS = 0.999
@@ -71,8 +70,9 @@ def main(steps: int = 2500):
     names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, i) for i in range(model.nu)]
     is_position = model.actuator_biasprm[:, 1] < 0
 
-    print(f"Raptor actuator saturation over {steps} steps "
-          f"({GAIT_HZ} Hz, {GAIT_AMPLITUDE:.0%} amplitude gait excitation)")
+    print(
+        f"Raptor actuator saturation over {steps} steps ({GAIT_HZ} Hz, {GAIT_AMPLITUDE:.0%} amplitude gait excitation)"
+    )
     print(f"{'actuator':26s} {'kp':>6s} {'forcerange':>10s} {'settle':>8s} {'gait':>8s}")
     order = np.argsort(-clip_gait)
     for i in order:
@@ -83,8 +83,7 @@ def main(steps: int = 2500):
         print(f"{names[i]:26s} {kp:6.0f} {fr:10.0f} {clip_settle[i]:8.1%} {clip_gait[i]:8.1%}")
 
     rms = float(np.sqrt(np.mean((z_bounded - z_unbounded) ** 2)))
-    print(f"\npelvis-z RMS divergence, bounded vs unbounded plant "
-          f"under identical commands: {rms:.4f} m")
+    print(f"\npelvis-z RMS divergence, bounded vs unbounded plant under identical commands: {rms:.4f} m")
 
 
 if __name__ == "__main__":

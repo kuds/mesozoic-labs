@@ -17,10 +17,9 @@ Run ``environments/velociraptor/scripts/actuator_saturation_report.py``
 for the full per-actuator numbers on the current model.
 """
 
+import mujoco
 import numpy as np
 import pytest
-
-import mujoco
 
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
