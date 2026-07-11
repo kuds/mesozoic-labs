@@ -932,6 +932,119 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         return True
 
 
+class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
+    """Save the checkpoint with the best risk-adjusted evaluation score.
+
+    SB3's ``EvalCallback`` saves ``best_model.zip`` by mean eval reward.
+    In run 20260709_185946 that selected the 800k-step checkpoint whose
+    eval distribution was already bimodal — a high mean propped up by
+    27/30 good episodes while the catastrophic-fall fraction was growing
+    — when the genuinely robust checkpoint (~450k steps, zero failures)
+    scored a slightly lower mean. This callback scores each evaluation as
+    ``mean - risk_coef * std`` and saves ``robust_best_model.zip`` (plus
+    its matching VecNormalize stats) whenever the score improves, so
+    next-stage training and gating can prefer consistently-good policies
+    over great-on-average ones with a fat failure tail.
+
+    Place after the ``EvalCallback`` in the callback list.
+
+    Args:
+        eval_callback: The ``EvalCallback`` whose in-memory eval results
+            to score.
+        model_dir: Directory to save ``robust_best_model.zip`` into.
+        risk_coef: Weight on the per-episode std in the score
+            (default 1.0, i.e. one standard deviation below the mean).
+        verbose: Verbosity level.
+    """
+
+    def __init__(
+        self,
+        eval_callback: Any,
+        model_dir: "str | Path",
+        risk_coef: float = 1.0,
+        verbose: int = 0,
+    ):
+        if not _SB3_AVAILABLE:
+            raise ImportError("stable-baselines3 is required for RobustBestModelCallback.")
+        super().__init__(verbose)
+        self.eval_callback = eval_callback
+        self.model_dir = Path(model_dir)
+        self.risk_coef = risk_coef
+        self.best_score = -np.inf
+        self._last_seen_n = 0
+
+    def _on_step(self) -> bool:
+        results = getattr(self.eval_callback, "evaluations_results", None) or []
+        n = len(results)
+        if n <= self._last_seen_n:
+            return True
+        self._last_seen_n = n
+
+        latest = np.asarray(results[-1], dtype=float)
+        score = float(latest.mean() - self.risk_coef * latest.std())
+        if score <= self.best_score:
+            return True
+        self.best_score = score
+
+        path = self.model_dir / "robust_best_model"
+        self.model.save(str(path))
+        vec_env = self.model.get_vec_normalize_env()
+        if vec_env is not None:
+            vec_env.save(str(path) + "_vecnorm.pkl")
+        logger.info(
+            "RobustBestModel: new best risk-adjusted score %.1f (mean %.1f - %.1f*std %.1f) at step %d",
+            score,
+            latest.mean(),
+            self.risk_coef,
+            latest.std(),
+            self.num_timesteps,
+        )
+        return True
+
+
+class EntCoefDecayCallback(BaseCallback):  # type: ignore[misc]
+    """Linearly decay PPO's entropy coefficient during a stage.
+
+    In run 20260709_185946 the policy's action std grew 1.18 → 1.49 under
+    a constant ``ent_coef`` while the eval failure fraction climbed: the
+    entropy bonus keeps paying for exploration noise long after the gait
+    needs consolidation. This callback decays ``model.ent_coef`` from its
+    initial value to ``end_value`` over ``decay_timesteps``, then holds.
+
+    PPO only — SAC's auto-tuned entropy already adapts on its own.
+
+    Args:
+        end_value: Final entropy coefficient.
+        decay_timesteps: Timesteps over which to decay (typically the
+            stage budget).
+        verbose: Verbosity level.
+    """
+
+    def __init__(self, end_value: float = 0.0005, decay_timesteps: int = 4_000_000, verbose: int = 0):
+        if not _SB3_AVAILABLE:
+            raise ImportError("stable-baselines3 is required for EntCoefDecayCallback.")
+        super().__init__(verbose)
+        self.end_value = end_value
+        self.decay_timesteps = max(1, decay_timesteps)
+        self._initial: float | None = None
+
+    def _on_training_start(self) -> None:
+        self._initial = float(self.model.ent_coef)
+        logger.info(
+            "EntCoefDecay: ent_coef %.4f → %.4f over %d timesteps",
+            self._initial,
+            self.end_value,
+            self.decay_timesteps,
+        )
+
+    def _on_step(self) -> bool:
+        if self._initial is None:
+            return True
+        frac = min(1.0, self.num_timesteps / self.decay_timesteps)
+        self.model.ent_coef = self._initial + frac * (self.end_value - self._initial)
+        return True
+
+
 class PublishEvalArtifactsCallback(BaseCallback):  # type: ignore[misc]
     """Atomically publish EvalCallback's ``evaluations.npz`` to the stage dir.
 

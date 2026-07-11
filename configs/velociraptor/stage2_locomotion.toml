@@ -32,6 +32,10 @@ gamma = 0.995
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
+# ent_coef_end = 0.001              # Uncomment to linearly decay the entropy bonus over the
+                                    # stage (EntCoefDecayCallback); action std grew 1.18->1.49
+                                    # during the 20260709_185946 collapse under constant ent_coef.
+                                    # See docs/STAGE2_INVESTIGATION.md experiment C.
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]
