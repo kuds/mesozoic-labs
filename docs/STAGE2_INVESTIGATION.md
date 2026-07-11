@@ -4,6 +4,12 @@ Root-cause analysis of the velociraptor PPO stage-2 failure on 2026-07-09,
 with the evidence, the code/plant changes implicated, and a ranked list of
 experiments to run next.
 
+> **Follow-up (2026-07-11):** run `20260711_165924` reproduced this collapse
+> bit-for-bit (identical plant, config, and seed — stage-2 eval arrays are
+> bitwise identical). See [STAGE2_RECOMMENDATIONS.md](STAGE2_RECOMMENDATIONS.md)
+> for the updated analysis, a correction to the fall-penalty break-even math
+> below, and the current ranked plan.
+
 ## Summary
 
 Run `20260709_185946` used a training config **identical** to four runs that
@@ -75,6 +81,12 @@ From `evaluations.npz`/`diagnostics.npz` of the failed run:
   be reachable on the current plant at all**.
 
 ## Secondary factor: fall penalty is cheap at γ=0.995
+
+> **Correction (2026-07-11):** the break-even below omits the future reward
+> forfeited by falling (alive bonus + speed reward over the truncated tail).
+> With that accounted, the corrected break-even for this scenario is ≈ −7 and
+> the existing −50 already favors the robust gait; the required penalty is
+> strongly fall-timing-dependent. See STAGE2_RECOMMENDATIONS.md §2.1.
 
 Independent of the plant, the reward math tolerates fragile-fast gaits:
 pushing +0.5 m/s earns ≈ `2.0 × 0.5/3.0 = 0.33`/step, ~60 discounted over
