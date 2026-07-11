@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 import numpy as np
@@ -410,7 +411,9 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
         from pathlib import Path
 
-        npz_path = Path(log_path) / "evaluations.npz"
+        # SB3's EvalCallback stores log_path as the "<dir>/evaluations"
+        # file prefix (np.savez appends ".npz"), not the directory.
+        npz_path = Path(str(log_path) + ".npz")
         if not npz_path.exists():
             return None, None, None, 0
 
@@ -927,6 +930,54 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
             self._consecutive_drops = 0
 
         return True
+
+
+class PublishEvalArtifactsCallback(BaseCallback):  # type: ignore[misc]
+    """Atomically publish EvalCallback's ``evaluations.npz`` to the stage dir.
+
+    The paired ``EvalCallback`` writes its npz to fast local scratch;
+    this callback copies it to the (possibly Drive/GCS-FUSE mounted)
+    stage directory after every new evaluation and again at training
+    end, via copy-to-temp + rename, so the published file is never
+    observed truncated. Place it *after* the ``EvalCallback`` in the
+    callback list so it runs on the same step a new eval completes.
+
+    Args:
+        eval_callback: The ``EvalCallback`` whose npz to publish.
+        publish_dir: Directory to publish ``evaluations.npz`` into
+            (typically the stage directory).
+        verbose: Verbosity level.
+    """
+
+    def __init__(self, eval_callback: Any, publish_dir: "str | Path", verbose: int = 0):
+        if not _SB3_AVAILABLE:
+            raise ImportError("stable-baselines3 is required for PublishEvalArtifactsCallback.")
+        super().__init__(verbose)
+        self.eval_callback = eval_callback
+        self.publish_dir = Path(publish_dir)
+        self._last_published_n = 0
+
+    def _source_npz(self) -> "Path | None":
+        # SB3 stores log_path as the "<dir>/evaluations" file prefix.
+        prefix = getattr(self.eval_callback, "log_path", None)
+        return Path(str(prefix) + ".npz") if prefix else None
+
+    def _publish(self) -> None:
+        from .file_io import atomic_copy
+
+        src = self._source_npz()
+        if src is not None and src.exists():
+            atomic_copy(src, self.publish_dir / "evaluations.npz")
+
+    def _on_step(self) -> bool:
+        results = getattr(self.eval_callback, "evaluations_results", None) or []
+        if len(results) > self._last_published_n:
+            self._last_published_n = len(results)
+            self._publish()
+        return True
+
+    def _on_training_end(self) -> None:
+        self._publish()
 
 
 class SaveVecNormalizeCallback(BaseCallback):  # type: ignore[misc]

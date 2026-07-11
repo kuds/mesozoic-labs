@@ -876,7 +876,7 @@ class TestReadLatestEval:
     def test_returns_none_when_npz_missing(self, tmp_path):
         cb = object.__new__(CurriculumCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.log_path = str(tmp_path)
+        cb.eval_callback.log_path = str(tmp_path / "evaluations")
         cb._last_seen_n_evals = 0
         rewards, lengths, successes, n = cb._read_latest_eval()
         assert rewards is None
@@ -895,7 +895,7 @@ class TestReadLatestEval:
 
         cb = object.__new__(CurriculumCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.log_path = str(tmp_path)
+        cb.eval_callback.log_path = str(tmp_path / "evaluations")
         cb._last_seen_n_evals = 0
 
         rewards, lengths, successes, n = cb._read_latest_eval()
@@ -919,7 +919,7 @@ class TestReadLatestEval:
 
         cb = object.__new__(CurriculumCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.log_path = str(tmp_path)
+        cb.eval_callback.log_path = str(tmp_path / "evaluations")
         cb._last_seen_n_evals = 1  # Already seen
 
         rewards, lengths, successes, n = cb._read_latest_eval()
@@ -1043,9 +1043,109 @@ class TestReadLatestEvalSuccesses:
 
         cb = object.__new__(CurriculumCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.log_path = str(tmp_path)
+        # SB3's EvalCallback stores log_path as the "<dir>/evaluations"
+        # file prefix (np.savez appends ".npz").
+        cb.eval_callback.log_path = str(tmp_path / "evaluations")
         cb._last_seen_n_evals = 0
 
         rewards, lengths, successes, n = cb._read_latest_eval()
         assert successes == [1.0, 1.0]  # latest eval row
         assert n == 2
+
+    def test_reads_from_sb3_prefix_convention(self, tmp_path):
+        """The npz path is derived from SB3's file-prefix log_path, not a dir."""
+        import numpy as np
+
+        np.savez(
+            str(tmp_path / "evaluations.npz"),
+            results=np.array([[10.0, 20.0]]),
+            ep_lengths=np.array([[100.0, 200.0]]),
+        )
+
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(tmp_path / "evaluations")
+        cb._last_seen_n_evals = 0
+
+        rewards, lengths, successes, n = cb._read_latest_eval()
+        assert rewards == [10.0, 20.0]
+        assert lengths == [100.0, 200.0]
+        assert successes is None
+        assert n == 1
+
+
+class TestPublishEvalArtifactsCallback:
+    """PublishEvalArtifactsCallback atomically copies evaluations.npz."""
+
+    @staticmethod
+    def _make_cb(local_dir, publish_dir):
+        from environments.shared.curriculum import PublishEvalArtifactsCallback
+
+        cb = object.__new__(PublishEvalArtifactsCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.log_path = str(local_dir / "evaluations")
+        cb.eval_callback.evaluations_results = []
+        cb.publish_dir = publish_dir
+        cb._last_published_n = 0
+        return cb
+
+    def test_publishes_after_new_eval(self, tmp_path):
+        import numpy as np
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        publish_dir = tmp_path / "stage"
+        np.savez(str(local_dir / "evaluations.npz"), results=np.array([[1.0]]))
+
+        cb = self._make_cb(local_dir, publish_dir)
+        cb.eval_callback.evaluations_results = [[1.0]]
+
+        assert cb._on_step() is True
+
+        data = np.load(str(publish_dir / "evaluations.npz"))
+        assert data["results"].shape == (1, 1)
+
+    def test_no_publish_without_new_eval(self, tmp_path):
+        import numpy as np
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        publish_dir = tmp_path / "stage"
+        np.savez(str(local_dir / "evaluations.npz"), results=np.array([[1.0]]))
+
+        cb = self._make_cb(local_dir, publish_dir)
+
+        assert cb._on_step() is True  # no evals recorded yet
+        assert not (publish_dir / "evaluations.npz").exists()
+
+    def test_publishes_on_training_end(self, tmp_path):
+        import numpy as np
+
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        publish_dir = tmp_path / "stage"
+        np.savez(str(local_dir / "evaluations.npz"), results=np.array([[1.0], [2.0]]))
+
+        cb = self._make_cb(local_dir, publish_dir)
+        cb._on_training_end()
+
+        data = np.load(str(publish_dir / "evaluations.npz"))
+        assert data["results"].shape == (2, 1)
+
+    def test_missing_source_is_noop(self, tmp_path):
+        local_dir = tmp_path / "local"
+        local_dir.mkdir()
+        publish_dir = tmp_path / "stage"
+
+        cb = self._make_cb(local_dir, publish_dir)
+        cb.eval_callback.evaluations_results = [[1.0]]
+
+        assert cb._on_step() is True
+        assert not (publish_dir / "evaluations.npz").exists()
+
+    def test_raises_without_sb3(self):
+        from environments.shared.curriculum import PublishEvalArtifactsCallback
+
+        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+            with pytest.raises(ImportError, match="stable-baselines3"):
+                PublishEvalArtifactsCallback(eval_callback=MagicMock(), publish_dir="/tmp/x")

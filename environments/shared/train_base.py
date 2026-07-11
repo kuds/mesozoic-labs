@@ -328,6 +328,7 @@ def _build_core_callbacks(
     """
     from .curriculum import (
         EvalCollapseEarlyStopCallback,
+        PublishEvalArtifactsCallback,
         SaveVecNormalizeCallback,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
@@ -340,10 +341,17 @@ def _build_core_callbacks(
         save_path=str(model_dir / "best_model_vecnorm.pkl"),
     )
 
+    # EvalCallback rewrites evaluations.npz in place on every eval; on a
+    # Drive/GCS FUSE mount that streaming rewrite can be observed — or
+    # permanently left — truncated. Write to local scratch instead and
+    # publish atomically to the stage dir after each eval.
+    import tempfile as _tempfile
+
+    local_eval_dir = _tempfile.mkdtemp(prefix=f"eval_stage{stage}_")
     eval_callback = sb3["EvalCallback"](
         eval_env,
         best_model_save_path=str(model_dir),
-        log_path=str(log_path),
+        log_path=local_eval_dir,
         eval_freq=eval_freq // n_envs,
         n_eval_episodes=30,
         deterministic=True,
@@ -352,6 +360,7 @@ def _build_core_callbacks(
         callback_on_new_best=save_vecnorm_cb,
     )
     callbacks.append(eval_callback)
+    callbacks.append(PublishEvalArtifactsCallback(eval_callback, publish_dir=log_path))
 
     checkpoint_callback = sb3["CheckpointCallback"](
         save_freq=save_freq // n_envs,
@@ -575,6 +584,16 @@ def train(
         logger.warning("Training interrupted by user.")
     training_duration = time.monotonic() - train_start
 
+    # Actual steps trained — differs from total_timesteps when a callback
+    # (e.g. EvalCollapseEarlyStopCallback) or Ctrl-C ended training early.
+    actual_timesteps = int(model.num_timesteps)
+    if actual_timesteps < total_timesteps:
+        logger.warning(
+            "Training ended early at %s of %s timesteps.",
+            f"{actual_timesteps:,}",
+            f"{total_timesteps:,}",
+        )
+
     if wandb_run is not None:
         wandb_run.finish()
 
@@ -599,7 +618,7 @@ def train(
         log_path,
         model_dir,
         stage,
-        total_timesteps,
+        actual_timesteps,
         algorithm,
         training_duration_seconds=training_duration,
         stage_config=config,
@@ -663,6 +682,9 @@ def _report_hpt_metrics(
         "library_version": get_library_version(),
         "best_mean_reward": float(eval_callback.best_mean_reward),
         "training_duration_seconds": round(training_duration_seconds, 1),
+        # Actual steps trained (callers pass model.num_timesteps), so
+        # early-stopped runs are visible in offline result collection.
+        "timesteps": int(total_timesteps),
     }
     if seed is not None:
         aux_metrics["seed"] = seed
@@ -993,6 +1015,18 @@ def train_curriculum(
             interrupted = True
         stage_duration = time.monotonic() - stage_start
 
+        # Actual steps trained — differs from total_timesteps when a
+        # callback (e.g. EvalCollapseEarlyStopCallback) or Ctrl-C ended
+        # training early.
+        actual_timesteps = int(model.num_timesteps)
+        if actual_timesteps < total_timesteps:
+            logger.warning(
+                "Stage %d ended early at %s of %s timesteps.",
+                stage,
+                f"{actual_timesteps:,}",
+                f"{total_timesteps:,}",
+            )
+
         if wandb_run is not None:
             wandb_run.finish()
 
@@ -1039,7 +1073,7 @@ def train_curriculum(
             stage_dir,
             seed,
             n_envs,
-            total_timesteps,
+            actual_timesteps,
             curriculum_cb,
             training_duration_seconds=stage_duration,
         )

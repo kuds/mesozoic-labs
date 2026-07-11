@@ -411,4 +411,9 @@ class DiagnosticsCallback(_BaseCallback):
             for key, series in self._history_algo.items():
                 if len(series) == len(self._history_algo_timesteps):
                     save_dict[f"algo_{key}"] = _np.array(series)
-        _np.savez(str(self._log_dir / "diagnostics.npz"), **save_dict)  # type: ignore[arg-type]
+        # Atomic write: diagnostics.npz is rewritten on every save and often
+        # lives on a Drive/GCS FUSE mount where an in-place rewrite can be
+        # left truncated if the runtime dies mid-flush.
+        from .file_io import atomic_savez
+
+        atomic_savez(self._log_dir / "diagnostics.npz", **save_dict)
