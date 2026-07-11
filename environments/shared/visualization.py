@@ -242,7 +242,9 @@ def plot_diagnostics_graphs(
         fontsize=14,
         fontweight="bold",
     )
-    _reward_colors = plt.cm.tab10.colors
+    # Call the colormap instead of touching .colors — the stubs type
+    # plt.cm.tab10 as the base Colormap, which has no .colors attribute.
+    _reward_colors = [plt.cm.tab10(i) for i in range(plt.cm.tab10.N)]
     _all_term_data: dict = {}
 
     for stage_num, stage_dir in stage_dirs:
@@ -374,7 +376,7 @@ def plot_diagnostics_graphs(
         ts = diag["timesteps"] if "timesteps" in diag else None
         if ts is None or len(ts) == 0:
             continue
-        color = plt.cm.tab10.colors[stage_num % 10]
+        color = plt.cm.tab10(stage_num % 10)
 
         # [0,0] Gait Symmetry + Stride Frequency proxy
         if "l_foot_contact" in diag and "r_foot_contact" in diag:

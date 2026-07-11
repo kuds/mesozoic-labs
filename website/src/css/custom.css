@@ -55,7 +55,8 @@
   --ifm-footer-background-color: #e8e8e8;
   --ifm-footer-color: #444444;
   --ifm-footer-link-color: #333333;
-  --ifm-footer-title-color: #00994d;
+  /* Darker than the light primary: 4.5:1 (WCAG AA) on the #e8e8e8 footer */
+  --ifm-footer-title-color: #006e37;
   --ifm-color-primary: #00994d;
   --ifm-color-primary-dark: #008a45;
   --ifm-color-primary-darker: #008241;
@@ -186,51 +187,6 @@ body {
   display: none;
 }
 
-/* The homepage commits to its dark identity in light mode too: a white
-   navbar over the dark hero looked disjointed.  Detected via the stable
-   .mz-homepage-hero class on the hero header; browsers without :has()
-   gracefully keep the standard light navbar.
-
-   Everything except the background is scoped to .navbar__inner (the top
-   bar) so the mobile drawer (.navbar-sidebar), which keeps its light
-   surface, is unaffected. */
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar {
-  --ifm-navbar-background-color: rgba(10, 10, 15, 0.87);
-  background-color: var(--ifm-navbar-background-color);
-}
-
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner {
-  --ifm-navbar-link-color: #e6e6f0;
-  --ifm-menu-color: #e6e6f0;
-  --ifm-color-emphasis-200: #2a2a35;
-}
-
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner .navbar__title {
-  color: #ffffff;
-}
-
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner .navbar__link--active {
-  color: #00ff88;
-}
-
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner .navbar__toggle,
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner [class*='colorModeToggle'] button {
-  color: #e6e6f0;
-}
-
-/* Swap to the dark-background logo variant on the forced-dark homepage
-   navbar.  Docusaurus's ThemedImage renders ONLY the active theme's <img>
-   once hydrated, so the dark variant can't be revealed with display rules
-   (that left no logo at all).  Instead hide the light artwork and paint
-   the dark variant as a background on the fixed-size logo container. */
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner .navbar__logo img {
-  visibility: hidden;
-}
-
-[data-theme='light'] body:has(.mz-homepage-hero) .navbar .navbar__inner .navbar__logo {
-  background: url('/img/logo-dark.svg') center / contain no-repeat;
-}
-
 /* Footer customization */
 .footer {
   border-top: 1px solid rgba(0, 255, 136, 0.1);
@@ -240,8 +196,27 @@ body {
   border-top-color: rgba(0, 153, 77, 0.2);
 }
 
+/* The footer uses style: 'dark' (Infima's .footer--dark), which defines the
+   footer variables on the element itself — beating the theme values declared
+   above on :root in BOTH modes (the dark footer actually rendered Infima's
+   #303846, not the intended #050508).  Redefine them here per theme so the
+   footer follows the palette like the rest of the page. */
+[data-theme='dark'] .footer--dark {
+  --ifm-footer-background-color: #050508;
+  --ifm-footer-color: #b0b0be;
+  --ifm-footer-link-color: #c8c8d4;
+  --ifm-footer-title-color: #00ff88;
+}
+
+[data-theme='light'] .footer--dark {
+  --ifm-footer-background-color: #e8e8e8;
+  --ifm-footer-color: #444444;
+  --ifm-footer-link-color: #333333;
+  --ifm-footer-title-color: #006e37;
+}
+
 .footer__title {
-  color: var(--ifm-color-primary);
+  color: var(--ifm-footer-title-color);
   font-weight: 600;
   letter-spacing: 0.05em;
 }

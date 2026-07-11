@@ -3,20 +3,59 @@
    Theme: Prehistoric meets Cyberpunk/Robotics
    ============================================================================= */
 
-/* CSS Variables */
+/* CSS Variables — dark palette is the default (matches defaultMode). */
 :root {
   --color-primary: #00ff88;
+  --color-primary-rgb: 0, 255, 136;
   --color-primary-dim: #00ff8840;
   --color-secondary: #ff6b35;
+  --color-secondary-rgb: 255, 107, 53;
   --color-accent: #00d4ff;
-  --color-dark: #0a0a0f;
-  --color-darker: #050508;
+  --color-accent-dim: #00d4ff40;
+  --color-bg: #0a0a0f;
+  --color-bg-deep: #050508;
   --color-surface: #12121a;
   --color-surface-light: #1a1a25;
+  --color-surface-tint-primary: #0a1a10;
+  --color-surface-tint-secondary: #1f1a15;
   --color-text: #e0e0e0;
   --color-text-dim: #9a9aad;
+  --color-border: #ffffff10;
+  --color-border-strong: #ffffff20;
+  --color-on-primary: #0a0a0f;
+  --color-grid: #00ff8810;
+  --hero-glow-a: #1a2a1a;
+  --hero-glow-b: #1a1a2a;
+  --shadow-preview: 0 10px 40px rgba(0, 0, 0, 0.4);
   --glow-primary: 0 0 20px var(--color-primary-dim);
-  --glow-accent: 0 0 30px #00d4ff40;
+  --glow-accent: 0 0 30px var(--color-accent-dim);
+}
+
+/* Light-mode palette: same variables, values darkened for WCAG AA contrast
+   on light surfaces (neon green/cyan are unreadable on white). */
+[data-theme='light'] {
+  --color-primary: #007a3d;
+  --color-primary-rgb: 0, 122, 61;
+  --color-primary-dim: rgba(0, 122, 61, 0.3);
+  --color-secondary: #b33a09;
+  --color-secondary-rgb: 179, 58, 9;
+  --color-accent: #006884;
+  --color-accent-dim: rgba(0, 104, 132, 0.25);
+  --color-bg: #f7f9f8;
+  --color-bg-deep: #edf2ef;
+  --color-surface: #ffffff;
+  --color-surface-light: #f0f3f1;
+  --color-surface-tint-primary: #e9f6ef;
+  --color-surface-tint-secondary: #fbf1e9;
+  --color-text: #1c1e21;
+  --color-text-dim: #4d5257;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-border-strong: rgba(0, 0, 0, 0.18);
+  --color-on-primary: #ffffff;
+  --color-grid: rgba(0, 122, 61, 0.08);
+  --hero-glow-a: #dcebe0;
+  --hero-glow-b: #dfe6ee;
+  --shadow-preview: 0 10px 40px rgba(0, 0, 0, 0.15);
 }
 
 /* =============================================================================
@@ -95,7 +134,7 @@
 
 /* Main Container */
 .main {
-  background: var(--color-dark);
+  background: var(--color-bg);
   min-height: 100vh;
   overflow-x: hidden;
 }
@@ -111,9 +150,9 @@
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(ellipse at 50% 0%, #1a2a1a 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 80%, #1a1a2a 0%, transparent 40%),
-    var(--color-darker);
+    radial-gradient(ellipse at 50% 0%, var(--hero-glow-a) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, var(--hero-glow-b) 0%, transparent 40%),
+    var(--color-bg-deep);
   overflow: hidden;
 }
 
@@ -124,12 +163,18 @@
   opacity: 0.5;
 }
 
+/* Data URIs can't reference CSS variables, so light mode swaps the whole
+   image (same grid, dark-green strokes) and softens the CRT scan lines. */
+[data-theme='light'] .heroOverlay {
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpattern id='grid' width='10' height='10' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 10 0 L 0 0 0 10' fill='none' stroke='%23007a3d14' stroke-width='0.5'/%3E%3C/pattern%3E%3Crect width='100' height='100' fill='url(%23grid)'/%3E%3C/svg%3E");
+}
+
 .gridLines {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, transparent 49.5%, #00ff8810 49.5%, #00ff8810 50.5%, transparent 50.5%),
-    linear-gradient(0deg, transparent 49.5%, #00ff8810 49.5%, #00ff8810 50.5%, transparent 50.5%);
+    linear-gradient(90deg, transparent 49.5%, var(--color-grid) 49.5%, var(--color-grid) 50.5%, transparent 50.5%),
+    linear-gradient(0deg, transparent 49.5%, var(--color-grid) 49.5%, var(--color-grid) 50.5%, transparent 50.5%);
   background-size: 100px 100px;
 }
 
@@ -144,6 +189,16 @@
     rgba(0, 0, 0, 0.1) 4px
   );
   pointer-events: none;
+}
+
+[data-theme='light'] .scanLines {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.025) 2px,
+    rgba(0, 0, 0, 0.025) 4px
+  );
 }
 
 /* Floating particles */
@@ -292,7 +347,7 @@
   gap: 0.6rem;
   padding: 0.9rem 2.2rem;
   background: var(--color-primary);
-  color: var(--color-dark);
+  color: var(--color-on-primary);
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -417,7 +472,7 @@
 
 .featuresSection {
   padding: 6rem 2rem;
-  background: var(--color-dark);
+  background: var(--color-bg);
   position: relative;
 }
 
@@ -433,7 +488,7 @@
   position: relative;
   background: var(--color-surface);
   padding: 2rem;
-  border: 1px solid #ffffff10;
+  border: 1px solid var(--color-border);
   transition: all 0.4s ease;
 }
 
@@ -499,15 +554,15 @@
   width: 56px;
   height: 56px;
   border-radius: 12px;
-  background: rgba(0, 255, 136, 0.06);
-  border: 1px solid rgba(0, 255, 136, 0.15);
-  box-shadow: 0 0 8px rgba(0, 255, 136, 0.15);
+  background: rgba(var(--color-primary-rgb), 0.06);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.15);
+  box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.15);
   transition: box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .featureCard:hover .featureIcon {
-  box-shadow: 0 0 16px rgba(0, 255, 136, 0.3);
-  border-color: rgba(0, 255, 136, 0.35);
+  box-shadow: 0 0 16px rgba(var(--color-primary-rgb), 0.3);
+  border-color: rgba(var(--color-primary-rgb), 0.35);
 }
 
 .featureTitle {
@@ -540,7 +595,7 @@
 
 .howItWorksSection {
   padding: 6rem 2rem;
-  background: var(--color-darker);
+  background: var(--color-bg-deep);
 }
 
 .pipelineContainer {
@@ -633,7 +688,7 @@
 
 .simulationSection {
   padding: 6rem 2rem;
-  background: var(--color-dark);
+  background: var(--color-bg);
 }
 
 .simulationContainer {
@@ -668,8 +723,8 @@
 .previewGif {
   width: 100%;
   border-radius: 8px;
-  border: 1px solid #ffffff10;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-preview);
 }
 
 .previewCaption {
@@ -705,7 +760,7 @@
 .terminalTitle {
   margin-left: auto;
   font-size: 0.8rem;
-  color: var(--color-text-dim);
+  color: #9a9aad;
   font-family: 'Courier New', monospace;
 }
 
@@ -717,7 +772,7 @@
 }
 
 .codeLine {
-  color: var(--color-text);
+  color: #e0e0e0;
 }
 
 .codeComment {
@@ -733,7 +788,7 @@
 }
 
 .codeOutput {
-  color: var(--color-primary);
+  color: #00ff88;
 }
 
 .cursor {
@@ -751,7 +806,7 @@
 
 .speciesSection {
   padding: 6rem 2rem;
-  background: var(--color-darker);
+  background: var(--color-bg-deep);
 }
 
 .speciesTabs {
@@ -769,7 +824,7 @@
   gap: 0.25rem;
   padding: 1rem 2rem;
   background: var(--color-surface);
-  border: 1px solid #ffffff10;
+  border: 1px solid var(--color-border);
   color: var(--color-text-dim);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -784,7 +839,7 @@
 
 .speciesTabActive {
   border-color: var(--color-primary);
-  background: linear-gradient(135deg, var(--color-surface) 0%, #0a1a10 100%);
+  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-tint-primary) 100%);
   box-shadow: var(--glow-primary);
 }
 
@@ -821,10 +876,10 @@
   font-weight: 600;
   letter-spacing: 0.15em;
   color: var(--color-secondary);
-  border: 1px solid rgba(255, 107, 53, 0.3);
+  border: 1px solid rgba(var(--color-secondary-rgb), 0.3);
   padding: 0.3rem 1rem;
   font-family: 'Courier New', monospace;
-  background: rgba(255, 107, 53, 0.05);
+  background: rgba(var(--color-secondary-rgb), 0.05);
   text-transform: uppercase;
 }
 
@@ -838,7 +893,7 @@
   position: relative;
   background: var(--color-surface);
   padding: 1.5rem;
-  border: 1px solid #ffffff10;
+  border: 1px solid var(--color-border);
   transition: all 0.3s ease;
 }
 
@@ -870,7 +925,7 @@
   border: 1px solid var(--color-primary-dim);
   padding: 0.1rem 0.4rem;
   font-family: 'Courier New', monospace;
-  background: rgba(0, 255, 136, 0.05);
+  background: rgba(var(--color-primary-rgb), 0.05);
 }
 
 .speciesStageTitle {
@@ -890,7 +945,7 @@
 .speciesVideoWrap {
   border-radius: 4px;
   overflow: hidden;
-  border: 1px solid #ffffff10;
+  border: 1px solid var(--color-border);
 }
 
 .speciesVideoPlayer {
@@ -905,7 +960,7 @@
 
 .roadmapSection {
   padding: 6rem 2rem;
-  background: var(--color-dark);
+  background: var(--color-bg);
 }
 
 .speciesStats {
@@ -970,7 +1025,7 @@
   height: 12px;
   border-radius: 50%;
   border: 2px solid var(--color-text-dim);
-  background: var(--color-dark);
+  background: var(--color-bg);
   z-index: 1;
 }
 
@@ -983,25 +1038,25 @@
 .timelineItem.active .timelineDot {
   border-color: var(--color-secondary);
   background: var(--color-secondary);
-  box-shadow: 0 0 10px rgba(255, 107, 53, 0.4);
+  box-shadow: 0 0 10px rgba(var(--color-secondary-rgb), 0.4);
   animation: dotPulse 2s ease-in-out infinite;
 }
 
 @keyframes dotPulse {
-  0%, 100% { box-shadow: 0 0 10px rgba(255, 107, 53, 0.4); }
-  50% { box-shadow: 0 0 20px rgba(255, 107, 53, 0.7); }
+  0%, 100% { box-shadow: 0 0 10px rgba(var(--color-secondary-rgb), 0.4); }
+  50% { box-shadow: 0 0 20px rgba(var(--color-secondary-rgb), 0.7); }
 }
 
 .timelineCard {
   background: var(--color-surface);
   padding: 1.5rem;
-  border: 1px solid #ffffff10;
+  border: 1px solid var(--color-border);
   border-left: 3px solid var(--color-text-dim);
   transition: all 0.3s ease;
 }
 
 .timelineCard:hover {
-  border-color: #ffffff20;
+  border-color: var(--color-border-strong);
 }
 
 .timelineItem.complete .timelineCard {
@@ -1010,7 +1065,7 @@
 
 .timelineItem.active .timelineCard {
   border-left-color: var(--color-secondary);
-  background: linear-gradient(135deg, var(--color-surface) 0%, #1f1a15 100%);
+  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-tint-secondary) 100%);
 }
 
 .timelineItem.upcoming .timelineCard {
@@ -1111,7 +1166,7 @@
 
 .ctaSection {
   padding: 6rem 2rem;
-  background: linear-gradient(180deg, var(--color-dark) 0%, var(--color-darker) 100%);
+  background: linear-gradient(180deg, var(--color-bg) 0%, var(--color-bg-deep) 100%);
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -1145,7 +1200,7 @@
   padding: 1rem 2.5rem;
   background: var(--color-primary);
   border: 2px solid var(--color-primary);
-  color: var(--color-dark);
+  color: var(--color-on-primary);
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -1201,6 +1256,10 @@
   background-repeat: repeat-x;
   background-size: 150px 30px;
   opacity: 0.3;
+}
+
+[data-theme='light'] .ctaDinoTrack {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'%3E%3Cellipse cx='20' cy='15' rx='8' ry='12' fill='%23007a3d14'/%3E%3Cellipse cx='50' cy='15' rx='8' ry='12' fill='%23007a3d14'/%3E%3Cellipse cx='80' cy='15' rx='8' ry='12' fill='%23007a3d14'/%3E%3C/svg%3E");
 }
 
 /* =============================================================================

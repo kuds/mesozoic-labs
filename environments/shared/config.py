@@ -19,15 +19,11 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import tomllib
 from pathlib import Path
 from typing import Any
 
 _logger = logging.getLogger(__name__)
-
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 

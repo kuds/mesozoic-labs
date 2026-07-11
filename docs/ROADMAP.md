@@ -125,7 +125,7 @@ curriculum with published results and reproducible checkpoints.
   - _Dependency: None_
 
 - [x] **Dockerfile for containerized training**
-  - Python 3.11-slim base with MuJoCo headless rendering (`MUJOCO_GL=osmesa`)
+  - Python 3.13-slim base with MuJoCo headless rendering (`MUJOCO_GL=osmesa`)
   - Installs training dependencies via `pip install -e ".[train]"`
   - Packages `environments/` and `configs/` for cloud deployment
   - _Dependency: None_

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — RL/GCP Review Fixes & Model Physics (v0.3.2)
 
+### Changed
+- **Python 3.11+ required; Python 3.13 supported** (breaking): dropped
+  Python 3.10 support (`requires-python >= 3.11`), added 3.13 to the
+  trove classifiers and the CI test matrix (3.11 + 3.13), and bumped the
+  Docker base image to `python:3.13-slim`.  The `tomli` conditional
+  dependency and import fallbacks are gone — stdlib `tomllib` is always
+  available on 3.11+.  Ruff now targets py311; mypy targets 3.12 because
+  numpy ≥ 2.3 stubs use PEP 695 syntax that mypy rejects for older targets.
+- **Homepage light mode actually renders light**: the landing page palette
+  (`index.module.css`) gained a `[data-theme='light']` variant — until now
+  every section was hardcoded dark, so toggling the theme changed almost
+  nothing.  Accent colors are darkened for WCAG AA contrast on light
+  surfaces, the curriculum/feature icon colors follow the theme, and the
+  forced-dark homepage navbar override (plus its logo-swap hack) in
+  `custom.css` is removed.  The footer now follows the theme in both modes
+  (Infima's `.footer--dark` element-level variables had silently overridden
+  the intended colors, so it rendered `#303846` even in dark mode).  The
+  code terminal mock-up intentionally stays dark in both themes.
+
 ### Fixed
 - **JAX pipeline correctness** (July 2026 review, PR #426): curriculum gate
   now compares episode-level return against the TOML threshold (it compared
