@@ -300,19 +300,23 @@
     <position name="head_pitch_act" joint="head_pitch" kp="80" forcerange="-65 65" ctrlrange="-0.4363 0.6109"/>
 
     <!-- Right leg -->
-    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="200" forcerange="-160 160" ctrlrange="-0.8727 1.3963"/>
+    <!-- Hip pitch, knee, and ankle forcerange sized at 1.5x kp (was 0.8x): the 0.8x
+         caps clipped 44-50% (hips), 10-14% (knees), and ~31% (ankles) of a moderate
+         gait cycle -- the same plant defect that broke velociraptor stage-2 before
+         commit fd3ffbc fixed it. See docs/investigations/STAGE2_RECOMMENDATIONS.md. -->
+    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="200" forcerange="-300 300" ctrlrange="-0.8727 1.3963"/>
     <position name="r_hip_roll_act" joint="r_hip_roll" kp="150" forcerange="-120 120" ctrlrange="-0.4363 0.4363"/>
-    <position name="r_knee_act" joint="r_knee" kp="250" forcerange="-200 200" ctrlrange="-1.9199 -0.1745"/>
-    <position name="r_ankle_act" joint="r_ankle" kp="150" forcerange="-120 120" ctrlrange="0.8727 2.6180"/>
+    <position name="r_knee_act" joint="r_knee" kp="250" forcerange="-375 375" ctrlrange="-1.9199 -0.1745"/>
+    <position name="r_ankle_act" joint="r_ankle" kp="150" forcerange="-225 225" ctrlrange="0.8727 2.6180"/>
     <position name="r_toe_d2_act" joint="r_toe_d2_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
 
     <!-- Left leg -->
-    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="200" forcerange="-160 160" ctrlrange="-0.8727 1.3963"/>
+    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="200" forcerange="-300 300" ctrlrange="-0.8727 1.3963"/>
     <position name="l_hip_roll_act" joint="l_hip_roll" kp="150" forcerange="-120 120" ctrlrange="-0.4363 0.4363"/>
-    <position name="l_knee_act" joint="l_knee" kp="250" forcerange="-200 200" ctrlrange="-1.9199 -0.1745"/>
-    <position name="l_ankle_act" joint="l_ankle" kp="150" forcerange="-120 120" ctrlrange="0.8727 2.6180"/>
+    <position name="l_knee_act" joint="l_knee" kp="250" forcerange="-375 375" ctrlrange="-1.9199 -0.1745"/>
+    <position name="l_ankle_act" joint="l_ankle" kp="150" forcerange="-225 225" ctrlrange="0.8727 2.6180"/>
     <position name="l_toe_d2_act" joint="l_toe_d2_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>

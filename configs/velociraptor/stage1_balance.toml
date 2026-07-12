@@ -34,6 +34,11 @@ gamma = 0.98                                     # Setting 4 sweep: 0.9797. Slig
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
+ent_coef_end = 0.001                             # Decay entropy over the stage (EntCoefDecayCallback). Run 20260711_235303
+                                                 # stage 1 collapsed late (peak 1524 @ 2.45M -> 385 @ 3.95M, bimodal falls)
+                                                 # under constant ent_coef on the 1.5x-kp plant — the same late-training
+                                                 # entropy pathology that broke stage 2, where this decay fixed it.
+                                                 # See docs/investigations/STAGE2_RECOMMENDATIONS.md section 5.
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]

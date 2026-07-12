@@ -116,15 +116,15 @@ z≈0.70, vs `healthy_z_range` floor 1.0 and height target 1.2) — leg springs
 now reference the stance angles and the leg servos are stronger with
 bounded force, giving a static stand at z≈1.13, level, all four feet
 grounded. All three models now use `integrator="implicitfast"` and bounded
-`forcerange` on position actuators, sized to clip impact/reset spikes only:
-0.8×kp by default, with the raptor's gait-critical hip pitch and ankle
-servos at 1.5×kp. (The original blanket 0.8×kp sizing clipped 34–40 % of
-the hip and 22–25 % of the ankle gait cycle and collapsed stage-2
-locomotion twice — see
-[investigations/STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md);
-at 1.5×kp the same excitation measures 0 % clipping and zero divergence
-from an unbounded plant, pinned by
-`environments/velociraptor/tests/test_actuator_bounds.py`.)
+`forcerange` on position actuators, sized to clip impact/reset spikes only,
+with gait-critical actuators at 1.5×kp on every species (raptor hip
+pitch/ankle; trex hip pitch/knee/ankle; brachiosaurus all four hip
+pitches). The original static-only sizing clipped 20–50 % of gait-cycle
+torque per species and collapsed velociraptor stage-2 twice — see
+[investigations/STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md)
+§5. Post-fix gait clipping is ≤0.5 % everywhere, pinned by each species'
+`tests/test_actuator_bounds.py`; re-measure any re-sizing with
+`environments/shared/scripts/actuator_saturation_report.py`.
 
 > **Note:** these changes alter the physics plant. Brachiosaurus policies
 > trained before this change will NOT transfer; raptor/trex plants changed

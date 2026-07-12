@@ -40,6 +40,11 @@ To get past stage 2, in order of leverage:
 > `forward_vel_max = 2.5`, `fall_penalty = -150`. R1 remains a run-time
 > notebook step; R3 (gate) is deliberately untouched pending the first run
 > on the fixed plant; R5/R6 are open.
+>
+> **Outcome (2026-07-12):** run `20260711_235303` validated the plan — stage 2
+> passed with the best result on record and stage 3 passed too. See §5 for the
+> results and the cross-species lessons (trex/brachiosaurus carried the same
+> plant defect and are fixed alongside).
 
 ---
 
@@ -307,3 +312,61 @@ Artifacts referenced: Drive run folder
 evaluations/diagnostics npz, videos), `logs/runs_summary.csv` and per-species
 summaries (2026-07-11 export), repo state `da89959` on
 `claude/stage-2-recommendations-un9fxn`.
+
+---
+
+## 5. Outcome (2026-07-12) and cross-species lessons
+
+Run `20260711_235303` — the first on the 1.5×kp plant with the R4 config —
+**validated the plan end-to-end**:
+
+- **Stage 2 PASSED** at the full 8M budget: final eval **2705.93 ± 7.84**
+  (best on record, vs 2679 March best on the unbounded plant), 2.75 ± 0.07 m/s
+  vs the 2.0 gate, episode length 1000 ± 0. Zero catastrophic eval episodes
+  after 4.65M steps; worst single episode in the last 3.35M scored 2562. The
+  bimodal scissor is gone. The run wobbled in the old kill zone (0.75–1.05M,
+  up to 7/30 failures, eval mean within ~2% of the collapse early-stop
+  threshold) and recovered — supporting R5's "don't judge collapse mid-ramp".
+- **Stage 3 PASSED** (96.7% strike success vs the 0.5 gate) — first recorded
+  PPO run to clear all three stages.
+- **R3 is moot**: 2.75 m/s cruise means the 2.0 gate needs no recalibration
+  on the fixed plant.
+- **New follow-up: stage 1 destabilized late** on the new plant (peak
+  1524 ± 422 @ 2.45M → bimodal falls → 385 ± 136 @ 3.95M early stop). The
+  robust-best checkpoint from the healthy phase seeded stage 2 successfully,
+  but the late-training entropy pathology is evidently **generic across
+  stages**, not stage-2-specific → `ent_coef_end` is now enabled for
+  velociraptor stage 1 as well.
+- The npz `np.load` defect (§R7) did not recur in this run's artifacts.
+
+### Cross-species lessons (measured, and fixed alongside this section)
+
+1. **Trex and brachiosaurus carried the same latent plant defect.** The July
+   2026 hardening sized their forcerange caps statically too. Measured with
+   the same scripted-gait excitation (shared report:
+   `environments/shared/scripts/actuator_saturation_report.py`):
+   trex @ 2.5 Hz — hips **44–50%**, ankles ~31%, knees 10–14% clipped;
+   brachiosaurus — hips **20–33% even at a 1.5 Hz walk** (44–51% @ 2.5 Hz),
+   and its only stage-2 pass ever was a 1.12 m/s walk. Fixed to 1.5×kp on
+   the clipped groups only (trex hips/knees/ankles; brachio's four hip
+   pitches — its knees/ankles measured 0% and keep their spike caps).
+   Post-fix: worst gait clipping ≤0.5% (trex) / ~0% (brachio), root-z
+   divergence vs an unbounded plant ≤2 mm. Pinned by new
+   `test_actuator_bounds.py` in both species' test suites.
+2. **Validate every plant change dynamically, not just statically** — a cap
+   that never binds while standing can dominate the gait regime. The shared
+   saturation report + per-species bounds tests now make that check one
+   command / one CI run.
+3. **Decay entropy on long stages.** Constant `ent_coef` produced late-run
+   bimodal collapse in velociraptor stages 1 and 2; decay fixed stage 2 and
+   is enabled for its stage 1. Commented-in suggestions (with species-scaled
+   end values) are staged in the trex and brachiosaurus stage TOMLs — enable
+   on their next runs.
+4. **Trust the safety nets, and keep them:** the collapse early-stop +
+   risk-adjusted (`mean − std`) checkpointing turned the stage-1 wobble into
+   a non-event — training stopped, the healthy checkpoint advanced, stage 2
+   set a record from it.
+5. **Gate sanity:** brachiosaurus's 0.75 m/s gate matches its measured
+   walking regime; trex's stage-2 TOML still gates at 2.0 m/s, which its
+   March passes (3.47 m/s, old plant) support, but the first bounded-plant
+   trex run should re-confirm headroom the way velociraptor's did.

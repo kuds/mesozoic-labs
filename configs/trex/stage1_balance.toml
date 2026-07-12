@@ -38,8 +38,11 @@ gamma = 0.98                            # Setting 4 sweep: 0.9797. Previous 0.99
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
-
-[ppo.policy_kwargs]
+# ent_coef_end = 0.001                  # Uncomment to decay entropy over the stage (EntCoefDecayCallback).
+                                        # Velociraptor stages 1 & 2 both destabilized late under constant
+                                        # ent_coef (bimodal falls, action std growth); decay fixed stage 2
+                                        # and is enabled for its stage 1. Recommended for the next trex run
+                                        # on the 1.5x-kp plant. See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
 net_arch = [512, 256]
 
 [sac]

@@ -35,8 +35,11 @@ gamma = 0.995                           # Increase from 0.99: longer horizon val
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
-
-[ppo.policy_kwargs]
+# ent_coef_end = 0.001                  # Uncomment to decay entropy over the stage (EntCoefDecayCallback).
+                                        # This decay (with fall_penalty -150 and forward_vel_max 2.5) is what
+                                        # carried velociraptor stage 2 to 2706 +/- 8 @ 2.75 m/s on the 1.5x-kp
+                                        # plant. Recommended for the next trex stage-2 run.
+                                        # See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
 net_arch = [512, 256]                  # Larger first layer for T-Rex's higher-dimensional obs space (83 vs raptor's 67)
 
 [sac]
