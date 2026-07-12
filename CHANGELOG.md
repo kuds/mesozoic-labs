@@ -69,6 +69,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   code terminal mock-up intentionally stays dark in both themes.
 
 ### Fixed
+- **Trex/brachio stage TOMLs: restored `[ppo.policy_kwargs]` headers lost
+  in the entropy-decay staging** (PR #436): the dropped headers put
+  `net_arch` into the top-level `[ppo]` table, crashing `PPO.__init__()`
+  at stage start (trex run `20260712_185931`). New config regression
+  tests now pin the structure for every species/stage: `net_arch` only
+  under `policy_kwargs`, `[ppo]` keys validated against the PPO
+  constructor signature plus harness schedule keys, and `[env]` keys
+  validated against each species' env constructor signature.
 - **JAX pipeline correctness** (July 2026 review, PR #426): curriculum gate
   now compares episode-level return against the TOML threshold (it compared
   per-step reward and never advanced past stage 1); observation-normalization

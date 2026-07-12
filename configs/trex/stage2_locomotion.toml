@@ -7,7 +7,13 @@ forward_vel_weight = 2.0               # Match raptor: was 0.8, far too low. Pri
                                        # At 2.0, forward velocity dominates the reward landscape and
                                        # pushes the agent past the slow-walking local optimum.
 alive_bonus = 0.5                      # Keep: already reduced from Stage 1
-fall_penalty = -50.0                   # Keep: reasonable risk/reward balance
+fall_penalty = -150.0                  # Raised from -50: hedge against late-episode falls, which stay cheap
+                                       # in the discounted objective at gamma=0.995 (corrected break-even math
+                                       # in docs/investigations/STAGE2_RECOMMENDATIONS.md section 2.1).
+forward_vel_max = 2.5                  # NEW: was unset (env default 8.0 -> effectively uncapped speed
+                                       # incentive). Saturate just past the 2.0 m/s gate instead of paying
+                                       # for robustness-destroying top speed — the trap that collapsed
+                                       # velociraptor stage 2 (STAGE2_RECOMMENDATIONS.md R4).
 energy_penalty_weight = 0.002          # Increase from 0.001: CoT was near 0, provide some efficiency signal
 tail_stability_weight = 0.05           # Reduce from 0.08 to match raptor: tail oscillation is less
                                        # critical than forward progress at this stage
@@ -35,11 +41,12 @@ gamma = 0.995                           # Increase from 0.99: longer horizon val
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
-# ent_coef_end = 0.001                  # Uncomment to decay entropy over the stage (EntCoefDecayCallback).
-                                        # This decay (with fall_penalty -150 and forward_vel_max 2.5) is what
-                                        # carried velociraptor stage 2 to 2706 +/- 8 @ 2.75 m/s on the 1.5x-kp
-                                        # plant. Recommended for the next trex stage-2 run.
+ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefDecayCallback). This decay
+                                        # (with fall_penalty -150 and forward_vel_max 2.5) is what carried
+                                        # velociraptor stage 2 to 2706 +/- 8 @ 2.75 m/s on the 1.5x-kp plant.
                                         # See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
+
+[ppo.policy_kwargs]
 net_arch = [512, 256]                  # Larger first layer for T-Rex's higher-dimensional obs space (83 vs raptor's 67)
 
 [sac]
