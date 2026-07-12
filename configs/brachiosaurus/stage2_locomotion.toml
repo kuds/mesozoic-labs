@@ -37,6 +37,12 @@ gamma = 0.993                           # Sweep winner: 0.9929 — all top-3 tri
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.01                         # Sweep winner: 0.0104 — reduced from 0.015. Less entropy lets policy commit to discovered gaits sooner.
+# ent_coef_end = 0.002                  # Uncomment to decay entropy over the stage (EntCoefDecayCallback);
+                                        # 5x decay mirrors velociraptor's 0.005 -> 0.001, which (with
+                                        # fall_penalty -150, forward_vel_max 2.5) carried its stage 2 to
+                                        # 2706 +/- 8 @ 2.75 m/s on the 1.5x-kp plant. Sweep-winner caveat:
+                                        # the 0.0104 constant was tuned on the old plant, so re-validate.
+                                        # See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]                  # Larger first layer to match Stage 1 setting 4 architecture

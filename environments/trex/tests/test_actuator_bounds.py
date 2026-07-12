@@ -1,23 +1,15 @@
-"""Plant-characterization tests for the raptor's bounded actuators.
+"""Plant-characterization tests for the T-Rex's bounded actuators.
 
-Commit 156a933 added ``forcerange`` (~0.8x kp) to every position actuator
-and switched to the implicitfast integrator, verifying only *static*
-settling. That sizing clipped 34-40% of hip-pitch and 22-25% of ankle
-torque during a moderate gait cycle and broke stage-2 locomotion twice
-(runs 20260709_185946 and 20260711_165924, bitwise-identical collapses).
-The hip-pitch and ankle caps were re-sized to 1.5x kp, which measures 0%
-gait-cycle clipping and zero pelvis-z divergence from an unbounded plant
-under identical commands (see docs/investigations/STAGE2_RECOMMENDATIONS.md
-R2). These tests pin the resulting contract:
+The July 2026 hardening sized every position actuator's ``forcerange`` at
+~0.8x kp against *static* settling only. Under gait-like excitation that
+clipped 44-50% of hip-pitch, 10-14% of knee, and ~31% of ankle torque —
+the same plant defect that collapsed velociraptor stage-2 twice (see
+docs/investigations/STAGE2_RECOMMENDATIONS.md). Hip pitch, knee, and
+ankle were re-sized to 1.5x kp, which measures <1% gait-cycle clipping
+and ~0 pelvis-z divergence from an unbounded plant. These tests pin that
+contract before the next trex stage-2 run trains against the plant.
 
-* the static no-saturation claim stays true (regression guard),
-* every position actuator keeps a symmetric forcerange at its documented
-  kp ratio (0.8x default, 1.5x for the gait-critical hip pitch/ankle), and
-* the dynamic regime stays unclipped: gait-like excitation must not
-  saturate the leg actuators, so the force caps bound impact/reset spikes
-  rather than learnable gaits.
-
-Run ``environments/velociraptor/scripts/actuator_saturation_report.py``
+Run ``environments/shared/scripts/actuator_saturation_report.py trex``
 for the full per-actuator numbers on the current model.
 """
 
@@ -29,18 +21,25 @@ from environments.shared.tests.actuator_bounds_helpers import (
     measure_clip_fractions,
     position_actuator_ids,
 )
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.trex.envs.trex_env import TRexEnv
 
-# Default sizing from commit 156a933; gait-critical actuators carry extra
-# headroom so the caps only bind on impact/reset spikes, not gait torques.
-FORCERANGE_KP_RATIO = 0.8
+FORCERANGE_KP_RATIO = 0.8  # spike-cap sizing from the July 2026 hardening
 GAIT_HEADROOM_RATIO = 1.5
-GAIT_HEADROOM_ACTUATORS = frozenset({"r_hip_pitch_act", "l_hip_pitch_act", "r_ankle_act", "l_ankle_act"})
+GAIT_HEADROOM_ACTUATORS = frozenset(
+    {
+        "r_hip_pitch_act",
+        "l_hip_pitch_act",
+        "r_knee_act",
+        "l_knee_act",
+        "r_ankle_act",
+        "l_ankle_act",
+    }
+)
 
 
 @pytest.fixture(scope="module")
 def model():
-    env = RaptorEnv()
+    env = TRexEnv()
     try:
         yield env.model
     finally:
@@ -75,8 +74,8 @@ class TestForceBoundsConfiguration:
 
 class TestStaticSaturation:
     def test_no_saturation_during_settle(self):
-        """The commit's static claim: settling from home never clips forces."""
-        env = RaptorEnv()
+        """Settling from home never clips forces (the caps are for spikes, not posture)."""
+        env = TRexEnv()
         try:
             frac = measure_clip_fractions(env, gait=False, steps=1000)
             worst = max(frac[i] for i in position_actuator_ids(env.model))
@@ -87,25 +86,23 @@ class TestStaticSaturation:
 
 class TestDynamicSaturation:
     def test_gait_excitation_stays_unclipped(self):
-        """Guards the actuator headroom the stage-2 fix depends on.
+        """Guards the gait headroom that stage-2 locomotion depends on.
 
-        The 0.8x-kp caps clipped hips 34-40% and ankles 22-25% of a
-        moderate (0.8-amplitude) alternating-leg gait cycle and collapsed
-        stage-2 locomotion twice; at 1.5x kp the same excitation measures
-        0% clipping. If this test starts failing because saturation *rose*,
-        the plant lost gait headroom again — see
+        At 0.8x kp the caps clipped hips 44-50%, knees 10-14%, and ankles
+        ~31% of a moderate 2.5 Hz gait cycle; at 1.5x kp the same
+        excitation measures <1%. If saturation rises past these ceilings,
+        the plant lost gait headroom — see
         docs/investigations/STAGE2_RECOMMENDATIONS.md before re-sizing.
         """
-        env = RaptorEnv()
+        env = TRexEnv()
         try:
             model = env.model
             frac = measure_clip_fractions(env, gait=True, steps=2000)
             hip = max(clip_fraction(frac, model, f"{s}_hip_pitch_act") for s in "rl")
+            knee = max(clip_fraction(frac, model, f"{s}_knee_act") for s in "rl")
             ankle = max(clip_fraction(frac, model, f"{s}_ankle_act") for s in "rl")
-            # Measured at 1.5x kp: 0.0% on both groups (was hips 0.34-0.40,
-            # ankles 0.22-0.25 at 0.8x kp). Thresholds keep margin for
-            # timestep/integrator jitter while catching any real regression.
             assert hip < 0.10, f"hip saturation {hip:.1%} — plant lost gait headroom, stage 2 will clip"
+            assert knee < 0.05, f"knee saturation {knee:.1%} — plant lost gait headroom, stage 2 will clip"
             assert ankle < 0.05, f"ankle saturation {ankle:.1%} — plant lost gait headroom, stage 2 will clip"
         finally:
             env.close()

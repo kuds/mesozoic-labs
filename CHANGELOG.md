@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — RL/GCP Review Fixes & Model Physics (v0.3.2)
 
 ### Changed
+- **Trex and brachiosaurus gait actuator headroom raised to 1.5×kp**
+  (breaking — plant change): the same static-only forcerange sizing that
+  broke velociraptor stage-2 measured 44–50 % hip / ~31 % ankle / 10–14 %
+  knee gait-cycle clipping on trex (2.5 Hz) and 20–33 % hip clipping on
+  brachiosaurus *at a 1.5 Hz walk*. Raised the clipped groups only (trex
+  hip pitch/knee/ankle; brachio's four hip pitches) — post-fix clipping
+  ≤0.5 %, root-z divergence vs an unbounded plant ≤2 mm. New
+  `test_actuator_bounds.py` for both species pins the contract, built on
+  shared helpers (`environments/shared/tests/actuator_bounds_helpers.py`);
+  the velociraptor test now uses the same helpers. A species-generic
+  saturation report lives at
+  `environments/shared/scripts/actuator_saturation_report.py` (the
+  velociraptor script delegates to it). Policies trained on the old caps
+  will not transfer.
+- **Entropy decay enabled for velociraptor stage 1** (`ent_coef_end =
+  0.001`): run `20260711_235303` — which cleared stages 1–3 and set the
+  stage-2 record (2705.93 ± 7.84 @ 2.75 m/s) — showed stage 1 destabilizing
+  late (peak 1524 @ 2.45M → 385 @ 3.95M, bimodal falls) under constant
+  `ent_coef`, the same pathology entropy decay fixed in stage 2. Staged
+  (commented) `ent_coef_end` suggestions added to the trex and
+  brachiosaurus stage 1/2 TOMLs for their next runs.
 - **Raptor hip-pitch/ankle actuator headroom raised to 1.5×kp** (breaking —
   plant change): the blanket 0.8×kp `forcerange` from the July 9 model
   hardening clipped 34–40 % of hip and 22–25 % of ankle torque during a

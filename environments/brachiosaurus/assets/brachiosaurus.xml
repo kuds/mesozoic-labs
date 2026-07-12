@@ -306,28 +306,32 @@
     <position name="head_pitch_act" joint="head_pitch" kp="80" forcerange="-55 55" ctrlrange="-0.6981 0.6981"/>
 
     <!-- Front right leg (5 actuators: hip pitch/roll, knee, ankle, toe) -->
-    <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="600" forcerange="-400 400" ctrlrange="-0.6981 0.8727"/>
+    <!-- Hip-pitch forcerange sized at 1.5x kp (was ~0.65x): the tighter caps clipped
+         20-33% of a slow 1.5 Hz walk cycle on all four hips -- same defect class that
+         broke velociraptor stage-2. Knees/ankles/toes measured 0% and keep their
+         original sizing. See docs/investigations/STAGE2_RECOMMENDATIONS.md. -->
+    <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="600" forcerange="-900 900" ctrlrange="-0.6981 0.8727"/>
     <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="300" forcerange="-200 200" ctrlrange="-0.1745 0.1745"/>
     <position name="fr_knee_act" joint="fr_knee" kp="800" forcerange="-500 500" ctrlrange="-1.0472 0"/>
     <position name="fr_ankle_act" joint="fr_ankle" kp="350" forcerange="-250 250" ctrlrange="-0.3491 0.6981"/>
     <position name="fr_toe_act" joint="fr_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Front left leg -->
-    <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="600" forcerange="-400 400" ctrlrange="-0.6981 0.8727"/>
+    <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="600" forcerange="-900 900" ctrlrange="-0.6981 0.8727"/>
     <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="300" forcerange="-200 200" ctrlrange="-0.1745 0.1745"/>
     <position name="fl_knee_act" joint="fl_knee" kp="800" forcerange="-500 500" ctrlrange="-1.0472 0"/>
     <position name="fl_ankle_act" joint="fl_ankle" kp="350" forcerange="-250 250" ctrlrange="-0.3491 0.6981"/>
     <position name="fl_toe_act" joint="fl_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Rear right leg -->
-    <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="550" forcerange="-350 350" ctrlrange="-0.6981 0.8727"/>
+    <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="550" forcerange="-825 825" ctrlrange="-0.6981 0.8727"/>
     <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="260" forcerange="-180 180" ctrlrange="-0.1745 0.1745"/>
     <position name="rr_knee_act" joint="rr_knee" kp="700" forcerange="-450 450" ctrlrange="-1.0472 0"/>
     <position name="rr_ankle_act" joint="rr_ankle" kp="300" forcerange="-220 220" ctrlrange="-0.3491 0.6981"/>
     <position name="rr_toe_act" joint="rr_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Rear left leg -->
-    <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="550" forcerange="-350 350" ctrlrange="-0.6981 0.8727"/>
+    <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="550" forcerange="-825 825" ctrlrange="-0.6981 0.8727"/>
     <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="260" forcerange="-180 180" ctrlrange="-0.1745 0.1745"/>
     <position name="rl_knee_act" joint="rl_knee" kp="700" forcerange="-450 450" ctrlrange="-1.0472 0"/>
     <position name="rl_ankle_act" joint="rl_ankle" kp="300" forcerange="-220 220" ctrlrange="-0.3491 0.6981"/>

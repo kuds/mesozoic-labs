@@ -43,7 +43,7 @@ than rewrite.
 | [REWARD_DISCREPANCY_INVESTIGATION.md](investigations/REWARD_DISCREPANCY_INVESTIGATION.md) | 2026-04-02 | T-Rex stage-1 reward vs episode-length inconsistency root cause |
 | [REWARD_SCALE_REDESIGN.md](investigations/REWARD_SCALE_REDESIGN.md) | 2026-04-18 | Stage-3 terminal-bonus rescale analysis (implementation deferred) |
 | [STAGE2_INVESTIGATION.md](investigations/STAGE2_INVESTIGATION.md) | 2026-07-09 | Root cause of the velociraptor stage-2 locomotion collapse (bounded-plant actuator clipping) |
-| [STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md) | 2026-07-11 | Replication review of run 20260711_165924, corrected fall-penalty math, ranked plan (plant fix + config changes implemented) |
+| [STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md) | 2026-07-11 | Replication review of run 20260711_165924, corrected fall-penalty math, ranked plan — validated 2026-07-12 by run 20260711_235303 (stages 1–3 cleared, stage-2 record); §5 has the outcome and cross-species lessons |
 
 ## Code & repo reviews
 
