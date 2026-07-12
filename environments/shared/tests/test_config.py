@@ -69,6 +69,69 @@ class TestLoadStageConfig:
             if key.endswith("_range"):
                 assert isinstance(value, tuple), f"{key} should be a tuple, got {type(value)}"
 
+    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("stage", [1, 2, 3])
+    def test_net_arch_only_under_policy_kwargs(self, species, stage):
+        """net_arch must live under [<alg>.policy_kwargs], never in [<alg>].
+
+        A lost [ppo.policy_kwargs] table header silently drops net_arch
+        into [ppo], which is forwarded verbatim to PPO.__init__ and
+        crashes at model construction — hours into a Colab run instead of
+        in CI (run 20260712_185931).
+        """
+        config = load_stage_config(species, stage)
+        for alg_key in ("ppo_kwargs", "sac_kwargs", "jax_kwargs"):
+            kwargs = config[alg_key]
+            assert "net_arch" not in kwargs, (
+                f"{species} stage {stage}: net_arch is a top-level [{alg_key[:-7]}] key — "
+                f"a [{alg_key[:-7]}.policy_kwargs] header is missing in the TOML."
+            )
+        assert "net_arch" in config["ppo_kwargs"].get("policy_kwargs", {}), (
+            f"{species} stage {stage}: [ppo.policy_kwargs] must define net_arch."
+        )
+
+    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("stage", [1, 2, 3])
+    def test_ppo_kwargs_accepted_by_sb3(self, species, stage):
+        """Every top-level [ppo] key must be a PPO constructor kwarg or a harness schedule key."""
+        sb3 = pytest.importorskip("stable_baselines3")
+        import inspect
+
+        # Popped by _prepare_alg_kwargs in train_base.py before PPO() is called.
+        harness_keys = {
+            "ent_coef_end",
+            "ent_coef_decay_timesteps",
+            "learning_rate_end",
+            "lr_schedule",
+            "clip_range_end",
+        }
+        accepted = set(inspect.signature(sb3.PPO.__init__).parameters) | harness_keys
+        config = load_stage_config(species, stage)
+        unknown = set(config["ppo_kwargs"]) - accepted
+        assert not unknown, (
+            f"{species} stage {stage}: [ppo] keys {sorted(unknown)} are neither PPO "
+            "constructor kwargs nor harness schedule keys — they would crash "
+            "PPO.__init__ at run time."
+        )
+
+    @pytest.mark.parametrize("species", SPECIES)
+    @pytest.mark.parametrize("stage", [1, 2, 3])
+    def test_env_kwargs_accepted_by_env_constructor(self, species, stage):
+        """[env] is passed verbatim to the species env constructor; unknown keys crash at reset."""
+        import inspect
+
+        from environments.shared.species_registry import get_species_config
+
+        env_class = get_species_config(species).env_class
+        accepted = set(inspect.signature(env_class.__init__).parameters)
+        config = load_stage_config(species, stage)
+        unknown = set(config["env_kwargs"]) - accepted
+        assert not unknown, (
+            f"{species} stage {stage}: [env] keys {sorted(unknown)} are not "
+            f"{env_class.__name__}.__init__ parameters — they would crash env "
+            "construction at run time."
+        )
+
     def test_missing_species_raises(self):
         with pytest.raises(FileNotFoundError):
             load_stage_config("stegosaurus", 1)
