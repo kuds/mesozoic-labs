@@ -151,3 +151,73 @@ jobs:
         run: pytest environments/trex/tests/ -v --tb=short --cov=environments/trex --cov-report=term-missing
         env:
           MUJOCO_GL: osmesa
+
+  test-sb3:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OSMesa
+        run: sudo apt-get update && sudo apt-get install -y libosmesa6-dev
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install SB3 dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[train,test]"
+
+      - name: Verify optional backend imports
+        run: python -c "import stable_baselines3, torch; print(stable_baselines3.__version__, torch.__version__)"
+
+      - name: Run SB3 integration tests
+        run: |
+          pytest \
+            environments/shared/tests/test_config.py \
+            environments/shared/tests/test_curriculum.py \
+            environments/shared/tests/test_diagnostics.py \
+            environments/shared/tests/test_evaluation.py \
+            environments/shared/tests/test_train_base.py \
+            environments/shared/tests/test_wandb_integration.py \
+            -v --tb=short
+        env:
+          MUJOCO_GL: osmesa
+
+  test-jax-cpu:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OSMesa
+        run: sudo apt-get update && sudo apt-get install -y libosmesa6-dev
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install CPU JAX dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[jax-cpu,test]"
+
+      - name: Verify optional backend imports
+        run: python -c "import flax, jax, optax; from mujoco import mjx; print(jax.__version__, jax.default_backend())"
+        env:
+          JAX_PLATFORMS: cpu
+
+      - name: Run JAX and MJX tests
+        run: |
+          pytest \
+            environments/shared/tests/test_jax_*.py \
+            environments/shared/tests/test_mjx_env.py \
+            environments/shared/tests/test_reward_functions.py \
+            -v --tb=short
+        env:
+          JAX_PLATFORMS: cpu
+          MUJOCO_GL: osmesa

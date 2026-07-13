@@ -46,6 +46,13 @@ jax = [
     "flax>=0.8.0",
     "optax>=0.1.7",
 ]
+jax-cpu = [
+    # CPU-only JAX stack for development and CI hosts without NVIDIA drivers.
+    "mujoco-mjx>=3.0.0",
+    "jax>=0.4.20",
+    "flax>=0.8.0",
+    "optax>=0.1.7",
+]
 mjlab = [
     # mjlab (GPU-accelerated MuJoCo-Warp + Isaac-Lab-style manager API).
     # Requires an NVIDIA GPU for training; macOS is evaluation-only.

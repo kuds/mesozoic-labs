@@ -480,12 +480,11 @@ class TestSaveThrottle:
         from environments.shared.diagnostics import DiagnosticsCallback
 
         cb = DiagnosticsCallback(log_dir=str(tmp_path), save_interval_seconds=3600.0)
-        cb.logger = MagicMock()
+        model = _make_mock_model()
+        model.rollout_buffer = MagicMock(observations=None)
+        cb.init_callback(model)
         cb.num_timesteps = 100
         cb.locals = {"infos": []}
-        cb.model = MagicMock()
-        cb.model.rollout_buffer.observations = None
-        cb.training_env = None
 
         cb._step_infos["forward_vel"] = [1.0]
         cb._on_rollout_end()  # first save always happens (last_save_time=0)

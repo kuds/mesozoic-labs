@@ -71,7 +71,7 @@ def _detect_gpu_info() -> dict[str, Any]:
             return {
                 "gpu_model": short_name,
                 "gpu_full_name": full_name,
-                "gpu_memory_gb": round(props.total_mem / 1e9, 1),
+                "gpu_memory_gb": round(props.total_memory / 1e9, 1),
                 "cuda_version": torch.version.cuda or "",
             }
     except Exception:

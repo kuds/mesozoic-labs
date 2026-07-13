@@ -63,6 +63,30 @@ def _parse_hpt_extra_args(extra_args: list[str]) -> list[str]:
     return overrides
 
 
+def _log_hardware_info() -> None:
+    """Log best-effort hardware details without interrupting a training trial."""
+    try:
+        import multiprocessing
+
+        logger.info("  CPU cores: %d", multiprocessing.cpu_count())
+    except Exception:
+        pass
+
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            logger.info("  GPU: %s (CUDA %s)", torch.cuda.get_device_name(0), torch.version.cuda)
+            memory_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+            logger.info("  GPU memory: %.1f GB", memory_gb)
+        else:
+            logger.info("  GPU: none (CPU-only training)")
+    except ImportError:
+        logger.info("  GPU: torch not installed (CPU-only training)")
+    except Exception as exc:
+        logger.warning("  GPU diagnostics unavailable; continuing training: %s", exc)
+
+
 def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
     """Run a single training trial.
 
@@ -100,22 +124,7 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         trial_id,
     )
     logger.info("  timesteps=%s  n_envs=%d  seed=%d", f"{args.timesteps:,}", args.n_envs, args.seed)
-    try:
-        import multiprocessing
-
-        logger.info("  CPU cores: %d", multiprocessing.cpu_count())
-    except Exception:
-        pass
-    try:
-        import torch
-
-        if torch.cuda.is_available():
-            logger.info("  GPU: %s (CUDA %s)", torch.cuda.get_device_name(0), torch.version.cuda)
-            logger.info("  GPU memory: %.1f GB", torch.cuda.get_device_properties(0).total_mem / 1e9)
-        else:
-            logger.info("  GPU: none (CPU-only training)")
-    except ImportError:
-        logger.info("  GPU: torch not installed (CPU-only training)")
+    _log_hardware_info()
     logger.info("=" * 60)
 
     overrides = _parse_hpt_extra_args(extra_args)
