@@ -9,9 +9,10 @@ Supports curriculum learning with three stages:
 
 Usage:
     # Single-stage training
-    python train_sb3.py train --stage 1 --timesteps 1000000
-    python train_sb3.py train --stage 2 --timesteps 2000000 --load models/best_model.zip
-    python train_sb3.py train --stage 3 --timesteps 3000000 --load models/best_model.zip
+    # Each command uses the current stage TOML budget unless --timesteps is supplied.
+    python train_sb3.py train --stage 1
+    python train_sb3.py train --stage 2 --load models/best_model.zip
+    python train_sb3.py train --stage 3 --load models/best_model.zip
 
     # Automated end-to-end curriculum (all 3 stages)
     python train_sb3.py curriculum --n-envs 4

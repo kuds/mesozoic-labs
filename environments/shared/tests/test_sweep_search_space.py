@@ -1,5 +1,8 @@
 """Tests for sweep search_space.py — search space loading and resolution."""
 
+import json
+from pathlib import Path
+
 import pytest
 
 from environments.shared.scripts.sweep import (
@@ -9,6 +12,8 @@ from environments.shared.scripts.sweep import (
     _settings_for_stage,
     _split_stage_block,
 )
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 # ── _is_per_stage / _split_stage_block / _search_space_for_stage ─────────
 
@@ -117,6 +122,18 @@ class TestSettingsForStage:
     def test_missing_stage_returns_empty(self):
         per_stage = {"stage1": {"trials": 10}}
         assert _settings_for_stage(per_stage, 3) == {}
+
+    @pytest.mark.parametrize(
+        "config_path",
+        sorted((REPOSITORY_ROOT / "configs").glob("*/sweep_*.json")),
+        ids=lambda path: str(path),
+    )
+    def test_committed_species_configs_define_runtime_settings_for_every_stage(self, config_path):
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        for stage in (1, 2, 3):
+            settings = _settings_for_stage(config, stage)
+            assert {"trials", "timesteps", "parallel", "n_envs"} <= settings.keys()
+            assert all(settings[key] > 0 for key in ("trials", "timesteps", "parallel", "n_envs"))
 
 
 # ── _resolve_search_space ────────────────────────────────────────────────

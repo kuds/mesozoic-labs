@@ -104,10 +104,20 @@ Follow this checklist:
    - Use the shared test utilities in `environments/shared/`
    - Verify observation/action space shapes, reward components, determinism
 
-6. **Update CI** (`.github/workflows/python-ci.yml`):
+6. **Add the public catalog entry** (`configs/species_manifest.toml`):
+   - Add presentation metadata, the environment entry point, and the MJCF path
+   - Declare success semantics for every supported backend and the applicable
+     training-notebook IDs
+   - Declare only existing, provenance-labelled result summaries or stage videos
+   - Run `python -m environments.shared.species_catalog` to regenerate the
+     README blocks and `website/src/data/species.generated.json`
+   - Run `python -m environments.shared.species_catalog --check` to verify that
+     generated data and declared artifacts are current
+
+7. **Update CI** (`.github/workflows/python-ci.yml`):
    - Add a `test-<species>` job following the existing pattern
 
-7. **Update pyproject.toml**:
+8. **Update pyproject.toml**:
    - Add the test path to `[tool.pytest.ini_options]`
    - Add the Gymnasium entry point
 

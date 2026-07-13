@@ -15,28 +15,38 @@ Stage 1 (Balance) → Stage 2 (Locomotion) → Stage 3 (Behavior)
 
 Each stage has its **own TOML config** (`configs/<species>/stage1_*.toml`, `stage2_*.toml`, `stage3_*.toml`). When the curriculum advances, the script loads that stage's config and re-initialises the model with those hyperparameters. This means you get a full hyperparameter shift at each stage automatically — no manual intervention required.
 
-The pattern across all three species follows a deliberate progression:
-
-| Hyperparameter | Stage 1 (Balance) | Stage 2 (Locomotion) | Stage 3 (Behavior) | Rationale |
-|---|---|---|---|---|
-| `learning_rate` | `3e-4` | `1e-4` | `5e-5` | Coarser search early, fine-tune late |
-| `ent_coef` | `0.005–0.01` | `0.005–0.01` | `0.001` | More exploration early, exploit late |
-| `clip_range` | `0.2` | `0.2` | `0.1` | Conservative updates for sparse rewards |
-| `gamma` | `0.99–0.998` | `0.99` | `0.995` | More farsighted for sparse strike/bite/food |
-| `n_steps` / `batch_size` | Smaller | Medium | Larger | Larger buffer for complex behaviour |
-
-The `env_kwargs` (reward weights, `alive_bonus`, `forward_vel_weight`, etc.) also change dramatically between stages — that is the whole point of curriculum learning.
+Hyperparameters and reward weights vary by species and stage. The
+`configs/<species>/stage*.toml` files are authoritative; do not copy a single
+progression from this cloud-deployment guide. The generated
+[model pages](/docs/models/velociraptor) show each stage's current budget and
+advancement gate.
 
 ### Stage advancement logic
 
-The `CurriculumManager` checks thresholds after every `--eval-freq` steps. Both must be exceeded for `required_consecutive` evaluations in a row before the stage advances:
+This section describes the SB3 `curriculum` command used by the jobs below. Its
+`CurriculumManager` checks the policy after every `--eval-freq` steps. Every
+enabled criterion must pass for `required_consecutive` evaluations in a row
+before the stage advances early:
 
 | Threshold | What it checks |
 |---|---|
 | `min_avg_reward` | Mean episode reward over the evaluation window |
 | `min_avg_episode_length` | Mean episode length over the evaluation window |
+| `min_avg_forward_vel` | Optional mean forward-velocity gate, enabled when greater than zero |
+| `min_success_rate` | Optional episode success-rate gate, enabled when greater than zero |
+| `required_consecutive` | Number of consecutive evaluations in which all enabled criteria must pass |
 
-If the per-stage `timesteps` budget is exhausted before thresholds are met, the curriculum advances anyway — so the job always completes, regardless of agent performance. Checkpoints and VecNormalize stats are saved at the end of each stage.
+Each evaluation must also contain at least 10 episodes, the current
+`StageThreshold.min_eval_episodes` implementation default. If the per-stage
+`timesteps` budget is exhausted before the gates are met, the curriculum
+advances anyway — so the job always completes, regardless of agent performance.
+Checkpoints and VecNormalize stats are saved at the end of each stage.
+
+The JAX/MJX CLI curriculum is not equivalent: it performs one reward-only check
+after each configured stage budget. The JAX notebook helper checks all enabled
+metric thresholds once, without the SB3 consecutive-pass rule. See
+[JAX/MJX Training](jax.md#three-stage-task-sequence) before adapting these jobs
+to that backend.
 
 ### When to use `curriculum` vs `train`
 
@@ -186,7 +196,6 @@ job = aiplatform.CustomJob(
                     "environments/velociraptor/scripts/train_sb3.py",
                     "train",
                     "--stage", "1",
-                    "--timesteps", "1000000",
                     "--n-envs", "4",
                     "--output-dir", "/gcs/YOUR_BUCKET/training/velociraptor/stage1",
                 ],
@@ -197,7 +206,10 @@ job = aiplatform.CustomJob(
 job.run(sync=False)
 ```
 
-To chain stages manually, pass the previous stage's final model to `--load` in the next job:
+With no `--timesteps` argument, the job reads the current Stage 1 budget from
+its TOML config. Pass an explicit value only for a deliberate override. To chain
+stages manually, pass the previous stage's final model to `--load` in the next
+job:
 
 ```python
 # Stage 2 picks up the Stage 1 final model
@@ -227,13 +239,15 @@ Choose your machine type based on budget and training needs:
 | `n1-standard-8` + T4 | 8 | 30 GB | 1x NVIDIA T4 | Standard training |
 | `n1-standard-16` + T4 | 16 | 60 GB | 1x NVIDIA T4 | Multi-env SubprocVecEnv |
 | `n1-standard-8` + V100 | 8 | 30 GB | 1x NVIDIA V100 | Faster training |
-| `a2-highgpu-1g` | 12 | 85 GB | 1x NVIDIA A100 | Large-scale training, future MJX/JAX |
+| `a2-highgpu-1g` | 12 | 85 GB | 1x NVIDIA A100 | Illustrative high-memory JAX/MJX option |
 
 **Recommendations:**
 - **Stage 1 (balance):** `n1-standard-8` without GPU is sufficient. MuJoCo CPU simulation with SB3 PPO doesn't benefit much from GPU at small batch sizes.
 - **Stages 2-3 (locomotion, behavior):** `n1-standard-8` + T4 gives a good cost/performance balance for longer training runs.
 - **Full curriculum runs:** `n1-standard-16` + T4 to support `--subproc` with more parallel environments.
-- **Future JAX/MJX training:** A100 GPUs become essential for batch simulation.
+- **JAX/MJX training:** Benchmark a short run on the intended GPU and scale
+  `num_envs` from measured memory use. An A100 is an option, not a documented
+  requirement.
 
 > **Tip:** For CPU-bound training (no GPU), consider using [`c2-standard-*` machine types](https://cloud.google.com/compute/docs/compute-optimized-machines#c2_machine_types) instead of `n1-standard-*`. C2 machines offer higher per-core performance (3.1 GHz sustained all-core turbo), which benefits MuJoCo's single-threaded simulation stepping and SB3's CPU-side rollout collection. For example, `c2-standard-8` typically completes Stage 1 faster than `n1-standard-8` at a comparable price point.
 
@@ -426,20 +440,16 @@ gcloud storage cp \
 
 ## 10. Cost Estimation
 
-Approximate costs per training run (as of early 2026, `us-central1`):
-
-| Configuration | Per-Hour Cost | Stage 1 (500K) | Full Curriculum (3.5M) |
-|---|---|---|---|
-| `n1-standard-8` (CPU only) | ~$0.38 | ~$0.50 | ~$4.00 |
-| `n1-standard-8` + T4 | ~$0.73 | ~$0.40 | ~$3.00 |
-| `n1-standard-8` + V100 | ~$2.86 | ~$0.80 | ~$6.00 |
-| `a2-highgpu-1g` (A100) | ~$4.00 | ~$1.00 | ~$8.00 |
-
-*Actual costs depend on training speed, which varies by species complexity and stage. GPU runs are often cheaper overall because they finish faster.*
+Cloud prices and committed stage budgets change independently. Estimate a run
+using the current Google Cloud pricing calculator, the budget shown on the
+generated species page, and throughput measured by a short smoke run on the
+same machine type. Do not extrapolate from old per-stage step counts or copied
+hourly prices.
 
 **Cost-saving tips:**
-- Start with CPU-only for Stage 1 (balance). It's a simple task and usually converges quickly.
-- Use [preemptible/spot VMs](https://cloud.google.com/vertex-ai/docs/training/create-custom-job#spot-vms) for up to 60-91% savings on compute.
+
+- Benchmark a short run before committing to the full configured budget.
+- Consider [preemptible/spot VMs](https://cloud.google.com/vertex-ai/docs/training/create-custom-job#spot-vms) when interruption is acceptable.
 - Set the `--timesteps` flag conservatively and check results before running longer.
 
 ## 11. Using Spot (Preemptible) VMs
@@ -583,7 +593,8 @@ gcloud ai hp-tuning-jobs list --region=us-central1 --project=${PROJECT_ID} \
 
 ### 5. Clean up the orchestrator VM
 
-After all sweeps finish, delete the VM to stop incurring costs (~$7/month for e2-micro):
+After all sweeps finish, delete the VM to stop incurring charges; consult current
+Compute Engine pricing for the selected machine and region:
 
 ```bash
 gcloud compute instances delete sweep-orchestrator \
@@ -600,7 +611,7 @@ The Dockerfile sets `MUJOCO_GL=osmesa` for headless rendering. If you see OpenGL
 
 ### Out of memory
 
-If training crashes with OOM, reduce `--n-envs` or switch to a machine type with more RAM. The quadrupedal Brachiosaurus environment uses more memory than the bipedal species due to its larger observation space (75D vs 69D/77D).
+If training crashes with OOM, reduce `--n-envs` or switch to a machine type with more RAM. Memory use depends on the species model, observation and action spaces, algorithm, and parallel environment count; consult the generated [model specifications](/docs/models/velociraptor) rather than relying on copied dimension values.
 
 ### Job gets preempted frequently
 

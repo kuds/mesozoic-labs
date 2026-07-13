@@ -5,35 +5,35 @@ slug: /
 
 # Welcome to Mesozoic Labs
 
-**Mesozoic Labs** is an open-source platform for building robotic dinosaurs using physics simulation and reinforcement learning.
+**Mesozoic Labs** is an open-source research platform for dinosaur-inspired locomotion using physics simulation and reinforcement learning.
 
 ## What is Mesozoic Labs?
 
-We're bringing prehistoric creatures back to life—as robots. Using state-of-the-art reinforcement learning algorithms and accurate physics simulations, we train virtual dinosaurs to walk, run, and move naturally. Then we transfer that learned behavior to real robotic hardware.
+We use articulated MuJoCo models to study how reinforcement-learning agents can learn balance, locomotion, and species-inspired tasks. These models are engineering abstractions inspired by dinosaur morphology; they have not been validated as accurate reconstructions of dinosaur anatomy. Hardware transfer is a future research direction, and no sim-to-real or physical-robot results are currently published.
 
 ## Key Features
 
-- **Accurate Physics Models** - MuJoCo-based simulations of dinosaur anatomy
+- **Physics-Based Models** - Articulated MuJoCo models inspired by dinosaur morphology
 - **Reinforcement Learning** - PPO and SAC algorithms for training locomotion
-- **JAX/MJX Integration** - GPU-accelerated training with 2,048+ parallel environments for 10-100x speedup
-- **Multiple Species** - T-Rex, Velociraptor, Brachiosaurus, and more
-- **Sim-to-Real** - Transfer learned behaviors to physical robots
+- **JAX/MJX Integration** - Batched, GPU-oriented PPO training for all three implemented species
+- **Multiple Species** - T-Rex, Velociraptor, and Brachiosaurus
+- **Sim-to-Real Roadmap** - Planned hardware, system-identification, and transfer experiments; not yet validated
 - **Open Source** - Fully open codebase for research and education
 
-## Current Results
+## Species Catalog and Published Results
 
-| Species | Algorithm | Stage | Best Eval Reward | Avg Fwd Vel | Training Steps | Time |
-|---------|-----------|-------|------------------|-------------|----------------|------|
-| T-Rex | PPO | 1 — Balance | 3008.66 +/- 7.62 | 0.02 m/s | 6.0M | 3h 35m |
-| T-Rex | PPO | 2 — Locomotion | 1936.01 +/- 13.12 | 3.47 m/s | 8.0M | 5h 17m |
-| T-Rex | PPO | 3 — Bite | 1294.28 +/- 67.19 | 1.68 m/s | 8.0M | 4h 10m |
-| Velociraptor | PPO | 1 — Balance | 1964.43 +/- 27.39 | 0.11 m/s | 6.0M | 2h 57m |
-| Velociraptor | PPO | 2 — Locomotion | 2678.68 +/- 4.07 | 3.47 m/s | 8.0M | 4h 36m |
-| Velociraptor | PPO | 3 — Strike | 1366.19 +/- 76.29 | 2.02 m/s | 8.0M | 3h 52m |
-| Basic Dinosaur | PPO | Full curriculum | 319.94 | — | 2.6M | 1h 30m |
-| Basic Dinosaur | SAC | Full curriculum | 3091.31 | — | 3.6M | — |
+The model pages render observation and action dimensions, compiled-model facts,
+current curriculum stages, and published result summaries from the generated
+species catalog:
 
-All results use 3-stage curriculum learning (balance → locomotion → behavior).
+- [Velociraptor](/docs/models/velociraptor)
+- [T-Rex](/docs/models/trex)
+- [Brachiosaurus](/docs/models/brachiosaurus)
+
+The published result summaries describe historical runs. They are marked
+unverified because the original repository commit, model hash, and config hash
+were not recorded; they should not be treated as controlled algorithm
+comparisons or as results from the current model revision and configs.
 
 ## Quick Links
 
@@ -45,4 +45,7 @@ All results use 3-stage curriculum learning (balance → locomotion → behavior
 
 ## Project Status
 
-The project is actively under development (currently on Phase 1 — v0.3.0). Core infrastructure is in place including automated curriculum training, W&B experiment tracking, and evaluation metrics. Star us on [GitHub](https://github.com/kuds/mesozoic-labs) to follow our progress!
+The project is actively under development. Core infrastructure includes
+automated curriculum training, W&B experiment tracking, and evaluation metrics.
+See the repository roadmap for planned work, including hardware and sim-to-real
+experiments that have not yet been validated.

@@ -7,6 +7,10 @@ the previous one. Items within a phase can often be worked in parallel.
 
 Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 
+> Run metrics in this roadmap are intentionally not copied here. The generated
+> [root catalog](../README.md#training-results), backed by versioned result summaries,
+> is the public source for provenance-labelled historical results and current stage budgets.
+
 ---
 
 ## Progress Summary
@@ -14,7 +18,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | Phase | Name | Status | Done | Remaining |
 |-------|------|--------|------|-----------|
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
-| **1** | First Steps (v0.3.0) | **In Progress** | 10/12 items | Brachiosaurus Stage 3 (food_reach at 16.7% vs 50% target); Stage 3 terminal-bonus rescale (design debt) |
+| **1** | First Steps (v0.3.0) | **In Progress** | 10/12 items | Brachiosaurus Stage 3; Stage 3 terminal-bonus rescale (design debt) |
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
 | **3** | Evolution (v0.5.0) | Not Started | 0/8 items | Blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
@@ -23,9 +27,9 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 
 **Current focus:** Phase 1 — all infrastructure is in place (curriculum manager,
 W&B tracking, metrics, Dockerfile, Vertex AI guide) and codebase consolidation
-is complete. Velociraptor PPO and SAC, and T-Rex PPO have all 3 stages passing.
-Brachiosaurus PPO passes Stages 1-2 but Stage 3 (food_reach) is at 16.7%
-success vs 50% target. T-Rex SAC training not yet attempted.
+is complete. Historical summaries exist for Velociraptor PPO/SAC, T-Rex PPO,
+and Brachiosaurus PPO; their provenance and metrics are shown in the generated
+catalog. Further Brachiosaurus Stage 3 work and T-Rex SAC training remain planned.
 
 ---
 
@@ -77,25 +81,27 @@ Config-driven reward weights are loaded for at least one species.
 Finish what's started: all three species fully trained through the 3-stage
 curriculum with published results and reproducible checkpoints.
 
+Stage 3 task names below are simulation labels: T-Rex "bite success" is fixed
+head-geom contact (the model has no articulated jaw), and Brachiosaurus
+`food_reach` is a head-tip distance threshold rather than physical food contact.
+
 ### Milestone: v0.3.0 — "First Steps"
 
-- [x] **Complete Velociraptor 3-stage training**
-  - [x] Run Stages 1-3 with PPO (93.3% strike success, 22M steps, 11:25:15)
-  - [x] Run Stages 1-3 with SAC (90.0% strike success, 22M steps, 22:59:18)
+- [x] **Publish historical Velociraptor 3-stage summaries**
+  - [x] Record PPO and SAC run summaries with explicit provenance status
   - [x] Record reward curves, training GIFs, final evaluation metrics
   - [ ] Publish checkpoints as GitHub release artifacts
   - _Dependency: Phase 0 config externalization (helpful, not blocking)_
 
 - [-] **Complete Brachiosaurus 3-stage training**
-  - [x] Stages 1-2 passing with PPO (best reward 4176.95 in Stage 2, 1.12 m/s fwd vel)
-  - [-] Stage 3 food_reach at 16.7% success rate vs 50% target (best run: ppo_20260321_144730)
-  - 10 training runs completed (Mar 18 - Mar 22), iterating on Stage 2-3 hyperparameters
+  - [x] Publish the existing PPO run summary as historical and unverified
+  - [-] Improve and rerun the Stage 3 head-tip distance task
   - _Dependency: None (parallel with Velociraptor)_
 
 - [x] **T-Rex environment buildout**
   - [x] Implement `TRexEnv` subclass (env, tests, training script)
   - [x] The MJCF model, assets, and Gymnasium registration exist
-  - [x] Run Stages 1-3 with PPO (96.7% bite success, 22M steps, 13:02:32)
+  - [x] Publish the existing PPO run summary as historical and unverified
   - [ ] Run Stages 1-3 with SAC
   - _Dependency: None (parallel with other species)_
 
@@ -153,7 +159,7 @@ curriculum with published results and reproducible checkpoints.
   - Centralized sensor constants and VecNormalize defaults in `environments/shared/constants.py`
   - Created shared reward test helpers in `environments/shared/tests/reward_test_helpers.py`
   - Cleaned up unused website exports and naming inconsistencies
-  - Consolidated training notebooks into single parameterized `notebooks/training.ipynb`
+  - Consolidated SB3 training into the parameterized `notebooks/sb3_training.ipynb`
   - See [CODE_CONSOLIDATION.md](CODE_CONSOLIDATION.md) for full implementation plan
   - _Completed: 2026-03-19_
 
@@ -168,12 +174,12 @@ curriculum with published results and reproducible checkpoints.
   - _Completed: 2026-04-18_
 
 - [ ] **Stage 3 terminal-bonus rescale (reward design debt)**
-  - Stage 3 `strike_bonus_weight` / `bite_bonus_weight` /
-    `food_reach_bonus_weight` are all `1000`, ~2 orders of magnitude larger
+  - Stage 3 `strike_bonus` / `bite_bonus` / `food_reach_bonus` are all
+    `1000`, ~2 orders of magnitude larger
     than accumulated per-step shaping. This produces a bimodal,
     non-stationary return distribution that VecNormalize was papering over.
-  - Likely contributor to Brachiosaurus Stage 3 being stuck at 16.7%
-    success (food_reach is the sparsest of the three Stage 3 tasks).
+  - Likely contributor to the underperforming Brachiosaurus Stage 3 run
+    (food_reach is the sparsest of the three Stage 3 tasks).
   - Proposed fix, validation plan, open questions, and risks captured in
     [investigations/REWARD_SCALE_REDESIGN.md](investigations/REWARD_SCALE_REDESIGN.md).
   - Breaking change to reward landscape — no cross-boundary checkpoint
@@ -195,9 +201,9 @@ critical bridge between "cool demo" and "transferable research."
 ### Milestone: v0.4.0 — "Into the Wild"
 
 - [ ] **Domain randomization**
-  All parameters live in `BaseDinoEnv.__init__` with defaults of 0 (disabled),
-  configurable via TOML `[env]` sections. Nominal physics values are cached at
-  init; randomization is applied relative to XML defaults each `reset()`.
+  **Planned design:** these APIs are not implemented in `BaseDinoEnv` today.
+  Add opt-in TOML settings, cache nominal physics at initialization, and apply
+  sampled changes relative to XML defaults on each `reset()`.
   - **Ground friction** (`friction_range`): Multiplicative per-episode scaling
     of all geom friction coefficients (e.g. `[0.8, 1.2]` = +/-20%). Teaches
     handling of slippery and grippy surfaces.
@@ -473,15 +479,17 @@ Parallel track that can start alongside Phase 4. GPU-accelerated batch simulatio
   - _Dependency: MJX environment for all species (completed above);
     NVIDIA GPU in Colab / Vertex AI_
 
-**Exit criteria:** 100x+ speedup demonstrated. All species available on MJX backend.
-Published benchmark comparison (CPU vs. GPU vs. TPU). mjlab pilot concluded
+**Exit criteria:** A reproducible speedup demonstrated. All species available on the MJX backend.
+Published benchmark comparison (CPU vs. NVIDIA GPU). mjlab pilot concluded
 with a keep/retire decision on the custom JAX training stack.
 
 ---
 
 ## Phase 6 — Sim-to-Real & Hardware (Weeks 32-48+)
 
-Physical robot construction and sim-to-real policy transfer.
+**Status: planned.** Physical robot construction and sim-to-real policy transfer
+are roadmap goals. The repository does not currently include a hardware prototype,
+a ROS 2 bridge, or published sim-to-real validation results.
 
 ### Milestone: v1.0.0 — "Life Finds a Way"
 

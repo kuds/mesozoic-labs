@@ -3,7 +3,7 @@ Velociraptor Gymnasium Environment
 
 A bipedal dinosaur locomotion environment with predatory strike behavior.
 
-Observation space (67 dims):
+Observation space (total dimension is generated in the public species catalog):
     - Joint positions (qpos[7:]) — 24 hinge joints excluding root freejoint
     - Joint velocities (qvel[6:]) — 24 hinge joints excluding root freejoint
     - Pelvis orientation (quaternion) — 4
@@ -14,7 +14,7 @@ Observation space (67 dims):
     - Prey direction (unit vector) — 3
     - Prey distance (scalar) — 1
 
-Action space (22 dims):
+Action space (total dimension is generated in the public species catalog):
     - Right leg: hip pitch/roll, knee, ankle, toe d3/d4 (6)
     - Right sickle claw (1)
     - Left leg: hip pitch/roll, knee, ankle, toe d3/d4 (6)

@@ -1,0 +1,185 @@
+schema_version = 1
+
+[project_capabilities.simulation]
+label = "MuJoCo simulation"
+status = "implemented"
+
+[project_capabilities.domain_randomization]
+label = "Domain randomization"
+status = "planned"
+
+[project_capabilities.hardware_prototype]
+label = "Hardware prototype"
+status = "planned"
+
+[project_capabilities.ros2_bridge]
+label = "ROS 2 bridge"
+status = "planned"
+
+[project_capabilities.sim_to_real_validation]
+label = "Sim-to-real validation"
+status = "not_started"
+
+[[notebooks]]
+id = "sb3_training"
+display_order = 1
+label = "Stable-Baselines3 training"
+description = "Train and evaluate species with Stable-Baselines3."
+path = "notebooks/sb3_training.ipynb"
+
+[[notebooks]]
+id = "jax_training"
+display_order = 2
+label = "JAX/MJX training"
+description = "Train and evaluate species with the JAX/MJX backend."
+path = "notebooks/jax_training.ipynb"
+
+[[notebooks]]
+id = "ray_tune_sweep"
+display_order = 3
+label = "Ray Tune sweep"
+description = "Run distributed hyperparameter sweeps with Ray Tune."
+path = "notebooks/ray_tune_sweep.ipynb"
+
+[[notebooks]]
+id = "google_drive_summary"
+display_order = 4
+label = "Google Drive results summary"
+description = "Collect and summarize training artifacts from Google Drive."
+path = "notebooks/google_drive_summary.ipynb"
+
+[[species]]
+id = "velociraptor"
+display_order = 1
+display_name = "Velociraptor"
+tagline = "Swift Bipedal Predator"
+gait = "Bipedal"
+specialty = "Sickle-claw contact attacks"
+aliases = ["raptor"]
+env_entrypoint = "environments.velociraptor.envs.raptor_env:RaptorEnv"
+model_path = "environments/velociraptor/assets/raptor.xml"
+training_notebooks = ["sb3_training", "jax_training"]
+result_summary_paths = [
+    "results/velociraptor/ppo/summary.json",
+    "results/velociraptor/sac/summary.json",
+]
+
+[[species.success_metrics]]
+backends = ["stable-baselines3"]
+key = "strike_success"
+label = "Sickle-claw contact success"
+definition = "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
+
+[[species.success_metrics]]
+backends = ["jax-mjx"]
+key = "strike_proximity_success"
+label = "Sickle-claw proximity success"
+definition = "Either claw-tip site comes within 0.20 m of the prey target position while the strike bonus is enabled; physical geom contact is not required."
+
+[[species.stage_videos]]
+stage = 1
+path = "website/static/videos/velociraptor_ppo_stage1_best.mp4"
+algorithm = "PPO"
+backend = "stable-baselines3"
+model_revision_status = "historical"
+verification_status = "unverified"
+
+[[species.stage_videos]]
+stage = 2
+path = "website/static/videos/velociraptor_ppo_stage2_best.mp4"
+algorithm = "PPO"
+backend = "stable-baselines3"
+model_revision_status = "historical"
+verification_status = "unverified"
+
+[[species.stage_videos]]
+stage = 3
+path = "website/static/videos/velociraptor_ppo_stage3_best.mp4"
+algorithm = "PPO"
+backend = "stable-baselines3"
+model_revision_status = "historical"
+verification_status = "unverified"
+
+[[species]]
+id = "trex"
+display_order = 2
+display_name = "T-Rex"
+tagline = "Apex Predator"
+gait = "Bipedal"
+specialty = "Head-contact attack task"
+aliases = ["t-rex"]
+env_entrypoint = "environments.trex.envs.trex_env:TRexEnv"
+model_path = "environments/trex/assets/trex.xml"
+training_notebooks = ["sb3_training", "jax_training"]
+result_summary_paths = ["results/trex/ppo/summary.json"]
+
+[[species.success_metrics]]
+backends = ["stable-baselines3"]
+key = "bite_success"
+label = "Head-contact bite proxy"
+definition = "The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw."
+
+[[species.success_metrics]]
+backends = ["jax-mjx"]
+key = "bite_proximity_success"
+label = "Head-tip proximity bite proxy"
+definition = "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
+
+[[species.stage_videos]]
+stage = 1
+path = "website/static/videos/trex_ppo_stage1_best.mp4"
+algorithm = "PPO"
+backend = "stable-baselines3"
+model_revision_status = "historical"
+verification_status = "unverified"
+
+[[species.stage_videos]]
+stage = 2
+path = "website/static/videos/trex_ppo_stage2_best.mp4"
+algorithm = "PPO"
+backend = "stable-baselines3"
+model_revision_status = "historical"
+verification_status = "unverified"
+
+[[species.stage_videos]]
+stage = 3
+path = "website/static/videos/trex_ppo_stage3_best.mp4"
+algorithm = "PPO"
+backend = "stable-baselines3"
+model_revision_status = "historical"
+verification_status = "unverified"
+
+[[species]]
+id = "brachiosaurus"
+display_order = 3
+display_name = "Brachiosaurus"
+tagline = "Gentle Giant Herbivore"
+gait = "Quadrupedal"
+specialty = "Head-to-food reaching"
+aliases = ["brachio"]
+env_entrypoint = "environments.brachiosaurus.envs.brachio_env:BrachioEnv"
+model_path = "environments/brachiosaurus/assets/brachiosaurus.xml"
+training_notebooks = ["sb3_training", "jax_training"]
+result_summary_paths = ["results/brachiosaurus/ppo/summary.json"]
+
+[[species.success_metrics]]
+backends = ["stable-baselines3", "jax-mjx"]
+key = "food_reached"
+label = "Head-tip distance-threshold success"
+definition = "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
+
+[[species.stage_videos]]
+stage = 1
+path = "website/static/videos/brachiosaurus_ppo_stage1_best.mp4"
+algorithm = "PPO"
+backend = "stable-baselines3"
+model_revision_status = "historical"
+verification_status = "unverified"
+
+[[species.stage_videos]]
+stage = 2
+path = "website/static/videos/brachiosaurus_ppo_stage2_best.mp4"
+algorithm = "PPO"
+backend = "stable-baselines3"
+model_revision_status = "historical"
+verification_status = "unverified"

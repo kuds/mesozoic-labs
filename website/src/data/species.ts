@@ -1,60 +1,305 @@
-/**
- * Single source of truth for the species/stage/video data shown on the
- * homepage species showcase and on each model's docs page — previously
- * duplicated in both places, which let the copies drift.
- *
- * Headline training numbers are imported AT BUILD TIME from the shipped
- * result summaries in ../../results/, so the site can't drift from the
- * published runs — retrain, update summary.json, rebuild.
- */
+/** Typed website adapter for the generated public species catalog. */
 
-import raptorPpo from '../../../results/velociraptor/ppo/summary.json';
-import trexPpo from '../../../results/trex/ppo/summary.json';
-import brachioPpo from '../../../results/brachiosaurus/ppo/summary.json';
-import raptorSac from '../../../results/velociraptor/sac/summary.json';
+import generatedCatalog from './species.generated.json';
+
+export type TrainingBackend = 'stable-baselines3' | 'jax-mjx';
+
+export interface SpeciesVideo {
+  path: string;
+  algorithm: string;
+  backend: TrainingBackend;
+  backendVersion: string | null;
+  modelRevisionStatus: 'current' | 'historical';
+  verificationStatus: 'verified' | 'unverified';
+  repositoryCommit: string | null;
+  modelHash: string | null;
+  configHash: string | null;
+}
+
+export interface AdvancementGate {
+  minAverageReward: number | null;
+  minAverageEpisodeLength: number | null;
+  minAverageForwardVelocity: number | null;
+  minSuccessRate: number | null;
+  minEvaluationEpisodes: number;
+  requiredConsecutive: number;
+}
 
 export interface SpeciesStage {
   number: number;
+  name: string;
   title: string;
   description: string;
-  video: string;
+  configPath: string;
+  timesteps: number;
+  advancementGate: AdvancementGate;
+  video: SpeciesVideo | null;
 }
 
-export interface SpeciesResults {
+export interface ResultProvenance {
+  modelRevisionStatus: 'current' | 'historical';
+  verificationStatus: 'verified' | 'unverified';
+  evaluationEpisodes: number | null;
+  repositoryCommit: string | null;
+  modelHash: string | null;
+  configHash: string | null;
+}
+
+export interface ResultStage {
+  number: number;
+  name: string;
+  description: string;
+  timesteps: number;
+  bestEvalReward: number | null;
+  finalEvalReward: number | null;
+  averageForwardVelocity: number | null;
+  averageEpisodeLength: number | null;
+  successRate: number | null;
+  trainingTime: string | null;
+  passed: boolean | null;
+}
+
+export interface PublishedResult {
+  summaryPath: string;
   algorithm: string;
+  backend: TrainingBackend;
+  backendVersion: string | null;
   date: string;
-  /** Stage-3 task success rate over the 30-episode final eval, 0..1. */
-  successRate: number;
-  /** Best per-stage average forward velocity (m/s) — the locomotion stage. */
-  topSpeed: number;
+  hardware: string | null;
+  seed: number | null;
+  parallelEnvironments: number | null;
   totalTimesteps: number;
+  totalTrainingTime: string | null;
+  finalAverageReward: number | null;
+  maxAverageForwardVelocity: number | null;
+  stage3SuccessRate: number | null;
+  provenance: ResultProvenance;
+  stages: ResultStage[];
 }
 
 export interface Species {
   id: string;
   name: string;
   tagline: string;
+  observationDim: number;
+  actionDim: number;
   actuators: number;
   gait: 'Bipedal' | 'Quadrupedal';
   specialty: string;
+  aliases: string[];
+  environmentEntrypoint: string;
+  model: {
+    path: string;
+    nq: number;
+    nv: number;
+    nu: number;
+    dynamicMassKg: number;
+  };
+  successMetrics: Array<{
+    backends: TrainingBackend[];
+    key: string;
+    label: string;
+    definition: string;
+  }>;
   stages: SpeciesStage[];
-  results: SpeciesResults;
+  historicalResults: PublishedResult[];
+  featuredResult: PublishedResult | null;
 }
 
-interface RunSummary {
+interface RawStage {
+  number: number;
+  name: string;
+  title: string;
+  description: string;
+  config_path: string;
+  timesteps: number;
+  advancement_gate: {
+    min_avg_reward: number | null;
+    min_avg_episode_length: number | null;
+    min_avg_forward_velocity: number | null;
+    min_success_rate: number | null;
+    min_eval_episodes: number;
+    required_consecutive: number;
+  };
+  video: {
+    path: string;
+    algorithm: string;
+    backend: TrainingBackend;
+    backend_version: string | null;
+    model_revision_status: 'current' | 'historical';
+    verification_status: 'verified' | 'unverified';
+    repository_commit: string | null;
+    model_hash: string | null;
+    config_hash: string | null;
+  } | null;
+}
+
+interface RawResultStage {
+  number: number;
+  name: string;
+  description: string;
+  timesteps: number;
+  best_eval_reward: number | null;
+  final_eval_reward: number | null;
+  avg_forward_vel: number | null;
+  avg_episode_length: number | null;
+  mean_success_rate: number | null;
+  training_time: string | null;
+  stage_passed: boolean | null;
+}
+
+interface RawResult {
+  summary_path: string;
   algorithm: string;
+  backend: TrainingBackend;
+  backend_version: string | null;
   date: string;
-  stages: Record<string, {timesteps?: number; avg_forward_vel?: number; mean_success_rate?: number}>;
+  hardware: string | null;
+  seed: number | null;
+  parallel_envs: number | null;
+  total_timesteps: number;
+  total_training_time: string | null;
+  final_avg_reward: number | null;
+  max_average_forward_velocity: number | null;
+  stage3_success_rate: number | null;
+  provenance: {
+    model_revision_status: 'current' | 'historical';
+    verification_status: 'verified' | 'unverified';
+    evaluation_episodes: number | null;
+    repository_commit: string | null;
+    model_hash: string | null;
+    config_hash: string | null;
+  };
+  stages: RawResultStage[];
 }
 
-function summarizeRun(summary: RunSummary): SpeciesResults {
-  const stages = Object.values(summary.stages);
+interface RawSpecies {
+  id: string;
+  display_name: string;
+  tagline: string;
+  gait: 'Bipedal' | 'Quadrupedal';
+  specialty: string;
+  aliases: string[];
+  environment: {
+    entrypoint: string;
+    observation_dim: number;
+    action_dim: number;
+  };
+  model: {
+    path: string;
+    nq: number;
+    nv: number;
+    nu: number;
+    dynamic_mass_kg: number;
+  };
+  success_metrics: Array<{
+    backends: TrainingBackend[];
+    key: string;
+    label: string;
+    definition: string;
+  }>;
+  stages: RawStage[];
+  historical_results: RawResult[];
+}
+
+interface RawCatalog {
+  schema_version: number;
+  project_capabilities: Record<string, {label: string; status: string}>;
+  notebooks: Array<{id: string; label: string; description: string; path: string}>;
+  species: RawSpecies[];
+}
+
+const catalog = generatedCatalog as RawCatalog;
+
+function adaptResult(result: RawResult): PublishedResult {
   return {
-    algorithm: summary.algorithm,
-    date: summary.date,
-    successRate: summary.stages['3']?.mean_success_rate ?? 0,
-    topSpeed: Math.max(...stages.map((s) => s.avg_forward_vel ?? 0)),
-    totalTimesteps: stages.reduce((t, s) => t + (s.timesteps ?? 0), 0),
+    summaryPath: result.summary_path,
+    algorithm: result.algorithm,
+    backend: result.backend,
+    backendVersion: result.backend_version,
+    date: result.date,
+    hardware: result.hardware,
+    seed: result.seed,
+    parallelEnvironments: result.parallel_envs,
+    totalTimesteps: result.total_timesteps,
+    totalTrainingTime: result.total_training_time,
+    finalAverageReward: result.final_avg_reward,
+    maxAverageForwardVelocity: result.max_average_forward_velocity,
+    stage3SuccessRate: result.stage3_success_rate,
+    provenance: {
+      modelRevisionStatus: result.provenance.model_revision_status,
+      verificationStatus: result.provenance.verification_status,
+      evaluationEpisodes: result.provenance.evaluation_episodes,
+      repositoryCommit: result.provenance.repository_commit,
+      modelHash: result.provenance.model_hash,
+      configHash: result.provenance.config_hash,
+    },
+    stages: result.stages.map((stage) => ({
+      number: stage.number,
+      name: stage.name,
+      description: stage.description,
+      timesteps: stage.timesteps,
+      bestEvalReward: stage.best_eval_reward,
+      finalEvalReward: stage.final_eval_reward,
+      averageForwardVelocity: stage.avg_forward_vel,
+      averageEpisodeLength: stage.avg_episode_length,
+      successRate: stage.mean_success_rate,
+      trainingTime: stage.training_time,
+      passed: stage.stage_passed,
+    })),
+  };
+}
+
+function adaptSpecies(raw: RawSpecies): Species {
+  const historicalResults = raw.historical_results.map(adaptResult);
+  return {
+    id: raw.id,
+    name: raw.display_name,
+    tagline: raw.tagline,
+    observationDim: raw.environment.observation_dim,
+    actionDim: raw.environment.action_dim,
+    actuators: raw.environment.action_dim,
+    gait: raw.gait,
+    specialty: raw.specialty,
+    aliases: raw.aliases,
+    environmentEntrypoint: raw.environment.entrypoint,
+    model: {
+      path: raw.model.path,
+      nq: raw.model.nq,
+      nv: raw.model.nv,
+      nu: raw.model.nu,
+      dynamicMassKg: raw.model.dynamic_mass_kg,
+    },
+    successMetrics: raw.success_metrics,
+    stages: raw.stages.map((stage) => ({
+      number: stage.number,
+      name: stage.name,
+      title: stage.title,
+      description: stage.description,
+      configPath: stage.config_path,
+      timesteps: stage.timesteps,
+      advancementGate: {
+        minAverageReward: stage.advancement_gate.min_avg_reward,
+        minAverageEpisodeLength: stage.advancement_gate.min_avg_episode_length,
+        minAverageForwardVelocity: stage.advancement_gate.min_avg_forward_velocity,
+        minSuccessRate: stage.advancement_gate.min_success_rate,
+        minEvaluationEpisodes: stage.advancement_gate.min_eval_episodes,
+        requiredConsecutive: stage.advancement_gate.required_consecutive,
+      },
+      video: stage.video === null ? null : {
+        path: stage.video.path,
+        algorithm: stage.video.algorithm,
+        backend: stage.video.backend,
+        backendVersion: stage.video.backend_version,
+        modelRevisionStatus: stage.video.model_revision_status,
+        verificationStatus: stage.video.verification_status,
+        repositoryCommit: stage.video.repository_commit,
+        modelHash: stage.video.model_hash,
+        configHash: stage.video.config_hash,
+      },
+    })),
+    historicalResults,
+    featuredResult: historicalResults[0] ?? null,
   };
 }
 
@@ -63,57 +308,33 @@ export function posterFor(video: string): string {
   return video.replace('/videos/', '/img/posters/').replace('.mp4', '.jpg');
 }
 
-export const VELOCIRAPTOR: Species = {
-  id: 'velociraptor',
-  name: 'Velociraptor',
-  tagline: 'Swift Bipedal Predator',
-  actuators: 22,
-  gait: 'Bipedal',
-  specialty: 'Sickle claw strikes',
-  results: summarizeRun(raptorPpo as RunSummary),
-  stages: [
-    { number: 1, title: 'Balance', description: 'Learning to stand upright', video: '/videos/velociraptor_ppo_stage1_best.mp4' },
-    { number: 2, title: 'Locomotion', description: 'Walking and running forward', video: '/videos/velociraptor_ppo_stage2_best.mp4' },
-    { number: 3, title: 'Strike', description: 'Sprinting and attacking with sickle claws', video: '/videos/velociraptor_ppo_stage3_best.mp4' },
-  ],
-};
+export function backendLabel(backend: TrainingBackend): string {
+  return backend === 'stable-baselines3' ? 'Stable-Baselines3' : 'JAX/MJX';
+}
 
-export const TREX: Species = {
-  id: 'trex',
-  name: 'T-Rex',
-  tagline: 'Apex Predator',
-  actuators: 21,
-  gait: 'Bipedal',
-  specialty: 'Jaw strike attacks',
-  results: summarizeRun(trexPpo as RunSummary),
-  stages: [
-    { number: 1, title: 'Balance', description: 'Stabilizing a massive frame', video: '/videos/trex_ppo_stage1_best.mp4' },
-    { number: 2, title: 'Locomotion', description: 'Heavy bipedal gait', video: '/videos/trex_ppo_stage2_best.mp4' },
-    { number: 3, title: 'Strike', description: 'Head-strike attack patterns', video: '/videos/trex_ppo_stage3_best.mp4' },
-  ],
-};
+export function successMetricForBackend(species: Species, backend: TrainingBackend) {
+  const metric = species.successMetrics.find((candidate) => candidate.backends.includes(backend));
+  if (!metric) throw new Error(`Generated catalog is missing ${backend} success semantics for ${species.id}`);
+  return metric;
+}
 
-export const BRACHIOSAURUS: Species = {
-  id: 'brachiosaurus',
-  name: 'Brachiosaurus',
-  tagline: 'Gentle Giant Herbivore',
-  actuators: 30,
-  gait: 'Quadrupedal',
-  specialty: 'Neck food reaching',
-  results: summarizeRun(brachioPpo as RunSummary),
-  stages: [
-    { number: 1, title: 'Balance', description: 'Stable quadrupedal stance', video: '/videos/brachiosaurus_ppo_stage1_best.mp4' },
-    { number: 2, title: 'Locomotion', description: 'Coordinated four-legged walking', video: '/videos/brachiosaurus_ppo_stage2_best.mp4' },
-    { number: 3, title: 'Food Reach', description: 'Walking to food and reaching with neck', video: '/videos/brachiosaurus_ppo_stage3_best.mp4' },
-  ],
-};
+export const PROJECT_CAPABILITIES = catalog.project_capabilities;
+export const PUBLIC_NOTEBOOKS = catalog.notebooks;
+export const ALL_SPECIES: Species[] = catalog.species.map(adaptSpecies);
 
-export const ALL_SPECIES: Species[] = [VELOCIRAPTOR, TREX, BRACHIOSAURUS];
+function requireSpecies(speciesId: string): Species {
+  const species = ALL_SPECIES.find((entry) => entry.id === speciesId);
+  if (!species) throw new Error(`Generated catalog is missing species: ${speciesId}`);
+  return species;
+}
 
-/** Sum of actuators across the three species (hero stat). */
-export const TOTAL_ACTUATORS = ALL_SPECIES.reduce((t, sp) => t + sp.actuators, 0);
+export const VELOCIRAPTOR = requireSpecies('velociraptor');
+export const TREX = requireSpecies('trex');
+export const BRACHIOSAURUS = requireSpecies('brachiosaurus');
 
-/** Total environment steps across all published runs, incl. the SAC run. */
-export const TOTAL_TRAINED_STEPS = [raptorPpo, trexPpo, brachioPpo, raptorSac]
-  .map((run) => summarizeRun(run as RunSummary).totalTimesteps)
-  .reduce((a, b) => a + b, 0);
+/** Sum of current actuator/action dimensions across implemented species. */
+export const TOTAL_ACTUATORS = ALL_SPECIES.reduce((total, species) => total + species.actionDim, 0);
+
+/** Total environment steps across every published historical run. */
+export const TOTAL_TRAINED_STEPS = ALL_SPECIES.flatMap((species) => species.historicalResults)
+  .reduce((total, result) => total + result.totalTimesteps, 0);

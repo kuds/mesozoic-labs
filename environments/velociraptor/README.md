@@ -2,6 +2,12 @@
 
 A bipedal dinosaur locomotion and predatory strike environment built with MuJoCo and Gymnasium.
 
+## Generated Specifications, Curriculum, and Results
+
+The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
+results are in the generator-managed [Velociraptor catalog entry](../../README.md#velociraptor). They are derived from
+the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
+
 ## Project Structure
 
 ```
@@ -33,6 +39,12 @@ pip install -e ".[all]"
 ```
 
 ## Quick Start
+
+Run the commands in this section from the species directory:
+
+```bash
+cd environments/velociraptor
+```
 
 ### 1. View the Model
 
@@ -66,23 +78,10 @@ python scripts/test_env.py --render  # With visualization
 
 ### 4. Train with Curriculum Learning
 
-Training proceeds in three stages:
+Run all three stages using the current TOML-configured budgets:
 
-**Stage 1: Balance** (learn to stand without falling)
 ```bash
-python scripts/train_sb3.py train --stage 1 --timesteps 1000000
-```
-
-**Stage 2: Locomotion** (learn to walk/run forward)
-```bash
-python scripts/train_sb3.py train --stage 2 --timesteps 2000000 \
-    --load logs/<stage1_dir>/models/stage1_final.zip
-```
-
-**Stage 3: Strike** (sprint and attack prey)
-```bash
-python scripts/train_sb3.py train --stage 3 --timesteps 3000000 \
-    --load logs/<stage2_dir>/models/stage2_final.zip
+python scripts/train_sb3.py curriculum --algorithm ppo
 ```
 
 ### 5. Evaluate Trained Policy
@@ -93,33 +92,15 @@ python scripts/train_sb3.py eval logs/<run_dir>/models/stage3_final.zip
 
 ## Environment Details
 
-### Observation Space (dim=67)
-| Component | Dimensions | Description |
-|-----------|------------|-------------|
-| Joint positions | 24 | All qpos except root freejoint (24 hinge) |
-| Joint velocities | 24 | All qvel except root freejoint (24 hinge) |
-| Pelvis quaternion | 4 | Orientation from framequat sensor |
-| Pelvis gyro | 3 | Angular velocity |
-| Pelvis linear vel | 3 | Linear velocity |
-| Pelvis accel | 3 | Accelerometer |
-| Foot contacts | 2 | Left/right foot touch (on central digit 3) |
-| Prey direction | 3 | Unit vector to prey |
-| Prey distance | 1 | Scalar distance |
-
-### Action Space (dim=22)
-All actions normalized to [-1, 1], scaled to actuator control ranges (14 legs + 4 tail + 2 sickle claws + 2 arms).
+Observation and action totals are generated in the catalog entry linked above. The source of the observation layout and
+action-to-actuator mapping is `envs/raptor_env.py`; actions are normalized to [-1, 1] and scaled to actuator ranges.
 
 ### Reward Components
 
-| Component | Weight (Stage 3) | Description |
-|-----------|------------------|-------------|
-| Forward velocity | 1.0 | Reward for moving +X |
-| Alive bonus | 0.1 | Per-step survival bonus |
-| Energy penalty | -0.001 | Penalize large actions |
-| Tail stability | -0.05 | Penalize tail angular velocity |
-| Strike bonus | +500 | Claw contacts prey |
-| Approach shaping | 0.5 | Reward closing distance to prey |
-| Fall penalty | -100 | Episode termination |
+Reward weights vary by stage. The `[env]` section of each
+`configs/velociraptor/stage*.toml` file is authoritative; this README does not
+copy numeric weights. Components include locomotion, survival, posture, energy,
+tail stability, approach shaping, target contact, and fall penalties.
 
 ### Termination Conditions
 - Pelvis height < 0.25m (fallen)
@@ -160,27 +141,17 @@ All actions normalized to [-1, 1], scaled to actuator control ranges (14 legs + 
 - Add proximity reward (bonus for getting closer)
 - Reduce `prey_distance_range` to spawn prey closer
 
-## Phase 5: Migration to JAX/MJX
+## JAX/MJX Backend
 
-Once you have a working policy from SB3, port to MJX for faster training:
-
-```bash
-# Install JAX stack
-pip install "jax[cuda12]" mujoco-mjx brax
-```
-
-The port involves:
-1. Replace `gymnasium.Env` → `brax.envs.base.PipelineEnv`
-2. Replace NumPy → JAX arrays
-3. Replace `mujoco.mj_step` → `mjx.step`
-4. Use `brax.training.agents.ppo.train`
-
-See the [Brax documentation](https://github.com/google/brax) and [MuJoCo Playground examples](https://github.com/google-deepmind/mujoco_playground) for reference.
+The repository includes an experimental shared JAX/MJX PPO path. See the
+[JAX/MJX training guide](../../website/docs/training/jax.md) for its current
+scope, installation extra, and backend-parity limitations.
 
 ## Troubleshooting
 
 **"No module named 'envs'"**
-Run scripts from the project root: `cd velociraptor && python scripts/test_env.py`
+Run scripts from the species directory:
+`cd environments/velociraptor && python scripts/test_env.py`.
 
 **Viewer doesn't open**
 Install a display backend: `pip install glfw` or run with `MUJOCO_GL=egl` for headless.

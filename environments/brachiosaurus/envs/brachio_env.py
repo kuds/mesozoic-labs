@@ -15,7 +15,7 @@ Observation space:
 
 Action space:
     - Continuous control for all actuators [-1, 1] normalized
-    - 30 actuators: 6 neck + 20 legs (5 per leg: hip pitch/roll, knee, ankle, toe) + 4 tail
+    - Neck, four-leg, and tail actuator groups; the public catalog derives the current total
 
 Reward components:
     - Forward velocity toward food

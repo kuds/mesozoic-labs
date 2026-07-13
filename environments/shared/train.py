@@ -2,7 +2,7 @@
 """Unified training entry point for all species.
 
 Usage:
-    python -m environments.shared.train --species velociraptor train --stage 1 --timesteps 1000000
+    python -m environments.shared.train --species velociraptor train --stage 1
     python -m environments.shared.train --species trex curriculum --n-envs 4
     python -m environments.shared.train --species brachiosaurus train --stage 2
 

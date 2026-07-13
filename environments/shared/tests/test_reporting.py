@@ -9,14 +9,53 @@ from environments.shared.reporting import (
     CSV_METRIC_COLUMNS,
     _compute_fieldnames,
     build_stage_results_from_eval_data,
+    evaluate_recorded_gate,
     format_duration,
     format_duration_hms,
+    parse_optional_bool,
     save_jax_stage_artifacts,
     save_results_json,
     write_results_csv,
     write_stage_summary,
     write_training_summary,
 )
+
+
+class TestStrictRecordedGate:
+    def test_requires_every_enabled_metric_and_consecutive_windows(self):
+        curriculum = {
+            "min_avg_reward": 100.0,
+            "min_avg_forward_vel": 2.0,
+            "min_eval_episodes": 10,
+            "required_consecutive": 2,
+        }
+        incomplete = [
+            {"mean_reward": 120.0, "n_episodes": 10},
+            {"mean_reward": 130.0, "n_episodes": 10},
+        ]
+        assert evaluate_recorded_gate(curriculum, incomplete) is None
+
+        complete = [
+            {"mean_reward": 120.0, "mean_forward_vel": 2.1, "n_episodes": 10},
+            {"mean_reward": 130.0, "mean_forward_vel": 2.2, "n_episodes": 10},
+        ]
+        assert evaluate_recorded_gate(curriculum, complete) is True
+
+    def test_returns_false_when_complete_history_never_passes(self):
+        curriculum = {"min_avg_reward": 100.0, "required_consecutive": 2}
+        evaluations = [
+            {"mean_reward": 120.0, "n_episodes": 10},
+            {"mean_reward": 90.0, "n_episodes": 10},
+        ]
+        assert evaluate_recorded_gate(curriculum, evaluations) is False
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [(True, True), (False, False), ("true", True), ("False", False), (1, True), (0, False), ("", None)],
+    )
+    def test_parses_serialized_booleans_strictly(self, value, expected):
+        assert parse_optional_bool(value) is expected
+
 
 # ── CSV_METRIC_COLUMNS ──────────────────────────────────────────────────
 

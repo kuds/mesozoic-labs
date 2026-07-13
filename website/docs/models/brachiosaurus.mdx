@@ -2,28 +2,23 @@
 sidebar_position: 3
 ---
 
+import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
+import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
+import {BRACHIOSAURUS} from '@site/src/data/species';
+
 # Brachiosaurus Model
 
-A massive quadrupedal sauropod herbivore optimized for stable four-legged locomotion and food reaching.
+A sauropod-inspired quadrupedal simulation model designed for four-legged locomotion and head-positioning tasks.
 
-## Specifications
-
-| Property | Value |
-|----------|-------|
-| Height | 2.0m torso, ~4m head reach (simulated) |
-| Weight | 205kg (simulated) |
-| Joints | 28 |
-| Actuators | 30 |
-| Observation dim | 83 |
-| Action dim | 30 |
+<SpeciesCatalog species={BRACHIOSAURUS} />
 
 ## Features
 
 - First quadrupedal species in the project
 - Articulated 4-segment neck with head control (6 actuators)
-- Front legs longer than rear (characteristic giraffe-like posture)
-- Columnar elephant-like legs for stable support
-- Food-reaching behavior using neck articulation
+- Front legs longer than rear, producing the model's raised-front posture
+- Simplified column-like legs for support
+- Head-positioning behavior using neck articulation
 - 3-stage curriculum learning (balance, locomotion, food reach)
 
 ## Unique Characteristics
@@ -31,15 +26,7 @@ A massive quadrupedal sauropod herbivore optimized for stable four-legged locomo
 Brachiosaurus differs from the bipedal species in the project:
 
 - **Quadrupedal gait** instead of bipedal
-- **Herbivore behavior** (food reaching) instead of predatory (hunting/striking)
-- **22 actuators** (6 neck + 16 legs)
-- **75-dim observation space**
-
-## Training Stages
-
-1. **Balance** - Stand on all four legs without falling
-2. **Locomotion** - Coordinated quadrupedal walking
-3. **Food Reach** - Navigate to food and extend neck
+- **Target-proximity task** using the head tip instead of a predatory contact task
 
 ## Diagnostic Metrics (Stage 3)
 
@@ -52,13 +39,10 @@ After each training stage the `eval` command reports:
 | `stride_frequency` | Step frequency (Hz) |
 | `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Torso height stability (m) |
-| `success_rate` | Fraction of episodes where the food was reached |
+| `success_rate` | Fraction of episodes where the head tip enters the configured distance threshold around the food target |
 | `min_prey_distance` | Closest approach to food (m, `head_food_distance`) |
 
 ## Training Videos
-
-import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
-import {BRACHIOSAURUS} from '@site/src/data/species';
 
 <SpeciesVideoSection species={BRACHIOSAURUS.name} stages={BRACHIOSAURUS.stages} />
 
@@ -70,6 +54,6 @@ cd environments/brachiosaurus
 # View the model
 python scripts/view_model.py
 
-# Train
-python scripts/train_sb3.py train --stage 1 --timesteps 1000000
+# Train stage 1 using its current TOML-configured budget
+python scripts/train_sb3.py train --stage 1
 ```
