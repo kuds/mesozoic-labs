@@ -27,6 +27,14 @@ robustness, **LOW** = cosmetic / QoL.
 - **Eval target placement** — JAX CPU eval evaluates against the model's
   fixed target-body position; training randomizes a virtual target 3–8 m
   ahead. Consider sampling eval targets per episode. (July §3)
+- **Stage-3 success semantics** — the SB3 Velociraptor and T-Rex environments
+  detect geom contact, while MJX uses claw-tip/head-tip distance thresholds.
+  The generated species catalog documents both definitions; parity is still
+  open.
+- **Curriculum gates** — SB3 can advance early after consecutive passing
+  evaluations. The JAX CLI evaluates reward once after a full stage; the JAX
+  notebook checks reward, episode length, velocity, and success once. These
+  paths are documented but not behaviorally equivalent.
 - **PPO advantage normalization** — per-minibatch in JAX vs per-batch in
   SB3; acceptable, documented in `jax_ppo.py`. (June §2.7)
 
@@ -56,8 +64,9 @@ would pin these down and catch regressions. (June §6.8)
 - **MEDIUM (perf)** — `EvalCallback` runs 30 serial episodes every 50k steps
   plus supplementary + post-stage evals — up to ~3.6M serial eval steps per
   6M-step stage. Vectorize the eval env or trim episodes. (June §6.1)
-- **Experiment** — brachiosaurus stage 3 (16.7% vs 50% target) was trained
-  under since-fixed gate bugs; re-run it, and consider tightening
+- **Experiment** — the [historical, unverified Brachiosaurus summary](../results/brachiosaurus/ppo/summary.json)
+  records a stage-3 result below its gate and was trained under since-fixed
+  gate bugs; re-run it, and consider tightening
   `head_proximity_max_dist` (~2.0 m) to concentrate the last-mile gradient.
   (June §6.10)
 
@@ -147,21 +156,12 @@ Still open:
   torque-to-inertia; slams its limits); trex passive ball-joint arms are
   8 of 37 DOF doing nothing (weld to cut MJX cost ~20%); contype-0 neck
   geoms can visually clip the floor; no `<light>`/`<visual>` block for
-  nicer renders; brachio food has no collision partner (distance-only
-  success) unlike raptor/trex weapon geoms — fine, but undocumented.
+  nicer renders; brachio food has no collision partner.
 - **Experiment** — with `implicitfast`, a `timestep` 0.002→0.004 A/B is
   worth running (halves sim cost if stable).
 
 ## Configs, docs & website
 
-- Website hyperparameter/dimension tables are stale (old single-stage runs,
-  wrong actuator/obs dims in `custom-models.md`, `brachiosaurus.mdx`,
-  `vertex-ai.md` troubleshooting, species READMEs). Standing
-  recommendation: generate these tables from `configs/*.toml` + env
-  introspection and add a CI check. (June §5)
-- `results/README.md` documents per-stage GIFs and a CSV schema half the
-  shipped files don't match; document whether `summary.json` or
-  `collected_results.csv` is authoritative. (June §4; July §4)
 - Brachio stage-2 `natural_pitch = -0.15` while stages 1/3 use 0.0 —
   intentional? (June §4)
 - `pyproject.toml` gymnasium entry-point groups are likely dead config
@@ -172,19 +172,13 @@ Still open:
 ## Notebooks
 
 - `ray_tune_sweep.ipynb` duplicates `ray_orchestration.py` (see above); its
-  `EVAL_EPISODES` knob doesn't affect the in-trial eval episode count;
-  markdown cells reference the old flat `configs/sweep_*.json` paths.
-  (July §5)
+  `EVAL_EPISODES` knob doesn't affect the in-trial eval episode count. (July §5)
 - All notebooks pip-install unpinned latest `mujoco` / `stable-baselines3` /
   `jax` / `ray[tune]`; pin known-good versions for reproducibility.
   (July §5)
 
 ## Testing / CI
 
-- Add a CPU-only JAX CI job (`pip install ".[jax]"`, `JAX_PLATFORMS=cpu`)
-  running the `test_jax_*` suite — the JAX stack is untested in CI. When
-  run locally with JAX installed, the full suite passes (1172 passed).
-  (June §6.9)
 - TOML→env round-trip test: construct each env with each stage's
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
 - SB3↔JAX reward parity test (see divergences section above). (June §6.8)

@@ -9,6 +9,7 @@ Soft Actor-Critic (SAC) is an off-policy algorithm that optimizes a stochastic p
 ## Overview
 
 SAC is known for:
+
 - Sample efficiency
 - Automatic temperature tuning
 - Stable exploration
@@ -30,7 +31,8 @@ vec_env = DummyVecEnv([make_env])
 vec_env = VecNormalize(vec_env, norm_obs=True, norm_reward=True)
 
 model = SAC("MlpPolicy", vec_env, learning_rate=3e-4, buffer_size=1_000_000)
-model.learn(total_timesteps=3_600_000, progress_bar=True)
+# Illustrative standalone run, not a committed curriculum-stage budget.
+model.learn(total_timesteps=10_000, progress_bar=True)
 model.save("raptor_sac")
 ```
 
@@ -39,8 +41,8 @@ Or use the included training script:
 ```bash
 cd environments/velociraptor
 
-# Single stage
-python scripts/train_sb3.py train --stage 1 --algorithm sac --timesteps 1000000
+# Single stage; the current budget comes from its TOML config
+python scripts/train_sb3.py train --stage 1 --algorithm sac
 
 # Full 3-stage curriculum in one command (per-stage hyperparameters applied automatically)
 python scripts/train_sb3.py curriculum --algorithm sac
@@ -48,18 +50,10 @@ python scripts/train_sb3.py curriculum --algorithm sac
 
 ## SAC Hyperparameters
 
-These defaults are defined in the per-species TOML config files under `configs/`.
-
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| learning_rate | 3e-4 | Network learning rate |
-| batch_size | 256 | Training batch size |
-| gamma | 0.99 | Discount factor |
-| tau | 0.005 | Soft update coefficient |
-| ent_coef | auto | Automatic entropy tuning |
-| buffer_size | 1M | Replay buffer size |
-
-SAC hyperparameters are consistent across all three species. The `ent_coef="auto"` setting lets SAC automatically tune its entropy coefficient during training.
+SAC settings vary by species and curriculum stage. The authoritative values are
+the `[sac]` sections in `configs/<species>/stage*.toml`; copied defaults here
+would quickly become stale. The main fields are `learning_rate`, `batch_size`,
+`gamma`, `tau`, `ent_coef`, `buffer_size`, `train_freq`, and `gradient_steps`.
 
 ## 3-Stage Curriculum
 
@@ -67,14 +61,18 @@ SAC training follows the same curriculum as PPO:
 
 1. **Stage 1 — Balance**: Stand upright without falling (`forward_vel_weight=0`, high `alive_bonus`)
 2. **Stage 2 — Locomotion**: Walk and run forward (increase `forward_vel_weight`, add gait rewards)
-3. **Stage 3 — Behavior**: Species-specific task (strike for Velociraptor, bite for T-Rex, food reach for Brachiosaurus)
+3. **Stage 3 — Behavior**: Species-specific task (strike for Velociraptor, a fixed head-contact "bite" proxy for T-Rex, and a head-tip distance-based food-reach proxy for Brachiosaurus)
 
-Stage transitions are automated by the `CurriculumManager` when the agent achieves the threshold reward for 3 consecutive evaluations.
+These task names are configuration labels. T-Rex has no articulated jaw, and
+Brachiosaurus success does not require physical food contact.
 
-## Results
+Stage transitions are automated by the `CurriculumManager` using the thresholds
+in each stage's TOML config. Current stage budgets and gates are shown on the
+[generated model pages](/docs/models/velociraptor).
 
-| Species | Steps | Avg Reward | Time |
-|---------|-------|------------|------|
-| Velociraptor | 3.6M | 3091.31 | 4:36:59 |
+## Published Results
 
-SAC significantly outperforms PPO for dinosaur locomotion tasks, achieving ~10x higher reward at the cost of longer training time. The replay buffer enables more efficient use of each experience sample.
+The generated [Velociraptor model page](/docs/models/velociraptor) displays the
+available SAC summary alongside its provenance status. That historical,
+unverified run is not a controlled comparison with PPO and does not establish a
+general performance or training-time advantage.

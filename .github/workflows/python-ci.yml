@@ -4,15 +4,33 @@ on:
   push:
     branches: [main]
     paths:
+      - "README.md"
       - "environments/**"
       - "configs/**"
+      - "docs/*.md"
+      - "notebooks/**"
+      - "results/**/summary.json"
+      - "website/blog/**"
+      - "website/docs/**"
+      - "website/src/data/**"
+      - "website/static/videos/**"
+      - "website/static/img/posters/**"
       - "pyproject.toml"
       - ".github/workflows/python-ci.yml"
   pull_request:
     branches: [main]
     paths:
+      - "README.md"
       - "environments/**"
       - "configs/**"
+      - "docs/*.md"
+      - "notebooks/**"
+      - "results/**/summary.json"
+      - "website/blog/**"
+      - "website/docs/**"
+      - "website/src/data/**"
+      - "website/static/videos/**"
+      - "website/static/img/posters/**"
       - "pyproject.toml"
       - ".github/workflows/python-ci.yml"
   workflow_dispatch:

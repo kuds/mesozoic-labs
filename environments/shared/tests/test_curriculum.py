@@ -292,6 +292,7 @@ class TestThresholdsFromConfigs:
                     "min_avg_episode_length": 100,
                     "min_avg_forward_vel": 0.5,
                     "min_success_rate": 0.3,
+                    "min_eval_episodes": 12,
                     "required_consecutive": 3,
                 },
             },
@@ -299,6 +300,7 @@ class TestThresholdsFromConfigs:
         thresholds = thresholds_from_configs(configs)
         assert thresholds[1]["min_avg_forward_vel"] == 0.5
         assert thresholds[1]["min_success_rate"] == 0.3
+        assert thresholds[1]["min_eval_episodes"] == 12
 
     def test_empty_configs(self):
         thresholds = thresholds_from_configs({})

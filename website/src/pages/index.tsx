@@ -1,6 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Layout from '@theme/Layout';
-import { ALL_SPECIES, posterFor, TOTAL_ACTUATORS, TOTAL_TRAINED_STEPS } from '@site/src/data/species';
+import {
+  ALL_SPECIES,
+  PROJECT_CAPABILITIES,
+  VELOCIRAPTOR,
+  backendLabel,
+  posterFor,
+  TOTAL_ACTUATORS,
+  TOTAL_TRAINED_STEPS,
+} from '@site/src/data/species';
 import styles from './index.module.css';
 
 /* =============================================================================
@@ -61,6 +69,15 @@ const PARTICLES = Array.from({ length: 20 }, () => ({
   animationDuration: `${4 + particleRand() * 4}s`,
 }));
 
+function formatStatus(status: string): string {
+  return status.replaceAll('_', ' ');
+}
+
+function capabilitySummary(id: string): string {
+  const capability = PROJECT_CAPABILITIES[id];
+  return `${capability.label} — ${formatStatus(capability.status)}`;
+}
+
 /* =============================================================================
    HERO SECTION
    ============================================================================= */
@@ -91,7 +108,7 @@ function HeroSection() {
           <h2 className={styles.tagline}>
             <span className={styles.taglineWord}>PREHISTORIC</span>
             <span className={styles.taglineDivider} aria-hidden="true">//</span>
-            <span className={styles.taglineWord}>ROBOTIC</span>
+            <span className={styles.taglineWord}>SIMULATED</span>
             <span className={styles.taglineDivider} aria-hidden="true">//</span>
             <span className={styles.taglineWord}>INTELLIGENCE</span>
           </h2>
@@ -99,7 +116,7 @@ function HeroSection() {
         </div>
 
         <p className={styles.description}>
-          Open-source platform for building robotic dinosaurs
+          Open-source platform for dinosaur-inspired locomotion research
           <br />
           powered by physics simulation and reinforcement learning
         </p>
@@ -132,7 +149,7 @@ function HeroSection() {
           </div>
           <div className={styles.statDivider} aria-hidden="true"></div>
           <div className={styles.statItem}>
-            <dt className={styles.statLabel}>STEPS TRAINED</dt>
+            <dt className={styles.statLabel}>PUBLISHED RUN STEPS</dt>
             <dd className={styles.statNumber}>{Math.round(TOTAL_TRAINED_STEPS / 1e6)}M</dd>
           </div>
         </dl>
@@ -198,7 +215,7 @@ const features = [
     icon: FeatureIcons.physics,
     title: 'MuJoCo Physics',
     description:
-      'Accurate dinosaur biomechanics simulation with articulated joints, contact dynamics, and actuator models.',
+      'Physics-based articulated models inspired by dinosaur morphology, with contact dynamics and actuator models.',
   },
   {
     icon: FeatureIcons.brain,
@@ -208,9 +225,10 @@ const features = [
   },
   {
     icon: FeatureIcons.species,
-    title: '3 Species',
-    description:
-      'T-Rex (21 actuators), Velociraptor (22 actuators), and Brachiosaurus (30 actuators).',
+    title: `${ALL_SPECIES.length} Species`,
+    description: `${ALL_SPECIES.map(
+      (species) => `${species.name} (${species.actionDim} actuators)`,
+    ).join(', ')}.`,
   },
   {
     icon: FeatureIcons.openSource,
@@ -266,15 +284,16 @@ const curriculumSteps = [
     stage: 2,
     title: 'Locomotion',
     subtitle: 'Walk & Run',
-    description: 'Building on balance skills, the agent develops forward locomotion with natural gait patterns.',
+    description: 'Building on balance skills, the agent develops forward locomotion with coordinated movement patterns.',
     color: 'var(--color-accent)',
     glow: 'var(--color-accent-dim)',
   },
   {
     stage: 3,
     title: 'Behavior',
-    subtitle: 'Strike & Hunt',
-    description: 'Advanced species-specific behaviors emerge: sickle claw strikes, head attacks, and tail defense.',
+    subtitle: 'Species-Specific Task',
+    description:
+      'Species-specific simulator tasks add sickle-claw contact, a fixed head-contact proxy, or head-tip target proximity.',
     color: 'var(--color-secondary)',
     glow: 'rgba(var(--color-secondary-rgb), 0.25)',
   },
@@ -387,7 +406,7 @@ function SimulationSection() {
                 <span>, obs.shape)</span>
               </div>
               <div className={styles.codeLine}>
-                <span className={styles.codeOutput}>{'>>> Obs shape: (67,)'}</span>
+                <span className={styles.codeOutput}>{`>>> Obs shape: (${VELOCIRAPTOR.observationDim},)`}</span>
               </div>
               <div className={styles.codeLine}>
                 <span className={styles.cursor}>_</span>
@@ -402,7 +421,8 @@ function SimulationSection() {
               className={styles.previewGif}
             />
             <figcaption className={styles.previewCaption}>
-              Velociraptor learning to balance via PPO curriculum training
+              Historical, unverified PPO / Stable-Baselines3 artifact; backend version not recorded. Not evidence for
+              the current model or configuration.
             </figcaption>
           </figure>
         </div>
@@ -423,6 +443,7 @@ function SpeciesShowcase() {
   const ref = useScrollReveal();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const species = ALL_SPECIES[activeSpecies];
+  const result = species.featuredResult;
 
   // WAI-ARIA tabs keyboard support: arrows move + activate, Home/End jump.
   const onTabKeyDown = (e: React.KeyboardEvent, idx: number) => {
@@ -447,9 +468,9 @@ function SpeciesShowcase() {
     >
       <div className={styles.sectionHeader}>
         <div className={styles.sectionIcon} aria-hidden="true">{'[ SPECIES ]'}</div>
-        <h2 className={styles.sectionTitle} id="species-heading">Training Results</h2>
+        <h2 className={styles.sectionTitle} id="species-heading">Published Run Summaries</h2>
         <p className={styles.sectionSubtitle}>
-          Watch each species progress through the curriculum stages
+          Provenance-labelled metrics and the curriculum videos currently available in the repository
         </p>
       </div>
 
@@ -482,27 +503,52 @@ function SpeciesShowcase() {
       >
         <div className={styles.speciesInfo}>
           <span className={styles.speciesBadge}>{species.specialty}</span>
-          <dl
-            className={styles.speciesStats}
-            aria-label={`${species.name} training results (${species.results.algorithm}, ${species.results.date})`}
-          >
-            <div className={styles.speciesStat}>
-              <dt>Task success</dt>
-              <dd>{Math.round(species.results.successRate * 100)}%</dd>
-            </div>
-            <div className={styles.speciesStat}>
-              <dt>Top speed</dt>
-              <dd>{species.results.topSpeed.toFixed(2)} m/s</dd>
-            </div>
-            <div className={styles.speciesStat}>
-              <dt>Timesteps</dt>
-              <dd>{Math.round(species.results.totalTimesteps / 1e6)}M</dd>
-            </div>
-            <div className={styles.speciesStat}>
-              <dt>Run</dt>
-              <dd>{species.results.algorithm} &middot; {species.results.date}</dd>
-            </div>
-          </dl>
+          {result ? (
+            <>
+              <dl
+                className={styles.speciesStats}
+                aria-label={`${species.name} historical run summary (${result.algorithm}, ${result.date})`}
+              >
+                <div className={styles.speciesStat}>
+                  <dt>Task success</dt>
+                  <dd>
+                    {result.stage3SuccessRate === null
+                      ? '—'
+                      : `${Math.round(result.stage3SuccessRate * 100)}%`}
+                  </dd>
+                </div>
+                <div className={styles.speciesStat}>
+                  <dt>Max reported avg. velocity</dt>
+                  <dd>
+                    {result.maxAverageForwardVelocity === null
+                      ? '—'
+                      : `${result.maxAverageForwardVelocity.toFixed(2)} m/s`}
+                  </dd>
+                </div>
+                <div className={styles.speciesStat}>
+                  <dt>Timesteps</dt>
+                  <dd>{Math.round(result.totalTimesteps / 1e6)}M</dd>
+                </div>
+                <div className={styles.speciesStat}>
+                  <dt>Run</dt>
+                  <dd>{result.algorithm} &middot; {backendLabel(result.backend)} &middot; {result.date}</dd>
+                </div>
+              </dl>
+              <p className={styles.speciesProvenance}>
+                {formatStatus(result.provenance.modelRevisionStatus)} model &middot;{' '}
+                {formatStatus(result.provenance.verificationStatus)} &middot;{' '}
+                {result.provenance.evaluationEpisodes === null
+                  ? 'evaluation episode count not recorded'
+                  : `${result.provenance.evaluationEpisodes} evaluation episodes`} &middot;{' '}
+                {result.backendVersion === null
+                  ? `${backendLabel(result.backend)} version not recorded`
+                  : `${backendLabel(result.backend)} ${result.backendVersion}`}. Metrics are retained experiment
+                records, not claims about the current model revision.
+              </p>
+            </>
+          ) : (
+            <p className={styles.speciesProvenance}>No run summary has been published for this species.</p>
+          )}
         </div>
 
         <div className={styles.speciesVideos}>
@@ -510,20 +556,39 @@ function SpeciesShowcase() {
             <div className={styles.speciesVideoCard} key={stage.number}>
               <div className={styles.speciesVideoHeader}>
                 <span className={styles.speciesStageLabel}>STAGE {stage.number}</span>
-                <span className={styles.speciesAlgoBadge}>PPO</span>
+                <span className={styles.speciesAlgoBadge}>
+                  {stage.video
+                    ? `${stage.video.algorithm} · ${backendLabel(stage.video.backend)} · ${stage.video.modelRevisionStatus}`
+                    : 'NO VIDEO'}
+                </span>
               </div>
               <h3 className={styles.speciesStageTitle}>{stage.title}</h3>
               <p className={styles.speciesStageDesc}>{stage.description}</p>
-              <div className={styles.speciesVideoWrap}>
-                <video
-                  src={stage.video}
-                  controls
-                  preload="none"
-                  poster={posterFor(stage.video)}
-                  className={styles.speciesVideoPlayer}
-                  aria-label={`${species.name} stage ${stage.number}: ${stage.title}`}
-                />
-              </div>
+              {stage.video ? (
+                <>
+                  <p className={styles.speciesVideoProvenance}>
+                    {stage.video.verificationStatus} artifact;{' '}
+                    {stage.video.backendVersion === null
+                      ? 'backend version not recorded'
+                      : `${backendLabel(stage.video.backend)} ${stage.video.backendVersion}`}; not evidence for the
+                    current model or config.
+                  </p>
+                  <div className={styles.speciesVideoWrap}>
+                    <video
+                      src={stage.video.path}
+                      controls
+                      preload="none"
+                      poster={posterFor(stage.video.path)}
+                      className={styles.speciesVideoPlayer}
+                      aria-label={`${species.name} stage ${stage.number}: ${stage.title}`}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className={styles.speciesVideoUnavailable} role="status">
+                  No published video is available for this stage.
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -547,8 +612,8 @@ const milestones = [
   {
     phase: 'PHASE 1 — v0.3.0',
     title: 'First Steps',
-    status: 'complete' as const,
-    statusLabel: 'COMPLETE',
+    status: 'active' as const,
+    statusLabel: 'IN PROGRESS',
     items: ['Curriculum manager', 'W&B tracking', 'Locomotion metrics', 'Species training runs'],
   },
   {
@@ -556,7 +621,7 @@ const milestones = [
     title: 'Into the Wild',
     status: 'upcoming' as const,
     statusLabel: 'PLANNED',
-    items: ['Domain randomization', 'Terrain diversity', 'Turning & steering'],
+    items: [capabilitySummary('domain_randomization'), 'Terrain diversity', 'Turning & steering'],
   },
   {
     phase: 'PHASE 3 — v0.5.0',
@@ -573,11 +638,22 @@ const milestones = [
     items: ['Multi-agent envs', 'Cooperative hunting', 'Predator-prey'],
   },
   {
-    phase: 'PHASES 5-6',
-    title: 'Hyperdrive & Sim-to-Real',
+    phase: 'PHASE 5',
+    title: 'Hyperdrive',
     status: 'active' as const,
     statusLabel: 'IN PROGRESS',
-    items: ['JAX/MJX backend', 'Hardware prototype', 'ROS 2 bridge'],
+    items: ['JAX/MJX backend', 'GPU benchmarks', 'Backend validation'],
+  },
+  {
+    phase: 'PHASE 6',
+    title: 'Sim-to-Real',
+    status: 'upcoming' as const,
+    statusLabel: 'PLANNED',
+    items: [
+      capabilitySummary('hardware_prototype'),
+      capabilitySummary('ros2_bridge'),
+      capabilitySummary('sim_to_real_validation'),
+    ],
   },
 ];
 
@@ -633,7 +709,7 @@ function CTASection() {
     <section className={styles.ctaSection} aria-labelledby="cta-heading">
       <div className={styles.ctaDinoTrack} aria-hidden="true"></div>
       <div className={styles.ctaContent}>
-        <h2 className={styles.ctaTitle} id="cta-heading">Ready to Build Robotic Dinosaurs?</h2>
+        <h2 className={styles.ctaTitle} id="cta-heading">Ready to Train a Dinosaur-Inspired Agent?</h2>
         <p className={styles.ctaDescription}>
           Explore the docs, train your first model, or contribute to the project.
         </p>
@@ -664,8 +740,8 @@ function CTASection() {
 export default function Home(): React.JSX.Element {
   return (
     <Layout
-      title="Robotic Dinosaur Locomotion"
-      description="Mesozoic Labs - Open-source platform for building robotic dinosaurs through simulation and reinforcement learning"
+      title="Dinosaur-Inspired Locomotion Research"
+      description="Mesozoic Labs - Open-source dinosaur-inspired locomotion research with MuJoCo simulation and reinforcement learning"
     >
       <a className="skip-nav" href="#main-content">
         Skip to main content

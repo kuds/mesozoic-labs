@@ -1,46 +1,32 @@
 # Brachiosaurus Environment
 
-Quadrupedal sauropod locomotion and food-reaching environment using MuJoCo and Gymnasium.
+Quadrupedal dinosaur-inspired locomotion and target-reaching environment using MuJoCo and Gymnasium.
 
 ## Overview
 
-Brachiosaurus is a massive quadrupedal herbivore, notable for having front legs longer than its rear legs (giraffe-like posture). This environment trains the agent to walk with a coordinated four-legged gait and reach elevated food sources using its long articulated neck.
+This Brachiosaurus-inspired model has longer front legs than rear legs and a long articulated neck. The environment trains the agent to walk with a coordinated four-legged gait and move its head toward an elevated food target. "Food reach" succeeds when the head tip enters a configured distance threshold around the target; it does not require contact between physical food and head geoms.
 
-## Model Specifications
+## Generated Specifications, Curriculum, and Results
 
-| Property | Value |
-|----------|-------|
-| Torso height | 2.0m (simulated) |
-| Total mass | ~205 kg (simulated) |
-| Joints | 32 (1 free + 31 hinge) |
-| Actuators | 30 (6 neck + 20 legs + 4 tail) |
-| Observation dim | 83 |
-| Action dim | 26 |
+The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
+results are in the generator-managed [Brachiosaurus catalog entry](../../README.md#brachiosaurus). They are derived
+from the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
+
+## Implementation Notes
 
 ### Body Structure
-- **Torso**: Barrel-shaped body (~200kg total mass)
+- **Torso**: Simplified barrel-shaped body
 - **Neck**: 4 articulated segments + head with nasal crest (pitch + yaw control)
 - **Front legs**: Longer than rear (shoulder height ~2.2m), 5 joints each (hip pitch/roll, knee, ankle, toe) with semi-digitigrade metacarpal segment
 - **Rear legs**: Shorter (hip height ~1.8m), same joint structure with semi-digitigrade metatarsal segment
-- **Tail**: 4 passive segments for counterbalance
+- **Tail**: Segmented counterbalance with actuated controls
 
 ### Reward Components
 - **Forward velocity** - Movement toward food target
 - **Alive bonus** - Survival reward
 - **Energy penalty** - Penalizes excessive actuator use
 - **Gait stability** - Penalizes excessive torso angular velocity
-- **Food reach bonus** - Large reward when head reaches food
-
-## Curriculum Learning
-
-### Stage 1: Balance (6M steps) — Passed
-Learn to maintain a stable four-legged stance. Best reward: 3002.52, episode length: 1000 steps.
-
-### Stage 2: Locomotion (16M steps) — Passed
-Learn coordinated quadrupedal walking toward a target. Best reward: 4176.95, forward velocity: 1.12 m/s.
-
-### Stage 3: Food Reach (8M steps) — In Progress
-Walk to food and extend neck to reach elevated food sources. Current best: 16.7% success rate (target: 50%).
+- **Food reach bonus** - Large reward when the head tip enters the configured distance threshold around food
 
 ## Quick Start
 
@@ -51,11 +37,11 @@ pip install -e ".[all]"
 # Run environment tests
 python -m pytest environments/brachiosaurus/tests/ -v
 
-# Train stage 1 (balance)
-python scripts/train_sb3.py train --stage 1 --timesteps 1000000
+# Train stage 1 using its current TOML-configured budget
+python environments/brachiosaurus/scripts/train_sb3.py train --stage 1
 
 # View the model (requires display)
-python scripts/view_model.py
+python environments/brachiosaurus/scripts/view_model.py
 ```
 
 ## Files

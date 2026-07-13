@@ -313,11 +313,8 @@ shared test patterns and adding species-specific tests.
 
 ### 6.1 Consolidate training notebooks
 
-The three species training notebooks (`velociraptor_training.ipynb`,
-`brachiosaurus_training.ipynb`, `trex_training.ipynb`) are 99% identical.
-
-**Option A — Single parameterized notebook** (recommended):
-Create `notebooks/training.ipynb` with a species selector cell at the top:
+Species-specific training notebooks were consolidated into
+`notebooks/sb3_training.ipynb`, with a species selector cell at the top:
 
 ```python
 # === CONFIGURATION ===
@@ -325,13 +322,9 @@ SPECIES = "velociraptor"  # Change to: "velociraptor", "trex", "brachiosaurus"
 ALGORITHM = "ppo"         # Change to: "ppo", "sac"
 ```
 
-All subsequent cells use `SPECIES` and `ALGORITHM` variables. The three
-original notebooks are archived or removed.
-
-**Option B — Template generation**:
-Create `notebooks/generate_training_notebook.py` that generates species-specific
-notebooks from a Jinja2 template. This preserves the separate-notebook UX
-while eliminating source duplication.
+All subsequent cells use `SPECIES` and `ALGORITHM` variables. The JAX/MJX path
+uses the same pattern in `notebooks/jax_training.ipynb`. Public documentation
+should link to these unified notebooks rather than retired per-species names.
 
 ### 6.2 Fix common notebook issues
 
@@ -352,8 +345,9 @@ while eliminating source duplication.
 
 ### 6.4 Utility notebook cleanup
 
-- **`vertex_ai_sweep.ipynb`**: Add validation for GCP project settings,
-  extract duplicated trial submission logic into helper function
+- **`ray_tune_sweep.ipynb`**: Validate the selected species, stage, search-space
+  config, runtime resources, and Google Drive paths before launching trials;
+  extract duplicated trial-launch logic into a helper function
 - **`google_drive_summary.ipynb`**: Make `LOGS_DIR` configurable via
   environment variable with sensible default
 

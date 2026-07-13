@@ -68,13 +68,14 @@ pytest environments/velociraptor/tests/ -v
 
 ## Google Colab
 
-For the easiest setup, use the pre-configured Google Colab notebooks in the `notebooks/` directory. These handle all dependency installation automatically.
+For the easiest setup, use the pre-configured Google Colab notebooks in the `notebooks/` directory. The training notebooks use a species selector rather than separate files for each species, and they handle dependency installation automatically.
 
 Available notebooks:
-- `notebooks/velociraptor_training.ipynb` - Velociraptor 3-stage curriculum
-- `notebooks/brachiosaurus_training.ipynb` - Brachiosaurus 3-stage curriculum
-- `notebooks/trex_training.ipynb` - T-Rex 3-stage curriculum
-- `notebooks/jax_training.ipynb` - JAX/MJX T-Rex training (TPU-ready)
+
+- `notebooks/sb3_training.ipynb` - Unified SB3 curriculum training for T-Rex, Velociraptor, and Brachiosaurus
+- `notebooks/jax_training.ipynb` - Unified JAX/MJX training for all three species on an NVIDIA GPU
+- `notebooks/ray_tune_sweep.ipynb` - Ray Tune hyperparameter sweeps
+- `notebooks/google_drive_summary.ipynb` - Training-run summaries and comparisons
 
 ## Dependencies
 

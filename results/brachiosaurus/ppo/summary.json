@@ -1,6 +1,17 @@
 {
+  "schema_version": 2,
+  "provenance": {
+    "model_revision_status": "historical",
+    "verification_status": "unverified",
+    "evaluation_episodes": null,
+    "repository_commit": null,
+    "model_hash": null,
+    "config_hash": null
+  },
   "species": "brachiosaurus",
   "algorithm": "PPO",
+  "backend": "stable-baselines3",
+  "backend_version": null,
   "hardware": "Google Colab",
   "seed": 42,
   "parallel_envs": 4,
@@ -44,7 +55,7 @@
     },
     "3": {
       "name": "food_reach",
-      "description": "Walk to food and reach with neck",
+      "description": "Move the head tip within the configured distance threshold of food",
       "timesteps": 8000000,
       "best_eval_reward": 732.20,
       "best_eval_std": null,

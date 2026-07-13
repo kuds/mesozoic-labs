@@ -24,6 +24,9 @@ environments/<species>/
 ```
 
 You also need TOML config files under `configs/<species>/` for each training stage.
+Every implemented species must also have one entry in
+`configs/species_manifest.toml`; the generated public catalog and its CI drift
+check use that manifest as their source of truth.
 
 ## MuJoCo XML Format
 
@@ -75,13 +78,10 @@ Dinosaur models are defined using MuJoCo's MJCF XML format. Here's a minimal ske
 
 ## Existing Species as Reference
 
-| Species | Actuators | Obs Dim | Action Dim | Stance |
-|---------|-----------|---------|------------|--------|
-| T-Rex | 14 | 77 | 14 | Bipedal |
-| Velociraptor | 12 | 69 | 12 | Bipedal |
-| Brachiosaurus | 22 | 75 | 22 | Quadrupedal |
-
-Look at the existing MJCF files under `environments/<species>/assets/` for detailed examples.
+Use the generated specifications on the [T-Rex](./trex),
+[Velociraptor](./velociraptor), and [Brachiosaurus](./brachiosaurus) model
+pages for the current compiled dimensions. Look at the corresponding MJCF
+files under `environments/<species>/assets/` for detailed examples.
 
 ## Creating the Environment
 
@@ -93,7 +93,7 @@ from environments.shared.base_env import BaseDinoEnv
 class CustomDinoEnv(BaseDinoEnv):
     def __init__(self, **kwargs):
         super().__init__(
-            xml_file="path/to/custom_dino.xml",
+            model_path="path/to/custom_dino.xml",
             **kwargs
         )
 ```
@@ -137,3 +137,28 @@ min_avg_reward = 50.0
 min_avg_episode_length = 400
 required_consecutive = 3
 ```
+
+## Add the Species to the Public Catalog
+
+Copy an existing `[[species]]` block in `configs/species_manifest.toml` and
+update its presentation metadata, environment entry point, MJCF model path,
+notebook IDs, and result-summary paths. Add `[[species.success_metrics]]`
+entries that state the actual success semantics for every supported backend.
+Stage videos and curated result summaries are optional, but any declared
+artifact must exist and include the required backend and provenance metadata.
+
+Do not copy observation, action, or compiled-model dimensions into the
+manifest. The generator derives those values from the environment and MJCF,
+and reads stages and gates from the species TOML files.
+
+From the repository root, regenerate the checked-in public data and README
+blocks, then verify that nothing is stale:
+
+```bash
+python -m environments.shared.species_catalog
+python -m environments.shared.species_catalog --check
+```
+
+The check also confirms that every implemented species is represented in the
+manifest and that all declared configs, notebooks, videos, and summaries are
+valid.

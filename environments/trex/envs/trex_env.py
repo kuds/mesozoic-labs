@@ -2,10 +2,10 @@
 Tyrannosaurus Rex Gymnasium Environment
 
 A large bipedal predator with a massive skull and vestigial forelimbs.
-The T-Rex hunts by sprinting toward prey and delivering a bite with
-its head.
+The Stage 3 task uses contact between a fixed head geom and prey as a
+"bite" proxy; the model has no articulated jaw.
 
-Observation space (83 dims):
+Observation space (total dimension is generated in the public species catalog):
     - Joint positions (qpos[7:]) — 33 (25 hinge + 2x4 ball shoulders)
     - Joint velocities (qvel[6:]) — 31 (25 hinge + 2x3 ball shoulders)
     - Pelvis orientation (quaternion) — 4
@@ -16,7 +16,7 @@ Observation space (83 dims):
     - Prey direction (unit vector) — 3
     - Prey distance (scalar) — 1
 
-Action space (21 dims):
+Action space (total dimension is generated in the public species catalog):
     - Neck/head: neck pitch, neck yaw, head pitch (3)
     - Right leg: hip pitch/roll, knee, ankle, toe d2/d3/d4 (7)
     - Left leg: hip pitch/roll, knee, ankle, toe d2/d3/d4 (7)
@@ -30,7 +30,7 @@ Reward components:
     - Fall penalty
     - Energy penalty
     - Tail stability
-    - Bite bonus (head contacts prey)
+    - Bite-proxy bonus (fixed head geom contacts prey)
     - Approach shaping (distance to prey)
     - Head proximity shaping (reward for positioning head near prey)
     - Posture (continuous tilt penalty)

@@ -15,12 +15,13 @@ python -m environments.shared.scripts.sweep launch-all \
   --species velociraptor --algorithm ppo \
   --project YOUR_GCP_PROJECT \
   --bucket YOUR_GCS_BUCKET \
-  --image ${IMAGE_URI} \
-  --trials 20 --parallel 5 \
-  --timesteps-stage1 500000 \
-  --timesteps-stage2 1000000 \
-  --timesteps-stage3 1500000
+  --image ${IMAGE_URI}
 ```
+
+With no budget flags, `launch-all` loads the committed
+`configs/<species>/sweep_<algorithm>.json` settings. Run the same command with
+`--dry-run` first to inspect the resolved trial counts, parallelism, and
+per-stage sweep budgets. CLI budget flags are deliberate overrides.
 
 `launch-all` orchestrates the full three-stage sweep automatically:
 
@@ -44,7 +45,7 @@ The `launch-all` command reduces the problem from an exponential number of combi
 4. **Auto-chain** — `launch-all` finds the best Stage 2 trial and passes its checkpoint to Stage 3.
 5. **Stage 3 sweep** — Load the best Stage 2 model, then sweep Stage 3 hyperparameters for behavior (strike/bite/food).
 
-Each stage uses [Vertex AI Hyperparameter Tuning](https://cloud.google.com/vertex-ai/docs/training/hyperparameter-tuning-overview) — N parallel trials with Bayesian optimisation, not grid search, so you get good coverage in 20–30 trials instead of hundreds.
+Each stage uses [Vertex AI Hyperparameter Tuning](https://cloud.google.com/vertex-ai/docs/training/hyperparameter-tuning-overview) with Bayesian optimisation rather than an exhaustive grid.
 
 ## Quick Start
 
@@ -66,14 +67,11 @@ python -m environments.shared.scripts.sweep launch-all \
   --species velociraptor --algorithm ppo \
   --project YOUR_GCP_PROJECT \
   --bucket YOUR_GCS_BUCKET \
-  --image ${IMAGE_URI} \
-  --trials 20 --parallel 5 \
-  --timesteps-stage1 500000 \
-  --timesteps-stage2 1000000 \
-  --timesteps-stage3 1500000
+  --image ${IMAGE_URI}
 ```
 
-Vertex AI runs 20 trials per stage (5 in parallel), waiting for each stage to finish before starting the next. The final best checkpoints from each stage are saved to:
+Vertex AI uses the species sweep config and waits for each stage to finish before
+starting the next. The final best checkpoints from each stage are saved to:
 
 ```
 gs://YOUR_BUCKET/sweeps/velociraptor/stage1/<best_trial_id>/models/stage1_final.zip
@@ -100,6 +98,8 @@ Because `launch-all` runs synchronously (each stage blocks until the previous is
 If you want to sweep only one stage — for example, to re-sweep Stage 2 after finding better Stage 1 weights — use `launch` instead:
 
 ```bash
+# The following trial count, parallelism, and timestep budget are explicit
+# experiment overrides; they are not the current curriculum-stage budget.
 python -m environments.shared.scripts.sweep launch \
   --species velociraptor --stage 2 --algorithm ppo \
   --project YOUR_GCP_PROJECT \
@@ -146,9 +146,11 @@ When Vertex AI launches each HPT trial worker, this is what happens end-to-end:
 
 Each trial writes checkpoints to `gs://YOUR_BUCKET/sweeps/<species>/stage1/<trial_id>/models/best_model.zip`.
 
-### Budget-friendly trial run
+### Small smoke sweep
 
-For an initial test with minimal cost (~$0.35 total), run a small sweep on CPU-only machines:
+For an initial pipeline test, run a deliberately short sweep on CPU-only
+machines. Check current Vertex AI pricing before launch; the command below is a
+smoke-test override, not a cost estimate or curriculum-stage budget.
 
 ```bash
 python -m environments.shared.scripts.sweep launch \
@@ -255,7 +257,8 @@ python -m environments.shared.scripts.sweep launch-all \
   --search-space-file configs/trex/sweep_ppo.json
 ```
 
-Example per-stage file (`configs/trex/sweep_ppo.json`):
+Format illustration only (not current settings) for
+`configs/trex/sweep_ppo.json`:
 
 ```json
 {
@@ -301,9 +304,9 @@ Example per-stage file (`configs/trex/sweep_ppo.json`):
     "ppo_batch_size":               {"type": "discrete", "values": [64, 128, 256, 512]},
     "ppo_gamma":                    {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
     "ppo_n_steps":                  {"type": "discrete", "values": [1024, 2048, 4096]},
-    "env_strike_bonus":             {"type": "double", "min": 10.0, "max": 100.0, "scale": "log"},
-    "env_strike_approach_weight":   {"type": "double", "min": 1.0, "max": 5.0, "scale": "linear"},
-    "env_strike_proximity_weight":  {"type": "double", "min": 0.1, "max": 1.0, "scale": "linear"},
+    "env_bite_bonus":                  {"type": "double", "min": 10.0, "max": 100.0, "scale": "log"},
+    "env_bite_approach_weight":        {"type": "double", "min": 1.0, "max": 5.0, "scale": "linear"},
+    "env_bite_head_proximity_weight":  {"type": "double", "min": 0.1, "max": 1.0, "scale": "linear"},
     "curriculum_warmup_timesteps":  {"type": "discrete", "values": [50000, 100000, 200000, 300000]},
     "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
     "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.005, "max": 0.05, "scale": "log"},
@@ -333,7 +336,10 @@ python -m environments.shared.scripts.sweep launch-all \
   --trials-stage1 15
 ```
 
-Notice that each stage sweeps different reward signals: Stage 1 sweeps `env_alive_bonus`, `env_posture_weight`, and `env_nosedive_weight` (the key balance rewards), Stage 2 sweeps `env_alive_bonus` alongside curriculum schedule parameters, and Stage 3 replaces those with `env_strike_bonus`, `env_strike_approach_weight`, and `env_strike_proximity_weight` (where the strike reward dominates). `ppo_net_arch` is only swept in Stage 1 — the winning architecture is automatically propagated to stages 2 and 3. A flat file (no `stageN` keys) applies the same space to all stages.
+The exact job settings and search parameters vary by species, stage, and
+algorithm. Inspect the committed species file rather than copying values or
+species-specific reward keys from this format illustration. A flat file (no
+`stageN` keys) applies the same space to all three stages.
 
 Pre-built search space files for PPO and SAC are included per species at `configs/<species>/sweep_ppo.json` and `configs/<species>/sweep_sac.json`; they are used automatically when `--search-space-file` is omitted.
 
@@ -417,27 +423,16 @@ launch-all (after stage N completes)
 
 Vertex AI uses trial results to decide which hyperparameter regions to explore next. Trials in promising areas get more follow-up trials; poor regions are avoided. This is why Bayesian optimisation needs far fewer trials than grid search.
 
-## Recommended Trial Counts
+## Trial Counts and Cost Estimation
 
-| Stage | Recommended Trials | Parallel | Why |
-|---|---|---|---|
-| Stage 1 (Balance) | 20–30 | 5 | Simple task, converges quickly — need broad coverage |
-| Stage 2 (Locomotion) | 20–30 | 5 | Medium complexity, load Stage 1 weights |
-| Stage 3 (Behavior) | 15–20 | 5 | Complex sparse rewards — fewer trials needed since Stage 1+2 are locked |
+Trial count, parallelism, and timestep budgets are experiment choices stored in
+the species sweep config. Inspect them with `--dry-run`, then estimate cost from
+current [Vertex AI pricing](https://cloud.google.com/vertex-ai/pricing) and a
+short throughput measurement on the intended machine type. Copied historical
+prices and runtimes are not reliable enough for budgeting a sweep.
 
-## Cost Estimate
-
-Each trial trains for the configured number of timesteps on an `n1-standard-8 + T4` machine (approximate costs as of early 2026 in `us-central1`; check [current GCP pricing](https://cloud.google.com/vertex-ai/pricing) before running large sweeps — costs vary by region and machine type):
-
-| Timesteps per trial | Trial cost | 20 trials (5 parallel) | Total wall time |
-|---|---|---|---|
-| 100 000 | ~$0.07 | ~$1.40 | ~1 hour |
-| 500 000 | ~$0.37 | ~$7.40 | ~5 hours |
-| 1 000 000 | ~$0.73 | ~$14.60 | ~10 hours |
-
-For a full `launch-all` (3 stages at 500k/1M/1.5M steps per trial, 20 trials each): roughly **$45–60 total** for a complete sweep.
-
-**Tip:** Start with 100 000–200 000 timesteps per trial to get a rough ranking, then run longer trials for the top 3–5 configurations.
+Start with a small smoke sweep to validate the pipeline and metric signal before
+committing to the full resolved search budget.
 
 ## Resuming a Sweep
 
@@ -540,4 +535,3 @@ When submitting a job to Vertex AI, transient errors (quota exhaustion, service 
 3. Re-running the same command resumes from where it left off.
 
 Non-transient errors (invalid parameters, authentication failures) are **not** retried and fail immediately.
-

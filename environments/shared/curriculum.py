@@ -321,6 +321,8 @@ def thresholds_from_configs(
             threshold_fields["min_avg_forward_vel"] = cur["min_avg_forward_vel"]
         if "min_success_rate" in cur:
             threshold_fields["min_success_rate"] = cur["min_success_rate"]
+        if "min_eval_episodes" in cur:
+            threshold_fields["min_eval_episodes"] = cur["min_eval_episodes"]
         if "required_consecutive" in cur:
             threshold_fields["required_consecutive"] = cur["required_consecutive"]
         if threshold_fields:

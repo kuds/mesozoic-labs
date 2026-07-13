@@ -1,9 +1,16 @@
 # MJX Conversion Plan
 
+> **Status:** Implemented design record. Sections 1–8 describe the original
+> target architecture, not a parity guarantee. For current behavior, use the
+> [JAX/MJX guide](../website/docs/training/jax.md) and
+> [known-divergence list](KNOWN_ISSUES.md#known-sb3--jax-divergences).
+
 Detailed plan for adding MuJoCo MJX (JAX-accelerated GPU simulation) support to
 Mesozoic Labs while preserving the existing Stable Baselines 3 (SB3) CPU training
 path. The goal is a **dual-backend architecture**: developers can train with either
-SB3+CPU MuJoCo (accessible, no GPU required) or JAX+MJX (fast, GPU/TPU).
+SB3+CPU MuJoCo (accessible, no GPU required) or JAX+MJX (accelerated on an
+NVIDIA GPU, with CPU execution available for small smoke tests). TPU execution
+has not been validated by this project.
 
 ---
 
@@ -38,7 +45,7 @@ gym.make("MesozoicLabs/TRex-v0")
 ```
 MJXDinoEnv(species="trex", stage=1)
   └─ mjx.put_model(mj_model)     # GPU-resident model
-  └─ jax.vmap(step_fn)           # 2048–8192 parallel envs
+  └─ jax.vmap(step_fn)           # Configurable batched environments
        └─ JAX PPO (Flax+Optax)   # Pure-JAX policy + optimizer
             └─ Running-mean norm  # JAX-based obs normalization
 ```
@@ -47,14 +54,17 @@ MJXDinoEnv(species="trex", stage=1)
 
 The two paths share:
 - **MJCF model files** (`*.xml`) — identical, no changes needed.
-- **Reward logic** — extracted into pure functions usable by both NumPy and JAX.
-- **Stage configs** (`configs/*/stage*.toml`) — identical TOML files drive both paths.
+- **Selected reward/observation primitives** — reusable pure functions, with
+  backend-specific wiring and Stage-3 success semantics still present.
+- **Stage config inputs** (`configs/*/stage*.toml`) — config-aware JAX paths
+  read the same files, but direct `train_jax(...)` calls use explicit/default arguments.
 - **Evaluation** — CPU MuJoCo rendering for both (MJX has no native renderer).
 
 They differ in:
 - **Environment wrapper** — Gymnasium `step()/reset()` vs. JAX functional `step_fn/reset_fn`.
 - **Training loop** — SB3 callbacks vs. JIT-compiled JAX rollout+update.
-- **Parallelism** — `SubprocVecEnv` (4–32 envs) vs. `jax.vmap` (2048–8192 envs).
+- **Parallelism** — process-based vector environments vs. a configurable
+  `jax.vmap` batch; size from measurements on the target hardware.
 
 ---
 
@@ -363,7 +373,7 @@ species-agnostic so a single notebook supports all species.
 
 ### 5.1 Refactored `notebooks/jax_training.ipynb` ✅
 
-The notebook (formerly `jax_trex_training.ipynb`) has been refactored to:
+The unified notebook has been refactored to:
 - Import from shared modules (`reward_functions`, `obs_functions`, `jax_ppo`, `mjx_utils`)
 - Use a `SPECIES` configuration variable to select any species
 - Auto-resolve model paths, body IDs, healthy ranges, and sensor layouts
@@ -374,7 +384,7 @@ No per-species notebooks are needed — a single `SPECIES = "trex"` /
 
 ### 5.2 Existing SB3 Notebook
 
-`notebooks/training.ipynb` (the SB3 Colab notebook) is **not modified**. It
+`notebooks/sb3_training.ipynb` (the unified SB3 Colab notebook) is **not modified**. It
 continues to work exactly as before via the Gymnasium API.
 
 ### 5.4 Files Changed
@@ -382,8 +392,7 @@ continues to work exactly as before via the Gymnasium API.
 | File | Action |
 |------|--------|
 | `notebooks/jax_training.ipynb` | **Edit** — Refactor to use shared modules |
-| `notebooks/jax_raptor_training.ipynb` | **New** — Raptor JAX training |
-| `notebooks/jax_brachio_training.ipynb` | **New** — Brachio JAX training |
+| `notebooks/sb3_training.ipynb` | **Existing** — Unified SB3 training for all species |
 
 ---
 
@@ -496,7 +505,7 @@ Add a section showing both training paths:
 pip install mesozoic-labs[train]
 python -m environments.trex.scripts.train_sb3 train --stage 1
 
-### JAX/MJX (GPU, 10-100x faster)
+### JAX/MJX (batched NVIDIA GPU path; benchmark before reporting speedup)
 pip install mesozoic-labs[jax]
 python -m environments.shared.jax_training --species trex --stage 1
 ```
@@ -516,13 +525,14 @@ Mark MJX integration as part of the project roadmap.
 
 ## 9. Migration Checklist
 
-> **Status as of 2026-04-18:** Plan is substantially complete. All source files
+> **Status as of 2026-07-13:** Plan is substantially complete. All source files
 > and tests described in this document exist in the repo. Remaining items are
 > operational validation and post-landing documentation polish. Subsequent
 > stabilization work (Apr 2–3 JAX training fixes: LR bug, PPO ratio
-> explosion, value-loss domination, dones broadcasting, reward-signal
-> unification between SB3 and JAX) was not part of the original plan but has
-> since landed.
+> explosion, value-loss domination, dones broadcasting, and reward-wiring
+> fixes) was not part of the original plan but has since landed. Full backend
+> parity has **not** been established; current divergences are tracked in
+> `docs/KNOWN_ISSUES.md`.
 
 ### Phase 1 — Shared Pure Functions
 - [x] Create `environments/shared/reward_functions.py`
@@ -536,17 +546,20 @@ Mark MJX integration as part of the project roadmap.
 - [x] Create `environments/shared/mjx_env.py`
 - [x] Create `environments/shared/mjx_utils.py`
 - [x] Create species MJX configs (`trex/mjx_config.py`, etc.)
-- [x] Verify MJX env produces same obs as Gymnasium env for same state
+- [ ] Verify full MJX/Gymnasium observation parity from identical simulator
+      state; current tests cover shared observation primitives and environment
+      shapes, reset, and step behavior, but not end-to-end fixed-state parity
 
 ### Phase 3 — JAX Training
 - [x] Create `environments/shared/jax_ppo.py`
 - [x] Create `environments/shared/jax_normalization.py`
 - [x] Create `environments/shared/jax_training.py`
 - [x] Create `environments/shared/jax_curriculum.py`
-- [x] Verify PPO converges on T-Rex Stage 1 (balance)
+- [ ] Pipeline exercised on T-Rex Stage 1; convergence on the current code is
+      not yet verified by a provenance-complete rerun
 - [x] Post-landing stabilization: LR schedule fix, PPO ratio explosion fix,
-      value-loss domination fix, dones broadcasting fix, SB3/JAX reward-signal
-      unification (2026-04-02 / 2026-04-03)
+      value-loss domination fix, dones broadcasting fix, and reward-wiring
+      corrections (2026-04-02 / 2026-04-03)
 
 ### Phase 4 — Notebooks
 - [x] Refactor `notebooks/jax_training.ipynb` (species-agnostic, all 3 species)
@@ -559,7 +572,8 @@ Mark MJX integration as part of the project roadmap.
 - [x] Verify `pip install mesozoic-labs[jax]` works
 
 ### Phase 6 — Testing
-- [x] Write reward/obs function tests (NumPy + JAX parity)
+- [x] Write shared reward/obs primitive tests (NumPy + JAX numerical checks;
+      not full environment parity)
 - [x] Write MJX env tests (shapes, reset, step)
 - [x] Full regression test (`pytest environments/`)
 
@@ -578,7 +592,7 @@ Mark MJX integration as part of the project roadmap.
 | **JAX array operations ≠ NumPy** | Shared reward functions may have subtle differences | Parity tests comparing NumPy vs JAX outputs; use only common operations |
 | **JIT compilation time** | 1–3 min startup delay for training | Document expected behavior; compilation is one-time per model structure |
 | **MJX feature gaps** | Some MuJoCo features unsupported (tendon wrapping, certain constraints) | Current MJCF models use standard hinges/balls — unlikely to hit gaps; validate by loading all 3 models into MJX |
-| **GPU memory for large batch sizes** | 8192 envs may exceed VRAM on smaller GPUs | Default to 2048 envs; document memory requirements per GPU tier |
+| **GPU memory for large batch sizes** | A configured batch may exceed available VRAM | Start conservatively, measure the target species/hardware, and increase from observed headroom |
 | **SB3 path regression** | Refactoring reward functions may change SB3 training behavior | Existing tests + numerical parity checks before/after refactor |
 | **Observation normalization drift** | JAX running-mean may diverge from SB3 VecNormalize | Validate both normalizers produce similar distributions on same data |
 | **TF32 precision on Ampere GPUs** | Non-deterministic results on RTX 30/40 series | Document `JAX_DEFAULT_MATMUL_PRECISION=highest` workaround |

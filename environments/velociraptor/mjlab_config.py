@@ -4,9 +4,10 @@ Registers the velociraptor with the mjlab adapter so that
 ``make_mjlab_env("velociraptor", stage=1)`` works once the optional
 ``mjlab`` dependency is installed.
 
-Pilot target: reproduce Stage 1 balance (ref: SB3 PPO 2:57:25, best reward
-1964.43) on a single NVIDIA GPU via MuJoCo-Warp batch simulation, then
-measure wall-clock speedup and envs/sec vs the existing ``MJXDinoEnv``.
+Pilot target: reproduce the Stage 1 behavior represented by the historical
+SB3 PPO summary, then measure wall-clock throughput and environment steps per
+second against the existing ``MJXDinoEnv`` under a controlled protocol. The
+generated public catalog owns the summary metrics and provenance status.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ _ASSETS = Path(__file__).parent / "assets"
 
 
 def _build_observation_manager() -> object:
-    """Compose the 67-dim velociraptor observation via mjlab obs terms.
+    """Compose the velociraptor observation via mjlab observation terms.
 
     Intentionally deferred: mirrors the observation layout already documented
     in ``envs/raptor_env.py`` (joint pos/vel, pelvis quat/gyro/linvel/accel,

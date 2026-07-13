@@ -7,7 +7,7 @@ const GA_MEASUREMENT_ID = process.env.GA_MEASUREMENT_ID || 'G-GGSQ47QSJN';
 
 const config: Config = {
   title: 'Mesozoic Labs',
-  tagline: 'Building robotic dinosaurs through simulation and reinforcement learning',
+  tagline: 'Dinosaur-inspired locomotion research with simulation and reinforcement learning',
   favicon: 'img/favicon.ico',
 
   // Production site URL - used for sitemap, canonical URLs, and social sharing

@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Hyperparameters
 
-Guide to tuning hyperparameters for optimal training.
+Guide to tuning hyperparameters for training experiments.
 
 ## Config Files
 
@@ -30,61 +30,71 @@ Each TOML file contains `[ppo]`, `[sac]`, `[env]`, and `[curriculum]` sections.
 
 ## Per-Stage Hyperparameters
 
-**Each stage has its own `[ppo]` and `[sac]` sections.** When the `curriculum` command advances to the next stage it re-initialises the model with that stage's hyperparameters automatically. The values follow a deliberate progression across all three species:
+**Each stage has its own `[ppo]` and `[sac]` sections.** When the
+`curriculum` command advances, it loads the next TOML file and re-initialises
+the model with that stage's settings. Values differ across species and change
+as experiments evolve, so the stage TOML files are the authoritative source.
 
-| Hyperparameter | Stage 1 (Balance) | Stage 2 (Locomotion) | Stage 3 (Behavior) | Rationale |
-|---|---|---|---|---|
-| `learning_rate` | `3e-4` | `1e-4` | `5e-5` | Coarser search early, fine-tune for complex behaviour |
-| `ent_coef` (PPO) | `0.005–0.01` | `0.005–0.01` | `0.001` | High exploration for balance, exploit for strike/bite/food |
-| `clip_range` (PPO) | `0.2` | `0.2` | `0.1` | Conservative updates for sparse terminal rewards |
-| `gamma` | `0.99–0.998` | `0.99` | `0.995` | More farsighted when rewards are sparse |
-| `n_steps` (PPO) | `2048–4096` | `2048–4096` | `4096` | Larger rollout buffer for complex behaviour |
-| `batch_size` | `64–256` | `128–256` | `256` | Larger batches for later stages |
-
-The `env` reward weights also shift significantly between stages — that is the core mechanic of curriculum learning:
-
-| Reward component | Stage 1 | Stage 2 | Stage 3 |
-|---|---|---|---|
-| `alive_bonus` | High (1.0–2.0) | Moderate (0.5–1.0) | Low (0.1) |
-| `forward_vel_weight` | `0.0` | High (1.0–2.0) | Moderate (1.0) |
-| Behavior bonus (strike/bite/food) | `0.0` | `0.0` | High (10–500) |
+The broad curriculum intent is balance first, locomotion second, and a
+species-specific simulator task third. Reward weights shift with that intent;
+do not infer current values from a copied range in this guide. The generated
+[model pages](/docs/models/velociraptor) show the current stage names, budgets,
+and advancement gates read from the same configs.
 
 ## PPO Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| learning_rate | 3e-4 | Network learning rate (3e-4 → 1e-4 → 5e-5 across stages) |
-| learning_rate_end | *(optional)* | If set, enables a linear decay schedule from `learning_rate` to this value |
-| n_steps | 2048–4096 | Steps per rollout buffer (larger in later stages) |
-| batch_size | 64–256 | Minibatch size for gradient updates |
-| n_epochs | 10 | Number of epochs per PPO update |
-| gamma | 0.99–0.998 | Discount factor (higher in stage 3 for sparse rewards) |
-| gae_lambda | 0.95 | GAE lambda for advantage estimation |
-| clip_range | 0.2 → 0.1 | PPO surrogate objective clip range (tightened in stage 3) |
-| ent_coef | 0.001–0.01 | Entropy bonus (higher early, lower for fine-grained behaviour) |
+| Parameter | Description |
+|-----------|-------------|
+| `learning_rate` | Initial network learning rate |
+| `learning_rate_end` | Optional end value for a linear learning-rate schedule |
+| `n_steps` | Steps collected per rollout buffer |
+| `batch_size` | Minibatch size for gradient updates |
+| `n_epochs` | Optimisation epochs per PPO update |
+| `gamma` | Reward discount factor |
+| `gae_lambda` | Generalized advantage-estimation factor |
+| `clip_range` | PPO surrogate-objective clipping range |
+| `ent_coef` / `ent_coef_end` | Initial and optional scheduled entropy coefficients |
 
 ## SAC Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| learning_rate | 3e-4 → 1e-4 → 5e-5 | Network learning rate (same per-stage progression as PPO) |
-| batch_size | 256 | Training batch size |
-| gamma | 0.99–0.995 | Discount factor |
-| tau | 0.005 | Soft target update coefficient |
-| ent_coef | `"auto"` | Entropy coefficient (auto-tuned throughout) |
+| Parameter | Description |
+|-----------|-------------|
+| `learning_rate` | Network learning rate |
+| `batch_size` | Replay-sample batch size |
+| `gamma` | Reward discount factor |
+| `tau` | Soft target-update coefficient |
+| `ent_coef` | Entropy coefficient or automatic-tuning mode |
+| `buffer_size` | Replay-buffer capacity |
+| `train_freq` | Environment-data collection frequency between updates |
+| `gradient_steps` | Gradient updates per training interval |
 
 ## Curriculum Thresholds
 
 Stage transitions are controlled by the `[curriculum]` section in each config:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| timesteps | 4000000–8000000 | Maximum timesteps per stage before auto-advancing |
-| min_avg_reward | 50–100 | Minimum average reward to advance early |
-| min_avg_episode_length | 300–800 | Minimum average episode length to advance early |
-| required_consecutive | 3 | Consecutive evaluations above threshold |
+| Parameter | Description |
+|-----------|-------------|
+| `timesteps` | Maximum configured stage budget before advancing |
+| `min_avg_reward` | Minimum evaluation-window mean reward for early advancement |
+| `min_avg_episode_length` | Minimum evaluation-window mean episode length for early advancement |
+| `min_avg_forward_vel` | Optional minimum mean forward velocity; enabled when greater than zero |
+| `min_success_rate` | Optional minimum episode success rate; enabled when greater than zero |
+| `min_eval_episodes` | Minimum episodes required in an evaluation window; currently defaults to 10 in `StageThreshold` |
+| `required_consecutive` | Consecutive evaluations that must satisfy every enabled criterion |
 
-Both `min_avg_reward` and `min_avg_episode_length` must be exceeded for `required_consecutive` evaluations before a stage advances early. If the `timesteps` budget runs out first, the stage advances anyway.
+For the SB3 curriculum, every enabled criterion must pass in the same evaluation
+window, the window must contain at least 10 episodes (the current
+`StageThreshold.min_eval_episodes` implementation default), and this result must
+repeat for `required_consecutive` evaluations before the stage advances early.
+If the `timesteps` budget runs out first, the stage advances anyway. Consult the
+generated model pages or the TOML files for current values rather than relying
+on a static table here.
+
+JAX/MJX does not currently reproduce that decision loop. The CLI curriculum
+trains the configured stage and performs one reward-only gate afterward. The JAX
+notebook evaluation helper checks the enabled reward, episode-length,
+forward-velocity, and success-rate thresholds once, but does not require
+consecutive passes. See [JAX/MJX Training](jax.md#three-stage-task-sequence).
 
 ## Overriding Hyperparameters from the CLI
 
@@ -110,14 +120,16 @@ Supported key prefixes:
 
 For stage-scoped overrides within a curriculum run, prefix with the stage number: `1.ppo.learning_rate=3e-4 2.ppo.learning_rate=1e-4`. Plain `section.key=value` still applies to all stages.
 
-> **Systematic sweeps:** To try many combinations automatically, use the Vertex AI HPT sweep tool. See [Hyperparameter Sweeps](sweeps.md).
+> **Systematic sweeps:** Use `notebooks/ray_tune_sweep.ipynb` for a Colab/Google
+> Drive workflow, or see [Hyperparameter Sweeps](sweeps.md) for the Vertex AI
+> workflow.
 
 ## Tips
 
-1. **Start with defaults** — The TOML configs are tuned for each species
-2. **Use `--algorithm sac`** — SAC achieves higher final reward; PPO trains faster per step
+1. **Start from the committed config** — Treat it as a reproducible baseline, not a validated optimum
+2. **Compare algorithms under the same protocol** — The published historical runs do not provide a controlled PPO-versus-SAC comparison
 3. **Monitor with W&B** — Use `--wandb` to track per-component rewards across stages
-4. **Use GPU** — Training is significantly faster with CUDA
+4. **Measure throughput** — Compare CPU and GPU performance for your algorithm and parallel-environment count
 5. **Increase timesteps for stage 3** — The sparse terminal reward (strike/bite/food) often needs more samples to converge
 
 ## Tuning Playbook
@@ -147,21 +159,41 @@ Use this section as a symptom-driven reference when a run is misbehaving. Each e
 
 ### Stage 3 — Behavior (Strike / Bite / Food Reach)
 
+The names "Bite" and "Food Reach" refer to simulation success proxies. In the
+Gym/SB3 environments, T-Rex uses contact from a fixed head geom and has no
+articulated jaw; Brachiosaurus uses a head-tip distance threshold and does not
+require physical food contact. MJX uses site-distance thresholds for both
+T-Rex and Velociraptor instead of their Gym/SB3 contact checks; see
+[JAX/MJX Training](jax.md#three-stage-task-sequence).
+
 | Symptom | Most likely cause | What to change |
 |---|---|---|
 | Never triggers terminal event (strike/bite/food) | Sparse-reward exploration stalled | Raise `ppo.ent_coef` to `0.005–0.01`, widen `ppo.clip_range` to `0.15`, tighten `env.prey_distance_range` so the target spawns closer |
-| Lingers near target without triggering | Proximity bonuses rewarding hovering | Zero `env.strike_proximity_weight` (or `env.food_proximity_weight`), keep `env.*_bonus` high (`1000`+) and `*_approach_weight` as the only gradient |
+| Lingers near target without triggering | Proximity bonuses rewarding hovering | Zero `env.strike_proximity_weight` (or `env.food_head_proximity_weight`), keep the terminal bonus dominant per the current stage config, and use `*_approach_weight` as the approach gradient |
 | Forgets locomotion during Stage 3 warm-up | Reward schedule shift too abrupt | Use `curriculum.warmup_timesteps = 300000`, `curriculum.ramp_timesteps = 500000`, `curriculum.warmup_clip_range = 0.02` to anneal changes |
 | Learns the behavior but then regresses | Over-entropy or critic drift | Lower `ppo.ent_coef` after convergence, narrow `ppo.clip_range` to `0.1` |
 | `strike_bonus` signal not dominating | Discounted future alive-reward too large | Ensure `env.alive_bonus = 0` in stage 3 and that `strike_bonus >> gamma^H · per_step_reward` |
 
 ### Algorithm-specific notes
 
-**PPO.** The most impactful lever is the `learning_rate` / `learning_rate_end` pair — roughly 10× lower than the "textbook" `3e-4` produces the most consistent runs in this repo. `n_steps × n_envs` must be divisible by `batch_size`; otherwise SB3 silently drops samples. `clip_range` should narrow across the curriculum (`0.2 → 0.15 → 0.1`) as policies become more specialized.
+**PPO.** Treat the `learning_rate` / `learning_rate_end` schedule as a primary
+tuning lever. Choose `n_steps`, `n_envs`, and `batch_size` together so rollout
+batches divide cleanly into minibatches; Stable-Baselines3 warns when they do
+not. Tune `clip_range` and entropy against the stage's observed stability rather
+than assuming one fixed progression across species.
 
-**SAC.** `ent_coef = "auto"` handles exploration automatically — prefer it over a fixed float. The `train_freq=16, gradient_steps=8` ratio (2:1 gradient-to-env) smooths the learning curve at modest compute cost. Set `buffer_size` proportional to stage length (300K for Stage 1, 1M for Stage 3).
+**SAC.** Automatic entropy tuning is available through `ent_coef = "auto"`.
+Tune `train_freq`, `gradient_steps`, and `buffer_size` together: their useful
+values depend on the species, stage, parallel-environment count, and memory
+budget.
 
-**JAX / MJX.** `num_envs × rollout_len` is the effective rollout buffer. The default `2048 × 64` ≈ 131K is aggressive — reduce to `1024 × 64` if GPU memory is tight. `warmup_updates` and `ramp_updates` in `[jax]` mirror the `warmup_timesteps` / `ramp_timesteps` knobs from `[curriculum]` but in update-count units.
+**JAX / MJX.** `num_envs × rollout_len` determines the effective rollout
+buffer and is a major memory lever. Reduce one or both values if device memory
+is tight. `warmup_updates` and `ramp_updates` in `[jax]` mirror the
+`warmup_timesteps` / `ramp_timesteps` knobs from `[curriculum]`, but use update
+counts. The per-stage `[jax]` section is authoritative; see the
+[current config-key reference](jax.md#ppo-hyperparameters-jax) rather than
+copying values from a guide.
 
 ### A minimal tuning workflow
 

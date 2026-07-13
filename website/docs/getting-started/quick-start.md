@@ -4,17 +4,16 @@ sidebar_position: 2
 
 # Quick Start
 
-Train your first robotic dinosaur in minutes.
+Train your first dinosaur-inspired simulated agent.
 
 ## Option 1: Google Colab (Easiest)
 
-Open one of the pre-configured notebooks in the `notebooks/` directory:
+Open one of the unified training notebooks in the `notebooks/` directory:
 
-- `notebooks/velociraptor_training.ipynb` - Velociraptor 3-stage curriculum
-- `notebooks/trex_training.ipynb` - T-Rex 3-stage curriculum
-- `notebooks/brachiosaurus_training.ipynb` - Brachiosaurus 3-stage curriculum
+- `notebooks/sb3_training.ipynb` - PPO or SAC curriculum training with Stable-Baselines3
+- `notebooks/jax_training.ipynb` - PPO curriculum training with JAX/MJX on an NVIDIA GPU
 
-Each notebook handles dependency installation automatically.
+Both notebooks support T-Rex, Velociraptor, and Brachiosaurus through a species selector and handle dependency installation automatically.
 
 ## Option 2: Docker (Recommended for Reproducibility)
 
@@ -68,13 +67,17 @@ The `curriculum` command runs all three stages in a single call. Each stage auto
 # Full 3-stage curriculum — one command, all stages handled automatically
 python scripts/train_sb3.py curriculum --algorithm ppo
 
-# Or control stages manually
-python scripts/train_sb3.py train --stage 1 --algorithm ppo --timesteps 1000000
-python scripts/train_sb3.py train --stage 2 --algorithm ppo --timesteps 2000000 \
+# Or control stages manually; each command reads its current budget from TOML
+python scripts/train_sb3.py train --stage 1 --algorithm ppo
+python scripts/train_sb3.py train --stage 2 --algorithm ppo \
   --load logs/<stage1_dir>/models/stage1_final.zip
-python scripts/train_sb3.py train --stage 3 --algorithm ppo --timesteps 3000000 \
+python scripts/train_sb3.py train --stage 3 --algorithm ppo \
   --load logs/<stage2_dir>/models/stage2_final.zip
 ```
+
+Pass `--timesteps` only when you intentionally want to override the stage
+config. The generated [model pages](/docs/models/velociraptor) show the current
+budgets for every species and stage.
 
 ### Evaluate a Trained Policy
 

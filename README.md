@@ -1,17 +1,20 @@
 # Mesozoic Labs
 
-Robotic dinosaur locomotion research using reinforcement learning and MuJoCo physics simulation.
+Dinosaur-inspired locomotion research using reinforcement learning and MuJoCo physics simulation.
 
-![Trained PPO Agent](/results/velociraptor/ppo/stage1_balance.gif)
+![Trained PPO Agent](results/velociraptor/ppo/stage1_balance.gif)
+
+*Historical, unverified PPO / Stable-Baselines3 artifact (backend version not
+recorded); not evidence for the current model or configuration.*
 
 ## Overview
 
-Mesozoic Labs is a research project exploring bipedal and quadrupedal locomotion in robotic dinosaurs. We use MuJoCo for realistic physics simulation and train agents with algorithms like PPO and SAC.
+Mesozoic Labs is a simulation research project exploring bipedal and quadrupedal locomotion with dinosaur-inspired articulated models. We use MuJoCo for physics-based simulation and train agents with algorithms such as PPO and SAC. The models are research abstractions rather than validated reconstructions of dinosaur anatomy.
 
 **Goals:**
-- Develop realistic locomotion controllers for various dinosaur species
+- Develop locomotion controllers for dinosaur-inspired simulated species
 - Explore predatory behaviors (hunting, striking, pack coordination)
-- Create transferable policies for robotic applications
+- Study the requirements for eventual policy transfer to robotic platforms
 - Experiment with JAX/MJX for high-performance training
 
 ## Repository Structure
@@ -50,70 +53,91 @@ mesozoic-labs/
 │       ├── jax_training.py    # JAX training loop
 │       └── tests/             # Shared utility tests
 ├── configs/                   # TOML hyperparameter configs per species/stage
-├── notebooks/                 # Jupyter notebooks for experiments
-│   ├── sb3_training.ipynb
-│   ├── jax_training.ipynb
-│   ├── ray_tune_sweep.ipynb
-│   └── google_drive_summary.ipynb
+├── notebooks/                 # Jupyter training, sweep, and reporting workflows
 ├── website/                   # Documentation site (Docusaurus)
-└── results/                   # Training results (GIFs + collected_results.csv per species/algorithm)
+└── results/                   # Curated historical summaries and available run artifacts
 ```
 
 ## Environments
 
+<!-- BEGIN GENERATED: SPECIES -->
+The active-species tables are generated from `configs/species_manifest.toml`, the executable Gymnasium
+environments, compiled MJCF models, and current stage TOML files. The budgets and gates shown are for the
+Stable-Baselines3 curriculum path. Do not edit the generated block by hand.
+
 ### Velociraptor
-**Status:** Active development
 
-A bipedal predator with distinctive sickle claws, trained using 3-stage curriculum learning:
-1. **Balance** - Learn to stand without falling
-2. **Locomotion** - Walk and run forward
-3. **Strike** - Sprint and attack prey with claws
+Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 
-| Feature | Details |
-|---------|---------|
-| Observation | 67 dims (joints, pelvis, prey tracking) |
-| Action | 22 dims (legs, claws, tail, arms) |
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 67 |
+| Action dimension / actuators | 22 |
+| Generalized coordinates / velocities | nq=31, nv=30 |
+| Compiled dynamic model mass | 13.5 kg |
 | Model | `environments/velociraptor/assets/raptor.xml` |
+
+| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---:|---:|
+| 1 — Balance | Learn to stand and balance without falling | 6M | reward ≥ 100; episode length ≥ 750; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 3 — Strike | Sprint and strike prey with sickle claw | 8M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 — Sickle-claw contact success:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
+- **JAX/MJX — Sickle-claw proximity success:** Either claw-tip site comes within 0.20 m of the prey target position while the strike bonus is enabled; physical geom contact is not required.
 
 [Full documentation →](environments/velociraptor/README.md)
 
-[HuggingFace Models →](https://huggingface.co/kuds/mesozoic-labs-velocipastor)
-
-### Brachiosaurus
-**Status:** Active development
-
-A quadrupedal sauropod herbivore with a long neck for reaching elevated food sources. The first quadrupedal species in the project, featuring columnar elephant-like legs and characteristic longer front legs.
-
-Trained using 3-stage curriculum learning:
-1. **Balance** - Stable quadrupedal stance
-2. **Locomotion** - Coordinated four-legged walking
-3. **Food Reach** - Walk to food and reach with neck
-
-| Feature | Details |
-|---------|---------|
-| Observation | 83 dims (joints, torso, food tracking) |
-| Action | 30 dims (6 neck + 20 leg + 4 tail controls) |
-| Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
-
-[Full documentation →](environments/brachiosaurus/README.md)
+[Hugging Face models →](https://huggingface.co/kuds/mesozoic-labs-velocipastor)
 
 ### T-Rex
-**Status:** Active development
 
-Large bipedal predator with a massive skull, powerful jaws, and vestigial forelimbs. Hunts by sprinting toward prey and delivering a bite.
+Apex Predator. **Specialty:** Head-contact attack task.
 
-Trained using 3-stage curriculum learning:
-1. **Balance** - Stable bipedal stance
-2. **Locomotion** - Walk and run toward prey
-3. **Hunting** - Sprint and bite prey with jaws
-
-| Feature | Details |
-|---------|---------|
-| Observation | 83 dims (joints, pelvis, prey tracking) |
-| Action | 21 dims (3 neck/head + 7 per leg + 4 tail) |
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 83 |
+| Action dimension / actuators | 21 |
+| Generalized coordinates / velocities | nq=40, nv=37 |
+| Compiled dynamic model mass | 85.4 kg |
 | Model | `environments/trex/assets/trex.xml` |
 
+| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---:|---:|
+| 1 — Balance | Learn to stand and balance without falling | 6M | reward ≥ 100; episode length ≥ 750; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 3 — Bite | Sprint to prey and make contact with the head bite proxy | 8M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 — Head-contact bite proxy:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
+- **JAX/MJX — Head-tip proximity bite proxy:** The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
+
 [Full documentation →](environments/trex/README.md)
+
+### Brachiosaurus
+
+Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
+
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 83 |
+| Action dimension / actuators | 30 |
+| Generalized coordinates / velocities | nq=38, nv=37 |
+| Compiled dynamic model mass | 175.3 kg |
+| Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
+
+| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---:|---:|
+| 1 — Balance | Learn to stand on four legs without falling | 6M | reward ≥ 100; episode length ≥ 750; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | Learn coordinated quadrupedal walking | 16M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 0.75 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 3 — Food Reach | Move the head tip within the configured distance threshold of food | 12M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 / JAX/MJX — Head-tip distance-threshold success:** The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled.
+
+[Full documentation →](environments/brachiosaurus/README.md)
+<!-- END GENERATED: SPECIES -->
 
 ### Planned Species
 - Deinonychus (pack hunter)
@@ -167,62 +191,83 @@ See [Vertex AI training docs](website/docs/training/vertex-ai.md) for cloud depl
 
 ## Training Results
 
-Hardware: Google Colab L4 GPU
+<!-- BEGIN GENERATED: RESULTS -->
+The summaries below are historical experiment records generated from the versioned JSON files under
+`results/`. They are not evidence for the current model revision unless provenance is marked both current
+and verified. Current stage budgets may therefore differ from the steps reported here.
 
-### Velociraptor (PPO) — All 3 stages passed | 22M steps | 11:25:15 total
+### Velociraptor (PPO · Stable-Baselines3) — 2026-03-15
 
-| Stage | Name | Best Reward | Avg Fwd Vel | Success Rate | Time |
-|-------|------|-------------|-------------|--------------|------|
-| 1 | Balance | 1964.43 | 0.11 m/s | — | 2:57:25 |
-| 2 | Locomotion | 2678.68 | 3.47 m/s | — | 4:35:55 |
-| 3 | Strike | 1366.19 | 2.02 m/s | 93.3% | 3:51:54 |
+**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 11:25:15. [Source summary](results/velociraptor/ppo/summary.json).
 
-### Velociraptor (SAC) — All 3 stages passed | 22M steps | 22:59:18 total
+| Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
+|---|---:|---:|---:|---:|---:|
+| 1 — Balance | 1964.43 | 0.11 m/s | — | 6M | Yes |
+| 2 — Locomotion | 2678.68 | 3.47 m/s | — | 8M | Yes |
+| 3 — Strike | 1366.19 | 2.02 m/s | 93.3% | 8M | Yes |
 
-| Stage | Name | Best Reward | Avg Fwd Vel | Success Rate | Time |
-|-------|------|-------------|-------------|--------------|------|
-| 1 | Balance | 970.19 | -0.64 m/s | — | 5:08:59 |
-| 2 | Locomotion | 2078.62 | 2.91 m/s | — | 8:36:12 |
-| 3 | Strike | 1195.43 | 1.63 m/s | 90.0% | 9:14:06 |
+**Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
-### T-Rex (PPO) — All 3 stages passed | 22M steps | 13:02:32 total
+### Velociraptor (SAC · Stable-Baselines3) — 2026-03-21
 
-| Stage | Name | Best Reward | Avg Fwd Vel | Success Rate | Time |
-|-------|------|-------------|-------------|--------------|------|
-| 1 | Balance | 3008.66 | 0.02 m/s | — | 3:35:24 |
-| 2 | Locomotion | 1936.01 | 3.47 m/s | — | 5:17:18 |
-| 3 | Bite | 1294.28 | 1.68 m/s | 96.7% | 4:09:49 |
+**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 22:59:18. [Source summary](results/velociraptor/sac/summary.json).
 
-### Brachiosaurus (PPO) — Stages 1-2 passed, Stage 3 in progress | 30M steps | 15:59:39 total
+| Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
+|---|---:|---:|---:|---:|---:|
+| 1 — Balance | 970.19 | -0.64 m/s | — | 6M | Yes |
+| 2 — Locomotion | 2078.62 | 2.91 m/s | — | 8M | Yes |
+| 3 — Strike | 1195.43 | 1.63 m/s | 90.0% | 8M | Yes |
 
-| Stage | Name | Best Reward | Avg Fwd Vel | Success Rate | Time |
-|-------|------|-------------|-------------|--------------|------|
-| 1 | Balance | 3002.52 | 0.02 m/s | — | 3:46:42 |
-| 2 | Locomotion | 4176.95 | 1.12 m/s | — | 8:18:51 |
-| 3 | Food Reach | 732.20 | 0.52 m/s | 16.7% (target: 50%) | 3:54:06 |
+**Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
+
+### T-Rex (PPO · Stable-Baselines3) — 2026-03-18
+
+**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 13:02:32. [Source summary](results/trex/ppo/summary.json).
+
+| Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
+|---|---:|---:|---:|---:|---:|
+| 1 — Balance | 3008.66 | 0.02 m/s | — | 6M | Yes |
+| 2 — Locomotion | 1936.01 | 3.47 m/s | — | 8M | Yes |
+| 3 — Bite | 1294.28 | 1.68 m/s | 96.7% | 8M | Yes |
+
+**Current Stable-Baselines3 catalog definition for this task label:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
+
+### Brachiosaurus (PPO · Stable-Baselines3) — 2026-03-21
+
+**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 30M steps; 15:59:39. [Source summary](results/brachiosaurus/ppo/summary.json).
+
+| Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
+|---|---:|---:|---:|---:|---:|
+| 1 — Balance | 3002.52 | 0.02 m/s | — | 6M | Yes |
+| 2 — Locomotion | 4176.95 | 1.12 m/s | 3.3% | 16M | Yes |
+| 3 — Food Reach | 732.20 | 0.52 m/s | 16.7% | 8M | No |
+
+**Current Stable-Baselines3 catalog definition for this task label:** The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled.
+<!-- END GENERATED: RESULTS -->
 
 ## Notebooks
 
+<!-- BEGIN GENERATED: NOTEBOOKS -->
 | Notebook | Description |
-|----------|-------------|
-| `notebooks/sb3_training.ipynb` | Unified 3-stage curriculum training for all species (Colab-ready) |
-| `notebooks/jax_training.ipynb` | JAX/MJX training for all species with GPU acceleration (Colab-ready) |
-| `notebooks/ray_tune_sweep.ipynb` | Ray Tune hyperparameter sweep with ASHA early stopping (Colab-ready) |
-| `notebooks/google_drive_summary.ipynb` | Training runs summary and comparison across all species (Colab-ready) |
+|---|---|
+| [`notebooks/sb3_training.ipynb`](notebooks/sb3_training.ipynb) | Train and evaluate species with Stable-Baselines3. |
+| [`notebooks/jax_training.ipynb`](notebooks/jax_training.ipynb) | Train and evaluate species with the JAX/MJX backend. |
+| [`notebooks/ray_tune_sweep.ipynb`](notebooks/ray_tune_sweep.ipynb) | Run distributed hyperparameter sweeps with Ray Tune. |
+| [`notebooks/google_drive_summary.ipynb`](notebooks/google_drive_summary.ipynb) | Collect and summarize training artifacts from Google Drive. |
+<!-- END GENERATED: NOTEBOOKS -->
 
 ## Roadmap
 
-- [x] Complete velociraptor 3-stage training (PPO, 93.3% strike success)
-- [x] Complete velociraptor 3-stage training (SAC, 90.0% strike success)
-- [x] Complete T-Rex 3-stage training (PPO, 96.7% bite success)
-- [-] Complete brachiosaurus 3-stage training (Stages 1-2 passed, Stage 3 food_reach at 16.7% vs 50% target)
-- [-] SAC training for T-Rex (velociraptor SAC complete)
+- [x] Publish historical Velociraptor PPO and SAC run summaries
+- [x] Publish a historical T-Rex PPO run summary
+- [-] Continue Brachiosaurus Stage 3 training and publish a provenance-complete run
+- [-] SAC training for T-Rex (a historical, unverified Velociraptor SAC summary is published)
 - [ ] Domain randomization (friction, damping, gravity, actuator strength, external pushes, observation noise)
 - [ ] Terrain adaptation (uneven ground, obstacles)
 - [-] JAX/MJX migration for faster training (PPO pipeline complete, SAC pending)
 - [-] mjlab pilot (MuJoCo-Warp + Isaac-Lab manager API) — scaffold landed, velociraptor Stage 1 spike pending
 - [ ] Multi-agent pack hunting scenarios
-- [ ] Sim-to-real transfer experiments
+- [ ] Sim-to-real transfer experiments (future work; no hardware-transfer results are published yet)
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full phased timeline, milestones, and dependency graph.
 
@@ -243,6 +288,13 @@ pytest
 # Lint and type check
 ruff check environments/
 mypy environments/
+
+# Regenerate public species data and README tables after changing a model,
+# stage config, manifest entry, notebook path, video, or result summary
+python -m environments.shared.species_catalog
+
+# Verify committed generated data without rewriting it
+python -m environments.shared.species_catalog --check
 ```
 
 ## Contributing

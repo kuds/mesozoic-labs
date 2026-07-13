@@ -158,9 +158,9 @@ See [REFACTORING.md](REFACTORING.md) for the full consolidation plan. Key items:
 
 ### 6.1 JAX/MJX Migration
 
-- Start with Velociraptor on JAX/MJX backend for 100-1000x GPU speedup
+- Start with Velociraptor to measure the JAX/MJX GPU path against an SB3 baseline
 - Use Brax's JAX-native PPO rather than adapting SB3
-- Benchmark throughput on CPU vs. GPU vs. TPU
+- Benchmark throughput on CPU vs. NVIDIA GPU; evaluate TPU only after adding and validating a supported TPU setup
 - Maintain API compatibility with Gymnasium interface
 
 ### 6.2 Ecosystem Expansion

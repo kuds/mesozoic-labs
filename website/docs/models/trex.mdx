@@ -2,46 +2,25 @@
 sidebar_position: 1
 ---
 
+import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
+import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
+import {TREX} from '@site/src/data/species';
+
 # T-Rex Model
 
-The Tyrannosaurus Rex is a large bipedal predator with a massive skull, powerful jaws, and vestigial forelimbs. It hunts by sprinting toward prey and delivering a bite.
+A dinosaur-inspired bipedal simulation model with an oversized head and vestigial forelimbs. Its stage 3 task uses contact from a fixed head geom as a bite proxy; the model has no articulated jaw.
 
-## Specifications
-
-| Property | Value |
-|----------|-------|
-| Hip height | ~1.1m (simulated) |
-| Total mass | ~80 kg (simulated, scaled) |
-| Hinge joints | 25 |
-| Ball joints | 2 (shoulders, passive) |
-| Actuators | 21 |
-| Observation dim | 83 |
-| Action dim | 21 |
+<SpeciesCatalog species={TREX} />
 
 ## Anatomy
 
 The T-Rex model includes:
 - **Torso** - Forward-leaning body (~30 deg from horizontal) with ribcage and belly
-- **Neck + Skull** - Short muscular neck with massive elongated skull and brow ridges
-- **Head** - Bite contact geom for prey interaction
-- **Legs** - Powerful digitigrade hind limbs (hip pitch/roll, knee, ankle, 3 toe digits per leg)
+- **Neck + Skull** - Short neck assembly with an elongated skull shape and brow-ridge geoms
+- **Head** - Fixed contact geom used as a bite proxy; there is no articulated jaw
+- **Legs** - Digitigrade-style hind limbs (hip pitch/roll, knee, ankle, 3 toe digits per leg)
 - **Arms** - Tiny vestigial forelimbs with 2-fingered hands (passive, not actuated)
 - **Tail** - 5-segment heavy counterbalance to skull (4 actuated segments)
-
-## Action Space (21 dims)
-
-| Index | Actuator | Type |
-|-------|----------|------|
-| 0-2 | Neck pitch, neck yaw, head pitch | Position |
-| 3-9 | Right leg (hip pitch/roll, knee, ankle, toe d2/d3/d4) | Position |
-| 10-16 | Left leg (hip pitch/roll, knee, ankle, toe d2/d3/d4) | Position |
-| 17-20 | Tail (pitch 1, yaw 1, pitch 2, pitch 3) | Position |
-
-## Training Stages
-
-1. **Balance** - Stable bipedal stance
-2. **Locomotion** - Walk and run toward prey
-3. **Hunting** - Sprint and bite prey with jaws
 
 ## Diagnostic Metrics (Stage 3)
 
@@ -55,28 +34,10 @@ After each training stage the `eval` command reports:
 | `cost_of_transport` | Energy efficiency (lower is better) |
 | `mean_pelvis_height` | Upright stability (m) |
 | `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
-| `success_rate` | Fraction of episodes with a successful bite |
+| `success_rate` | Fraction of episodes where the fixed head-contact proxy touches the prey target |
 | `min_prey_distance` | Closest approach to prey (m) |
 
-## Training Results (PPO, 2026-03-18)
-
-Full 3-stage curriculum training with seed 42, 4 parallel environments. Total training time: **13h 2m 32s**.
-
-| Stage | Description | Timesteps | Best Eval Reward | Final Eval Reward | Avg Fwd Vel | Avg Ep Length | Duration |
-|-------|-------------|-----------|------------------|-------------------|-------------|---------------|----------|
-| 1 — Balance | Stand and balance without falling | 6,000,000 | 3008.66 +/- 7.62 | 2998.07 +/- 34.52 | 0.02 +/- 0.06 m/s | 999.5 steps (9.99s) | 3h 35m |
-| 2 — Locomotion | Forward walking/running | 8,000,000 | 1936.01 +/- 13.12 | 1905.66 +/- 182.70 | 3.47 +/- 0.11 m/s | 984.6 steps (9.85s) | 5h 17m |
-| 3 — Bite | Sprint and bite prey with jaws | 8,000,000 | 1294.28 +/- 67.19 | 1234.49 +/- 189.97 | 1.68 +/- 0.24 m/s | 175.9 steps (1.76s) | 4h 10m |
-
-**Key observations:**
-- Stage 1 achieves near-perfect episode length (999.5/1000 steps), indicating excellent balance stability
-- Stage 2 reaches 3.47 m/s forward velocity — strong locomotion performance
-- Stage 3 has short episodes (175.9 steps) because the T-Rex quickly sprints to prey and delivers a bite, ending the episode on success (96.7% success rate)
-
 ## Training Videos
-
-import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
-import {TREX} from '@site/src/data/species';
 
 <SpeciesVideoSection species={TREX.name} stages={TREX.stages} />
 
@@ -88,6 +49,6 @@ cd environments/trex
 # View the model
 python scripts/view_model.py
 
-# Train stage 1
-python scripts/train_sb3.py train --stage 1 --timesteps 1000000
+# Train stage 1 using its current TOML-configured budget
+python scripts/train_sb3.py train --stage 1
 ```
