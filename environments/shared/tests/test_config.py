@@ -2,7 +2,8 @@
 
 import csv
 import json
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -384,6 +385,27 @@ class TestSaveStageConfig:
 class TestDetectGpuInfo:
     """Tests for GPU detection with torch and nvidia-smi fallback."""
 
+    def test_torch_reports_24gb_using_total_memory(self):
+        cuda = MagicMock()
+        cuda.is_available.return_value = True
+        cuda.get_device_name.return_value = "NVIDIA RTX 4090"
+        cuda.get_device_properties.return_value = SimpleNamespace(total_memory=24_000_000_000)
+        fake_torch = SimpleNamespace(cuda=cuda, version=SimpleNamespace(cuda="12.1"))
+
+        with (
+            patch.dict("sys.modules", {"torch": fake_torch}),
+            patch("environments.shared.config._detect_gpu_info_nvidia_smi") as mock_fallback,
+        ):
+            result = _detect_gpu_info()
+
+        assert result == {
+            "gpu_model": "RTX",
+            "gpu_full_name": "NVIDIA RTX 4090",
+            "gpu_memory_gb": 24.0,
+            "cuda_version": "12.1",
+        }
+        mock_fallback.assert_not_called()
+
     def test_falls_back_to_nvidia_smi_when_torch_unavailable(self):
         fake_smi = {
             "gpu_model": "T4",
@@ -398,6 +420,27 @@ class TestDetectGpuInfo:
             result = _detect_gpu_info()
         assert result["gpu_model"] == "T4"
         assert result["gpu_memory_gb"] == 15.0
+
+    def test_device_property_lookup_failure_falls_back_to_nvidia_smi(self):
+        cuda = MagicMock()
+        cuda.is_available.return_value = True
+        cuda.get_device_name.return_value = "NVIDIA RTX 4090"
+        cuda.get_device_properties.side_effect = RuntimeError("CUDA device query failed")
+        fake_torch = SimpleNamespace(cuda=cuda, version=SimpleNamespace(cuda="12.1"))
+        fake_smi = {
+            "gpu_model": "RTX",
+            "gpu_full_name": "NVIDIA RTX 4090",
+            "gpu_memory_gb": 24.0,
+            "driver_version": "555.42",
+        }
+
+        with (
+            patch.dict("sys.modules", {"torch": fake_torch}),
+            patch("environments.shared.config._detect_gpu_info_nvidia_smi", return_value=fake_smi),
+        ):
+            result = _detect_gpu_info()
+
+        assert result == fake_smi
 
     def test_nvidia_smi_parses_output(self):
         import subprocess

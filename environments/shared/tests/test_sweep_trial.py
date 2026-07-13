@@ -1,9 +1,75 @@
 """Tests for sweep trial.py — HPT arg parsing and override conversion."""
 
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
 from environments.shared.scripts.sweep import (
     _hpt_arg_to_override,
     _parse_hpt_extra_args,
 )
+from environments.shared.scripts.sweep.trial import _log_hardware_info
+
+
+class TestLogHardwareInfo:
+    """Hardware logging must remain best-effort so diagnostics cannot abort a trial."""
+
+    def test_cuda_available_logs_24gb_using_total_memory(self):
+        cuda = MagicMock()
+        cuda.is_available.return_value = True
+        cuda.get_device_name.return_value = "NVIDIA RTX 4090"
+        cuda.get_device_properties.return_value = SimpleNamespace(total_memory=24_000_000_000)
+        fake_torch = SimpleNamespace(cuda=cuda, version=SimpleNamespace(cuda="12.1"))
+
+        with (
+            patch.dict("sys.modules", {"torch": fake_torch}),
+            patch("environments.shared.scripts.sweep.trial.logger.info") as mock_info,
+        ):
+            _log_hardware_info()
+
+        mock_info.assert_any_call("  GPU: %s (CUDA %s)", "NVIDIA RTX 4090", "12.1")
+        mock_info.assert_any_call("  GPU memory: %.1f GB", 24.0)
+
+    def test_cuda_unavailable_logs_cpu_only(self):
+        cuda = MagicMock()
+        cuda.is_available.return_value = False
+        fake_torch = SimpleNamespace(cuda=cuda, version=SimpleNamespace(cuda=None))
+
+        with (
+            patch.dict("sys.modules", {"torch": fake_torch}),
+            patch("environments.shared.scripts.sweep.trial.logger.info") as mock_info,
+        ):
+            _log_hardware_info()
+
+        mock_info.assert_any_call("  GPU: none (CPU-only training)")
+        cuda.get_device_properties.assert_not_called()
+
+    def test_torch_unavailable_logs_cpu_only(self):
+        with (
+            patch.dict("sys.modules", {"torch": None}),
+            patch("environments.shared.scripts.sweep.trial.logger.info") as mock_info,
+        ):
+            _log_hardware_info()
+
+        mock_info.assert_any_call("  GPU: torch not installed (CPU-only training)")
+
+    def test_device_property_lookup_failure_does_not_raise(self):
+        cuda = MagicMock()
+        cuda.is_available.return_value = True
+        cuda.get_device_name.return_value = "NVIDIA RTX 4090"
+        cuda.get_device_properties.side_effect = RuntimeError("CUDA device query failed")
+        fake_torch = SimpleNamespace(cuda=cuda, version=SimpleNamespace(cuda="12.1"))
+
+        with (
+            patch.dict("sys.modules", {"torch": fake_torch}),
+            patch("environments.shared.scripts.sweep.trial.logger.warning") as mock_warning,
+        ):
+            _log_hardware_info()
+
+        mock_warning.assert_called_once_with(
+            "  GPU diagnostics unavailable; continuing training: %s",
+            cuda.get_device_properties.side_effect,
+        )
+
 
 # ── _hpt_arg_to_override ────────────────────────────────────────────────────
 
