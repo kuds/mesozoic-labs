@@ -39,6 +39,11 @@ The canonical MuJoCo version is recorded in `configs/plant_versions.toml` and pi
 Use that exact version when writing or checking the manifest. The fingerprint includes all public `MjOption` fields and
 compiled physics data covered by the contract, so a different MuJoCo compiler version is not interchangeable.
 
+Fingerprint tool v2 canonicalizes finite numeric values to 12 significant decimal digits. This treats the 1–4 ULP
+compiler differences observed across arm64, x86_64, macOS, and Linux as the same plant while providing about `1e-11`
+relative resolution. The source-closure layer still hashes MJCF and referenced-asset bytes exactly, so even a
+below-resolution source edit remains visible in provenance.
+
 After an intentional model or interface change:
 
 1. Inspect which layers changed and update the affected counters in `configs/plant_versions.toml`.

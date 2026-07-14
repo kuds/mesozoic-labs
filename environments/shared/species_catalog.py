@@ -121,6 +121,10 @@ def _load_plant_manifest(path: Path) -> dict[str, Any]:
     _require_positive_int(manifest.get("fingerprint_tool_version"), field="plant fingerprint_tool_version")
     generated_with = _require_mapping(manifest.get("generated_with"), field="plant generated_with")
     _require_nonempty_string(generated_with.get("mujoco"), field="plant generated_with.mujoco")
+    _require_positive_int(
+        generated_with.get("float_significant_digits"),
+        field="plant generated_with.float_significant_digits",
+    )
     _require_mapping(manifest.get("plants"), field="plant manifest plants")
     return manifest
 

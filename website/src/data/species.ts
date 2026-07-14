@@ -236,7 +236,7 @@ interface RawCatalog {
     path: string;
     schema: string;
     fingerprint_tool_version: number;
-    generated_with: {mujoco: string};
+    generated_with: {mujoco: string; float_significant_digits: number};
   };
   project_capabilities: Record<string, {label: string; status: string}>;
   notebooks: Array<{id: string; label: string; description: string; path: string}>;

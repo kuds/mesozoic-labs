@@ -48,7 +48,8 @@ POLICY_INTERFACE_SCHEMA = "mesozoic.policy-interface/v1"
 PHYSICS_SCHEMA = "mesozoic.mujoco-physics/v1"
 VISUAL_SCHEMA = "mesozoic.mujoco-visual/v1"
 SOURCE_SCHEMA = "mesozoic.source-closure/v1"
-FINGERPRINT_TOOL_VERSION = 1
+FINGERPRINT_TOOL_VERSION = 2
+PORTABLE_FLOAT_SIGNIFICANT_DIGITS = 12
 MODEL_IDENTITY_ATTRIBUTE = "_mesozoic_plant_identity"
 _MISSING_IDENTITY = object()
 
@@ -185,6 +186,13 @@ def _validate_digest(value: str, *, field: str) -> None:
 
 
 def _canonical_float(value: float) -> str:
+    """Encode floats portably while preserving meaningful model changes.
+
+    MuJoCo's compiler can differ by a few ULPs across CPU architectures for
+    derived inertias, quaternions, and geometry sizes.  Twelve significant
+    decimal digits leave ample headroom for that numerical noise while exact
+    MJCF and referenced-asset bytes remain protected by the source closure.
+    """
     value = float(value)
     if math.isnan(value):
         raise PlantContractError("plant fingerprint cannot encode NaN")
@@ -193,8 +201,8 @@ def _canonical_float(value: float) -> str:
         # Encode them explicitly instead of relying on non-standard JSON.
         return "+inf" if value > 0 else "-inf"
     if value == 0.0:
-        return "0x0.0p+0"
-    return value.hex()
+        return "0"
+    return format(value, f".{PORTABLE_FLOAT_SIGNIFICANT_DIGITS}g")
 
 
 def _canonical_value(value: Any) -> Any:
@@ -1401,7 +1409,10 @@ def build_plant_manifest(*, require_canonical_mujoco: bool = False) -> dict[str,
     return {
         "schema": PLANT_MANIFEST_SCHEMA,
         "fingerprint_tool_version": FINGERPRINT_TOOL_VERSION,
-        "generated_with": {"mujoco": mujoco.__version__},
+        "generated_with": {
+            "mujoco": mujoco.__version__,
+            "float_significant_digits": PORTABLE_FLOAT_SIGNIFICANT_DIGITS,
+        },
         "plants": plants,
     }
 
@@ -1477,8 +1488,8 @@ def check_plant_manifest(*, baseline_path: Path | None = None) -> dict[str, Any]
         raise PlantContractError(f"generated plant manifest is missing: {exc}") from exc
     if actual != expected:
         raise PlantContractError(
-            "generated plant manifest is stale; bump affected revisions in configs/plant_versions.toml "
-            "and run `python -m environments.shared.plant_contract --write`"
+            "generated plant manifest is stale; if semantic layers changed, bump affected revisions in "
+            "configs/plant_versions.toml, then run `python -m environments.shared.plant_contract --write`"
         )
     if GENERATED_MANIFEST_PATH.is_file():
         try:

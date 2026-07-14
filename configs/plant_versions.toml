@@ -1,6 +1,10 @@
 schema_version = 1
-fingerprint_tool_version = 1
+fingerprint_tool_version = 2
 canonical_mujoco_version = "3.10.0"
+
+# Tool v2 canonicalizes finite numeric fingerprint values to 12 significant
+# decimal digits so identical MuJoCo plants remain stable across CPU/OS math.
+# Exact MJCF and referenced-asset bytes are still hashed without normalization.
 
 # Human-reviewed compatibility counters. The generator refuses to update a
 # changed policy/physics/visual fingerprint unless its corresponding revision

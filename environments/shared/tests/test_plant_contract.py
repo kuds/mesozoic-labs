@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 from dataclasses import replace
 from types import SimpleNamespace
 
 import mujoco
+import numpy as np
 import pytest
 
 import environments.shared.plant_contract as plant_contract
@@ -66,11 +68,67 @@ def raptor_layers():
 def test_committed_manifest_is_current_and_covers_all_species():
     manifest = check_plant_manifest()
 
+    assert manifest["fingerprint_tool_version"] == plant_contract.FINGERPRINT_TOOL_VERSION == 2
+    assert manifest["generated_with"]["float_significant_digits"] == 12
     assert set(manifest["plants"]) == {"velociraptor", "trex", "brachiosaurus"}
     for entry in manifest["plants"].values():
         assert entry["policy_interface"]["revision"] >= 1
         assert entry["physics"]["revision"] >= 1
         assert entry["visual"]["revision"] >= 1
+
+
+@pytest.mark.parametrize("value", [0.1, -0.1, 1.234567890123, 1e-9, 1e9, -math.pi])
+def test_portable_float_canonicalization_collapses_compiler_ulp_noise(value):
+    expected = plant_contract._canonical_float(value)
+
+    for direction in (-math.inf, math.inf):
+        perturbed = value
+        for _ in range(4):
+            perturbed = math.nextafter(perturbed, direction)
+        assert plant_contract._canonical_float(perturbed) == expected
+
+
+def test_portable_float_canonicalization_preserves_meaningful_changes():
+    assert plant_contract._canonical_float(1.0) != plant_contract._canonical_float(1.000000001)
+
+    base = np.array([0.1, -math.pi, 1e-9, 1e9], dtype=np.float64)
+    perturbed = base.copy()
+    directions = np.where(perturbed < 0.0, -np.inf, np.inf)
+    for _ in range(4):
+        perturbed = np.nextafter(perturbed, directions)
+
+    assert plant_contract._semantic_digest("portable-array-test/v1", base) == plant_contract._semantic_digest(
+        "portable-array-test/v1", perturbed
+    )
+
+    changed = base.copy()
+    changed[0] *= 1.0 + 1e-9
+    assert plant_contract._semantic_digest("portable-array-test/v1", base) != plant_contract._semantic_digest(
+        "portable-array-test/v1", changed
+    )
+
+
+def test_portable_float_canonicalization_handles_special_values():
+    assert plant_contract._canonical_float(0.0) == plant_contract._canonical_float(-0.0) == "0"
+    assert plant_contract._canonical_float(math.inf) == "+inf"
+    assert plant_contract._canonical_float(-math.inf) == "-inf"
+    with pytest.raises(PlantContractError, match="cannot encode NaN"):
+        plant_contract._canonical_float(math.nan)
+
+
+def test_source_closure_remains_byte_exact(monkeypatch, tmp_path):
+    model_path = tmp_path / "model.xml"
+    model_path.write_text('<mujoco model="test"><worldbody/></mujoco>\n', encoding="utf-8")
+    monkeypatch.setattr(plant_contract, "REPOSITORY_ROOT", tmp_path)
+
+    original = plant_contract._source_payload(model_path)
+    original_digest = plant_contract._semantic_digest(plant_contract.SOURCE_SCHEMA, original)
+    model_path.write_text('<mujoco model="test"><!-- byte change --><worldbody/></mujoco>\n', encoding="utf-8")
+    changed = plant_contract._source_payload(model_path)
+    changed_digest = plant_contract._semantic_digest(plant_contract.SOURCE_SCHEMA, changed)
+
+    assert original["dependencies"][0]["content_sha256"] != changed["dependencies"][0]["content_sha256"]
+    assert original_digest != changed_digest
 
 
 def test_bundled_runtime_manifest_matches_repository_manifest():

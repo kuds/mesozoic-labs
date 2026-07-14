@@ -60,8 +60,8 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     assert catalog["plant_manifest"] == {
         "path": "configs/plant_manifest.generated.json",
         "schema": "mesozoic.plant-manifest/v1",
-        "fingerprint_tool_version": 1,
-        "generated_with": {"mujoco": "3.10.0"},
+        "fingerprint_tool_version": 2,
+        "generated_with": {"mujoco": "3.10.0", "float_significant_digits": 12},
     }
     expected_observation_schemas = {
         "velociraptor": "bipedal-target/v1",
