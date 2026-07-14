@@ -14,7 +14,10 @@ import logging
 import math
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Mapping
+
+if TYPE_CHECKING:
+    from .plant_contract import PlantIdentity
 
 logger = logging.getLogger(__name__)
 
@@ -491,6 +494,9 @@ def save_results_json(
         "total_training_time": format_duration_hms(total_duration),
         "final_avg_reward": round(final_result["mean_reward"], 2),
     }
+    plant_identity = final_result.get("plant_identity")
+    if isinstance(plant_identity, Mapping):
+        summary["plant_identity"] = dict(plant_identity)
 
     summary_path = results_dir / "summary.json"
     summary_path.write_text(_json.dumps(summary, indent=2) + "\n")
@@ -541,6 +547,9 @@ def save_results_csv(
             "seed": seed,
             "stage": stage,
         }
+        plant_identity = r.get("plant_identity")
+        if isinstance(plant_identity, Mapping):
+            row.update({f"plant_{key}": value for key, value in plant_identity.items()})
 
         # ── Hyperparameters (mirroring sweep CSV key names) ─────────
         for key, val in cfg.get("env_kwargs", {}).items():
@@ -588,10 +597,11 @@ def save_results_csv(
 
         rows.append(row)
 
+    plant_columns = sorted({key for row in rows for key in row if key.startswith("plant_")})
     return write_results_csv(
         rows,
         run_dir / "collected_results.csv",
-        fixed_columns=["species", "algorithm", "seed", "stage"],
+        fixed_columns=["species", "algorithm", "seed", "stage", *plant_columns],
     )
 
 
@@ -655,18 +665,25 @@ def build_stage_results_from_eval_data(
         mean_length = float(eval_lengths[-1].mean())
         std_length = float(eval_lengths[-1].std())
 
-    # ── Duration from metrics.json fallback ─────────────────────────────
-    if duration_seconds == 0.0:
-        metrics_path = stage_dir / "metrics.json"
-        if metrics_path.exists():
-            metrics = _json.loads(metrics_path.read_text())
+    # ── Duration and provenance from sidecars ───────────────────────────
+    metrics: dict[str, Any] = {}
+    metrics_path = stage_dir / "metrics.json"
+    if metrics_path.exists():
+        metrics = _json.loads(metrics_path.read_text())
+        if duration_seconds == 0.0:
             duration_seconds = metrics.get("training_duration_seconds", 0.0)
+    plant_identity = metrics.get("plant_identity")
+    if not isinstance(plant_identity, Mapping):
+        saved_config_path = stage_dir / "stage_config.json"
+        if saved_config_path.exists():
+            saved_config = _json.loads(saved_config_path.read_text())
+            plant_identity = saved_config.get("plant_identity")
 
     best_model_path = model_dir / "best_model"
     vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
     sim_dt = stage_config.get("env_kwargs", {}).get("sim_dt", 0.01)
 
-    return {
+    result = {
         "stage": stage,
         "name": stage_config["name"],
         "description": stage_config["description"],
@@ -688,6 +705,9 @@ def build_stage_results_from_eval_data(
         "model_path": str(best_model_path),
         "vecnorm_path": vecnorm_path,
     }
+    if isinstance(plant_identity, Mapping):
+        result["plant_identity"] = dict(plant_identity)
+    return result
 
 
 def generate_stage_artifacts(
@@ -701,6 +721,7 @@ def generate_stage_artifacts(
     timesteps: int = 0,
     record_videos: bool = True,
     generate_graphs: bool = True,
+    allow_legacy_plant: bool = False,
 ) -> dict[str, Any]:
     """Write stage summary, record replay videos, and generate training graphs.
 
@@ -779,6 +800,8 @@ def generate_stage_artifacts(
         return stage_results
 
     # ── Record replay videos for best and final models ──────────────────
+    from .plant_contract import PlantCompatibilityError, current_plant_identity, validate_model_plant
+
     try:
         from environments.shared.evaluation import record_stage_video
         from environments.shared.train_base import _ensure_sb3
@@ -786,6 +809,7 @@ def generate_stage_artifacts(
         sb3 = _ensure_sb3()
         env_kwargs = stage_config["env_kwargs"].copy()
         alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
+        plant_identity = current_plant_identity(species)
 
         best_model_path = model_dir / "best_model"
         vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
@@ -794,6 +818,12 @@ def generate_stage_artifacts(
 
         if (model_dir / "best_model.zip").exists():
             best_model = alg_cls.load(str(best_model_path))
+            validate_model_plant(
+                best_model,
+                plant_identity,
+                artifact=str(best_model_path) + ".zip",
+                allow_legacy=allow_legacy_plant,
+            )
             record_stage_video(
                 best_model,
                 env_class=species_cfg.env_class,
@@ -805,10 +835,18 @@ def generate_stage_artifacts(
                 seed=seed,
                 vecnorm_path=vecnorm_path,
                 label="best",
+                plant_identity=plant_identity,
+                allow_legacy_plant=allow_legacy_plant,
             )
 
         if (Path(str(final_path) + ".zip")).exists():
             final_model = alg_cls.load(str(final_path))
+            validate_model_plant(
+                final_model,
+                plant_identity,
+                artifact=str(final_path) + ".zip",
+                allow_legacy=allow_legacy_plant,
+            )
             record_stage_video(
                 final_model,
                 env_class=species_cfg.env_class,
@@ -820,7 +858,11 @@ def generate_stage_artifacts(
                 seed=seed,
                 vecnorm_path=final_vecnorm_path,
                 label="final",
+                plant_identity=plant_identity,
+                allow_legacy_plant=allow_legacy_plant,
             )
+    except PlantCompatibilityError:
+        raise
     except Exception:
         logger.warning("Video recording failed.", exc_info=True)
 
@@ -844,6 +886,7 @@ def save_jax_stage_artifacts(
     best_params: Any | None = None,
     best_reward: float = 0.0,
     best_update: int = 0,
+    plant_identity: PlantIdentity | None = None,
 ) -> dict[str, Path]:
     """Save all post-training artifacts for a JAX/MJX training stage.
 
@@ -879,6 +922,8 @@ def save_jax_stage_artifacts(
         best_params: Best-performing parameters (falls back to *params*).
         best_reward: Best evaluation reward achieved during training.
         best_update: Update number at which *best_params* was recorded.
+        plant_identity: Optional precomputed plant identity.  The current
+            identity is resolved and verified when omitted.
 
     Returns:
         Dict mapping artifact name to its file path.
@@ -887,12 +932,17 @@ def save_jax_stage_artifacts(
 
     from .config import save_stage_config
     from .jax_checkpoint import save_checkpoint
+    from .plant_contract import current_plant_identity, write_plant_identity
 
     stage_dir = Path(stage_dir)
     run_dir = Path(run_dir)
     model_dir = stage_dir / "models"
     model_dir.mkdir(parents=True, exist_ok=True)
     paths: dict[str, Path] = {}
+    if plant_identity is None:
+        plant_identity = current_plant_identity(species)
+    write_plant_identity(run_dir / "plant_identity.json", plant_identity)
+    stage_results["plant_identity"] = plant_identity.to_dict()
 
     # 1. Stage summary text file
     summary_path = write_stage_summary(stage_dir, stage_results, species, "JAX/MJX PPO")
@@ -911,6 +961,7 @@ def save_jax_stage_artifacts(
             "num_envs": num_envs,
             "reward_cfg": reward_cfg or {},
         },
+        plant_identity=plant_identity,
     )
     paths["stage_config"] = config_path
     logger.info("Stage config saved: %s", config_path)
@@ -933,10 +984,12 @@ def save_jax_stage_artifacts(
         "ep_length_threshold": curriculum.get("min_avg_episode_length", ""),
         "stage_passed": stage_results.get("gate_passed", ""),
     }
+    csv_row.update({f"plant_{key}": value for key, value in plant_identity.to_dict().items()})
+    plant_columns = [key for key in csv_row if key.startswith("plant_")]
     csv_path = write_results_csv(
         [csv_row],
         run_dir / "collected_results.csv",
-        fixed_columns=["species", "algorithm", "seed", "stage"],
+        fixed_columns=["species", "algorithm", "seed", "stage", *plant_columns],
         append=True,
     )
     paths["collected_results_csv"] = csv_path
@@ -968,11 +1021,12 @@ def save_jax_stage_artifacts(
         effective_best,
         obs_rms=obs_rms,
         extra={"best_reward": best_reward, "best_update": best_update},
+        plant_identity=plant_identity,
     )
     paths["best_model"] = best_model_path
 
     final_model_path = model_dir / f"stage{stage}_final.pkl"
-    save_checkpoint(final_model_path, params, obs_rms=obs_rms)
+    save_checkpoint(final_model_path, params, obs_rms=obs_rms, plant_identity=plant_identity)
     paths["final_model"] = final_model_path
     logger.info("Models saved: %s, %s", best_model_path, final_model_path)
 

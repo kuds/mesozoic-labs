@@ -4,24 +4,55 @@ from __future__ import annotations
 
 import pickle
 
+import pytest
+
 from environments.shared.jax_checkpoint import (
     CheckpointManager,
     load_checkpoint,
+    restore_train_state,
     save_checkpoint,
 )
+from environments.shared.plant_contract import (
+    MODEL_IDENTITY_ATTRIBUTE,
+    PlantCompatibilityError,
+    PlantIdentity,
+)
+
+
+def _plant_identity(**changes):
+    values = {
+        "species": "velociraptor",
+        "model_path": "environments/velociraptor/assets/raptor.xml",
+        "physics_revision": 1,
+        "policy_interface_revision": 1,
+        "visual_revision": 1,
+        "source_closure_sha256": "sha256:" + "1" * 64,
+        "policy_interface_sha256": "sha256:" + "2" * 64,
+        "physics_sha256": "sha256:" + "3" * 64,
+        "visual_sha256": "sha256:" + "4" * 64,
+        "nq": 31,
+        "nv": 30,
+        "nu": 22,
+        "observation_dim": 67,
+        "action_dim": 22,
+    }
+    values.update(changes)
+    return PlantIdentity(**values)
 
 
 class TestSaveLoadCheckpoint:
     def test_round_trip(self, tmp_path):
         path = tmp_path / "ckpt.pkl"
         params = {"w": [1.0, 2.0, 3.0]}
-        save_checkpoint(path, params, update=10)
-        data = load_checkpoint(path)
+        identity = _plant_identity()
+        save_checkpoint(path, params, update=10, plant_identity=identity)
+        data = load_checkpoint(path, current_plant=identity)
         assert data["update"] == 10
         assert data["params"] == params
 
     def test_with_obs_rms_and_history(self, tmp_path):
         path = tmp_path / "ckpt.pkl"
+        identity = _plant_identity()
         save_checkpoint(
             path,
             params={"w": 1.0},
@@ -29,11 +60,106 @@ class TestSaveLoadCheckpoint:
             update=5,
             history={"reward": [1.0, 2.0]},
             extra={"best_reward": 5.5},
+            plant_identity=identity,
         )
-        data = load_checkpoint(path)
+        data = load_checkpoint(path, current_plant=identity)
         assert data["obs_rms"] == "rms_object"
         assert data["history"] == {"reward": [1.0, 2.0]}
         assert data["best_reward"] == 5.5
+
+    @pytest.mark.parametrize("load_kwargs", [{}, {"allow_legacy_plant": True}])
+    def test_omitting_current_plant_fails_before_deserialization(self, tmp_path, load_kwargs):
+        path = tmp_path / "untrusted.pkl"
+        path.write_bytes(b"not a pickle")
+
+        with pytest.raises(PlantCompatibilityError, match="without current_plant"):
+            load_checkpoint(path, **load_kwargs)
+
+    def test_explicit_unsafe_opt_out_loads_without_validation(self, tmp_path, caplog):
+        path = tmp_path / "unvalidated.pkl"
+        save_checkpoint(path, params={"w": 1.0})
+
+        data = load_checkpoint(path, unsafe_skip_plant_validation=True)
+
+        assert data["params"] == {"w": 1.0}
+        assert "UNSAFE" in caplog.text
+        assert "without plant compatibility validation" in caplog.text
+
+    @pytest.mark.parametrize("extra_kwargs", [{"current_plant": _plant_identity()}, {"allow_legacy_plant": True}])
+    def test_unsafe_opt_out_rejects_validation_options(self, tmp_path, extra_kwargs):
+        path = tmp_path / "ckpt.pkl"
+        save_checkpoint(path, params={})
+
+        with pytest.raises(ValueError, match="cannot be combined"):
+            load_checkpoint(path, unsafe_skip_plant_validation=True, **extra_kwargs)
+
+    def test_plant_identity_round_trip_and_validation(self, tmp_path):
+        path = tmp_path / "ckpt.pkl"
+        identity = _plant_identity()
+
+        save_checkpoint(path, params={"w": 1.0}, plant_identity=identity)
+        data = load_checkpoint(path, current_plant=identity)
+
+        assert data[MODEL_IDENTITY_ATTRIBUTE] == identity.to_dict()
+
+    def test_incompatible_tagged_checkpoint_is_rejected(self, tmp_path):
+        path = tmp_path / "ckpt.pkl"
+        save_checkpoint(path, params={}, plant_identity=_plant_identity(physics_revision=2))
+
+        with pytest.raises(PlantCompatibilityError, match="physics_revision"):
+            load_checkpoint(path, current_plant=_plant_identity(), allow_legacy_plant=True)
+
+    def test_legacy_checkpoint_requires_explicit_override(self, tmp_path):
+        path = tmp_path / "legacy.pkl"
+        save_checkpoint(path, params={"w": 1.0})
+        current = _plant_identity()
+
+        with pytest.raises(PlantCompatibilityError, match="has no plant identity"):
+            load_checkpoint(path, current_plant=current)
+
+        assert load_checkpoint(path, current_plant=current, allow_legacy_plant=True)["params"] == {"w": 1.0}
+
+    def test_restore_train_state_forwards_plant_validation(self, tmp_path):
+        path = tmp_path / "ckpt.pkl"
+        identity = _plant_identity()
+        save_checkpoint(path, params={"w": 1.0}, opt_state="opt", update=7, plant_identity=identity)
+
+        params, opt_state, obs_rms, update = restore_train_state(path, current_plant=identity)
+
+        assert params == {"w": 1.0}
+        assert opt_state == "opt"
+        assert obs_rms is None
+        assert update == 7
+
+    def test_restore_train_state_requires_current_plant(self, tmp_path):
+        path = tmp_path / "ckpt.pkl"
+        save_checkpoint(path, params={"w": 1.0}, opt_state="opt")
+
+        with pytest.raises(PlantCompatibilityError, match="without current_plant"):
+            restore_train_state(path)
+
+    def test_restore_train_state_explicit_unsafe_opt_out(self, tmp_path, caplog):
+        path = tmp_path / "ckpt.pkl"
+        save_checkpoint(path, params={"w": 1.0}, opt_state="opt", update=3)
+
+        params, opt_state, _obs_rms, update = restore_train_state(
+            path,
+            unsafe_skip_plant_validation=True,
+        )
+
+        assert params == {"w": 1.0}
+        assert opt_state == "opt"
+        assert update == 3
+        assert "UNSAFE" in caplog.text
+
+    def test_extra_cannot_override_reserved_plant_metadata(self, tmp_path):
+        with pytest.raises(ValueError, match="reserved key"):
+            save_checkpoint(
+                tmp_path / "ckpt.pkl",
+                params={},
+                extra={MODEL_IDENTITY_ATTRIBUTE: {}},
+                plant_identity=_plant_identity(),
+            )
 
 
 class TestCheckpointManager:
@@ -85,3 +211,11 @@ class TestCheckpointManager:
         assert "ckpt_random_other.pkl" in names
         assert "ckpt_5.pkl" not in names
         assert "ckpt_6.pkl" in names
+
+    def test_manager_tags_every_rotating_checkpoint(self, tmp_path):
+        identity = _plant_identity()
+        mgr = CheckpointManager(tmp_path, prefix="ckpt", plant_identity=identity)
+
+        path = mgr.save({"w": 1}, update=1)
+
+        assert load_checkpoint(path, current_plant=identity)[MODEL_IDENTITY_ATTRIBUTE] == identity.to_dict()

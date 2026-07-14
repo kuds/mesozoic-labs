@@ -13,6 +13,7 @@ import pytest
 from environments.shared.species_catalog import (
     DEFAULT_MANIFEST_PATH,
     DEFAULT_OUTPUT_PATH,
+    DEFAULT_PLANT_MANIFEST_PATH,
     DEFAULT_README_PATH,
     REPOSITORY_ROOT,
     CatalogError,
@@ -25,6 +26,7 @@ from environments.shared.species_catalog import (
 
 def test_catalog_derives_current_model_and_stage_facts() -> None:
     catalog = build_catalog()
+    assert catalog["schema_version"] == 2
     species = {entry["id"]: entry for entry in catalog["species"]}
 
     assert {
@@ -50,6 +52,33 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         16_000_000,
         12_000_000,
     ]
+
+
+def test_catalog_publishes_layered_plant_contract() -> None:
+    catalog = build_catalog()
+
+    assert catalog["plant_manifest"] == {
+        "path": "configs/plant_manifest.generated.json",
+        "schema": "mesozoic.plant-manifest/v1",
+        "fingerprint_tool_version": 2,
+        "generated_with": {"mujoco": "3.10.0", "float_significant_digits": 12},
+    }
+    expected_observation_schemas = {
+        "velociraptor": "bipedal-target/v1",
+        "trex": "bipedal-target/v1",
+        "brachiosaurus": "quadrupedal-target/v1",
+    }
+    digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
+    for species in catalog["species"]:
+        plant = species["model"]["plant_contract"]
+        assert digest_pattern.fullmatch(plant["bundle_sha256"])
+        assert digest_pattern.fullmatch(plant["source_closure_sha256"])
+        assert plant["policy_interface"]["revision"] == 1
+        assert plant["policy_interface"]["observation_schema"] == expected_observation_schemas[species["id"]]
+        assert plant["physics"]["revision"] == 1
+        assert plant["visual"]["revision"] == 1
+        for layer in ("policy_interface", "physics", "visual"):
+            assert digest_pattern.fullmatch(plant[layer]["sha256"])
 
 
 def test_catalog_keeps_current_configs_separate_from_historical_results() -> None:
@@ -212,6 +241,16 @@ def test_missing_manifest_path_is_rejected(tmp_path: Path) -> None:
         build_catalog(broken_manifest)
 
 
+def test_catalog_rejects_plant_contract_that_disagrees_with_environment(tmp_path: Path) -> None:
+    plant_manifest = json.loads(DEFAULT_PLANT_MANIFEST_PATH.read_text(encoding="utf-8"))
+    plant_manifest["plants"]["velociraptor"]["policy_interface"]["observation_dim"] += 1
+    stale_manifest = tmp_path / "plant_manifest.generated.json"
+    stale_manifest.write_text(json.dumps(plant_manifest), encoding="utf-8")
+
+    with pytest.raises(CatalogError, match="plant observation_dim mismatch for velociraptor"):
+        build_catalog(plant_manifest_path=stale_manifest)
+
+
 def test_public_notebook_references_are_manifested_and_exist() -> None:
     catalog = build_catalog()
     allowed_paths = {notebook["path"] for notebook in catalog["notebooks"]}
@@ -275,5 +314,6 @@ def test_public_model_pages_render_generated_catalog(species_id: str, website_co
 
 def test_default_paths_are_inside_repository() -> None:
     assert DEFAULT_MANIFEST_PATH.is_relative_to(REPOSITORY_ROOT)
+    assert DEFAULT_PLANT_MANIFEST_PATH.is_relative_to(REPOSITORY_ROOT)
     assert DEFAULT_OUTPUT_PATH.is_relative_to(REPOSITORY_ROOT)
     assert DEFAULT_README_PATH.is_relative_to(REPOSITORY_ROOT)

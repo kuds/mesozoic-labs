@@ -37,7 +37,7 @@ register_species_mjx(
     target_lateral_range=(-2.0, 2.0),
     target_z=3.0,  # Brachiosaurus browses high
     target_body_name="food",
-    body_ids={"torso": 1},  # MuJoCo body ID for torso
+    body_ids={"torso": 2},  # MuJoCo body ID for torso (world=0, food=1)
     termination_body_heights={
         "head": 0.20,  # head ellipsoid size=0.15 + margin
         "tail_3": 0.10,  # tail_3 capsule radius=0.08 + margin

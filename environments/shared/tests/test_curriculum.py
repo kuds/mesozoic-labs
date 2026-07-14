@@ -17,6 +17,7 @@ from environments.shared.curriculum import (
     load_vecnorm_stats,
     thresholds_from_configs,
 )
+from environments.shared.plant_contract import PlantCompatibilityError
 
 
 class TestStageThreshold:
@@ -384,7 +385,7 @@ class TestLoadVecnormStats:
         assert not np.allclose(new_train.obs_rms.mean, saved_obs_mean)
 
         # Load stats from the "previous stage"
-        loaded = load_vecnorm_stats(save_path, new_train, new_eval)
+        loaded = load_vecnorm_stats(save_path, new_train, new_eval, unsafe_skip_plant_validation=True)
         assert loaded is True
 
         # Stats should now match the saved values
@@ -409,7 +410,12 @@ class TestLoadVecnormStats:
         from environments.shared.curriculum import load_vecnorm_stats
 
         train_env, eval_env = vec_envs
-        result = load_vecnorm_stats("/nonexistent/path_vecnorm.pkl", train_env, eval_env)
+        result = load_vecnorm_stats(
+            "/nonexistent/path_vecnorm.pkl",
+            train_env,
+            eval_env,
+            unsafe_skip_plant_validation=True,
+        )
         assert result is False
 
 
@@ -482,7 +488,7 @@ class TestCallbacksWithoutSB3:
 
     def test_load_vecnorm_stats_returns_false_without_sb3(self):
         with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
-            result = load_vecnorm_stats("/any/path.pkl", MagicMock())
+            result = load_vecnorm_stats("/any/path.pkl", MagicMock(), unsafe_skip_plant_validation=True)
             assert result is False
 
 
@@ -549,10 +555,38 @@ class TestLoadVecnormStatsMocked:
             "stable_baselines3.common.vec_env": mock_vec_env_mod,
         }, mock_vec_env_mod
 
+    def test_requires_current_plant_before_file_or_backend_access(self):
+        with pytest.raises(PlantCompatibilityError, match="without current_plant"):
+            load_vecnorm_stats("/nonexistent/path.pkl", MagicMock())
+
+        with pytest.raises(PlantCompatibilityError, match="without current_plant"):
+            load_vecnorm_stats("/nonexistent/path.pkl", MagicMock(), allow_legacy_plant=True)
+
+    def test_unsafe_skip_is_explicit_and_cannot_mix_with_validation(self, caplog):
+        result = load_vecnorm_stats(
+            "/nonexistent/path.pkl",
+            MagicMock(),
+            unsafe_skip_plant_validation=True,
+        )
+        assert result is False
+        assert "UNSAFE" in caplog.text
+
+        with pytest.raises(ValueError, match="cannot be combined"):
+            load_vecnorm_stats(
+                "/nonexistent/path.pkl",
+                MagicMock(),
+                current_plant=MagicMock(),
+                unsafe_skip_plant_validation=True,
+            )
+
     def test_missing_file_returns_false_with_sb3(self):
         mods, _ = self._sb3_mock_modules()
         with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
-            result = load_vecnorm_stats("/nonexistent/path.pkl", MagicMock())
+            result = load_vecnorm_stats(
+                "/nonexistent/path.pkl",
+                MagicMock(),
+                unsafe_skip_plant_validation=True,
+            )
         assert result is False
 
     def test_loads_and_applies_stats(self, tmp_path):
@@ -571,7 +605,12 @@ class TestLoadVecnormStatsMocked:
         mock_eval = MagicMock()
 
         with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
-            result = load_vecnorm_stats(str(fake_pkl), mock_train, mock_eval)
+            result = load_vecnorm_stats(
+                str(fake_pkl),
+                mock_train,
+                mock_eval,
+                unsafe_skip_plant_validation=True,
+            )
 
         assert result is True
         assert mock_train.obs_rms == mock_prev.obs_rms
@@ -591,10 +630,51 @@ class TestLoadVecnormStatsMocked:
         mock_train = MagicMock()
 
         with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
-            result = load_vecnorm_stats(str(fake_pkl), mock_train, eval_env=None)
+            result = load_vecnorm_stats(
+                str(fake_pkl),
+                mock_train,
+                eval_env=None,
+                unsafe_skip_plant_validation=True,
+            )
 
         assert result is True
         assert mock_train.obs_rms == mock_prev.obs_rms
+
+    def test_validates_plant_before_copying_stats(self, tmp_path):
+        fake_pkl = tmp_path / "vecnorm.pkl"
+        fake_pkl.write_bytes(b"fake")
+
+        mods, mock_vec_env_mod = self._sb3_mock_modules()
+        mock_prev = MagicMock()
+        mock_prev.obs_rms = "incompatible stats"
+        mock_vec_env_mod.VecNormalize.load.return_value = mock_prev
+        mock_train = MagicMock()
+        mock_train.obs_rms = "original stats"
+        current_plant = MagicMock()
+
+        with (
+            patch("environments.shared.curriculum._SB3_AVAILABLE", True),
+            patch.dict(sys.modules, mods),
+            patch(
+                "environments.shared.plant_contract.validate_model_plant",
+                side_effect=PlantCompatibilityError("wrong physics plant"),
+            ) as mock_validate,
+            pytest.raises(PlantCompatibilityError, match="wrong physics plant"),
+        ):
+            load_vecnorm_stats(
+                str(fake_pkl),
+                mock_train,
+                current_plant=current_plant,
+                allow_legacy_plant=True,
+            )
+
+        mock_validate.assert_called_once_with(
+            mock_prev,
+            current_plant,
+            artifact=str(fake_pkl),
+            allow_legacy=True,
+        )
+        assert mock_train.obs_rms == "original stats"
 
 
 class TestCallbackMethodsMocked:

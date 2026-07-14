@@ -18,8 +18,28 @@ from environments.shared.config import (
     save_stage_config,
     upload_curriculum_artifacts,
 )
+from environments.shared.plant_contract import PlantIdentity
 
 SPECIES = ["velociraptor", "brachiosaurus", "trex"]
+
+
+def _plant_identity():
+    return PlantIdentity(
+        species="velociraptor",
+        model_path="environments/velociraptor/assets/raptor.xml",
+        physics_revision=1,
+        policy_interface_revision=1,
+        visual_revision=1,
+        source_closure_sha256="sha256:" + "1" * 64,
+        policy_interface_sha256="sha256:" + "2" * 64,
+        physics_sha256="sha256:" + "3" * 64,
+        visual_sha256="sha256:" + "4" * 64,
+        nq=31,
+        nv=30,
+        nu=22,
+        observation_dim=67,
+        action_dim=22,
+    )
 
 
 class TestLoadStageConfig:
@@ -354,6 +374,22 @@ class TestSaveStageConfig:
         assert data["run"]["seed"] == 42
         assert data["run"]["n_envs"] == 4
 
+    def test_embeds_plant_identity_and_writes_sidecar(self, tmp_path):
+        stage_dir = tmp_path / "stage1"
+        identity = _plant_identity()
+        stage_config = {
+            "name": "test",
+            "env_kwargs": {},
+            "ppo_kwargs": {},
+            "sac_kwargs": {},
+            "curriculum_kwargs": {},
+        }
+
+        out = save_stage_config(stage_dir, 1, stage_config, "PPO", plant_identity=identity)
+
+        assert json.loads(out.read_text())["plant_identity"] == identity.to_dict()
+        assert json.loads((stage_dir / "plant_identity.json").read_text()) == identity.to_dict()
+
     def test_creates_nested_directories(self, tmp_path):
         stage_config = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
         out = save_stage_config(tmp_path / "a" / "b" / "c", 1, stage_config, "PPO")
@@ -564,10 +600,12 @@ class TestUploadCurriculumArtifacts:
         base.mkdir()
         (base / "curriculum_results.csv").write_text("stage,reward\n1,10\n")
         (base / "training_summary.txt").write_text("summary")
+        (base / "plant_identity.json").write_text("{}")
         stage1 = base / "stage1"
         stage1_models = stage1 / "models"
         stage1_models.mkdir(parents=True)
         (stage1 / "stage_summary.txt").write_text("stage 1 summary")
+        (stage1 / "plant_identity.json").write_text("{}")
         (stage1 / "velociraptor_ppo_stage1_best.mp4").write_bytes(b"vid1")
         (stage1 / "velociraptor_ppo_stage1_final.mp4").write_bytes(b"vid2")
         (stage1_models / "best_model.zip").write_bytes(b"fake")
@@ -577,13 +615,15 @@ class TestUploadCurriculumArtifacts:
         with patch("environments.shared.config._upload_to_gcs", return_value=True) as mock_upload:
             upload_curriculum_artifacts(base, "velociraptor", "ppo", bucket="test-bucket", project="test-project")
 
-        # CSV + training_summary + stage_summary + 2 videos + best_model + final + vecnorm = 8
-        assert mock_upload.call_count == 8
+        # Run CSV/summary/identity + stage summary/identity + 2 videos + 3 models = 10
+        assert mock_upload.call_count == 10
 
         # Verify the GCS paths for the new artifact types
         uploaded_paths = [call.args[2] for call in mock_upload.call_args_list]
         run = "curriculum_20240228_150000"
         assert f"training/velociraptor/{run}/training_summary.txt" in uploaded_paths
+        assert f"training/velociraptor/{run}/plant_identity.json" in uploaded_paths
         assert f"training/velociraptor/{run}/stage1/stage_summary.txt" in uploaded_paths
+        assert f"training/velociraptor/{run}/stage1/plant_identity.json" in uploaded_paths
         assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_best.mp4" in uploaded_paths
         assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_final.mp4" in uploaded_paths

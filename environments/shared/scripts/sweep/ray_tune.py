@@ -17,11 +17,16 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .constants import NET_ARCH_PRESETS
 
+if TYPE_CHECKING:
+    from environments.shared.plant_contract import PlantIdentity
+
 logger = logging.getLogger(__name__)
+
+PLANT_IDENTITY_FILENAME = "plant_identity.json"
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +100,13 @@ def _sync_best_model(src_dir: str | Path, drive_dir: str | Path) -> None:
 def _sync_trial_metadata(
     source_dir: str | Path,
     drive_trial_dir: str | Path,
-    filenames: tuple[str, ...] = ("evaluations.npz", "diagnostics.npz", "stage_config.json", "metrics.json"),
+    filenames: tuple[str, ...] = (
+        "evaluations.npz",
+        "diagnostics.npz",
+        "stage_config.json",
+        "metrics.json",
+        PLANT_IDENTITY_FILENAME,
+    ),
     *,
     skip_unchanged: bool = True,
 ) -> None:
@@ -151,6 +162,7 @@ def _make_ray_tune_report_callback_class():
             model_ref: list[Any],
             algorithm: str,
             stage: int,
+            plant_identity: PlantIdentity,
             drive_best_model_dir: str | Path | None = None,
             verbose: int = 0,
         ) -> None:
@@ -160,6 +172,7 @@ def _make_ray_tune_report_callback_class():
             self._model_ref = model_ref
             self.algorithm = algorithm
             self.stage = stage
+            self.plant_identity = plant_identity
             self._last_eval_count = 0
             self._drive_best_model_dir = Path(drive_best_model_dir) if drive_best_model_dir else None
             self._best_mean_reward = float("-inf")
@@ -167,6 +180,8 @@ def _make_ray_tune_report_callback_class():
         def _on_step(self) -> bool:
             from ray import tune
             from ray.train import Checkpoint
+
+            from environments.shared.plant_contract import write_plant_identity
 
             current_eval_count = len(getattr(self.eval_callback, "evaluations_timesteps", []))
             if current_eval_count <= self._last_eval_count:
@@ -185,6 +200,7 @@ def _make_ray_tune_report_callback_class():
                 self._model_ref[0].save(str(model_base))
                 vecnorm_path = Path(tmpdir) / "vecnorm.pkl"
                 self.train_env.save(str(vecnorm_path))
+                write_plant_identity(Path(tmpdir) / PLANT_IDENTITY_FILENAME, self.plant_identity)
 
                 checkpoint = Checkpoint.from_directory(tmpdir)
                 tune.report(
@@ -561,6 +577,12 @@ def train_trial(config: dict[str, Any]) -> None:
         load_vecnorm_stats,
     )
     from environments.shared.eval_diagnostics import build_stage_evaluation_callbacks
+    from environments.shared.plant_contract import (
+        attach_plant_identity,
+        current_plant_identity,
+        validate_model_plant,
+        write_plant_identity,
+    )
     from environments.shared.species_registry import get_species_config
     from environments.shared.train_base import (
         cosine_schedule,
@@ -582,8 +604,10 @@ def train_trial(config: dict[str, Any]) -> None:
     n_eval_episodes = config.get("_n_eval_episodes", 30)
     local_trials_dir = config.get("_local_trials_dir")
     drive_sweep_dir = config.get("_drive_sweep_dir")
+    allow_legacy_plant = bool(config.get("_allow_legacy_plant", False))
 
     species_cfg = get_species_config(species)
+    plant_identity = current_plant_identity(species)
     stage_configs = load_all_stages(species)
 
     # Apply sampled hyperparameters (skip _ prefixed fixed params)
@@ -618,6 +642,7 @@ def train_trial(config: dict[str, Any]) -> None:
         extra={"seed": seed, "n_envs": n_envs, "trial_id": trial_id},
         env_class=species_cfg.env_class,
         species=species,
+        plant_identity=plant_identity,
     )
 
     drive_best_model_dir = None
@@ -629,9 +654,12 @@ def train_trial(config: dict[str, Any]) -> None:
         # will overwrite with the same content, which is harmless.
         drive_trial_dir = Path(drive_sweep_dir) / "trials" / trial_id
         drive_trial_dir.mkdir(parents=True, exist_ok=True)
-        _stage_cfg_src = trial_dir / "stage_config.json"
-        if _stage_cfg_src.exists():
-            _copy_to_drive(_stage_cfg_src, drive_trial_dir / "stage_config.json")
+        _sync_trial_metadata(
+            trial_dir,
+            drive_trial_dir,
+            filenames=("stage_config.json", PLANT_IDENTITY_FILENAME),
+            skip_unchanged=False,
+        )
 
     _train_start_time = time.time()
 
@@ -649,6 +677,7 @@ def train_trial(config: dict[str, Any]) -> None:
         use_subproc=use_subproc,
         algorithm=algorithm,
         gamma=alg_gamma,
+        plant_identity=plant_identity,
     )
     eval_env = create_vec_env(
         species_cfg,
@@ -659,6 +688,7 @@ def train_trial(config: dict[str, Any]) -> None:
         use_subproc=False,
         algorithm=algorithm,
         gamma=alg_gamma,
+        plant_identity=plant_identity,
     )
 
     try:
@@ -688,14 +718,30 @@ def train_trial(config: dict[str, Any]) -> None:
 
         if load_path:
             vecnorm_path = load_path.replace(".zip", "") + "_vecnorm.pkl"
-            if not load_vecnorm_stats(vecnorm_path, train_env, eval_env):
+            if not load_vecnorm_stats(
+                vecnorm_path,
+                train_env,
+                eval_env,
+                current_plant=plant_identity,
+                allow_legacy_plant=allow_legacy_plant,
+            ):
                 eval_env.training = False
                 eval_env.norm_reward = False
             model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
+            validate_model_plant(
+                model,
+                plant_identity,
+                artifact=str(load_path),
+                allow_legacy=allow_legacy_plant,
+            )
         else:
             eval_env.training = False
             eval_env.norm_reward = False
             model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
+        # All Ray/SB3 save paths persist attributes on these objects.  Attach
+        # only after validating a load so an incompatible artifact can never
+        # be relabelled as current.
+        attach_plant_identity(model, plant_identity)
 
         # Callbacks
         callbacks: list[Any] = []
@@ -727,6 +773,7 @@ def train_trial(config: dict[str, Any]) -> None:
                 model_ref,
                 algorithm,
                 stage,
+                plant_identity,
                 drive_best_model_dir=drive_best_model_dir,
             )
         )
@@ -796,8 +843,19 @@ def train_trial(config: dict[str, Any]) -> None:
         eval_model = model
         if best_model_zip.exists():
             eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
+            validate_model_plant(
+                eval_model,
+                plant_identity,
+                artifact=str(best_model_zip),
+                allow_legacy=allow_legacy_plant,
+            )
             if best_vecnorm.exists():
-                load_vecnorm_stats(str(best_vecnorm), eval_env)
+                load_vecnorm_stats(
+                    str(best_vecnorm),
+                    eval_env,
+                    current_plant=plant_identity,
+                    allow_legacy_plant=allow_legacy_plant,
+                )
         eval_env.training = False
         eval_env.norm_reward = False
 
@@ -870,6 +928,7 @@ def train_trial(config: dict[str, Any]) -> None:
             "mean_success_rate": final_metrics["mean_success_rate"],
             "best_mean_success_rate": final_metrics["mean_success_rate"],
             "training_duration_seconds": final_metrics["training_duration_seconds"],
+            "plant_identity": plant_identity.to_dict(),
         }
         # Include eval_* quality metrics
         for key, value in final_metrics.items():
@@ -929,6 +988,7 @@ def train_trial(config: dict[str, Any]) -> None:
                     "diagnostics.npz",
                     "stage_config.json",
                     "metrics.json",
+                    PLANT_IDENTITY_FILENAME,
                 ),
             )
 
@@ -936,6 +996,7 @@ def train_trial(config: dict[str, Any]) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             model.save(str(Path(tmpdir) / "model"))
             train_env.save(str(Path(tmpdir) / "vecnorm.pkl"))
+            write_plant_identity(Path(tmpdir) / PLANT_IDENTITY_FILENAME, plant_identity)
             checkpoint = Checkpoint.from_directory(tmpdir)
             tune.report(final_metrics, checkpoint=checkpoint)
     finally:

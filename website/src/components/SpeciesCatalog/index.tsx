@@ -47,6 +47,7 @@ function formatGate(gate: AdvancementGate): string {
 }
 
 export function SpeciesSpecifications({species}: {species: Species}): React.JSX.Element {
+  const plant = species.model.plantContract;
   return (
     <>
       <h2>Generated specifications</h2>
@@ -62,6 +63,12 @@ export function SpeciesSpecifications({species}: {species: Species}): React.JSX.
           <tr><th>Generalized coordinates (nq)</th><td>{species.model.nq}</td></tr>
           <tr><th>Generalized velocities (nv)</th><td>{species.model.nv}</td></tr>
           <tr><th>Compiled dynamic model mass</th><td>{species.model.dynamicMassKg.toFixed(1)} kg</td></tr>
+          <tr>
+            <th>Plant contract revisions</th>
+            <td>
+              Policy r{plant.policyInterface.revision} · physics r{plant.physics.revision} · visual r{plant.visual.revision}
+            </td>
+          </tr>
           <tr><th>Model</th><td><code>{species.model.path}</code></td></tr>
         </tbody>
       </table>

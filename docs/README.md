@@ -16,6 +16,8 @@ read it as history, or update it when things change.
 - [KNOWN_ISSUES.md](KNOWN_ISSUES.md) — the single list of verified-but-unfixed
   findings and standing recommendations. Fixed items are deleted; full context
   stays in the archived review or investigation they came from.
+- [PLANT_CONTRACT.md](PLANT_CONTRACT.md) — versioned policy-interface,
+  physics, visual, and source identities for MuJoCo models and checkpoints.
 
 ## Plans & designs
 

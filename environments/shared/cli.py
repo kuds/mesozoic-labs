@@ -101,6 +101,11 @@ def main(species_cfg):
     )
     train_parser.add_argument("--n-envs", type=int, default=4, help="Number of parallel environments")
     train_parser.add_argument("--load", type=str, default=None, help="Path to model to continue from")
+    train_parser.add_argument(
+        "--allow-legacy-plant",
+        action="store_true",
+        help="Explicitly allow an untagged pre-contract model/VecNormalize artifact",
+    )
     train_parser.add_argument("--seed", type=int, default=42, help="Random seed")
     train_parser.add_argument("--eval-freq", type=int, default=50000, help="Evaluation frequency")
     train_parser.add_argument("--save-freq", type=int, default=500000, help="Checkpoint frequency")
@@ -159,6 +164,11 @@ def main(species_cfg):
     eval_parser.add_argument("--episodes", type=int, default=10, help="Number of episodes")
     eval_parser.add_argument("--no-render", action="store_true", help="Disable rendering")
     eval_parser.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
+    eval_parser.add_argument(
+        "--allow-legacy-plant",
+        action="store_true",
+        help="Explicitly allow untagged pre-contract evaluation artifacts",
+    )
 
     # -- dispatch ------------------------------------------------------
     args = parser.parse_args()
@@ -173,6 +183,7 @@ def main(species_cfg):
             args.timesteps = None
             args.n_envs = 4
             args.load = None
+            args.allow_legacy_plant = False
             args.seed = 42
             args.eval_freq = 50000
             args.save_freq = 500000
@@ -215,6 +226,7 @@ def main(species_cfg):
             algorithm=args.algorithm,
             use_wandb=args.wandb,
             output_dir=args.output_dir,
+            allow_legacy_plant=args.allow_legacy_plant,
         )
 
     elif args.command == "curriculum":
@@ -249,4 +261,5 @@ def main(species_cfg):
             render=not args.no_render,
             stage=args.stage,
             algorithm=args.algorithm,
+            allow_legacy_plant=args.allow_legacy_plant,
         )

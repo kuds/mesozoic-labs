@@ -21,7 +21,10 @@ import json
 import logging
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .plant_contract import PlantIdentity
 
 _logger = logging.getLogger(__name__)
 
@@ -210,6 +213,7 @@ def save_stage_config(
     extra: dict[str, Any] | None = None,
     env_class: type | None = None,
     species: str | None = None,
+    plant_identity: PlantIdentity | None = None,
 ) -> Path:
     """Save the reward weights and model hyperparameters for a stage to JSON.
 
@@ -232,6 +236,8 @@ def save_stage_config(
         env_class: Optional environment class whose ``__init__`` defaults are
             merged into ``env_kwargs`` for completeness.
         species: Optional species name (e.g. ``"velociraptor"``, ``"trex"``).
+        plant_identity: Optional current plant identity.  When supplied it is
+            embedded in the config and written as ``plant_identity.json``.
 
     Returns:
         Path to the written JSON file.
@@ -279,6 +285,8 @@ def save_stage_config(
     }
     if extra:
         data["run"] = extra
+    if plant_identity is not None:
+        data["plant_identity"] = plant_identity.to_dict()
 
     gpu_info = _detect_gpu_info()
     if gpu_info:
@@ -286,6 +294,10 @@ def save_stage_config(
 
     out_path = stage_dir / "stage_config.json"
     out_path.write_text(json.dumps(data, indent=2) + "\n")
+    if plant_identity is not None:
+        from .plant_contract import write_plant_identity
+
+        write_plant_identity(stage_dir / "plant_identity.json", plant_identity)
     return out_path
 
 
@@ -407,7 +419,7 @@ def upload_curriculum_artifacts(
         _logger.warning("Could not create shared GCS client (%s).", exc)
 
     # 1. Upload run-level artifacts
-    for name in ("curriculum_results.csv", "training_summary.txt"):
+    for name in ("curriculum_results.csv", "training_summary.txt", "plant_identity.json"):
         run_file = base_dir / name
         if run_file.exists():
             _upload_to_gcs(run_file, bucket, f"{gcs_run_prefix}/{name}", project=project, client=client)
@@ -426,6 +438,7 @@ def upload_curriculum_artifacts(
         for name in (
             "stage_summary.txt",
             "stage_config.json",
+            "plant_identity.json",
             "metrics.json",
             "evaluations.npz",
             "diagnostics.npz",

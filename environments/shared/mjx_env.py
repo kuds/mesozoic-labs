@@ -27,7 +27,7 @@ import logging
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from .mjx_utils import check_jax
 
@@ -230,6 +230,20 @@ except ImportError:
 
 _SPECIES_CONFIGS: dict[str, dict[str, Any]] = {}
 
+# These values define the checkpoint-facing plant ABI.  Curriculum files may
+# tune rewards and termination thresholds, but may not silently replace the
+# control cadence or observation mapping recorded by the plant contract.
+_PLANT_INTERFACE_CONFIG_FIELDS = frozenset(
+    {
+        "frame_skip",
+        "body_ids",
+        "sensor_foot_indices",
+        "sensor_gyro_start",
+        "sensor_accel_start",
+        "sensor_quat_start",
+    }
+)
+
 
 def register_species_mjx(species: str, **kwargs: Any) -> None:
     """Register a species configuration for MJX environments.
@@ -237,6 +251,41 @@ def register_species_mjx(species: str, **kwargs: Any) -> None:
     Called from per-species ``mjx_config.py`` modules.
     """
     _SPECIES_CONFIGS[species] = kwargs
+
+
+def build_mjx_observation(data: Any, target_pos: Any, config: MJXEnvConfig | Mapping[str, Any]) -> Any:
+    """Build the production MJX policy observation from registered ABI data.
+
+    The plant contract executes and fingerprints this small function directly,
+    while both reset and step call the same implementation.  Keep reward and
+    termination logic outside it so those changes do not invalidate a policy's
+    observation/action interface.
+    """
+    from .obs_functions import SensorLayout, build_bipedal_obs, build_quadruped_obs
+
+    def value(name: str) -> Any:
+        return config[name] if isinstance(config, Mapping) else getattr(config, name)
+
+    species = str(value("species"))
+    body_ids = value("body_ids")
+    quadrupedal = species == "brachiosaurus"
+    root_name = "torso" if quadrupedal else "pelvis"
+    root_body_id = int(body_ids[root_name])
+    sensor_layout = SensorLayout(
+        gyro_start=int(value("sensor_gyro_start")),
+        accel_start=int(value("sensor_accel_start")),
+        quat_start=int(value("sensor_quat_start")),
+        foot_indices=tuple(int(index) for index in value("sensor_foot_indices")),
+    )
+    observation_builder = build_quadruped_obs if quadrupedal else build_bipedal_obs
+    return observation_builder(
+        data.qpos,
+        data.qvel,
+        data.sensordata,
+        data.xpos[root_body_id],
+        target_pos,
+        sensor_layout,
+    )
 
 
 def _get_model_path(species: str) -> str:
@@ -311,6 +360,12 @@ class MJXDinoEnv:
         # so the shared SB3/JAX TOMLs actually take effect here.
         if env_kwargs:
             env_kwargs = canonicalize_env_kwargs(env_kwargs)
+            for key in sorted(_PLANT_INTERFACE_CONFIG_FIELDS & env_kwargs.keys()):
+                if env_kwargs[key] != species_kwargs.get(key):
+                    raise ValueError(
+                        f"{key!r} is part of the versioned plant interface and cannot be overridden "
+                        "by a stage configuration"
+                    )
             # Separate reward-weight keys from top-level MJXEnvConfig fields
             config_fields = {f.name for f in MJXEnvConfig.__dataclass_fields__.values()}
             merged_reward_weights = dict(species_kwargs.get("reward_weights", {}))
@@ -333,6 +388,16 @@ class MJXDinoEnv:
             stage=stage,
             **species_kwargs,
         )
+
+        for body_name, registered_id in self.config.body_ids.items():
+            resolved_id = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_BODY, body_name)
+            if resolved_id < 0:
+                raise ValueError(f"registered MJX body {body_name!r} does not exist in the {species} model")
+            if int(registered_id) != resolved_id:
+                raise ValueError(
+                    f"registered MJX body ID for {body_name!r} is stale: "
+                    f"registered={registered_id}, resolved={resolved_id}"
+                )
 
         # Resolve termination body names to (body_id, z_threshold) pairs
         self._termination_body_checks: list[tuple[int, float]] = []
@@ -378,7 +443,6 @@ class MJXDinoEnv:
         import mujoco.mjx as mjx
 
         from .mjx_utils import scale_action_jax
-        from .obs_functions import SensorLayout, build_bipedal_obs
         from .reward_functions import (
             check_nosedive_termination,
             quat_to_forward_2d,
@@ -413,13 +477,6 @@ class MJXDinoEnv:
         success_threshold = config.success_threshold
         success_bonus = config.reward_weights.get(config.success_bonus_key, 0.0)
 
-        sensor_layout = SensorLayout(
-            gyro_start=config.sensor_gyro_start,
-            accel_start=config.sensor_accel_start,
-            quat_start=config.sensor_quat_start,
-            foot_indices=config.sensor_foot_indices,
-        )
-
         def step_fn(state: EnvState, action, rng, forward_vel_scale):
             """Pure single-environment step function.
 
@@ -443,14 +500,7 @@ class MJXDinoEnv:
             target_pos = state.target_pos
             initial_pos_2d = state.initial_pos_2d
 
-            obs = build_bipedal_obs(
-                qpos=data.qpos,
-                qvel=data.qvel,
-                sensordata=data.sensordata,
-                pelvis_xpos=pelvis_xpos,
-                target_pos=target_pos,
-                sensor_layout=sensor_layout,
-            )
+            obs = build_mjx_observation(data, target_pos, config)
 
             # Compute core rewards
             vel_2d = data.qvel[:2]
@@ -636,18 +686,9 @@ class MJXDinoEnv:
         import jax.numpy as jnp
         import mujoco.mjx as mjx
 
-        from .obs_functions import SensorLayout, build_bipedal_obs
-
         model = self.mjx_model
         config = self.config
         default_data = self._default_data
-
-        sensor_layout = SensorLayout(
-            gyro_start=config.sensor_gyro_start,
-            accel_start=config.sensor_accel_start,
-            quat_start=config.sensor_quat_start,
-            foot_indices=config.sensor_foot_indices,
-        )
 
         def reset_fn(rng):
             """Pure single-environment reset function."""
@@ -722,14 +763,7 @@ class MJXDinoEnv:
             pelvis_id = config.body_ids.get("pelvis", config.body_ids.get("torso", 0))
             pelvis_xpos = data.xpos[pelvis_id]
 
-            obs = build_bipedal_obs(
-                qpos=data.qpos,
-                qvel=data.qvel,
-                sensordata=data.sensordata,
-                pelvis_xpos=pelvis_xpos,
-                target_pos=target_pos,
-                sensor_layout=sensor_layout,
-            )
+            obs = build_mjx_observation(data, target_pos, config)
 
             target_dist = jnp.linalg.norm(target_pos - pelvis_xpos)
             action_dim = model.nu

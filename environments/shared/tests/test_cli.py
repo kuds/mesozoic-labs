@@ -167,3 +167,36 @@ class TestMainDispatch:
             main(species_cfg)
             call_kwargs = mock_eval.call_args[1]
             assert call_kwargs["algorithm"] == "sac"
+
+    def test_train_forwards_explicit_legacy_plant_override(self, species_cfg):
+        mock_train = MagicMock()
+        mock_load = MagicMock(
+            return_value={
+                1: {"env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {"timesteps": 100}},
+                2: {},
+                3: {},
+            }
+        )
+        with (
+            patch("environments.shared.config.load_all_stages", mock_load),
+            patch("environments.shared.train_base.train", mock_train),
+            patch(
+                "sys.argv",
+                ["prog", "train", "--stage", "1", "--load", "/tmp/legacy.zip", "--allow-legacy-plant"],
+            ),
+        ):
+            main(species_cfg)
+
+        assert mock_train.call_args.kwargs["allow_legacy_plant"] is True
+
+    def test_eval_forwards_explicit_legacy_plant_override(self, species_cfg):
+        mock_eval = MagicMock()
+        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        with (
+            patch("environments.shared.config.load_all_stages", mock_load),
+            patch("environments.shared.evaluation.evaluate", mock_eval),
+            patch("sys.argv", ["prog", "eval", "/tmp/legacy.zip", "--allow-legacy-plant"]),
+        ):
+            main(species_cfg)
+
+        assert mock_eval.call_args.kwargs["allow_legacy_plant"] is True

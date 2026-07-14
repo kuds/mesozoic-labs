@@ -1,16 +1,16 @@
 """Plant-characterization tests for the raptor's bounded actuators.
 
 Commit 156a933 added ``forcerange`` (~0.8x kp) to every position actuator
-and switched to the implicitfast integrator, verifying only *static*
-settling. That sizing clipped 34-40% of hip-pitch and 22-25% of ankle
-torque during a moderate gait cycle and broke stage-2 locomotion twice
+and switched to the implicitfast integrator, verifying only settling under
+the XML home-keyframe controls. That sizing clipped 34-40% of hip-pitch and
+22-25% of ankle torque during a moderate gait cycle and broke stage-2 locomotion twice
 (runs 20260709_185946 and 20260711_165924, bitwise-identical collapses).
 The hip-pitch and ankle caps were re-sized to 1.5x kp, which measures 0%
 gait-cycle clipping and zero pelvis-z divergence from an unbounded plant
 under identical commands (see docs/investigations/STAGE2_RECOMMENDATIONS.md
 R2). These tests pin the resulting contract:
 
-* the static no-saturation claim stays true (regression guard),
+* the home-control no-saturation claim stays true (regression guard),
 * every position actuator keeps a symmetric forcerange at its documented
   kp ratio (0.8x default, 1.5x for the gait-critical hip pitch/ankle), and
 * the dynamic regime stays unclipped: gait-like excitation must not
@@ -25,6 +25,7 @@ import mujoco
 import pytest
 
 from environments.shared.tests.actuator_bounds_helpers import (
+    PositionActuatorConfigurationBase,
     clip_fraction,
     measure_clip_fractions,
     position_actuator_ids,
@@ -47,7 +48,7 @@ def model():
         env.close()
 
 
-class TestForceBoundsConfiguration:
+class TestForceBoundsConfiguration(PositionActuatorConfigurationBase):
     def test_integrator_is_implicitfast(self, model):
         assert model.opt.integrator == mujoco.mjtIntegrator.mjINT_IMPLICITFAST
 
@@ -73,14 +74,14 @@ class TestForceBoundsConfiguration:
             )
 
 
-class TestStaticSaturation:
-    def test_no_saturation_during_settle(self):
-        """The commit's static claim: settling from home never clips forces."""
+class TestHomeControlSaturation:
+    def test_no_saturation_during_home_control_settle(self):
+        """Settling under XML home-keyframe controls never clips forces."""
         env = RaptorEnv()
         try:
-            frac = measure_clip_fractions(env, gait=False, steps=1000)
+            frac = measure_clip_fractions(env, mode="home_control", steps=1000)
             worst = max(frac[i] for i in position_actuator_ids(env.model))
-            assert worst < 0.01, f"static settle saturates a position actuator {worst:.1%} of the time"
+            assert worst < 0.01, f"home-control settle saturates a position actuator {worst:.1%} of the time"
         finally:
             env.close()
 
@@ -99,7 +100,7 @@ class TestDynamicSaturation:
         env = RaptorEnv()
         try:
             model = env.model
-            frac = measure_clip_fractions(env, gait=True, steps=2000)
+            frac = measure_clip_fractions(env, mode="gait", steps=2000)
             hip = max(clip_fraction(frac, model, f"{s}_hip_pitch_act") for s in "rl")
             ankle = max(clip_fraction(frac, model, f"{s}_ankle_act") for s in "rl")
             # Measured at 1.5x kp: 0.0% on both groups (was hips 0.34-0.40,

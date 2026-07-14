@@ -1,9 +1,9 @@
 """Plant-characterization tests for the brachiosaurus's bounded actuators.
 
 The July 2026 hardening sized position-actuator ``forcerange`` at
-~0.62-0.73x kp against *static* settling only. Under a diagonal-pair
-trot that clipped 20-33% of hip-pitch torque even at a slow 1.5 Hz walk
-cycle — the same plant defect that collapsed velociraptor stage-2 twice
+~0.62-0.73x kp against settling under the XML home-keyframe controls only.
+Under a diagonal-pair trot that clipped 20-33% of hip-pitch torque even at
+a slow 1.5 Hz walk cycle — the same plant defect that collapsed velociraptor stage-2 twice
 (see docs/investigations/STAGE2_RECOMMENDATIONS.md), and this species'
 only stage-2 pass was a 1.12 m/s walk. The four hip-pitch actuators were
 re-sized to 1.5x kp, which measures ~0% gait clipping; knees, ankles,
@@ -19,6 +19,7 @@ import pytest
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
 from environments.shared.tests.actuator_bounds_helpers import (
+    PositionActuatorConfigurationBase,
     clip_fraction,
     measure_clip_fractions,
     position_actuator_ids,
@@ -41,7 +42,7 @@ def model():
         env.close()
 
 
-class TestForceBoundsConfiguration:
+class TestForceBoundsConfiguration(PositionActuatorConfigurationBase):
     def test_integrator_is_implicitfast(self, model):
         assert model.opt.integrator == mujoco.mjtIntegrator.mjINT_IMPLICITFAST
 
@@ -72,14 +73,14 @@ class TestForceBoundsConfiguration:
                 )
 
 
-class TestStaticSaturation:
-    def test_no_saturation_during_settle(self):
-        """Settling from home never clips forces (the caps are for spikes, not posture)."""
+class TestHomeControlSaturation:
+    def test_no_saturation_during_home_control_settle(self):
+        """Settling under XML home-keyframe controls never clips forces."""
         env = BrachioEnv()
         try:
-            frac = measure_clip_fractions(env, gait=False, steps=1000)
+            frac = measure_clip_fractions(env, mode="home_control", steps=1000)
             worst = max(frac[i] for i in position_actuator_ids(env.model))
-            assert worst < 0.01, f"static settle saturates a position actuator {worst:.1%} of the time"
+            assert worst < 0.01, f"home-control settle saturates a position actuator {worst:.1%} of the time"
         finally:
             env.close()
 
@@ -98,7 +99,7 @@ class TestDynamicSaturation:
         env = BrachioEnv()
         try:
             model = env.model
-            frac = measure_clip_fractions(env, gait=True, steps=2000)
+            frac = measure_clip_fractions(env, mode="gait", steps=2000)
             hip = max(clip_fraction(frac, model, f"{p}hip_pitch_act") for p in LEG_PREFIXES)
             assert hip < 0.10, f"hip saturation {hip:.1%} — plant lost gait headroom, stage 2 will clip"
         finally:

@@ -120,25 +120,29 @@ would pin these down and catch regressions. (June §6.8)
 ## MuJoCo models (July 2026 model review)
 
 Fixed on this branch: the brachiosaurus could not physically hold any torso
-height in its alive region (passive settle z≈0.68, straight-leg command
-z≈0.70, vs `healthy_z_range` floor 1.0 and height target 1.2) — leg springs
-now reference the stance angles and the leg servos are stronger with
-bounded force, giving a static stand at z≈1.13, level, all four feet
-grounded. All three models now use `integrator="implicitfast"` and bounded
+height in its alive region (home-keyframe-controlled settle z≈0.68,
+straight-leg command z≈0.70, vs `healthy_z_range` floor 1.0 and height target
+1.2) — leg springs now reference the stance angles and the leg servos are
+stronger with bounded force, giving an actively servo-held home stand at
+z≈1.13, level, all four feet grounded. All three models now use
+`integrator="implicitfast"` and bounded
 `forcerange` on position actuators, sized to clip impact/reset spikes only,
 with gait-critical actuators at 1.5×kp on every species (raptor hip
 pitch/ankle; trex hip pitch/knee/ankle; brachiosaurus all four hip
-pitches). The original static-only sizing clipped 20–50 % of gait-cycle
-torque per species and collapsed velociraptor stage-2 twice — see
+pitches). The original home-control-only sizing clipped 20–50 % of
+gait-cycle torque per species and collapsed velociraptor stage-2 twice — see
 [investigations/STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md)
 §5. Post-fix gait clipping is ≤0.5 % everywhere, pinned by each species'
 `tests/test_actuator_bounds.py`; re-measure any re-sizing with
 `environments/shared/scripts/actuator_saturation_report.py`.
 
-> **Note:** these changes alter the physics plant. Brachiosaurus policies
-> trained before this change will NOT transfer; raptor/trex plants changed
-> only marginally (integrator + rarely-binding force caps) but expect small
-> behavioral differences.
+Neutral-action stability and truly actuator-disabled passive behavior are now
+separate test contracts. Layered policy, physics, visual, and source identities
+are documented in [PLANT_CONTRACT.md](PLANT_CONTRACT.md).
+
+> **Note:** these changes alter the physics plant. Policies trained before the
+> change are incompatible by contract, including when a change seems marginal;
+> use an explicit legacy override only for deliberate historical evaluation.
 
 Still open:
 
@@ -173,8 +177,9 @@ Still open:
 
 - `ray_tune_sweep.ipynb` duplicates `ray_orchestration.py` (see above); its
   `EVAL_EPISODES` knob doesn't affect the in-trial eval episode count. (July §5)
-- All notebooks pip-install unpinned latest `mujoco` / `stable-baselines3` /
-  `jax` / `ray[tune]`; pin known-good versions for reproducibility.
+- The notebooks now pin the plant compiler (`mujoco`/`mujoco-mjx`) and Ray
+  Tune compatibility range, but still use broad `stable-baselines3`, `jax`,
+  Flax, and Optax ranges; pin complete lockfiles for reproducible training.
   (July §5)
 
 ## Testing / CI

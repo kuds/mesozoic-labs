@@ -111,14 +111,17 @@ def train_jax(
     from .jax_ppo import PPOConfig, make_actor_critic, make_optimizer
     from .jax_trainer import JaxTrainer
     from .mjx_env import MJXDinoEnv
+    from .plant_contract import current_plant_identity, validate_mjx_environment_plant, write_plant_identity
 
     # Import species config to trigger registration
     _import_species_config(species)
 
     _logger.info("species=%s stage=%d num_envs=%d", species, stage, num_envs)
+    plant_identity = current_plant_identity(species)
 
     # Create environment with TOML-derived reward weights
     env = MJXDinoEnv(species, stage=stage, num_envs=num_envs, env_kwargs=env_kwargs)
+    validate_mjx_environment_plant(env, plant_identity, artifact="headless JAX training environment")
 
     # TOML configs specify minibatch_size; PPOConfig wants a count.
     if minibatch_size is not None:
@@ -153,11 +156,13 @@ def train_jax(
     best_hook: Any = None
     if checkpoint_dir:
         _ckpt_dir = Path(checkpoint_dir)
+        write_plant_identity(_ckpt_dir / "plant_identity.json", plant_identity)
         hooks.append(
             CheckpointHook(
                 directory=checkpoint_dir,
                 prefix=f"{species}_s{stage}",
                 interval=50,
+                plant_identity=plant_identity,
             )
         )
         hooks.append(CSVLoggingHook(_ckpt_dir / f"{species}_s{stage}_training_log.csv"))
@@ -198,6 +203,7 @@ def train_jax(
             obs_rms=_state.obs_stats,
             update=best_hook.best_update,
             extra={"best_episode_return": best_hook.best_reward},
+            plant_identity=plant_identity,
         )
         eval_metrics["best_episode_return"] = best_hook.best_reward
 

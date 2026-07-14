@@ -61,9 +61,9 @@ mesozoic-labs/
 ## Environments
 
 <!-- BEGIN GENERATED: SPECIES -->
-The active-species tables are generated from `configs/species_manifest.toml`, the executable Gymnasium
-environments, compiled MJCF models, and current stage TOML files. The budgets and gates shown are for the
-Stable-Baselines3 curriculum path. Do not edit the generated block by hand.
+The active-species tables are generated from `configs/species_manifest.toml`, the layered plant contract,
+the executable Gymnasium environments, compiled MJCF models, and current stage TOML files. The budgets and
+gates shown are for the Stable-Baselines3 curriculum path. Do not edit the generated block by hand.
 
 ### Velociraptor
 
@@ -75,6 +75,7 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 | Action dimension / actuators | 22 |
 | Generalized coordinates / velocities | nq=31, nv=30 |
 | Compiled dynamic model mass | 13.5 kg |
+| Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/velociraptor/assets/raptor.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -101,6 +102,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Action dimension / actuators | 21 |
 | Generalized coordinates / velocities | nq=40, nv=37 |
 | Compiled dynamic model mass | 85.4 kg |
+| Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/trex/assets/trex.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -125,6 +127,7 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 | Action dimension / actuators | 30 |
 | Generalized coordinates / velocities | nq=38, nv=37 |
 | Compiled dynamic model mass | 175.3 kg |
+| Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |

@@ -34,7 +34,7 @@ register_species_mjx(
     target_distance_range=(3.0, 8.0),
     target_lateral_range=(-2.0, 2.0),
     target_z=0.5,
-    body_ids={"pelvis": 1},  # MuJoCo body ID for pelvis
+    body_ids={"pelvis": 2},  # MuJoCo body ID for pelvis (world=0, prey=1)
     termination_body_heights={
         "skull": 0.45,  # raised from 0.15: skull body origin must stay above ~half standing height
         "torso": 0.25,  # torso capsule radius=0.18 + margin

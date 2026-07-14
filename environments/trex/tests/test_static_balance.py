@@ -1,9 +1,9 @@
 """Tests that the T-Rex model is physically set up for static balance.
 
 Validates the home keyframe: COM projection, support polygon, joint limits,
-and zero-torque stability. These catch model regressions (e.g. mass changes
-that shift COM behind the feet, or keyframe edits that violate joint limits)
-before any RL training is attempted.
+neutral-action stability, and actuator-disabled passive behavior. These catch
+model regressions (e.g. mass changes that shift COM behind the feet, or
+keyframe edits that violate joint limits) before any RL training is attempted.
 
 Mirrors the velociraptor static balance tests, adapted for T-Rex proportions
 (heavier mass, higher pelvis, same digitigrade foot structure).
@@ -12,10 +12,11 @@ Mirrors the velociraptor static balance tests, adapted for T-Rex proportions
 import pytest
 
 from environments.shared.tests.static_balance_helpers import (
+    ActuatorDisabledPassiveBase,
     HomePoseCOMBase,
     JointLimitsAtHomeBase,
     MassDistributionBase,
-    ZeroTorqueStabilityBase,
+    NeutralActionStabilityBase,
 )
 from environments.trex.envs.trex_env import TRexEnv
 
@@ -32,7 +33,7 @@ ROOT_BODY = "pelvis"
 
 @pytest.fixture
 def env():
-    e = TRexEnv()
+    e = TRexEnv(reset_noise_scale=0.0)
     e.reset(seed=0)
     yield e
     e.close()
@@ -47,10 +48,18 @@ class TestHomePoseCOM(HomePoseCOMBase):
     species_label = "T-Rex"
 
 
-class TestZeroTorqueStability(ZeroTorqueStabilityBase):
+class TestNeutralActionStability(NeutralActionStabilityBase):
     species_name = "T-Rex"
     root_body_id_attr = "pelvis_id"
     max_height_drop = 0.15
+    max_tilt_increase = 0.27  # 15 degrees
+
+
+class TestActuatorDisabledPassive(ActuatorDisabledPassiveBase):
+    species_name = "T-Rex"
+    root_body_id_attr = "pelvis_id"
+    max_height_drop = 0.05
+    max_tilt_increase = 0.15
 
 
 class TestJointLimitsAtHome(JointLimitsAtHomeBase):
