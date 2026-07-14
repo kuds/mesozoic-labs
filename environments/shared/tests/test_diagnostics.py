@@ -40,18 +40,28 @@ def callback(tmp_path):
 class TestInit:
     def test_default_params(self):
         cb = DiagnosticsCallback()
-        assert cb.plateau_window == 10
-        assert cb.plateau_threshold == 1.0
         assert cb._log_dir is None
 
     def test_custom_params(self, tmp_path):
-        cb = DiagnosticsCallback(plateau_window=20, plateau_threshold=2.0, log_dir=str(tmp_path), verbose=1)
-        assert cb.plateau_window == 20
-        assert cb.plateau_threshold == 2.0
+        cb = DiagnosticsCallback(
+            log_dir=str(tmp_path),
+            verbose=1,
+            action_saturation_threshold=0.95,
+            save_interval_seconds=30.0,
+        )
         assert cb._log_dir == tmp_path
+        assert cb.action_saturation_threshold == 0.95
+        assert cb.save_interval_seconds == 30.0
+
+    def test_legacy_plateau_params_are_accepted_but_ignored(self, caplog):
+        with caplog.at_level("WARNING", logger="environments.shared.diagnostics"):
+            cb = DiagnosticsCallback(plateau_window=20, plateau_threshold=2.0)
+
+        assert not hasattr(cb, "plateau_window")
+        assert not hasattr(cb, "plateau_threshold")
+        assert "deprecated and ignored" in caplog.text
 
     def test_initial_state(self, callback):
-        assert callback._rollout_ep_rewards == []
         assert callback._rollout_terminations == Counter()
         assert callback._history_timesteps == []
 
@@ -183,56 +193,14 @@ class TestOnRolloutEnd:
         cb.logger.record.assert_any_call("diagnostics/vecnorm_obs_var_mean", 1.5)
         cb.logger.record.assert_any_call("diagnostics/vecnorm_ret_var", 0.5)
 
-
-class TestPlateauDetection:
-    """Episode returns are captured in _on_step (every completed episode), then
-    the per-rollout mean is appended in _on_rollout_end.  This avoids the old
-    bias of only sampling episodes that ended on the rollout's final step."""
-
-    def test_no_warning_below_window(self, callback):
-        callback._rollout_ep_rewards = [1.0] * 5
-        callback.locals = {"infos": [{"episode": {"r": 1.0}}]}
-        callback._on_step()
-        callback._on_rollout_end()
-        # Not enough history for plateau detection, no warning printed
-
-    def test_plateau_warning(self, callback, caplog):
-        # Fill the history to reach the plateau window
-        callback._rollout_ep_rewards = [50.0] * 9  # 9 entries, need 10
+    def test_constant_training_episode_returns_do_not_emit_plateau_warning(self, callback, caplog):
         callback.locals = {"infos": [{"episode": {"r": 50.0}}]}
         callback._on_step()
+
         with caplog.at_level("WARNING", logger="environments.shared.diagnostics"):
             callback._on_rollout_end()
-        assert "PLATEAU WARNING" in caplog.text
 
-    def test_no_plateau_when_varying(self, callback, caplog):
-        # Rewards with enough variation to avoid plateau
-        callback._rollout_ep_rewards = list(range(9))  # 0-8
-        callback.locals = {"infos": [{"episode": {"r": 100.0}}]}
-        callback._on_step()
-        with caplog.at_level("WARNING", logger="environments.shared.diagnostics"):
-            callback._on_rollout_end()
-        assert "PLATEAU WARNING" not in caplog.text
-
-    def test_logs_reward_variation(self, callback):
-        callback._rollout_ep_rewards = [50.0] * 9
-        callback.locals = {"infos": [{"episode": {"r": 50.0}}]}
-        callback._on_step()
-        callback._on_rollout_end()
-        callback.logger.record.assert_any_call("diagnostics/reward_variation", 0.0)
-
-    def test_captures_all_episodes_not_just_final_step(self, callback):
-        """Every episode completing mid-rollout must count — the whole point of
-        the fix.  Three episodes across two steps → mean over all three."""
-        callback._rollout_ep_rewards = []
-        callback.locals = {"infos": [{"episode": {"r": 10.0}}, {"episode": {"r": 20.0}}]}
-        callback._on_step()
-        callback.locals = {"infos": [{"episode": {"r": 30.0}}]}
-        callback._on_step()
-        assert callback._rollout_ep_returns == [10.0, 20.0, 30.0]
-        callback._on_rollout_end()
-        assert callback._rollout_ep_rewards[-1] == pytest.approx(20.0)  # mean(10,20,30)
-        assert callback._rollout_ep_returns == []  # buffer flushed
+        assert "PLATEAU" not in caplog.text
 
 
 class TestSaveDiagnostics:

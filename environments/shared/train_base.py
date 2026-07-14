@@ -9,6 +9,8 @@ The original monolithic module has been split into focused submodules for
 maintainability:
 
 - :mod:`~environments.shared.diagnostics` -- ``DiagnosticsCallback``
+- :mod:`~environments.shared.eval_diagnostics` -- stage-aware SB3 evaluation
+  and plateau diagnostics
 - :mod:`~environments.shared.evaluation` -- ``eval_policy``, ``evaluate``,
   ``record_stage_video``
 - :mod:`~environments.shared.cli` -- ``main``, ``_apply_overrides``,
@@ -322,6 +324,7 @@ def _build_core_callbacks(
     eval_freq: int,
     save_freq: int,
     verbose: int,
+    stage_config: dict[str, Any],
     use_wandb: bool = False,
     local_tb_dir: Path | None = None,
     gcs_tb_path: Path | None = None,
@@ -338,10 +341,11 @@ def _build_core_callbacks(
         SaveVecNormalizeCallback,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
+    from .eval_diagnostics import build_stage_evaluation_callbacks
     from .tb_sync import PeriodicTbSyncCallback
     from .wandb_integration import WandbCallback
 
-    callbacks = []
+    callbacks: list[Any] = []
 
     save_vecnorm_cb = SaveVecNormalizeCallback(
         save_path=str(model_dir / "best_model_vecnorm.pkl"),
@@ -354,8 +358,11 @@ def _build_core_callbacks(
     import tempfile as _tempfile
 
     local_eval_dir = _tempfile.mkdtemp(prefix=f"eval_stage{stage}_")
-    eval_callback = sb3["EvalCallback"](
+    eval_callback, plateau_callback = build_stage_evaluation_callbacks(
         eval_env,
+        stage=stage,
+        stage_config=stage_config,
+        diagnostics_verbose=verbose,
         best_model_save_path=str(model_dir),
         log_path=local_eval_dir,
         eval_freq=eval_freq // n_envs,
@@ -366,6 +373,7 @@ def _build_core_callbacks(
         callback_on_new_best=save_vecnorm_cb,
     )
     callbacks.append(eval_callback)
+    callbacks.append(plateau_callback)
     callbacks.append(PublishEvalArtifactsCallback(eval_callback, publish_dir=log_path))
     # Risk-adjusted (mean - std) checkpoint alongside SB3's mean-reward
     # best_model; next-stage loading prefers it when present.
@@ -572,6 +580,7 @@ def train(
         eval_freq,
         save_freq,
         verbose,
+        config,
         use_wandb,
         local_tb_dir=local_tb_dir,
         gcs_tb_path=gcs_tb_path,
@@ -1001,6 +1010,7 @@ def train_curriculum(
             eval_freq,
             save_freq,
             verbose,
+            config,
             use_wandb,
             local_tb_dir=local_tb_dir,
             gcs_tb_path=gcs_tb_path,

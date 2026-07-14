@@ -77,7 +77,6 @@ class DiagnosticsCallback(_BaseCallback):
         critic_loss, actor_loss, ent_coef, …)
       - VecNormalize running variance for observations and returns
       - Termination reason breakdown (fraction per reason)
-      - Reward plateau detection with console warnings
 
     When *log_dir* is provided, per-rollout averages of INFO_KEYS, the
     captured algorithm metrics (under ``algo_*`` keys, on their own
@@ -147,8 +146,8 @@ class DiagnosticsCallback(_BaseCallback):
 
     def __init__(
         self,
-        plateau_window=10,
-        plateau_threshold=1.0,
+        plateau_window=None,
+        plateau_threshold=None,
         log_dir=None,
         verbose=0,
         action_saturation_threshold=0.99,
@@ -164,18 +163,16 @@ class DiagnosticsCallback(_BaseCallback):
             self.logger = None
             self.num_timesteps = 0
             self.training_env = None
-        self.plateau_window = plateau_window
-        self.plateau_threshold = plateau_threshold
+        if plateau_window is not None or plateau_threshold is not None:
+            logger.warning(
+                "DiagnosticsCallback plateau_window/plateau_threshold are deprecated and ignored; "
+                "plateau detection now uses deterministic stage-gate evaluations."
+            )
         # |action| at/above this (in the normalized [-1, 1] control space) counts
         # as "saturated" for the diagnostics/action_saturation metric.
         self.action_saturation_threshold = action_saturation_threshold
         self._log_dir = Path(log_dir) if log_dir is not None else None
         self._step_infos = {k: [] for k in self.REWARD_KEYS + self.INFO_KEYS}
-        self._rollout_ep_rewards: list[float] = []
-        # Episode returns + actions seen during the CURRENT rollout (flushed at
-        # rollout end).  Accumulating per-step avoids the old bias of only
-        # sampling episodes that ended on the rollout's final step.
-        self._rollout_ep_returns: list[float] = []
         self._step_actions: list = []
         self._rollout_terminations: Counter = Counter()
         self._history_timesteps: list[int] = []
@@ -207,11 +204,6 @@ class DiagnosticsCallback(_BaseCallback):
                     self._step_infos[key].append(float(info[key]))
             if "termination_reason" in info:
                 self._rollout_terminations[info["termination_reason"]] += 1
-            # Capture EVERY completed episode's return, not just those ending on
-            # the rollout's final step (Monitor sets info["episode"] on done).
-            if "episode" in info and "r" in info["episode"]:
-                self._rollout_ep_returns.append(float(info["episode"]["r"]))
-
         # Accumulate the actions taken this step. self.locals["actions"] is
         # populated by both the on-policy (PPO) and off-policy (SAC) collection
         # loops, so this works uniformly for both algorithms.
@@ -297,24 +289,6 @@ class DiagnosticsCallback(_BaseCallback):
             self.logger.record("diagnostics/vecnorm_obs_var_mean", _sanitize(float(_np.mean(env.obs_rms.var))))
         if hasattr(env, "ret_rms"):
             self.logger.record("diagnostics/vecnorm_ret_var", _sanitize(float(_np.mean(env.ret_rms.var))))
-
-        # Plateau detection over the mean episode return of each rollout.  Uses
-        # ALL episodes that completed during the rollout (accumulated in
-        # _on_step), not just those ending on the final step.
-        if self._rollout_ep_returns:
-            self._rollout_ep_rewards.append(float(_np.mean(self._rollout_ep_returns)))
-            self._rollout_ep_returns = []
-            if len(self._rollout_ep_rewards) >= self.plateau_window:
-                recent = self._rollout_ep_rewards[-self.plateau_window :]
-                variation = max(recent) - min(recent)
-                self.logger.record("diagnostics/reward_variation", _sanitize(variation))
-                if variation < self.plateau_threshold:
-                    logger.warning(
-                        "PLATEAU WARNING: Reward variation over last %d rollouts is only %.4f. "
-                        "Consider adjusting learning rate or stopping.",
-                        self.plateau_window,
-                        variation,
-                    )
 
         # Persist once per rollout-end, throttled: _save_diagnostics rewrites
         # the ENTIRE accumulated history, and SAC fires on_rollout_end every

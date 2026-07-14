@@ -5,11 +5,13 @@ import math
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import numpy as np
 import pytest
 
 from environments.shared.train_base import (
     SpeciesConfig,
     _apply_overrides,
+    _build_core_callbacks,
     _cast_value,
     _create_or_load_model,
     _is_gcs_path,
@@ -118,6 +120,70 @@ class TestSpeciesConfig:
             success_keys=["food_reached"],
         )
         assert cfg.species == "brachiosaurus"
+
+
+class TestBuildCoreCallbacks:
+    @pytest.mark.parametrize(
+        ("stage", "success_threshold", "success_applicable"),
+        [(1, 0.0, False), (3, 0.5, True)],
+    )
+    def test_wires_stage_aware_eval_and_plateau_callbacks(
+        self,
+        tmp_path,
+        stage,
+        success_threshold,
+        success_applicable,
+    ):
+        gym = pytest.importorskip("gymnasium")
+        pytest.importorskip("stable_baselines3")
+        from stable_baselines3.common.callbacks import CheckpointCallback
+        from stable_baselines3.common.vec_env import DummyVecEnv
+
+        from environments.shared.eval_diagnostics import (
+            StageAwareEvalCallback,
+            StageGatePlateauCallback,
+        )
+
+        class TinyEnv(gym.Env):
+            observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+            action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+
+            def reset(self, *, seed=None, options=None):
+                super().reset(seed=seed)
+                return np.zeros(1, dtype=np.float32), {}
+
+            def step(self, action):
+                return np.zeros(1, dtype=np.float32), 0.0, False, False, {"forward_vel": 0.0}
+
+        eval_env = DummyVecEnv([TinyEnv])
+        stage_config = {
+            "curriculum_kwargs": {
+                "min_avg_reward": 100.0,
+                "min_success_rate": success_threshold,
+                "diagnostics_plateau_window": 7,
+                "diagnostics_plateau_min_relative_variation": 0.02,
+            }
+        }
+
+        callbacks, eval_callback, _ = _build_core_callbacks(
+            {"CheckpointCallback": CheckpointCallback},
+            eval_env,
+            tmp_path / "models",
+            tmp_path / "logs",
+            stage,
+            1,
+            100,
+            100,
+            0,
+            stage_config,
+        )
+
+        assert isinstance(eval_callback, StageAwareEvalCallback)
+        assert eval_callback.success_applicable is success_applicable
+        plateau_callback = next(callback for callback in callbacks if isinstance(callback, StageGatePlateauCallback))
+        assert plateau_callback.plateau_window == 7
+        assert plateau_callback.min_relative_variation == 0.02
+        eval_env.close()
 
 
 # ── cosine_schedule ─────────────────────────────────────────────────────

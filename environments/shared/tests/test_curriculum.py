@@ -74,6 +74,15 @@ class TestCurriculumManager:
         assert "env_kwargs" in config
         assert "ppo_kwargs" in config
 
+    def test_current_threshold_returns_effective_override(self):
+        manager = CurriculumManager(
+            species="velociraptor",
+            stage_thresholds={1: {"min_success_rate": 0.75}},
+            start_stage=1,
+        )
+
+        assert manager.current_threshold.min_success_rate == 0.75
+
     def test_should_not_advance_without_data(self, manager):
         assert not manager.should_advance()
 
@@ -651,6 +660,70 @@ class TestCallbackMethodsMocked:
             cb._log_locomotion_metrics([{"some": "report"}])
 
         mock_log.assert_called_once_with(mock_agg, 1, step=1000)
+
+    def test_success_samples_are_na_when_stage_has_no_success_gate(self):
+        cb = object.__new__(CurriculumCallback)
+        cb.curriculum_manager = MagicMock()
+        cb.curriculum_manager.current_threshold = StageThreshold(min_success_rate=0.0)
+
+        result = cb._success_rates_for_stage([1.0, 0.0], [1.0])
+
+        assert result is None
+
+    def test_success_gate_prefers_full_eval_samples(self):
+        cb = object.__new__(CurriculumCallback)
+        cb.curriculum_manager = MagicMock()
+        cb.curriculum_manager.current_threshold = StageThreshold(min_success_rate=0.5)
+
+        result = cb._success_rates_for_stage([0.0, 0.0], [1.0])
+
+        assert result == [0.0, 0.0]
+
+    def test_success_gate_falls_back_to_supplementary_samples(self):
+        cb = object.__new__(CurriculumCallback)
+        cb.curriculum_manager = MagicMock()
+        cb.curriculum_manager.current_threshold = StageThreshold(min_success_rate=0.5)
+
+        result = cb._success_rates_for_stage(None, [1.0, 0.0])
+
+        assert result == [1.0, 0.0]
+
+    def test_forward_velocity_gate_prefers_main_eval_sample(self):
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_forward_velocities = [[1.0, 1.5], [2.0, 2.5]]
+
+        result = cb._forward_velocities_for_eval(2, [9.0])
+
+        assert result == [2.0, 2.5]
+
+    def test_forward_velocity_gate_supports_plain_eval_callback(self):
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock(spec=[])
+
+        result = cb._forward_velocities_for_eval(1, [0.5, 0.75])
+
+        assert result == [0.5, 0.75]
+
+    def test_eval_callback_path_gates_on_main_eval_velocity_sample(self):
+        cb = object.__new__(CurriculumCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_forward_velocities = [[1.0, 1.5, 2.0]]
+        cb.curriculum_manager = MagicMock()
+        cb.curriculum_manager.current_threshold = StageThreshold(min_avg_forward_vel=1.0)
+        cb.curriculum_manager.should_advance.return_value = False
+        cb._read_latest_eval = MagicMock(return_value=([100.0] * 3, [1000.0] * 3, None, 1))
+        cb._run_supplementary_eval = MagicMock(return_value=([9.0], [1.0], []))
+        cb._log_locomotion_metrics = MagicMock()
+
+        assert cb._on_step_with_eval_callback() is True
+
+        cb.curriculum_manager.should_advance.assert_called_once_with(
+            [100.0] * 3,
+            [1000.0] * 3,
+            [1.0, 1.5, 2.0],
+            None,
+        )
 
 
 class TestStageWarmupCallbackMocked:
