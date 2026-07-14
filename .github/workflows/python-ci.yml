@@ -244,8 +244,10 @@ jobs:
 
       - name: Install SB3 dependencies
         run: |
-          pip install --upgrade pip
-          pip install -e ".[train,ray,test]"
+          python -m pip install --upgrade pip
+          # Keep CPU CI off PyPI's CUDA/Triton dependency stack.
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.0"
+          python -m pip install -e ".[train,ray,test]"
 
       - name: Verify optional backend imports
         run: |
@@ -262,6 +264,7 @@ jobs:
           from environments.shared.scripts.sweep.ray_orchestration import create_ray_tuner
 
           assert tune.Tuner and Checkpoint and CheckpointConfig and RunConfig
+          assert torch.version.cuda is None, "SB3 CI must use the CPU-only PyTorch wheel"
           with TemporaryDirectory() as temp_dir:
               root = Path(temp_dir)
               tuner = create_ray_tuner(
