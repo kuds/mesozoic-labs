@@ -3,11 +3,20 @@
 import dataclasses
 import math
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
+from environments.shared.plant_contract import (
+    MODEL_IDENTITY_ATTRIBUTE,
+    PlantCompatibilityError,
+    PlantIdentity,
+    attach_plant_identity,
+    current_plant_identity,
+    validate_model_plant,
+)
 from environments.shared.train_base import (
     SpeciesConfig,
     _apply_overrides,
@@ -23,6 +32,28 @@ from environments.shared.train_base import (
     cosine_schedule,
     linear_schedule,
 )
+
+
+def _plant_identity(**changes):
+    values = {
+        "species": "velociraptor",
+        "model_path": "environments/velociraptor/assets/raptor.xml",
+        "physics_revision": 1,
+        "policy_interface_revision": 1,
+        "visual_revision": 1,
+        "source_closure_sha256": "sha256:" + "1" * 64,
+        "policy_interface_sha256": "sha256:" + "2" * 64,
+        "physics_sha256": "sha256:" + "3" * 64,
+        "visual_sha256": "sha256:" + "4" * 64,
+        "nq": 31,
+        "nv": 30,
+        "nu": 22,
+        "observation_dim": 67,
+        "action_dim": 22,
+    }
+    values.update(changes)
+    return PlantIdentity(**values)
+
 
 # ── linear_schedule ──────────────────────────────────────────────────────
 
@@ -377,7 +408,12 @@ class TestLoadVecnormIntoEnvs:
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
             _load_vecnorm_into_envs("/path/to/model.zip", train_env, eval_env)
-        mock_load.assert_called_once_with("/path/to/model_vecnorm.pkl", train_env, eval_env)
+        mock_load.assert_called_once_with(
+            "/path/to/model_vecnorm.pkl",
+            train_env,
+            eval_env,
+            unsafe_skip_plant_validation=True,
+        )
 
     @patch("environments.shared.train_base.logger")
     def test_strips_zip_extension(self, mock_logger):
@@ -385,7 +421,12 @@ class TestLoadVecnormIntoEnvs:
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
             _load_vecnorm_into_envs("/path/model.zip", train_env, eval_env)
-        mock_load.assert_called_once_with("/path/model_vecnorm.pkl", train_env, eval_env)
+        mock_load.assert_called_once_with(
+            "/path/model_vecnorm.pkl",
+            train_env,
+            eval_env,
+            unsafe_skip_plant_validation=True,
+        )
 
     @patch("environments.shared.train_base.logger")
     def test_fallback_when_vecnorm_missing(self, mock_logger):
@@ -395,6 +436,27 @@ class TestLoadVecnormIntoEnvs:
             _load_vecnorm_into_envs("/path/model", train_env, eval_env)
         assert eval_env.training is False
         assert eval_env.norm_reward is False
+
+    def test_forwards_plant_contract_and_legacy_override(self):
+        train_env = MagicMock()
+        eval_env = MagicMock()
+        identity = _plant_identity()
+        with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
+            _load_vecnorm_into_envs(
+                "/path/model.zip",
+                train_env,
+                eval_env,
+                plant_identity=identity,
+                allow_legacy_plant=True,
+            )
+
+        mock_load.assert_called_once_with(
+            "/path/model_vecnorm.pkl",
+            train_env,
+            eval_env,
+            current_plant=identity,
+            allow_legacy_plant=True,
+        )
 
 
 # ── _create_or_load_model ────────────────────────────────────────────────
@@ -443,6 +505,103 @@ class TestCreateOrLoadModel:
         kwargs = {"policy_kwargs": {"net_arch": [64]}, "lr": 1e-3}
         _create_or_load_model(sb3, "ppo", kwargs, MagicMock(), load_path="/p")
         assert "policy_kwargs" not in kwargs
+
+    def test_new_model_is_tagged_with_current_plant(self):
+        sb3 = self._make_sb3()
+        identity = _plant_identity()
+
+        model = _create_or_load_model(
+            sb3,
+            "ppo",
+            {},
+            MagicMock(),
+            plant_identity=identity,
+        )
+
+        assert getattr(model, MODEL_IDENTITY_ATTRIBUTE) == identity.to_dict()
+
+    def test_legacy_model_fails_closed_by_default(self):
+        sb3 = self._make_sb3()
+        sb3["PPO"].load.return_value = SimpleNamespace()
+
+        with pytest.raises(PlantCompatibilityError, match="has no plant identity"):
+            _create_or_load_model(
+                sb3,
+                "ppo",
+                {},
+                MagicMock(),
+                load_path="/legacy/model.zip",
+                plant_identity=_plant_identity(),
+            )
+
+    def test_explicit_legacy_load_is_retagged_for_next_save(self):
+        sb3 = self._make_sb3()
+        legacy_model = SimpleNamespace()
+        sb3["PPO"].load.return_value = legacy_model
+        identity = _plant_identity()
+
+        model = _create_or_load_model(
+            sb3,
+            "ppo",
+            {},
+            MagicMock(),
+            load_path="/legacy/model.zip",
+            plant_identity=identity,
+            allow_legacy_plant=True,
+        )
+
+        assert model is legacy_model
+        assert getattr(model, MODEL_IDENTITY_ATTRIBUTE) == identity.to_dict()
+
+    def test_tagged_incompatible_model_is_rejected_even_with_legacy_override(self):
+        sb3 = self._make_sb3()
+        loaded_model = SimpleNamespace()
+        attach_plant_identity(loaded_model, _plant_identity(physics_revision=2))
+        sb3["PPO"].load.return_value = loaded_model
+
+        with pytest.raises(PlantCompatibilityError, match="physics_revision"):
+            _create_or_load_model(
+                sb3,
+                "ppo",
+                {},
+                MagicMock(),
+                load_path="/wrong/model.zip",
+                plant_identity=_plant_identity(),
+                allow_legacy_plant=True,
+            )
+
+    def test_sb3_model_and_vecnormalize_round_trip_plant_identity(self, tmp_path):
+        pytest.importorskip("stable_baselines3")
+        from stable_baselines3 import PPO
+        from stable_baselines3.common.monitor import Monitor
+        from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+        from environments.velociraptor.envs.raptor_env import RaptorEnv
+
+        identity = current_plant_identity("velociraptor")
+
+        def make_env():
+            return Monitor(RaptorEnv())
+
+        vec_env = VecNormalize(DummyVecEnv([make_env]), norm_obs=True, norm_reward=True)
+        attach_plant_identity(vec_env, identity)
+        model = PPO("MlpPolicy", vec_env, n_steps=8, batch_size=4, n_epochs=1, verbose=0)
+        attach_plant_identity(model, identity)
+        model_path = tmp_path / "model"
+        vecnorm_path = tmp_path / "model_vecnorm.pkl"
+        model.save(model_path)
+        vec_env.save(vecnorm_path)
+        vec_env.close()
+
+        loaded_model = PPO.load(model_path)
+        validate_model_plant(loaded_model, identity)
+
+        base_env = DummyVecEnv([make_env])
+        loaded_vecnorm = VecNormalize.load(vecnorm_path, base_env)
+        try:
+            validate_model_plant(loaded_vecnorm, identity)
+        finally:
+            loaded_vecnorm.close()
 
 
 # ── _save_final_and_sync_tb ──────────────────────────────────────────────

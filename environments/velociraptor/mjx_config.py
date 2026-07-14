@@ -33,7 +33,7 @@ register_species_mjx(
     target_distance_range=(3.0, 8.0),
     target_lateral_range=(-2.0, 2.0),
     target_z=0.3,
-    body_ids={"pelvis": 1},  # MuJoCo body ID for pelvis
+    body_ids={"pelvis": 2},  # MuJoCo body ID for pelvis (world=0, prey=1)
     termination_body_heights={
         "tail_3": 0.05,  # tail_3 capsule radius=0.035 + margin
         "tail_4": 0.04,  # tail_4 capsule radius=0.025 + margin

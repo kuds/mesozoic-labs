@@ -1,9 +1,10 @@
 """Build the public species catalog from executable and versioned sources.
 
-The hand-authored manifest contains presentation metadata and pointers only.
-Interface dimensions come from the environments/MJCF models, curriculum facts
-come from the stage TOML files, and published metrics come from immutable result
-summaries.  The generated JSON is committed so the Docusaurus site can build
+The hand-authored species manifest contains presentation metadata and pointers
+only. Interface dimensions come from the environments/MJCF models, layered plant
+identity comes from the committed generated plant manifest, curriculum facts come
+from the stage TOML files, and published metrics come from immutable result
+summaries. The generated JSON is committed so the Docusaurus site can build
 without requiring Python or MuJoCo in its Node.js build environment.
 """
 
@@ -22,9 +23,18 @@ import mujoco
 
 from environments.shared.config import load_all_stages
 from environments.shared.curriculum import StageThreshold
+from environments.shared.plant_contract import (
+    GENERATED_MANIFEST_PATH,
+    PHYSICS_SCHEMA,
+    PLANT_MANIFEST_SCHEMA,
+    POLICY_INTERFACE_SCHEMA,
+    SOURCE_SCHEMA,
+    VISUAL_SCHEMA,
+)
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST_PATH = REPOSITORY_ROOT / "configs" / "species_manifest.toml"
+DEFAULT_PLANT_MANIFEST_PATH = GENERATED_MANIFEST_PATH
 DEFAULT_OUTPUT_PATH = REPOSITORY_ROOT / "website" / "src" / "data" / "species.generated.json"
 DEFAULT_README_PATH = REPOSITORY_ROOT / "README.md"
 
@@ -90,6 +100,31 @@ def _require_positive_int(value: Any, *, field: str) -> int:
     return value
 
 
+def _require_sha256(value: Any, *, field: str) -> str:
+    if not isinstance(value, str) or not value.startswith("sha256:"):
+        raise CatalogError(f"{field} must be sha256:<64 lowercase hex>")
+    digest = value.removeprefix("sha256:")
+    if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+        raise CatalogError(f"{field} must be sha256:<64 lowercase hex>")
+    return value
+
+
+def _load_plant_manifest(path: Path) -> dict[str, Any]:
+    try:
+        with path.open(encoding="utf-8") as manifest_file:
+            manifest = json.load(manifest_file)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CatalogError(f"cannot read generated plant manifest {path}: {exc}") from exc
+    manifest = _require_mapping(manifest, field="generated plant manifest")
+    if manifest.get("schema") != PLANT_MANIFEST_SCHEMA:
+        raise CatalogError(f"generated plant manifest must use schema {PLANT_MANIFEST_SCHEMA}")
+    _require_positive_int(manifest.get("fingerprint_tool_version"), field="plant fingerprint_tool_version")
+    generated_with = _require_mapping(manifest.get("generated_with"), field="plant generated_with")
+    _require_nonempty_string(generated_with.get("mujoco"), field="plant generated_with.mujoco")
+    _require_mapping(manifest.get("plants"), field="plant manifest plants")
+    return manifest
+
+
 def _optional_number(value: Any, *, field: str) -> int | float | None:
     if value is None:
         return None
@@ -144,6 +179,89 @@ def _environment_facts(entrypoint: str, expected_nu: int) -> dict[str, Any]:
         "entrypoint": entrypoint,
         "observation_dim": observation_dim,
         "action_dim": action_dim,
+    }
+
+
+def _public_plant_contract(
+    species_id: str,
+    raw_entry: Any,
+    *,
+    model_relative_path: str,
+    model: dict[str, Any],
+    environment: dict[str, Any],
+) -> dict[str, Any]:
+    """Validate one generated plant entry and select its public contract."""
+    entry = _require_mapping(raw_entry, field=f"plant contract for {species_id}")
+    if entry.get("species") != species_id:
+        raise CatalogError(f"plant contract species mismatch for {species_id}: {entry.get('species')}")
+    if entry.get("model_path") != model_relative_path:
+        raise CatalogError(
+            f"plant contract model_path mismatch for {species_id}: expected {model_relative_path}, "
+            f"got {entry.get('model_path')}"
+        )
+
+    source = _require_mapping(entry.get("source"), field=f"plant source for {species_id}")
+    if source.get("schema") != SOURCE_SCHEMA:
+        raise CatalogError(f"plant source for {species_id} must use schema {SOURCE_SCHEMA}")
+    if source.get("root") != model_relative_path:
+        raise CatalogError(f"plant source root mismatch for {species_id}: {source.get('root')}")
+
+    policy = _require_mapping(entry.get("policy_interface"), field=f"plant policy interface for {species_id}")
+    if policy.get("schema") != POLICY_INTERFACE_SCHEMA:
+        raise CatalogError(f"plant policy interface for {species_id} must use schema {POLICY_INTERFACE_SCHEMA}")
+    policy_revision = _require_positive_int(policy.get("revision"), field=f"{species_id} policy revision")
+    policy_observation_dim = _require_positive_int(
+        policy.get("observation_dim"), field=f"{species_id} plant observation_dim"
+    )
+    policy_action_dim = _require_positive_int(policy.get("action_dim"), field=f"{species_id} plant action_dim")
+    if policy_observation_dim != environment["observation_dim"]:
+        raise CatalogError(
+            f"plant observation_dim mismatch for {species_id}: contract={policy_observation_dim}, "
+            f"environment={environment['observation_dim']}"
+        )
+    if policy_action_dim != environment["action_dim"]:
+        raise CatalogError(
+            f"plant action_dim mismatch for {species_id}: contract={policy_action_dim}, "
+            f"environment={environment['action_dim']}"
+        )
+
+    physics = _require_mapping(entry.get("physics"), field=f"plant physics for {species_id}")
+    if physics.get("schema") != PHYSICS_SCHEMA:
+        raise CatalogError(f"plant physics for {species_id} must use schema {PHYSICS_SCHEMA}")
+    physics_revision = _require_positive_int(physics.get("revision"), field=f"{species_id} physics revision")
+    for dimension in ("nq", "nv", "nu"):
+        contract_value = _require_positive_int(physics.get(dimension), field=f"{species_id} plant {dimension}")
+        if contract_value != model[dimension]:
+            raise CatalogError(
+                f"plant {dimension} mismatch for {species_id}: contract={contract_value}, model={model[dimension]}"
+            )
+
+    visual = _require_mapping(entry.get("visual"), field=f"plant visual for {species_id}")
+    if visual.get("schema") != VISUAL_SCHEMA:
+        raise CatalogError(f"plant visual for {species_id} must use schema {VISUAL_SCHEMA}")
+    visual_revision = _require_positive_int(visual.get("revision"), field=f"{species_id} visual revision")
+
+    return {
+        "bundle_sha256": _require_sha256(entry.get("bundle_sha256"), field=f"{species_id} plant bundle"),
+        "source_closure_sha256": _require_sha256(source.get("closure_sha256"), field=f"{species_id} source closure"),
+        "policy_interface": {
+            "schema": POLICY_INTERFACE_SCHEMA,
+            "revision": policy_revision,
+            "observation_schema": _require_nonempty_string(
+                policy.get("observation_schema"), field=f"{species_id} observation_schema"
+            ),
+            "sha256": _require_sha256(policy.get("sha256"), field=f"{species_id} policy interface"),
+        },
+        "physics": {
+            "schema": PHYSICS_SCHEMA,
+            "revision": physics_revision,
+            "sha256": _require_sha256(physics.get("sha256"), field=f"{species_id} physics"),
+        },
+        "visual": {
+            "schema": VISUAL_SCHEMA,
+            "revision": visual_revision,
+            "sha256": _require_sha256(visual.get("sha256"), field=f"{species_id} visual"),
+        },
     }
 
 
@@ -453,10 +571,16 @@ def _build_success_metrics(species_id: str, raw_metrics: Any) -> list[dict[str, 
     return metrics
 
 
-def build_catalog(manifest_path: Path = DEFAULT_MANIFEST_PATH) -> dict[str, Any]:
+def build_catalog(
+    manifest_path: Path = DEFAULT_MANIFEST_PATH,
+    plant_manifest_path: Path = DEFAULT_PLANT_MANIFEST_PATH,
+) -> dict[str, Any]:
     """Build and validate the deterministic public species catalog."""
     manifest_path = manifest_path.resolve()
     manifest = _load_manifest(manifest_path)
+    plant_manifest_path = plant_manifest_path.resolve()
+    plant_manifest = _load_plant_manifest(plant_manifest_path)
+    raw_plant_entries = _require_mapping(plant_manifest["plants"], field="plant manifest plants")
 
     raw_capabilities = manifest.get("project_capabilities", {})
     capabilities: dict[str, dict[str, str]] = {}
@@ -504,8 +628,15 @@ def build_catalog(manifest_path: Path = DEFAULT_MANIFEST_PATH) -> dict[str, Any]
 
         model_relative_path = str(raw_species["model_path"])
         model_path = _repo_path(model_relative_path, field=f"{species_id} model")
-        model = {"path": model_relative_path, **_model_facts(model_path)}
+        model: dict[str, Any] = {"path": model_relative_path, **_model_facts(model_path)}
         environment = _environment_facts(str(raw_species["env_entrypoint"]), int(model["nu"]))
+        model["plant_contract"] = _public_plant_contract(
+            species_id,
+            raw_plant_entries.get(species_id),
+            model_relative_path=model_relative_path,
+            model=model,
+            environment=environment,
+        )
 
         training_notebook_ids = [str(notebook_id) for notebook_id in raw_species.get("training_notebooks", [])]
         unknown_notebooks = sorted(set(training_notebook_ids) - notebook_ids)
@@ -553,9 +684,21 @@ def build_catalog(manifest_path: Path = DEFAULT_MANIFEST_PATH) -> dict[str, Any]
         unknown = sorted(species_ids - implemented_species)
         raise CatalogError(f"manifest/implemented species coverage mismatch; unlisted={missing}, unknown={unknown}")
 
+    plant_species = set(raw_plant_entries)
+    if species_ids != plant_species:
+        missing = sorted(species_ids - plant_species)
+        unknown = sorted(plant_species - species_ids)
+        raise CatalogError(f"plant/species manifest coverage mismatch; missing={missing}, unknown={unknown}")
+
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "manifest_path": manifest_path.relative_to(REPOSITORY_ROOT).as_posix(),
+        "plant_manifest": {
+            "path": plant_manifest_path.relative_to(REPOSITORY_ROOT).as_posix(),
+            "schema": PLANT_MANIFEST_SCHEMA,
+            "fingerprint_tool_version": int(plant_manifest["fingerprint_tool_version"]),
+            "generated_with": dict(plant_manifest["generated_with"]),
+        },
         "project_capabilities": capabilities,
         "notebooks": notebooks,
         "species": species_catalog,
@@ -628,13 +771,14 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
 def render_readme_species(catalog: dict[str, Any]) -> str:
     """Render active species facts and current stages for the root README."""
     lines = [
-        "The active-species tables are generated from `configs/species_manifest.toml`, the executable Gymnasium",
-        "environments, compiled MJCF models, and current stage TOML files. The budgets and gates shown are for the",
-        "Stable-Baselines3 curriculum path. Do not edit the generated block by hand.",
+        "The active-species tables are generated from `configs/species_manifest.toml`, the layered plant contract,",
+        "the executable Gymnasium environments, compiled MJCF models, and current stage TOML files. The budgets and",
+        "gates shown are for the Stable-Baselines3 curriculum path. Do not edit the generated block by hand.",
     ]
     for species in catalog["species"]:
         environment = species["environment"]
         model = species["model"]
+        plant = model["plant_contract"]
         lines.extend(
             [
                 "",
@@ -648,6 +792,10 @@ def render_readme_species(catalog: dict[str, Any]) -> str:
                 f"| Action dimension / actuators | {environment['action_dim']} |",
                 f"| Generalized coordinates / velocities | nq={model['nq']}, nv={model['nv']} |",
                 f"| Compiled dynamic model mass | {model['dynamic_mass_kg']:.1f} kg |",
+                "| Plant contract revisions | "
+                f"policy r{plant['policy_interface']['revision']}; "
+                f"physics r{plant['physics']['revision']}; visual r{plant['visual']['revision']} "
+                "([details](docs/PLANT_CONTRACT.md)) |",
                 f"| Model | `{model['path']}` |",
                 "",
                 "| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |",
@@ -755,9 +903,10 @@ def write_catalog(
     output_path: Path = DEFAULT_OUTPUT_PATH,
     manifest_path: Path = DEFAULT_MANIFEST_PATH,
     readme_path: Path = DEFAULT_README_PATH,
+    plant_manifest_path: Path = DEFAULT_PLANT_MANIFEST_PATH,
 ) -> None:
     """Build and write the generated catalog JSON and README blocks."""
-    catalog = build_catalog(manifest_path)
+    catalog = build_catalog(manifest_path, plant_manifest_path)
     readme_source = readme_path.read_text(encoding="utf-8")
     rendered_readme = render_readme(readme_source, catalog)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -769,9 +918,10 @@ def check_catalog(
     output_path: Path = DEFAULT_OUTPUT_PATH,
     manifest_path: Path = DEFAULT_MANIFEST_PATH,
     readme_path: Path = DEFAULT_README_PATH,
+    plant_manifest_path: Path = DEFAULT_PLANT_MANIFEST_PATH,
 ) -> None:
     """Raise when committed catalog outputs are missing or stale."""
-    catalog = build_catalog(manifest_path)
+    catalog = build_catalog(manifest_path, plant_manifest_path)
     expected = render_catalog_json(catalog)
     if not output_path.exists():
         raise CatalogError(f"generated catalog is missing: {output_path.relative_to(REPOSITORY_ROOT)}")
@@ -792,6 +942,7 @@ def check_catalog(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST_PATH)
+    parser.add_argument("--plant-manifest", type=Path, default=DEFAULT_PLANT_MANIFEST_PATH)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument("--readme", type=Path, default=DEFAULT_README_PATH)
     parser.add_argument("--check", action="store_true", help="Fail instead of writing when generated data is stale")
@@ -799,10 +950,10 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.check:
-            check_catalog(args.output, args.manifest, args.readme)
+            check_catalog(args.output, args.manifest, args.readme, args.plant_manifest)
             print(f"Species catalog is current: {args.output} and {args.readme}")
         else:
-            write_catalog(args.output, args.manifest, args.readme)
+            write_catalog(args.output, args.manifest, args.readme, args.plant_manifest)
             print(f"Wrote species catalog: {args.output} and {args.readme}")
     except CatalogError as exc:
         parser.error(str(exc))

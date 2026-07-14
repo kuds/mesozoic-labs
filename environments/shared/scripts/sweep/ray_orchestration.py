@@ -9,7 +9,7 @@ GCP Ray job script) calls to run and analyze a Ray Tune sweep:
   sync final state to Drive).
 - ``discover_and_rank_trials``: Find completed trial directories and rank them
   by reward (from evaluations.npz or fallback quick-eval).
-- ``export_best_trial``: Save the best trial's config JSON and copy its model
+- ``export_best_trial``: Validate and promote the best trial's config and model
   files to a convenient location.
 """
 
@@ -17,13 +17,94 @@ from __future__ import annotations
 
 import json
 import logging
-import shutil
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+from environments.shared.plant_contract import (
+    PlantCompatibilityError,
+    PlantIdentity,
+    current_plant_identity,
+    validate_recorded_identity,
+    write_plant_identity,
+)
+
 logger = logging.getLogger(__name__)
+
+PLANT_IDENTITY_FILENAME = "plant_identity.json"
+
+
+def _validate_plant_identity_sidecar(
+    path: str | Path,
+    current_plant: PlantIdentity,
+    *,
+    artifact: str,
+    allow_legacy_plant: bool = False,
+) -> None:
+    """Validate a persisted Ray sweep/trial identity sidecar."""
+    identity_path = Path(path)
+    recorded: dict[str, Any] | None = None
+    if identity_path.exists():
+        try:
+            raw = json.loads(identity_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise PlantCompatibilityError(f"{artifact} has an unreadable plant identity: {exc}") from exc
+        if not isinstance(raw, dict):
+            raise PlantCompatibilityError(f"{artifact} has invalid plant identity metadata: expected a JSON object")
+        recorded = raw
+    validate_recorded_identity(
+        recorded,
+        current_plant,
+        artifact=artifact,
+        allow_legacy=allow_legacy_plant,
+    )
+
+
+def _load_and_validate_promotion_artifacts(
+    source_files: list[Path],
+    *,
+    algorithm: str,
+    current_plant: PlantIdentity,
+    allow_legacy_plant: bool,
+) -> dict[Path, Any]:
+    """Deserialize, validate, and retag model/VecNormalize promotion inputs."""
+    from stable_baselines3 import PPO, SAC
+    from stable_baselines3.common.save_util import load_from_pkl
+
+    from environments.shared.plant_contract import attach_plant_identity, validate_model_plant
+
+    alg_cls = SAC if algorithm == "sac" else PPO
+    loaded: dict[Path, Any] = {}
+    for source in source_files:
+        if source.suffix == ".zip":
+            artifact = alg_cls.load(str(source), device="cpu")
+        elif source.suffix == ".pkl":
+            # VecNormalize.load() requires a live VecEnv. Its implementation
+            # first unpickles the same object and then attaches that env, so
+            # the SB3 pickle loader is the minimal promotion-time equivalent.
+            artifact = load_from_pkl(source)
+            # VecNormalize.__setstate__ deliberately leaves these transient
+            # fields absent until set_venv(). They are excluded again by
+            # __getstate__, but must exist for a safe promotion-time re-save.
+            if "class_attributes" not in artifact.__dict__:
+                artifact.class_attributes = {}
+            if "returns" not in artifact.__dict__:
+                artifact.returns = np.zeros(int(getattr(artifact, "num_envs", 1)))
+        else:  # defensive: export patterns currently admit only ZIP and PKL
+            raise ValueError(f"unsupported promotion artifact: {source}")
+        validate_model_plant(
+            artifact,
+            current_plant,
+            artifact=str(source),
+            allow_legacy=allow_legacy_plant,
+        )
+        # Promotion creates a new artifact. Retag after successful validation
+        # so explicit legacy migration and compatible visual-only revisions
+        # both produce self-describing outputs.
+        attach_plant_identity(artifact, current_plant)
+        loaded[source] = artifact
+    return loaded
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +137,7 @@ def create_ray_tuner(
     reduction_factor: int = 2,
     report_interval_s: int = 300,
     sync_interval_s: int = 300,
+    allow_legacy_plant: bool = False,
 ) -> Any:
     """Build a configured ``ray.tune.Tuner`` ready to call ``.fit()``.
 
@@ -91,6 +173,9 @@ def create_ray_tuner(
         How often TrialTerminationCallback prints status summaries.
     sync_interval_s:
         How often ExperimentStateSyncCallback syncs state to Drive.
+    allow_legacy_plant:
+        Explicitly permit untagged warm-start artifacts. Incompatible tagged
+        artifacts are always rejected.
 
     Returns
     -------
@@ -110,6 +195,8 @@ def create_ray_tuner(
 
     local_ray_dir = Path(local_ray_dir)
     sweep_dir = Path(sweep_dir)
+    current_plant = current_plant_identity(species)
+    write_plant_identity(sweep_dir / PLANT_IDENTITY_FILENAME, current_plant)
 
     # Scheduler
     max_reports = timesteps // eval_freq
@@ -127,6 +214,10 @@ def create_ray_tuner(
     # Callbacks
     experiment_name = f"{species}_stage{stage}_{algorithm}"
     local_experiment_dir = local_ray_dir / experiment_name
+    write_plant_identity(
+        sweep_dir / "ray_results" / experiment_name / PLANT_IDENTITY_FILENAME,
+        current_plant,
+    )
 
     trial_callback = TrialTerminationCallback(report_interval_s=report_interval_s)
     state_sync_callback = ExperimentStateSyncCallback(
@@ -155,6 +246,7 @@ def create_ray_tuner(
         "_collapse_min_evals": collapse_min_evals,
         "_collapse_patience": collapse_patience,
         "_n_eval_episodes": n_eval_episodes,
+        "_allow_legacy_plant": allow_legacy_plant,
     }
     full_config = {**fixed_config, **search_space}
 
@@ -207,6 +299,7 @@ def run_ray_sweep(
     grace_period: int = 30,
     reduction_factor: int = 2,
     resume: bool = False,
+    allow_legacy_plant: bool = False,
     **kwargs: Any,
 ) -> Any:
     """Run a complete Ray Tune sweep, optionally resuming a prior run.
@@ -219,6 +312,9 @@ def run_ray_sweep(
     resume:
         If True and a local experiment directory exists, restore the Tuner
         from it (completed trials kept, partial trials restart).
+    allow_legacy_plant:
+        Explicitly permit a pre-contract sweep state or warm-start artifact
+        with no plant identity. Incompatible tagged state is always rejected.
     **kwargs:
         Forwarded to ``create_ray_tuner`` (e.g. ``report_interval_s``).
 
@@ -255,11 +351,29 @@ def run_ray_sweep(
         "_collapse_min_evals": collapse_min_evals,
         "_collapse_patience": collapse_patience,
         "_n_eval_episodes": n_eval_episodes,
+        "_allow_legacy_plant": allow_legacy_plant,
     }
     full_config = {**fixed_config, **search_space}
 
     restored = False
     if resume and local_experiment_dir.exists():
+        current_plant = current_plant_identity(species)
+        sweep_identity_path = sweep_dir / PLANT_IDENTITY_FILENAME
+        experiment_identity_path = drive_ray_results_dir / experiment_name / PLANT_IDENTITY_FILENAME
+        for identity_path, artifact in (
+            (sweep_identity_path, f"Ray sweep state at {sweep_dir}"),
+            (experiment_identity_path, f"Ray experiment state {experiment_name}"),
+        ):
+            _validate_plant_identity_sidecar(
+                identity_path,
+                current_plant,
+                artifact=artifact,
+                allow_legacy_plant=allow_legacy_plant,
+            )
+        # An explicitly accepted legacy state becomes tagged before any
+        # resumed trial can produce another artifact.
+        write_plant_identity(sweep_identity_path, current_plant)
+        write_plant_identity(experiment_identity_path, current_plant)
         logger.info("Restoring Tuner from: %s", local_experiment_dir)
         tuner = tune.Tuner.restore(
             path=str(local_experiment_dir),
@@ -298,6 +412,7 @@ def run_ray_sweep(
             use_asha=use_asha,
             grace_period=grace_period,
             reduction_factor=reduction_factor,
+            allow_legacy_plant=allow_legacy_plant,
             **kwargs,
         )
 
@@ -345,6 +460,7 @@ def discover_and_rank_trials(
     stage_configs: dict[int, dict[str, Any]] | None = None,
     stage: int = 1,
     top_k: int = 5,
+    allow_legacy_plant: bool = False,
 ) -> list[tuple[Path, float]]:
     """Find completed trial directories and rank them by best mean reward.
 
@@ -368,6 +484,9 @@ def discover_and_rank_trials(
         Curriculum stage (needed only for fallback quick-eval ranking).
     top_k:
         Maximum number of top trials to return.
+    allow_legacy_plant:
+        Explicitly permit untagged legacy artifacts during fallback
+        evaluation. Incompatible tagged artifacts are always rejected.
 
     Returns
     -------
@@ -413,6 +532,7 @@ def discover_and_rank_trials(
             algorithm=algorithm,
             stage_configs=stage_configs,
             stage=stage,
+            allow_legacy_plant=allow_legacy_plant,
         )
     elif missing_npz_count > 0:
         logger.info("%d trial(s) missing evaluations.npz — ranked last.", missing_npz_count)
@@ -428,6 +548,7 @@ def _quick_rank_trials(
     algorithm: str,
     stage_configs: dict[int, dict[str, Any]],
     stage: int,
+    allow_legacy_plant: bool,
 ) -> list[tuple[Path, float]]:
     """Run quick 1-episode evals in parallel using Ray tasks.
 
@@ -446,30 +567,61 @@ def _quick_rank_trials(
     env_kwargs = stage_configs[stage]["env_kwargs"].copy()
 
     @ray.remote(num_cpus=1, num_gpus=0)
-    def _eval_one_trial(model_dir: str, vecnorm_path: str, alg: str, env_kw: dict, species: str) -> float:
+    def _eval_one_trial(
+        model_dir: str,
+        vecnorm_path: str,
+        alg: str,
+        env_kw: dict,
+        species: str,
+        allow_legacy: bool,
+    ) -> float:
         """Evaluate a single trial for 1 episode inside a Ray task."""
         import os
 
         os.environ["MUJOCO_GL"] = "egl"
         from stable_baselines3 import PPO, SAC
 
+        from environments.shared.plant_contract import (
+            current_plant_identity,
+            validate_environment_plant,
+            validate_model_plant,
+        )
         from environments.shared.species_registry import get_species_config
         from environments.shared.train_base import _ensure_sb3
 
         sb3 = _ensure_sb3()
         sp_cfg = get_species_config(species)
+        current_plant = current_plant_identity(species)
         alg_cls = SAC if alg == "sac" else PPO
 
         def _mk():
-            return sb3["Monitor"](sp_cfg.env_class(**env_kw))
+            raw_env = sp_cfg.env_class(**env_kw)
+            try:
+                validate_environment_plant(raw_env, current_plant, artifact=f"{species} Ray evaluation environment")
+            except Exception:
+                raw_env.close()
+                raise
+            return sb3["Monitor"](raw_env)
 
         ev = sb3["DummyVecEnv"]([_mk])
         vn_path = Path(vecnorm_path)
         if vn_path.exists():
             ev = sb3["VecNormalize"].load(str(vn_path), ev)
+            validate_model_plant(
+                ev,
+                current_plant,
+                artifact=str(vn_path),
+                allow_legacy=allow_legacy,
+            )
             ev.training = False
             ev.norm_reward = False
         m = alg_cls.load(model_dir, env=ev)
+        validate_model_plant(
+            m,
+            current_plant,
+            artifact=model_dir,
+            allow_legacy=allow_legacy,
+        )
         obs = ev.reset()
         total = 0.0
         while True:
@@ -492,6 +644,7 @@ def _quick_rank_trials(
             algorithm,
             env_kwargs,
             species_cfg.species,
+            allow_legacy_plant,
         )
         futures[ref] = td
 
@@ -521,6 +674,7 @@ def evaluate_trials_parallel(
     stage: int,
     stage_config: dict[str, Any],
     n_eval_episodes: int = 30,
+    allow_legacy_plant: bool = False,
 ) -> list[dict[str, Any]]:
     """Evaluate multiple trials in parallel using Ray tasks.
 
@@ -542,6 +696,9 @@ def evaluate_trials_parallel(
         Stage configuration dict (for env_kwargs).
     n_eval_episodes:
         Number of evaluation episodes per trial.
+    allow_legacy_plant:
+        Explicitly permit untagged legacy model and VecNormalize artifacts.
+        Incompatible tagged artifacts are always rejected.
 
     Returns
     -------
@@ -564,6 +721,7 @@ def evaluate_trials_parallel(
         n_episodes: int,
         rank: int,
         sweep_reward: float,
+        allow_legacy: bool,
     ) -> dict[str, Any]:
         """Evaluate one trial with full LocomotionMetrics inside a Ray task."""
         import os
@@ -575,24 +733,52 @@ def evaluate_trials_parallel(
         from stable_baselines3 import PPO, SAC
 
         from environments.shared.metrics import LocomotionMetrics, env_dt
+        from environments.shared.plant_contract import (
+            current_plant_identity,
+            validate_environment_plant,
+            validate_model_plant,
+        )
         from environments.shared.species_registry import get_species_config
         from environments.shared.train_base import _ensure_sb3
 
         sb3 = _ensure_sb3()
         sp_cfg = get_species_config(species_name)
+        current_plant = current_plant_identity(species_name)
         alg_cls = SAC if alg == "sac" else PPO
 
         def _mk():
-            return sb3["Monitor"](sp_cfg.env_class(**env_kw))
+            raw_env = sp_cfg.env_class(**env_kw)
+            try:
+                validate_environment_plant(
+                    raw_env,
+                    current_plant,
+                    artifact=f"{species_name} Ray post-analysis environment",
+                )
+            except Exception:
+                raw_env.close()
+                raise
+            return sb3["Monitor"](raw_env)
 
         eval_env = sb3["DummyVecEnv"]([_mk])
         vn = _Path(vecnorm_path)
         if vn.exists():
             eval_env = sb3["VecNormalize"].load(str(vn), eval_env)
+            validate_model_plant(
+                eval_env,
+                current_plant,
+                artifact=str(vn),
+                allow_legacy=allow_legacy,
+            )
             eval_env.training = False
             eval_env.norm_reward = False
 
         model = alg_cls.load(model_path, env=eval_env)
+        validate_model_plant(
+            model,
+            current_plant,
+            artifact=model_path,
+            allow_legacy=allow_legacy,
+        )
 
         episode_reports = []
         eval_dt = env_dt(eval_env)
@@ -645,6 +831,7 @@ def evaluate_trials_parallel(
             n_eval_episodes,
             rank,
             sweep_reward,
+            allow_legacy_plant,
         )
         refs.append(ref)
 
@@ -680,11 +867,12 @@ def export_best_trial(
     num_trials: int,
     use_asha: bool = True,
     local_trials_dir: str | Path | None = None,
+    allow_legacy_plant: bool = False,
 ) -> Path:
-    """Save the best trial's config and model files to the sweep directory.
+    """Validate and promote the best trial's config and model files.
 
-    Writes ``best_trial_config.json`` and copies model files to
-    ``sweep_dir/best_model/``.
+    Writes ``best_trial_config.json`` and re-saves validated model files to
+    ``sweep_dir/best_model/`` with the current plant identity embedded.
 
     Parameters
     ----------
@@ -696,6 +884,9 @@ def export_best_trial(
         Metadata included in the config JSON.
     local_trials_dir:
         Local trials directory (preferred source for model files).
+    allow_legacy_plant:
+        Explicitly permit export of an untagged legacy trial. Incompatible
+        tagged trials are always rejected.
 
     Returns
     -------
@@ -703,6 +894,41 @@ def export_best_trial(
         Path to the ``best_model/`` directory.
     """
     sweep_dir = Path(sweep_dir)
+    sweep_dir.mkdir(parents=True, exist_ok=True)
+    current_plant = current_plant_identity(species)
+
+    # Resolve and validate the source trial before producing any promoted
+    # artifacts. The directory sidecar rejects a state-level mismatch first;
+    # each embedded model/VecNormalize identity is validated below as well.
+    best_trial_id = best_result.metrics.get("trial_id", "")
+    local_model_dir = Path(local_trials_dir) / str(best_trial_id) / "models" if local_trials_dir else None
+    drive_model_dir = sweep_dir / "trials" / str(best_trial_id) / "models"
+    if local_model_dir and local_model_dir.exists():
+        source_model_dir = local_model_dir
+    else:
+        source_model_dir = drive_model_dir
+
+    patterns = (
+        f"stage{stage}_final.zip",
+        f"stage{stage}_final_vecnorm.pkl",
+        "best_model.zip",
+        "best_model_vecnorm.pkl",
+    )
+    source_files = [source for pattern in patterns for source in source_model_dir.glob(pattern)]
+    loaded_artifacts: dict[Path, Any] = {}
+    if source_files:
+        _validate_plant_identity_sidecar(
+            source_model_dir.parent / PLANT_IDENTITY_FILENAME,
+            current_plant,
+            artifact=f"Ray trial {best_trial_id}",
+            allow_legacy_plant=allow_legacy_plant,
+        )
+        loaded_artifacts = _load_and_validate_promotion_artifacts(
+            source_files,
+            algorithm=algorithm,
+            current_plant=current_plant,
+            allow_legacy_plant=allow_legacy_plant,
+        )
 
     # Save config JSON
     best_config = {k: v for k, v in best_result.config.items() if not k.startswith("_")}
@@ -715,6 +941,7 @@ def export_best_trial(
         "num_trials": num_trials,
         "scheduler": "ASHA" if use_asha else "FIFO",
         "hyperparameters": best_config,
+        "plant_identity": current_plant.to_dict(),
     }
 
     best_config_path = sweep_dir / "best_trial_config.json"
@@ -722,38 +949,22 @@ def export_best_trial(
         json.dump(best_config_with_meta, f, indent=2, default=str)
     logger.info("Best trial config saved to: %s", best_config_path)
 
-    # Copy model files
-    best_trial_id = best_result.metrics.get("trial_id", "")
-    local_model_dir = Path(local_trials_dir) / str(best_trial_id) / "models" if local_trials_dir else None
-    drive_model_dir = sweep_dir / "trials" / str(best_trial_id) / "models"
-
-    # Prefer local (always complete), fall back to Drive (synced copy)
-    if local_model_dir and local_model_dir.exists():
-        source_model_dir = local_model_dir
-    else:
-        source_model_dir = drive_model_dir
-
     best_model_dest = sweep_dir / "best_model"
     best_model_dest.mkdir(parents=True, exist_ok=True)
 
     found_any = False
-    for pattern in [
-        f"stage{stage}_final.zip",
-        f"stage{stage}_final_vecnorm.pkl",
-        "best_model.zip",
-        "best_model_vecnorm.pkl",
-    ]:
-        src_files = list(source_model_dir.glob(pattern)) if source_model_dir.exists() else []
-        for src in src_files:
-            dest = best_model_dest / src.name
-            shutil.copy2(str(src), str(dest))
-            logger.info("Copied: %s -> %s", src.name, dest)
-            found_any = True
+    for src in source_files:
+        dest = best_model_dest / src.name
+        loaded_artifacts[src].save(str(dest))
+        logger.info("Promoted: %s -> %s", src.name, dest)
+        found_any = True
 
     if not found_any:
         logger.warning(
             "No model files found in %s. Check if the best trial completed.",
             source_model_dir,
         )
+    else:
+        write_plant_identity(best_model_dest / PLANT_IDENTITY_FILENAME, current_plant)
 
     return best_model_dest

@@ -1,9 +1,9 @@
 """Tests that the raptor model is physically set up for static balance.
 
 Validates the home keyframe: COM projection, support polygon, joint limits,
-and zero-torque stability. These catch model regressions (e.g. mass changes
-that shift COM behind the feet, or keyframe edits that violate joint limits)
-before any RL training is attempted.
+neutral-action stability, and actuator-disabled passive behavior. These catch
+model regressions (e.g. mass changes that shift COM behind the feet, or
+keyframe edits that violate joint limits) before any RL training is attempted.
 
 The raptor model uses a ~20 deg forward-leaning pelvis to place the COM over the
 digitigrade feet, matching dromaeosaurid biomechanics. The tilt tests account
@@ -13,10 +13,11 @@ for this natural lean.
 import pytest
 
 from environments.shared.tests.static_balance_helpers import (
+    ActuatorDisabledPassiveBase,
     HomePoseCOMBase,
     JointLimitsAtHomeBase,
     MassDistributionBase,
-    ZeroTorqueStabilityBase,
+    NeutralActionStabilityBase,
 )
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
@@ -33,7 +34,7 @@ ROOT_BODY = "pelvis"
 
 @pytest.fixture
 def env():
-    e = RaptorEnv()
+    e = RaptorEnv(reset_noise_scale=0.0)
     e.reset(seed=0)
     yield e
     e.close()
@@ -48,10 +49,18 @@ class TestHomePoseCOM(HomePoseCOMBase):
     species_label = "raptor"
 
 
-class TestZeroTorqueStability(ZeroTorqueStabilityBase):
+class TestNeutralActionStability(NeutralActionStabilityBase):
     species_name = "Raptor"
     root_body_id_attr = "pelvis_id"
     max_height_drop = 0.10
+    max_tilt_increase = 0.53  # 30 degrees
+
+
+class TestActuatorDisabledPassive(ActuatorDisabledPassiveBase):
+    species_name = "Raptor"
+    root_body_id_attr = "pelvis_id"
+    max_height_drop = 0.08
+    max_tilt_increase = 0.30
 
 
 class TestJointLimitsAtHome(JointLimitsAtHomeBase):

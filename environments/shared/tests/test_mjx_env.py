@@ -3,6 +3,8 @@
 These tests are skipped when JAX/MJX is not installed.
 """
 
+import inspect
+
 import pytest
 
 _has_jax = False
@@ -13,6 +15,13 @@ try:
     _has_jax = True
 except ImportError:
     pass
+
+
+def test_reset_and_step_use_the_fingerprinted_observation_builder():
+    from environments.shared.mjx_env import MJXDinoEnv
+
+    assert "build_mjx_observation(" in inspect.getsource(MJXDinoEnv._make_step_fn)
+    assert "build_mjx_observation(" in inspect.getsource(MJXDinoEnv._make_reset_fn)
 
 
 @pytest.mark.skipif(not _has_jax, reason="JAX/MJX not installed")
@@ -45,6 +54,13 @@ class TestMJXDinoEnv:
         env = MJXDinoEnv("brachiosaurus", stage=1, num_envs=4)
         assert env.action_dim == 30
         assert env.num_envs == 4
+
+    def test_stage_cannot_override_versioned_plant_interface(self):
+        import environments.trex.mjx_config  # noqa: F401
+        from environments.shared.mjx_env import MJXDinoEnv
+
+        with pytest.raises(ValueError, match="versioned plant interface"):
+            MJXDinoEnv("trex", stage=1, num_envs=1, env_kwargs={"frame_skip": 4})
 
     def test_reset_returns_state(self):
         """Reset returns an EnvState with correct shapes."""

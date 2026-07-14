@@ -1,12 +1,13 @@
 """Report per-actuator force saturation for any species plant.
 
 Measures what fraction of simulation steps each position actuator spends
-at its ``forcerange`` cap, under (a) static settling and (b) scripted
+at its ``forcerange`` cap, under (a) settling with the XML home-keyframe
+controls and (b) scripted
 gait excitation (alternating legs for bipeds, diagonal-pair trot for the
 brachiosaurus), and how much the bounded plant diverges from an
 unbounded copy under identical commands. Written for the stage-2
 locomotion investigation (docs/investigations/STAGE2_RECOMMENDATIONS.md):
-spike-cap ``forcerange`` sizing validated only against static settling
+spike-cap ``forcerange`` sizing validated only against home-control settling
 clipped a large fraction of gait torque on every species. Re-run this
 after any actuator re-sizing, before spending GPU hours.
 
@@ -69,7 +70,7 @@ def report(species, hz=GAIT_HZ, amplitude=GAIT_AMPLITUDE, steps=2500):
     xml = XML_PATHS[species].read_text()
     xml_unbounded = re.sub(r' forcerange="[^"]*"', "", xml)
 
-    model, clip_settle, _ = _run(xml, gait=False, steps=steps, hz=hz, amplitude=amplitude)
+    model, clip_home_control, _ = _run(xml, gait=False, steps=steps, hz=hz, amplitude=amplitude)
     _, clip_gait, z_bounded = _run(xml, gait=True, steps=steps, hz=hz, amplitude=amplitude)
     _, _, z_unbounded = _run(xml_unbounded, gait=True, steps=steps, hz=hz, amplitude=amplitude)
 
@@ -77,13 +78,13 @@ def report(species, hz=GAIT_HZ, amplitude=GAIT_AMPLITUDE, steps=2500):
     is_position = model.actuator_biasprm[:, 1] < 0
 
     print(f"\n{species} actuator saturation over {steps} steps ({hz} Hz, {amplitude:.0%} amplitude gait excitation)")
-    print(f"{'actuator':26s} {'kp':>6s} {'forcerange':>10s} {'settle':>8s} {'gait':>8s}")
+    print(f"{'actuator':26s} {'kp':>6s} {'forcerange':>10s} {'home':>8s} {'gait':>8s}")
     for i in np.argsort(-clip_gait):
         if not is_position[i]:
             continue  # motors (claw) pin their gear force by construction
         kp = model.actuator_gainprm[i, 0]
         fr = model.actuator_forcerange[i, 1]
-        print(f"{names[i]:26s} {kp:6.0f} {fr:10.0f} {clip_settle[i]:8.1%} {clip_gait[i]:8.1%}")
+        print(f"{names[i]:26s} {kp:6.0f} {fr:10.0f} {clip_home_control[i]:8.1%} {clip_gait[i]:8.1%}")
 
     rms = float(np.sqrt(np.mean((z_bounded - z_unbounded) ** 2)))
     print(f"root-z RMS divergence, bounded vs unbounded plant under identical commands: {rms:.4f} m")

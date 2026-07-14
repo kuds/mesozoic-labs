@@ -8,7 +8,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .plant_contract import PlantIdentity
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +184,8 @@ def record_stage_video(
     vecnorm_path: str | None = None,
     max_steps: int = 1000,
     label: str | None = None,
+    plant_identity: PlantIdentity | None = None,
+    allow_legacy_plant: bool = False,
 ):
     """Record and save a video of the trained policy for a given stage.
 
@@ -196,15 +201,47 @@ def record_stage_video(
         logger.warning("Skipping video for stage %d (mediapy not installed).", stage)
         return
 
+    from .plant_contract import current_plant_identity, validate_environment_plant, validate_model_plant
     from .train_base import _ensure_sb3
 
     sb3 = _ensure_sb3()
+    if plant_identity is None and species != "dino":
+        plant_identity = current_plant_identity(species)
+    if plant_identity is not None:
+        validate_model_plant(
+            model,
+            plant_identity,
+            artifact=f"{species} stage {stage} video model",
+            allow_legacy=allow_legacy_plant,
+        )
     render_env = env_class(render_mode="rgb_array", **env_kwargs)
+    if plant_identity is not None:
+        try:
+            validate_environment_plant(
+                render_env,
+                plant_identity,
+                artifact=f"{species} stage {stage} video environment",
+            )
+        except Exception:
+            render_env.close()
+            raise
 
     vec_normalize = None
     if vecnorm_path and Path(vecnorm_path).exists():
         dummy_env = sb3["DummyVecEnv"]([lambda: env_class(**env_kwargs)])
         vec_normalize = sb3["VecNormalize"].load(vecnorm_path, dummy_env)
+        if plant_identity is not None:
+            try:
+                validate_model_plant(
+                    vec_normalize,
+                    plant_identity,
+                    artifact=vecnorm_path,
+                    allow_legacy=allow_legacy_plant,
+                )
+            except Exception:
+                vec_normalize.close()
+                render_env.close()
+                raise
         vec_normalize.training = False
         vec_normalize.norm_reward = False
 
@@ -244,13 +281,16 @@ def evaluate(
     render: bool = True,
     stage: int | None = None,
     algorithm: str = "ppo",
+    allow_legacy_plant: bool = False,
 ):
     """Evaluate a trained model with full locomotion metrics."""
     from .metrics import LocomotionMetrics
     from .metrics import env_dt as _env_dt
+    from .plant_contract import current_plant_identity, validate_environment_plant, validate_model_plant
     from .train_base import _ensure_sb3
 
     sb3 = _ensure_sb3()
+    plant_identity = current_plant_identity(species_cfg.species)
 
     logger.info("Loading model from: %s", model_path)
 
@@ -272,6 +312,15 @@ def evaluate(
 
     def _make_eval_env():
         env = species_cfg.env_class(render_mode=render_mode, **env_kwargs)
+        try:
+            validate_environment_plant(
+                env,
+                plant_identity,
+                artifact=f"{species_cfg.species} stage {stage} evaluation environment",
+            )
+        except Exception:
+            env.close()
+            raise
         return sb3["Monitor"](env)
 
     vec_env = sb3["DummyVecEnv"]([_make_eval_env])
@@ -279,13 +328,33 @@ def evaluate(
     if Path(vecnorm_path).exists():
         logger.info("Loading normalization stats from: %s", vecnorm_path)
         vec_env = sb3["VecNormalize"].load(vecnorm_path, vec_env)
+        try:
+            validate_model_plant(
+                vec_env,
+                plant_identity,
+                artifact=vecnorm_path,
+                allow_legacy=allow_legacy_plant,
+            )
+        except Exception:
+            vec_env.close()
+            raise
         vec_env.training = False
         vec_env.norm_reward = False
     else:
         logger.warning("No VecNormalize stats found. Results may differ from training.")
 
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
-    model = alg_cls.load(model_path, env=vec_env)
+    try:
+        model = alg_cls.load(model_path, env=vec_env)
+        validate_model_plant(
+            model,
+            plant_identity,
+            artifact=model_path,
+            allow_legacy=allow_legacy_plant,
+        )
+    except Exception:
+        vec_env.close()
+        raise
 
     logger.info(
         "Evaluating for %d episodes (stage %d: %s)...",

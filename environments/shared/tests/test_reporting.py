@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from environments.shared.plant_contract import MODEL_IDENTITY_ATTRIBUTE, PlantIdentity
 from environments.shared.reporting import (
     CSV_METRIC_COLUMNS,
     _compute_fieldnames,
@@ -14,11 +15,31 @@ from environments.shared.reporting import (
     format_duration_hms,
     parse_optional_bool,
     save_jax_stage_artifacts,
+    save_results_csv,
     save_results_json,
     write_results_csv,
     write_stage_summary,
     write_training_summary,
 )
+
+
+def _plant_identity():
+    return PlantIdentity(
+        species="velociraptor",
+        model_path="environments/velociraptor/assets/raptor.xml",
+        physics_revision=1,
+        policy_interface_revision=1,
+        visual_revision=1,
+        source_closure_sha256="sha256:" + "1" * 64,
+        policy_interface_sha256="sha256:" + "2" * 64,
+        physics_sha256="sha256:" + "3" * 64,
+        visual_sha256="sha256:" + "4" * 64,
+        nq=31,
+        nv=30,
+        nu=22,
+        observation_dim=67,
+        action_dim=22,
+    )
 
 
 class TestStrictRecordedGate:
@@ -552,6 +573,32 @@ class TestSaveResultsJson:
         assert "training_time_seconds" in stage
         assert stage["training_time"] == "1:01:01"
 
+    def test_includes_plant_identity_from_final_stage(self, tmp_path):
+        identity = _plant_identity().to_dict()
+        results = [_make_stage_result(1, plant_identity=identity)]
+
+        path = save_results_json(results, "velociraptor", "PPO", seed=42, results_dir=tmp_path)
+
+        assert json.loads(path.read_text())["plant_identity"] == identity
+
+    def test_standard_csv_flattens_plant_provenance(self, tmp_path):
+        identity = _plant_identity().to_dict()
+        results = [_make_stage_result(1, plant_identity=identity)]
+        configs = {
+            1: {
+                "env_kwargs": {},
+                "ppo_kwargs": {},
+                "curriculum_kwargs": {},
+            }
+        }
+
+        path = save_results_csv(results, configs, "velociraptor", "PPO", 42, tmp_path)
+
+        with path.open() as source:
+            row = next(csv.DictReader(source))
+        assert row["plant_physics_sha256"] == identity["physics_sha256"]
+        assert row["plant_policy_interface_sha256"] == identity["policy_interface_sha256"]
+
 
 # ── build_stage_results_from_eval_data ──────────────────────────────────
 
@@ -614,6 +661,20 @@ class TestBuildStageResultsFromEvalData:
             timesteps=50_000,
         )
         assert result["duration_seconds"] == 123.4
+
+    def test_reads_plant_identity_from_metrics_json(self, tmp_path):
+        (tmp_path / "models").mkdir()
+        identity = _plant_identity().to_dict()
+        (tmp_path / "metrics.json").write_text(json.dumps({"plant_identity": identity}))
+
+        result = build_stage_results_from_eval_data(
+            tmp_path,
+            stage=1,
+            stage_config={"name": "Balance", "description": "Stand", "env_kwargs": {}},
+            timesteps=100,
+        )
+
+        assert result["plant_identity"] == identity
 
     def test_explicit_duration_overrides_metrics_json(self, tmp_path):
         model_dir = tmp_path / "models"
@@ -705,6 +766,7 @@ class TestSaveJaxStageArtifacts:
             best_params={"dense": [3.0, 4.0]},
             best_reward=55.0,
             best_update=10,
+            plant_identity=_plant_identity(),
         )
         kwargs.update(overrides)
         return save_jax_stage_artifacts(**kwargs), stage_dir, run_dir
@@ -739,6 +801,8 @@ class TestSaveJaxStageArtifacts:
         assert data["species"] == "velociraptor"
         assert data["stage"] == 1
         assert data["algorithm"] == "JAX_PPO"
+        assert data["plant_identity"] == _plant_identity().to_dict()
+        assert (paths["stage_config"].parent / "plant_identity.json").exists()
 
     def test_collected_results_csv(self, tmp_path):
         paths, _, _ = self._call(tmp_path)
@@ -747,6 +811,7 @@ class TestSaveJaxStageArtifacts:
         assert len(rows) == 1
         assert rows[0]["species"] == "velociraptor"
         assert rows[0]["algorithm"] == "jax_ppo"
+        assert rows[0]["plant_physics_sha256"] == _plant_identity().physics_sha256
 
     def test_diagnostics_npz(self, tmp_path):
         import numpy as np
@@ -778,6 +843,7 @@ class TestSaveJaxStageArtifacts:
             ckpt = pickle.load(f)  # noqa: S301
         assert ckpt["params"] == {"dense": [3.0, 4.0]}
         assert ckpt["best_reward"] == 55.0
+        assert ckpt[MODEL_IDENTITY_ATTRIBUTE] == _plant_identity().to_dict()
 
     def test_final_model_checkpoint(self, tmp_path):
         import pickle
@@ -786,12 +852,14 @@ class TestSaveJaxStageArtifacts:
         with open(paths["final_model"], "rb") as f:
             ckpt = pickle.load(f)  # noqa: S301
         assert ckpt["params"] == {"dense": [1.0, 2.0]}
+        assert ckpt[MODEL_IDENTITY_ATTRIBUTE] == _plant_identity().to_dict()
 
     def test_training_summary_content(self, tmp_path):
         paths, _, _ = self._call(tmp_path)
         text = paths["training_summary"].read_text()
         assert "Velociraptor" in text
         assert "JAX/MJX PPO" in text
+        assert (paths["training_summary"].parent / "plant_identity.json").exists()
 
     def test_csv_appends_across_stages(self, tmp_path):
         """Running for two stages appends to the same CSV."""
@@ -819,6 +887,7 @@ class TestSaveJaxStageArtifacts:
             eval_results=_FakeEvalResults(),
             params={"dense": [5.0]},
             obs_rms=None,
+            plant_identity=_plant_identity(),
         )
 
         with open(run_dir / "collected_results.csv") as f:

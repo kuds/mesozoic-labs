@@ -33,6 +33,13 @@ from pathlib import Path
 from typing import Any
 
 from .constants import DEFAULT_CLIP_OBS, DEFAULT_CLIP_REWARD, DEFAULT_NORM_OBS, DEFAULT_NORM_REWARD
+from .plant_contract import (
+    PlantIdentity,
+    attach_plant_identity,
+    current_plant_identity,
+    validate_environment_plant,
+    validate_model_plant,
+)
 from .tb_sync import _is_gcs_path, _make_local_tb_dir, _sync_tb_to_gcs  # noqa: F401  (re-exported for backward compat)
 
 logger = logging.getLogger(__name__)
@@ -144,6 +151,7 @@ def make_env(
     stage: int,
     rank: int,
     seed: int = 0,
+    plant_identity: PlantIdentity | None = None,
 ):
     """Create a single environment instance."""
     sb3 = _ensure_sb3()
@@ -152,6 +160,12 @@ def make_env(
         sb3["set_random_seed"](seed + rank)
         env_kwargs = stage_configs[stage]["env_kwargs"].copy()
         env = species_cfg.env_class(**env_kwargs)
+        if plant_identity is not None:
+            validate_environment_plant(
+                env,
+                plant_identity,
+                artifact=f"{species_cfg.species} stage {stage} environment",
+            )
         env = sb3["Monitor"](env)
         env.reset(seed=seed + rank)
         return env
@@ -169,6 +183,7 @@ def create_vec_env(
     *,
     algorithm: str | None = None,
     gamma: float | None = None,
+    plant_identity: PlantIdentity | None = None,
 ):
     """Create vectorized environment with observation/reward normalization.
 
@@ -185,7 +200,7 @@ def create_vec_env(
     """
     sb3 = _ensure_sb3()
 
-    env_fns = [make_env(species_cfg, stage_configs, stage, i, seed) for i in range(n_envs)]
+    env_fns = [make_env(species_cfg, stage_configs, stage, i, seed, plant_identity) for i in range(n_envs)]
 
     if use_subproc and n_envs > 1:
         env = sb3["SubprocVecEnv"](env_fns)
@@ -206,6 +221,11 @@ def create_vec_env(
         vecnorm_kwargs["gamma"] = gamma
 
     env = sb3["VecNormalize"](env, **vecnorm_kwargs)
+    if plant_identity is not None:
+        # VecNormalize is pickled separately from the SB3 model.  Embedding the
+        # same contract in both artifacts prevents a policy from being paired
+        # with normalization statistics from a different physics plant.
+        attach_plant_identity(env, plant_identity)
     return env
 
 
@@ -273,6 +293,9 @@ def _load_vecnorm_into_envs(
     load_path: str | None,
     train_env,
     eval_env,
+    *,
+    plant_identity: PlantIdentity | None = None,
+    allow_legacy_plant: bool = False,
 ) -> None:
     """Carry forward VecNormalize stats from a prior stage or reset eval env."""
     from .curriculum import load_vecnorm_stats
@@ -280,7 +303,15 @@ def _load_vecnorm_into_envs(
     if load_path:
         _base = load_path[:-4] if load_path.endswith(".zip") else load_path
         _vecnorm_path = _base + "_vecnorm.pkl"
-        if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env):
+        load_kwargs: dict[str, Any]
+        if plant_identity is not None:
+            load_kwargs = {
+                "current_plant": plant_identity,
+                "allow_legacy_plant": allow_legacy_plant,
+            }
+        else:
+            load_kwargs = {"unsafe_skip_plant_validation": True}
+        if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env, **load_kwargs):
             logger.warning("VecNormalize file not found: %s — eval env will use defaults", _vecnorm_path)
             eval_env.training = False
             eval_env.norm_reward = False
@@ -295,6 +326,9 @@ def _create_or_load_model(
     alg_kwargs: dict[str, Any],
     train_env,
     load_path: str | None = None,
+    *,
+    plant_identity: PlantIdentity | None = None,
+    allow_legacy_plant: bool = False,
 ) -> Any:
     """Create a new model or load from checkpoint.
 
@@ -307,9 +341,21 @@ def _create_or_load_model(
     if load_path:
         logger.info("Loading model from: %s", load_path)
         model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
+        if plant_identity is not None:
+            validate_model_plant(
+                model,
+                plant_identity,
+                artifact=str(load_path),
+                allow_legacy=allow_legacy_plant,
+            )
     else:
         logger.info("Creating new %s model...", algorithm.upper())
         model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
+
+    if plant_identity is not None:
+        # Attach after validation so an explicit legacy migration is tagged on
+        # its next save, while an incompatible checkpoint is never relabelled.
+        attach_plant_identity(model, plant_identity)
 
     return model
 
@@ -470,6 +516,7 @@ def train(
     use_wandb: bool = False,
     output_dir: str | None = None,
     use_tensorboard: bool = True,
+    allow_legacy_plant: bool = False,
 ):
     """Train a single stage of the curriculum."""
     from .config import save_stage_config
@@ -483,6 +530,7 @@ def train(
 
     config = stage_configs[stage]
     species = species_cfg.species
+    plant_identity = current_plant_identity(species)
 
     logger.info("=" * 60)
     logger.info("Training Stage %d: %s", stage, config["name"])
@@ -514,6 +562,7 @@ def train(
         extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
         env_class=species_cfg.env_class,
         species=species_cfg.species,
+        plant_identity=plant_identity,
     )
 
     # Create environments
@@ -535,6 +584,7 @@ def train(
         effective_subproc,
         algorithm=algorithm,
         gamma=alg_gamma,
+        plant_identity=plant_identity,
     )
 
     logger.info("Creating evaluation environment...")
@@ -547,9 +597,16 @@ def train(
         use_subproc=False,
         algorithm=algorithm,
         gamma=alg_gamma,
+        plant_identity=plant_identity,
     )
 
-    _load_vecnorm_into_envs(load_path, train_env, eval_env)
+    _load_vecnorm_into_envs(
+        load_path,
+        train_env,
+        eval_env,
+        plant_identity=plant_identity,
+        allow_legacy_plant=allow_legacy_plant,
+    )
 
     alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
         config,
@@ -563,7 +620,15 @@ def train(
     if use_wandb:
         wandb_run = init_wandb(species=species, stage=stage, config=config, run_dir=str(log_path))
 
-    model = _create_or_load_model(sb3, algorithm, alg_kwargs, train_env, load_path)
+    model = _create_or_load_model(
+        sb3,
+        algorithm,
+        alg_kwargs,
+        train_env,
+        load_path,
+        plant_identity=plant_identity,
+        allow_legacy_plant=allow_legacy_plant,
+    )
 
     logger.info("Model architecture:")
     logger.info("  Policy: %s", model.policy)
@@ -666,6 +731,7 @@ def train(
         training_duration_seconds=training_duration,
         stage_config=config,
         seed=seed,
+        plant_identity=plant_identity,
     )
 
     train_env.close()
@@ -696,6 +762,7 @@ def _report_hpt_metrics(
     training_duration_seconds: float = 0.0,
     stage_config: dict[str, Any] | None = None,
     seed: int | None = None,
+    plant_identity: PlantIdentity | None = None,
 ):
     """Report metrics to Vertex AI Hypertune and write a local JSON sidecar.
 
@@ -729,6 +796,8 @@ def _report_hpt_metrics(
         # early-stopped runs are visible in offline result collection.
         "timesteps": int(total_timesteps),
     }
+    if plant_identity is not None:
+        aux_metrics["plant_identity"] = plant_identity.to_dict()
     if seed is not None:
         aux_metrics["seed"] = seed
 
@@ -788,8 +857,15 @@ def _report_hpt_metrics(
 
     if best_model_zip.exists():
         eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
+        if plant_identity is not None:
+            validate_model_plant(eval_model, plant_identity, artifact=str(best_model_zip))
         if best_vecnorm_path.exists():
-            load_vecnorm_stats(str(best_vecnorm_path), eval_env)
+            load_kwargs: dict[str, Any]
+            if plant_identity is not None:
+                load_kwargs = {"current_plant": plant_identity}
+            else:
+                load_kwargs = {"unsafe_skip_plant_validation": True}
+            load_vecnorm_stats(str(best_vecnorm_path), eval_env, **load_kwargs)
         eval_env.training = False
         eval_env.norm_reward = False
         logger.info("HPT eval: using best model + matched VecNormalize")
@@ -912,6 +988,7 @@ def train_curriculum(
 
     sb3 = _ensure_sb3()
     species = species_cfg.species
+    plant_identity = current_plant_identity(species)
 
     thresholds = thresholds_from_configs(stage_configs)
     manager = CurriculumManager(species=species, stage_thresholds=thresholds)
@@ -924,6 +1001,10 @@ def train_curriculum(
     else:
         base_dir = Path(log_dir)
     base_dir.mkdir(parents=True, exist_ok=True)
+
+    from .plant_contract import write_plant_identity
+
+    write_plant_identity(base_dir / "plant_identity.json", plant_identity)
 
     logger.info("=" * 60)
     logger.info("Starting automated curriculum training (stages 1-3)")
@@ -958,6 +1039,7 @@ def train_curriculum(
             extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
             env_class=species_cfg.env_class,
             species=species_cfg.species,
+            plant_identity=plant_identity,
         )
 
         effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
@@ -972,6 +1054,7 @@ def train_curriculum(
             effective_subproc,
             algorithm=algorithm,
             gamma=alg_gamma,
+            plant_identity=plant_identity,
         )
         eval_env = create_vec_env(
             species_cfg,
@@ -982,9 +1065,15 @@ def train_curriculum(
             use_subproc=False,
             algorithm=algorithm,
             gamma=alg_gamma,
+            plant_identity=plant_identity,
         )
 
-        _load_vecnorm_into_envs(prev_vecnorm_path, train_env, eval_env)
+        _load_vecnorm_into_envs(
+            prev_vecnorm_path,
+            train_env,
+            eval_env,
+            plant_identity=plant_identity,
+        )
 
         alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
             config,
@@ -998,7 +1087,14 @@ def train_curriculum(
         if use_wandb:
             wandb_run = init_wandb(species=species, stage=stage, config=config, run_dir=str(stage_dir))
 
-        model = _create_or_load_model(sb3, algorithm, alg_kwargs, train_env, load_path)
+        model = _create_or_load_model(
+            sb3,
+            algorithm,
+            alg_kwargs,
+            train_env,
+            load_path,
+            plant_identity=plant_identity,
+        )
 
         callbacks, eval_callback, _ = _build_core_callbacks(
             sb3,
@@ -1127,6 +1223,7 @@ def train_curriculum(
             actual_timesteps,
             curriculum_cb,
             training_duration_seconds=stage_duration,
+            plant_identity=plant_identity,
         )
 
         if interrupted:
@@ -1173,6 +1270,7 @@ def _record_stage_result(
     total_timesteps,
     curriculum_cb,
     training_duration_seconds: float | None = None,
+    plant_identity: PlantIdentity | None = None,
 ):
     """Record stage hyperparameters and outcome to CSV."""
     import numpy as _np
@@ -1241,6 +1339,8 @@ def _record_stage_result(
         "success_rate_threshold": cur_kwargs.get("min_success_rate", ""),
         "stage_passed": bool(curriculum_cb is not None and curriculum_cb.ready_to_advance),
     }
+    if plant_identity is not None:
+        result_row.update({f"plant_{key}": value for key, value in plant_identity.to_dict().items()})
     append_stage_result_csv(base_dir / "curriculum_results.csv", result_row)
     logger.info(
         "Stage %d result appended to: %s",

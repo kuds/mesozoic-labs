@@ -33,13 +33,16 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import numpy as np
 
 from environments.shared.config import load_all_stages
 from environments.shared.metrics import LocomotionMetrics, env_dt
 from environments.shared.wandb_integration import log_eval_metrics
+
+if TYPE_CHECKING:
+    from environments.shared.plant_contract import PlantIdentity
 
 try:
     from stable_baselines3.common.callbacks import BaseCallback
@@ -1163,7 +1166,15 @@ class SaveVecNormalizeCallback(BaseCallback):  # type: ignore[misc]
         return True
 
 
-def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:
+def load_vecnorm_stats(
+    vecnorm_path: str,
+    train_env,
+    eval_env=None,
+    *,
+    current_plant: PlantIdentity | None = None,
+    allow_legacy_plant: bool = False,
+    unsafe_skip_plant_validation: bool = False,
+) -> bool:
     """Load VecNormalize running statistics from a previous stage into new envs.
 
     Only observation normalization (``obs_rms``) is carried forward.  Return
@@ -1181,11 +1192,35 @@ def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:
             ``norm_reward=False`` to avoid replay-buffer reward-scale drift).
         eval_env: Optional evaluation ``VecNormalize`` wrapper.
             ``training`` is set to ``False``; ``norm_reward`` is disabled.
+        current_plant: Expected plant identity. Required unless the explicit
+            unsafe inspection-only escape hatch is enabled.
+        allow_legacy_plant: Explicitly allow a pre-contract normalization
+            artifact with no identity.  Incompatible tagged artifacts are
+            always rejected.
+        unsafe_skip_plant_validation: Deliberately load without checking the
+            plant. This is for low-level inspection/tests only and cannot be
+            combined with either validation option.
 
     Returns:
         ``True`` if stats were loaded, ``False`` if the file was not found.
     """
     from pathlib import Path as _Path
+
+    from environments.shared.plant_contract import PlantCompatibilityError
+
+    if unsafe_skip_plant_validation:
+        if current_plant is not None or allow_legacy_plant:
+            raise ValueError("unsafe_skip_plant_validation cannot be combined with current_plant or allow_legacy_plant")
+        logger.warning(
+            "UNSAFE: loading %s without plant compatibility validation; "
+            "do not use these statistics for training or evaluation until verified",
+            vecnorm_path,
+        )
+    elif current_plant is None:
+        raise PlantCompatibilityError(
+            f"refusing to load {vecnorm_path} without current_plant; pass the current PlantIdentity "
+            "or use unsafe_skip_plant_validation=True only for deliberate low-level inspection"
+        )
 
     if not _SB3_AVAILABLE:
         logger.warning("stable-baselines3 not available; skipping VecNormalize load.")
@@ -1200,6 +1235,18 @@ def load_vecnorm_stats(vecnorm_path: str, train_env, eval_env=None) -> bool:
 
     logger.info("Loading VecNormalize stats from: %s", vecnorm_path)
     prev_norm = VecNormalize.load(str(path), train_env.venv)
+    if not unsafe_skip_plant_validation:
+        from environments.shared.plant_contract import validate_model_plant
+
+        assert current_plant is not None
+        # Validate before copying obs_rms so an incompatible artifact cannot
+        # partially mutate either destination environment.
+        validate_model_plant(
+            prev_norm,
+            current_plant,
+            artifact=str(path),
+            allow_legacy=allow_legacy_plant,
+        )
 
     # Carry forward observation statistics — the observation space is identical
     # across stages, so the running mean/var remain valid.  ret_rms is

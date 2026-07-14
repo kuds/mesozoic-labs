@@ -22,7 +22,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "mujoco>=3.0.0",
+    "mujoco==3.10.0",
     "gymnasium>=0.29.0",
     "numpy>=1.24.0",
 ]
@@ -41,17 +41,23 @@ train = [
     "cloudml-hypertune>=0.1.0.dev0",
 ]
 jax = [
-    "mujoco-mjx>=3.0.0",
+    "mujoco-mjx==3.10.0",
     "jax[cuda12]>=0.4.20",
     "flax>=0.8.0",
     "optax>=0.1.7",
 ]
 jax-cpu = [
     # CPU-only JAX stack for development and CI hosts without NVIDIA drivers.
-    "mujoco-mjx>=3.0.0",
+    "mujoco-mjx==3.10.0",
     "jax>=0.4.20",
     "flax>=0.8.0",
     "optax>=0.1.7",
+]
+ray = [
+    # Ray Tune sweep backend.  Keep this aligned with the real-backend CI
+    # smoke and the notebook bootstrap cell.
+    "mesozoic-labs[train]",
+    "ray[tune]>=2.55.0,<3",
 ]
 mjlab = [
     # mjlab (GPU-accelerated MuJoCo-Warp + Isaac-Lab-style manager API).
@@ -81,7 +87,7 @@ dev = [
     "pre-commit>=3.0",
 ]
 all = [
-    "mesozoic-labs[train,jax,viz,gcp,dev]",
+    "mesozoic-labs[train,jax,ray,viz,gcp,dev]",
 ]
 
 # Gymnasium environment entry points — allows gym.make("MesozoicLabs/Raptor-v0")
@@ -95,10 +101,11 @@ Brachio-v0 = "environments.brachiosaurus.envs.brachio_env:BrachioEnv"
 TRex-v0 = "environments.trex.envs.trex_env:TRexEnv"
 
 [tool.setuptools.packages.find]
-include = ["environments*"]
+include = ["environments*", "configs*"]
 
 [tool.setuptools.package-data]
-"*" = ["assets/*.xml"]
+"*" = ["assets/*.xml", "data/*.json"]
+"configs" = ["*.toml", "*.json", "*/*.toml", "*/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = [

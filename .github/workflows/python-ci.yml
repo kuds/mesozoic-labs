@@ -58,6 +58,64 @@ jobs:
       - name: mypy
         run: mypy environments/ --ignore-missing-imports
 
+  plant-contract:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install canonical MuJoCo and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          MUJOCO_VERSION=$(python -c "import tomllib; print(tomllib.load(open('configs/plant_versions.toml', 'rb'))['canonical_mujoco_version'])")
+          python -m pip install -e ".[test]" "mujoco==${MUJOCO_VERSION}"
+
+      - name: Verify generated plant and public catalogs
+        run: |
+          python -m environments.shared.plant_contract --check
+          python -m environments.shared.species_catalog --check
+
+      - name: Enforce plant revision monotonicity against the PR base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git cat-file -e "${BASE_SHA}:configs/plant_manifest.generated.json"; then
+            git show "${BASE_SHA}:configs/plant_manifest.generated.json" > /tmp/base-plant-manifest.json
+            python -m environments.shared.plant_contract --check --baseline /tmp/base-plant-manifest.json
+          fi
+
+      - name: Run plant-contract integration tests
+        run: |
+          pytest \
+            environments/shared/tests/test_plant_contract.py \
+            environments/shared/tests/test_species_catalog.py \
+            -v --tb=short
+
+      - name: Verify plant identity from an installed wheel
+        run: |
+          python -m pip wheel --no-deps --wheel-dir /tmp/mesozoic-wheel .
+          python -m venv --system-site-packages /tmp/mesozoic-wheel-venv
+          /tmp/mesozoic-wheel-venv/bin/pip install --no-deps --force-reinstall /tmp/mesozoic-wheel/*.whl
+          cd /tmp
+          /tmp/mesozoic-wheel-venv/bin/python - <<'PY'
+          from pathlib import Path
+          import environments
+          from environments.shared.config import load_stage_config
+          from environments.shared.plant_contract import current_plant_identity
+
+          assert Path(environments.__file__).resolve().is_relative_to(Path("/tmp/mesozoic-wheel-venv").resolve())
+          assert current_plant_identity("velociraptor").nu == 22
+          assert load_stage_config("velociraptor", 1)["name"]
+          PY
+
   test-shared:
     runs-on: ubuntu-latest
     needs: lint
@@ -187,10 +245,45 @@ jobs:
       - name: Install SB3 dependencies
         run: |
           pip install --upgrade pip
-          pip install -e ".[train,test]"
+          pip install -e ".[train,ray,test]"
 
       - name: Verify optional backend imports
-        run: python -c "import stable_baselines3, torch; print(stable_baselines3.__version__, torch.__version__)"
+        run: |
+          python - <<'PY'
+          import ray
+          import stable_baselines3
+          import torch
+          from pathlib import Path
+          from ray import tune
+          from ray.train import Checkpoint
+          from ray.tune import CheckpointConfig, RunConfig
+          from tempfile import TemporaryDirectory
+
+          from environments.shared.scripts.sweep.ray_orchestration import create_ray_tuner
+
+          assert tune.Tuner and Checkpoint and CheckpointConfig and RunConfig
+          with TemporaryDirectory() as temp_dir:
+              root = Path(temp_dir)
+              tuner = create_ray_tuner(
+                  train_fn=lambda config: None,
+                  search_space={},
+                  species="velociraptor",
+                  algorithm="ppo",
+                  stage=1,
+                  timesteps=10,
+                  n_envs=1,
+                  seed=0,
+                  eval_freq=5,
+                  num_trials=1,
+                  max_concurrent=1,
+                  local_ray_dir=root / "ray",
+                  local_trials_dir=root / "trials",
+                  sweep_dir=root / "sweep",
+                  use_asha=False,
+              )
+              assert tuner
+          print(ray.__version__, stable_baselines3.__version__, torch.__version__)
+          PY
 
       - name: Run SB3 integration tests
         run: |
@@ -201,6 +294,7 @@ jobs:
             environments/shared/tests/test_eval_diagnostics.py \
             environments/shared/tests/test_evaluation.py \
             environments/shared/tests/test_train_base.py \
+            environments/shared/tests/test_sweep_ray_plant_contract.py \
             environments/shared/tests/test_wandb_integration.py \
             -v --tb=short
         env:

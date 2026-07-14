@@ -14,6 +14,7 @@ class TestGenerateTrialArtifacts:
         """After a trial, stage_summary.txt is written and videos are attempted."""
         import numpy as np
 
+        from environments.shared.plant_contract import attach_plant_identity, current_plant_identity
         from environments.shared.reporting import generate_stage_artifacts
 
         # Setup directory structure matching what train() produces
@@ -46,10 +47,11 @@ class TestGenerateTrialArtifacts:
             "ppo_kwargs": {},
         }
 
-        mock_sb3 = {
-            "PPO": MagicMock(),
-            "SAC": MagicMock(),
-        }
+        fake_model = MagicMock()
+        attach_plant_identity(fake_model, current_plant_identity("velociraptor", verify_generated=False))
+        mock_algorithm = MagicMock()
+        mock_algorithm.load.return_value = fake_model
+        mock_sb3 = {"PPO": mock_algorithm, "SAC": mock_algorithm}
 
         with (
             patch(

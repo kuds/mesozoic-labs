@@ -25,6 +25,20 @@ export interface AdvancementGate {
   requiredConsecutive: number;
 }
 
+export interface PlantLayerContract {
+  schema: string;
+  revision: number;
+  sha256: string;
+}
+
+export interface PlantContract {
+  bundleSha256: string;
+  sourceClosureSha256: string;
+  policyInterface: PlantLayerContract & {observationSchema: string};
+  physics: PlantLayerContract;
+  visual: PlantLayerContract;
+}
+
 export interface SpeciesStage {
   number: number;
   name: string;
@@ -94,6 +108,7 @@ export interface Species {
     nv: number;
     nu: number;
     dynamicMassKg: number;
+    plantContract: PlantContract;
   };
   successMetrics: Array<{
     backends: TrainingBackend[];
@@ -173,6 +188,12 @@ interface RawResult {
   stages: RawResultStage[];
 }
 
+interface RawPlantLayerContract {
+  schema: string;
+  revision: number;
+  sha256: string;
+}
+
 interface RawSpecies {
   id: string;
   display_name: string;
@@ -191,6 +212,13 @@ interface RawSpecies {
     nv: number;
     nu: number;
     dynamic_mass_kg: number;
+    plant_contract: {
+      bundle_sha256: string;
+      source_closure_sha256: string;
+      policy_interface: RawPlantLayerContract & {observation_schema: string};
+      physics: RawPlantLayerContract;
+      visual: RawPlantLayerContract;
+    };
   };
   success_metrics: Array<{
     backends: TrainingBackend[];
@@ -204,6 +232,12 @@ interface RawSpecies {
 
 interface RawCatalog {
   schema_version: number;
+  plant_manifest: {
+    path: string;
+    schema: string;
+    fingerprint_tool_version: number;
+    generated_with: {mujoco: string};
+  };
   project_capabilities: Record<string, {label: string; status: string}>;
   notebooks: Array<{id: string; label: string; description: string; path: string}>;
   species: RawSpecies[];
@@ -269,6 +303,18 @@ function adaptSpecies(raw: RawSpecies): Species {
       nv: raw.model.nv,
       nu: raw.model.nu,
       dynamicMassKg: raw.model.dynamic_mass_kg,
+      plantContract: {
+        bundleSha256: raw.model.plant_contract.bundle_sha256,
+        sourceClosureSha256: raw.model.plant_contract.source_closure_sha256,
+        policyInterface: {
+          schema: raw.model.plant_contract.policy_interface.schema,
+          revision: raw.model.plant_contract.policy_interface.revision,
+          sha256: raw.model.plant_contract.policy_interface.sha256,
+          observationSchema: raw.model.plant_contract.policy_interface.observation_schema,
+        },
+        physics: raw.model.plant_contract.physics,
+        visual: raw.model.plant_contract.visual,
+      },
     },
     successMetrics: raw.success_metrics,
     stages: raw.stages.map((stage) => ({
@@ -320,6 +366,7 @@ export function successMetricForBackend(species: Species, backend: TrainingBacke
 
 export const PROJECT_CAPABILITIES = catalog.project_capabilities;
 export const PUBLIC_NOTEBOOKS = catalog.notebooks;
+export const PLANT_MANIFEST = catalog.plant_manifest;
 export const ALL_SPECIES: Species[] = catalog.species.map(adaptSpecies);
 
 function requireSpecies(speciesId: string): Species {

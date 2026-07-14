@@ -21,11 +21,12 @@ Usage::
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Mapping
 
 from .jax_checkpoint import CheckpointManager
 from .jax_trainer import StopTraining, TrainerState
 from .jax_training_utils import StabilityMonitor
+from .plant_contract import PlantIdentity
 
 _logger = logging.getLogger(__name__)
 
@@ -72,12 +73,14 @@ class CheckpointHook:
         prefix: str = "checkpoint",
         interval: int = 50,
         max_keep: int = 5,
+        plant_identity: PlantIdentity | Mapping[str, Any] | None = None,
     ):
         self.interval = interval
         self._manager = CheckpointManager(
             directory=directory,
             prefix=prefix,
             max_keep=max_keep,
+            plant_identity=plant_identity,
         )
 
     def on_update_end(self, state: TrainerState, metrics: dict[str, float]) -> None:

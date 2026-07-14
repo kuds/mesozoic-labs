@@ -2,7 +2,15 @@
 
 Species-specific test files inherit from these bases, overriding only
 the configuration (body names, thresholds, joint lists).
+
+``env.step(np.zeros(...))`` is deliberately described as a *neutral action*,
+not zero torque: :class:`~environments.shared.base_env.BaseDinoEnv` maps it to
+the midpoint of every actuator control range, so position servos remain active.
+True passive characterization uses MuJoCo's ``mjDSBL_ACTUATION`` flag and
+checks that both actuator-space and generalized actuator forces stay zero.
 """
+
+from contextlib import contextmanager
 
 import mujoco
 import numpy as np
@@ -43,6 +51,26 @@ def species_mass(model: mujoco.MjModel, root_body: str) -> float:
 def body_group_mass(model: mujoco.MjModel, body_names: list[str]) -> float:
     """Sum the mass of a list of named bodies."""
     return float(sum(model.body_mass[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, n)] for n in body_names))
+
+
+@contextmanager
+def actuation_disabled(model: mujoco.MjModel, data: mujoco.MjData):
+    """Temporarily disable MuJoCo actuator forces for passive simulation.
+
+    Clearing ``data.ctrl`` is not sufficient for position servos because a
+    zero control still commands a zero joint position.  ``mjDSBL_ACTUATION``
+    disables actuator force generation while leaving gravity, contacts,
+    springs, damping, and other passive plant forces enabled.
+    """
+
+    old_flags = int(model.opt.disableflags)
+    model.opt.disableflags = old_flags | int(mujoco.mjtDisableBit.mjDSBL_ACTUATION)
+    mujoco.mj_forward(model, data)
+    try:
+        yield
+    finally:
+        model.opt.disableflags = old_flags
+        mujoco.mj_forward(model, data)
 
 
 # ---------------------------------------------------------------------------
@@ -236,8 +264,8 @@ class HomePoseCOMBase:
         )
 
 
-class ZeroTorqueStabilityBase:
-    """The home pose with zero control should not immediately collapse.
+class NeutralActionStabilityBase:
+    """The reset pose under an active neutral action should remain learnable.
 
     Subclasses must provide:
         - ``env`` fixture
@@ -249,45 +277,32 @@ class ZeroTorqueStabilityBase:
     species_name: str = ""
     root_body_id_attr: str = "pelvis_id"
     max_height_drop: float = 0.10
+    max_tilt_increase: float = np.radians(30)
 
-    def test_survives_100_zero_torque_steps(self, env):
+    def test_survives_100_neutral_action_steps(self, env):
         env.reset(seed=0)
-        zero_action = np.zeros(env.action_space.shape, dtype=np.float32)
+        neutral_action = np.zeros(env.action_space.shape, dtype=np.float32)
 
         for step in range(100):
-            _, _, terminated, _, info = env.step(zero_action)
+            _, _, terminated, _, info = env.step(neutral_action)
             if terminated:
                 reason = info.get("termination_reason", "unknown")
-                pelvis_z = info.get("pelvis_height", "?")
+                root_z = info.get("pelvis_height", info.get("torso_height", "?"))
                 tilt = info.get("tilt_angle", "?")
                 pytest.fail(
-                    f"{self.species_name} fell at step {step + 1}/100 under zero torque. "
-                    f"Reason: {reason}, height: {pelvis_z}, tilt: {tilt}. "
-                    "The home keyframe may not be statically balanced."
+                    f"{self.species_name} fell at step {step + 1}/100 under a neutral action. "
+                    f"Reason: {reason}, height: {root_z}, tilt: {tilt}. "
+                    "The reset pose may be too unstable for basic policy learning."
                 )
 
-    def test_survives_30_zero_torque_steps(self, env):
-        env.reset(seed=0)
-        zero_action = np.zeros(env.action_space.shape, dtype=np.float32)
-
-        for step in range(30):
-            _, _, terminated, _, info = env.step(zero_action)
-            if terminated:
-                reason = info.get("termination_reason", "unknown")
-                pytest.fail(
-                    f"{self.species_name} fell at step {step + 1}/30 under zero torque. "
-                    f"Reason: {reason}. "
-                    "The model is too unstable for even basic policy learning."
-                )
-
-    def test_pelvis_height_stable_short(self, env):
+    def test_root_height_stable_under_neutral_action(self, env):
         env.reset(seed=0)
         body_id = getattr(env, self.root_body_id_attr)
         initial_z = env.data.xpos[body_id, 2]
-        zero_action = np.zeros(env.action_space.shape, dtype=np.float32)
+        neutral_action = np.zeros(env.action_space.shape, dtype=np.float32)
 
         for _ in range(30):
-            _, _, terminated, _, _ = env.step(zero_action)
+            _, _, terminated, _, _ = env.step(neutral_action)
             if terminated:
                 break
 
@@ -295,29 +310,101 @@ class ZeroTorqueStabilityBase:
         drop = initial_z - final_z
         assert drop < self.max_height_drop, (
             f"Height dropped {drop:.3f} m (from {initial_z:.3f} to {final_z:.3f}) "
-            "over 30 zero-torque steps. The model may lack sufficient joint stiffness "
-            "to hold the home pose passively."
+            "over 30 neutral-action steps. The active neutral command may not provide "
+            "a sufficiently stable learning start."
         )
 
-    def test_tilt_deviation_stays_small(self, env):
+    def test_tilt_deviation_stays_small_under_neutral_action(self, env):
         env.reset(seed=0)
         _, _, _, _, initial_info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
         initial_tilt = initial_info.get("tilt_angle", 0.0)
 
-        zero_action = np.zeros(env.action_space.shape, dtype=np.float32)
+        neutral_action = np.zeros(env.action_space.shape, dtype=np.float32)
         max_tilt_seen = initial_tilt
 
         for _ in range(29):
-            _, _, terminated, _, info = env.step(zero_action)
+            _, _, terminated, _, info = env.step(neutral_action)
             tilt = info.get("tilt_angle", 0.0)
             max_tilt_seen = max(max_tilt_seen, tilt)
             if terminated:
                 break
 
         tilt_increase = max_tilt_seen - initial_tilt
-        assert tilt_increase < np.radians(30), (
+        assert tilt_increase < self.max_tilt_increase, (
             f"Tilt increased by {np.degrees(tilt_increase):.1f} deg from initial "
             f"{np.degrees(initial_tilt):.1f} deg to peak {np.degrees(max_tilt_seen):.1f} deg "
-            "over 30 zero-torque steps (limit: 30 deg increase). "
-            "The home pose may lack sufficient passive stability."
+            f"over 30 neutral-action steps (limit: {np.degrees(self.max_tilt_increase):.1f} deg increase). "
+            "The active neutral command may be too unstable."
+        )
+
+
+class ActuatorDisabledPassiveBase:
+    """Characterize the reset pose with actuator forces truly disabled.
+
+    Subclasses configure a short minimum safe horizon. The contract deliberately
+    does not require a later fall: improving passive stability should not fail CI.
+    """
+
+    species_name: str = ""
+    root_body_id_attr: str = "pelvis_id"
+    safe_steps: int = 30
+    max_height_drop: float = 0.10
+    max_tilt_increase: float = 0.20
+
+    @staticmethod
+    def _reset_without_noise(env) -> None:
+        """Reset to the exact XML keyframe so the plant pin excludes RNG noise."""
+
+        env.reset_noise_scale = 0.0
+        env.reset(seed=0)
+
+    def test_disabled_actuators_generate_no_force(self, env):
+        self._reset_without_noise(env)
+        # Deliberately request maximum controls: the solver-level disable flag,
+        # not a coincidental zero command, must be what removes actuation.
+        env.data.ctrl[:] = env.model.actuator_ctrlrange[:, 1]
+
+        with actuation_disabled(env.model, env.data):
+            mujoco.mj_step(env.model, env.data)
+            np.testing.assert_allclose(env.data.actuator_force, 0.0, atol=1e-12)
+            np.testing.assert_allclose(env.data.qfrc_actuator, 0.0, atol=1e-12)
+
+    def test_actuator_disabled_minimum_safe_horizon(self, env):
+        self._reset_without_noise(env)
+        body_id = getattr(env, self.root_body_id_attr)
+        initial_z = float(env.data.xpos[body_id, 2])
+        initial_terminated, initial_info = env._is_terminated()
+        assert not initial_terminated, f"{self.species_name} starts terminated at the exact home keyframe"
+        initial_tilt = float(initial_info.get("tilt_angle", 0.0))
+
+        neutral_action = np.zeros(env.action_space.shape, dtype=np.float32)
+        max_height_drop = 0.0
+        max_tilt_increase = 0.0
+
+        with actuation_disabled(env.model, env.data):
+            for step in range(1, self.safe_steps + 1):
+                _, _, terminated, truncated, info = env.step(neutral_action)
+
+                np.testing.assert_allclose(env.data.actuator_force, 0.0, atol=1e-12)
+                np.testing.assert_allclose(env.data.qfrc_actuator, 0.0, atol=1e-12)
+                assert np.all(np.isfinite(env.data.qpos)), f"{self.species_name} produced non-finite passive qpos"
+                assert np.all(np.isfinite(env.data.qvel)), f"{self.species_name} produced non-finite passive qvel"
+                assert not truncated, f"{self.species_name} unexpectedly truncated during passive characterization"
+
+                height_drop = initial_z - float(env.data.xpos[body_id, 2])
+                tilt_increase = float(info.get("tilt_angle", initial_tilt)) - initial_tilt
+                max_height_drop = max(max_height_drop, height_drop)
+                max_tilt_increase = max(max_tilt_increase, tilt_increase)
+                assert not terminated, (
+                    f"{self.species_name} terminated at passive step {step}, before the "
+                    f"{self.safe_steps}-step safety horizon: {info.get('termination_reason', 'unknown')}"
+                )
+
+        assert max_height_drop < self.max_height_drop, (
+            f"{self.species_name} passive root height dropped {max_height_drop:.3f} m in "
+            f"{self.safe_steps} steps (limit {self.max_height_drop:.3f} m)"
+        )
+        assert max_tilt_increase < self.max_tilt_increase, (
+            f"{self.species_name} passive tilt increased by {np.degrees(max_tilt_increase):.1f} deg in "
+            f"{self.safe_steps} steps (limit {np.degrees(self.max_tilt_increase):.1f} deg)"
         )

@@ -450,6 +450,7 @@ def train(
         TrainingCSVLogger,
         compute_episode_stats,
     )
+    from .plant_contract import current_plant_identity, validate_mjx_environment_plant, write_plant_identity
     from .reporting import format_duration
 
     assert optimizer is not None, "optimizer is required"
@@ -489,7 +490,21 @@ def train(
     _ep_stats_acc = EpisodeStatsAccumulator()
 
     # Library utilities
-    _ckpt_mgr = CheckpointManager(config.model_dir, prefix="checkpoint", max_keep=config.max_checkpoints)
+    plant_species = config.species or getattr(getattr(env, "config", None), "species", "")
+    plant_identity = current_plant_identity(plant_species) if plant_species else None
+    if plant_identity is not None:
+        runtime_model = getattr(env, "mj_model", None)
+        if runtime_model is None:
+            raise ValueError("JAX training environment has no mj_model to bind to the plant identity")
+        validate_mjx_environment_plant(env, plant_identity, artifact="JAX training environment")
+    _ckpt_mgr = CheckpointManager(
+        config.model_dir,
+        prefix="checkpoint",
+        max_keep=config.max_checkpoints,
+        plant_identity=plant_identity,
+    )
+    if plant_identity is not None:
+        write_plant_identity(config.model_dir / "plant_identity.json", plant_identity)
     _stability = StabilityMonitor()
     # Append on resume (start_update > 0) so the prior stage-run's rows
     # aren't truncated away.
@@ -845,6 +860,7 @@ def train(
             "episode_return": episode_return_history,
             "diagnostics": diagnostics_history,
         },
+        plant_identity=plant_identity,
     )
     print(f"\nParameters saved to: {params_path}")
     print(f"Training log CSV: {csv_path}")

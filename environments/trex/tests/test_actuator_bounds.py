@@ -1,8 +1,8 @@
 """Plant-characterization tests for the T-Rex's bounded actuators.
 
 The July 2026 hardening sized every position actuator's ``forcerange`` at
-~0.8x kp against *static* settling only. Under gait-like excitation that
-clipped 44-50% of hip-pitch, 10-14% of knee, and ~31% of ankle torque —
+~0.8x kp against settling under the XML home-keyframe controls only. Under
+gait-like excitation that clipped 44-50% of hip-pitch, 10-14% of knee, and ~31% of ankle torque —
 the same plant defect that collapsed velociraptor stage-2 twice (see
 docs/investigations/STAGE2_RECOMMENDATIONS.md). Hip pitch, knee, and
 ankle were re-sized to 1.5x kp, which measures <1% gait-cycle clipping
@@ -17,6 +17,7 @@ import mujoco
 import pytest
 
 from environments.shared.tests.actuator_bounds_helpers import (
+    PositionActuatorConfigurationBase,
     clip_fraction,
     measure_clip_fractions,
     position_actuator_ids,
@@ -46,7 +47,7 @@ def model():
         env.close()
 
 
-class TestForceBoundsConfiguration:
+class TestForceBoundsConfiguration(PositionActuatorConfigurationBase):
     def test_integrator_is_implicitfast(self, model):
         assert model.opt.integrator == mujoco.mjtIntegrator.mjINT_IMPLICITFAST
 
@@ -72,14 +73,14 @@ class TestForceBoundsConfiguration:
             )
 
 
-class TestStaticSaturation:
-    def test_no_saturation_during_settle(self):
-        """Settling from home never clips forces (the caps are for spikes, not posture)."""
+class TestHomeControlSaturation:
+    def test_no_saturation_during_home_control_settle(self):
+        """Settling under XML home-keyframe controls never clips forces."""
         env = TRexEnv()
         try:
-            frac = measure_clip_fractions(env, gait=False, steps=1000)
+            frac = measure_clip_fractions(env, mode="home_control", steps=1000)
             worst = max(frac[i] for i in position_actuator_ids(env.model))
-            assert worst < 0.01, f"static settle saturates a position actuator {worst:.1%} of the time"
+            assert worst < 0.01, f"home-control settle saturates a position actuator {worst:.1%} of the time"
         finally:
             env.close()
 
@@ -97,7 +98,7 @@ class TestDynamicSaturation:
         env = TRexEnv()
         try:
             model = env.model
-            frac = measure_clip_fractions(env, gait=True, steps=2000)
+            frac = measure_clip_fractions(env, mode="gait", steps=2000)
             hip = max(clip_fraction(frac, model, f"{s}_hip_pitch_act") for s in "rl")
             knee = max(clip_fraction(frac, model, f"{s}_knee_act") for s in "rl")
             ankle = max(clip_fraction(frac, model, f"{s}_ankle_act") for s in "rl")

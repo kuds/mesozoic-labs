@@ -1,11 +1,32 @@
 """Tests for evaluation utilities (eval_policy, record_stage_video, evaluate)."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
 
-from environments.shared.evaluation import eval_policy, record_stage_video
+from environments.shared.evaluation import eval_policy, evaluate, record_stage_video
+from environments.shared.plant_contract import PlantCompatibilityError, PlantIdentity, attach_plant_identity
+
+
+def _plant_identity():
+    return PlantIdentity(
+        species="velociraptor",
+        model_path="environments/velociraptor/assets/raptor.xml",
+        physics_revision=1,
+        policy_interface_revision=1,
+        visual_revision=1,
+        source_closure_sha256="sha256:" + "1" * 64,
+        policy_interface_sha256="sha256:" + "2" * 64,
+        physics_sha256="sha256:" + "3" * 64,
+        visual_sha256="sha256:" + "4" * 64,
+        nq=31,
+        nv=30,
+        nu=22,
+        observation_dim=67,
+        action_dim=22,
+    )
 
 
 class TestEvalPolicy:
@@ -208,9 +229,12 @@ class TestEvaluateFunction:
 
         mock_model = MagicMock()
         mock_model.predict.return_value = (np.array([0.0]), None)
+        identity = _plant_identity()
+        attach_plant_identity(mock_model, identity)
         mock_sb3["PPO"].load.return_value = mock_model
 
         mock_species_cfg = MagicMock()
+        mock_species_cfg.species = "velociraptor"
         mock_species_cfg.height_label = "Pelvis height"
         mock_species_cfg.stage3_section_label = "Hunting"
 
@@ -218,9 +242,10 @@ class TestEvaluateFunction:
             1: {"name": "balance", "env_kwargs": {"forward_vel_weight": 0.0}},
         }
 
-        from environments.shared.evaluation import evaluate
-
-        with patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3):
+        with (
+            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.plant_contract.current_plant_identity", return_value=identity),
+        ):
             evaluate(
                 species_cfg=mock_species_cfg,
                 stage_configs=stage_configs,
@@ -231,3 +256,72 @@ class TestEvaluateFunction:
             )
 
         mock_vec_env.close.assert_called_once()
+
+    def test_untagged_model_fails_closed_and_closes_environment(self):
+        mock_sb3 = {
+            "PPO": MagicMock(),
+            "SAC": MagicMock(),
+            "Monitor": MagicMock(),
+            "DummyVecEnv": MagicMock(),
+            "VecNormalize": MagicMock(),
+        }
+        mock_vec_env = MagicMock()
+        mock_sb3["DummyVecEnv"].return_value = mock_vec_env
+        mock_sb3["PPO"].load.return_value = SimpleNamespace()
+        species_cfg = SimpleNamespace(
+            species="velociraptor",
+            env_class=MagicMock(),
+            height_label="Pelvis height",
+            stage3_section_label="Hunting",
+        )
+
+        with (
+            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
+            pytest.raises(PlantCompatibilityError, match="has no plant identity"),
+        ):
+            evaluate(
+                species_cfg=species_cfg,
+                stage_configs={1: {"name": "balance", "env_kwargs": {}}},
+                model_path="/tmp/legacy_stage1_model.zip",
+                render=False,
+                stage=1,
+            )
+
+        mock_vec_env.close.assert_called_once()
+
+    def test_untagged_vecnormalize_fails_before_model_load(self):
+        mock_sb3 = {
+            "PPO": MagicMock(),
+            "SAC": MagicMock(),
+            "Monitor": MagicMock(),
+            "DummyVecEnv": MagicMock(),
+            "VecNormalize": MagicMock(),
+        }
+        mock_vec_env = MagicMock()
+        legacy_vecnorm = SimpleNamespace(close=MagicMock())
+        mock_sb3["DummyVecEnv"].return_value = mock_vec_env
+        mock_sb3["VecNormalize"].load.return_value = legacy_vecnorm
+        species_cfg = SimpleNamespace(
+            species="velociraptor",
+            env_class=MagicMock(),
+            height_label="Pelvis height",
+            stage3_section_label="Hunting",
+        )
+
+        with (
+            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
+            patch("environments.shared.evaluation.Path.exists", return_value=True),
+            pytest.raises(PlantCompatibilityError, match="has no plant identity"),
+        ):
+            evaluate(
+                species_cfg=species_cfg,
+                stage_configs={1: {"name": "balance", "env_kwargs": {}}},
+                model_path="/tmp/stage1_model.zip",
+                render=False,
+                stage=1,
+            )
+
+        legacy_vecnorm.close.assert_called_once()
+        mock_sb3["PPO"].load.assert_not_called()

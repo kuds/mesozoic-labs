@@ -5,20 +5,21 @@ contacts. These catch model regressions (e.g. mass changes, keyframe edits
 that violate joint limits) before any RL training is attempted.
 
 The Brachiosaurus is quadrupedal with front legs longer than rear legs
-(giraffe-like posture). Note: unlike the bipedal species, the Brachiosaurus
-does not passively balance at the home pose — it requires active control
-from the RL policy. The front feet contact the ground at reset, but the
-rear feet may settle over the first few simulation steps.
+(giraffe-like posture). A normalized neutral action still drives the active
+position servos at their control-range midpoints; separate actuator-disabled
+tests characterize the truly passive plant. The front feet contact the ground
+at reset, but the rear feet may settle over the first few simulation steps.
 """
 
 import mujoco
-import numpy as np
 import pytest
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
 from environments.shared.tests.static_balance_helpers import (
+    ActuatorDisabledPassiveBase,
     JointLimitsAtHomeBase,
     MassDistributionBase,
+    NeutralActionStabilityBase,
     body_group_mass,
     com_xy,
     get_foot_contacts_xy,
@@ -30,7 +31,7 @@ ROOT_BODY = "torso"
 
 @pytest.fixture
 def env():
-    e = BrachioEnv()
+    e = BrachioEnv(reset_noise_scale=0.0)
     e.reset(seed=0)
     yield e
     e.close()
@@ -66,36 +67,22 @@ class TestHomePoseCOM:
         )
 
 
-class TestInitialSettling:
-    """The Brachiosaurus does not passively balance (requires active control).
-
-    These tests verify the model's settling behavior rather than static stability.
-    The torso starts at z=2.0 and settles quickly under gravity.
-    """
+class TestNeutralActionStability(NeutralActionStabilityBase):
+    species_name = "Brachiosaurus"
+    root_body_id_attr = "torso_id"
+    max_height_drop = 0.10
+    max_tilt_increase = 0.27  # 15 degrees
 
     def test_torso_starts_in_healthy_range(self, env):
         torso_z = env.data.xpos[env.torso_id, 2]
         assert 1.0 < torso_z < 3.5, f"Torso z ({torso_z:.3f}) is outside plausible range at reset."
 
-    def test_initial_tilt_is_small(self, env):
-        _, _, _, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
-        tilt = info.get("tilt_angle", 0.0)
-        assert tilt < np.radians(15), f"Initial tilt is {np.degrees(tilt):.1f} deg — model should start near upright."
 
-    def test_settling_drops_less_than_1m(self, env):
-        env.reset(seed=0)
-        initial_z = env.data.xpos[env.torso_id, 2]
-        zero_action = np.zeros(env.action_space.shape, dtype=np.float32)
-        for _ in range(10):
-            _, _, terminated, _, _ = env.step(zero_action)
-            if terminated:
-                break
-        final_z = env.data.xpos[env.torso_id, 2]
-        drop = initial_z - final_z
-        assert drop < 1.0, (
-            f"Torso dropped {drop:.3f} m in 10 steps — model may be free-falling "
-            f"(from {initial_z:.3f} to {final_z:.3f})."
-        )
+class TestActuatorDisabledPassive(ActuatorDisabledPassiveBase):
+    species_name = "Brachiosaurus"
+    root_body_id_attr = "torso_id"
+    max_height_drop = 0.10
+    max_tilt_increase = 0.15
 
 
 class TestJointLimitsAtHome(JointLimitsAtHomeBase):

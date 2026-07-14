@@ -2,10 +2,23 @@
 
 from __future__ import annotations
 
+import inspect
+
 import pytest
 
 from environments.shared.jax_hooks import BestModelHook, CSVLoggingHook, LoggingHook, StabilityHook
 from environments.shared.jax_trainer import JaxTrainer, StopTraining, TrainerState
+
+
+def test_headless_training_binds_runtime_plant_before_writing_artifacts():
+    from environments.shared.jax_training import train_jax
+
+    source = inspect.getsource(train_jax)
+    env_created = source.index("env = MJXDinoEnv(")
+    env_validated = source.index("validate_mjx_environment_plant(")
+    identity_written = source.index("write_plant_identity(")
+    assert env_created < env_validated < identity_written
+
 
 _has_jax = False
 try:

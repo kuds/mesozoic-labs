@@ -213,9 +213,11 @@ train_jax(
 
 # Resume / warm-start from a saved checkpoint
 from environments.shared.jax_checkpoint import restore_train_state
+from environments.shared.plant_contract import current_plant_identity
 
 params, opt_state, obs_rms, update = restore_train_state(
-    "results/trex/jax/stage1/trex_s1_00450.pkl"
+    "results/trex/jax/stage1/trex_s1_00450.pkl",
+    current_plant=current_plant_identity("trex"),
 )
 params, metrics, obs_stats = train_jax(
     species="trex",
@@ -225,6 +227,12 @@ params, metrics, obs_stats = train_jax(
     checkpoint_dir="results/trex/jax/stage2",
 )
 ```
+
+JAX checkpoint loads fail closed unless `current_plant` is supplied. For an
+untagged historical checkpoint, supply both the current identity and
+`allow_legacy_plant=True`; this does not disable checks on tagged checkpoints.
+`unsafe_skip_plant_validation=True` is reserved for low-level artifact
+inspection and must not be used to resume training or evaluate a policy.
 
 These checkpoint examples call the low-level API directly. Supply the desired
 stage TOML values explicitly (including `env_kwargs`) for a config-matched run.
