@@ -133,6 +133,12 @@ class CurriculumManager:
         return self._current_stage
 
     @property
+    def current_threshold(self) -> StageThreshold:
+        """Effective threshold for the current stage, including overrides."""
+
+        return self._thresholds[self._current_stage]
+
+    @property
     def is_final_stage(self) -> bool:
         """Whether the manager is on the last stage."""
         return self._current_stage >= self.total_stages
@@ -341,9 +347,10 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
     When an ``eval_callback`` is provided, this callback piggybacks on
     its evaluation results (reward / episode length) instead of running
-    a redundant full eval pass.  A small supplementary eval still runs
-    to collect forward velocity and success rate from the info dicts,
-    which ``EvalCallback`` does not capture.
+    a redundant full eval pass. ``StageAwareEvalCallback`` also supplies
+    per-episode forward velocity and task success from that same sample.
+    A small supplementary eval remains for the richer locomotion report and
+    as a compatibility fallback for a plain SB3 ``EvalCallback``.
 
     Args:
         curriculum_manager: The manager tracking stage progress.
@@ -354,13 +361,11 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         eval_callback: Optional ``EvalCallback`` to read results from.
             When set, the callback reads reward/length (and per-episode
             successes, when the env reports ``info["is_success"]``) from
-            the evaluations.npz and only runs a short supplementary eval
-            for forward velocity and locomotion metrics.
+            evaluations.npz. A ``StageAwareEvalCallback`` additionally
+            provides forward velocity in memory.
         supplementary_episodes: Number of episodes for the supplementary
             eval when *eval_callback* is provided (default 10).  Drives the
-            forward-velocity gate sample (and the success gate only when
-            the npz has no ``successes`` array), so keep it >= 10 when
-            ``min_avg_forward_vel`` gating is enabled.
+            locomotion report and the compatibility fallback samples.
         verbose: Verbosity level.
     """
 
@@ -388,6 +393,31 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         self.ready_to_advance = False
         self._last_eval_step = 0
         self._last_seen_n_evals = 0
+
+    def _success_rates_for_stage(
+        self,
+        preferred: list[float] | None,
+        fallback: list[float] | None,
+    ) -> list[float] | None:
+        """Select success samples only when the current stage gates on them."""
+
+        if self.curriculum_manager.current_threshold.min_success_rate <= 0.0:
+            return None
+        return preferred if preferred else fallback
+
+    def _forward_velocities_for_eval(
+        self,
+        n_evals: int,
+        fallback: list[float] | None,
+    ) -> list[float] | None:
+        """Use the main evaluation sample for gating, with legacy fallback."""
+
+        histories = getattr(self.eval_callback, "evaluations_forward_velocities", None)
+        if histories is not None and n_evals > 0 and len(histories) >= n_evals:
+            latest = [float(value) for value in histories[n_evals - 1] if np.isfinite(value)]
+            if latest:
+                return latest
+        return fallback
 
     def _on_step(self) -> bool:
         if (self.num_timesteps - self._last_eval_step) < self.eval_freq:
@@ -538,7 +568,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
     def _on_step_with_eval_callback(self) -> bool:
         """Advancement check using EvalCallback results + supplementary eval."""
-        rewards, lengths, npz_successes, _n_evals = self._read_latest_eval()
+        rewards, lengths, npz_successes, n_evals = self._read_latest_eval()
         if rewards is None:
             return True  # EvalCallback hasn't produced new results yet
 
@@ -546,13 +576,12 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         forward_vels, success_flags, episode_reports = self._run_supplementary_eval()
         self._log_locomotion_metrics(episode_reports)
 
-        fwd_vel_arg = forward_vels if forward_vels else None
+        fwd_vel_arg = self._forward_velocities_for_eval(n_evals, forward_vels or None)
         # Prefer the EvalCallback's per-episode successes (full
-        # n_eval_episodes sample) over the small supplementary eval.
-        if npz_successes is not None:
-            success_arg = npz_successes
-        else:
-            success_arg = success_flags if success_flags else None
+        # n_eval_episodes sample) over the small supplementary eval, but only
+        # when task success is an active gate for this stage.  Incidental
+        # target contacts in balance/locomotion are not stage success.
+        success_arg = self._success_rates_for_stage(npz_successes, success_flags or None)
         if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg):
             self.ready_to_advance = True
             logger.info(
@@ -624,7 +653,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         self._log_locomotion_metrics(episode_reports)
 
         fwd_vel_arg = forward_vels if forward_vels else None
-        success_arg = success_flags if success_flags else None
+        success_arg = self._success_rates_for_stage(None, success_flags or None)
         if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg):
             self.ready_to_advance = True
             logger.info(

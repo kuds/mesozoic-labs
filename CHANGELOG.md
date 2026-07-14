@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — RL/GCP Review Fixes & Model Physics (v0.3.2)
 
 ### Changed
+- **Plateau diagnostics now follow deterministic stage-gate evaluations**:
+  rollout return warnings (which fired at different rates for PPO and SAC and
+  repeated every rollout) are replaced by a warn-once/re-arm state machine.
+  It monitors the currently blocking configured gate — balance duration,
+  forward velocity, task success, then reward — and explains that training
+  continues independently. SB3 evaluation now reports task success as `N/A`
+  when the current stage has no success-rate gate, while preserving genuine
+  Stage 3 `0%` results and success arrays.
 - **Trex and brachiosaurus gait actuator headroom raised to 1.5×kp**
   (breaking — plant change): the same static-only forcerange sizing that
   broke velociraptor stage-2 measured 44–50 % hip / ~31 % ankle / 10–14 %

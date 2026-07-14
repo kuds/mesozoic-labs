@@ -550,7 +550,6 @@ def train_trial(config: dict[str, Any]) -> None:
     from stable_baselines3.common.callbacks import (
         CallbackList,
         CheckpointCallback,
-        EvalCallback,
     )
 
     from environments.shared.config import load_all_stages, save_stage_config
@@ -561,6 +560,7 @@ def train_trial(config: dict[str, Any]) -> None:
         StageWarmupCallback,
         load_vecnorm_stats,
     )
+    from environments.shared.eval_diagnostics import build_stage_evaluation_callbacks
     from environments.shared.species_registry import get_species_config
     from environments.shared.train_base import (
         cosine_schedule,
@@ -698,13 +698,15 @@ def train_trial(config: dict[str, Any]) -> None:
             model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
 
         # Callbacks
-        callbacks = []
+        callbacks: list[Any] = []
 
         save_vecnorm_cb = SaveVecNormalizeCallback(
             save_path=str(model_dir / "best_model_vecnorm.pkl"),
         )
-        eval_callback = EvalCallback(
+        eval_callback, plateau_callback = build_stage_evaluation_callbacks(
             eval_env,
+            stage=stage,
+            stage_config=stage_config,
             best_model_save_path=str(model_dir),
             log_path=str(trial_dir),
             eval_freq=eval_freq // n_envs,
@@ -715,6 +717,7 @@ def train_trial(config: dict[str, Any]) -> None:
             callback_on_new_best=save_vecnorm_cb,
         )
         callbacks.append(eval_callback)
+        callbacks.append(plateau_callback)
 
         model_ref = [model]
         callbacks.append(
