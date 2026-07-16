@@ -31,7 +31,8 @@ reset_noise_scale = 0.05                  # Increased from 0.01 default to impro
 
 [ppo]
 learning_rate = 3e-5                    # Sweep result: 3.23e-5 — 10x lower than 3e-4. All successful S1 runs used this; higher LR likely caused instability.
-learning_rate_end = 1e-5
+learning_rate_end = 5e-6                # Lowered from 1e-5 so the cosine schedule settles to a gentler late-stage floor.
+lr_schedule = "cosine"                  # Cosine decays faster mid-training than linear, protecting the converged policy from late destabilisation.
 n_steps = 2048
 batch_size = 128                        # Sweep result: doubled from 64. More stable gradient estimates for the large observation space.
 n_epochs = 10
@@ -39,10 +40,12 @@ gamma = 0.98                            # Sweep result: 0.9797 — slightly shor
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.01
-# ent_coef_end = 0.002                  # Uncomment to decay entropy over the stage (EntCoefDecayCallback);
-                                        # 5x decay mirrors velociraptor's 0.005 -> 0.001. Velociraptor stages
-                                        # 1 & 2 both destabilized late under constant ent_coef; decay fixed
-                                        # stage 2. See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
+ent_coef_end = 0.002                    # Enabled: 5x entropy decay (EntCoefDecayCallback). Brachiosaurus was the only
+ent_coef_decay_timesteps = 2500000      # species with this disabled; the bipeds destabilised late under a constant ent_coef
+                                        # and this decay fixed them. Anchored to ~40% of the 6M budget so entropy reaches its
+                                        # floor once balance has converged. See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
+target_kl = 0.03                        # Early-stop PPO epochs on high approx-KL — caps destabilising late updates on the
+                                        # thin 4-env rollouts (mirrors the JAX path's target_kl guard).
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]

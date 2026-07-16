@@ -26,10 +26,12 @@ food_head_proximity_weight = 0.0
 food_distance_range = [8.0, 12.0]
 food_height_range = [2.0, 3.0]
 max_episode_steps = 1000
+healthy_z_range = [0.85, 3.5]          # Lowered fall floor from the env default 1.0: settled stance is ~1.13 m and normal gait bob dips to ~1.10 m, so a 1.0 floor fired spurious "fallen" terminations mid-gait (short 642/1000-step episodes, high variance). 0.85 keeps real falls detectable while letting the gait breathe.
 
 [ppo]
 learning_rate = 6e-5                    # Sweep winner: 6.03e-5 — slightly higher than 5e-5, better gradient signal without catastrophic forgetting.
-learning_rate_end = 1e-5
+learning_rate_end = 5e-6                # Lowered from 1e-5 for a gentler late-stage cosine floor.
+lr_schedule = "cosine"                  # Cosine LR protects the converged gait from the post-peak collapse (best 6625 @3.8M -> final 3495).
 n_steps = 2048                          # Sweep winner: 2048 — smaller rollout buffer performed better; faster policy updates.
 batch_size = 512                        # Sweep winner: 512 — larger minibatches gave more stable gradients. Key differentiator of the top trial.
 n_epochs = 10
@@ -37,12 +39,11 @@ gamma = 0.993                           # Sweep winner: 0.9929 — all top-3 tri
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.01                         # Sweep winner: 0.0104 — reduced from 0.015. Less entropy lets policy commit to discovered gaits sooner.
-# ent_coef_end = 0.002                  # Uncomment to decay entropy over the stage (EntCoefDecayCallback);
-                                        # 5x decay mirrors velociraptor's 0.005 -> 0.001, which (with
-                                        # fall_penalty -150, forward_vel_max 2.5) carried its stage 2 to
-                                        # 2706 +/- 8 @ 2.75 m/s on the 1.5x-kp plant. Sweep-winner caveat:
-                                        # the 0.0104 constant was tuned on the old plant, so re-validate.
-                                        # See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
+ent_coef_end = 0.002                    # Enabled: 5x entropy decay (EntCoefDecayCallback) — the documented fix for this exact
+ent_coef_decay_timesteps = 6000000      # post-peak collapse, previously disabled only on Brachiosaurus. Anchored to 6M (~the
+                                        # gait-consolidation point, just after the 4M ramp) rather than the padded 16M budget,
+                                        # so entropy reaches its floor before the late drift. See STAGE2_RECOMMENDATIONS.md §5.
+target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]                  # Larger first layer to match Stage 1 setting 4 architecture

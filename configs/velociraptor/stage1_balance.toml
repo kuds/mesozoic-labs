@@ -26,7 +26,8 @@ reset_noise_scale = 0.05                  # Increased from 0.01 default to impro
 
 [ppo]
 learning_rate = 3e-5                             # Setting 4 sweep: 3.23e-5 — 10x lower. Old 3e-4 produced inconsistent results (512–1702 range). Lower LR gives stable ~1500–2400.
-learning_rate_end = 1e-5
+learning_rate_end = 5e-6                          # Lowered from 1e-5 for a gentler late-stage cosine floor.
+lr_schedule = "cosine"                            # Cosine LR protects the converged balance policy from the late collapse seen on 07-12.
 n_steps = 2048
 batch_size = 128                                 # Setting 4 sweep: halved from 256. All successful Setting 4 runs used 128.
 n_epochs = 10                                    # Setting 4 sweep: restored from 6. With batch=128, minibatch count doubles — 10 epochs is validated by data.
@@ -39,6 +40,8 @@ ent_coef_end = 0.001                             # Decay entropy over the stage 
                                                  # under constant ent_coef on the 1.5x-kp plant — the same late-training
                                                  # entropy pathology that broke stage 2, where this decay fixed it.
                                                  # See docs/investigations/STAGE2_RECOMMENDATIONS.md section 5.
+ent_coef_decay_timesteps = 3000000               # Anchor the decay to ~the observed collapse point (~2.45M) instead of the full 6M budget, so entropy reaches its 0.001 floor before the late drift.
+target_kl = 0.03                                 # Early-stop PPO epochs on high approx-KL — extra guard against the late destabilisation that collapsed the 07-12 run.
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]

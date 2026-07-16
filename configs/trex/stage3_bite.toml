@@ -23,7 +23,8 @@ max_episode_steps = 1000
 
 [ppo]
 learning_rate = 5e-5
-learning_rate_end = 1e-5
+learning_rate_end = 5e-6                # Lowered from 1e-5 for a gentler late-stage cosine floor.
+lr_schedule = "cosine"                 # Cosine LR reduces the post-peak decline (best 1726 @5.5M -> final 1316).
 n_steps = 4096
 batch_size = 256
 n_epochs = 10
@@ -31,6 +32,9 @@ gamma = 0.995
 gae_lambda = 0.95
 clip_range = 0.15                      # Widened from 0.1: allow larger policy updates to escape local optimum (survival-only behavior)
 ent_coef = 0.005                       # 5x increase from 0.001: more exploration needed to discover sparse bite reward
+ent_coef_end = 0.001                   # Enabled: decay entropy to a low floor once the bite behaviour is discovered, so the
+ent_coef_decay_timesteps = 3000000     # policy consolidates instead of drifting late (best @5.5M then decline). Anchored below the 8M budget.
+target_kl = 0.03                       # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]
