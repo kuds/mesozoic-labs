@@ -13,6 +13,7 @@ from environments.shared.config import (
     _find_stage_file,
     _upload_to_gcs,
     append_stage_result_csv,
+    get_git_commit,
     load_all_stages,
     load_stage_config,
     save_stage_config,
@@ -503,6 +504,30 @@ class TestDetectGpuInfo:
         with patch("subprocess.run", side_effect=FileNotFoundError):
             result = _detect_gpu_info_nvidia_smi()
         assert result == {}
+
+
+class TestGetGitCommit:
+    """Git-commit capture for stage-config reproducibility."""
+
+    def test_returns_commit_hash(self):
+        import subprocess
+
+        fake = subprocess.CompletedProcess(args=[], returncode=0, stdout="abc123def456\n", stderr="")
+        with patch("subprocess.run", return_value=fake):
+            assert get_git_commit() == "abc123def456"
+
+    def test_falls_back_to_github_sha(self, monkeypatch):
+        import subprocess
+
+        monkeypatch.setenv("GITHUB_SHA", "ci-sha-789")
+        fake = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="not a git repo")
+        with patch("subprocess.run", return_value=fake):
+            assert get_git_commit() == "ci-sha-789"
+
+    def test_unknown_when_no_git_and_no_env(self, monkeypatch):
+        monkeypatch.delenv("GITHUB_SHA", raising=False)
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            assert get_git_commit() == "unknown"
 
 
 class TestAppendStageResultCsv:
