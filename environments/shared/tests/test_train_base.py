@@ -216,6 +216,56 @@ class TestBuildCoreCallbacks:
         assert plateau_callback.min_relative_variation == 0.02
         eval_env.close()
 
+    def test_collapse_early_stop_params_are_configurable(self, tmp_path):
+        gym = pytest.importorskip("gymnasium")
+        pytest.importorskip("stable_baselines3")
+        from stable_baselines3.common.callbacks import CheckpointCallback
+        from stable_baselines3.common.vec_env import DummyVecEnv
+
+        from environments.shared.curriculum import EvalCollapseEarlyStopCallback
+
+        class TinyEnv(gym.Env):
+            observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+            action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+
+            def reset(self, *, seed=None, options=None):
+                super().reset(seed=seed)
+                return np.zeros(1, dtype=np.float32), {}
+
+            def step(self, action):
+                return np.zeros(1, dtype=np.float32), 0.0, False, False, {"forward_vel": 0.0}
+
+        def _build_collapse_cb(curriculum_kwargs):
+            eval_env = DummyVecEnv([TinyEnv])
+            callbacks, _, _ = _build_core_callbacks(
+                {"CheckpointCallback": CheckpointCallback},
+                eval_env,
+                tmp_path / "models",
+                tmp_path / "logs",
+                2,
+                1,
+                100,
+                100,
+                0,
+                {"curriculum_kwargs": curriculum_kwargs},
+            )
+            eval_env.close()
+            return next(cb for cb in callbacks if isinstance(cb, EvalCollapseEarlyStopCallback))
+
+        # Explicit [curriculum] overrides are honoured.
+        cb = _build_collapse_cb(
+            {"min_avg_reward": 100.0, "collapse_min_evals": 20, "collapse_patience": 10, "collapse_drop_fraction": 0.5}
+        )
+        assert cb.min_evals == 20
+        assert cb.patience == 10
+        assert cb.drop_fraction == 0.5
+
+        # Defaults are lenient (looser than the old hardcoded 8 / 5 / 0.3).
+        cb_default = _build_collapse_cb({"min_avg_reward": 100.0})
+        assert cb_default.min_evals == 12
+        assert cb_default.patience == 8
+        assert cb_default.drop_fraction == 0.4
+
 
 # ── cosine_schedule ─────────────────────────────────────────────────────
 

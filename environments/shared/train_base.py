@@ -435,8 +435,20 @@ def _build_core_callbacks(
 
     callbacks.append(_DiagCB(log_dir=str(log_path), verbose=verbose))
 
+    # Collapse early-stop is a backstop against a genuinely diverging stage.
+    # Its thresholds are configurable via the stage's [curriculum] section;
+    # defaults are lenient (looser than the former hardcoded 8 / 5 / 0.3) so a
+    # normal early-training dip does not abort a stage before entropy decay /
+    # LR annealing have had a chance to engage.
+    collapse_cfg = stage_config.get("curriculum_kwargs", {})
     callbacks.append(
-        EvalCollapseEarlyStopCallback(eval_callback=eval_callback, min_evals=8, patience=5, verbose=verbose)
+        EvalCollapseEarlyStopCallback(
+            eval_callback=eval_callback,
+            min_evals=int(collapse_cfg.get("collapse_min_evals", 12)),
+            patience=int(collapse_cfg.get("collapse_patience", 8)),
+            drop_fraction=float(collapse_cfg.get("collapse_drop_fraction", 0.4)),
+            verbose=verbose,
+        )
     )
 
     if use_wandb:

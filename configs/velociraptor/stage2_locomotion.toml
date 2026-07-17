@@ -44,7 +44,7 @@ ent_coef_end = 0.001                # Linearly decay the entropy bonus over the 
                                     # still rising at the early stop.
                                     # See docs/investigations/STAGE2_RECOMMENDATIONS.md R4.
 
-target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL); mirrors the JAX target_kl guard.
+target_kl = 0.05                        # Loosened from 0.03 for the locomotion stage (fast early learning); matches the JAX path's value.
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]
@@ -96,6 +96,9 @@ min_avg_reward = 100.0
 min_avg_episode_length = 750
 min_avg_forward_vel = 2.0
 required_consecutive = 3
+collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
+collapse_patience = 10                  # Require 10 consecutive sub-threshold evals so a transient dip won't abort the stage.
+collapse_drop_fraction = 0.5            # Only a >50% drop from peak counts, so the normal early-locomotion dip survives.
 warmup_timesteps = 300000               # Increase from 100k: give critic more time to adapt to new reward landscape
 warmup_clip_range = 0.02
 warmup_ent_coef = 0.02

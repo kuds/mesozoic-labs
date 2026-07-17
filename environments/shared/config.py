@@ -53,6 +53,33 @@ def get_library_version() -> str:
     return "unknown"
 
 
+def get_git_commit() -> str:
+    """Return the repository's current git commit hash, or ``"unknown"``.
+
+    Runs ``git rev-parse HEAD`` from the repository root so it works even when
+    the process working directory is elsewhere (e.g. a Colab notebook whose CWD
+    is ``/content``). Falls back to the ``GITHUB_SHA`` environment variable (set
+    in CI) before giving up, so a saved stage config records the exact code
+    revision that produced the run for reproducibility.
+    """
+    import os
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=_REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return os.environ.get("GITHUB_SHA", "unknown")
+
+
 # Known GPU short-names extracted from full device strings.
 _GPU_SHORT_NAMES = ("A100", "H100", "L4", "L40", "T4", "V100", "A10G", "A10", "RTX")
 
@@ -279,6 +306,7 @@ def save_stage_config(
         "description": stage_config.get("description", ""),
         "algorithm": algorithm.upper(),
         "library_version": get_library_version(),
+        "git_commit": get_git_commit(),
         "reward_weights": env_kwargs,
         "hyperparameters": stage_config.get(algo_key, {}),
         "curriculum": stage_config.get("curriculum_kwargs", {}),

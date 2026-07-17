@@ -43,7 +43,7 @@ ent_coef_end = 0.002                    # Enabled: 5x entropy decay (EntCoefDeca
 ent_coef_decay_timesteps = 6000000      # post-peak collapse, previously disabled only on Brachiosaurus. Anchored to 6M (~the
                                         # gait-consolidation point, just after the 4M ramp) rather than the padded 16M budget,
                                         # so entropy reaches its floor before the late drift. See STAGE2_RECOMMENDATIONS.md §5.
-target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
+target_kl = 0.05                        # Loosened from 0.03: locomotion learns fast early, so a tight KL cap early-stops epochs and throttles gait development. 0.05 matches the JAX path.
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]                  # Larger first layer to match Stage 1 setting 4 architecture
@@ -98,6 +98,9 @@ min_avg_reward = 100.0
 min_avg_episode_length = 750
 min_avg_forward_vel = 0.75             # Gate on actual locomotion; without this, a standing-still policy passes on alive_bonus alone. Realistic walking speed for a heavy sauropod.
 required_consecutive = 3
+collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps (20 evals x 50k) before it can fire.
+collapse_patience = 10                  # Require 10 consecutive sub-threshold evals (~500k steps) so a transient dip won't abort the stage.
+collapse_drop_fraction = 0.5            # Only a >50% drop from peak counts, so the normal early-locomotion dip survives until entropy decay (floor ~6M) stabilises the gait.
 warmup_timesteps = 1000000              # Sweep winner: 1M — 3x longer warmup was the biggest signal. Gives critic much more time to adapt to new reward landscape before policy changes accelerate.
 warmup_clip_range = 0.035               # Sweep winner: 0.0335 — more clip room during warmup lets policy adjust faster once critic is ready.
 warmup_ent_coef = 0.018                 # Sweep winner: 0.0175 — slightly lower than 0.02, less random during warmup since critic has longer to stabilize.

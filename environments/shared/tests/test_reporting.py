@@ -547,6 +547,47 @@ class TestSaveResultsJson:
         data = json.loads(path.read_text())
         assert data["final_avg_reward"] == 75.12
 
+    def test_provenance_records_repository_commit(self, tmp_path):
+        results = [_make_stage_result(1)]
+        path = save_results_json(results, "velociraptor", "PPO", seed=42, results_dir=tmp_path)
+        prov = json.loads(path.read_text())["provenance"]
+        assert set(prov) == {
+            "model_revision_status",
+            "verification_status",
+            "evaluation_episodes",
+            "repository_commit",
+            "model_hash",
+            "config_hash",
+        }
+        # Repository commit is auto-populated; a fresh run stays conservatively uncertified.
+        assert isinstance(prov["repository_commit"], str) and prov["repository_commit"]
+        assert prov["model_revision_status"] == "historical"
+        assert prov["verification_status"] == "unverified"
+
+    def test_provenance_overrides_are_applied(self, tmp_path):
+        results = [_make_stage_result(1)]
+        override = {
+            "model_hash": "sha256:abc",
+            "config_hash": "sha256:def",
+            "evaluation_episodes": 30,
+            "model_revision_status": "current",
+            "verification_status": "verified",
+        }
+        path = save_results_json(results, "velociraptor", "PPO", seed=42, results_dir=tmp_path, provenance=override)
+        prov = json.loads(path.read_text())["provenance"]
+        assert prov["model_hash"] == "sha256:abc"
+        assert prov["config_hash"] == "sha256:def"
+        assert prov["evaluation_episodes"] == 30
+        assert prov["model_revision_status"] == "current"
+        assert prov["verification_status"] == "verified"
+        assert prov["repository_commit"]  # still auto-filled when not overridden
+
+    def test_backend_fields_present(self, tmp_path):
+        results = [_make_stage_result(1)]
+        data = json.loads(save_results_json(results, "velociraptor", "PPO", seed=42, results_dir=tmp_path).read_text())
+        assert data["backend"] == "stable-baselines3"
+        assert "backend_version" in data
+
     def test_forward_vel_in_stage_data(self, tmp_path):
         results = [_make_stage_result(1, mean_forward_vel=1.5)]
         path = save_results_json(results, "velociraptor", "PPO", seed=42, results_dir=tmp_path)
