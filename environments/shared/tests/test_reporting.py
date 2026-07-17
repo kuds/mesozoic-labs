@@ -573,9 +573,7 @@ class TestSaveResultsJson:
             "model_revision_status": "current",
             "verification_status": "verified",
         }
-        path = save_results_json(
-            results, "velociraptor", "PPO", seed=42, results_dir=tmp_path, provenance=override
-        )
+        path = save_results_json(results, "velociraptor", "PPO", seed=42, results_dir=tmp_path, provenance=override)
         prov = json.loads(path.read_text())["provenance"]
         assert prov["model_hash"] == "sha256:abc"
         assert prov["config_hash"] == "sha256:def"
@@ -586,9 +584,7 @@ class TestSaveResultsJson:
 
     def test_backend_fields_present(self, tmp_path):
         results = [_make_stage_result(1)]
-        data = json.loads(
-            save_results_json(results, "velociraptor", "PPO", seed=42, results_dir=tmp_path).read_text()
-        )
+        data = json.loads(save_results_json(results, "velociraptor", "PPO", seed=42, results_dir=tmp_path).read_text())
         assert data["backend"] == "stable-baselines3"
         assert "backend_version" in data
 
