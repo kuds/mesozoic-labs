@@ -441,6 +441,49 @@ def write_training_summary(
     return summary_path
 
 
+def _backend_name(algorithm: str) -> str:
+    """Training-backend identifier for a summary's ``backend`` field."""
+    return "jax" if algorithm.upper().startswith("JAX") else "stable-baselines3"
+
+
+def _backend_version(algorithm: str) -> "str | None":
+    """Installed version of the training backend, or ``None`` if undetectable."""
+    package = "jax" if algorithm.upper().startswith("JAX") else "stable_baselines3"
+    try:
+        from importlib.metadata import version
+
+        return version(package)
+    except Exception:
+        return None
+
+
+def _run_provenance(overrides: "Mapping[str, Any] | None" = None) -> dict[str, Any]:
+    """Build a summary ``provenance`` block, recording the repository commit.
+
+    Defaults are conservative: a freshly generated summary is ``historical`` /
+    ``unverified``. Per the results contract, ``current`` or ``verified`` may
+    only be claimed once the model hash, config hash, backend version, and
+    evaluation-episode count are all recorded. The repository commit is filled
+    automatically so a generated summary ties back to the exact code revision;
+    callers with full identity can pass ``overrides`` to complete and certify it.
+    """
+    from .config import get_git_commit
+
+    provenance: dict[str, Any] = {
+        "model_revision_status": "historical",
+        "verification_status": "unverified",
+        "evaluation_episodes": None,
+        "repository_commit": get_git_commit(),
+        "model_hash": None,
+        "config_hash": None,
+    }
+    if overrides:
+        for key, value in overrides.items():
+            if key in provenance:
+                provenance[key] = value
+    return provenance
+
+
 def save_results_json(
     stage_results_list: list[dict[str, Any]],
     species: str,
@@ -448,6 +491,7 @@ def save_results_json(
     seed: int,
     results_dir: "str | Path",
     hardware: str = "Google Colab T4 GPU",
+    provenance: "Mapping[str, Any] | None" = None,
 ) -> Path:
     """Save a ``summary.json`` to *results_dir*.
 
@@ -458,6 +502,10 @@ def save_results_json(
         hardware: Description of the training hardware (e.g.
             ``"Vertex AI n1-standard-8 + T4"``).  Defaults to
             ``"Google Colab T4 GPU"`` for notebook usage.
+        provenance: Optional overrides for the ``provenance`` block (e.g.
+            ``model_hash``, ``config_hash``, ``evaluation_episodes``, or a
+            ``current`` / ``verified`` status once the run is fully
+            identified).  ``repository_commit`` is filled automatically.
 
     Returns the path to the written JSON file.
     """
@@ -485,6 +533,8 @@ def save_results_json(
     summary = {
         "species": species,
         "algorithm": algorithm,
+        "backend": _backend_name(algorithm),
+        "backend_version": _backend_version(algorithm),
         "hardware": hardware,
         "seed": seed,
         "date": datetime.now().strftime("%Y-%m-%d"),
@@ -493,6 +543,7 @@ def save_results_json(
         "total_training_time_seconds": round(total_duration, 1),
         "total_training_time": format_duration_hms(total_duration),
         "final_avg_reward": round(final_result["mean_reward"], 2),
+        "provenance": _run_provenance(provenance),
     }
     plant_identity = final_result.get("plant_identity")
     if isinstance(plant_identity, Mapping):
