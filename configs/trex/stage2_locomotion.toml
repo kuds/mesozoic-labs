@@ -46,6 +46,8 @@ ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefD
                                         # velociraptor stage 2 to 2706 +/- 8 @ 2.75 m/s on the 1.5x-kp plant.
                                         # See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
 
+target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL); mirrors the JAX target_kl guard.
+
 [ppo.policy_kwargs]
 net_arch = [512, 256]                  # Larger first layer for T-Rex's higher-dimensional obs space (83 vs raptor's 67)
 

@@ -44,6 +44,8 @@ ent_coef_end = 0.001                # Linearly decay the entropy bonus over the 
                                     # still rising at the early stop.
                                     # See docs/investigations/STAGE2_RECOMMENDATIONS.md R4.
 
+target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL); mirrors the JAX target_kl guard.
+
 [ppo.policy_kwargs]
 net_arch = [512, 256]
 

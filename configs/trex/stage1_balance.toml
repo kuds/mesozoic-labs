@@ -43,6 +43,8 @@ ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefD
                                         # (bimodal falls, action std growth); decay fixed its stage 2 and is
                                         # enabled for its stage 1. See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
 
+target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL); mirrors the JAX target_kl guard.
+
 [ppo.policy_kwargs]
 net_arch = [512, 256]
 
