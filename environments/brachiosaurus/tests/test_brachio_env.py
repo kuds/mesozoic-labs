@@ -91,3 +91,27 @@ class TestFoodReachGating:
             assert info["success"] is True
         finally:
             env.close()
+
+
+class TestFoodReachCamera:
+    """The replay camera widens for the food-reach task so the elevated food
+    (2-3.5 m up, 1.5-4 m ahead) is in frame, instead of the ground-level
+    locomotion framing that leaves it out of view."""
+
+    def test_default_locomotion_camera_when_food_task_inactive(self):
+        env = BrachioEnv(food_reach_bonus=0.0, food_approach_weight=0.0)
+        try:
+            assert env._camera_distance == 5.0
+            assert env._camera_azimuth == 135
+            assert env._camera_elevation == -20
+        finally:
+            env.close()
+
+    def test_camera_widens_when_food_task_active(self):
+        env = BrachioEnv(food_reach_bonus=1000.0, food_approach_weight=3.0)
+        try:
+            assert env._camera_distance == 9.0
+            assert env._camera_azimuth == 110
+            assert env._camera_elevation == -8
+        finally:
+            env.close()

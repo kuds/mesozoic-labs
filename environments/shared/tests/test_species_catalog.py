@@ -88,7 +88,7 @@ def test_catalog_keeps_current_configs_separate_from_historical_results() -> Non
     published_stage_three = brachiosaurus["historical_results"][0]["stages"][2]
 
     assert current_stage_three["timesteps"] == 12_000_000
-    assert published_stage_three["timesteps"] == 8_000_000
+    assert published_stage_three["timesteps"] == 12_009_472
     assert brachiosaurus["historical_results"][0]["provenance"]["model_revision_status"] == "historical"
     assert brachiosaurus["historical_results"][0]["provenance"]["verification_status"] == "unverified"
 

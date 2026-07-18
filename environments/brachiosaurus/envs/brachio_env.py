@@ -134,6 +134,17 @@ class BrachioEnv(BaseDinoEnv):
         self.food_lateral_range = food_lateral_range
         self.food_height_range = food_height_range
 
+        # Replay camera: Brachiosaurus browses high, so when the food-reach task
+        # is active the food spawns 2-3.5 m up and 1.5-4 m ahead. The default
+        # locomotion camera (distance 5, elevation -20, tilted down) frames the
+        # walking animal at ground level and leaves the elevated food out of the
+        # rendered replay. Pull back and level the camera for the food task so
+        # the neck-reach and the food target are both in frame.
+        if self.food_reach_bonus > 0 or self.food_approach_weight > 0:
+            self._camera_distance = 9.0
+            self._camera_azimuth = 110
+            self._camera_elevation = -8
+
         # State tracking for delta-based rewards
         self._prev_head_food_distance: float | None = None
         self._prev_action: np.ndarray | None = None

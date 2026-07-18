@@ -235,15 +235,15 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
 
-### Brachiosaurus (PPO · Stable-Baselines3) — 2026-03-21
+### Brachiosaurus (PPO · Stable-Baselines3) — 2026-07-18
 
-**Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 30M steps; 15:59:39. [Source summary](results/brachiosaurus/ppo/summary.json).
+**Provenance:** Historical model; unverified; 30 evaluation episodes; Stable-Baselines3 (version not recorded). **Run total:** 34.0214M steps; 19:46:16. [Source summary](results/brachiosaurus/ppo/summary.json).
 
 | Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
 |---|---:|---:|---:|---:|---:|
-| 1 — Balance | 3002.52 | 0.02 m/s | — | 6M | Yes |
-| 2 — Locomotion | 4176.95 | 1.12 m/s | 3.3% | 16M | Yes |
-| 3 — Food Reach | 732.20 | 0.52 m/s | 16.7% | 8M | No |
+| 1 — Balance | 1740.53 | 0.01 m/s | — | 6.00474M | Yes |
+| 2 — Locomotion | 6634.60 | 1.42 m/s | 3.3% | 16.0072M | Yes |
+| 3 — Food Reach | 1368.13 | 0.71 m/s | 100.0% | 12.0095M | Yes |
 
 **Current Stable-Baselines3 catalog definition for this task label:** The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled.
 <!-- END GENERATED: RESULTS -->
