@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import pytest
 
@@ -23,6 +23,19 @@ from environments.shared.result_bundle import (
 from environments.shared.result_schema import validate_result_summary
 
 _COMMIT = "a" * 40
+
+
+class _InitializeResultBundleKwargs(TypedDict):
+    species: str
+    algorithm: str
+    backend: str
+    seed: int
+    evaluation_seeds: list[int]
+    evaluation_episodes: int
+    parallel_envs: int
+    plant_identity: dict[str, Any]
+    run_id: str
+    captured_at: str
 
 
 def _plant_identity() -> dict[str, Any]:
@@ -311,7 +324,7 @@ def test_initialize_result_bundle_is_idempotent_and_rejects_reuse(
     stable_provenance: None,
 ) -> None:
     run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260718_120000"
-    kwargs = {
+    kwargs: _InitializeResultBundleKwargs = {
         "species": "velociraptor",
         "algorithm": "PPO",
         "backend": "stable-baselines3",
@@ -336,8 +349,10 @@ def test_initialize_result_bundle_is_idempotent_and_rejects_reuse(
     assert provenance["backend"] == "stable-baselines3"
     assert provenance["evaluation_seeds"] == [11, 12]
 
+    changed_kwargs = kwargs.copy()
+    changed_kwargs["seed"] = 43
     with pytest.raises(ResultBundleError, match="different run"):
-        initialize_result_bundle(run_dir, **(kwargs | {"seed": 43}))
+        initialize_result_bundle(run_dir, **changed_kwargs)
 
 
 def test_initialize_result_bundle_rejects_duplicate_evaluation_seeds(
