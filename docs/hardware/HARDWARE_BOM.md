@@ -7,7 +7,7 @@
 > software (state estimator, perception, domain-randomization retraining) is the
 > true long pole and is scoped separately in the sim-to-real plan. No robot has
 > been built; `hardware_prototype` is still `planned`
-> ([`configs/species_manifest.toml`](../configs/species_manifest.toml)).
+> ([`configs/species_manifest.toml`](../../configs/species_manifest.toml)).
 
 ## Bottom line
 

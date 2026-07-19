@@ -3,8 +3,8 @@
 > **Status:** Scoping / feasibility record. This is an engineering assessment of
 > the gap between the current simulation and a walking physical robot, plus a
 > phased plan to close it. It is **not** a claim that any hardware exists — per
-> [`ROADMAP.md`](ROADMAP.md) Phase 6 and
-> [`configs/species_manifest.toml`](../configs/species_manifest.toml),
+> [`ROADMAP.md`](../ROADMAP.md) Phase 6 and
+> [`configs/species_manifest.toml`](../../configs/species_manifest.toml),
 > `hardware_prototype` is `planned` and `sim_to_real_validation` is
 > `not_started`. Nothing here has been built or transferred to hardware.
 
@@ -362,5 +362,5 @@ that shares every one of the same estimator/DR/HAL prerequisites.
 
 *This assessment was produced by auditing the MJCF models, observation/action
 pipeline, training stack, and project docs. It aligns with — and sequences —
-the existing [`ROADMAP.md`](ROADMAP.md) Phase 2 (robustness) and Phase 6
+the existing [`ROADMAP.md`](../ROADMAP.md) Phase 2 (robustness) and Phase 6
 (sim-to-real) items.*

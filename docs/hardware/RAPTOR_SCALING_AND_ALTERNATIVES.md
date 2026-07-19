@@ -7,6 +7,29 @@
 > adversarial verification — two of three builds were independently checked and
 > came back "minor-issues"; corrections are folded in below.
 
+## The one-line answer
+
+> **There is no buildable-today, sub-$10k, two-legged _running_ robot — and the
+> limit is control, not motors.**
+
+The *parts* for a bipedal runner exist under $10k (~$5–7k of COTS motors, frame,
+and compute). What doesn't exist is a proven, replicable "build-it-and-it-runs"
+recipe for a cheap biped — the way quadrupeds already have one (Stanford Doggo,
+ODRI Solo-8, MIT Mini-Cheetah all run out of the box). So the three real options
+collapse to:
+
+- **Actually runs, under $10k, buildable now → must be a quadruped** →
+  Scutellosaurus, ~$5–7k (§3).
+- **Two legs, cheap, reliable → a *walker*, not a runner** → Compsognathus, ~$1k
+  walking; a ~$5k QDD version *can attempt* running, but the gait is a research
+  bet, not a deliverable (§4).
+- **Full-size bipedal running (13.5 kg raptor) → a $20k+ research program** (§1).
+
+Two dials explain the whole table below: **money buys _size_** (torque scales
+~size⁴, so above ~10 kg you need custom actuators), and **legs buy _reliable
+running_** (quadrupeds have a solved cheap gait stack; cheap bipedal running is
+unsolved at any budget today).
+
 ## Bottom line
 
 Three plans, one clear recommendation:
