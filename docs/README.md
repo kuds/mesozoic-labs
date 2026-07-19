@@ -1,13 +1,16 @@
 # Documentation Map
 
-The docs fall into four categories with different lifecycles. Knowing which
+The docs fall into a few categories with different lifecycles. Knowing which
 category a document belongs to tells you whether to trust it as current,
-read it as history, or update it when things change.
+read it as history, or update it when things change. Multi-doc topics that grow
+past a couple of files get their own subdirectory with a short README index
+(the pattern used by `investigations/`, `reviews/`, and `hardware/`).
 
 | Category | Lifecycle | Where |
 |---|---|---|
 | **Living reference** | Continuously updated; always current | `docs/` root ([KNOWN_ISSUES.md](KNOWN_ISSUES.md)) |
 | **Plans & designs** | Updated until executed, then marked complete | `docs/` root |
+| **Hardware & sim-to-real** | Plans/designs, grouped as a topical track | [`hardware/`](hardware/) |
 | **Investigations & run analyses** | Point-in-time, dated; never rewritten (corrections are appended or cross-linked) | [`investigations/`](investigations/) |
 | **Code & repo reviews** | Archived records; findings migrate to KNOWN_ISSUES | [`reviews/`](reviews/) |
 
@@ -33,6 +36,22 @@ read it as history, or update it when things change.
 | [BALANCE_REWARD_METRICS.md](BALANCE_REWARD_METRICS.md) | 2026-03-16 | Proposed — composite ASHA metric for stage-1 sweeps |
 | [REFACTORING.md](REFACTORING.md) | 2026-03-19 | **Complete** — v0.3.0 consolidation plan |
 | [CODE_CONSOLIDATION.md](CODE_CONSOLIDATION.md) | 2026-03-19 | **Complete** — v0.3.0 implementation record |
+
+## Hardware & sim-to-real
+
+Plans and feasibility studies for physical robots, grouped in
+[`hardware/`](hardware/) with a reading order in its
+[README](hardware/README.md). Nothing here is built yet.
+
+**Headline conclusion:** there is no buildable-today, sub-$10k, two-legged
+*running* robot — the limit is control, not motors; an agile runner under $10k
+must be a quadruped.
+
+| Document | Date | One-liner |
+|---|---|---|
+| [hardware/SIM_TO_REAL_PLAN.md](hardware/SIM_TO_REAL_PLAN.md) | 2026-07-19 | Sim-to-real feasibility & phased plan — the six sim↔hardware gaps |
+| [hardware/HARDWARE_BOM.md](hardware/HARDWARE_BOM.md) | 2026-07-19 | Parts/cost & buildability for *walking* Compsognathus (~$950) + Velociraptor (~$8.7k) |
+| [hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md](hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md) | 2026-07-19 | *Running* robots: raptor scaling, bipedal-vs-quadruped, and a sub-$10k agile-runner species |
 
 ## Investigations & run analyses
 
