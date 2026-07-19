@@ -12,9 +12,11 @@ results/
 │   │   ├── stage1_balance.gif
 │   │   ├── stage3_strike.gif
 │   │   └── summary.json
-│   └── sac/
-│       ├── collected_results.csv
-│       ├── stage3_strike.gif
+│   ├── sac/
+│   │   ├── collected_results.csv
+│   │   ├── stage3_strike.gif
+│   │   └── summary.json
+│   └── jax_ppo/                    # when a JAX/MJX PPO result is promoted
 │       └── summary.json
 ├── trex/
 │   └── ppo/
@@ -49,12 +51,16 @@ backend and provenance metadata mandatory.
 
 ## How Results Are Generated
 
-The SB3 training workflow can generate a run-level `collected_results.csv`;
-the JAX and sweep workflows have their own result-export sections. Files are
-promoted into this curated directory deliberately rather than by every notebook
-automatically. The `summary.json` files are maintained as the public,
-provenance-labelled snapshots consumed by the catalog generator.
+SB3 and JAX training runs are saved to Google Drive as portable result bundles.
+The shared exporter captures provenance at run time, writes one canonical
+`summary.json` after all three stages, derives `collected_results.csv` from the
+same normalized metrics, binds selected and terminal claims to episode-level
+evidence, records the selected checkpoint (and SB3 normalization state) for
+every stage, and writes an artifact manifest last. See
+[`docs/RESULT_BUNDLES.md`](../docs/RESULT_BUNDLES.md).
 
-The `collected_results.csv` contains per-stage rows with all hyperparameters,
-metrics, curriculum thresholds, and pass/fail status — the same format used by
-sweep results, so single runs and sweeps can be compared with the same tooling.
+Files are promoted into this curated directory deliberately rather than by
+every notebook automatically. The catalog consumes `summary.json`; CSV and
+documentation are derived views and must agree with it. Legacy artifacts that
+predate bundles remain historical/unverified and may be reported as conflicting
+instead of being silently rewritten.
