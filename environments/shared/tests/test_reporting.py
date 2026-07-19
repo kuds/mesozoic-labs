@@ -308,6 +308,7 @@ def _make_stage_result(stage=1, **overrides):
         "vecnorm_path": f"/tmp/stage{stage}/vecnorm.pkl",
         "sim_dt": 0.01,
         "gate_passed": True,
+        "publication_gate_passed": True,
         "gate_failures": [],
     }
     result.update(overrides)
@@ -756,6 +757,11 @@ class _FakeEvalResults:
     """Minimal stand-in for jax_eval.EvalResults."""
 
     def __init__(self):
+        self.rewards = [50.0, 55.0, 60.0]
+        self.lengths = [200, 210, 220]
+        self.forward_vels = [0.5, 0.6, 0.55]
+        self.distances = [1.0, 1.2, 1.1]
+        self.successes = [True, True, True]
         self.diag_tilt = [0.1, 0.2, 0.15]
         self.diag_fwd_vel = [0.5, 0.6, 0.55]
         self.diag_pelvis_h = [0.7, 0.72, 0.71]
@@ -768,23 +774,50 @@ class _FakeEvalResults:
         }
 
 
+class _FakeFinalEvalResults:
+    """Terminal-policy evidence deliberately different from the selected policy."""
+
+    def __init__(self):
+        self.rewards = [10.0, 15.0, 20.0]
+        self.lengths = [100, 110, 120]
+        self.forward_vels = [0.1, 0.2, 0.3]
+        self.distances = [0.5, 1.0, 1.5]
+        self.successes = [False, False, True]
+
+
 class TestSaveJaxStageArtifacts:
     """Tests for save_jax_stage_artifacts."""
 
-    def _call(self, tmp_path, **overrides):
-        stage_dir = tmp_path / "stage1"
-        stage_dir.mkdir()
+    @pytest.fixture(autouse=True)
+    def _clean_repository_state(self, monkeypatch):
+        from environments.shared import result_bundle
+
+        monkeypatch.setattr(
+            result_bundle,
+            "_repository_state",
+            lambda _root: {
+                "repository_url": "https://github.com/kuds/mesozoic-labs.git",
+                "repository_commit": "a" * 40,
+                "repository_dirty": False,
+                "repository_patch_sha256": None,
+            },
+        )
+
+    def _call(self, tmp_path, stage=1, **overrides):
         run_dir = tmp_path / "run"
-        run_dir.mkdir()
+        run_dir.mkdir(parents=True, exist_ok=True)
+        stage_dir = run_dir / f"stage{stage}"
+        stage_dir.mkdir(parents=True, exist_ok=True)
 
         stage_config = {
-            "name": "Balance",
-            "description": "Stand upright",
-            "env_kwargs": {"forward_vel_weight": 1.0},
+            "name": f"Stage {stage}",
+            "description": f"Curriculum stage {stage}",
+            "env_kwargs": {"forward_vel_weight": float(stage)},
+            "jax_kwargs": {"learning_rate": 3e-4},
             "curriculum_kwargs": {"min_avg_reward": 50.0},
         }
         stage_results = _make_stage_result(
-            stage=1,
+            stage=stage,
             model_path=str(stage_dir / "models" / "best_model.pkl"),
             best_eval_reward=55.0,
             best_eval_timestep=50000,
@@ -793,7 +826,7 @@ class TestSaveJaxStageArtifacts:
 
         kwargs = dict(
             species="velociraptor",
-            stage=1,
+            stage=stage,
             stage_config=stage_config,
             stage_results=stage_results,
             stage_dir=stage_dir,
@@ -817,11 +850,16 @@ class TestSaveJaxStageArtifacts:
         expected_keys = {
             "stage_summary",
             "stage_config",
+            "evaluation_episodes",
+            "final_evaluation_episodes",
             "collected_results_csv",
             "diagnostics",
             "best_model",
             "final_model",
+            "stage_result",
             "training_summary",
+            "provenance",
+            "artifact_manifest",
         }
         assert set(paths.keys()) == expected_keys
 
@@ -851,7 +889,8 @@ class TestSaveJaxStageArtifacts:
             rows = list(csv.DictReader(f))
         assert len(rows) == 1
         assert rows[0]["species"] == "velociraptor"
-        assert rows[0]["algorithm"] == "jax_ppo"
+        assert rows[0]["algorithm"] == "PPO"
+        assert rows[0]["backend"] == "jax-mjx"
         assert rows[0]["plant_physics_sha256"] == _plant_identity().physics_sha256
 
     def test_diagnostics_npz(self, tmp_path):
@@ -902,37 +941,106 @@ class TestSaveJaxStageArtifacts:
         assert "JAX/MJX PPO" in text
         assert (paths["training_summary"].parent / "plant_identity.json").exists()
 
-    def test_csv_appends_across_stages(self, tmp_path):
-        """Running for two stages appends to the same CSV."""
-        paths1, stage_dir, run_dir = self._call(tmp_path)
+    def test_partial_bundle_has_no_public_summary(self, tmp_path):
+        paths, _, run_dir = self._call(tmp_path)
+        from environments.shared.result_bundle import validate_result_bundle
 
-        stage2_dir = tmp_path / "stage2"
-        stage2_dir.mkdir()
-        stage_config2 = {
-            "name": "Locomotion",
-            "description": "Walk forward",
-            "env_kwargs": {},
-            "curriculum_kwargs": {},
-        }
-        stage_results2 = _make_stage_result(
-            stage=2,
-            model_path=str(stage2_dir / "models" / "best_model.pkl"),
-        )
-        save_jax_stage_artifacts(
-            species="velociraptor",
-            stage=2,
-            stage_config=stage_config2,
-            stage_results=stage_results2,
-            stage_dir=stage2_dir,
-            run_dir=run_dir,
-            eval_results=_FakeEvalResults(),
-            params={"dense": [5.0]},
-            obs_rms=None,
-            plant_identity=_plant_identity(),
-        )
+        assert "summary" not in paths
+        assert not (run_dir / "summary.json").exists()
+        assert validate_result_bundle(run_dir, require_complete=False)["status"] == "partial"
 
+    def test_csv_upserts_across_stages(self, tmp_path):
+        """Each stage is represented once in the regenerated canonical CSV."""
+        _, _, run_dir = self._call(tmp_path)
+        self._call(tmp_path, stage=2)
         with open(run_dir / "collected_results.csv") as f:
             rows = list(csv.DictReader(f))
         assert len(rows) == 2
         assert rows[0]["stage"] == "1"
         assert rows[1]["stage"] == "2"
+
+    def test_repeated_stage_save_is_idempotent(self, tmp_path):
+        _, _, run_dir = self._call(tmp_path)
+        self._call(tmp_path)
+
+        with open(run_dir / "collected_results.csv") as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 1
+        assert rows[0]["stage"] == "1"
+
+    def test_rejects_a_skipped_prior_stage_before_writing(self, tmp_path):
+        from environments.shared.result_bundle import ResultBundleError
+
+        with pytest.raises(ResultBundleError, match="contiguous prefix"):
+            self._call(tmp_path, stage=2)
+        assert not (tmp_path / "run" / "provenance.json").exists()
+
+    def test_preserves_preinitialized_colab_hardware_identity(self, tmp_path):
+        from environments.shared.result_bundle import initialize_result_bundle
+
+        run_dir = tmp_path / "run"
+        initialize_result_bundle(
+            run_dir,
+            species="velociraptor",
+            algorithm="JAX_PPO",
+            backend="jax-mjx",
+            seed=42,
+            evaluation_seeds=[42],
+            evaluation_episodes=3,
+            parallel_envs=2048,
+            hardware="Google Colab (NVIDIA A100-SXM4-40GB)",
+            plant_identity=_plant_identity().to_dict(),
+            run_id="preinitialized-jax-run",
+        )
+
+        paths, _, _ = self._call(tmp_path)
+        provenance = json.loads(paths["provenance"].read_text())
+        assert provenance["hardware"] == "Google Colab (NVIDIA A100-SXM4-40GB)"
+
+    def test_three_stage_run_emits_valid_jax_summary(self, tmp_path):
+        from environments.shared.result_bundle import validate_result_bundle
+        from environments.shared.result_schema import validate_result_summary
+
+        self._call(tmp_path, stage=1, backend_version="0.11.0")
+        self._call(tmp_path, stage=2, backend_version="0.11.0")
+        paths, _, run_dir = self._call(tmp_path, stage=3, backend_version="0.11.0")
+
+        summary = json.loads(paths["summary"].read_text())
+        validate_result_summary(
+            summary,
+            expected_species="velociraptor",
+            require_complete=True,
+            canonical_provenance=True,
+        )
+        assert summary["algorithm"] == "PPO"
+        assert summary["backend"] == "jax-mjx"
+        assert summary["backend_version"] == "0.11.0"
+        assert set(summary["stages"]) == {"1", "2", "3"}
+        assert validate_result_bundle(run_dir)["status"] == "canonical-valid"
+
+    def test_selected_and_terminal_jax_metrics_remain_distinct(self, tmp_path):
+        for stage in (1, 2, 3):
+            self._call(
+                tmp_path,
+                stage=stage,
+                backend_version="0.11.0",
+                final_eval_results=_FakeFinalEvalResults(),
+            )
+
+        summary = json.loads((tmp_path / "run" / "summary.json").read_text())
+        assert summary["stages"]["3"]["selected_model_reward"] == 55.0
+        assert summary["stages"]["3"]["final_eval_reward"] == 15.0
+
+    def test_completed_jax_bundle_rejects_stage_rewrite_before_mutation(self, tmp_path):
+        from environments.shared.result_bundle import ResultBundleError
+
+        self._call(tmp_path, stage=1, backend_version="0.11.0")
+        self._call(tmp_path, stage=2, backend_version="0.11.0")
+        _, _, run_dir = self._call(tmp_path, stage=3, backend_version="0.11.0")
+        before = {path.relative_to(run_dir): path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
+
+        with pytest.raises(ResultBundleError, match="completed result bundle is immutable"):
+            self._call(tmp_path, stage=3, backend_version="0.11.0")
+
+        after = {path.relative_to(run_dir): path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
+        assert after == before

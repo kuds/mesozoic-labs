@@ -14,7 +14,7 @@ import logging
 import math
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 if TYPE_CHECKING:
     from .plant_contract import PlantIdentity
@@ -443,7 +443,9 @@ def write_training_summary(
 
 def _backend_name(algorithm: str) -> str:
     """Training-backend identifier for a summary's ``backend`` field."""
-    return "jax" if algorithm.upper().startswith("JAX") else "stable-baselines3"
+    from .result_bundle import canonical_backend
+
+    return canonical_backend(algorithm)
 
 
 def _backend_version(algorithm: str) -> "str | None":
@@ -478,10 +480,138 @@ def _run_provenance(overrides: "Mapping[str, Any] | None" = None) -> dict[str, A
         "config_hash": None,
     }
     if overrides:
-        for key, value in overrides.items():
-            if key in provenance:
-                provenance[key] = value
+        provenance.update(overrides)
     return provenance
+
+
+def _optional_metric(value: Any, *, digits: int | None = None) -> int | float | None:
+    """Normalize an optional numeric metric for JSON output."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"result metric must be numeric or null, got {value!r}")
+    if not isinstance(value, (int, float)):
+        try:
+            value = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"result metric must be numeric or null, got {value!r}") from exc
+    numeric = float(value)
+    if not math.isfinite(numeric):
+        return None
+    if digits is None and isinstance(value, int):
+        return int(value)
+    return round(numeric, digits) if digits is not None else numeric
+
+
+def _canonical_stage_summary(result: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize one in-memory stage result to the public schema-v2 shape."""
+    stage = int(result["stage"])
+    duration = float(result.get("duration_seconds", 0.0))
+    passed = parse_optional_bool(result.get("publication_gate_passed"))
+    if passed is None:
+        raise ValueError(f"stage {stage} is missing an explicit boolean publication_gate_passed value")
+
+    stage_summary: dict[str, Any] = {
+        "name": str(result.get("name") or f"Stage {stage}"),
+        "description": str(result.get("description") or f"Curriculum stage {stage}"),
+        "timesteps": int(result["timesteps"]),
+        "best_eval_reward": _optional_metric(result.get("best_eval_reward"), digits=2),
+        "best_eval_std": _optional_metric(result.get("best_eval_std"), digits=2),
+        "best_eval_step": _optional_metric(
+            result.get("best_eval_timestep", result.get("best_eval_step")),
+        ),
+        "final_eval_reward": _optional_metric(result.get("mean_reward"), digits=2),
+        "final_eval_std": _optional_metric(result.get("std_reward"), digits=2),
+        "avg_episode_length": _optional_metric(result.get("mean_episode_length"), digits=1),
+        "avg_episode_length_std": _optional_metric(result.get("std_episode_length"), digits=1),
+        "avg_forward_vel": _optional_metric(result.get("mean_forward_vel"), digits=3),
+        "avg_forward_vel_std": _optional_metric(result.get("std_forward_vel"), digits=3),
+        "mean_distance_traveled": _optional_metric(result.get("mean_distance_traveled"), digits=3),
+        "mean_success_rate": _optional_metric(result.get("mean_success_rate"), digits=4),
+        "training_time_seconds": round(duration, 1),
+        "training_time": format_duration_hms(duration),
+        "stage_passed": passed,
+        "publication_gate_passed": passed,
+    }
+    selected_metrics = {
+        "selected_model_reward": ("best_model_reward", 2),
+        "selected_model_reward_std": ("best_model_std_reward", 2),
+        "selected_model_episode_length": ("best_model_length", 1),
+        "selected_model_episode_length_std": ("best_model_std_length", 1),
+        "selected_model_forward_vel": ("best_model_fwd_vel", 3),
+        "selected_model_forward_vel_std": ("best_model_std_fwd_vel", 3),
+        "selected_model_distance": ("best_model_distance", 3),
+        "selected_model_success_rate": ("best_model_success_rate", 4),
+    }
+    for output_key, (result_key, digits) in selected_metrics.items():
+        if result_key in result:
+            stage_summary[output_key] = _optional_metric(result.get(result_key), digits=digits)
+    return stage_summary
+
+
+def build_result_summary(
+    stage_results_list: Sequence[Mapping[str, Any]],
+    species: str,
+    algorithm: str,
+    seed: int,
+    *,
+    hardware: str = "Google Colab",
+    provenance: Mapping[str, Any] | None = None,
+    backend: str | None = None,
+    backend_version: str | None = None,
+    parallel_envs: int | None = None,
+    run_id: str | None = None,
+    result_date: str | None = None,
+    plant_identity: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build one backend-independent result summary from normalized stage data."""
+    from .result_bundle import canonical_algorithm, canonical_backend
+
+    if not stage_results_list:
+        raise ValueError("at least one stage result is required")
+    stages: dict[str, dict[str, Any]] = {}
+    for result in stage_results_list:
+        stage_key = str(int(result["stage"]))
+        if stage_key in stages:
+            raise ValueError(f"duplicate stage result: {stage_key}")
+        stages[stage_key] = _canonical_stage_summary(result)
+
+    total_duration = sum(float(stage["training_time_seconds"] or 0.0) for stage in stages.values())
+    total_timesteps = sum(int(result["timesteps"]) for result in stage_results_list)
+    final_stage_key = max(stages, key=int)
+    public_algorithm = canonical_algorithm(algorithm)
+    public_backend = canonical_backend(algorithm, backend)
+    summary: dict[str, Any] = {
+        "schema_version": 2,
+        "bundle_status": "complete" if set(stages) == {"1", "2", "3"} else "partial",
+        "species": species,
+        "algorithm": public_algorithm,
+        "backend": public_backend,
+        "backend_version": backend_version
+        if backend_version is not None
+        else _backend_version("JAX_PPO" if public_backend == "jax-mjx" else public_algorithm),
+        "hardware": hardware,
+        "seed": seed,
+        "date": result_date or datetime.now().strftime("%Y-%m-%d"),
+        "stages": stages,
+        "total_timesteps": total_timesteps,
+        "total_training_time_seconds": round(total_duration, 1),
+        "total_training_time": format_duration_hms(total_duration),
+        "final_avg_reward": stages[final_stage_key]["final_eval_reward"],
+        "provenance": _run_provenance(provenance),
+    }
+    if parallel_envs is not None:
+        summary["parallel_envs"] = parallel_envs
+    if run_id is not None:
+        summary["run_id"] = run_id
+    effective_plant_identity = plant_identity
+    if effective_plant_identity is None:
+        candidate = stage_results_list[-1].get("plant_identity")
+        if isinstance(candidate, Mapping):
+            effective_plant_identity = candidate
+    if effective_plant_identity is not None:
+        summary["plant_identity"] = dict(effective_plant_identity)
+    return summary
 
 
 def save_results_json(
@@ -490,68 +620,145 @@ def save_results_json(
     algorithm: str,
     seed: int,
     results_dir: "str | Path",
-    hardware: str = "Google Colab T4 GPU",
+    hardware: str = "Google Colab",
     provenance: "Mapping[str, Any] | None" = None,
+    *,
+    backend: str | None = None,
+    backend_version: str | None = None,
+    parallel_envs: int | None = None,
+    run_id: str | None = None,
+    result_date: str | None = None,
+    plant_identity: Mapping[str, Any] | None = None,
 ) -> Path:
-    """Save a ``summary.json`` to *results_dir*.
+    """Save a schema-v2 ``summary.json`` to *results_dir*.
 
-    Creates a machine-readable record of the training run that can be
-    used to auto-generate the README results table and website content.
-
-    Args:
-        hardware: Description of the training hardware (e.g.
-            ``"Vertex AI n1-standard-8 + T4"``).  Defaults to
-            ``"Google Colab T4 GPU"`` for notebook usage.
-        provenance: Optional overrides for the ``provenance`` block (e.g.
-            ``model_hash``, ``config_hash``, ``evaluation_episodes``, or a
-            ``current`` / ``verified`` status once the run is fully
-            identified).  ``repository_commit`` is filled automatically.
-
-    Returns the path to the written JSON file.
+    This compatibility wrapper can write partial summaries.  The canonical
+    :func:`save_result_bundle` workflow only publishes ``summary.json`` after
+    all three stages exist.
     """
-    results_dir = Path(results_dir)
-    results_dir.mkdir(parents=True, exist_ok=True)
-
-    total_duration = sum(r["duration_seconds"] for r in stage_results_list)
-    total_timesteps = sum(r["timesteps"] for r in stage_results_list)
-    final_result = stage_results_list[-1]
-
-    stages = {}
-    for r in stage_results_list:
-        stage_data = {
-            "name": r["name"],
-            "timesteps": r["timesteps"],
-            "avg_reward": round(r["mean_reward"], 2),
-            "std_reward": round(r["std_reward"], 2),
-            "training_time_seconds": round(r["duration_seconds"], 1),
-            "training_time": format_duration_hms(r["duration_seconds"]),
-        }
-        if "mean_forward_vel" in r:
-            stage_data["avg_forward_vel"] = round(r["mean_forward_vel"], 2)
-        stages[str(r["stage"])] = stage_data
-
-    summary = {
-        "species": species,
-        "algorithm": algorithm,
-        "backend": _backend_name(algorithm),
-        "backend_version": _backend_version(algorithm),
-        "hardware": hardware,
-        "seed": seed,
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "stages": stages,
-        "total_timesteps": total_timesteps,
-        "total_training_time_seconds": round(total_duration, 1),
-        "total_training_time": format_duration_hms(total_duration),
-        "final_avg_reward": round(final_result["mean_reward"], 2),
-        "provenance": _run_provenance(provenance),
-    }
-    plant_identity = final_result.get("plant_identity")
-    if isinstance(plant_identity, Mapping):
-        summary["plant_identity"] = dict(plant_identity)
-
-    summary_path = results_dir / "summary.json"
-    summary_path.write_text(_json.dumps(summary, indent=2) + "\n")
+    results_path = Path(results_dir)
+    results_path.mkdir(parents=True, exist_ok=True)
+    summary = build_result_summary(
+        stage_results_list,
+        species,
+        algorithm,
+        seed,
+        hardware=hardware,
+        provenance=provenance,
+        backend=backend,
+        backend_version=backend_version,
+        parallel_envs=parallel_envs,
+        run_id=run_id,
+        result_date=result_date,
+        plant_identity=plant_identity,
+    )
+    summary_path = results_path / "summary.json"
+    summary_path.write_text(_json.dumps(summary, indent=2, sort_keys=True) + "\n")
     return summary_path
+
+
+def build_results_csv_rows(
+    stage_results_list: Sequence[Mapping[str, Any]],
+    stage_configs: Mapping[int, Mapping[str, Any]],
+    species: str,
+    algorithm: str,
+    seed: int,
+    *,
+    backend: str | None = None,
+    run_id: str | None = None,
+    provenance: Mapping[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Build CSV rows from the same stage-result values used by JSON export."""
+    from .result_bundle import canonical_algorithm, canonical_backend
+
+    public_algorithm = canonical_algorithm(algorithm)
+    public_backend = canonical_backend(algorithm, backend)
+    algorithm_key = public_algorithm.lower()
+    rows: list[dict[str, Any]] = []
+    for r in stage_results_list:
+        stage = int(r["stage"])
+        cfg = stage_configs[stage]
+
+        row: dict[str, Any] = {
+            "schema_version": 2,
+            "run_id": run_id or "",
+            "species": species,
+            "algorithm": public_algorithm,
+            "backend": public_backend,
+            "seed": seed,
+            "stage": stage,
+            "timesteps": int(r["timesteps"]),
+        }
+        if provenance:
+            for key in ("repository_commit", "config_hash", "model_hash"):
+                row[key] = provenance.get(key) or ""
+        plant_identity = r.get("plant_identity")
+        if isinstance(plant_identity, Mapping):
+            row.update({f"plant_{key}": value for key, value in plant_identity.items()})
+
+        # ── Hyperparameters (mirroring sweep CSV key names) ─────────
+        for key, val in cfg.get("env_kwargs", {}).items():
+            row[f"env_{key}"] = val
+        if public_backend == "jax-mjx":
+            algo_key = "jax_kwargs"
+        else:
+            algo_key = "sac_kwargs" if algorithm_key == "sac" else "ppo_kwargs"
+        for key, val in cfg.get(algo_key, {}).items():
+            if key == "policy_kwargs":
+                # Flatten net_arch to a string like the sweep CSV does
+                net_arch = val.get("net_arch", [])
+                row[f"{algorithm_key}_net_arch"] = str(net_arch)
+            elif key == "verbose":
+                continue
+            else:
+                row[f"{algorithm_key}_{key}"] = val
+        for key, val in cfg.get("curriculum_kwargs", {}).items():
+            row[f"curriculum_{key}"] = val
+
+        # ── Metrics ─────────────────────────────────────────────────
+        row["best_mean_reward"] = _optional_metric(r.get("best_eval_reward"), digits=2)
+        row["best_mean_reward_std"] = _optional_metric(r.get("best_eval_std"), digits=2)
+        row["best_eval_step"] = _optional_metric(
+            r.get("best_eval_timestep", r.get("best_eval_step")),
+        )
+        row["best_mean_episode_length"] = _optional_metric(r.get("best_eval_length"), digits=1)
+        row["last_mean_reward"] = _optional_metric(r.get("mean_reward"), digits=2)
+        row["last_mean_reward_std"] = _optional_metric(r.get("std_reward"), digits=2)
+        row["last_mean_episode_length"] = _optional_metric(r.get("mean_episode_length"), digits=1)
+        row["last_mean_episode_length_std"] = _optional_metric(r.get("std_episode_length"), digits=1)
+        row["mean_forward_vel"] = _optional_metric(r.get("mean_forward_vel"), digits=3)
+        row["std_forward_vel"] = _optional_metric(r.get("std_forward_vel"), digits=3)
+        row["mean_distance_traveled"] = _optional_metric(r.get("mean_distance_traveled"), digits=3)
+        row["mean_success_rate"] = _optional_metric(r.get("mean_success_rate"), digits=4)
+        row["training_duration_seconds"] = round(r.get("duration_seconds", 0.0), 1)
+        row["selected_model_mean_reward"] = _optional_metric(r.get("best_model_reward"), digits=2)
+        row["selected_model_reward_std"] = _optional_metric(r.get("best_model_std_reward"), digits=2)
+        row["selected_model_mean_episode_length"] = _optional_metric(r.get("best_model_length"), digits=1)
+        row["selected_model_episode_length_std"] = _optional_metric(r.get("best_model_std_length"), digits=1)
+        row["selected_model_mean_forward_vel"] = _optional_metric(r.get("best_model_fwd_vel"), digits=3)
+        row["selected_model_mean_forward_vel_std"] = _optional_metric(
+            r.get("best_model_std_fwd_vel"),
+            digits=3,
+        )
+        row["selected_model_mean_distance"] = _optional_metric(r.get("best_model_distance"), digits=3)
+        row["selected_model_success_rate"] = _optional_metric(r.get("best_model_success_rate"), digits=4)
+
+        # Curriculum thresholds
+        cur = cfg.get("curriculum_kwargs", {})
+        row["reward_threshold"] = cur.get("min_avg_reward", "")
+        row["ep_length_threshold"] = cur.get("min_avg_episode_length", "")
+        row["forward_vel_threshold"] = cur.get("min_avg_forward_vel", "")
+        row["success_rate_threshold"] = cur.get("min_success_rate", "")
+        row["stage_passed"] = r.get("publication_gate_passed", "")
+        row["publication_gate_passed"] = r.get("publication_gate_passed", "")
+
+        # Quality evaluation metrics (eval_* keys from quality eval)
+        for key, val in r.items():
+            if key.startswith("eval_"):
+                row[key] = val
+
+        rows.append(row)
+    return rows
 
 
 def save_results_csv(
@@ -561,99 +768,488 @@ def save_results_csv(
     algorithm: str,
     seed: int,
     run_dir: "str | Path",
+    *,
+    backend: str | None = None,
+    run_id: str | None = None,
+    provenance: Mapping[str, Any] | None = None,
 ) -> Path:
-    """Save a ``collected_results.csv`` to *run_dir*.
+    """Save canonical stage rows to ``collected_results.csv``.
 
-    Produces a CSV with the same column structure as the sweep's
-    ``collected_results.csv`` so that single-run notebook results can be
-    analysed with the same downstream tooling (plotting, comparison
-    scripts, etc.).
-
-    Each stage produces one row containing:
-
-    * **Fixed columns** — ``species``, ``algorithm``, ``seed``, ``stage``
-    * **Hyperparameter columns** — all ``env_kwargs``, ``ppo_kwargs``/
-      ``sac_kwargs``, and ``curriculum_kwargs`` values from the stage
-      config, prefixed with ``env_``, ``ppo_``/``sac_``, or
-      ``curriculum_`` respectively (matching sweep CSV conventions).
-    * **Metric columns** — ``best_mean_reward``,
-      ``best_mean_episode_length``, ``last_mean_reward``,
-      ``last_mean_episode_length``, ``mean_forward_vel``,
-      ``mean_success_rate``, ``training_duration_seconds``,
-      curriculum thresholds, and ``stage_passed``.
-
-    Returns the path to the written CSV file.
+    Hyperparameters are retained for sweep analysis, while every metric shared
+    with ``summary.json`` is derived from the same in-memory stage results.
     """
-    run_dir = Path(run_dir)
-    run_dir.mkdir(parents=True, exist_ok=True)
-
-    rows: list[dict[str, Any]] = []
-    for r in stage_results_list:
-        stage = r["stage"]
-        cfg = stage_configs[stage]
-
-        row: dict[str, Any] = {
-            "species": species,
-            "algorithm": algorithm,
-            "seed": seed,
-            "stage": stage,
-        }
-        plant_identity = r.get("plant_identity")
-        if isinstance(plant_identity, Mapping):
-            row.update({f"plant_{key}": value for key, value in plant_identity.items()})
-
-        # ── Hyperparameters (mirroring sweep CSV key names) ─────────
-        for key, val in cfg.get("env_kwargs", {}).items():
-            row[f"env_{key}"] = val
-        algo_key = "sac_kwargs" if algorithm.lower() == "sac" else "ppo_kwargs"
-        for key, val in cfg.get(algo_key, {}).items():
-            if key == "policy_kwargs":
-                # Flatten net_arch to a string like the sweep CSV does
-                net_arch = val.get("net_arch", [])
-                row[f"{algorithm.lower()}_net_arch"] = str(net_arch)
-            elif key == "verbose":
-                continue
-            else:
-                row[f"{algorithm.lower()}_{key}"] = val
-        for key, val in cfg.get("curriculum_kwargs", {}).items():
-            row[f"curriculum_{key}"] = val
-
-        # ── Metrics ─────────────────────────────────────────────────
-        best_model_reward = r.get("best_model_reward", "")
-        row["best_mean_reward"] = float(best_model_reward) if best_model_reward != "" else r.get("best_eval_reward", "")
-        best_model_length = r.get("best_model_length", "")
-        row["best_mean_episode_length"] = (
-            float(best_model_length) if best_model_length != "" else r.get("best_eval_length", "")
-        )
-        row["last_mean_reward"] = round(r.get("mean_reward", 0.0), 2)
-        row["last_mean_episode_length"] = round(r.get("mean_episode_length", 0.0), 1)
-        row["mean_forward_vel"] = round(r.get("mean_forward_vel", 0.0), 2)
-        row["std_forward_vel"] = round(r.get("std_forward_vel", 0.0), 2)
-        row["mean_distance_traveled"] = round(r.get("mean_distance_traveled", 0.0), 2)
-        row["mean_success_rate"] = round(r.get("mean_success_rate", 0.0), 4)
-        row["training_duration_seconds"] = round(r.get("duration_seconds", 0.0), 1)
-
-        # Curriculum thresholds
-        cur = cfg.get("curriculum_kwargs", {})
-        row["reward_threshold"] = cur.get("min_avg_reward", "")
-        row["ep_length_threshold"] = cur.get("min_avg_episode_length", "")
-        row["forward_vel_threshold"] = cur.get("min_avg_forward_vel", "")
-        row["success_rate_threshold"] = cur.get("min_success_rate", "")
-        row["stage_passed"] = r.get("gate_passed", "")
-
-        # Quality evaluation metrics (eval_* keys from quality eval)
-        for key, val in r.items():
-            if key.startswith("eval_"):
-                row[key] = val
-
-        rows.append(row)
+    run_path = Path(run_dir)
+    run_path.mkdir(parents=True, exist_ok=True)
+    rows = build_results_csv_rows(
+        stage_results_list,
+        stage_configs,
+        species,
+        algorithm,
+        seed,
+        backend=backend,
+        run_id=run_id,
+        provenance=provenance,
+    )
 
     plant_columns = sorted({key for row in rows for key in row if key.startswith("plant_")})
     return write_results_csv(
         rows,
-        run_dir / "collected_results.csv",
-        fixed_columns=["species", "algorithm", "seed", "stage", *plant_columns],
+        run_path / "collected_results.csv",
+        fixed_columns=[
+            "schema_version",
+            "run_id",
+            "species",
+            "algorithm",
+            "backend",
+            "seed",
+            "stage",
+            "timesteps",
+            "repository_commit",
+            "config_hash",
+            "model_hash",
+            *plant_columns,
+        ],
     )
+
+
+def save_evaluation_episodes(
+    stage_dir: str | Path,
+    *,
+    rewards: Sequence[Any],
+    lengths: Sequence[Any],
+    forward_velocities: Sequence[Any],
+    distances: Sequence[Any],
+    successes: Sequence[Any],
+    evaluation_seed: int,
+    checkpoint_label: str,
+) -> Path:
+    """Persist per-episode evaluation evidence instead of only aggregates."""
+    if not isinstance(evaluation_seed, int) or isinstance(evaluation_seed, bool) or evaluation_seed < 0:
+        raise ValueError("evaluation_seed must be a non-negative integer")
+    if not checkpoint_label or any(
+        character not in "abcdefghijklmnopqrstuvwxyz0123456789_-" for character in checkpoint_label
+    ):
+        raise ValueError("checkpoint_label must use lowercase letters, digits, '_' or '-'")
+    counts = {
+        len(rewards),
+        len(lengths),
+        len(forward_velocities),
+        len(distances),
+        len(successes),
+    }
+    if len(counts) != 1:
+        raise ValueError("evaluation metric sequences must have equal lengths")
+    if counts == {0}:
+        raise ValueError("evaluation evidence must contain at least one episode")
+
+    output = Path(stage_dir) / f"evaluation_{checkpoint_label}.csv"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for index, (reward, length, forward_velocity, distance, success) in enumerate(
+        zip(rewards, lengths, forward_velocities, distances, successes, strict=True),
+        start=1,
+    ):
+        parsed_success = parse_optional_bool(success)
+        if parsed_success is None:
+            raise ValueError(f"evaluation success at episode {index} is not boolean")
+        numeric_values = {
+            "reward": float(reward),
+            "forward velocity": float(forward_velocity),
+            "distance": float(distance),
+        }
+        nonfinite = [name for name, value in numeric_values.items() if not math.isfinite(value)]
+        if nonfinite:
+            raise ValueError(f"evaluation episode {index} contains non-finite values for: {', '.join(nonfinite)}")
+        parsed_length = int(length)
+        if isinstance(length, bool) or parsed_length <= 0 or float(length) != parsed_length:
+            raise ValueError(f"evaluation length at episode {index} must be a positive integer")
+        rows.append(
+            {
+                "episode": index,
+                "evaluation_seed": evaluation_seed,
+                "checkpoint": checkpoint_label,
+                "reward": numeric_values["reward"],
+                "length": parsed_length,
+                "mean_forward_velocity": numeric_values["forward velocity"],
+                "distance_traveled": numeric_values["distance"],
+                "success": parsed_success,
+            }
+        )
+    fieldnames = [
+        "episode",
+        "evaluation_seed",
+        "checkpoint",
+        "reward",
+        "length",
+        "mean_forward_velocity",
+        "distance_traveled",
+        "success",
+    ]
+    with output.open("w", newline="", encoding="utf-8") as destination:
+        writer = _csv.DictWriter(destination, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    return output
+
+
+def _resolve_model_artifact(model_path: Any, *, run_dir: Path) -> Path | None:
+    if model_path in {None, ""}:
+        return None
+    candidate = Path(str(model_path))
+    if not candidate.is_absolute():
+        candidate = run_dir / candidate
+    candidates = [candidate]
+    if candidate.suffix == "":
+        candidates.extend([candidate.with_suffix(".zip"), candidate.with_suffix(".pkl")])
+    for path in candidates:
+        if path.is_file():
+            return path
+    return None
+
+
+def save_result_bundle(
+    stage_results_list: list[dict[str, Any]],
+    stage_configs: dict[int, dict[str, Any]],
+    species: str,
+    algorithm: str,
+    seed: int,
+    run_dir: str | Path,
+    *,
+    backend: str | None = None,
+    backend_version: str | None = None,
+    hardware: str = "Google Colab",
+    parallel_envs: int | None = None,
+    evaluation_episodes: int = 30,
+    evaluation_seeds: Sequence[int] | None = None,
+    seed_roles: Mapping[str, int] | None = None,
+    plant_identity: Mapping[str, Any] | None = None,
+    run_id: str | None = None,
+    repository_root: str | Path | None = None,
+) -> dict[str, Path]:
+    """Write one idempotent, Drive-portable result bundle.
+
+    Partial curricula receive provenance, CSV, and a ``partial``/``failed``
+    manifest.  A public schema-v2 ``summary.json`` is emitted only when all
+    three stages are present and the selected checkpoint, resolved configs,
+    backend version, and plant identity are available.
+    """
+    from .result_bundle import (
+        ResultBundleError,
+        _normalize_plant_identity,
+        _write_json,
+        aggregate_file_hash,
+        canonical_algorithm,
+        canonical_backend,
+        compare_summary_to_csv,
+        initialize_result_bundle,
+        load_provenance,
+        sha256_file,
+        update_provenance,
+        validate_evaluation_evidence,
+        validate_result_bundle,
+        write_artifact_manifest,
+    )
+    from .result_schema import validate_result_summary
+
+    run_path = Path(run_dir)
+    run_path.mkdir(parents=True, exist_ok=True)
+    previous_manifest = run_path / "artifact_manifest.json"
+
+    # Preflight every expected failure before invalidating an existing
+    # completion marker. This is especially important on Drive, where a
+    # disconnected runtime may not get another chance to rebuild the bundle.
+    try:
+        ordered_stage_numbers = [int(result["stage"]) for result in stage_results_list]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ResultBundleError("every stage result must contain an integer stage") from exc
+    stage_numbers = set(ordered_stage_numbers)
+    if len(stage_numbers) != len(stage_results_list):
+        raise ResultBundleError("stage_results_list contains duplicate stages")
+    if not stage_numbers or not stage_numbers <= {1, 2, 3}:
+        raise ResultBundleError("stage_results_list must contain stages 1, 2, or 3")
+    expected_prefix = set(range(1, max(stage_numbers) + 1))
+    if stage_numbers != expected_prefix:
+        raise ResultBundleError(
+            f"stage_results_list must be a contiguous curriculum prefix; found {sorted(stage_numbers)}"
+        )
+    gate_values: dict[int, bool] = {}
+    for result in stage_results_list:
+        stage = int(result["stage"])
+        gate_value = parse_optional_bool(result.get("publication_gate_passed"))
+        if gate_value is None:
+            raise ResultBundleError(f"stage {stage} is missing an explicit boolean publication_gate_passed value")
+        gate_values[stage] = gate_value
+    has_all_stages = stage_numbers == {1, 2, 3}
+    promotion_ready = has_all_stages and all(gate_values.values())
+    status = "complete" if promotion_ready else ("failed" if not all(gate_values.values()) else "partial")
+
+    summary_path = run_path / "summary.json"
+    if not promotion_ready and summary_path.exists():
+        raise ResultBundleError("non-publishable bundle contains a stale summary.json")
+    if not evaluation_seeds:
+        raise ResultBundleError("result bundle requires at least one recorded publication evaluation seed")
+    if not isinstance(parallel_envs, int) or isinstance(parallel_envs, bool) or parallel_envs <= 0:
+        raise ResultBundleError("result bundle requires a positive parallel_envs value")
+
+    effective_plant = plant_identity
+    if effective_plant is None and stage_results_list:
+        final_stage_result = max(stage_results_list, key=lambda item: int(item["stage"]))
+        candidate = final_stage_result.get("plant_identity")
+        if isinstance(candidate, Mapping):
+            effective_plant = candidate
+    normalized_plant = _normalize_plant_identity(effective_plant, species=species)
+    if normalized_plant is None:
+        raise ResultBundleError("result bundle is missing plant identity")
+    for result in stage_results_list:
+        stage = int(result["stage"])
+        stage_plant_value = result.get("plant_identity")
+        if not isinstance(stage_plant_value, Mapping):
+            raise ResultBundleError(f"stage {stage} is missing plant identity")
+        stage_plant = _normalize_plant_identity(stage_plant_value, species=species)
+        if stage_plant != normalized_plant:
+            raise ResultBundleError(f"stage {stage} plant identity does not match the run identity")
+
+    public_algorithm = canonical_algorithm(algorithm)
+    public_backend = canonical_backend(algorithm, backend)
+    detected_backend_version = backend_version or _backend_version(
+        "JAX_PPO" if public_backend == "jax-mjx" else algorithm
+    )
+    if promotion_ready and not detected_backend_version:
+        raise ResultBundleError("complete bundle requires a recorded backend version")
+
+    config_paths = [run_path / f"stage{stage}" / "stage_config.json" for stage in sorted(stage_numbers)]
+    missing_configs = [path for path in config_paths if not path.is_file()]
+    if missing_configs:
+        raise ResultBundleError(f"result bundle is missing resolved stage configs: {missing_configs}")
+    resolved_stage_configs: dict[int, dict[str, Any]] = {}
+    for stage, config_path in zip(sorted(stage_numbers), config_paths, strict=True):
+        try:
+            saved_config = _json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, _json.JSONDecodeError) as exc:
+            raise ResultBundleError(f"cannot read resolved stage config {config_path}: {exc}") from exc
+        if not isinstance(saved_config, Mapping):
+            raise ResultBundleError(f"resolved stage config must contain an object: {config_path}")
+        if saved_config.get("stage") is not None and int(saved_config["stage"]) != stage:
+            raise ResultBundleError(f"resolved stage config is mislabeled for stage {stage}: {config_path}")
+        if saved_config.get("species") not in {None, "", species}:
+            raise ResultBundleError(f"resolved stage config species mismatch: {config_path}")
+        if saved_config.get("algorithm"):
+            try:
+                saved_algorithm = canonical_algorithm(str(saved_config["algorithm"]))
+            except ResultBundleError as exc:
+                raise ResultBundleError(f"invalid algorithm in resolved stage config {config_path}") from exc
+            if saved_algorithm != public_algorithm:
+                raise ResultBundleError(f"resolved stage config algorithm mismatch: {config_path}")
+        saved_plant_value = saved_config.get("plant_identity")
+        if promotion_ready and saved_plant_value is None:
+            raise ResultBundleError(f"complete bundle stage config is missing plant identity: {config_path}")
+        if saved_plant_value is not None:
+            if not isinstance(saved_plant_value, Mapping):
+                raise ResultBundleError(f"invalid plant identity in resolved stage config: {config_path}")
+            saved_plant = _normalize_plant_identity(saved_plant_value, species=species)
+            if saved_plant != normalized_plant:
+                raise ResultBundleError(f"resolved stage config plant identity mismatch: {config_path}")
+        reward_weights = saved_config.get("reward_weights", saved_config.get("env_kwargs", {}))
+        hyperparameters = saved_config.get(
+            "hyperparameters",
+            saved_config.get(
+                "jax_kwargs"
+                if public_backend == "jax-mjx"
+                else ("sac_kwargs" if public_algorithm == "SAC" else "ppo_kwargs"),
+                {},
+            ),
+        )
+        curriculum = saved_config.get(
+            "curriculum",
+            saved_config.get("curriculum_kwargs", {}),
+        )
+        if not all(isinstance(value, Mapping) for value in (reward_weights, hyperparameters, curriculum)):
+            raise ResultBundleError(f"resolved stage config sections must be objects: {config_path}")
+        algorithm_config_key = (
+            "jax_kwargs"
+            if public_backend == "jax-mjx"
+            else ("sac_kwargs" if public_algorithm == "SAC" else "ppo_kwargs")
+        )
+        resolved_stage_configs[stage] = {
+            "name": str(saved_config.get("name") or f"Stage {stage}"),
+            "description": str(saved_config.get("description") or f"Curriculum stage {stage}"),
+            "env_kwargs": dict(reward_weights),
+            algorithm_config_key: dict(hyperparameters),
+            "curriculum_kwargs": dict(curriculum),
+        }
+    config_hash = aggregate_file_hash(config_paths, root=run_path)
+
+    selected_checkpoints: dict[str, dict[str, Any]] = {}
+    for result in stage_results_list:
+        stage = int(result["stage"])
+        model_artifact = _resolve_model_artifact(result.get("model_path"), run_dir=run_path)
+        if promotion_ready and model_artifact is None:
+            raise ResultBundleError(f"complete bundle is missing its selected Stage {stage} checkpoint")
+        if model_artifact is None:
+            continue
+        try:
+            selected_path = model_artifact.resolve().relative_to(run_path.resolve()).as_posix()
+        except ValueError as exc:
+            raise ResultBundleError(f"selected checkpoint lies outside run directory: {model_artifact}") from exc
+        normalization_path: str | None = None
+        normalization_hash: str | None = None
+        if public_backend == "stable-baselines3":
+            normalization_artifact = _resolve_model_artifact(
+                result.get("vecnorm_path"),
+                run_dir=run_path,
+            )
+            if promotion_ready and normalization_artifact is None:
+                raise ResultBundleError(
+                    f"complete SB3 bundle is missing selected Stage {stage} VecNormalize statistics"
+                )
+            if normalization_artifact is not None:
+                try:
+                    normalization_path = normalization_artifact.resolve().relative_to(run_path.resolve()).as_posix()
+                except ValueError as exc:
+                    raise ResultBundleError(
+                        f"selected VecNormalize artifact lies outside run directory: {normalization_artifact}"
+                    ) from exc
+                normalization_hash = sha256_file(normalization_artifact)
+        selected_checkpoints[str(stage)] = {
+            "model_path": selected_path,
+            "model_hash": sha256_file(model_artifact),
+            "normalization_path": normalization_path,
+            "normalization_hash": normalization_hash,
+        }
+
+    stage3_checkpoint = selected_checkpoints.get("3", {})
+    selected_model_path = stage3_checkpoint.get("model_path")
+    model_hash = stage3_checkpoint.get("model_hash")
+
+    if promotion_ready:
+        for stage in (1, 2, 3):
+            for checkpoint_label in ("selected", "final"):
+                evidence_path = run_path / f"stage{stage}" / f"evaluation_{checkpoint_label}.csv"
+                if not evidence_path.is_file() or evidence_path.stat().st_size == 0:
+                    raise ResultBundleError(
+                        f"complete bundle is missing {checkpoint_label} evaluation evidence: {evidence_path}"
+                    )
+
+    previous_manifest_status: str | None = None
+    if previous_manifest.exists():
+        try:
+            previous_manifest_value = _json.loads(previous_manifest.read_text(encoding="utf-8"))
+            if isinstance(previous_manifest_value, Mapping):
+                previous_manifest_status = previous_manifest_value.get("status")
+        except (OSError, _json.JSONDecodeError) as exc:
+            raise ResultBundleError(f"cannot read existing artifact manifest: {exc}") from exc
+        if previous_manifest_status == "complete":
+            validate_result_bundle(run_path, require_complete=True)
+
+    provenance_path = initialize_result_bundle(
+        run_path,
+        species=species,
+        algorithm=algorithm,
+        backend=backend,
+        seed=seed,
+        evaluation_seeds=evaluation_seeds,
+        evaluation_episodes=evaluation_episodes,
+        seed_roles=seed_roles,
+        parallel_envs=parallel_envs,
+        hardware=hardware,
+        plant_identity=normalized_plant,
+        run_id=run_id,
+        repository_root=repository_root,
+    )
+    captured = load_provenance(run_path)
+    finalization = {
+        "model_hash": model_hash,
+        "config_hash": config_hash,
+        "backend_version": detected_backend_version,
+        "selected_model_path": selected_model_path,
+        "selected_checkpoints": selected_checkpoints,
+    }
+    finalized_provenance = {**captured, **finalization}
+    result_date = str(captured.get("captured_at", "")).split("T", maxsplit=1)[0]
+
+    prospective_summary: dict[str, Any] | None = None
+    if promotion_ready:
+        prospective_summary = build_result_summary(
+            stage_results_list,
+            species,
+            algorithm,
+            seed,
+            hardware=str(captured["hardware"]),
+            provenance=finalized_provenance,
+            backend=public_backend,
+            backend_version=detected_backend_version,
+            parallel_envs=int(captured["parallel_envs"]),
+            run_id=str(captured["run_id"]),
+            result_date=result_date,
+            plant_identity=normalized_plant,
+        )
+        validate_result_summary(
+            prospective_summary,
+            expected_species=species,
+            require_complete=True,
+            require_canonical_provenance=True,
+            result_path=str(summary_path),
+        )
+        validate_evaluation_evidence(run_path, prospective_summary, finalized_provenance)
+        if previous_manifest_status == "complete":
+            existing_summary = _json.loads(summary_path.read_text(encoding="utf-8"))
+            if existing_summary != prospective_summary:
+                raise ResultBundleError("completed result bundle is immutable; use a new run_id for different results")
+            return {
+                "provenance": provenance_path,
+                "collected_results_csv": run_path / "collected_results.csv",
+                "summary": summary_path,
+                "artifact_manifest": previous_manifest,
+            }
+
+    # Exercise CSV construction before removing the previous completion marker.
+    build_results_csv_rows(
+        stage_results_list,
+        resolved_stage_configs,
+        species,
+        algorithm,
+        seed,
+        backend=public_backend,
+        run_id=str(captured["run_id"]),
+        provenance=finalized_provenance,
+    )
+
+    # All semantic validation is complete. Remove the old marker immediately
+    # before changing derived artifacts, then write the new marker last.
+    if previous_manifest.exists():
+        previous_manifest.unlink()
+    update_provenance(run_path, **finalization)
+    captured = load_provenance(run_path)
+    _write_json(run_path / "plant_identity.json", normalized_plant)
+
+    csv_path = save_results_csv(
+        stage_results_list,
+        resolved_stage_configs,
+        species,
+        algorithm,
+        seed,
+        run_path,
+        backend=public_backend,
+        run_id=str(captured["run_id"]),
+        provenance=captured,
+    )
+    paths: dict[str, Path] = {
+        "provenance": provenance_path,
+        "collected_results_csv": csv_path,
+    }
+
+    if promotion_ready:
+        assert prospective_summary is not None
+        _write_json(summary_path, prospective_summary)
+        contradictions = compare_summary_to_csv(prospective_summary, csv_path)
+        if contradictions:
+            raise ResultBundleError("summary/CSV contradictions: " + "; ".join(contradictions))
+        paths["summary"] = summary_path
+
+    manifest_path = write_artifact_manifest(run_path, status=status)
+    paths["artifact_manifest"] = manifest_path
+    validate_result_bundle(run_path, require_complete=promotion_ready)
+    return paths
 
 
 def build_stage_results_from_eval_data(
@@ -931,12 +1527,15 @@ def save_jax_stage_artifacts(
     params: Any,
     obs_rms: Any,
     *,
+    final_eval_results: Any | None = None,
     seed: int = 42,
     num_envs: int = 2048,
     reward_cfg: dict[str, float] | None = None,
     best_params: Any | None = None,
     best_reward: float = 0.0,
     best_update: int = 0,
+    evaluation_seed: int = 42,
+    backend_version: str | None = None,
     plant_identity: PlantIdentity | None = None,
 ) -> dict[str, Path]:
     """Save all post-training artifacts for a JAX/MJX training stage.
@@ -964,7 +1563,10 @@ def save_jax_stage_artifacts(
         stage_dir: Directory for this stage's output files.
         run_dir: Parent run directory (for CSV and training summary).
         eval_results: :class:`jax_eval.EvalResults` instance with
-            per-step diagnostic data.
+            selected-checkpoint episode and per-step diagnostic data.
+        final_eval_results: Episode evidence for the terminal parameters.
+            Defaults to *eval_results* only for backward-compatible callers
+            whose selected and terminal parameters are identical.
         params: Final JAX network parameters.
         obs_rms: Observation normalisation statistics.
         seed: Random seed used for training.
@@ -973,6 +1575,9 @@ def save_jax_stage_artifacts(
         best_params: Best-performing parameters (falls back to *params*).
         best_reward: Best evaluation reward achieved during training.
         best_update: Update number at which *best_params* was recorded.
+        evaluation_seed: Seed used for the fixed publication evaluation.
+        backend_version: Optional explicit JAX version for portable tests or
+            environments where package metadata cannot be detected.
         plant_identity: Optional precomputed plant identity.  The current
             identity is resolved and verified when omitted.
 
@@ -984,14 +1589,126 @@ def save_jax_stage_artifacts(
     from .config import save_stage_config
     from .jax_checkpoint import save_checkpoint
     from .plant_contract import current_plant_identity, write_plant_identity
+    from .result_bundle import (
+        ResultBundleError,
+        initialize_result_bundle,
+        load_provenance,
+        validate_result_bundle,
+    )
 
     stage_dir = Path(stage_dir)
     run_dir = Path(run_dir)
+    if stage not in {1, 2, 3}:
+        raise ValueError("stage must be 1, 2, or 3")
+    if stage_dir.parent.resolve() != run_dir.resolve():
+        raise ValueError("stage_dir must be run_dir/stage<N> for a portable result bundle")
+    if stage_dir.name != f"stage{stage}":
+        raise ValueError(f"stage_dir must be named stage{stage}")
+    if plant_identity is None:
+        plant_identity = current_plant_identity(species)
+
+    manifest_path = run_dir / "artifact_manifest.json"
+    if manifest_path.exists():
+        try:
+            existing_manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, _json.JSONDecodeError) as exc:
+            raise ResultBundleError(f"cannot read existing artifact manifest: {exc}") from exc
+        if isinstance(existing_manifest, Mapping) and existing_manifest.get("status") == "complete":
+            validate_result_bundle(run_dir, require_complete=True)
+            raise ResultBundleError("completed result bundle is immutable; use a new run_id to rewrite a stage")
+
+    existing_stages: set[int] = set()
+    for existing_result_path in sorted(run_dir.glob("stage*/stage_result.json")):
+        try:
+            saved_result = _json.loads(existing_result_path.read_text(encoding="utf-8"))
+            saved_stage = int(saved_result["stage"])
+        except (OSError, _json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            raise ResultBundleError(f"cannot read prior JAX stage record {existing_result_path}") from exc
+        if existing_result_path.parent.name != f"stage{saved_stage}" or saved_stage not in {1, 2, 3}:
+            raise ResultBundleError(f"mislabeled prior JAX stage record: {existing_result_path}")
+        if saved_stage in existing_stages:
+            raise ResultBundleError(f"duplicate prior JAX stage record for stage {saved_stage}")
+        existing_stages.add(saved_stage)
+    combined_stages = existing_stages | {stage}
+    expected_stages = set(range(1, max(combined_stages) + 1))
+    if combined_stages != expected_stages or max(combined_stages) > stage:
+        raise ResultBundleError(f"JAX stages must be saved as a contiguous prefix; found {sorted(combined_stages)}")
+
+    episode_fields = ("rewards", "lengths", "forward_vels", "distances", "successes")
+    has_episode_evidence = all(hasattr(eval_results, field) for field in episode_fields)
+    terminal_eval_results = final_eval_results if final_eval_results is not None else eval_results
+    has_final_evidence = all(hasattr(terminal_eval_results, field) for field in episode_fields)
+    evaluation_episode_count = len(getattr(eval_results, "rewards", [])) if has_episode_evidence else 30
+    if not has_episode_evidence:
+        raise ResultBundleError("JAX selected evaluation evidence is missing episode arrays")
+    if evaluation_episode_count <= 0:
+        raise ResultBundleError("JAX selected evaluation evidence must contain at least one episode")
+    if not has_final_evidence:
+        raise ResultBundleError("JAX terminal evaluation evidence is missing episode arrays")
+    for label, evidence in (("selected", eval_results), ("final", terminal_eval_results)):
+        evidence_lengths = {len(getattr(evidence, field)) for field in episode_fields}
+        if evidence_lengths != {evaluation_episode_count}:
+            raise ResultBundleError(f"JAX {label} evaluation evidence sequences must have equal lengths")
+    selected_rewards = _np.asarray(eval_results.rewards, dtype=float)
+    selected_lengths = _np.asarray(eval_results.lengths, dtype=float)
+    selected_forward_velocities = _np.asarray(eval_results.forward_vels, dtype=float)
+    selected_distances = _np.asarray(eval_results.distances, dtype=float)
+    selected_successes = _np.asarray(eval_results.successes, dtype=float)
+    final_rewards = _np.asarray(terminal_eval_results.rewards, dtype=float)
+    final_lengths = _np.asarray(terminal_eval_results.lengths, dtype=float)
+    final_forward_velocities = _np.asarray(terminal_eval_results.forward_vels, dtype=float)
+    final_distances = _np.asarray(terminal_eval_results.distances, dtype=float)
+    final_successes = _np.asarray(terminal_eval_results.successes, dtype=float)
+    stage_results.update(
+        {
+            "mean_reward": round(float(final_rewards.mean()), 2),
+            "std_reward": round(float(final_rewards.std()), 2),
+            "mean_episode_length": round(float(final_lengths.mean()), 1),
+            "std_episode_length": round(float(final_lengths.std()), 1),
+            "mean_forward_vel": round(float(final_forward_velocities.mean()), 3),
+            "std_forward_vel": round(float(final_forward_velocities.std()), 3),
+            "mean_distance_traveled": round(float(final_distances.mean()), 3),
+            "mean_success_rate": round(float(final_successes.mean()), 4),
+            "best_model_reward": round(float(selected_rewards.mean()), 2),
+            "best_model_std_reward": round(float(selected_rewards.std()), 2),
+            "best_model_length": round(float(selected_lengths.mean()), 1),
+            "best_model_std_length": round(float(selected_lengths.std()), 1),
+            "best_model_fwd_vel": round(float(selected_forward_velocities.mean()), 3),
+            "best_model_std_fwd_vel": round(float(selected_forward_velocities.std()), 3),
+            "best_model_distance": round(float(selected_distances.mean()), 3),
+            "best_model_success_rate": round(float(selected_successes.mean()), 4),
+        }
+    )
+
+    try:
+        captured_provenance = load_provenance(run_dir)
+    except ResultBundleError:
+        captured_provenance = {}
+    seed_roles = captured_provenance.get("seed_roles") or {
+        "training": seed,
+        "publication_evaluation": evaluation_seed,
+    }
+    initialize_result_bundle(
+        run_dir,
+        species=species,
+        algorithm="JAX_PPO",
+        backend="jax-mjx",
+        seed=seed,
+        evaluation_seeds=[evaluation_seed],
+        evaluation_episodes=evaluation_episode_count,
+        seed_roles=seed_roles,
+        parallel_envs=num_envs,
+        hardware=str(captured_provenance.get("hardware") or "Google Colab"),
+        plant_identity=plant_identity.to_dict(),
+        run_id=captured_provenance.get("run_id"),
+    )
+    captured_provenance = load_provenance(run_dir)
+    if manifest_path.exists():
+        manifest_path.unlink()
+
     model_dir = stage_dir / "models"
     model_dir.mkdir(parents=True, exist_ok=True)
     paths: dict[str, Path] = {}
-    if plant_identity is None:
-        plant_identity = current_plant_identity(species)
     write_plant_identity(run_dir / "plant_identity.json", plant_identity)
     stage_results["plant_identity"] = plant_identity.to_dict()
 
@@ -1017,34 +1734,29 @@ def save_jax_stage_artifacts(
     paths["stage_config"] = config_path
     logger.info("Stage config saved: %s", config_path)
 
-    # 3. Collected results CSV (append-safe for multi-stage runs)
-    curriculum = stage_config.get("curriculum_kwargs", {})
-    csv_row = {
-        "species": species,
-        "algorithm": "jax_ppo",
-        "seed": seed,
-        "stage": stage,
-        "best_mean_reward": stage_results.get("best_eval_reward", ""),
-        "last_mean_reward": stage_results.get("mean_reward", ""),
-        "last_mean_episode_length": stage_results.get("mean_episode_length", ""),
-        "mean_forward_vel": stage_results.get("mean_forward_vel", ""),
-        "std_forward_vel": stage_results.get("std_forward_vel", ""),
-        "mean_distance_traveled": stage_results.get("mean_distance_traveled", ""),
-        "training_duration_seconds": round(stage_results.get("duration_seconds", 0.0), 1),
-        "reward_threshold": curriculum.get("min_avg_reward", ""),
-        "ep_length_threshold": curriculum.get("min_avg_episode_length", ""),
-        "stage_passed": stage_results.get("gate_passed", ""),
-    }
-    csv_row.update({f"plant_{key}": value for key, value in plant_identity.to_dict().items()})
-    plant_columns = [key for key in csv_row if key.startswith("plant_")]
-    csv_path = write_results_csv(
-        [csv_row],
-        run_dir / "collected_results.csv",
-        fixed_columns=["species", "algorithm", "seed", "stage", *plant_columns],
-        append=True,
+    # 3. Per-episode evidence for both the selected and terminal parameters.
+    evaluation_path = save_evaluation_episodes(
+        stage_dir,
+        rewards=eval_results.rewards,
+        lengths=eval_results.lengths,
+        forward_velocities=eval_results.forward_vels,
+        distances=eval_results.distances,
+        successes=eval_results.successes,
+        evaluation_seed=evaluation_seed,
+        checkpoint_label="selected",
     )
-    paths["collected_results_csv"] = csv_path
-    logger.info("Results CSV saved: %s", csv_path)
+    paths["evaluation_episodes"] = evaluation_path
+    final_evaluation_path = save_evaluation_episodes(
+        stage_dir,
+        rewards=terminal_eval_results.rewards,
+        lengths=terminal_eval_results.lengths,
+        forward_velocities=terminal_eval_results.forward_vels,
+        distances=terminal_eval_results.distances,
+        successes=terminal_eval_results.successes,
+        evaluation_seed=evaluation_seed,
+        checkpoint_label="final",
+    )
+    paths["final_evaluation_episodes"] = final_evaluation_path
 
     # 4. Diagnostics NPZ from eval results
     diag_data: dict[str, Any] = {
@@ -1081,11 +1793,68 @@ def save_jax_stage_artifacts(
     paths["final_model"] = final_model_path
     logger.info("Models saved: %s, %s", best_model_path, final_model_path)
 
-    # 6. Training summary (run-level)
-    stage_results.setdefault("model_path", str(best_model_path))
+    # 6. Persist one idempotent stage record for cross-session curricula.
+    stage_results["model_path"] = best_model_path.resolve().relative_to(run_dir.resolve()).as_posix()
+    persisted_keys = (
+        "stage",
+        "name",
+        "description",
+        "timesteps",
+        "duration_seconds",
+        "mean_reward",
+        "std_reward",
+        "mean_episode_length",
+        "std_episode_length",
+        "mean_forward_vel",
+        "std_forward_vel",
+        "mean_distance_traveled",
+        "mean_success_rate",
+        "best_eval_reward",
+        "best_eval_std",
+        "best_eval_length",
+        "best_eval_std_length",
+        "best_eval_timestep",
+        "selection_training_return",
+        "selection_training_update",
+        "gate_passed",
+        "publication_gate_passed",
+        "best_model_reward",
+        "best_model_std_reward",
+        "best_model_length",
+        "best_model_std_length",
+        "best_model_fwd_vel",
+        "best_model_std_fwd_vel",
+        "best_model_distance",
+        "best_model_success_rate",
+        "model_path",
+        "plant_identity",
+    )
+    persisted_result = {key: stage_results[key] for key in persisted_keys if key in stage_results}
+    stage_result_path = stage_dir / "stage_result.json"
+    stage_result_path.write_text(_json.dumps(persisted_result, indent=2, sort_keys=True) + "\n")
+    paths["stage_result"] = stage_result_path
+
+    accumulated_results: list[dict[str, Any]] = []
+    accumulated_configs: dict[int, dict[str, Any]] = {}
+    for existing_result_path in sorted(run_dir.glob("stage*/stage_result.json")):
+        saved_result = _json.loads(existing_result_path.read_text())
+        saved_stage = int(saved_result["stage"])
+        accumulated_results.append(saved_result)
+        saved_config_path = existing_result_path.parent / "stage_config.json"
+        saved_config = _json.loads(saved_config_path.read_text())
+        accumulated_configs[saved_stage] = {
+            "name": saved_config.get("name", f"Stage {saved_stage}"),
+            "description": saved_config.get("description", f"Curriculum stage {saved_stage}"),
+            "env_kwargs": saved_config.get("reward_weights", {}),
+            "jax_kwargs": saved_config.get("hyperparameters", {}),
+            "curriculum_kwargs": saved_config.get("curriculum", {}),
+        }
+    accumulated_results.sort(key=lambda result: int(result["stage"]))
+
+    # 7. Training summary (run-level, regenerated from every saved stage)
     training_summary_path = write_training_summary(
         run_dir,
-        [stage_results],
+        accumulated_results,
         species,
         algorithm="JAX/MJX PPO",
         seed=seed,
@@ -1093,5 +1862,26 @@ def save_jax_stage_artifacts(
     )
     paths["training_summary"] = training_summary_path
     logger.info("Training summary saved: %s", training_summary_path)
+
+    # 8. Canonical CSV/provenance/manifest; summary.json appears at Stage 3.
+    bundle_paths = save_result_bundle(
+        accumulated_results,
+        accumulated_configs,
+        species,
+        "JAX_PPO",
+        seed,
+        run_dir,
+        backend="jax-mjx",
+        backend_version=backend_version,
+        parallel_envs=num_envs,
+        hardware=str(captured_provenance.get("hardware") or "Google Colab"),
+        evaluation_episodes=evaluation_episode_count,
+        evaluation_seeds=[evaluation_seed],
+        seed_roles=captured_provenance.get("seed_roles"),
+        plant_identity=plant_identity.to_dict(),
+        run_id=captured_provenance.get("run_id"),
+    )
+    paths.update(bundle_paths)
+    logger.info("Canonical JAX result bundle saved: %s", run_dir)
 
     return paths

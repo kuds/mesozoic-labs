@@ -15,7 +15,6 @@ import importlib
 import json
 import math
 import tomllib
-from datetime import date
 from pathlib import Path
 from typing import Any, cast
 
@@ -31,6 +30,15 @@ from environments.shared.plant_contract import (
     SOURCE_SCHEMA,
     VISUAL_SCHEMA,
 )
+from environments.shared.result_schema import (
+    ALLOWED_MODEL_REVISION_STATUSES,
+    ALLOWED_TRAINING_BACKENDS,
+    ALLOWED_VERIFICATION_STATUSES,
+    PROVENANCE_IDENTIFIERS,
+    ResultSchemaError,
+    validate_provenance,
+    validate_result_summary,
+)
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST_PATH = REPOSITORY_ROOT / "configs" / "species_manifest.toml"
@@ -45,10 +53,6 @@ README_BLOCKS = {
 }
 
 ALLOWED_CAPABILITY_STATUSES = {"implemented", "experimental", "in_progress", "planned", "not_started"}
-ALLOWED_MODEL_REVISION_STATUSES = {"current", "historical"}
-ALLOWED_VERIFICATION_STATUSES = {"verified", "unverified"}
-ALLOWED_TRAINING_BACKENDS = {"stable-baselines3", "jax-mjx"}
-PROVENANCE_IDENTIFIERS = ("repository_commit", "model_hash", "config_hash")
 DEFAULT_STAGE_THRESHOLD = StageThreshold()
 
 
@@ -374,111 +378,24 @@ def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dic
 
 
 def _validate_provenance(provenance: Any, *, result_path: str) -> dict[str, Any]:
-    provenance = _require_mapping(provenance, field=f"provenance in {result_path}")
-    model_revision_status = provenance.get("model_revision_status")
-    verification_status = provenance.get("verification_status")
-    if model_revision_status not in ALLOWED_MODEL_REVISION_STATUSES:
-        raise CatalogError(f"invalid model_revision_status in {result_path}: {model_revision_status}")
-    if verification_status not in ALLOWED_VERIFICATION_STATUSES:
-        raise CatalogError(f"invalid verification_status in {result_path}: {verification_status}")
-    evaluation_episodes = provenance.get("evaluation_episodes")
-    if evaluation_episodes is not None and (
-        not isinstance(evaluation_episodes, int) or isinstance(evaluation_episodes, bool) or evaluation_episodes <= 0
-    ):
-        raise CatalogError(f"evaluation_episodes must be null or a positive integer in {result_path}")
-
-    identifiers = {
-        key: _optional_nonempty_string(provenance.get(key), field=f"provenance.{key} in {result_path}")
-        for key in PROVENANCE_IDENTIFIERS
-    }
-    if model_revision_status == "current" or verification_status == "verified":
-        missing = [key for key, value in identifiers.items() if not value]
-        if evaluation_episodes is None:
-            missing.append("evaluation_episodes")
-        if missing:
-            raise CatalogError(f"current or verified result {result_path} is missing identifiers: {missing}")
-    return {
-        "model_revision_status": model_revision_status,
-        "verification_status": verification_status,
-        "evaluation_episodes": evaluation_episodes,
-        **identifiers,
-    }
+    """Validate result provenance while preserving the catalog error API."""
+    try:
+        return validate_provenance(provenance, result_path=result_path)
+    except ResultSchemaError as exc:
+        raise CatalogError(str(exc)) from exc
 
 
 def _validate_result_summary(summary: Any, *, species_id: str, relative_path: str) -> dict[str, Any]:
-    """Validate the public fields consumed by the catalog and website."""
-    summary = _require_mapping(summary, field=f"result summary {relative_path}")
-    if summary.get("schema_version") != 2:
-        raise CatalogError(f"result summary schema_version must be 2: {relative_path}")
-    if summary.get("species") != species_id:
-        raise CatalogError(f"result species mismatch in {relative_path}: {summary.get('species')}")
-
-    algorithm = _require_nonempty_string(summary.get("algorithm"), field=f"algorithm in {relative_path}")
-    expected_algorithm = Path(relative_path).parent.name
-    if algorithm.lower() != expected_algorithm:
-        raise CatalogError(
-            f"result algorithm mismatch in {relative_path}: expected {expected_algorithm}, got {algorithm}"
-        )
-    backend = summary.get("backend")
-    if backend not in ALLOWED_TRAINING_BACKENDS:
-        raise CatalogError(f"invalid backend in {relative_path}: {backend}")
-    backend_version = _optional_nonempty_string(
-        summary.get("backend_version"), field=f"backend_version in {relative_path}"
-    )
-
-    result_date = _require_nonempty_string(summary.get("date"), field=f"date in {relative_path}")
+    """Validate public results while preserving the catalog error API."""
     try:
-        date.fromisoformat(result_date)
-    except ValueError as exc:
-        raise CatalogError(f"date in {relative_path} must use ISO YYYY-MM-DD format") from exc
-
-    _optional_nonempty_string(summary.get("hardware"), field=f"hardware in {relative_path}")
-    seed = summary.get("seed")
-    if seed is not None and (not isinstance(seed, int) or isinstance(seed, bool) or seed < 0):
-        raise CatalogError(f"seed in {relative_path} must be null or a non-negative integer")
-    parallel_envs = summary.get("parallel_envs")
-    if parallel_envs is not None:
-        _require_positive_int(parallel_envs, field=f"parallel_envs in {relative_path}")
-
-    raw_stages = _require_mapping(summary.get("stages"), field=f"stages in {relative_path}")
-    if set(raw_stages) != {"1", "2", "3"}:
-        raise CatalogError(f"stages in {relative_path} must contain exactly 1, 2, and 3")
-    stage_timesteps = 0
-    for stage_key in ("1", "2", "3"):
-        raw_stage = _require_mapping(raw_stages[stage_key], field=f"stage {stage_key} in {relative_path}")
-        prefix = f"stage {stage_key} in {relative_path}"
-        _require_nonempty_string(raw_stage.get("name"), field=f"name for {prefix}")
-        _require_nonempty_string(raw_stage.get("description"), field=f"description for {prefix}")
-        stage_timesteps += _require_positive_int(raw_stage.get("timesteps"), field=f"timesteps for {prefix}")
-        for metric_key in (
-            "best_eval_reward",
-            "final_eval_reward",
-            "avg_forward_vel",
-            "avg_episode_length",
-        ):
-            if metric_key not in raw_stage:
-                raise CatalogError(f"{metric_key} is required for {prefix}")
-            _optional_number(raw_stage[metric_key], field=f"{metric_key} for {prefix}")
-        success_rate = _optional_number(raw_stage.get("mean_success_rate"), field=f"mean_success_rate for {prefix}")
-        if success_rate is not None and not 0.0 <= success_rate <= 1.0:
-            raise CatalogError(f"mean_success_rate for {prefix} must be between 0 and 1")
-        _optional_nonempty_string(raw_stage.get("training_time"), field=f"training_time for {prefix}")
-        if not isinstance(raw_stage.get("stage_passed"), bool):
-            raise CatalogError(f"stage_passed for {prefix} must be a boolean")
-
-    total_timesteps = _require_positive_int(summary.get("total_timesteps"), field=f"total_timesteps in {relative_path}")
-    if total_timesteps != stage_timesteps:
-        raise CatalogError(
-            f"total_timesteps in {relative_path} is {total_timesteps}, but stage totals sum to {stage_timesteps}"
+        return validate_result_summary(
+            summary,
+            expected_species=species_id,
+            relative_path=relative_path,
+            require_complete=True,
         )
-    _optional_nonempty_string(summary.get("total_training_time"), field=f"total_training_time in {relative_path}")
-    _optional_number(summary.get("final_avg_reward"), field=f"final_avg_reward in {relative_path}")
-
-    provenance = _validate_provenance(summary.get("provenance"), result_path=relative_path)
-    if provenance["model_revision_status"] == "current" or provenance["verification_status"] == "verified":
-        if backend_version is None:
-            raise CatalogError(f"current or verified result {relative_path} is missing backend_version")
-    return cast(dict[str, Any], summary)
+    except ResultSchemaError as exc:
+        raise CatalogError(str(exc)) from exc
 
 
 def _max_reported_velocity(stage_summaries: list[dict[str, Any]]) -> int | float | None:

@@ -18,6 +18,8 @@ read it as history, or update it when things change.
   stays in the archived review or investigation they came from.
 - [PLANT_CONTRACT.md](PLANT_CONTRACT.md) — versioned policy-interface,
   physics, visual, and source identities for MuJoCo models and checkpoints.
+- [RESULT_BUNDLES.md](RESULT_BUNDLES.md) — canonical Colab/Google Drive result
+  artifacts, provenance capture, and promotion validation.
 
 ## Plans & designs
 

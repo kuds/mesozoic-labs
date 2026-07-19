@@ -19,7 +19,7 @@ Usage::
     dirs = setup_output_dirs("trex", stage=1, storage_root="logs")
     env = create_env(ctx, num_envs=2048)
     # ... training via JaxTrainer ...
-    eval_results, stage_results, gate_passed, gate_failures = run_stage_evaluation(
+    selected_eval, final_eval, stage_results, gate_passed, gate_failures = run_stage_evaluation(
         ctx, env, params, network, obs_rms
     )
 
@@ -559,7 +559,7 @@ def run_stage_evaluation(
     total_steps: int = 0,
     elapsed: float = 0.0,
     eval_seed: int = 42,
-) -> tuple[Any, dict[str, Any], bool, list[str]]:
+) -> tuple[Any, Any, dict[str, Any], bool, list[str]]:
     """Run stage gate evaluation and build stage results dict.
 
     Replaces notebook cell 25 (~127 lines) with a single call.
@@ -579,7 +579,8 @@ def run_stage_evaluation(
         eval_seed: Seed for evaluation reset noise (reproducible gates).
 
     Returns:
-        ``(eval_results, stage_results, gate_passed, gate_failures)`` tuple.
+        ``(selected_eval_results, final_eval_results, stage_results,
+        gate_passed, gate_failures)`` tuple.
     """
     import jax
     import numpy as np
@@ -592,7 +593,8 @@ def run_stage_evaluation(
     scale_action = make_scale_action_fn(ctx)
     compute_reward, _, _ = make_reward_fns(ctx)
 
-    eval_params = best_params if best_params is not None else jax.device_get(params)
+    final_params = jax.device_get(params)
+    selected_params = best_params if best_params is not None else final_params
 
     eval_config = EvalConfig(
         n_episodes=n_episodes,
@@ -620,9 +622,9 @@ def run_stage_evaluation(
 
     foot_indices = tuple(ctx.sensor_layout.foot_indices)
 
-    eval_results = evaluate_policy_cpu(
+    selected_eval_results = evaluate_policy_cpu(
         ctx.mj_model,
-        eval_params,
+        selected_params,
         network,
         obs_rms,
         get_obs_fn=get_obs,
@@ -632,6 +634,23 @@ def run_stage_evaluation(
         reward_cfg=ctx.reward_cfg,
         config=eval_config,
         foot_sensor_indices=foot_indices,
+    )
+    final_eval_results = (
+        selected_eval_results
+        if best_params is None
+        else evaluate_policy_cpu(
+            ctx.mj_model,
+            final_params,
+            network,
+            obs_rms,
+            get_obs_fn=get_obs,
+            normalize_obs_fn=normalize_obs,
+            scale_action_fn=scale_action,
+            reward_fn=compute_reward,
+            reward_cfg=ctx.reward_cfg,
+            config=eval_config,
+            foot_sensor_indices=foot_indices,
+        )
     )
 
     # Gate check — all four TOML curriculum thresholds, matching the SB3
@@ -643,7 +662,7 @@ def run_stage_evaluation(
     gate_min_forward_vel = curriculum.get("min_avg_forward_vel", 0.0)
     gate_min_success_rate = curriculum.get("min_success_rate", 0.0)
     gate_passed, gate_failures = check_stage_gate(
-        eval_results,
+        selected_eval_results,
         gate_min_reward,
         gate_min_length,
         gate_min_forward_vel=gate_min_forward_vel,
@@ -659,31 +678,41 @@ def run_stage_evaluation(
         "description": f"JAX/MJX PPO stage {ctx.stage}",
         "timesteps": total_steps,
         "duration_seconds": elapsed,
-        "mean_reward": round(eval_results.mean_reward, 2),
-        "std_reward": round(eval_results.std_reward, 2),
-        "mean_episode_length": round(eval_results.mean_length, 1),
-        "std_episode_length": round(eval_results.std_length, 1),
-        "mean_forward_vel": round(eval_results.mean_forward_vel, 3),
-        "std_forward_vel": round(float(np.std(eval_results.forward_vels)) if eval_results.forward_vels else 0.0, 3),
-        "mean_distance_traveled": round(eval_results.mean_distance, 2),
-        "mean_success_rate": round(eval_results.mean_success_rate, 3),
-        "best_eval_reward": round(best_reward, 2),
-        "best_eval_timestep": best_update * rollout_len * num_envs,
-        "sim_dt": ctx.mj_model.opt.timestep * ctx.frame_skip,
-        "best_model_reward": round(eval_results.mean_reward, 2),
-        "best_model_std_reward": round(eval_results.std_reward, 2),
-        "best_model_length": round(eval_results.mean_length, 1),
-        "best_model_std_length": round(eval_results.std_length, 1),
-        "best_model_fwd_vel": round(eval_results.mean_forward_vel, 3),
-        "best_model_std_fwd_vel": round(
-            float(np.std(eval_results.forward_vels)) if eval_results.forward_vels else 0.0, 3
+        "mean_reward": round(final_eval_results.mean_reward, 2),
+        "std_reward": round(final_eval_results.std_reward, 2),
+        "mean_episode_length": round(final_eval_results.mean_length, 1),
+        "std_episode_length": round(final_eval_results.std_length, 1),
+        "mean_forward_vel": round(final_eval_results.mean_forward_vel, 3),
+        "std_forward_vel": round(
+            float(np.std(final_eval_results.forward_vels)) if final_eval_results.forward_vels else 0.0,
+            3,
         ),
-        "best_model_distance": round(eval_results.mean_distance, 2),
+        "mean_distance_traveled": round(final_eval_results.mean_distance, 2),
+        "mean_success_rate": round(final_eval_results.mean_success_rate, 3),
+        "best_eval_reward": round(selected_eval_results.mean_reward, 2),
+        "best_eval_std": round(selected_eval_results.std_reward, 2),
+        "best_eval_length": round(selected_eval_results.mean_length, 1),
+        "best_eval_timestep": best_update * rollout_len * num_envs if best_update >= 0 else None,
+        "selection_training_return": round(best_reward, 4) if np.isfinite(best_reward) else None,
+        "selection_training_update": best_update if best_update >= 0 else None,
+        "sim_dt": ctx.mj_model.opt.timestep * ctx.frame_skip,
+        "best_model_reward": round(selected_eval_results.mean_reward, 2),
+        "best_model_std_reward": round(selected_eval_results.std_reward, 2),
+        "best_model_length": round(selected_eval_results.mean_length, 1),
+        "best_model_std_length": round(selected_eval_results.std_length, 1),
+        "best_model_fwd_vel": round(selected_eval_results.mean_forward_vel, 3),
+        "best_model_std_fwd_vel": round(
+            float(np.std(selected_eval_results.forward_vels)) if selected_eval_results.forward_vels else 0.0,
+            3,
+        ),
+        "best_model_distance": round(selected_eval_results.mean_distance, 2),
+        "best_model_success_rate": round(selected_eval_results.mean_success_rate, 3),
         "best_model_n_episodes": n_episodes,
         "gate_passed": gate_passed,
+        "publication_gate_passed": gate_passed,
     }
 
-    return eval_results, stage_results, gate_passed, gate_failures
+    return selected_eval_results, final_eval_results, stage_results, gate_passed, gate_failures
 
 
 def print_species_summary(ctx: SpeciesContext) -> None:

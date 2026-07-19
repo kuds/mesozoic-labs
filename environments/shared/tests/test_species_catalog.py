@@ -220,6 +220,37 @@ def test_result_validator_rejects_invalid_success_rate_and_step_totals() -> None
         )
 
 
+def test_result_validator_uses_backend_aware_paths() -> None:
+    summary = deepcopy(_published_summary())
+    summary["backend"] = "jax-mjx"
+
+    validated = _validate_result_summary(
+        summary,
+        species_id="velociraptor",
+        relative_path="results/velociraptor/jax_ppo/summary.json",
+    )
+    assert validated is summary
+
+    with pytest.raises(CatalogError, match=r"expected jax_ppo for jax-mjx"):
+        _validate_result_summary(
+            summary,
+            species_id="velociraptor",
+            relative_path="results/velociraptor/ppo/summary.json",
+        )
+
+
+def test_shared_result_errors_remain_catalog_errors() -> None:
+    summary = deepcopy(_published_summary())
+    del summary["provenance"]["config_hash"]
+
+    with pytest.raises(CatalogError, match="provenance.*missing fields"):
+        _validate_result_summary(
+            summary,
+            species_id="velociraptor",
+            relative_path="results/velociraptor/ppo/summary.json",
+        )
+
+
 def test_max_reported_velocity_preserves_negative_values_and_missing_data() -> None:
     assert _max_reported_velocity([{"avg_forward_vel": -2.0}, {"avg_forward_vel": -0.5}]) == -0.5
     assert _max_reported_velocity([{"avg_forward_vel": None}]) is None
@@ -294,6 +325,18 @@ def test_training_notebooks_do_not_restore_stale_public_defaults() -> None:
     jax = notebook_text("jax_training.ipynb")
     assert "10-100x" not in jax
     assert "A100 recommended" not in jax
+
+
+def test_sb3_notebook_refuses_a_hybrid_model_and_vecnormalize_checkpoint() -> None:
+    notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
+    chunks: list[str] = []
+    for cell in notebook["cells"]:
+        source = cell.get("source", "")
+        chunks.append("".join(source) if isinstance(source, list) else source)
+    source_text = "\n".join(chunks)
+
+    assert "refusing to evaluate or export a hybrid checkpoint" in source_text
+    assert "using final VecNormalize for best model" not in source_text
 
 
 @pytest.mark.parametrize(

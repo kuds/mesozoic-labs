@@ -6,11 +6,19 @@ from .config import load_all_stages, load_stage_config
 from .curriculum import CurriculumManager
 from .metrics import LocomotionMetrics
 from .reporting import (
+    build_result_summary,
     format_duration,
     format_duration_hms,
+    save_evaluation_episodes,
+    save_result_bundle,
     save_results_json,
     write_stage_summary,
     write_training_summary,
+)
+from .result_bundle import (
+    audit_result_bundle,
+    initialize_result_bundle,
+    validate_result_bundle,
 )
 
 _logger = _logging.getLogger(__name__)
@@ -41,13 +49,19 @@ __all__ = [
     "CurriculumManager",
     "DiagnosticsCallback",
     "LocomotionMetrics",
+    "audit_result_bundle",
+    "build_result_summary",
     "eval_policy",
     "format_duration",
     "format_duration_hms",
+    "initialize_result_bundle",
     "load_all_stages",
     "load_stage_config",
     "record_stage_video",
+    "save_evaluation_episodes",
+    "save_result_bundle",
     "save_results_json",
+    "validate_result_bundle",
     "write_stage_summary",
     "write_training_summary",
 ]
