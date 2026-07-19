@@ -15,6 +15,7 @@ Three plans, one clear recommendation:
 |---|---|---:|---|---|
 | **Full raptor** (1:1, 13.5 kg biped) | 13.5 kg | **$26k–45k** (~$36k) + labor | Plausible but **frontier research** | **Yes, required** |
 | **Scaled raptor** (~0.72×, biped) | ~6.5–7 kg | **$5.6k–8k** (~$6.9k) | Runs, but fights biped balance | No (all-COTS) |
+| **Compsognathus** (~2.5–3 kg biped) | ~3 kg | **~$4k–6k** (can approach $5k) | Runs on paper; **control-limited** | No (all-COTS, comfortable headroom) |
 | **Scutellosaurus quadruped** ⭐ *recommended* | ~7–9 kg | **~$6.9k**, or **$3.5k–4.5k** budget | **Yes — genuinely agile** | No (all-COTS) |
 
 **The core principle:** peak joint torque scales with roughly the **4th power of
@@ -129,7 +130,60 @@ ontogenetically quadrupedal at this scale — equally defensible.)*
 
 ---
 
-## 4. Reference points (why these numbers are credible)
+## 4. Bipedal runner options — is it a motor-availability limit?
+
+If you specifically want a **bipedal** dino that is nimble and can run, the good
+news is that **it is not primarily a motor-availability problem** — at least not
+at small scale. It's a *scale* problem, and above all a *control* problem.
+
+**Why scale decides it.** A biped puts the whole body's weight on **one** leg
+during single-support and flight phases, so its per-joint torque is roughly **2×
+a quadruped's** of the same mass. Combined with the L⁴ torque law, that sets a
+mass ceiling below which cheap COTS QDD actuators comfortably cover a running
+gait:
+
+| Biped mass | Hip run peak | COTS QDD situation | Real limiter |
+|---|---|---|---|
+| **~2.5–3 kg** (Compsognathus) | ~10–18 N·m | Several **true-QDD** units with headroom — AK70-10 (24.8), AK80-9 (22), GIM8108-8 (22) | **Control**, not motors |
+| **~5–7 kg** (Segisaurus, scaled raptor) | ~30–55 N·m | In-band, but the backdrivable units get marginal → you drift to **geared** servos (RMD-X6-60 @20:1, RMD-X4-36 @36:1) | Edge: motors OK, backdrivability compromised |
+| **~13.5 kg** (full raptor) | 150–225 N·m | **No single COTS unit** delivers this at running speed | **Motors → custom required** |
+
+So: for a **≤~3 kg biped, motors are plentiful and cheap** and give real
+headroom. The actuator wall only appears at raptor scale. **The binding
+constraint for any cheap biped runner is the control problem** — cheap bipedal
+*dynamic running* has essentially no prior art: the cheapest credible DIY biped
+(Berkeley Humanoid Lite, <$5k) only **walks**, and bipeds that genuinely run
+(Cassie, Digit) are ~30 kg, $100k+ research platforms. A quadruped of the same
+mass runs on the *same motors* with a solved gait stack.
+
+**Best bipedal species (nimble + run + to scale + budget):**
+
+1. **Compsognathus (~2.5–3.5 kg)** — the standout. Obligate biped, high cursorial
+   agility (elongate hindlimbs, tibia:femur ~1.3, long counterbalancing tail),
+   dead-center in the 2–8 kg band, and already the roadmap's physical target.
+   Comfortable true-QDD motor headroom. **~$4k–6k** as a running build (~8–9 DOF:
+   6× small QDD hips/knees + lighter ankle/tail units + 6S power + compute +
+   spares); a lean build **can approach ~$5k**. Under $10k easily.
+2. **Segisaurus (~4–7 kg)** — robust cursorial coelophysoid; a sturdier biped if
+   you want more mass. COTS-feasible but at the marginal edge (same profile as the
+   scaled raptor), so backdrivability is compromised.
+3. **Sinosauropteryx (up-scaled to ~2–3 kg)** — the **longest tail relative to
+   body** of any theropod, i.e. a superb active counterweight for a biped runner;
+   small enough for comfortable motor headroom.
+4. *Iconic-but-oversized runners* — **Hypsilophodon** and **Lesothosaurus** are
+   textbook "built for speed" cursors, but ~20 kg; only viable if down-scaled to
+   ~3–5 kg (which puts them back in the marginal-motor band).
+
+**The honest bottom line for bipeds:** a small bipedal runner is *affordable and
+motor-feasible* (~$5k for a Compsognathus), so you are **not** hitting an
+actuator wall at that scale. What you're up against is that **cheap bipedal
+running is an unsolved controls problem** — the parts budget buys a machine that
+*can* run, with real risk the gait proves hard to achieve. A quadruped of the
+same budget remains the surer bet for *actually-achieved* agile running.
+
+---
+
+## 5. Reference points (why these numbers are credible)
 
 | Robot | Type | Mass | Runs? | Cost |
 |---|---|---|---|---:|
@@ -144,14 +198,17 @@ The pattern is unambiguous: **cheap + agile + runs ⇒ QDD quadruped.**
 
 ---
 
-## 5. Recommendation & caveats
+## 6. Recommendation & caveats
 
 **Build the Scutellosaurus quadruped.** It's the single best path to an agile,
 genuinely-running dino robot on catalog parts with zero custom actuators — under
 $10k with AK70-10 (~$6.9k), or under $5k via the GIM8108-8 swap (~$3.5–4.5k,
-scoped to trotting). Keep the scaled biped raptor as the "stay-a-theropod"
-option (~$6.9k) knowing you're taking on the unsolved cheap-biped-running problem,
-and treat the full 13.5 kg raptor as a funded research program, not a build.
+scoped to trotting). If a **biped is required**, the best small-biped pick is a
+**Compsognathus (~2.5–3 kg, ~$4–6k)** — small enough that COTS true-QDD motors
+give comfortable headroom (§4) — with the scaled raptor (~$6.9k) as the larger
+"stay-a-theropod" option; either way you accept the unsolved cheap-biped-running
+control problem. Treat the full 13.5 kg raptor as a funded research program, not
+a build.
 
 **Caveats:**
 - **All figures are parts-only.** Dynamic running is a substantial controls

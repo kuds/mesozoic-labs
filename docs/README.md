@@ -30,6 +30,9 @@ read it as history, or update it when things change.
 | [RL_TRAINING_PLAN.md](RL_TRAINING_PLAN.md) | 2026-03-26 | Active — remaining SAC/PPO runs across species |
 | [MJX_CONVERSION_PLAN.md](MJX_CONVERSION_PLAN.md) | 2026-07-13 | Implemented design record — current divergences live in KNOWN_ISSUES and the JAX guide |
 | [WEBSITE_PLAN.md](WEBSITE_PLAN.md) | — | Active — Docusaurus site improvements |
+| [SIM_TO_REAL_PLAN.md](SIM_TO_REAL_PLAN.md) | 2026-07-19 | Active — sim-to-real feasibility & phased plan (the six sim↔hardware gaps) |
+| [HARDWARE_BOM.md](HARDWARE_BOM.md) | 2026-07-19 | Active — parts/cost & buildability for physical Compsognathus + Velociraptor (walking) |
+| [RAPTOR_SCALING_AND_ALTERNATIVES.md](RAPTOR_SCALING_AND_ALTERNATIVES.md) | 2026-07-19 | Active — running-robot scaling, bipedal-runner options, and a sub-$10k agile-runner species |
 | [BALANCE_REWARD_METRICS.md](BALANCE_REWARD_METRICS.md) | 2026-03-16 | Proposed — composite ASHA metric for stage-1 sweeps |
 | [REFACTORING.md](REFACTORING.md) | 2026-03-19 | **Complete** — v0.3.0 consolidation plan |
 | [CODE_CONSOLIDATION.md](CODE_CONSOLIDATION.md) | 2026-03-19 | **Complete** — v0.3.0 implementation record |
