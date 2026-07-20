@@ -808,9 +808,14 @@ class BaseDinoEnv(gym.Env, ABC):
         """Reset environment to initial state."""
         super().reset(seed=seed)
 
-        # Reset MuJoCo state using keyframe if available, otherwise default
+        # Reset MuJoCo state using the species-selected keyframe if available,
+        # otherwise the historical first keyframe. Species with a named
+        # nominal pose can cache its ID during initialization.
         if self.model.nkey > 0:
-            mujoco.mj_resetDataKeyframe(self.model, self.data, 0)
+            reset_keyframe_id = int(getattr(self, "_reset_keyframe_id", 0))
+            if not 0 <= reset_keyframe_id < self.model.nkey:
+                raise ValueError("reset keyframe ID is outside the model keyframe range")
+            mujoco.mj_resetDataKeyframe(self.model, self.data, reset_keyframe_id)
         else:
             mujoco.mj_resetData(self.model, self.data)
 

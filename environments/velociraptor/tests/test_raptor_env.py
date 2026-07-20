@@ -97,3 +97,55 @@ class TestStrikeTerminationGating:
         # The gating condition (self.strike_bonus > 0) should prevent
         # strike_success termination even if contact occurs
         env.close()
+
+
+class TestNominalPoseActionScaling:
+    """Raptor actions are residuals around the XML home controls."""
+
+    def test_reset_and_action_origin_use_same_named_home_keyframe(self, env):
+        assert env._reset_keyframe_id == env.home_keyframe_id
+
+    def test_zero_action_maps_exactly_to_home_controls(self, env):
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        scaled = env._scale_action(action)
+        home_ctrl = env.model.key_ctrl[env.home_keyframe_id]
+
+        np.testing.assert_array_equal(scaled, home_ctrl)
+
+    def test_action_endpoints_retain_full_control_range(self, env):
+        ctrl_range = env.model.actuator_ctrlrange
+
+        np.testing.assert_allclose(
+            env._scale_action(-np.ones(env.action_space.shape, dtype=np.float32)),
+            ctrl_range[:, 0],
+            atol=1e-12,
+        )
+        np.testing.assert_allclose(
+            env._scale_action(np.ones(env.action_space.shape, dtype=np.float32)),
+            ctrl_range[:, 1],
+            atol=1e-12,
+        )
+
+    def test_piecewise_mapping_interpolates_on_each_side_of_home(self, env):
+        ctrl_range = env.model.actuator_ctrlrange
+        home_ctrl = env.model.key_ctrl[env.home_keyframe_id]
+
+        below = env._scale_action(np.full(env.action_space.shape, -0.5, dtype=np.float32))
+        above = env._scale_action(np.full(env.action_space.shape, 0.5, dtype=np.float32))
+
+        np.testing.assert_allclose(below, (ctrl_range[:, 0] + home_ctrl) / 2.0, atol=1e-12)
+        np.testing.assert_allclose(above, (home_ctrl + ctrl_range[:, 1]) / 2.0, atol=1e-12)
+
+    def test_zero_residual_keeps_energy_and_smoothness_penalties_zero(self, env):
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+
+        _, _, terminated, truncated, first_info = env.step(action)
+        assert not terminated
+        assert not truncated
+        _, _, _, _, second_info = env.step(action)
+
+        assert first_info["reward_energy"] == pytest.approx(0.0, abs=1e-12)
+        assert second_info["reward_energy"] == pytest.approx(0.0, abs=1e-12)
+        assert second_info["reward_smoothness"] == pytest.approx(0.0, abs=1e-12)
+        assert second_info["action_delta"] == pytest.approx(0.0, abs=1e-12)

@@ -43,6 +43,7 @@ class EvalConfig:
     root_body_id: int = 1
     sensor_gyro_start: int = 0
     sensor_quat_start: int = 6
+    action_mapping: str = "midpoint/v1"
     reset_noise_scale: float = 0.01
     forward_vel_max: float = 8.0
     # Success bonus added to the reward when a success site reaches the
@@ -167,6 +168,9 @@ def evaluate_policy_cpu(
     import mujoco
     import mujoco.mjx as mjx
 
+    from .mjx_env import ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL, ACTION_MAPPING_MIDPOINT
+    from .mjx_utils import reset_mujoco_data_to_home
+
     mj_data = mujoco.MjData(mj_model)
     act_dim = mj_model.nu
     results = EvalResults()
@@ -199,7 +203,12 @@ def evaluate_policy_cpu(
         _target_body_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, config.target_body)
 
     for ep in range(config.n_episodes):
-        mujoco.mj_resetData(mj_model, mj_data)
+        if config.action_mapping == ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
+            reset_mujoco_data_to_home(mj_model, mj_data)
+        elif config.action_mapping == ACTION_MAPPING_MIDPOINT:
+            mujoco.mj_resetData(mj_model, mj_data)
+        else:
+            raise ValueError(f"unknown JAX action mapping {config.action_mapping!r}")
         mj_data.qpos[7:] += reset_rng.uniform(
             -config.reset_noise_scale,
             config.reset_noise_scale,

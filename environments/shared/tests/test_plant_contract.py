@@ -183,6 +183,19 @@ def test_mass_change_changes_physics_without_changing_interface(raptor_layers):
     assert changed["physics_sha256"] != original["physics_sha256"]
 
 
+def test_home_control_change_updates_policy_and_physics_fingerprints(raptor_layers):
+    source, interface, version, original = raptor_layers
+    changed_source = source.replace('ctrl="0.663225', 'ctrl="0.650000', 1)
+    assert changed_source != source
+    changed_model = mujoco.MjModel.from_xml_string(changed_source)
+
+    changed = fingerprint_model_layers(changed_model, interface, version)
+
+    assert changed["policy_interface_sha256"] != original["policy_interface_sha256"]
+    assert changed["physics_sha256"] != original["physics_sha256"]
+    assert changed["visual_sha256"] == original["visual_sha256"]
+
+
 def test_joint_actuator_force_cap_changes_physics_fingerprint(raptor_layers):
     source, interface, version, original = raptor_layers
     changed_source = source.replace(
@@ -373,6 +386,33 @@ def test_cached_observation_body_mapping_changes_interface_fingerprint(raptor_la
     assert changed["visual_sha256"] == original["visual_sha256"]
 
 
+def test_raptor_policy_contract_records_home_residual_action_mapping(raptor_layers):
+    _source, env, version, _original = raptor_layers
+
+    payload = plant_contract._policy_interface_payload(env.model, env, version, require_backend_parity=True)
+    mapping = payload["action_mapping"]
+
+    assert mapping["mode"] == "home-keyframe-residual/v1"
+    assert mapping["origin"]["keyframe"] == "home"
+    np.testing.assert_allclose(mapping["origin"]["ctrl"], env.model.key_ctrl[env.home_keyframe_id])
+    assert set(payload["interface_implementations"]["jax_action_mapping"]) == {"scale_action_around_nominal_jax"}
+    assert set(payload["interface_implementations"]["home_reset"]["jax"]) == {"reset_mujoco_data_to_home"}
+    assert payload["jax_interface"]["action_mapping"] == "home-keyframe-residual/v1"
+
+
+def test_other_species_retain_midpoint_action_mapping_contract():
+    env = BrachioEnv(reset_noise_scale=0.0)
+    try:
+        version = load_plant_versions()[1]["brachiosaurus"]
+        payload = plant_contract._policy_interface_payload(env.model, env, version, require_backend_parity=True)
+    finally:
+        env.close()
+
+    assert payload["action_mapping"] == "clip[-1,1]-then-affine-to-ordered-ctrlrange/v1"
+    assert set(payload["interface_implementations"]["jax_action_mapping"]) == {"scale_action_jax"}
+    assert "action_mapping" not in payload["jax_interface"]
+
+
 def test_runtime_environment_binding_rejects_control_cadence_override():
     current = current_plant_identity("velociraptor", verify_generated=False)
     env = RaptorEnv(frame_skip=4, reset_noise_scale=0.0)
@@ -403,12 +443,18 @@ def test_mjx_runtime_binding_rejects_interface_override(raptor_layers):
         sensor_gyro_start=0,
         sensor_accel_start=3,
         sensor_quat_start=6,
+        action_mapping="home-keyframe-residual/v1",
     )
     runtime_env = SimpleNamespace(mj_model=interface.model, config=config, action_dim=22)
     validate_mjx_environment_plant(runtime_env, current)
 
     config.frame_skip = 4
     with pytest.raises(PlantCompatibilityError, match="frame_skip"):
+        validate_mjx_environment_plant(runtime_env, current)
+
+    config.frame_skip = 5
+    config.action_mapping = "midpoint/v1"
+    with pytest.raises(PlantCompatibilityError, match="action_mapping"):
         validate_mjx_environment_plant(runtime_env, current)
 
 

@@ -15,6 +15,8 @@ Observation space (total dimension is generated in the public species catalog):
     - Prey distance (scalar) — 1
 
 Action space (total dimension is generated in the public species catalog):
+    - Actions are residuals around the named XML ``home`` keyframe controls
+    - Zero commands home; -1/+1 command each actuator's lower/upper limit
     - Right leg: hip pitch/roll, knee, ankle, toe d3/d4 (6)
     - Right sickle claw (1)
     - Left leg: hip pitch/roll, knee, ankle, toe d3/d4 (6)
@@ -60,6 +62,7 @@ from environments.shared.base_env import BaseDinoEnv
 class RaptorEnv(BaseDinoEnv):
     """Velociraptor locomotion and strike environment."""
 
+    action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 2.0
     _camera_azimuth = 135
     _camera_elevation = -20
@@ -165,6 +168,16 @@ class RaptorEnv(BaseDinoEnv):
 
     def _cache_ids(self):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
+        # The raptor policy commands residuals around the biomechanically
+        # balanced XML home pose.  Cache the controls once so action zero can
+        # preserve that pose without a keyframe lookup on every environment
+        # step.
+        self.home_keyframe_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        if self.home_keyframe_id < 0:
+            raise ValueError("Velociraptor model must define a named 'home' keyframe")
+        self._reset_keyframe_id = self.home_keyframe_id
+        self._home_ctrl = self.model.key_ctrl[self.home_keyframe_id].copy()
+
         # Body IDs
         self.pelvis_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
 
@@ -211,6 +224,30 @@ class RaptorEnv(BaseDinoEnv):
         # are inherited from BaseDinoEnv (0, 3, 6 respectively).
         self._sensor_r_foot = 10
         self._sensor_l_foot = 11
+
+    def _scale_action(self, action: np.ndarray) -> np.ndarray:
+        """Map normalized residual actions around the XML home controls.
+
+        The home pose is not generally the midpoint of an actuator's control
+        range.  A piecewise-linear mapping therefore preserves all three
+        policy-interface anchors:
+
+        * ``-1`` maps to the actuator minimum,
+        * ``0`` maps exactly to the home-keyframe control, and
+        * ``+1`` maps to the actuator maximum.
+
+        Reward terms continue to receive the normalized residual ``action``
+        from :meth:`step`; only the command sent to MuJoCo is transformed.
+        """
+        residual = np.clip(action, -1.0, 1.0)
+        ctrl_range = self.model.actuator_ctrlrange
+        ctrl_min = ctrl_range[:, 0]
+        ctrl_max = ctrl_range[:, 1]
+
+        below_home = residual * (self._home_ctrl - ctrl_min)
+        above_home = residual * (ctrl_max - self._home_ctrl)
+        scaled = self._home_ctrl + np.where(residual < 0.0, below_home, above_home)
+        return np.asarray(scaled)
 
     def _get_obs(self) -> np.ndarray:
         """Construct observation vector."""

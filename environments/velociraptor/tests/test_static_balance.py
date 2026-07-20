@@ -10,6 +10,7 @@ digitigrade feet, matching dromaeosaurid biomechanics. The tilt tests account
 for this natural lean.
 """
 
+import numpy as np
 import pytest
 
 from environments.shared.tests.static_balance_helpers import (
@@ -54,6 +55,19 @@ class TestNeutralActionStability(NeutralActionStabilityBase):
     root_body_id_attr = "pelvis_id"
     max_height_drop = 0.10
     max_tilt_increase = 0.53  # 30 degrees
+
+    def test_survives_full_noise_free_episode(self, env):
+        """The home-centered zero residual must remain viable for 1,000 Gym steps."""
+        env.reset(seed=0)
+        neutral_action = np.zeros(env.action_space.shape, dtype=np.float32)
+
+        for step in range(1, env.max_episode_steps + 1):
+            _, _, terminated, truncated, info = env.step(neutral_action)
+            assert not terminated, (
+                f"Raptor terminated at step {step}/{env.max_episode_steps} "
+                f"under the XML home command: {info.get('termination_reason', 'unknown')}"
+            )
+            assert truncated is (step == env.max_episode_steps)
 
 
 class TestActuatorDisabledPassive(ActuatorDisabledPassiveBase):

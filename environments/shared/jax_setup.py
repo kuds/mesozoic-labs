@@ -97,6 +97,7 @@ class SpeciesContext:
     obs_dim: int = 0
     act_dim: int = 0
     ctrl_range: Any = None  # jnp.ndarray
+    action_mapping: str = "midpoint/v1"
 
     # Display / video
     camera_track_body: str = "pelvis"
@@ -221,7 +222,7 @@ def setup_species(species: str, stage: int = 1) -> SpeciesContext:
     floor_geom_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
 
     # Resolve termination checks
-    from .mjx_env import _SPECIES_CONFIGS
+    from .mjx_env import _SPECIES_CONFIGS, ACTION_MAPPING_MIDPOINT
 
     species_kw = _SPECIES_CONFIGS.get(species, {})
 
@@ -286,6 +287,7 @@ def setup_species(species: str, stage: int = 1) -> SpeciesContext:
         obs_dim=int(test_obs.shape[0]),
         act_dim=mj_model.nu,
         ctrl_range=jnp.array(mj_model.actuator_ctrlrange),
+        action_mapping=species_kw.get("action_mapping", ACTION_MAPPING_MIDPOINT),
         camera_track_body=cam.get("camera_track_body", root_body_name),
         camera_distance=cam.get("camera_distance", 3.0),
         stage_name=stage_name,
@@ -457,14 +459,35 @@ def make_obs_fn(ctx: SpeciesContext):
 
 def make_scale_action_fn(ctx: SpeciesContext):
     """Create an action scaling function bound to the species context."""
-    from .mjx_utils import scale_action_jax
+    import jax.numpy as jnp
+    import mujoco
+
+    from .mjx_env import ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL, ACTION_MAPPING_MIDPOINT
+    from .mjx_utils import scale_action_around_nominal_jax, scale_action_jax
 
     ctrl_range = ctx.ctrl_range
+    action_mapping = ctx.action_mapping
 
-    def scale_action(action):
+    if action_mapping == ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
+        home_keyframe_id = mujoco.mj_name2id(ctx.mj_model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        if home_keyframe_id < 0:
+            raise ValueError("home-keyframe residual action mapping requires a keyframe named 'home'")
+        nominal_ctrl = jnp.array(ctx.mj_model.key_ctrl[home_keyframe_id])
+        if bool(jnp.any((nominal_ctrl < ctrl_range[:, 0]) | (nominal_ctrl > ctrl_range[:, 1]))):
+            raise ValueError("home keyframe controls must lie inside every actuator control range")
+
+        def scale_home_residual_action(action):
+            return scale_action_around_nominal_jax(action, ctrl_range, nominal_ctrl)
+
+        return scale_home_residual_action
+
+    if action_mapping != ACTION_MAPPING_MIDPOINT:
+        raise ValueError(f"unknown JAX action mapping {action_mapping!r}")
+
+    def scale_midpoint_action(action):
         return scale_action_jax(action, ctrl_range)
 
-    return scale_action
+    return scale_midpoint_action
 
 
 def make_reward_fns(ctx: SpeciesContext):
@@ -614,6 +637,7 @@ def run_stage_evaluation(
         root_body_id=ctx.root_body_id,
         sensor_quat_start=ctx.sensor_layout.quat_start,
         sensor_gyro_start=ctx.sensor_layout.gyro_start,
+        action_mapping=ctx.action_mapping,
         reset_noise_scale=0.01,
         forward_vel_max=ctx.forward_vel_max,
         target_standing_z=(ctx.target_standing_z if ctx.target_standing_z is not None else 0.90),

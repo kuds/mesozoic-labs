@@ -93,7 +93,9 @@ python scripts/train_sb3.py eval logs/<run_dir>/models/stage3_final.zip
 ## Environment Details
 
 Observation and action totals are generated in the catalog entry linked above. The source of the observation layout and
-action-to-actuator mapping is `envs/raptor_env.py`; actions are normalized to [-1, 1] and scaled to actuator ranges.
+action-to-actuator mapping is `envs/raptor_env.py`. Actions are normalized residuals around the named XML `home`
+keyframe: zero commands the standing pose, while -1 and +1 still reach each actuator's lower and upper limits through
+piecewise-linear interpolation.
 
 ### Reward Components
 

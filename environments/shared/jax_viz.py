@@ -542,6 +542,7 @@ def record_training_video(
     success_threshold: float = 0.3,
     target_body: str | None = None,
     sensor_quat_start: int = 6,
+    action_mapping: str = "midpoint/v1",
     output_path: str | Path | None = None,
     fps: int = 50,
     height: int = 480,
@@ -578,6 +579,8 @@ def record_training_video(
             extremity termination. Episode ends if any site drops below
             its threshold (more precise than body checks for tips).
         sensor_quat_start: Index into sensordata where root quaternion starts.
+        action_mapping: Versioned action mapping used by the policy. Home-
+            residual policies also start video rollouts from the home keyframe.
         output_path: If provided, save video to this path (requires mediapy).
         fps: Frames per second for the video.
         height: Render height in pixels.
@@ -595,6 +598,9 @@ def record_training_video(
     import mujoco
     import mujoco.mjx as mjx
 
+    from .mjx_env import ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL, ACTION_MAPPING_MIDPOINT
+    from .mjx_utils import reset_mujoco_data_to_home
+
     mj_data = mujoco.MjData(mj_model)
     renderer = mujoco.Renderer(mj_model, height=height, width=width)
 
@@ -607,7 +613,12 @@ def record_training_video(
     camera.azimuth = camera_azimuth
     camera.elevation = camera_elevation
 
-    mujoco.mj_resetData(mj_model, mj_data)
+    if action_mapping == ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
+        reset_mujoco_data_to_home(mj_model, mj_data)
+    elif action_mapping == ACTION_MAPPING_MIDPOINT:
+        mujoco.mj_resetData(mj_model, mj_data)
+    else:
+        raise ValueError(f"unknown JAX action mapping {action_mapping!r}")
     mujoco.mj_forward(mj_model, mj_data)
 
     # Resolve body-height termination checks

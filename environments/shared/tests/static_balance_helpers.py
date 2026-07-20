@@ -4,10 +4,11 @@ Species-specific test files inherit from these bases, overriding only
 the configuration (body names, thresholds, joint lists).
 
 ``env.step(np.zeros(...))`` is deliberately described as a *neutral action*,
-not zero torque: :class:`~environments.shared.base_env.BaseDinoEnv` maps it to
-the midpoint of every actuator control range, so position servos remain active.
-True passive characterization uses MuJoCo's ``mjDSBL_ACTUATION`` flag and
-checks that both actuator-space and generalized actuator forces stay zero.
+not zero torque: it maps to active position-servo controls (the shared base
+mapping uses range midpoints, while species may provide a nominal-pose
+mapping). True passive characterization uses MuJoCo's ``mjDSBL_ACTUATION``
+flag and checks that both actuator-space and generalized actuator forces stay
+zero.
 """
 
 from contextlib import contextmanager
