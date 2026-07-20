@@ -5,6 +5,7 @@ These tests are skipped when JAX/MJX is not installed.
 
 import inspect
 
+import numpy as np
 import pytest
 
 _has_jax = False
@@ -61,6 +62,13 @@ class TestMJXDinoEnv:
 
         with pytest.raises(ValueError, match="versioned plant interface"):
             MJXDinoEnv("trex", stage=1, num_envs=1, env_kwargs={"frame_skip": 4})
+        with pytest.raises(ValueError, match="versioned plant interface"):
+            MJXDinoEnv(
+                "trex",
+                stage=1,
+                num_envs=1,
+                env_kwargs={"action_mapping": "home-keyframe-residual/v1"},
+            )
 
     def test_reset_returns_state(self):
         """Reset returns an EnvState with correct shapes."""
@@ -102,6 +110,129 @@ class TestMJXUtils:
         assert float(scale_action_jax(jnp.array([1.0]), ctrl_range)[0]) == pytest.approx(2.0)
         # -1 → min
         assert float(scale_action_jax(jnp.array([-1.0]), ctrl_range)[0]) == pytest.approx(-2.0)
+
+    def test_scale_action_around_nominal_preserves_zero_and_endpoints(self):
+        import jax.numpy as jnp
+
+        from environments.shared.mjx_utils import scale_action_around_nominal_jax
+
+        ctrl_range = jnp.array([[-2.0, 4.0], [-1.0, 3.0]])
+        nominal_ctrl = jnp.array([1.0, 0.5])
+
+        assert np.allclose(
+            np.asarray(scale_action_around_nominal_jax(jnp.zeros(2), ctrl_range, nominal_ctrl)),
+            np.asarray(nominal_ctrl),
+        )
+        assert np.allclose(
+            np.asarray(scale_action_around_nominal_jax(jnp.full(2, -1.0), ctrl_range, nominal_ctrl)),
+            np.asarray(ctrl_range[:, 0]),
+        )
+        assert np.allclose(
+            np.asarray(scale_action_around_nominal_jax(jnp.full(2, 1.0), ctrl_range, nominal_ctrl)),
+            np.asarray(ctrl_range[:, 1]),
+        )
+
+    def test_scale_action_around_nominal_clips_direct_callers(self):
+        import jax.numpy as jnp
+
+        from environments.shared.mjx_utils import scale_action_around_nominal_jax
+
+        ctrl_range = jnp.array([[-2.0, 4.0], [-1.0, 3.0]])
+        nominal_ctrl = jnp.array([1.0, 0.5])
+        scaled = scale_action_around_nominal_jax(jnp.array([-5.0, 5.0]), ctrl_range, nominal_ctrl)
+        assert np.allclose(np.asarray(scaled), np.array([-2.0, 3.0]))
+
+
+@pytest.mark.skipif(not _has_jax, reason="JAX/MJX not installed")
+class TestHomeKeyframeActionMapping:
+    def test_setup_species_raptor_zero_action_maps_to_xml_home(self):
+        import jax.numpy as jnp
+        import mujoco
+
+        from environments.shared.jax_setup import make_scale_action_fn, setup_species
+
+        ctx = setup_species("velociraptor", stage=1)
+        scale_action = make_scale_action_fn(ctx)
+        home_id = mujoco.mj_name2id(ctx.mj_model, mujoco.mjtObj.mjOBJ_KEY, "home")
+
+        assert ctx.action_mapping == "home-keyframe-residual/v1"
+        assert home_id >= 0
+        np.testing.assert_allclose(
+            np.asarray(scale_action(jnp.zeros(ctx.act_dim))),
+            ctx.mj_model.key_ctrl[home_id],
+            rtol=0,
+            atol=1e-7,
+        )
+
+    def test_raptor_jax_mapping_matches_gymnasium_mapping(self):
+        import jax.numpy as jnp
+
+        from environments.shared.jax_setup import make_scale_action_fn, setup_species
+        from environments.velociraptor.envs.raptor_env import RaptorEnv
+
+        ctx = setup_species("velociraptor", stage=1)
+        scale_action = make_scale_action_fn(ctx)
+        env = RaptorEnv()
+        try:
+            action = np.linspace(-1.5, 1.5, ctx.act_dim, dtype=np.float32)
+            np.testing.assert_allclose(
+                np.asarray(scale_action(jnp.asarray(action))),
+                env._scale_action(action),
+                rtol=0,
+                atol=1e-7,
+            )
+        finally:
+            env.close()
+
+    def test_setup_species_trex_retains_midpoint_mapping(self):
+        import jax.numpy as jnp
+
+        from environments.shared.jax_setup import make_scale_action_fn, setup_species
+
+        ctx = setup_species("trex", stage=1)
+        scale_action = make_scale_action_fn(ctx)
+
+        assert ctx.action_mapping == "midpoint/v1"
+        np.testing.assert_allclose(
+            np.asarray(scale_action(jnp.zeros(ctx.act_dim))),
+            np.mean(ctx.mj_model.actuator_ctrlrange, axis=1),
+            rtol=0,
+            atol=1e-7,
+        )
+
+    def test_noise_free_raptor_mjx_reset_restores_complete_home_state(self):
+        import jax
+        import mujoco
+
+        import environments.velociraptor.mjx_config  # noqa: F401
+        from environments.shared.mjx_env import MJXDinoEnv
+        from environments.shared.mjx_utils import reset_mujoco_data_to_home
+
+        env = MJXDinoEnv("velociraptor", stage=1, num_envs=1)
+        states = env.reset(jax.random.PRNGKey(17))
+
+        expected = mujoco.MjData(env.mj_model)
+        reset_mujoco_data_to_home(env.mj_model, expected)
+        mujoco.mj_forward(env.mj_model, expected)
+
+        for field in ("qpos", "qvel", "act", "ctrl", "mocap_pos", "mocap_quat"):
+            np.testing.assert_allclose(
+                np.asarray(getattr(states.data, field)[0]),
+                np.asarray(getattr(expected, field)),
+                rtol=0,
+                atol=1e-7,
+                err_msg=f"MJX reset field {field} diverged from the XML home keyframe",
+            )
+
+    def test_home_reset_requires_named_home_keyframe(self):
+        import mujoco
+
+        from environments.shared.mjx_utils import reset_mujoco_data_to_home
+
+        model = mujoco.MjModel.from_xml_string("<mujoco/>")
+        data = mujoco.MjData(model)
+        with pytest.raises(ValueError, match="keyframe named 'home'"):
+            reset_mujoco_data_to_home(model, data)
 
 
 # ---------------------------------------------------------------------------

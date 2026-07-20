@@ -18,6 +18,7 @@ class TestEvalConfig:
         assert cfg.max_tilt_angle == pytest.approx(1.047)
         assert cfg.root_body_id == 1
         assert cfg.sensor_quat_start == 6
+        assert cfg.action_mapping == "midpoint/v1"
         assert cfg.reset_noise_scale == pytest.approx(0.01)
         assert cfg.forward_vel_max == pytest.approx(8.0)
 
@@ -171,3 +172,64 @@ class TestSuccessAndVelGates:
         # No forward_vels/successes recorded at all -- gates must not fire.
         passed, failures = check_stage_gate(results)
         assert passed
+
+
+def test_cpu_evaluation_noise_free_reset_restores_complete_home_state():
+    jax = pytest.importorskip("jax")
+    pytest.importorskip("mujoco.mjx")
+    import jax.numpy as jnp
+    import mujoco
+
+    from environments.shared.jax_eval import evaluate_policy_cpu
+    from environments.shared.mjx_env import _get_model_path
+    from environments.shared.mjx_utils import reset_mujoco_data_to_home
+
+    model = mujoco.MjModel.from_xml_path(_get_model_path("velociraptor"))
+    home_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
+    captured: dict[str, np.ndarray] = {}
+
+    def get_obs(data):
+        if not captured:
+            for field in ("qpos", "qvel", "act", "ctrl", "mocap_pos", "mocap_quat"):
+                captured[field] = np.asarray(jax.device_get(getattr(data, field)))
+        return jnp.zeros(1)
+
+    class ZeroNetwork:
+        def apply(self, _params, _obs):
+            return jnp.zeros(model.nu), jnp.zeros(model.nu), jnp.float32(0.0)
+
+    evaluate_policy_cpu(
+        model,
+        {},
+        ZeroNetwork(),
+        None,
+        get_obs_fn=get_obs,
+        normalize_obs_fn=lambda obs, _stats: obs,
+        scale_action_fn=lambda _action: jnp.asarray(model.key_ctrl[home_id]),
+        reward_fn=lambda _data, _action, _cfg, **_kwargs: jnp.float32(0.0),
+        reward_cfg={},
+        config=EvalConfig(
+            n_episodes=1,
+            max_episode_steps=1,
+            healthy_z_range=(0.0, 10.0),
+            max_tilt_angle=np.pi,
+            natural_forward_z=-1.0,
+            nosedive_threshold=10.0,
+            root_body_id=2,
+            sensor_quat_start=6,
+            action_mapping="home-keyframe-residual/v1",
+            reset_noise_scale=0.0,
+        ),
+    )
+
+    expected = mujoco.MjData(model)
+    reset_mujoco_data_to_home(model, expected)
+    mujoco.mj_forward(model, expected)
+    for field, actual in captured.items():
+        np.testing.assert_allclose(
+            actual,
+            np.asarray(getattr(expected, field)),
+            rtol=0,
+            atol=1e-7,
+            err_msg=f"CPU evaluation reset field {field} diverged from the XML home keyframe",
+        )

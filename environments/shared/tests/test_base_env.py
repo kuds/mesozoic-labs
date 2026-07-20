@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from environments.brachiosaurus.envs.brachio_env import BrachioEnv
 from environments.shared.base_env import BaseDinoEnv
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
@@ -165,11 +166,11 @@ class TestTruncation:
 
 
 class TestActionScaling:
-    """Test action normalization from [-1, 1] to actuator ranges."""
+    """Test the shared midpoint action mapping retained by other species."""
 
     @pytest.fixture
     def env(self):
-        e = RaptorEnv()
+        e = BrachioEnv()
         yield e
         e.close()
 

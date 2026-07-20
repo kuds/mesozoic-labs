@@ -53,6 +53,10 @@ PORTABLE_FLOAT_SIGNIFICANT_DIGITS = 12
 MODEL_IDENTITY_ATTRIBUTE = "_mesozoic_plant_identity"
 _MISSING_IDENTITY = object()
 
+_ACTION_MAPPING_MIDPOINT = "midpoint/v1"
+_ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL = "home-keyframe-residual/v1"
+_MIDPOINT_ACTION_MAPPING_DESCRIPTION = "clip[-1,1]-then-affine-to-ordered-ctrlrange/v1"
+
 _logger = logging.getLogger(__name__)
 
 
@@ -330,6 +334,45 @@ def _module_function_semantics(module_name: str, function_names: Sequence[str]) 
     if missing:
         raise PlantContractError(f"{module_name} is missing policy-interface functions: {missing}")
     return {name: _callable_semantics(functions[name])["tokens_sha256"] for name in function_names}
+
+
+def _action_mapping_contract(
+    model: mujoco.MjModel,
+    env: Any,
+) -> tuple[str | dict[str, Any], tuple[str, ...]]:
+    """Describe the species' normalized-action mapping and JAX implementation."""
+    mode = str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT))
+    if mode == _ACTION_MAPPING_MIDPOINT:
+        return _MIDPOINT_ACTION_MAPPING_DESCRIPTION, ("scale_action_jax",)
+    if mode != _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
+        raise PlantContractError(f"unsupported action mapping mode: {mode!r}")
+
+    home_keyframe_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
+    if home_keyframe_id < 0:
+        raise PlantContractError("home-keyframe residual mapping requires a named 'home' keyframe")
+    nominal_ctrl = np.asarray(model.key_ctrl[home_keyframe_id], dtype=np.float64)
+    ctrl_range = np.asarray(model.actuator_ctrlrange, dtype=np.float64)
+    if nominal_ctrl.shape != (model.nu,) or not np.all(np.isfinite(nominal_ctrl)):
+        raise PlantContractError("home keyframe controls must be finite and match the actuator dimension")
+    if np.any(nominal_ctrl < ctrl_range[:, 0]) or np.any(nominal_ctrl > ctrl_range[:, 1]):
+        raise PlantContractError("home keyframe controls must remain inside every actuator control range")
+
+    return (
+        {
+            "schema": "mesozoic.action-mapping/v1",
+            "mode": mode,
+            "input_clip": [-1.0, 1.0],
+            "negative_endpoint": "ordered-ctrlrange-minimum",
+            "origin": {
+                "keyframe": "home",
+                "keyframe_id": home_keyframe_id,
+                "ctrl": nominal_ctrl,
+            },
+            "positive_endpoint": "ordered-ctrlrange-maximum",
+            "interpolation": "piecewise-affine/v1",
+        },
+        ("scale_action_around_nominal_jax",),
+    )
 
 
 def _array_digest(schema: str, array: np.ndarray) -> dict[str, Any]:
@@ -722,6 +765,13 @@ def _jax_policy_interface_payload(
     registered_frame_skip = int(raw_config.get("frame_skip", -1))
     if registered_frame_skip <= 0:
         raise PlantContractError(f"MJX frame_skip must be positive for {version.species}")
+    registered_action_mapping = str(raw_config.get("action_mapping", _ACTION_MAPPING_MIDPOINT))
+    sb3_action_mapping = str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT))
+    if registered_action_mapping != sb3_action_mapping:
+        raise PlantContractError(
+            f"SB3 and MJX action mappings diverge for {version.species}: "
+            f"sb3={sb3_action_mapping!r}, mjx={registered_action_mapping!r}"
+        )
 
     probe_data = _deterministic_probe_data(model)
     target_pos = probe_data.mocap_pos[0] if model.nmocap else np.array([1.25, -0.45, 0.8])
@@ -745,7 +795,7 @@ def _jax_policy_interface_payload(
             f"MJX observation probe produced invalid output: shape={observation.shape}, expected={expected_shape}"
         )
 
-    return {
+    payload = {
         "registration_module": module_name,
         "frame_skip": registered_frame_skip,
         "control_timestep": model.opt.timestep * registered_frame_skip,
@@ -767,6 +817,9 @@ def _jax_policy_interface_payload(
             "values": _portable_probe_values(observation),
         },
     }
+    if registered_action_mapping != _ACTION_MAPPING_MIDPOINT:
+        payload["action_mapping"] = registered_action_mapping
+    return payload
 
 
 def _policy_interface_payload(
@@ -802,6 +855,7 @@ def _policy_interface_payload(
     collision_ids = np.flatnonzero((model.geom_contype != 0) | (model.geom_conaffinity != 0))
     sb3_observation_probe = _observation_probe(model, env)
     jax_interface = _jax_policy_interface_payload(model, env, version)
+    action_mapping, jax_action_functions = _action_mapping_contract(model, env)
     mjx_env_module = importlib.import_module("environments.shared.mjx_env")
     jax_setup_module = importlib.import_module("environments.shared.jax_setup")
     backend_observation_equal = np.array_equal(
@@ -813,32 +867,41 @@ def _policy_interface_payload(
             f"SB3 and MJX observation probes diverge for {version.species}; "
             "check cached body IDs, sensor offsets, and observation builders"
         )
+    interface_implementations = {
+        "sb3_observation": _callable_semantics(env._get_obs),
+        "sb3_action_mapping": _callable_semantics(env._scale_action),
+        "backend_neutral_observation": _module_function_semantics(
+            "environments.shared.obs_functions",
+            observation_functions,
+        ),
+        "jax_action_mapping": _module_function_semantics(
+            "environments.shared.mjx_utils",
+            jax_action_functions,
+        ),
+        # These are intentionally production observation callables, not a
+        # parallel test implementation. Reward/termination code stays out
+        # of the interface fingerprint.
+        "jax_observation_callers": {
+            "training_reset_and_step": _callable_semantics(mjx_env_module.build_mjx_observation),
+            "cpu_evaluation": _callable_semantics(jax_setup_module.make_obs_fn),
+        },
+    }
+    if str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT)) == _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
+        interface_implementations["home_reset"] = {
+            "sb3": _callable_semantics(env.reset),
+            "jax": _module_function_semantics(
+                "environments.shared.mjx_utils",
+                ("reset_mujoco_data_to_home",),
+            ),
+        }
     return {
         "observation_schema": version.observation_schema,
         "observation": _space_payload(env.observation_space),
         "observation_probe": sb3_observation_probe,
         "observation_segments": observation_segments,
         "action": _space_payload(env.action_space),
-        "action_mapping": "clip[-1,1]-then-affine-to-ordered-ctrlrange/v1",
-        "interface_implementations": {
-            "sb3_observation": _callable_semantics(env._get_obs),
-            "sb3_action_mapping": _callable_semantics(env._scale_action),
-            "backend_neutral_observation": _module_function_semantics(
-                "environments.shared.obs_functions",
-                observation_functions,
-            ),
-            "jax_action_mapping": _module_function_semantics(
-                "environments.shared.mjx_utils",
-                ("scale_action_jax",),
-            ),
-            # These are intentionally production observation callables, not a
-            # parallel test implementation. Reward/termination code stays out
-            # of the interface fingerprint.
-            "jax_observation_callers": {
-                "training_reset_and_step": _callable_semantics(mjx_env_module.build_mjx_observation),
-                "cpu_evaluation": _callable_semantics(jax_setup_module.make_obs_fn),
-            },
-        },
+        "action_mapping": action_mapping,
+        "interface_implementations": interface_implementations,
         "jax_interface": jax_interface,
         "backend_observation_equal": backend_observation_equal,
         "frame_skip": int(env.frame_skip),
@@ -1617,13 +1680,18 @@ def validate_mjx_environment_plant(
         "sensor_gyro_start",
         "sensor_accel_start",
         "sensor_quat_start",
+        "action_mapping",
     )
     errors = []
     if str(getattr(config, "species", "")) != current.species:
         errors.append(f"species: runtime={getattr(config, 'species', None)!r}, current={current.species!r}")
     for field_name in fields:
         actual_value = getattr(config, field_name, None)
-        expected_value = expected.get(field_name)
+        expected_value = (
+            expected.get(field_name, _ACTION_MAPPING_MIDPOINT)
+            if field_name == "action_mapping"
+            else expected.get(field_name)
+        )
         if actual_value != expected_value:
             errors.append(f"{field_name}: runtime={actual_value!r}, registered={expected_value!r}")
     action_dim = int(getattr(env, "action_dim", -1))

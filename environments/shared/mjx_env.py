@@ -33,6 +33,9 @@ from .mjx_utils import check_jax
 
 _logger = logging.getLogger(__name__)
 
+ACTION_MAPPING_MIDPOINT = "midpoint/v1"
+ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL = "home-keyframe-residual/v1"
+
 # ---------------------------------------------------------------------------
 # TOML [env] key translation
 # ---------------------------------------------------------------------------
@@ -143,6 +146,7 @@ class MJXEnvConfig:
     sensor_gyro_start: int = 0
     sensor_accel_start: int = 3
     sensor_quat_start: int = 6
+    action_mapping: str = ACTION_MAPPING_MIDPOINT
     natural_forward_z: float = 0.0
     forward_vel_max: float = 8.0
     fall_penalty: float = -100.0
@@ -241,6 +245,7 @@ _PLANT_INTERFACE_CONFIG_FIELDS = frozenset(
         "sensor_gyro_start",
         "sensor_accel_start",
         "sensor_quat_start",
+        "action_mapping",
     }
 )
 
@@ -420,8 +425,28 @@ class MJXDinoEnv:
             if mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, name) >= 0
         )
 
-        # Cache default MJX data once (avoids mjx.make_data per env per step)
-        self._default_data = mjx.make_data(self.mjx_model)
+        # Cache reset data once (avoids constructing data per env per reset).
+        # The home-residual action interface must start from the same complete
+        # keyframed state that defines action zero: qpos, qvel, act, ctrl, and
+        # mocap state.  Other species intentionally retain the historical MJX
+        # default reset and midpoint action mapping.
+        self.nominal_ctrl = None
+        if self.config.action_mapping == ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
+            from .mjx_utils import reset_mujoco_data_to_home
+
+            home_data = mujoco.MjData(self.mj_model)
+            reset_mujoco_data_to_home(self.mj_model, home_data)
+            nominal_ctrl = home_data.ctrl.copy()
+            ctrl_range = self.mj_model.actuator_ctrlrange
+            if ((nominal_ctrl < ctrl_range[:, 0]) | (nominal_ctrl > ctrl_range[:, 1])).any():
+                raise ValueError("home keyframe controls must lie inside every actuator control range")
+            self.nominal_ctrl = jnp.array(nominal_ctrl)
+            mujoco.mj_forward(self.mj_model, home_data)
+            self._default_data = mjx.put_data(self.mj_model, home_data)
+        elif self.config.action_mapping == ACTION_MAPPING_MIDPOINT:
+            self._default_data = mjx.make_data(self.mjx_model)
+        else:
+            raise ValueError(f"unknown MJX action mapping {self.config.action_mapping!r}")
 
         # Pre-compile step and reset functions.  ``forward_vel_scale`` is
         # passed as a JAX scalar (broadcast via in_axes=None) so the reward
@@ -442,7 +467,7 @@ class MJXDinoEnv:
         import jax.numpy as jnp
         import mujoco.mjx as mjx
 
-        from .mjx_utils import scale_action_jax
+        from .mjx_utils import scale_action_around_nominal_jax, scale_action_jax
         from .reward_functions import (
             check_nosedive_termination,
             quat_to_forward_2d,
@@ -466,6 +491,7 @@ class MJXDinoEnv:
         model = self.mjx_model
         config = self.config
         ctrl_range = self.ctrl_range
+        nominal_ctrl = self.nominal_ctrl
         frame_skip = config.frame_skip
         dt = float(self.mj_model.opt.timestep) * frame_skip
         # Pre-resolved body-height termination pairs (body_id, z_threshold)
@@ -485,7 +511,10 @@ class MJXDinoEnv:
             ramp it without retracing this kernel.
             """
             # Scale action
-            ctrl = scale_action_jax(action, ctrl_range)
+            if nominal_ctrl is None:
+                ctrl = scale_action_jax(action, ctrl_range)
+            else:
+                ctrl = scale_action_around_nominal_jax(action, ctrl_range, nominal_ctrl)
             data = state.data.replace(ctrl=ctrl)
 
             # Physics step with frame skip

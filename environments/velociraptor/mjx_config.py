@@ -18,6 +18,7 @@ _SENSOR_TAIL_GYRO_START = 24
 
 register_species_mjx(
     species="velociraptor",
+    action_mapping="home-keyframe-residual/v1",
     frame_skip=5,
     max_episode_steps=1000,
     healthy_z_range=(0.3, 1.0),

@@ -68,12 +68,13 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "trex": "bipedal-target/v1",
         "brachiosaurus": "quadrupedal-target/v1",
     }
+    expected_policy_revisions = {"velociraptor": 2, "trex": 1, "brachiosaurus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
         plant = species["model"]["plant_contract"]
         assert digest_pattern.fullmatch(plant["bundle_sha256"])
         assert digest_pattern.fullmatch(plant["source_closure_sha256"])
-        assert plant["policy_interface"]["revision"] == 1
+        assert plant["policy_interface"]["revision"] == expected_policy_revisions[species["id"]]
         assert plant["policy_interface"]["observation_schema"] == expected_observation_schemas[species["id"]]
         assert plant["physics"]["revision"] == 1
         assert plant["visual"]["revision"] == 1
