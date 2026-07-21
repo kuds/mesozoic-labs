@@ -137,8 +137,13 @@
               <joint name="r_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
               <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.02"
                     mass="0.06" material="body_mat"/>
-              <!-- Foot contact sensor (on primary weight-bearing digit) -->
-              <site name="r_foot" pos="0.05 0 -0.02" size="0.02"/>
+              <!-- Foot contact sensor (on primary weight-bearing digit).
+                   The site must envelop the whole toe capsule: a lying capsule
+                   contacts the floor near its ENDS, and a touch sensor only
+                   counts contact points inside the site volume. The original
+                   r=0.02 sphere at the capsule midpoint missed both end
+                   contacts, so the sensor read 0 during normal stance. -->
+              <site name="r_foot" pos="0.05 0 0" size="0.08"/>
             </body>
 
             <!-- Digit 4 (lateral, shorter — secondary weight-bearing) -->
@@ -185,7 +190,8 @@
               <joint name="l_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
               <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.02"
                     mass="0.06" material="body_mat"/>
-              <site name="l_foot" pos="0.05 0 -0.02" size="0.02"/>
+              <!-- Same coverage rationale as r_foot above. -->
+              <site name="l_foot" pos="0.05 0 0" size="0.08"/>
             </body>
 
             <!-- Digit 4 (lateral, shorter — secondary weight-bearing) -->
@@ -234,13 +240,17 @@
          does NOT convert actuator attributes, only joint attributes. -->
 
     <!-- Right leg -->
-    <!-- Hip pitch and ankle forcerange sized at 1.5x kp (was 0.8x from 156a933):
-         the 0.8x caps clipped 34-40%/22-25% of a moderate gait cycle and broke
-         stage-2 locomotion. 1.5x keeps impact spikes bounded while leaving gait
+    <!-- Hip pitch, knee, and ankle forcerange sized at 1.5x kp (was 0.8x from
+         156a933): the 0.8x caps clipped 34-40%/22-25% of a moderate gait cycle
+         on hips/ankles and broke stage-2 locomotion. The knee measured 0% at
+         the moderate 2.5 Hz/0.8-amplitude regime but 30-46% at sprint-like
+         excitation (3-4 Hz, full amplitude), so it carries the same 1.5x
+         headroom before faster-gait training.
+         1.5x keeps impact spikes bounded while leaving gait
          torques unclipped. See docs/investigations/STAGE2_RECOMMENDATIONS.md R2. -->
     <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="150" forcerange="-225 225" ctrlrange="-1.0472 1.5708"/>
     <position name="r_hip_roll_act" joint="r_hip_roll" kp="100" forcerange="-80 80" ctrlrange="-0.5236 0.5236"/>
-    <position name="r_knee_act" joint="r_knee" kp="180" forcerange="-145 145" ctrlrange="-2.0944 -0.0872"/>
+    <position name="r_knee_act" joint="r_knee" kp="180" forcerange="-270 270" ctrlrange="-2.0944 -0.0872"/>
     <position name="r_ankle_act" joint="r_ankle" kp="100" forcerange="-150 150" ctrlrange="1.0472 2.7925"/>
     <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
     <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
@@ -249,7 +259,7 @@
     <!-- Left leg -->
     <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="150" forcerange="-225 225" ctrlrange="-1.0472 1.5708"/>
     <position name="l_hip_roll_act" joint="l_hip_roll" kp="100" forcerange="-80 80" ctrlrange="-0.5236 0.5236"/>
-    <position name="l_knee_act" joint="l_knee" kp="180" forcerange="-145 145" ctrlrange="-2.0944 -0.0872"/>
+    <position name="l_knee_act" joint="l_knee" kp="180" forcerange="-270 270" ctrlrange="-2.0944 -0.0872"/>
     <position name="l_ankle_act" joint="l_ankle" kp="100" forcerange="-150 150" ctrlrange="1.0472 2.7925"/>
     <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
     <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="50" forcerange="-40 40" ctrlrange="-0.5236 1.0472"/>
@@ -306,6 +316,14 @@
     <!-- Prevent thigh-torso collision -->
     <exclude body1="pelvis" body2="r_thigh"/>
     <exclude body1="pelvis" body2="l_thigh"/>
+
+    <!-- Adjacent toe digits interpenetrate at rest (d3 r=0.02 at y=0, d4
+         r=0.018 at y=-/+0.015): without an exclude the solver holds a large
+         constant repulsion force between them that also pollutes the foot
+         touch sensors. The digits are anatomically side-by-side; they never
+         need to collide with each other. -->
+    <exclude body1="r_toe_d3" body2="r_toe_d4"/>
+    <exclude body1="l_toe_d3" body2="l_toe_d4"/>
   </contact>
 
   <!-- ==================== KEYFRAMES ==================== -->

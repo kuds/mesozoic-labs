@@ -34,9 +34,21 @@ from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 # Default sizing from commit 156a933; gait-critical actuators carry extra
 # headroom so the caps only bind on impact/reset spikes, not gait torques.
+# The knee joined the 1.5x set after measuring 0% clip at the moderate
+# 2.5 Hz/0.8-amplitude regime but 30-46% at sprint-like excitation
+# (3-4 Hz, full amplitude) while still capped at 0.8x kp.
 FORCERANGE_KP_RATIO = 0.8
 GAIT_HEADROOM_RATIO = 1.5
-GAIT_HEADROOM_ACTUATORS = frozenset({"r_hip_pitch_act", "l_hip_pitch_act", "r_ankle_act", "l_ankle_act"})
+GAIT_HEADROOM_ACTUATORS = frozenset(
+    {
+        "r_hip_pitch_act",
+        "l_hip_pitch_act",
+        "r_knee_act",
+        "l_knee_act",
+        "r_ankle_act",
+        "l_ankle_act",
+    }
+)
 
 
 @pytest.fixture(scope="module")
@@ -108,5 +120,25 @@ class TestDynamicSaturation:
             # timestep/integrator jitter while catching any real regression.
             assert hip < 0.10, f"hip saturation {hip:.1%} — plant lost gait headroom, stage 2 will clip"
             assert ankle < 0.05, f"ankle saturation {ankle:.1%} — plant lost gait headroom, stage 2 will clip"
+        finally:
+            env.close()
+
+    def test_sprint_excitation_keeps_knee_unclipped(self):
+        """Guards the knee's 1.5x-kp sprint headroom.
+
+        At the 0.8x-kp cap (forcerange ±145 on kp=180) the knee measured
+        0% clip at the moderate 2.5 Hz/0.8-amplitude gait but 30-46% at
+        sprint-like excitation (3-4 Hz, full amplitude) — the same
+        clipped-torque signature that collapsed stage 2 at the hips. At
+        1.5x kp (±270) the same sprint excitation measures 0.0% on the
+        knee. Hips/ankles (already 1.5x) measure ~11%/~2% at this regime,
+        which is their physical envelope, so only the knee is pinned here.
+        """
+        env = RaptorEnv()
+        try:
+            model = env.model
+            frac = measure_clip_fractions(env, mode="gait", steps=2000, hz=3.5, amplitude=1.0)
+            knee = max(clip_fraction(frac, model, f"{s}_knee_act") for s in "rl")
+            assert knee < 0.05, f"knee saturation {knee:.1%} at sprint excitation — faster-gait training will clip"
         finally:
             env.close()

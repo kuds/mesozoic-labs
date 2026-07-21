@@ -195,6 +195,21 @@ r_hip_pitch_act / l_hip_pitch_act:  kp=150  forcerange="-225 225"   (was ±120, 
 r_ankle_act     / l_ankle_act:      kp=100  forcerange="-150 150"   (was ±80)
 ```
 
+> **July 2026 follow-up:** "knees measure ~0% gait clipping" holds only for
+> the moderate 2.5 Hz/0.8-amplitude regime pinned here. At sprint-like
+> excitation (3–4 Hz, full amplitude) the 0.8×kp knee cap measured 30–46 %
+> clip — the same signature that broke stage 2 at the hips — so the knee was
+> raised to 1.5×kp as well:
+>
+> ```xml
+> r_knee_act / l_knee_act:  kp=180  forcerange="-270 270"   (was ±145, 0.8×kp → 1.5×kp)
+> ```
+>
+> Post-bump the knee measures 0 % at 3.5 Hz/1.0 (pinned by
+> `test_sprint_excitation_keeps_knee_unclipped`). At that regime the
+> remaining clip sits on the 0.8×kp toes (10–16 %) and the 1.5×kp hip pitch
+> (~11–16 %, its physical envelope) — re-measure before stage-3 sprint work.
+
 Operational requirements:
 
 - **Must merge to `main`** — the Colab notebook clones `main` with no branch

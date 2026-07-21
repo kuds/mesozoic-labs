@@ -131,8 +131,11 @@ z≈1.13, level, all four feet grounded. All three models now use
 `integrator="implicitfast"` and bounded
 `forcerange` on position actuators, sized to clip impact/reset spikes only,
 with gait-critical actuators at 1.5×kp on every species (raptor hip
-pitch/ankle; trex hip pitch/knee/ankle; brachiosaurus all four hip
-pitches). The original home-control-only sizing clipped 20–50 % of
+pitch/knee/ankle; trex hip pitch/knee/ankle; brachiosaurus all four hip
+pitches — the raptor knee joined the 1.5× set in July 2026 after measuring
+0 % clip at the moderate 2.5 Hz/0.8-amplitude regime but 30–46 % at
+sprint-like 3–4 Hz full-amplitude excitation while still capped at
+0.8×kp). The original home-control-only sizing clipped 20–50 % of
 gait-cycle torque per species and collapsed velociraptor stage-2 twice — see
 [investigations/STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md)
 §5. Post-fix gait clipping is ≤0.5 % everywhere, pinned by each species'
@@ -149,6 +152,21 @@ are documented in [PLANT_CONTRACT.md](PLANT_CONTRACT.md).
 
 Still open:
 
+- **MEDIUM** — the T-Rex foot touch sensors read 0 during settled stance
+  (verified empirically: both `r/l_foot_contact` are 0.0 after a settle),
+  the same defect fixed on the velociraptor: a lying toe capsule contacts
+  the floor near its ends, and the r=0.06 site at the toe midpoint misses
+  those contact points. The two foot-contact observation dims and any
+  foot-contact reward gating are dead. Fix as on the raptor: enlarge the
+  site to envelop the toe capsule, check for adjacent-digit
+  interpenetration (add contact excludes if the digits overlap at rest),
+  and bump the trex plant revisions.
+- **LOW** — the raptor's toe-clipping margin now sits at the toes: at
+  sprint-like excitation (3–4 Hz, full amplitude) the 0.8×kp toe caps clip
+  10–16 % and the 1.5×kp hip pitch ~11–16 % (its physical envelope); the
+  knee measures 0 % after its 1.5× bump. Re-measure with
+  `environments/shared/scripts/actuator_saturation_report.py` before any
+  faster-gait (stage-3 sprint) work and consider 1.5× toes if they bind.
 - **MEDIUM** — the T-Rex home keyframe (pitch 0) is ~35° from its passive
   equilibrium (settles to forward_z −0.583), which is *past* the stage-1
   nosedive termination line (−0.519 with the TOML's 0.35 threshold): every
