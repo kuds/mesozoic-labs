@@ -56,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   0 N airborne, 48/50 standing-probe survival unchanged, and regression
   tests pin stance/airborne sensor behavior. The T-Rex has the same
   dead-sensor defect (recorded in KNOWN_ISSUES, not yet fixed).
+  Follow-up (visual revision 2 → 3): the enlarged sites rendered as large
+  gray balls on the feet in run videos (first visible in run
+  `20260721_141523`'s stage-1 video); they now live in site group 4,
+  which default rendering hides, so they no longer draw — toggle site
+  group 4 in an interactive viewer to visualize the touch volumes.
 
 ### Added
 - **Canonical result bundles for Colab/Google Drive training**: schema-v2
