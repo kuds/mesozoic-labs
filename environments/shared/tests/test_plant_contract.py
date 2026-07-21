@@ -325,8 +325,8 @@ def test_control_range_change_changes_interface_and_physics(raptor_layers):
 def test_touch_site_shape_change_changes_interface_and_visual_layers(raptor_layers):
     source, interface, version, original = raptor_layers
     changed_source = source.replace(
-        '<site name="r_foot" pos="0.05 0 -0.02" size="0.02"/>',
-        '<site name="r_foot" pos="0.05 0 -0.02" size="0.025"/>',
+        '<site name="r_foot" pos="0.05 0 0" size="0.08"/>',
+        '<site name="r_foot" pos="0.05 0 0" size="0.085"/>',
         1,
     )
     assert changed_source != source

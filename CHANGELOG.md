@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.3)
 
+### Changed
+- **Velociraptor knee actuators raised to 1.5×kp** (breaking — plant change,
+  physics revision 1 → 2): the knee measured 0 % clip at the moderate
+  2.5 Hz/0.8-amplitude contract gait but 30–46 % at sprint-like 3–4 Hz
+  full-amplitude excitation while still capped at 0.8×kp (`forcerange`
+  ±145 on kp=180) — the same clipped-torque signature that collapsed
+  stage-2 locomotion at the hips. At ±270 the same sprint excitation
+  measures 0 % knee clip; the moderate-regime contract and the
+  home-control no-saturation guarantee are unchanged, and a new
+  sprint-regime contract test pins the knee headroom.
+
+### Fixed
+- **Velociraptor foot touch sensors were dead during normal stance**
+  (breaking — policy-interface revision 2 → 3, visual revision 1 → 2): the
+  raptor is digitigrade and a lying toe capsule contacts the floor near its
+  ends, but the r=0.02 touch sites sat at the toe midpoint, so both sensors
+  — and the two foot-contact observation dims fed from them — read 0 while
+  standing (verified: six active floor contacts, zero sensor signal). The
+  sites now envelop the whole toe_d3 capsule. Fixing them exposed a second
+  defect: the adjacent toe digits (d3/d4) interpenetrate at rest and the
+  solver held a constant ~300 N phantom repulsion between them, which the
+  enlarged sites would have summed even airborne; new contact excludes
+  remove it. Verified post-fix: ~37 N per foot at settled stance, exactly
+  0 N airborne, 48/50 standing-probe survival unchanged, and regression
+  tests pin stance/airborne sensor behavior. The T-Rex has the same
+  dead-sensor defect (recorded in KNOWN_ISSUES, not yet fixed).
+
 ### Added
 - **Canonical result bundles for Colab/Google Drive training**: schema-v2
   summaries, runtime-captured provenance, immutable completed bundles,

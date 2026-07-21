@@ -149,3 +149,61 @@ class TestNominalPoseActionScaling:
         assert second_info["reward_energy"] == pytest.approx(0.0, abs=1e-12)
         assert second_info["reward_smoothness"] == pytest.approx(0.0, abs=1e-12)
         assert second_info["action_delta"] == pytest.approx(0.0, abs=1e-12)
+
+
+class TestFootContactSensors:
+    """The foot touch sensors must report real stance contact.
+
+    The raptor is digitigrade: ground force goes through the toe capsules,
+    and a lying capsule contacts the plane near its ENDS. The original
+    r=0.02 touch sites at the toe midpoint missed both end contacts, so
+    both sensors (and the two foot-contact observation dims fed from them)
+    read 0 during normal stance. The sites now envelop the whole toe_d3
+    capsule, and the adjacent-digit contact exclude keeps the reading free
+    of the d3/d4 interpenetration force that would otherwise register even
+    airborne.
+    """
+
+    def test_sensors_read_ground_force_at_settled_stance(self):
+        env = RaptorEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            info = {}
+            for _ in range(200):
+                _, _, terminated, _, info = env.step(np.zeros(env.action_space.shape))
+                assert not terminated
+            assert info["r_foot_contact"] > 1.0, "right foot touch sensor dead at stance"
+            assert info["l_foot_contact"] > 1.0, "left foot touch sensor dead at stance"
+        finally:
+            env.close()
+
+    def test_sensors_read_zero_airborne(self):
+        env = RaptorEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            model, data = env.model, env.data
+            mujoco.mj_resetDataKeyframe(model, data, 0)
+            data.qpos[2] += 1.0
+            mujoco.mj_forward(model, data)
+            for _ in range(10):
+                mujoco.mj_step(model, data)
+            for name in ("r_foot_touch", "l_foot_touch"):
+                sensor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, name)
+                adr = model.sensor_adr[sensor_id]
+                assert data.sensordata[adr] == pytest.approx(0.0, abs=1e-9), (
+                    f"{name} reads force while airborne — the site is summing a self-contact, not ground contact"
+                )
+        finally:
+            env.close()
+
+    def test_observation_foot_contact_dims_are_live(self):
+        env = RaptorEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            obs = None
+            for _ in range(200):
+                obs, _, _, _, _ = env.step(np.zeros(env.action_space.shape))
+            foot_dims = obs[-6:-4]  # foot contacts sit before prey direction (3) + distance (1)
+            assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
+        finally:
+            env.close()

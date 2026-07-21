@@ -68,7 +68,9 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "trex": "bipedal-target/v1",
         "brachiosaurus": "quadrupedal-target/v1",
     }
-    expected_policy_revisions = {"velociraptor": 2, "trex": 1, "brachiosaurus": 1}
+    expected_policy_revisions = {"velociraptor": 3, "trex": 1, "brachiosaurus": 1}
+    expected_physics_revisions = {"velociraptor": 2, "trex": 1, "brachiosaurus": 1}
+    expected_visual_revisions = {"velociraptor": 2, "trex": 1, "brachiosaurus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
         plant = species["model"]["plant_contract"]
@@ -76,8 +78,8 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         assert digest_pattern.fullmatch(plant["source_closure_sha256"])
         assert plant["policy_interface"]["revision"] == expected_policy_revisions[species["id"]]
         assert plant["policy_interface"]["observation_schema"] == expected_observation_schemas[species["id"]]
-        assert plant["physics"]["revision"] == 1
-        assert plant["visual"]["revision"] == 1
+        assert plant["physics"]["revision"] == expected_physics_revisions[species["id"]]
+        assert plant["visual"]["revision"] == expected_visual_revisions[species["id"]]
         for layer in ("policy_interface", "physics", "visual"):
             assert digest_pattern.fullmatch(plant[layer]["sha256"])
 
