@@ -67,6 +67,7 @@ than rewrite.
 | [REWARD_SCALE_REDESIGN.md](investigations/REWARD_SCALE_REDESIGN.md) | 2026-04-18 | Stage-3 terminal-bonus rescale analysis (implementation deferred) |
 | [STAGE2_INVESTIGATION.md](investigations/STAGE2_INVESTIGATION.md) | 2026-07-09 | Root cause of the velociraptor stage-2 locomotion collapse (bounded-plant actuator clipping) |
 | [STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md) | 2026-07-11 | Replication review of run 20260711_165924, corrected fall-penalty math, ranked plan — validated 2026-07-12 by run 20260711_235303 (stages 1–3 cleared, stage-2 record); §5 has the outcome and cross-species lessons |
+| [VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md](investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md) | 2026-07-20 | Commit A physics probe and A-only PPO run 20260720_203454; natural-lean reward-conflict diagnosis, pending Commit B validation, and fresh-run decision rules |
 
 ## Code & repo reviews
 

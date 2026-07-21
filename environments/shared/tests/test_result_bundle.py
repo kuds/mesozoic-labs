@@ -122,7 +122,7 @@ def stable_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
         result_bundle,
         "_dependency_versions",
         lambda: {
-            "mesozoic_labs": "0.3.2.dev0",
+            "mesozoic_labs": "0.3.3.dev0",
             "mujoco": "3.10.0",
             "mujoco_mjx": "3.10.0",
             "gymnasium": "1.2.0",
