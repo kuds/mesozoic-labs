@@ -37,6 +37,7 @@ class TestMJXDinoEnv:
         env = MJXDinoEnv("trex", stage=1, num_envs=4)
         assert env.action_dim == 21
         assert env.num_envs == 4
+        assert env.config.posture_target_forward_z is None
 
     def test_raptor_creation(self):
         """MJXDinoEnv can be created for Velociraptor."""
@@ -46,6 +47,36 @@ class TestMJXDinoEnv:
         env = MJXDinoEnv("velociraptor", stage=1, num_envs=4)
         assert env.action_dim == 22
         assert env.num_envs == 4
+        assert env.config.natural_forward_z == pytest.approx(-0.342)
+        assert env.config.posture_target_forward_z == pytest.approx(-np.sin(0.35))
+
+    def test_raptor_natural_pitch_override_updates_posture_target(self):
+        import environments.velociraptor.mjx_config  # noqa: F401
+        from environments.shared.mjx_env import MJXDinoEnv
+
+        env = MJXDinoEnv(
+            "velociraptor",
+            stage=1,
+            num_envs=1,
+            env_kwargs={"natural_pitch": 0.5},
+        )
+
+        assert env.config.natural_forward_z == pytest.approx(-np.sin(0.5))
+        assert env.config.posture_target_forward_z == pytest.approx(-np.sin(0.5))
+
+    def test_trex_natural_pitch_override_keeps_vertical_posture_target(self):
+        import environments.trex.mjx_config  # noqa: F401
+        from environments.shared.mjx_env import MJXDinoEnv
+
+        env = MJXDinoEnv(
+            "trex",
+            stage=1,
+            num_envs=1,
+            env_kwargs={"natural_pitch": 0.5},
+        )
+
+        assert env.config.natural_forward_z == pytest.approx(-np.sin(0.5))
+        assert env.config.posture_target_forward_z is None
 
     def test_brachio_creation(self):
         """MJXDinoEnv can be created for Brachiosaurus."""
@@ -55,6 +86,7 @@ class TestMJXDinoEnv:
         env = MJXDinoEnv("brachiosaurus", stage=1, num_envs=4)
         assert env.action_dim == 30
         assert env.num_envs == 4
+        assert env.config.posture_target_forward_z is None
 
     def test_stage_cannot_override_versioned_plant_interface(self):
         import environments.trex.mjx_config  # noqa: F401
@@ -145,6 +177,29 @@ class TestMJXUtils:
 
 @pytest.mark.skipif(not _has_jax, reason="JAX/MJX not installed")
 class TestHomeKeyframeActionMapping:
+    def test_setup_species_resolves_raptor_posture_target_before_env_creation(self):
+        from environments.shared.jax_setup import setup_species
+
+        ctx = setup_species("velociraptor", stage=1)
+
+        assert ctx.env_config is None
+        assert ctx.natural_forward_z == pytest.approx(-0.342)
+        assert ctx.posture_target_forward_z == pytest.approx(-np.sin(0.35))
+
+    def test_pre_env_raptor_natural_pitch_override_updates_posture_target(self):
+        import environments.velociraptor.mjx_config  # noqa: F401
+        from environments.shared.jax_setup import SpeciesContext
+
+        overridden = -np.sin(0.5)
+        ctx = SpeciesContext(
+            species="velociraptor",
+            stage=1,
+            reward_cfg={"natural_forward_z": overridden},
+        )
+
+        assert ctx.natural_forward_z == pytest.approx(overridden)
+        assert ctx.posture_target_forward_z == pytest.approx(overridden)
+
     def test_setup_species_raptor_zero_action_maps_to_xml_home(self):
         import jax.numpy as jnp
         import mujoco

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.3)
+
+### Added
+- **Canonical result bundles for Colab/Google Drive training**: schema-v2
+  summaries, runtime-captured provenance, immutable completed bundles,
+  selected/terminal evaluation evidence, plant/config/model/VecNormalize
+  hashes, partial-versus-promotion validation, idempotent manifests, and
+  strict exporter tests now make failed runs auditable without presenting
+  them as publishable results.
+- **Velociraptor Stage-1 basin investigation**: records the pre-training
+  50-seed physics probe, Commit A's A-only PPO run (`20260720_203454`), the
+  natural-lean diagnosis, Commit B's reward geometry, targeted backend-routing
+  lessons, and the falsifiable next-run plan.
+
+### Changed
+- **Velociraptor actions are residuals around the XML `home` controls**:
+  `-1`/`0`/`+1` map to actuator minimum/home/maximum through a piecewise-linear
+  transform. This is a breaking policy-interface revision (1 → 2); older PPO,
+  SAC, and JAX checkpoints remain historical and cannot be resumed as current
+  policies. XML physics and actuator reach are unchanged.
+- **Velociraptor posture shaping targets its natural forward pitch** (0.35
+  rad) instead of world vertical. The yaw-invariant, direction- and roll-aware
+  squared-chord formulation keeps finite JAX gradients at the exact target;
+  T-Rex and Brachiosaurus retain vertical posture targets.
+
+### Fixed
+- **Targeted natural-posture consistency across training and evaluation
+  paths**: the shared NumPy/JAX primitive, direct MJX, JAX total and detailed
+  reward paths, CPU evaluation, diagnostics, and runtime `natural_pitch`
+  overrides resolve the same reward-only target. Absolute-tilt termination and
+  the existing nosedive boundary remain unchanged, and the JAX notebook now
+  binds reward functions only after environment creation. Comprehensive
+  fixed-state, all-component SB3↔JAX parity remains open.
+
 ## [Unreleased] — RL/GCP Review Fixes & Model Physics (v0.3.2)
 
 ### Changed

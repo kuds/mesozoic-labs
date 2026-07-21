@@ -122,6 +122,94 @@ class TestHealthyZMax:
 
 
 # ---------------------------------------------------------------------------
+# Velociraptor natural-pitch posture parity
+# ---------------------------------------------------------------------------
+
+
+class TestLeanAwarePosture:
+    def test_total_and_detailed_rewards_use_natural_posture_target(self):
+        from environments.shared.jax_reward_termination import compute_reward_components, compute_total_reward
+
+        natural_pitch = 0.35
+        target_forward_z = -np.sin(natural_pitch)
+        target_quat = (np.cos(natural_pitch / 2.0), 0.0, np.sin(natural_pitch / 2.0), 0.0)
+        reward_cfg = {
+            "alive_bonus": 0.0,
+            "energy_penalty_weight": 0.0,
+            "forward_vel_weight": 0.0,
+            "posture_weight": 1.5,
+        }
+        action = np.zeros(5)
+
+        target_data = _make_mock_data(quat=target_quat)
+        target_total = compute_total_reward(
+            target_data,
+            action,
+            reward_cfg,
+            root_body_id=1,
+            healthy_z_min=0.3,
+            healthy_z_max=1.5,
+            max_tilt_angle=1.047,
+            natural_forward_z=-0.342,
+            posture_target_forward_z=target_forward_z,
+            n_actuators=5,
+        )
+        target_components = compute_reward_components(
+            target_data,
+            action,
+            reward_cfg,
+            root_body_id=1,
+            healthy_z_min=0.3,
+            healthy_z_max=1.5,
+            max_tilt_angle=1.047,
+            natural_forward_z=-0.342,
+            posture_target_forward_z=target_forward_z,
+            n_actuators=5,
+        )
+
+        upright_data = _make_mock_data(quat=(1.0, 0.0, 0.0, 0.0))
+        upright_components = compute_reward_components(
+            upright_data,
+            action,
+            reward_cfg,
+            root_body_id=1,
+            healthy_z_min=0.3,
+            healthy_z_max=1.5,
+            max_tilt_angle=1.047,
+            natural_forward_z=-0.342,
+            posture_target_forward_z=target_forward_z,
+            n_actuators=5,
+        )
+
+        assert float(target_total) == pytest.approx(float(target_components["posture"]), abs=1e-6)
+        assert float(target_components["posture"]) == pytest.approx(0.0, abs=1e-6)
+        assert float(upright_components["posture"]) < float(target_components["posture"])
+
+    def test_none_target_preserves_upright_posture_reward(self):
+        from environments.shared.jax_reward_termination import compute_reward_components
+
+        components = compute_reward_components(
+            _make_mock_data(quat=(1.0, 0.0, 0.0, 0.0)),
+            np.zeros(5),
+            {
+                "alive_bonus": 0.0,
+                "energy_penalty_weight": 0.0,
+                "forward_vel_weight": 0.0,
+                "posture_weight": 1.5,
+            },
+            root_body_id=1,
+            healthy_z_min=0.3,
+            healthy_z_max=1.5,
+            max_tilt_angle=1.047,
+            natural_forward_z=-0.169,
+            posture_target_forward_z=None,
+            n_actuators=5,
+        )
+
+        assert float(components["posture"]) == pytest.approx(0.0, abs=1e-7)
+
+
+# ---------------------------------------------------------------------------
 # Fix #9: compute_total_reward alignment with mjx_env.step
 # ---------------------------------------------------------------------------
 

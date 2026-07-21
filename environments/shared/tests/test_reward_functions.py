@@ -21,6 +21,7 @@ from environments.shared.reward_functions import (
     reward_forward_velocity,
     reward_height_maintenance,
     reward_idle_penalty,
+    reward_lean_aware_posture,
     reward_posture,
     reward_proximity,
     reward_speed_penalty,
@@ -137,6 +138,81 @@ class TestRewardPosture:
         reward, tilt = reward_posture(quat, 1.047, 1.0)
         assert reward == pytest.approx(0.0, abs=1e-6)
         assert tilt == pytest.approx(0.0, abs=1e-6)
+
+
+class TestRewardLeanAwarePosture:
+    natural_pitch = 0.35
+    natural_forward_z = -np.sin(natural_pitch)
+    max_tilt = 1.047
+
+    @staticmethod
+    def _pitch_quat(angle: float) -> np.ndarray:
+        return np.array([np.cos(angle / 2.0), 0.0, np.sin(angle / 2.0), 0.0])
+
+    @staticmethod
+    def _roll_quat(angle: float) -> np.ndarray:
+        return np.array([np.cos(angle / 2.0), np.sin(angle / 2.0), 0.0, 0.0])
+
+    @staticmethod
+    def _quat_multiply(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+        w1, x1, y1, z1 = left
+        w2, x2, y2, z2 = right
+        return np.array(
+            [
+                w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+                w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+                w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+                w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+            ]
+        )
+
+    def _reward(self, quat: np.ndarray, weight: float = 1.0) -> tuple[float, float]:
+        return reward_lean_aware_posture(
+            quat,
+            self.max_tilt,
+            weight,
+            self.natural_forward_z,
+        )
+
+    def test_natural_forward_pitch_minimizes_penalty(self):
+        reward, tilt = self._reward(self._pitch_quat(self.natural_pitch))
+        assert reward == pytest.approx(0.0, abs=1e-12)
+        assert tilt == pytest.approx(self.natural_pitch, abs=1e-6)
+
+    def test_upright_backward_pitch_and_roll_are_penalized(self):
+        upright_reward, upright_tilt = self._reward(np.array([1.0, 0.0, 0.0, 0.0]))
+        backward_reward, _ = self._reward(self._pitch_quat(-self.natural_pitch))
+        natural_pitch = self._pitch_quat(self.natural_pitch)
+        rolled_natural_pitch = self._quat_multiply(natural_pitch, self._roll_quat(self.natural_pitch))
+        roll_reward, _ = self._reward(rolled_natural_pitch)
+
+        assert upright_reward < 0.0
+        assert backward_reward < upright_reward
+        assert roll_reward < 0.0
+        assert upright_tilt == pytest.approx(0.0, abs=1e-6)
+
+    def test_world_yaw_does_not_change_reward(self):
+        pitch = self._pitch_quat(self.natural_pitch)
+        yaw_angle = 1.2
+        yaw = np.array([np.cos(yaw_angle / 2.0), 0.0, 0.0, np.sin(yaw_angle / 2.0)])
+        yawed_pitch = self._quat_multiply(yaw, pitch)
+
+        reward, _ = self._reward(pitch)
+        yawed_reward, _ = self._reward(yawed_pitch)
+        assert yawed_reward == pytest.approx(reward, abs=1e-12)
+
+    def test_quaternion_sign_does_not_change_reward(self):
+        quat = self._pitch_quat(0.1)
+        reward, tilt = self._reward(quat)
+        negated_reward, negated_tilt = self._reward(-quat)
+        assert negated_reward == pytest.approx(reward, abs=1e-12)
+        assert negated_tilt == pytest.approx(tilt, abs=1e-12)
+
+    def test_reward_is_bounded_and_zero_weight_is_exactly_zero(self):
+        reward, _ = self._reward(self._pitch_quat(np.pi / 2.0), weight=2.0)
+        zero_weight_reward, _ = self._reward(self._pitch_quat(-0.5), weight=0.0)
+        assert -2.0 <= reward <= 0.0
+        assert zero_weight_reward == 0.0
 
 
 class TestRewardProximity:
@@ -256,6 +332,7 @@ class TestDistanceContact:
 
 _has_jax = False
 try:
+    import jax
     import jax.numpy as jnp
 
     _has_jax = True
@@ -290,3 +367,24 @@ class TestNumpyJaxParity:
         r_np = reward_energy(action, 4, 0.01)
         r_jax = reward_energy(jnp.array(action), 4, 0.01)
         assert r_np == pytest.approx(r_jax, abs=1e-6)
+
+    def test_lean_aware_posture_parity(self):
+        natural_pitch = 0.35
+        target = -np.sin(natural_pitch)
+        quat = np.array([np.cos(0.2), 0.0, np.sin(0.2), 0.0])
+        r_np, tilt_np = reward_lean_aware_posture(quat, 1.047, 1.5, target)
+        r_jax, tilt_jax = reward_lean_aware_posture(jnp.array(quat), 1.047, 1.5, target)
+        assert r_np == pytest.approx(r_jax, abs=1e-6)
+        assert tilt_np == pytest.approx(tilt_jax, abs=1e-6)
+
+    def test_lean_aware_posture_gradient_is_finite_at_target(self):
+        natural_pitch = 0.35
+        target = -np.sin(natural_pitch)
+
+        def posture_reward_for_pitch(pitch):
+            quat = jnp.array([jnp.cos(pitch / 2.0), 0.0, jnp.sin(pitch / 2.0), 0.0])
+            reward, _ = reward_lean_aware_posture(quat, 1.047, 1.5, target)
+            return reward
+
+        gradient = jax.grad(posture_reward_for_pitch)(jnp.float32(natural_pitch))
+        assert np.isfinite(float(gradient))

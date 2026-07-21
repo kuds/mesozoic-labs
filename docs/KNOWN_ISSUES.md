@@ -38,9 +38,12 @@ robustness, **LOW** = cosmetic / QoL.
 - **PPO advantage normalization** — per-minibatch in JAX vs per-batch in
   SB3; acceptable, documented in `jax_ppo.py`. (June §2.7)
 
-An SB3↔JAX per-component reward **parity test** (one fixed state, assert
-components match within tolerance) is the standing recommendation that
-would pin these down and catch regressions. (June §6.8)
+Targeted tests now pin the shared NumPy/JAX Velociraptor natural-lean posture
+primitive and its per-path runtime routing. A comprehensive per-component
+SB3↔JAX reward **parity test** (one fixed state, assert every component within
+tolerance) remains the standing recommendation for the divergences above.
+(June §6.8; see the
+[Stage-1 basin investigation](investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md))
 
 ## Training / RL
 

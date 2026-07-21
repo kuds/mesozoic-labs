@@ -23,6 +23,8 @@ from typing import Any
 
 import numpy as np
 
+from .reward_functions import reward_lean_aware_posture, reward_posture
+
 
 @dataclass
 class EvalConfig:
@@ -34,6 +36,7 @@ class EvalConfig:
     healthy_z_range: tuple[float, float] = (0.3, 2.0)
     max_tilt_angle: float = 1.047
     natural_forward_z: float = 0.0
+    posture_target_forward_z: float | None = None
     nosedive_threshold: float = 0.5
     termination_body_heights: dict[str, float] | None = None
     termination_site_heights: dict[str, float] | None = None
@@ -57,6 +60,24 @@ class EvalConfig:
     # Seed for reset noise — evaluation is otherwise non-reproducible and
     # curriculum gate decisions would vary run-to-run for borderline policies.
     seed: int = 42
+
+
+def _posture_reward_for_eval(
+    quat: np.ndarray,
+    config: EvalConfig,
+    weight: float,
+) -> float:
+    """Mirror the posture primitive selected by JAX training."""
+    if config.posture_target_forward_z is None:
+        reward, _ = reward_posture(quat, config.max_tilt_angle, weight)
+    else:
+        reward, _ = reward_lean_aware_posture(
+            quat,
+            config.max_tilt_angle,
+            weight,
+            config.posture_target_forward_z,
+        )
+    return float(reward)
 
 
 @dataclass
@@ -271,8 +292,12 @@ def evaluate_policy_cpu(
             results.diag_reward_components["forward"].append(reward_cfg.get("forward_vel_weight", 0.0) * fwd_norm)
             results.diag_reward_components["alive"].append(reward_cfg.get("alive_bonus", 0.0))
             results.diag_reward_components["energy"].append(-reward_cfg.get("energy_penalty_weight", 0.0) * energy)
-            tilt_norm = min(tilt / config.max_tilt_angle, 1.0)
-            results.diag_reward_components["posture"].append(-reward_cfg.get("posture_weight", 0.2) * tilt_norm**2)
+            posture_reward = _posture_reward_for_eval(
+                root_quat,
+                config,
+                reward_cfg.get("posture_weight", 0.2),
+            )
+            results.diag_reward_components["posture"].append(posture_reward)
 
             # Height maintenance
             height_w = reward_cfg.get("height_weight", 0.0)

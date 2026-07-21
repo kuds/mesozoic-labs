@@ -30,6 +30,7 @@ from .reward_functions import (
     reward_heading_alignment,
     reward_height_maintenance,
     reward_lateral_velocity_penalty,
+    reward_lean_aware_posture,
     reward_nosedive,
     reward_posture,
     reward_proximity,
@@ -37,6 +38,23 @@ from .reward_functions import (
 )
 
 Array = Any
+
+
+def _reward_posture_for_target(
+    quat: Array,
+    max_tilt_angle: float,
+    weight: float,
+    posture_target_forward_z: float | None,
+) -> tuple[Array, Array]:
+    """Select vertical or natural-lean posture shaping at trace time."""
+    if posture_target_forward_z is None:
+        return reward_posture(quat, max_tilt_angle, weight)
+    return reward_lean_aware_posture(
+        quat,
+        max_tilt_angle,
+        weight,
+        posture_target_forward_z,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -56,6 +74,7 @@ def compute_total_reward(
     max_tilt_angle: float,
     natural_forward_z: float,
     n_actuators: int,
+    posture_target_forward_z: float | None = None,
     sensor_quat_start: int = 6,
     sensor_gyro_start: int = 0,
     foot_indices: tuple[int, ...] = (10, 11),
@@ -113,7 +132,12 @@ def compute_total_reward(
     r_alive = raw_alive * alive_gate
 
     r_energy = reward_energy(action, n_actuators, reward_cfg.get("energy_penalty_weight", 0.001))
-    r_posture, _ = reward_posture(root_quat, max_tilt_angle, reward_cfg.get("posture_weight", 0.2))
+    r_posture, _ = _reward_posture_for_target(
+        root_quat,
+        max_tilt_angle,
+        reward_cfg.get("posture_weight", 0.2),
+        posture_target_forward_z,
+    )
 
     total = r_forward + r_alive + r_energy + r_posture
 
@@ -236,6 +260,7 @@ def compute_reward_components(
     max_tilt_angle: float,
     natural_forward_z: float,
     n_actuators: int,
+    posture_target_forward_z: float | None = None,
     sensor_quat_start: int = 6,
     sensor_gyro_start: int = 0,
     foot_indices: tuple[int, ...] = (10, 11),
@@ -277,7 +302,12 @@ def compute_reward_components(
     r_alive = raw_alive * alive_gate
 
     r_energy = reward_energy(action, n_actuators, reward_cfg.get("energy_penalty_weight", 0.001))
-    r_posture, _ = reward_posture(root_quat, max_tilt_angle, reward_cfg.get("posture_weight", 0.2))
+    r_posture, _ = _reward_posture_for_target(
+        root_quat,
+        max_tilt_angle,
+        reward_cfg.get("posture_weight", 0.2),
+        posture_target_forward_z,
+    )
 
     components: dict[str, Array] = {
         "forward": r_forward,

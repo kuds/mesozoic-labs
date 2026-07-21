@@ -35,6 +35,7 @@ from .reward_functions import reward_forward_velocity as _reward_forward_velocit
 from .reward_functions import reward_heading_alignment as _reward_heading_alignment_pure
 from .reward_functions import reward_idle_penalty as _reward_idle_penalty_pure
 from .reward_functions import reward_lateral_velocity_penalty as _reward_lateral_velocity_penalty_pure
+from .reward_functions import reward_lean_aware_posture as _reward_lean_aware_posture_pure
 from .reward_functions import reward_nosedive as _reward_nosedive_pure
 from .reward_functions import reward_posture as _reward_posture_pure
 from .reward_functions import reward_speed_penalty as _reward_speed_penalty_pure
@@ -243,6 +244,24 @@ class BaseDinoEnv(gym.Env, ABC):
             (reward, tilt_angle) tuple.
         """
         return _reward_posture_pure(quat, self.max_tilt_angle, weight)
+
+    def _compute_lean_aware_posture_reward(
+        self,
+        quat: np.ndarray,
+        weight: float,
+        natural_forward_z: float,
+    ) -> tuple[float, float]:
+        """Compute posture penalty relative to a natural forward lean.
+
+        Returns the absolute tilt angle alongside the target-relative reward
+        so termination and diagnostics remain relative to world-up.
+        """
+        return _reward_lean_aware_posture_pure(
+            quat,
+            self.max_tilt_angle,
+            weight,
+            natural_forward_z,
+        )
 
     def _compute_nosedive_penalty(
         self, quat: np.ndarray, weight: float, natural_forward_z: float

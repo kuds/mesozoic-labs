@@ -15,6 +15,9 @@ evidence needed to make that hand-off reproducible.
   a canonical `summary.json`, matching CSV metrics, and valid artifact hashes.
 
 A partial bundle must not be presented as a public three-stage result.
+Run `20260720_203454` is a concrete failed-but-auditable example; its role in
+the Velociraptor diagnosis is documented in the
+[Stage-1 basin investigation](investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md).
 
 ## Canonical layout
 

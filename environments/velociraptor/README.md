@@ -95,14 +95,17 @@ python scripts/train_sb3.py eval logs/<run_dir>/models/stage3_final.zip
 Observation and action totals are generated in the catalog entry linked above. The source of the observation layout and
 action-to-actuator mapping is `envs/raptor_env.py`. Actions are normalized residuals around the named XML `home`
 keyframe: zero commands the standing pose, while -1 and +1 still reach each actuator's lower and upper limits through
-piecewise-linear interpolation.
+piecewise-linear interpolation. The evidence and compatibility rationale are in the
+[Stage-1 basin investigation](../../docs/investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md).
 
 ### Reward Components
 
 Reward weights vary by stage. The `[env]` section of each
 `configs/velociraptor/stage*.toml` file is authoritative; this README does not
 copy numeric weights. Components include locomotion, survival, posture, energy,
-tail stability, approach shaping, target contact, and fall penalties.
+tail stability, approach shaping, target contact, and fall penalties. Posture
+shaping is direction-aware and centred on the raptor's natural forward lean;
+absolute tilt remains the safety signal for termination.
 
 ### Termination Conditions
 - Pelvis height < 0.25m (fallen)
@@ -136,8 +139,9 @@ tail stability, approach shaping, target contact, and fall penalties.
 - Check that alive_bonus isn't dominating
 
 **If it walks but falls a lot:**
-- Increase `alive_bonus` in early training
-- Add a reward for maintaining upright orientation
+- Inspect the episode-length distribution and termination mix before changing weights
+- Check whether `forward_z` tracks the natural lean; do not reward world-vertical posture for this morphology
+- Lower reset noise only if a controlled probe isolates reset perturbations as the failure source
 
 **If it ignores the prey:**
 - Add proximity reward (bonus for getting closer)
