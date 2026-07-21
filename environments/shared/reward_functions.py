@@ -180,6 +180,49 @@ def reward_posture(
     return reward, tilt_angle
 
 
+def reward_lean_aware_posture(
+    quat: Array,
+    max_tilt_angle: float,
+    weight: float,
+    natural_forward_z: float,
+) -> tuple[Array, Array]:
+    """Penalise deviation from a species' natural forward-leaning posture.
+
+    The world-up vector expressed in body coordinates is compared with a
+    target that has the requested forward-axis Z component, zero lateral
+    lean, and a positive up component.  This makes the reward invariant to
+    yaw while distinguishing correct forward pitch from backward pitch and
+    roll.
+
+    The reward uses a normalised squared chord distance instead of
+    ``acos(alignment) ** 2``.  The chord form has the same local quadratic
+    behaviour but keeps JAX gradients finite at the exact target pose.
+
+    Returns:
+        ``(reward, absolute_tilt_angle)``.  The absolute tilt remains relative
+        to world-up so termination and historical diagnostics keep their
+        existing semantics.
+    """
+    xp = _array_mod(quat)
+    w, x, y, z = quat[0], quat[1], quat[2], quat[3]
+
+    body_forward_z = 2.0 * (x * z - w * y)
+    body_up_z = 1.0 - 2.0 * (x * x + y * y)
+
+    target_forward_z = xp.clip(natural_forward_z, -1.0, 1.0)
+    target_up_z = xp.sqrt(xp.maximum(0.0, 1.0 - target_forward_z**2))
+    # The target's lateral-axis Z component is zero, so its dot-product
+    # contribution vanishes.  Roll is still penalised through body_up_z.
+    alignment = body_forward_z * target_forward_z + body_up_z * target_up_z
+
+    max_chord_error = 1.0 - xp.cos(max_tilt_angle)
+    chord_error_norm = xp.clip((1.0 - alignment) / max_chord_error, 0.0, 1.0)
+    reward = -weight * chord_error_norm
+
+    tilt_angle = xp.arccos(xp.clip(body_up_z, -1.0, 1.0))
+    return reward, tilt_angle
+
+
 def reward_nosedive(
     quat: Array,
     weight: float,

@@ -328,6 +328,16 @@ def test_training_notebooks_do_not_restore_stale_public_defaults() -> None:
     assert "A100 recommended" not in jax
 
 
+def test_jax_notebook_resolves_env_before_binding_reward_functions() -> None:
+    notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "jax_training.ipynb").read_text(encoding="utf-8"))
+    code = "\n".join("".join(cell.get("source", [])) for cell in notebook["cells"] if cell.get("cell_type") == "code")
+
+    create_index = code.index("env = create_env(ctx")
+    reward_index = code.index("compute_reward, compute_reward_detailed")
+
+    assert create_index < reward_index, "JAX rewards must bind after create_env populates ctx.env_config"
+
+
 def test_sb3_notebook_refuses_a_hybrid_model_and_vecnormalize_checkpoint() -> None:
     notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
     chunks: list[str] = []

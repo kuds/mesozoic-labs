@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from environments.shared.jax_eval import EvalConfig, EvalResults, check_stage_gate
+from environments.shared.jax_eval import EvalConfig, EvalResults, _posture_reward_for_eval, check_stage_gate
 
 
 class TestEvalConfig:
@@ -16,6 +16,7 @@ class TestEvalConfig:
         assert cfg.frame_skip == 5
         assert cfg.healthy_z_range == (0.3, 2.0)
         assert cfg.max_tilt_angle == pytest.approx(1.047)
+        assert cfg.posture_target_forward_z is None
         assert cfg.root_body_id == 1
         assert cfg.sensor_quat_start == 6
         assert cfg.action_mapping == "midpoint/v1"
@@ -37,6 +38,18 @@ class TestEvalConfig:
         assert cfg.healthy_z_range == (0.5, 1.5)
         assert cfg.max_tilt_angle == pytest.approx(0.8)
         assert cfg.root_body_id == 2
+
+    def test_lean_aware_posture_decomposition_matches_target(self):
+        natural_pitch = 0.35
+        config = EvalConfig(posture_target_forward_z=-np.sin(natural_pitch))
+        target_quat = np.array([np.cos(natural_pitch / 2.0), 0.0, np.sin(natural_pitch / 2.0), 0.0])
+        upright_quat = np.array([1.0, 0.0, 0.0, 0.0])
+
+        target_reward = _posture_reward_for_eval(target_quat, config, weight=1.5)
+        upright_reward = _posture_reward_for_eval(upright_quat, config, weight=1.5)
+
+        assert target_reward == pytest.approx(0.0, abs=1e-10)
+        assert upright_reward < target_reward
 
 
 class TestEvalResults:

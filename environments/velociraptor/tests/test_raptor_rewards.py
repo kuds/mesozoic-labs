@@ -71,6 +71,38 @@ class TestRaptorRewardComponents:
     def test_posture_reward_negative_or_zero(self, env):
         assert_posture_reward_non_positive(env)
 
+    def test_posture_reward_prefers_xml_home_lean_to_vertical(self, env):
+        home_quat = env.model.key_qpos[env.home_keyframe_id, 3:7]
+        home_reward, home_tilt = env._compute_lean_aware_posture_reward(
+            home_quat,
+            1.0,
+            env._natural_forward_z,
+        )
+        upright_reward, upright_tilt = env._compute_lean_aware_posture_reward(
+            np.array([1.0, 0.0, 0.0, 0.0]),
+            1.0,
+            env._natural_forward_z,
+        )
+
+        assert home_reward == pytest.approx(0.0, abs=1e-5)
+        assert home_reward > upright_reward
+        assert home_tilt == pytest.approx(np.deg2rad(20.0), abs=1e-5)
+        assert upright_tilt == pytest.approx(0.0, abs=1e-6)
+
+    def test_step_reports_lean_aware_posture_reward(self, env):
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        _, _, _, _, info = env.step(action)
+        pelvis_quat = env.data.sensordata[env._sensor_quat_start : env._sensor_quat_start + 4]
+        expected, absolute_tilt = env._compute_lean_aware_posture_reward(
+            pelvis_quat,
+            env.posture_weight,
+            env._natural_forward_z,
+        )
+
+        assert info["reward_posture"] == pytest.approx(expected, abs=1e-8)
+        assert info["tilt_angle"] == pytest.approx(absolute_tilt, abs=1e-8)
+
     def test_gait_reward_non_negative(self, env):
         assert_gait_reward_non_negative(env)
 

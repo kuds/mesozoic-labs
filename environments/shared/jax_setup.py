@@ -74,6 +74,7 @@ class SpeciesContext:
 
     # MJXDinoEnv config (from registration + TOML merge)
     # Provides: healthy_z_range, max_tilt_angle, natural_forward_z,
+    # posture_target_forward_z,
     # sensor_*, termination_body_heights, success_sites, etc.
     env_config: Any = None  # MJXEnvConfig
 
@@ -114,7 +115,35 @@ class SpeciesContext:
 
     @property
     def natural_forward_z(self) -> float:
-        return self.env_config.natural_forward_z if self.env_config else 0.0
+        if self.env_config:
+            return float(self.env_config.natural_forward_z)
+        if "natural_forward_z" in self.reward_cfg:
+            return float(self.reward_cfg["natural_forward_z"])
+        from .mjx_env import _SPECIES_CONFIGS
+
+        return float(_SPECIES_CONFIGS.get(self.species, {}).get("natural_forward_z", 0.0))
+
+    @property
+    def posture_target_forward_z(self) -> float | None:
+        """Natural posture target, resolved even before ``create_env``.
+
+        Setup and validation callers may inspect the context before creating
+        the MJX environment, so fall back to the species registry rather than
+        silently selecting the vertical default.
+        """
+        if self.env_config:
+            target = self.env_config.posture_target_forward_z
+            return float(target) if target is not None else None
+        from .mjx_env import _SPECIES_CONFIGS
+
+        if "posture_target_forward_z" in self.reward_cfg:
+            target = self.reward_cfg["posture_target_forward_z"]
+            return float(target) if target is not None else None
+
+        target = _SPECIES_CONFIGS.get(self.species, {}).get("posture_target_forward_z")
+        if target is not None and "natural_forward_z" in self.reward_cfg:
+            target = self.reward_cfg["natural_forward_z"]
+        return float(target) if target is not None else None
 
     @property
     def frame_skip(self) -> int:
@@ -519,6 +548,7 @@ def make_reward_fns(ctx: SpeciesContext):
         target_standing_z=ctx.target_standing_z,
         max_tilt_angle=ctx.max_tilt_angle,
         natural_forward_z=ctx.natural_forward_z,
+        posture_target_forward_z=ctx.posture_target_forward_z,
         n_actuators=ctx.mj_model.nu,
         sensor_quat_start=ctx.sensor_layout.quat_start,
         sensor_gyro_start=ctx.sensor_layout.gyro_start,
@@ -626,6 +656,7 @@ def run_stage_evaluation(
         healthy_z_range=ctx.healthy_z_range,
         max_tilt_angle=ctx.max_tilt_angle,
         natural_forward_z=ctx.natural_forward_z,
+        posture_target_forward_z=ctx.posture_target_forward_z,
         # TOML can tighten the nosedive threshold (e.g. trex stage 1);
         # without this the eval terminated later than training.
         nosedive_threshold=ctx.reward_cfg.get("nosedive_termination_threshold", 0.5),

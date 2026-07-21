@@ -6,6 +6,8 @@ Registers the Velociraptor species with the MJX environment so that
 
 from __future__ import annotations
 
+import math
+
 from environments.shared.mjx_env import register_species_mjx
 
 # Sensor indices match the MJCF sensor definition order:
@@ -15,6 +17,8 @@ _SENSOR_R_FOOT = 10
 _SENSOR_L_FOOT = 11
 # Tail tip gyro starts after: gyro(3)+accel(3)+quat(4)+touch(2)+r_claw_pos(3)+l_claw_pos(3)+tail_pos(3)+tail_linvel(3)=24
 _SENSOR_TAIL_GYRO_START = 24
+_NATURAL_PITCH = 0.35
+_POSTURE_TARGET_FORWARD_Z = -math.sin(_NATURAL_PITCH)
 
 register_species_mjx(
     species="velociraptor",
@@ -27,7 +31,10 @@ register_species_mjx(
     sensor_gyro_start=0,
     sensor_accel_start=3,
     sensor_quat_start=6,
-    natural_forward_z=-0.342,  # -sin(0.35)  ~20° natural pitch
+    # Preserve the existing rounded nosedive baseline so reward shaping does
+    # not move the termination boundary in this isolated experiment.
+    natural_forward_z=-0.342,
+    posture_target_forward_z=_POSTURE_TARGET_FORWARD_Z,
     sensor_tail_gyro_start=_SENSOR_TAIL_GYRO_START,
     forward_vel_max=10.0,
     fall_penalty=-100.0,

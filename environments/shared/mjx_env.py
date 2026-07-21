@@ -148,6 +148,10 @@ class MJXEnvConfig:
     sensor_quat_start: int = 6
     action_mapping: str = ACTION_MAPPING_MIDPOINT
     natural_forward_z: float = 0.0
+    # Reward-only target.  ``None`` preserves the vertical posture reward;
+    # Velociraptor supplies its natural forward lean.  Absolute-tilt and
+    # nosedive termination remain independent and unchanged.
+    posture_target_forward_z: float | None = None
     forward_vel_max: float = 8.0
     fall_penalty: float = -100.0
     # Target spawning ranges
@@ -365,6 +369,17 @@ class MJXDinoEnv:
         # so the shared SB3/JAX TOMLs actually take effect here.
         if env_kwargs:
             env_kwargs = canonicalize_env_kwargs(env_kwargs)
+            # Velociraptor uses natural pitch for both nosedive semantics and
+            # its reward-only posture target.  Keep a caller-provided
+            # natural_pitch override in parity with RaptorEnv while leaving
+            # upright-target species unchanged.  An explicit posture target
+            # still takes precedence.
+            if (
+                "natural_forward_z" in env_kwargs
+                and species_kwargs.get("posture_target_forward_z") is not None
+                and "posture_target_forward_z" not in env_kwargs
+            ):
+                env_kwargs["posture_target_forward_z"] = env_kwargs["natural_forward_z"]
             for key in sorted(_PLANT_INTERFACE_CONFIG_FIELDS & env_kwargs.keys()):
                 if env_kwargs[key] != species_kwargs.get(key):
                     raise ValueError(
@@ -482,6 +497,7 @@ class MJXDinoEnv:
             reward_heading_alignment,
             reward_height_maintenance,
             reward_lateral_velocity_penalty,
+            reward_lean_aware_posture,
             reward_nosedive,
             reward_posture,
             reward_proximity,
@@ -567,7 +583,19 @@ class MJXDinoEnv:
             r_energy = reward_energy(action, ctrl_range.shape[0], weights.get("energy_penalty_weight", 0.001))
 
             pelvis_quat = data.sensordata[config.sensor_quat_start : config.sensor_quat_start + 4]
-            r_posture, tilt = reward_posture(pelvis_quat, config.max_tilt_angle, weights.get("posture_weight", 0.2))
+            if config.posture_target_forward_z is not None:
+                r_posture, tilt = reward_lean_aware_posture(
+                    pelvis_quat,
+                    config.max_tilt_angle,
+                    weights.get("posture_weight", 0.2),
+                    config.posture_target_forward_z,
+                )
+            else:
+                r_posture, tilt = reward_posture(
+                    pelvis_quat,
+                    config.max_tilt_angle,
+                    weights.get("posture_weight", 0.2),
+                )
 
             target_dist = jnp.linalg.norm(target_pos - pelvis_xpos)
             r_approach, _ = reward_approach_shaping(

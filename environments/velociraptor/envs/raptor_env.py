@@ -37,7 +37,7 @@ Reward components:
     - Approach shaping (distance to prey)
     - Proximity bonus (continuous reward for being close to prey)
     - Claw proximity shaping (reward for positioning claw tip near prey)
-    - Posture (continuous tilt penalty)
+    - Posture (continuous deviation from the natural forward lean)
     - Nosedive penalty
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
@@ -127,9 +127,10 @@ class RaptorEnv(BaseDinoEnv):
         self.idle_penalty_weight = idle_penalty_weight
         self.idle_velocity_threshold = idle_velocity_threshold
 
-        # Natural forward pitch (~20°). The nosedive penalty and termination
-        # are measured relative to this angle so the raptor isn't punished for
-        # its biomechanically correct forward lean.
+        # Natural forward pitch (~20°). Posture shaping, the nosedive penalty,
+        # and nosedive termination are measured relative to this angle so the
+        # raptor is not rewarded for abandoning its biomechanically supported
+        # forward lean.
         self._natural_forward_z = -np.sin(natural_pitch)
 
         # Raptor-specific env settings
@@ -402,9 +403,15 @@ class RaptorEnv(BaseDinoEnv):
         info["claw_proximity"] = claw_proximity
         info["reward_claw_proximity"] = reward_claw_proximity
 
-        # 7. Continuous posture reward
+        # 7. Continuous posture reward centred on the natural forward lean.
+        # The returned tilt remains absolute (relative to world-up) for
+        # diagnostics and termination parity.
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
-        reward_posture, tilt_angle = self._compute_posture_reward(pelvis_quat, self.posture_weight)
+        reward_posture, tilt_angle = self._compute_lean_aware_posture_reward(
+            pelvis_quat,
+            self.posture_weight,
+            self._natural_forward_z,
+        )
         info["tilt_angle"] = tilt_angle
         info["reward_posture"] = reward_posture
 

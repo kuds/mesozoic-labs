@@ -102,7 +102,9 @@ piecewise-linear interpolation.
 Reward weights vary by stage. The `[env]` section of each
 `configs/velociraptor/stage*.toml` file is authoritative; this README does not
 copy numeric weights. Components include locomotion, survival, posture, energy,
-tail stability, approach shaping, target contact, and fall penalties.
+tail stability, approach shaping, target contact, and fall penalties. Posture
+shaping is direction-aware and centred on the raptor's natural forward lean;
+absolute tilt remains the safety signal for termination.
 
 ### Termination Conditions
 - Pelvis height < 0.25m (fallen)
