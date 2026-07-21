@@ -878,22 +878,43 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
 
 
 class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
-    """Stop training if eval reward drops significantly from the peak.
+    """Stop training if the risk-adjusted eval score collapses from its peak.
 
-    Monitors evaluation results and stops training when the mean reward
-    drops below ``(1 - drop_fraction) * peak_reward`` for
-    ``patience`` consecutive evaluations.  This prevents wasting compute
-    on a policy that has already collapsed past recovery.
+    Monitors evaluation results and stops training when the robust score
+    (per-evaluation ``mean - std`` of episode rewards) stays below
+    ``(1 - drop_fraction) * peak_robust_score`` for ``patience``
+    consecutive evaluations. This is a backstop against a genuinely
+    diverged stage, not an optimizer, and two properties keep it from
+    condemning healthy runs:
+
+    * **The peak is the robust score, not the raw mean.** In run
+      20260720_203454 a single 50k-step evaluation of 261.79 ± 261.72
+      (robust score 0.07 — one lucky long episode among 29 failures) set
+      a raw-mean peak whose 0.6× threshold every later normal-dip
+      evaluation "violated", aborting stage 1 at 1.1M/6M steps. A
+      variance-inflated eval cannot set a robust peak.
+    * **Detection stays disarmed until the robust peak clears
+      ``peak_floor``** (wired to the stage's ``min_avg_reward``
+      curriculum gate by ``_build_core_callbacks``): a run can only
+      "collapse" from a level that was actually good, so the
+      pre-convergence grind can never trip the backstop. Run
+      20260721_004731's 2.2–2.3M transition turbulence (robust scores
+      briefly negative against a healthy climb) accumulated kill-drops
+      under the old raw-mean rule; under the robust rule with the gate
+      floor it accumulates none until the run has genuinely converged
+      and then genuinely collapses.
 
     Args:
         eval_callback: The ``EvalCallback`` whose ``evaluations.npz``
             to monitor.
-        drop_fraction: Fractional drop from peak that triggers early
-            stopping (default 0.3 = 30% drop).
+        drop_fraction: Fractional drop from the robust peak that counts
+            as a collapse evaluation (default 0.3 = 30% drop).
         patience: Number of consecutive below-threshold evaluations
             before stopping (default 3).
         min_evals: Minimum number of evaluations before early stopping
             can activate (default 5).
+        peak_floor: Minimum robust peak before collapse detection arms
+            (default 0.0 — arm on any positive robust peak).
         verbose: Verbosity level.
     """
 
@@ -903,6 +924,7 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         drop_fraction: float = 0.3,
         patience: int = 3,
         min_evals: int = 5,
+        peak_floor: float = 0.0,
         verbose: int = 0,
     ):
         if not _SB3_AVAILABLE:
@@ -912,7 +934,8 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         self.drop_fraction = drop_fraction
         self.patience = patience
         self.min_evals = min_evals
-        self._peak_reward = -np.inf
+        self.peak_floor = peak_floor
+        self._peak_score = -np.inf
         self._consecutive_drops = 0
         self._last_seen_n_evals = 0
 
@@ -934,30 +957,32 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         if n_evals < self.min_evals:
             return True
 
-        mean_rewards = np.array([float(np.mean(r)) for r in results])
-        current_peak = float(mean_rewards.max())
-        self._peak_reward = max(self._peak_reward, current_peak)
+        robust_scores = np.array([float(np.mean(r)) - float(np.std(r)) for r in results])
+        self._peak_score = max(self._peak_score, float(robust_scores.max()))
 
-        latest_mean = float(mean_rewards[-1])
-        threshold = (1.0 - self.drop_fraction) * self._peak_reward
+        latest_score = float(robust_scores[-1])
+        threshold = (1.0 - self.drop_fraction) * self._peak_score
+        armed = self._peak_score > 0 and self._peak_score >= self.peak_floor
 
-        if self._peak_reward > 0 and latest_mean < threshold:
+        if armed and latest_score < threshold:
             self._consecutive_drops += 1
             logger.warning(
-                "EvalCollapseEarlyStop: reward %.1f < %.1f (%.0f%% of peak %.1f), consecutive drops: %d/%d",
-                latest_mean,
+                "EvalCollapseEarlyStop: robust score %.1f < %.1f (%.0f%% of robust peak %.1f), "
+                "consecutive drops: %d/%d",
+                latest_score,
                 threshold,
                 100 * (1 - self.drop_fraction),
-                self._peak_reward,
+                self._peak_score,
                 self._consecutive_drops,
                 self.patience,
             )
             if self._consecutive_drops >= self.patience:
                 logger.warning(
-                    "EvalCollapseEarlyStop: stopping training at step %d — reward collapsed from peak %.1f to %.1f",
+                    "EvalCollapseEarlyStop: stopping training at step %d — robust score collapsed "
+                    "from peak %.1f to %.1f",
                     self.num_timesteps,
-                    self._peak_reward,
-                    latest_mean,
+                    self._peak_score,
+                    latest_score,
                 )
                 return False
         else:
