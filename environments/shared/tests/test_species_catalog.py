@@ -70,7 +70,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     }
     expected_policy_revisions = {"velociraptor": 3, "trex": 1, "brachiosaurus": 1}
     expected_physics_revisions = {"velociraptor": 2, "trex": 1, "brachiosaurus": 1}
-    expected_visual_revisions = {"velociraptor": 2, "trex": 1, "brachiosaurus": 1}
+    expected_visual_revisions = {"velociraptor": 3, "trex": 1, "brachiosaurus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
         plant = species["model"]["plant_contract"]
