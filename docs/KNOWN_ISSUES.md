@@ -67,11 +67,21 @@ tolerance) remains the standing recommendation for the divergences above.
 - **MEDIUM (perf)** — `EvalCallback` runs 30 serial episodes every 50k steps
   plus supplementary + post-stage evals — up to ~3.6M serial eval steps per
   6M-step stage. Vectorize the eval env or trim episodes. (June §6.1)
-- **Experiment** — the [historical, unverified Brachiosaurus summary](../results/brachiosaurus/ppo/summary.json)
-  records a stage-3 result below its gate and was trained under since-fixed
-  gate bugs; re-run it, and consider tightening
-  `head_proximity_max_dist` (~2.0 m) to concentrate the last-mile gradient.
-  (June §6.10)
+- **Experiment** — consider tightening Brachiosaurus
+  `head_proximity_max_dist` (~2.0 m) to concentrate the last-mile
+  food-reach gradient. (June §6.10; the rest of that finding is resolved —
+  the published summary is now the 2026-07-18 run, which passes its
+  stage-3 gate with success rate 1.0.)
+- **Watch item** — the Velociraptor home-residual action mapping has a
+  slope discontinuity at action 0 (the two piecewise segments span
+  home→min and home→max, which are unequal), so zero-mean Gaussian
+  exploration produces a physically biased mean command away from home
+  (hip pitch ≈ −0.29 rad toward flexion, knee ≈ −0.16, ankle ≈ +0.13 at
+  σ=1). If a fresh run's early training looks persistently crouched or
+  off-home while `algo_std` is still ≈1.0, suspect this bias before
+  suspecting rewards; possible mitigations (smaller `log_std_init`, a
+  smoothed mapping) are interface experiments and must be run in
+  isolation. (Stage-1 basin investigation follow-up)
 
 ## Sweeps / infrastructure
 

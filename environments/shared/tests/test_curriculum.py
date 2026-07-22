@@ -1093,7 +1093,8 @@ class TestEvalCollapseEarlyStopCallback:
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock(spec=[])  # no evaluations_results
         cb._last_seen_n_evals = 0
-        cb._peak_reward = float("-inf")
+        cb._peak_score = float("-inf")
+        cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         assert cb._on_step() is True
 
@@ -1102,7 +1103,8 @@ class TestEvalCollapseEarlyStopCallback:
         cb.eval_callback = MagicMock()
         cb.eval_callback.evaluations_results = []
         cb._last_seen_n_evals = 0
-        cb._peak_reward = float("-inf")
+        cb._peak_score = float("-inf")
+        cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         assert cb._on_step() is True
 
@@ -1112,7 +1114,8 @@ class TestEvalCollapseEarlyStopCallback:
         cb.eval_callback = MagicMock()
         cb.eval_callback.evaluations_results = [[10.0, 20.0], [15.0, 25.0]]
         cb._last_seen_n_evals = 0
-        cb._peak_reward = float("-inf")
+        cb._peak_score = float("-inf")
+        cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.min_evals = 5  # Need 5 evals, only have 2
         cb.drop_fraction = 0.3
@@ -1125,7 +1128,8 @@ class TestEvalCollapseEarlyStopCallback:
         cb.eval_callback = MagicMock()
         cb.eval_callback.evaluations_results = [[10.0]]
         cb._last_seen_n_evals = 1  # Already seen this eval
-        cb._peak_reward = float("-inf")
+        cb._peak_score = float("-inf")
+        cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         assert cb._on_step() is True
 
@@ -1143,7 +1147,8 @@ class TestEvalCollapseEarlyStopCallback:
             [10.0, 10.0],  # drop 3 -> stop
         ]
         cb._last_seen_n_evals = 0
-        cb._peak_reward = float("-inf")
+        cb._peak_score = float("-inf")
+        cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.min_evals = 3
         cb.drop_fraction = 0.3
@@ -1169,7 +1174,8 @@ class TestEvalCollapseEarlyStopCallback:
             [45.0, 45.0],  # recovery
         ]
         cb._last_seen_n_evals = 0
-        cb._peak_reward = float("-inf")
+        cb._peak_score = float("-inf")
+        cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.min_evals = 5
         cb.drop_fraction = 0.3
@@ -1181,6 +1187,78 @@ class TestEvalCollapseEarlyStopCallback:
         # 45.0 >= 35.0 -> consecutive_drops reset to 0
         assert result is True
         assert cb._consecutive_drops == 0
+
+    def test_variance_inflated_eval_cannot_set_the_peak(self):
+        # Run 20260720_203454's 50k eval was 261.79 +/- 261.72 (robust
+        # score 0.07): under the old raw-mean rule it set a 157 kill
+        # threshold that every later normal eval "violated". The robust
+        # peak must come from the consistent evals instead.
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_results = [
+            [523.5, 0.0],  # mean 261.75, std 261.75 -> robust ~0
+            [150.0, 148.0],
+            [150.0, 148.0],
+            [150.0, 148.0],
+        ]
+        cb._last_seen_n_evals = 0
+        cb._peak_score = float("-inf")
+        cb.peak_floor = 100.0
+        cb._consecutive_drops = 0
+        cb.min_evals = 3
+        cb.drop_fraction = 0.4
+        cb.patience = 1
+        cb.num_timesteps = 1000
+
+        result = cb._on_step()
+        assert result is True
+        assert cb._consecutive_drops == 0
+        assert cb._peak_score == pytest.approx(148.0)  # not 261.75
+
+    def test_peak_floor_disarms_below_gate_peaks(self):
+        # A pre-convergence grind (robust peak below the curriculum
+        # reward gate) can never register collapse drops.
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_results = [
+            [80.0, 80.0],
+            [10.0, 10.0],
+            [10.0, 10.0],
+            [10.0, 10.0],
+        ]
+        cb._last_seen_n_evals = 0
+        cb._peak_score = float("-inf")
+        cb.peak_floor = 100.0
+        cb._consecutive_drops = 0
+        cb.min_evals = 3
+        cb.drop_fraction = 0.4
+        cb.patience = 1
+        cb.num_timesteps = 1000
+
+        result = cb._on_step()
+        assert result is True
+        assert cb._consecutive_drops == 0
+
+    def test_robust_collapse_above_floor_still_stops(self):
+        # A genuinely converged run (robust peak above the gate) that
+        # genuinely collapses must still trip the backstop.
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_results = [
+            [1500.0, 1300.0],  # mean 1400, std 100 -> robust 1300
+            [800.0, 0.0],  # mean 400, std 400 -> robust 0
+        ]
+        cb._last_seen_n_evals = 0
+        cb._peak_score = float("-inf")
+        cb.peak_floor = 100.0
+        cb._consecutive_drops = 0
+        cb.min_evals = 2
+        cb.drop_fraction = 0.5
+        cb.patience = 1
+        cb.num_timesteps = 1000
+
+        result = cb._on_step()
+        assert result is False
 
 
 class TestReadLatestEvalSuccesses:

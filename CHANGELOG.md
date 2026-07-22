@@ -18,7 +18,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   home-control no-saturation guarantee are unchanged, and a new
   sprint-regime contract test pins the knee headroom.
 
+- **Eval-collapse early-stop is now variance-robust, gate-floored, and
+  loosened for stage 1**: the backstop's peak is the per-evaluation robust
+  score (mean − std) instead of the raw mean — run `20260720_203454` was
+  aborted at 1.1M/6M steps because a single 50k evaluation of
+  261.79 ± 261.72 (robust score 0.07) set a raw-mean kill threshold that
+  every later normal-dip evaluation "violated" — and detection only arms
+  once the robust peak clears the stage's `min_avg_reward` curriculum gate
+  (overridable via `collapse_peak_floor`), so the pre-convergence grind
+  can never register as a collapse. All three stage-1 TOMLs also gain the
+  explicit `collapse_min_evals = 20` / `collapse_patience = 10` /
+  `collapse_drop_fraction = 0.5` overrides stage 2 already had: run
+  `20260721_004731`'s healthy 2.2–2.3M transition turbulence accumulated
+  2 of 8 kill-drops under the old stage-1 defaults.
+
+- **Velociraptor stage-3 budget raised 8M → 12M timesteps**: in run
+  `20260721_141523` the best strike checkpoint landed at 7.9M of 8.01M
+  with success still climbing (last evals 0.63 → 0.87 → 0.77); strike
+  discovery produced no successes until ~5.5M, leaving only ~2.5M of
+  effective hunting curriculum. 12M matches the brachiosaurus stage-3
+  budget.
+
 ### Fixed
+- **`metrics.json` now describes the promoted checkpoint**: the post-stage
+  quality/velocity/success evaluation loaded SB3's mean-reward
+  `best_model` while next-stage training loads `robust_best_model` when
+  present, so the sidecar could describe a policy the curriculum never
+  promoted (in run `20260720_203454`, the degenerate lucky-peak 50k
+  checkpoint). Both paths now share one selection helper
+  (`robust_best_model` → `best_model`, each only with its matched
+  VecNormalize stats), and the sidecar records which checkpoint it
+  evaluated as `quality_eval_checkpoint`.
 - **Velociraptor foot touch sensors were dead during normal stance**
   (breaking — policy-interface revision 2 → 3, visual revision 1 → 2): the
   raptor is digitigrade and a lying toe capsule contacts the floor near its
@@ -33,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   0 N airborne, 48/50 standing-probe survival unchanged, and regression
   tests pin stance/airborne sensor behavior. The T-Rex has the same
   dead-sensor defect (recorded in KNOWN_ISSUES, not yet fixed).
+  Follow-up (visual revision 2 → 3): the enlarged sites rendered as large
+  gray balls on the feet in run videos (first visible in run
+  `20260721_141523`'s stage-1 video); they now live in site group 4,
+  which default rendering hides, so they no longer draw — toggle site
+  group 4 in an interactive viewer to visualize the touch volumes.
 
 ### Added
 - **Canonical result bundles for Colab/Google Drive training**: schema-v2

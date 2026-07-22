@@ -143,7 +143,11 @@
                    counts contact points inside the site volume. The original
                    r=0.02 sphere at the capsule midpoint missed both end
                    contacts, so the sensor read 0 during normal stance. -->
-              <site name="r_foot" pos="0.05 0 0" size="0.08"/>
+              <site name="r_foot" pos="0.05 0 0" size="0.08" group="4"/>
+              <!-- group="4": sensor volume only — groups 3+ are hidden in
+                   default rendering, so the enlarged site doesn't draw as a
+                   large gray ball on the foot in videos. Toggle site group 4
+                   in an interactive viewer to visualize the touch volume. -->
             </body>
 
             <!-- Digit 4 (lateral, shorter — secondary weight-bearing) -->
@@ -190,8 +194,8 @@
               <joint name="l_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-30 60" ref="10"/>
               <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 0  0.10 0 0" size="0.02"
                     mass="0.06" material="body_mat"/>
-              <!-- Same coverage rationale as r_foot above. -->
-              <site name="l_foot" pos="0.05 0 0" size="0.08"/>
+              <!-- Same coverage and group="4" rationale as r_foot above. -->
+              <site name="l_foot" pos="0.05 0 0" size="0.08" group="4"/>
             </body>
 
             <!-- Digit 4 (lateral, shorter — secondary weight-bearing) -->

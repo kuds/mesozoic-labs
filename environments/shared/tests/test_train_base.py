@@ -28,6 +28,7 @@ from environments.shared.train_base import (
     _make_local_tb_dir,
     _prepare_alg_kwargs,
     _save_final_and_sync_tb,
+    _select_handoff_checkpoint,
     _sync_tb_to_gcs,
     cosine_schedule,
     linear_schedule,
@@ -254,20 +255,57 @@ class TestBuildCoreCallbacks:
 
         # Explicit [curriculum] overrides are honoured.
         cb = _build_collapse_cb(
-            {"min_avg_reward": 100.0, "collapse_min_evals": 20, "collapse_patience": 10, "collapse_drop_fraction": 0.5}
+            {
+                "min_avg_reward": 100.0,
+                "collapse_min_evals": 20,
+                "collapse_patience": 10,
+                "collapse_drop_fraction": 0.5,
+                "collapse_peak_floor": 42.0,
+            }
         )
         assert cb.min_evals == 20
         assert cb.patience == 10
         assert cb.drop_fraction == 0.5
+        assert cb.peak_floor == 42.0
 
-        # Defaults are lenient (looser than the old hardcoded 8 / 5 / 0.3).
+        # Defaults are lenient (looser than the old hardcoded 8 / 5 / 0.3),
+        # and the arming floor falls back to the stage's own reward gate.
         cb_default = _build_collapse_cb({"min_avg_reward": 100.0})
         assert cb_default.min_evals == 12
         assert cb_default.patience == 8
         assert cb_default.drop_fraction == 0.4
+        assert cb_default.peak_floor == 100.0
 
 
 # ── cosine_schedule ─────────────────────────────────────────────────────
+
+
+class TestSelectHandoffCheckpoint:
+    """The quality eval and next-stage loading must agree on the checkpoint."""
+
+    def test_returns_none_when_nothing_saved(self, tmp_path):
+        assert _select_handoff_checkpoint(tmp_path) is None
+
+    def test_ignores_candidates_without_matched_vecnorm(self, tmp_path):
+        (tmp_path / "best_model.zip").touch()
+        assert _select_handoff_checkpoint(tmp_path) is None
+
+    def test_selects_best_model_when_complete(self, tmp_path):
+        (tmp_path / "best_model.zip").touch()
+        (tmp_path / "best_model_vecnorm.pkl").touch()
+        name, model_path, vecnorm_path = _select_handoff_checkpoint(tmp_path)
+        assert name == "best_model"
+        assert model_path == str(tmp_path / "best_model")
+        assert vecnorm_path == str(tmp_path / "best_model_vecnorm.pkl")
+
+    def test_prefers_robust_best_model(self, tmp_path):
+        for stem in ("best_model", "robust_best_model"):
+            (tmp_path / f"{stem}.zip").touch()
+            (tmp_path / f"{stem}_vecnorm.pkl").touch()
+        name, model_path, vecnorm_path = _select_handoff_checkpoint(tmp_path)
+        assert name == "robust_best_model"
+        assert model_path == str(tmp_path / "robust_best_model")
+        assert vecnorm_path == str(tmp_path / "robust_best_model_vecnorm.pkl")
 
 
 class TestCosineSchedule:

@@ -439,7 +439,11 @@ def _build_core_callbacks(
     # Its thresholds are configurable via the stage's [curriculum] section;
     # defaults are lenient (looser than the former hardcoded 8 / 5 / 0.3) so a
     # normal early-training dip does not abort a stage before entropy decay /
-    # LR annealing have had a chance to engage.
+    # LR annealing have had a chance to engage. The peak is risk-adjusted
+    # (mean - std) and detection only arms once that robust peak clears the
+    # stage's own reward gate (overridable via collapse_peak_floor), so a
+    # variance-inflated early eval cannot set a kill threshold and the
+    # pre-convergence grind cannot register as a collapse.
     collapse_cfg = stage_config.get("curriculum_kwargs", {})
     callbacks.append(
         EvalCollapseEarlyStopCallback(
@@ -447,6 +451,7 @@ def _build_core_callbacks(
             min_evals=int(collapse_cfg.get("collapse_min_evals", 12)),
             patience=int(collapse_cfg.get("collapse_patience", 8)),
             drop_fraction=float(collapse_cfg.get("collapse_drop_fraction", 0.4)),
+            peak_floor=float(collapse_cfg.get("collapse_peak_floor", collapse_cfg.get("min_avg_reward", 0.0))),
             verbose=verbose,
         )
     )
@@ -460,6 +465,23 @@ def _build_core_callbacks(
         callbacks.append(PeriodicTbSyncCallback(local_tb_dir, gcs_tb_path, sync_freq=save_freq, verbose=verbose))
 
     return callbacks, eval_callback, save_vecnorm_cb
+
+
+def _select_handoff_checkpoint(model_dir: Path) -> "tuple[str, str, str] | None":
+    """The checkpoint the curriculum actually promotes to the next stage.
+
+    Preference order matches next-stage loading: the risk-adjusted
+    ``robust_best_model``, then SB3's mean-reward ``best_model`` — each
+    only when its matched VecNormalize stats exist, so obs normalization
+    matches the policy weights. Returns ``(name, model_path_without_ext,
+    vecnorm_path)`` or ``None`` when neither candidate is complete.
+    """
+    for candidate in ("robust_best_model", "best_model"):
+        cand_zip = model_dir / f"{candidate}.zip"
+        cand_vecnorm = model_dir / f"{candidate}_vecnorm.pkl"
+        if cand_zip.exists() and cand_vecnorm.exists():
+            return candidate, str(model_dir / candidate), str(cand_vecnorm)
+    return None
 
 
 def _maybe_ent_coef_decay_callback(config: dict, algorithm: str, total_timesteps: int):
@@ -864,28 +886,50 @@ def _report_hpt_metrics(
     from .curriculum import load_vecnorm_stats
 
     best_model_zip = model_dir / "best_model.zip"
-    best_vecnorm_path = model_dir / "best_model_vecnorm.pkl"
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
 
-    if best_model_zip.exists():
+    # Evaluate the same checkpoint the curriculum hands to the next stage
+    # (robust_best_model before mean-reward best_model, via
+    # _select_handoff_checkpoint), so metrics.json describes the promoted
+    # policy rather than a possibly-degenerate lucky-peak mean-best one
+    # (run 20260720_203454's best_model was the 50k checkpoint whose eval
+    # was 261.79 ± 261.72). The chosen name is recorded in the sidecar as
+    # quality_eval_checkpoint.
+    handoff = _select_handoff_checkpoint(model_dir)
+    if handoff is not None:
+        ckpt_name, ckpt_path, ckpt_vecnorm = handoff
+        eval_model = alg_cls.load(ckpt_path, env=eval_env)
+        if plant_identity is not None:
+            validate_model_plant(eval_model, plant_identity, artifact=ckpt_path + ".zip")
+        load_kwargs: dict[str, Any]
+        if plant_identity is not None:
+            load_kwargs = {"current_plant": plant_identity}
+        else:
+            load_kwargs = {"unsafe_skip_plant_validation": True}
+        load_vecnorm_stats(ckpt_vecnorm, eval_env, **load_kwargs)
+        eval_env.training = False
+        eval_env.norm_reward = False
+        aux_metrics["quality_eval_checkpoint"] = ckpt_name
+        logger.info("HPT eval: using %s + matched VecNormalize", ckpt_name)
+    elif best_model_zip.exists():
+        # Legacy fallback: a best_model saved without matched VecNormalize
+        # stats. Evaluate it rather than nothing, but flag the mismatch.
         eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
         if plant_identity is not None:
             validate_model_plant(eval_model, plant_identity, artifact=str(best_model_zip))
-        if best_vecnorm_path.exists():
-            load_kwargs: dict[str, Any]
-            if plant_identity is not None:
-                load_kwargs = {"current_plant": plant_identity}
-            else:
-                load_kwargs = {"unsafe_skip_plant_validation": True}
-            load_vecnorm_stats(str(best_vecnorm_path), eval_env, **load_kwargs)
         eval_env.training = False
         eval_env.norm_reward = False
-        logger.info("HPT eval: using best model + matched VecNormalize")
+        aux_metrics["quality_eval_checkpoint"] = "best_model"
+        logger.warning(
+            "HPT eval: best_model has no matched VecNormalize stats — quality eval "
+            "normalization may not match the policy weights"
+        )
     else:
         eval_model = model
         eval_env.training = False
         eval_env.norm_reward = False
-        logger.warning("HPT eval: best_model.zip not found, falling back to final model")
+        aux_metrics["quality_eval_checkpoint"] = "final_model"
+        logger.warning("HPT eval: no saved checkpoint found, falling back to final model")
 
     # Quality evaluation with full LocomotionMetrics (spinning detection,
     # heading alignment, reward breakdown, etc.)
@@ -1202,19 +1246,15 @@ def train_curriculum(
         # policy weights.
         load_path = str(final_path)
         prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
-        for candidate in ("robust_best_model", "best_model"):
-            cand_zip = model_dir / f"{candidate}.zip"
-            cand_vecnorm = str(model_dir / f"{candidate}_vecnorm.pkl")
-            if cand_zip.exists() and Path(cand_vecnorm).exists():
-                load_path = str(model_dir / candidate)
-                prev_vecnorm_path = cand_vecnorm
-                logger.info(
-                    "Next stage will load %s (%s) with VecNormalize: %s",
-                    candidate,
-                    load_path,
-                    prev_vecnorm_path,
-                )
-                break
+        handoff = _select_handoff_checkpoint(model_dir)
+        if handoff is not None:
+            candidate, load_path, prev_vecnorm_path = handoff
+            logger.info(
+                "Next stage will load %s (%s) with VecNormalize: %s",
+                candidate,
+                load_path,
+                prev_vecnorm_path,
+            )
 
         train_env.close()
         eval_env.close()
