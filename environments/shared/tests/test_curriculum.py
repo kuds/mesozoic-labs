@@ -1096,6 +1096,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb._peak_score = float("-inf")
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
+        cb.smoothing_window = 1
         assert cb._on_step() is True
 
     def test_returns_true_when_eval_results_empty(self):
@@ -1106,6 +1107,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb._peak_score = float("-inf")
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
+        cb.smoothing_window = 1
         assert cb._on_step() is True
 
     def test_returns_true_before_min_evals(self, tmp_path):
@@ -1117,6 +1119,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb._peak_score = float("-inf")
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
+        cb.smoothing_window = 1
         cb.min_evals = 5  # Need 5 evals, only have 2
         cb.drop_fraction = 0.3
         cb.patience = 3
@@ -1131,6 +1134,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb._peak_score = float("-inf")
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
+        cb.smoothing_window = 1
         assert cb._on_step() is True
 
     def test_stops_after_patience_drops(self, tmp_path):
@@ -1150,6 +1154,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb._peak_score = float("-inf")
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
+        cb.smoothing_window = 1
         cb.min_evals = 3
         cb.drop_fraction = 0.3
         cb.patience = 1  # Stop after 1 drop
@@ -1177,6 +1182,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb._peak_score = float("-inf")
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
+        cb.smoothing_window = 1
         cb.min_evals = 5
         cb.drop_fraction = 0.3
         cb.patience = 5  # High patience
@@ -1188,48 +1194,42 @@ class TestEvalCollapseEarlyStopCallback:
         assert result is True
         assert cb._consecutive_drops == 0
 
-    def test_variance_inflated_eval_cannot_set_the_peak(self):
-        # Run 20260720_203454's 50k eval was 261.79 +/- 261.72 (robust
-        # score 0.07): under the old raw-mean rule it set a 157 kill
-        # threshold that every later normal eval "violated". The robust
-        # peak must come from the consistent evals instead.
+    def test_trailing_mean_averages_out_a_lone_spike(self):
+        # A single variance-inflated eval (run 20260720_203454's 50k eval
+        # was 261.79 +/- 261.72, mean 261.75) surrounded by the normal
+        # grind must not set the peak on its own: the trailing mean folds
+        # it in with its neighbours. A raw single-eval peak would be the
+        # spike itself.
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.evaluations_results = [
-            [523.5, 0.0],  # mean 261.75, std 261.75 -> robust ~0
-            [150.0, 148.0],
-            [150.0, 148.0],
-            [150.0, 148.0],
-        ]
+        cb.eval_callback.evaluations_results = [[150.0], [150.0], [900.0], [150.0], [150.0]]
         cb._last_seen_n_evals = 0
         cb._peak_score = float("-inf")
-        cb.peak_floor = 100.0
+        cb.peak_floor = 0.0
         cb._consecutive_drops = 0
+        cb.smoothing_window = 5
         cb.min_evals = 3
         cb.drop_fraction = 0.4
         cb.patience = 1
         cb.num_timesteps = 1000
 
-        result = cb._on_step()
-        assert result is True
-        assert cb._consecutive_drops == 0
-        assert cb._peak_score == pytest.approx(148.0)  # not 261.75
+        cb._on_step()
+        # trailing-5 peak is the running window mean, never the raw 900:
+        # windows are 150, 150, 400, 337.5, 300 -> peak 400.
+        assert cb._peak_score == pytest.approx(400.0)
+        assert cb._peak_score < 900.0
 
     def test_peak_floor_disarms_below_gate_peaks(self):
-        # A pre-convergence grind (robust peak below the curriculum
+        # A pre-convergence grind (smoothed peak below the curriculum
         # reward gate) can never register collapse drops.
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.evaluations_results = [
-            [80.0, 80.0],
-            [10.0, 10.0],
-            [10.0, 10.0],
-            [10.0, 10.0],
-        ]
+        cb.eval_callback.evaluations_results = [[80.0], [80.0], [10.0], [10.0], [10.0]]
         cb._last_seen_n_evals = 0
         cb._peak_score = float("-inf")
         cb.peak_floor = 100.0
         cb._consecutive_drops = 0
+        cb.smoothing_window = 5
         cb.min_evals = 3
         cb.drop_fraction = 0.4
         cb.patience = 1
@@ -1239,26 +1239,125 @@ class TestEvalCollapseEarlyStopCallback:
         assert result is True
         assert cb._consecutive_drops == 0
 
-    def test_robust_collapse_above_floor_still_stops(self):
-        # A genuinely converged run (robust peak above the gate) that
-        # genuinely collapses must still trip the backstop.
+    def _drive(self, trace, *, min_evals, patience, drop_fraction, smoothing_window, peak_floor, eval_freq=50000):
+        """Feed a per-eval mean-reward trace one eval at a time.
+
+        Each eval is a single-episode list, so the callback's per-eval
+        ``np.mean`` reproduces the trace value exactly. Returns the step at
+        which the backstop stopped training, or ``None`` if it never did.
+        """
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.evaluations_results = [
-            [1500.0, 1300.0],  # mean 1400, std 100 -> robust 1300
-            [800.0, 0.0],  # mean 400, std 400 -> robust 0
-        ]
+        cb.eval_callback.evaluations_results = []
         cb._last_seen_n_evals = 0
         cb._peak_score = float("-inf")
-        cb.peak_floor = 100.0
         cb._consecutive_drops = 0
-        cb.min_evals = 2
-        cb.drop_fraction = 0.5
-        cb.patience = 1
-        cb.num_timesteps = 1000
+        cb.min_evals = min_evals
+        cb.patience = patience
+        cb.drop_fraction = drop_fraction
+        cb.smoothing_window = smoothing_window
+        cb.peak_floor = peak_floor
+        for i, mean_reward in enumerate(trace):
+            cb.eval_callback.evaluations_results = [[m] for m in trace[: i + 1]]
+            cb.num_timesteps = (i + 1) * eval_freq
+            if cb._on_step() is False:
+                return cb.num_timesteps
+        return None
 
-        result = cb._on_step()
-        assert result is False
+    # Real velociraptor stage-2 per-eval mean rewards (deterministic runs).
+    # Round 1's mean-std current-side rule aborted run 20260722_124556 at
+    # 1.75M during a healthy bimodal gait transition (the dip at evals
+    # 25-34); run 20260721_141523 is the identical trace continued, which
+    # recovered to 2707 at ~1.95M. TODAY is an exact prefix of RECOVER.
+    _STAGE2_TODAY_KILLED = [
+        750.2,
+        754.5,
+        770.3,
+        801.8,
+        801.6,
+        791.3,
+        878.0,
+        901.1,
+        885.3,
+        925.0,
+        1074.6,
+        1223.1,
+        1199.0,
+        1328.9,
+        1319.0,
+        1405.1,
+        1074.8,
+        1388.1,
+        1147.9,
+        1289.8,
+        1334.2,
+        1049.1,
+        1274.0,
+        1551.4,
+        1385.3,
+        728.7,
+        387.1,
+        403.7,
+        557.9,
+        944.2,
+        1150.7,
+        680.4,
+        531.0,
+        1101.9,
+        672.0,
+    ]
+    _STAGE2_RECOVER = _STAGE2_TODAY_KILLED + [
+        392.5,
+        990.0,
+        2371.3,
+        2580.4,
+        2618.7,
+    ]
+
+    def test_bimodal_stage2_transition_does_not_abort(self):
+        # The exact trace round 1 wrongly aborted. Under the merged
+        # stage-2 knobs (min_evals=20, patience=10, drop=0.5) with
+        # trailing-5 smoothing and the gate floor, it must survive.
+        fired = self._drive(
+            self._STAGE2_TODAY_KILLED,
+            min_evals=20,
+            patience=10,
+            drop_fraction=0.5,
+            smoothing_window=5,
+            peak_floor=100.0,
+        )
+        assert fired is None, f"backstop aborted a healthy transition at step {fired}"
+
+    def test_stage2_recovery_trace_reaches_high_reward_without_aborting(self):
+        # Continuing the same trace recovers to ~2600; the backstop must
+        # not have fired anywhere along the way.
+        fired = self._drive(
+            self._STAGE2_RECOVER,
+            min_evals=20,
+            patience=10,
+            drop_fraction=0.5,
+            smoothing_window=5,
+            peak_floor=100.0,
+        )
+        assert fired is None
+
+    def test_genuine_sustained_collapse_still_stops(self):
+        # Climb to a healthy converged plateau, then a genuine sustained
+        # collapse (every eval near 300). The backstop must fire.
+        import numpy as np
+
+        climb = list(np.linspace(300.0, 2700.0, 25))
+        plateau = [2700.0] * 10
+        collapse = [300.0] * 25
+        fired = self._drive(
+            climb + plateau + collapse,
+            min_evals=20,
+            patience=10,
+            drop_fraction=0.5,
+            smoothing_window=5,
+            peak_floor=100.0,
+        )
+        assert fired is not None, "backstop failed to catch a genuine sustained collapse"
 
 
 class TestReadLatestEvalSuccesses:

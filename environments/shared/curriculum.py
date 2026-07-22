@@ -878,43 +878,57 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
 
 
 class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
-    """Stop training if the risk-adjusted eval score collapses from its peak.
+    """Stop training if the smoothed eval reward collapses from its peak.
 
-    Monitors evaluation results and stops training when the robust score
-    (per-evaluation ``mean - std`` of episode rewards) stays below
-    ``(1 - drop_fraction) * peak_robust_score`` for ``patience``
+    Monitors evaluation results and stops training when a trailing-window
+    mean of the per-evaluation mean reward stays below
+    ``(1 - drop_fraction) * peak_smoothed_mean`` for ``patience``
     consecutive evaluations. This is a backstop against a genuinely
     diverged stage, not an optimizer, and two properties keep it from
-    condemning healthy runs:
+    condemning healthy runs.
 
-    * **The peak is the robust score, not the raw mean.** In run
-      20260720_203454 a single 50k-step evaluation of 261.79 ± 261.72
-      (robust score 0.07 — one lucky long episode among 29 failures) set
-      a raw-mean peak whose 0.6× threshold every later normal-dip
-      evaluation "violated", aborting stage 1 at 1.1M/6M steps. A
-      variance-inflated eval cannot set a robust peak.
-    * **Detection stays disarmed until the robust peak clears
-      ``peak_floor``** (wired to the stage's ``min_avg_reward``
-      curriculum gate by ``_build_core_callbacks``): a run can only
-      "collapse" from a level that was actually good, so the
-      pre-convergence grind can never trip the backstop. Run
-      20260721_004731's 2.2–2.3M transition turbulence (robust scores
-      briefly negative against a healthy climb) accumulated kill-drops
-      under the old raw-mean rule; under the robust rule with the gate
-      floor it accumulates none until the run has genuinely converged
-      and then genuinely collapses.
+    **Both the peak and the current value use the same smoothed central
+    tendency** — a trailing mean over the last ``smoothing_window``
+    evaluations. This is deliberate: the detector asks "did typical
+    performance drop far from its typical best", which is a question about
+    *central tendency*, so both sides estimate central tendency the same
+    way. Smoothing rejects single-evaluation noise on both sides at once,
+    which is what defeats the two artifacts observed in practice:
+
+    * A **variance-inflated early evaluation cannot set the peak.** In run
+      20260720_203454 a single 50k-step evaluation of 261.79 ± 261.72 (one
+      lucky long episode among 29 failures) set a raw single-eval peak
+      whose threshold every later normal-dip evaluation "violated",
+      aborting stage 1 at 1.1M/6M steps. Averaged with its neighbours the
+      spike stops being a peak.
+    * A **healthy but bimodal transition cannot read as a collapse.**
+      During a gait reorganization (velociraptor stage 2, ~1.3–1.8M) the
+      eval distribution splits — half the episodes still score ~1300, half
+      fail — so the *mean* stays healthy while ``mean - std`` crashes. The
+      previous ``mean - std`` current-side rule mistook this for a
+      sustained collapse and aborted run 20260722_124556 stage 2 at 1.75M,
+      200k steps before it recovered to 2707. A trailing mean of the eval
+      means stays healthy through the transition.
+
+    Detection also stays disarmed until the smoothed peak clears
+    ``peak_floor`` (wired to the stage's ``min_avg_reward`` curriculum gate
+    by ``_build_core_callbacks``): a run can only "collapse" from a level
+    that was actually good, so the pre-convergence grind can never trip
+    the backstop.
 
     Args:
         eval_callback: The ``EvalCallback`` whose ``evaluations.npz``
             to monitor.
-        drop_fraction: Fractional drop from the robust peak that counts
+        drop_fraction: Fractional drop from the smoothed peak that counts
             as a collapse evaluation (default 0.3 = 30% drop).
         patience: Number of consecutive below-threshold evaluations
             before stopping (default 3).
         min_evals: Minimum number of evaluations before early stopping
             can activate (default 5).
-        peak_floor: Minimum robust peak before collapse detection arms
-            (default 0.0 — arm on any positive robust peak).
+        peak_floor: Minimum smoothed peak before collapse detection arms
+            (default 0.0 — arm on any positive smoothed peak).
+        smoothing_window: Number of trailing evaluations averaged into the
+            smoothed mean on both the peak and current sides (default 5).
         verbose: Verbosity level.
     """
 
@@ -925,6 +939,7 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         patience: int = 3,
         min_evals: int = 5,
         peak_floor: float = 0.0,
+        smoothing_window: int = 5,
         verbose: int = 0,
     ):
         if not _SB3_AVAILABLE:
@@ -935,6 +950,7 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         self.patience = patience
         self.min_evals = min_evals
         self.peak_floor = peak_floor
+        self.smoothing_window = max(1, int(smoothing_window))
         self._peak_score = -np.inf
         self._consecutive_drops = 0
         self._last_seen_n_evals = 0
@@ -957,19 +973,24 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         if n_evals < self.min_evals:
             return True
 
-        robust_scores = np.array([float(np.mean(r)) - float(np.std(r)) for r in results])
-        self._peak_score = max(self._peak_score, float(robust_scores.max()))
+        # Trailing-window mean of each evaluation's mean reward. The same
+        # smoothed statistic feeds both the running peak and the current
+        # value, so noise is rejected symmetrically.
+        eval_means = np.array([float(np.mean(r)) for r in results])
+        window = self.smoothing_window
+        smoothed = np.array([float(eval_means[max(0, i - window + 1) : i + 1].mean()) for i in range(len(eval_means))])
+        self._peak_score = max(self._peak_score, float(smoothed.max()))
 
-        latest_score = float(robust_scores[-1])
+        latest_smoothed = float(smoothed[-1])
         threshold = (1.0 - self.drop_fraction) * self._peak_score
         armed = self._peak_score > 0 and self._peak_score >= self.peak_floor
 
-        if armed and latest_score < threshold:
+        if armed and latest_smoothed < threshold:
             self._consecutive_drops += 1
             logger.warning(
-                "EvalCollapseEarlyStop: robust score %.1f < %.1f (%.0f%% of robust peak %.1f), "
+                "EvalCollapseEarlyStop: smoothed reward %.1f < %.1f (%.0f%% of smoothed peak %.1f), "
                 "consecutive drops: %d/%d",
-                latest_score,
+                latest_smoothed,
                 threshold,
                 100 * (1 - self.drop_fraction),
                 self._peak_score,
@@ -978,11 +999,11 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
             )
             if self._consecutive_drops >= self.patience:
                 logger.warning(
-                    "EvalCollapseEarlyStop: stopping training at step %d — robust score collapsed "
+                    "EvalCollapseEarlyStop: stopping training at step %d — smoothed reward collapsed "
                     "from peak %.1f to %.1f",
                     self.num_timesteps,
                     self._peak_score,
-                    latest_score,
+                    latest_smoothed,
                 )
                 return False
         else:

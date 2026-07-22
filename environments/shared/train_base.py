@@ -439,11 +439,12 @@ def _build_core_callbacks(
     # Its thresholds are configurable via the stage's [curriculum] section;
     # defaults are lenient (looser than the former hardcoded 8 / 5 / 0.3) so a
     # normal early-training dip does not abort a stage before entropy decay /
-    # LR annealing have had a chance to engage. The peak is risk-adjusted
-    # (mean - std) and detection only arms once that robust peak clears the
-    # stage's own reward gate (overridable via collapse_peak_floor), so a
-    # variance-inflated early eval cannot set a kill threshold and the
-    # pre-convergence grind cannot register as a collapse.
+    # LR annealing have had a chance to engage. Peak and current both use a
+    # trailing-mean of the per-eval mean reward (collapse_smoothing_window),
+    # and detection only arms once that smoothed peak clears the stage's own
+    # reward gate (overridable via collapse_peak_floor), so neither a
+    # variance-inflated early eval nor a healthy bimodal transition can trip
+    # the backstop.
     collapse_cfg = stage_config.get("curriculum_kwargs", {})
     callbacks.append(
         EvalCollapseEarlyStopCallback(
@@ -452,6 +453,7 @@ def _build_core_callbacks(
             patience=int(collapse_cfg.get("collapse_patience", 8)),
             drop_fraction=float(collapse_cfg.get("collapse_drop_fraction", 0.4)),
             peak_floor=float(collapse_cfg.get("collapse_peak_floor", collapse_cfg.get("min_avg_reward", 0.0))),
+            smoothing_window=int(collapse_cfg.get("collapse_smoothing_window", 5)),
             verbose=verbose,
         )
     )

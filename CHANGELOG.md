@@ -18,19 +18,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   home-control no-saturation guarantee are unchanged, and a new
   sprint-regime contract test pins the knee headroom.
 
-- **Eval-collapse early-stop is now variance-robust, gate-floored, and
-  loosened for stage 1**: the backstop's peak is the per-evaluation robust
-  score (mean − std) instead of the raw mean — run `20260720_203454` was
-  aborted at 1.1M/6M steps because a single 50k evaluation of
-  261.79 ± 261.72 (robust score 0.07) set a raw-mean kill threshold that
-  every later normal-dip evaluation "violated" — and detection only arms
-  once the robust peak clears the stage's `min_avg_reward` curriculum gate
-  (overridable via `collapse_peak_floor`), so the pre-convergence grind
-  can never register as a collapse. All three stage-1 TOMLs also gain the
-  explicit `collapse_min_evals = 20` / `collapse_patience = 10` /
-  `collapse_drop_fraction = 0.5` overrides stage 2 already had: run
-  `20260721_004731`'s healthy 2.2–2.3M transition turbulence accumulated
-  2 of 8 kill-drops under the old stage-1 defaults.
+- **Eval-collapse early-stop now smooths both sides, is gate-floored, and
+  loosened for stage 1**: the backstop compares a trailing-window mean
+  (default 5 evals, `collapse_smoothing_window`) of the per-evaluation
+  mean reward against `(1 − drop_fraction)` of the smoothed peak, and only
+  arms once that peak clears the stage's `min_avg_reward` gate (overridable
+  via `collapse_peak_floor`). Using one smoothed measure of central
+  tendency on both sides rejects single-evaluation noise symmetrically and
+  defeats both observed artifacts: a variance-inflated early evaluation
+  (run `20260720_203454`'s 50k eval, 261.79 ± 261.72) is averaged in with
+  its neighbours so it cannot set the peak and abort stage 1, and a healthy
+  but bimodal gait transition (half the episodes still scoring ~1300)
+  keeps a healthy trailing mean so it cannot read as a collapse.
+  All three stage-1 TOMLs also gain the explicit
+  `collapse_min_evals = 20` / `collapse_patience = 10` /
+  `collapse_drop_fraction = 0.5` overrides stage 2 already had.
+  (This supersedes the intermediate `mean − std` peak/current rule shipped
+  earlier in this release, which correctly fixed the stage-1 abort but then
+  aborted run `20260722_124556`'s stage 2 at 1.75M — 200k steps before it
+  recovered to 2707 — because a bimodal transition deflates `mean − std` on
+  the current side. The regression is pinned by tests built from that run's
+  trace and the identical recovering trace `20260721_141523`.)
 
 - **Velociraptor stage-3 budget raised 8M → 12M timesteps**: in run
   `20260721_141523` the best strike checkpoint landed at 7.9M of 8.01M
