@@ -36,7 +36,7 @@ gae_lambda = 0.95
 clip_range = 0.15                      # Widened from 0.1: allow larger policy updates to escape local optimum (survival-only behavior)
 ent_coef = 0.005                       # 5x increase from 0.001: more exploration needed to discover sparse strike reward
 ent_coef_end = 0.001                   # Enabled: decay entropy to a low floor once the strike behaviour is discovered, so the
-ent_coef_decay_timesteps = 3000000     # policy consolidates instead of drifting late. Anchored below the 8M budget.
+ent_coef_decay_timesteps = 3000000     # policy consolidates instead of drifting late. Anchored below the stage budget.
 target_kl = 0.03                       # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
 
 [ppo.policy_kwargs]
@@ -87,7 +87,10 @@ ramp_start_fraction = 0.1
 net_arch = [512, 256]
 
 [curriculum]
-timesteps = 8000000
+timesteps = 12000000                    # Raised from 8M (run 20260721_141523): best checkpoint landed at 7.9M with
+                                        # success still climbing (last evals 0.63->0.87->0.77) -- strike discovery
+                                        # produced no successes until ~5.5M, leaving only ~2.5M of effective hunting
+                                        # curriculum. 12M matches the brachiosaurus stage-3 budget.
 min_avg_reward = 100.0
 min_success_rate = 0.5                  # At least 50% strike success — confirms hunting behavior emerged
 required_consecutive = 3

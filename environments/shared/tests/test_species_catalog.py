@@ -45,7 +45,7 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         "brachiosaurus": (83, 30, 38, 37, 30, 175.3),
     }
 
-    assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [6_000_000, 8_000_000, 8_000_000]
+    assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [6_000_000, 8_000_000, 12_000_000]
     assert [stage["timesteps"] for stage in species["trex"]["stages"]] == [6_000_000, 8_000_000, 8_000_000]
     assert [stage["timesteps"] for stage in species["brachiosaurus"]["stages"]] == [
         6_000_000,

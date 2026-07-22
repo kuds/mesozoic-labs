@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `20260721_004731`'s healthy 2.2–2.3M transition turbulence accumulated
   2 of 8 kill-drops under the old stage-1 defaults.
 
+- **Velociraptor stage-3 budget raised 8M → 12M timesteps**: in run
+  `20260721_141523` the best strike checkpoint landed at 7.9M of 8.01M
+  with success still climbing (last evals 0.63 → 0.87 → 0.77); strike
+  discovery produced no successes until ~5.5M, leaving only ~2.5M of
+  effective hunting curriculum. 12M matches the brachiosaurus stage-3
+  budget.
+
 ### Fixed
 - **`metrics.json` now describes the promoted checkpoint**: the post-stage
   quality/velocity/success evaluation loaded SB3's mean-reward
