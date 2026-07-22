@@ -979,7 +979,18 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         eval_means = np.array([float(np.mean(r)) for r in results])
         window = self.smoothing_window
         smoothed = np.array([float(eval_means[max(0, i - window + 1) : i + 1].mean()) for i in range(len(eval_means))])
-        self._peak_score = max(self._peak_score, float(smoothed.max()))
+        # Only positions with a full trailing window may set the peak: a
+        # spike inside the first (window - 1) evals averages over fewer
+        # points, so without this it could still inflate the reference the
+        # way a single raw eval did. The peak is recomputed fresh from the
+        # full history each call (not accumulated across calls), so once the
+        # history reaches the window length those short-window early
+        # positions are dropped for good rather than locked in by an early
+        # call. ``smoothed`` covers all evaluations, so this fresh max is
+        # still monotonic once past the window; the fallback only matters if
+        # min_evals is configured below window (it is not in any stage).
+        eligible = smoothed[window - 1 :] if len(smoothed) >= window else smoothed
+        self._peak_score = float(eligible.max())
 
         latest_smoothed = float(smoothed[-1])
         threshold = (1.0 - self.drop_fraction) * self._peak_score

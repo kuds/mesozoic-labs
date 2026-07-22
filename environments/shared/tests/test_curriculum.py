@@ -1198,8 +1198,8 @@ class TestEvalCollapseEarlyStopCallback:
         # A single variance-inflated eval (run 20260720_203454's 50k eval
         # was 261.79 +/- 261.72, mean 261.75) surrounded by the normal
         # grind must not set the peak on its own: the trailing mean folds
-        # it in with its neighbours. A raw single-eval peak would be the
-        # spike itself.
+        # it in with its neighbours, and only full-window positions are
+        # eligible to set the peak. A raw single-eval peak would be 900.
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
         cb.eval_callback.evaluations_results = [[150.0], [150.0], [900.0], [150.0], [150.0]]
@@ -1214,10 +1214,28 @@ class TestEvalCollapseEarlyStopCallback:
         cb.num_timesteps = 1000
 
         cb._on_step()
-        # trailing-5 peak is the running window mean, never the raw 900:
-        # windows are 150, 150, 400, 337.5, 300 -> peak 400.
-        assert cb._peak_score == pytest.approx(400.0)
+        # Only the full-window position (index 4) is eligible to set the
+        # peak: mean(150, 150, 900, 150, 150) = 300 — nowhere near the raw
+        # 900, and the short-window early averages (e.g. 400 at index 2)
+        # are excluded.
+        assert cb._peak_score == pytest.approx(300.0)
         assert cb._peak_score < 900.0
+
+    def test_early_spike_cannot_arm_a_false_collapse(self):
+        # Guards the eligible-window rule directly: a huge spike at eval 0
+        # (short window) followed by a persistently mediocre-but-alive run
+        # just below half the spike must NOT trip the backstop — the spike
+        # is excluded from the peak, so there is nothing to "collapse" from.
+        trace = [520.0] + [150.0] * 30  # 520 spike, then steady 150
+        fired = self._drive(
+            trace,
+            min_evals=20,
+            patience=10,
+            drop_fraction=0.5,
+            smoothing_window=5,
+            peak_floor=100.0,
+        )
+        assert fired is None, f"early spike caused a false abort at step {fired}"
 
     def test_peak_floor_disarms_below_gate_peaks(self):
         # A pre-convergence grind (smoothed peak below the curriculum
