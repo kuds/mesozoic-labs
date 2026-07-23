@@ -354,11 +354,7 @@ def test_sb3_notebook_refuses_a_hybrid_model_and_vecnormalize_checkpoint() -> No
 
 def test_sb3_notebook_finalizes_complete_bundle_once() -> None:
     notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
-    code_cells = [
-        "".join(cell.get("source", []))
-        for cell in notebook["cells"]
-        if cell.get("cell_type") == "code"
-    ]
+    code_cells = ["".join(cell.get("source", [])) for cell in notebook["cells"] if cell.get("cell_type") == "code"]
     stage_three_results = "[results_1, results_2, results_3]"
 
     assert sum(f"write_training_summary(RUN_DIR, {stage_three_results})" in cell for cell in code_cells) == 1
