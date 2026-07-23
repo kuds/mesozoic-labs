@@ -36,6 +36,7 @@ from environments.shared.plant_contract import (
     validate_recorded_identity,
     write_plant_identity,
 )
+from environments.trex.envs.trex_env import TRexEnv
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 CANONICAL_MUJOCO_VERSION = load_plant_versions()[0]
@@ -386,21 +387,25 @@ def test_cached_observation_body_mapping_changes_interface_fingerprint(raptor_la
     assert changed["visual_sha256"] == original["visual_sha256"]
 
 
-def test_raptor_policy_contract_records_home_residual_action_mapping(raptor_layers):
-    _source, env, version, _original = raptor_layers
+@pytest.mark.parametrize(("env_class", "species"), ((RaptorEnv, "velociraptor"), (TRexEnv, "trex")))
+def test_biped_policy_contract_records_home_residual_action_mapping(env_class, species):
+    env = env_class(reset_noise_scale=0.0)
+    try:
+        version = load_plant_versions()[1][species]
+        payload = plant_contract._policy_interface_payload(env.model, env, version, require_backend_parity=True)
+        mapping = payload["action_mapping"]
 
-    payload = plant_contract._policy_interface_payload(env.model, env, version, require_backend_parity=True)
-    mapping = payload["action_mapping"]
+        assert mapping["mode"] == "home-keyframe-residual/v1"
+        assert mapping["origin"]["keyframe"] == "home"
+        np.testing.assert_allclose(mapping["origin"]["ctrl"], env.model.key_ctrl[env.home_keyframe_id])
+        assert set(payload["interface_implementations"]["jax_action_mapping"]) == {"scale_action_around_nominal_jax"}
+        assert set(payload["interface_implementations"]["home_reset"]["jax"]) == {"reset_mujoco_data_to_home"}
+        assert payload["jax_interface"]["action_mapping"] == "home-keyframe-residual/v1"
+    finally:
+        env.close()
 
-    assert mapping["mode"] == "home-keyframe-residual/v1"
-    assert mapping["origin"]["keyframe"] == "home"
-    np.testing.assert_allclose(mapping["origin"]["ctrl"], env.model.key_ctrl[env.home_keyframe_id])
-    assert set(payload["interface_implementations"]["jax_action_mapping"]) == {"scale_action_around_nominal_jax"}
-    assert set(payload["interface_implementations"]["home_reset"]["jax"]) == {"reset_mujoco_data_to_home"}
-    assert payload["jax_interface"]["action_mapping"] == "home-keyframe-residual/v1"
 
-
-def test_other_species_retain_midpoint_action_mapping_contract():
+def test_brachio_retains_midpoint_action_mapping_contract():
     env = BrachioEnv(reset_noise_scale=0.0)
     try:
         version = load_plant_versions()[1]["brachiosaurus"]

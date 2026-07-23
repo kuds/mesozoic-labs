@@ -72,16 +72,18 @@ tolerance) remains the standing recommendation for the divergences above.
   food-reach gradient. (June §6.10; the rest of that finding is resolved —
   the published summary is now the 2026-07-18 run, which passes its
   stage-3 gate with success rate 1.0.)
-- **Watch item** — the Velociraptor home-residual action mapping has a
+- **Watch item** — the biped home-residual action mapping has a
   slope discontinuity at action 0 (the two piecewise segments span
   home→min and home→max, which are unequal), so zero-mean Gaussian
   exploration produces a physically biased mean command away from home
-  (hip pitch ≈ −0.29 rad toward flexion, knee ≈ −0.16, ankle ≈ +0.13 at
-  σ=1). If a fresh run's early training looks persistently crouched or
-  off-home while `algo_std` is still ≈1.0, suspect this bias before
-  suspecting rewards; possible mitigations (smaller `log_std_init`, a
-  smoothed mapping) are interface experiments and must be run in
-  isolation. (Stage-1 basin investigation follow-up)
+  wherever the home control is off-midpoint. The listed Velociraptor effect
+  is hip pitch ≈ −0.29 rad toward flexion, knee ≈ −0.16, ankle ≈ +0.13 at
+  σ=1; the T-Rex lower-body home controls are midpoint-aligned, so its
+  asymmetry is limited to neck/head controls. If a fresh run's early training
+  looks persistently off-home while `algo_std` is still ≈1.0, suspect this
+  bias before suspecting rewards; possible mitigations (smaller
+  `log_std_init`, a smoothed mapping) are interface experiments and must be
+  run in isolation. (Stage-1 basin investigation follow-up)
 
 ## Sweeps / infrastructure
 
@@ -137,7 +139,12 @@ height in its alive region (home-keyframe-controlled settle z≈0.68,
 straight-leg command z≈0.70, vs `healthy_z_range` floor 1.0 and height target
 1.2) — leg springs now reference the stance angles and the leg servos are
 stronger with bounded force, giving an actively servo-held home stand at
-z≈1.13, level, all four feet grounded. All three models now use
+z≈1.13, level, all four feet grounded. The T-Rex's former step-77 neutral
+nosedive is also fixed: a shallow plantar contact, stance-referenced springs,
+mass-scaled gait servos, named-home residual actions, and live load-bearing
+foot sensors give it a full-horizon neutral stand; see
+[the home-equilibrium investigation](investigations/TREX_HOME_EQUILIBRIUM.md).
+All three models now use
 `integrator="implicitfast"` and bounded
 `forcerange` on position actuators, sized to clip impact/reset spikes only,
 with gait-critical actuators at 1.5×kp on every species (raptor hip
@@ -148,8 +155,9 @@ sprint-like 3–4 Hz full-amplitude excitation while still capped at
 0.8×kp). The original home-control-only sizing clipped 20–50 % of
 gait-cycle torque per species and collapsed velociraptor stage-2 twice — see
 [investigations/STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md)
-§5. Post-fix gait clipping is ≤0.5 % everywhere, pinned by each species'
-`tests/test_actuator_bounds.py`; re-measure any re-sizing with
+§5. Post-fix clipping on the pinned gait-critical hip/knee/ankle actuators is
+≤0.5 %, covered by each species' `tests/test_actuator_bounds.py`; re-measure
+any re-sizing with
 `environments/shared/scripts/actuator_saturation_report.py`.
 
 Neutral-action stability and truly actuator-disabled passive behavior are now
@@ -162,27 +170,18 @@ are documented in [PLANT_CONTRACT.md](PLANT_CONTRACT.md).
 
 Still open:
 
-- **MEDIUM** — the T-Rex foot touch sensors read 0 during settled stance
-  (verified empirically: both `r/l_foot_contact` are 0.0 after a settle),
-  the same defect fixed on the velociraptor: a lying toe capsule contacts
-  the floor near its ends, and the r=0.06 site at the toe midpoint misses
-  those contact points. The two foot-contact observation dims and any
-  foot-contact reward gating are dead. Fix as on the raptor: enlarge the
-  site to envelop the toe capsule, check for adjacent-digit
-  interpenetration (add contact excludes if the digits overlap at rest),
-  and bump the trex plant revisions.
 - **LOW** — the raptor's toe-clipping margin now sits at the toes: at
   sprint-like excitation (3–4 Hz, full amplitude) the 0.8×kp toe caps clip
   10–16 % and the 1.5×kp hip pitch ~11–16 % (its physical envelope); the
   knee measures 0 % after its 1.5× bump. Re-measure with
   `environments/shared/scripts/actuator_saturation_report.py` before any
   faster-gait (stage-3 sprint) work and consider 1.5× toes if they bind.
-- **MEDIUM** — the T-Rex home keyframe (pitch 0) is ~35° from its passive
-  equilibrium (settles to forward_z −0.583), which is *past* the stage-1
-  nosedive termination line (−0.519 with the TOML's 0.35 threshold): every
-  episode opens with a dive the policy must catch, and pure passivity is
-  death. Move the passive equilibrium near the intended ~10° natural pitch
-  (tail `springref`, neck stiffness, or hip `ref`/keyframe lean).
+- **LOW** — the T-Rex exact-home 2.5 Hz diagnostic produces one transient
+  clipping window on `r_toe_d4` (5.4 % over 2,500 steps) after the scripted
+  plant destabilizes; every stance-critical hip/knee/ankle remains at 0 %
+  and bounded-vs-unbounded root-z RMS divergence is 0.5 mm. This is not a
+  Stage-1 balance blocker, but re-measure it against a learned locomotion
+  rollout before promoting Stage 2.
 - **LOW** — scene boilerplate (skybox/grid/floor/option) is copy-pasted
   across the three XMLs → extract a shared `scene.xml` include; limbs are
   hand-mirrored sign-flips → generate via script/PyMJCF or add a left/right

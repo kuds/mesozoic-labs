@@ -187,7 +187,8 @@ class TestSuccessAndVelGates:
         assert passed
 
 
-def test_cpu_evaluation_noise_free_reset_restores_complete_home_state():
+@pytest.mark.parametrize("species", ("velociraptor", "trex"))
+def test_cpu_evaluation_noise_free_reset_restores_complete_home_state(species):
     jax = pytest.importorskip("jax")
     pytest.importorskip("mujoco.mjx")
     import jax.numpy as jnp
@@ -197,7 +198,7 @@ def test_cpu_evaluation_noise_free_reset_restores_complete_home_state():
     from environments.shared.mjx_env import _get_model_path
     from environments.shared.mjx_utils import reset_mujoco_data_to_home
 
-    model = mujoco.MjModel.from_xml_path(_get_model_path("velociraptor"))
+    model = mujoco.MjModel.from_xml_path(_get_model_path(species))
     home_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
     captured: dict[str, np.ndarray] = {}
 

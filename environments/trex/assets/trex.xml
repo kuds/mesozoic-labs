@@ -10,9 +10,11 @@
     <geom contype="1" conaffinity="1" friction="1.2 0.005 0.0001"/>
     <motor ctrllimited="true" ctrlrange="-1 1"/>
 
-    <!-- Leg joints: high stiffness for massive biped -->
+    <!-- Leg joints: the T-Rex plant is roughly six times the raptor's mass.
+         The higher damping absorbs stance/reset transients without increasing
+         the passive stiffness that the locomotion policy must overcome. -->
     <default class="leg_joint">
-      <joint damping="15.0" armature="0.1" stiffness="40.0"/>
+      <joint damping="45.0" armature="0.1" stiffness="40.0"/>
     </default>
 
     <!-- Tail joints: very stiff, acts as heavy counterbalance to skull -->
@@ -71,7 +73,7 @@
       - Body pivots at hips, skull and tail balance each other
     -->
 
-    <body name="pelvis" pos="0 0 0.90">
+    <body name="pelvis" pos="0 0 0.9795">
       <freejoint name="root"/>
 
       <!-- Main torso: forward-leaning, angled ~30 deg from horizontal -->
@@ -166,42 +168,59 @@
 
       <body name="r_thigh" pos="-0.05 -0.14 -0.05">
         <!-- Hip: 2 DOF -->
-        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-50 80" ref="15"/>
-        <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-25 25"/>
+        <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0"
+               range="-50 80" ref="15" springref="15"/>
+        <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0"
+               range="-25 25" springref="0"/>
         <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.03 0 -0.35" size="0.09"
               mass="5.0" material="body_mat"/>
 
         <body name="r_tibia" pos="0.03 0 -0.35">
           <!-- Knee: 1 DOF -->
-          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-110 -10" ref="-70"/>
+          <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0"
+                 range="-110 -10" ref="-60" springref="-60"/>
           <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.03 0 -0.35" size="0.07"
                 mass="3.5" material="body_mat"/>
 
           <body name="r_metatarsus" pos="-0.03 0 -0.35">
             <!-- Ankle: 1 DOF (digitigrade stance) -->
-            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="50 150" ref="90"/>
-            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.04"
+            <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0"
+                   range="50 150" ref="94.5" springref="94.5"/>
+            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.025"
                   mass="1.2" material="body_mat"/>
+            <!-- Thin plantar pad: gives the three digits one load-bearing
+                 fore-aft surface instead of balancing on the rear
+                 metatarsus endpoint. -->
+            <geom name="r_plantar_geom" type="box" pos="0.14 0 -0.22"
+                  size="0.07 0.045 0.01" mass="0.02" material="claw_mat"/>
+            <!-- Touch volume belongs to the same metatarsus body as the
+                 load-bearing plantar pad. It encloses the entire pad and its
+                 floor contacts; group 4 keeps the diagnostic volume hidden
+                 in default renders. -->
+            <site name="r_foot" type="box" pos="0.14 0 -0.22"
+                  size="0.075 0.05 0.015" group="4"/>
 
             <!-- Toes: 3 separate forward-facing digits (anatomically correct) -->
             <!-- Digit 2 (medial, shortest) -->
             <body name="r_toe_d2" pos="0.08 0.025 -0.2">
-              <joint name="r_toe_d2_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <joint name="r_toe_d2_joint" class="leg_joint" type="hinge" axis="0 1 0"
+                     range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="r_toe_d2_geom" type="capsule" fromto="0 0 0  0.08 0.015 0" size="0.025"
                     mass="0.12" material="claw_mat"/>
             </body>
 
             <!-- Digit 3 (central, longest — primary weight-bearing) -->
             <body name="r_toe_d3" pos="0.08 0 -0.2">
-              <joint name="r_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <joint name="r_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0"
+                     range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.028"
                     mass="0.16" material="claw_mat"/>
-              <site name="r_foot" pos="0.06 0 -0.02" size="0.06"/>
             </body>
 
             <!-- Digit 4 (lateral, medium) -->
             <body name="r_toe_d4" pos="0.08 -0.025 -0.2">
-              <joint name="r_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <joint name="r_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0"
+                     range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 0  0.09 -0.015 0" size="0.025"
                     mass="0.12" material="claw_mat"/>
             </body>
@@ -212,40 +231,50 @@
       <!-- ==================== LEFT LEG ==================== -->
 
       <body name="l_thigh" pos="-0.05 0.14 -0.05">
-        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-50 80" ref="15"/>
-        <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-25 25"/>
+        <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0"
+               range="-50 80" ref="15" springref="15"/>
+        <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0"
+               range="-25 25" springref="0"/>
         <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.03 0 -0.35" size="0.09"
               mass="5.0" material="body_mat"/>
 
         <body name="l_tibia" pos="0.03 0 -0.35">
-          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-110 -10" ref="-70"/>
+          <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0"
+                 range="-110 -10" ref="-60" springref="-60"/>
           <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.03 0 -0.35" size="0.07"
                 mass="3.5" material="body_mat"/>
 
           <body name="l_metatarsus" pos="-0.03 0 -0.35">
-            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="50 150" ref="90"/>
-            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.04"
+            <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0"
+                   range="50 150" ref="94.5" springref="94.5"/>
+            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.025"
                   mass="1.2" material="body_mat"/>
+            <geom name="l_plantar_geom" type="box" pos="0.14 0 -0.22"
+                  size="0.07 0.045 0.01" mass="0.02" material="claw_mat"/>
+            <site name="l_foot" type="box" pos="0.14 0 -0.22"
+                  size="0.075 0.05 0.015" group="4"/>
 
             <!-- Toes: 3 separate forward-facing digits (anatomically correct) -->
             <!-- Digit 2 (medial, shortest) -->
             <body name="l_toe_d2" pos="0.08 -0.025 -0.2">
-              <joint name="l_toe_d2_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <joint name="l_toe_d2_joint" class="leg_joint" type="hinge" axis="0 1 0"
+                     range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="l_toe_d2_geom" type="capsule" fromto="0 0 0  0.08 -0.015 0" size="0.025"
                     mass="0.12" material="claw_mat"/>
             </body>
 
             <!-- Digit 3 (central, longest — primary weight-bearing) -->
             <body name="l_toe_d3" pos="0.08 0 -0.2">
-              <joint name="l_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <joint name="l_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0"
+                     range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.028"
                     mass="0.16" material="claw_mat"/>
-              <site name="l_foot" pos="0.06 0 -0.02" size="0.06"/>
             </body>
 
             <!-- Digit 4 (lateral, medium) -->
             <body name="l_toe_d4" pos="0.08 0.025 -0.2">
-              <joint name="l_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0" range="-25 50" ref="15"/>
+              <joint name="l_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0"
+                     range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 0  0.09 0.015 0" size="0.025"
                     mass="0.12" material="claw_mat"/>
             </body>
@@ -300,23 +329,24 @@
     <position name="head_pitch_act" joint="head_pitch" kp="80" forcerange="-65 65" ctrlrange="-0.4363 0.6109"/>
 
     <!-- Right leg -->
-    <!-- Hip pitch, knee, and ankle forcerange sized at 1.5x kp (was 0.8x): the 0.8x
-         caps clipped 44-50% (hips), 10-14% (knees), and ~31% (ankles) of a moderate
-         gait cycle — the same plant defect that broke velociraptor stage-2 before
-         commit fd3ffbc fixed it. See docs/investigations/STAGE2_RECOMMENDATIONS.md. -->
-    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="200" forcerange="-300 300" ctrlrange="-0.8727 1.3963"/>
+    <!-- The 85 kg plant is about six times the raptor's mass, while the
+         original 200/250/150 gains let all three stance joints sag by
+         16-23 degrees before producing support torque. These gains combine
+         mass scaling with the tested stance margin; the existing 1.5x-kp
+         gait headroom remains unchanged. -->
+    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-0.8727 1.3963"/>
     <position name="r_hip_roll_act" joint="r_hip_roll" kp="150" forcerange="-120 120" ctrlrange="-0.4363 0.4363"/>
-    <position name="r_knee_act" joint="r_knee" kp="250" forcerange="-375 375" ctrlrange="-1.9199 -0.1745"/>
-    <position name="r_ankle_act" joint="r_ankle" kp="150" forcerange="-225 225" ctrlrange="0.8727 2.6180"/>
+    <position name="r_knee_act" joint="r_knee" kp="1500" forcerange="-2250 2250" ctrlrange="-1.9199 -0.1745"/>
+    <position name="r_ankle_act" joint="r_ankle" kp="900" forcerange="-1350 1350" ctrlrange="0.8727 2.6180"/>
     <position name="r_toe_d2_act" joint="r_toe_d2_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
 
     <!-- Left leg -->
-    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="200" forcerange="-300 300" ctrlrange="-0.8727 1.3963"/>
+    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-0.8727 1.3963"/>
     <position name="l_hip_roll_act" joint="l_hip_roll" kp="150" forcerange="-120 120" ctrlrange="-0.4363 0.4363"/>
-    <position name="l_knee_act" joint="l_knee" kp="250" forcerange="-375 375" ctrlrange="-1.9199 -0.1745"/>
-    <position name="l_ankle_act" joint="l_ankle" kp="150" forcerange="-225 225" ctrlrange="0.8727 2.6180"/>
+    <position name="l_knee_act" joint="l_knee" kp="1500" forcerange="-2250 2250" ctrlrange="-1.9199 -0.1745"/>
+    <position name="l_ankle_act" joint="l_ankle" kp="900" forcerange="-1350 1350" ctrlrange="0.8727 2.6180"/>
     <position name="l_toe_d2_act" joint="l_toe_d2_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
@@ -373,24 +403,33 @@
     <!-- Arm-torso -->
     <exclude body1="pelvis" body2="r_arm"/>
     <exclude body1="pelvis" body2="l_arm"/>
+
+    <!-- Adjacent toe capsules intentionally share a close, splayed
+         anatomical origin. Exclude sibling collisions so their 28 mm
+         home-pose overlap cannot inject constant self-contact forces into
+         the stance or foot sensors. -->
+    <exclude body1="r_toe_d2" body2="r_toe_d3"/>
+    <exclude body1="r_toe_d3" body2="r_toe_d4"/>
+    <exclude body1="l_toe_d2" body2="l_toe_d3"/>
+    <exclude body1="l_toe_d3" body2="l_toe_d4"/>
   </contact>
 
   <!-- ==================== KEYFRAMES ==================== -->
-  <!-- Standing pose with COM balanced over feet.
-       Without this, knee (range -110..-10) and ankle (range 50..150)
-       start at 0 deg which is outside their limits, causing violent
-       constraint-force corrections on the first simulation step. -->
+  <!-- Standing pose with a shallow (0.5 mm) plantar contact. Joint
+       references define the same authored physical stance while placing
+       the lower-body neutral controls at the actuator-range midpoints.
+       The ankle midpoint retains a 5.5 deg preload against gravity. -->
 
   <keyframe>
     <key name="home"
-         qpos="0 0 0.90 1 0 0 0
+         qpos="0 0 0.9795 1 0 0 0
                0 0 0 0 0 0 0 0 0
-               0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
-               0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
+               0.261799 0 -1.047198 1.649336 0.218166 0.218166 0.218166
+               0.261799 0 -1.047198 1.649336 0.218166 0.218166 0.218166
                1 0 0 0 0 1 0 0 0 0"
          ctrl="0 0 0
-               0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
-               0.261799 0 -1.221730 1.570796 0.261799 0.261799 0.261799
+               0.2618 0 -1.0472 1.74535 0.2182 0.2182 0.2182
+               0.2618 0 -1.0472 1.74535 0.2182 0.2182 0.2182
                0 0 0 0"/>
   </keyframe>
 

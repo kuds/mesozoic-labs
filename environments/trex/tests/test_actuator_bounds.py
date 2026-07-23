@@ -6,8 +6,10 @@ gait-like excitation that clipped 44-50% of hip-pitch, 10-14% of knee, and ~31% 
 the same plant defect that collapsed velociraptor stage-2 twice (see
 docs/investigations/STAGE2_RECOMMENDATIONS.md). Hip pitch, knee, and
 ankle were re-sized to 1.5x kp, which measures <1% gait-cycle clipping
-and ~0 pelvis-z divergence from an unbounded plant. These tests pin that
-contract before the next trex stage-2 run trains against the plant.
+and ~0 pelvis-z divergence from an unbounded plant. The home-equilibrium
+repair later raised their gains to 1200/1500/900 while preserving that
+1.5x headroom. These tests pin that contract before the next T-Rex run
+trains against the plant.
 
 Run ``environments/shared/scripts/actuator_saturation_report.py trex``
 for the full per-actuator numbers on the current model.
@@ -76,7 +78,7 @@ class TestForceBoundsConfiguration(PositionActuatorConfigurationBase):
 class TestHomeControlSaturation:
     def test_no_saturation_during_home_control_settle(self):
         """Settling under XML home-keyframe controls never clips forces."""
-        env = TRexEnv()
+        env = TRexEnv(reset_noise_scale=0.0)
         try:
             frac = measure_clip_fractions(env, mode="home_control", steps=1000)
             worst = max(frac[i] for i in position_actuator_ids(env.model))
@@ -95,7 +97,7 @@ class TestDynamicSaturation:
         the plant lost gait headroom — see
         docs/investigations/STAGE2_RECOMMENDATIONS.md before re-sizing.
         """
-        env = TRexEnv()
+        env = TRexEnv(reset_noise_scale=0.0)
         try:
             model = env.model
             frac = measure_clip_fractions(env, mode="gait", steps=2000)

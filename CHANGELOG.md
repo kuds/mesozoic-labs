@@ -52,6 +52,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   budget.
 
 ### Fixed
+- **T-Rex neutral stance now has a viable training basin** (breaking —
+  policy-interface revision 1 → 2, physics revision 1 → 2, visual revision
+  1 → 2): the old `home` state embedded the feet as much as 9 cm into the
+  floor, loaded the rear metatarsus behind the whole-body COM, made each leg
+  spring pull toward numeric zero instead of the stance, and used raptor-scale
+  servo gains on an 85 kg plant. A shallow plantar pad now supplies a real
+  support surface; the reset is a 0.5 mm loaded contact; every leg spring
+  references the stance; lower-body joint references preserve a small ankle
+  gravity preload; and the hip/knee/ankle gains use mass scaling plus a tested
+  stance margin while retaining bounded 1.5×kp headroom. The complete policy
+  now uses the named-home residual mapping in both Gymnasium and MJX, so action
+  zero commands all 21 home controls while ±1 still reach the actuator limits.
+  The load-bearing plantar pads also own hidden box-shaped touch volumes:
+  settled readings are ~419 N per foot, airborne readings are exactly zero,
+  and four contact exclusions remove the former 28 mm adjacent-toe overlaps
+  without changing sensor order or observation dimensions.
+  The JAX factory also leaves the CPU evaluation model's XML solver and
+  parent-contact options unchanged, eliminating evaluation-only plantar/toe
+  self-contact and keeping checkpoint gates aligned with MJX training.
+  The old plant nosedived at step ~77 even under its XML home command. The
+  corrected plant survives all 1,000 Stage-1 steps in 50/50 noise-free probes,
+  50/50 JAX-style probes at 0.05 rad joint noise, and 47/50 full SB3 resets
+  (the raptor reference is 48/50), with peak actuator force at 48.1% of its
+  bound. CPU-MJX tests pin the same complete home reset, residual action
+  mapping, and live contact observations. Root-pitch, tail-spring,
+  neck-stiffness, COM-shift, and static-control A/Bs were rejected before
+  changing the stance mechanics. See
+  `docs/investigations/TREX_HOME_EQUILIBRIUM.md`.
+
 - **`metrics.json` now describes the promoted checkpoint**: the post-stage
   quality/velocity/success evaluation loaded SB3's mean-reward
   `best_model` while next-stage training loads `robust_best_model` when
@@ -73,8 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   enlarged sites would have summed even airborne; new contact excludes
   remove it. Verified post-fix: ~37 N per foot at settled stance, exactly
   0 N airborne, 48/50 standing-probe survival unchanged, and regression
-  tests pin stance/airborne sensor behavior. The T-Rex has the same
-  dead-sensor defect (recorded in KNOWN_ISSUES, not yet fixed).
+  tests pin stance/airborne sensor behavior.
   Follow-up (visual revision 2 → 3): the enlarged sites rendered as large
   gray balls on the feet in run videos (first visible in run
   `20260721_141523`'s stage-1 video); they now live in site group 4,

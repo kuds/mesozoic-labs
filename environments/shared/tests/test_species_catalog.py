@@ -41,7 +41,7 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         for species_id, entry in species.items()
     } == {
         "velociraptor": (67, 22, 31, 30, 22, 13.5),
-        "trex": (83, 21, 40, 37, 21, 85.4),
+        "trex": (83, 21, 40, 37, 21, 85.44),
         "brachiosaurus": (83, 30, 38, 37, 30, 175.3),
     }
 
@@ -68,9 +68,9 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "trex": "bipedal-target/v1",
         "brachiosaurus": "quadrupedal-target/v1",
     }
-    expected_policy_revisions = {"velociraptor": 3, "trex": 1, "brachiosaurus": 1}
-    expected_physics_revisions = {"velociraptor": 2, "trex": 1, "brachiosaurus": 1}
-    expected_visual_revisions = {"velociraptor": 3, "trex": 1, "brachiosaurus": 1}
+    expected_policy_revisions = {"velociraptor": 3, "trex": 2, "brachiosaurus": 1}
+    expected_physics_revisions = {"velociraptor": 2, "trex": 2, "brachiosaurus": 1}
+    expected_visual_revisions = {"velociraptor": 3, "trex": 2, "brachiosaurus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
         plant = species["model"]["plant_contract"]
