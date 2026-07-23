@@ -261,20 +261,24 @@ class TestBuildCoreCallbacks:
                 "collapse_patience": 10,
                 "collapse_drop_fraction": 0.5,
                 "collapse_peak_floor": 42.0,
+                "collapse_smoothing_window": 3,
             }
         )
         assert cb.min_evals == 20
         assert cb.patience == 10
         assert cb.drop_fraction == 0.5
         assert cb.peak_floor == 42.0
+        assert cb.smoothing_window == 3
 
         # Defaults are lenient (looser than the old hardcoded 8 / 5 / 0.3),
-        # and the arming floor falls back to the stage's own reward gate.
+        # the arming floor falls back to the stage's own reward gate, and the
+        # smoothing window defaults to 5 evals.
         cb_default = _build_collapse_cb({"min_avg_reward": 100.0})
         assert cb_default.min_evals == 12
         assert cb_default.patience == 8
         assert cb_default.drop_fraction == 0.4
         assert cb_default.peak_floor == 100.0
+        assert cb_default.smoothing_window == 5
 
 
 # ── cosine_schedule ─────────────────────────────────────────────────────

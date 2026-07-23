@@ -93,8 +93,8 @@ min_avg_reward = 100.0
 min_avg_episode_length = 750
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
-collapse_patience = 10                  # Require 10 consecutive sub-threshold evals so transition turbulence won't abort the stage.
-collapse_drop_fraction = 0.5            # Only a >50% drop from the robust peak counts. Stage-1 balance learning has a long
+collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so transition turbulence won't abort the stage.
+collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count. Stage-1 balance learning has a long
                                         # low-reward grind then a noisy breakthrough (run 20260721_004731: dip to ~1.2M,
                                         # turbulent transition at 2.2-2.3M, converged ~2.65M); the old stage-1 defaults
                                         # killed run 20260720_203454 at 1.1M off a variance-inflated 50k peak.

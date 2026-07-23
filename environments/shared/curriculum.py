@@ -878,44 +878,43 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
 
 
 class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
-    """Stop training if the risk-adjusted eval score collapses from its peak.
+    """Stop training if the eval reward collapses from a robust peak.
 
-    Monitors evaluation results and stops training when the robust score
-    (per-evaluation ``mean - std`` of episode rewards) stays below
-    ``(1 - drop_fraction) * peak_robust_score`` for ``patience``
-    consecutive evaluations. This is a backstop against a genuinely
-    diverged stage, not an optimizer, and two properties keep it from
-    condemning healthy runs:
+    The peak candidate is the median of each full trailing window of
+    per-evaluation mean rewards. The historical maximum of those candidates
+    is robust to a single variance-inflated evaluation, unlike a raw or
+    moving-mean peak. Detection waits until both ``min_evals`` and one full
+    ``smoothing_window`` are available.
 
-    * **The peak is the robust score, not the raw mean.** In run
-      20260720_203454 a single 50k-step evaluation of 261.79 ± 261.72
-      (robust score 0.07 — one lucky long episode among 29 failures) set
-      a raw-mean peak whose 0.6× threshold every later normal-dip
-      evaluation "violated", aborting stage 1 at 1.1M/6M steps. A
-      variance-inflated eval cannot set a robust peak.
-    * **Detection stays disarmed until the robust peak clears
-      ``peak_floor``** (wired to the stage's ``min_avg_reward``
-      curriculum gate by ``_build_core_callbacks``): a run can only
-      "collapse" from a level that was actually good, so the
-      pre-convergence grind can never trip the backstop. Run
-      20260721_004731's 2.2–2.3M transition turbulence (robust scores
-      briefly negative against a healthy climb) accumulated kill-drops
-      under the old raw-mean rule; under the robust rule with the gate
-      floor it accumulates none until the run has genuinely converged
-      and then genuinely collapses.
+    Once armed, each new evaluation contributes exactly one patience
+    observation: its raw per-evaluation mean is compared with
+    ``(1 - drop_fraction) * peak_rolling_median``. Using the raw current mean
+    prevents one low outlier from being counted repeatedly through several
+    overlapping windows. It also preserves the healthy central tendency of
+    a bimodal gait-transition evaluation, where ``mean - std`` can collapse
+    even though the episode mean remains healthy.
+
+    Detection stays disarmed until the rolling-median peak clears
+    ``peak_floor`` (wired to the stage's ``min_avg_reward`` curriculum gate
+    by ``_build_core_callbacks``): a run can only "collapse" from a level
+    that was actually good, so the pre-convergence grind cannot trip the
+    backstop.
 
     Args:
         eval_callback: The ``EvalCallback`` whose ``evaluations.npz``
             to monitor.
-        drop_fraction: Fractional drop from the robust peak that counts
-            as a collapse evaluation (default 0.3 = 30% drop).
+        drop_fraction: Fractional drop from the rolling-median peak that
+            counts as a collapse evaluation (default 0.3 = 30% drop).
         patience: Number of consecutive below-threshold evaluations
             before stopping (default 3).
         min_evals: Minimum number of evaluations before early stopping
             can activate (default 5).
-        peak_floor: Minimum robust peak before collapse detection arms
-            (default 0.0 — arm on any positive robust peak).
+        peak_floor: Minimum rolling-median peak before collapse detection
+            arms (default 0.0 — arm on any positive peak).
         verbose: Verbosity level.
+        smoothing_window: Number of per-evaluation means in each full
+            rolling-median peak window (default 5). Keyword-only so the
+            historical positional slot for ``verbose`` remains stable.
     """
 
     def __init__(
@@ -926,6 +925,8 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         min_evals: int = 5,
         peak_floor: float = 0.0,
         verbose: int = 0,
+        *,
+        smoothing_window: int = 5,
     ):
         if not _SB3_AVAILABLE:
             raise ImportError("stable-baselines3 is required for EvalCollapseEarlyStopCallback.")
@@ -935,6 +936,7 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         self.patience = patience
         self.min_evals = min_evals
         self.peak_floor = peak_floor
+        self.smoothing_window = max(1, int(smoothing_window))
         self._peak_score = -np.inf
         self._consecutive_drops = 0
         self._last_seen_n_evals = 0
@@ -954,22 +956,29 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
             return True  # No new eval yet
         self._last_seen_n_evals = n_evals
 
-        if n_evals < self.min_evals:
+        window = self.smoothing_window
+        if n_evals < max(self.min_evals, window):
             return True
 
-        robust_scores = np.array([float(np.mean(r)) - float(np.std(r)) for r in results])
-        self._peak_score = max(self._peak_score, float(robust_scores.max()))
+        # A full-window median prevents one high outlier from setting the
+        # reference peak. Only the peak is windowed: the latest raw eval mean
+        # supplies one (and only one) patience observation.
+        eval_means = np.array([float(np.mean(r)) for r in results])
+        rolling_medians = np.array(
+            [float(np.median(eval_means[i - window + 1 : i + 1])) for i in range(window - 1, len(eval_means))]
+        )
+        self._peak_score = float(rolling_medians.max())
 
-        latest_score = float(robust_scores[-1])
+        latest_mean = float(eval_means[-1])
         threshold = (1.0 - self.drop_fraction) * self._peak_score
         armed = self._peak_score > 0 and self._peak_score >= self.peak_floor
 
-        if armed and latest_score < threshold:
+        if armed and latest_mean < threshold:
             self._consecutive_drops += 1
             logger.warning(
-                "EvalCollapseEarlyStop: robust score %.1f < %.1f (%.0f%% of robust peak %.1f), "
+                "EvalCollapseEarlyStop: eval mean %.1f < %.1f (%.0f%% of rolling-median peak %.1f), "
                 "consecutive drops: %d/%d",
-                latest_score,
+                latest_mean,
                 threshold,
                 100 * (1 - self.drop_fraction),
                 self._peak_score,
@@ -978,17 +987,34 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
             )
             if self._consecutive_drops >= self.patience:
                 logger.warning(
-                    "EvalCollapseEarlyStop: stopping training at step %d — robust score collapsed "
-                    "from peak %.1f to %.1f",
+                    "EvalCollapseEarlyStop: stopping training at step %d — eval mean collapsed from peak %.1f to %.1f",
                     self.num_timesteps,
                     self._peak_score,
-                    latest_score,
+                    latest_mean,
                 )
                 return False
         else:
             self._consecutive_drops = 0
 
         return True
+
+
+def build_eval_collapse_early_stop_callback(
+    eval_callback: Any,
+    curriculum_kwargs: dict[str, Any],
+    *,
+    verbose: int = 0,
+) -> EvalCollapseEarlyStopCallback:
+    """Build the shared eval-collapse backstop from curriculum settings."""
+    return EvalCollapseEarlyStopCallback(
+        eval_callback=eval_callback,
+        min_evals=int(curriculum_kwargs.get("collapse_min_evals", 12)),
+        patience=int(curriculum_kwargs.get("collapse_patience", 8)),
+        drop_fraction=float(curriculum_kwargs.get("collapse_drop_fraction", 0.4)),
+        peak_floor=float(curriculum_kwargs.get("collapse_peak_floor", curriculum_kwargs.get("min_avg_reward", 0.0))),
+        verbose=verbose,
+        smoothing_window=int(curriculum_kwargs.get("collapse_smoothing_window", 5)),
+    )
 
 
 class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
