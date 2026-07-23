@@ -46,7 +46,9 @@ python environments/trex/scripts/view_model.py
 ## Environment Details
 
 Observation and action totals are generated in the catalog entry linked above. The source of the observation layout and
-action-to-actuator mapping is `envs/trex_env.py`; actions are normalized to [-1, 1] and scaled to actuator ranges.
+action-to-actuator mapping is `envs/trex_env.py`; actions are normalized to
+[-1, 1] residuals, where zero commands the complete XML `home` control and
+the endpoints retain access to the full actuator ranges.
 
 ### Termination Conditions
 - Pelvis height outside healthy range (0.5m–1.6m)

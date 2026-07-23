@@ -29,10 +29,11 @@ Each semantic layer has an independent positive revision: `policy_interface_revi
 - A visual-only change does not make a policy incompatible.
 - A policy-interface or physics change makes an existing policy incompatible, even when dimensions happen to match.
 
-The Velociraptor home-residual change is an example where tensor dimensions and
-XML physics stayed fixed but action meaning changed, requiring a policy-interface
-revision and fresh checkpoints. See the
-[Stage-1 basin investigation](investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md).
+The biped home-residual changes are examples where tensor dimensions can stay
+fixed while action meaning changes, requiring a policy-interface revision and
+fresh checkpoints. See the
+[Velociraptor Stage-1 basin investigation](investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md)
+and [T-Rex home-equilibrium investigation](investigations/TREX_HOME_EQUILIBRIUM.md).
 
 The generator compares the existing committed manifest with the new one and refuses to write a changed semantic layer
 unless its revision increased. Pull-request CI also compares against the base branch, so deleting or replacing the local

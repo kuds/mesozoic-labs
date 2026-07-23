@@ -95,3 +95,130 @@ class TestTRexSpecific:
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
         assert info["reward_nosedive"] <= 0.0
+
+
+class TestNominalPoseActionScaling:
+    """T-Rex actions are residuals around the complete XML home controls."""
+
+    def test_reset_and_action_origin_use_same_named_home_keyframe(self, env):
+        assert env._reset_keyframe_id == env.home_keyframe_id
+
+    def test_zero_action_maps_exactly_to_home_controls(self, env):
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        np.testing.assert_array_equal(
+            env._scale_action(action),
+            env.model.key_ctrl[env.home_keyframe_id],
+        )
+
+    def test_action_endpoints_retain_full_control_range(self, env):
+        ctrl_range = env.model.actuator_ctrlrange
+        np.testing.assert_allclose(
+            env._scale_action(-np.ones(env.action_space.shape, dtype=np.float32)),
+            ctrl_range[:, 0],
+            atol=1e-12,
+        )
+        np.testing.assert_allclose(
+            env._scale_action(np.ones(env.action_space.shape, dtype=np.float32)),
+            ctrl_range[:, 1],
+            atol=1e-12,
+        )
+
+    def test_piecewise_mapping_interpolates_on_each_side_of_home(self, env):
+        ctrl_range = env.model.actuator_ctrlrange
+        home_ctrl = env.model.key_ctrl[env.home_keyframe_id]
+
+        below = env._scale_action(np.full(env.action_space.shape, -0.5, dtype=np.float32))
+        above = env._scale_action(np.full(env.action_space.shape, 0.5, dtype=np.float32))
+
+        np.testing.assert_allclose(below, (ctrl_range[:, 0] + home_ctrl) / 2.0, atol=1e-12)
+        np.testing.assert_allclose(above, (home_ctrl + ctrl_range[:, 1]) / 2.0, atol=1e-12)
+
+    def test_zero_residual_keeps_energy_and_smoothness_penalties_zero(self, env):
+        env.reset(seed=42)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+
+        _, _, terminated, truncated, first_info = env.step(action)
+        assert not terminated
+        assert not truncated
+        _, _, _, _, second_info = env.step(action)
+
+        assert first_info["reward_energy"] == pytest.approx(0.0, abs=1e-12)
+        assert second_info["reward_energy"] == pytest.approx(0.0, abs=1e-12)
+        assert second_info["reward_smoothness"] == pytest.approx(0.0, abs=1e-12)
+        assert second_info["action_delta"] == pytest.approx(0.0, abs=1e-12)
+
+
+class TestFootContactSensors:
+    """Touch observations must measure plantar-floor load, not self-contact."""
+
+    def test_sites_share_the_load_bearing_plantar_bodies(self, env):
+        for side in ("r", "l"):
+            site_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SITE, f"{side}_foot")
+            geom_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, f"{side}_plantar_geom")
+            assert env.model.site_bodyid[site_id] == env.model.geom_bodyid[geom_id]
+
+    def test_sensors_read_ground_force_at_settled_stance(self):
+        env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        try:
+            env.reset(seed=0)
+            info = {}
+            for _ in range(200):
+                _, _, terminated, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+                assert not terminated
+            assert info["r_foot_contact"] > 1.0, "right foot touch sensor dead at stance"
+            assert info["l_foot_contact"] > 1.0, "left foot touch sensor dead at stance"
+        finally:
+            env.close()
+
+    def test_sensors_read_zero_airborne(self):
+        env = TRexEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            mujoco.mj_resetDataKeyframe(env.model, env.data, env.home_keyframe_id)
+            env.data.qpos[2] += 1.0
+            mujoco.mj_forward(env.model, env.data)
+            for _ in range(10):
+                mujoco.mj_step(env.model, env.data)
+            for name in ("r_foot_touch", "l_foot_touch"):
+                sensor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SENSOR, name)
+                sensor_address = env.model.sensor_adr[sensor_id]
+                assert env.data.sensordata[sensor_address] == pytest.approx(0.0, abs=1e-9)
+        finally:
+            env.close()
+
+    def test_observation_foot_contact_dims_are_live(self):
+        env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        try:
+            env.reset(seed=0)
+            obs = None
+            for _ in range(200):
+                obs, _, terminated, _, _ = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+                assert not terminated
+            foot_dims = obs[-6:-4]
+            assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
+        finally:
+            env.close()
+
+    def test_adjacent_digits_do_not_self_contact_at_home(self, env):
+        env.reset(seed=0)
+        adjacent_pairs = {
+            frozenset(
+                (
+                    mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, f"{side}_toe_d2_geom"),
+                    mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, f"{side}_toe_d3_geom"),
+                )
+            )
+            for side in ("r", "l")
+        } | {
+            frozenset(
+                (
+                    mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, f"{side}_toe_d3_geom"),
+                    mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, f"{side}_toe_d4_geom"),
+                )
+            )
+            for side in ("r", "l")
+        }
+        actual_pairs = {
+            frozenset((env.data.contact[index].geom1, env.data.contact[index].geom2)) for index in range(env.data.ncon)
+        }
+        assert adjacent_pairs.isdisjoint(actual_pairs)

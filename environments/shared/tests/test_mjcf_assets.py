@@ -22,7 +22,7 @@ ENVIRONMENTS_DIR = Path(__file__).resolve().parents[2]
 
 EXPECTED_MODELS = {
     "brachiosaurus/assets/brachiosaurus.xml": ModelExpectations(38, 37, 30, 175.3),
-    "trex/assets/trex.xml": ModelExpectations(40, 37, 21, 85.4),
+    "trex/assets/trex.xml": ModelExpectations(40, 37, 21, 85.44),
     "velociraptor/assets/raptor.xml": ModelExpectations(31, 30, 22, 13.5),
 }
 

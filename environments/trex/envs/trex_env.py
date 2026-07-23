@@ -12,7 +12,7 @@ Observation space (total dimension is generated in the public species catalog):
     - Pelvis angular velocity (gyroscope) — 3
     - Pelvis linear velocity — 3
     - Pelvis acceleration — 3
-    - Foot contact states (2 feet, sensed on central digit 3) — 2
+    - Foot contact forces (2 plantar-pad touch sensors) — 2
     - Prey direction (unit vector) — 3
     - Prey distance (scalar) — 1
 
@@ -59,6 +59,7 @@ from environments.shared.base_env import BaseDinoEnv
 class TRexEnv(BaseDinoEnv):
     """Tyrannosaurus Rex bipedal locomotion and bite-attack environment."""
 
+    action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 3.0
     _camera_azimuth = 135
     _camera_elevation = -20
@@ -170,6 +171,15 @@ class TRexEnv(BaseDinoEnv):
 
     def _cache_ids(self):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
+        # T-Rex policies command residuals around the complete XML home
+        # control vector. Cache the named keyframe so Gymnasium reset and
+        # action zero share one nominal state.
+        self.home_keyframe_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        if self.home_keyframe_id < 0:
+            raise ValueError("T-Rex model must define a named 'home' keyframe")
+        self._reset_keyframe_id = self.home_keyframe_id
+        self._home_ctrl = self.model.key_ctrl[self.home_keyframe_id].copy()
+
         # Body IDs
         self.pelvis_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
         self.skull_body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "skull")
@@ -219,6 +229,23 @@ class TRexEnv(BaseDinoEnv):
         # are inherited from BaseDinoEnv (0, 3, 6 respectively).
         self._sensor_r_foot = 10
         self._sensor_l_foot = 11
+
+    def _scale_action(self, action: np.ndarray) -> np.ndarray:
+        """Map normalized residual actions around the XML home controls.
+
+        The two halves are scaled independently so the mapping preserves the
+        actuator endpoints while making action zero exactly the named home
+        control, even when that control is not the range midpoint.
+        """
+        residual = np.clip(action, -1.0, 1.0)
+        ctrl_range = self.model.actuator_ctrlrange
+        ctrl_min = ctrl_range[:, 0]
+        ctrl_max = ctrl_range[:, 1]
+
+        below_home = residual * (self._home_ctrl - ctrl_min)
+        above_home = residual * (ctrl_max - self._home_ctrl)
+        scaled = self._home_ctrl + np.where(residual < 0.0, below_home, above_home)
+        return np.asarray(scaled)
 
     def _get_obs(self) -> np.ndarray:
         """Construct observation vector."""

@@ -46,9 +46,10 @@ charismatic species. The honest summary:
   linear velocity and an absolute prey/food beacon) that **no onboard sensor can
   measure**. Closing this needs a legged base-state estimator *and* an onboard
   perception stack — neither exists in the repo.
-- **The heavy species are not servo-buildable.** T-Rex (85 kg) demands
-  ~150–375 N·m and Brachiosaurus (175 kg) up to ~900 N·m at the hips — beyond
-  all COTS smart servos and most quasi-direct-drive (QDD) units.
+- **The heavy species are not servo-buildable.** The T-Rex model (85 kg) now
+  permits 1,800–2,250 N·m at its gait-critical hip/knee servos, and
+  Brachiosaurus (175 kg) permits up to ~900 N·m at the hips — beyond all COTS
+  smart servos and most quasi-direct-drive (QDD) units.
 - **The good news:** compute is a non-issue (a ~200K-parameter MLP at 100 Hz
   runs on a microcontroller), and the observation-building, action-scaling, and
   normalization code already exist as pure, backend-agnostic modules — so the
@@ -128,10 +129,10 @@ proprioception-only task formulation).
 
 ### 3.2 Morphology & actuation
 
-| Species | Mass | Actuated DOF | Peak hip/knee torque (model) | Buildable as servo project? |
+| Species | Mass | Actuated DOF | Hip/knee torque caps (model) | Buildable as servo project? |
 |---|---:|---:|---|---|
 | Velociraptor | 13.5 kg | 22 | ~145–225 N·m | **With work** (prune DOF, QDD BLDC) |
-| T-Rex | 85.4 kg | 21 | ~300–375 N·m | No — Cheetah-3-class / hydraulic |
+| T-Rex | 85.4 kg | 21 | 1,800–2,250 N·m | No — industrial / hydraulic |
 | Brachiosaurus | 175.3 kg | 30 | ~500–900 N·m | No — industrial / hydraulic |
 
 Key idealizations that don't map to hardware:
@@ -146,9 +147,10 @@ Key idealizations that don't map to hardware:
   (`environments/shared/scripts/actuator_saturation_report.py`,
   `tests/test_actuator_bounds.py`): lower 0.8× kp caps clipped 20–50% of real
   gait torque and broke Stage-2 locomotion, so gait-critical joints were raised
-  to 1.5× kp. **Real per-joint peak torque therefore lies between ~0.8× and
-  1.5× kp** — the heavy-species torque problem is real, not an artifact of
-  oversizing.
+  to 1.5× kp. These caps are safety ceilings, not measured hardware
+  requirements: the latest T-Rex standing probe stayed below 48.1% of its
+  bounds, and learned-rollout peak and RMS/duty-cycle torque still need to be
+  re-measured before hardware sizing.
 - **Uniform-density geometry.** Mass sits at limb geometric centers, not at the
   joints (motors + gearboxes) and trunk (battery) where a real robot carries it —
   so CoM and inertia tensors are miscalibrated for balance transfer.
@@ -228,9 +230,10 @@ items. This plan agrees with that posture and sequences the work accordingly.
   At 13.5 kg, realistic gait torques are tens of N·m, coverable by
   mini-cheetah/Unitree-class QDD BLDC (~17 N·m cont., ~33–40 N·m peak) with mild
   gearing. The obstacle is DOF density, not torque — prune to ~8–10 leg DOF.
-- **T-Rex — impractical.** ~150–375 N·m at hip/knee exceeds all COTS smart
-  servos and most QDD units; needs Cheetah-3-class geared actuators or
-  hydraulics.
+- **T-Rex — impractical.** The current hip/knee model caps are
+  1,800–2,250 N·m. Those are not learned-rollout torque measurements, but they
+  put the current 85 kg plant outside COTS smart-servo and ordinary QDD
+  territory; hardware sizing remains blocked on learned peak and RMS torque.
 - **Brachiosaurus — impractical.** ~500–900 N·m plus non-physical lossless
   load-bearing springs. Industrial/hydraulic territory only.
 

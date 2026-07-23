@@ -399,27 +399,17 @@ def build_env_kwargs(
     return env_kwargs
 
 
-def apply_mjx_solver_tuning(mj_model: Any) -> None:
-    """Apply standard MJX solver tuning to a MuJoCo model.
-
-    Should be called *before* creating ``MJXDinoEnv`` (which internalises
-    the model).
-    """
-    import mujoco
-
-    mj_model.opt.solver = mujoco.mjtSolver.mjSOL_CG
-    mj_model.opt.iterations = 4
-    mj_model.opt.ls_iterations = 4
-    mj_model.opt.disableflags |= mujoco.mjtDisableBit.mjDSBL_FILTERPARENT
-
-
 def create_env(
     ctx: SpeciesContext,
     num_envs: int = 2048,
 ) -> Any:
     """Create and return a ``MJXDinoEnv`` from a species context.
 
-    Applies solver tuning and merges env kwargs automatically.
+    Merges environment kwargs automatically. The context's CPU model is kept
+    at its XML-authored options because checkpoint evaluation and video use
+    that instance, while ``MJXDinoEnv`` loads a separate training model.
+    Mutating only the CPU copy would make evaluation physics diverge from
+    training.
 
     Args:
         ctx: Species context from :func:`setup_species`.
@@ -430,7 +420,6 @@ def create_env(
     """
     from .mjx_env import MJXDinoEnv
 
-    apply_mjx_solver_tuning(ctx.mj_model)
     env_kwargs = build_env_kwargs(ctx.reward_cfg, ctx.jax_kwargs)
 
     env = MJXDinoEnv(
