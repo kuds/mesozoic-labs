@@ -987,8 +987,7 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
             )
             if self._consecutive_drops >= self.patience:
                 logger.warning(
-                    "EvalCollapseEarlyStop: stopping training at step %d — eval mean collapsed "
-                    "from peak %.1f to %.1f",
+                    "EvalCollapseEarlyStop: stopping training at step %d — eval mean collapsed from peak %.1f to %.1f",
                     self.num_timesteps,
                     self._peak_score,
                     latest_mean,
