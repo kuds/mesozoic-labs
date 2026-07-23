@@ -1,5 +1,6 @@
 """Tests for CurriculumManager."""
 
+import inspect
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -1090,17 +1091,20 @@ class TestEvalCollapseEarlyStopCallback:
                 EvalCollapseEarlyStopCallback(eval_callback=MagicMock())
 
     def test_preserves_verbose_positional_slot(self):
-        cb = EvalCollapseEarlyStopCallback(
-            MagicMock(),
-            0.4,
-            8,
-            12,
-            100.0,
-            7,
-            smoothing_window=3,
-        )
-        assert cb.verbose == 7
-        assert cb.smoothing_window == 3
+        params = inspect.signature(EvalCollapseEarlyStopCallback.__init__).parameters
+
+        assert list(params) == [
+            "self",
+            "eval_callback",
+            "drop_fraction",
+            "patience",
+            "min_evals",
+            "peak_floor",
+            "verbose",
+            "smoothing_window",
+        ]
+        assert params["verbose"].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+        assert params["smoothing_window"].kind is inspect.Parameter.KEYWORD_ONLY
 
     def test_returns_true_without_eval_results(self):
         cb = object.__new__(EvalCollapseEarlyStopCallback)
