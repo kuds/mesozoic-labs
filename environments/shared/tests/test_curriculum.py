@@ -1089,6 +1089,19 @@ class TestEvalCollapseEarlyStopCallback:
             with pytest.raises(ImportError, match="stable-baselines3"):
                 EvalCollapseEarlyStopCallback(eval_callback=MagicMock())
 
+    def test_preserves_verbose_positional_slot(self):
+        cb = EvalCollapseEarlyStopCallback(
+            MagicMock(),
+            0.4,
+            8,
+            12,
+            100.0,
+            7,
+            smoothing_window=3,
+        )
+        assert cb.verbose == 7
+        assert cb.smoothing_window == 3
+
     def test_returns_true_without_eval_results(self):
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock(spec=[])  # no evaluations_results
@@ -1194,39 +1207,31 @@ class TestEvalCollapseEarlyStopCallback:
         assert result is True
         assert cb._consecutive_drops == 0
 
-    def test_trailing_mean_averages_out_a_lone_spike(self):
-        # A single variance-inflated eval (run 20260720_203454's 50k eval
-        # was 261.79 +/- 261.72, mean 261.75) surrounded by the normal
-        # grind must not set the peak on its own: the trailing mean folds
-        # it in with its neighbours, and only full-window positions are
-        # eligible to set the peak. A raw single-eval peak would be 900.
+    def test_rolling_median_ignores_lone_high_outlier(self):
+        # A single variance-inflated eval must not raise the peak above the
+        # surrounding pre-convergence grind.
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
-        cb.eval_callback.evaluations_results = [[150.0], [150.0], [900.0], [150.0], [150.0]]
+        cb.eval_callback.evaluations_results = [[80.0], [80.0], [520.0], [80.0], [80.0]]
         cb._last_seen_n_evals = 0
         cb._peak_score = float("-inf")
-        cb.peak_floor = 0.0
+        cb.peak_floor = 100.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 5
         cb.min_evals = 3
-        cb.drop_fraction = 0.4
+        cb.drop_fraction = 0.5
         cb.patience = 1
         cb.num_timesteps = 1000
 
-        cb._on_step()
-        # Only the full-window position (index 4) is eligible to set the
-        # peak: mean(150, 150, 900, 150, 150) = 300 — nowhere near the raw
-        # 900, and the short-window early averages (e.g. 400 at index 2)
-        # are excluded.
-        assert cb._peak_score == pytest.approx(300.0)
-        assert cb._peak_score < 900.0
+        assert cb._on_step() is True
+        assert cb._peak_score == pytest.approx(80.0)
+        assert cb._consecutive_drops == 0
 
     def test_early_spike_cannot_arm_a_false_collapse(self):
-        # Guards the eligible-window rule directly: a huge spike at eval 0
-        # (short window) followed by a persistently mediocre-but-alive run
-        # just below half the spike must NOT trip the backstop — the spike
-        # is excluded from the peak, so there is nothing to "collapse" from.
-        trace = [520.0] + [150.0] * 30  # 520 spike, then steady 150
+        # This is the false-abort shape the moving-mean peak still allowed:
+        # one high eval followed by a below-gate grind. The rolling median
+        # remains 80, so the detector never arms.
+        trace = [520.0] + [80.0] * 30
         fired = self._drive(
             trace,
             min_evals=20,
@@ -1237,8 +1242,48 @@ class TestEvalCollapseEarlyStopCallback:
         )
         assert fired is None, f"early spike caused a false abort at step {fired}"
 
+    def test_single_low_outlier_counts_once_then_recovery_resets(self):
+        # A rolling current value would repeat the -500 outlier across five
+        # overlapping windows and exhaust patience. Raw per-eval means count
+        # it once; the immediately recovered eval resets the counter.
+        fired = self._drive(
+            [200.0] * 5 + [-500.0] + [200.0] * 5,
+            min_evals=5,
+            patience=3,
+            drop_fraction=0.4,
+            smoothing_window=5,
+            peak_floor=100.0,
+        )
+        assert fired is None
+
+    def test_waits_for_full_window_even_when_min_evals_is_smaller(self):
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb._last_seen_n_evals = 0
+        cb._peak_score = float("-inf")
+        cb.peak_floor = 100.0
+        cb._consecutive_drops = 0
+        cb.smoothing_window = 5
+        cb.min_evals = 3
+        cb.drop_fraction = 0.5
+        cb.patience = 1
+        cb.num_timesteps = 1000
+
+        cb.eval_callback.evaluations_results = [[520.0], [80.0], [80.0]]
+        assert cb._on_step() is True
+        assert cb._peak_score == float("-inf")
+
+        cb.eval_callback.evaluations_results.append([80.0])
+        assert cb._on_step() is True
+        assert cb._peak_score == float("-inf")
+
+        cb.eval_callback.evaluations_results.append([80.0])
+        assert cb._on_step() is True
+        assert cb._peak_score == pytest.approx(80.0)
+        assert cb._consecutive_drops == 0
+
     def test_peak_floor_disarms_below_gate_peaks(self):
-        # A pre-convergence grind (smoothed peak below the curriculum
+        # A pre-convergence grind (rolling-median peak below the curriculum
         # reward gate) can never register collapse drops.
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
@@ -1264,6 +1309,28 @@ class TestEvalCollapseEarlyStopCallback:
         ``np.mean`` reproduces the trace value exactly. Returns the step at
         which the backstop stopped training, or ``None`` if it never did.
         """
+        return self._drive_results(
+            [[mean_reward] for mean_reward in trace],
+            min_evals=min_evals,
+            patience=patience,
+            drop_fraction=drop_fraction,
+            smoothing_window=smoothing_window,
+            peak_floor=peak_floor,
+            eval_freq=eval_freq,
+        )
+
+    def _drive_results(
+        self,
+        evaluations,
+        *,
+        min_evals,
+        patience,
+        drop_fraction,
+        smoothing_window,
+        peak_floor,
+        eval_freq=50000,
+    ):
+        """Feed complete per-episode evaluation results one eval at a time."""
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock()
         cb.eval_callback.evaluations_results = []
@@ -1275,8 +1342,8 @@ class TestEvalCollapseEarlyStopCallback:
         cb.drop_fraction = drop_fraction
         cb.smoothing_window = smoothing_window
         cb.peak_floor = peak_floor
-        for i, mean_reward in enumerate(trace):
-            cb.eval_callback.evaluations_results = [[m] for m in trace[: i + 1]]
+        for i in range(len(evaluations)):
+            cb.eval_callback.evaluations_results = evaluations[: i + 1]
             cb.num_timesteps = (i + 1) * eval_freq
             if cb._on_step() is False:
                 return cb.num_timesteps
@@ -1335,7 +1402,7 @@ class TestEvalCollapseEarlyStopCallback:
     def test_bimodal_stage2_transition_does_not_abort(self):
         # The exact trace round 1 wrongly aborted. Under the merged
         # stage-2 knobs (min_evals=20, patience=10, drop=0.5) with
-        # trailing-5 smoothing and the gate floor, it must survive.
+        # a rolling-median peak and the gate floor, it must survive.
         fired = self._drive(
             self._STAGE2_TODAY_KILLED,
             min_evals=20,
@@ -1345,6 +1412,30 @@ class TestEvalCollapseEarlyStopCallback:
             peak_floor=100.0,
         )
         assert fired is None, f"backstop aborted a healthy transition at step {fired}"
+
+    def test_bimodal_episode_arrays_use_healthy_mean_for_patience(self):
+        import numpy as np
+
+        # Real transition shape: half the episodes still score ~1300 while
+        # half fail. This array reproduces the recorded 728.7 eval mean.
+        stable_eval = [1000.0] * 30
+        bimodal_eval = [1300.0] * 15 + [157.4] * 15
+        peak = float(np.mean(stable_eval))
+        threshold = 0.5 * peak
+
+        assert np.mean(bimodal_eval) == pytest.approx(728.7)
+        assert np.mean(bimodal_eval) > threshold
+        assert np.mean(bimodal_eval) - np.std(bimodal_eval) < threshold
+
+        fired = self._drive_results(
+            [stable_eval] * 5 + [bimodal_eval] * 10,
+            min_evals=5,
+            patience=10,
+            drop_fraction=0.5,
+            smoothing_window=5,
+            peak_floor=100.0,
+        )
+        assert fired is None
 
     def test_stage2_recovery_trace_reaches_high_reward_without_aborting(self):
         # Continuing the same trace recovers to ~2600; the backstop must

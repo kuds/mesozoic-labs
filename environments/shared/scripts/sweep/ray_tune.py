@@ -534,6 +534,28 @@ def apply_sampled_config(
                 break
 
 
+def apply_collapse_overrides(
+    stage_config: dict[str, Any],
+    *,
+    min_evals: int | None = None,
+    patience: int | None = None,
+) -> dict[str, Any]:
+    """Return a stage-config copy with positive Ray collapse overrides applied.
+
+    Ray-specific values are optional overrides, not an independent set of
+    collapse defaults. Copying the curriculum mapping preserves every other
+    stage setting and keeps this transformation side-effect free.
+    """
+    resolved = dict(stage_config)
+    curriculum_kwargs = dict(stage_config.get("curriculum_kwargs") or {})
+    if min_evals is not None and min_evals > 0:
+        curriculum_kwargs["collapse_min_evals"] = int(min_evals)
+    if patience is not None and patience > 0:
+        curriculum_kwargs["collapse_patience"] = int(patience)
+    resolved["curriculum_kwargs"] = curriculum_kwargs
+    return resolved
+
+
 # ---------------------------------------------------------------------------
 # Ray Tune trainable
 # ---------------------------------------------------------------------------
@@ -570,10 +592,10 @@ def train_trial(config: dict[str, Any]) -> None:
 
     from environments.shared.config import load_all_stages, save_stage_config
     from environments.shared.curriculum import (
-        EvalCollapseEarlyStopCallback,
         RewardRampCallback,
         SaveVecNormalizeCallback,
         StageWarmupCallback,
+        build_eval_collapse_early_stop_callback,
         load_vecnorm_stats,
     )
     from environments.shared.eval_diagnostics import build_stage_evaluation_callbacks
@@ -599,8 +621,8 @@ def train_trial(config: dict[str, Any]) -> None:
     seed = config["_seed"]
     eval_freq = config["_eval_freq"]
     load_path = config.get("_load_path") or None
-    collapse_min_evals = config.get("_collapse_min_evals", 8)
-    collapse_patience = config.get("_collapse_patience", 5)
+    collapse_min_evals = config.get("_collapse_min_evals")
+    collapse_patience = config.get("_collapse_patience")
     n_eval_episodes = config.get("_n_eval_episodes", 30)
     local_trials_dir = config.get("_local_trials_dir")
     drive_sweep_dir = config.get("_drive_sweep_dir")
@@ -614,7 +636,12 @@ def train_trial(config: dict[str, Any]) -> None:
     hpt_params = {k: v for k, v in config.items() if not k.startswith("_")}
     apply_sampled_config(stage_configs, stage, hpt_params, algorithm)
 
-    stage_config = stage_configs[stage]
+    stage_config = apply_collapse_overrides(
+        stage_configs[stage],
+        min_evals=collapse_min_evals,
+        patience=collapse_patience,
+    )
+    stage_configs[stage] = stage_config
 
     # Setup output directory
     trial_id = tune.get_context().get_trial_id() or "local"
@@ -745,6 +772,7 @@ def train_trial(config: dict[str, Any]) -> None:
 
         # Callbacks
         callbacks: list[Any] = []
+        cur_kwargs = stage_config.get("curriculum_kwargs", {})
 
         save_vecnorm_cb = SaveVecNormalizeCallback(
             save_path=str(model_dir / "best_model_vecnorm.pkl"),
@@ -788,8 +816,10 @@ def train_trial(config: dict[str, Any]) -> None:
         )
 
         callbacks.append(
-            EvalCollapseEarlyStopCallback(
-                eval_callback=eval_callback, min_evals=collapse_min_evals, patience=collapse_patience, verbose=0
+            build_eval_collapse_early_stop_callback(
+                eval_callback,
+                cur_kwargs,
+                verbose=0,
             )
         )
 
@@ -798,7 +828,6 @@ def train_trial(config: dict[str, Any]) -> None:
         callbacks.append(DiagnosticsCallback(log_dir=str(trial_dir), verbose=0))
 
         # Stage transition callbacks (stages 2+)
-        cur_kwargs = stage_config.get("curriculum_kwargs", {})
         if stage > 1 and load_path:
             callbacks.append(
                 StageWarmupCallback(

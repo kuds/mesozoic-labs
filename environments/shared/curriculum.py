@@ -878,58 +878,43 @@ class RewardRampCallback(BaseCallback):  # type: ignore[misc]
 
 
 class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
-    """Stop training if the smoothed eval reward collapses from its peak.
+    """Stop training if the eval reward collapses from a robust peak.
 
-    Monitors evaluation results and stops training when a trailing-window
-    mean of the per-evaluation mean reward stays below
-    ``(1 - drop_fraction) * peak_smoothed_mean`` for ``patience``
-    consecutive evaluations. This is a backstop against a genuinely
-    diverged stage, not an optimizer, and two properties keep it from
-    condemning healthy runs.
+    The peak candidate is the median of each full trailing window of
+    per-evaluation mean rewards. The historical maximum of those candidates
+    is robust to a single variance-inflated evaluation, unlike a raw or
+    moving-mean peak. Detection waits until both ``min_evals`` and one full
+    ``smoothing_window`` are available.
 
-    **Both the peak and the current value use the same smoothed central
-    tendency** — a trailing mean over the last ``smoothing_window``
-    evaluations. This is deliberate: the detector asks "did typical
-    performance drop far from its typical best", which is a question about
-    *central tendency*, so both sides estimate central tendency the same
-    way. Smoothing rejects single-evaluation noise on both sides at once,
-    which is what defeats the two artifacts observed in practice:
+    Once armed, each new evaluation contributes exactly one patience
+    observation: its raw per-evaluation mean is compared with
+    ``(1 - drop_fraction) * peak_rolling_median``. Using the raw current mean
+    prevents one low outlier from being counted repeatedly through several
+    overlapping windows. It also preserves the healthy central tendency of
+    a bimodal gait-transition evaluation, where ``mean - std`` can collapse
+    even though the episode mean remains healthy.
 
-    * A **variance-inflated early evaluation cannot set the peak.** In run
-      20260720_203454 a single 50k-step evaluation of 261.79 ± 261.72 (one
-      lucky long episode among 29 failures) set a raw single-eval peak
-      whose threshold every later normal-dip evaluation "violated",
-      aborting stage 1 at 1.1M/6M steps. Averaged with its neighbours the
-      spike stops being a peak.
-    * A **healthy but bimodal transition cannot read as a collapse.**
-      During a gait reorganization (velociraptor stage 2, ~1.3–1.8M) the
-      eval distribution splits — half the episodes still score ~1300, half
-      fail — so the *mean* stays healthy while ``mean - std`` crashes. The
-      previous ``mean - std`` current-side rule mistook this for a
-      sustained collapse and aborted run 20260722_124556 stage 2 at 1.75M,
-      200k steps before it recovered to 2707. A trailing mean of the eval
-      means stays healthy through the transition.
-
-    Detection also stays disarmed until the smoothed peak clears
+    Detection stays disarmed until the rolling-median peak clears
     ``peak_floor`` (wired to the stage's ``min_avg_reward`` curriculum gate
     by ``_build_core_callbacks``): a run can only "collapse" from a level
-    that was actually good, so the pre-convergence grind can never trip
-    the backstop.
+    that was actually good, so the pre-convergence grind cannot trip the
+    backstop.
 
     Args:
         eval_callback: The ``EvalCallback`` whose ``evaluations.npz``
             to monitor.
-        drop_fraction: Fractional drop from the smoothed peak that counts
-            as a collapse evaluation (default 0.3 = 30% drop).
+        drop_fraction: Fractional drop from the rolling-median peak that
+            counts as a collapse evaluation (default 0.3 = 30% drop).
         patience: Number of consecutive below-threshold evaluations
             before stopping (default 3).
         min_evals: Minimum number of evaluations before early stopping
             can activate (default 5).
-        peak_floor: Minimum smoothed peak before collapse detection arms
-            (default 0.0 — arm on any positive smoothed peak).
-        smoothing_window: Number of trailing evaluations averaged into the
-            smoothed mean on both the peak and current sides (default 5).
+        peak_floor: Minimum rolling-median peak before collapse detection
+            arms (default 0.0 — arm on any positive peak).
         verbose: Verbosity level.
+        smoothing_window: Number of per-evaluation means in each full
+            rolling-median peak window (default 5). Keyword-only so the
+            historical positional slot for ``verbose`` remains stable.
     """
 
     def __init__(
@@ -939,8 +924,9 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         patience: int = 3,
         min_evals: int = 5,
         peak_floor: float = 0.0,
-        smoothing_window: int = 5,
         verbose: int = 0,
+        *,
+        smoothing_window: int = 5,
     ):
         if not _SB3_AVAILABLE:
             raise ImportError("stable-baselines3 is required for EvalCollapseEarlyStopCallback.")
@@ -970,38 +956,29 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
             return True  # No new eval yet
         self._last_seen_n_evals = n_evals
 
-        if n_evals < self.min_evals:
+        window = self.smoothing_window
+        if n_evals < max(self.min_evals, window):
             return True
 
-        # Trailing-window mean of each evaluation's mean reward. The same
-        # smoothed statistic feeds both the running peak and the current
-        # value, so noise is rejected symmetrically.
+        # A full-window median prevents one high outlier from setting the
+        # reference peak. Only the peak is windowed: the latest raw eval mean
+        # supplies one (and only one) patience observation.
         eval_means = np.array([float(np.mean(r)) for r in results])
-        window = self.smoothing_window
-        smoothed = np.array([float(eval_means[max(0, i - window + 1) : i + 1].mean()) for i in range(len(eval_means))])
-        # Only positions with a full trailing window may set the peak: a
-        # spike inside the first (window - 1) evals averages over fewer
-        # points, so without this it could still inflate the reference the
-        # way a single raw eval did. The peak is recomputed fresh from the
-        # full history each call (not accumulated across calls), so once the
-        # history reaches the window length those short-window early
-        # positions are dropped for good rather than locked in by an early
-        # call. ``smoothed`` covers all evaluations, so this fresh max is
-        # still monotonic once past the window; the fallback only matters if
-        # min_evals is configured below window (it is not in any stage).
-        eligible = smoothed[window - 1 :] if len(smoothed) >= window else smoothed
-        self._peak_score = float(eligible.max())
+        rolling_medians = np.array(
+            [float(np.median(eval_means[i - window + 1 : i + 1])) for i in range(window - 1, len(eval_means))]
+        )
+        self._peak_score = float(rolling_medians.max())
 
-        latest_smoothed = float(smoothed[-1])
+        latest_mean = float(eval_means[-1])
         threshold = (1.0 - self.drop_fraction) * self._peak_score
         armed = self._peak_score > 0 and self._peak_score >= self.peak_floor
 
-        if armed and latest_smoothed < threshold:
+        if armed and latest_mean < threshold:
             self._consecutive_drops += 1
             logger.warning(
-                "EvalCollapseEarlyStop: smoothed reward %.1f < %.1f (%.0f%% of smoothed peak %.1f), "
+                "EvalCollapseEarlyStop: eval mean %.1f < %.1f (%.0f%% of rolling-median peak %.1f), "
                 "consecutive drops: %d/%d",
-                latest_smoothed,
+                latest_mean,
                 threshold,
                 100 * (1 - self.drop_fraction),
                 self._peak_score,
@@ -1010,17 +987,35 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
             )
             if self._consecutive_drops >= self.patience:
                 logger.warning(
-                    "EvalCollapseEarlyStop: stopping training at step %d — smoothed reward collapsed "
+                    "EvalCollapseEarlyStop: stopping training at step %d — eval mean collapsed "
                     "from peak %.1f to %.1f",
                     self.num_timesteps,
                     self._peak_score,
-                    latest_smoothed,
+                    latest_mean,
                 )
                 return False
         else:
             self._consecutive_drops = 0
 
         return True
+
+
+def build_eval_collapse_early_stop_callback(
+    eval_callback: Any,
+    curriculum_kwargs: dict[str, Any],
+    *,
+    verbose: int = 0,
+) -> EvalCollapseEarlyStopCallback:
+    """Build the shared eval-collapse backstop from curriculum settings."""
+    return EvalCollapseEarlyStopCallback(
+        eval_callback=eval_callback,
+        min_evals=int(curriculum_kwargs.get("collapse_min_evals", 12)),
+        patience=int(curriculum_kwargs.get("collapse_patience", 8)),
+        drop_fraction=float(curriculum_kwargs.get("collapse_drop_fraction", 0.4)),
+        peak_floor=float(curriculum_kwargs.get("collapse_peak_floor", curriculum_kwargs.get("min_avg_reward", 0.0))),
+        verbose=verbose,
+        smoothing_window=int(curriculum_kwargs.get("collapse_smoothing_window", 5)),
+    )
 
 
 class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]

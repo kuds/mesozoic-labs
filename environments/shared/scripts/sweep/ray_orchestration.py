@@ -129,8 +129,8 @@ def create_ray_tuner(
     local_trials_dir: str | Path,
     sweep_dir: str | Path,
     load_path: str = "",
-    collapse_min_evals: int = 8,
-    collapse_patience: int = 5,
+    collapse_min_evals: int | None = None,
+    collapse_patience: int | None = None,
     n_eval_episodes: int = 30,
     use_asha: bool = True,
     grace_period: int = 30,
@@ -162,7 +162,7 @@ def create_ray_tuner(
     load_path:
         Optional warm-start checkpoint path.
     collapse_min_evals, collapse_patience:
-        Reward-collapse early stopping settings.
+        Optional positive overrides for the stage's reward-collapse settings.
     n_eval_episodes:
         Number of episodes per evaluation round (default 30; use 15 on T4).
     use_asha:
@@ -292,8 +292,8 @@ def run_ray_sweep(
     local_trials_dir: str | Path,
     sweep_dir: str | Path,
     load_path: str = "",
-    collapse_min_evals: int = 8,
-    collapse_patience: int = 5,
+    collapse_min_evals: int | None = None,
+    collapse_patience: int | None = None,
     n_eval_episodes: int = 30,
     use_asha: bool = True,
     grace_period: int = 30,

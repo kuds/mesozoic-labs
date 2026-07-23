@@ -18,18 +18,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   home-control no-saturation guarantee are unchanged, and a new
   sprint-regime contract test pins the knee headroom.
 
-- **Eval-collapse early-stop now smooths both sides, is gate-floored, and
-  loosened for stage 1**: the backstop compares a trailing-window mean
-  (default 5 evals, `collapse_smoothing_window`) of the per-evaluation
-  mean reward against `(1 − drop_fraction)` of the smoothed peak, and only
-  arms once that peak clears the stage's `min_avg_reward` gate (overridable
-  via `collapse_peak_floor`). Using one smoothed measure of central
-  tendency on both sides rejects single-evaluation noise symmetrically and
-  defeats both observed artifacts: a variance-inflated early evaluation
-  (run `20260720_203454`'s 50k eval, 261.79 ± 261.72) is averaged in with
-  its neighbours so it cannot set the peak and abort stage 1, and a healthy
-  but bimodal gait transition (half the episodes still scoring ~1300)
-  keeps a healthy trailing mean so it cannot read as a collapse.
+- **Eval-collapse early-stop now uses a robust peak, raw-eval patience, a
+  gate floor, and looser stage-1 settings**: the backstop takes the maximum
+  full-window rolling median (default 5 evals,
+  `collapse_smoothing_window`) of the per-evaluation mean rewards as its
+  reference peak, then counts each newly arrived raw per-evaluation mean
+  below `(1 − drop_fraction)` of that peak once toward `collapse_patience`.
+  Detection waits for both `collapse_min_evals` and a full median window,
+  and only arms once the robust peak clears the stage's `min_avg_reward`
+  gate (overridable via `collapse_peak_floor`). Separating the peak
+  estimator from patience rejects noise without multiplying it across
+  overlapping windows: a variance-inflated early evaluation (run
+  `20260720_203454`'s 50k eval, 261.79 ± 261.72) cannot dominate the median
+  peak, while one low evaluation contributes exactly one patience strike.
+  A healthy but bimodal gait transition is judged by its per-evaluation
+  mean rather than `mean − std`, so intermittent healthy evaluations reset
+  patience instead of reading as a sustained collapse.
   All three stage-1 TOMLs also gain the explicit
   `collapse_min_evals = 20` / `collapse_patience = 10` /
   `collapse_drop_fraction = 0.5` overrides stage 2 already had.
