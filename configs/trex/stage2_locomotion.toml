@@ -30,6 +30,9 @@ bite_bonus = 0.0
 bite_approach_weight = 0.0
 prey_distance_range = [8.0, 12.0]
 max_episode_steps = 1000
+reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
+                                       # while [jax] used 0.05. Stage 1 raised it deliberately; stages 2-3
+                                       # inherited a 5x narrower reset distribution by accident.
 
 [ppo]
 learning_rate = 5e-5                    # Reduce from 1e-4: prevent catastrophic forgetting of Stage 1 balance
@@ -49,12 +52,12 @@ ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefD
 target_kl = 0.05                        # Loosened from 0.03 for the locomotion stage (fast early learning); matches the JAX path's value.
 
 [ppo.policy_kwargs]
-net_arch = [512, 256]                  # Larger first layer for T-Rex's higher-dimensional obs space (83 vs raptor's 67)
+net_arch = [512, 256]                  # Match raptor width; T-Rex obs is 61 since the arms/distal tail were welded
 
 [sac]
 learning_rate = 1e-4              # 3x reduction from Stage 1 — replay buffer provides natural gradient smoothing
 batch_size = 256
-gamma = 0.99                     # Keep at 0.99 — replay staleness + T-Rex's high obs dimensionality (83) makes
+gamma = 0.99                     # Keep at 0.99 — replay staleness at high gamma makes
                                  # high gamma risky; the buffer naturally handles temporal credit assignment
 tau = 0.005
 ent_coef = "auto"                # Auto-entropy handles Stage 1→2 transition exploration naturally
@@ -65,7 +68,7 @@ train_freq = 16                  # Collect 16 env steps before training — matc
 gradient_steps = 8               # 2:1 data-to-update ratio — matches raptor; reduces overfitting risk on replay buffer
 
 [sac.policy_kwargs]
-net_arch = [512, 256]            # Larger first layer for T-Rex's higher-dimensional obs space (83 vs raptor's 67)
+net_arch = [512, 256]            # Match raptor width; T-Rex obs is 61 since the arms/distal tail were welded
 
 [jax]
 num_envs = 2048

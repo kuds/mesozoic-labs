@@ -29,7 +29,12 @@ bite_bonus = 0.0
 bite_approach_weight = 0.0                     # Must be explicit — species default was leaking into stage 1 via key mismatch bug
 prey_distance_range = [10.0, 15.0]
 max_episode_steps = 1000                       # Match stage 2/3 for consistent episode horizon across curriculum
-reset_noise_scale = 0.05                       # Increased from 0.01 default to improve robustness (matches raptor)
+reset_noise_scale = 0.10                       # Calibrated against the zero-action baseline
+                                               # (environments/shared/scripts/zero_action_baseline.py): at 0.05 the
+                                               # do-nothing policy already reaches the full horizon in 93% of episodes,
+                                               # so the stage rewards a statue and training can only lose ground. 0.10
+                                               # drops that floor to ~67%, leaving real headroom; 0.15 drops it to 23%,
+                                               # which starts to look unlearnable.
 
 [ppo]
 learning_rate = 3e-5                    # Setting 4 sweep: 3.23e-5 — 10x lower. All successful S1→S3 runs used this. Old 3e-4 caused instability.
@@ -72,7 +77,7 @@ train_freq = 16                  # Collect 16 env steps before training — matc
 gradient_steps = 8               # 2:1 data-to-update ratio — matches raptor; reduces overfitting risk on small buffer
 
 [sac.policy_kwargs]
-net_arch = [512, 256]            # Match PPO architecture; T-Rex's 83 obs dims handled by input layer, not hidden width
+net_arch = [512, 256]            # Match PPO architecture (obs is 61 since the arms/distal tail were welded)
 
 [jax]
 num_envs = 2048                         # Parallel MJX environments on GPU
@@ -91,7 +96,7 @@ vf_clip_range = 10.0                    # Clip value function updates to prevent
 ent_coef = 0.005                        # Match SB3 PPO — 0.01 caused entropy to increase and policy std to diverge
 target_kl = 0.05                        # Early-stop PPO epochs when approx KL exceeds this — prevents policy collapse
 fall_penalty = -10.0                    # Reduced from -50: large penalties cause value loss to dominate early training (v≈1174 at init → divergence)
-reset_noise_scale = 0.05               # Joint angle perturbation range (radians) at reset
+reset_noise_scale = 0.10               # Match [env]: calibrated against the zero-action baseline
 init_qpos_noise = 0.01                 # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
 init_yaw_noise = 0.1                   # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
 

@@ -184,6 +184,19 @@ Still open:
   torque-to-inertia; slams its limits); contype-0 neck geoms can visually
   clip the floor; no `<light>`/`<visual>` block for nicer renders; brachio
   food has no collision partner.
+- **HIGH** — the brachiosaurus cannot hold its home stance. Under the neutral
+  action (`action = 0`, i.e. the exact home controls) with `reset_noise_scale`
+  set to **zero**, the torso sags 1.21 m → ~1.04 m and the episode terminates
+  `fallen` at step 202 of 1000, against a `healthy_z_range` floor of 1.0 m.
+  With stage-1 noise it falls at ~100 steps, and the zero-action baseline is
+  0% full-horizon at every reset-noise level (110.37 ± 57.86 reward). CI misses
+  it because `NeutralActionStabilityBase.test_survives_100_neutral_action_steps`
+  stops at 100 steps and the full-horizon variant
+  (`test_survives_full_noise_free_episode`) is defined only on the T-Rex
+  subclass. Either the servo-held stand from the July 2026 repair regressed or
+  it never held for a full episode. Fix the sag, add the full-horizon neutral
+  test to the shared base, then re-measure with
+  `environments/shared/scripts/zero_action_baseline.py brachiosaurus`.
 - **LOW** — the T-Rex `tail_1_geom` overlaps both thigh capsules by 18.8 mm at
   the home keyframe, injecting a constant self-contact force into the stance
   (pre-existing; unchanged by the July 2026 plant revision, which measured it

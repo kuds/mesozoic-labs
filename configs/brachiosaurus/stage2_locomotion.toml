@@ -26,6 +26,9 @@ food_head_proximity_weight = 0.0
 food_distance_range = [8.0, 12.0]
 food_height_range = [2.0, 3.0]
 max_episode_steps = 1000
+reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
+                                       # while [jax] used 0.05. Stage 1 raised it deliberately; stages 2-3
+                                       # inherited a 5x narrower reset distribution by accident.
 healthy_z_range = [0.85, 3.5]          # Lowered fall floor from the env default 1.0: settled stance is ~1.13 m and normal gait bob dips to ~1.10 m, so a 1.0 floor fired spurious "fallen" terminations mid-gait (short 642/1000-step episodes, high variance). 0.85 keeps real falls detectable while letting the gait breathe.
 
 [ppo]
