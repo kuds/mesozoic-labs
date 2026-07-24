@@ -42,6 +42,14 @@ ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefD
                                         # stages 1 & 2 both destabilized late under constant ent_coef
                                         # (bimodal falls, action std growth); decay fixed its stage 2 and is
                                         # enabled for its stage 1. See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
+ent_coef_decay_timesteps = 3000000      # Anchor the decay to ~half the 6M budget so ent_coef hits its 0.001 floor
+                                        # BEFORE the late std drift, instead of coasting high for the whole run. When
+                                        # unset, decay_timesteps defaults to the full stage budget
+                                        # (train_base._maybe_ent_coef_decay_callback), which is why run 20260723_204941
+                                        # never annealed: algo_std rose 1.01 -> 1.04 and the legs jittered at ~1.0
+                                        # RMS/joint for the entire run. Velociraptor stage 1 (annealed 1.01 -> 0.93,
+                                        # lowest jitter of any stage) and T-Rex stage 3 both anchor at 3M; stage 1 was
+                                        # the only balance stage missing it. See docs/investigations/TREX_STAGE1_LEG_JITTER.md.
 
 target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL); mirrors the JAX target_kl guard.
 
