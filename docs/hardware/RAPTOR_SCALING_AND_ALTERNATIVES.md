@@ -1,25 +1,33 @@
-# Running Raptor Plans + a Sub-$10k Agile-Runner Species
+# Running Raptor Plans + a Sub-$5k Quadruped Starter
 
 > **Status:** Cost/parts + feasibility study for *dynamic-running* dino robots.
 > Companion to [`HARDWARE_BOM.md`](HARDWARE_BOM.md) (which covers *walking*
-> builds) and [`SIM_TO_REAL_PLAN.md`](SIM_TO_REAL_PLAN.md). Prices are
-> web-sourced 2026 USD, **parts only** (no engineering labor). Figures reflect
-> adversarial verification — two of three builds were independently checked and
-> came back "minor-issues"; corrections are folded in below.
+> builds) and [`SIM_TO_REAL_PLAN.md`](SIM_TO_REAL_PLAN.md). Prices are USD,
+> **parts only** (no engineering labor), and were last checked **2026-07-24**.
+> The sub-$5k recommendation is sourced to an orderable, open platform; its
+> cosmetic dinosaur parts and reserves are planning allowances rather than
+> vendor quotes.
 
 ## The one-line answer
 
-> **There is no buildable-today, sub-$10k, two-legged _running_ robot — and the
-> limit is control, not motors.**
+> **For a first physical Mesozoic robot under $5k, build a juvenile
+> _Psittacosaurus_ around the open Pupper V3 quadruped.** Deliver reliable
+> walking/trotting first; treat 1 m/s as a measured research target, not a
+> purchase-time promise.
 
 The *parts* for a bipedal runner exist under $10k (~$5–7k of COTS motors, frame,
 and compute). What doesn't exist is a proven, replicable "build-it-and-it-runs"
-recipe for a cheap biped — the way quadrupeds already have one (Stanford Doggo,
-ODRI Solo-8, MIT Mini-Cheetah all run out of the box). So the three real options
-collapse to:
+recipe for a cheap biped. An exact open quadruped platform provides a much
+shorter path because its CAD, electronics, controller, and assembly sequence
+have already been exercised by other builders. The practical options are:
 
-- **Actually runs, under $10k, buildable now → must be a quadruped** →
-  Scutellosaurus, ~$5–7k (§3).
+- **Owner-built, open, and under $5k** → juvenile _Psittacosaurus_ on Pupper V3,
+  about $4.2–4.8k including a light shell, spares, safety gear, freight/tax, and
+  contingency (§3).
+- **Advertised 2–3 m/s immediately, under $5k** → a prebuilt Unitree Go2 Air or
+  Pro with a passive shell. This is faster to demonstrate, but it is not the
+  recommended owner-built research path because the official comparison marks
+  Air and Pro as unavailable for secondary development (§3).
 - **Two legs, cheap, reliable → a *walker*, not a runner** → Compsognathus, ~$1k
   walking; a ~$5k QDD version *can attempt* running, but the gait is a research
   bet, not a deliverable (§4).
@@ -37,17 +45,17 @@ Three plans, one clear recommendation:
 | Build | Mass | Cost (parts) | Runs & agile? | Custom actuators? |
 |---|---|---:|---|---|
 | **Full raptor** (1:1, 13.5 kg biped) | 13.5 kg | **$26k–45k** (~$36k) + labor | Plausible but **frontier research** | **Yes, required** |
-| **Scaled raptor** (~0.72×, biped) | ~6.5–7 kg | **$5.6k–8k** (~$6.9k) | Runs, but fights biped balance | No (all-COTS) |
+| **Scaled raptor** (~0.72×, biped) | ~6.5–7 kg | **$5.6k–8k** (~$6.9k) | Running is **unproven**; biped balance dominates | No (all-COTS) |
 | **Compsognathus** (~2.5–3 kg biped) | ~3 kg | **~$4k–6k** (can approach $5k) | Runs on paper; **control-limited** | No (all-COTS, comfortable headroom) |
-| **Scutellosaurus quadruped** ⭐ *recommended* | ~7–9 kg | **~$6.9k**, or **$3.5k–4.5k** budget | **Yes — genuinely agile** | No (all-COTS) |
+| **Juvenile Psittacosaurus / Pupper V3** ⭐ *recommended first build* | 3 kg stock; **≤3.5 kg** dressed target | **~$4.2k–4.8k program cap** | Proven dynamic-quadruped base; dressed speed must be measured | No custom motor; printed parts + orderable PCBs |
 
 **The core principle:** peak joint torque scales with roughly the **4th power of
-size** (mass ∝ L³, torque ∝ mass·L ∝ L⁴), and **quadrupeds are the only proven
-cheap path to agile running**. Every sub-$10k robot that actually runs — Stanford
-Doggo (~$3k), ODRI Solo-8 (~$4.3k), MIT Mini-Cheetah — is a quadruped. The
-cheapest credible *bipeds* (Berkeley Humanoid Lite, <$5k) only **walk**. So
-"agile + runs + no custom actuators + under $10k" points hard at a **small
-quadruped**, not a full-size biped.
+size** (mass ∝ L³, torque ∝ mass·L ∝ L⁴). More importantly for a solo first
+build, an exact replicated quadruped preserves a demonstrated mechanical and
+control stack. The [Stanford Pupper paper](https://arxiv.org/abs/2110.00736)
+reports a 12-DOF, off-the-shelf, torque-controlled platform independently
+reproduced across institutions. A new dinosaur chassis using similar motors
+does **not** automatically inherit that result.
 
 ---
 
@@ -102,54 +110,127 @@ contingency → **~$6,900** (range $5.6k–8k).
 > servo, not true QDD — marginal backdrivability for agile impacts; (2) actuator
 > mass pushes realistic all-up weight to ~6.5–7 kg, not 5.5 kg; (3) **biped
 > dynamic balance, not torque or cost, is the hard part** — cheap bipedal running
-> has essentially no prior art. It *will* run, but the control problem will
-> dominate the schedule. (This build was not independently verified.)
+> has essentially no prior art. This is a running-capable hardware estimate, not
+> evidence that the assembled robot will run. (This build was not independently
+> verified.)
 
 ---
 
-## 3. ⭐ Recommended: a Scutellosaurus quadruped — ~$6.9k, or under $5k
+## 3. ⭐ Recommended first build: juvenile Psittacosaurus on Pupper V3
 
-If the goal is a robot that **genuinely runs and is agile** on catalog parts,
-**go quadruped** — it sidesteps the biped-hip torque wall entirely (load splits
-across four legs → per-joint run peaks fall to **~15–20 N·m**) and inherits a
-solved dynamic-gait control problem.
+### Why this species
 
-**Why this species.** **Scutellosaurus lawleri** (~3 kg basal armored
-ornithischian) was **genuinely facultatively quadrupedal** — so building it on
-four legs is biologically honest, not a fudge — and its heavy armored tail maps
-naturally onto a **rear battery/compute counterweight**. It sits dead-center in
-the 2–8 kg sweet spot and maps cleanly onto the Stanford Doggo / ODRI Solo-8 /
-Mini-Cheetah lineage. *(Alternative: a **juvenile Psittacosaurus**, which was
-ontogenetically quadrupedal at this scale — equally defensible.)*
+A juvenile **_Psittacosaurus lujiatunensis_** is the cleanest biological match
+for a small quadruped. A histological and limb-allometry study inferred a
+quadrupedal-to-bipedal shift during growth, while regarding the adult as mainly
+bipedal ([Zhao et al., 2013](https://www.nature.com/articles/ncomms3079)).
+Call the result **juvenile-inspired**, not a scale reconstruction: the robot's
+geometry is constrained by a proven quadruped chassis.
 
-**12-DOF (3 per leg), all-COTS integrated QDD:**
+The previous recommendation, _Scutellosaurus_, was too confident. A detailed
+2021 anatomical reassessment identified it as the only definitive bipedal
+thyreophoran ([Breeden et al., 2021](https://pmc.ncbi.nlm.nih.gov/articles/PMC8292774/)).
+A later simulation found that rare quadrupedal behavior may have been possible,
+but predicted it would be unusual
+([Anderson et al., 2023](https://doi.org/10.1002/ar.25189)). That makes it a poor
+default for an explicitly four-legged robot.
 
-| Joint | Qty | Run torque | Actuator (primary) | Peak |
-|---|---:|---|---|---:|
-| Hip abduction | 4 | ~8–12 N·m | CubeMars AK70-10 | 24.8 N·m |
-| Hip flex/extend | 4 | ~15–20 N·m | CubeMars AK70-10 | 24.8 N·m |
-| Knee | 4 | ~15–20 N·m | CubeMars AK70-10 | 24.8 N·m |
+### Preserve the proven robot; add the animal around it
 
-| Cost block | Primary (AK70-10) | Budget (GIM8108-8) |
-|---|---:|---:|
-| 12× actuators | $4,787 | $2,220 |
-| Frame, power (6S), Jetson Orin Nano, IMU, feet, wiring | ~$890 | ~$890 |
-| Spares & breakage reserve | $1,200 | ~$600 |
-| **Total** | **~$6,900** | **~$3,500–4,500** |
+Use **Pupper V3 without changing its load-bearing leg geometry, transmissions,
+electronics, or baseline controller**. Its official documentation specifies:
 
-- **Under $10k route:** 12× CubeMars AK70-10 (24.8 N·m peak, true 10:1
-  backdrivable QDD) → **~$6,900**. Comfortable trot/turn margin.
-- **Under $5k route:** swap to 12× SteadyWin GIM8108-8 Mini-Cheetah-style modules
-  (22 N·m peak, integrated open-source CAN driver, ~$185 each) → **~$3.5k–4.5k**.
+- 12 actuated joints (three per leg), 3 kg stock mass, and a 25 × 20 × 22 cm
+  crouched envelope;
+- twelve orderable SteadyWin GIM4305 actuators with 10:1 planetary gearing,
+  about 3.5 N·m peak / 1.0 N·m continuous torque, and about 30 rad/s maximum
+  speed;
+- Raspberry Pi 5 (8 GB), a BNO086 IMU, IMX296 fisheye camera, microphone,
+  actuator angle/velocity/effort telemetry, and battery-voltage sensing; and
+- open CAD, build instructions, software, and simulation/RL course material.
 
-> **Verification caveats:** realistic all-up mass is **~9 kg** (12 motors alone
-> are ~6.3 kg), i.e. genuine Mini-Cheetah class / an upper-mass Scutellosaurus. At
-> 9 kg the AK70-10 top-end margin tightens, and the sub-$5k GIM8108-8 variant is
-> **fine for reliable trotting/turning at ~2.5–3 m/s but marginal for the full
-> bound/backflip/self-right envelope** — scope the cheap build to trotting. Also:
-> COTS QDD margins are quoted against *peak* torque; sustained running is
-> thermally limited by the much lower continuous rating, so expect
-> ~10–20 min of active running per battery.
+Sources: [Pupper V3 technical specifications](https://pupper-v3-documentation.readthedocs.io/en/latest/learn_more/tech_specs.html),
+[sourcing guide and official BOM](https://pupper-v3-documentation.readthedocs.io/en/latest/guide/sourcing_parts.html),
+and the [replication paper](https://arxiv.org/abs/2110.00736).
+
+The V1 dinosaur conversion should be deliberately passive:
+
+- lightweight removable head and torso skins;
+- a hollow, compliant tail attached to the body, **not** to a leg or motor
+  housing;
+- no active jaw, neck, tail, or facial mechanisms until locomotion passes with
+  ballast; and
+- **≤0.5 kg total morphology allowance**, with the center of mass kept inside
+  the stock support polygon. Validate that allowance in 100 g ballast steps
+  before printing finished parts.
+
+This keeps the stock robot near its demonstrated operating point. It also makes
+the shell sacrificial during falls and preserves access to the back-mounted
+E-stop. Pupper's safety guide explicitly warns about motor heat and extended
+exertion, so thermal/current logging is a release gate, not an afterthought
+([Pupper V3 safety](https://pupper-v3-documentation.readthedocs.io/en/latest/using_pupper/safety.html)).
+
+### Budget cap
+
+The live Pupper V3 BOM currently totals **$2,158.91** (minimum-price column
+$1,785.91), including twelve actuators, Pi, IMU/control PCB, two batteries,
+controller, camera options, structure, and ordinary build tools. A current
+supplier also lists a preconfigured full-parts bundle at $2,350, but it is
+backordered and still excludes printed parts, batteries, controller, and setup
+items; self-sourcing from the official BOM is therefore the budget route
+([official BOM](https://docs.google.com/spreadsheets/d/1e6Hyhc8V6_9mfPMaPCI1v3W4uGBJp4r0xIzH3rUtAeI/edit?usp=sharing),
+[supplier listing](https://aifitlab.com/products/pupper-v3-stanford-open-source-robotics-dog?variant=43740448555144)).
+A second endorsed supplier lists a more complete kit at $3,400, which leaves
+little reserve under $5k
+([Present Perfection kit](https://www.present-perfection.com/product-page/pupper-v3-full-kit)).
+Access to a 3D printer and availability of the self-sourced actuator/PCB path
+are therefore procurement gates.
+
+| Cost block | Planning allowance | Basis |
+|---|---:|---|
+| Complete self-sourced Pupper V3 | **$2,159** | Live official BOM total |
+| Two spare actuators + printed leg/hardware reserve | **$450** | BOM actuator bundle is $1,320/12; balance is local-fabrication reserve |
+| Passive juvenile-Psittacosaurus head, shell, and tail | **$400** | Project allowance; prototype in foam/cardboard before final print |
+| Tether/stand, floor protection, battery/fire-safe handling | **$350** | Project safety/test allowance |
+| Freight and sales-tax allowance | **$550** | Location-dependent reserve |
+| Unallocated breakage/price contingency | **$800** | Held until the stock robot passes acceptance |
+| **Program cap** | **≈$4,700** | Parts only; owner labor and major shop tools excluded |
+
+This budget uses **catalog integrated motors**, not a custom motor design. It
+does require 3D-printed parts and two orderable PCBs, so it is a DIY build rather
+than a zero-fabrication assembly.
+
+### Capability gates — do not promise 2–3 m/s up front
+
+Pupper V3's official material demonstrates agile locomotion but does **not**
+publish a verified physical top speed. Stanford's current course asks students
+to train a stable policy up to 0.75 m/s **in simulation**, then explicitly
+compare its behavior after physical deployment
+([CS123 Lab 5](https://cs123-stanford.readthedocs.io/en/latest/schedule/labs/spring-25/lab-5.html)).
+The correct V1 acceptance sequence is:
+
+1. Build the stock Pupper and reproduce its baseline walk/trot with no dinosaur
+   parts.
+2. Repeat with 0.1, 0.3, and 0.5 kg ballast at the planned shell locations;
+   reject any placement that causes current, temperature, or fall-rate
+   regression.
+3. Install the passive shell and qualify turning, stopping, disturbance
+   recovery, camera/IMU logging, and E-stop access.
+4. Measure speed over a repeatable 5 m course, progressing through 0.25, 0.5,
+   and **0.75 m/s**. Attempt **1.0 m/s** only while thermal and fall-rate gates
+   pass.
+
+Reliable walking/trotting at 0.5–0.75 m/s is the target deliverable.
+**1 m/s is a stretch experiment; 2–3 m/s is not a credible Pupper-based
+commitment without a demonstrated controller and dressed-robot test data.**
+
+If advertised speed matters more than openness, the official Unitree comparison
+lists the 15 kg Go2 Air at **$1,600 / 2.5 m/s** and Pro at **$2,800 / 3.5 m/s**
+before tax and freight. It also marks both as unavailable for secondary
+development. Either could wear a passive juvenile ceratopsian shell under a
+$5k parts cap, but that is a **prebuilt, vendor-gait robot**, not the recommended
+owner-built research platform
+([Unitree Go2 specifications](https://www.unitree.com/go2/)).
 
 ---
 
@@ -206,32 +287,35 @@ same budget remains the surer bet for *actually-achieved* agile running.
 
 ---
 
-## 5. Reference points (why these numbers are credible)
+## 5. Reference points for the sub-$5k decision
 
-| Robot | Type | Mass | Runs? | Cost |
-|---|---|---|---|---:|
-| Stanford Doggo | QDD quad, open-source | <5 kg | Yes (jumps/backflips) | ~$3,000 |
-| ODRI Solo-8 | QDD quad, open-source | ~2.5 kg | Yes | ~$4,300 |
-| MIT Mini-Cheetah | QDD quad | 9 kg | Yes (2.5 m/s) | ~$3.6k motors / ~$10k build |
-| Unitree Go2 | QDD quad, commercial | ~15 kg | Yes, turnkey | $1,600+ |
-| Berkeley Humanoid Lite | biped, 3D-printed | ~16 kg | **No — walks only** | <$5,000 |
-| SpotMicro / hobby-servo quads | servo quad | ~2 kg | **No — slow walk** | $300–600 |
+| Robot | Build model | Mass | Speed evidence | Price evidence |
+|---|---|---:|---|---:|
+| [Pupper V3](https://pupper-v3-documentation.readthedocs.io/en/latest/) | Open CAD/software; owner-built | 3 kg | Course target **0.75 m/s in simulation**; physical top speed unpublished | About $2,000; live BOM **$2,158.91** |
+| [Stanford Pupper (paper)](https://arxiv.org/abs/2110.00736) | Open, independently reproduced | 2.1 kg | Dynamic omnidirectional reference gait + 5 m sprint benchmark | Historical build **under $2,000** |
+| [Unitree Go2 Air](https://www.unitree.com/go2/) | Prebuilt; no official secondary development | ~15 kg | Vendor-rated **2.5 m/s** | **$1,600** before tax/freight |
+| [Unitree Go2 Pro](https://www.unitree.com/go2/) | Prebuilt; no official secondary development | ~15 kg | Vendor-rated **3.5 m/s** | **$2,800** before tax/freight |
 
-The pattern is unambiguous: **cheap + agile + runs ⇒ QDD quadruped.**
+The decision is not simply "quadruped versus biped." It is **replicate a proven
+open platform versus design a new robot**. For a solo first build, replication
+is the lower-risk use of the first $5k.
 
 ---
 
 ## 6. Recommendation & caveats
 
-**Build the Scutellosaurus quadruped.** It's the single best path to an agile,
-genuinely-running dino robot on catalog parts with zero custom actuators — under
-$10k with AK70-10 (~$6.9k), or under $5k via the GIM8108-8 swap (~$3.5–4.5k,
-scoped to trotting). If a **biped is required**, the best small-biped pick is a
-**Compsognathus (~2.5–3 kg, ~$4–6k)** — small enough that COTS true-QDD motors
-give comfortable headroom (§4) — with the scaled raptor (~$6.9k) as the larger
-"stay-a-theropod" option; either way you accept the unsolved cheap-biped-running
-control problem. Treat the full 13.5 kg raptor as a funded research program, not
-a build.
+**Build a juvenile-Psittacosaurus Pupper V3.** It is the best first use of a
+sub-$5k budget because the exact chassis is open, documented, small enough to
+work on safely, already includes the essential camera/IMU/proprioceptive sensor
+set, and uses orderable integrated motors. Keep V1 to a passive removable
+morphology and preserve the stock robot beneath it.
+
+If **2.5 m/s on day one** is non-negotiable, use a Go2 Air as a prebuilt base and
+accept the loss of official secondary-development access. If a **biped is
+required**, the best small-biped pick remains a **Compsognathus (~2.5–3 kg,
+~$4–6k)**, with the important caveat that affordable dynamic biped control is a
+research bet. Treat the full 13.5 kg raptor as a funded research program, not a
+first build.
 
 **Caveats:**
 - **All figures are parts-only.** Dynamic running is a substantial controls
@@ -239,8 +323,10 @@ a build.
   run. Budget engineering months.
 - **Spares are load-bearing, not padding** — dynamic bring-up cracks frames,
   shears encoder magnets, and fries drivers.
-- **Continuous ≠ peak:** margins are quoted against transient peak torque;
-  sustained running is thermally limited (~10–20 min/pack).
+- **Continuous ≠ peak:** Pupper's documented actuator figures are about
+  3.5 N·m peak versus 1.0 N·m continuous with air cooling. Do not infer sustained
+  speed from peak torque.
 - **Morphology is a curatorial call:** the quadruped adds a new species rather
   than reusing the roster's raptor. It's the right engineering choice for cheap
-  agile running, but it's your decision to make.
+  first-build agility, but it should remain visibly labeled
+  "juvenile-inspired."

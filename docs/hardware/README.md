@@ -5,12 +5,13 @@ These are *plans/designs* in the [docs map](../README.md) sense — nothing here
 has been built. `hardware_prototype` is still `planned` in
 [`species_manifest.toml`](../../configs/species_manifest.toml).
 
-> **Headline conclusion (2026): there is no buildable-today, sub-$10k, two-legged
-> _running_ robot — the limit is control, not motors.** An agile runner under
-> $10k must be a **quadruped** (Scutellosaurus, ~$5–7k). A two-legged build
-> (Compsognathus) is a reliable ~$1k **walker**; running on two legs is a
-> research bet, not a deliverable. Full-size bipedal running (13.5 kg raptor) is
-> a $20k+ research program.
+> **Headline conclusion (2026): there is no buildable-today, sub-$10k,
+> two-legged _running_ recipe — the limit is control, not motors.** The
+> recommended solo first build is a juvenile-Psittacosaurus shell on the open
+> Pupper V3 quadruped, capped at ~$4.7k. Reliable walking/trotting is the V1
+> deliverable; 1 m/s is a measured stretch target, not a promise. A
+> Compsognathus remains a reliable ~$1k **walker**, while full-size bipedal
+> running (13.5 kg raptor) is a $20k+ research program.
 
 ## Reading order
 
@@ -22,8 +23,8 @@ has been built. `hardware_prototype` is still `planned` in
    *walking* robots: Compsognathus (~$950) and Velociraptor (~$8.7k).
 3. **[RAPTOR_SCALING_AND_ALTERNATIVES.md](RAPTOR_SCALING_AND_ALTERNATIVES.md)** —
    *running* robots: raptor scaling (full ~$36k, scaled ~$6.9k), the
-   bipedal-vs-quadruped analysis, and the recommended sub-$10k agile-runner
-   species (a Scutellosaurus quadruped, ~$5–7k / sub-$5k budget variant).
+   bipedal-vs-quadruped analysis, and the recommended sub-$5k first physical
+   platform (a juvenile _Psittacosaurus_ on Pupper V3, ~$4.7k program cap).
 
 ## Conventions for this track
 
@@ -32,5 +33,6 @@ has been built. `hardware_prototype` is still `planned` in
 - Torque/mass/cost figures were adversarially verified where noted; corrections
   are folded into each doc rather than appended.
 - Two design dials recur throughout: **money buys _size_** (torque ~ size⁴, so
-  above ~10 kg you need custom actuators) and **legs buy _reliable running_**
-  (quadrupeds have a solved cheap gait stack; cheap bipedal running is unsolved).
+  above ~10 kg you need custom actuators) and **replication buys a shorter
+  controls path** (an exact open quadruped is much lower risk than a new
+  low-cost biped or clean-sheet quadruped).
