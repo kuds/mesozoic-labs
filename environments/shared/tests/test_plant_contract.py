@@ -149,7 +149,7 @@ def test_runtime_identity_falls_back_to_bundled_manifest(monkeypatch, tmp_path):
 
 @pytest.mark.parametrize(
     ("species", "observation_dim", "action_dim"),
-    [("velociraptor", 67, 22), ("trex", 83, 21), ("brachiosaurus", 83, 30)],
+    [("velociraptor", 67, 22), ("trex", 61, 21), ("brachiosaurus", 83, 30)],
 )
 def test_current_identity_matches_each_executable_environment(species, observation_dim, action_dim):
     # Identity generation requires exact SB3/MJX observation parity.

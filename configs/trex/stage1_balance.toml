@@ -16,7 +16,10 @@ energy_penalty_weight = 0.075                  # Setting 4 sweep: 0.075 forces e
 tail_stability_weight = 0.15
 posture_weight = 1.5                           # Increased from 1.5: with lower alive_bonus, stronger tilt penalty drives upright stance
 nosedive_weight = 1.5                          # Increased from 3.0: complement posture weight to prevent forward pitch exploit
-nosedive_termination_threshold = 0.35          # Tighter than default 0.5: terminate at ~25° beyond natural lean instead of ~42°
+nosedive_termination_threshold = 0.47          # Terminates at forward_z < -0.519 (~31° nose-down), unchanged from the
+                                               # 0.35 that preceded the natural_pitch 0.17 -> 0.05 correction. natural_pitch
+                                               # now describes the measured neutral pose, so the threshold absorbs the
+                                               # 0.12 shift and the absolute termination envelope is identical.
 smoothness_weight = 0.1
 heading_weight = 0.1                           # Small heading reward to prevent spin-to-balance exploits
 gait_symmetry_weight = 0.0                     # Disable: default formula rewards single-foot stance, bad for balance

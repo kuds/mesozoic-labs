@@ -6,8 +6,8 @@ The Stage 3 task uses contact between a fixed head geom and prey as a
 "bite" proxy; the model has no articulated jaw.
 
 Observation space (total dimension is generated in the public species catalog):
-    - Joint positions (qpos[7:]) — 33 (25 hinge + 2x4 ball shoulders)
-    - Joint velocities (qvel[6:]) — 31 (25 hinge + 2x3 ball shoulders)
+    - Joint positions (qpos[7:]) — 21 (21 hinge)
+    - Joint velocities (qvel[6:]) — 21 (21 hinge)
     - Pelvis orientation (quaternion) — 4
     - Pelvis angular velocity (gyroscope) — 3
     - Pelvis linear velocity — 3
@@ -81,7 +81,7 @@ class TRexEnv(BaseDinoEnv):
         bite_head_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
-        natural_pitch: float = 0.17,
+        natural_pitch: float = 0.05,
         height_weight: float = 0.0,
         gait_symmetry_weight: float = 0.0,
         smoothness_weight: float = 0.05,
@@ -97,7 +97,7 @@ class TRexEnv(BaseDinoEnv):
         forward_vel_max: float = 8.0,
         foot_contact_weight: float = 0.0,
         foot_contact_gate: float = 0.0,
-        nosedive_termination_threshold: float = 0.5,
+        nosedive_termination_threshold: float = 0.62,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
@@ -130,9 +130,15 @@ class TRexEnv(BaseDinoEnv):
         self.foot_contact_gate = foot_contact_gate
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
-        # Natural forward pitch (~10°). The nosedive penalty and termination
-        # are measured relative to this angle so the T-Rex isn't punished for
-        # its biomechanically correct forward lean.
+        # Natural forward pitch (~2.9°), measured: the pelvis frame at the home
+        # keyframe is level, and under the home controller the plant settles at
+        # forward_z ≈ -0.050.  The nosedive penalty and termination are measured
+        # relative to that neutral pose.  The former 0.17 rad (9.7°) described
+        # the torso capsule's built-in slope, not the pelvis frame the reward
+        # actually reads, so it granted ~7 deg of unpenalized nose-down pitch.
+        # Unlike the raptor, the T-Rex posture reward stays centred on world
+        # vertical (see _get_reward_info); the MJX path matches by leaving
+        # posture_target_forward_z unset for this species.
         self._natural_forward_z = -np.sin(natural_pitch)
 
         # T-Rex-specific env settings
