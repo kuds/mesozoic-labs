@@ -44,14 +44,15 @@ Plans and feasibility studies for physical robots, grouped in
 [README](hardware/README.md). Nothing here is built yet.
 
 **Headline conclusion:** there is no buildable-today, sub-$10k, two-legged
-*running* robot — the limit is control, not motors; an agile runner under $10k
-must be a quadruped.
+*running* recipe — the limit is control, not motors. The recommended sub-$5k
+first physical platform is a juvenile-Psittacosaurus shell on the open Pupper V3
+quadruped; reliable walking/trotting comes before speed experiments.
 
 | Document | Date | One-liner |
 |---|---|---|
 | [hardware/SIM_TO_REAL_PLAN.md](hardware/SIM_TO_REAL_PLAN.md) | 2026-07-19 | Sim-to-real feasibility & phased plan — the six sim↔hardware gaps |
 | [hardware/HARDWARE_BOM.md](hardware/HARDWARE_BOM.md) | 2026-07-19 | Parts/cost & buildability for *walking* Compsognathus (~$950) + Velociraptor (~$8.7k) |
-| [hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md](hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md) | 2026-07-19 | *Running* robots: raptor scaling, bipedal-vs-quadruped, and a sub-$10k agile-runner species |
+| [hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md](hardware/RAPTOR_SCALING_AND_ALTERNATIVES.md) | 2026-07-24 | *Running* robots: raptor scaling plus a sourced, sub-$5k juvenile-Psittacosaurus/Pupper V3 starter |
 
 ## Investigations & run analyses
 
