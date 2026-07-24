@@ -56,21 +56,25 @@
       +Y = left
       +Z = up
 
-    Approximate dimensions (scaled for simulation):
+    Approximate dimensions (scaled for simulation, measured from the home keyframe):
       Body length: 1.2m (torso)
-      Hip height: 1.1m (in neutral stance)
+      Hip height: 0.93m (pelvis body at 0.9775m)
       Skull length: 0.5m
       Tail length: 1.5m
-      Total height at hip: ~1.1m
-      Total mass: ~80kg (scaled)
+      Total mass: 85.7kg (scaled)
 
     T-Rex anatomy:
-      - Massive skull (~60% of body force)
-      - Tiny vestigial forelimbs (2 fingers)
-      - Powerful digitigrade hind legs
-      - Heavy muscular tail as counterbalance to skull
-      - Forward-leaning posture (~45 deg torso angle)
-      - Body pivots at hips, skull and tail balance each other
+      - Large skull; head + neck are ~16% of body mass
+      - Tiny vestigial forelimbs (2 fingers), welded — see the forelimb block
+      - Powerful digitigrade hind legs; all three digits bear load
+      - Heavy muscular tail as counterbalance to skull (~18% of mass)
+      - Vertebral column held roughly horizontal: the PELVIS FRAME IS LEVEL at
+        the home keyframe, and settles ~2.9 deg nose-down under the home
+        controller.  Only the torso capsule slopes (~10 deg).  Reward code
+        reads the pelvis frame, so natural_pitch tracks that 2.9 deg, not the
+        capsule slope.
+      - Body pivots at hips, skull and tail balance each other: the CoM sits
+        3mm behind the foot-contact centroid at home
     -->
 
     <body name="pelvis" pos="0 0 0.9795">
@@ -146,13 +150,14 @@
             <geom name="tail_3_geom" type="capsule" fromto="0 0 0  -0.3 0 0" size="0.08"
                   mass="3.0" material="body_mat"/>
 
+            <!-- Distal tail (segments 4-5): fused.  Ossified tendons stiffen the
+                 distal caudal series, so these carry their counterbalance mass
+                 as one rigid segment instead of articulating. -->
             <body name="tail_4" pos="-0.3 0 0">
-              <joint name="tail_4_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
               <geom name="tail_4_geom" type="capsule" fromto="0 0 0  -0.25 0 0.01" size="0.06"
                     mass="1.5" material="body_mat"/>
 
               <body name="tail_5" pos="-0.25 0 0.01">
-                <joint name="tail_5_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
                 <geom name="tail_5_geom" type="capsule" fromto="0 0 0  -0.2 0 0.02" size="0.035"
                       mass="0.6" material="body_mat"/>
                 <site name="tail_tip" pos="-0.2 0 0.02" size="0.015"/>
@@ -191,38 +196,38 @@
             <!-- Thin plantar pad: gives the three digits one load-bearing
                  fore-aft surface instead of balancing on the rear
                  metatarsus endpoint. -->
-            <geom name="r_plantar_geom" type="box" pos="0.14 0 -0.22"
+            <geom name="r_plantar_geom" type="box" pos="0.14 0 -0.218"
                   size="0.07 0.045 0.01" mass="0.02" material="claw_mat"/>
             <!-- Touch volume belongs to the same metatarsus body as the
                  load-bearing plantar pad. It encloses the entire pad and its
                  floor contacts; group 4 keeps the diagnostic volume hidden
                  in default renders. -->
-            <site name="r_foot" type="box" pos="0.14 0 -0.22"
-                  size="0.075 0.05 0.015" group="4"/>
+            <site name="r_foot" type="box" pos="0.16 0 -0.218"
+                  size="0.15 0.07 0.02" group="4"/>
 
             <!-- Toes: 3 separate forward-facing digits (anatomically correct) -->
             <!-- Digit 2 (medial, shortest) -->
-            <body name="r_toe_d2" pos="0.08 0.025 -0.2">
+            <body name="r_toe_d2" pos="0.08 0.025 -0.203">
               <joint name="r_toe_d2_joint" class="leg_joint" type="hinge" axis="0 1 0"
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
-              <geom name="r_toe_d2_geom" type="capsule" fromto="0 0 0  0.08 0.015 0" size="0.025"
-                    mass="0.12" material="claw_mat"/>
+              <geom name="r_toe_d2_geom" type="capsule" fromto="0 0 0  0.13 0.02 0" size="0.025"
+                    mass="0.16" material="claw_mat"/>
             </body>
 
             <!-- Digit 3 (central, longest — primary weight-bearing) -->
             <body name="r_toe_d3" pos="0.08 0 -0.2">
               <joint name="r_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0"
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
-              <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.028"
-                    mass="0.16" material="claw_mat"/>
+              <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 0  0.19 0 0" size="0.028"
+                    mass="0.22" material="claw_mat"/>
             </body>
 
             <!-- Digit 4 (lateral, medium) -->
-            <body name="r_toe_d4" pos="0.08 -0.025 -0.2">
+            <body name="r_toe_d4" pos="0.08 -0.025 -0.203">
               <joint name="r_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0"
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
-              <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 0  0.09 -0.015 0" size="0.025"
-                    mass="0.12" material="claw_mat"/>
+              <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 0  0.15 -0.02 0" size="0.025"
+                    mass="0.16" material="claw_mat"/>
             </body>
           </body>
         </body>
@@ -249,49 +254,49 @@
                    range="50 150" ref="94.5" springref="94.5"/>
             <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.025"
                   mass="1.2" material="body_mat"/>
-            <geom name="l_plantar_geom" type="box" pos="0.14 0 -0.22"
+            <geom name="l_plantar_geom" type="box" pos="0.14 0 -0.218"
                   size="0.07 0.045 0.01" mass="0.02" material="claw_mat"/>
-            <site name="l_foot" type="box" pos="0.14 0 -0.22"
-                  size="0.075 0.05 0.015" group="4"/>
+            <site name="l_foot" type="box" pos="0.16 0 -0.218"
+                  size="0.15 0.07 0.02" group="4"/>
 
             <!-- Toes: 3 separate forward-facing digits (anatomically correct) -->
             <!-- Digit 2 (medial, shortest) -->
-            <body name="l_toe_d2" pos="0.08 -0.025 -0.2">
+            <body name="l_toe_d2" pos="0.08 -0.025 -0.203">
               <joint name="l_toe_d2_joint" class="leg_joint" type="hinge" axis="0 1 0"
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
-              <geom name="l_toe_d2_geom" type="capsule" fromto="0 0 0  0.08 -0.015 0" size="0.025"
-                    mass="0.12" material="claw_mat"/>
+              <geom name="l_toe_d2_geom" type="capsule" fromto="0 0 0  0.13 -0.02 0" size="0.025"
+                    mass="0.16" material="claw_mat"/>
             </body>
 
             <!-- Digit 3 (central, longest — primary weight-bearing) -->
             <body name="l_toe_d3" pos="0.08 0 -0.2">
               <joint name="l_toe_d3_joint" class="leg_joint" type="hinge" axis="0 1 0"
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
-              <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 0  0.12 0 0" size="0.028"
-                    mass="0.16" material="claw_mat"/>
+              <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 0  0.19 0 0" size="0.028"
+                    mass="0.22" material="claw_mat"/>
             </body>
 
             <!-- Digit 4 (lateral, medium) -->
-            <body name="l_toe_d4" pos="0.08 0.025 -0.2">
+            <body name="l_toe_d4" pos="0.08 0.025 -0.203">
               <joint name="l_toe_d4_joint" class="leg_joint" type="hinge" axis="0 1 0"
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
-              <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 0  0.09 0.015 0" size="0.025"
-                    mass="0.12" material="claw_mat"/>
+              <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 0  0.15 0.02 0" size="0.025"
+                    mass="0.16" material="claw_mat"/>
             </body>
           </body>
         </body>
       </body>
 
       <!-- ==================== FORELIMBS (vestigial) ==================== -->
-      <!-- T-Rex arms: tiny, 2 fingers, very limited range -->
-      <!-- Not actuated - purely cosmetic/passive -->
+      <!-- T-Rex arms: tiny, 2 fingers, very limited range.  Welded to the
+           torso: forelimb excursion is negligible in life, and the chain drove
+           no actuator, no reward term and no ground contact while costing 18 of
+           the 83 observation dimensions. -->
 
       <body name="r_arm" pos="0.45 -0.1 -0.02">
-        <joint name="r_shoulder" type="ball" damping="3.0" range="0 30"/>
         <geom name="r_upper_arm_geom" type="capsule" fromto="0 0 0  0.04 -0.02 -0.08" size="0.025"
               mass="0.3" material="body_mat"/>
         <body name="r_forearm" pos="0.04 -0.02 -0.08">
-          <joint name="r_elbow" type="hinge" axis="0 1 0" range="-40 10" damping="2.0"/>
           <geom name="r_forearm_geom" type="capsule" fromto="0 0 0  0.02 0 -0.05" size="0.018"
                 mass="0.1" material="body_mat"/>
           <!-- Two-fingered hand -->
@@ -301,11 +306,9 @@
       </body>
 
       <body name="l_arm" pos="0.45 0.1 -0.02">
-        <joint name="l_shoulder" type="ball" damping="3.0" range="0 30"/>
         <geom name="l_upper_arm_geom" type="capsule" fromto="0 0 0  0.04 0.02 -0.08" size="0.025"
               mass="0.3" material="body_mat"/>
         <body name="l_forearm" pos="0.04 0.02 -0.08">
-          <joint name="l_elbow" type="hinge" axis="0 1 0" range="-40 10" damping="2.0"/>
           <geom name="l_forearm_geom" type="capsule" fromto="0 0 0  0.02 0 -0.05" size="0.018"
                 mass="0.1" material="body_mat"/>
           <geom name="l_hand" type="sphere" pos="0.02 0 -0.06" size="0.02"
@@ -422,11 +425,10 @@
 
   <keyframe>
     <key name="home"
-         qpos="0 0 0.9795 1 0 0 0
-               0 0 0 0 0 0 0 0 0
+         qpos="0 0 0.9775 1 0 0 0
+               0 0 0 0 0 0 0
                0.261799 0 -1.047198 1.649336 0.218166 0.218166 0.218166
-               0.261799 0 -1.047198 1.649336 0.218166 0.218166 0.218166
-               1 0 0 0 0 1 0 0 0 0"
+               0.261799 0 -1.047198 1.649336 0.218166 0.218166 0.218166"
          ctrl="0 0 0
                0.2618 0 -1.0472 1.74535 0.2182 0.2182 0.2182
                0.2618 0 -1.0472 1.74535 0.2182 0.2182 0.2182

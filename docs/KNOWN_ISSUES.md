@@ -176,21 +176,32 @@ Still open:
   knee measures 0 % after its 1.5× bump. Re-measure with
   `environments/shared/scripts/actuator_saturation_report.py` before any
   faster-gait (stage-3 sprint) work and consider 1.5× toes if they bind.
-- **LOW** — the T-Rex exact-home 2.5 Hz diagnostic produces one transient
-  clipping window on `r_toe_d4` (5.4 % over 2,500 steps) after the scripted
-  plant destabilizes; every stance-critical hip/knee/ankle remains at 0 %
-  and bounded-vs-unbounded root-z RMS divergence is 0.5 mm. This is not a
-  Stage-1 balance blocker, but re-measure it against a learned locomotion
-  rollout before promoting Stage 2.
 - **LOW** — scene boilerplate (skybox/grid/floor/option) is copy-pasted
   across the three XMLs → extract a shared `scene.xml` include; limbs are
   hand-mirrored sign-flips → generate via script/PyMJCF or add a left/right
   symmetry test.
 - **LOW** — raptor claw `motor gear="50"` on a 0.05 kg claw (huge
-  torque-to-inertia; slams its limits); trex passive ball-joint arms are
-  8 of 37 DOF doing nothing (weld to cut MJX cost ~20%); contype-0 neck
-  geoms can visually clip the floor; no `<light>`/`<visual>` block for
-  nicer renders; brachio food has no collision partner.
+  torque-to-inertia; slams its limits); contype-0 neck geoms can visually
+  clip the floor; no `<light>`/`<visual>` block for nicer renders; brachio
+  food has no collision partner.
+- **HIGH** — the brachiosaurus cannot hold its home stance. Under the neutral
+  action (`action = 0`, i.e. the exact home controls) with `reset_noise_scale`
+  set to **zero**, the torso sags 1.21 m → ~1.04 m and the episode terminates
+  `fallen` at step 202 of 1000, against a `healthy_z_range` floor of 1.0 m.
+  With stage-1 noise it falls at ~100 steps, and the zero-action baseline is
+  0% full-horizon at every reset-noise level (110.37 ± 57.86 reward). CI misses
+  it because `NeutralActionStabilityBase.test_survives_100_neutral_action_steps`
+  stops at 100 steps and the full-horizon variant
+  (`test_survives_full_noise_free_episode`) is defined only on the T-Rex
+  subclass. Either the servo-held stand from the July 2026 repair regressed or
+  it never held for a full episode. Fix the sag, add the full-horizon neutral
+  test to the shared base, then re-measure with
+  `environments/shared/scripts/zero_action_baseline.py brachiosaurus`.
+- **LOW** — the T-Rex `tail_1_geom` overlaps both thigh capsules by 18.8 mm at
+  the home keyframe, injecting a constant self-contact force into the stance
+  (pre-existing; unchanged by the July 2026 plant revision, which measured it
+  rather than fixing it). Either exclude the pair like the sibling toes, or
+  reshape `tail_1` so the overlap is gone; re-measure the home stance after.
 - **Experiment** — with `implicitfast`, a `timestep` 0.002→0.004 A/B is
   worth running (halves sim cost if stable).
 

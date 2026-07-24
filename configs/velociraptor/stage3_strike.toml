@@ -23,6 +23,9 @@ strike_claw_proximity_weight = 1.0     # Reduced from 2.0: still provides final 
 prey_distance_range = [2.0, 6.0]       # Tightened from [3.0, 8.0]: closer prey makes strike discovery much more likely during exploration
 prey_lateral_range = [-1.5, 1.5]
 max_episode_steps = 1000
+reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back to the class default 0.01
+                                       # while [jax] used 0.05. Stage 1 raised it deliberately; stages 2-3
+                                       # inherited a 5x narrower reset distribution by accident.
 
 [ppo]
 learning_rate = 5e-5

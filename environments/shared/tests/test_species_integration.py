@@ -28,7 +28,7 @@ SPECIES_ENVS = [
 # Expected observation and action dimensions per species
 SPECIES_DIMS = {
     "velociraptor": {"obs": 67, "act": 22},
-    "trex": {"obs": 83, "act": 21},
+    "trex": {"obs": 61, "act": 21},
     "brachiosaurus": {"obs": 83, "act": 30},
 }
 
