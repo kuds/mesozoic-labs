@@ -39,7 +39,16 @@ register_species_mjx(
     frame_skip=5,
     max_episode_steps=1000,
     healthy_z_range=(0.75, 1.6),
-    max_tilt_angle=0.7,
+    # Matches the Gymnasium env (the BaseDinoEnv default), which is the value
+    # the evidence supports.  max_tilt_angle is the absolute backstop; nosedive
+    # is the per-stage tunable pitch gate.  Stages 2 and 3 leave
+    # nosedive_termination_threshold at the 0.62 default, which allows 0.734 rad
+    # of forward pitch -- so a 0.700 cap would terminate first and silently
+    # override that calibration in exactly the stages whose configs ask for a
+    # head-forward running posture.  It also normalises the posture penalty as
+    # (tilt / max_tilt_angle)**2, and posture_weight = 1.5 is a swept constant
+    # shared by all four species at 1.047.
+    max_tilt_angle=1.047,
     sensor_foot_indices=(_SENSOR_R_FOOT, _SENSOR_L_FOOT),
     sensor_foot_aux_indices=(_SENSOR_R_FOOT_DIGITS, _SENSOR_L_FOOT_DIGITS),
     sensor_gyro_start=0,

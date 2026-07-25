@@ -101,7 +101,19 @@ class TRexEnv(BaseDinoEnv):
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
-        healthy_z_range: tuple[float, float] = (0.5, 1.6),
+        # Matches the MJX registration, which is the value the evidence
+        # supports.  The old SB3 floor of 0.50 could essentially never be the
+        # binding termination: tail_3/4/5 are unconditional termination geoms
+        # and the tail reaches the floor at a pelvis height of ~0.55-0.57 in a
+        # level squat, so the plant is already lying down before 0.50 is
+        # reached.  0.75 costs nothing measurable -- healthy full-horizon
+        # episodes bottom out at 0.884 m, 0.134 m of margin, 0/34 false
+        # terminations, and 1/300 stage-1 resets spawn below it (that episode
+        # was not recoverable anyway) -- while ending doomed episodes a median
+        # 74 steps sooner.  It also gives the MJX alive bonus, which scales by
+        # (z - floor) / (ceiling - floor), a 0.266 fraction at settled stance
+        # against the velociraptor's 0.275.
+        healthy_z_range: tuple[float, float] = (0.75, 1.6),
         reset_noise_scale: float = 0.01,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "trex.xml")
