@@ -461,7 +461,13 @@ class TestHomeKeyframeActionMapping:
             "digits carry no load at the home keyframe, so this test can no longer "
             f"detect a pad-only foot-contact signal: pad={pad_sensors}, total={expected}"
         )
-        np.testing.assert_allclose(foot_observation, expected, rtol=0, atol=1e-7)
+        # Relative tolerance, not exact: the four-term sum is evaluated twice,
+        # once inside the jitted observation builder and once here in numpy,
+        # so the results differ by about one float32 ULP (3e-5 at this
+        # magnitude).  1e-5 relative is ~300x that and still four orders of
+        # magnitude tighter than a dropped digit, which would show up as the
+        # ~112 N the three digits carry per foot.
+        np.testing.assert_allclose(foot_observation, expected, rtol=1e-5, atol=1e-3)
 
     def test_trex_stage1_factory_preserves_contact_physics_and_rewards(self):
         import jax
@@ -502,7 +508,10 @@ class TestHomeKeyframeActionMapping:
                 for pad, group in zip(foot_sensors, env.config.sensor_foot_aux_indices)
             ]
         )
-        np.testing.assert_allclose(np.asarray(states.obs[0, -6:-4]), expected_contacts, rtol=0, atol=1e-7)
+        # Same float32 summation tolerance as
+        # test_trex_mjx_reset_exposes_live_foot_contacts, and matching the
+        # rtol already used for the MJX-vs-CPU sensor comparison above.
+        np.testing.assert_allclose(np.asarray(states.obs[0, -6:-4]), expected_contacts, rtol=1e-5, atol=1e-3)
 
     def test_home_reset_requires_named_home_keyframe(self):
         import mujoco
