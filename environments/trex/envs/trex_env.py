@@ -235,6 +235,21 @@ class TRexEnv(BaseDinoEnv):
         # are inherited from BaseDinoEnv (0, 3, 6 respectively).
         self._sensor_r_foot = 10
         self._sensor_l_foot = 11
+        # The pad sensors above see the plantar box only: a touch sensor sums
+        # contacts on geoms of its site's own body, and the three digits are
+        # child bodies (they carry actuated hinges).  Their own sensors are
+        # appended after the tail block, so pad + digits is the force the foot
+        # actually transmits -- at the home keyframe 388.4 N + 112.0 N against
+        # a measured 500.4 N of floor contact.
+        self._sensor_r_foot_digits = (24, 25, 26)
+        self._sensor_l_foot_digits = (27, 28, 29)
+
+    def _foot_contact_forces(self) -> tuple[float, float]:
+        """Total floor contact force under each foot: plantar pad and digits."""
+        sensordata = self.data.sensordata
+        right = sensordata[self._sensor_r_foot] + sum(sensordata[index] for index in self._sensor_r_foot_digits)
+        left = sensordata[self._sensor_l_foot] + sum(sensordata[index] for index in self._sensor_l_foot_digits)
+        return float(right), float(left)
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
         """Map normalized residual actions around the XML home controls.
@@ -270,12 +285,7 @@ class TRexEnv(BaseDinoEnv):
         pelvis_linvel = self.data.qvel[0:3].copy()
 
         # Foot contact (from touch sensors)
-        foot_contact = np.array(
-            [
-                self.data.sensordata[self._sensor_r_foot],
-                self.data.sensordata[self._sensor_l_foot],
-            ]
-        )
+        foot_contact = np.array(self._foot_contact_forces())
 
         # Prey info (relative to pelvis)
         pelvis_pos = self.data.xpos[self.pelvis_id]
@@ -411,10 +421,9 @@ class TRexEnv(BaseDinoEnv):
         info["reward_height"] = reward_height
 
         # 9. Gait symmetry (reward alternating foot contacts, shared helper)
-        r_contact = self.data.sensordata[self._sensor_r_foot]
-        l_contact = self.data.sensordata[self._sensor_l_foot]
-        info["r_foot_contact"] = float(r_contact)
-        info["l_foot_contact"] = float(l_contact)
+        r_contact, l_contact = self._foot_contact_forces()
+        info["r_foot_contact"] = r_contact
+        info["l_foot_contact"] = l_contact
 
         reward_gait, alternation_ratio = self._compute_gait_symmetry(
             float(r_contact), float(l_contact), self.gait_symmetry_weight

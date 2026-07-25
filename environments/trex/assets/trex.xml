@@ -212,6 +212,11 @@
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="r_toe_d2_geom" type="capsule" fromto="0 0 0  0.13 0.02 0" size="0.025"
                     mass="0.16" material="claw_mat"/>
+              <!-- Per-digit touch volume.  A touch sensor only sums contacts
+                   on geoms of its site's OWN body, so the metatarsus site
+                   cannot see any digit however large it is made. -->
+              <site name="r_toe_d2_site" type="box" pos="0.065 0.01 0"
+                    size="0.10 0.05 0.04" group="4"/>
             </body>
 
             <!-- Digit 3 (central, longest — primary weight-bearing) -->
@@ -220,6 +225,8 @@
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 0  0.19 0 0" size="0.028"
                     mass="0.22" material="claw_mat"/>
+              <site name="r_toe_d3_site" type="box" pos="0.095 0 0"
+                    size="0.13 0.05 0.04" group="4"/>
             </body>
 
             <!-- Digit 4 (lateral, medium) -->
@@ -228,6 +235,8 @@
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 0  0.15 -0.02 0" size="0.025"
                     mass="0.16" material="claw_mat"/>
+              <site name="r_toe_d4_site" type="box" pos="0.075 -0.01 0"
+                    size="0.11 0.05 0.04" group="4"/>
             </body>
           </body>
         </body>
@@ -266,6 +275,8 @@
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="l_toe_d2_geom" type="capsule" fromto="0 0 0  0.13 -0.02 0" size="0.025"
                     mass="0.16" material="claw_mat"/>
+              <site name="l_toe_d2_site" type="box" pos="0.065 -0.01 0"
+                    size="0.10 0.05 0.04" group="4"/>
             </body>
 
             <!-- Digit 3 (central, longest — primary weight-bearing) -->
@@ -274,6 +285,8 @@
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 0  0.19 0 0" size="0.028"
                     mass="0.22" material="claw_mat"/>
+              <site name="l_toe_d3_site" type="box" pos="0.095 0 0"
+                    size="0.13 0.05 0.04" group="4"/>
             </body>
 
             <!-- Digit 4 (lateral, medium) -->
@@ -282,6 +295,8 @@
                      range="-25 50" ref="12.5" springref="12.5" damping="15.0"/>
               <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 0  0.15 0.02 0" size="0.025"
                     mass="0.16" material="claw_mat"/>
+              <site name="l_toe_d4_site" type="box" pos="0.075 0.01 0"
+                    size="0.11 0.05 0.04" group="4"/>
             </body>
           </body>
         </body>
@@ -372,7 +387,12 @@
     <accelerometer name="pelvis_accel" site="imu"/>
     <framequat name="pelvis_orientation" objtype="site" objname="imu"/>
 
-    <!-- Foot contact forces -->
+    <!-- Foot contact forces.  These two see the plantar pad ONLY: a touch
+         sensor sums contacts on geoms belonging to its site's own body, and
+         the digits are child bodies (they carry actuated hinges, so they
+         cannot be merged into the metatarsus).  The per-digit sensors at the
+         end of this block carry the rest; the envs sum pad + 3 digits into
+         one contact value per foot.  See sensor_foot_aux_indices. -->
     <touch name="r_foot_touch" site="r_foot"/>
     <touch name="l_foot_touch" site="l_foot"/>
 
@@ -383,6 +403,16 @@
     <framepos name="tail_tip_pos" objtype="site" objname="tail_tip"/>
     <velocimeter name="tail_tip_linvel" site="tail_tip"/>
     <gyro name="tail_tip_angvel" site="tail_tip"/>
+
+    <!-- Per-digit contact forces (indices 24-29).  Appended last so every
+         index above stays put.  Summed with the plantar pad by the envs, so
+         the observation still carries one contact value per foot. -->
+    <touch name="r_toe_d2_touch" site="r_toe_d2_site"/>
+    <touch name="r_toe_d3_touch" site="r_toe_d3_site"/>
+    <touch name="r_toe_d4_touch" site="r_toe_d4_site"/>
+    <touch name="l_toe_d2_touch" site="l_toe_d2_site"/>
+    <touch name="l_toe_d3_touch" site="l_toe_d3_site"/>
+    <touch name="l_toe_d4_touch" site="l_toe_d4_site"/>
   </sensor>
 
   <!-- ==================== CONTACT EXCLUSIONS ==================== -->

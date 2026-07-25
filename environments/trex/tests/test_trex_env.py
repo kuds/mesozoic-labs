@@ -148,16 +148,66 @@ class TestNominalPoseActionScaling:
         assert second_info["action_delta"] == pytest.approx(0.0, abs=1e-12)
 
 
+def _true_floor_force_per_foot(env) -> dict[str, float]:
+    """Sum the real floor normal force under each foot, straight from contacts."""
+    floor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
+    totals = {"r": 0.0, "l": 0.0}
+    for index in range(env.data.ncon):
+        contact = env.data.contact[index]
+        if floor_id not in (contact.geom1, contact.geom2):
+            continue
+        other = contact.geom2 if contact.geom1 == floor_id else contact.geom1
+        name = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, other) or ""
+        side = name[:1]
+        if side in totals:
+            force = np.zeros(6)
+            mujoco.mj_contactForce(env.model, env.data, index, force)
+            totals[side] += float(force[0])
+    return totals
+
+
 class TestFootContactSensors:
     """Touch observations must measure plantar-floor load, not self-contact."""
 
-    def test_sites_share_the_load_bearing_plantar_bodies(self, env):
-        for side in ("r", "l"):
-            site_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SITE, f"{side}_foot")
-            geom_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, f"{side}_plantar_geom")
-            assert env.model.site_bodyid[site_id] == env.model.geom_bodyid[geom_id]
+    def test_every_load_bearing_foot_body_carries_a_touch_sensor(self, env):
+        """A touch sensor only sums geoms on its site's own body.
 
-    def test_sensors_read_ground_force_at_settled_stance(self):
+        The digits are child bodies of the metatarsus, so the plantar site
+        cannot see them however large it is made.  Each load-bearing body
+        therefore needs its own sensor.
+        """
+        for side in ("r", "l"):
+            sensor_bodies = set()
+            for name in (
+                f"{side}_foot_touch",
+                f"{side}_toe_d2_touch",
+                f"{side}_toe_d3_touch",
+                f"{side}_toe_d4_touch",
+            ):
+                sensor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SENSOR, name)
+                assert sensor_id >= 0, f"missing touch sensor {name}"
+                sensor_bodies.add(int(env.model.site_bodyid[env.model.sensor_objid[sensor_id]]))
+
+            for geom_name in (
+                f"{side}_plantar_geom",
+                f"{side}_toe_d2_geom",
+                f"{side}_toe_d3_geom",
+                f"{side}_toe_d4_geom",
+            ):
+                geom_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, geom_name)
+                body_id = int(env.model.geom_bodyid[geom_id])
+                assert body_id in sensor_bodies, (
+                    f"{geom_name} bears load on a body with no touch sensor; "
+                    "its contacts would be invisible to the foot-contact signal"
+                )
+
+    def test_sensors_account_for_all_floor_force_at_settled_stance(self):
+        """The summed reading must equal the force the foot really transmits.
+
+        A pad-only reading also passes a ``> 0`` check, which is how the
+        digits went unmeasured after they were made load-bearing, so assert
+        against the measured contact forces instead of a threshold.
+        """
         env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
         try:
             env.reset(seed=0)
@@ -165,8 +215,19 @@ class TestFootContactSensors:
             for _ in range(200):
                 _, _, terminated, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
                 assert not terminated
-            assert info["r_foot_contact"] > 1.0, "right foot touch sensor dead at stance"
-            assert info["l_foot_contact"] > 1.0, "left foot touch sensor dead at stance"
+
+            truth = _true_floor_force_per_foot(env)
+            assert truth["r"] > 1.0, "right foot carries no measurable load at stance"
+            assert truth["l"] > 1.0, "left foot carries no measurable load at stance"
+            assert info["r_foot_contact"] == pytest.approx(truth["r"], rel=1e-6)
+            assert info["l_foot_contact"] == pytest.approx(truth["l"], rel=1e-6)
+
+            # Guard the specific regression: the pad alone must not be
+            # mistaken for the whole foot while the digits bear load.
+            pad_only = float(env.data.sensordata[env._sensor_r_foot])
+            assert pad_only < truth["r"], (
+                "digits carry no load at stance, so this test can no longer detect a pad-only foot-contact signal"
+            )
         finally:
             env.close()
 
@@ -179,10 +240,17 @@ class TestFootContactSensors:
             mujoco.mj_forward(env.model, env.data)
             for _ in range(10):
                 mujoco.mj_step(env.model, env.data)
-            for name in ("r_foot_touch", "l_foot_touch"):
-                sensor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SENSOR, name)
-                sensor_address = env.model.sensor_adr[sensor_id]
-                assert env.data.sensordata[sensor_address] == pytest.approx(0.0, abs=1e-9)
+            for side in ("r", "l"):
+                for name in (
+                    f"{side}_foot_touch",
+                    f"{side}_toe_d2_touch",
+                    f"{side}_toe_d3_touch",
+                    f"{side}_toe_d4_touch",
+                ):
+                    sensor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_SENSOR, name)
+                    sensor_address = env.model.sensor_adr[sensor_id]
+                    assert env.data.sensordata[sensor_address] == pytest.approx(0.0, abs=1e-9)
+            assert env._foot_contact_forces() == pytest.approx((0.0, 0.0), abs=1e-9)
         finally:
             env.close()
 
@@ -196,6 +264,9 @@ class TestFootContactSensors:
                 assert not terminated
             foot_dims = obs[-6:-4]
             assert np.all(foot_dims > 0.0), f"foot-contact obs dims dead at stance: {foot_dims}"
+            truth = _true_floor_force_per_foot(env)
+            assert foot_dims[0] == pytest.approx(truth["r"], rel=1e-5)
+            assert foot_dims[1] == pytest.approx(truth["l"], rel=1e-5)
         finally:
             env.close()
 

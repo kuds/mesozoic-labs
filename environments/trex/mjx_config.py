@@ -6,13 +6,30 @@ Registers the T-Rex species with the MJX environment so that
 
 from __future__ import annotations
 
+import math
+
 from environments.shared.mjx_env import register_species_mjx
+
+# Must track ``TRexEnv.__init__``'s ``natural_pitch`` default (trex_env.py).
+# The pelvis frame is level at the home keyframe and settles ~2.9 deg
+# nose-down under the home controller; the nosedive penalty and termination
+# are both measured relative to that pose.  Kept as the angle rather than a
+# rounded forward_z so the two paths derive the same number from the same
+# quantity -- test_mjx_env.test_trex_creation pins them equal.
+_NATURAL_PITCH = 0.05
 
 # Sensor indices match the MJCF sensor definition order:
 # pelvis_gyro(3), pelvis_accel(3), pelvis_orientation(4),
 # r_foot_touch(1), l_foot_touch(1)
 _SENSOR_R_FOOT = 10
 _SENSOR_L_FOOT = 11
+# The two sensors above cover the plantar pad only.  Each digit is its own
+# body (it carries an actuated hinge), and a touch sensor cannot see geoms on
+# child bodies, so the digits carry their own sensors -- appended after the
+# tail block so every index above keeps its position.  Summed per foot, they
+# restore the reading to the force the foot actually transmits.
+_SENSOR_R_FOOT_DIGITS = (24, 25, 26)
+_SENSOR_L_FOOT_DIGITS = (27, 28, 29)
 # Tail tip gyro starts after: gyro(3) + accel(3) + quat(4) + touch(2) + head_pos(3) + tail_pos(3) + tail_linvel(3) = 21
 _SENSOR_TAIL_GYRO_START = 21
 
@@ -24,10 +41,11 @@ register_species_mjx(
     healthy_z_range=(0.75, 1.6),
     max_tilt_angle=0.7,
     sensor_foot_indices=(_SENSOR_R_FOOT, _SENSOR_L_FOOT),
+    sensor_foot_aux_indices=(_SENSOR_R_FOOT_DIGITS, _SENSOR_L_FOOT_DIGITS),
     sensor_gyro_start=0,
     sensor_accel_start=3,
     sensor_quat_start=6,
-    natural_forward_z=-0.169,  # -sin(0.17)  ~10° natural pitch
+    natural_forward_z=-math.sin(_NATURAL_PITCH),
     sensor_tail_gyro_start=_SENSOR_TAIL_GYRO_START,
     forward_vel_max=8.0,
     fall_penalty=-100.0,

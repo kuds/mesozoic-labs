@@ -46,8 +46,27 @@ class SensorLayout:
     gyro_start: int = 0
     accel_start: int = 3
     quat_start: int = 6
-    # Species-specific foot sensor indices (filled per species)
+    # Species-specific foot sensor indices (filled per species).  One entry
+    # per foot; each contributes exactly one observation channel.
     foot_indices: tuple[int, ...] = ()
+    # Optional extra touch sensors to add into each foot's channel, aligned
+    # with ``foot_indices``.  A MuJoCo touch sensor only sums contacts on
+    # geoms of its site's own body, so a species whose toes are separate
+    # bodies needs one sensor per toe and sums them here.  Empty (the
+    # default, and the case for every species with single-body feet) leaves
+    # the reading and the observation width exactly as they were.
+    foot_aux_indices: tuple[tuple[int, ...], ...] = ()
+
+    def foot_contact_values(self, sensordata: Array) -> list[Array]:
+        """Return one total contact force per foot, pad plus any aux sensors."""
+        totals = []
+        for position, index in enumerate(self.foot_indices):
+            total = sensordata[index]
+            if position < len(self.foot_aux_indices):
+                for aux_index in self.foot_aux_indices[position]:
+                    total = total + sensordata[aux_index]
+            totals.append(total)
+        return totals
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +112,7 @@ def build_bipedal_obs(
     pelvis_accel = sensordata[sl.accel_start : sl.accel_start + 3]
     pelvis_linvel = qvel[:3]
 
-    foot_contacts = xp.array([sensordata[i] for i in sl.foot_indices])
+    foot_contacts = xp.array(sl.foot_contact_values(sensordata))
 
     target_rel = target_pos - pelvis_xpos
     target_dist = xp.linalg.norm(target_rel)

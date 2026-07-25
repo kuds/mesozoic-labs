@@ -40,6 +40,27 @@ class TestMJXDinoEnv:
         assert env.config.posture_target_forward_z is None
         assert env.config.action_mapping == "home-keyframe-residual/v1"
         assert env.nominal_ctrl is not None
+        # Pin the pitch reference against the Gymnasium default rather than a
+        # literal: the two drifted apart once already, when the SB3 side moved
+        # to the measured neutral pose and this registration kept -sin(0.17).
+        # Only the override path was covered, so it passed either way.
+        from environments.trex.envs.trex_env import TRexEnv
+
+        sb3_natural_pitch = inspect.signature(TRexEnv.__init__).parameters["natural_pitch"].default
+        assert env.config.natural_forward_z == pytest.approx(-np.sin(sb3_natural_pitch))
+
+    def test_trex_foot_sensors_cover_the_digits(self):
+        """Each foot must sum its pad sensor plus one sensor per digit.
+
+        A touch sensor sums only geoms on its site's own body, so without the
+        aux groups a T-Rex standing on its toes reads as airborne.
+        """
+        import environments.trex.mjx_config  # noqa: F401
+        from environments.shared.mjx_env import MJXDinoEnv
+
+        env = MJXDinoEnv("trex", stage=1, num_envs=1)
+        assert len(env.config.sensor_foot_aux_indices) == len(env.config.sensor_foot_indices)
+        assert all(len(group) == 3 for group in env.config.sensor_foot_aux_indices)
 
     def test_raptor_creation(self):
         """MJXDinoEnv can be created for Velociraptor."""

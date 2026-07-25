@@ -149,6 +149,11 @@ class MJXEnvConfig:
     reward_weights: dict[str, float] = field(default_factory=dict)
     body_ids: dict[str, int] = field(default_factory=dict)
     sensor_foot_indices: tuple[int, ...] = ()
+    # Extra touch sensors summed into each foot's reading, aligned with
+    # ``sensor_foot_indices``.  Needed where the load-bearing geoms sit on
+    # child bodies that a single touch sensor cannot see.  Empty leaves both
+    # the observation width and the per-foot value unchanged.
+    sensor_foot_aux_indices: tuple[tuple[int, ...], ...] = ()
     sensor_gyro_start: int = 0
     sensor_accel_start: int = 3
     sensor_quat_start: int = 6
@@ -252,6 +257,7 @@ _PLANT_INTERFACE_CONFIG_FIELDS = frozenset(
         "frame_skip",
         "body_ids",
         "sensor_foot_indices",
+        "sensor_foot_aux_indices",
         "sensor_gyro_start",
         "sensor_accel_start",
         "sensor_quat_start",
@@ -278,8 +284,10 @@ def build_mjx_observation(data: Any, target_pos: Any, config: MJXEnvConfig | Map
     """
     from .obs_functions import SensorLayout, build_bipedal_obs, build_quadruped_obs
 
-    def value(name: str) -> Any:
-        return config[name] if isinstance(config, Mapping) else getattr(config, name)
+    def value(name: str, default: Any = None) -> Any:
+        if isinstance(config, Mapping):
+            return config[name] if name in config else default
+        return getattr(config, name, default)
 
     body_ids = value("body_ids")
     # Dispatch on the registered root body, not on a species allow-list: every
@@ -295,6 +303,9 @@ def build_mjx_observation(data: Any, target_pos: Any, config: MJXEnvConfig | Map
         accel_start=int(value("sensor_accel_start")),
         quat_start=int(value("sensor_quat_start")),
         foot_indices=tuple(int(index) for index in value("sensor_foot_indices")),
+        foot_aux_indices=tuple(
+            tuple(int(index) for index in group) for group in (value("sensor_foot_aux_indices", ()) or ())
+        ),
     )
     observation_builder = build_quadruped_obs if quadrupedal else build_bipedal_obs
     return observation_builder(
@@ -571,11 +582,19 @@ class MJXDinoEnv:
             r_forward, fwd_vel = reward_forward_velocity(
                 vel_2d, forward_ref, config.forward_vel_max, forward_vel_weight
             )
-            # Foot contact: read touch sensors
+            # Foot contact: read touch sensors.  Each foot's reading is the
+            # pad sensor plus any per-toe sensors declared for it, because a
+            # touch sensor cannot see geoms on child bodies -- without the
+            # aux terms a T-Rex standing on its digits reads as airborne.
             foot_contact_threshold = 0.1  # Newtons
+            aux_groups = config.sensor_foot_aux_indices
             has_foot_contact = jnp.bool_(False)
-            for foot_idx in config.sensor_foot_indices:
-                has_foot_contact = has_foot_contact | (data.sensordata[foot_idx] > foot_contact_threshold)
+            for position, foot_idx in enumerate(config.sensor_foot_indices):
+                foot_force = data.sensordata[foot_idx]
+                if position < len(aux_groups):
+                    for aux_idx in aux_groups[position]:
+                        foot_force = foot_force + data.sensordata[aux_idx]
+                has_foot_contact = has_foot_contact | (foot_force > foot_contact_threshold)
 
             # Condition alive bonus on height AND foot contact:
             # no reward for lying flat or balancing on head/nose
