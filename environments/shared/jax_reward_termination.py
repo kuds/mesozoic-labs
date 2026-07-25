@@ -215,11 +215,19 @@ def compute_total_reward(
         r_lateral, _ = reward_lateral_velocity_penalty(vel_2d, body_fwd_2d_lat, lateral_w)
         total = total + r_lateral
 
-    # Head/claw proximity reward: continuous gradient for final positioning
-    proximity_w = reward_cfg.get(
+    # Head/claw/snout proximity reward: continuous gradient for final positioning.
+    # The weight is species-flavoured in the shared stage TOMLs, so accept every
+    # spelling; a new species adds its key here rather than nesting another get.
+    proximity_w = 0.0
+    for proximity_key in (
         "bite_head_proximity_weight",
-        reward_cfg.get("strike_claw_proximity_weight", reward_cfg.get("food_head_proximity_weight", 0.0)),
-    )
+        "strike_claw_proximity_weight",
+        "food_head_proximity_weight",
+        "snap_snout_proximity_weight",
+    ):
+        if proximity_key in reward_cfg:
+            proximity_w = reward_cfg[proximity_key]
+            break
     if proximity_w > 0 and success_site_positions is not None and target_pos is not None:
         for i in range(success_site_positions.shape[0]):
             site_dist = jnp.linalg.norm(success_site_positions[i] - target_pos)

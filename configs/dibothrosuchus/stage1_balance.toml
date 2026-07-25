@@ -1,0 +1,116 @@
+[stage]
+name = "balance"
+description = "Hold the erect quadrupedal stance without collapsing into a sprawl"
+
+[env]
+forward_vel_weight = 0.0
+backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
+drift_penalty_weight = 0.3                     # Penalize horizontal displacement from spawn; prevents creep-to-balance exploit
+spin_penalty_weight = 0.1                      # Penalize trunk angular velocity to directly discourage spinning
+speed_penalty_weight = 0.3                     # Penalize absolute 2D speed above threshold — instantaneous complement to the drift penalty
+speed_penalty_threshold = 0.10                 # m/s — any speed above this incurs penalty
+alive_bonus = 1.5                              # Gated on height AND foot contact in mjx_env: no reward for propping on the snout
+foot_contact_gate = 1.0                        # Gate alive bonus on foot contact (>0 enables gating). JAX-only: SB3 handles this via snout/body-contact termination instead.
+foot_contact_weight = 0.8                      # Per-step bonus for having at least one foot on the ground. JAX-only: SB3 does not use this signal.
+energy_penalty_weight = 0.05                   # This plant is light and its servos are cheap; a moderate cost still favours an efficient stance
+gait_stability_weight = 0.05                   # Light trunk angular-velocity penalty
+tail_stability_weight = 0.1
+posture_weight = 1.5                           # Strong tilt penalty — the failure mode here is rolling into a sprawl, not pitching
+nosedive_weight = 1.0
+nosedive_termination_threshold = 0.45          # Terminates at forward_z < -0.45 (~27 deg nose-down) from the measured level neutral
+smoothness_weight = 0.1
+heading_weight = 0.1                           # Small heading reward to prevent spin-to-balance exploits
+gait_symmetry_weight = 0.0                     # Disable: diagonal-pair alternation is meaningless while standing still
+height_weight = 1.0                            # Hold the trunk near the 0.313 m settled stance
+fall_penalty = -100.0
+snap_bonus = 0.0
+snap_approach_weight = 0.0                     # Must be explicit — the species default would otherwise leak the approach gradient into stage 1
+snap_snout_proximity_weight = 0.0
+prey_distance_range = [4.0, 6.0]               # Far enough that approach is never incidentally rewarded
+max_episode_steps = 1000
+reset_noise_scale = 0.30                       # Joint-angle jitter in RADIANS (~17 deg), and the same scalar bounds the
+                                               # uniform qvel kick, so the perturbation is a jittered pose AND a small
+                                               # initial velocity, not angles alone. Calibrated against the
+                                               # zero-action baseline (environments/shared/scripts/zero_action_baseline.py),
+                                               # 40 episodes per point, with the root-height jitter decoupled via the env's
+                                               # reset_height_noise_scale.
+                                               #
+                                               # An earlier 0.14 here was mis-calibrated: root height took the same scalar
+                                               # as a length in METRES, so on this 0.313 m stance a quarter of episodes
+                                               # spawned outside healthy_z_range and died at step 1. That read as
+                                               # "62% full-horizon" but the difficulty was unlearnable spawn noise, not
+                                               # balance. With height decoupled, 0.05 / 0.10 / 0.14 all leave the
+                                               # do-nothing policy at 100%.
+                                               #
+                                               # Measured now: 0.18 -> 95%, 0.22 -> 82%, 0.26 -> 72%, 0.30 -> 65%
+                                               # (mean-std 485). At 0.30 nothing spawns out of bounds, the earliest
+                                               # failure is step 40 and the median is 58, and every failure is a genuine
+                                               # topple (excessive_tilt / tail_contact).
+
+[ppo]
+learning_rate = 3e-5                    # Matches the balance-stage LR that the other species converged on; 3e-4 was unstable for them
+learning_rate_end = 1e-5
+n_steps = 2048
+batch_size = 128
+n_epochs = 10
+gamma = 0.98                            # Shorter horizon stabilizes value estimates on a balance task
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.005
+ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefDecayCallback). Every balance stage in this
+ent_coef_decay_timesteps = 3000000      # repository that ran without decay destabilized late; anchor at half the 6M budget
+                                        # so ent_coef reaches its floor before any late action-std drift.
+                                        # See docs/investigations/TREX_STAGE1_LEG_JITTER.md.
+target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL); mirrors the JAX target_kl guard.
+
+[ppo.policy_kwargs]
+net_arch = [512, 256]
+
+[sac]
+learning_rate = 3e-4              # Match PPO starting LR — SAC tolerates higher LR due to replay buffer stability
+batch_size = 256
+gamma = 0.99                      # Off-policy replay staleness at high gamma causes value overestimation; 0.99 is sufficient for balance
+tau = 0.005
+ent_coef = "auto"                 # Auto-tuned entropy — replaces PPO's manual ent_coef=0.005
+buffer_size = 300_000             # Sufficient for a 6M-step stage 1; a smaller buffer keeps transitions recent
+learning_starts = 10_000
+train_freq = 16
+gradient_steps = 8                # 2:1 data-to-update ratio
+
+[sac.policy_kwargs]
+net_arch = [512, 256]             # Match PPO architecture (obs is 77)
+
+[jax]
+num_envs = 2048                         # Parallel MJX environments on GPU
+rollout_len = 64
+num_updates = 500                       # Balance converges fast
+ppo_epochs = 4
+minibatch_size = 512
+learning_rate = 3e-5                    # Match SB3 PPO
+learning_rate_end = 1e-5
+max_grad_norm = 5.0
+gamma = 0.98
+gae_lambda = 0.95
+clip_range = 0.2
+vf_coef = 0.25
+vf_clip_range = 10.0
+ent_coef = 0.005
+target_kl = 0.05                        # Early-stop PPO epochs when approx KL exceeds this
+fall_penalty = -10.0                    # Smaller than the SB3 penalty: large penalties let value loss dominate early JAX training
+reset_noise_scale = 0.30                # Match [env]. The MJX reset jitters joints and XY but never root height,
+                                        # so decoupling the SB3 height jitter also brings the two backends' reset
+                                        # distributions closer together rather than further apart.
+init_qpos_noise = 0.01                  # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
+init_yaw_noise = 0.1                    # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
+
+[jax.policy_kwargs]
+net_arch = [512, 256]
+
+[curriculum]
+timesteps = 6000000
+min_avg_reward = 100.0
+min_avg_episode_length = 750
+required_consecutive = 3
+collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
+collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so transition turbulence won't abort the stage.
+collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count.

@@ -95,16 +95,41 @@ Follow this checklist:
    - Implement the five abstract methods: `_cache_ids`, `_get_obs`,
      `_get_reward_info`, `_is_terminated`, `_spawn_target`
    - Register with Gymnasium using the `MesozoicLabs/<Species>-v0` namespace
+   - Add the species to `environments/__init__.py` and
+     `environments/shared/species_registry.py`
 
-4. **Add curriculum configs** (`configs/<species>/`):
+4. **Register the MJX plant** (`mjx_config.py`):
+   - Call `register_species_mjx` with the sensor layout, root `body_ids`
+     (`"pelvis"` for bipeds, `"torso"` for quadrupeds — the shared observation
+     builder dispatches on this), termination heights, and stage-3 success
+     sites
+   - Add the species to the model-path and module maps in
+     `environments/shared/mjx_env.py` and `environments/shared/jax_training.py`
+
+5. **Add curriculum configs** (`configs/<species>/`):
    - Create `stage1_balance.toml`, `stage2_locomotion.toml`, `stage3_<behavior>.toml`
    - Follow the TOML structure from an existing species
+   - Calibrate `reset_noise_scale` for stage 1 against
+     `python environments/shared/scripts/zero_action_baseline.py <species> --sweep-noise`:
+     a level at which a do-nothing policy reaches the full horizon in nearly
+     every episode makes the stage reward a statue
+   - Add `sweep_ppo.json` and `sweep_sac.json` if the species will be swept
 
-5. **Write tests** (`tests/test_<species>_env.py`):
+6. **Write tests** (`tests/test_<species>_env.py`):
    - Use the shared test utilities in `environments/shared/`
    - Verify observation/action space shapes, reward components, determinism
+   - Extend `environments/shared/tests/test_species_integration.py` and
+     `test_mjcf_assets.py` with the new species' dimensions
 
-6. **Add the public catalog entry** (`configs/species_manifest.toml`):
+7. **Declare the plant revisions** (`configs/plant_versions.toml`):
+   - Add a `[plants.<species>]` block starting every revision at 1, with the
+     species' `observation_schema`
+   - Run `python -m environments.shared.plant_contract --write` to regenerate
+     `configs/plant_manifest.generated.json`. If a shared interface function
+     changed, the generator will refuse until the affected species' revisions
+     are bumped
+
+8. **Add the public catalog entry** (`configs/species_manifest.toml`):
    - Add presentation metadata, the environment entry point, and the MJCF path
    - Declare success semantics for every supported backend and the applicable
      training-notebook IDs
@@ -114,12 +139,17 @@ Follow this checklist:
    - Run `python -m environments.shared.species_catalog --check` to verify that
      generated data and declared artifacts are current
 
-7. **Update CI** (`.github/workflows/python-ci.yml`):
+9. **Update CI** (`.github/workflows/python-ci.yml`):
    - Add a `test-<species>` job following the existing pattern
 
-8. **Update pyproject.toml**:
-   - Add the test path to `[tool.pytest.ini_options]`
-   - Add the Gymnasium entry point
+10. **Update pyproject.toml**:
+    - Add the test path to `[tool.pytest.ini_options]`
+    - Add the Gymnasium entry point
+
+11. **Add the documentation** (`environments/<species>/README.md`,
+    `website/docs/models/<species>.mdx`):
+    - Link the new model page from `website/sidebars.ts`, `website/docs/intro.md`,
+      and export the species from `website/src/data/species.ts`
 
 ## Pull Request Process
 

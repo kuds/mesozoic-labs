@@ -90,7 +90,7 @@ class TestMJXDinoEnv:
         assert env.num_envs == 4
         assert env.config.posture_target_forward_z is None
 
-    @pytest.mark.parametrize("species", ("velociraptor", "trex", "brachiosaurus"))
+    @pytest.mark.parametrize("species", ("velociraptor", "trex", "brachiosaurus", "dibothrosuchus"))
     def test_stage_factory_preserves_canonical_compiled_plant(self, species):
         from environments.shared.jax_setup import create_env, setup_species
         from environments.shared.plant_contract import current_plant_identity, validate_compiled_plant
@@ -291,6 +291,79 @@ class TestHomeKeyframeActionMapping:
                 rtol=0,
                 atol=1e-7,
             )
+        finally:
+            env.close()
+
+    def test_setup_species_dibothrosuchus_zero_action_maps_to_xml_home(self):
+        import jax.numpy as jnp
+        import mujoco
+
+        from environments.shared.jax_setup import make_scale_action_fn, setup_species
+
+        ctx = setup_species("dibothrosuchus", stage=1)
+        scale_action = make_scale_action_fn(ctx)
+        home_id = mujoco.mj_name2id(ctx.mj_model, mujoco.mjtObj.mjOBJ_KEY, "home")
+
+        assert ctx.action_mapping == "home-keyframe-residual/v1"
+        assert home_id >= 0
+        np.testing.assert_allclose(
+            np.asarray(scale_action(jnp.zeros(ctx.act_dim))),
+            ctx.mj_model.key_ctrl[home_id],
+            rtol=0,
+            atol=1e-7,
+        )
+
+    def test_dibothrosuchus_jax_mapping_matches_gymnasium_mapping(self):
+        import jax.numpy as jnp
+
+        from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+        from environments.shared.jax_setup import make_scale_action_fn, setup_species
+
+        ctx = setup_species("dibothrosuchus", stage=1)
+        scale_action = make_scale_action_fn(ctx)
+        env = DibothrosuchusEnv()
+        try:
+            action = np.linspace(-1.5, 1.5, ctx.act_dim, dtype=np.float32)
+            np.testing.assert_allclose(
+                np.asarray(scale_action(jnp.asarray(action))),
+                env._scale_action(action),
+                rtol=0,
+                atol=1e-7,
+            )
+        finally:
+            env.close()
+
+    def test_second_quadruped_uses_the_torso_rooted_observation_builder(self):
+        """The MJX observation dispatch keys off the registered root body, so a
+        second quadruped must reach build_quadruped_obs without an allow-list."""
+        import mujoco
+
+        import environments.dibothrosuchus.mjx_config  # noqa: F401  (registers the species)
+        from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+        from environments.shared.mjx_env import _SPECIES_CONFIGS, build_mjx_observation
+
+        config = _SPECIES_CONFIGS["dibothrosuchus"]
+        assert set(config["body_ids"]) == {"torso"}
+        assert len(config["sensor_foot_indices"]) == 4
+
+        env = DibothrosuchusEnv()
+        try:
+            model, data = env.model, env.data
+            mujoco.mj_forward(model, data)
+            observation = np.asarray(
+                build_mjx_observation(
+                    data,
+                    data.mocap_pos[0],
+                    {
+                        "body_ids": config["body_ids"],
+                        "sensor_gyro_start": config["sensor_gyro_start"],
+                        "sensor_accel_start": config["sensor_accel_start"],
+                        "sensor_quat_start": config["sensor_quat_start"],
+                        "sensor_foot_indices": config["sensor_foot_indices"],
+                    },
+                )
+            )
+            np.testing.assert_allclose(observation, env._get_obs(), rtol=0, atol=1e-6)
         finally:
             env.close()
 

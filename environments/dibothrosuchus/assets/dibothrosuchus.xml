@@ -1,0 +1,486 @@
+<mujoco model="dibothrosuchus_elaphros">
+  <compiler angle="degree" autolimits="true"/>
+
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast">
+    <flag warmstart="enable"/>
+  </option>
+
+  <default>
+    <joint limited="true" damping="0.6" armature="0.004"/>
+    <geom contype="1" conaffinity="1" friction="1.2 0.005 0.0001"/>
+    <motor ctrllimited="true" ctrlrange="-1 1"/>
+
+    <!-- Leg joints: the whole animal is ~8.6 kg, roughly a twentieth of the
+         brachiosaurus and two thirds of the raptor, so the damping and passive
+         stiffness are scaled down accordingly.  Springs rest at the home pose
+         (springref defaults to 0 and every leg joint is authored at 0 there),
+         which carries most of the standing load and leaves the position
+         servos modulating around stance. -->
+    <default class="leg_joint">
+      <joint damping="1.2" armature="0.008" stiffness="3.0"/>
+    </default>
+
+    <!-- Neck joints: long slender sphenosuchian neck.  Low stiffness keeps it
+         mobile for the snout-strike task while still resisting sag. -->
+    <default class="neck_joint">
+      <joint damping="0.5" armature="0.004" stiffness="1.5"/>
+    </default>
+
+    <!-- Tail joints: a light counterbalance rather than the rigid rudder the
+         theropods carry, but stiff enough to hold the high walk.  At the
+         original stiffness 2.5 the 1.27kg tail sagged 0.135m under its own
+         weight, leaving the distal segments 0.19m off the floor and making
+         incidental tail-ground contact the dominant zero-action failure; 12.0
+         carries the tip at 0.245m. -->
+    <default class="tail_joint">
+      <joint damping="1.2" armature="0.005" stiffness="12.0" range="-15 15"/>
+    </default>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.6 0.8 1.0" rgb2="0.2 0.4 0.6"
+             width="256" height="256"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.42 0.44 0.38" rgb2="0.32 0.34 0.30"
+             width="512" height="512"/>
+    <material name="grid_mat" texture="grid" texrepeat="8 8" reflectance="0.1"/>
+    <material name="body_mat" rgba="0.42 0.44 0.34 1"/>
+    <material name="belly_mat" rgba="0.62 0.6 0.48 1"/>
+    <material name="head_mat" rgba="0.38 0.4 0.31 1"/>
+    <material name="scute_mat" rgba="0.3 0.31 0.24 1"/>
+    <material name="foot_mat" rgba="0.28 0.26 0.22 1"/>
+  </asset>
+
+  <worldbody>
+    <!-- Ground plane -->
+    <geom name="floor" type="plane" size="50 50 0.1" material="grid_mat"
+          conaffinity="1" contype="1"/>
+
+    <!-- Prey target (mocap body).  Small: this animal ate insects and small
+         vertebrates, not the sauropodlet-sized prey the theropods chase.  It
+         sits at 0.15m so the sphere's underside (0.09m) stays well clear of
+         the 0.04m snout-prop termination gate: a successful snap must never be
+         reported as the animal propping itself on its own snout. -->
+    <body name="prey" mocap="true" pos="3 0 0.15">
+      <geom name="prey_geom" type="sphere" size="0.06" rgba="0.8 0.35 0.2 0.8"
+            contype="2" conaffinity="2"/>
+    </body>
+
+    <!-- ==================== DIBOTHROSUCHUS BODY ==================== -->
+    <!--
+    Coordinate system:
+      +X = forward (direction of travel)
+      +Y = left
+      +Z = up
+
+    Approximate dimensions (measured from the home keyframe):
+      Snout tip to tail tip: 1.24m
+      Trunk length: 0.41m
+      Hip height: 0.29m (trunk frame at 0.3135m)
+      Skull length: 0.16m
+      Tail length: 0.56m
+      Total mass: 8.65kg (scaled)
+
+    Settled home pose, measured by holding the home control vector for 1500
+    steps: trunk 0.3129m (0.6mm of settle), forward_z +0.003 and tilt 0.003 rad
+    — the frame stays level, so natural_pitch is 0 and both the posture and
+    nosedive rewards keep their world-vertical reference.  The four pads carry
+    the full 84.9N of weight, split 71/29 rear/front.
+
+    Dibothrosuchus elaphros is a sphenosuchian crocodylomorph from the Early
+    Jurassic Lower Lufeng Formation of Yunnan, and it is the first non-dinosaur
+    in this repository.  What the model tries to capture:
+      - Erect, parasagittal limb posture.  Unlike a modern crocodilian's
+        sprawl, the limbs are held under the body, so the leg chains are
+        authored vertical and every leg joint is 0 at the home keyframe.
+      - Gracile, elongate limbs ("elaphros" = light, nimble).  Segment radii
+        are 9-20mm on a 0.29m hip height.
+      - Hindlimbs longer than forelimbs.  The acetabulum sits 22mm below the
+        trunk frame and the glenoid 72mm below it, on the nose-down slope of
+        the pectoral girdle, so the forelimb chain spans 0.242m of ground
+        clearance against the hindlimb's 0.292m — a 0.83 ratio.  The fossil
+        ratio is nearer 0.7; the model trades some of that difference for a
+        level home frame in which all four feet reach the ground, which keeps
+        the posture and nosedive rewards centred on world vertical.
+      - Two paramedian rows of dorsal osteoderms, the "two troughs" the genus
+        is named for.  Modelled as visual-only scutes carrying real mass.
+      - Long, narrow skull with a well-developed sagittal crest, and a slender
+        snout used here as the Stage 3 snap contact.
+    -->
+
+    <body name="torso" pos="0 0 0.3135">
+      <freejoint name="root"/>
+
+      <!-- Trunk.  The BODY FRAME IS LEVEL at the home keyframe; only the
+           capsule slopes (~9.4 deg nose-down), which is what drops the
+           pectoral girdle far enough for the shorter forelimbs to reach the
+           ground.  Reward code reads the body frame, so natural_pitch stays
+           at the measured settled pitch, not this capsule slope. -->
+      <geom name="torso_main" type="capsule" fromto="-0.20 0 0.030  0.21 0 -0.038" size="0.052"
+            mass="3.0" material="body_mat"/>
+
+      <!-- Belly (mass carried low, and the geom whose floor contact marks a
+           sprawl collapse). -->
+      <geom name="belly" type="capsule" fromto="-0.14 0 -0.020  0.15 0 -0.060" size="0.040"
+            mass="0.90" material="belly_mat"/>
+
+      <!-- IMU sensor site -->
+      <site name="imu" pos="0 0 0" size="0.015"/>
+
+      <!-- Paramedian osteoderm rows.  Two parallel rows of dorsal scutes ride
+           the vertebral column; the trough between them gives the genus its
+           name.  contype=0: they carry mass and read visually but never
+           collide, so they cannot inject self-contact into the trunk. -->
+      <geom name="scute_r_1" type="box" pos="-0.17 -0.020 0.076" size="0.028 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_l_1" type="box" pos="-0.17 0.020 0.076" size="0.028 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_r_2" type="box" pos="-0.10 -0.020 0.064" size="0.028 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_l_2" type="box" pos="-0.10 0.020 0.064" size="0.028 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_r_3" type="box" pos="-0.03 -0.020 0.053" size="0.028 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_l_3" type="box" pos="-0.03 0.020 0.053" size="0.028 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_r_4" type="box" pos="0.04 -0.020 0.041" size="0.028 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_l_4" type="box" pos="0.04 0.020 0.041" size="0.028 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_r_5" type="box" pos="0.11 -0.020 0.030" size="0.028 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_l_5" type="box" pos="0.11 0.020 0.030" size="0.028 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_r_6" type="box" pos="0.16 -0.020 0.021" size="0.022 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+      <geom name="scute_l_6" type="box" pos="0.16 0.020 0.021" size="0.022 0.014 0.004"
+            mass="0.025" material="scute_mat" contype="0" conaffinity="0"/>
+
+      <!-- ==================== NECK + SKULL ==================== -->
+      <!-- Long, slender, mobile neck carrying a narrow crested skull. -->
+
+      <body name="neck" pos="0.20 0 -0.030">
+        <joint name="neck_pitch" class="neck_joint" type="hinge" axis="0 1 0" range="-35 40"/>
+        <joint name="neck_yaw" class="neck_joint" type="hinge" axis="0 0 1" range="-35 35"/>
+        <geom name="neck_geom" type="capsule" fromto="0 0 0  0.13 0 0.045" size="0.026"
+              mass="0.35" material="body_mat" contype="0" conaffinity="0"/>
+
+        <body name="skull" pos="0.13 0 0.045">
+          <joint name="head_pitch" class="neck_joint" type="hinge" axis="0 1 0" range="-30 35"/>
+          <geom name="skull_geom" type="capsule" fromto="0 0 0  0.075 0 0.004" size="0.028"
+                mass="0.30" material="head_mat"/>
+          <!-- Sagittal crest: a diagnostic Dibothrosuchus feature, and the
+               anchor for the jaw musculature.  Visual-only. -->
+          <geom name="sagittal_crest" type="box" pos="0.03 0 0.028" size="0.035 0.004 0.010"
+                mass="0.03" material="head_mat" contype="0" conaffinity="0"/>
+          <!-- Narrow elongate snout with the small conical dentition. -->
+          <geom name="snout_geom" type="capsule" fromto="0.07 0 0.002  0.155 0 -0.006" size="0.017"
+                mass="0.16" material="head_mat"/>
+
+          <!-- Snout tip site for proximity-based snap detection -->
+          <site name="snout_tip" pos="0.16 0 -0.006" size="0.008"/>
+
+          <!-- Snap contact geom at the snout tip.  contype/conaffinity 2 puts
+               it on the prey's collision channel and off the floor's, so it
+               only ever registers prey contact. -->
+          <geom name="snout_snap" type="box" pos="0.150 0 -0.006" size="0.022 0.014 0.012"
+                mass="0.02" rgba="0 0 0 0" contype="2" conaffinity="2"/>
+        </body>
+      </body>
+
+      <!-- ==================== TAIL ==================== -->
+      <!-- 4 segments, ~0.56m, held clear of the ground in the high walk.
+           Segment 4 is passive: only the proximal three carry actuators. -->
+
+      <body name="tail_1" pos="-0.20 0 0.026">
+        <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+        <joint name="tail_1_yaw" class="tail_joint" type="hinge" axis="0 0 1" range="-12 12"/>
+        <geom name="tail_1_geom" type="capsule" fromto="0 0 0  -0.17 0 -0.010" size="0.030"
+              mass="0.55" material="body_mat"/>
+
+        <body name="tail_2" pos="-0.17 0 -0.010">
+          <joint name="tail_2_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+          <geom name="tail_2_geom" type="capsule" fromto="0 0 0  -0.15 0 -0.008" size="0.024"
+                mass="0.38" material="body_mat"/>
+
+          <body name="tail_3" pos="-0.15 0 -0.008">
+            <joint name="tail_3_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+            <geom name="tail_3_geom" type="capsule" fromto="0 0 0  -0.13 0 -0.004" size="0.018"
+                  mass="0.22" material="body_mat"/>
+
+            <body name="tail_4" pos="-0.13 0 -0.004">
+              <joint name="tail_4_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+              <geom name="tail_4_geom" type="capsule" fromto="0 0 0  -0.11 0 0.004" size="0.011"
+                    mass="0.12" material="body_mat"/>
+              <site name="tail_tip" pos="-0.11 0 0.004" size="0.008"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== FRONT RIGHT LEG ==================== -->
+      <!-- Glenoid 72mm below the trunk frame, on the sloping pectoral girdle.
+           Humerus / radius-ulna / metacarpus / manus pad, authored vertical:
+           every joint is 0 in the home pose. -->
+
+      <body name="fr_thigh" pos="0.165 -0.045 -0.072">
+        <joint name="fr_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-45 45"/>
+        <joint name="fr_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-18 18"/>
+        <geom name="fr_thigh_geom" type="capsule" fromto="0 0 0  0.020 0 -0.095" size="0.016"
+              mass="0.22" material="body_mat"/>
+
+        <body name="fr_shin" pos="0.020 0 -0.095">
+          <joint name="fr_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-65 20"/>
+          <geom name="fr_shin_geom" type="capsule" fromto="0 0 0  -0.018 0 -0.087" size="0.0125"
+                mass="0.13" material="body_mat"/>
+
+          <body name="fr_meta" pos="-0.018 0 -0.087">
+            <joint name="fr_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-30 50"/>
+            <geom name="fr_meta_geom" type="capsule" fromto="0 0 0  0.016 0 -0.048" size="0.009"
+                  mass="0.06" material="body_mat"/>
+
+            <body name="fr_foot" pos="0.016 0 -0.048">
+              <joint name="fr_toe" class="leg_joint" type="hinge" axis="0 1 0" range="-20 40"/>
+              <!-- Flat manus pad: one load-bearing fore-aft surface rather
+                   than a point contact on the metacarpus endpoint. -->
+              <geom name="fr_foot_geom" type="box" pos="0.011 0 -0.006" size="0.023 0.013 0.006"
+                    mass="0.05" material="foot_mat"/>
+              <!-- Touch volume encloses the whole pad and its floor contacts.
+                   A box site is needed because a lying pad contacts the floor
+                   across its footprint, not at one point; group 4 keeps the
+                   diagnostic volume out of default renders. -->
+              <site name="fr_foot_contact" type="box" pos="0.011 0 -0.006" size="0.042 0.024 0.012"
+                    group="4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== FRONT LEFT LEG ==================== -->
+
+      <body name="fl_thigh" pos="0.165 0.045 -0.072">
+        <joint name="fl_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-45 45"/>
+        <joint name="fl_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-18 18"/>
+        <geom name="fl_thigh_geom" type="capsule" fromto="0 0 0  0.020 0 -0.095" size="0.016"
+              mass="0.22" material="body_mat"/>
+
+        <body name="fl_shin" pos="0.020 0 -0.095">
+          <joint name="fl_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-65 20"/>
+          <geom name="fl_shin_geom" type="capsule" fromto="0 0 0  -0.018 0 -0.087" size="0.0125"
+                mass="0.13" material="body_mat"/>
+
+          <body name="fl_meta" pos="-0.018 0 -0.087">
+            <joint name="fl_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-30 50"/>
+            <geom name="fl_meta_geom" type="capsule" fromto="0 0 0  0.016 0 -0.048" size="0.009"
+                  mass="0.06" material="body_mat"/>
+
+            <body name="fl_foot" pos="0.016 0 -0.048">
+              <joint name="fl_toe" class="leg_joint" type="hinge" axis="0 1 0" range="-20 40"/>
+              <geom name="fl_foot_geom" type="box" pos="0.011 0 -0.006" size="0.023 0.013 0.006"
+                    mass="0.05" material="foot_mat"/>
+              <site name="fl_foot_contact" type="box" pos="0.011 0 -0.006" size="0.042 0.024 0.012"
+                    group="4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== REAR RIGHT LEG ==================== -->
+      <!-- Acetabulum 22mm below the trunk frame.  Femur / tibia / metatarsus /
+           pes pad; the metatarsus is long and held sub-vertically, the
+           semi-digitigrade posture the crocodile-normal tarsus permits. -->
+
+      <body name="rr_thigh" pos="-0.135 -0.050 -0.022">
+        <joint name="rr_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-50 50"/>
+        <joint name="rr_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-20 20"/>
+        <geom name="rr_thigh_geom" type="capsule" fromto="0 0 0  0.030 0 -0.115" size="0.020"
+              mass="0.34" material="body_mat"/>
+
+        <body name="rr_shin" pos="0.030 0 -0.115">
+          <joint name="rr_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-70 25"/>
+          <geom name="rr_shin_geom" type="capsule" fromto="0 0 0  -0.026 0 -0.105" size="0.015"
+                mass="0.20" material="body_mat"/>
+
+          <body name="rr_meta" pos="-0.026 0 -0.105">
+            <joint name="rr_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-35 55"/>
+            <geom name="rr_meta_geom" type="capsule" fromto="0 0 0  0.024 0 -0.058" size="0.011"
+                  mass="0.09" material="body_mat"/>
+
+            <body name="rr_foot" pos="0.024 0 -0.058">
+              <joint name="rr_toe" class="leg_joint" type="hinge" axis="0 1 0" range="-25 45"/>
+              <geom name="rr_foot_geom" type="box" pos="0.015 0 -0.007" size="0.028 0.015 0.007"
+                    mass="0.07" material="foot_mat"/>
+              <site name="rr_foot_contact" type="box" pos="0.015 0 -0.007" size="0.050 0.026 0.014"
+                    group="4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <!-- ==================== REAR LEFT LEG ==================== -->
+
+      <body name="rl_thigh" pos="-0.135 0.050 -0.022">
+        <joint name="rl_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0" range="-50 50"/>
+        <joint name="rl_hip_roll" class="leg_joint" type="hinge" axis="1 0 0" range="-20 20"/>
+        <geom name="rl_thigh_geom" type="capsule" fromto="0 0 0  0.030 0 -0.115" size="0.020"
+              mass="0.34" material="body_mat"/>
+
+        <body name="rl_shin" pos="0.030 0 -0.115">
+          <joint name="rl_knee" class="leg_joint" type="hinge" axis="0 1 0" range="-70 25"/>
+          <geom name="rl_shin_geom" type="capsule" fromto="0 0 0  -0.026 0 -0.105" size="0.015"
+                mass="0.20" material="body_mat"/>
+
+          <body name="rl_meta" pos="-0.026 0 -0.105">
+            <joint name="rl_ankle" class="leg_joint" type="hinge" axis="0 1 0" range="-35 55"/>
+            <geom name="rl_meta_geom" type="capsule" fromto="0 0 0  0.024 0 -0.058" size="0.011"
+                  mass="0.09" material="body_mat"/>
+
+            <body name="rl_foot" pos="0.024 0 -0.058">
+              <joint name="rl_toe" class="leg_joint" type="hinge" axis="0 1 0" range="-25 45"/>
+              <geom name="rl_foot_geom" type="box" pos="0.015 0 -0.007" size="0.028 0.015 0.007"
+                    mass="0.07" material="foot_mat"/>
+              <site name="rl_foot_contact" type="box" pos="0.015 0 -0.007" size="0.050 0.026 0.014"
+                    group="4"/>
+            </body>
+          </body>
+        </body>
+      </body>
+
+    </body> <!-- end torso -->
+  </worldbody>
+
+  <!-- ==================== ACTUATORS ==================== -->
+
+  <actuator>
+    <!-- NOTE: ctrlrange must be in radians — the compiler angle="degree" setting
+         does NOT convert actuator attributes, only joint attributes.
+
+         Sizing: hip-pitch, knee, and ankle carry 1.5x-kp forcerange on all four
+         legs.  A 1.3m animal trots fast relative to its body length, so all
+         three stance joints see gait-scale torque, not just the hips; the
+         remaining actuators keep a 0.7x-kp spike cap.  See
+         docs/investigations/STAGE2_RECOMMENDATIONS.md for why undersized caps
+         are a stage-2 failure mode. -->
+
+    <!-- Neck and skull -->
+    <position name="neck_pitch_act" joint="neck_pitch" kp="25" forcerange="-17.5 17.5" ctrlrange="-0.6109 0.6981"/>
+    <position name="neck_yaw_act" joint="neck_yaw" kp="20" forcerange="-14 14" ctrlrange="-0.6109 0.6109"/>
+    <position name="head_pitch_act" joint="head_pitch" kp="12" forcerange="-8.4 8.4" ctrlrange="-0.5236 0.6109"/>
+
+    <!-- Front right leg -->
+    <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="70" forcerange="-105 105" ctrlrange="-0.7854 0.7854"/>
+    <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="32" forcerange="-22.4 22.4" ctrlrange="-0.3142 0.3142"/>
+    <position name="fr_knee_act" joint="fr_knee" kp="85" forcerange="-127.5 127.5" ctrlrange="-1.1345 0.3491"/>
+    <position name="fr_ankle_act" joint="fr_ankle" kp="45" forcerange="-67.5 67.5" ctrlrange="-0.5236 0.8727"/>
+    <position name="fr_toe_act" joint="fr_toe" kp="18" forcerange="-12.6 12.6" ctrlrange="-0.3491 0.6981"/>
+
+    <!-- Front left leg -->
+    <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="70" forcerange="-105 105" ctrlrange="-0.7854 0.7854"/>
+    <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="32" forcerange="-22.4 22.4" ctrlrange="-0.3142 0.3142"/>
+    <position name="fl_knee_act" joint="fl_knee" kp="85" forcerange="-127.5 127.5" ctrlrange="-1.1345 0.3491"/>
+    <position name="fl_ankle_act" joint="fl_ankle" kp="45" forcerange="-67.5 67.5" ctrlrange="-0.5236 0.8727"/>
+    <position name="fl_toe_act" joint="fl_toe" kp="18" forcerange="-12.6 12.6" ctrlrange="-0.3491 0.6981"/>
+
+    <!-- Rear right leg -->
+    <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="90" forcerange="-135 135" ctrlrange="-0.8727 0.8727"/>
+    <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="40" forcerange="-28 28" ctrlrange="-0.3491 0.3491"/>
+    <position name="rr_knee_act" joint="rr_knee" kp="110" forcerange="-165 165" ctrlrange="-1.2217 0.4363"/>
+    <position name="rr_ankle_act" joint="rr_ankle" kp="60" forcerange="-90 90" ctrlrange="-0.6109 0.9599"/>
+    <position name="rr_toe_act" joint="rr_toe" kp="22" forcerange="-15.4 15.4" ctrlrange="-0.4363 0.7854"/>
+
+    <!-- Rear left leg -->
+    <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="90" forcerange="-135 135" ctrlrange="-0.8727 0.8727"/>
+    <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="40" forcerange="-28 28" ctrlrange="-0.3491 0.3491"/>
+    <position name="rl_knee_act" joint="rl_knee" kp="110" forcerange="-165 165" ctrlrange="-1.2217 0.4363"/>
+    <position name="rl_ankle_act" joint="rl_ankle" kp="60" forcerange="-90 90" ctrlrange="-0.6109 0.9599"/>
+    <position name="rl_toe_act" joint="rl_toe" kp="22" forcerange="-15.4 15.4" ctrlrange="-0.4363 0.7854"/>
+
+    <!-- Tail actuators.  Proximal three segments only; tail_4 stays passive. -->
+    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="18" forcerange="-12.6 12.6" ctrlrange="-0.2094 0.2094"/>
+    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="14" forcerange="-9.8 9.8" ctrlrange="-0.1745 0.1745"/>
+    <position name="tail_2_pitch_act" joint="tail_2_pitch" kp="12" forcerange="-8.4 8.4" ctrlrange="-0.2094 0.2094"/>
+    <position name="tail_3_pitch_act" joint="tail_3_pitch" kp="8" forcerange="-5.6 5.6" ctrlrange="-0.2094 0.2094"/>
+  </actuator>
+
+  <!-- ==================== SENSORS ==================== -->
+
+  <sensor>
+    <!-- WARNING: the Python envs index sensordata by POSITION (gyro 0-2,
+         accel 3-5, quat 6-9, touch 10-13, snout 14-16, tail 17-25).  Do not
+         reorder or insert sensors without updating mjx_config.py and the
+         cached indices in dibothrosuchus_env.py. -->
+    <!-- IMU-like sensors on the trunk -->
+    <gyro name="torso_gyro" site="imu"/>
+    <accelerometer name="torso_accel" site="imu"/>
+    <framequat name="torso_orientation" objtype="site" objname="imu"/>
+
+    <!-- Foot contact forces (4 feet) -->
+    <touch name="fr_foot_touch" site="fr_foot_contact"/>
+    <touch name="fl_foot_touch" site="fl_foot_contact"/>
+    <touch name="rr_foot_touch" site="rr_foot_contact"/>
+    <touch name="rl_foot_touch" site="rl_foot_contact"/>
+
+    <!-- Snout tip position (for the snap task) -->
+    <framepos name="snout_tip_pos" objtype="site" objname="snout_tip"/>
+
+    <!-- Tail tip for stability monitoring -->
+    <framepos name="tail_tip_pos" objtype="site" objname="tail_tip"/>
+    <velocimeter name="tail_tip_linvel" site="tail_tip"/>
+    <gyro name="tail_tip_angvel" site="tail_tip"/>
+  </sensor>
+
+  <!-- ==================== CONTACT EXCLUSIONS ==================== -->
+
+  <contact>
+    <!-- Neck/skull chain -->
+    <exclude body1="torso" body2="neck"/>
+    <exclude body1="neck" body2="skull"/>
+
+    <!-- Tail chain -->
+    <exclude body1="torso" body2="tail_1"/>
+    <exclude body1="tail_1" body2="tail_2"/>
+    <exclude body1="tail_2" body2="tail_3"/>
+    <exclude body1="tail_3" body2="tail_4"/>
+
+    <!-- Girdle-limb -->
+    <exclude body1="torso" body2="fr_thigh"/>
+    <exclude body1="torso" body2="fl_thigh"/>
+    <exclude body1="torso" body2="rr_thigh"/>
+    <exclude body1="torso" body2="rl_thigh"/>
+
+    <!-- Shin/metapodium/pad chains -->
+    <exclude body1="fr_shin" body2="fr_meta"/>
+    <exclude body1="fl_shin" body2="fl_meta"/>
+    <exclude body1="rr_shin" body2="rr_meta"/>
+    <exclude body1="rl_shin" body2="rl_meta"/>
+    <exclude body1="fr_meta" body2="fr_foot"/>
+    <exclude body1="fl_meta" body2="fl_foot"/>
+    <exclude body1="rr_meta" body2="rr_foot"/>
+    <exclude body1="rl_meta" body2="rl_foot"/>
+  </contact>
+
+  <!-- ==================== KEYFRAMES ==================== -->
+  <!-- Erect standing pose.  Every hinge joint is 0 here: the stance geometry
+       is baked into the body offsets rather than into joint references, so the
+       home pose, the joint-spring rest pose, and the zero control vector all
+       coincide.  The trunk sits at 0.3135m, half a millimetre below the height
+       at which the four pads exactly touch, giving a shallow contact instead
+       of a drop on the first step. -->
+
+  <keyframe>
+    <key name="home"
+         qpos="0 0 0.3135 1 0 0 0
+               0 0 0
+               0 0 0 0 0
+               0 0 0 0 0
+               0 0 0 0 0
+               0 0 0 0 0
+               0 0 0 0 0"
+         ctrl="0 0 0
+               0 0 0 0 0
+               0 0 0 0 0
+               0 0 0 0 0
+               0 0 0 0 0
+               0 0 0 0"/>
+  </keyframe>
+
+</mujoco>

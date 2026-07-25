@@ -9,7 +9,7 @@ recorded); not evidence for the current model or configuration.*
 
 ## Overview
 
-Mesozoic Labs is a simulation research project exploring bipedal and quadrupedal locomotion with dinosaur-inspired articulated models. We use MuJoCo for physics-based simulation and train agents with algorithms such as PPO and SAC. The models are research abstractions rather than validated reconstructions of dinosaur anatomy.
+Mesozoic Labs is a simulation research project exploring bipedal and quadrupedal locomotion with Mesozoic-inspired articulated models. We use MuJoCo for physics-based simulation and train agents with algorithms such as PPO and SAC. The models are research abstractions rather than validated anatomical reconstructions. Most species here are dinosaurs; Dibothrosuchus is a crocodylomorph, included because its erect, long-limbed terrestrial posture is a distinct locomotion problem from the sprawl a modern crocodilian uses.
 
 **Goals:**
 - Develop locomotion controllers for dinosaur-inspired simulated species
@@ -35,6 +35,12 @@ mesozoic-labs/
 │   │   ├── tests/             # Pytest test suite
 │   │   └── README.md
 │   ├── trex/                  # T-Rex (large bipedal predator)
+│   │   ├── assets/            # MJCF model files
+│   │   ├── envs/              # Gymnasium environments
+│   │   ├── scripts/           # Training & utility scripts
+│   │   ├── tests/             # Pytest test suite
+│   │   └── README.md
+│   ├── dibothrosuchus/        # Dibothrosuchus (erect-limbed crocodylomorph)
 │   │   ├── assets/            # MJCF model files
 │   │   ├── envs/              # Gymnasium environments
 │   │   ├── scripts/           # Training & utility scripts
@@ -75,7 +81,7 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 | Action dimension / actuators | 22 |
 | Generalized coordinates / velocities | nq=31, nv=30 |
 | Compiled dynamic model mass | 13.5 kg |
-| Plant contract revisions | policy r3; physics r2; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r5; physics r2; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/velociraptor/assets/raptor.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -102,7 +108,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Action dimension / actuators | 21 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
 | Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r3; physics r3; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r5; physics r3; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/trex/assets/trex.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -127,7 +133,7 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 | Action dimension / actuators | 30 |
 | Generalized coordinates / velocities | nq=38, nv=37 |
 | Compiled dynamic model mass | 175.3 kg |
-| Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r2; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -140,6 +146,31 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 - **Stable-Baselines3 / JAX/MJX — Head-tip distance-threshold success:** The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled.
 
 [Full documentation →](environments/brachiosaurus/README.md)
+
+### Dibothrosuchus
+
+Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
+
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 77 |
+| Action dimension / actuators | 27 |
+| Generalized coordinates / velocities | nq=35, nv=34 |
+| Compiled dynamic model mass | 8.7 kg |
+| Plant contract revisions | policy r2; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Model | `environments/dibothrosuchus/assets/dibothrosuchus.xml` |
+
+| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---:|---:|
+| 1 — Balance | Hold the erect quadrupedal stance without collapsing into a sprawl | 6M | reward ≥ 100; episode length ≥ 750; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | Learn a coordinated erect-limbed diagonal-pair walk | 12M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 0.9 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 3 — Snap | Close on small prey and touch it with the snout snap proxy | 8M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 — Snout-contact snap proxy:** The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw.
+- **JAX/MJX — Snout-tip proximity snap proxy:** The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
+
+[Full documentation →](environments/dibothrosuchus/README.md)
 <!-- END GENERATED: SPECIES -->
 
 ### Planned Species

@@ -6,7 +6,7 @@
   },
   "plants": {
     "brachiosaurus": {
-      "bundle_sha256": "sha256:c8f27e661bbb7bb0f39a522d0b25820ad2e1f44ca3a6b19ba5a922d554ba7bfe",
+      "bundle_sha256": "sha256:612755a3515428460fa9eb7b0762b385403ab3c6a8c682fde741e4d9f0e5757a",
       "env_entrypoint": "environments.brachiosaurus.envs.brachio_env:BrachioEnv",
       "model_path": "environments/brachiosaurus/assets/brachiosaurus.xml",
       "physics": {
@@ -21,9 +21,9 @@
         "action_dim": 30,
         "observation_dim": 83,
         "observation_schema": "quadrupedal-target/v1",
-        "revision": 1,
+        "revision": 2,
         "schema": "mesozoic.policy-interface/v1",
-        "sha256": "sha256:1e504c552947b42943acc00ddd03ac182f7a9736a7629640813ed84c7f5afbce"
+        "sha256": "sha256:4065e79ba595e617201ddc695e4e8fd9d4554c322642ec9523dc2a121726b5ed"
       },
       "source": {
         "closure_sha256": "sha256:586e8c38684b4132c63872662333b37a2471b7740a6bc265def721f86fad1a5b",
@@ -44,8 +44,47 @@
         "sha256": "sha256:152eeef00d8b2c42045731d43212ed1009323e8109feae9135fa58ad8aa52e93"
       }
     },
+    "dibothrosuchus": {
+      "bundle_sha256": "sha256:b0ac834677699f4fd2451340b1d9584f1844d04a5e5e39141aadcad708a50821",
+      "env_entrypoint": "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv",
+      "model_path": "environments/dibothrosuchus/assets/dibothrosuchus.xml",
+      "physics": {
+        "nq": 35,
+        "nu": 27,
+        "nv": 34,
+        "revision": 1,
+        "schema": "mesozoic.mujoco-physics/v1",
+        "sha256": "sha256:e07cfccd53e7b4f8903abf0d0e4d5910937dfdcb5b04406c01a28ad9247254a7"
+      },
+      "policy_interface": {
+        "action_dim": 27,
+        "observation_dim": 77,
+        "observation_schema": "quadrupedal-target/v1",
+        "revision": 2,
+        "schema": "mesozoic.policy-interface/v1",
+        "sha256": "sha256:193e3e4537f259af014cde06c27c46e6e4dca456015b872a1b6df1665e819ee1"
+      },
+      "source": {
+        "closure_sha256": "sha256:5532fad56a1613020f09bfa197f14f0916306e664d5cf18609b757d3c5948bc3",
+        "dependencies": [
+          {
+            "content_sha256": "sha256:a13dac05daeed13fe8ad1ac44bd57c2819382c12164cc493055629a4b94c0422",
+            "kind": "mjcf",
+            "logical_path": "environments/dibothrosuchus/assets/dibothrosuchus.xml"
+          }
+        ],
+        "root": "environments/dibothrosuchus/assets/dibothrosuchus.xml",
+        "schema": "mesozoic.source-closure/v1"
+      },
+      "species": "dibothrosuchus",
+      "visual": {
+        "revision": 1,
+        "schema": "mesozoic.mujoco-visual/v1",
+        "sha256": "sha256:0a5f29f25ebc959470b0204cc2091e11a0e6d61db848e93077d80e68a4e6892e"
+      }
+    },
     "trex": {
-      "bundle_sha256": "sha256:7fd2c85f438ff5f5c86c4806440a66252d9b63a777d9d3cabaf215a0c556f176",
+      "bundle_sha256": "sha256:11a79cd6a1dd41037b10735297d0a642dd762b11f72bc6837f9ad370a5237f3d",
       "env_entrypoint": "environments.trex.envs.trex_env:TRexEnv",
       "model_path": "environments/trex/assets/trex.xml",
       "physics": {
@@ -60,9 +99,9 @@
         "action_dim": 21,
         "observation_dim": 61,
         "observation_schema": "bipedal-target/v1",
-        "revision": 3,
+        "revision": 5,
         "schema": "mesozoic.policy-interface/v1",
-        "sha256": "sha256:ee5727900cb1a9494005cc8f2972f8a293e6013700d0d2ed6f8797ab4e14a6f5"
+        "sha256": "sha256:e6dd172814433dc00a7390c0e47c5f1532cfc47073439ed26f09483c15969e1f"
       },
       "source": {
         "closure_sha256": "sha256:4f0fdc428aa2ee1535dd6a3ba293aaad32ff271b612445293b792a1903a0400c",
@@ -84,7 +123,7 @@
       }
     },
     "velociraptor": {
-      "bundle_sha256": "sha256:3a4d15176168efea7f63dc1d1051b1f3314b5c80e1e5e0826c294c440c8c66ca",
+      "bundle_sha256": "sha256:2ed2e9c4ea84956beed41667274723335ef40815bed1e4b21ee57415a81b225a",
       "env_entrypoint": "environments.velociraptor.envs.raptor_env:RaptorEnv",
       "model_path": "environments/velociraptor/assets/raptor.xml",
       "physics": {
@@ -99,9 +138,9 @@
         "action_dim": 22,
         "observation_dim": 67,
         "observation_schema": "bipedal-target/v1",
-        "revision": 3,
+        "revision": 5,
         "schema": "mesozoic.policy-interface/v1",
-        "sha256": "sha256:a1cddb3c11997620980eaa57d2e7ff824695d07d31359cbdd78db2002dd99a2d"
+        "sha256": "sha256:fe3fc35cc6f5f37e976982ad2e302121266e9aaf322cd5d7ae884ae384de5fdb"
       },
       "source": {
         "closure_sha256": "sha256:ae2ebacf577a7247484e8954fecce421b007246ead904a83ce319babb1efdec5",

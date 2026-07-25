@@ -20,6 +20,7 @@ import logging as _logging
 
 try:
     from environments.brachiosaurus.envs import brachio_env as _brachio_env  # noqa: F401
+    from environments.dibothrosuchus.envs import dibothrosuchus_env as _dibothrosuchus_env  # noqa: F401
     from environments.trex.envs import trex_env as _trex_env  # noqa: F401
     from environments.velociraptor.envs import raptor_env as _raptor_env  # noqa: F401
 except ImportError:

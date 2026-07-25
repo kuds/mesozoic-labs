@@ -34,7 +34,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "trial",
         help="Run one sweep trial (used by Vertex AI HPT workers inside Docker)",
     )
-    trial.add_argument("--species", required=True, choices=["velociraptor", "brachiosaurus", "trex"])
+    trial.add_argument("--species", required=True, choices=["velociraptor", "brachiosaurus", "trex", "dibothrosuchus"])
     trial.add_argument("--stage", type=int, choices=[1, 2, 3], default=1)
     trial.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
     trial.add_argument("--timesteps", type=int, default=500000, help="Training timesteps per trial")
@@ -57,7 +57,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "launch",
         help="Submit a Vertex AI Hyperparameter Tuning job for one stage",
     )
-    launch.add_argument("--species", required=True, choices=["velociraptor", "brachiosaurus", "trex"])
+    launch.add_argument("--species", required=True, choices=["velociraptor", "brachiosaurus", "trex", "dibothrosuchus"])
     launch.add_argument("--stage", type=int, choices=[1, 2, 3], default=1, help="Curriculum stage to sweep")
     launch.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
     launch.add_argument(
@@ -186,7 +186,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "launch-all",
         help="Sweep all three curriculum stages end-to-end with a single command",
     )
-    launch_all.add_argument("--species", required=True, choices=["velociraptor", "brachiosaurus", "trex"])
+    launch_all.add_argument(
+        "--species", required=True, choices=["velociraptor", "brachiosaurus", "trex", "dibothrosuchus"]
+    )
     launch_all.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
     launch_all.add_argument(
         "--n-envs",

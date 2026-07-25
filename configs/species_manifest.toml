@@ -185,3 +185,28 @@ backend = "stable-baselines3"
 model_revision_status = "historical"
 verification_status = "unverified"
 repository_commit = "e179198baddbaa1b3003031b7e97472594946b34"
+
+[[species]]
+id = "dibothrosuchus"
+display_order = 4
+display_name = "Dibothrosuchus"
+tagline = "Gracile Erect-Limbed Crocodylomorph"
+gait = "Quadrupedal"
+specialty = "Snout-contact snap task"
+aliases = ["dibo"]
+env_entrypoint = "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv"
+model_path = "environments/dibothrosuchus/assets/dibothrosuchus.xml"
+training_notebooks = ["sb3_training", "jax_training"]
+result_summary_paths = []
+
+[[species.success_metrics]]
+backends = ["stable-baselines3"]
+key = "snap_success"
+label = "Snout-contact snap proxy"
+definition = "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
+
+[[species.success_metrics]]
+backends = ["jax-mjx"]
+key = "snap_proximity_success"
+label = "Snout-tip proximity snap proxy"
+definition = "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."

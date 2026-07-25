@@ -13,23 +13,24 @@ class TestSpeciesFactories:
     """Verify the SPECIES_FACTORIES registry is well-formed."""
 
     def test_registry_contains_all_canonical_names(self):
-        for name in ("velociraptor", "trex", "brachiosaurus"):
+        for name in ("velociraptor", "trex", "brachiosaurus", "dibothrosuchus"):
             assert name in SPECIES_FACTORIES
 
     def test_registry_contains_aliases(self):
-        for alias in ("raptor", "t-rex", "brachio"):
+        for alias in ("raptor", "t-rex", "brachio", "dibo"):
             assert alias in SPECIES_FACTORIES
 
     def test_alias_resolves_to_same_species(self):
         assert SPECIES_FACTORIES["raptor"] is SPECIES_FACTORIES["velociraptor"]
         assert SPECIES_FACTORIES["t-rex"] is SPECIES_FACTORIES["trex"]
         assert SPECIES_FACTORIES["brachio"] is SPECIES_FACTORIES["brachiosaurus"]
+        assert SPECIES_FACTORIES["dibo"] is SPECIES_FACTORIES["dibothrosuchus"]
 
 
 class TestGetSpeciesConfig:
     """Verify get_species_config returns valid SpeciesConfig objects."""
 
-    @pytest.mark.parametrize("name", ["velociraptor", "trex", "brachiosaurus"])
+    @pytest.mark.parametrize("name", ["velociraptor", "trex", "brachiosaurus", "dibothrosuchus"])
     def test_canonical_names_return_config(self, name):
         config = get_species_config(name)
         assert isinstance(config, SpeciesConfig)
@@ -41,6 +42,7 @@ class TestGetSpeciesConfig:
             ("raptor", "velociraptor"),
             ("t-rex", "trex"),
             ("brachio", "brachiosaurus"),
+            ("dibo", "dibothrosuchus"),
         ],
     )
     def test_aliases_return_correct_species(self, alias, expected_species):
@@ -55,7 +57,7 @@ class TestGetSpeciesConfig:
         with pytest.raises(ValueError, match="Unknown species"):
             get_species_config("stegosaurus")
 
-    @pytest.mark.parametrize("name", ["velociraptor", "trex", "brachiosaurus"])
+    @pytest.mark.parametrize("name", ["velociraptor", "trex", "brachiosaurus", "dibothrosuchus"])
     def test_config_has_required_fields(self, name):
         config = get_species_config(name)
         assert config.env_class is not None
@@ -65,7 +67,7 @@ class TestGetSpeciesConfig:
         assert isinstance(config.success_keys, list)
         assert len(config.success_keys) > 0
 
-    @pytest.mark.parametrize("name", ["velociraptor", "trex", "brachiosaurus"])
+    @pytest.mark.parametrize("name", ["velociraptor", "trex", "brachiosaurus", "dibothrosuchus"])
     def test_env_class_is_instantiable(self, name):
         """The env_class in the config should be importable and callable."""
         config = get_species_config(name)

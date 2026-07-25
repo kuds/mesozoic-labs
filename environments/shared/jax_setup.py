@@ -43,12 +43,14 @@ _CAMERA_DEFAULTS: dict[str, dict[str, Any]] = {
     "trex": {"camera_track_body": "pelvis", "camera_distance": 3.0},
     "velociraptor": {"camera_track_body": "pelvis", "camera_distance": 2.0},
     "brachiosaurus": {"camera_track_body": "torso", "camera_distance": 5.0},
+    "dibothrosuchus": {"camera_track_body": "torso", "camera_distance": 1.6},
 }
 
 _STAGE_NAMES: dict[str, dict[int, str]] = {
     "trex": {1: "Balance", 2: "Locomotion", 3: "Bite"},
     "velociraptor": {1: "Balance", 2: "Locomotion", 3: "Strike"},
     "brachiosaurus": {1: "Balance", 2: "Locomotion", 3: "Food Reach"},
+    "dibothrosuchus": {1: "Balance", 2: "Locomotion", 3: "Snap"},
 }
 
 

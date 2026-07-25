@@ -1,28 +1,31 @@
 """Cross-species integration tests.
 
-These tests verify that all three species environments work consistently
+These tests verify that every species environment works consistently
 through the shared infrastructure: Gymnasium registration, config loading,
 determinism, observation validity, basic functionality, and common reward
 invariants.
 
 Per-species test files should only contain tests for species-unique behavior
 (e.g. tail termination for raptor, head termination for T-Rex, food-reach for
-brachiosaurus).  All shared behavior is tested here via parametrization.
+brachiosaurus, snout snap for dibothrosuchus).  All shared behavior is tested
+here via parametrization.
 """
 
 import numpy as np
 import pytest
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
+from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
 from environments.shared.config import load_all_stages, load_stage_config
 from environments.trex.envs.trex_env import TRexEnv
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
-# Parametrise across all three species
+# Parametrise across every implemented species
 SPECIES_ENVS = [
     pytest.param(RaptorEnv, "velociraptor", id="velociraptor"),
     pytest.param(TRexEnv, "trex", id="trex"),
     pytest.param(BrachioEnv, "brachiosaurus", id="brachiosaurus"),
+    pytest.param(DibothrosuchusEnv, "dibothrosuchus", id="dibothrosuchus"),
 ]
 
 # Expected observation and action dimensions per species
@@ -30,6 +33,7 @@ SPECIES_DIMS = {
     "velociraptor": {"obs": 67, "act": 22},
     "trex": {"obs": 61, "act": 21},
     "brachiosaurus": {"obs": 83, "act": 30},
+    "dibothrosuchus": {"obs": 77, "act": 27},
 }
 
 # Expected reward component keys per species
@@ -74,6 +78,24 @@ SPECIES_REWARD_KEYS = {
         "reward_idle",
         "reward_total",
     ],
+    "dibothrosuchus": [
+        "reward_forward",
+        "reward_alive",
+        "reward_energy",
+        "reward_gait",
+        "reward_gait_symmetry",
+        "reward_tail",
+        "reward_snap",
+        "reward_approach",
+        "reward_posture",
+        "reward_nosedive",
+        "reward_height",
+        "reward_smoothness",
+        "reward_heading",
+        "reward_lateral",
+        "reward_idle",
+        "reward_total",
+    ],
 }
 
 
@@ -89,6 +111,7 @@ class TestGymnasiumRegistration:
             "MesozoicLabs/Raptor-v0",
             "MesozoicLabs/TRex-v0",
             "MesozoicLabs/Brachio-v0",
+            "MesozoicLabs/Dibothrosuchus-v0",
         ],
     )
     def test_gym_make(self, gym_id):

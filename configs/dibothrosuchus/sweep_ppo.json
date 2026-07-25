@@ -1,0 +1,117 @@
+{
+  "_comment": "Dibothrosuchus PPO sweep. No run history exists for this species yet, so every range brackets the committed stage TOML value rather than a measured optimum. Tighten these once the first curriculum run reports.",
+
+  "stage1": {
+    "_comment": "Erect quadrupedal balance. The zero-action baseline at reset_noise=0.14 scores 1605 mean / 324 mean-std / 62% full-horizon; any trial below that is worse than doing nothing.",
+    "trials": 30,
+    "timesteps": 6000000,
+    "parallel": 9,
+    "n_envs": 4,
+
+    "ppo_learning_rate":       {"type": "double", "min": 1e-5, "max": 1e-4, "scale": "log"},
+    "ppo_ent_coef":            {"type": "double", "min": 0.002, "max": 0.02, "scale": "log"},
+    "ppo_batch_size":          {"type": "discrete", "values": [64, 128, 256]},
+    "ppo_gamma":               {"type": "double", "min": 0.97, "max": 0.995, "scale": "linear"},
+    "ppo_n_steps":             {"type": "discrete", "values": [2048, 4096]},
+    "ppo_n_epochs":            {"type": "discrete", "values": [10]},
+
+    "_comment_env": "Balance shaping. The failure mode this plant shows under zero action is a roll into a sprawl, so posture and height carry the most weight.",
+    "env_alive_bonus":              {"type": "double", "min": 1.0, "max": 2.5, "scale": "linear"},
+    "env_posture_weight":           {"type": "double", "min": 1.0, "max": 2.5, "scale": "linear"},
+    "env_height_weight":            {"type": "double", "min": 0.5, "max": 1.5, "scale": "linear"},
+    "env_nosedive_weight":          {"type": "double", "min": 0.5, "max": 1.5, "scale": "linear"},
+    "env_energy_penalty_weight":    {"type": "double", "min": 0.01, "max": 0.1, "scale": "log"},
+    "env_gait_stability_weight":    {"type": "double", "min": 0.02, "max": 0.15, "scale": "linear"},
+    "env_speed_penalty_weight":     {"type": "double", "min": 0.1, "max": 0.5, "scale": "linear"},
+    "env_drift_penalty_weight":     {"type": "double", "min": 0.1, "max": 0.5, "scale": "linear"}
+  },
+
+  "stage2": {
+    "_comment": "Diagonal-pair walk. gait_symmetry_weight is the stage's whole point; sweep it wide because no value has been validated on this plant.",
+    "trials": 40,
+    "timesteps": 12000000,
+    "parallel": 9,
+    "n_envs": 4,
+
+    "ppo_learning_rate":       {"type": "double", "min": 2e-5, "max": 1.5e-4, "scale": "log"},
+    "ppo_ent_coef":            {"type": "double", "min": 0.005, "max": 0.02, "scale": "log"},
+    "ppo_batch_size":          {"type": "discrete", "values": [128, 256, 512]},
+    "ppo_gamma":               {"type": "double", "min": 0.99, "max": 0.998, "scale": "linear"},
+    "ppo_n_steps":             {"type": "discrete", "values": [2048, 4096]},
+    "ppo_n_epochs":            {"type": "discrete", "values": [6, 10]},
+
+    "_comment_core": "Core locomotion signal. forward_vel_max is the speed normalisation, not a target: 2.0 m/s is ~1.6 body lengths/s for a 1.24 m animal.",
+    "env_forward_vel_weight":       {"type": "double", "min": 1.5, "max": 4.5, "scale": "linear"},
+    "env_forward_vel_max":          {"type": "double", "min": 1.5, "max": 3.0, "scale": "linear"},
+    "env_alive_bonus":              {"type": "double", "min": 0.1, "max": 0.5, "scale": "linear"},
+    "env_energy_penalty_weight":    {"type": "double", "min": 0.002, "max": 0.008, "scale": "log"},
+
+    "_comment_gait": "Gait shaping",
+    "env_gait_symmetry_weight":     {"type": "double", "min": 0.5, "max": 3.0, "scale": "linear"},
+    "env_gait_stability_weight":    {"type": "double", "min": 0.02, "max": 0.12, "scale": "linear"},
+    "env_idle_penalty_weight":      {"type": "double", "min": 0.1, "max": 0.4, "scale": "linear"},
+
+    "_comment_posture": "Posture and safety",
+    "env_posture_weight":           {"type": "double", "min": 0.15, "max": 0.6, "scale": "linear"},
+    "env_nosedive_weight":          {"type": "double", "min": 0.4, "max": 1.2, "scale": "linear"},
+    "env_height_weight":            {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"},
+    "env_tail_stability_weight":    {"type": "double", "min": 0.05, "max": 0.2, "scale": "linear"},
+
+    "_comment_nav": "Navigation",
+    "env_heading_weight":           {"type": "double", "min": 0.0, "max": 0.3, "scale": "linear"},
+    "env_lateral_penalty_weight":   {"type": "double", "min": 0.0, "max": 0.3, "scale": "linear"},
+
+    "_comment_curriculum": "The stand-to-walk transition schedule",
+    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [300000, 500000, 800000, 1200000]},
+    "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.04, "scale": "linear"},
+    "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.01, "max": 0.04, "scale": "log"},
+    "curriculum_ramp_timesteps":    {"type": "discrete", "values": [1500000, 2500000, 3500000]},
+    "curriculum_ramp_start_value":  {"type": "double", "min": 0.1, "max": 0.3, "scale": "linear"}
+  },
+
+  "stage3": {
+    "_comment": "Snout snap on a 0.06 m prey sphere. The success volume is far smaller than the raptor's or T-Rex's, so the aiming gradients (approach and snout proximity) are the parameters most likely to decide the stage.",
+    "trials": 50,
+    "timesteps": 8000000,
+    "parallel": 9,
+    "n_envs": 4,
+
+    "ppo_learning_rate":       {"type": "double", "min": 2e-5, "max": 1e-4, "scale": "log"},
+    "ppo_ent_coef":            {"type": "double", "min": 0.003, "max": 0.03, "scale": "log"},
+    "ppo_batch_size":          {"type": "discrete", "values": [128, 256, 512]},
+    "ppo_gamma":               {"type": "double", "min": 0.99, "max": 0.998, "scale": "linear"},
+    "ppo_n_steps":             {"type": "discrete", "values": [2048, 4096]},
+    "ppo_n_epochs":            {"type": "discrete", "values": [6, 10]},
+
+    "_comment_snap": "The core objective",
+    "env_snap_bonus":                    {"type": "double", "min": 500.0, "max": 2000.0, "scale": "log"},
+    "env_snap_approach_weight":          {"type": "double", "min": 1.5, "max": 5.0, "scale": "linear"},
+    "env_snap_snout_proximity_weight":   {"type": "double", "min": 0.5, "max": 4.0, "scale": "linear"},
+
+    "_comment_locomotion": "Just enough locomotion to close the distance without forgetting stage 2",
+    "env_forward_vel_weight":       {"type": "double", "min": 0.1, "max": 0.8, "scale": "linear"},
+    "env_heading_weight":           {"type": "double", "min": 0.3, "max": 0.8, "scale": "linear"},
+    "env_lateral_penalty_weight":   {"type": "double", "min": 0.1, "max": 0.4, "scale": "linear"},
+
+    "_comment_posture": "Nosedive weight is the key tradeoff: too high blocks the snout from pitching down to ground-level prey, too low invites face-plants",
+    "env_nosedive_weight":          {"type": "double", "min": 0.03, "max": 0.3, "scale": "log"},
+    "env_posture_weight":           {"type": "double", "min": 0.05, "max": 0.25, "scale": "linear"},
+    "env_fall_penalty":             {"type": "double", "min": -20.0, "max": -5.0, "scale": "linear"},
+
+    "_comment_secondary": "Secondary rewards kept low so they do not distract from snapping",
+    "env_energy_penalty_weight":    {"type": "double", "min": 0.0005, "max": 0.002, "scale": "log"},
+    "env_gait_stability_weight":    {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
+    "env_tail_stability_weight":    {"type": "double", "min": 0.01, "max": 0.05, "scale": "linear"},
+
+    "_comment_spawning": "Closer prey means a denser reward signal for snap discovery",
+    "env_prey_distance_range_min":  {"type": "double", "min": 0.8, "max": 1.5, "scale": "linear"},
+    "env_prey_distance_range_max":  {"type": "double", "min": 2.5, "max": 4.0, "scale": "linear"},
+
+    "_comment_curriculum": "Protect locomotion while the snap behaviour is discovered",
+    "curriculum_warmup_timesteps":  {"type": "discrete", "values": [100000, 200000, 400000]},
+    "curriculum_warmup_clip_range": {"type": "double", "min": 0.01, "max": 0.04, "scale": "linear"},
+    "curriculum_warmup_ent_coef":   {"type": "double", "min": 0.015, "max": 0.05, "scale": "log"},
+    "curriculum_ramp_timesteps":    {"type": "discrete", "values": [500000, 800000, 1500000]},
+    "curriculum_ramp_start_value":  {"type": "double", "min": 0.05, "max": 0.3, "scale": "linear"}
+  }
+}

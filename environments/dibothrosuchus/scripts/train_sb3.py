@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+"""
+Train Dibothrosuchus with Stable-Baselines3 PPO.
+
+Supports curriculum learning with three stages:
+1. Standing/balance (hold the erect quadrupedal stance)
+2. Walking (coordinated diagonal-pair gait)
+3. Walking + snapping (approach small prey and snap with the snout)
+
+Usage:
+    # Single-stage training
+    # Each command uses the current stage TOML budget unless --timesteps is supplied.
+    python train_sb3.py train --stage 1
+    python train_sb3.py train --stage 2 --load models/best_model.zip
+    python train_sb3.py train --stage 3 --load models/best_model.zip
+
+    # Automated end-to-end curriculum (all 3 stages)
+    python train_sb3.py curriculum --n-envs 4
+
+    # Evaluate a trained model
+    python train_sb3.py eval models/stage3_final.zip --episodes 10
+"""
+
+import sys
+from pathlib import Path
+
+# Add repo root to path
+_repo_root = str(Path(__file__).resolve().parents[3])
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
+from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+from environments.shared.train_base import SpeciesConfig, main
+
+SPECIES_CONFIG = SpeciesConfig(
+    species="dibothrosuchus",
+    env_class=DibothrosuchusEnv,
+    stage_descriptions="1=balance, 2=locomotion, 3=snap",
+    height_label="Trunk height",
+    stage3_section_label="Hunting",
+    success_keys=["snap_success"],
+)
+
+if __name__ == "__main__":
+    main(SPECIES_CONFIG)

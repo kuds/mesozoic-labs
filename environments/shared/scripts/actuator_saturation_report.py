@@ -46,6 +46,7 @@ XML_PATHS = {
     "velociraptor": _ROOT / "velociraptor" / "assets" / "raptor.xml",
     "trex": _ROOT / "trex" / "assets" / "trex.xml",
     "brachiosaurus": _ROOT / "brachiosaurus" / "assets" / "brachiosaurus.xml",
+    "dibothrosuchus": _ROOT / "dibothrosuchus" / "assets" / "dibothrosuchus.xml",
 }
 
 
@@ -91,7 +92,7 @@ def report(species, hz=GAIT_HZ, amplitude=GAIT_AMPLITUDE, steps=2500):
 
 
 def main(argv):
-    targets = argv or ["velociraptor", "trex", "brachiosaurus"]
+    targets = argv or ["velociraptor", "trex", "brachiosaurus", "dibothrosuchus"]
     for arg in targets:
         species, _, hz = arg.partition(":")
         if species not in XML_PATHS:

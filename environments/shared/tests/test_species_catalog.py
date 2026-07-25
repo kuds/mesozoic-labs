@@ -43,6 +43,7 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         "velociraptor": (67, 22, 31, 30, 22, 13.5),
         "trex": (61, 21, 28, 27, 21, 85.72),
         "brachiosaurus": (83, 30, 38, 37, 30, 175.3),
+        "dibothrosuchus": (77, 27, 35, 34, 27, 8.65),
     }
 
     assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [6_000_000, 8_000_000, 12_000_000]
@@ -51,6 +52,11 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         6_000_000,
         16_000_000,
         12_000_000,
+    ]
+    assert [stage["timesteps"] for stage in species["dibothrosuchus"]["stages"]] == [
+        6_000_000,
+        12_000_000,
+        8_000_000,
     ]
 
 
@@ -67,10 +73,11 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "velociraptor": "bipedal-target/v1",
         "trex": "bipedal-target/v1",
         "brachiosaurus": "quadrupedal-target/v1",
+        "dibothrosuchus": "quadrupedal-target/v1",
     }
-    expected_policy_revisions = {"velociraptor": 3, "trex": 3, "brachiosaurus": 1}
-    expected_physics_revisions = {"velociraptor": 2, "trex": 3, "brachiosaurus": 1}
-    expected_visual_revisions = {"velociraptor": 3, "trex": 3, "brachiosaurus": 1}
+    expected_policy_revisions = {"velociraptor": 5, "trex": 5, "brachiosaurus": 2, "dibothrosuchus": 2}
+    expected_physics_revisions = {"velociraptor": 2, "trex": 3, "brachiosaurus": 1, "dibothrosuchus": 1}
+    expected_visual_revisions = {"velociraptor": 3, "trex": 3, "brachiosaurus": 1, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
         plant = species["model"]["plant_contract"]
@@ -371,6 +378,7 @@ def test_sb3_notebook_finalizes_complete_bundle_once() -> None:
         ("velociraptor", "VELOCIRAPTOR"),
         ("trex", "TREX"),
         ("brachiosaurus", "BRACHIOSAURUS"),
+        ("dibothrosuchus", "DIBOTHROSUCHUS"),
     ],
 )
 def test_public_model_pages_render_generated_catalog(species_id: str, website_constant: str) -> None:
@@ -379,6 +387,41 @@ def test_public_model_pages_render_generated_catalog(species_id: str, website_co
     assert "import SpeciesCatalog from '@site/src/components/SpeciesCatalog';" in page
     assert f"import {{{website_constant}}} from '@site/src/data/species';" in page
     assert f"<SpeciesCatalog species={{{website_constant}}} />" in page
+
+
+def test_every_species_model_page_is_tracked_by_git() -> None:
+    """A page present on disk but untracked builds locally and breaks CI.
+
+    ``.gitignore`` carried an unanchored ``models/`` rule for training
+    artifacts, which also matched ``website/docs/models/``.  Pages added before
+    that rule stayed tracked (git never ignores tracked files), so the
+    directory looked fine while every *new* page was silently dropped by
+    ``git add -A``.  The Docusaurus build then failed on a sidebar entry
+    pointing at a document that did not exist in the checkout.  Checking
+    presence on disk cannot catch this; only tracking can.
+    """
+    import subprocess
+
+    try:
+        tracked = subprocess.run(
+            ["git", "ls-files", "website/docs/models"],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):  # pragma: no cover - git absent
+        pytest.skip("git is not available")
+    if tracked.returncode != 0:  # pragma: no cover - not a work tree
+        pytest.skip("not a git work tree")
+
+    tracked_pages = set(tracked.stdout.split())
+    for species in build_catalog()["species"]:
+        page = f"website/docs/models/{species['id']}.mdx"
+        assert page in tracked_pages, (
+            f"{page} is not tracked by git. It may exist locally while being excluded by a "
+            f".gitignore rule, which builds fine here and fails the Docusaurus job in CI."
+        )
 
 
 def test_default_paths_are_inside_repository() -> None:

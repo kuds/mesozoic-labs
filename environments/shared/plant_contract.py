@@ -822,6 +822,17 @@ def _jax_policy_interface_payload(
     return payload
 
 
+def _mocap_target_name(model: mujoco.MjModel) -> str:
+    """Return the name of the plant's single mocap target body."""
+    mocap_ids = np.flatnonzero(np.asarray(model.body_mocapid) >= 0)
+    if mocap_ids.size != 1:
+        raise PlantContractError(f"plant must define exactly one mocap target body, found {mocap_ids.size}")
+    name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, int(mocap_ids[0]))
+    if not name:
+        raise PlantContractError("the mocap target body must be named")
+    return str(name)
+
+
 def _policy_interface_payload(
     model: mujoco.MjModel,
     env: Any,
@@ -834,8 +845,11 @@ def _policy_interface_payload(
         for index, name in enumerate(_names(model, mujoco.mjtObj.mjOBJ_SENSOR, model.nsensor))
         if int(model.sensor_type[index]) == int(mujoco.mjtSensor.mjSENS_TOUCH)
     ]
-    root_label = "torso" if version.species == "brachiosaurus" else "pelvis"
-    target_label = "food" if version.species == "brachiosaurus" else "prey"
+    # Segment labels come from the plant itself rather than a species
+    # allow-list: the root follows the declared observation schema (as the MJX
+    # payload already does) and the target follows the MJCF mocap body name.
+    root_label = "torso" if version.observation_schema == "quadrupedal-target/v1" else "pelvis"
+    target_label = _mocap_target_name(model)
     observation_functions = (
         ("_array_mod", "build_bipedal_obs", "build_quadruped_obs")
         if version.observation_schema == "quadrupedal-target/v1"

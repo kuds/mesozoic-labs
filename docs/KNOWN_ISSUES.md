@@ -47,6 +47,27 @@ tolerance) remains the standing recommendation for the divergences above.
 
 ## Training / RL
 
+- **LOW** — `BaseDinoEnv.reset` still applies one `reset_noise_scale` scalar to
+  the whole of `qvel`, which mixes root linear velocity (m/s), root angular
+  velocity (rad/s) and joint velocities (rad/s). This is the same
+  units-conflation that made the root-height jitter wrong, but far less severe:
+  a velocity kick has to actually defeat the controller, whereas the height
+  jitter could spawn an episode already outside `healthy_z_range`. Worth
+  separating if a species much smaller than Dibothrosuchus is ever added.
+  (2026-07 Dibothrosuchus review)
+- **MEDIUM** — two code paths decide "is this species a quadruped?" by
+  different means and can disagree. `mjx_env.build_mjx_observation` tests
+  `"torso" in body_ids`; `plant_contract._policy_interface_payload` tests
+  `observation_schema == "quadrupedal-target/v1"`. A registration declaring a
+  bipedal schema with a `torso` root would error in the plant contract (so CI
+  catches it) but silently pick the torso root at runtime. Give the MJX
+  registration the observation schema, or assert exactly one of
+  `{"torso", "pelvis"}` in `body_ids`. (2026-07 Dibothrosuchus review)
+- **LOW** — `plant_contract._mocap_target_name` now requires *every* plant to
+  declare exactly one mocap body. All four comply and it fails loudly, but the
+  constraint was introduced to derive a segment label, not because the contract
+  needs uniqueness. (2026-07 Dibothrosuchus review)
+
 - **LOW** — T-Rex SB3 env silently accepts `foot_contact_weight` /
   `foot_contact_gate` (JAX-only params) without using them; typo'd weights
   do nothing. Reject unknown env kwargs loudly. (June §1.6)
@@ -86,6 +107,17 @@ tolerance) remains the standing recommendation for the divergences above.
   run in isolation. (Stage-1 basin investigation follow-up)
 
 ## Sweeps / infrastructure
+
+- **MEDIUM** — `env_*_range_min` / `env_*_range_max` sweep parameters crash
+  the trial runner. `configs/brachiosaurus/sweep_{ppo,sac}.json` sweep
+  `env_food_distance_range_min` / `_max` (and `env_food_height_range_*`), and
+  `configs/dibothrosuchus/sweep_ppo.json` copies the pattern with
+  `env_prey_distance_range_*`. Nothing in `scripts/sweep/` reassembles the
+  `_min`/`_max` suffix into the tuple the constructor wants, so each becomes
+  `env_kwargs["food_distance_range_min"]` and the env raises
+  `TypeError: unexpected keyword argument` (verified for both species). Either
+  implement suffix pairing in `_apply_overrides`, or drop those six keys.
+  (2026-07 Dibothrosuchus review)
 
 - **MEDIUM (cleanup)** — `ray_orchestration.py` (759 lines) has zero
   callers; `ray_tune_sweep.ipynb` re-implements it inline and the copies
@@ -225,6 +257,12 @@ Still open:
 
 ## Testing / CI
 
+- **LOW** — `hw_chassis_study.py`'s excitation drives hip pitch and knee in
+  phase, unlike a real trot where knee flexion leads swing. This contributes to
+  the knee pinning at its 22 N·m cap in all 18 runs, so that column is reported
+  as "not a configuration discriminator"; the ab/ad conclusions are unaffected
+  (that joint is driven at 0.25x and does discriminate).
+  (2026-07 Dibothrosuchus review)
 - TOML→env round-trip test: construct each env with each stage's
   `env_kwargs`, assert no unknown/unused keys. (June §6.8)
 - SB3↔JAX reward parity test (see divergences section above). (June §6.8)

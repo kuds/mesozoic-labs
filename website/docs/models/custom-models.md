@@ -79,8 +79,9 @@ Dinosaur models are defined using MuJoCo's MJCF XML format. Here's a minimal ske
 ## Existing Species as Reference
 
 Use the generated specifications on the [T-Rex](./trex),
-[Velociraptor](./velociraptor), and [Brachiosaurus](./brachiosaurus) model
-pages for the current compiled dimensions. Look at the corresponding MJCF
+[Velociraptor](./velociraptor), [Brachiosaurus](./brachiosaurus), and
+[Dibothrosuchus](./dibothrosuchus) model pages for the current compiled
+dimensions. Look at the corresponding MJCF
 files under `environments/<species>/assets/` for detailed examples.
 
 ## Creating the Environment
