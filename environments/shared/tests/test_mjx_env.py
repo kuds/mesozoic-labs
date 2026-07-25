@@ -40,6 +40,27 @@ class TestMJXDinoEnv:
         assert env.config.posture_target_forward_z is None
         assert env.config.action_mapping == "home-keyframe-residual/v1"
         assert env.nominal_ctrl is not None
+        # Pin the pitch reference against the Gymnasium default rather than a
+        # literal: the two drifted apart once already, when the SB3 side moved
+        # to the measured neutral pose and this registration kept -sin(0.17).
+        # Only the override path was covered, so it passed either way.
+        from environments.trex.envs.trex_env import TRexEnv
+
+        sb3_natural_pitch = inspect.signature(TRexEnv.__init__).parameters["natural_pitch"].default
+        assert env.config.natural_forward_z == pytest.approx(-np.sin(sb3_natural_pitch))
+
+    def test_trex_foot_sensors_cover_the_digits(self):
+        """Each foot must sum its pad sensor plus one sensor per digit.
+
+        A touch sensor sums only geoms on its site's own body, so without the
+        aux groups a T-Rex standing on its toes reads as airborne.
+        """
+        import environments.trex.mjx_config  # noqa: F401
+        from environments.shared.mjx_env import MJXDinoEnv
+
+        env = MJXDinoEnv("trex", stage=1, num_envs=1)
+        assert len(env.config.sensor_foot_aux_indices) == len(env.config.sensor_foot_indices)
+        assert all(len(group) == 3 for group in env.config.sensor_foot_aux_indices)
 
     def test_raptor_creation(self):
         """MJXDinoEnv can be created for Velociraptor."""
@@ -423,11 +444,30 @@ class TestHomeKeyframeActionMapping:
 
         env = MJXDinoEnv("trex", stage=1, num_envs=1)
         states = env.reset(jax.random.PRNGKey(23))
-        foot_sensors = np.asarray(states.data.sensordata[0, 10:12])
+        sensordata = np.asarray(states.data.sensordata[0])
+        pad_sensors = sensordata[10:12]
+        # A touch sensor sums only geoms on its site's own body, so the pad
+        # sensors cannot see the digits -- which are the load-bearing geoms.
+        # The observation carries pad + digits, so assert against that, not
+        # against the pad alone: a pad-only expectation is what let the digits
+        # go unmeasured after they were made load-bearing.
+        expected = np.array(
+            [pad + sensordata[list(group)].sum() for pad, group in zip(pad_sensors, env.config.sensor_foot_aux_indices)]
+        )
         foot_observation = np.asarray(states.obs[0, -6:-4])
 
-        assert np.all(foot_sensors > 0.1), f"T-Rex MJX foot sensors are dead at home: {foot_sensors}"
-        np.testing.assert_allclose(foot_observation, foot_sensors, rtol=0, atol=1e-7)
+        assert np.all(pad_sensors > 0.1), f"T-Rex MJX foot sensors are dead at home: {pad_sensors}"
+        assert np.all(expected > pad_sensors), (
+            "digits carry no load at the home keyframe, so this test can no longer "
+            f"detect a pad-only foot-contact signal: pad={pad_sensors}, total={expected}"
+        )
+        # Relative tolerance, not exact: the four-term sum is evaluated twice,
+        # once inside the jitted observation builder and once here in numpy,
+        # so the results differ by about one float32 ULP (3e-5 at this
+        # magnitude).  1e-5 relative is ~300x that and still four orders of
+        # magnitude tighter than a dropped digit, which would show up as the
+        # ~112 N the three digits carry per foot.
+        np.testing.assert_allclose(foot_observation, expected, rtol=1e-5, atol=1e-3)
 
     def test_trex_stage1_factory_preserves_contact_physics_and_rewards(self):
         import jax
@@ -459,7 +499,19 @@ class TestHomeKeyframeActionMapping:
         assert env.config.reward_weights["foot_contact_gate"] == pytest.approx(1.0)
         assert env.config.reward_weights["foot_contact_weight"] == pytest.approx(0.8)
         assert np.all(foot_sensors > 0.1), f"Stage-1 reset has no load-bearing foot contact: {foot_sensors}"
-        np.testing.assert_allclose(np.asarray(states.obs[0, -6:-4]), foot_sensors, rtol=0, atol=1e-7)
+        # The observation sums the pad sensor with the three per-digit sensors
+        # for each foot; see test_trex_mjx_reset_exposes_live_foot_contacts.
+        sensordata = np.asarray(states.data.sensordata[0])
+        expected_contacts = np.array(
+            [
+                pad + sensordata[list(group)].sum()
+                for pad, group in zip(foot_sensors, env.config.sensor_foot_aux_indices)
+            ]
+        )
+        # Same float32 summation tolerance as
+        # test_trex_mjx_reset_exposes_live_foot_contacts, and matching the
+        # rtol already used for the MJX-vs-CPU sensor comparison above.
+        np.testing.assert_allclose(np.asarray(states.obs[0, -6:-4]), expected_contacts, rtol=1e-5, atol=1e-3)
 
     def test_home_reset_requires_named_home_keyframe(self):
         import mujoco

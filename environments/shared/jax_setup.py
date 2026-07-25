@@ -276,6 +276,7 @@ def setup_species(species: str, stage: int = 1) -> SpeciesContext:
         accel_start=species_kw.get("sensor_accel_start", 3),
         quat_start=species_kw.get("sensor_quat_start", 6),
         foot_indices=species_kw.get("sensor_foot_indices", (10, 11)),
+        foot_aux_indices=species_kw.get("sensor_foot_aux_indices", ()),
     )
     sensor_tail_gyro_start = species_kw.get("sensor_tail_gyro_start")
 
@@ -543,7 +544,13 @@ def make_reward_fns(ctx: SpeciesContext):
         n_actuators=ctx.mj_model.nu,
         sensor_quat_start=ctx.sensor_layout.quat_start,
         sensor_gyro_start=ctx.sensor_layout.gyro_start,
-        foot_indices=ctx.sensor_layout.foot_indices,
+        # Flattened: this feeds "is any foot in contact", so pad and digit
+        # sensors are interchangeable here.  Per-foot totals (which must stay
+        # grouped) are built separately for the eval diagnostics below.
+        foot_indices=(
+            tuple(ctx.sensor_layout.foot_indices)
+            + tuple(index for group in ctx.sensor_layout.foot_aux_indices for index in group)
+        ),
         sensor_tail_gyro_start=ctx.sensor_tail_gyro_start,
         forward_vel_max=ctx.forward_vel_max,
         dt=float(ctx.mj_model.opt.timestep) * ctx.frame_skip,
@@ -667,6 +674,7 @@ def run_stage_evaluation(
     )
 
     foot_indices = tuple(ctx.sensor_layout.foot_indices)
+    foot_aux_indices = tuple(ctx.sensor_layout.foot_aux_indices)
 
     selected_eval_results = evaluate_policy_cpu(
         ctx.mj_model,
@@ -680,6 +688,7 @@ def run_stage_evaluation(
         reward_cfg=ctx.reward_cfg,
         config=eval_config,
         foot_sensor_indices=foot_indices,
+        foot_aux_indices=foot_aux_indices,
     )
     final_eval_results = (
         selected_eval_results
@@ -696,6 +705,7 @@ def run_stage_evaluation(
             reward_cfg=ctx.reward_cfg,
             config=eval_config,
             foot_sensor_indices=foot_indices,
+            foot_aux_indices=foot_aux_indices,
         )
     )
 

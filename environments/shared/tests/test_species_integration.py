@@ -11,6 +11,8 @@ brachiosaurus, snout snap for dibothrosuchus).  All shared behavior is tested
 here via parametrization.
 """
 
+import importlib
+
 import numpy as np
 import pytest
 
@@ -438,3 +440,56 @@ class TestEdgeCases:
         with pytest.raises(AttributeError):
             env.set_reward_weight("nonexistent_weight_xyz", 1.0)
         env.close()
+
+
+MJX_CONFIG_MODULES = {
+    "velociraptor": "environments.velociraptor.mjx_config",
+    "trex": "environments.trex.mjx_config",
+    "brachiosaurus": "environments.brachiosaurus.mjx_config",
+    "dibothrosuchus": "environments.dibothrosuchus.mjx_config",
+}
+
+
+class TestSB3MJXEnvelopeParity:
+    """The Gymnasium env and the MJX registry must agree on the alive envelope.
+
+    ``healthy_z_range`` and ``max_tilt_angle`` are absent from the fingerprinted
+    plant interface, so nothing else catches a divergence.  That is how the
+    T-Rex came to run with ``healthy_z_range`` (0.5, 1.6) on one path and
+    (0.75, 1.6) on the other, and ``max_tilt_angle`` 1.047 against 0.7, while
+    the other three species matched.
+
+    A mismatch changes the task rather than just the cutoff: on the MJX path
+    ``healthy_z_range`` also scales the alive bonus (``height_frac``), and
+    ``max_tilt_angle`` normalises the posture penalty as
+    ``(tilt / max_tilt_angle) ** 2``.
+    """
+
+    @pytest.mark.parametrize("env_class, species", SPECIES_ENVS)
+    def test_healthy_z_range_matches(self, env_class, species):
+        importlib.import_module(MJX_CONFIG_MODULES[species])
+        from environments.shared.mjx_env import _SPECIES_CONFIGS
+
+        registered = _SPECIES_CONFIGS[species]["healthy_z_range"]
+        env = env_class()
+        try:
+            assert tuple(registered) == tuple(env.healthy_z_range), (
+                f"{species}: MJX registers healthy_z_range={tuple(registered)} but the "
+                f"Gymnasium env uses {tuple(env.healthy_z_range)}"
+            )
+        finally:
+            env.close()
+
+    @pytest.mark.parametrize("env_class, species", SPECIES_ENVS)
+    def test_max_tilt_angle_matches(self, env_class, species):
+        importlib.import_module(MJX_CONFIG_MODULES[species])
+        from environments.shared.mjx_env import _SPECIES_CONFIGS
+
+        registered = _SPECIES_CONFIGS[species]["max_tilt_angle"]
+        env = env_class()
+        try:
+            assert registered == pytest.approx(env.max_tilt_angle), (
+                f"{species}: MJX registers max_tilt_angle={registered} but the Gymnasium env uses {env.max_tilt_angle}"
+            )
+        finally:
+            env.close()

@@ -101,7 +101,19 @@ class TRexEnv(BaseDinoEnv):
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
-        healthy_z_range: tuple[float, float] = (0.5, 1.6),
+        # Matches the MJX registration, which is the value the evidence
+        # supports.  The old SB3 floor of 0.50 could essentially never be the
+        # binding termination: tail_3/4/5 are unconditional termination geoms
+        # and the tail reaches the floor at a pelvis height of ~0.55-0.57 in a
+        # level squat, so the plant is already lying down before 0.50 is
+        # reached.  0.75 costs nothing measurable -- healthy full-horizon
+        # episodes bottom out at 0.884 m, 0.134 m of margin, 0/34 false
+        # terminations, and 1/300 stage-1 resets spawn below it (that episode
+        # was not recoverable anyway) -- while ending doomed episodes a median
+        # 74 steps sooner.  It also gives the MJX alive bonus, which scales by
+        # (z - floor) / (ceiling - floor), a 0.266 fraction at settled stance
+        # against the velociraptor's 0.275.
+        healthy_z_range: tuple[float, float] = (0.75, 1.6),
         reset_noise_scale: float = 0.01,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "trex.xml")
@@ -235,6 +247,21 @@ class TRexEnv(BaseDinoEnv):
         # are inherited from BaseDinoEnv (0, 3, 6 respectively).
         self._sensor_r_foot = 10
         self._sensor_l_foot = 11
+        # The pad sensors above see the plantar box only: a touch sensor sums
+        # contacts on geoms of its site's own body, and the three digits are
+        # child bodies (they carry actuated hinges).  Their own sensors are
+        # appended after the tail block, so pad + digits is the force the foot
+        # actually transmits -- at the home keyframe 388.4 N + 112.0 N against
+        # a measured 500.4 N of floor contact.
+        self._sensor_r_foot_digits = (24, 25, 26)
+        self._sensor_l_foot_digits = (27, 28, 29)
+
+    def _foot_contact_forces(self) -> tuple[float, float]:
+        """Total floor contact force under each foot: plantar pad and digits."""
+        sensordata = self.data.sensordata
+        right = sensordata[self._sensor_r_foot] + sum(sensordata[index] for index in self._sensor_r_foot_digits)
+        left = sensordata[self._sensor_l_foot] + sum(sensordata[index] for index in self._sensor_l_foot_digits)
+        return float(right), float(left)
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
         """Map normalized residual actions around the XML home controls.
@@ -270,12 +297,7 @@ class TRexEnv(BaseDinoEnv):
         pelvis_linvel = self.data.qvel[0:3].copy()
 
         # Foot contact (from touch sensors)
-        foot_contact = np.array(
-            [
-                self.data.sensordata[self._sensor_r_foot],
-                self.data.sensordata[self._sensor_l_foot],
-            ]
-        )
+        foot_contact = np.array(self._foot_contact_forces())
 
         # Prey info (relative to pelvis)
         pelvis_pos = self.data.xpos[self.pelvis_id]
@@ -411,10 +433,9 @@ class TRexEnv(BaseDinoEnv):
         info["reward_height"] = reward_height
 
         # 9. Gait symmetry (reward alternating foot contacts, shared helper)
-        r_contact = self.data.sensordata[self._sensor_r_foot]
-        l_contact = self.data.sensordata[self._sensor_l_foot]
-        info["r_foot_contact"] = float(r_contact)
-        info["l_foot_contact"] = float(l_contact)
+        r_contact, l_contact = self._foot_contact_forces()
+        info["r_foot_contact"] = r_contact
+        info["l_foot_contact"] = l_contact
 
         reward_gait, alternation_ratio = self._compute_gait_symmetry(
             float(r_contact), float(l_contact), self.gait_symmetry_weight

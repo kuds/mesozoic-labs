@@ -750,12 +750,21 @@ def _jax_policy_interface_payload(
         accel_start=int(raw_config.get("sensor_accel_start", 3)),
         quat_start=int(raw_config.get("sensor_quat_start", 6)),
         foot_indices=tuple(int(index) for index in raw_config.get("sensor_foot_indices", ())),
+        foot_aux_indices=tuple(
+            tuple(int(index) for index in group) for group in raw_config.get("sensor_foot_aux_indices", ())
+        ),
     )
+    if len(sensor_layout.foot_aux_indices) > len(sensor_layout.foot_indices):
+        raise PlantContractError(
+            f"MJX sensor layout for {version.species} declares more aux foot sensor groups "
+            f"({len(sensor_layout.foot_aux_indices)}) than feet ({len(sensor_layout.foot_indices)})"
+        )
     used_sensor_indices = (
         *range(sensor_layout.gyro_start, sensor_layout.gyro_start + 3),
         *range(sensor_layout.accel_start, sensor_layout.accel_start + 3),
         *range(sensor_layout.quat_start, sensor_layout.quat_start + 4),
         *sensor_layout.foot_indices,
+        *(index for group in sensor_layout.foot_aux_indices for index in group),
     )
     if any(index < 0 or index >= model.nsensordata for index in used_sensor_indices):
         raise PlantContractError(
@@ -786,6 +795,7 @@ def _jax_policy_interface_payload(
                 "sensor_accel_start": sensor_layout.accel_start,
                 "sensor_quat_start": sensor_layout.quat_start,
                 "sensor_foot_indices": sensor_layout.foot_indices,
+                "sensor_foot_aux_indices": sensor_layout.foot_aux_indices,
             },
         )
     )
@@ -805,6 +815,7 @@ def _jax_policy_interface_payload(
             "accel_start": sensor_layout.accel_start,
             "quat_start": sensor_layout.quat_start,
             "foot_indices": sensor_layout.foot_indices,
+            "foot_aux_indices": sensor_layout.foot_aux_indices,
         },
         "observation_builder": (
             "build_quadruped_obs" if version.observation_schema == "quadrupedal-target/v1" else "build_bipedal_obs"
@@ -1691,6 +1702,7 @@ def validate_mjx_environment_plant(
         "frame_skip",
         "body_ids",
         "sensor_foot_indices",
+        "sensor_foot_aux_indices",
         "sensor_gyro_start",
         "sensor_accel_start",
         "sensor_quat_start",

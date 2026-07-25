@@ -166,6 +166,7 @@ def evaluate_policy_cpu(
     reward_cfg: dict[str, float],
     config: EvalConfig,
     foot_sensor_indices: tuple[int, ...] = (),
+    foot_aux_indices: tuple[tuple[int, ...], ...] = (),
 ) -> EvalResults:
     """Run deterministic evaluation episodes on CPU MuJoCo.
 
@@ -180,7 +181,12 @@ def evaluate_policy_cpu(
         reward_fn: Function(mjx_data, action, reward_cfg) -> scalar reward.
         reward_cfg: Reward weight dict.
         config: Evaluation configuration.
-        foot_sensor_indices: Sensor indices for foot contacts (for diagnostics).
+        foot_sensor_indices: Sensor indices for foot contacts (for diagnostics),
+            one per foot.
+        foot_aux_indices: Extra sensors summed into each foot's reading,
+            aligned with ``foot_sensor_indices``.  Species whose toes are
+            separate bodies need these, since one touch sensor cannot see
+            geoms on child bodies.
 
     Returns:
         ``EvalResults`` with per-episode and per-step metrics.
@@ -284,8 +290,15 @@ def evaluate_policy_cpu(
             # than lumping every non-first foot into the left series.
             for i, idx in enumerate(foot_sensor_indices):
                 if len(mj_data.sensordata) > idx:
+                    force = float(mj_data.sensordata[idx])
+                    if i < len(foot_aux_indices):
+                        force += sum(
+                            float(mj_data.sensordata[aux])
+                            for aux in foot_aux_indices[i]
+                            if len(mj_data.sensordata) > aux
+                        )
                     target_list = results.diag_r_foot if i % 2 == 0 else results.diag_l_foot
-                    target_list.append(float(mj_data.sensordata[idx]))
+                    target_list.append(force)
 
             # Reward decomposition — all active components
             fwd_norm = float(np.clip(fwd_vel / config.forward_vel_max, -1.0, 1.0))

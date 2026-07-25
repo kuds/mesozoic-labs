@@ -24,27 +24,44 @@ canonical_mujoco_version = "3.10.0"
 #    arithmetic exactly, so velociraptor and trex reset distributions are
 #    unchanged and their existing checkpoints remain valid.  Dibothrosuchus is
 #    the one species whose reset distribution really does change.
+#
+# 3. The T-Rex foot-contact repair.  A MuJoCo touch sensor sums only contacts on
+#    geoms belonging to its site's OWN body, so the metatarsus-mounted r_foot /
+#    l_foot sensors could never see the three digits -- which the preceding
+#    plant revision had just made load-bearing.  At the home keyframe each foot
+#    transmitted 500.4 N while its sensor reported 388.4 N, and under load
+#    transfer the reading could drop to zero on a foot carrying full weight.
+#    Each digit now has its own touch site and sensor, appended after the tail
+#    block so every existing sensor index keeps its position, and both paths sum
+#    pad + digits into one value per foot.  Observation width is unchanged (61
+#    for trex) and the summed reading matches measured floor force exactly.
+#    The T-Rex physics and visual fingerprints move because the MJCF gained
+#    sites and sensors; the DYNAMICS do not -- old and new models are
+#    bit-identical in qpos over 2000 perturbed steps and total mass is
+#    unchanged.  build_mjx_observation is fingerprinted directly and had to
+#    learn to sum, so every species' policy interface revision increments;
+#    only the T-Rex's observation values actually change.
 
 [plants.velociraptor]
 physics_revision = 2
-policy_interface_revision = 5
+policy_interface_revision = 6
 visual_revision = 3
 observation_schema = "bipedal-target/v1"
 
 [plants.trex]
-physics_revision = 3
-policy_interface_revision = 5
-visual_revision = 3
+physics_revision = 4
+policy_interface_revision = 6
+visual_revision = 4
 observation_schema = "bipedal-target/v1"
 
 [plants.brachiosaurus]
 physics_revision = 1
-policy_interface_revision = 2
+policy_interface_revision = 3
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"
 
 [plants.dibothrosuchus]
 physics_revision = 1
-policy_interface_revision = 2
+policy_interface_revision = 3
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"
