@@ -444,11 +444,24 @@ class TestHomeKeyframeActionMapping:
 
         env = MJXDinoEnv("trex", stage=1, num_envs=1)
         states = env.reset(jax.random.PRNGKey(23))
-        foot_sensors = np.asarray(states.data.sensordata[0, 10:12])
+        sensordata = np.asarray(states.data.sensordata[0])
+        pad_sensors = sensordata[10:12]
+        # A touch sensor sums only geoms on its site's own body, so the pad
+        # sensors cannot see the digits -- which are the load-bearing geoms.
+        # The observation carries pad + digits, so assert against that, not
+        # against the pad alone: a pad-only expectation is what let the digits
+        # go unmeasured after they were made load-bearing.
+        expected = np.array(
+            [pad + sensordata[list(group)].sum() for pad, group in zip(pad_sensors, env.config.sensor_foot_aux_indices)]
+        )
         foot_observation = np.asarray(states.obs[0, -6:-4])
 
-        assert np.all(foot_sensors > 0.1), f"T-Rex MJX foot sensors are dead at home: {foot_sensors}"
-        np.testing.assert_allclose(foot_observation, foot_sensors, rtol=0, atol=1e-7)
+        assert np.all(pad_sensors > 0.1), f"T-Rex MJX foot sensors are dead at home: {pad_sensors}"
+        assert np.all(expected > pad_sensors), (
+            "digits carry no load at the home keyframe, so this test can no longer "
+            f"detect a pad-only foot-contact signal: pad={pad_sensors}, total={expected}"
+        )
+        np.testing.assert_allclose(foot_observation, expected, rtol=0, atol=1e-7)
 
     def test_trex_stage1_factory_preserves_contact_physics_and_rewards(self):
         import jax
@@ -480,7 +493,16 @@ class TestHomeKeyframeActionMapping:
         assert env.config.reward_weights["foot_contact_gate"] == pytest.approx(1.0)
         assert env.config.reward_weights["foot_contact_weight"] == pytest.approx(0.8)
         assert np.all(foot_sensors > 0.1), f"Stage-1 reset has no load-bearing foot contact: {foot_sensors}"
-        np.testing.assert_allclose(np.asarray(states.obs[0, -6:-4]), foot_sensors, rtol=0, atol=1e-7)
+        # The observation sums the pad sensor with the three per-digit sensors
+        # for each foot; see test_trex_mjx_reset_exposes_live_foot_contacts.
+        sensordata = np.asarray(states.data.sensordata[0])
+        expected_contacts = np.array(
+            [
+                pad + sensordata[list(group)].sum()
+                for pad, group in zip(foot_sensors, env.config.sensor_foot_aux_indices)
+            ]
+        )
+        np.testing.assert_allclose(np.asarray(states.obs[0, -6:-4]), expected_contacts, rtol=0, atol=1e-7)
 
     def test_home_reset_requires_named_home_keyframe(self):
         import mujoco
