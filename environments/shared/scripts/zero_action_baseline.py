@@ -41,12 +41,18 @@ SPECIES_ENVS = {
     "trex": ("environments.trex.envs.trex_env", "TRexEnv"),
     "velociraptor": ("environments.velociraptor.envs.raptor_env", "RaptorEnv"),
     "brachiosaurus": ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv"),
+    "dibothrosuchus": ("environments.dibothrosuchus.envs.dibothrosuchus_env", "DibothrosuchusEnv"),
 }
 
 STAGE_CONFIGS = {
     1: "stage1_balance",
     2: "stage2_locomotion",
-    3: {"trex": "stage3_bite", "velociraptor": "stage3_strike", "brachiosaurus": "stage3_food_reach"},
+    3: {
+        "trex": "stage3_bite",
+        "velociraptor": "stage3_strike",
+        "brachiosaurus": "stage3_food_reach",
+        "dibothrosuchus": "stage3_snap",
+    },
 }
 
 # Keys the TOML [env] block carries for the MJX path only; the Gymnasium envs
@@ -144,7 +150,7 @@ def main(argv: list[str]) -> None:
     parser.add_argument(
         "targets",
         nargs="*",
-        default=["trex", "velociraptor", "brachiosaurus"],
+        default=["trex", "velociraptor", "brachiosaurus", "dibothrosuchus"],
         help="species, optionally with a stage suffix (e.g. trex:2). Default: all species, stage 1.",
     )
     parser.add_argument("--episodes", type=int, default=30, help="episodes per measurement (default 30)")

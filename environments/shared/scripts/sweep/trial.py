@@ -174,6 +174,8 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         from environments.brachiosaurus.scripts.train_sb3 import SPECIES_CONFIG
     elif args.species == "trex":
         from environments.trex.scripts.train_sb3 import SPECIES_CONFIG
+    elif args.species == "dibothrosuchus":
+        from environments.dibothrosuchus.scripts.train_sb3 import SPECIES_CONFIG
     else:
         logger.error("Unknown species: %s", args.species)
         sys.exit(1)

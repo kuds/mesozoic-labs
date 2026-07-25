@@ -11,7 +11,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Models',
-      items: ['models/trex', 'models/velociraptor', 'models/brachiosaurus', 'models/custom-models'],
+      items: ['models/trex', 'models/velociraptor', 'models/brachiosaurus', 'models/dibothrosuchus', 'models/custom-models'],
     },
     {
       type: 'category',

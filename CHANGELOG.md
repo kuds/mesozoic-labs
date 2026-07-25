@@ -110,6 +110,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   group 4 in an interactive viewer to visualize the touch volumes.
 
 ### Added
+- **New species: *Dibothrosuchus elaphros*** (77 obs / 27 actuators / 8.65 kg
+  / nq=35, nv=34) — a sphenosuchian crocodylomorph and the first non-dinosaur
+  in the project. It is a small, gracile quadruped that held its limbs erect
+  and parasagittal rather than sprawled, with hindlimbs longer than its
+  forelimbs, paired paramedian rows of dorsal osteoderms, and a narrow crested
+  skull whose snout drives the Stage 3 "snap" contact proxy (no jaw
+  articulation). Ships the MJCF plant, `DibothrosuchusEnv`, MJX registration,
+  three curriculum stages plus PPO/SAC sweep spaces, 62 species tests, a
+  `test-dibothrosuchus` CI job, and the model documentation page.
+
+  Plant characterization, all measured rather than assumed: the stance is
+  authored into the body offsets so **every hinge joint and the whole home
+  control vector are 0** at the keyframe; holding that control for 1500 steps
+  settles the trunk at 0.3129 m with forward_z +0.003, so `natural_pitch` is 0
+  and posture/nosedive keep their world-vertical reference. All four pads
+  carry the full 84.9 N of weight, split 71/29 rear/front. Hip pitch, knee and
+  ankle carry 1.5×kp `forcerange` on **every** leg (a 1.24 m animal strides
+  fast relative to its body length, so all three stance joints see gait-scale
+  torque); measured clipping is 0.0 % under home-control settling, a 1.5 Hz
+  walk and a 2.5 Hz trot, and 0.5 % worst case under 4 Hz full-amplitude
+  excitation. Stage-1 `reset_noise_scale` is calibrated against the
+  zero-action baseline: 0.05 leaves a do-nothing policy at 100 % full-horizon,
+  the committed 0.14 leaves 62 % with failures dominated by real balance
+  losses.
+
 - **Canonical result bundles for Colab/Google Drive training**: schema-v2
   summaries, runtime-captured provenance, immutable completed bundles,
   selected/terminal evaluation evidence, plant/config/model/VecNormalize

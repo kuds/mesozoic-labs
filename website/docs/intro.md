@@ -29,6 +29,7 @@ species catalog:
 - [Velociraptor](/docs/models/velociraptor)
 - [T-Rex](/docs/models/trex)
 - [Brachiosaurus](/docs/models/brachiosaurus)
+- [Dibothrosuchus](/docs/models/dibothrosuchus)
 
 The published result summaries describe historical runs. They are marked
 unverified because the original repository commit, model hash, and config hash
@@ -38,7 +39,7 @@ comparisons or as results from the current model revision and configs.
 ## Quick Links
 
 - [Getting Started](/docs/getting-started/installation) - Set up your development environment
-- [Models](/docs/models/trex) - Explore available dinosaur models
+- [Models](/docs/models/trex) - Explore available species models
 - [Training](/docs/training/sac) - Learn how to train your own dinosaur
 - [JAX/MJX Training](/docs/training/jax) - GPU-accelerated training with JAX
 - [GitHub](https://github.com/kuds/mesozoic-labs) - View the source code

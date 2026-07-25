@@ -43,6 +43,7 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         "velociraptor": (67, 22, 31, 30, 22, 13.5),
         "trex": (61, 21, 28, 27, 21, 85.72),
         "brachiosaurus": (83, 30, 38, 37, 30, 175.3),
+        "dibothrosuchus": (77, 27, 35, 34, 27, 8.65),
     }
 
     assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [6_000_000, 8_000_000, 12_000_000]
@@ -51,6 +52,11 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         6_000_000,
         16_000_000,
         12_000_000,
+    ]
+    assert [stage["timesteps"] for stage in species["dibothrosuchus"]["stages"]] == [
+        6_000_000,
+        12_000_000,
+        8_000_000,
     ]
 
 
@@ -67,10 +73,11 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "velociraptor": "bipedal-target/v1",
         "trex": "bipedal-target/v1",
         "brachiosaurus": "quadrupedal-target/v1",
+        "dibothrosuchus": "quadrupedal-target/v1",
     }
-    expected_policy_revisions = {"velociraptor": 3, "trex": 3, "brachiosaurus": 1}
-    expected_physics_revisions = {"velociraptor": 2, "trex": 3, "brachiosaurus": 1}
-    expected_visual_revisions = {"velociraptor": 3, "trex": 3, "brachiosaurus": 1}
+    expected_policy_revisions = {"velociraptor": 4, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
+    expected_physics_revisions = {"velociraptor": 2, "trex": 3, "brachiosaurus": 1, "dibothrosuchus": 1}
+    expected_visual_revisions = {"velociraptor": 3, "trex": 3, "brachiosaurus": 1, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
         plant = species["model"]["plant_contract"]

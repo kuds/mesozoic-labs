@@ -1,0 +1,97 @@
+[stage]
+name = "snap"
+description = "Close on small prey and touch it with the snout snap proxy"
+
+[env]
+forward_vel_weight = 0.4               # Reduced from stage 2: the task is to arrive and snap, not to sprint past
+alive_bonus = 0.0                      # Zeroed: any per-step alive reward is opportunity cost against an episode-ending snap
+fall_penalty = -10.0                   # Proportional to the zeroed alive bonus; -100 makes the policy too conservative to close
+energy_penalty_weight = 0.001
+gait_stability_weight = 0.02
+tail_stability_weight = 0.02
+gait_symmetry_weight = 0.0             # Released: the final approach is a stalk, not a metronomic trot
+smoothness_weight = 0.02
+posture_weight = 0.1
+nosedive_weight = 0.15                 # Light: the animal must pitch its snout down toward ground-level prey
+heading_weight = 0.5                   # Face the prey
+lateral_penalty_weight = 0.3           # Penalize crab-walking toward the prey
+snap_bonus = 1000.0                    # Must greatly exceed the discounted future per-step value so snapping is immediately
+                                       # net-positive, matching the raptor strike_bonus and T-Rex bite_bonus
+snap_approach_weight = 3.0             # Delta-based gradient on SNOUT-to-prey distance
+snap_snout_proximity_weight = 2.0      # Continuous last-mile aiming gradient for snout placement
+prey_distance_range = [1.0, 3.0]       # Close spawns make snap discovery far more likely during exploration
+prey_lateral_range = [-0.8, 0.8]
+max_episode_steps = 1000
+reset_noise_scale = 0.05
+healthy_z_range = [0.16, 0.55]         # Match stage 2 so the approach isn't cut short by a spurious "fallen" termination
+
+[ppo]
+learning_rate = 5e-5
+learning_rate_end = 5e-6
+lr_schedule = "cosine"
+n_steps = 4096
+batch_size = 256
+gamma = 0.995
+n_epochs = 10
+gae_lambda = 0.95
+clip_range = 0.15
+ent_coef = 0.005                       # More exploration than stage 2 needs, to discover the sparse snap reward
+ent_coef_end = 0.001                   # Decay to a low floor once snapping is discovered so the policy consolidates
+ent_coef_decay_timesteps = 3000000     # instead of drifting late. Anchored below the 8M budget.
+target_kl = 0.03
+
+[ppo.policy_kwargs]
+net_arch = [512, 256]
+
+[sac]
+learning_rate = 1e-4
+batch_size = 256
+gamma = 0.99                     # At gamma=0.99 the discounted future is ~250 against snap_bonus=1000, so snapping is
+                                 # clearly net-positive; PPO's 0.995 puts the future value closer to the bonus threshold
+tau = 0.005
+ent_coef = "auto"                # Auto-entropy handles sparse-reward exploration
+buffer_size = 1_000_000          # Large buffer retains locomotion transitions from stage 2
+learning_starts = 10_000
+train_freq = 4
+gradient_steps = 4
+
+[sac.policy_kwargs]
+net_arch = [512, 256]
+
+[jax]
+num_envs = 2048
+rollout_len = 64
+num_updates = 800                       # A sparse snap reward needs many updates to discover
+ppo_epochs = 4
+minibatch_size = 512
+learning_rate = 1e-4
+max_grad_norm = 0.5
+gamma = 0.995
+gae_lambda = 0.95
+clip_range = 0.15                       # Tighter clip protects the locomotion skills carried in from stage 2
+ent_coef = 0.005
+fall_penalty = -10.0
+reset_noise_scale = 0.05
+init_qpos_noise = 0.01
+init_yaw_noise = 0.1
+obs_rms_decay_on_resume = 0.01
+warmup_updates = 20                     # ~2.5% of 800 updates: the stage-3 reward landscape differs less than stage 2's did
+warmup_clip_range = 0.02
+warmup_ent_coef = 0.02
+ramp_updates = 100                      # ~12.5% of 800 updates
+ramp_attr = "forward_vel_weight"
+ramp_start_fraction = 0.1
+
+[jax.policy_kwargs]
+net_arch = [512, 256]
+
+[curriculum]
+timesteps = 8000000
+min_avg_reward = 100.0
+min_success_rate = 0.5                # At least 50% snap success — confirms the hunting behaviour emerged
+required_consecutive = 3
+warmup_timesteps = 200000               # Constrain policy updates while the critic adapts (PPO only)
+warmup_clip_range = 0.02
+warmup_ent_coef = 0.02
+ramp_timesteps = 800000                 # Linearly ramp forward_vel_weight so locomotion isn't forgotten
+ramp_start_value = 0.1

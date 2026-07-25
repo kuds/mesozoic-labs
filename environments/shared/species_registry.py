@@ -7,6 +7,7 @@ Usage:
     python -m environments.shared.train --species velociraptor train --stage 1
     python -m environments.shared.train --species trex curriculum
     python -m environments.shared.train --species brachiosaurus train --stage 2
+    python -m environments.shared.train --species dibothrosuchus train --stage 1
 """
 
 from environments.shared.train_base import SpeciesConfig
@@ -53,6 +54,19 @@ def _make_brachio_config() -> SpeciesConfig:
     )
 
 
+def _make_dibothrosuchus_config() -> SpeciesConfig:
+    from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+
+    return SpeciesConfig(
+        species="dibothrosuchus",
+        env_class=DibothrosuchusEnv,
+        stage_descriptions="1=balance, 2=locomotion, 3=snap",
+        height_label="Trunk height",
+        stage3_section_label="Hunting",
+        success_keys=["snap_success"],
+    )
+
+
 # Lazy registry — factories are called only when the species is selected,
 # so we don't import all env modules at startup.
 SPECIES_FACTORIES = {
@@ -62,6 +76,8 @@ SPECIES_FACTORIES = {
     "t-rex": _make_trex_config,  # alias
     "brachiosaurus": _make_brachio_config,
     "brachio": _make_brachio_config,  # alias
+    "dibothrosuchus": _make_dibothrosuchus_config,
+    "dibo": _make_dibothrosuchus_config,  # alias
 }
 
 

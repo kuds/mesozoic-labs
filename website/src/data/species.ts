@@ -378,6 +378,7 @@ function requireSpecies(speciesId: string): Species {
 export const VELOCIRAPTOR = requireSpecies('velociraptor');
 export const TREX = requireSpecies('trex');
 export const BRACHIOSAURUS = requireSpecies('brachiosaurus');
+export const DIBOTHROSUCHUS = requireSpecies('dibothrosuchus');
 
 /** Sum of current actuator/action dimensions across implemented species. */
 export const TOTAL_ACTUATORS = ALL_SPECIES.reduce((total, species) => total + species.actionDim, 0);

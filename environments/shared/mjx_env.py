@@ -48,6 +48,7 @@ _ENV_KEY_ALIASES: dict[str, str] = {
     "strike_approach_weight": "approach_weight",
     "bite_approach_weight": "approach_weight",
     "food_approach_weight": "approach_weight",
+    "snap_approach_weight": "approach_weight",
     "prey_distance_range": "target_distance_range",
     "food_distance_range": "target_distance_range",
     "prey_lateral_range": "target_lateral_range",
@@ -80,9 +81,11 @@ _KNOWN_REWARD_KEYS: frozenset = frozenset(
         "bite_head_proximity_weight",
         "strike_claw_proximity_weight",
         "food_head_proximity_weight",
+        "snap_snout_proximity_weight",
         "strike_bonus",
         "bite_bonus",
         "food_reach_bonus",
+        "snap_bonus",
     }
 )
 
@@ -275,9 +278,13 @@ def build_mjx_observation(data: Any, target_pos: Any, config: MJXEnvConfig | Map
     def value(name: str) -> Any:
         return config[name] if isinstance(config, Mapping) else getattr(config, name)
 
-    species = str(value("species"))
     body_ids = value("body_ids")
-    quadrupedal = species == "brachiosaurus"
+    # Dispatch on the registered root body, not on a species allow-list: every
+    # quadruped registers a "torso" root and every biped a "pelvis" root, so a
+    # new species is admitted by its own mjx_config rather than by editing this
+    # function.  Editing it would re-fingerprint the policy interface of every
+    # species that already shipped.
+    quadrupedal = "torso" in body_ids
     root_name = "torso" if quadrupedal else "pelvis"
     root_body_id = int(body_ids[root_name])
     sensor_layout = SensorLayout(
@@ -303,11 +310,13 @@ def _get_model_path(species: str) -> str:
         "velociraptor": "velociraptor",
         "trex": "trex",
         "brachiosaurus": "brachiosaurus",
+        "dibothrosuchus": "dibothrosuchus",
     }
     asset_name_map = {
         "velociraptor": "raptor.xml",
         "trex": "trex.xml",
         "brachiosaurus": "brachiosaurus.xml",
+        "dibothrosuchus": "dibothrosuchus.xml",
     }
     dir_name = species_dir_map[species]
     asset_name = asset_name_map[species]

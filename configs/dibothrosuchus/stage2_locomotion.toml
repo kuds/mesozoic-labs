@@ -1,0 +1,110 @@
+[stage]
+name = "locomotion"
+description = "Learn a coordinated erect-limbed diagonal-pair walk"
+
+[env]
+forward_vel_weight = 3.0               # Dominant signal for the stage
+forward_vel_max = 2.0                  # m/s normalisation ceiling. A 1.24 m animal covers ~1.6 body lengths/s at 2.0,
+                                       # which is a brisk cursorial trot rather than the sauropod's plod.
+alive_bonus = 0.25                     # Small: survival is stage 1's job, and a large per-step bonus rewards standing still
+fall_penalty = -50.0                   # Softer than stage 1: an overly harsh penalty produces conservative, motionless policies
+energy_penalty_weight = 0.004
+gait_stability_weight = 0.06           # Trunk angular-velocity penalty
+tail_stability_weight = 0.1
+gait_symmetry_weight = 2.0             # Diagonal-pair (FR+RL / FL+RR) alternation — the whole point of the stage
+smoothness_weight = 0.05
+posture_weight = 0.3
+nosedive_weight = 0.8
+height_weight = 0.15                   # Light: too much height pressure fights the natural gait bob
+heading_weight = 0.1
+lateral_penalty_weight = 0.1           # Anti crab-walk
+idle_penalty_weight = 0.25             # Penalise standing still, which alive_bonus alone would tolerate
+idle_velocity_threshold = 0.15         # m/s at which the idle penalty reaches zero
+snap_bonus = 0.0
+snap_approach_weight = 0.0
+snap_snout_proximity_weight = 0.0
+prey_distance_range = [6.0, 10.0]      # A long lane to walk down; the snap task is not active in this stage
+prey_lateral_range = [-1.0, 1.0]
+max_episode_steps = 1000
+reset_noise_scale = 0.05               # Narrower than stage 1: the policy arrives already able to stand, and
+                                       # gait learning needs a repeatable launch state more than it needs robustness
+healthy_z_range = [0.16, 0.55]         # Lowered fall floor from the env default 0.18: the settled stance is 0.313 m and
+                                       # normal gait bob dips below 0.18, which would fire spurious "fallen" terminations
+                                       # mid-stride. 0.16 still catches a real sprawl collapse. Ceiling unchanged from the
+                                       # env default.
+
+[ppo]
+learning_rate = 6e-5
+learning_rate_end = 5e-6
+lr_schedule = "cosine"                 # Cosine LR protects a converged gait from the post-peak decline the other species hit
+n_steps = 2048
+batch_size = 512
+n_epochs = 10
+gamma = 0.993
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.01
+ent_coef_end = 0.002                   # 5x entropy decay (EntCoefDecayCallback) — the documented fix for late gait collapse.
+ent_coef_decay_timesteps = 5000000     # Anchored near the expected gait-consolidation point, well below the 12M budget.
+                                       # See docs/investigations/STAGE2_RECOMMENDATIONS.md section 5.
+target_kl = 0.05                       # Looser than stage 1: locomotion learns fast early, and a tight cap throttles it
+
+[ppo.policy_kwargs]
+net_arch = [512, 256]
+
+[sac]
+learning_rate = 1e-4
+batch_size = 256
+gamma = 0.99
+tau = 0.005
+ent_coef = "auto"
+buffer_size = 1_000_000          # Large buffer retains stage 1 balance transitions
+learning_starts = 10_000
+train_freq = 4                   # Batch env steps before training — less Python loop overhead
+gradient_steps = 4               # Match train_freq to maintain the update-to-data ratio
+
+[sac.policy_kwargs]
+net_arch = [512, 256]
+
+[jax]
+num_envs = 2048
+rollout_len = 64
+num_updates = 1000                      # Quadrupedal coordination needs more updates than a biped's balance stage
+ppo_epochs = 4
+minibatch_size = 512
+learning_rate = 1e-4
+max_grad_norm = 0.5
+gamma = 0.993
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.01
+fall_penalty = -10.0
+reset_noise_scale = 0.05
+init_qpos_noise = 0.01
+init_yaw_noise = 0.1
+obs_rms_decay_on_resume = 0.01          # Decay obs normalization count on resume
+warmup_updates = 80                     # ~8% of 1000 updates
+warmup_clip_range = 0.035
+warmup_ent_coef = 0.018
+ramp_updates = 250                      # ~25% of 1000 updates: gradual ramp for gait development
+ramp_attr = "forward_vel_weight"
+ramp_start_fraction = 0.16
+
+[jax.policy_kwargs]
+net_arch = [512, 256]
+
+[curriculum]
+timesteps = 12000000
+min_avg_reward = 100.0
+min_avg_episode_length = 750
+min_avg_forward_vel = 0.9              # Gate on actual locomotion; without it a standing-still policy passes on alive_bonus alone.
+                                       # 0.9 m/s is ~0.7 body lengths/s — a real walk for a gracile 1.24 m cursor.
+required_consecutive = 3
+collapse_min_evals = 20                 # Backstop early-stop: wait ~1M steps (20 evals x 50k) before it can fire.
+collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.
+collapse_drop_fraction = 0.5
+warmup_timesteps = 800000               # Give the critic time to adapt to the new reward landscape before the policy moves fast
+warmup_clip_range = 0.035
+warmup_ent_coef = 0.018
+ramp_timesteps = 2500000                # Ramp forward_vel_weight so gait quality develops before speed pressure arrives
+ramp_start_value = 0.16

@@ -20,7 +20,7 @@ Legend: `[x]` done | `[-]` in progress | `[ ]` not started
 | **0** | Clean Slate (v0.2.0) | **COMPLETE** | 5/5 items | — |
 | **1** | First Steps (v0.3.0) | **In Progress** | 10/12 items | Brachiosaurus Stage 3; Stage 3 terminal-bonus rescale (design debt) |
 | **2** | Into the Wild (v0.4.0) | Not Started | 0/9 items | Blocked on Phase 1 training results |
-| **3** | Evolution (v0.5.0) | Not Started | 0/8 items | Blocked on Phases 1-2 |
+| **3** | Evolution (v0.5.0) | **In Progress** | 1/9 items | Dibothrosuchus landed early; rest blocked on Phases 1-2 |
 | **4** | The Pack (v0.6.0) | Not Started | 0/6 items | Blocked on Phase 3 species |
 | **5** | Hyperdrive (v0.7.0) | **In Progress** | 3/6 items | JAX SAC, large-scale experiments, mjlab pilot |
 | **6** | Life Finds a Way (v1.0.0) | Not Started | 0/5 items | Blocked on Phases 2-5 |
@@ -304,7 +304,7 @@ Deepen the RL capabilities and expand the species roster.
 - [ ] **Custom policy networks**
   - Two-stream architecture: proprioception branch + exteroception branch
   - Implement via SB3 `CustomActorCriticPolicy`
-  - Benchmark against default MLP on all three species
+  - Benchmark against default MLP on every implemented species
   - _Dependency: Phase 1 (need baselines to compare against)_
 
 - [ ] **TD3 algorithm support**
@@ -322,6 +322,26 @@ Deepen the RL capabilities and expand the species roster.
   - Low-level controller: executes locomotion primitives
   - Options framework or feudal architecture
   - _Dependency: Phase 2 turning/steering_
+
+- [x] **Dibothrosuchus elaphros (erect-limbed crocodylomorph)** — delivered
+  ahead of this phase
+  - MJCF model: 8.65 kg, 1.24 m gracile quadruped with hindlimbs longer than
+    forelimbs and paired paramedian osteoderm rows
+  - **First non-dinosaur in the roster.** The locomotion problem is the erect,
+    parasagittal posture that separates terrestrial crocodylomorphs from the
+    sprawl of a modern crocodilian
+  - **What makes it different from Brachiosaurus:** the other quadruped is
+    175 kg with longer *front* legs and reaches *up* for stationary food;
+    this one is 8.65 kg with longer *hind* legs and snaps *down* at small
+    moving prey. It exercises the shared quadrupedal infrastructure at the
+    opposite end of the scale
+  - Curriculum: balance (hold the erect stance), locomotion (diagonal-pair
+    walk), snap (snout-contact proxy on a 0.06 m prey sphere — the smallest
+    stage-3 target in the roster)
+  - Generalizing the shared MJX observation dispatch to admit a second
+    quadruped bumped every species' `policy_interface_revision`; no
+    observation dimension, layout, or value changed
+  - _No training runs published yet_
 
 - [ ] **Deinonychus (pack hunter species)**
   - MJCF model: mid-size bipedal raptor, optimized for agility
@@ -365,7 +385,7 @@ Deepen the RL capabilities and expand the species roster.
   - Leaderboard across species, algorithms, and training configs
   - _Dependency: Phase 2 terrain diversity_
 
-**Exit criteria:** 6 species in the roster (including first defensive species),
+**Exit criteria:** 7 species in the roster (including the first defensive species),
 hierarchical policies demonstrating goal-directed behavior, published benchmark
 results across algorithms.
 

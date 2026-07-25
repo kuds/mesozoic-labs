@@ -71,7 +71,7 @@ def test_committed_manifest_is_current_and_covers_all_species():
 
     assert manifest["fingerprint_tool_version"] == plant_contract.FINGERPRINT_TOOL_VERSION == 2
     assert manifest["generated_with"]["float_significant_digits"] == 12
-    assert set(manifest["plants"]) == {"velociraptor", "trex", "brachiosaurus"}
+    assert set(manifest["plants"]) == {"velociraptor", "trex", "brachiosaurus", "dibothrosuchus"}
     for entry in manifest["plants"].values():
         assert entry["policy_interface"]["revision"] >= 1
         assert entry["physics"]["revision"] >= 1

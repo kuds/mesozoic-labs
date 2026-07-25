@@ -218,6 +218,7 @@ def _import_species_config(species: str) -> None:
         "trex": "environments.trex.mjx_config",
         "velociraptor": "environments.velociraptor.mjx_config",
         "brachiosaurus": "environments.brachiosaurus.mjx_config",
+        "dibothrosuchus": "environments.dibothrosuchus.mjx_config",
     }
     module_name = module_map.get(species)
     if module_name:
@@ -227,7 +228,9 @@ def _import_species_config(species: str) -> None:
 def main():
     """CLI entry point for JAX/MJX training."""
     parser = argparse.ArgumentParser(description="Train dinosaur locomotion with JAX/MJX PPO")
-    parser.add_argument("--species", type=str, required=True, choices=["trex", "velociraptor", "brachiosaurus"])
+    parser.add_argument(
+        "--species", type=str, required=True, choices=["trex", "velociraptor", "brachiosaurus", "dibothrosuchus"]
+    )
     parser.add_argument("--stage", type=int, default=1, choices=[1, 2, 3])
     parser.add_argument("--num-envs", type=int, default=2048)
     parser.add_argument("--num-updates", type=int, default=500)
