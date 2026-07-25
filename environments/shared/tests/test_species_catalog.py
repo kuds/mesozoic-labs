@@ -75,7 +75,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "brachiosaurus": "quadrupedal-target/v1",
         "dibothrosuchus": "quadrupedal-target/v1",
     }
-    expected_policy_revisions = {"velociraptor": 4, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
+    expected_policy_revisions = {"velociraptor": 5, "trex": 5, "brachiosaurus": 2, "dibothrosuchus": 2}
     expected_physics_revisions = {"velociraptor": 2, "trex": 3, "brachiosaurus": 1, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 3, "brachiosaurus": 1, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")

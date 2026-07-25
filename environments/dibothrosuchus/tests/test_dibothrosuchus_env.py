@@ -146,15 +146,32 @@ class TestSnoutTerminations:
     """The snout is long and carried low; it must not be usable as a prop."""
 
     def test_snout_ground_contact_terminates(self, env):
-        env.reset(seed=0)
-        # Drop the whole animal so the snout tip goes below the 0.04 m gate.
-        env.data.qpos[2] = 0.02
+        """Pitch the trunk nose-down and flex the neck so ONLY the snout goes low.
+
+        Dropping the whole animal instead just trips the healthy-height floor,
+        which returns before the snout check ever runs -- so a test written
+        that way passes without exercising this gate at all.  At 20 deg the
+        trunk stays at 0.366 m, tilt is 0.35 rad against a 0.9 limit, and
+        forward_z is -0.34 against a -0.55 nosedive threshold, so every check
+        that could preempt the snout gate has clear margin.
+        """
         import mujoco
 
-        mujoco.mj_forward(env.model, env.data)
+        model, data = env.model, env.data
+        env.reset(seed=0)
+        pitch = np.radians(20.0)
+        data.qpos[3:7] = [np.cos(pitch / 2), 0.0, np.sin(pitch / 2), 0.0]
+        for joint in ("neck_pitch", "head_pitch"):
+            jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint)
+            data.qpos[model.jnt_qposadr[jid]] = model.jnt_range[jid][1]
+        mujoco.mj_forward(model, data)
+
         terminated, info = env._is_terminated()
         assert terminated
-        assert info["termination_reason"] in {"fallen", "head_contact"}
+        assert info["termination_reason"] == "head_contact", (
+            f"expected the snout gate, got {info['termination_reason']} -- another check preempted it"
+        )
+        assert info["snout_tip_z"] < 0.04
 
     def test_snout_tip_height_reported_when_upright(self, env):
         env.reset(seed=0)
@@ -179,3 +196,44 @@ class TestSnoutTerminations:
             f"Prey underside at {prey_underside:.3f} m leaves too little margin over the "
             "0.04 m snout-prop gate; a snap at the bottom of the sphere would terminate as head_contact."
         )
+
+
+class TestResetStaysInsideTheHealthyEnvelope:
+    """Reset noise must perturb the pose, not spawn already-terminated episodes.
+
+    ``reset_noise_scale`` is a joint-angle scale in radians, but the shared base
+    also used it as a root-height jitter in metres.  On this 0.313 m stance that
+    put a quarter of stage-1 episodes outside ``healthy_z_range`` at step 1,
+    which inflated the zero-action baseline's apparent difficulty with noise no
+    policy can act on.  ``reset_height_noise_scale`` decouples the two; these
+    tests pin that it stays decoupled.
+    """
+
+    def test_height_noise_is_decoupled_from_joint_noise(self):
+        env = DibothrosuchusEnv()
+        try:
+            assert env.reset_height_noise_scale is not None, (
+                "this species must set its own metre-scale height jitter; inheriting the "
+                "radian-scale joint noise spawns episodes outside healthy_z_range"
+            )
+            assert env.reset_height_noise_scale < 0.25 * (env.healthy_z_range[1] - env.healthy_z_range[0])
+        finally:
+            env.close()
+
+    def test_stage1_reset_never_spawns_out_of_bounds(self):
+        """At the committed stage-1 noise, no seed starts already terminated."""
+        from environments.shared.config import load_stage_config
+
+        kwargs = load_stage_config("dibothrosuchus", 1)["env_kwargs"]
+        kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
+        env = DibothrosuchusEnv(**kwargs)
+        try:
+            low, high = env.healthy_z_range
+            for seed in range(40):
+                env.reset(seed=seed)
+                trunk_z = float(env.data.xpos[env.torso_id, 2])
+                assert low < trunk_z < high, f"seed {seed} spawned at {trunk_z:.3f} m, outside [{low}, {high}]"
+                terminated, info = env._is_terminated()
+                assert not terminated, f"seed {seed} starts terminated: {info.get('termination_reason')}"
+        finally:
+            env.close()

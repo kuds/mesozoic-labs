@@ -29,6 +29,12 @@ precision rather than conservatism:
   excitation sweep;
 * thermal derating -- the rated-torque comparisons here are instantaneous.
 
+The excitation also drives hip pitch and knee **in phase**, where a real trot
+leads swing with knee flexion. That contributes to the knee pinning at its cap
+in every configuration, so the knee column discriminates nothing and is not
+reported as a margin result. The ab/ad column, which is what the AK60-6
+question turns on, is driven at 0.25x and does discriminate.
+
 What the study *can* bound is the mechanical envelope: stability geometry,
 rotational inertia, and joint-torque demand against published actuator
 ratings. It says nothing about whether a trained policy runs at 3 m/s; section

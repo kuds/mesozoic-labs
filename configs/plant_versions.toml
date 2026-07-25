@@ -10,22 +10,30 @@ canonical_mujoco_version = "3.10.0"
 # changed policy/physics/visual fingerprint unless its corresponding revision
 # increases. Source-only changes (for example comments) do not require a bump.
 
-# Admitting a second quadruped (dibothrosuchus) required
-# mjx_env.build_mjx_observation to dispatch on the registered root body instead
-# of a hard-coded "brachiosaurus" species check.  That function is part of the
-# fingerprinted policy interface, so every species' policy_interface_revision
-# increments below even though no observation dimension, layout, or value
-# changed for any of them: existing checkpoints remain numerically valid.
+# Two shared-interface changes drive the policy revisions below.
+#
+# 1. Admitting a second quadruped (dibothrosuchus) required
+#    mjx_env.build_mjx_observation to dispatch on the registered root body
+#    instead of a hard-coded "brachiosaurus" species check.  No observation
+#    dimension, layout, or value changed for any species.
+# 2. BaseDinoEnv.reset gained reset_height_noise_scale, so root-height jitter
+#    is no longer forced to reuse the radian-scale joint noise as a length.
+#    This is fingerprinted through the home_reset entry, which only the
+#    home-keyframe-residual species carry -- hence brachiosaurus does not
+#    increment for it.  The default is None, which reproduces the previous
+#    arithmetic exactly, so velociraptor and trex reset distributions are
+#    unchanged and their existing checkpoints remain valid.  Dibothrosuchus is
+#    the one species whose reset distribution really does change.
 
 [plants.velociraptor]
 physics_revision = 2
-policy_interface_revision = 4
+policy_interface_revision = 5
 visual_revision = 3
 observation_schema = "bipedal-target/v1"
 
 [plants.trex]
 physics_revision = 3
-policy_interface_revision = 4
+policy_interface_revision = 5
 visual_revision = 3
 observation_schema = "bipedal-target/v1"
 
@@ -37,6 +45,6 @@ observation_schema = "quadrupedal-target/v1"
 
 [plants.dibothrosuchus]
 physics_revision = 1
-policy_interface_revision = 1
+policy_interface_revision = 2
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"

@@ -68,6 +68,7 @@ class BaseDinoEnv(gym.Env, ABC):
         healthy_z_range: tuple[float, float] = (0.25, 1.0),
         max_tilt_angle: float = 1.047,
         reset_noise_scale: float = 0.01,
+        reset_height_noise_scale: float | None = None,
     ):
         super().__init__()
 
@@ -95,6 +96,14 @@ class BaseDinoEnv(gym.Env, ABC):
         self.healthy_z_range = healthy_z_range
         self.max_tilt_angle = max_tilt_angle
         self.reset_noise_scale = reset_noise_scale
+        # Root-height jitter at reset, in METRES.  ``reset_noise_scale`` is a
+        # joint-angle scale in RADIANS, and reusing it for a length is only
+        # harmless while the species is roughly a metre tall: on a 0.31 m
+        # stance a 0.14 rad joint jitter becomes a 0.14 m height jitter, i.e.
+        # 45% of standing height, which spawns a quarter of episodes already
+        # outside healthy_z_range.  ``None`` keeps the historical coupled
+        # behaviour so existing species' reset distributions are unchanged.
+        self.reset_height_noise_scale = reset_height_noise_scale
 
         # Cache body/geom/site IDs (species-specific)
         self._cache_ids()
@@ -843,8 +852,16 @@ class BaseDinoEnv(gym.Env, ABC):
             noise_scale = self.reset_noise_scale
             self.data.qpos[7:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qpos[7:].shape)
             self.data.qvel[:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qvel.shape)
-            # Slightly vary starting height to improve policy robustness
-            self.data.qpos[2] += self.np_random.normal(0, noise_scale)
+            # Slightly vary starting height to improve policy robustness.  This
+            # is a length, not an angle, so it takes its own scale when the
+            # species supplies one; see reset_height_noise_scale.
+            # reset_noise_scale stays the master switch — zero must still give a
+            # deterministic reset, so a species height scale sets only the
+            # MAGNITUDE of this term and never re-enables noise on its own.
+            height_scale = 0.0
+            if noise_scale > 0.0:
+                height_scale = noise_scale if self.reset_height_noise_scale is None else self.reset_height_noise_scale
+            self.data.qpos[2] += self.np_random.normal(0, height_scale)
 
         # Randomize target position (species-specific)
         self._spawn_target()

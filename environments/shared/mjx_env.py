@@ -100,6 +100,9 @@ _SB3_ONLY_ENV_KEYS: frozenset = frozenset(
         "idle_velocity_threshold",
         "strike_proximity_weight",
         "food_height_range",
+        # SB3-only by construction: the MJX reset jitters joints and XY but
+        # never root height, so it has no counterpart to scale.
+        "reset_height_noise_scale",
     }
 )
 

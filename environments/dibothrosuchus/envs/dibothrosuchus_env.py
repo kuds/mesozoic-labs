@@ -113,6 +113,12 @@ class DibothrosuchusEnv(BaseDinoEnv):
         healthy_z_range: tuple[float, float] = (0.18, 0.55),
         max_tilt_angle: float = 0.9,
         reset_noise_scale: float = 0.01,
+        # Metres, decoupled from the radian-scale joint jitter.  0.03 is ~10%
+        # of the 0.313 m settled stance, matching the ratio the taller species
+        # get from their coupled default, and 4.5 sigma clear of the 0.18 m
+        # healthy-height floor so reset noise perturbs the pose rather than
+        # spawning episodes already terminated.
+        reset_height_noise_scale: float | None = 0.03,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "dibothrosuchus.xml")
 
@@ -183,6 +189,7 @@ class DibothrosuchusEnv(BaseDinoEnv):
             healthy_z_range=healthy_z_range,
             max_tilt_angle=max_tilt_angle,
             reset_noise_scale=reset_noise_scale,
+            reset_height_noise_scale=reset_height_noise_scale,
         )
 
     def _cache_ids(self):

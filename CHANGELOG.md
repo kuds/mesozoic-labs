@@ -109,6 +109,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which default rendering hides, so they no longer draw — toggle site
   group 4 in an interactive viewer to visualize the touch volumes.
 
+- **`BaseDinoEnv` reset-height jitter is separable from joint jitter**
+  (`reset_height_noise_scale`, breaking — policy interface revision for the
+  home-keyframe-residual species: velociraptor 4 → 5, trex 4 → 5,
+  dibothrosuchus 1 → 2): `reset()` applied `reset_noise_scale` — a joint-angle
+  scale in **radians** — as a root-height jitter in **metres**. That is nearly
+  harmless on a metre-tall plant (T-Rex: 10 % of stance) and badly wrong on a
+  short one. On Dibothrosuchus's 0.313 m stance the committed 0.14 spawned
+  trunk heights across 0.050–0.691 m, putting **25 % of stage-1 episodes
+  outside `healthy_z_range` before the first step**; all `fallen` and
+  `too_high` terminations fired at step 1. The stage-1 baseline therefore read
+  as "62 % full-horizon" while measuring unlearnable spawn noise rather than
+  balance — genuine balance failures were only ~13 %.
+
+  The new argument defaults to `None`, which reproduces the previous
+  arithmetic exactly, so velociraptor, trex and brachiosaurus reset
+  distributions are unchanged and their checkpoints remain valid; the revision
+  bumps reflect the shared `home_reset` source moving, not a behaviour change.
+  `reset_noise_scale` remains the master switch, so zero still gives a fully
+  deterministic reset. Dibothrosuchus sets 0.03 m (~10 % of stance, 4.5σ clear
+  of its healthy-height floor) and its stage-1 noise is recalibrated from 0.14
+  to 0.30 rad on that basis. A regression test pins that no stage-1 seed spawns
+  already terminated.
+
 ### Added
 - **New species: *Dibothrosuchus elaphros*** (77 obs / 27 actuators / 8.65 kg
   / nq=35, nv=34) — a sphenosuchian crocodylomorph and the first non-dinosaur
@@ -117,7 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   forelimbs, paired paramedian rows of dorsal osteoderms, and a narrow crested
   skull whose snout drives the Stage 3 "snap" contact proxy (no jaw
   articulation). Ships the MJCF plant, `DibothrosuchusEnv`, MJX registration,
-  three curriculum stages plus PPO/SAC sweep spaces, 62 species tests, a
+  three curriculum stages plus PPO/SAC sweep spaces, 65 species tests, a
   `test-dibothrosuchus` CI job, and the model documentation page.
 
   Plant characterization, all measured rather than assumed: the stance is
@@ -130,10 +153,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fast relative to its body length, so all three stance joints see gait-scale
   torque); measured clipping is 0.0 % under home-control settling, a 1.5 Hz
   walk and a 2.5 Hz trot, and 0.5 % worst case under 4 Hz full-amplitude
-  excitation. Stage-1 `reset_noise_scale` is calibrated against the
-  zero-action baseline: 0.05 leaves a do-nothing policy at 100 % full-horizon,
-  the committed 0.14 leaves 62 % with failures dominated by real balance
-  losses.
+  excitation. Stage-1 `reset_noise_scale` is 0.30 rad, calibrated against the
+  zero-action baseline with root-height jitter decoupled (see below): 0.05,
+  0.10 and 0.14 all leave a do-nothing policy at 100 % full-horizon, while
+  0.30 leaves 65 % with every failure a genuine topple (earliest step 40,
+  median 58) and nothing spawning out of bounds.
 
 - **Canonical result bundles for Colab/Google Drive training**: schema-v2
   summaries, runtime-captured provenance, immutable completed bundles,

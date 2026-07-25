@@ -28,13 +28,24 @@ snap_approach_weight = 0.0                     # Must be explicit — the specie
 snap_snout_proximity_weight = 0.0
 prey_distance_range = [4.0, 6.0]               # Far enough that approach is never incidentally rewarded
 max_episode_steps = 1000
-reset_noise_scale = 0.14                       # Calibrated against the zero-action baseline
-                                               # (environments/shared/scripts/zero_action_baseline.py), 40 episodes per
-                                               # point. Measured on this plant: at 0.05 the do-nothing policy reaches the
-                                               # full horizon in 100% of episodes and scores 2597 mean-std, so the stage
-                                               # would reward a statue and training could only lose ground. 0.10 leaves
-                                               # 82%, 0.14 leaves 62% (mean-std 324) with failures dominated by real
-                                               # balance losses, and 0.20 leaves 50% with a negative mean-std floor.
+reset_noise_scale = 0.30                       # Joint-angle jitter in RADIANS (~17 deg), and the same scalar bounds the
+                                               # uniform qvel kick, so the perturbation is a jittered pose AND a small
+                                               # initial velocity, not angles alone. Calibrated against the
+                                               # zero-action baseline (environments/shared/scripts/zero_action_baseline.py),
+                                               # 40 episodes per point, with the root-height jitter decoupled via the env's
+                                               # reset_height_noise_scale.
+                                               #
+                                               # An earlier 0.14 here was mis-calibrated: root height took the same scalar
+                                               # as a length in METRES, so on this 0.313 m stance a quarter of episodes
+                                               # spawned outside healthy_z_range and died at step 1. That read as
+                                               # "62% full-horizon" but the difficulty was unlearnable spawn noise, not
+                                               # balance. With height decoupled, 0.05 / 0.10 / 0.14 all leave the
+                                               # do-nothing policy at 100%.
+                                               #
+                                               # Measured now: 0.18 -> 95%, 0.22 -> 82%, 0.26 -> 72%, 0.30 -> 65%
+                                               # (mean-std 485). At 0.30 nothing spawns out of bounds, the earliest
+                                               # failure is step 40 and the median is 58, and every failure is a genuine
+                                               # topple (excessive_tilt / tail_contact).
 
 [ppo]
 learning_rate = 3e-5                    # Matches the balance-stage LR that the other species converged on; 3e-4 was unstable for them
@@ -86,7 +97,9 @@ vf_clip_range = 10.0
 ent_coef = 0.005
 target_kl = 0.05                        # Early-stop PPO epochs when approx KL exceeds this
 fall_penalty = -10.0                    # Smaller than the SB3 penalty: large penalties let value loss dominate early JAX training
-reset_noise_scale = 0.14                # Match [env]: calibrated against the zero-action baseline
+reset_noise_scale = 0.30                # Match [env]. The MJX reset jitters joints and XY but never root height,
+                                        # so decoupling the SB3 height jitter also brings the two backends' reset
+                                        # distributions closer together rather than further apart.
 init_qpos_noise = 0.01                  # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
 init_yaw_noise = 0.1                    # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
 
