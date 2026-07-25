@@ -10,10 +10,10 @@ has been built. `hardware_prototype` is still `planned` in
 > recommended solo first build is a juvenile-Psittacosaurus shell on the open
 > Pupper V3 quadruped, capped at ~$4.7k. Reliable walking/trotting is the V1
 > deliverable; 1 m/s is a measured stretch target, not a promise. At a ~$10k
-> parts cap, a clean-sheet, catalog-actuated _Terrestrisuchus_-class quadruped can
-> credibly target 2 m/s and treat 3 m/s as a stretch. A Compsognathus remains a
-> reliable ~$1k **walker**, while full-size bipedal running (13.5 kg raptor) is
-> a $26k+ parts program.
+> parts cap, a clean-sheet, catalog-actuated _Dibothrosuchus
+> elaphros_-inspired quadruped can credibly target 2 m/s and treat 3 m/s as a
+> short-sprint stretch. A Compsognathus remains a reliable ~$1k **walker**,
+> while full-size bipedal running (13.5 kg raptor) is a $26k+ parts program.
 
 ## Reading order
 
@@ -27,7 +27,8 @@ has been built. `hardware_prototype` is still `planned` in
    *running* robots: raptor scaling (full ~$36k, scaled ~$6.9k), the
    bipedal-vs-quadruped analysis, and the recommended sub-$5k first physical
    platform (a juvenile _Psittacosaurus_ on Pupper V3, ~$4.7k program cap),
-   plus the custom ~$10k _Terrestrisuchus_ speed tier and species tradeoffs.
+   plus the custom ~$10k _Dibothrosuchus_-inspired speed tier, proximal-actuator
+   packaging, and species tradeoffs.
 
 ## Conventions for this track
 
@@ -37,5 +38,5 @@ has been built. `hardware_prototype` is still `planned` in
   are folded into each doc rather than appended.
 - Two design dials recur throughout: **scale and support pattern set torque**
   (torque scales roughly with size⁴, while a biped loads fewer legs) and
-  **replication buys a shorter controls path**. A roughly 10 kg quadruped can
+  **replication buys a shorter controls path**. A roughly 10–12 kg quadruped can
   use catalog actuators; a full-scale raptor biped cannot.

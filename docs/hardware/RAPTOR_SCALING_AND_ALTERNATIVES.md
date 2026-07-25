@@ -1,6 +1,7 @@
 # Running Raptor Plans + $5k/$10k Quadruped Paths
 
-> **Status:** Cost/parts + feasibility study for *dynamic-running* dino robots.
+> **Status:** Cost/parts + feasibility study for *dynamic-running* Mesozoic
+> animal robots.
 > Companion to [`HARDWARE_BOM.md`](HARDWARE_BOM.md) (which covers *walking*
 > builds) and [`SIM_TO_REAL_PLAN.md`](SIM_TO_REAL_PLAN.md). Prices are USD,
 > **parts only** (no engineering labor), and were last checked **2026-07-24**.
@@ -12,8 +13,9 @@
 ## The one-line answer
 
 > **Under $5k, build a juvenile _Psittacosaurus_ around the open Pupper V3.
-> Near $10k, a custom _Terrestrisuchus_-class quadruped using catalog
-> actuators can credibly target 2 m/s and treat 3 m/s as a stretch goal.**
+> Near $10k, a custom _Dibothrosuchus elaphros_-inspired quadruped using
+> catalog actuators can credibly target 2 m/s and treat 3 m/s as a
+> short-sprint stretch goal.**
 
 The *parts* for a bipedal runner exist under $10k (~$5–7k of COTS motors, frame,
 and compute). What doesn't exist is a proven, replicable "build-it-and-it-runs"
@@ -26,8 +28,8 @@ low-inertia mechanical design remain research work. The practical options are:
 - **Owner-built, open, and under $5k** → juvenile _Psittacosaurus_ on Pupper V3,
   about $4.2–4.8k including a light shell, spares, safety gear, freight/tax, and
   contingency (§3).
-- **Owner-built, custom chassis, and near $10k** → an approximately 9–11 kg
-  _Terrestrisuchus_-class quadruped using twelve catalog CubeMars actuators.
+- **Owner-built, custom chassis, and near $10k** → an approximately 10–12 kg
+  _Dibothrosuchus_-inspired quadruped using twelve catalog CubeMars actuators.
   Use **2 m/s as acceptance, 2.5 m/s as a success target, and 3 m/s as a
   stretch**, not a purchase-time promise (§4).
 - **Advertised 2–3 m/s immediately, under $5k** → a prebuilt Unitree Go2 Air or
@@ -54,16 +56,16 @@ Five plans, with the recommendation determined by budget and speed:
 | **Scaled raptor** (~0.72×, biped) | ~6.5–7 kg | **$5.6k–8k** (~$6.9k) | Running is **unproven**; biped balance dominates | No (all-COTS) |
 | **Compsognathus** (~2.5–3 kg biped) | ~3 kg | **~$4k–6k** (can approach $5k) | Runs on paper; **control-limited** | No (all-COTS, comfortable headroom) |
 | **Juvenile Psittacosaurus / Pupper V3** ⭐ *recommended first build* | 3 kg stock; **≤3.5 kg** dressed target | **~$4.2k–4.8k program cap** | Proven dynamic-quadruped base; dressed speed must be measured | No custom motor; printed parts + orderable PCBs |
-| **Terrestrisuchus / custom quadruped** ⭐ *speed-focused DIY build* | **~9–11 kg** | **~$9k–11k** (~$10k target) | **2 m/s credible; 2.5 m/s target; 3 m/s stretch** | No custom motor; custom chassis/linkages |
+| **Dibothrosuchus-inspired custom quadruped** ⭐ *speed-focused DIY build* | **~10–12 kg** | **~$9k–11k** (~$10k target) | **2 m/s credible; 2.5 m/s target; 3 m/s short-sprint stretch** | No custom motor; custom chassis/remote-knee transmissions |
 
 **The core principle:** peak joint torque scales with roughly the **4th power of
 size** (mass ∝ L³, torque ∝ mass·L ∝ L⁴). More importantly for a solo first
 build, an exact replicated quadruped preserves a demonstrated mechanical and
 control stack. The [Stanford Pupper paper](https://arxiv.org/abs/2110.00736)
 reports a 12-DOF, off-the-shelf, torque-controlled platform independently
-reproduced across institutions. A new dinosaur chassis using similar motors
-does **not** automatically inherit that result. The $10k plan therefore buys a
-capable mechanical envelope, not guaranteed running performance.
+reproduced across institutions. A new Mesozoic-animal chassis using similar
+motors does **not** automatically inherit that result. The $10k plan therefore
+buys a capable mechanical envelope, not guaranteed running performance.
 
 ---
 
@@ -258,13 +260,14 @@ years of controls refinement behind a commercial quadruped.
 Use a Mini-Cheetah-class layout:
 
 - **12 DOF:** hip abduction/adduction, hip pitch, and knee pitch on each leg;
-- **9–11 kg all-up**, with a roughly 45–50 cm structural body, 22–27 cm
-  effective legs, and a 0.9–1.2 m lightweight animal exterior including tail;
+- **10–12 kg all-up**, with a roughly 45–50 cm structural body, 25–30 cm
+  effective legs, and a 1.1–1.3 m lightweight animal exterior including tail;
 - **12S LiPo power** (44.4 V nominal / 50.4 V fully charged), a main fuse and
   contactor, precharge path, accessible physical E-stop, DC-DC rails, and a
   battery sized for short test sessions rather than long endurance;
-- knee actuators mounted near the body and driving the knee through a linkage
-  or belt, rather than placing approximately 0.5 kg at the distal knee; and
+- ab/adduction and hip-pitch actuators mounted at the body, with each knee
+  actuator co-located at the shoulder or pelvis and driving the anatomical knee
+  through a toothed belt, chain, or rigid linkage; and
 - three independent 1 Mbit/s CAN buses, four actuators per bus, a deterministic
   motor/safety controller targeting **400–500 Hz** command and telemetry, and a
   separate Jetson-class computer for perception and the high-level policy.
@@ -272,8 +275,43 @@ Use a Mini-Cheetah-class layout:
   loop rate; this design does not assume that twelve motors can exchange full
   command/feedback frames at 1 kHz on Classic CAN.
 
+The actuator envelope must be treated as a chassis constraint, not hidden by an
+idealized simulation. The AK80-9 is 98 mm in diameter and 38.5 mm thick, and
+this study conservatively uses the detailed-table mass of 490 g; the same
+official page's summary says 480 g. Twelve units therefore contribute
+**5.88 kg**, roughly 49–59% of a 10–12 kg robot. The motor diameter is about
+33–39% of a 25–30 cm effective leg, so an exposed AK80-9 at the anatomical knee
+would not produce a credible slender limb
+([CubeMars AK80-9 V3](https://www.cubemars.com/product/ak80-9-v3-0-robotic-actuator.html)).
+
+Make the exterior slender, not the load-bearing chassis. **No AK80-9 belongs at
+the anatomical knee.** Keep the motors inside locally fuller shoulder and
+pelvic volumes, leave the abdomen and distal limbs slender, and use carbon or
+thin-wall aluminum for the moving links. Model the actual motor cylinders,
+transmission ratio and mass, reflected inertia, backlash, compliance, and joint
+limits. The primary simulation and controller plant must use the eventual
+_Dibothrosuchus_ hardware geometry, mass distribution, joint axes, and
+remote-knee transmission—not an idealized _Terrestrisuchus_ skeleton. Run
+_Terrestrisuchus_ only as a separate, secondary morphology-stress case. MIT's
+Mini Cheetah architecture provides relevant precedent for
+co-locating hip and knee actuators and transmitting knee torque through the
+upper leg, but its thesis also documents a roughly 30 Hz belt resonance; the
+remote-knee assembly therefore needs its own one-leg impact, bandwidth, and
+thermal fixture before the chassis ratio is frozen
+([Katz, 2018](https://hdl.handle.net/1721.1/118671)).
+
 The proximal-knee rule is non-negotiable for speed. Low distal inertia lets the
-feet reverse direction quickly and reduces impact energy during a fall.
+feet reverse direction quickly and reduces impact energy during a fall. During
+CAD and simulation, sweep **180, 210, and 240 mm** internal shoulder/pelvic
+spacing at the same exterior length. Select the narrowest closed-box chassis
+that passes lateral-push recovery, 2 m/s running, 2–2.5 m/s braking and turning,
+and short 3 m/s tests; then repeat with head and tail ballast at their real
+radii. The representative 12S pack's nominal dimensions are
+**278.1 × 48.7 × 37.9 mm** (vendor tolerances ±5 × ±2 × ±2 mm), so the same CAD
+sweep must reserve a rigid, ventilated battery bay, connector and lead-bend
+clearance, and a tool-free retention/egress path rather than treating the pack
+as a point mass
+([Gens Ace](https://www.genstattu.com/gens-ace-sport-g-tech-3500mah-12s-80c-44-4v-lipo-battery-pack-with-xt90-plug/)).
 
 CubeMars specifies 48 V rated and 18–52 V allowable input for the large driver
 class. A fully charged 12S pack is inside that published window but leaves only
@@ -287,10 +325,12 @@ dynamic tests
 
 The speed-first configuration is **12× CubeMars AK80-9 V3**. The current
 official listing gives 22 N·m peak torque, 9 N·m rated torque, 390 rpm rated
-output speed (about 40.8 rad/s), 490 g mass, an integrated driver/encoder, and a
-listed price of $479.90. Twelve therefore cost approximately **$5,759 before
+output speed (about 40.8 rad/s), 570 rpm no-load speed (about 59.7 rad/s), an
+integrated driver/encoder, and a listed price of $479.90. This study uses the
+page's conservative 490 g detailed-table value rather than its conflicting
+480 g summary value. Twelve therefore cost approximately **$5,759 before
 freight and tax**
-([AK80-9 V3](https://www.cubemars.com/goods-1195-AK80-9%2BV30.html)).
+([AK80-9 V3](https://www.cubemars.com/product/ak80-9-v3-0-robotic-actuator.html)).
 
 A cost/weight-optimized alternative uses **8× AK80-9** at the hip-pitch and
 knee joints plus **4× AK60-6 V3** at the lateral hips. At the current listed
@@ -305,47 +345,123 @@ the cart before treating $4,759 as a quote.
 For an explicitly agile build, twelve identical AK80-9 units are the safer
 starting point and simplify spares.
 
-The primary evidence that this envelope is mechanically plausible is MIT's
-approximately 9 kg, 12-actuator Mini Cheetah. With mature model-predictive and
-whole-body control it demonstrated a reported **3.7 m/s** top speed
-([high-speed locomotion paper](https://arxiv.org/abs/1909.06586);
-[hardware context](https://arxiv.org/abs/2110.02799)). This is an existence
-proof for the mass/actuator class, **not** evidence that a new chassis will
-immediately match the result.
+The much smaller **AK45-10 is rejected for a primary leg axis in this design**.
+At Ø53 × 43 mm and 260 g it is 46% narrower and 47% lighter than an AK80-9, but
+its 7 N·m peak / 2.5 N·m rated torque is respectively 68% / 72% lower. It is
+also a 24 V actuator, so it cannot share the proposed 12S motor bus without a
+separate conversion stage. It could be evaluated for a later neck or tail axis,
+but using it at the hips or knees would solve the visual packaging problem by
+discarding the torque margin that makes the 2–3 m/s program credible
+([CubeMars AK45-10](https://www.cubemars.com/product/AK45-10-robotic-actuatuor.html);
+[small-driver 18–28 V working range](https://www.cubemars.com/images/file/20250522/1747899365958473.pdf)).
+
+The closest published reference actuator is the MIT Mini Cheetah module:
+
+| Parameter | CubeMars AK80-9 V3 | MIT Mini Cheetah module |
+|---|---:|---:|
+| Envelope | Ø98 × 38.5 mm | Ø96 × 40 mm |
+| Actuator mass | 490 g, conservative | 480 g |
+| Peak / maximum torque | 22 N·m peak | 17 N·m maximum |
+| Rated / continuous torque | 9 N·m rated | 6.9 N·m continuous |
+| Output speed | 40.8 rad/s rated; 59.7 rad/s no-load | 40 rad/s maximum at 24 V |
+| Twelve-actuator mass | 5.88 kg | 5.76 kg |
+
+The physical envelope, mass, and headline torque-speed class are unusually
+close. Even at the proposed 12 kg upper mass limit, the simple peak
+torque/body-mass proxy is about 1.83 N·m/kg versus 1.89 N·m/kg for the 9 kg Mini
+Cheetah; the rated/continuous proxy is about 0.75 versus 0.77 N·m/kg. These are
+only coarse comparisons—joint geometry and duty cycle still control the actual
+foot-force envelope. The Mini Cheetah reached a highest stable treadmill speed
+of **3.7 m/s** with mature model-predictive and whole-body control. The same
+experiment briefly observed 4 m/s before loss of balance
+([actuator thesis](https://hdl.handle.net/1721.1/118671);
+[high-speed locomotion paper](https://arxiv.org/abs/1909.06586);
+[hardware context](https://arxiv.org/abs/2110.02799)).
+
+This is an existence proof for the actuator and mass class, **not actuator
+equivalence or evidence that a new chassis will immediately match it**.
+CubeMars's "rated" torque is not the same test protocol as MIT's "continuous"
+figure, and the catalog page does not provide directly comparable dynamic-duty,
+output-inertia, or current-loop validation. This robot is also heavier and adds
+a shell and remote transmissions. Dynamometer-test one AK80-9 and one complete
+remote-knee leg before freezing the structure.
 
 ### $10k planning allocation
 
 | Cost block | Planning allowance | Basis |
 |---|---:|---|
 | 12× CubeMars AK80-9 V3 actuators | **$5,759** | Current official unit listing; driver/encoder included |
-| DIY aluminum/carbon structure, bearings, linkages, and feet | **$700** | Assumes owner fabrication and access to a printer/basic shop |
-| 12S battery, charger/bench supply, contactor, fuse, precharge, and DC-DC conversion | **$850** | Sourced representative stack below; short test-session endurance |
+| DIY aluminum/carbon frame, limb links, and feet | **$600** | Assumes owner fabrication and access to a printer/basic shop |
+| Four remote-knee transmissions, output encoders, and one-leg fixture | **$500** | Provisional allowance; selection must pass the fixture gate below |
+| 12S battery, charger/bench supply, contactor, fuse, precharge, monitoring, and DC-DC conversion | **$900** | Sourced representative stack below; short test-session endurance |
 | Jetson-class compute, real-time controller, and isolated CAN | **$450** | Separate high-level and deterministic safety/control layers |
-| Depth/RGB camera and independent body IMU | **$350** | Includes a ~$269 OAK-D Lite-class camera |
+| Depth/RGB camera, independent body IMU, and battery monitors | **$350** | Includes a ~$269 OAK-D Lite-class camera |
 | E-stop, connectors, harnesses, and test wiring | **$250** | Safety and serviceability allowance |
 | Lightweight head, torso skin, and passive tail | **$250** | Foam/thin composite; no active morphology |
 | Structural and ordinary breakage reserve | **$450** | Does not guarantee a complete spare actuator |
-| Freight, tax, price movement, and unallocated contingency | **$941** | Location- and vendor-dependent |
+| Freight, tax, price movement, and unallocated contingency | **$491** | Location- and vendor-dependent |
 | **Program target** | **$10,000** | Expect roughly **$9k–11k** in practice |
 
-The priced items below total about **$810**: approximately $760 against the
-$850 power allowance plus roughly $50 for the E-stop against the separate $250
+The $500 transmission allowance covers four nominally 1:1 remote-knee drives:
+five reinforced belts (one spare), eight matching pulleys, shafts/hubs,
+bearings, tensioners/idlers, guards, and four output-side magnetic encoder
+boards plus magnets and wiring. Gates lists 5M PowerGrip GT3 belts in
+9, 15, and 25 mm widths, but **5M is only a starting family, not a frozen
+selection**. Use the manufacturer's drive-design procedure to select pitch,
+width, tooth count, center distance, wrap, and installation tension against
+measured actuator torque and shock load
+([Gates PowerGrip GT3](https://www.gates.com/us/en/power-transmission/synchronous-belts/rubber-synchronous-belts.p.9356-000000-000000.html);
+[drive-design manual](https://www.gates.com/content/dam/documents-library/catalogs/powergrip-gt3-drive-design-manual-en.pdf)).
+The motor encoder alone cannot reveal output-side compliance or lost motion, so
+V1 includes four 14-bit-resolution AS5048A SPI adapter boards, currently about
+$18 each, at the anatomical knees
+([Infineon AS5048A datasheet](https://www.infineon.com/assets/row/public/documents/24/49/infineon-as5048a-as5048b-datasheet-en.pdf);
+[Mouser adapter board](https://www.mouser.com/en/ProductDetail/Infineon-Technologies/AS5048A-TS_EK_AB)).
+Resolution is not accuracy: validate nonlinearity, latency, EMI, magnet
+alignment, and transmission deflection on the fixture, then protect and
+strain-relieve the evaluation boards before dynamic tests.
+
+This remains a planning allowance, not a purchase-ready transmission BOM. Buy
+one belt, two pulleys, one encoder, and the bearings for the single-leg fixture
+first. Freeze and duplicate the drive only after it survives commanded torque,
+impact, thermal, tooth-jump, backlash, bandwidth, and EMI tests. If that
+validated design cannot be sourced and built inside $500—or requires
+professional pulley machining—the honest result is a program above $10k, not a
+quiet cut to the safety or actuator budget.
+
+The priced power items below total about **$825** against the $900 power
+allowance, while the E-stop consumes roughly $50 of the separate $250
 safety/wiring allowance. Precharge, the 58 V fuse holder, charge adapter,
 power enclosure, motor/signal harnesses, and test leads consume the remaining
 allowances. The robot-side design should impose a **100 A motor-bus burst
 limit** and a lower continuous limit established by harness, connector,
-contactor, fuse, and thermal tests; the battery manufacturer's C-rating is not
-a safe system-current specification.
+contactor, fuse, power-monitor, and thermal tests; the battery manufacturer's
+C-rating is not a safe system-current specification. At 44.4 V nominal, that
+initial software limit caps input near 4.4 kW.
+
+The listed Holybro module provides **one main motor-bus voltage/current
+channel, not per-CAN-bus current**. Select its XT90 variant: the vendor rates
+the module for 200 A continuous / 400 A for one second and supplies 8 AWG leads,
+while this robot remains fused at 100 A. Its DroneCAN telemetry must still be
+calibrated against bench instruments and demonstrate correct current sign and
+range under regenerative load. Do not assume that it can simply share a
+saturated motor bus: validate identifiers, termination, update rate, and
+worst-case utilization on the fixture, or add a dedicated isolated CAN
+interface within the compute/wiring allowance. Log that channel with
+pack-surface temperature and each actuator's current and temperature telemetry.
+During fixture and speed gates, spot-check every power connector with temporary
+thermocouples or a calibrated IR instrument; do not raise the limit merely
+because the pack advertises a higher discharge rating.
 
 | Power function | Catalog part | Published evidence |
 |---|---|---|
-| Robot battery | Gens Ace G-Tech 12S 3.5 Ah LiPo, XT90 | **$189.99**, 44.4 V, 1.054 kg, 10 AWG leads; vendor claims 80C ([Gens Ace](https://www.genstattu.com/gens-ace-sport-g-tech-3500mah-12s-80c-44-4v-lipo-battery-pack-with-xt90-plug/)) |
+| Robot battery | Gens Ace G-Tech 12S 3.5 Ah LiPo, XT90 | **$189.99**, 44.4 V, 1.054 kg, nominal 278.1 × 48.7 × 37.9 mm, 10 AWG leads; vendor claims 80C ([Gens Ace](https://www.genstattu.com/gens-ace-sport-g-tech-3500mah-12s-80c-44-4v-lipo-battery-pack-with-xt90-plug/)) |
 | Balance charger | Junsi iCharger X12 | **$179.99**, supports up to 12S LiPo and adjustable termination; requires an external 11–53 V DC supply ([MPI Hobby](https://mpihobby.com/products/icharger-x12-1100w-30a-12s-balance-battery-charger)) |
 | Off-robot charger supply | Mean Well RSP-1000-48 | **$267.90**, 48 V / 21 A, universal AC input ([DigiKey](https://www.digikey.com/en/products/detail/mean-well-usa-inc/RSP-1000-48/7706283)) |
 | Main contactor | Altran AREVS150-BAN | **$54.45**, normally-open, bidirectional, 200 A continuous, 12 V coil, and auxiliary contact; bidirectionality matters because braking returns energy toward the pack ([DigiKey](https://www.digikey.com/en/product-highlight/a/altran-magnetics/arevs150-series-high-voltage-dc-contactors)) |
 | Main fuse | Littelfuse BF1 142.5631.6102 | **$4.70**, bolt-down 100 A / 58 VDC slow-blow fuse with 1 kA interrupt rating; use a matching **58 V-rated** MIDI holder ([DigiKey](https://www.digikey.com/en/products/detail/littelfuse-inc/142-5631-6102/2515912); [holder family](https://www.digikey.com/en/product-highlight/l/littelfuse-commercial-vehicle-products/midi-498-series-bolt-down-fuseholder)) |
 | Logic rail | Mean Well RSD-60L-12 | **$42.60**, enclosed 18–72 V input to 12 V / 5 A DC-DC ([DigiKey](https://www.digikey.com/en/products/detail/mean-well-usa-inc/RSD-60L-12/7706266)) |
-| Independent bus-current sensor | Tamura LA37S200S05KM | **$20.49**, 200 A pass-through Hall sensor, 100 kHz bandwidth and 3.5 µs response ([DigiKey](https://www.digikey.com/en/products/detail/tamura/LA37S200S05KM/20381052)) |
+| Motor-bus voltage/current telemetry | Holybro PM08-CAN Power Module, 14S/200 A, XT90 | **$85**, DroneCAN, 7–60.9 V, 200 A continuous / 400 A for one second, 8 AWG leads, ±0.1 V voltage and ±5% current accuracy; validate regenerative-current sign and transient response ([Holybro](https://holybro.com/collections/dronecan-power-module/products/dronecan-pm08-power-module-14s-200a)) |
 | Physical E-stop | Schneider Harmony XB4BS8445 | Latching, turn-to-release 40 mm mushroom with one normally-closed and one normally-open contact; street price varies around **$45–55** ([Schneider Electric](https://www.se.com/us/en/product/XB4BS8445/harmony-emergency-stop-latching-turn-release-red-40-mm-1-nc-and-1-no/)) |
 
 This table is a procurement baseline, **not a wiring diagram**. Before mounting
@@ -357,8 +473,16 @@ software; feed the logic rail from a separately fused auxiliary branch so the
 controller can command zero torque and preserve logs. Charge LiPo packs in a
 fire-resistant location under supervision and store them at the charger
 manufacturer's storage voltage. Do not assume this RC pack contains a
-conventional on-pack BMS: use balance charging, per-cell voltage monitoring,
-and battery-temperature logging.
+conventional on-pack BMS. Use balance charging, install the independent BS12
+cell alarm, log total bus voltage/current and pack-surface temperature, and
+record the BS12's per-cell minima after each run. The BS12 is an operator alarm,
+not a controller-readable automatic cutoff. Until the controller has validated
+shutdown logic for total voltage and temperature, testing remains supervised
+and short-duration. Use appropriately rated bench instrumentation to capture
+regenerative bus transients on the one-leg fixture; the logging channel is not
+a substitute for that test. Use a keyed, verified adapter between the pack's
+two G-Tech balance connectors, the charger, and the BS12; never hand-probe or
+repin energized cell taps.
 
 Representative orderable control/sensing parts within their allowances are:
 
@@ -368,26 +492,35 @@ Representative orderable control/sensing parts within their allowances are:
 | Deterministic motor/safety controller | Teensy 4.1 plus isolated CAN transceivers | 600 MHz Cortex-M7, three CAN controllers (one CAN-FD); external transceivers are required ([PJRC](https://www.pjrc.com/store/teensy41.html)) |
 | Forward RGB + stereo depth | Luxonis OAK-D Lite | **$269**, onboard stereo/RGB processing and BMI270 IMU ([Luxonis](https://shop.luxonis.com/products/oak-d-lite-1)) |
 | Independent prototype body IMU | Adafruit BNO085 breakout | **$24.95**, fused 9-DOF orientation; prototype only until measured update rate, timestamps, latency, and vibration tolerance pass the state-estimation gate ([Adafruit](https://www.adafruit.com/product/4754)) |
+| Independent per-cell warning | Chargery BS12 V2.3 | **$24.50**, in-stock 2S–12S monitor with configurable audible/visual low-cell alarm and stored minimum for each cell; not a controller cutoff ([Chargery official store](https://www.chargerystore.com/index.php?product_id=52&route=product%2Fproduct)) |
+| Pack-surface temperature | Adafruit high-temperature waterproof DS18B20 | **$14.95**, 1-Wire digital output, −55 to 125°C range, and ±0.5°C specified accuracy from −10 to 85°C; bond and strain-relieve it against the pack surface ([Adafruit](https://www.adafruit.com/product/642)) |
 
-The sensing allocation supports joint position/velocity, actuator current and
-temperature, an independent body IMU subject to the validation gate above, and
-forward RGB/stereo depth. It does not yet claim a deterministic low-latency IMU.
-Initial foot contact can be estimated from joint kinematics and actuator
-current. Research-grade six-axis force/torque sensors, lidar, multiple depth
-cameras, and an active head/tail do **not** fit this budget. This is a complete
-set for locomotion and basic autonomy, not a contact-metrology package.
+The sensing allocation supports motor position/velocity, four independent
+output-side knee angles, actuator current and temperature, one main motor-bus
+voltage/current measurement, pack-surface temperature, an independent per-cell
+alarm, an independent body IMU subject to the validation gate above, and
+forward RGB/stereo depth. The four explicitly priced sensing/perception items
+total about **$333** against the $350 allowance. It does not yet claim a
+deterministic low-latency IMU or controller-readable per-cell telemetry. Initial
+foot contact can be estimated from joint kinematics and actuator current.
+Research-grade six-axis force/torque sensors, lidar, multiple depth cameras,
+and an active head/tail do **not** fit this budget. This is a complete set for
+supervised locomotion and basic autonomy, not a contact-metrology package.
 
 Outsourcing the entire structure to a CNC shop can add $1k–3k. Treat access to
 a 3D printer, drill press, saw, and simple fixturing as a budget assumption.
 
 ### Performance gates
 
-Use the following language in planning and acceptance tests:
+These are robot program gates, not guaranteed performance or an estimate of the
+extinct animal's speed:
 
-- **2.0 m/s:** credible primary acceptance target on level, high-traction ground;
-- **2.5 m/s:** reasonable success target after state-estimation, gait, current,
-  and thermal tuning;
-- **3.0 m/s:** plausible stretch target for short runs; and
+- **2.0 m/s:** repeatable primary acceptance on level, high-traction ground,
+  including a controlled stop and no protection fault or uncontrolled fall;
+- **2.5 m/s:** tuned success target after state-estimation, gait, current, and
+  thermal tuning;
+- **3.0 m/s:** several-second straight-line sprint stretch on a prepared
+  surface; and
 - **above 3 m/s:** unsupported commitment for a first clean-sheet build.
 
 Qualify the bare chassis at 2 m/s before fitting animal parts. Add morphology as
@@ -397,6 +530,23 @@ or emergency-stop regression. Reaching the upper end will likely require MPC +
 whole-body control or a simulation-trained policy with accurate state
 estimation and domain randomization.
 
+### Shape and movement realism
+
+A convincing exterior silhouette and plausible erect terrestrial-quadruped
+movement are achievable; X-ray-level anatomical fidelity is not. Use passive
+compliant ankles and segmented toes to soften contact without adding four more
+motors. Keep the head hollow and the distal tail passive for the first speed
+qualification. An active neck or tail base belongs in a later morphology phase
+after the dressed robot repeats the 2 m/s acceptance test.
+
+Neither anatomical source below provides a species-specific maximum-speed
+estimate, and exact _Dibothrosuchus_ movement is unknowable from skeletal
+material alone. For the proposed 25–30 cm effective leg, 2 m/s corresponds to a
+Froude number of approximately 1.4–1.6 and 3 m/s to approximately 3.1–3.7,
+using `Fr = v²/(gL)`. That supports calling the commanded behavior dynamically
+"running"; it does **not** recover the animal's biological top speed
+([Alexander & Jayes, 1983](https://zslpublications.onlinelibrary.wiley.com/doi/10.1111/j.1469-7998.1983.tb04266.x)).
+
 ### Which species fits this chassis?
 
 Small adult quadrupedal dinosaurs are scarce. A strict dinosaur identity
@@ -405,21 +555,25 @@ animals produces a more natural full-size match.
 
 | Species | Representation on this chassis | Engineering fit and scientific caveat |
 |---|---|---|
-| **_Terrestrisuchus gracilis_** ⭐ | _Terrestrisuchus_-inspired exterior | **Best speed-first match.** A small, terrestrial, cursorial quadrupedal crocodylomorph with long legs, a light head, narrow trunk, and tail; it naturally accommodates the robot's proportions. All known specimens are under 1 m and skeletally immature, so mature size is uncertain; do not market a 0.9–1.2 m shell as exact life size. It is Mesozoic, but not Dinosauria ([Spiekman, 2024](https://onlinelibrary.wiley.com/doi/full/10.1002/spp2.1577)). |
+| **_Dibothrosuchus elaphros_** ⭐ | _Dibothrosuchus_-inspired exterior | **Primary physical reference.** This Early Jurassic non-crocodyliform crocodylomorph is known from substantial skeletal material, including a nearly complete skull and mandible plus partial postcranium. Its estimated total length was 1.3 m, its long, slender limbs were interpreted as adapted to quadrupedal terrestrial gait, and later work discusses digitigrade forelimb evidence. That larger documented scale is a more honest engineering reference for concealing Ø98 mm proximal actuator clusters, although this packaging conclusion is an engineering inference and the shell is not an exact replica. It is Mesozoic, but not Dinosauria ([Wu & Chatterjee, 1993](https://www.tandfonline.com/doi/abs/10.1080/02724634.1993.10011488); [Ruebenstahl et al., 2022](https://anatomypubs.onlinelibrary.wiley.com/doi/10.1002/ar.24949)). |
+| **_Terrestrisuchus gracilis_** | Secondary morphology-stress case | **Aggressive stress test, not the physical or primary simulation baseline.** Its highly gracile, digitigrade, terrestrial quadrupedal anatomy is useful for testing how a narrower dressed morphology changes inertia and packaging. It must not replace the actual _Dibothrosuchus_ hardware geometry in controller training. All sampled specimens were skeletally immature and no known specimen exceeded 1 m, so a larger adult reconstruction would be speculative ([Spiekman et al., 2024](https://onlinelibrary.wiley.com/doi/full/10.1002/spp2.1577)). |
 | **Juvenile _Psittacosaurus_** | Early juvenile-inspired | **Best dinosaur/speed compromise.** Early juveniles were quadrupedal and shifted toward bipedality during growth, so it must not be presented as an adult quadruped ([Landi et al., 2021](https://onlinelibrary.wiley.com/doi/full/10.1111/pala.12529)). |
 | **Juvenile _Protoceratops_** | Cat- to small-dog-sized juvenile | **Clearest familiar four-legged dinosaur silhouette—an engineering/curatorial judgment, not a speed inference.** Its stockier form, shorter-looking legs, and large head/frill work against maximum agility. Keep the frill hollow and non-structural. Adults were about 2 m / 180 kg, while young juveniles could be cat-sized ([AMNH](https://www.amnh.org/exhibitions/dinosaurs-ancient-fossils/display-or-defense/my-what-a-big-skull-you-have)). |
 | **Juvenile _Mussaurus patagonicus_** | Approximately one-year-old | **Excellent mass match but uncertain posture.** Known juveniles were estimated at 8.3–10.9 kg, but their quadrupedal-versus-bipedal stance was ambiguous; neonates were more clearly quadrupedal ([Pol et al., 2021](https://pmc.ncbi.nlm.nih.gov/articles/PMC8531321/)). |
-| **_Repenomamus giganticus_** | Approximately adult-scale | **Good body-size class if Mesozoic mammals are acceptable.** It was badger/jackal-sized and avoids a juvenile label, but its mammalian, lower-slung silhouette is less naturally cursorial than _Terrestrisuchus_ ([Hu et al., 2005](https://www.nature.com/articles/nature03102)). |
+| **_Repenomamus giganticus_** | Approximately adult-scale | **Good body-size class if Mesozoic mammals are acceptable.** It was badger/jackal-sized and avoids a juvenile label, but its mammalian, lower-slung silhouette is less naturally compatible with the selected cursorial chassis ([Hu et al., 2005](https://www.nature.com/articles/nature03102)). |
 
-**Recommendation:** use _Terrestrisuchus_ for the first $10k speed-focused
-prototype. If the platform must be a dinosaur, use an explicitly labeled
-juvenile _Psittacosaurus_; if unambiguous quadrupedal dinosaur anatomy matters
-more than 3 m/s, use juvenile _Protoceratops_. Design the load-bearing chassis
-independently of the skin so those lightweight exteriors can be swapped. Keep
-the **entire removable morphology at or below 0.6 kg** for initial tests. Gate
-it on both net center of mass and rotational inertia: place ballast at the
-actual head/tail radii, then reject the design if pitch/yaw tracking or impact
-loads regress. Do not “balance” a heavy head by adding a heavy tail.
+**Recommendation:** build the first physical chassis and its primary simulation
+as _Dibothrosuchus_-inspired, using the same geometry, mass properties, and
+transmission model in both. Use _Terrestrisuchus_ only as a secondary gracile
+morphology-stress case. If the platform must be a dinosaur, use an explicitly
+labeled juvenile _Psittacosaurus_; if unambiguous quadrupedal dinosaur anatomy
+matters more than 3 m/s, use juvenile _Protoceratops_. Design the load-bearing
+chassis independently of the skin so those lightweight exteriors can be
+swapped. Keep the **entire removable morphology at or below 0.6 kg** for
+initial tests. Gate it on both net center of mass and rotational inertia: place
+ballast at the actual head/tail radii, then reject the design if pitch/yaw
+tracking or impact loads regress. Do not “balance” a heavy head by adding a
+heavy tail.
 
 ---
 
@@ -500,12 +654,13 @@ enough to work on safely, already includes the essential
 camera/IMU/proprioceptive sensor set, and uses orderable integrated motors. Keep
 V1 to a passive removable morphology and preserve the stock robot beneath it.
 
-**Near $10k, build a _Terrestrisuchus_-class 12-DOF custom quadruped around
-catalog AK80-9 actuators.** This is the first budget tier in this study where an
-owner-built chassis has a credible 2–3 m/s mechanical envelope. Make 2 m/s the
-acceptance target, 2.5 m/s the tuned goal, and 3 m/s the stretch. No custom
-motor is required, but custom links, frame, harness, safety system, and
-locomotion software are.
+**Near $10k, build a _Dibothrosuchus elaphros_-inspired 12-DOF custom
+quadruped around catalog AK80-9 actuators.** This is the first budget tier in
+this study where an owner-built chassis has a credible 2–3 m/s mechanical
+envelope. Make 2 m/s the repeatable acceptance target, 2.5 m/s the tuned goal,
+and 3 m/s a short straight-line stretch. No custom motor or planetary gearbox
+is required, but custom links, remote-knee transmissions, frame, harness,
+safety system, and locomotion software are.
 
 If **2.5 m/s on day one** is non-negotiable, use a Go2 Air as a prebuilt base and
 accept the loss of official secondary-development access. If a **biped is
@@ -528,5 +683,6 @@ first build.
   speed from peak torque.
 - **Morphology is a curatorial call:** each quadruped adds a new species rather
   than reusing the roster's raptor. Label the $5k _Psittacosaurus_
-  "juvenile-inspired"; label the $10k _Terrestrisuchus_ as a crocodylomorph,
-  not a dinosaur.
+  "juvenile-inspired"; label the $10k _Dibothrosuchus_ as an Early Jurassic
+  crocodylomorph, not a dinosaur, and describe the shell as "inspired" rather
+  than an exact life reconstruction.
