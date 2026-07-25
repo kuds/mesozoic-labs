@@ -25,6 +25,12 @@ env/
 # Training artifacts
 logs/
 models/
+# "models/" is unanchored, so it matches a directory of that name at ANY depth
+# — including the documentation tree, where it silently swallowed newly added
+# model pages. The existing pages there were unaffected because git never
+# ignores already-tracked files, so this only ever bit new files and did so
+# without any warning from `git add -A`.
+!website/docs/models/
 *.zip
 *.pkl
 *.npz

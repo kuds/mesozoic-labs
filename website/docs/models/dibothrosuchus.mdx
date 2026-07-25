@@ -1,0 +1,65 @@
+---
+sidebar_position: 4
+---
+
+import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
+import SpeciesVideoSection from '@site/src/components/SpeciesVideoSection';
+import {DIBOTHROSUCHUS} from '@site/src/data/species';
+
+# Dibothrosuchus Model
+
+A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs and a snout-contact hunting task. Its stage 3 task uses contact from a fixed snout geom as a snap proxy; the model has no articulated jaw.
+
+<SpeciesCatalog species={DIBOTHROSUCHUS} />
+
+## Anatomy
+
+The Dibothrosuchus model includes:
+
+- **Trunk** — Level root frame with a nose-down sloping capsule and a low-slung belly
+- **Osteoderms** — Two paramedian rows of dorsal scutes (6 pairs), the "two troughs" the genus is named for. They carry mass but are collision-disabled
+- **Neck + Skull** — Long slender neck (pitch, yaw), narrow crested skull (head pitch), sagittal crest, and an elongate snout
+- **Snout** — Fixed contact geom used as a snap proxy; there is no articulated jaw
+- **Legs** — Four erect, parasagittal limbs with 5 joints each (hip pitch/roll, knee, ankle, toe) ending in a flat pad
+- **Tail** — 4 segments, 3 actuated, carried clear of the ground in the high walk
+
+## Unique Characteristics
+
+Dibothrosuchus is the first non-dinosaur in the project, and the smallest species in it:
+
+- **Erect crocodylomorph posture** rather than the sprawl of a modern crocodilian. The limb chains are authored vertical, and every hinge joint is 0 at the home keyframe
+- **Hindlimbs longer than forelimbs** — the reverse of Brachiosaurus, whose front legs are the longer pair
+- **8.7 kg and 1.24 m nose-to-tail**, an order of magnitude lighter than the T-Rex model
+- **Snout-referenced approach shaping** — the 0.16 m skull rides a mobile neck, so approach distance is measured from the snout tip rather than the trunk
+- **The smallest stage-3 target in the project** — a 0.06 m prey sphere, which makes aiming rather than approach the hard part of the stage
+
+## Diagnostic Metrics (Stage 3)
+
+After each training stage the `eval` command reports:
+
+| Metric | Description |
+|--------|-------------|
+| `mean_forward_velocity` | Average forward speed (m/s) |
+| `gait_symmetry` | Diagonal-pair stride symmetry ∈ [0, 1] |
+| `stride_frequency` | Step frequency (Hz) |
+| `cost_of_transport` | Energy efficiency (lower is better) |
+| `mean_pelvis_height` | Trunk height stability (m) |
+| `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
+| `success_rate` | Fraction of episodes where the fixed snout-contact proxy touches the prey target |
+| `min_prey_distance` | Closest snout approach to prey (m) |
+
+## Training Videos
+
+<SpeciesVideoSection species={DIBOTHROSUCHUS.name} stages={DIBOTHROSUCHUS.stages} />
+
+## Usage
+
+```bash
+cd environments/dibothrosuchus
+
+# View the model
+python scripts/view_model.py
+
+# Train stage 1 using its current TOML-configured budget
+python scripts/train_sb3.py train --stage 1
+```

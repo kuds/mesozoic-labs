@@ -378,6 +378,7 @@ def test_sb3_notebook_finalizes_complete_bundle_once() -> None:
         ("velociraptor", "VELOCIRAPTOR"),
         ("trex", "TREX"),
         ("brachiosaurus", "BRACHIOSAURUS"),
+        ("dibothrosuchus", "DIBOTHROSUCHUS"),
     ],
 )
 def test_public_model_pages_render_generated_catalog(species_id: str, website_constant: str) -> None:
@@ -386,6 +387,41 @@ def test_public_model_pages_render_generated_catalog(species_id: str, website_co
     assert "import SpeciesCatalog from '@site/src/components/SpeciesCatalog';" in page
     assert f"import {{{website_constant}}} from '@site/src/data/species';" in page
     assert f"<SpeciesCatalog species={{{website_constant}}} />" in page
+
+
+def test_every_species_model_page_is_tracked_by_git() -> None:
+    """A page present on disk but untracked builds locally and breaks CI.
+
+    ``.gitignore`` carried an unanchored ``models/`` rule for training
+    artifacts, which also matched ``website/docs/models/``.  Pages added before
+    that rule stayed tracked (git never ignores tracked files), so the
+    directory looked fine while every *new* page was silently dropped by
+    ``git add -A``.  The Docusaurus build then failed on a sidebar entry
+    pointing at a document that did not exist in the checkout.  Checking
+    presence on disk cannot catch this; only tracking can.
+    """
+    import subprocess
+
+    try:
+        tracked = subprocess.run(
+            ["git", "ls-files", "website/docs/models"],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):  # pragma: no cover - git absent
+        pytest.skip("git is not available")
+    if tracked.returncode != 0:  # pragma: no cover - not a work tree
+        pytest.skip("not a git work tree")
+
+    tracked_pages = set(tracked.stdout.split())
+    for species in build_catalog()["species"]:
+        page = f"website/docs/models/{species['id']}.mdx"
+        assert page in tracked_pages, (
+            f"{page} is not tracked by git. It may exist locally while being excluded by a "
+            f".gitignore rule, which builds fine here and fails the Docusaurus job in CI."
+        )
 
 
 def test_default_paths_are_inside_repository() -> None:
