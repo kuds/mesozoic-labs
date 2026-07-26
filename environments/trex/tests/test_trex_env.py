@@ -313,7 +313,7 @@ class TestHeightTargetTracksStance:
     """
 
     @staticmethod
-    def _height_reward_at(env, pelvis_z: float) -> float:
+    def _height_reward_at(env: TRexEnv, pelvis_z: float) -> float:
         mujoco.mj_resetDataKeyframe(env.model, env.data, env.home_keyframe_id)
         # xpos is only populated by mj_forward, so resolve the current pelvis
         # height before differencing against the target.
@@ -322,10 +322,10 @@ class TestHeightTargetTracksStance:
         mujoco.mj_forward(env.model, env.data)
         assert float(env.data.xpos[env.pelvis_id, 2]) == pytest.approx(pelvis_z, abs=1e-6)
         _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
-        return info["reward_height"]
+        return float(info["reward_height"])
 
     @staticmethod
-    def _settled_height(env) -> float:
+    def _settled_height(env: TRexEnv) -> float:
         env.reset(seed=0)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         for _ in range(300):
