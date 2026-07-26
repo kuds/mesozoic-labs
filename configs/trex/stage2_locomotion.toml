@@ -48,6 +48,15 @@ ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefD
                                         # (with fall_penalty -150 and forward_vel_max 2.5) is what carried
                                         # velociraptor stage 2 to 2706 +/- 8 @ 2.75 m/s on the 1.5x-kp plant.
                                         # See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
+ent_coef_decay_timesteps = 4000000      # Anchor the decay to half the 8M budget, matching stage 1's 3M-of-6M.
+                                        # Without it decay_timesteps defaults to the full stage budget
+                                        # (train_base._maybe_ent_coef_decay_callback:502) and ent_coef coasts high.
+                                        # Measured on run 20260725_194916, this was the only T-Rex stage without the
+                                        # anchor and the only one whose policy std ROSE: algo_std climbed
+                                        # monotonically 1.024 -> 1.211 across all five quintiles, the same signature
+                                        # as un-anchored velociraptor stage 2 (1.01 -> 1.22). It also compounds --
+                                        # stage 3 inherited the inflated std (started 1.213 against stage 1's 0.947
+                                        # finish) and climbed to 1.438 despite carrying its own anchor.
 
 target_kl = 0.05                        # Loosened from 0.03 for the locomotion stage (fast early learning); matches the JAX path's value.
 

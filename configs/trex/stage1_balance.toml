@@ -20,7 +20,16 @@ nosedive_termination_threshold = 0.47          # Terminates at forward_z < -0.51
                                                # 0.35 that preceded the natural_pitch 0.17 -> 0.05 correction. natural_pitch
                                                # now describes the measured neutral pose, so the threshold absorbs the
                                                # 0.12 shift and the absolute termination envelope is identical.
-smoothness_weight = 0.1
+smoothness_weight = 0.7                        # Raised from 0.1: the action-rate penalty was a rounding error.
+                                               # Measured on run 20260725_194916, the term paid -0.0259/step against
+                                               # an alive bonus of 1.75 -- 1.0% of return -- while RMS action change
+                                               # per joint sat at 1.018, 2-3x beyond the 0.3-0.5 "severe" band in
+                                               # docs/investigations/TREX_STAGE1_LEG_JITTER.md. That run confirmed the
+                                               # doc's escalation condition: anchoring the entropy decay annealed
+                                               # algo_std (1.012 -> 0.959, vs 1.012 -> 1.038 un-anchored) but left the
+                                               # deterministic action rate unchanged. Sized from the penalty formula
+                                               # -w*sum(da^2)/(n*4): 0.7 puts smoothness at ~10% of the alive bonus
+                                               # (~6.8% of return) instead of 1.0%. Single-variable change.
 heading_weight = 0.1                           # Small heading reward to prevent spin-to-balance exploits
 gait_symmetry_weight = 0.0                     # Disable: default formula rewards single-foot stance, bad for balance
 height_weight = 1.0                            # Increased from 1.0: stronger signal to maintain pelvis at target 0.90m
@@ -105,7 +114,16 @@ net_arch = [512, 256]                  # Match SB3 PPO architecture
 
 [curriculum]
 timesteps = 6000000
-min_avg_reward = 100.0
+min_avg_reward = 1900.0                 # Raised from 100.0, which could not bind: the zero-action policy scores
+                                        # 1800.56 +/- 1267.66 over 40 episodes on this plant and config
+                                        # (environments/shared/scripts/zero_action_baseline.py trex), so a statue
+                                        # cleared the old gate eighteen times over and advanced into stage 2. The
+                                        # July 2026 runs that scored below the do-nothing floor all passed it.
+                                        # 1900 sits just above the measured floor; run 20260725_194916 reached
+                                        # 2696.83 +/- 40.6, so a healthy run keeps ~800 of headroom.
+                                        # NOTE: this is a measured constant and will go stale if the plant or the
+                                        # reward weights change -- re-run the baseline script and update it, or
+                                        # better, wire that script in as an automatic pre-stage check.
 min_avg_episode_length = 750
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
