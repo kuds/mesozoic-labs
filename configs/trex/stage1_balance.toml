@@ -124,6 +124,23 @@ min_avg_reward = 1900.0                 # Raised from 100.0, which could not bin
                                         # NOTE: this is a measured constant and will go stale if the plant or the
                                         # reward weights change -- re-run the baseline script and update it, or
                                         # better, wire that script in as an automatic pre-stage check.
+                                        #
+                                        # Two couplings this value carries, neither obvious from the name:
+                                        #  * A stage that misses its gate STOPS the curriculum -- stages 2 and 3
+                                        #    never run (train_base.py:1282-1292, "advancing with a weak policy
+                                        #    causes catastrophic forgetting"). With the old 100 that branch was
+                                        #    unreachable. A failed stage 1 now costs 3.7h instead of 13h, which is
+                                        #    the intent, but it means a bad stage-1 experiment ends the run.
+                                        #  * It also sets the collapse detector's arming threshold: peak_floor
+                                        #    falls back to min_avg_reward when collapse_peak_floor is unset
+                                        #    (curriculum.py:1014), and no config sets the latter. Detection now
+                                        #    arms only once the rolling-median peak clears 1900 rather than 100 --
+                                        #    safer against the long pre-convergence grind, but a run that plateaus
+                                        #    below 1900 gets no collapse protection at all.
+                                        # Note the floor itself pays no smoothness penalty (a constant action has
+                                        # no action delta), so raising smoothness_weight lowers a real policy's
+                                        # score against a gate calibrated on a statue. At the predicted ~2542 the
+                                        # margin is ~640; re-check this gate if that weight rises much further.
 min_avg_episode_length = 750
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.

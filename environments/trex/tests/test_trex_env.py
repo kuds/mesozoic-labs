@@ -365,3 +365,31 @@ class TestHeightTargetTracksStance:
             )
         finally:
             env.close()
+
+    def test_sb3_and_mjx_height_targets_agree(self):
+        """The SB3 target and the MJX registry's copy must not drift apart.
+
+        ``target_z`` lives as a literal inside ``_get_reward_info`` while the
+        MJX path reads ``target_standing_z`` from the species registry, and
+        neither is fingerprinted. That is exactly how ``natural_forward_z``,
+        ``healthy_z_range`` and ``max_tilt_angle`` drifted between the two
+        paths. Compared behaviourally so the constant does not have to be
+        exposed: both paths must produce the same height reward.
+        """
+        import environments.trex.mjx_config  # noqa: F401
+        from environments.shared.mjx_env import _SPECIES_CONFIGS
+        from environments.shared.reward_functions import reward_height_maintenance
+
+        registered = _SPECIES_CONFIGS["trex"]["target_standing_z"]
+        env = TRexEnv(reset_noise_scale=0.0, height_weight=1.0, healthy_z_range=(0.75, 1.6))
+        try:
+            floor = env.healthy_z_range[0]
+            for pelvis_z in (0.9757, 0.95, 0.90, 0.85, 0.80):
+                sb3 = self._height_reward_at(env, pelvis_z)
+                mjx = float(reward_height_maintenance(pelvis_z, floor, registered, 1.0))
+                assert sb3 == pytest.approx(mjx, rel=1e-9), (
+                    f"height reward diverges at pelvis_z={pelvis_z}: SB3 {sb3:.6f} vs MJX {mjx:.6f} "
+                    f"(registry target_standing_z={registered})"
+                )
+        finally:
+            env.close()
