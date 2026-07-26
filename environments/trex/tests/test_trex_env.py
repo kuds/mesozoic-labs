@@ -313,7 +313,11 @@ class TestHeightTargetTracksStance:
     """
 
     @staticmethod
-    def _height_reward_at(env: TRexEnv, pelvis_z: float) -> float:
+    def _height_reward_at(env, pelvis_z: float) -> float:
+        # ``env`` is left untyped to match the rest of this module: annotating
+        # it resolves ``action_space.shape`` to ``tuple[int, ...] | None``,
+        # which then fails the np.zeros and step() calls below. The explicit
+        # float() on the return is what keeps mypy happy about the Any.
         mujoco.mj_resetDataKeyframe(env.model, env.data, env.home_keyframe_id)
         # xpos is only populated by mj_forward, so resolve the current pelvis
         # height before differencing against the target.
@@ -325,7 +329,7 @@ class TestHeightTargetTracksStance:
         return float(info["reward_height"])
 
     @staticmethod
-    def _settled_height(env: TRexEnv) -> float:
+    def _settled_height(env) -> float:
         env.reset(seed=0)
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         for _ in range(300):
