@@ -293,3 +293,107 @@ class TestFootContactSensors:
             frozenset((env.data.contact[index].geom1, env.data.contact[index].geom2)) for index in range(env.data.ncon)
         }
         assert adjacent_pairs.isdisjoint(actual_pairs)
+
+
+class TestHeightTargetTracksStance:
+    """The height-maintenance reward must have gradient at the operating point.
+
+    ``target_z`` is a measured constant: it has to track the plant's settled
+    stance.  It did not, and that is how it went stale.  The pre-repair T-Rex
+    stood at 0.90 m; the July 2026 home-equilibrium fix raised the stance to
+    0.9757 m and nothing updated the target, so ``height_frac`` clipped to 1.0
+    everywhere in the healthy band.  The term became a flat constant worth 39%
+    of stage-1 and 10% of stage-2 return while shaping nothing -- measured on
+    run 20260725_194916 as ``reward_height`` = 0.9995/step against
+    ``height_weight`` = 1.0.
+
+    These assert the property rather than the literal, so they stay valid if
+    the plant moves again.  (A cross-species version is blocked on the
+    brachiosaurus stance bug: its target is 1.2 m against a settled 1.078 m.)
+    """
+
+    @staticmethod
+    def _height_reward_at(env, pelvis_z: float) -> float:
+        # ``env`` is left untyped to match the rest of this module: annotating
+        # it resolves ``action_space.shape`` to ``tuple[int, ...] | None``,
+        # which then fails the np.zeros and step() calls below. The explicit
+        # float() on the return is what keeps mypy happy about the Any.
+        mujoco.mj_resetDataKeyframe(env.model, env.data, env.home_keyframe_id)
+        # xpos is only populated by mj_forward, so resolve the current pelvis
+        # height before differencing against the target.
+        mujoco.mj_forward(env.model, env.data)
+        env.data.qpos[2] += pelvis_z - float(env.data.xpos[env.pelvis_id, 2])
+        mujoco.mj_forward(env.model, env.data)
+        assert float(env.data.xpos[env.pelvis_id, 2]) == pytest.approx(pelvis_z, abs=1e-6)
+        _, info = env._get_reward_info(np.zeros(env.action_space.shape, dtype=np.float32))
+        return float(info["reward_height"])
+
+    @staticmethod
+    def _settled_height(env) -> float:
+        env.reset(seed=0)
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        for _ in range(300):
+            env.step(action)
+        return float(env.data.xpos[env.pelvis_id, 2])
+
+    def test_reward_is_saturated_at_the_settled_stance(self):
+        env = TRexEnv(reset_noise_scale=0.0, height_weight=1.0, healthy_z_range=(0.75, 1.6))
+        try:
+            settled = self._settled_height(env)
+            reward = self._height_reward_at(env, settled)
+            # Near-full rather than exactly 1.0: the target sits a hair above
+            # the settled stance, which leaves a sliver of headroom instead of
+            # clipping. Anything well below 1.0 means the target is too high.
+            assert 0.99 <= reward <= 1.0, (
+                f"a correctly standing T-Rex should earn essentially the full height reward, got {reward:.4f} "
+                f"at the settled stance {settled:.4f}"
+            )
+        finally:
+            env.close()
+
+    def test_reward_still_has_gradient_below_the_settled_stance(self):
+        """The regression: a target below the stance flattens the whole band."""
+        env = TRexEnv(reset_noise_scale=0.0, height_weight=1.0, healthy_z_range=(0.75, 1.6))
+        try:
+            settled = self._settled_height(env)
+            floor = env.healthy_z_range[0]
+            # Sample the healthy band between the fallen floor and the stance.
+            sagged = [settled - f * (settled - floor) for f in (0.25, 0.5, 0.75)]
+            rewards = [self._height_reward_at(env, z) for z in sagged]
+            assert all(r < 1.0 for r in rewards), (
+                f"height reward is saturated while sagging ({rewards} at {sagged}) -- target_z is "
+                f"below the settled stance {settled:.4f}, so the term is a constant, not a gradient"
+            )
+            assert rewards[0] > rewards[1] > rewards[2], (
+                f"height reward must fall monotonically as the pelvis sags, got {rewards}"
+            )
+        finally:
+            env.close()
+
+    def test_sb3_and_mjx_height_targets_agree(self):
+        """The SB3 target and the MJX registry's copy must not drift apart.
+
+        ``target_z`` lives as a literal inside ``_get_reward_info`` while the
+        MJX path reads ``target_standing_z`` from the species registry, and
+        neither is fingerprinted. That is exactly how ``natural_forward_z``,
+        ``healthy_z_range`` and ``max_tilt_angle`` drifted between the two
+        paths. Compared behaviourally so the constant does not have to be
+        exposed: both paths must produce the same height reward.
+        """
+        import environments.trex.mjx_config  # noqa: F401
+        from environments.shared.mjx_env import _SPECIES_CONFIGS
+        from environments.shared.reward_functions import reward_height_maintenance
+
+        registered = _SPECIES_CONFIGS["trex"]["target_standing_z"]
+        env = TRexEnv(reset_noise_scale=0.0, height_weight=1.0, healthy_z_range=(0.75, 1.6))
+        try:
+            floor = env.healthy_z_range[0]
+            for pelvis_z in (0.9757, 0.95, 0.90, 0.85, 0.80):
+                sb3 = self._height_reward_at(env, pelvis_z)
+                mjx = float(reward_height_maintenance(pelvis_z, floor, registered, 1.0))
+                assert sb3 == pytest.approx(mjx, rel=1e-9), (
+                    f"height reward diverges at pelvis_z={pelvis_z}: SB3 {sb3:.6f} vs MJX {mjx:.6f} "
+                    f"(registry target_standing_z={registered})"
+                )
+        finally:
+            env.close()

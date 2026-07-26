@@ -427,7 +427,14 @@ class TRexEnv(BaseDinoEnv):
 
         # 8c. Height maintenance reward (smooth gradient toward staying upright)
         min_z = self.healthy_z_range[0]
-        target_z = 0.90
+        # Settled pelvis height under the home controller, measured (zero action,
+        # zero reset noise, 600 steps: 0.9757 m, sd 0.0001).  This must track the
+        # plant: the previous 0.90 was the root height of the PRE-repair plant,
+        # and after the July home-equilibrium fix raised the stance to 0.9757 the
+        # term saturated at 1.0 everywhere in the healthy band -- a flat constant
+        # worth 39% of stage-1 and 10% of stage-2 return that shaped nothing.
+        # ``TestHeightTargetTracksStance`` pins it to the measured stance.
+        target_z = 0.9757
         height_frac = float(np.clip((pelvis_height - min_z) / (target_z - min_z), 0.0, 1.0))
         reward_height = self.height_weight * height_frac
         info["reward_height"] = reward_height

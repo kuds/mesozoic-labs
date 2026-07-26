@@ -127,10 +127,19 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     catalog = build_catalog()
     species = {entry["id"]: entry for entry in catalog["species"]}
 
-    for entry in species.values():
+    # Stage-1 reward gates are per-species because only the T-Rex has been
+    # calibrated against its zero-action baseline. 100.0 is the original
+    # placeholder, which cannot bind: every species' do-nothing policy clears
+    # it by a wide margin, so a statue advances into stage 2. The T-Rex's 1900
+    # sits just above its measured floor of 1800.56 +/- 1267.66
+    # (environments/shared/scripts/zero_action_baseline.py trex). The other
+    # three still need the same treatment.
+    stage_one_min_avg_reward = {"trex": 1900.0, "velociraptor": 100.0, "brachiosaurus": 100.0, "dibothrosuchus": 100.0}
+
+    for species_id, entry in species.items():
         stage_one, stage_two, stage_three = [stage["advancement_gate"] for stage in entry["stages"]]
         assert stage_one == {
-            "min_avg_reward": 100.0,
+            "min_avg_reward": stage_one_min_avg_reward[species_id],
             "min_avg_episode_length": 750,
             "min_avg_forward_velocity": None,
             "min_success_rate": None,
