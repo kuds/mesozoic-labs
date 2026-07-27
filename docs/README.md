@@ -78,6 +78,9 @@ than rewrite.
 ## Code & repo reviews
 
 Archived point-in-time reviews in [`reviews/`](reviews/) —
+[VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md)
+(2026-07-27, anatomy and mechanics audit of the raptor plant against published
+*Velociraptor* measurements),
 [REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md),
 [REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md),
 [CODE_REVIEW.md](reviews/CODE_REVIEW.md) (superseded). Open findings live in
