@@ -48,6 +48,76 @@ tolerance) remains the standing recommendation for the divergences above.
 
 ## Training / RL
 
+- **HIGH** — **the reward is computed on unclipped actions, and the policy's raw
+  output runs 6–8× outside the action bound.** `BaseDinoEnv.step` clips for the
+  physics but not for the reward:
+
+  ```python
+  base_env.py:765   ctrl = self._scale_action(action)              # clips to [-1, 1] -> plant
+  base_env.py:783   reward, reward_info = self._get_reward_info(action)   # RAW -> reward
+  ```
+
+  Neither penalty clips internally — `reward_energy` is `sum(action**2) / n`
+  and `reward_action_smoothness` is `sum((action - prev_action)**2)`, both on
+  the raw value. `reward_energy`'s docstring states it "ranges [0, 1] when
+  actions are in [-1, 1]", which is an assumption nothing enforces.
+
+  Measured on T-Rex stage-1 run `20260727_130726` (PPO, 6.0M steps), from its
+  own tensorboard:
+
+  | `diagnostics/` scalar | first | last | mean | max |
+  |---|---|---|---|---|
+  | `action_abs_max` | 4.55 | 6.71 | **6.11** | **7.77** |
+  | `action_std` | 1.00 | 1.93 | 1.42 | 1.93 |
+  | `action_saturation` | 0.32 | **0.68** | 0.49 | 0.68 |
+  | `action_delta` | 21.27 | 6.24 | 15.04 | 21.43 |
+
+  `action_saturation` (fraction of components pinned at the limit, threshold
+  0.99) rose **monotonically** across all 6M steps — 0.32 → 0.68. By the end
+  **68% of action components are clipped at any instant**, and the raw output
+  peaks at 7.77 against a `Box(-1, 1)` action space. Note `train/std` *fell*
+  over the run (1.00 → 0.72) while the empirical `action_std` nearly doubled:
+  the policy is pushing its mean out of bounds, not widening its exploration.
+
+  Two consequences:
+
+  1. **The energy term is inflated ~3.8×.** With `E[a²] = mean² + std² = 3.78`
+     the penalty runs at `0.075 × 3.78 = 0.284`/step ≈ 284/episode, against a
+     ceiling of 75/episode if the action were clipped first. That is ~209/episode,
+     **~7.9% of this run's 2654.66 return**, charged for magnitude the plant
+     never sees.
+  2. **`r` (RMS action change) is partly decoupled from the physics.** `r` is
+     measured in raw action space; the plant sees the clipped action. With 68%
+     of components saturated, a large share of raw-action motion produces *zero*
+     change in `ctrl`, so the policy can lower `sum((Δa)²)` by shrinking raw
+     magnitude inside the saturated region without changing behaviour at all.
+
+  Consequence 2 matters beyond the reward: `r` is the metric
+  [TREX_LEG_FLEXING_PLAN.md](TREX_LEG_FLEXING_PLAN.md) steers by. That document
+  observes `smoothness_weight` 0.1 → 0.7 → 2.0 reliably lowering `r` while the
+  legs still visibly bounce, and extrapolates from an `r ∝ w^-0.16` fit that
+  smoothness would need a weight "in the six figures". **That curve was fitted
+  on a partly-decoupled metric**, so the extrapolation is unsound, and the
+  smoothness penalty was partly free to satisfy. It also fits the measured
+  envelope for the same run: `used` = 100% of range on 20 of 21 actuators with
+  only moderate per-step deltas is what a bang-bang policy looks like.
+
+  **Not shown:** that this *causes* the leg flexing. It is a strong additional
+  hypothesis, not a demonstrated cause, and the stance correction is defensible
+  independently (an 8°-from-singular knee is badly conditioned regardless).
+
+  **Scope:** this is in `base_env.py`, so it affects all four species, and the
+  MJX path should be checked for the same split before either is changed.
+
+  **Fixing it is a reward-shaping change**, not a plant change: no fingerprint
+  moves and no checkpoint is invalidated, but historical reward numbers stop
+  being comparable and every stage gate calibrated against them
+  (`min_avg_reward`) would need re-deriving from a fresh zero-action baseline.
+  Worth deciding deliberately rather than folding into another change. When
+  judging the stance correction, prefer the `achieved` / `used` columns from
+  `joint_excursion_report.py` — those are measured on `qpos` and `ctrl` and are
+  unaffected. (2026-07 T-Rex envelope measurement)
+
 - **LOW** — `BaseDinoEnv.reset` still applies one `reset_noise_scale` scalar to
   the whole of `qvel`, which mixes root linear velocity (m/s), root angular
   velocity (rad/s) and joint velocities (rad/s). This is the same
