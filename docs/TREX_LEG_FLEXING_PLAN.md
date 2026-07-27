@@ -134,8 +134,29 @@ The raptor plant is better proportioned. Same probe, both at 100 Hz:
 But the raptor is not a smoothness success story in absolute terms: at its
 documented `r = 0.925` and 57.5° per unit of action it commands ~53° of knee
 per step, *more* than the T-Rex's current 31°. The normalized metric flatters
-it. "Match the raptor" is the wrong target, and its stance is worth measuring
-the same way before assuming it is clean.
+it.
+
+**Its stance is columnar too** (measured 2026-07-27, same probe):
+
+| | T-Rex | Raptor |
+|---|---|---|
+| knee interior angle | 172.1° | **163.1°** |
+| degrees from straight | 7.9° | 16.9° |
+| femur inclination from vertical | 4.8° | 13.7° |
+| tibia / femur | 1.000 | 1.110 |
+| leg-length authority | 0.024 m/rad | 0.028 m/rad |
+| **knee travel per 1 cm of height** | **23.7°** | **20.5°** |
+
+The raptor is less extreme on every measure and its proportions are more
+defensible — a tibia longer than the femur is the cursorial condition, correct
+for a small fast theropod — but 163.1° is the same class of problem, and its
+height authority is barely better than the T-Rex's. **This is a plant-wide
+stance issue, not a T-Rex one.** Fix the T-Rex first as the pilot, then apply
+the same treatment to the raptor rather than re-deriving the approach.
+
+The two quadrupeds (`dibothrosuchus`, `brachiosaurus`) use different leg-joint
+naming and were not measured by this probe — extend it before assuming
+anything about them either way.
 
 ## Options, ranked
 
@@ -185,14 +206,19 @@ Also global across stages, and stage 2 reaches 6.36 m/s on that swing.
 
 ## Recommended sequence
 
-1. **Measure the current envelope** —
+1. ~~**Measure the raptor's stance.**~~ **Done** — it is columnar too (table
+   above). Scope this as a plant-wide issue with the T-Rex as the pilot.
+2. **Fix the T-Rex stance** (option 1), re-derive the dependent constants,
+   re-run. Nothing below blocks this.
+3. **Capture the current joint envelope** —
    `joint_excursion_report.py trex 1 <best_model.zip>` against
-   `20260727_130726/stage1`. Cheap, and it is the reference every later
-   comparison needs. ~10 min in Colab.
-2. **Measure the raptor's stance** with the same geometry probe. If it is also
-   columnar, this is a project-wide plant issue and should be scoped as one.
-3. **Fix the stance** (option 1), re-derive the dependent constants, re-run.
+   `20260727_130726/stage1`, ~10 min in Colab. This is the "before" picture for
+   comparing against the post-fix run. **Not a blocker:** it was originally
+   pre-work for sizing `action_scale`, which is now demoted, and the model is
+   saved on Drive so the measurement can be taken at any time.
 4. **Re-evaluate whether `action_scale` is still needed.** It may not be.
+5. **Apply the same stance treatment to the raptor**, and extend the geometry
+   probe to the quadrupeds.
 
 ## Blast radius of the stance fix
 
