@@ -493,7 +493,26 @@ class TestHomeKeyframeActionMapping:
         cpu_data = mujoco.MjData(ctx.mj_model)
         reset_mujoco_data_to_home(ctx.mj_model, cpu_data)
         mujoco.mj_forward(ctx.mj_model, cpu_data)
-        np.testing.assert_allclose(foot_sensors, cpu_data.sensordata[10:12], rtol=1e-5, atol=1e-3)
+        # Unlike the pad+digit sum above -- which re-adds the *same* float32
+        # numbers and so is legitimately tight -- this compares two independent
+        # constraint solves: MJX in float32 against MuJoCo CPU in float64.  The
+        # residual is dominated by float32 reduction order, which varies with
+        # the host's SIMD width, so it is a property of the machine rather than
+        # of the plant.  Measured on the same commit:
+        #     GitHub runner (pass)   <= 1.3e-05 relative
+        #     dev container          3.3e-05 relative (0.0122 N of 366 N)
+        #     GitHub runner (fail)   4.3e-04 relative (0.1560 N of 366 N)
+        # a 33x spread across three hosts.  rtol 1e-5 only ever passed on the
+        # lucky end of that: it fails deterministically on some machines, so
+        # this assertion was a hardware lottery rather than a flaky test.
+        #
+        # 5e-3 clears the worst observed residual by ~12x while still catching
+        # everything this assertion exists to catch, all of which is structural
+        # and an order of magnitude larger: a dropped digit is ~22% of the foot
+        # force, a wrong sensor index is orders of magnitude, and the July 2026
+        # stance correction -- the smallest real plant divergence on record --
+        # moved this reading 388.37 -> 366.41 N, 5.7%, still 11x this bound.
+        np.testing.assert_allclose(foot_sensors, cpu_data.sensordata[10:12], rtol=5e-3, atol=1e-3)
 
         assert env.config.action_mapping == "home-keyframe-residual/v1"
         assert env.config.reward_weights["foot_contact_gate"] == pytest.approx(1.0)
