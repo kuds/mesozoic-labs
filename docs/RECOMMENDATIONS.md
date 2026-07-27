@@ -55,6 +55,43 @@ The recommendations below cover what remains after the v0.2.0 work.
   scenarios (flat ground, slopes, perturbation recovery) and outputs a structured
   report.
 
+- **Emit the per-joint action envelope as a stage artifact** (added 2026-07-27).
+  The run bundle currently captures the action *rate* and a saturation scalar —
+  `DiagnosticsCallback` logs `action_delta` and `action_saturation`, aggregated
+  across actuators, on the `algo_timesteps` axis — but nothing per-joint, and
+  `diagnostics.npz` holds only `tilt_angle`, `forward_vel`, `pelvis_height`,
+  `energy`, foot contacts and reward components. The missing third piece is
+  *which* joint used *how much of its range*, which is what
+  `joint_excursion_report.py` computes today as a manual after-the-fact step.
+
+  The argument for emitting it at stage end is not that it is cheap, though it
+  is: 10 deterministic episodes is ~10 000 env steps, roughly 10 s against a
+  3.7 h stage (<0.1%), reusing the model and env already in hand. It is that
+  **the measurement is plant-version-locked**. Taking the T-Rex baseline after
+  PR #464 merged already required pinning `a6c36aa`, re-cloning, and locating
+  the checkpoint on Drive by hand; every future plant revision recreates that
+  friction, and the T-Rex plant alone has moved through five physics revisions
+  in a few months. Emitted at training time it is captured against the plant
+  that was actually used, permanently, next to the `plant_identity.json` that
+  proves which plant that was.
+
+  Two implementation notes:
+  - **Write structured data, not the pretty table.** A `joint_excursion.csv`
+    (or extra arrays in `diagnostics.npz`) with per-actuator p5/p95/min/max,
+    achieved range, span, used fraction and delta-per-step lets
+    `compare_run_diagnostics.py` diff two runs mechanically. Keep the
+    human-readable print in the script.
+  - **Deterministic rollouts**, matching the eval videos. This matters: the
+    same run measures ~2x higher per-step deltas under the stochastic training
+    policy than deterministically, so mixing the two silently manufactures
+    improvements. See `docs/TREX_LEG_FLEXING_PLAN.md`.
+
+  Worth a cheap cross-check first: `action_saturation` is already logged to
+  tensorboard, and the T-Rex baseline measured `used` = 100% on 20 of 21
+  actuators. If that metric was already reading high during training, the
+  signal existed and was going unread — which would argue for surfacing it in
+  `stage_summary.txt` as well as adding the envelope artifact.
+
 ---
 
 ## 2. Robotics & Simulation Improvements

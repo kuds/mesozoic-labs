@@ -52,6 +52,61 @@ At `r = 0.628` the policy commands **31° of knee and 41° of hip every 10 ms**
 takes about 1.9° of equilibrium offset at the knee (49.5 N·m ÷ kp 1500) against
 ±50° of granted authority, roughly **26× more than the task requires**.
 
+### The measured envelope: there is no dead range
+
+Taken 2026-07-27 with `joint_excursion_report.py trex 1
+<20260727_130726/stage1/models/robust_best_model.zip> --episodes 10`, 10 000
+steps over 10 deterministic episodes, on the pre-fix plant. The checkpoint's
+`plant_identity.json` confirms `physics_revision` 4 / `policy_interface_revision`
+6, hashes `0c194766…` / `db76ea6c…`, matching the pre-change side of the PR #464
+manifest diff exactly — so this is measured on the plant the plan describes, not
+an approximation of it.
+
+| actuator | cmd p5–p95 | cmd full | achieved | ctrl span | used | delta/step |
+|---|---|---|---|---|---|---|
+| `r_hip_pitch` | 87.6° | 130.0° | 70.6° | 130° | 100% | 20.1° |
+| `l_hip_pitch` | 107.6° | 130.0° | 66.5° | 130° | 100% | 17.9° |
+| `r_knee` | **97.1°** | 100.0° | **103.6°** | 100° | **100%** | 17.8° |
+| `l_knee` | **100.0°** | 100.0° | **105.6°** | 100° | **100%** | 19.5° |
+| `r_ankle` | 100.0° | 100.0° | 89.2° | 100° | 100% | 24.5° |
+| `l_ankle` | 100.0° | 100.0° | 86.5° | 100° | 100% | 19.5° |
+| all six toes | 75.0° | 75.0° | 18.6–29.9° | 75° | 100% | 14.2–16.0° |
+| `r_hip_roll` | 38.2° | 50.0° | 25.2° | 50° | 100% | 7.4° |
+| `l_hip_roll` | **0.0°** | 50.0° | 34.8° | 50° | 100% | 1.4° |
+| `tail_1_pitch` | **0.0°** | 24.0° | 29.9° | 24° | 100% | 0.7° |
+| `tail_2_pitch` | **0.0°** | 20.5° | 26.6° | 24° | 85% | 0.5° |
+
+Three things fall out of this, and two of them change conclusions elsewhere in
+this document.
+
+**1. `used` is 100% on 20 of 21 actuators, and the p5–p95 band is saturated
+too.** This is not a policy that occasionally touches its limits. For 90% of
+every episode it spans 97–100% of the commanded range on both knees, both
+ankles and all six toes. Whatever the excursions are, they are not a small
+oscillation inside a large granted envelope.
+
+**2. Both knees are driven past their joint stops.** `achieved` exceeds the
+limit span on `l_knee` (105.6° against 100°, +5.6°), `r_knee` (+3.6°),
+`tail_1_pitch` (29.9° against 24°, **+25%**) and `neck_pitch` (+4.8°). MuJoCo
+limits are soft constraints so small violations are expected, but this is the
+plant being hammered into its stops, which is a plausible numerical signature
+of the visible bouncing.
+
+**3. The 31°/41° figures above are not comparable to this table.** They were
+*derived* as `r × span/2` from `compare_run_diagnostics.py`, which measures the
+**stochastic** training policy. This report runs `deterministic=True`, matching
+the eval videos. Measured deterministically the same run gives **17.8/19.5° of
+knee and 20.1/17.9° of hip** — 60% and 45% of the derived figures. Both are
+valid; they measure different things. **The post-fix comparison must use this
+script in deterministic mode**, or the absence of exploration noise will be
+booked as an improvement.
+
+**The falsifiable test this sets up.** If the geometric argument is right, knee
+p5–p95 should fall well below 97° after the stance fix, because restored height
+authority (23.7° → 4.3° of knee per centimetre) means small commands suffice. If
+it comes back near 97° again, the hypothesis is wrong and the excursions have
+another cause. That is a much sharper test than comparing `r`.
+
 ## The stance is not anatomical, and that is mechanical
 
 Settled-stance limb geometry:
@@ -232,10 +287,20 @@ exposed per stage in the TOML `[env]` block.
   compensate for the wrong thing.** If the knee genuinely needs 24° of travel
   per centimetre of height, clamping the envelope makes balancing harder, not
   smoother. Revisit once the stance is fixed and the required envelope is known.
-- Sizing floor, when it is time: a policy with RMS action change `r` must sweep
-  a commanded envelope of at least `r`, so `r = 0.628` implies **≥31°
+- ~~Sizing floor, when it is time: a policy with RMS action change `r` must
+  sweep a commanded envelope of at least `r`, so `r = 0.628` implies **≥31°
   peak-to-peak of knee travel**. `action_scale = 0.25` sits *below* what the
-  current policy demonstrably uses; 0.4–0.5 is the defensible starting range.
+  current policy demonstrably uses; 0.4–0.5 is the defensible starting range.~~
+- **Contraindicated by measurement (2026-07-27).** The sizing argument above
+  was far too generous. The envelope report shows `used` = 100% on 20 of 21
+  actuators, with the p5–p95 band spanning 97–100% of the range on both knees,
+  both ankles and all six toes. **There is no dead range to trim**, so *any*
+  `action_scale` below 1.0 clips behaviour the policy uses 90% of the time —
+  not just 0.25, and not just 0.4–0.5. The premise this option rests on
+  (`joint_excursion_report.py`'s own framing: "if a balance policy never leaves
+  ±15 degrees of knee travel, the other 35 degrees are dead weight") is false
+  for this policy. If action scaling is revisited it has to be argued as a
+  deliberate capability reduction, not as trimming slack.
 
 ### 3. Action rate limit / low-pass filter (deferred)
 
@@ -262,12 +327,17 @@ Also global across stages, and stage 2 reaches 6.36 m/s on that swing.
    `nosedive_termination_threshold` 0.493 (same absolute −0.520 envelope),
    `healthy_z_range` (0.70, 1.55), `min_avg_reward` 1840. The re-run itself
    is still outstanding.
-3. **Capture the current joint envelope** —
-   `joint_excursion_report.py trex 1 <best_model.zip>` against
-   `20260727_130726/stage1`, ~10 min in Colab. This is the "before" picture for
-   comparing against the post-fix run. **Not a blocker:** it was originally
-   pre-work for sizing `action_scale`, which is now demoted, and the model is
-   saved on Drive so the measurement can be taken at any time.
+3. ~~**Capture the current joint envelope**~~ **Done 2026-07-27** — see "The
+   measured envelope: there is no dead range" above. It turned out to be worth
+   more than the "not a blocker" framing suggested: it contradicted the sizing
+   argument for option 2 outright, and it caught that this document's
+   31°/41°-per-step figures are stochastic-policy numbers that cannot be
+   compared against a deterministic post-fix measurement.
+   **Note the cost of having taken it late.** PR #464 has since merged, so
+   `main` is the new plant and reproducing this now requires
+   `git checkout a6c36aa` first. See the follow-up in
+   [RECOMMENDATIONS.md](RECOMMENDATIONS.md) about emitting the envelope from
+   training so the next plant change does not repeat the archaeology.
 4. **Re-evaluate whether `action_scale` is still needed.** It may not be.
 5. ~~**Apply the same stance treatment to the raptor**~~ — **withdrawn.** The
    raptor was reviewed on 2026-07-27
@@ -321,6 +391,14 @@ silently — that test failing is the system working.
    `joint_excursion_report.py` against `20260727_130726/stage1`. Success is
    materially lower commanded degrees per step **at equal or better reward**.
    The bar is 2654.7 ± 12.2, and it is a high one.
+   **Compare like with like.** The baseline table above is `deterministic=True`
+   over 10 episodes; run the post-fix measurement the same way. Do not compare
+   it against the 31°/41° figures earlier in this document — those are derived
+   from the stochastic `r` and are ~2x the deterministic values, so the
+   comparison would manufacture an improvement that is really just the absence
+   of exploration noise. The sharpest single number is **knee p5–p95, 97.1°
+   before**; a materially lower figure is the result the geometric argument
+   predicts, and a figure near 97° falsifies it.
 
 ## Risks
 
