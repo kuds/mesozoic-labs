@@ -75,8 +75,14 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "brachiosaurus": "quadrupedal-target/v1",
         "dibothrosuchus": "quadrupedal-target/v1",
     }
-    expected_policy_revisions = {"velociraptor": 6, "trex": 6, "brachiosaurus": 3, "dibothrosuchus": 3}
-    expected_physics_revisions = {"velociraptor": 2, "trex": 4, "brachiosaurus": 1, "dibothrosuchus": 1}
+    # The T-Rex is at policy r7 / physics r5 for the theropod stance correction:
+    # the home keyframe moved off a near-straight knee onto a 135 deg one and
+    # the leg ctrlranges were re-centred on it, so both the compiled dynamics
+    # and the control interface changed. Its visual revision is deliberately
+    # NOT bumped -- the visual layer fingerprints geom/site/material/camera
+    # definitions, all of which are body-local and unchanged by a pose edit.
+    expected_policy_revisions = {"velociraptor": 6, "trex": 7, "brachiosaurus": 3, "dibothrosuchus": 3}
+    expected_physics_revisions = {"velociraptor": 2, "trex": 5, "brachiosaurus": 1, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 1, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
@@ -130,11 +136,13 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # Stage-1 reward gates are per-species because only the T-Rex has been
     # calibrated against its zero-action baseline. 100.0 is the original
     # placeholder, which cannot bind: every species' do-nothing policy clears
-    # it by a wide margin, so a statue advances into stage 2. The T-Rex's 1900
-    # sits just above its measured floor of 1800.56 +/- 1267.66
-    # (environments/shared/scripts/zero_action_baseline.py trex). The other
-    # three still need the same treatment.
-    stage_one_min_avg_reward = {"trex": 1900.0, "velociraptor": 100.0, "brachiosaurus": 100.0, "dibothrosuchus": 100.0}
+    # it by a wide margin, so a statue advances into stage 2. The T-Rex's 1840
+    # sits just above its measured floor of 1743.73 +/- 1275.54
+    # (environments/shared/scripts/zero_action_baseline.py trex). That floor
+    # is a property of the plant, so it moved with the theropod stance
+    # correction (from 1800.56) and the gate was re-derived from it at the
+    # same +5.5% margin. The other three still need the same treatment.
+    stage_one_min_avg_reward = {"trex": 1840.0, "velociraptor": 100.0, "brachiosaurus": 100.0, "dibothrosuchus": 100.0}
 
     for species_id, entry in species.items():
         stage_one, stage_two, stage_three = [stage["advancement_gate"] for stage in entry["stages"]]

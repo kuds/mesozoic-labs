@@ -97,9 +97,7 @@ def main(argv: list[str]) -> None:
         vecnorm_path = str(guess) if guess.exists() else None
     normalizer = None
     if vecnorm_path:
-        normalizer = VecNormalize.load(
-            vecnorm_path, DummyVecEnv([lambda: build_env(args.species, args.stage)])
-        )
+        normalizer = VecNormalize.load(vecnorm_path, DummyVecEnv([lambda: build_env(args.species, args.stage)]))
         normalizer.training = False
         normalizer.norm_reward = False
 
@@ -121,8 +119,10 @@ def main(argv: list[str]) -> None:
     ctrl = np.asarray(ctrl_log)
     qpos = np.asarray(qpos_log)
     print(f"\n{args.species} stage {args.stage}: {len(ctrl)} steps over {args.episodes} episodes")
-    print(f"  {'joint':<18}{'cmd p5-p95':>14}{'cmd full':>11}{'achieved':>11}"
-          f"{'ctrl span':>11}{'used':>7}{'delta/step':>12}")
+    print(
+        f"  {'joint':<18}{'cmd p5-p95':>14}{'cmd full':>11}{'achieved':>11}"
+        f"{'ctrl span':>11}{'used':>7}{'delta/step':>12}"
+    )
 
     for a in range(mj.nu):
         name = mujoco.mj_id2name(mj, mujoco.mjtObj.mjOBJ_ACTUATOR, a)
@@ -137,8 +137,10 @@ def main(argv: list[str]) -> None:
         full = c.max() - c.min()
         achieved = q.max() - q.min()
         delta = float(np.sqrt(np.mean(np.diff(c, axis=0) ** 2)))
-        print(f"  {name:<18}{band:11.1f} deg{full:8.1f} deg{achieved:8.1f} deg"
-              f"{span:8.0f} deg{100 * full / span:6.0f}%{delta:9.1f} deg")
+        print(
+            f"  {name:<18}{band:11.1f} deg{full:8.1f} deg{achieved:8.1f} deg"
+            f"{span:8.0f} deg{100 * full / span:6.0f}%{delta:9.1f} deg"
+        )
 
     env.close()
 

@@ -31,7 +31,7 @@ past a couple of files get their own subdirectory with a short README index
 | [ROADMAP.md](ROADMAP.md) | 2026-04-18 | Active — phased project timeline |
 | [RECOMMENDATIONS.md](RECOMMENDATIONS.md) | 2026-03-25 | Active — codebase-wide improvement backlog |
 | [RL_TRAINING_PLAN.md](RL_TRAINING_PLAN.md) | 2026-03-26 | Active — remaining SAC/PPO runs across species |
-| [TREX_LEG_FLEXING_PLAN.md](TREX_LEG_FLEXING_PLAN.md) | 2026-07-27 | Proposed — stance correction (ranked over action scaling) for T-Rex leg flexing |
+| [TREX_LEG_FLEXING_PLAN.md](TREX_LEG_FLEXING_PLAN.md) | 2026-07-27 | Option 1 (stance correction) implemented; options 2–4 open, step 5 (port to the raptor) withdrawn — see the raptor review |
 | [MJX_CONVERSION_PLAN.md](MJX_CONVERSION_PLAN.md) | 2026-07-13 | Implemented design record — current divergences live in KNOWN_ISSUES and the JAX guide |
 | [WEBSITE_PLAN.md](WEBSITE_PLAN.md) | — | Active — Docusaurus site improvements |
 | [BALANCE_REWARD_METRICS.md](BALANCE_REWARD_METRICS.md) | 2026-03-16 | Proposed — composite ASHA metric for stage-1 sweeps |
@@ -78,6 +78,10 @@ than rewrite.
 ## Code & repo reviews
 
 Archived point-in-time reviews in [`reviews/`](reviews/) —
+[VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md)
+(2026-07-27, anatomy and mechanics audit of the raptor plant against published
+*Velociraptor* measurements; findings open, execution deferred until the T-Rex
+clears stages 1–3),
 [REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md),
 [REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md),
 [CODE_REVIEW.md](reviews/CODE_REVIEW.md) (superseded). Open findings live in

@@ -1,6 +1,6 @@
 # T-Rex Stage-1 Leg Flexing — Remediation Plan
 
-**Status:** Proposed — not implemented.
+**Status:** Option 1 implemented (2026-07-27); options 2–5 still open.
 **Date:** 2026-07-27
 **Motivating runs:** `20260725_194916` (w=0.1), `20260726_191730` (w=0.7),
 `20260727_130726` (w=2.0), all T-Rex stage 1, PPO, seed 42.
@@ -160,10 +160,58 @@ anything about them either way.
 
 ## Options, ranked
 
-### 1. Correct the home-keyframe stance (recommended)
+### 1. Correct the home-keyframe stance (recommended) — **DONE**
 
 Flex the home keyframe to a defensible theropod posture and re-centre the leg
 `ctrlrange` on the new pose.
+
+> **Implemented 2026-07-27.** Knee 172.1° → **135.0°** interior, which is 45°
+> of flexion from a fully columnar limb — the figure Hutchinson et al. (2005),
+> *Paleobiology* 31(4):676–701 use for *T. rex* in Fig. 8, converted by their
+> own Table 1 rule ("for the knee subtract the angle here from 180°"). The
+> same paper argues for "a more upright (but not completely columnar) pose,
+> rather than a more crouched pose" (p. 692), so 135° sits at the upright end
+> of the 110–140° spread rather than at its midpoint. Femur and tibia are
+> symmetric at 22.5° either side of vertical — the one inclination that keeps
+> the hip over the ankle at this plant's tibia:femur of 1.000, so the CoM
+> still sits 33.8% of the way heel-to-toe through the support polygon against
+> 34.3% before. Measured outcome:
+>
+> | | before | after |
+> |---|---|---|
+> | knee interior | 172.1° | 135.0° |
+> | ankle interior | 153.3° | 135.7° |
+> | femur from vertical | 4.9° | 22.5° |
+> | leg-length authority | 0.024 m/rad | **0.134 m/rad** |
+> | knee travel per 1 cm | 23.7° | **4.3°** |
+> | settled pelvis height | 0.9757 m | 0.9260 m |
+> | settled pitch | 2.90° nose-down | 1.55° nose-down |
+> | hip / knee / ankle hold | 52.1 / 49.5 / 58.0 N·m | 48.9 / 7.2 / 54.4 N·m |
+> | zero-action baseline | 1800.56 ± 1267.66 | 1743.73 ± 1275.54 |
+>
+> Segment vectors, masses, inertias and the whole foot are untouched: the
+> three rotations sum to zero, so the metatarsus keeps its 21.8° digitigrade
+> slope and the 0.5 mm plantar contact. `physics_revision` 4→5 and
+> `policy_interface_revision` 6→7; `visual_revision` stays at 4 because that
+> layer fingerprints body-local geom/site/material/camera definitions, none of
+> which a pose edit touches.
+>
+> Two things the fix did **not** do, both worth reading before sizing
+> anything else against it:
+>
+> - **It did not make the actuators work harder.** The knee's static hold
+>   *fell*, 49.5 → 7.2 N·m, because a properly flexed limb puts that joint
+>   almost on the line of the vertical ground reaction force. The "22×
+>   authority ratio" observation in this document is unchanged by the stance
+>   fix and is a separate question.
+> - **The zero-action floor barely moved** (−3.2% reward, 60% → 57%
+>   full-horizon). The risk section below predicted the statue would fall
+>   faster; it does, but only slightly, because the position servos and their
+>   spring references moved with the pose. The stage gate was still
+>   re-derived (1900 → 1840) rather than reused.
+>
+> Still outstanding from the Validation section: the stage-1 curriculum run
+> itself, and `test-jax-cpu` / `test-sb3`, which need CI.
 
 - Attacks the root cause. Restores height authority (~7× per the table above),
   loads the actuators sensibly, and plausibly shrinks the excursions without
@@ -208,8 +256,12 @@ Also global across stages, and stage 2 reaches 6.36 m/s on that swing.
 
 1. ~~**Measure the raptor's stance.**~~ **Done** — it is columnar too (table
    above). Scope this as a plant-wide issue with the T-Rex as the pilot.
-2. **Fix the T-Rex stance** (option 1), re-derive the dependent constants,
-   re-run. Nothing below blocks this.
+2. ~~**Fix the T-Rex stance** (option 1), re-derive the dependent constants,
+   re-run.~~ **Done** — see option 1 above. The dependent constants moved to
+   `target_z` 0.9260, `target_standing_z` 0.9260, `natural_pitch` 0.027,
+   `nosedive_termination_threshold` 0.493 (same absolute −0.520 envelope),
+   `healthy_z_range` (0.70, 1.55), `min_avg_reward` 1840. The re-run itself
+   is still outstanding.
 3. **Capture the current joint envelope** —
    `joint_excursion_report.py trex 1 <best_model.zip>` against
    `20260727_130726/stage1`, ~10 min in Colab. This is the "before" picture for
@@ -217,8 +269,21 @@ Also global across stages, and stage 2 reaches 6.36 m/s on that swing.
    pre-work for sizing `action_scale`, which is now demoted, and the model is
    saved on Drive so the measurement can be taken at any time.
 4. **Re-evaluate whether `action_scale` is still needed.** It may not be.
-5. **Apply the same stance treatment to the raptor**, and extend the geometry
-   probe to the quadrupeds.
+5. ~~**Apply the same stance treatment to the raptor**~~ — **withdrawn.** The
+   raptor was reviewed on 2026-07-27
+   ([reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md))
+   and the argument does not transfer: this plan's mechanism is a live stage-1
+   height term forcing knee travel through a near-singular joint, and the
+   raptor env carries **no height reward at all**. Its columnar stance is real
+   (163.1°, 20.5°/cm) but nothing pulls on it. The review found two larger
+   problems instead — the raptor's stage 1 is passed by a do-nothing policy at
+   17× its gate, and the plant is held upright by unreferenced leg springs
+   (145 N·m at home; 0% survival without them) — and those must be fixed first.
+   **Also note:** this document's raptor comparison table (`r = 0.925`, ~53° of
+   knee per step, the "22× vs 11× authority ratio" row) was measured on that
+   plant, so it is not a usable benchmark for judging the T-Rex result.
+   Raptor work is scheduled after the T-Rex clears stages 1–3.
+   Extending the geometry probe to the quadrupeds is still open.
 
 ## Blast radius of the stance fix
 

@@ -138,7 +138,11 @@ def _optional_number(value: Any, *, field: str) -> int | float | None:
         return None
     if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
         raise CatalogError(f"{field} must be null or a finite number")
-    return value
+    # Annotated local: the isinstance guard above narrows the value, but mypy
+    # does not carry that narrowing out of an Any-typed parameter, so the bare
+    # ``return value`` trips no-any-return.
+    number: int | float = value
+    return number
 
 
 def _load_environment(entrypoint: str) -> type[Any]:

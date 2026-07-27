@@ -13,6 +13,7 @@ lands, fold its open items in here and archive the review document.
 | [reviews/CODE_REVIEW.md](reviews/CODE_REVIEW.md) (2026-03) | Duplication + code quality | Consolidation done in v0.3.0; bugs fixed except thread-unsafe CSV writes (below) |
 | [reviews/REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md) | Full repo: SB3 + JAX RL correctness, sweeps, configs, docs | ~25 verified bugs fixed in PRs #423–#425 |
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
+| [reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md) (2026-07-27) | Raptor plant: anatomy vs published *Velociraptor* material, and mechanics | 11 findings, all open — **execution deferred until the T-Rex clears stages 1–3**; see below |
 
 Severity: **HIGH** = wrong results in common cases, **MEDIUM** = edge cases /
 robustness, **LOW** = cosmetic / QoL.
@@ -195,6 +196,79 @@ any re-sizing with
 Neutral-action stability and truly actuator-disabled passive behavior are now
 separate test contracts. Layered policy, physics, visual, and source identities
 are documented in [PLANT_CONTRACT.md](PLANT_CONTRACT.md).
+
+### Velociraptor plant — open (July 2026 raptor review)
+
+**The stance-referenced-spring migration above never reached the raptor.** It
+is the only species still carrying the pre-fix arrangement, and the
+consequences compound. Full evidence and method in
+[reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md).
+**Execution is deferred until the T-Rex clears stages 1–3** on the corrected
+stance (PR #464).
+
+| species | \|leg spring torque\| at home | `springref` outside the joint limit |
+|---|---|---|
+| **velociraptor** | **145.21 N·m** | **4 joints** |
+| trex | 0.00 N·m | 0 |
+| brachiosaurus | 0.47 N·m | 0 |
+| dibothrosuchus | 0.00 N·m | 0 |
+
+- **HIGH — stage 1 is already solved by doing nothing.** A zero-action policy
+  scores 1704.93 ± 259.12 at 98% full-horizon survival against
+  `min_avg_reward = 100.0`; it clears the gate **17×** and is promoted into
+  stage 2. Same failure the T-Rex config fixed by re-deriving its gate from the
+  measured statue floor. The reset-noise calibration was not carried over
+  either — the raptor is still at 0.05, measured at 97% statue survival, where
+  0.10 gives 80%. *Config-only fix, no checkpoint cost.*
+- **HIGH — the plant does not stand on its actuators.** No raptor leg joint
+  sets `springref`, so the springs are neutral at `qpos = 0` — which is
+  *outside the legal range* for the knee and ankle, making them a permanent
+  one-directional bias rather than a restoring element. Zero-action survival is
+  95% as committed, **0% with the springs deleted, and 0% with the same
+  stiffness anchored at the stance** (falls in ~1.4 s either way). The support
+  comes from the offset, not the stiffness. Deleting the T-Rex's leg springs,
+  by contrast, changes nothing (55% → 55%). Fixing this requires re-sizing the
+  leg actuators at the same time — exactly the pairing the brachiosaurus fix
+  needed.
+- **HIGH — foot touch sensors report 55.6% of transmitted force.** The
+  `r_foot`/`l_foot` sites sit on the `toe_d3` bodies, so digit IV (12.07 N) and
+  the metatarsus (17.36 N) are invisible against 36.79 N sensed of 66.22 N
+  real. This is the *same defect* as the T-Rex foot-contact repair (which was
+  at 77.6%); the raptor is worse and was never brought along. Foot contact is
+  a trained observation and feeds the JAX `foot_contact_gate`.
+- **HIGH (fidelity) — the metatarsus is 78% too long** relative to the femur:
+  model MT III/femur 0.741 against 0.416 (Persons & Currie 2016, *Sci Rep*
+  6:19828, Table 1, IGM 100/986) and ~0.51 from a second specimen (Norell &
+  Makovicky 1999, *AMNH Novitates* 3282). It also bears 26.2% of each foot's
+  load and forms the *rear* edge of the support polygon, so the "digitigrade"
+  foot is functionally part-plantigrade. tibia:femur is within 3.6% and correct
+  — leave it alone.
+- **MEDIUM — `natural_pitch` is stale by 4.0°.** Configured 0.35, the plant
+  settles at 0.4200. Because the raptor centres its posture reward on that
+  angle, standing naturally costs **~104 reward/episode** (1.745 → 1.850 per
+  step). *Verified free — the plant manifest stays current, so no checkpoint is
+  invalidated.*
+- **MEDIUM — the two claw motors are the only unbounded actuators** in any
+  plant (`forcelimited=False`, `gear=50`): 693 N at the claw tip, 5.2× body
+  weight, on the geom that scores stage 3. The July 2026 `forcerange` sweep
+  missed them.
+- **MEDIUM — SB3/MJX termination asymmetry.** SB3 terminates on floor contact
+  of torso, neck, head and tail_3/4/5; the MJX registration lists only the
+  three tail bodies and no `termination_site_heights`. On MJX the raptor can
+  put its face on the ground without terminating.
+- **LOW — `nosedive_termination_threshold` is hardcoded** at
+  `raptor_env.py:530` while the MJX path reads it from stage config. They agree
+  today only because no raptor TOML sets the key.
+- **Not recommended:** porting the T-Rex stance correction here. That argument
+  rests on a live stage-1 height term forcing knee travel through a
+  near-singular joint, and the raptor env has **no height reward at all** —
+  five height mentions, none of them a reward term, against 21 in
+  `trex_env.py`.
+- **Note for the hardware track:** because the springs are load-bearing, the
+  raptor's true actuator requirement is *higher* than its sim actuator forces
+  suggest, which pushes against the torque crux already flagged in
+  [hardware/HARDWARE_BOM.md](hardware/HARDWARE_BOM.md) §2.1. Magnitude needs
+  the retune; only the direction is known.
 
 > **Note:** these changes alter the physics plant. Policies trained before the
 > change are incompatible by contract, including when a change seems marginal;

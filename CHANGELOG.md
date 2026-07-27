@@ -8,6 +8,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.4)
 
 ### Changed
+- **T-Rex home stance corrected to a flexed theropod limb** (breaking — plant
+  change, physics revision 4 → 5 **and** policy interface revision 6 → 7; all
+  existing T-Rex checkpoints are invalidated): the home keyframe stood the
+  animal on a 172.1° interior knee, 7.9° from full extension and inside the
+  singular region for leg-length control. Hip-to-ankle distance changed at
+  only 0.024 m/rad there, so servicing stage 1's live height term
+  (`height_weight = 1.0`) cost 23.7° of knee travel per centimetre of pelvis
+  height — geometry alone accounting for the 31°-per-step knee excursions that
+  three `smoothness_weight` escalations (0.1 → 0.7 → 2.0) reduced but could
+  not remove. The keyframe now flexes to a **135.0°** interior knee: 45° of
+  flexion from a fully columnar limb, the figure Hutchinson, Anderson, Blemker
+  & Delp (2005), "Analysis of hindlimb muscle moment arms in *Tyrannosaurus
+  rex* using a three-dimensional musculoskeletal computer model",
+  *Paleobiology* 31(4):676–701, use for *T. rex* in Fig. 8, converted by their
+  Table 1 rule ("for the knee subtract the angle here from 180°"). Leg-length
+  authority rises to 0.134 m/rad, i.e. **4.3° of knee per centimetre**. Femur
+  and tibia sit symmetrically 22.5° either side of vertical, the one
+  inclination that holds the hip over the ankle at this plant's tibia:femur of
+  1.000, so the CoM still sits 33.8% of the way heel-to-toe through the
+  support polygon against 34.3% before. The three rotations sum to zero, so
+  the metatarsus keeps its 21.8° digitigrade slope and the plantar pads and
+  digits keep their 0.5 mm contact; segment vectors, masses and inertias are
+  untouched. Leg `ctrlrange`s were re-centred on the new pose at unchanged
+  width, preserving the `home-keyframe-residual/v1` invariant that the range
+  midpoint *is* the home control — which incidentally cuts reachable knee
+  hyperextension from 40.2° to 5.0°. Every dependent constant was re-measured
+  on the new plant rather than adjusted by eye: `target_z` and
+  `target_standing_z` 0.9757 → 0.9260, `natural_pitch` 0.05 → 0.027,
+  `nosedive_termination_threshold` 0.47 → 0.493 (holding the absolute −0.520
+  forward_z envelope), `healthy_z_range` (0.75, 1.6) → (0.70, 1.55), and
+  `min_avg_reward` 1900 → 1840 from a re-run zero-action baseline of
+  1743.73 ± 1275.54 (was 1800.56 ± 1267.66). `visual_revision` is deliberately
+  unchanged: that layer fingerprints body-local geom/site/material/camera
+  definitions, which a pose edit does not touch. See
+  `docs/TREX_LEG_FLEXING_PLAN.md`.
+
 - **Velociraptor knee actuators raised to 1.5×kp** (breaking — plant change,
   physics revision 1 → 2): the knee measured 0 % clip at the moderate
   2.5 Hz/0.8-amplitude contract gait but 30–46 % at sprint-like 3–4 Hz

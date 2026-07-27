@@ -11,12 +11,12 @@ import math
 from environments.shared.mjx_env import register_species_mjx
 
 # Must track ``TRexEnv.__init__``'s ``natural_pitch`` default (trex_env.py).
-# The pelvis frame is level at the home keyframe and settles ~2.9 deg
+# The pelvis frame is level at the home keyframe and settles ~1.55 deg
 # nose-down under the home controller; the nosedive penalty and termination
 # are both measured relative to that pose.  Kept as the angle rather than a
 # rounded forward_z so the two paths derive the same number from the same
 # quantity -- test_mjx_env.test_trex_creation pins them equal.
-_NATURAL_PITCH = 0.05
+_NATURAL_PITCH = 0.027
 
 # Sensor indices match the MJCF sensor definition order:
 # pelvis_gyro(3), pelvis_accel(3), pelvis_orientation(4),
@@ -38,7 +38,7 @@ register_species_mjx(
     action_mapping="home-keyframe-residual/v1",
     frame_skip=5,
     max_episode_steps=1000,
-    healthy_z_range=(0.75, 1.6),
+    healthy_z_range=(0.70, 1.55),
     # Matches the Gymnasium env (the BaseDinoEnv default), which is the value
     # the evidence supports.  max_tilt_angle is the absolute backstop; nosedive
     # is the per-stage tunable pitch gate.  Stages 2 and 3 leave
@@ -58,7 +58,7 @@ register_species_mjx(
     sensor_tail_gyro_start=_SENSOR_TAIL_GYRO_START,
     forward_vel_max=8.0,
     fall_penalty=-100.0,
-    target_standing_z=0.9757,  # SB3 height-maintenance target (trex_env.py); settled stance
+    target_standing_z=0.9260,  # SB3 height-maintenance target (trex_env.py); settled stance
     target_distance_range=(3.0, 8.0),
     target_lateral_range=(-2.0, 2.0),
     target_z=0.5,

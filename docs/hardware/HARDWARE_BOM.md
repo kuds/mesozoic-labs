@@ -116,6 +116,18 @@ The sim hip actuator caps at **±225 N·m** (`forcerange`, gear=1). Two readings
 - **First-principles walk:** static per-leg load ~66–132 N at a 0.2–0.3 m moment
   arm → ~13–40 N·m static, ×2–4 dynamic → **~40–80 N·m peak** at hip/knee.
   **COTS QDD actuators meet this.**
+
+> ⚠️ **The sim's static numbers currently understate the requirement** (found
+> 2026-07-27, see [../reviews/VELOCIRAPTOR_PLANT_REVIEW.md](../reviews/VELOCIRAPTOR_PLANT_REVIEW.md)
+> §3.2). No raptor leg joint sets `springref`, so passive joint springs supply
+> **145 N·m at the home stance** — load carried by an element with no BOM entry.
+> Deleting those springs drops zero-action survival from 95% to 0%, so they are
+> load-bearing, and a real robot's actuators would have to supply what they
+> supply. The direction is therefore known — **the true static requirement is
+> above what the sim's actuator forces show** — while the magnitude needs the
+> spring/gain retune tracked in [../KNOWN_ISSUES.md](../KNOWN_ISSUES.md).
+> Re-derive this section after that lands. The T-Rex, brachiosaurus and
+> dibothrosuchus reference their springs to the stance and are unaffected.
 - **Sim-cap / sprint:** the actuator-saturation study showed a 0.8×kp (120 N·m)
   cap clipped 34–40% of gait torque, so real gait torque sits **above 120 N·m**
   in the sprint/impact regime, bounded by the 225 N·m cap. **No single COTS
