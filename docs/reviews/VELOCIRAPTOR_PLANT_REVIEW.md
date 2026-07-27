@@ -5,6 +5,10 @@
 its MJX registration. Nothing was changed; this is a findings document.
 **Plant reviewed:** `physics_revision = 2`, `policy_interface_revision = 6`,
 `visual_revision = 3` (`configs/plant_versions.toml`).
+**Status:** findings accepted, **execution deferred** — the raptor changes are
+scheduled after the T-Rex clears stages 1–3 on the corrected stance (PR #464).
+Open items are mirrored into [KNOWN_ISSUES.md](../KNOWN_ISSUES.md) per the
+`docs/reviews/` convention.
 
 Every claim below is either a number measured on the committed plant or a
 published figure with a citation. Where a recommendation rests on a judgement
@@ -362,6 +366,66 @@ That is the distinction between "the model has passive tendon stiffness, which
 is biologically reasonable" and "the model has an invisible prop." Passive
 stiffness anchored near the neutral posture is the former. This is the latter.
 
+#### This is an unfinished migration, not a new discovery
+
+`KNOWN_ISSUES.md` already records **"stance-referenced springs"** as part of the
+July 2026 model review, applied to fix the brachiosaurus (which "could not
+physically hold any torso height in its alive region") and the T-Rex (its
+"former step-77 neutral nosedive"). Three of four species received it. The
+raptor did not:
+
+| species | sprung non-tail joints | \|spring torque\| at home | `springref` outside the joint limit |
+|---|---|---|---|
+| **velociraptor** | 12 | **145.21 N·m** | **4 joints** |
+| trex | 14 | 0.00 N·m | 0 |
+| brachiosaurus | 26 | 0.47 N·m | 0 |
+| dibothrosuchus | 23 | 0.00 N·m | 0 |
+
+So the project already decided this question — actuators carry the load, springs
+are referenced to the stance — and already paid the cost twice. The raptor was
+simply left out of the sweep. That makes R2 a *migration to an established
+convention with two working reference implementations in-tree*, not a design
+debate.
+
+(The same July sweep gave every species bounded `forcerange` on its position
+actuators. The raptor's two claw **motors** were missed by that pass as well —
+§3.3.)
+
+#### Why springs rather than actuators, and which is right here
+
+The XML shows the intent was deliberate: *"Hip ref angles are set to 38 deg …
+so joint springs hold this pose at rest."* Passive elastic support is a
+reasonable idea — tendon energy storage and series-elastic actuation are
+central to real legged locomotion. What makes this instance wrong is not that
+it is a spring but that it is an **undeclared** spring doing **unaccounted**
+work at an anchor nobody chose:
+
+- **The anchor is illegal.** `springref = 0` sits *outside* the joint range for
+  the knee (`[−120, −5]`) and the ankle (`[60, 160]`). The spring can never
+  reach equilibrium anywhere the joint is allowed to be, so across the whole
+  legal range it is a one-directional bias, never a restoring element. Nobody
+  picks a spring equilibrium the joint cannot reach.
+- **The reward cannot see it.** `BaseDinoEnv._reward_energy` is
+  `sum(action²) / n_actuators` — a pure function of the *action*, not of torque
+  or work. Passive support is therefore free, and the plant reads as more
+  efficient than it is.
+- **It has no part number.** `docs/hardware/HARDWARE_BOM.md` budgets sim torque
+  against purchasable actuators and already concludes the raptor is
+  "Walking: yes. Sprinting: no," because "Sim hip torque (225 N·m) exceeds any
+  single COTS actuator (~120 N·m max)." A 145 N·m passive bias holding the
+  animal up does not appear anywhere in that budget. Since removing it drops
+  survival to 0%, the true actuator requirement is **higher** than the sim's
+  actuator forces currently suggest — so this masks a sim-to-real gap in the
+  direction that makes the existing torque crux worse. The magnitude needs the
+  R2 retune to establish; only the sign is known today.
+
+The defensible pattern already exists in-tree. `HARDWARE_BOM.md` lists a
+*"passive compliant foot (v1)"* as an explicit BOM line, and the T-Rex's ankle
+carries a deliberate **5.5° preload** implemented as a *control* offset — named,
+documented, and visible as real actuator force (86.4 N·m at the keyframe), so it
+lands in the torque budget. Passive elements are welcome when they are declared
+parts anchored at the operating point; not when they are defaults.
+
 **Control: the T-Rex does not behave this way.** Same experiment, same
 protocol, on `trex.xml` (which sets `springref` to the stance on every leg
 joint, total spring torque at home 0.00 N·m):
@@ -551,16 +615,29 @@ constructor argument as the T-Rex has.
 | **R7** | Promote `nosedive_termination_threshold` to a constructor argument | §4.2 | config only |
 | **R8** | Shorten the metatarsus toward MT III / femur ≈ 0.42–0.51 | §2.2, two independent specimens | physics + policy revision; changes mass/inertia |
 
-**R1 first, and it is urgent rather than merely cheap.** It costs nothing, it
-requires no plant edit, and until it lands every raptor stage-1 run promotes a
-do-nothing policy into stage 2. It also has to be redone after R2, because R2
-moves the statue floor — but doing it now stops the bleeding.
+**Sequencing decision (2026-07-27):** none of this is being executed yet. The
+raptor work is scheduled **after the T-Rex clears stages 1–3** on the corrected
+stance (PR #464). Rationale: the T-Rex is currently the only species whose
+stage 1 is a real task — its statue *fails* its gate at 57% survival, where the
+raptor's clears by 17× at 98% — so it is the only platform that will produce a
+trustworthy curriculum result, and its outcome should inform how hard to push
+the raptor retune.
+
+**R1 first when work starts, and it is urgent rather than merely cheap.** It
+costs nothing, it requires no plant edit, and until it lands every raptor
+stage-1 run promotes a do-nothing policy into stage 2. It also has to be redone
+after R2, because R2 moves the statue floor — but it stops the bleeding on its
+own.
 
 **R2 is the real work** and everything else is small beside it. It is not a
 one-line change: the naive fix collapses the plant (§3.2), so the actuators
 have to be re-sized to take over the load the spring bias is currently
 carrying. Budget it as a design pass with its own before/after baselines, not
-as a bug fix.
+as a bug fix. Two things make it more tractable than it looks: the repo has
+**two working reference implementations** of stance-referenced springs (T-Rex,
+brachiosaurus), and `KNOWN_ISSUES.md` records that the brachiosaurus needed
+exactly the same pairing — stance-referenced springs *plus* stronger bounded
+leg servos — to reach an "actively servo-held home stand."
 
 **R3 is free and independent** — do it whenever.
 

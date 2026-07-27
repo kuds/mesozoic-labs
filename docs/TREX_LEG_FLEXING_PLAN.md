@@ -269,8 +269,21 @@ Also global across stages, and stage 2 reaches 6.36 m/s on that swing.
    pre-work for sizing `action_scale`, which is now demoted, and the model is
    saved on Drive so the measurement can be taken at any time.
 4. **Re-evaluate whether `action_scale` is still needed.** It may not be.
-5. **Apply the same stance treatment to the raptor**, and extend the geometry
-   probe to the quadrupeds.
+5. ~~**Apply the same stance treatment to the raptor**~~ — **withdrawn.** The
+   raptor was reviewed on 2026-07-27
+   ([reviews/VELOCIRAPTOR_PLANT_REVIEW.md](reviews/VELOCIRAPTOR_PLANT_REVIEW.md))
+   and the argument does not transfer: this plan's mechanism is a live stage-1
+   height term forcing knee travel through a near-singular joint, and the
+   raptor env carries **no height reward at all**. Its columnar stance is real
+   (163.1°, 20.5°/cm) but nothing pulls on it. The review found two larger
+   problems instead — the raptor's stage 1 is passed by a do-nothing policy at
+   17× its gate, and the plant is held upright by unreferenced leg springs
+   (145 N·m at home; 0% survival without them) — and those must be fixed first.
+   **Also note:** this document's raptor comparison table (`r = 0.925`, ~53° of
+   knee per step, the "22× vs 11× authority ratio" row) was measured on that
+   plant, so it is not a usable benchmark for judging the T-Rex result.
+   Raptor work is scheduled after the T-Rex clears stages 1–3.
+   Extending the geometry probe to the quadrupeds is still open.
 
 ## Blast radius of the stance fix
 
