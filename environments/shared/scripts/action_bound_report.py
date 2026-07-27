@@ -1,42 +1,55 @@
 #!/usr/bin/env python3
-"""Report how far the policy's raw actions leave the declared action bound.
+"""Report how far a policy's raw actions leave the declared action bound.
 
-``BaseDinoEnv.step`` clips for the physics but not for the reward::
+The action space is ``Box(-1, 1)``, but SB3's Gaussian policy is unbounded, so
+the sampled action routinely lands outside it.  Both training paths clip before
+stepping the environment -- SB3 at ``on_policy_algorithm.py:214-218`` and
+``policies.py:379`` (inside ``predict``), the JAX trainer at
+``jax_trainer.py:365`` -- so the plant and the reward both see an in-bound
+action.  What the clip hides is how hard the policy is pushing against the
+bound, and that is what this script measures.
 
-    ctrl = self._scale_action(action)              # clipped to [-1, 1] -> plant
-    reward, info = self._get_reward_info(action)   # RAW -> reward
+It matters because PPO stores the *raw* action and its ``log_prob`` while the
+environment responds to the *clipped* one.  Once a large fraction of components
+is saturated, most of the policy's output distribution sits where moving the
+mean further does not move the plant at all.
 
-``reward_energy`` is ``sum(action**2) / n`` and ``reward_action_smoothness`` is
-``sum((action - prev)**2) / (n * 4)``.  Both normalisers assume the action is
-inside ``[-1, 1]`` -- ``reward_energy``'s docstring says so outright -- and
-nothing enforces it.  SB3's Gaussian policy is unbounded, so the assumption is
-not merely theoretical: T-Rex stage-1 run ``20260727_130726`` logged
-``diagnostics/action_abs_max`` averaging 6.11 with a peak of 7.77, and
-``diagnostics/action_saturation`` rising monotonically from 0.32 to 0.68 across
-6M steps.
+Reading the ``diagnostics/`` scalars correctly
+----------------------------------------------
 
-This script quantifies the gap for a given policy without changing any
-behaviour: it records the raw actions, then evaluates both penalty terms twice
-over the *same* trajectory -- once on the raw action as the env does today, and
-once on ``clip(action, -1, 1)`` -- and reports the difference.  Use it to size
-the confound before deciding whether to clip, and afterwards to confirm how much
-of any reward change was the fix rather than the behaviour.
+Four of them are **pre-clip** and one is **post-clip**, which is easy to
+misread:
+
+* ``action_mean``, ``action_std``, ``action_abs_max``, ``action_saturation``
+  come from ``diagnostics.py:210``, which reads ``self.locals["actions"]`` --
+  SB3's raw Gaussian sample, before the clip.
+* ``action_delta`` arrives by a different route: it is returned by
+  ``reward_action_smoothness`` from *inside* the env, so it is computed on the
+  post-clip action.
+
+This script reports the pre-clip family at the same 0.99 threshold
+``DiagnosticsCallback`` uses, so its output is directly comparable to the
+``diagnostics/action_saturation`` scalar already in tensorboard -- but offline,
+per-actuator, and without waiting for a run to finish.
 
 Two modes:
 
-* ``--model`` given: measures a trained checkpoint.  Answers "how much reward is
-  this policy being charged for magnitude the plant never sees?"
-* ``--model`` omitted: probes with a Gaussian policy of configurable ``--std``,
-  which is what an *untrained* policy looks like at initialisation.  Answers
-  "would a start-of-training check have caught this?"
+* ``--model`` given: measures a trained checkpoint.  Answers "how saturated did
+  this policy actually get, and which joints are pinned?"
+* ``--model`` omitted: probes a Gaussian of configurable ``--std``, which is
+  what an *untrained* policy looks like at initialisation.  Answers "would a
+  start-of-training check have caught this?"
 
   It would, immediately.  SB3's default ``log_std_init = 0`` gives std 1.0, and
   this script at ``--std 1.0`` measures **32.0% of components outside the
-  bound** -- which matches the 0.3218 that run ``20260727_130726`` logged to
+  bound** -- matching the 0.3218 that run ``20260727_130726`` logged to
   ``diagnostics/action_saturation`` at step 8,192, its very first diagnostic
   write.  Nothing has to be learned for the condition to appear: it follows
-  from pairing an unbounded Gaussian policy with a ``Box(-1, 1)`` action space,
-  so it is present at initialisation and a startup probe is enough to catch it.
+  from pairing an unbounded Gaussian with a ``Box(-1, 1)`` action space, so a
+  startup probe is enough to catch it.
+
+The rollout mirrors SB3: the raw action is recorded for the statistics, and
+``clip(action, -1, 1)`` is what steps the environment.
 
 Usage::
 
@@ -58,11 +71,6 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.shared.reward_functions import (  # noqa: E402
-    reward_action_smoothness,
-    reward_energy,
-)
-
 SPECIES_ENVS = {
     "trex": ("environments.trex.envs.trex_env", "TRexEnv"),
     "velociraptor": ("environments.velociraptor.envs.raptor_env", "RaptorEnv"),
@@ -82,8 +90,8 @@ STAGE_STEMS = {
 # Keys the TOML [env] block carries for the MJX path only, as in
 # zero_action_baseline.py and joint_excursion_report.py.
 JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
-# Matches DiagnosticsCallback.action_saturation_threshold, so the "saturated"
-# column here is directly comparable to diagnostics/action_saturation.
+# Matches DiagnosticsCallback.action_saturation_threshold, so the figures here
+# are directly comparable to diagnostics/action_saturation.
 SATURATION_THRESHOLD = 0.99
 
 
@@ -109,17 +117,12 @@ def build_env(species: str, stage: int):
     return env_class(**kwargs)
 
 
-def penalties(actions: list[np.ndarray], n_actuators: int, energy_w: float, smooth_w: float):
-    """Total energy and smoothness penalty over one episode's actions."""
-    energy = 0.0
-    smooth = 0.0
-    prev = None
-    for action in actions:
-        energy += float(reward_energy(action, n_actuators, energy_w))
-        reward, _ = reward_action_smoothness(action, prev, n_actuators, smooth_w)
-        smooth += float(reward)
-        prev = action
-    return energy, smooth
+def actuator_names(env, n_actuators: int) -> list[str]:
+    """Actuator names from the compiled model, falling back to indices."""
+    import mujoco
+
+    names = [mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_ACTUATOR, i) for i in range(n_actuators)]
+    return [name or f"actuator[{i}]" for i, name in enumerate(names)]
 
 
 def main(argv: list[str]) -> None:
@@ -135,9 +138,7 @@ def main(argv: list[str]) -> None:
 
     env = build_env(args.species, args.stage)
     n_actuators = int(env.action_space.shape[0])
-    env_section = stage_env_section(args.species, args.stage)
-    energy_w = float(env_section.get("energy_penalty_weight", env.energy_penalty_weight))
-    smooth_w = float(env_section.get("smoothness_weight", env.smoothness_weight))
+    names = actuator_names(env, n_actuators)
 
     model = None
     normalizer = None
@@ -156,13 +157,11 @@ def main(argv: list[str]) -> None:
             normalizer.norm_reward = False
 
     rng = np.random.default_rng(args.seed)
-    raw_energy = raw_smooth = clip_energy = clip_smooth = 0.0
     returns: list[float] = []
     all_actions: list[np.ndarray] = []
 
     for index in range(args.episodes):
         obs, _ = env.reset(seed=args.seed + index)
-        episode_actions: list[np.ndarray] = []
         total = 0.0
         while True:
             if model is None:
@@ -171,60 +170,54 @@ def main(argv: list[str]) -> None:
                 obs_input = normalizer.normalize_obs(obs) if normalizer is not None else obs
                 raw_action, _ = model.predict(obs_input, deterministic=True)
             action = np.asarray(raw_action, dtype=np.float64).reshape(-1)
-            obs, reward, terminated, truncated, _ = env.step(action)
-            episode_actions.append(action)
             all_actions.append(action)
+            # SB3 clips before stepping (on_policy_algorithm.py:214-218, and
+            # policies.py:379 inside predict).  Mirror that here so the
+            # trajectory is the one training would produce, while the
+            # statistics are taken on the raw sample.
+            obs, reward, terminated, truncated, _ = env.step(np.clip(action, -1.0, 1.0))
             total += float(reward)
             if terminated or truncated:
                 break
         returns.append(total)
-        e_raw, s_raw = penalties(episode_actions, n_actuators, energy_w, smooth_w)
-        clipped = [np.clip(a, -1.0, 1.0) for a in episode_actions]
-        e_clip, s_clip = penalties(clipped, n_actuators, energy_w, smooth_w)
-        raw_energy += e_raw
-        raw_smooth += s_raw
-        clip_energy += e_clip
-        clip_smooth += s_clip
 
     env.close()
 
-    acts = np.concatenate(all_actions)
-    n_ep = args.episodes
+    acts = np.stack(all_actions)
+    flat = acts.reshape(-1)
     source = f"policy {Path(args.model).name}" if args.model else f"untrained Gaussian, std={args.std}"
 
     print(f"\n{args.species} stage {args.stage}: {source}")
-    print(f"{len(all_actions)} steps over {n_ep} episodes, {n_actuators} actuators")
+    print(f"{len(all_actions)} steps over {args.episodes} episodes, {n_actuators} actuators")
     print(f"mean return {np.mean(returns):.2f} +/- {np.std(returns):.2f}\n")
 
-    print("Raw action statistics (the action space is Box(-1, 1)):")
-    print(f"  mean                {acts.mean():+.4f}")
-    print(f"  std                 {acts.std():.4f}")
-    print(f"  abs max             {np.abs(acts).max():.4f}")
-    print(f"  E[a^2]              {np.mean(acts**2):.4f}     (<= 1.0 if the bound held)")
-    print(f"  |a| > 1             {np.mean(np.abs(acts) > 1.0) * 100:.1f}% of components")
+    print("Raw (pre-clip) action statistics, against an action space of Box(-1, 1):")
+    print(f"  mean                {flat.mean():+.4f}     (diagnostics/action_mean)")
+    print(f"  std                 {flat.std():.4f}      (diagnostics/action_std)")
+    print(f"  abs max             {np.abs(flat).max():.4f}      (diagnostics/action_abs_max)")
+    print(f"  E[a^2]              {np.mean(flat**2):.4f}      (<= 1.0 if the bound held)")
+    print(f"  |a| > 1             {np.mean(np.abs(flat) > 1.0) * 100:.1f}% of components")
     print(
-        f"  |a| >= {SATURATION_THRESHOLD}          {np.mean(np.abs(acts) >= SATURATION_THRESHOLD) * 100:.1f}%"
-        "  (comparable to diagnostics/action_saturation)\n"
+        f"  |a| >= {SATURATION_THRESHOLD}          {np.mean(np.abs(flat) >= SATURATION_THRESHOLD) * 100:.1f}%"
+        "       (diagnostics/action_saturation)\n"
     )
 
-    print(f"{'penalty':<14}{'raw (as shipped)':>20}{'on clipped action':>20}{'difference':>14}")
-    for label, raw, clip in (("energy", raw_energy, clip_energy), ("smoothness", raw_smooth, clip_smooth)):
-        print(f"{label:<14}{raw / n_ep:>20.2f}{clip / n_ep:>20.2f}{(raw - clip) / n_ep:>14.2f}")
-    total_delta = (raw_energy + raw_smooth - clip_energy - clip_smooth) / n_ep
-    print(
-        f"{'TOTAL':<14}{(raw_energy + raw_smooth) / n_ep:>20.2f}"
-        f"{(clip_energy + clip_smooth) / n_ep:>20.2f}{total_delta:>14.2f}"
-    )
+    per_actuator = np.mean(np.abs(acts) >= SATURATION_THRESHOLD, axis=0) * 100.0
+    width = max(len(name) for name in names)
+    print(f"Per-actuator saturation (share of steps with |a| >= {SATURATION_THRESHOLD}):")
+    print(f"  {'actuator':<{width}}  {'saturated':>9}  {'abs max':>8}")
+    for i in np.argsort(-per_actuator):
+        print(f"  {names[i]:<{width}}  {per_actuator[i]:>8.1f}%  {np.abs(acts[:, i]).max():>8.2f}")
 
-    mean_return = float(np.mean(returns))
-    print(f"\nPer episode, clipping before the reward would change the return by {-total_delta:+.2f}")
-    if mean_return > 1.0:
-        print(f"  = {abs(total_delta) / mean_return * 100:.1f}% of the {mean_return:.2f} mean return")
-    else:
-        print(f"  (share of return not reported: the mean return is {mean_return:.2f}, so the ratio is")
-        print("   meaningless.  Expected in --std probe mode, where the policy falls immediately.)")
-    print("\nThe zero-action baseline is unaffected either way: at action = 0 both")
-    print("penalties are identically zero, so min_avg_reward does not need re-deriving.")
+    print("\nThe reward is not affected by any of this: both training paths clip")
+    print("before env.step, so reward_energy and reward_action_smoothness are")
+    print("computed on in-bound actions.  What saturation costs is control")
+    print("resolution, not reward -- a saturated component's gradient moves the")
+    print("policy mean without moving the plant.")
+    print("\nSeparately, base_env.py:783 passes the raw action to _get_reward_info")
+    print("while line 765 clips for ctrl.  Harmless under SB3 and the JAX trainer,")
+    print("but a direct caller that skips the clip is charged energy and")
+    print("smoothness for magnitude the plant never sees.  This script clips.")
 
 
 if __name__ == "__main__":
