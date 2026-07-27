@@ -48,6 +48,72 @@ tolerance) remains the standing recommendation for the divergences above.
 
 ## Training / RL
 
+- **MEDIUM** — **the policy saturates its action bound, and the
+  `diagnostics/action_*` family mixes pre-clip and post-clip quantities.**
+  Measured on T-Rex stage-1 run `20260727_130726` (PPO, 6.0M steps), from its
+  own tensorboard:
+
+  | `diagnostics/` scalar | first | last | mean | max | measured on |
+  |---|---|---|---|---|---|
+  | `action_abs_max` | 4.55 | 6.71 | **6.11** | **7.77** | pre-clip |
+  | `action_std` | 1.00 | 1.93 | 1.42 | 1.93 | pre-clip |
+  | `action_saturation` | 0.32 | **0.68** | 0.49 | 0.68 | pre-clip |
+  | `action_delta` | 21.27 | 6.24 | 15.04 | 21.43 | post-clip |
+
+  `action_saturation` (fraction of components at or beyond 0.99) rose
+  **monotonically** across all 6M steps — 0.32 → 0.68. The policy's raw output
+  peaks at 7.77 against a `Box(-1, 1)` action space. Note `train/std` *fell*
+  over the run (1.00 → 0.72) while empirical `action_std` nearly doubled: the
+  policy is pushing its **mean** out of bounds, not widening its exploration.
+
+  **What this is not: the reward is not inflated.** Both training paths clip
+  before stepping the environment, so `_get_reward_info` receives an in-bound
+  action and both penalties are computed on it:
+
+  - SB3 `on_policy_algorithm.py:214-218` — `clipped_actions = np.clip(actions,
+    low, high)` immediately before `env.step(clipped_actions)`; `policies.py:379`
+    does the same inside `predict()`, which is what both eval loops use.
+  - `jax_trainer.py:365` — `actions = jnp.clip(raw_actions, -1.0, 1.0)` before
+    `env.step`; `jax_ppo.sample_action`'s docstring states the contract
+    ("returns the **unclipped** action… callers must clip before sending to the
+    environment").
+  - `base_env.py:_scale_action` says so directly: "SB3 already clips before
+    stepping, but direct callers… would otherwise command out-of-range ctrl."
+
+  **The metric hazard.** `action_mean`, `action_std`, `action_abs_max` and
+  `action_saturation` come from `diagnostics.py:210`, which reads
+  `self.locals["actions"]` — SB3's **pre-clip** Gaussian sample. `action_delta`
+  arrives by a different route: it is returned by `reward_action_smoothness`
+  from *inside* the env, so it is computed on the **post-clip** action. Four
+  scalars in one namespace describe the policy's raw output; the fifth
+  describes what the plant received. Reading the group as one space is an easy
+  and consequential mistake.
+
+  **What is real.** PPO stores the raw action and its `log_prob`, while the
+  environment responds to the clipped one. With 68% of components saturated,
+  most of the policy's output distribution sits where moving the mean further
+  changes the plant not at all — the standard bias from sampling an unbounded
+  Gaussian into a bounded action space, and a plausible contributor to the
+  bang-bang envelope measured on the same run (`used` = 100% of range on 20 of
+  21 actuators). Worth watching `action_saturation` as a first-class health
+  metric rather than as evidence about the reward.
+
+  **Latent trap.** `base_env.py:783` passes the raw `action` to
+  `_get_reward_info` while `ctrl` is clipped separately at line 765. Harmless
+  under SB3 and the JAX trainer today, but any direct caller — a notebook, a
+  custom rollout loop, a diagnostic script — is silently charged energy and
+  smoothness penalties for magnitude the plant never sees. Clipping at line
+  783 would make the two paths agree and moves no fingerprint.
+
+  **Explicitly retracted.** An earlier version of this entry claimed the energy
+  term was inflated ~3.8× (~209/episode, ~7.9% of return) and that the
+  `r ∝ w^-0.16` smoothness fit in
+  [TREX_LEG_FLEXING_PLAN.md](TREX_LEG_FLEXING_PLAN.md) was therefore unsound.
+  Both are wrong: the reward saw clipped actions, and `r` derives from
+  `action_delta`, which is post-clip and so is coupled to the physics. That
+  study stands, no `min_avg_reward` gate needs re-deriving, and no historical
+  reward comparison is invalidated. (2026-07 T-Rex telemetry review)
+
 - **LOW** — `BaseDinoEnv.reset` still applies one `reset_noise_scale` scalar to
   the whole of `qvel`, which mixes root linear velocity (m/s), root angular
   velocity (rad/s) and joint velocities (rad/s). This is the same
