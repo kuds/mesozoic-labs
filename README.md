@@ -108,12 +108,12 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Action dimension / actuators | 21 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
 | Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r6; physics r4; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r7; physics r5; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/trex/assets/trex.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Learn to stand and balance without falling | 6M | reward ≥ 1900; episode length ≥ 750; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Learn to stand and balance without falling | 6M | reward ≥ 1840; episode length ≥ 750; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Bite | Sprint to prey and make contact with the head bite proxy | 8M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 

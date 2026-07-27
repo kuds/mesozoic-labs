@@ -58,7 +58,7 @@
 
     Approximate dimensions (scaled for simulation, measured from the home keyframe):
       Body length: 1.2m (torso)
-      Hip height: 0.93m (pelvis body at 0.9775m)
+      Hip height: 0.88m (pelvis body at 0.9266m)
       Skull length: 0.5m
       Tail length: 1.5m
       Total mass: 85.7kg (scaled)
@@ -69,12 +69,52 @@
       - Powerful digitigrade hind legs; all three digits bear load
       - Heavy muscular tail as counterbalance to skull (~18% of mass)
       - Vertebral column held roughly horizontal: the PELVIS FRAME IS LEVEL at
-        the home keyframe, and settles ~2.9 deg nose-down under the home
+        the home keyframe, and settles ~1.55 deg nose-down under the home
         controller.  Only the torso capsule slopes (~10 deg).  Reward code
-        reads the pelvis frame, so natural_pitch tracks that 2.9 deg, not the
+        reads the pelvis frame, so natural_pitch tracks that 1.55 deg, not the
         capsule slope.
       - Body pivots at hips, skull and tail balance each other: the CoM sits
-        3mm behind the foot-contact centroid at home
+        3.7mm behind the foot-contact centroid at home
+
+    HIND-LIMB STANCE.  The home keyframe stands the animal on a flexed
+    theropod limb, not a columnar one:
+
+                        home     was      real T. rex
+      knee interior     135.0    172.1    flexed
+      ankle interior    135.7    153.3    flexed
+      femur from vert.   22.5      4.9    subvertical, inclined
+      hip height        0.877    0.928
+
+    135.0 deg is 45 deg of flexion from a fully columnar limb, which is the
+    knee angle Hutchinson, Anderson, Blemker & Delp (2005), "Analysis of
+    hindlimb muscle moment arms in Tyrannosaurus rex using a three-dimensional
+    musculoskeletal computer model", Paleobiology 31(4):676-701, use for T. rex
+    in Fig. 8.  Their Table 1 fixes the convention: "For all joints, 0 deg was
+    fully straightened", and to convert to an interior angle "for the knee
+    subtract the angle here from 180 deg".  The same paper concludes it "seems
+    reasonable to reconstruct T. rex in a more upright (but not completely
+    columnar) pose, rather than a more crouched pose" (p. 692).  Published
+    reconstructions span roughly 110-140 deg interior; 135 is deliberately at
+    the upright end of that spread, which is where this source argues for,
+    rather than the midpoint of it.
+
+    The 172.1 deg it replaces was 7.9 deg from full extension, i.e. inside the
+    singular region for leg-length control: hip-to-ankle distance changes at
+    only 0.024 m/rad there against 0.134 m/rad here, so holding pelvis height
+    cost 23.7 deg of knee travel per centimetre instead of 4.3.  See
+    docs/TREX_LEG_FLEXING_PLAN.md.
+
+    Femur and tibia sit symmetrically 22.5 deg either side of vertical.  That
+    is not a free choice: with this plant's tibia:femur of 1.000 it is the one
+    inclination that keeps the hip vertically above the ankle, so the stance
+    change does not move the body over the feet.  Measured, the CoM still sits
+    33.8% of the way heel-to-toe through the support polygon (34.3% before).
+
+    The three rotations from the reference pose (hip -17.6, knee +35.2,
+    ankle -17.6 deg) sum to zero, so the metatarsus keeps its authored
+    21.8 deg digitigrade slope and the plantar pad and all three digits keep
+    their 0.5 mm floor contact.  Segment vectors, masses and inertias are
+    untouched; only joint values, limits and control ranges moved.
     -->
 
     <body name="pelvis" pos="0 0 0.9795">
@@ -170,11 +210,31 @@
       <!-- ==================== RIGHT LEG ==================== -->
       <!-- Massive, powerful digitigrade legs -->
       <!-- Hip -> Thigh -> Tibia -> Metatarsus -> Toes -->
+      <!--
+      Reading the three stance joints.  ``ref`` and ``springref`` are NOT the
+      same pose here, and the difference is deliberate:
+
+        ref       the joint value at which the bodies sit exactly as the geoms
+                  below author them.  The geoms author the COLUMNAR reference
+                  limb, so ref still reads 15 / -60 / 94.5 and the physical
+                  rotation MuJoCo applies is (qpos - ref).  The home keyframe
+                  holds -17.6 / +35.2 / -17.6 of it; see the stance block at
+                  the top of this file.
+        springref the standing pose, so the passive leg spring (stiffness 40,
+                  leg_joint class) is neutral where the animal actually
+                  stands rather than pulling it back toward a straight leg.
+        range     re-centred on the standing pose, width unchanged.  The knee
+                  gains from this twice over: -74.8..25.2 spans 85..185 deg
+                  of interior angle, where -110..-10 around the columnar pose
+                  spanned 120..220.  Anything past 180 is the knee bending
+                  backwards, so the reachable hyperextension falls from
+                  40.2 deg to 5.0 as a side effect of the re-centring.
+      -->
 
       <body name="r_thigh" pos="-0.05 -0.14 -0.05">
         <!-- Hip: 2 DOF -->
         <joint name="r_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0"
-               range="-50 80" ref="15" springref="15"/>
+               range="-67.6 62.4" ref="15" springref="-2.6"/>
         <joint name="r_hip_roll" class="leg_joint" type="hinge" axis="1 0 0"
                range="-25 25" springref="0"/>
         <geom name="r_thigh_geom" type="capsule" fromto="0 0 0  0.03 0 -0.35" size="0.09"
@@ -183,14 +243,14 @@
         <body name="r_tibia" pos="0.03 0 -0.35">
           <!-- Knee: 1 DOF -->
           <joint name="r_knee" class="leg_joint" type="hinge" axis="0 1 0"
-                 range="-110 -10" ref="-60" springref="-60"/>
+                 range="-74.8 25.2" ref="-60" springref="-24.8"/>
           <geom name="r_tibia_geom" type="capsule" fromto="0 0 0  -0.03 0 -0.35" size="0.07"
                 mass="3.5" material="body_mat"/>
 
           <body name="r_metatarsus" pos="-0.03 0 -0.35">
             <!-- Ankle: 1 DOF (digitigrade stance) -->
             <joint name="r_ankle" class="leg_joint" type="hinge" axis="0 1 0"
-                   range="50 150" ref="94.5" springref="94.5"/>
+                   range="32.4 132.4" ref="94.5" springref="76.9"/>
             <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.025"
                   mass="1.2" material="body_mat"/>
             <!-- Thin plantar pad: gives the three digits one load-bearing
@@ -246,7 +306,7 @@
 
       <body name="l_thigh" pos="-0.05 0.14 -0.05">
         <joint name="l_hip_pitch" class="leg_joint" type="hinge" axis="0 1 0"
-               range="-50 80" ref="15" springref="15"/>
+               range="-67.6 62.4" ref="15" springref="-2.6"/>
         <joint name="l_hip_roll" class="leg_joint" type="hinge" axis="1 0 0"
                range="-25 25" springref="0"/>
         <geom name="l_thigh_geom" type="capsule" fromto="0 0 0  0.03 0 -0.35" size="0.09"
@@ -254,13 +314,13 @@
 
         <body name="l_tibia" pos="0.03 0 -0.35">
           <joint name="l_knee" class="leg_joint" type="hinge" axis="0 1 0"
-                 range="-110 -10" ref="-60" springref="-60"/>
+                 range="-74.8 25.2" ref="-60" springref="-24.8"/>
           <geom name="l_tibia_geom" type="capsule" fromto="0 0 0  -0.03 0 -0.35" size="0.07"
                 mass="3.5" material="body_mat"/>
 
           <body name="l_metatarsus" pos="-0.03 0 -0.35">
             <joint name="l_ankle" class="leg_joint" type="hinge" axis="0 1 0"
-                   range="50 150" ref="94.5" springref="94.5"/>
+                   range="32.4 132.4" ref="94.5" springref="76.9"/>
             <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0  0.08 0 -0.2" size="0.025"
                   mass="1.2" material="body_mat"/>
             <geom name="l_plantar_geom" type="box" pos="0.14 0 -0.218"
@@ -351,20 +411,32 @@
          original 200/250/150 gains let all three stance joints sag by
          16-23 degrees before producing support torque. These gains combine
          mass scaling with the tested stance margin; the existing 1.5x-kp
-         gait headroom remains unchanged. -->
-    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-0.8727 1.3963"/>
+         gait headroom remains unchanged.
+
+         The three stance ctrlranges were re-centred on the theropod home
+         pose, keeping their widths (130/100/100 deg) and the invariant that
+         matters to home-keyframe-residual/v1: the midpoint of each range IS
+         the home control, so residual action zero commands the stance and
+         +-1 reach the endpoints symmetrically.  The ankle keeps its 5.5 deg
+         preload against gravity: its range is centred on the commanded
+         82.4 deg, not on the 76.9 deg the joint holds.  Settled hold torques
+         under these gains are 48.9 / 7.2 / 54.4 N.m against 1800 / 2250 /
+         1350 of authority; the knee's is near zero because the flexed limb
+         puts that joint almost on the line of the vertical ground reaction
+         force, which is the mechanically sound place for it. -->
+    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-1.17984 1.08908"/>
     <position name="r_hip_roll_act" joint="r_hip_roll" kp="150" forcerange="-120 120" ctrlrange="-0.4363 0.4363"/>
-    <position name="r_knee_act" joint="r_knee" kp="1500" forcerange="-2250 2250" ctrlrange="-1.9199 -0.1745"/>
-    <position name="r_ankle_act" joint="r_ankle" kp="900" forcerange="-1350 1350" ctrlrange="0.8727 2.6180"/>
+    <position name="r_knee_act" joint="r_knee" kp="1500" forcerange="-2250 2250" ctrlrange="-1.30550 0.43982"/>
+    <position name="r_ankle_act" joint="r_ankle" kp="900" forcerange="-1350 1350" ctrlrange="0.56549 2.31081"/>
     <position name="r_toe_d2_act" joint="r_toe_d2_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
 
     <!-- Left leg -->
-    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-0.8727 1.3963"/>
+    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-1.17984 1.08908"/>
     <position name="l_hip_roll_act" joint="l_hip_roll" kp="150" forcerange="-120 120" ctrlrange="-0.4363 0.4363"/>
-    <position name="l_knee_act" joint="l_knee" kp="1500" forcerange="-2250 2250" ctrlrange="-1.9199 -0.1745"/>
-    <position name="l_ankle_act" joint="l_ankle" kp="900" forcerange="-1350 1350" ctrlrange="0.8727 2.6180"/>
+    <position name="l_knee_act" joint="l_knee" kp="1500" forcerange="-2250 2250" ctrlrange="-1.30550 0.43982"/>
+    <position name="l_ankle_act" joint="l_ankle" kp="900" forcerange="-1350 1350" ctrlrange="0.56549 2.31081"/>
     <position name="l_toe_d2_act" joint="l_toe_d2_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
     <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
@@ -448,20 +520,39 @@
   </contact>
 
   <!-- ==================== KEYFRAMES ==================== -->
-  <!-- Standing pose with a shallow (0.5 mm) plantar contact. Joint
-       references define the same authored physical stance while placing
-       the lower-body neutral controls at the actuator-range midpoints.
-       The ankle midpoint retains a 5.5 deg preload against gravity. -->
+  <!-- Flexed theropod standing pose with a shallow (0.5 mm) plantar contact,
+       and the lower-body neutral controls on the actuator-range midpoints.
+       The ankle midpoint retains a 5.5 deg preload against gravity.
+
+       Leg qpos, in degrees:  hip -2.6   knee -24.8   ankle 76.9
+       Leg ctrl, in degrees:  hip -2.6   knee -24.8   ankle 82.4
+
+       That is a 135.0 deg interior knee and a 22.5 deg femur inclination;
+       see the HIND-LIMB STANCE block at the top of this file for the source
+       and the derivation.  Root z 0.9266 is the height at which the plantar
+       pads and all six digits sit 0.5 mm into the floor at this pose; it
+       is a consequence of the joint values, not an independent choice, and
+       must be re-solved if they change.
+
+       Under the home controller this settles to pelvis 0.9260 m (sd 0.00001)
+       at forward_z -0.027.  Those two numbers are load-bearing constants
+       elsewhere and must be re-measured together with any edit here:
+         trex_env.py    target_z, natural_pitch, healthy_z_range
+         mjx_config.py  target_standing_z, _NATURAL_PITCH, healthy_z_range
+         configs/trex/stage1_balance.toml
+                        nosedive_termination_threshold, min_avg_reward
+       environments/trex/tests/test_trex_env.py::TestHeightTargetTracksStance
+       pins target_z to the settled stance so it cannot drift silently. -->
 
   <keyframe>
     <key name="home"
-         qpos="0 0 0.9775 1 0 0 0
+         qpos="0 0 0.9266 1 0 0 0
                0 0 0 0 0 0 0
-               0.261799 0 -1.047198 1.649336 0.218166 0.218166 0.218166
-               0.261799 0 -1.047198 1.649336 0.218166 0.218166 0.218166"
+               -0.045379 0 -0.432842 1.342158 0.218166 0.218166 0.218166
+               -0.045379 0 -0.432842 1.342158 0.218166 0.218166 0.218166"
          ctrl="0 0 0
-               0.2618 0 -1.0472 1.74535 0.2182 0.2182 0.2182
-               0.2618 0 -1.0472 1.74535 0.2182 0.2182 0.2182
+               -0.04538 0 -0.43284 1.43815 0.2182 0.2182 0.2182
+               -0.04538 0 -0.43284 1.43815 0.2182 0.2182 0.2182
                0 0 0 0"/>
   </keyframe>
 

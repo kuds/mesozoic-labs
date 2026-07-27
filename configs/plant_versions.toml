@@ -48,9 +48,31 @@ policy_interface_revision = 6
 visual_revision = 3
 observation_schema = "bipedal-target/v1"
 
+# 4. The T-Rex theropod stance correction.  The home keyframe stood the animal
+#    on a near-straight knee (172.1 deg interior, 7.9 deg from full extension),
+#    which is the singular region for leg-length control: hip-to-ankle distance
+#    changes at only 0.024 m/rad there, so servicing the stage-1 height term
+#    cost 23.7 deg of knee travel per centimetre of pelvis height.  The keyframe
+#    now flexes the limb to a 135.0 deg interior knee -- 45 deg of flexion from
+#    the columnar reference pose, the figure Hutchinson et al. (2005,
+#    Paleobiology 31:676-701, Fig. 8) use for T. rex, converted by their own
+#    Table 1 rule ("for the knee subtract the angle here from 180 deg").  Femur
+#    and tibia sit symmetrically at 22.5 deg either side of vertical, which is
+#    the unique inclination holding the hip over the ankle for this plant's
+#    1.000 tibia:femur, so the CoM / support-polygon relationship is unchanged
+#    (33.8% heel-to-toe against 34.3% before).  Leg-length authority rises
+#    0.024 -> 0.134 m/rad, i.e. 23.7 -> 4.3 deg of knee per centimetre.
+#    Segment vectors, masses, inertias and the whole foot are untouched: the
+#    metatarsus keeps its authored 21.8 deg digitigrade slope because the three
+#    rotations sum to zero, so the plantar pad and digits keep their 0.5 mm
+#    contact.  PHYSICS moves (keyframe qpos, joint ranges, spring references);
+#    the POLICY INTERFACE moves because the leg ctrlranges were re-centred on
+#    the new pose and the home control vector -- which is what action zero
+#    commands under home-keyframe-residual/v1 -- moved with them.  Every
+#    existing T-Rex checkpoint is invalidated.
 [plants.trex]
-physics_revision = 4
-policy_interface_revision = 6
+physics_revision = 5
+policy_interface_revision = 7
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
 

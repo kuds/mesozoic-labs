@@ -16,10 +16,14 @@ energy_penalty_weight = 0.075                  # Setting 4 sweep: 0.075 forces e
 tail_stability_weight = 0.15
 posture_weight = 1.5                           # Increased from 1.5: with lower alive_bonus, stronger tilt penalty drives upright stance
 nosedive_weight = 1.5                          # Increased from 3.0: complement posture weight to prevent forward pitch exploit
-nosedive_termination_threshold = 0.47          # Terminates at forward_z < -0.519 (~31° nose-down), unchanged from the
+nosedive_termination_threshold = 0.493         # Terminates at forward_z < -0.520 (~31.3° nose-down), unchanged from the
                                                # 0.35 that preceded the natural_pitch 0.17 -> 0.05 correction. natural_pitch
-                                               # now describes the measured neutral pose, so the threshold absorbs the
-                                               # 0.12 shift and the absolute termination envelope is identical.
+                                               # describes the measured neutral pose, so the threshold absorbs every shift in
+                                               # it and the absolute termination envelope stays put. The theropod stance
+                                               # correction moved natural_pitch 0.05 -> 0.027 (the flexed limb settles 1.55°
+                                               # nose-down where the columnar one settled 2.9°), so this re-derives as
+                                               #   0.493 = sin(0.05) + 0.47 - sin(0.027)
+                                               # and the plant still terminates at the same absolute -0.520.
 smoothness_weight = 2.0                        # Second escalation: 0.1 -> 0.7 -> 2.0. The lever works but was
                                                # under-dosed. 0.1 was a rounding error (-0.0259/step, 1.0% of
                                                # return) and left RMS action change per joint flat at 1.018 for a
@@ -134,13 +138,24 @@ net_arch = [512, 256]                  # Match SB3 PPO architecture
 
 [curriculum]
 timesteps = 6000000
-min_avg_reward = 1900.0                 # Raised from 100.0, which could not bind: the zero-action policy scores
-                                        # 1800.56 +/- 1267.66 over 40 episodes on this plant and config
+min_avg_reward = 1840.0                 # Raised from 100.0, which could not bind: the zero-action policy scores
+                                        # 1743.73 +/- 1275.54 over 40 episodes on this plant and config
                                         # (environments/shared/scripts/zero_action_baseline.py trex), so a statue
-                                        # cleared the old gate eighteen times over and advanced into stage 2. The
+                                        # cleared the old gate seventeen times over and advanced into stage 2. The
                                         # July 2026 runs that scored below the do-nothing floor all passed it.
-                                        # 1900 sits just above the measured floor; run 20260725_194916 reached
-                                        # 2696.83 +/- 40.6, so a healthy run keeps ~800 of headroom.
+                                        # 1840 sits just above the measured floor; run 20260725_194916 reached
+                                        # 2696.83 +/- 40.6 on the columnar plant, ~800 of headroom over its gate.
+                                        # Re-derived for the theropod stance correction, which moved the floor:
+                                        #    columnar   1800.56 +/- 1267.66, 60% full-horizon, gate 1900 (+5.5%)
+                                        #    theropod   1743.73 +/- 1275.54, 57% full-horizon, gate 1840 (+5.5%)
+                                        # The same +5.5% margin over the measured floor, which is the rule the
+                                        # 1900 was set by. The flexed stance costs the statue less than the plan
+                                        # expected -- -3.2% of reward and -3 points of full-horizon share, with a
+                                        # near-identical termination mix (23/13/4 truncated/nosedive/fallen
+                                        # against 24/12/4) -- because the position servos and their spring
+                                        # references moved with the pose, so the home controller still holds it.
+                                        # NOT yet confirmed against a trained policy on this plant: whether one
+                                        # still reaches ~2650 is what the stage-1 validation run measures.
                                         # NOTE: this is a measured constant and will go stale if the plant or the
                                         # reward weights change -- re-run the baseline script and update it, or
                                         # better, wire that script in as an automatic pre-stage check.
@@ -154,27 +169,35 @@ min_avg_reward = 1900.0                 # Raised from 100.0, which could not bin
                                         #  * It also sets the collapse detector's arming threshold: peak_floor
                                         #    falls back to min_avg_reward when collapse_peak_floor is unset
                                         #    (curriculum.py:1014), and no config sets the latter. Detection now
-                                        #    arms only once the rolling-median peak clears 1900 rather than 100 --
+                                        #    arms only once the rolling-median peak clears 1840 rather than 100 --
                                         #    safer against the long pre-convergence grind, but a run that plateaus
-                                        #    below 1900 gets no collapse protection at all.
+                                        #    below 1840 gets no collapse protection at all.
                                         # Note the floor itself pays no smoothness penalty (a constant action has
                                         # no action delta), so raising smoothness_weight lowers a real policy's
                                         # score against a gate calibrated on a statue. That asymmetry is now the
                                         # binding constraint on how far that weight can go, so re-check here on
                                         # every increase:
-                                        #  * The floor is unchanged at 1900. Re-measured on the merged plant after
-                                        #    smoothness_weight 0.1 -> 0.7 and target_z 0.90 -> 0.9757: still
-                                        #    1800.56 +/- 1267.66 over 40 episodes, identical to the original.
+                                        #  * The reward-weight history did not move the floor: re-measured on the
+                                        #    merged plant after smoothness_weight 0.1 -> 0.7 and target_z 0.90 ->
+                                        #    0.9757 it was still 1800.56 +/- 1267.66, identical to the original.
                                         #    Neither change moves a statue -- a constant action has no action
-                                        #    delta, and zero-action settles at exactly 0.9757 so height_frac
-                                        #    saturates under both targets.
+                                        #    delta, and zero-action settled at exactly the height target either
+                                        #    way, so height_frac saturated under both.
+                                        #  * The PLANT does move it. The stance correction is the first change
+                                        #    that has: 1800.56 -> 1743.73, which is what this gate re-derives
+                                        #    from. Re-run the baseline on any further plant edit.
                                         #  * At w=0.7 a real policy scored 2516.9 (run 20260726_191730), margin
-                                        #    ~617 over the gate.
-                                        #  * At w=2.0 the added tax is ~181/episode at the observed action rate,
-                                        #    so expect ~2340 before the policy adapts downward -- margin ~440.
-                                        # Still comfortable. But the tax scales with w while the floor does not,
-                                        # and a stage-1 miss halts the whole curriculum (see above), so treat
-                                        # ~3.0 as the point where this gate needs lowering rather than re-checking.
+                                        #    ~617 over the gate it faced.
+                                        #  * At w=2.0 the added tax was ~181/episode at the action rate the
+                                        #    columnar plant provoked, so ~2340 before the policy adapts downward.
+                                        #    The stance correction should shrink that tax rather than grow it:
+                                        #    the tax is w*r^2/4 per step, and the whole point of restoring
+                                        #    leg-length authority (23.7 -> 4.3 deg of knee per centimetre of
+                                        #    pelvis height) is that the height term no longer demands the large
+                                        #    excursions that set r = 0.628. Judge it on the validation run.
+                                        # But the tax scales with w while the floor does not, and a stage-1 miss
+                                        # halts the whole curriculum (see above), so treat ~3.0 as the point where
+                                        # this gate needs lowering rather than re-checking.
 min_avg_episode_length = 750
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.

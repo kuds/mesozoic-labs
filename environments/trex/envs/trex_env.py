@@ -81,7 +81,7 @@ class TRexEnv(BaseDinoEnv):
         bite_head_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
-        natural_pitch: float = 0.05,
+        natural_pitch: float = 0.027,
         height_weight: float = 0.0,
         gait_symmetry_weight: float = 0.0,
         smoothness_weight: float = 0.05,
@@ -102,18 +102,29 @@ class TRexEnv(BaseDinoEnv):
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
         # Matches the MJX registration, which is the value the evidence
-        # supports.  The old SB3 floor of 0.50 could essentially never be the
-        # binding termination: tail_3/4/5 are unconditional termination geoms
-        # and the tail reaches the floor at a pelvis height of ~0.55-0.57 in a
-        # level squat, so the plant is already lying down before 0.50 is
-        # reached.  0.75 costs nothing measurable -- healthy full-horizon
-        # episodes bottom out at 0.884 m, 0.134 m of margin, 0/34 false
-        # terminations, and 1/300 stage-1 resets spawn below it (that episode
-        # was not recoverable anyway) -- while ending doomed episodes a median
-        # 74 steps sooner.  It also gives the MJX alive bonus, which scales by
-        # (z - floor) / (ceiling - floor), a 0.266 fraction at settled stance
-        # against the velociraptor's 0.275.
-        healthy_z_range: tuple[float, float] = (0.75, 1.6),
+        # supports.  Both bounds moved down by 0.05 with the theropod stance:
+        # the flexed home keyframe settles at 0.9260 m where the columnar one
+        # settled at 0.9757 (-0.0497).  Translating the whole band by the
+        # measured stance drop is what preserves the three measurements the
+        # old (0.75, 1.6) was sized on, rather than re-guessing them:
+        #   * The tail is the real backstop.  tail_3/4/5 are unconditional
+        #     termination geoms and the tail reaches the floor at a pelvis
+        #     height of ~0.55-0.57 in a level squat, so the plant is already
+        #     lying down below that.  The tail's pose is fixed relative to the
+        #     pelvis and does not move with the legs, so that figure is
+        #     unchanged and 0.70 still clears it by ~0.13.
+        #   * Healthy full-horizon episodes bottomed out 0.134 m above the
+        #     floor (0.884 against 0.75).  0.834 against 0.70 is the same
+        #     margin under a stance that sits 0.0497 lower.
+        #   * The MJX alive bonus scales by (z - floor) / (ceiling - floor),
+        #     which is 0.266 at the settled stance before and after -- that is
+        #     why the ceiling moves too -- against the velociraptor's 0.275.
+        # The spawn tail is preserved too: 2000 resets at reset_noise_scale
+        # = 0.10 put 0.75% below the floor on both plants (0.70 on this one,
+        # 0.75 on the columnar one).  The root-height jitter is a 0.10 m
+        # normal and dominates the joint noise on either stance, so the
+        # translated floor keeps the same share of unrecoverable spawns.
+        healthy_z_range: tuple[float, float] = (0.70, 1.55),
         reset_noise_scale: float = 0.01,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "trex.xml")
@@ -142,12 +153,17 @@ class TRexEnv(BaseDinoEnv):
         self.foot_contact_gate = foot_contact_gate
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
-        # Natural forward pitch (~2.9°), measured: the pelvis frame at the home
+        # Natural forward pitch (~1.55°), measured: the pelvis frame at the home
         # keyframe is level, and under the home controller the plant settles at
-        # forward_z ≈ -0.050.  The nosedive penalty and termination are measured
+        # forward_z ≈ -0.027.  The nosedive penalty and termination are measured
         # relative to that neutral pose.  The former 0.17 rad (9.7°) described
         # the torso capsule's built-in slope, not the pelvis frame the reward
         # actually reads, so it granted ~7 deg of unpenalized nose-down pitch.
+        # The theropod stance halved the residual: a flexed limb settles closer
+        # to its commanded pose than a columnar one does, so the plant now
+        # settles 1.55° nose-down where the columnar stance settled 2.9°.
+        # nosedive_termination_threshold in configs/trex/stage1_balance.toml is
+        # calibrated against this number and moved with it.
         # Unlike the raptor, the T-Rex posture reward stays centred on world
         # vertical (see _get_reward_info); the MJX path matches by leaving
         # posture_target_forward_z unset for this species.
@@ -428,13 +444,16 @@ class TRexEnv(BaseDinoEnv):
         # 8c. Height maintenance reward (smooth gradient toward staying upright)
         min_z = self.healthy_z_range[0]
         # Settled pelvis height under the home controller, measured (zero action,
-        # zero reset noise, 600 steps: 0.9757 m, sd 0.0001).  This must track the
+        # zero reset noise, 600 steps: 0.9260 m, sd 0.00001).  This must track the
         # plant: the previous 0.90 was the root height of the PRE-repair plant,
         # and after the July home-equilibrium fix raised the stance to 0.9757 the
         # term saturated at 1.0 everywhere in the healthy band -- a flat constant
         # worth 39% of stage-1 and 10% of stage-2 return that shaped nothing.
-        # ``TestHeightTargetTracksStance`` pins it to the measured stance.
-        target_z = 0.9757
+        # ``TestHeightTargetTracksStance`` pins it to the measured stance, which
+        # is how the 0.9757 -> 0.9260 move under the theropod stance correction
+        # was caught rather than left to drift.  Keep this and
+        # ``target_standing_z`` in environments/trex/mjx_config.py equal.
+        target_z = 0.9260
         height_frac = float(np.clip((pelvis_height - min_z) / (target_z - min_z), 0.0, 1.0))
         reward_height = self.height_weight * height_frac
         info["reward_height"] = reward_height
