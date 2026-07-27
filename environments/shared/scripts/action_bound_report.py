@@ -166,11 +166,11 @@ def main(argv: list[str]) -> None:
         total = 0.0
         while True:
             if model is None:
-                action = rng.normal(0.0, args.std, size=n_actuators).astype(np.float32)
+                raw_action = rng.normal(0.0, args.std, size=n_actuators)
             else:
                 obs_input = normalizer.normalize_obs(obs) if normalizer is not None else obs
-                action, _ = model.predict(obs_input, deterministic=True)
-            action = np.asarray(action, dtype=np.float64).reshape(-1)
+                raw_action, _ = model.predict(obs_input, deterministic=True)
+            action = np.asarray(raw_action, dtype=np.float64).reshape(-1)
             obs, reward, terminated, truncated, _ = env.step(action)
             episode_actions.append(action)
             all_actions.append(action)
