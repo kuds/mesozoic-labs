@@ -20,16 +20,36 @@ nosedive_termination_threshold = 0.47          # Terminates at forward_z < -0.51
                                                # 0.35 that preceded the natural_pitch 0.17 -> 0.05 correction. natural_pitch
                                                # now describes the measured neutral pose, so the threshold absorbs the
                                                # 0.12 shift and the absolute termination envelope is identical.
-smoothness_weight = 0.7                        # Raised from 0.1: the action-rate penalty was a rounding error.
-                                               # Measured on run 20260725_194916, the term paid -0.0259/step against
-                                               # an alive bonus of 1.75 -- 1.0% of return -- while RMS action change
-                                               # per joint sat at 1.018, 2-3x beyond the 0.3-0.5 "severe" band in
-                                               # docs/investigations/TREX_STAGE1_LEG_JITTER.md. That run confirmed the
-                                               # doc's escalation condition: anchoring the entropy decay annealed
-                                               # algo_std (1.012 -> 0.959, vs 1.012 -> 1.038 un-anchored) but left the
-                                               # deterministic action rate unchanged. Sized from the penalty formula
-                                               # -w*sum(da^2)/(n*4): 0.7 puts smoothness at ~10% of the alive bonus
-                                               # (~6.8% of return) instead of 1.0%. Single-variable change.
+smoothness_weight = 2.0                        # Second escalation: 0.1 -> 0.7 -> 2.0. The lever works but was
+                                               # under-dosed. 0.1 was a rounding error (-0.0259/step, 1.0% of
+                                               # return) and left RMS action change per joint flat at 1.018 for a
+                                               # whole run, 2-3x beyond the 0.3-0.5 "severe" band in
+                                               # docs/investigations/TREX_STAGE1_LEG_JITTER.md.
+                                               #
+                                               # 0.7 is the first setting that moved that number at all. Measured
+                                               # with compare_run_diagnostics.py across the single-variable pair
+                                               # 20260725_194916 (pre) -> 20260726_191730 (post):
+                                               #   RMS action change / joint   1.018 -> 0.747  (-27%)
+                                               #   policy std (algo_std)       0.959 -> 0.850
+                                               #   tail_contact terminations   39.1% -> 11.5%
+                                               # Still deep in thrash territory, and the legs visibly bounce in
+                                               # trex_ppo_stage1_best.mp4 from the post run.
+                                               #
+                                               # Sized from the penalty formula -w*sum(da^2)/(n*4), which reduces
+                                               # to w*r^2/4 per step at RMS rate r (it reproduces the doc's
+                                               # -0.0255 exactly at w=0.1, r=1.010). At the observed r=0.747,
+                                               # w=0.7 pays only 0.098/step (~98/episode, 3.9% of return) -- the
+                                               # policy absorbed most of the 7x increase by lowering r. w=2.0 pays
+                                               # 0.279/step (~279/episode, ~15% of return) before the policy
+                                               # adapts down, which is a dose that should bind.
+                                               #
+                                               # Not free. The 0.7 run gave up reward and stability for the 27%:
+                                               #   final eval reward       2699.8 -> 2516.9
+                                               #   explained variance      0.748 -> 0.482
+                                               #   fallen terminations     35.2% -> 49.1%
+                                               # Watch explained_variance on the next run -- the value function was
+                                               # already fitting worse at 0.7, and this term is what got bigger.
+                                               # Single-variable change; see min_avg_reward for the gate margin.
 heading_weight = 0.1                           # Small heading reward to prevent spin-to-balance exploits
 gait_symmetry_weight = 0.0                     # Disable: default formula rewards single-foot stance, bad for balance
 height_weight = 1.0                            # Increased from 1.0: stronger signal to maintain pelvis at target 0.90m
@@ -139,8 +159,22 @@ min_avg_reward = 1900.0                 # Raised from 100.0, which could not bin
                                         #    below 1900 gets no collapse protection at all.
                                         # Note the floor itself pays no smoothness penalty (a constant action has
                                         # no action delta), so raising smoothness_weight lowers a real policy's
-                                        # score against a gate calibrated on a statue. At the predicted ~2542 the
-                                        # margin is ~640; re-check this gate if that weight rises much further.
+                                        # score against a gate calibrated on a statue. That asymmetry is now the
+                                        # binding constraint on how far that weight can go, so re-check here on
+                                        # every increase:
+                                        #  * The floor is unchanged at 1900. Re-measured on the merged plant after
+                                        #    smoothness_weight 0.1 -> 0.7 and target_z 0.90 -> 0.9757: still
+                                        #    1800.56 +/- 1267.66 over 40 episodes, identical to the original.
+                                        #    Neither change moves a statue -- a constant action has no action
+                                        #    delta, and zero-action settles at exactly 0.9757 so height_frac
+                                        #    saturates under both targets.
+                                        #  * At w=0.7 a real policy scored 2516.9 (run 20260726_191730), margin
+                                        #    ~617 over the gate.
+                                        #  * At w=2.0 the added tax is ~181/episode at the observed action rate,
+                                        #    so expect ~2340 before the policy adapts downward -- margin ~440.
+                                        # Still comfortable. But the tax scales with w while the floor does not,
+                                        # and a stage-1 miss halts the whole curriculum (see above), so treat
+                                        # ~3.0 as the point where this gate needs lowering rather than re-checking.
 min_avg_episode_length = 750
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
