@@ -67,6 +67,36 @@ Ruled out by direct measurement of the plant, so these need no further work:
 - **Mass distribution.** Pelvis 35 kg (41% of the animal), skull 8.7 kg, thighs
   5.0 kg each. Nothing anomalous.
 
+## Prior art: the raptor
+
+There is **no existing `action_scale` concept anywhere in the repo** — this
+would be the first. The raptor's documented jitter fix was the entropy anchor,
+not action scaling (`TREX_STAGE1_LEG_JITTER.md`: raptor S1 was the only stage
+that annealed `algo_std`, and it did so at the *lowest* smoothness weight,
+0.05).
+
+The raptor plant is, however, better proportioned. Same probe, same settled
+home stance, control at 100 Hz for both:
+
+| | T-Rex | Raptor |
+|---|---|---|
+| animal mass | 85.7 kg | 13.5 kg |
+| knee kp | 1500 | 180 |
+| hip / knee / ankle hold vs force limit | 2.9% / 2.2% / 4.3% | 4.7% / 5.6% / **23.0%** |
+| **mean leg authority ratio** | **22×** | **11×** |
+
+"Authority ratio" is commanded degrees per unit of normalized action divided by
+the degrees actually needed to hold the pose. The T-Rex has twice the raptor's
+over-authority, and its ankle is the starkest case — loaded to 4.3% of its
+force limit against the raptor's 23%.
+
+**But the raptor is not a smoothness success story in absolute terms.** At its
+documented `r = 0.925` and 57.5° per unit of action, the raptor commands ~53°
+of knee travel per step — *more* than the T-Rex's current 31°. The normalized
+metric flatters it. If the T-Rex's flexing is an authority problem, the raptor
+likely has the same one, unexamined, and "match the raptor" is the wrong
+target. Worth reviewing a raptor stage-1 video before assuming otherwise.
+
 ## Options
 
 ### A. Narrow the leg `ctrlrange` in `trex.xml`
@@ -112,17 +142,25 @@ Cap per-step change while preserving reachable range.
 
 Option B, stage 1 only to begin with.
 
-**Sizing is the open question.** Current per-step commanded motion is 31° at
-the knee. A target of roughly 8°/step implies `action_scale ≈ 0.25`, which also
-caps the reachable envelope at ±12.5° of knee travel. Whether that is enough to
-recover from `reset_noise_scale = 0.10` perturbations is *not* established —
-picking the number off the per-step figure alone would be guessing.
+**Sizing is the open question**, but the data already sets a floor. A policy
+whose RMS action change per joint is `r` must sweep a commanded envelope of at
+least `r` in normalized units — it cannot move further per step than the range
+it visits. At `r = 0.628`, that is **at least 31° peak-to-peak of knee travel**
+(±15.7°), and possibly much more.
 
-**Pre-work that settles it:** roll out
-`20260727_130726/stage1/models/robust_best_model.zip` and record the actual
-per-joint excursion envelope the trained policy uses. If it only ever visits
-±15° of knee travel, `action_scale = 0.3` costs nothing. Needs SB3, so it runs
-in Colab, not in a sandbox. This is the one thing to do before writing any code.
+So `action_scale = 0.25` — which caps the envelope at 25° peak-to-peak — sits
+*below* what the current policy demonstrably uses, and would force a
+qualitatively different policy rather than a smoother version of this one. That
+may still be the right answer, but it is a bigger intervention than it looks.
+**0.4–0.5 is the defensible starting range** pending measurement.
+
+**Pre-work that settles it:** run
+`environments/shared/scripts/joint_excursion_report.py trex 1 <best_model.zip>`
+against `20260727_130726/stage1`. It reports commanded and achieved envelope
+per joint in degrees, against the 31° analytic floor. If the policy sweeps 80°,
+scaling to 0.5 leaves real headroom; if it sits at the floor, the envelope is
+already minimal and `action_scale` will buy less than hoped. Needs SB3, so it
+runs in Colab. This is the one thing to do before writing any code.
 
 ## Blast radius
 
