@@ -23,8 +23,9 @@ Three findings, one fixed.
    **2404.73 ± 350.64**. Conditional on standing, six million PPO steps produce something
    **12% worse per step** than `np.zeros(21)`. The stage clears its 1840 gate on one thing
    only: the statue falls out of 43% of episodes and the policy mostly does not. That is a
-   real skill, but it is the only one the reward can distinguish, and the reward's own
-   argmax is "emit zeros and get lucky".
+   real skill, but it is close to the only one the reward can distinguish — **87% of what
+   the trained policy earns is `alive_bonus` + a saturated `reward_height`**, both of which
+   any policy that merely stands collects in full.
    Proposed, not fixed — reward weights are out of bounds for this pass.
 2. **The SB3 and MJX paths terminate T-Rex stages 2 and 3 at different pitch angles**
    (0.62 vs 0.50), while `environments/trex/mjx_config.py:45` states in a comment that
@@ -208,11 +209,17 @@ one-way doors second.
 
 ### F1 — Stage 1's reward pays for existence, and a trained policy scores below a statue that stands. **Confirmed.** *(Proposed — reward weights are excluded from this pass.)*
 
-**Claim.** Of the reward available in T-Rex stage 1, 94.9% is `alive_bonus` +
-`reward_height`, both of which a constant action collects in full. Every term that could
-distinguish a *good* stance from a *passive* one is a small negative correction. The
-consequence is that the reward's argmax over the reachable policy space is
-"emit zeros and do not fall", and the trained policies land strictly below that.
+**Claim.** Of the reward available in T-Rex stage 1, 94.9% (statue) / 87% (trained policy) is
+`alive_bonus` + `reward_height`, both of which any policy that merely stands collects in full.
+Every term that could distinguish a *good* stance from a *passive* one is a small correction on
+top. The reward therefore has very little dynamic range in which to rank stance quality, and
+what range it has is spent penalising motion rather than rewarding balance.
+
+**What this claim is NOT.** The zero action is *not* the argmax. Its expected return is
+1743.73 against the trained policy's 2489.65, so the reward does pay for not falling and
+training does climb it. An earlier draft of this document said the argmax was "emit zeros and
+get lucky"; that was wrong and is corrected here. The defect is dynamic range, not a misplaced
+optimum: ~87–95% of the return is invariant to *how* the plant stands.
 
 **Evidence — reward decomposition, zero action, current plant and shipped stage-1 config.**
 
@@ -274,8 +281,43 @@ Best Model Evaluation (30 episodes)
 
 The trained policy beats the *unconditional* statue — which is what the 1840 gate compares
 against — by converting falls into survivals. Per surviving step it earns **12% less** than
-doing nothing, because it pays `smoothness_weight = 2.0`, `energy_penalty_weight = 0.075`,
-`spin`, `speed` and `posture` that a constant action does not.
+doing nothing.
+
+**Where the 12% goes.** Running the same decomposition on the checkpoint (30 episodes, seed
+3042, all reaching the horizon) locates the deficit term by term, and it is **not** mainly the
+action taxes an earlier draft of this document blamed:
+
+| per step | statue | trained | delta |
+|---|---|---|---|
+| `reward_alive` | 1.7500 | 1.7500 | 0 |
+| `reward_height` | 0.9958 | 0.9970 | +0.001 |
+| **`reward_drift`** | −0.0004 | **−0.1339** | **−0.134** |
+| `reward_speed` | −0.0064 | −0.0709 | −0.065 |
+| `reward_energy` | 0.0000 | −0.0654 | −0.065 |
+| `reward_heading` | +0.0994 | +0.0788 | −0.021 |
+| `reward_smoothness` | 0.0000 | −0.0125 | −0.013 |
+| tail + spin + posture + nosedive | −0.0393 | −0.0535 | −0.014 |
+| **total** | **2.799** | **2.490** | **−0.310** |
+
+`reward_drift` alone is **43% of the gap** and `reward_speed` another 21%: the policy has
+learned to stand without falling, but it *shuffles* — mean forward velocity 0.2301 m/s against
+the statue's 0.0169, with `RMS action change/joint = 0.1582`. Energy and smoothness together
+are only 25% of the deficit, and smoothness — the lever escalated three times this month,
+0.1 → 0.7 → 2.0 — is the smallest of the four at 4%.
+
+Two corrections to earlier drafts follow from this table, both of which change the diagnosis
+rather than the conclusion:
+
+* The deficit is dominated by **drift and speed**, not by `smoothness_weight` and
+  `energy_penalty_weight`. The policy is being penalised for moving, not merely for acting.
+* It stands **taller** than the statue (pelvis 0.9688 ± 0.0291 against 0.9282 ± 0.0243), so
+  it is not sagging — `reward_height` is saturated for both, which is the point of F1.
+
+Note the ceiling this implies: a policy that cut drift and speed all the way back to the
+statue's rates would gain 0.198/step, scoring **2688** — still **147 below** the standing
+statue, because energy, smoothness, heading, tail and spin remain. **Fixing the entire
+observed defect in the learned behaviour would still not reach the do-nothing ceiling.** That
+is the dynamic-range problem stated as a number.
 
 **Falsification attempt.** Four ways this could have been wrong, all checked:
 
