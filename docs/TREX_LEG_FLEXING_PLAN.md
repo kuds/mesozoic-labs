@@ -400,6 +400,108 @@ silently — that test failing is the system working.
    before**; a materially lower figure is the result the geometric argument
    predicts, and a figure near 97° falsifies it.
 
+## Validation results (run `20260728_122755`, 2026-07-28)
+
+Stage 1 on the corrected plant, `repository_commit` 081a202, `physics_revision`
+5 / `policy_interface_revision` 7, seed 42, `smoothness_weight = 2.0`.
+6,004,736 steps in 3h 37m. **Passed**: best eval 2423.83 ± 186.95 at 5.95M,
+best episode length 980.2, against gates of 1840 / 750 with 3 required
+consecutive. The curriculum advanced to stage 2 on its own.
+
+### The falsifier: knee p5–p95 collapsed
+
+`joint_excursion_report.py`, deterministic, 10 episodes — the like-for-like
+comparison this section asked for:
+
+| joint | before (rev 4/6) | after (rev 5/7) |
+|---|---|---|
+| `r_knee` p5–p95 | 97.1° | **15.6°** |
+| `l_knee` p5–p95 | 100.0° | **0.0°** |
+| `r_ankle` p5–p95 | 100.0° | 26.4° |
+
+The geometric argument holds. Two joints did **not** settle: `l_ankle` still
+spans the full 100° band at 18.8°/step, and `r_toe_d3` spans 69.6° at
+12.2°/step.
+
+### Reward did not clear the old bar, and the failure mode moved
+
+`compare_run_diagnostics.py`, first-20% → last-20% windows:
+
+```
+RMS action change / joint / step    0.608 -> 0.516      (-15%)
+pelvis height (m)                   1.009 -> 0.992
+tilt (rad)                          0.075 -> 0.069
+
+  nosedive          10.5%  ->   1.7%
+  fallen            49.3%  ->  24.3%
+  tail_contact      19.4%  ->  59.0%
+```
+
+Nosedives are effectively gone and forward falls halved — the pitch-axis
+objective was met. Two caveats against the bar this section set:
+
+- **2423.83 is below the 2654.7 bar**, though the reward constants moved with
+  the plant so the honest comparison is against each plant's own zero-action
+  floor: +854 before (2654.66 vs 1800.56) against **+680** after (2423.83 vs
+  1743.73).
+- `r = 0.516` is still inside the 0.3–0.5 "severe" band that
+  `compare_run_diagnostics.py` defines. The stance fix improved jitter; it did
+  not solve it.
+
+Optimizer diagnostics are essentially unchanged (policy std 0.771 → 0.783,
+explained variance 0.638 → 0.617, approx KL 0.011 → 0.010), which is the
+control that says the plant changed and the learning dynamics did not.
+
+### The policy solves stage 1 by bracing, then doing the splits
+
+`action_bound_report.py` on the best checkpoint: **80.7% of action components
+sit at |a| ≥ 0.99**. Nineteen of 21 actuators are pinned at a control limit
+most of the time (8 above 99%); only the hip pitches modulate (`r_hip_pitch`
+0.1%, `l_hip_pitch` 11.0% saturated).
+
+That reframes the knee result above — the knee band collapsed because the knees
+are *pinned* (89.1% / 98.2% saturated), not because the policy learned fine
+control.
+
+It also produces a visible, progressively widening **split stance**, measured
+over 5 deterministic episodes (feet expressed in the pelvis frame, binned by
+decile of episode):
+
+| | first 10% | last 10% | corr. with episode phase |
+|---|---|---|---|
+| foot lateral separation | 0.520 m | **0.804 m** | **+0.822** |
+| foot fore-aft separation | 0.236 m | 0.314 m | −0.163 |
+| `hip_roll` L/R difference | −20.1° | **−44.2°** | — |
+| pelvis height | 1.005 m | 0.940 m | — |
+
+The split is **lateral, not fore-aft** — the near-zero fore-aft correlation
+rules out a lunge. Both `hip_roll` actuators are driven to opposite extremes of
+their ±25° range (99.4% / 99.5% saturated), splaying each leg ~22° outward.
+
+The mechanism appears to be the height term: pelvis height falls 1.005 → 0.940
+as the splay grows (correlation between lateral separation and pelvis height
+**−0.707**), converging on `target_z = 0.9260`. With the knees pinned, hip
+abduction is the only height lever the policy has left, so **it does the splits
+to get shorter**.
+
+**Not shown:** any link from the splay to the 59% `tail_contact` terminations.
+All five sampled episodes ran the full 1000 steps, and the lowest tail point
+fell only 0.526 → 0.493 m with a weak correlation (−0.170). The tail-contact
+failures live in episodes the deterministic best-model rollout does not reach,
+so that connection is unproven and needs the failing episodes to test.
+
+### Follow-ups this opens
+
+1. **`tail_contact` at 59%** is the new dominant failure and is a plant-geometry
+   question, not a reward-tuning one.
+2. **`hip_roll` ±25° per leg may be too permissive.** Whether a tyrannosaur
+   could abduct the femur ~22° needs a citation before anything is changed —
+   the range was never derived from a published figure the way the knee was.
+   Tightening it is a `physics_revision` bump; a stance-width or abduction
+   penalty is a reward change and costs no checkpoint.
+3. **Watch stage 2's `forward_vel`.** A policy pinned at its control limits on
+   19 of 21 actuators has little headroom for the 2.0 m/s gate.
+
 ## Risks
 
 - **The stance fix could cost reward.** The current policy is well adapted to

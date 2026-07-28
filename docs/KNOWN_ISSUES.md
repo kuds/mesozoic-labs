@@ -48,6 +48,71 @@ tolerance) remains the standing recommendation for the divergences above.
 
 ## Training / RL
 
+- **HIGH** — **the T-Rex satisfies the stage-1 height reward by doing the
+  splits.** Measured on the best checkpoint of run `20260728_122755` (plant
+  rev 5/7, the corrected stance), 5 deterministic episodes, feet expressed in
+  the pelvis frame and binned by decile of episode:
+
+  | | first 10% | last 10% | corr. with episode phase |
+  |---|---|---|---|
+  | foot lateral separation | 0.520 m | **0.804 m** | **+0.822** |
+  | foot fore-aft separation | 0.236 m | 0.314 m | −0.163 |
+  | `hip_roll` L/R difference | −20.1° | **−44.2°** | — |
+  | pelvis height | 1.005 m | 0.940 m | — |
+
+  The stance splays **laterally** and the widening is monotonic across the
+  episode; the near-zero fore-aft correlation rules out a lunge. Both
+  `hip_roll` actuators are driven to opposite extremes of their ±25° range
+  (99.4% / 99.5% of steps at |a| ≥ 0.99), abducting each leg ~22°.
+
+  The driver looks like `reward_height`. Pelvis height falls 1.005 → 0.940 m as
+  the splay grows — correlation between lateral separation and pelvis height
+  **−0.707** — converging on `target_z = 0.9260`. The knees are pinned (89.1% /
+  98.2% saturated), so hip abduction is the only remaining height lever, and
+  the policy uses it: it gets shorter by getting wider.
+
+  This is reward exploitation through a joint range that was never derived from
+  a published figure the way the knee angle was (`r_hip_roll` / `l_hip_roll`,
+  `range="-25 25"`, `trex.xml`). Two independent fixes, with very different
+  costs: tightening the range is a **plant change** and bumps
+  `physics_revision`, invalidating checkpoints; a stance-width or
+  hip-abduction penalty is a **reward change** and costs no checkpoint. Neither
+  should be attempted without first checking what femoral abduction a
+  tyrannosaur actually permits — the current ±25° is unsourced.
+
+  **Not shown:** any link to the `tail_contact` terminations below. All five
+  sampled episodes survived the full 1000 steps and the lowest tail point fell
+  only 0.526 → 0.493 m (correlation −0.170). The failures are in episodes a
+  deterministic best-model rollout never reaches.
+  (2026-07 T-Rex stance validation)
+
+- **MEDIUM** — **`tail_contact` is now the dominant T-Rex stage-1 failure.**
+  The 2026-07 stance correction did what it was designed to do on the pitch
+  axis but moved the failure mode, comparing the last 20% of training on rev
+  4/6 against rev 5/7:
+
+  | termination | before | after |
+  |---|---|---|
+  | `nosedive` | 10.5% | **1.7%** |
+  | `fallen` | 49.3% | **24.3%** |
+  | `head_contact` | 17.4% | 11.3% |
+  | `tail_contact` | 19.4% | **59.0%** |
+
+  Nearly two thirds of terminations are now the tail touching down. The lower
+  stance (`target_z` 0.9757 → 0.9260) is the obvious suspect but the mechanism
+  is not established; it is a plant-geometry question rather than a
+  reward-tuning one. (2026-07 T-Rex stance validation)
+
+- **LOW** — **`action_bound_report.py --model` reports post-clip statistics as
+  if they were pre-clip.** In `--model` mode the script records the output of
+  `model.predict()`, which SB3 has already clipped (`policies.py:379`), so
+  `abs max` can never exceed 1.0 and `|a| > 1` is always 0.0%. Those two lines
+  are structural artifacts in that mode and must not be read as measurements;
+  the saturation share is computed from the same array and is unaffected.
+  Probe mode (`--model` omitted) samples the Gaussian directly and is correct.
+  Fix: read `model.policy.get_distribution(obs).distribution.mean` for the
+  unclipped action. (2026-07, found while validating the stance correction)
+
 - **MEDIUM** — **the policy saturates its action bound, and the
   `diagnostics/action_*` family mixes pre-clip and post-clip quantities.**
   Measured on T-Rex stage-1 run `20260727_130726` (PPO, 6.0M steps), from its
