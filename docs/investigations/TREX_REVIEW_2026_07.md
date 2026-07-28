@@ -35,6 +35,14 @@ Three findings, one fixed.
    robot could accept as-is. The observation vector is a different story: **7 of its 61
    elements are privileged**, and the layout is the single most expensive thing in the
    repo to change later.
+4. **Ablating the trained checkpoint says those privileged slots are load-bearing — but the
+   worst of them is free to fix.** Removing all seven takes stage-1 return *negative* and
+   survival to 0%. Removing the three world-frame root-velocity slots costs **−71.5%**.
+   Rotating those same three into the **body frame** costs **+4.1%** — nothing — even though
+   that rotation moves the policy's input 69–92% as far as deleting it does. Body-frame root
+   velocity is what a real state estimator produces, so the one genuinely unmeasurable group
+   in the observation can be fixed at zero policy cost. That is NS-6, and it is now the
+   cheapest item on the list rather than a blocked one.
 
 ---
 
@@ -529,9 +537,87 @@ species, not just T-Rex, and invalidates every checkpoint.
 * **Cost later:** the same bump, plus discarding every stage-2 and stage-3 curriculum result
   built on the current layout, plus re-running the ~13 h/run pipeline for each.
 
-**What I am not claiming.** Whether the trained policies actually *depend* on slots 49–51 is
-**Unknown** — see OQ-1. The finding is that the door exists and is currently cheap, not that
-the policy is already through it.
+**Measured dependence (was OQ-1, now resolved).** The checkpoint from `20260728_122755`
+(the run trained on this exact commit) was downloaded and re-evaluated with each slice
+ablated. 30 episodes, seeds 3042–3071, deterministic, VecNormalize loaded:
+
+```
+$ python environments/shared/scripts/observation_ablation_report.py trex 1 \
+      --model .../20260728_122755/stage1/models/robust_best_model.zip
+
+  condition                              return             delta    ep len   full-hz
+  baseline                     2489.65 +/- 107.67                --    1000.0     100%
+  root_linvel -> mean           709.97 +/- 998.34   -1779.68 (-71.5%)     808.3      37%
+  root_linvel -> zero (raw)     810.50 +/- 873.05   -1679.15 (-67.4%)     799.6      33%
+  root_linvel -> body frame    2591.81 +/- 50.24     +102.16 ( +4.1%)    1000.0     100%
+  target_dir -> mean           2142.54 +/- 445.09    -347.11 (-13.9%)     886.8      70%
+  target_dir -> zero (raw)       55.76 +/- 76.93    -2433.89 (-97.8%)      66.3       0%
+  target_dir -> body frame      172.57 +/- 119.07   -2317.08 (-93.1%)     110.5       0%
+  target_dist -> mean          2290.41 +/- 499.77    -199.24 ( -8.0%)     939.2      90%
+  target_dist -> zero (raw)     167.56 +/- 457.63   -2322.09 (-93.3%)     128.2       7%
+  all privileged -> mean       -150.96 +/- 873.70   -2640.61 (-106.1%)     676.4       0%
+```
+
+Three results, in order of how much they change the decision:
+
+1. **The door is load-bearing.** Removing all seven privileged slots takes the return
+   *negative* and full-horizon survival to 0%, with 25 of 30 episodes ending in
+   `head_contact`. This policy does not stand up without simulator state.
+2. **The strictly-unmeasurable group needs its information, not its frame.** Mean-substituting
+   `root_linvel` costs **−71.5%** and drops survival 100% → 37%. Rotating the same three
+   numbers into the **body frame** costs nothing: **+4.1%**, still 100% full-horizon, and with
+   a *tighter* spread than baseline (±50.24 against ±107.67). Body-frame root velocity is what
+   an on-board state estimator produces, so slots 49–51 can move from **privileged** to
+   **derivable** with no retraining at all. That is a materially cheaper door than F5 assumed.
+3. **The prey slots are cheap to delete and expensive to re-frame.** Deleting the information
+   costs only −13.9% (direction) and −8.0% (distance) — stage 1 sets `forward_vel_weight = 0`
+   and both bite weights to 0, so the prey enters only through `heading_weight = 0.1`. But
+   rotating them into the body frame costs −93.1%. See the falsification note for why those
+   two numbers are not in conflict.
+
+**Falsification attempt.** The +4.1% is the load-bearing number, and the obvious objection is
+that the rotation was a no-op — the T-Rex starts at the keyframe's identity quaternion and SB3
+adds no yaw noise at reset, so if the animal never tilts, world and body frames coincide and
+the policy was never actually challenged. **Measured, and disproved.** Perturbation injected
+by each intervention along a baseline rollout, in normalised (post-VecNormalize) units, which
+is what the policy sees:
+
+```
+  intervention                mean |d|   p95 |d|   max |d|
+  root_linvel:mean               0.594     1.150     3.371
+  root_linvel:zero               0.606     1.145     3.326
+  root_linvel:body               0.409     1.061     1.502     <- not a no-op
+  target_dir:mean                1.346     3.612     5.990
+  target_dir:zero                9.602    10.705    10.770
+  target_dir:body                8.091    10.697    11.495
+  target_dist:mean               0.752     1.757     2.012
+  target_dist:zero               7.737     9.084     9.133
+```
+
+The body-frame rotation of `root_linvel` moves the input **69% as far as full removal at the
+mean and 92% as far at p95**. The policy absorbs a perturbation of that size when it preserves
+the information and collapses when it does not — which is the definition of depending on the
+quantity rather than the frame. The finding survived.
+
+The same table explains the apparent contradiction in result 3: the prey direction is a unit
+vector whose components barely vary across an episode, so its running variance is tiny and a
+small absolute rotation becomes an **8.1-sigma** input excursion against the direction slice's
+own scale (clipped at ±10). `target_dir -> body frame` collapsing is a statement about
+normalisation scale, not about the information being precious — which is exactly why the
+mean-substitution row, at −13.9%, is the one to quote.
+
+**Caveat on the baseline.** 2489.65 ± 107.67 does not exactly reproduce the run's recorded
+`Best Model Evaluation` of 2404.73 ± 350.64 at 965.9 steps. The harness seeds per episode
+(`seed + index`, the convention `zero_action_baseline.py:92` already uses) while SB3's
+`evaluate_policy` seeds the vector env once and runs 30 episodes from it, so the two draw
+different reset sequences. The mean sits 3.5% high and the spread much tighter. Every
+condition above shares one seed sequence, so the deltas are unaffected; only the absolute
+baseline is protocol-dependent.
+
+**This also sharpens F1.** At **100% full-horizon survival** the trained policy scores
+2489.65, against the standing statue's 2834.95 — the policy gives up 345 points, −12.2%,
+matching the per-step figure in F1 exactly, now measured at identical survival rather than
+inferred from it.
 
 ---
 
@@ -672,15 +758,13 @@ Recorded so the next review does not re-open them.
 
 ## 4. Open questions
 
-**OQ-1 — Does the trained policy actually use the privileged observation slots 49–51?**
-F5 establishes that world-frame root velocity is *supplied* and cannot be reconstructed from
-the rest of the vector. Whether the policy leans on it is unmeasured.
-*What would resolve it:* load `20260728_122755/stage1/models/robust_best_model.zip` and
-re-evaluate with slots 49–51 zeroed (and separately, replaced by their body-frame rotation),
-30 episodes at seed 3042. A return drop of a few percent means the door is cheap to close; a
-collapse means the policy is built on ground truth. I could not run this here: the checkpoint
-is 4 MB and the only Drive access available returns file contents inline, which would have
-meant pulling the weights through the review context. It needs a direct download.
+**OQ-1 — RESOLVED.** *Does the trained policy actually use the privileged observation slots?*
+Yes, heavily — and the frame turns out not to matter for the group that needed it most. Full
+result, falsification attempt and caveats are in F5; the tool is
+`environments/shared/scripts/observation_ablation_report.py`. Short version: all seven
+privileged slots removed → return goes negative and survival to 0%; the three world-frame
+root-velocity slots removed → −71.5%; the same three rotated into the body frame → +4.1%,
+i.e. free.
 
 **OQ-2 — Is the stage-2 gait at 4.4–6.4 m/s a gait, or a ballistic artefact?**
 `20260726_191730` reaches 6.36 m/s and `20260727_130726` 4.36 m/s, both at full horizon,
@@ -763,14 +847,27 @@ brachiosaurus, velociraptor and dibothrosuchus.
 *Measurement:* regenerate `plant_manifest.generated.json` after a no-op edit to
 `build_mjx_observation` and confirm only T-Rex's digest moves.
 
-**NS-6 — If the observation layout is going to change, change it now. (F5.)**
-*Change:* rotate slots 57–59 into the pelvis frame and drop or body-frame slots 49–51.
-*Expected:* a fully measurable/derivable observation, and the strongest possible baseline
-statement for the next review.
-*Measurement:* run OQ-1's ablation first. If zeroing slots 49–51 costs little, this is nearly
-free; if it costs a lot, the door is already load-bearing and the decision needs your call.
+**NS-6 — Rotate slots 49–51 into the body frame. Cheapest item on this list. (F5, OQ-1.)**
+*Change:* `environments/trex/envs/trex_env.py:313` and `environments/shared/obs_functions.py:113`
+— rotate `qvel[:3]` by the transpose of the pelvis rotation before concatenating.
+*Expected:* the last strictly-unmeasurable slots in the T-Rex observation become body-frame
+root velocity, which is what an on-board state estimator produces. **The existing checkpoint
+already tolerates this: +4.1% with 100% full-horizon survival, measured (F5).** So this is a
+provenance improvement that costs no policy performance, and it is a `policy_interface_revision`
+bump the repo is otherwise going to spend anyway.
+*Measurement:* re-run `observation_ablation_report.py` on the retrained policy; the
+`root_linvel -> body frame` row should collapse to ~0% delta (it becomes the identity), and
+`root_linvel -> mean` should still cost heavily — confirming the information is intact.
 *Cost note:* T-Rex checkpoints are already invalid as of `5a93c42`, and NS-1 will invalidate
-the reward anyway. Doing NS-6 in the same re-baseline costs one bump instead of two.
+the reward anyway. Doing this in the same re-baseline costs one bump instead of two.
+*Caveat:* per F6 this bumps `policy_interface_revision` for the other three species too. Doing
+NS-5 first makes it free for them.
+
+**NS-6b — Leave the four prey slots alone for now.** Same finding, opposite conclusion:
+deleting them costs only 8–14%, but re-framing them into body coordinates costs −93% because
+their normalised variance is tiny (F5). There is no cheap version of this change, and stage 1
+barely uses them. Revisit when stage 2/3 provenance matters — those stages weight the prey far
+more heavily, so the 8–14% figure does not carry over and would need re-measuring per stage.
 
 **NS-7 — Refresh `TestHeightTargetTracksStance` to the shipped band, and fix its docstring. (F7.)**
 *Change:* `environments/trex/tests/test_trex_env.py:316,332,355,384` — drop the hardcoded
@@ -797,6 +894,7 @@ because the gate was 100.0 and nothing compared against the floor.
 | finding | change | test |
 |---|---|---|
 | **F2** | Register `nosedive_termination_threshold = 0.62` for T-Rex in `environments/trex/mjx_config.py`, and correct the stale comment that asserted it was already in force | New case in `test_species_integration.py`'s SB3/MJX parity class; verified to fail before the fix |
+| **F5 / OQ-1** | Added `environments/shared/scripts/observation_ablation_report.py` — the diagnostic that resolved OQ-1. Not a fix; it is the tool the finding needed, in the same family as `zero_action_baseline.py` and `action_bound_report.py`, so the numbers in F5 are reproducible rather than one-off | No behaviour change; lint and both suites green |
 
 **Deliberately not fixed, and why:**
 
@@ -815,10 +913,34 @@ because the gate was 100.0 and nothing compared against the floor.
 
 ## Appendix — reproducing the measurements
 
-Environment: `pip install -e .` plus `torch`, `stable-baselines3[extra]`, `pytest`, `scipy`,
-`matplotlib` installed separately. `pip install -e ".[train]"` fails in a clean container —
-`cloudml-hypertune` has no wheel and its `setup.py` build errors — which is worth fixing
-independently of this review.
+Environment: `pip install -e ".[train]"`.
+
+On a first attempt in a clean container this failed while building `cloudml-hypertune`, and
+an earlier draft of this document recorded that as the package being unbuildable. **That was
+wrong, and the correction matters because the obvious response — dropping the dependency —
+would have been the wrong fix.** `cloudml-hypertune` is on PyPI (`0.1.0.dev6`, sdist only,
+no wheel) and is a real dependency: `environments/shared/train_base.py:838` imports it to
+report `best_mean_reward` to Vertex AI hyperparameter tuning, which is the mechanism
+`website/docs/training/sweeps.md:405-412` documents for picking the best sweep trial. The
+import sits behind `try/except ImportError` with a "not installed" log line
+(`train_base.py:851`), so removing it would not fail loudly — sweeps would just silently
+stop reporting their objective.
+
+The actual failure is environmental:
+
+```
+File "/usr/lib/python3/dist-packages/setuptools/command/install_lib.py", line 17,
+    in finalize_options
+  self.set_undefined_options('install', ('install_layout', 'install_layout'))
+AttributeError: install_layout. Did you mean: 'install_platlib'?
+```
+
+That is Debian's *patched* setuptools (68.1.2, in `/usr/lib/python3/dist-packages`), whose
+`install_lib` references a Debian-only `install_layout` option that plain `distutils` does
+not define — it breaks legacy `setup.py`-based sdists generally, not this package. Once a
+pip-installed setuptools shadowed the system one in `/usr/local/lib`,
+`pip install -e ".[train]"` succeeded and `import hypertune` works. **Workaround:
+`pip install -U setuptools` before installing the extra.** Nothing in the repo needs changing.
 
 Two toolchain notes found while running the pre-commit gate on this tree (`081a2020`),
 neither caused by this review and neither breaking CI today:
@@ -847,9 +969,24 @@ python environments/shared/scripts/action_bound_report.py trex 1 --std 1.0 \
 #   |a| > 1     32.3% of components
 #   |a| >= 0.99 32.7%
 
+# Observation-dependence ablation on a trained checkpoint  (§F5, resolves OQ-1)
+python environments/shared/scripts/observation_ablation_report.py trex 1 \
+    --model <run>/stage1/models/robust_best_model.zip --episodes 30 --seed 3042
+#   root_linvel -> mean        -71.5%
+#   root_linvel -> body frame   +4.1%
+#   all privileged -> mean    -106.1%
+
 # T-Rex suite
 python -m pytest environments/trex/tests -q          # 77 passed
 ```
+
+The checkpoint used for F5 is
+`MyDrive/mesozoic-labs/logs/trex/ppo/20260728_122755/stage1/models/robust_best_model.zip`
+(4,023,328 bytes, `sha256:7e4255aa0e496fd1713de79069eafc5827ab8892bd7b132f0db873f5aff98b73`)
+with its `robust_best_model_vecnorm.pkl` sidecar (4,758 bytes). The sidecar's embedded
+`_mesozoic_plant_identity` reads `physics_revision 5 / policy_interface_revision 7`, which is
+the plant at this commit — so the ablation ran against the plant it was trained on, with no
+compatibility shim.
 
 The three ad-hoc scripts used above — the per-component reward decomposition, the
 observation-provenance enumeration, and the SB3/MJX threshold probe — are reproduced inline
