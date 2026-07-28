@@ -42,12 +42,15 @@ register_species_mjx(
     # Matches the Gymnasium env (the BaseDinoEnv default), which is the value
     # the evidence supports.  max_tilt_angle is the absolute backstop; nosedive
     # is the per-stage tunable pitch gate.  Stages 2 and 3 leave
-    # nosedive_termination_threshold at the 0.62 default, which allows 0.734 rad
-    # of forward pitch -- so a 0.700 cap would terminate first and silently
-    # override that calibration in exactly the stages whose configs ask for a
-    # head-forward running posture.  It also normalises the posture penalty as
-    # (tilt / max_tilt_angle)**2, and posture_weight = 1.5 is a swept constant
-    # shared by all four species at 1.047.
+    # nosedive_termination_threshold at the 0.62 default, which allows 0.703 rad
+    # of forward pitch (asin(sin(0.027) + 0.62); it was 0.734 before the
+    # theropod stance moved natural_pitch 0.05 -> 0.027) -- so a 0.700 cap would
+    # terminate first and silently override that calibration in exactly the
+    # stages whose configs ask for a head-forward running posture.  It also
+    # normalises the posture penalty as (tilt / max_tilt_angle)**2, and
+    # posture_weight = 1.5 is a swept constant shared by all four species
+    # at 1.047.  The 0.62 the paragraph above relies on is only true because
+    # this registration now declares it -- see the reward_weights block.
     max_tilt_angle=1.047,
     sensor_foot_indices=(_SENSOR_R_FOOT, _SENSOR_L_FOOT),
     sensor_foot_aux_indices=(_SENSOR_R_FOOT_DIGITS, _SENSOR_L_FOOT_DIGITS),
@@ -92,5 +95,14 @@ register_species_mjx(
         "tail_stability_weight": 0.05,
         "smoothness_weight": 0.05,
         "bite_bonus": 10.0,
+        # Not a weight: the per-stage pitch gate mjx_env reads out of this
+        # dict.  Only stage 1 sets it in TOML, and without an entry here the
+        # MJX path fell back to mjx_env's generic 0.5 while the Gymnasium env
+        # used TRexEnv.__init__'s 0.62 -- 8.5 deg stricter, in exactly the two
+        # stages whose configs ask for a head-forward running posture.
+        # Registry weights merge first and TOML overlays them, so stage 1's
+        # calibrated 0.493 still wins.  Must track the SB3 default; pinned by
+        # TestSB3MJXEnvelopeParity.
+        "nosedive_termination_threshold": 0.62,
     },
 )
