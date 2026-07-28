@@ -319,6 +319,43 @@ reproduces the claim already recorded in
 `environments/shared/scripts/zero_action_baseline.py:5-9`; it is independent
 confirmation of an existing diagnosis, not a new one.
 
+**The same measurement across all four species (added after the review, on request).**
+This is a floor measurement using the shared diagnostic, **not an audit** of the other three
+species — I did not read their envs, plants or reward code, and nothing below should be taken
+as a claim about why their numbers are what they are. Stage 1, 40 episodes, seed 3042:
+
+```
+species             reward  mean-std  standing  full-hz     gate  verdict
+-------------------------------------------------------------------------
+velociraptor        1704.9    1445.8    1746.4     98%      100  FAILS — a statue clears this gate
+brachiosaurus        108.2      47.4         —      0%      100  FAILS — a statue clears this gate
+dibothrosuchus      1702.0     485.4    2594.4     65%      100  FAILS — a statue clears this gate
+trex                1743.7     468.2    2835.0     57%     1840  WEAK — binds only against a falling statue
+```
+
+(Brachiosaurus's `—` in the standing column means its statue never reached the horizon, so
+there is no standing floor to compare against. Its verdict is still `FAILS` because the
+gate check fires first: 100.0 is below even its falling floor of 108.2.)
+
+Two things follow, and they change the shape of the problem:
+
+* **T-Rex is the only species whose stage-1 gate binds at all**, and only because it was
+  raised from 100.0 to 1840 during this review window (`121822f`, `5a93c42`). The other three
+  still sit at `min_avg_reward = 100.0`, which their own do-nothing policies clear by
+  17×, 1.1× and 17× respectively. The gate-raising work done for T-Rex this week is the fix;
+  it has not been propagated.
+* **Velociraptor's statue reaches the horizon in 98% of episodes.** That is the condition
+  `zero_action_baseline.py:16-19` warns about from the other direction — at that survival rate
+  there is almost nothing left for a policy to earn, which is the same reason T-Rex's
+  `reset_noise_scale` was moved 0.05 → 0.10 (`d6f44c1`). Velociraptor stage 1 may be
+  measuring even less than T-Rex stage 1 does.
+* **Brachiosaurus never survives a full episode under zero action** (0% full-horizon,
+  scoring 108.2). A plant that falls over under its own home controller is a different problem
+  from a weak gate, and a gate of 100.0 against a floor of 108.2 means a *falling* statue
+  clears it. This is consistent with the brachiosaurus stance issue already flagged in
+  `environments/trex/tests/test_trex_env.py:311-312` ("its target is 1.2 m against a settled
+  1.078 m"), but I did not investigate it and am not claiming that is the cause.
+
 **Why this is a finding and not a tuning preference.** The objective for this review is
 whether the stage gate reflects the intended behaviour. `stage1_balance.toml:141-200`
 argues at length that raising the gate to 1840 makes it bind, and it does — against a
@@ -815,13 +852,17 @@ table. Success is the trained per-step return exceeding the standing statue's, o
 seed family. Until that inverts, stage 1 is not measuring balance.
 *Note:* this makes future runs incomparable with §2. Do it once, deliberately, and re-baseline.
 
-**NS-2 — Re-derive `min_avg_reward` against the *standing* floor, not the falling one.**
-*Change:* `stage1_balance.toml:141`. The current 1840 is +5.5% over the all-episode
-zero-action mean (1743.73). The standing-statue score is 2834.95.
-*Expected:* a gate that a statue cannot clear even when it survives.
-*Measurement:* the gate must sit above the full-horizon zero-action return under the NS-1
-reward, and the cohort-C run must still clear it. Do NS-1 first — raising the gate against
-today's reward would just fail every run.
+**NS-2 — Re-derive `min_avg_reward` against the *standing* floor, not the falling one —
+for all four species, not just T-Rex.**
+*Change:* `configs/*/stage1_balance.toml` `min_avg_reward`. T-Rex's 1840 is +5.5% over the
+all-episode zero-action mean (1743.73); the standing-statue score is 2834.95. The other three
+are still at the default 100.0, which their own statues clear by 17×, 1.1× and 17×.
+*Expected:* a gate that a statue cannot clear even when it survives, on every species.
+*Measurement:* the §3b pre-flight cell should report `OK` for all four. Do NS-1 first —
+raising the gate against today's reward would just fail every run.
+*Note:* this is the single highest-leverage item on the list now that the floor is measured
+across species. Three of four gates currently cannot fail, so three of four stage-1 results
+carry no information.
 
 **NS-3 — Decide the alive-bonus semantics once, and pin it with a test. (F3.)**
 *Change:* either scale SB3's `_reward_alive` by `height_frac` to match `mjx_env.py:602-613`,
@@ -880,10 +921,23 @@ more heavily, so the 8–14% figure does not carry over and would need re-measur
 *Expected:* no change today; removes a silent failure mode if SB3 ever gains XY reset noise.
 *Measurement:* a test that sets a non-zero root XY and asserts the reference points at the prey.
 
-**NS-9 — Wire `zero_action_baseline.py` in as an automatic pre-stage check.**
-Already suggested by `stage1_balance.toml:159-161`. Cohort A shows the cost of not having it:
-two runs, ~19 h of stage-2/3 GPU time, on top of a stage-1 policy worse than `np.zeros(21)`,
+**NS-9 — Wire `zero_action_baseline.py` in as an automatic pre-stage check. (Partly done.)**
+Asked for by `stage1_balance.toml:159-161`. Cohort A shows the cost of not having it: two
+runs, ~19 h of stage-2/3 GPU time, on top of a stage-1 policy worse than `np.zeros(21)`,
 because the gate was 100.0 and nothing compared against the floor.
+
+*Done:* `notebooks/sb3_training.ipynb` now carries a pre-flight cell (§3b) that scores the
+do-nothing policy for every species, compares each stage-1 `min_avg_reward` against it, and
+writes the result to `MyDrive/mesozoic-labs/logs/zero_action_baselines/` plus a copy into the
+run directory, so a run carries the calibration its gate was judged against. The script also
+now reports **`reward standing`** — the return conditioned on reaching the horizon — which is
+the number a gate must beat to mean more than "did not fall", and which is what F1 turns on.
+The cell classifies each gate as `OK` / `WEAK — binds only against a falling statue` /
+`FAILS — a statue clears this gate`.
+
+*Still to do:* make it blocking rather than advisory. Right now it prints and saves; it does
+not stop the run. A gate classified `FAILS` should refuse to start stage 1, because that is
+precisely the configuration in which 13 h of training tells you nothing.
 
 ---
 
@@ -895,6 +949,7 @@ because the gate was 100.0 and nothing compared against the floor.
 |---|---|---|
 | **F2** | Register `nosedive_termination_threshold = 0.62` for T-Rex in `environments/trex/mjx_config.py`, and correct the stale comment that asserted it was already in force | New case in `test_species_integration.py`'s SB3/MJX parity class; verified to fail before the fix |
 | **F5 / OQ-1** | Added `environments/shared/scripts/observation_ablation_report.py` — the diagnostic that resolved OQ-1. Not a fix; it is the tool the finding needed, in the same family as `zero_action_baseline.py` and `action_bound_report.py`, so the numbers in F5 are reproducible rather than one-off | No behaviour change; lint and both suites green |
+| **F1 / NS-9** | `zero_action_baseline.py` now also reports **`reward standing`** (return conditioned on reaching the horizon) — the number F1 turns on, previously only computable by hand. Additive; the unconditional figures are byte-identical (T-Rex still 1743.73 ± 1275.54, 57%). Plus a pre-flight cell in `notebooks/sb3_training.ipynb` §3b that runs it for every species, classifies each stage-1 gate, and saves to Drive | Re-ran the T-Rex baseline and confirmed the existing numbers are unchanged; new cell executed end-to-end against a stubbed notebook context |
 
 **Deliberately not fixed, and why:**
 
