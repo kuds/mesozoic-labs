@@ -927,9 +927,13 @@ runs, ~19 h of stage-2/3 GPU time, on top of a stage-1 policy worse than `np.zer
 because the gate was 100.0 and nothing compared against the floor.
 
 *Done:* `notebooks/sb3_training.ipynb` now carries a pre-flight cell (§3b) that scores the
-do-nothing policy for every species, compares each stage-1 `min_avg_reward` against it, and
-writes the result to `MyDrive/mesozoic-labs/logs/zero_action_baselines/` plus a copy into the
-run directory, so a run carries the calibration its gate was judged against. The script also
+do-nothing policy for the species being trained, compares its stage-1 `min_avg_reward`
+against it, and writes the record to that species' own log directory —
+`<LOG_BASE>/<species>/zero_action_baselines/<timestamp>.{json,txt}` — plus a copy into the run
+directory, so a run carries the calibration its gate was judged against. Widening
+`BASELINE_SPECIES` to all four still files each species' record under its own directory. The
+JSON carries the plant identity and the stage-1 env kwargs alongside the numbers, since those
+are what make the constant go stale. The script also
 now reports **`reward standing`** — the return conditioned on reaching the horizon — which is
 the number a gate must beat to mean more than "did not fall", and which is what F1 turns on.
 The cell classifies each gate as `OK` / `WEAK — binds only against a falling statue` /
