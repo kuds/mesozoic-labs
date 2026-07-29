@@ -26,6 +26,11 @@ from typing import Any
 import numpy as np
 
 from environments.shared.diagnostics import DiagnosticsCallback
+from environments.shared.stance_diagnostics import (
+    STANCE_INFO_KEYS,
+    derive_stance_info,
+    has_stance_diagnostics,
+)
 
 
 def env_dt(env: Any, default: float = 0.01) -> float:
@@ -73,6 +78,7 @@ class LocomotionMetrics:
     _pelvis_yaw_velocities: list[float] = field(default_factory=list)
     _distances_traveled: list[float] = field(default_factory=list)
     _reward_components: dict[str, list[float]] = field(default_factory=dict)
+    _stance_metrics: dict[str, list[float]] = field(default_factory=dict)
     # Control timestep in seconds (model timestep x frame_skip).  All current
     # species use 0.002 x 5 = 0.01.  Pass the env's actual ``dt`` (see
     # :func:`env_dt`) so distance / stride-frequency / time-to-target stay
@@ -99,6 +105,7 @@ class LocomotionMetrics:
         self._pelvis_yaw_velocities.clear()
         self._distances_traveled.clear()
         self._reward_components.clear()
+        self._stance_metrics.clear()
         self._termination_reason = None
 
     def record_step(self, info: dict[str, Any], reward: float = 0.0):
@@ -165,6 +172,14 @@ class LocomotionMetrics:
         for key in DiagnosticsCallback.REWARD_KEYS:
             if key in info:
                 self._reward_components.setdefault(key, []).append(float(info[key]))
+
+        stance_info = dict(info)
+        if has_stance_diagnostics(info):
+            for key, value in derive_stance_info(info).items():
+                stance_info.setdefault(key, value)
+        for key in STANCE_INFO_KEYS:
+            if key in stance_info:
+                self._stance_metrics.setdefault(key, []).append(float(stance_info[key]))
 
         # Capture termination reason from the final step
         if "termination_reason" in info:
@@ -322,6 +337,12 @@ class LocomotionMetrics:
                 # Strip "reward_" prefix for cleaner metric names
                 component = key.replace("reward_", "")
                 result[f"reward_component_{component}"] = float(np.sum(values))
+
+        # --- Reporting-only stance quality ---
+        for key, values in self._stance_metrics.items():
+            if values:
+                result[f"mean_{key}"] = float(np.mean(values))
+                result[f"std_{key}"] = float(np.std(values))
 
         # --- Termination reason ---
         if self._termination_reason is not None:

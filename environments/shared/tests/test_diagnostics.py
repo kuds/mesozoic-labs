@@ -80,6 +80,56 @@ class TestOnStep:
         assert callback._step_infos["forward_vel"] == [2.0]
         assert callback._step_infos["prey_distance"] == [5.0]
 
+    def test_derives_trex_contact_duties_and_load_share(self, callback):
+        callback.locals = {
+            "infos": [
+                {
+                    "bite_success": 0.0,
+                    "r_foot_contact": 75.0,
+                    "l_foot_contact": 25.0,
+                }
+            ]
+        }
+        callback._on_step()
+
+        assert callback._step_infos["bilateral_support_duty"] == [1.0]
+        assert callback._step_infos["r_foot_load_share"] == [0.75]
+        assert callback._step_infos["foot_load_imbalance"] == [0.5]
+
+    def test_environment_stance_value_wins_over_derivative(self, callback):
+        callback.locals = {
+            "infos": [
+                {
+                    "bite_success": 0.0,
+                    "r_foot_contact": 75.0,
+                    "l_foot_contact": 25.0,
+                    "foot_load_imbalance": 0.125,
+                }
+            ]
+        }
+        callback._on_step()
+
+        assert callback._step_infos["foot_load_imbalance"] == [0.125]
+
+    def test_does_not_derive_biped_stance_metrics_for_quadruped_contacts(self, callback):
+        callback.locals = {
+            "infos": [
+                {
+                    "r_foot_contact": 75.0,
+                    "l_foot_contact": 25.0,
+                    "rr_foot_contact": 50.0,
+                    "rl_foot_contact": 50.0,
+                }
+            ]
+        }
+        callback._on_step()
+
+        assert callback._step_infos["r_foot_contact"] == [75.0]
+        assert callback._step_infos["rr_foot_contact"] == [50.0]
+        assert callback._step_infos["bilateral_support_duty"] == []
+        assert callback._step_infos["r_foot_load_share"] == []
+        assert callback._step_infos["foot_load_imbalance"] == []
+
     def test_collects_termination_reasons(self, callback):
         callback.locals = {"infos": [{"termination_reason": "fallen"}, {"termination_reason": "fallen"}]}
         callback._on_step()
@@ -108,6 +158,13 @@ class TestOnStep:
         callback._on_step()
         assert callback._step_infos["forward_vel"] == [1.0, 2.0, 3.0]
         assert callback._step_infos["reward_forward"] == [0.5, 1.0, 1.5]
+
+    def test_diagnostics_add_no_stance_reward_components(self, callback):
+        assert "reward_bilateral_support" not in callback.REWARD_KEYS
+        assert "reward_foot_load_balance" not in callback.REWARD_KEYS
+        assert "reward_leg_home_pose" not in callback.REWARD_KEYS
+        assert "reward_head_clearance" not in callback.REWARD_KEYS
+        assert "reward_neck_posture" not in callback.REWARD_KEYS
 
     def test_empty_infos(self, callback):
         callback.locals = {"infos": []}

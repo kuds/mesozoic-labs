@@ -619,6 +619,116 @@ def plot_foot_contacts(
     return fig
 
 
+def plot_stance_diagnostics(
+    stage_dirs: StageDirs,
+    stage_configs: dict[int, dict[str, Any]],
+    species: str,
+    algorithm: str,
+    save_path: "str | Path | None" = None,
+    show: bool = True,
+) -> "Any":
+    """Plot reporting-only Stage-1 stance measurements.
+
+    Returns ``None`` when no stance fields have been recorded, so older runs
+    and other species retain their existing artifact set.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    from environments.shared.stance_diagnostics import STANCE_INFO_KEYS
+
+    if species.lower() != "trex":
+        return None
+
+    panels: tuple[tuple[str, tuple[str, ...]], ...] = (
+        (
+            "Foot support duty",
+            (
+                "r_foot_contact_duty",
+                "l_foot_contact_duty",
+                "bilateral_support_duty",
+                "single_support_duty",
+                "unsupported_duty",
+            ),
+        ),
+        (
+            "Foot load distribution",
+            (
+                "r_foot_load_share",
+                "l_foot_load_share",
+                "foot_load_balance",
+                "foot_load_imbalance",
+            ),
+        ),
+        ("Leg home pose", ("leg_home_pose_error",)),
+        (
+            "Head / neck posture",
+            ("head_tip_z", "head_pelvis_rel_z", "neck_posture_error"),
+        ),
+        (
+            "Pelvis pose",
+            ("pelvis_height", "tilt_angle", "height_error"),
+        ),
+        (
+            "Drift / yaw",
+            ("drift_distance", "pelvis_yaw_vel", "pelvis_angular_vel"),
+        ),
+    )
+
+    available = False
+    for _, stage_dir in stage_dirs:
+        diag_path = Path(stage_dir) / "diagnostics.npz"
+        if diag_path.exists():
+            with np.load(diag_path) as diag:
+                if any(
+                    key in diag and np.asarray(diag[key]).size > 0 and np.isfinite(diag[key]).any()
+                    for key in STANCE_INFO_KEYS
+                ):
+                    available = True
+                    break
+    if not available:
+        return None
+
+    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+    fig.suptitle(
+        f"{species.title()} {algorithm} – Stance Diagnostics",
+        fontsize=14,
+        fontweight="bold",
+    )
+
+    for stage_num, stage_dir in stage_dirs:
+        diag_path = Path(stage_dir) / "diagnostics.npz"
+        if not diag_path.exists():
+            continue
+        with np.load(diag_path) as diag:
+            if "timesteps" not in diag or len(diag["timesteps"]) == 0:
+                continue
+            timesteps = diag["timesteps"]
+            stage_name = stage_configs.get(stage_num, {}).get("name", f"Stage {stage_num}")
+            for axis, (title, keys) in zip(axes.flat, panels, strict=True):
+                for key in keys:
+                    if key not in diag:
+                        continue
+                    axis.plot(
+                        timesteps,
+                        _smooth(diag[key]),
+                        label=f"S{stage_num} {key.replace('_', ' ')}",
+                    )
+                axis.set_title(title)
+                axis.set_xlabel("Timesteps")
+                axis.grid(True, alpha=0.3)
+                _safe_legend(axis, fontsize=7)
+            fig.text(0.99, 0.01, f"S{stage_num}: {stage_name}", ha="right", fontsize=8)
+
+    fig.tight_layout()
+    if save_path is not None:
+        fig.savefig(save_path, dpi=150, bbox_inches="tight")
+        logger.info("Stance diagnostics plot saved to: %s", save_path)
+    if not show:
+        plt.close(fig)
+    return fig
+
+
 def plot_trial_comparison(
     analysis_rows: "list[dict[str, Any]]",
     species: str,

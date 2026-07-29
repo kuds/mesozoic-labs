@@ -267,3 +267,83 @@ class TestPlotFootContacts:
         )
 
         assert save_path.exists()
+
+
+class TestPlotStanceDiagnostics:
+    def test_saves_stance_dashboard_when_fields_exist(self, tmp_path):
+        matplotlib.use("Agg")
+
+        from environments.shared.visualization import plot_stance_diagnostics
+
+        np.savez(
+            str(tmp_path / "diagnostics.npz"),
+            timesteps=np.array([50000, 100000]),
+            bilateral_support_duty=np.array([0.5, 0.9]),
+            single_support_duty=np.array([0.5, 0.1]),
+            foot_load_imbalance=np.array([0.3, 0.1]),
+            head_tip_z=np.array([0.6, 0.7]),
+            pelvis_height=np.array([0.8, 0.9]),
+            drift_distance=np.array([0.2, 0.1]),
+            pelvis_yaw_vel=np.array([0.1, 0.05]),
+        )
+        save_path = tmp_path / "stance_diagnostics.png"
+        fig = plot_stance_diagnostics(
+            [(1, tmp_path)],
+            {1: {"name": "Balance"}},
+            species="trex",
+            algorithm="ppo",
+            save_path=save_path,
+            show=False,
+        )
+
+        assert fig is not None
+        assert save_path.exists()
+        assert len(fig.axes) == 6
+
+    def test_returns_none_without_stance_fields(self, tmp_path):
+        matplotlib.use("Agg")
+
+        from environments.shared.visualization import plot_stance_diagnostics
+
+        np.savez(
+            str(tmp_path / "diagnostics.npz"),
+            timesteps=np.array([50000, 100000]),
+            r_foot_contact=np.array([1.0, 1.0]),
+            l_foot_contact=np.array([1.0, 1.0]),
+            pelvis_height=np.array([0.8, 0.9]),
+            drift_distance=np.array([0.2, 0.1]),
+        )
+        result = plot_stance_diagnostics(
+            [(1, tmp_path)],
+            {1: {"name": "Balance"}},
+            species="trex",
+            algorithm="ppo",
+            save_path=tmp_path / "stance_diagnostics.png",
+            show=False,
+        )
+
+        assert result is None
+        assert not (tmp_path / "stance_diagnostics.png").exists()
+
+    def test_returns_none_for_other_species_even_with_support_fields(self, tmp_path):
+        matplotlib.use("Agg")
+
+        from environments.shared.visualization import plot_stance_diagnostics
+
+        np.savez(
+            str(tmp_path / "diagnostics.npz"),
+            timesteps=np.array([50000, 100000]),
+            bilateral_support_duty=np.array([0.5, 0.9]),
+            foot_load_imbalance=np.array([0.3, 0.1]),
+        )
+        result = plot_stance_diagnostics(
+            [(1, tmp_path)],
+            {1: {"name": "Balance"}},
+            species="brachiosaurus",
+            algorithm="ppo",
+            save_path=tmp_path / "stance_diagnostics.png",
+            show=False,
+        )
+
+        assert result is None
+        assert not (tmp_path / "stance_diagnostics.png").exists()

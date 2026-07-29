@@ -1408,6 +1408,7 @@ def generate_stage_artifacts(
             from environments.shared.visualization import (
                 plot_diagnostics_graphs,
                 plot_foot_contacts,
+                plot_stance_diagnostics,
                 plot_training_curves,
             )
 
@@ -1438,6 +1439,14 @@ def generate_stage_artifacts(
                 save_path=stage_dir / "foot_contacts.png",
                 show=False,
             )
+            plot_stance_diagnostics(
+                stage_dirs,
+                stage_configs,
+                species,
+                algorithm,
+                save_path=stage_dir / "stance_diagnostics.png",
+                show=False,
+            )
         except ImportError:
             logger.warning("Skipping graph generation (matplotlib not installed).")
         except Exception:
@@ -1450,7 +1459,7 @@ def generate_stage_artifacts(
     from .plant_contract import PlantCompatibilityError, current_plant_identity, validate_model_plant
 
     try:
-        from environments.shared.evaluation import record_stage_video
+        from environments.shared.evaluation import TREX_STAGE1_CAMERA_VIEWS, record_stage_video
         from environments.shared.train_base import _ensure_sb3
 
         sb3 = _ensure_sb3()
@@ -1462,6 +1471,8 @@ def generate_stage_artifacts(
         vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
         final_path = model_dir / f"stage{stage}_final"
         final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
+        replay_diagnostics = species.lower() == "trex" and stage == 1
+        replay_camera_views = TREX_STAGE1_CAMERA_VIEWS if replay_diagnostics else None
 
         if (model_dir / "best_model.zip").exists():
             best_model = alg_cls.load(str(best_model_path))
@@ -1484,6 +1495,8 @@ def generate_stage_artifacts(
                 label="best",
                 plant_identity=plant_identity,
                 allow_legacy_plant=allow_legacy_plant,
+                camera_views=replay_camera_views,
+                collect_stance_diagnostics=replay_diagnostics,
             )
 
         if (Path(str(final_path) + ".zip")).exists():
@@ -1507,6 +1520,8 @@ def generate_stage_artifacts(
                 label="final",
                 plant_identity=plant_identity,
                 allow_legacy_plant=allow_legacy_plant,
+                camera_views=replay_camera_views,
+                collect_stance_diagnostics=replay_diagnostics,
             )
     except PlantCompatibilityError:
         raise
@@ -1760,6 +1775,9 @@ def save_jax_stage_artifacts(
 
     # 4. Diagnostics NPZ from eval results
     diag_data: dict[str, Any] = {
+        # JAX diagnostics are a contiguous evaluation trace rather than
+        # rollout snapshots. Expose a compatible step axis for dashboards.
+        "timesteps": _np.arange(len(eval_results.diag_tilt), dtype=int),
         "tilt_angle": _np.array(eval_results.diag_tilt),
         "forward_vel": _np.array(eval_results.diag_fwd_vel),
         "pelvis_height": _np.array(eval_results.diag_pelvis_h),
@@ -1770,6 +1788,28 @@ def save_jax_stage_artifacts(
         diag_data["r_foot_contact"] = _np.array(eval_results.diag_r_foot)
     for comp_name, comp_vals in eval_results.diag_reward_components.items():
         diag_data[f"reward_{comp_name}"] = _np.array(comp_vals)
+    if species.lower() == "trex" and stage == 1 and eval_results.diag_l_foot and eval_results.diag_r_foot:
+        from .stance_diagnostics import derive_stance_info
+
+        derived_rows = [
+            derive_stance_info(
+                {
+                    "r_foot_contact": right_force,
+                    "l_foot_contact": left_force,
+                }
+            )
+            for right_force, left_force in zip(
+                eval_results.diag_r_foot,
+                eval_results.diag_l_foot,
+                strict=True,
+            )
+        ]
+        if derived_rows:
+            for diagnostic_name in derived_rows[0]:
+                diag_data[diagnostic_name] = _np.array(
+                    [row[diagnostic_name] for row in derived_rows],
+                    dtype=float,
+                )
 
     diag_path = stage_dir / "diagnostics.npz"
     _np.savez(diag_path, **diag_data)

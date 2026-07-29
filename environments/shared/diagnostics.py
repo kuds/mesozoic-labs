@@ -9,6 +9,12 @@ import math
 from collections import Counter
 from pathlib import Path
 
+from environments.shared.stance_diagnostics import (
+    STANCE_INFO_KEYS,
+    derive_stance_info,
+    has_stance_diagnostics,
+)
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -142,6 +148,7 @@ class DiagnosticsCallback(_BaseCallback):
         "head_food_distance",  # Brachiosaurus
         "torso_height",  # Brachiosaurus
         "jaw_distance",  # T-Rex
+        *STANCE_INFO_KEYS,
     ]
 
     def __init__(
@@ -199,9 +206,13 @@ class DiagnosticsCallback(_BaseCallback):
 
     def _on_step(self) -> bool:
         for info in self.locals.get("infos", []):
+            stance_info = dict(info)
+            if has_stance_diagnostics(info):
+                for key, value in derive_stance_info(info).items():
+                    stance_info.setdefault(key, value)
             for key in self.REWARD_KEYS + self.INFO_KEYS:
-                if key in info:
-                    self._step_infos[key].append(float(info[key]))
+                if key in stance_info:
+                    self._step_infos[key].append(float(stance_info[key]))
             if "termination_reason" in info:
                 self._rollout_terminations[info["termination_reason"]] += 1
         # Accumulate the actions taken this step. self.locals["actions"] is
