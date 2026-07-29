@@ -632,27 +632,28 @@ def plot_stance_diagnostics(
     save_path: "str | Path | None" = None,
     show: bool = True,
 ) -> "Any":
-    """Plot Stage-1 stance health from rollout-averaged diagnostics.
+    """Plot reporting-only Stage-1 stance measurements.
 
-    Returns ``None`` when no stance-specific fields have been recorded, so
-    artifact generation for older runs and other species remains unchanged.
+    Returns ``None`` when no stance fields have been recorded, so older runs
+    and other species retain their existing artifact set.
     """
     import matplotlib.pyplot as plt
     import numpy as np
 
-    from environments.shared.stance_diagnostics import STANCE_MARKER_KEYS
+    from environments.shared.stance_diagnostics import STANCE_INFO_KEYS
 
     if species.lower() != "trex":
         return None
 
     panels: tuple[tuple[str, tuple[str, ...]], ...] = (
         (
-            "Foot support duty / quality",
+            "Foot support duty",
             (
                 "r_foot_contact_duty",
                 "l_foot_contact_duty",
                 "bilateral_support_duty",
-                "bilateral_support_quality",
+                "single_support_duty",
+                "unsupported_duty",
             ),
         ),
         (
@@ -664,29 +665,21 @@ def plot_stance_diagnostics(
                 "foot_load_imbalance",
             ),
         ),
-        (
-            "Leg home pose",
-            ("leg_home_pose_error", "leg_home_pose_quality"),
-        ),
+        ("Leg home pose", ("leg_home_pose_error",)),
         (
             "Head / neck posture",
-            (
-                "head_tip_z",
-                "head_pelvis_rel_z",
-                "head_clearance_quality",
-                "neck_posture_error",
-                "neck_posture_quality",
-            ),
+            ("head_tip_z", "head_pelvis_rel_z", "neck_posture_error"),
         ),
         (
             "Pelvis pose",
-            ("pelvis_height", "tilt_angle", "height_error", "height_quality"),
+            ("pelvis_height", "tilt_angle", "height_error"),
         ),
         (
             "Drift / yaw",
             ("drift_distance", "pelvis_yaw_vel", "pelvis_angular_vel"),
         ),
     )
+
     available = False
     for _, stage_dir in stage_dirs:
         diag_path = Path(stage_dir) / "diagnostics.npz"
@@ -694,7 +687,7 @@ def plot_stance_diagnostics(
             with np.load(diag_path) as diag:
                 if any(
                     key in diag and np.asarray(diag[key]).size > 0 and np.isfinite(diag[key]).any()
-                    for key in STANCE_MARKER_KEYS
+                    for key in STANCE_INFO_KEYS
                 ):
                     available = True
                     break
@@ -730,8 +723,6 @@ def plot_stance_diagnostics(
                 axis.set_xlabel("Timesteps")
                 axis.grid(True, alpha=0.3)
                 _safe_legend(axis, fontsize=7)
-            # Make the stage identity accessible in the figure without
-            # duplicating it into every already-dense legend entry.
             fig.text(0.99, 0.01, f"S{stage_num}: {stage_name}", ha="right", fontsize=8)
 
     fig.tight_layout()

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from environments.shared.evaluation import eval_policy, evaluate, record_stage_video
+from environments.shared.evaluation import eval_policy, eval_policy_quality, evaluate, record_stage_video
 from environments.shared.plant_contract import PlantCompatibilityError, PlantIdentity, attach_plant_identity
 
 
@@ -129,6 +129,63 @@ class TestEvalPolicy:
         assert fwd_vels[0] == 0.0
 
 
+class TestEvalPolicyQuality:
+    def test_exports_raw_stance_means_and_episode_variation(self):
+        env = MagicMock()
+        env.reset.return_value = np.zeros(10)
+        env.step.side_effect = [
+            (
+                np.zeros(10),
+                np.array([1.0]),
+                [True],
+                [
+                    {
+                        "bite_success": 0.0,
+                        "r_foot_contact": 75.0,
+                        "l_foot_contact": 25.0,
+                    }
+                ],
+            ),
+            (
+                np.zeros(10),
+                np.array([1.0]),
+                [True],
+                [
+                    {
+                        "bite_success": 0.0,
+                        "r_foot_contact": 50.0,
+                        "l_foot_contact": 50.0,
+                    }
+                ],
+            ),
+        ]
+        model = MagicMock()
+        model.predict.return_value = (np.array([0.0]), None)
+
+        result = eval_policy_quality(model, env, success_keys=[], n_episodes=2)
+
+        assert result["eval_mean_bilateral_support_duty"] == 1.0
+        assert result["eval_mean_r_foot_load_share"] == pytest.approx(0.625)
+        assert result["eval_std_r_foot_load_share"] == pytest.approx(0.125)
+
+    def test_omits_stance_metrics_without_trex_marker(self):
+        env = MagicMock()
+        env.reset.return_value = np.zeros(10)
+        env.step.return_value = (
+            np.zeros(10),
+            np.array([1.0]),
+            [True],
+            [{"r_foot_contact": 75.0, "l_foot_contact": 25.0}],
+        )
+        model = MagicMock()
+        model.predict.return_value = (np.array([0.0]), None)
+
+        result = eval_policy_quality(model, env, success_keys=[], n_episodes=1)
+
+        assert "eval_mean_bilateral_support_duty" not in result
+        assert "eval_mean_r_foot_load_share" not in result
+
+
 class TestRecordStageVideo:
     """Test record_stage_video with mocked dependencies."""
 
@@ -201,7 +258,7 @@ class TestRecordStageVideo:
         # Should have called write_video
         assert mock_mediapy.write_video.called or result is None
 
-    def test_records_named_camera_views_and_stance_csv(self, tmp_path):
+    def test_records_named_camera_views_and_stance_csv_without_extra_steps(self, tmp_path):
         mock_mediapy = MagicMock()
         mock_env = MagicMock()
         mock_env._camera = SimpleNamespace(azimuth=135.0, elevation=-20.0, distance=3.0)
@@ -253,7 +310,10 @@ class TestRecordStageVideo:
         assert any(path.endswith("_best.mp4") for path in written_paths)
         assert any(path.endswith("_best_side.mp4") for path in written_paths)
         assert any(path.endswith("_best_front.mp4") for path in written_paths)
+        assert all(len(call.args[1]) == 1 for call in mock_mediapy.write_video.call_args_list)
         assert (tmp_path / "dino_ppo_stage1_best_stance.csv").exists()
+        assert mock_model.predict.call_count == 1
+        assert mock_env.step.call_count == 1
         assert mock_env._camera.azimuth == 135.0
         assert mock_env._camera.elevation == -20.0
         assert mock_env._camera.distance == 3.0

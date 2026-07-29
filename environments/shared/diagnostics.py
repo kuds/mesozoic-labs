@@ -11,7 +11,6 @@ from pathlib import Path
 
 from environments.shared.stance_diagnostics import (
     STANCE_INFO_KEYS,
-    STANCE_REWARD_KEYS,
     derive_stance_info,
     has_stance_diagnostics,
 )
@@ -118,7 +117,12 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_claw_proximity",  # Velociraptor
         "reward_head_proximity",  # T-Rex, Brachiosaurus
         "reward_gait_symmetry",  # Brachiosaurus
-        *STANCE_REWARD_KEYS,
+        # T-Rex Stage 1 stance shaping
+        "reward_bilateral_support",
+        "reward_foot_load_balance",
+        "reward_leg_home_pose",
+        "reward_head_clearance",
+        "reward_neck_posture",
         "reward_total",
     ]
     INFO_KEYS = [
@@ -208,8 +212,6 @@ class DiagnosticsCallback(_BaseCallback):
 
     def _on_step(self) -> bool:
         for info in self.locals.get("infos", []):
-            # Contact duties and load shares are reporting-only derivatives.
-            # Preserve environment-provided values if it emits the same field.
             stance_info = dict(info)
             if has_stance_diagnostics(info):
                 for key, value in derive_stance_info(info).items():

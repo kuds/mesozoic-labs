@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 TREX_STAGE1_CAMERA_VIEWS: dict[str, dict[str, float]] = {
-    # Fixed view angles on the existing pelvis-tracking camera make stance
-    # comparisons repeatable while keeping the animal centred.
+    # Fixed view angles make stance comparisons repeatable while preserving
+    # the existing pelvis-tracking camera.
     "side": {"azimuth": 90.0, "elevation": -8.0, "distance": 3.4},
     "front": {"azimuth": 180.0, "elevation": -8.0, "distance": 3.4},
 }
@@ -164,9 +164,8 @@ def eval_policy_quality(
     if "mean_distance_traveled" in agg:
         result["eval_distance_traveled"] = round(agg["mean_distance_traveled"], 4)
 
-    # Stage-1 stance diagnostics.  ``mean_mean_*`` is the mean of each
-    # episode's timestep mean; ``std_mean_*`` captures episode-to-episode
-    # variation in that same quantity.
+    # Reporting-only stance diagnostics. ``mean_mean_*`` is the mean of each
+    # episode's timestep mean; ``std_mean_*`` captures episode variation.
     for metric in STANCE_INFO_KEYS:
         mean_key = f"mean_mean_{metric}"
         std_key = f"std_mean_{metric}"
@@ -215,7 +214,7 @@ def record_stage_video(
     input distribution it was trained on.
 
     When *camera_views* is supplied, one additional synchronized video is
-    written per named camera preset.  When *collect_stance_diagnostics* is
+    written per named camera preset. When *collect_stance_diagnostics* is
     true, a per-frame ``*_stance.csv`` is written beside the replay.
 
     Requires the ``mediapy`` package (``pip install mediapy``).

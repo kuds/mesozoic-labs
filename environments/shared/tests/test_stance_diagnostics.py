@@ -42,7 +42,6 @@ def test_snapshot_gracefully_records_info_without_mujoco_environment():
         {
             "r_foot_contact": 60.0,
             "l_foot_contact": 40.0,
-            "bilateral_support_quality": 0.4,
             "drift_distance": 0.2,
             "pelvis_yaw_vel": -0.1,
         },
@@ -50,19 +49,26 @@ def test_snapshot_gracefully_records_info_without_mujoco_environment():
     )
 
     assert row["step"] == 7.0
-    assert row["bilateral_support_quality"] == 0.4
     assert row["r_foot_load_share"] == pytest.approx(0.6)
     assert row["drift_distance"] == pytest.approx(0.2)
     assert row["pelvis_yaw_vel"] == pytest.approx(-0.1)
 
 
-def test_snapshot_records_foot_geometry_and_complete_leg_home_errors():
+def test_snapshot_records_geometry_without_mutating_simulation_state():
     from environments.trex.envs.trex_env import TRexEnv
 
     env = TRexEnv(reset_noise_scale=0.0)
     try:
         env.reset(seed=0)
         _, _, _, _, info = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+        before = {
+            "qpos": env.data.qpos.copy(),
+            "qvel": env.data.qvel.copy(),
+            "act": env.data.act.copy(),
+            "ctrl": env.data.ctrl.copy(),
+            "time": float(env.data.time),
+        }
+
         row = capture_trex_stance_snapshot(env, info, step=1)
 
         right_foot = np.asarray(env.data.site_xpos[env.r_foot_site_id], dtype=float)
@@ -79,7 +85,6 @@ def test_snapshot_records_foot_geometry_and_complete_leg_home_errors():
         assert [row[f"support_midpoint_{axis}"] for axis in "xyz"] == pytest.approx(support_midpoint)
         assert [row[f"pelvis_support_offset_{axis}"] for axis in "xyz"] == pytest.approx(pelvis_support_offset)
         assert row["pelvis_support_offset_xy"] == pytest.approx(np.linalg.norm(pelvis_support_offset[:2]))
-
         assert row["hip_roll_home_error_rad"] == pytest.approx(
             np.mean(
                 [
@@ -88,16 +93,12 @@ def test_snapshot_records_foot_geometry_and_complete_leg_home_errors():
                 ]
             )
         )
-        assert row["r_leg_home_error_rad"] == pytest.approx(
-            np.mean(
-                [
-                    row["r_hip_pitch_home_error_rad"],
-                    row["r_hip_roll_home_error_rad"],
-                    row["r_knee_home_error_rad"],
-                    row["r_ankle_home_error_rad"],
-                ]
-            )
-        )
+
+        np.testing.assert_array_equal(env.data.qpos, before["qpos"])
+        np.testing.assert_array_equal(env.data.qvel, before["qvel"])
+        np.testing.assert_array_equal(env.data.act, before["act"])
+        np.testing.assert_array_equal(env.data.ctrl, before["ctrl"])
+        assert env.data.time == before["time"]
     finally:
         env.close()
 
@@ -111,3 +112,10 @@ def test_write_stance_csv_unions_columns(tmp_path):
         rows = list(csv.DictReader(handle))
     assert rows[0]["a"] == "2.0"
     assert rows[1]["b"] == "3.0"
+
+
+def test_write_stance_csv_skips_empty_rows(tmp_path):
+    path = tmp_path / "stance.csv"
+
+    assert write_stance_diagnostics_csv(path, []) is None
+    assert not path.exists()

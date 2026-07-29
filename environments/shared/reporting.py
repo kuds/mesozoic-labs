@@ -1776,8 +1776,7 @@ def save_jax_stage_artifacts(
     # 4. Diagnostics NPZ from eval results
     diag_data: dict[str, Any] = {
         # JAX diagnostics are a contiguous evaluation trace rather than
-        # rollout snapshots.  Expose its step axis under the same key the
-        # shared stance dashboard consumes for SB3 artifacts.
+        # rollout snapshots. Expose a compatible step axis for dashboards.
         "timesteps": _np.arange(len(eval_results.diag_tilt), dtype=int),
         "tilt_angle": _np.array(eval_results.diag_tilt),
         "forward_vel": _np.array(eval_results.diag_fwd_vel),

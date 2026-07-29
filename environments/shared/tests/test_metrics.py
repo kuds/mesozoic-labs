@@ -139,30 +139,29 @@ class TestLocomotionMetrics:
         result = metrics.compute()
         assert "distance_traveled" not in result
 
-    def test_stance_metrics_include_environment_and_derived_signals(self, metrics):
+    def test_stance_metrics_include_raw_and_derived_signals(self, metrics):
         metrics.record_step(
             {
                 "forward_vel": 0.0,
+                "bite_success": 0.0,
                 "r_foot_contact": 75.0,
                 "l_foot_contact": 25.0,
-                "bilateral_support_quality": 0.25,
-                "leg_home_pose_error": 0.1,
+                "head_tip_z": 0.65,
             }
         )
         result = metrics.compute()
 
-        assert result["mean_bilateral_support_quality"] == pytest.approx(0.25)
         assert result["mean_bilateral_support_duty"] == pytest.approx(1.0)
         assert result["mean_r_foot_load_share"] == pytest.approx(0.75)
         assert result["mean_foot_load_imbalance"] == pytest.approx(0.5)
-        assert result["mean_leg_home_pose_error"] == pytest.approx(0.1)
+        assert result["mean_head_tip_z"] == pytest.approx(0.65)
 
     def test_stance_metrics_reset(self, metrics):
         metrics.record_step(
             {
+                "bite_success": 0.0,
                 "r_foot_contact": 1.0,
                 "l_foot_contact": 1.0,
-                "bilateral_support_quality": 1.0,
             }
         )
         metrics.reset()

@@ -338,7 +338,7 @@ class LocomotionMetrics:
                 component = key.replace("reward_", "")
                 result[f"reward_component_{component}"] = float(np.sum(values))
 
-        # --- Stance quality ---
+        # --- Reporting-only stance quality ---
         for key, values in self._stance_metrics.items():
             if values:
                 result[f"mean_{key}"] = float(np.mean(values))

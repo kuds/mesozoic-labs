@@ -133,30 +133,22 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     catalog = build_catalog()
     species = {entry["id"]: entry for entry in catalog["species"]}
 
-    # Stage-1 gates are per-species because only the T-Rex has been calibrated
-    # against both the unconditional and surviving zero-action baselines. Its
-    # stance-aware reward requires 3000 and 900 steps, rejecting the measured
-    # noisy statue (1971.57 reward, 638.1 steps) and a full-horizon head-droop
-    # ablation (2869 projected reward). The other species still use the legacy
-    # placeholder gates and need the same treatment.
-    stage_one_min_avg_reward = {
-        "trex": 3000.0,
-        "velociraptor": 100.0,
-        "brachiosaurus": 100.0,
-        "dibothrosuchus": 100.0,
-    }
-    stage_one_min_avg_episode_length = {
-        "trex": 900,
-        "velociraptor": 750,
-        "brachiosaurus": 750,
-        "dibothrosuchus": 750,
-    }
+    # Stage-1 reward gates are per-species because only the T-Rex has been
+    # calibrated against its zero-action baseline. 100.0 is the original
+    # placeholder, which cannot bind: every species' do-nothing policy clears
+    # it by a wide margin, so a statue advances into stage 2. The T-Rex's 1840
+    # sits just above its measured floor of 1743.73 +/- 1275.54
+    # (environments/shared/scripts/zero_action_baseline.py trex). That floor
+    # is a property of the plant, so it moved with the theropod stance
+    # correction (from 1800.56) and the gate was re-derived from it at the
+    # same +5.5% margin. The other three still need the same treatment.
+    stage_one_min_avg_reward = {"trex": 1840.0, "velociraptor": 100.0, "brachiosaurus": 100.0, "dibothrosuchus": 100.0}
 
     for species_id, entry in species.items():
         stage_one, stage_two, stage_three = [stage["advancement_gate"] for stage in entry["stages"]]
         assert stage_one == {
             "min_avg_reward": stage_one_min_avg_reward[species_id],
-            "min_avg_episode_length": stage_one_min_avg_episode_length[species_id],
+            "min_avg_episode_length": 750,
             "min_avg_forward_velocity": None,
             "min_success_rate": None,
             "min_eval_episodes": 10,

@@ -909,6 +909,7 @@ class TestSaveJaxStageArtifacts:
         assert "reward_forward" in data
         assert "bilateral_support_quality" in data
         assert "alive_gate" in data
+        assert all(len(data[key]) == len(data["timesteps"]) for key in data.files)
 
     def test_trex_stage1_diagnostics_derive_support_duty_and_load_share(self, tmp_path):
         from dataclasses import replace

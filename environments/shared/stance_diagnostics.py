@@ -1,9 +1,9 @@
-"""T. rex stance diagnostics shared by training and replay evaluation.
+"""Reporting-only T. rex stance diagnostics.
 
-The reward environment emits the quantities that affect learning.  This
-module adds reporting-only derivatives (contact duty, load share, and detailed
-home-pose measurements) without changing actions, observations, rewards, or
-termination behavior.
+The helpers in this module derive support and pose measurements without
+changing actions, observations, rewards, reset behavior, or termination.
+Training callbacks store rollout means; evaluation replays can additionally
+write detailed per-frame geometry to CSV.
 """
 
 from __future__ import annotations
@@ -15,16 +15,9 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 
-# Scalars emitted by the T. rex environment or derived from its contact-force
-# fields.  The callback stores rollout means, while LocomotionMetrics stores
-# episode-level means and standard deviations.
+# Raw environment measurements and reporting-only values derived from them.
+# Reward-shaped qualities deliberately live outside this module.
 STANCE_INFO_KEYS: tuple[str, ...] = (
-    "raw_alive",
-    "alive_gate",
-    "bilateral_support_quality",
-    "foot_load_imbalance",
-    "foot_load_asymmetry",
-    "foot_load_balance",
     "r_foot_contact_duty",
     "l_foot_contact_duty",
     "bilateral_support_duty",
@@ -32,32 +25,23 @@ STANCE_INFO_KEYS: tuple[str, ...] = (
     "unsupported_duty",
     "r_foot_load_share",
     "l_foot_load_share",
+    "foot_load_imbalance",
+    "foot_load_asymmetry",
+    "foot_load_balance",
     "leg_home_pose_error",
-    "leg_home_pose_quality",
     "head_tip_z",
     "head_pelvis_rel_z",
-    "head_clearance_quality",
     "neck_posture_error",
-    "neck_posture_quality",
     "height_error",
-    "height_quality",
 )
 
-STANCE_REWARD_KEYS: tuple[str, ...] = (
-    "reward_bilateral_support",
-    "reward_foot_load_balance",
-    "reward_leg_home_pose",
-    "reward_head_clearance",
-    "reward_neck_posture",
-)
-
-# Environment-emitted signals that identify the new T. rex stance
-# instrumentation.  Generic foot-contact fields also exist on quadrupeds, so
-# they are not sufficient to opt an environment into biped-only derivatives.
+# ``bite_success`` already exists on every T. rex reward-info step and
+# distinguishes its biped contacts from similarly named quadruped front-foot
+# contacts without adding a new environment signal.
 STANCE_MARKER_KEYS: tuple[str, ...] = (
-    "bilateral_support_quality",
+    "bite_success",
     "leg_home_pose_error",
-    "head_clearance_quality",
+    "head_pelvis_rel_z",
     "neck_posture_error",
 )
 
@@ -72,7 +56,6 @@ _REPLAY_INFO_KEYS: tuple[str, ...] = (
     "pelvis_yaw_vel",
     "heading_alignment",
     *STANCE_INFO_KEYS,
-    *STANCE_REWARD_KEYS,
 )
 
 _LEG_JOINTS: tuple[tuple[str, str], ...] = (
@@ -84,17 +67,17 @@ _LEG_JOINTS: tuple[tuple[str, str], ...] = (
 
 
 def has_stance_diagnostics(info: Mapping[str, Any]) -> bool:
-    """Return whether *info* carries the T. rex stance instrumentation marker."""
+    """Return whether *info* carries T. rex stance instrumentation."""
     return any(key in info for key in STANCE_MARKER_KEYS)
 
 
 def derive_stance_info(info: Mapping[str, Any], contact_threshold: float = 0.1) -> dict[str, float]:
     """Derive instantaneous support and load metrics from foot forces.
 
-    The returned ``*_duty`` fields are binary per timestep.  Averaging them in
-    the training callback or episode metrics produces the conventional duty
-    fraction.  Existing environment-provided fields remain authoritative when
-    callers merge with ``setdefault``.
+    The returned ``*_duty`` fields are binary per timestep. Averaging them in
+    the training callback or episode metrics produces conventional duty
+    fractions. Existing environment-provided values remain authoritative when
+    callers merge the result with ``setdefault``.
     """
     if "r_foot_contact" not in info or "l_foot_contact" not in info:
         return {}
@@ -211,8 +194,6 @@ def capture_trex_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -
     for key, value in derive_stance_info(info).items():
         row.setdefault(key, value)
 
-    # Detailed hip pitch/roll, knee, and ankle deviations from the authored
-    # home keyframe.
     side_errors: dict[str, list[float]] = {"r": [], "l": []}
     joint_errors: dict[str, list[float]] = {label: [] for label, _ in _LEG_JOINTS}
     for side in ("r", "l"):
