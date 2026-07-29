@@ -66,6 +66,18 @@ register_species_mjx(
     target_lateral_range=(-2.0, 2.0),
     target_z=0.5,
     body_ids={"pelvis": 2},  # MuJoCo body ID for pelvis (world=0, prey=1)
+    leg_home_pose_joint_names=(
+        "r_hip_pitch",
+        "r_hip_roll",
+        "r_knee",
+        "r_ankle",
+        "l_hip_pitch",
+        "l_hip_roll",
+        "l_knee",
+        "l_ankle",
+    ),
+    neck_posture_joint_names=("neck_pitch", "neck_yaw", "head_pitch"),
+    head_clearance_site="head_tip",
     termination_body_heights={
         "skull": 0.45,  # raised from 0.15: skull body origin must stay above ~half standing height
         "torso": 0.25,  # torso capsule radius=0.18 + margin
@@ -104,5 +116,20 @@ register_species_mjx(
         # calibrated 0.493 still wins.  Must track the SB3 default; pinned by
         # TestSB3MJXEnvelopeParity.
         "nosedive_termination_threshold": 0.62,
+        # Stage-1 stance refinements are opt-in.  Keeping every weight/fraction
+        # at zero preserves the historical MJX rewards for stages/configs that
+        # do not explicitly enable them.
+        "bilateral_support_weight": 0.0,
+        "foot_contact_saturation_force": 100.0,
+        "foot_load_balance_weight": 0.0,
+        "support_conditioned_alive_fraction": 0.0,
+        "leg_home_pose_weight": 0.0,
+        "leg_home_pose_tolerance": 0.35,
+        "head_clearance_weight": 0.0,
+        "head_clearance_target": 0.60,
+        "head_clearance_tolerance": 0.48,
+        "neck_posture_weight": 0.0,
+        "neck_posture_tolerance": 0.35,
+        "height_target_tolerance": 0.0,
     },
 )

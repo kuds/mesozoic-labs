@@ -5,7 +5,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from environments.shared.jax_eval import EvalConfig, EvalResults, _posture_reward_for_eval, check_stage_gate
+from environments.shared.jax_eval import (
+    EvalConfig,
+    EvalResults,
+    _apply_eval_reset_randomization,
+    _posture_reward_for_eval,
+    check_stage_gate,
+)
 
 
 class TestEvalConfig:
@@ -21,6 +27,11 @@ class TestEvalConfig:
         assert cfg.sensor_quat_start == 6
         assert cfg.action_mapping == "midpoint/v1"
         assert cfg.reset_noise_scale == pytest.approx(0.01)
+        assert cfg.init_qpos_noise == 0.0
+        assert cfg.init_yaw_noise == 0.0
+        assert cfg.target_distance_range is None
+        assert cfg.target_lateral_range is None
+        assert cfg.target_z == pytest.approx(0.5)
         assert cfg.forward_vel_max == pytest.approx(8.0)
 
     def test_custom_values(self):
@@ -88,6 +99,7 @@ class TestEvalResults:
         assert "alive" in results.diag_reward_components
         assert "energy" in results.diag_reward_components
         assert "posture" in results.diag_reward_components
+        assert results.diag_reward_diagnostics == {}
 
     def test_independent_instances(self):
         """Ensure default_factory creates independent lists per instance."""
@@ -95,6 +107,54 @@ class TestEvalResults:
         r2 = EvalResults()
         r1.rewards.append(1.0)
         assert len(r2.rewards) == 0
+
+
+def test_eval_reset_randomization_matches_effective_mjx_distribution():
+    import mujoco
+
+    from environments.shared.mjx_env import _get_model_path
+    from environments.shared.mjx_utils import reset_mujoco_data_to_home
+
+    model = mujoco.MjModel.from_xml_path(_get_model_path("trex"))
+    target_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "prey")
+    config = EvalConfig(
+        reset_noise_scale=0.10,
+        init_qpos_noise=0.01,
+        init_yaw_noise=0.10,
+        target_distance_range=(10.0, 15.0),
+        target_lateral_range=(-2.0, 2.0),
+        target_z=0.5,
+    )
+
+    def randomized(seed):
+        data = mujoco.MjData(model)
+        reset_mujoco_data_to_home(model, data)
+        home_qpos = data.qpos.copy()
+        _apply_eval_reset_randomization(
+            model,
+            data,
+            config,
+            np.random.default_rng(seed),
+            target_body_id,
+        )
+        mujoco.mj_forward(model, data)
+        return data, home_qpos
+
+    first, home_qpos = randomized(3042)
+    repeated, _ = randomized(3042)
+
+    np.testing.assert_allclose(first.qpos, repeated.qpos, rtol=0, atol=0)
+    np.testing.assert_allclose(first.mocap_pos, repeated.mocap_pos, rtol=0, atol=0)
+    joint_delta = first.qpos[7:] - home_qpos[7:]
+    assert np.all(np.abs(joint_delta) <= 0.10)
+    assert np.any(np.abs(joint_delta) > 0)
+    assert np.all(np.abs(first.qpos[:2] - home_qpos[:2]) <= 0.01)
+    assert not np.allclose(first.qpos[3:7], home_qpos[3:7])
+    assert np.linalg.norm(first.qpos[3:7]) == pytest.approx(1.0)
+    target_pos = first.xpos[target_body_id]
+    assert 10.0 <= target_pos[0] <= 15.0
+    assert -2.0 <= target_pos[1] <= 2.0
+    assert target_pos[2] == pytest.approx(0.5)
 
 
 class TestCheckStageGate:
@@ -247,3 +307,201 @@ def test_cpu_evaluation_noise_free_reset_restores_complete_home_state(species):
             atol=1e-7,
             err_msg=f"CPU evaluation reset field {field} diverged from the XML home keyframe",
         )
+
+
+def test_cpu_evaluation_records_canonical_stance_components_and_diagnostics():
+    pytest.importorskip("jax")
+    pytest.importorskip("mujoco.mjx")
+    import jax.numpy as jnp
+    import mujoco
+
+    from environments.shared.jax_eval import evaluate_policy_cpu
+    from environments.shared.mjx_env import _get_model_path
+
+    model = mujoco.MjModel.from_xml_path(_get_model_path("trex"))
+    root_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
+    home_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
+
+    class ZeroNetwork:
+        def apply(self, _params, _obs):
+            return jnp.zeros(model.nu), jnp.zeros(model.nu), jnp.float32(0.0)
+
+    canonical_components = {
+        "alive": 0.25,
+        "height": 0.45,
+        "bilateral_support": 0.60,
+        "foot_load_balance": -0.20,
+        "leg_home_pose": 0.50,
+        "head_clearance": 0.35,
+        "neck_posture": 0.20,
+    }
+    canonical_diagnostics = {
+        "_bilateral_support_quality": 0.75,
+        "_foot_load_imbalance": 0.10,
+        "_raw_alive": 1.0,
+        "_alive_gate": 0.25,
+        "_height_error": 0.02,
+        "_height_quality": 0.90,
+    }
+    scalar_step_kwargs: dict = {}
+
+    def scalar_reward(_data, _action, _reward_cfg, **kwargs):
+        scalar_step_kwargs.update(kwargs)
+        return jnp.float32(0.0)
+
+    def detailed_reward(_data, _action, _reward_cfg, **_kwargs):
+        return {
+            **{name: jnp.float32(value) for name, value in canonical_components.items()},
+            **{name: jnp.float32(value) for name, value in canonical_diagnostics.items()},
+        }
+
+    results = evaluate_policy_cpu(
+        model,
+        {},
+        ZeroNetwork(),
+        None,
+        get_obs_fn=lambda _data: jnp.zeros(1),
+        normalize_obs_fn=lambda obs, _stats: obs,
+        scale_action_fn=lambda _action: jnp.asarray(model.key_ctrl[home_id]),
+        reward_fn=scalar_reward,
+        reward_components_fn=detailed_reward,
+        reward_cfg={"alive_bonus": 99.0, "height_weight": 99.0},
+        config=EvalConfig(
+            n_episodes=1,
+            max_episode_steps=1,
+            healthy_z_range=(0.0, 10.0),
+            max_tilt_angle=np.pi,
+            natural_forward_z=-1.0,
+            nosedive_threshold=10.0,
+            root_body_id=root_body_id,
+            sensor_quat_start=6,
+            termination_body_heights={"pelvis": 10.0},
+            action_mapping="home-keyframe-residual/v1",
+            reset_noise_scale=0.0,
+        ),
+    )
+
+    for name, expected in canonical_components.items():
+        assert results.diag_reward_components[name] == pytest.approx([expected])
+    for name, expected in canonical_diagnostics.items():
+        assert results.diag_reward_diagnostics[name[1:]] == pytest.approx([expected])
+    # These would equal 99.0 if the old eval-only alive/height formulas had
+    # remained authoritative.
+    assert results.diag_reward_components["alive"] == pytest.approx([0.25])
+    assert results.diag_reward_components["height"] == pytest.approx([0.45])
+    assert bool(scalar_step_kwargs["additional_terminated"]) is True
+    np.testing.assert_allclose(
+        np.asarray(scalar_step_kwargs["initial_pos_2d"]),
+        model.key_qpos[home_id, :2],
+        rtol=0,
+        atol=1e-7,
+    )
+
+
+def test_stage_evaluation_uses_effective_training_noise_and_detailed_rewards(monkeypatch):
+    from types import SimpleNamespace
+
+    import environments.shared.jax_eval as jax_eval
+    import environments.shared.jax_setup as jax_setup
+    from environments.shared.config import load_stage_config
+
+    stage_config = load_stage_config("trex", 1)
+    effective_env_kwargs = jax_setup.build_env_kwargs(
+        stage_config["env_kwargs"],
+        stage_config["jax_kwargs"],
+    )
+    assert effective_env_kwargs["reset_noise_scale"] == pytest.approx(0.10)
+
+    def scalar_reward(*_args, **_kwargs):
+        return 0.0
+
+    def detailed_reward(*_args, **_kwargs):
+        return {"bilateral_support": 0.0}
+
+    monkeypatch.setattr(jax_setup, "make_obs_fn", lambda _ctx: scalar_reward)
+    monkeypatch.setattr(jax_setup, "make_scale_action_fn", lambda _ctx: scalar_reward)
+    monkeypatch.setattr(
+        jax_setup,
+        "make_reward_fns",
+        lambda _ctx: (scalar_reward, detailed_reward, scalar_reward),
+    )
+
+    captured: list[dict] = []
+
+    def fake_evaluate_policy_cpu(*_args, **kwargs):
+        captured.append(kwargs)
+        results = EvalResults()
+        results.rewards = [4000.0]
+        results.lengths = [1000]
+        results.forward_vels = [0.0]
+        results.distances = [0.0]
+        results.successes = [False]
+        return results
+
+    monkeypatch.setattr(jax_eval, "evaluate_policy_cpu", fake_evaluate_policy_cpu)
+
+    ctx = SimpleNamespace(
+        species="trex",
+        stage=1,
+        stage_name="Balance",
+        reward_cfg={},
+        jax_kwargs={"rollout_len": 64},
+        max_episode_steps=1000,
+        frame_skip=5,
+        healthy_z_range=(0.3, 2.0),
+        max_tilt_angle=1.0,
+        natural_forward_z=0.0,
+        posture_target_forward_z=None,
+        termination_body_heights={},
+        termination_site_heights={},
+        success_sites=(),
+        success_threshold=0.3,
+        target_body_name="prey",
+        root_body_id=1,
+        sensor_layout=SimpleNamespace(
+            quat_start=6,
+            gyro_start=0,
+            foot_indices=(10, 11),
+            foot_aux_indices=((), ()),
+        ),
+        action_mapping="midpoint/v1",
+        forward_vel_max=8.0,
+        target_standing_z=0.926,
+        mj_model=SimpleNamespace(opt=SimpleNamespace(timestep=0.002)),
+    )
+    env = SimpleNamespace(
+        num_envs=2048,
+        config=SimpleNamespace(
+            reset_noise_scale=effective_env_kwargs["reset_noise_scale"],
+            init_qpos_noise=effective_env_kwargs["init_qpos_noise"],
+            init_yaw_noise=effective_env_kwargs["init_yaw_noise"],
+            target_distance_range=(10.0, 15.0),
+            target_lateral_range=(-2.0, 2.0),
+            target_z=0.5,
+        ),
+    )
+
+    _, _, stage_results, _, _ = jax_setup.run_stage_evaluation(
+        ctx,
+        env,
+        np.zeros(1),
+        object(),
+        None,
+        n_episodes=1,
+    )
+
+    assert len(captured) == 1
+    assert captured[0]["config"].reset_noise_scale == pytest.approx(0.10)
+    assert captured[0]["config"].init_qpos_noise == pytest.approx(0.01)
+    assert captured[0]["config"].init_yaw_noise == pytest.approx(0.10)
+    assert captured[0]["config"].target_distance_range == (10.0, 15.0)
+    assert captured[0]["config"].target_lateral_range == (-2.0, 2.0)
+    assert captured[0]["config"].target_z == pytest.approx(0.5)
+    assert captured[0]["reward_components_fn"] is detailed_reward
+    assert stage_results["evaluation_reset_noise_scale"] == pytest.approx(0.10)
+    assert stage_results["evaluation_init_qpos_noise"] == pytest.approx(0.01)
+    assert stage_results["evaluation_init_yaw_noise"] == pytest.approx(0.10)
+    assert stage_results["evaluation_target_distance_range"] == [10.0, 15.0]
+    assert stage_results["evaluation_target_lateral_range"] == [-2.0, 2.0]
+    assert stage_results["evaluation_target_z"] == pytest.approx(0.5)
+    assert stage_results["evaluation_seed"] == 42

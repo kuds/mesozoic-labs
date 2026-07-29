@@ -523,15 +523,53 @@ def make_reward_fns(ctx: SpeciesContext):
     ``evaluate_policy_cpu`` supplies so eval episode rewards include the
     same approach/proximity/success/fall components as training.
     """
+    import jax.numpy as jnp
+    import mujoco
+
     from .jax_reward_termination import compute_reward_components, compute_total_reward
     from .jax_reward_termination import is_terminated as is_terminated_fn
     from .mjx_env import _SPECIES_CONFIGS as _MJX_SPECIES_CONFIGS
+    from .mjx_env import _resolve_home_pose_joints
 
     # Success bonus resolves through the species' bonus key (bite_bonus /
     # strike_bonus / food_reach_bonus), matching MJXDinoEnv.step; the
     # machinery only engages when success sites exist (stage 3).
     success_bonus_key = _MJX_SPECIES_CONFIGS.get(ctx.species, {}).get("success_bonus_key", "")
     success_bonus = float(ctx.reward_cfg.get(success_bonus_key, 0.0)) if success_bonus_key else 0.0
+    species_reward_geometry = ctx.env_config or _MJX_SPECIES_CONFIGS.get(ctx.species, {})
+
+    def geometry_value(name: str, default: Any = None) -> Any:
+        if isinstance(species_reward_geometry, dict):
+            return species_reward_geometry.get(name, default)
+        return getattr(species_reward_geometry, name, default)
+
+    leg_home_pose_qpos_indices, leg_home_pose_targets = _resolve_home_pose_joints(
+        ctx.mj_model,
+        tuple(geometry_value("leg_home_pose_joint_names", ())),
+    )
+    neck_posture_qpos_indices, neck_posture_targets = _resolve_home_pose_joints(
+        ctx.mj_model,
+        tuple(geometry_value("neck_posture_joint_names", ())),
+    )
+    head_clearance_site_id = None
+    head_clearance_site = geometry_value("head_clearance_site")
+    if head_clearance_site is not None:
+        resolved_head_site_id = mujoco.mj_name2id(ctx.mj_model, mujoco.mjtObj.mjOBJ_SITE, head_clearance_site)
+        if resolved_head_site_id < 0:
+            raise ValueError(f"head-clearance site {head_clearance_site!r} does not exist")
+        head_clearance_site_id = resolved_head_site_id
+
+    foot_sensor_groups = tuple(
+        (
+            foot_index,
+            *(
+                ctx.sensor_layout.foot_aux_indices[position]
+                if position < len(ctx.sensor_layout.foot_aux_indices)
+                else ()
+            ),
+        )
+        for position, foot_index in enumerate(ctx.sensor_layout.foot_indices)
+    )
 
     reward_kw = dict(
         root_body_id=ctx.root_body_id,
@@ -551,6 +589,12 @@ def make_reward_fns(ctx: SpeciesContext):
             tuple(ctx.sensor_layout.foot_indices)
             + tuple(index for group in ctx.sensor_layout.foot_aux_indices for index in group)
         ),
+        foot_sensor_groups=foot_sensor_groups,
+        leg_home_pose_qpos_indices=leg_home_pose_qpos_indices,
+        leg_home_pose_targets=jnp.asarray(leg_home_pose_targets) if leg_home_pose_targets else None,
+        neck_posture_qpos_indices=neck_posture_qpos_indices,
+        neck_posture_targets=jnp.asarray(neck_posture_targets) if neck_posture_targets else None,
+        head_clearance_site_id=head_clearance_site_id,
         sensor_tail_gyro_start=ctx.sensor_tail_gyro_start,
         forward_vel_max=ctx.forward_vel_max,
         dt=float(ctx.mj_model.opt.timestep) * ctx.frame_skip,
@@ -577,7 +621,7 @@ def make_reward_fns(ctx: SpeciesContext):
 
     def compute_reward_detailed(data, action, reward_cfg, **step_kwargs):
         # compute_reward_components takes a subset of the per-step kwargs.
-        allowed = {k: v for k, v in step_kwargs.items() if k in ("prev_action", "forward_ref_2d")}
+        allowed = {k: v for k, v in step_kwargs.items() if k in ("prev_action", "forward_ref_2d", "initial_pos_2d")}
         detail_kw = {
             k: v
             for k, v in reward_kw.items()
@@ -640,9 +684,13 @@ def run_stage_evaluation(
     from .jax_eval import EvalConfig, check_stage_gate, evaluate_policy_cpu
     from .jax_normalization import normalize_obs
 
+    # Bind every evaluation helper to the actual instantiated training
+    # environment.  Besides reset noise, this carries registered geometry and
+    # target_standing_z used by the bounded height/stance rewards.
+    ctx.env_config = env.config
     get_obs = make_obs_fn(ctx)
     scale_action = make_scale_action_fn(ctx)
-    compute_reward, _, _ = make_reward_fns(ctx)
+    compute_reward, compute_reward_detailed, _ = make_reward_fns(ctx)
 
     final_params = jax.device_get(params)
     selected_params = best_params if best_params is not None else final_params
@@ -667,7 +715,15 @@ def run_stage_evaluation(
         sensor_quat_start=ctx.sensor_layout.quat_start,
         sensor_gyro_start=ctx.sensor_layout.gyro_start,
         action_mapping=ctx.action_mapping,
-        reset_noise_scale=0.01,
+        # Evaluate on the same joint-angle reset distribution used by the
+        # instantiated training environment.  This includes the effective
+        # [jax] override after registry/[env]/[jax] merging.
+        reset_noise_scale=float(env.config.reset_noise_scale),
+        init_qpos_noise=float(env.config.init_qpos_noise),
+        init_yaw_noise=float(env.config.init_yaw_noise),
+        target_distance_range=tuple(env.config.target_distance_range),
+        target_lateral_range=tuple(env.config.target_lateral_range),
+        target_z=float(env.config.target_z),
         forward_vel_max=ctx.forward_vel_max,
         target_standing_z=(ctx.target_standing_z if ctx.target_standing_z is not None else 0.90),
         seed=eval_seed,
@@ -689,6 +745,7 @@ def run_stage_evaluation(
         config=eval_config,
         foot_sensor_indices=foot_indices,
         foot_aux_indices=foot_aux_indices,
+        reward_components_fn=compute_reward_detailed,
     )
     final_eval_results = (
         selected_eval_results
@@ -706,6 +763,7 @@ def run_stage_evaluation(
             config=eval_config,
             foot_sensor_indices=foot_indices,
             foot_aux_indices=foot_aux_indices,
+            reward_components_fn=compute_reward_detailed,
         )
     )
 
@@ -752,6 +810,13 @@ def run_stage_evaluation(
         "selection_training_return": round(best_reward, 4) if np.isfinite(best_reward) else None,
         "selection_training_update": best_update if best_update >= 0 else None,
         "sim_dt": ctx.mj_model.opt.timestep * ctx.frame_skip,
+        "evaluation_reset_noise_scale": eval_config.reset_noise_scale,
+        "evaluation_init_qpos_noise": eval_config.init_qpos_noise,
+        "evaluation_init_yaw_noise": eval_config.init_yaw_noise,
+        "evaluation_target_distance_range": list(eval_config.target_distance_range),
+        "evaluation_target_lateral_range": list(eval_config.target_lateral_range),
+        "evaluation_target_z": eval_config.target_z,
+        "evaluation_seed": eval_config.seed,
         "best_model_reward": round(selected_eval_results.mean_reward, 2),
         "best_model_std_reward": round(selected_eval_results.std_reward, 2),
         "best_model_length": round(selected_eval_results.mean_length, 1),

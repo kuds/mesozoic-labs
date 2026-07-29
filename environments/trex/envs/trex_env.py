@@ -36,6 +36,9 @@ Reward components:
     - Posture (continuous tilt penalty)
     - Nosedive penalty
     - Height maintenance
+    - Bilateral foot support and load balance
+    - Home leg-pose retention
+    - Head clearance and neck posture
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
     - Spin penalty (penalize pelvis angular velocity)
@@ -54,6 +57,21 @@ import mujoco
 import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
+from environments.shared.reward_functions import (
+    reward_bilateral_support as _reward_bilateral_support_pure,
+)
+from environments.shared.reward_functions import (
+    reward_foot_load_balance as _reward_foot_load_balance_pure,
+)
+from environments.shared.reward_functions import (
+    reward_head_clearance as _reward_head_clearance_pure,
+)
+from environments.shared.reward_functions import (
+    reward_soft_home_pose as _reward_soft_home_pose_pure,
+)
+from environments.shared.reward_functions import (
+    reward_target_centered_height as _reward_target_centered_height_pure,
+)
 
 
 class TRexEnv(BaseDinoEnv):
@@ -83,6 +101,7 @@ class TRexEnv(BaseDinoEnv):
         nosedive_weight: float = 0.0,
         natural_pitch: float = 0.027,
         height_weight: float = 0.0,
+        height_target_tolerance: float = 0.0,
         gait_symmetry_weight: float = 0.0,
         smoothness_weight: float = 0.05,
         heading_weight: float = 0.0,
@@ -97,6 +116,17 @@ class TRexEnv(BaseDinoEnv):
         forward_vel_max: float = 8.0,
         foot_contact_weight: float = 0.0,
         foot_contact_gate: float = 0.0,
+        bilateral_support_weight: float = 0.0,
+        foot_contact_saturation_force: float = 100.0,
+        foot_load_balance_weight: float = 0.0,
+        support_conditioned_alive_fraction: float = 0.0,
+        leg_home_pose_weight: float = 0.0,
+        leg_home_pose_tolerance: float = 0.35,
+        head_clearance_weight: float = 0.0,
+        head_clearance_target: float = 0.60,
+        head_clearance_tolerance: float = 0.48,
+        neck_posture_weight: float = 0.0,
+        neck_posture_tolerance: float = 0.35,
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
@@ -137,6 +167,7 @@ class TRexEnv(BaseDinoEnv):
         self.posture_weight = posture_weight
         self.nosedive_weight = nosedive_weight
         self.height_weight = height_weight
+        self.height_target_tolerance = height_target_tolerance
         self.gait_symmetry_weight = gait_symmetry_weight
         self.smoothness_weight = smoothness_weight
         self.heading_weight = heading_weight
@@ -151,7 +182,31 @@ class TRexEnv(BaseDinoEnv):
         self.forward_vel_max = forward_vel_max
         self.foot_contact_weight = foot_contact_weight
         self.foot_contact_gate = foot_contact_gate
+        self.bilateral_support_weight = bilateral_support_weight
+        self.foot_contact_saturation_force = foot_contact_saturation_force
+        self.foot_load_balance_weight = foot_load_balance_weight
+        self.support_conditioned_alive_fraction = support_conditioned_alive_fraction
+        self.leg_home_pose_weight = leg_home_pose_weight
+        self.leg_home_pose_tolerance = leg_home_pose_tolerance
+        self.head_clearance_weight = head_clearance_weight
+        self.head_clearance_target = head_clearance_target
+        self.head_clearance_tolerance = head_clearance_tolerance
+        self.neck_posture_weight = neck_posture_weight
+        self.neck_posture_tolerance = neck_posture_tolerance
         self.nosedive_termination_threshold = nosedive_termination_threshold
+
+        if self.height_target_tolerance < 0.0:
+            raise ValueError("height_target_tolerance must be non-negative")
+        if self.foot_contact_saturation_force <= 0.0:
+            raise ValueError("foot_contact_saturation_force must be positive")
+        if not 0.0 <= self.support_conditioned_alive_fraction <= 1.0:
+            raise ValueError("support_conditioned_alive_fraction must be in [0, 1]")
+        if self.leg_home_pose_tolerance <= 0.0:
+            raise ValueError("leg_home_pose_tolerance must be positive")
+        if self.head_clearance_tolerance <= 0.0:
+            raise ValueError("head_clearance_tolerance must be positive")
+        if self.neck_posture_tolerance <= 0.0:
+            raise ValueError("neck_posture_tolerance must be positive")
 
         # Natural forward pitch (~1.55°), measured: the pelvis frame at the home
         # keyframe is level, and under the home controller the plant settles at
@@ -272,12 +327,85 @@ class TRexEnv(BaseDinoEnv):
         self._sensor_r_foot_digits = (24, 25, 26)
         self._sensor_l_foot_digits = (27, 28, 29)
 
+        # Stage-1 pose targets come from the named home keyframe instead of
+        # duplicating angles in Python.  This keeps the reward centred on the
+        # p5 theropod stance if the XML's authored equilibrium is recalibrated.
+        leg_home_joint_names = (
+            "r_hip_pitch",
+            "r_hip_roll",
+            "r_knee",
+            "r_ankle",
+            "l_hip_pitch",
+            "l_hip_roll",
+            "l_knee",
+            "l_ankle",
+        )
+        neck_home_joint_names = ("neck_pitch", "neck_yaw", "head_pitch")
+        self._leg_home_qpos_indices = self._joint_qpos_indices(leg_home_joint_names)
+        self._neck_home_qpos_indices = self._joint_qpos_indices(neck_home_joint_names)
+        home_qpos = self.model.key_qpos[self.home_keyframe_id]
+        self._leg_home_qpos = home_qpos[self._leg_home_qpos_indices].copy()
+        self._neck_home_qpos = home_qpos[self._neck_home_qpos_indices].copy()
+
+    def _joint_qpos_indices(self, joint_names: tuple[str, ...]) -> np.ndarray:
+        """Resolve scalar hinge-joint qpos addresses, failing on model drift."""
+        indices = []
+        for name in joint_names:
+            joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, name)
+            if joint_id < 0:
+                raise ValueError(f"T-Rex model must define joint {name!r}")
+            indices.append(int(self.model.jnt_qposadr[joint_id]))
+        return np.asarray(indices, dtype=np.int32)
+
     def _foot_contact_forces(self) -> tuple[float, float]:
         """Total floor contact force under each foot: plantar pad and digits."""
         sensordata = self.data.sensordata
         right = sensordata[self._sensor_r_foot] + sum(sensordata[index] for index in self._sensor_r_foot_digits)
         left = sensordata[self._sensor_l_foot] + sum(sensordata[index] for index in self._sensor_l_foot_digits)
         return float(right), float(left)
+
+    def _bilateral_support_quality(self, right_force: float, left_force: float) -> float:
+        """Return bounded support quality, requiring load on both feet."""
+        _, quality = _reward_bilateral_support_pure(
+            np.asarray((right_force, left_force)),
+            self.foot_contact_saturation_force,
+            1.0,
+        )
+        return float(quality)
+
+    @staticmethod
+    def _foot_load_imbalance(right_force: float, left_force: float) -> float:
+        """Return normalized left/right load mismatch in ``[0, 1]``."""
+        _, imbalance = _reward_foot_load_balance_pure(
+            np.asarray((right_force, left_force)),
+            1.0,
+        )
+        return float(imbalance)
+
+    def _home_pose_quality(
+        self,
+        qpos_indices: np.ndarray,
+        target_qpos: np.ndarray,
+        tolerance: float,
+    ) -> tuple[float, float]:
+        """Return RMS joint error and a smooth bounded home-pose quality."""
+        _, rms_error, quality = _reward_soft_home_pose_pure(
+            self.data.qpos[qpos_indices],
+            target_qpos,
+            tolerance,
+            1.0,
+        )
+        return float(rms_error), float(quality)
+
+    def _head_clearance_quality(self, head_tip_z: float) -> float:
+        """Reward safe clearance smoothly from zero to the target height."""
+        _, quality = _reward_head_clearance_pure(
+            np.asarray(head_tip_z),
+            self.head_clearance_target,
+            self.head_clearance_tolerance,
+            1.0,
+        )
+        return float(quality)
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
         """Map normalized residual actions around the XML home controls.
@@ -370,8 +498,33 @@ class TRexEnv(BaseDinoEnv):
         info["drift_distance"] = drift_dist
         info["reward_drift"] = reward_drift
 
-        # 2. Alive bonus (shared helper)
-        reward_alive = self._reward_alive()
+        # 1d. Bilateral support and load balance.  Touch sensors report the
+        # full plantar-plus-digit load for each foot.  Saturation prevents
+        # impact spikes from being more valuable than quiet support, while the
+        # minimum requires both feet to carry load.
+        r_contact, l_contact = self._foot_contact_forces()
+        info["r_foot_contact"] = r_contact
+        info["l_foot_contact"] = l_contact
+
+        bilateral_support_quality = self._bilateral_support_quality(r_contact, l_contact)
+        reward_bilateral_support = self.bilateral_support_weight * bilateral_support_quality
+        info["bilateral_support_quality"] = bilateral_support_quality
+        info["reward_bilateral_support"] = reward_bilateral_support
+
+        foot_load_imbalance = self._foot_load_imbalance(r_contact, l_contact)
+        reward_foot_load_balance = -self.foot_load_balance_weight * foot_load_imbalance
+        info["foot_load_imbalance"] = foot_load_imbalance
+        info["reward_foot_load_balance"] = reward_foot_load_balance
+
+        # 2. Alive bonus (shared helper), optionally conditioned in part on
+        # bilateral support.  A fraction below 1 leaves recovery headroom
+        # after a noisy reset; the zero default is exactly the legacy bonus.
+        raw_alive = self._reward_alive()
+        alive_fraction = self.support_conditioned_alive_fraction
+        alive_gate = (1.0 - alive_fraction) + alive_fraction * bilateral_support_quality
+        reward_alive = raw_alive * alive_gate
+        info["raw_alive"] = raw_alive
+        info["alive_gate"] = alive_gate
         info["reward_alive"] = reward_alive
 
         # 3. Energy penalty (shared helper)
@@ -424,6 +577,28 @@ class TRexEnv(BaseDinoEnv):
         info["head_proximity"] = head_proximity
         info["reward_head_proximity"] = reward_head_proximity
 
+        # 6c. Head clearance and neck posture.  Clearance is a smoothstep:
+        # zero one configured tolerance below the target and saturated at the
+        # target so lifting the head ever higher cannot farm reward.  The neck
+        # target is the authored home keyframe, not a duplicated angle list.
+        head_tip_z = float(head_tip_pos[2])
+        head_clearance_quality = self._head_clearance_quality(head_tip_z)
+        reward_head_clearance = self.head_clearance_weight * head_clearance_quality
+        info["head_tip_z"] = head_tip_z
+        info["head_pelvis_rel_z"] = head_tip_z - float(pelvis_pos[2])
+        info["head_clearance_quality"] = head_clearance_quality
+        info["reward_head_clearance"] = reward_head_clearance
+
+        neck_posture_error, neck_posture_quality = self._home_pose_quality(
+            self._neck_home_qpos_indices,
+            self._neck_home_qpos,
+            self.neck_posture_tolerance,
+        )
+        reward_neck_posture = self.neck_posture_weight * neck_posture_quality
+        info["neck_posture_error"] = neck_posture_error
+        info["neck_posture_quality"] = neck_posture_quality
+        info["reward_neck_posture"] = reward_neck_posture
+
         # 7. Continuous posture reward
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         reward_posture, tilt_angle = self._compute_posture_reward(pelvis_quat, self.posture_weight)
@@ -454,15 +629,40 @@ class TRexEnv(BaseDinoEnv):
         # was caught rather than left to drift.  Keep this and
         # ``target_standing_z`` in environments/trex/mjx_config.py equal.
         target_z = 0.9260
-        height_frac = float(np.clip((pelvis_height - min_z) / (target_z - min_z), 0.0, 1.0))
-        reward_height = self.height_weight * height_frac
+        if self.height_target_tolerance > 0.0:
+            reward_height, height_error, height_quality = _reward_target_centered_height_pure(
+                np.asarray(pelvis_height),
+                target_z,
+                self.height_target_tolerance,
+                self.height_weight,
+            )
+            reward_height = float(reward_height)
+            height_error = float(height_error)
+            height_quality = float(height_quality)
+        else:
+            # Legacy one-sided reward: retain it exactly unless the explicit
+            # target-centred tolerance switch is enabled.
+            height_error = abs(pelvis_height - target_z)
+            height_quality = float(np.clip((pelvis_height - min_z) / (target_z - min_z), 0.0, 1.0))
+            reward_height = self.height_weight * height_quality
+        info["height_error"] = height_error
+        info["height_quality"] = height_quality
         info["reward_height"] = reward_height
 
-        # 9. Gait symmetry (reward alternating foot contacts, shared helper)
-        r_contact, l_contact = self._foot_contact_forces()
-        info["r_foot_contact"] = r_contact
-        info["l_foot_contact"] = l_contact
+        # 8d. Soft leg-pose retention around the authored p5 home stance.
+        # Gaussian quality gives corrective signal without hard-locking a
+        # joint, and averaging prevents one joint from dominating the term.
+        leg_home_pose_error, leg_home_pose_quality = self._home_pose_quality(
+            self._leg_home_qpos_indices,
+            self._leg_home_qpos,
+            self.leg_home_pose_tolerance,
+        )
+        reward_leg_home_pose = self.leg_home_pose_weight * leg_home_pose_quality
+        info["leg_home_pose_error"] = leg_home_pose_error
+        info["leg_home_pose_quality"] = leg_home_pose_quality
+        info["reward_leg_home_pose"] = reward_leg_home_pose
 
+        # 9. Gait symmetry (reward alternating foot contacts, shared helper)
         reward_gait, alternation_ratio = self._compute_gait_symmetry(
             float(r_contact), float(l_contact), self.gait_symmetry_weight
         )
@@ -524,9 +724,14 @@ class TRexEnv(BaseDinoEnv):
             + reward_bite
             + reward_approach
             + reward_head_proximity
+            + reward_head_clearance
+            + reward_neck_posture
             + reward_posture
             + reward_nosedive
             + reward_height
+            + reward_bilateral_support
+            + reward_foot_load_balance
+            + reward_leg_home_pose
             + reward_gait
             + reward_smoothness
             + reward_heading

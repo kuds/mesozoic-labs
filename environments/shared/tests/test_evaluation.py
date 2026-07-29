@@ -201,6 +201,63 @@ class TestRecordStageVideo:
         # Should have called write_video
         assert mock_mediapy.write_video.called or result is None
 
+    def test_records_named_camera_views_and_stance_csv(self, tmp_path):
+        mock_mediapy = MagicMock()
+        mock_env = MagicMock()
+        mock_env._camera = SimpleNamespace(azimuth=135.0, elevation=-20.0, distance=3.0)
+        mock_env.reset.return_value = (np.zeros(10), {})
+        mock_env.step.return_value = (
+            np.zeros(10),
+            1.0,
+            True,
+            False,
+            {"r_foot_contact": 75.0, "l_foot_contact": 25.0},
+        )
+        mock_env.render.return_value = np.zeros((64, 64, 3), dtype=np.uint8)
+        mock_model = MagicMock()
+        mock_model.predict.return_value = (np.array([0.0]), None)
+
+        import builtins
+
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "mediapy":
+                return mock_mediapy
+            return real_import(name, *args, **kwargs)
+
+        with (
+            patch("builtins.__import__", side_effect=mock_import),
+            patch(
+                "environments.shared.train_base._ensure_sb3",
+                return_value={"DummyVecEnv": MagicMock(), "VecNormalize": MagicMock()},
+            ),
+        ):
+            record_stage_video(
+                model=mock_model,
+                env_class=MagicMock(return_value=mock_env),
+                env_kwargs={},
+                stage=1,
+                stage_dir=str(tmp_path),
+                species="dino",
+                label="best",
+                max_steps=1,
+                camera_views={
+                    "side": {"azimuth": 90.0, "elevation": -8.0, "distance": 3.4},
+                    "front": {"azimuth": 180.0, "elevation": -8.0, "distance": 3.4},
+                },
+                collect_stance_diagnostics=True,
+            )
+
+        written_paths = [str(call.args[0]) for call in mock_mediapy.write_video.call_args_list]
+        assert any(path.endswith("_best.mp4") for path in written_paths)
+        assert any(path.endswith("_best_side.mp4") for path in written_paths)
+        assert any(path.endswith("_best_front.mp4") for path in written_paths)
+        assert (tmp_path / "dino_ppo_stage1_best_stance.csv").exists()
+        assert mock_env._camera.azimuth == 135.0
+        assert mock_env._camera.elevation == -20.0
+        assert mock_env._camera.distance == 3.0
+
 
 class TestEvaluateFunction:
     """Test the evaluate() function with mocked dependencies."""

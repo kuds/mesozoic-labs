@@ -80,6 +80,56 @@ class TestOnStep:
         assert callback._step_infos["forward_vel"] == [2.0]
         assert callback._step_infos["prey_distance"] == [5.0]
 
+    def test_derives_stance_contact_duties_and_load_share(self, callback):
+        callback.locals = {
+            "infos": [
+                {
+                    "r_foot_contact": 75.0,
+                    "l_foot_contact": 25.0,
+                    "bilateral_support_quality": 0.25,
+                }
+            ]
+        }
+        callback._on_step()
+
+        assert callback._step_infos["bilateral_support_duty"] == [1.0]
+        assert callback._step_infos["r_foot_load_share"] == [0.75]
+        assert callback._step_infos["foot_load_imbalance"] == [0.5]
+
+    def test_environment_stance_value_wins_over_derivative(self, callback):
+        callback.locals = {
+            "infos": [
+                {
+                    "r_foot_contact": 75.0,
+                    "l_foot_contact": 25.0,
+                    "bilateral_support_quality": 0.25,
+                    "foot_load_imbalance": 0.125,
+                }
+            ]
+        }
+        callback._on_step()
+
+        assert callback._step_infos["foot_load_imbalance"] == [0.125]
+
+    def test_does_not_derive_biped_stance_metrics_for_quadruped_contacts(self, callback):
+        callback.locals = {
+            "infos": [
+                {
+                    "r_foot_contact": 75.0,
+                    "l_foot_contact": 25.0,
+                    "rr_foot_contact": 50.0,
+                    "rl_foot_contact": 50.0,
+                }
+            ]
+        }
+        callback._on_step()
+
+        assert callback._step_infos["r_foot_contact"] == [75.0]
+        assert callback._step_infos["rr_foot_contact"] == [50.0]
+        assert callback._step_infos["bilateral_support_duty"] == []
+        assert callback._step_infos["r_foot_load_share"] == []
+        assert callback._step_infos["foot_load_imbalance"] == []
+
     def test_collects_termination_reasons(self, callback):
         callback.locals = {"infos": [{"termination_reason": "fallen"}, {"termination_reason": "fallen"}]}
         callback._on_step()

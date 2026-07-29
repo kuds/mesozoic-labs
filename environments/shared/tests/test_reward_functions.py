@@ -17,14 +17,19 @@ from environments.shared.reward_functions import (
     reward_alive,
     reward_approach_shaping,
     reward_backward_penalty,
+    reward_bilateral_support,
     reward_energy,
+    reward_foot_load_balance,
     reward_forward_velocity,
+    reward_head_clearance,
     reward_height_maintenance,
     reward_idle_penalty,
     reward_lean_aware_posture,
     reward_posture,
     reward_proximity,
+    reward_soft_home_pose,
     reward_speed_penalty,
+    reward_target_centered_height,
 )
 
 # ---------------------------------------------------------------------------
@@ -238,6 +243,73 @@ class TestRewardHeightMaintenance:
     def test_at_min(self):
         r = reward_height_maintenance(0.5, 0.5, 0.9, 1.0)
         assert r == pytest.approx(0.0)
+
+
+class TestStageOneStancePrimitives:
+    def test_bilateral_support_uses_weaker_saturated_foot(self):
+        reward, quality = reward_bilateral_support(np.array([125.0, 40.0]), 100.0, 2.0)
+
+        assert quality == pytest.approx(0.4)
+        assert reward == pytest.approx(0.8)
+
+    def test_load_balance_is_zero_when_equal_and_one_when_unilateral(self):
+        equal_reward, equal_imbalance = reward_foot_load_balance(np.array([80.0, 80.0]), 1.5)
+        unilateral_reward, unilateral_imbalance = reward_foot_load_balance(np.array([80.0, 0.0]), 1.5)
+
+        assert equal_imbalance == pytest.approx(0.0)
+        assert equal_reward == pytest.approx(0.0)
+        assert unilateral_imbalance == pytest.approx(1.0)
+        assert unilateral_reward == pytest.approx(-1.5)
+
+    def test_soft_home_pose_reports_rms_and_mean_joint_quality(self):
+        tolerance = 0.5
+        joint_positions = np.array([0.0, tolerance])
+        home_positions = np.zeros(2)
+        reward, error, quality = reward_soft_home_pose(
+            joint_positions,
+            home_positions,
+            tolerance,
+            2.0,
+        )
+
+        assert error == pytest.approx(tolerance / np.sqrt(2.0))
+        assert quality == pytest.approx((1.0 + np.exp(-1.0)) / 2.0)
+        assert reward == pytest.approx(2.0 * quality)
+
+    @pytest.mark.parametrize(
+        ("head_height", "expected_quality"),
+        (
+            (0.12, 0.0),
+            (0.36, 0.5),
+            (0.60, 1.0),
+            (0.80, 1.0),
+        ),
+    )
+    def test_head_clearance_smoothsteps_from_floor_to_target(self, head_height, expected_quality):
+        reward, quality = reward_head_clearance(
+            head_height,
+            target_height=0.60,
+            tolerance=0.48,
+            weight=1.25,
+        )
+
+        assert quality == pytest.approx(expected_quality)
+        assert reward == pytest.approx(1.25 * expected_quality)
+
+    def test_target_centered_height_is_bounded_and_symmetric(self):
+        at_target, target_error, target_quality = reward_target_centered_height(0.926, 0.926, 0.08, 1.0)
+        below, below_error, below_quality = reward_target_centered_height(0.846, 0.926, 0.08, 1.0)
+        above, above_error, above_quality = reward_target_centered_height(1.006, 0.926, 0.08, 1.0)
+
+        assert at_target == pytest.approx(1.0)
+        assert target_error == pytest.approx(0.0)
+        assert target_quality == pytest.approx(1.0)
+        assert below_error == pytest.approx(0.08)
+        assert above_error == pytest.approx(0.08)
+        assert below_quality == pytest.approx(np.exp(-1.0))
+        assert above_quality == pytest.approx(below_quality)
+        assert below == pytest.approx(below_quality)
+        assert above == pytest.approx(above_quality)
 
 
 class TestRewardBackwardPenalty:

@@ -772,6 +772,10 @@ class _FakeEvalResults:
             "forward": [0.3, 0.4, 0.35],
             "alive": [0.1, 0.1, 0.1],
         }
+        self.diag_reward_diagnostics = {
+            "bilateral_support_quality": [0.4, 0.6, 0.8],
+            "alive_gate": [0.7, 0.8, 0.9],
+        }
 
 
 class _FakeFinalEvalResults:
@@ -803,7 +807,7 @@ class TestSaveJaxStageArtifacts:
             },
         )
 
-    def _call(self, tmp_path, stage=1, **overrides):
+    def _call(self, tmp_path, stage=1, species="velociraptor", **overrides):
         run_dir = tmp_path / "run"
         run_dir.mkdir(parents=True, exist_ok=True)
         stage_dir = run_dir / f"stage{stage}"
@@ -825,7 +829,7 @@ class TestSaveJaxStageArtifacts:
         )
 
         kwargs = dict(
-            species="velociraptor",
+            species=species,
             stage=stage,
             stage_config=stage_config,
             stage_results=stage_results,
@@ -899,9 +903,47 @@ class TestSaveJaxStageArtifacts:
         paths, _, _ = self._call(tmp_path)
         data = np.load(paths["diagnostics"])
         assert "tilt_angle" in data
+        assert "timesteps" in data
         assert "forward_vel" in data
         assert "l_foot_contact" in data
         assert "reward_forward" in data
+        assert "bilateral_support_quality" in data
+        assert "alive_gate" in data
+
+    def test_trex_stage1_diagnostics_derive_support_duty_and_load_share(self, tmp_path):
+        from dataclasses import replace
+
+        import numpy as np
+
+        trex_identity = replace(
+            _plant_identity(),
+            species="trex",
+            model_path="environments/trex/assets/trex.xml",
+            physics_revision=5,
+            policy_interface_revision=7,
+            nq=28,
+            nv=27,
+            nu=21,
+            observation_dim=61,
+            action_dim=21,
+        )
+        paths, _, _ = self._call(
+            tmp_path,
+            species="trex",
+            plant_identity=trex_identity,
+        )
+        data = np.load(paths["diagnostics"])
+
+        np.testing.assert_array_equal(data["r_foot_contact_duty"], [0.0, 1.0, 0.0])
+        np.testing.assert_array_equal(data["l_foot_contact_duty"], [1.0, 0.0, 1.0])
+        np.testing.assert_array_equal(data["bilateral_support_duty"], [0.0, 0.0, 0.0])
+        np.testing.assert_array_equal(data["single_support_duty"], [1.0, 1.0, 1.0])
+        np.testing.assert_array_equal(data["unsupported_duty"], [0.0, 0.0, 0.0])
+        np.testing.assert_allclose(data["r_foot_load_share"], [0.0, 1.0, 0.0])
+        np.testing.assert_allclose(data["l_foot_load_share"], [1.0, 0.0, 1.0])
+        np.testing.assert_allclose(data["foot_load_balance"], [0.0, 0.0, 0.0])
+        np.testing.assert_allclose(data["foot_load_asymmetry"], [1.0, 1.0, 1.0])
+        np.testing.assert_allclose(data["foot_load_imbalance"], [1.0, 1.0, 1.0])
 
     def test_diagnostics_npz_no_foot_data(self, tmp_path):
         import numpy as np
