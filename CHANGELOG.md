@@ -88,6 +88,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   budget.
 
 ### Fixed
+- **T-Rex stages 2 and 3 no longer terminate at a different pitch angle on the
+  MJX path than on the Gymnasium one**: `nosedive_termination_threshold` is the
+  per-stage tunable pitch gate, and only `stage1_balance.toml` sets it. When a
+  stage leaves it unset the two backends reached for different fallbacks —
+  `TRexEnv.__init__`'s **0.62** on the Gymnasium path against the generic
+  `weights.get("nosedive_termination_threshold", 0.5)` literal in `mjx_env` on
+  the MJX one. With `natural_forward_z = -sin(0.027)` that is a termination at
+  40.3° nose-down against 31.8°: MJX killed the episode **8.5° earlier**, in
+  exactly the two stages whose configs deliberately ask for a head-forward
+  running posture (`nosedive_weight` 1.5 → 0.5 → 0.2, `posture_weight` 1.5 →
+  0.2 → 0.1). The comment at `environments/trex/mjx_config.py` asserted the two
+  paths already agreed on 0.62, and the parity class that pins this category of
+  parameter (`TestSB3MJXEnvelopeParity`, added for `healthy_z_range` and
+  `max_tilt_angle`) did not cover it. The T-Rex registry now carries the value,
+  making the generic fallback unreachable; registry weights are merged before
+  the TOML overlay, so stage 1's calibrated 0.493 still wins. No plant
+  fingerprint moves — reward and termination code are deliberately outside the
+  policy-interface payload — so no revision bump is required and existing
+  checkpoints stay valid. Found during the July 2026 T-Rex review; see
+  `docs/investigations/TREX_REVIEW_2026_07.md` finding F2. The same shared 0.5
+  fallback exists for the other three species, whose Gymnasium defaults also
+  differ (Dibothrosuchus 0.55); those were out of the review's scope and are
+  left for a general fix.
+
 - **T-Rex neutral stance now has a viable training basin** (breaking —
   policy-interface revision 1 → 2, physics revision 1 → 2, visual revision
   1 → 2): the old `home` state embedded the feet as much as 9 cm into the

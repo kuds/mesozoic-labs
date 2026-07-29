@@ -105,16 +105,28 @@ def score(env, episodes: int, seed: int, noise: float | None = None) -> dict:
     rewards_arr = np.asarray(rewards)
     lengths_arr = np.asarray(lengths)
     horizon = env.max_episode_steps
+    standing = lengths_arr >= horizon
     return {
         "reward_mean": float(rewards_arr.mean()),
         "reward_std": float(rewards_arr.std()),
         # The gate a trained policy must clear: a fat failure tail shows up here
         # while it hides in the mean.
         "reward_mean_minus_std": float(rewards_arr.mean() - rewards_arr.std()),
+        # Conditioned on the statue not falling over.  This is the number a
+        # stage-1 gate has to beat to mean anything, and it is much higher than
+        # the unconditional mean: the reward pays per step, so the episodes the
+        # do-nothing policy survives are worth far more than its average.  A
+        # gate set above ``reward_mean`` but below this one is cleared by a
+        # policy that has learned only "do not fall".
+        "reward_mean_standing": float(rewards_arr[standing].mean()) if standing.any() else float("nan"),
+        "reward_std_standing": float(rewards_arr[standing].std()) if standing.any() else float("nan"),
+        "n_standing": int(standing.sum()),
         "length_mean": float(lengths_arr.mean()),
-        "full_horizon_share": float((lengths_arr >= horizon).mean()),
+        "full_horizon_share": float(standing.mean()),
         "terminations": terminations,
         "horizon": horizon,
+        "episodes": int(rewards_arr.size),
+        "reset_noise_scale": float(env.reset_noise_scale),
     }
 
 
@@ -124,11 +136,12 @@ def report(species: str, stage: int, episodes: int, seed: int, sweep: bool) -> N
         label = f"{species} stage {stage}"
         if sweep:
             print(f"\n{label}: zero-action baseline vs reset_noise_scale ({episodes} episodes)")
-            print(f"  {'noise':>7}{'reward':>12}{'mean-std':>11}{'ep length':>11}{'full-horizon':>14}")
+            print(f"  {'noise':>7}{'reward':>12}{'mean-std':>11}{'standing':>11}{'ep length':>11}{'full-horizon':>14}")
             for noise in NOISE_SWEEP:
                 result = score(env, episodes, seed, noise=noise)
                 print(
                     f"  {noise:>7}{result['reward_mean']:>12.1f}{result['reward_mean_minus_std']:>11.1f}"
+                    f"{result['reward_mean_standing']:>11.1f}"
                     f"{result['length_mean']:>11.1f}{result['full_horizon_share']:>13.0%}"
                 )
             return
@@ -137,10 +150,15 @@ def report(species: str, stage: int, episodes: int, seed: int, sweep: bool) -> N
         print(f"\n{label}: zero-action baseline ({episodes} episodes, reset_noise={env.reset_noise_scale})")
         print(f"  reward             {result['reward_mean']:.2f} +/- {result['reward_std']:.2f}")
         print(f"  reward mean-std    {result['reward_mean_minus_std']:.2f}")
+        print(
+            f"  reward standing    {result['reward_mean_standing']:.2f} +/- {result['reward_std_standing']:.2f}"
+            f"   ({result['n_standing']} of {result['episodes']} episodes reached the horizon)"
+        )
         print(f"  episode length     {result['length_mean']:.1f} of {result['horizon']}")
         print(f"  full-horizon share {result['full_horizon_share']:.0%}")
         print(f"  terminations       {result['terminations']}")
         print("  a trained policy must beat all three of reward, mean-std, and full-horizon share")
+        print("  and 'reward standing' is what it must beat to have learned more than 'do not fall'")
     finally:
         env.close()
 

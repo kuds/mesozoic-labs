@@ -449,6 +449,11 @@ MJX_CONFIG_MODULES = {
     "dibothrosuchus": "environments.dibothrosuchus.mjx_config",
 }
 
+# Stage-config [env] keys the MJX path consumes and the Gymnasium envs do not
+# accept.  Mirrors the JAX-only note in the stage-1 configs and the same
+# constant in environments/shared/scripts/zero_action_baseline.py.
+JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
+
 
 class TestSB3MJXEnvelopeParity:
     """The Gymnasium env and the MJX registry must agree on the alive envelope.
@@ -490,6 +495,55 @@ class TestSB3MJXEnvelopeParity:
         try:
             assert registered == pytest.approx(env.max_tilt_angle), (
                 f"{species}: MJX registers max_tilt_angle={registered} but the Gymnasium env uses {env.max_tilt_angle}"
+            )
+        finally:
+            env.close()
+
+    @pytest.mark.parametrize("stage", (1, 2, 3))
+    def test_trex_nosedive_threshold_never_falls_back(self, stage):
+        """Every T-Rex stage must resolve the same nosedive gate on both paths.
+
+        ``nosedive_termination_threshold`` is the per-stage tunable pitch gate
+        (``max_tilt_angle`` is the absolute backstop).  Only stage 1 sets it in
+        TOML.  When a stage leaves it unset the two paths reach for different
+        fallbacks: the Gymnasium env takes ``TRexEnv.__init__``'s default, while
+        the MJX path takes the generic literal at ``mjx_env.py`` --
+        ``weights.get("nosedive_termination_threshold", 0.5)`` -- which is not a
+        T-Rex number and is 8.5 degrees stricter.  Stages 2 and 3 diverged that
+        way, in exactly the stages whose configs ask for a head-forward running
+        posture.
+
+        Asserting that the merged reward weights *carry* the key is what closes
+        it: a present key makes the ``.get`` fallback unreachable, so this stays
+        valid if that literal ever changes.  Same category as the two envelope
+        tests above, which is why it lives beside them.
+        """
+        importlib.import_module(MJX_CONFIG_MODULES["trex"])
+        from environments.shared.mjx_env import _SPECIES_CONFIGS, MJXEnvConfig, canonicalize_env_kwargs
+
+        key = "nosedive_termination_threshold"
+        toml_env_kwargs = dict(load_stage_config("trex", stage)["env_kwargs"])
+
+        # Reproduce MJXDinoEnv's registry-then-TOML reward-weight merge.
+        config_fields = {field.name for field in MJXEnvConfig.__dataclass_fields__.values()}
+        merged = dict(_SPECIES_CONFIGS["trex"].get("reward_weights", {}))
+        for name, value in canonicalize_env_kwargs(dict(toml_env_kwargs)).items():
+            if name == "reward_weights":
+                merged.update(value)
+            elif name not in config_fields:
+                merged[name] = value
+
+        assert key in merged, (
+            f"trex stage {stage}: the MJX reward weights do not carry {key!r}, so the MJX path "
+            f"falls back to its generic default while the Gymnasium env uses its own"
+        )
+
+        # The Gymnasium env takes the raw TOML keys; two of them are MJX-only.
+        env = TRexEnv(**{k: v for k, v in toml_env_kwargs.items() if k not in JAX_ONLY_ENV_KEYS})
+        try:
+            assert merged[key] == pytest.approx(env.nosedive_termination_threshold), (
+                f"trex stage {stage}: MJX resolves {key}={merged[key]} but the Gymnasium env "
+                f"uses {env.nosedive_termination_threshold}"
             )
         finally:
             env.close()
