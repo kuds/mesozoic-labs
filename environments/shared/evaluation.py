@@ -8,12 +8,19 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Mapping
 
 if TYPE_CHECKING:
     from .plant_contract import PlantIdentity
 
 logger = logging.getLogger(__name__)
+
+TREX_STAGE1_CAMERA_VIEWS: dict[str, dict[str, float]] = {
+    # Fixed view angles make stance comparisons repeatable while preserving
+    # the existing pelvis-tracking camera.
+    "side": {"azimuth": 90.0, "elevation": -8.0, "distance": 3.4},
+    "front": {"azimuth": 180.0, "elevation": -8.0, "distance": 3.4},
+}
 
 try:
     import numpy as _np
@@ -93,6 +100,7 @@ def eval_policy_quality(
         Dict of aggregated eval metrics (prefixed with ``eval_``).
     """
     from .metrics import LocomotionMetrics, env_dt
+    from .stance_diagnostics import STANCE_INFO_KEYS
 
     episode_reports = []
     dt = env_dt(eval_env)
@@ -156,6 +164,16 @@ def eval_policy_quality(
     if "mean_distance_traveled" in agg:
         result["eval_distance_traveled"] = round(agg["mean_distance_traveled"], 4)
 
+    # Reporting-only stance diagnostics. ``mean_mean_*`` is the mean of each
+    # episode's timestep mean; ``std_mean_*`` captures episode variation.
+    for metric in STANCE_INFO_KEYS:
+        mean_key = f"mean_mean_{metric}"
+        std_key = f"std_mean_{metric}"
+        if mean_key in agg:
+            result[f"eval_mean_{metric}"] = round(agg[mean_key], 4)
+        if std_key in agg:
+            result[f"eval_std_{metric}"] = round(agg[std_key], 4)
+
     # Reward component breakdown (cumulative per episode, averaged across episodes)
     for key, value in agg.items():
         if key.startswith("mean_reward_component_"):
@@ -186,12 +204,18 @@ def record_stage_video(
     label: str | None = None,
     plant_identity: PlantIdentity | None = None,
     allow_legacy_plant: bool = False,
+    camera_views: Mapping[str, Mapping[str, float]] | None = None,
+    collect_stance_diagnostics: bool = False,
 ):
     """Record and save a video of the trained policy for a given stage.
 
     When *vecnorm_path* is provided, observations are normalized using the
     saved ``VecNormalize`` running statistics so the policy sees the same
     input distribution it was trained on.
+
+    When *camera_views* is supplied, one additional synchronized video is
+    written per named camera preset. When *collect_stance_diagnostics* is
+    true, a per-frame ``*_stance.csv`` is written beside the replay.
 
     Requires the ``mediapy`` package (``pip install mediapy``).
     """
@@ -247,9 +271,11 @@ def record_stage_video(
 
     obs, _ = render_env.reset(seed=seed + 2000 + stage)
     frames = []
+    named_frames: dict[str, list[Any]] = {name: [] for name in (camera_views or {})}
+    stance_rows: list[dict[str, float]] = []
     episode_reward = 0.0
 
-    for _ in range(max_steps):
+    for step_index in range(max_steps):
         if vec_normalize is not None:
             obs_input = vec_normalize.normalize_obs(obs)
         else:
@@ -257,6 +283,28 @@ def record_stage_video(
         action, _ = model.predict(obs_input, deterministic=True)
         obs, reward, terminated, truncated, info = render_env.step(action)
         frames.append(render_env.render())
+        if collect_stance_diagnostics:
+            from .stance_diagnostics import capture_trex_stance_snapshot
+
+            stance_rows.append(capture_trex_stance_snapshot(render_env, info, step_index + 1))
+        if camera_views:
+            camera = getattr(render_env, "_camera", None)
+            if camera is None:
+                logger.warning("Skipping named camera views: environment did not expose an RGB camera.")
+                camera_views = None
+            else:
+                original_camera = {name: getattr(camera, name) for name in ("azimuth", "elevation", "distance")}
+                try:
+                    for view_name, preset in camera_views.items():
+                        for attr, value in original_camera.items():
+                            setattr(camera, attr, value)
+                        for attr in ("azimuth", "elevation", "distance"):
+                            if attr in preset:
+                                setattr(camera, attr, float(preset[attr]))
+                        named_frames[view_name].append(render_env.render())
+                finally:
+                    for attr, value in original_camera.items():
+                        setattr(camera, attr, value)
         episode_reward += reward
         if terminated or truncated:
             break
@@ -268,6 +316,19 @@ def record_stage_video(
     suffix = f"_{label}" if label else ""
     video_path = str(Path(stage_dir) / f"{species}_{algorithm.lower()}_stage{stage}{suffix}.mp4")
     mediapy.write_video(video_path, frames, fps=50)
+    video_stem = Path(video_path).with_suffix("")
+    for view_name, view_frames in named_frames.items():
+        if not view_frames:
+            continue
+        view_path = str(video_stem.with_name(f"{video_stem.name}_{view_name}").with_suffix(".mp4"))
+        mediapy.write_video(view_path, view_frames, fps=50)
+        logger.info("  Saved %s camera replay to: %s", view_name, view_path)
+    if collect_stance_diagnostics:
+        from .stance_diagnostics import write_stance_diagnostics_csv
+
+        stance_path = video_stem.with_name(f"{video_stem.name}_stance").with_suffix(".csv")
+        if write_stance_diagnostics_csv(stance_path, stance_rows) is not None:
+            logger.info("  Saved stance diagnostics to: %s", stance_path)
     logger.info("Stage %d video: reward=%.2f | %d frames", stage, episode_reward, len(frames))
     logger.info("  Saved to: %s", video_path)
     return video_path, frames
