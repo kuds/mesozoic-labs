@@ -399,6 +399,7 @@ def test_cpu_evaluation_records_canonical_stance_components_and_diagnostics():
 
 
 def test_stage_evaluation_uses_effective_training_noise_and_detailed_rewards(monkeypatch):
+    pytest.importorskip("jax")
     from types import SimpleNamespace
 
     import environments.shared.jax_eval as jax_eval
