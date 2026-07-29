@@ -515,8 +515,12 @@ class TestHomeKeyframeActionMapping:
         np.testing.assert_allclose(foot_sensors, cpu_data.sensordata[10:12], rtol=5e-3, atol=1e-3)
 
         assert env.config.action_mapping == "home-keyframe-residual/v1"
-        assert env.config.reward_weights["foot_contact_gate"] == pytest.approx(1.0)
-        assert env.config.reward_weights["foot_contact_weight"] == pytest.approx(0.8)
+        assert env.config.reward_weights["foot_contact_gate"] == pytest.approx(0.0)
+        assert env.config.reward_weights["foot_contact_weight"] == pytest.approx(0.0)
+        assert env.config.reward_weights["bilateral_support_weight"] == pytest.approx(0.6)
+        assert env.config.reward_weights["foot_contact_saturation_force"] == pytest.approx(350.0)
+        assert env.config.reward_weights["foot_load_balance_weight"] == pytest.approx(0.3)
+        assert env.config.reward_weights["support_conditioned_alive_fraction"] == pytest.approx(0.5)
         assert np.all(foot_sensors > 0.1), f"Stage-1 reset has no load-bearing foot contact: {foot_sensors}"
         # The observation sums the pad sensor with the three per-digit sensors
         # for each foot; see test_trex_mjx_reset_exposes_live_foot_contacts.

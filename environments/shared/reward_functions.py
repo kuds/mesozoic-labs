@@ -252,6 +252,116 @@ def reward_height_maintenance(
     return weight * height_frac
 
 
+def reward_target_centered_height(
+    body_height: Array,
+    target_z: float,
+    tolerance: float,
+    weight: float,
+) -> tuple[Array, Array, Array]:
+    """Bounded height reward centred on the desired standing height.
+
+    ``tolerance`` is the Gaussian scale: an absolute error of one tolerance
+    receives ``exp(-1)`` quality.  Callers retain the historical one-sided
+    :func:`reward_height_maintenance` path when tolerance is zero.
+
+    Returns:
+        ``(reward, absolute_height_error, height_quality)``.
+    """
+    xp = _array_mod(body_height)
+    safe_tolerance = xp.maximum(tolerance, 1e-8)
+    height_error = xp.abs(body_height - target_z)
+    height_quality = xp.exp(-xp.square(height_error / safe_tolerance))
+    return weight * height_quality, height_error, height_quality
+
+
+# ---------------------------------------------------------------------------
+# Support / home-pose shaping
+# ---------------------------------------------------------------------------
+
+
+def reward_bilateral_support(
+    foot_forces: Array,
+    saturation_force: float,
+    weight: float,
+) -> tuple[Array, Array]:
+    """Reward simultaneous load-bearing support on every supplied foot.
+
+    Each foot saturates independently at ``saturation_force`` and the minimum
+    quality is used, so unloading either side collapses the bilateral score.
+
+    Returns:
+        ``(reward, bilateral_support_quality)`` with quality in ``[0, 1]``.
+    """
+    xp = _array_mod(foot_forces)
+    safe_saturation = xp.maximum(saturation_force, 1e-8)
+    per_foot_quality = xp.clip(foot_forces / safe_saturation, 0.0, 1.0)
+    support_quality = xp.min(per_foot_quality)
+    return weight * support_quality, support_quality
+
+
+def reward_foot_load_balance(
+    foot_forces: Array,
+    weight: float,
+) -> tuple[Array, Array]:
+    """Penalise unequal loading of a bilateral support pair.
+
+    Returns:
+        ``(reward, normalized_load_imbalance)``.  The diagnostic is zero for
+        equal loads and approaches one when one foot carries all the load.
+    """
+    xp = _array_mod(foot_forces)
+    right_force, left_force = foot_forces[0], foot_forces[1]
+    imbalance = xp.abs(right_force - left_force) / (right_force + left_force + 1e-8)
+    return -weight * imbalance, imbalance
+
+
+def reward_soft_home_pose(
+    joint_positions: Array,
+    home_positions: Array,
+    tolerance: float,
+    weight: float,
+) -> tuple[Array, Array, Array]:
+    """Reward a soft joint-space neighbourhood around an XML home pose.
+
+    The quality is the mean per-joint Gaussian rather than a single Gaussian
+    of the RMS error.  That keeps one displaced joint from erasing useful
+    shaping on every other joint while the RMS remains an intuitive raw
+    diagnostic.
+
+    Returns:
+        ``(reward, rms_error, mean_pose_quality)``.
+    """
+    xp = _array_mod(joint_positions)
+    safe_tolerance = xp.maximum(tolerance, 1e-8)
+    error = joint_positions - home_positions
+    rms_error = xp.sqrt(xp.mean(xp.square(error)))
+    pose_quality = xp.mean(xp.exp(-xp.square(error / safe_tolerance)))
+    return weight * pose_quality, rms_error, pose_quality
+
+
+def reward_head_clearance(
+    head_height: Array,
+    target_height: float,
+    tolerance: float,
+    weight: float,
+) -> tuple[Array, Array]:
+    """Smoothly reward head clearance between a floor and full-credit target.
+
+    The zero-quality floor is ``target_height - tolerance``.  The cubic
+    smoothstep has zero slope at both endpoints, avoiding a sharp gradient at
+    the head-contact boundary while remaining exactly bounded in ``[0, 1]``.
+
+    Returns:
+        ``(reward, head_clearance_quality)``.
+    """
+    xp = _array_mod(head_height)
+    safe_tolerance = xp.maximum(tolerance, 1e-8)
+    clearance_floor = target_height - tolerance
+    normalized = xp.clip((head_height - clearance_floor) / safe_tolerance, 0.0, 1.0)
+    clearance_quality = normalized * normalized * (3.0 - 2.0 * normalized)
+    return weight * clearance_quality, clearance_quality
+
+
 # ---------------------------------------------------------------------------
 # Angular velocity / stability
 # ---------------------------------------------------------------------------

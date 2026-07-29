@@ -24,9 +24,12 @@ from .reward_functions import (
     reward_alive,
     reward_angular_velocity_penalty,
     reward_approach_shaping,
+    reward_bilateral_support,
     reward_drift_penalty,
     reward_energy,
+    reward_foot_load_balance,
     reward_forward_velocity,
+    reward_head_clearance,
     reward_heading_alignment,
     reward_height_maintenance,
     reward_lateral_velocity_penalty,
@@ -34,7 +37,9 @@ from .reward_functions import (
     reward_nosedive,
     reward_posture,
     reward_proximity,
+    reward_soft_home_pose,
     reward_speed_penalty,
+    reward_target_centered_height,
 )
 
 Array = Any
@@ -78,7 +83,14 @@ def compute_total_reward(
     sensor_quat_start: int = 6,
     sensor_gyro_start: int = 0,
     foot_indices: tuple[int, ...] = (10, 11),
+    foot_sensor_groups: tuple[tuple[int, ...], ...] | None = None,
+    leg_home_pose_qpos_indices: tuple[int, ...] = (),
+    leg_home_pose_targets: Array | None = None,
+    neck_posture_qpos_indices: tuple[int, ...] = (),
+    neck_posture_targets: Array | None = None,
+    head_clearance_site_id: int | None = None,
     prev_action: Array | None = None,
+    initial_pos_2d: Array | None = None,
     sensor_tail_gyro_start: int | None = None,
     forward_ref_2d: Array | None = None,
     target_pos: Array | None = None,
@@ -89,6 +101,7 @@ def compute_total_reward(
     success_site_positions: Array | None = None,
     success_threshold: float = 0.3,
     success_bonus: float = 0.0,
+    additional_terminated: Array | None = None,
 ) -> Array:
     """Compute total scalar reward matching ``mjx_env.py`` step logic.
 
@@ -116,19 +129,35 @@ def compute_total_reward(
         reward_cfg.get("forward_vel_weight", 0.0),
     )
 
-    # Alive bonus (height-gated, optionally foot-contact-gated)
-    raw_alive = reward_alive(reward_cfg.get("alive_bonus", 0.1))
-    height_frac = jnp.clip(
-        (pelvis_z - healthy_z_min) / (healthy_z_max - healthy_z_min),
-        0.0,
-        1.0,
+    foot_forces = _per_foot_forces(data, foot_indices, foot_sensor_groups)
+    has_foot_contact = jnp.any(foot_forces > 0.1)
+    r_bilateral_support, bilateral_support_quality = reward_bilateral_support(
+        foot_forces,
+        reward_cfg.get("foot_contact_saturation_force", 100.0),
+        reward_cfg.get("bilateral_support_weight", 0.0),
     )
-    foot_contact_gate = reward_cfg.get("foot_contact_gate", 0.0)
-    if foot_contact_gate > 0:
-        has_foot_contact = _check_foot_contact(data, foot_indices)
-        alive_gate = height_frac * has_foot_contact.astype(jnp.float32)
+    r_foot_load_balance, _ = reward_foot_load_balance(
+        foot_forces[:2],
+        reward_cfg.get("foot_load_balance_weight", 0.0),
+    )
+
+    # The opt-in path is formula-identical to Gymnasium.  Fraction zero
+    # preserves the historical MJX height/contact-gated alive reward.
+    raw_alive = reward_alive(reward_cfg.get("alive_bonus", 0.1))
+    support_alive_fraction = reward_cfg.get("support_conditioned_alive_fraction", 0.0)
+    if support_alive_fraction > 0:
+        alive_gate = (1.0 - support_alive_fraction) + support_alive_fraction * bilateral_support_quality
     else:
-        alive_gate = height_frac
+        height_frac = jnp.clip(
+            (pelvis_z - healthy_z_min) / (healthy_z_max - healthy_z_min),
+            0.0,
+            1.0,
+        )
+        foot_contact_gate = reward_cfg.get("foot_contact_gate", 0.0)
+        if foot_contact_gate > 0:
+            alive_gate = height_frac * has_foot_contact.astype(jnp.float32)
+        else:
+            alive_gate = height_frac
     r_alive = raw_alive * alive_gate
 
     r_energy = reward_energy(action, n_actuators, reward_cfg.get("energy_penalty_weight", 0.001))
@@ -139,7 +168,7 @@ def compute_total_reward(
         posture_target_forward_z,
     )
 
-    total = r_forward + r_alive + r_energy + r_posture
+    total = r_forward + r_alive + r_energy + r_posture + r_bilateral_support + r_foot_load_balance
 
     # Approach shaping (reward moving toward target)
     approach_w = reward_cfg.get("bite_approach_weight", reward_cfg.get("approach_weight", 0.0))
@@ -157,15 +186,55 @@ def compute_total_reward(
     # Conditional components (weight > 0 resolved at trace time)
     foot_contact_w = reward_cfg.get("foot_contact_weight", 0.0)
     if foot_contact_w > 0:
-        has_foot_contact = _check_foot_contact(data, foot_indices)
         total = total + foot_contact_w * has_foot_contact.astype(jnp.float32)
 
     height_w = reward_cfg.get("height_weight", 0.0)
     if height_w > 0:
-        # Saturate at the species standing height (SB3 parity), not the
-        # termination ceiling — the latter flattens the gradient 5-10x.
         _target_z = target_standing_z if target_standing_z is not None else healthy_z_max
-        total = total + reward_height_maintenance(pelvis_z, healthy_z_min, _target_z, height_w)
+        height_target_tolerance = reward_cfg.get("height_target_tolerance", 0.0)
+        if height_target_tolerance > 0:
+            r_height, _, _ = reward_target_centered_height(
+                pelvis_z,
+                _target_z,
+                height_target_tolerance,
+                height_w,
+            )
+        else:
+            # Legacy one-sided gradient saturates at the standing height.
+            r_height = reward_height_maintenance(pelvis_z, healthy_z_min, _target_z, height_w)
+        total = total + r_height
+
+    leg_home_pose_w = reward_cfg.get("leg_home_pose_weight", 0.0)
+    if leg_home_pose_w > 0 and leg_home_pose_targets is not None:
+        leg_joint_positions = jnp.take(data.qpos, jnp.asarray(leg_home_pose_qpos_indices))
+        r_leg_home_pose, _, _ = reward_soft_home_pose(
+            leg_joint_positions,
+            leg_home_pose_targets,
+            reward_cfg.get("leg_home_pose_tolerance", 0.35),
+            leg_home_pose_w,
+        )
+        total = total + r_leg_home_pose
+
+    head_clearance_w = reward_cfg.get("head_clearance_weight", 0.0)
+    if head_clearance_w > 0 and head_clearance_site_id is not None:
+        r_head_clearance, _ = reward_head_clearance(
+            data.site_xpos[head_clearance_site_id, 2],
+            reward_cfg.get("head_clearance_target", 0.60),
+            reward_cfg.get("head_clearance_tolerance", 0.48),
+            head_clearance_w,
+        )
+        total = total + r_head_clearance
+
+    neck_posture_w = reward_cfg.get("neck_posture_weight", 0.0)
+    if neck_posture_w > 0 and neck_posture_targets is not None:
+        neck_joint_positions = jnp.take(data.qpos, jnp.asarray(neck_posture_qpos_indices))
+        r_neck_posture, _, _ = reward_soft_home_pose(
+            neck_joint_positions,
+            neck_posture_targets,
+            reward_cfg.get("neck_posture_tolerance", 0.35),
+            neck_posture_w,
+        )
+        total = total + r_neck_posture
 
     nosedive_w = reward_cfg.get("nosedive_weight", 0.0)
     if nosedive_w > 0:
@@ -174,7 +243,8 @@ def compute_total_reward(
 
     drift_w = reward_cfg.get("drift_penalty_weight", 0.0)
     if drift_w > 0:
-        r_dr, _ = reward_drift_penalty(data.xpos[root_body_id, :2], jnp.zeros(2), drift_w)
+        drift_origin = initial_pos_2d if initial_pos_2d is not None else jnp.zeros(2)
+        r_dr, _ = reward_drift_penalty(data.xpos[root_body_id, :2], drift_origin, drift_w)
         total = total + r_dr
 
     speed_w = reward_cfg.get("speed_penalty_weight", 0.0)
@@ -251,6 +321,8 @@ def compute_total_reward(
         nosedive_threshold = reward_cfg.get("nosedive_termination_threshold", 0.5)
         nosedive_terminated, _ = check_nosedive_termination(forward_z, natural_forward_z, threshold=nosedive_threshold)
         terminated = terminated | nosedive_terminated
+        if additional_terminated is not None:
+            terminated = terminated | additional_terminated
         total = jnp.where(terminated & ~success, total + fall_penalty, total)
 
     return total
@@ -272,7 +344,14 @@ def compute_reward_components(
     sensor_quat_start: int = 6,
     sensor_gyro_start: int = 0,
     foot_indices: tuple[int, ...] = (10, 11),
+    foot_sensor_groups: tuple[tuple[int, ...], ...] | None = None,
+    leg_home_pose_qpos_indices: tuple[int, ...] = (),
+    leg_home_pose_targets: Array | None = None,
+    neck_posture_qpos_indices: tuple[int, ...] = (),
+    neck_posture_targets: Array | None = None,
+    head_clearance_site_id: int | None = None,
     prev_action: Array | None = None,
+    initial_pos_2d: Array | None = None,
     sensor_tail_gyro_start: int | None = None,
     forward_ref_2d: Array | None = None,
 ) -> dict[str, Array]:
@@ -295,18 +374,33 @@ def compute_reward_components(
         reward_cfg.get("forward_vel_weight", 0.0),
     )
 
-    raw_alive = reward_alive(reward_cfg.get("alive_bonus", 0.1))
-    height_frac = jnp.clip(
-        (pelvis_z - healthy_z_min) / (healthy_z_max - healthy_z_min),
-        0.0,
-        1.0,
+    foot_forces = _per_foot_forces(data, foot_indices, foot_sensor_groups)
+    has_foot_contact = jnp.any(foot_forces > 0.1)
+    r_bilateral_support, bilateral_support_quality = reward_bilateral_support(
+        foot_forces,
+        reward_cfg.get("foot_contact_saturation_force", 100.0),
+        reward_cfg.get("bilateral_support_weight", 0.0),
     )
-    has_foot_contact = _check_foot_contact(data, foot_indices)
-    foot_contact_gate = reward_cfg.get("foot_contact_gate", 0.0)
-    if foot_contact_gate > 0:
-        alive_gate = height_frac * has_foot_contact.astype(jnp.float32)
+    r_foot_load_balance, foot_load_imbalance = reward_foot_load_balance(
+        foot_forces[:2],
+        reward_cfg.get("foot_load_balance_weight", 0.0),
+    )
+
+    raw_alive = reward_alive(reward_cfg.get("alive_bonus", 0.1))
+    support_alive_fraction = reward_cfg.get("support_conditioned_alive_fraction", 0.0)
+    if support_alive_fraction > 0:
+        alive_gate = (1.0 - support_alive_fraction) + support_alive_fraction * bilateral_support_quality
     else:
-        alive_gate = height_frac
+        height_frac = jnp.clip(
+            (pelvis_z - healthy_z_min) / (healthy_z_max - healthy_z_min),
+            0.0,
+            1.0,
+        )
+        foot_contact_gate = reward_cfg.get("foot_contact_gate", 0.0)
+        if foot_contact_gate > 0:
+            alive_gate = height_frac * has_foot_contact.astype(jnp.float32)
+        else:
+            alive_gate = height_frac
     r_alive = raw_alive * alive_gate
 
     r_energy = reward_energy(action, n_actuators, reward_cfg.get("energy_penalty_weight", 0.001))
@@ -323,12 +417,66 @@ def compute_reward_components(
         "energy": r_energy,
         "posture": r_posture,
         "foot_contact": reward_cfg.get("foot_contact_weight", 0.0) * has_foot_contact.astype(jnp.float32),
+        "bilateral_support": r_bilateral_support,
+        "foot_load_balance": r_foot_load_balance,
     }
 
+    _target_z = target_standing_z if target_standing_z is not None else healthy_z_max
     height_w = reward_cfg.get("height_weight", 0.0)
-    if height_w > 0:
-        _target_z = target_standing_z if target_standing_z is not None else healthy_z_max
-        components["height"] = reward_height_maintenance(pelvis_z, healthy_z_min, _target_z, height_w)
+    height_target_tolerance = reward_cfg.get("height_target_tolerance", 0.0)
+    if height_target_tolerance > 0:
+        r_height, height_error, height_quality = reward_target_centered_height(
+            pelvis_z,
+            _target_z,
+            height_target_tolerance,
+            height_w,
+        )
+    else:
+        height_error = jnp.abs(pelvis_z - _target_z)
+        height_quality = jnp.clip(
+            (pelvis_z - healthy_z_min) / (_target_z - healthy_z_min),
+            0.0,
+            1.0,
+        )
+        r_height = height_w * height_quality
+    components["height"] = r_height
+
+    if leg_home_pose_targets is not None:
+        leg_joint_positions = jnp.take(data.qpos, jnp.asarray(leg_home_pose_qpos_indices))
+        r_leg_home_pose, leg_home_pose_error, leg_home_pose_quality = reward_soft_home_pose(
+            leg_joint_positions,
+            leg_home_pose_targets,
+            reward_cfg.get("leg_home_pose_tolerance", 0.35),
+            reward_cfg.get("leg_home_pose_weight", 0.0),
+        )
+        components["leg_home_pose"] = r_leg_home_pose
+        components["_leg_home_pose_error"] = leg_home_pose_error
+        components["_leg_home_pose_quality"] = leg_home_pose_quality
+
+    if head_clearance_site_id is not None:
+        head_tip_z = data.site_xpos[head_clearance_site_id, 2]
+        r_head_clearance, head_clearance_quality = reward_head_clearance(
+            head_tip_z,
+            reward_cfg.get("head_clearance_target", 0.60),
+            reward_cfg.get("head_clearance_tolerance", 0.48),
+            reward_cfg.get("head_clearance_weight", 0.0),
+        )
+        components["head_clearance"] = r_head_clearance
+        components["_head_tip_z"] = head_tip_z
+        components["_head_pelvis_rel_z"] = head_tip_z - pelvis_z
+        components["_head_clearance_quality"] = head_clearance_quality
+
+    if neck_posture_targets is not None:
+        neck_joint_positions = jnp.take(data.qpos, jnp.asarray(neck_posture_qpos_indices))
+        r_neck_posture, neck_posture_error, neck_posture_quality = reward_soft_home_pose(
+            neck_joint_positions,
+            neck_posture_targets,
+            reward_cfg.get("neck_posture_tolerance", 0.35),
+            reward_cfg.get("neck_posture_weight", 0.0),
+        )
+        components["neck_posture"] = r_neck_posture
+        components["_neck_posture_error"] = neck_posture_error
+        components["_neck_posture_quality"] = neck_posture_quality
 
     nosedive_w = reward_cfg.get("nosedive_weight", 0.0)
     if nosedive_w > 0:
@@ -337,7 +485,8 @@ def compute_reward_components(
 
     drift_w = reward_cfg.get("drift_penalty_weight", 0.0)
     if drift_w > 0:
-        r_dr, _ = reward_drift_penalty(data.xpos[root_body_id, :2], jnp.zeros(2), drift_w)
+        drift_origin = initial_pos_2d if initial_pos_2d is not None else jnp.zeros(2)
+        r_dr, _ = reward_drift_penalty(data.xpos[root_body_id, :2], drift_origin, drift_w)
         components["drift"] = r_dr
 
     speed_w = reward_cfg.get("speed_penalty_weight", 0.0)
@@ -379,6 +528,12 @@ def compute_reward_components(
     components["_pelvis_z"] = pelvis_z
     components["_forward_z"] = quat_to_forward_z(root_quat)
     components["_has_foot_contact"] = has_foot_contact.astype(jnp.float32)
+    components["_bilateral_support_quality"] = bilateral_support_quality
+    components["_foot_load_imbalance"] = foot_load_imbalance
+    components["_raw_alive"] = jnp.asarray(raw_alive)
+    components["_alive_gate"] = alive_gate
+    components["_height_error"] = height_error
+    components["_height_quality"] = height_quality
 
     return components
 
@@ -432,6 +587,32 @@ def is_terminated(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _per_foot_forces(
+    data: Any,
+    foot_indices: tuple[int, ...],
+    foot_sensor_groups: tuple[tuple[int, ...], ...] | None,
+) -> Array:
+    """Return one summed touch force per foot.
+
+    ``foot_sensor_groups`` preserves pad+digit grouping for species such as
+    T. rex.  Legacy callers that only provide ``foot_indices`` retain one
+    sensor per foot.
+    """
+    import jax.numpy as jnp
+
+    groups = foot_sensor_groups
+    if groups is None:
+        groups = tuple((index,) for index in foot_indices)
+
+    forces = []
+    for group in groups:
+        force = jnp.float32(0.0)
+        for index in group:
+            force = force + data.sensordata[index]
+        forces.append(force)
+    return jnp.stack(forces)
 
 
 def _check_foot_contact(data: Any, foot_indices: tuple[int, ...]) -> Array:

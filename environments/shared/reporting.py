@@ -1788,6 +1788,8 @@ def save_jax_stage_artifacts(
         diag_data["r_foot_contact"] = _np.array(eval_results.diag_r_foot)
     for comp_name, comp_vals in eval_results.diag_reward_components.items():
         diag_data[f"reward_{comp_name}"] = _np.array(comp_vals)
+    for diagnostic_name, diagnostic_vals in getattr(eval_results, "diag_reward_diagnostics", {}).items():
+        diag_data[diagnostic_name] = _np.array(diagnostic_vals)
     if species.lower() == "trex" and stage == 1 and eval_results.diag_l_foot and eval_results.diag_r_foot:
         from .stance_diagnostics import derive_stance_info
 

@@ -117,6 +117,12 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_claw_proximity",  # Velociraptor
         "reward_head_proximity",  # T-Rex, Brachiosaurus
         "reward_gait_symmetry",  # Brachiosaurus
+        # T-Rex Stage 1 stance shaping
+        "reward_bilateral_support",
+        "reward_foot_load_balance",
+        "reward_leg_home_pose",
+        "reward_head_clearance",
+        "reward_neck_posture",
         "reward_total",
     ]
     INFO_KEYS = [

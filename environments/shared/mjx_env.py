@@ -86,6 +86,18 @@ _KNOWN_REWARD_KEYS: frozenset = frozenset(
         "bite_bonus",
         "food_reach_bonus",
         "snap_bonus",
+        "bilateral_support_weight",
+        "foot_contact_saturation_force",
+        "foot_load_balance_weight",
+        "support_conditioned_alive_fraction",
+        "leg_home_pose_weight",
+        "leg_home_pose_tolerance",
+        "head_clearance_weight",
+        "head_clearance_target",
+        "head_clearance_tolerance",
+        "neck_posture_weight",
+        "neck_posture_tolerance",
+        "height_target_tolerance",
     }
 )
 
@@ -200,6 +212,13 @@ class MJXEnvConfig:
     termination_site_heights: dict[str, float] = field(default_factory=dict)
     # Tail stability sensor index (gyro sensor for tail tip angular velocity)
     sensor_tail_gyro_start: int | None = None
+    # Optional species-specific reward geometry.  These names are resolved
+    # against the loaded model and its XML ``home`` keyframe without entering
+    # the observation or action mapping, so enabling their zero-default reward
+    # weights does not change the checkpoint-facing plant interface.
+    leg_home_pose_joint_names: tuple[str, ...] = ()
+    neck_posture_joint_names: tuple[str, ...] = ()
+    head_clearance_site: str | None = None
     # Reset noise parameters
     reset_noise_scale: float = 0.0  # Joint angle perturbation range
     init_qpos_noise: float = 0.0  # XY position jitter range
@@ -337,6 +356,33 @@ def _get_model_path(species: str) -> str:
     return str(Path(__file__).parent.parent / dir_name / "assets" / asset_name)
 
 
+def _resolve_home_pose_joints(
+    mj_model: Any,
+    joint_names: tuple[str, ...],
+) -> tuple[tuple[int, ...], tuple[float, ...]]:
+    """Resolve scalar joint qpos addresses and targets from ``key home``."""
+    if not joint_names:
+        return (), ()
+
+    import mujoco
+
+    home_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_KEY, "home")
+    if home_id < 0:
+        raise ValueError("home-pose rewards require a keyframe named 'home'")
+
+    qpos_indices: list[int] = []
+    home_positions: list[float] = []
+    for joint_name in joint_names:
+        joint_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+        if joint_id < 0:
+            raise ValueError(f"home-pose reward joint {joint_name!r} does not exist")
+        qpos_index = int(mj_model.jnt_qposadr[joint_id])
+        qpos_indices.append(qpos_index)
+        home_positions.append(float(mj_model.key_qpos[home_id, qpos_index]))
+
+    return tuple(qpos_indices), tuple(home_positions)
+
+
 # ---------------------------------------------------------------------------
 # MJX Environment
 # ---------------------------------------------------------------------------
@@ -432,6 +478,12 @@ class MJXDinoEnv:
             **species_kwargs,
         )
 
+        support_alive_fraction = float(self.config.reward_weights.get("support_conditioned_alive_fraction", 0.0))
+        if not 0.0 <= support_alive_fraction <= 1.0:
+            raise ValueError("support_conditioned_alive_fraction must be in [0, 1]")
+        if float(self.config.reward_weights.get("height_target_tolerance", 0.0)) < 0.0:
+            raise ValueError("height_target_tolerance must be non-negative")
+
         for body_name, registered_id in self.config.body_ids.items():
             resolved_id = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_BODY, body_name)
             if resolved_id < 0:
@@ -462,6 +514,52 @@ class MJXDinoEnv:
             for name in self.config.success_sites
             if mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, name) >= 0
         )
+
+        (
+            self._leg_home_pose_qpos_indices,
+            leg_home_pose_targets,
+        ) = _resolve_home_pose_joints(self.mj_model, self.config.leg_home_pose_joint_names)
+        (
+            self._neck_posture_qpos_indices,
+            neck_posture_targets,
+        ) = _resolve_home_pose_joints(self.mj_model, self.config.neck_posture_joint_names)
+        self._leg_home_pose_targets = jnp.asarray(leg_home_pose_targets)
+        self._neck_posture_targets = jnp.asarray(neck_posture_targets)
+        self._head_clearance_site_id: int | None = None
+        if self.config.head_clearance_site is not None:
+            head_clearance_site_id = mujoco.mj_name2id(
+                self.mj_model,
+                mujoco.mjtObj.mjOBJ_SITE,
+                self.config.head_clearance_site,
+            )
+            if head_clearance_site_id < 0:
+                raise ValueError(f"head-clearance site {self.config.head_clearance_site!r} does not exist")
+            self._head_clearance_site_id = head_clearance_site_id
+
+        reward_weights = self.config.reward_weights
+        if reward_weights.get("leg_home_pose_weight", 0.0) > 0 and not self._leg_home_pose_qpos_indices:
+            raise ValueError("leg_home_pose_weight requires configured leg_home_pose_joint_names")
+        if reward_weights.get("neck_posture_weight", 0.0) > 0 and not self._neck_posture_qpos_indices:
+            raise ValueError("neck_posture_weight requires configured neck_posture_joint_names")
+        if reward_weights.get("head_clearance_weight", 0.0) > 0 and self._head_clearance_site_id is None:
+            raise ValueError("head_clearance_weight requires a configured head_clearance_site")
+        if (
+            reward_weights.get("bilateral_support_weight", 0.0) > 0
+            or reward_weights.get("foot_load_balance_weight", 0.0) > 0
+            or support_alive_fraction > 0
+        ) and len(self.config.sensor_foot_indices) < 2:
+            raise ValueError("bilateral support rewards require at least two configured foot sensors")
+        if (
+            reward_weights.get("bilateral_support_weight", 0.0) > 0 or support_alive_fraction > 0
+        ) and reward_weights.get("foot_contact_saturation_force", 100.0) <= 0:
+            raise ValueError("foot_contact_saturation_force must be positive when support shaping is enabled")
+        for weight_key, tolerance_key in (
+            ("leg_home_pose_weight", "leg_home_pose_tolerance"),
+            ("head_clearance_weight", "head_clearance_tolerance"),
+            ("neck_posture_weight", "neck_posture_tolerance"),
+        ):
+            if reward_weights.get(weight_key, 0.0) > 0 and reward_weights.get(tolerance_key, 0.0) <= 0:
+                raise ValueError(f"{tolerance_key} must be positive when {weight_key} is enabled")
 
         # Cache reset data once (avoids constructing data per env per reset).
         # The home-residual action interface must start from the same complete
@@ -514,9 +612,12 @@ class MJXDinoEnv:
             reward_alive,
             reward_angular_velocity_penalty,
             reward_approach_shaping,
+            reward_bilateral_support,
             reward_drift_penalty,
             reward_energy,
+            reward_foot_load_balance,
             reward_forward_velocity,
+            reward_head_clearance,
             reward_heading_alignment,
             reward_height_maintenance,
             reward_lateral_velocity_penalty,
@@ -524,7 +625,9 @@ class MJXDinoEnv:
             reward_nosedive,
             reward_posture,
             reward_proximity,
+            reward_soft_home_pose,
             reward_speed_penalty,
+            reward_target_centered_height,
         )
 
         model = self.mjx_model
@@ -541,6 +644,18 @@ class MJXDinoEnv:
         success_site_ids = self._success_site_ids
         success_threshold = config.success_threshold
         success_bonus = config.reward_weights.get(config.success_bonus_key, 0.0)
+        foot_sensor_groups = tuple(
+            (
+                foot_idx,
+                *(config.sensor_foot_aux_indices[position] if position < len(config.sensor_foot_aux_indices) else ()),
+            )
+            for position, foot_idx in enumerate(config.sensor_foot_indices)
+        )
+        leg_home_pose_qpos_indices = self._leg_home_pose_qpos_indices
+        leg_home_pose_targets = self._leg_home_pose_targets
+        neck_posture_qpos_indices = self._neck_posture_qpos_indices
+        neck_posture_targets = self._neck_posture_targets
+        head_clearance_site_id = self._head_clearance_site_id
 
         def step_fn(state: EnvState, action, rng, forward_vel_scale):
             """Pure single-environment step function.
@@ -587,29 +702,45 @@ class MJXDinoEnv:
             # touch sensor cannot see geoms on child bodies -- without the
             # aux terms a T-Rex standing on its digits reads as airborne.
             foot_contact_threshold = 0.1  # Newtons
-            aux_groups = config.sensor_foot_aux_indices
-            has_foot_contact = jnp.bool_(False)
-            for position, foot_idx in enumerate(config.sensor_foot_indices):
-                foot_force = data.sensordata[foot_idx]
-                if position < len(aux_groups):
-                    for aux_idx in aux_groups[position]:
-                        foot_force = foot_force + data.sensordata[aux_idx]
-                has_foot_contact = has_foot_contact | (foot_force > foot_contact_threshold)
+            foot_force_values = []
+            for sensor_group in foot_sensor_groups:
+                foot_force = jnp.float32(0.0)
+                for sensor_idx in sensor_group:
+                    foot_force = foot_force + data.sensordata[sensor_idx]
+                foot_force_values.append(foot_force)
+            foot_forces = jnp.stack(foot_force_values)
+            has_foot_contact = jnp.any(foot_forces > foot_contact_threshold)
+            r_bilateral_support, bilateral_support_quality = reward_bilateral_support(
+                foot_forces,
+                weights.get("foot_contact_saturation_force", 100.0),
+                weights.get("bilateral_support_weight", 0.0),
+            )
+            r_foot_load_balance, _ = reward_foot_load_balance(
+                foot_forces[:2],
+                weights.get("foot_load_balance_weight", 0.0),
+            )
 
-            # Condition alive bonus on height AND foot contact:
-            # no reward for lying flat or balancing on head/nose
+            # The opt-in support-conditioned path mirrors the Gymnasium
+            # formula exactly.  At its zero default, retain the historical
+            # MJX height/contact gate byte-for-byte so stages 2/3 and old
+            # configs do not change.
             raw_alive = reward_alive(weights.get("alive_bonus", 0.1))
-            height_frac = jnp.clip(
-                (pelvis_xpos[2] - config.healthy_z_range[0]) / (config.healthy_z_range[1] - config.healthy_z_range[0]),
-                0.0,
-                1.0,
-            )
-            foot_contact_gate = weights.get("foot_contact_gate", 0.0)
-            alive_gate = jnp.where(
-                foot_contact_gate > 0,
-                height_frac * has_foot_contact.astype(jnp.float32),
-                height_frac,
-            )
+            support_alive_fraction = weights.get("support_conditioned_alive_fraction", 0.0)
+            if support_alive_fraction > 0:
+                alive_gate = (1.0 - support_alive_fraction) + support_alive_fraction * bilateral_support_quality
+            else:
+                height_frac = jnp.clip(
+                    (pelvis_xpos[2] - config.healthy_z_range[0])
+                    / (config.healthy_z_range[1] - config.healthy_z_range[0]),
+                    0.0,
+                    1.0,
+                )
+                foot_contact_gate = weights.get("foot_contact_gate", 0.0)
+                alive_gate = jnp.where(
+                    foot_contact_gate > 0,
+                    height_frac * has_foot_contact.astype(jnp.float32),
+                    height_frac,
+                )
             r_alive = raw_alive * alive_gate
             r_energy = reward_energy(action, ctrl_range.shape[0], weights.get("energy_penalty_weight", 0.001))
 
@@ -639,7 +770,9 @@ class MJXDinoEnv:
                 dt,
             )
 
-            total_reward = r_forward + r_alive + r_energy + r_posture + r_approach
+            total_reward = (
+                r_forward + r_alive + r_energy + r_posture + r_approach + r_bilateral_support + r_foot_load_balance
+            )
 
             # Foot-contact bonus: reward having at least one foot on the ground
             foot_contact_w = weights.get("foot_contact_weight", 0.0)
@@ -676,13 +809,59 @@ class MJXDinoEnv:
 
             height_w = weights.get("height_weight", 0.0)
             if height_w > 0:
-                # Gradient saturates at the species standing height (matches
-                # the SB3 envs' target_z), not the termination ceiling.
                 target_z = (
                     config.target_standing_z if config.target_standing_z is not None else config.healthy_z_range[1]
                 )
-                r_height = reward_height_maintenance(pelvis_xpos[2], config.healthy_z_range[0], target_z, height_w)
+                height_target_tolerance = weights.get("height_target_tolerance", 0.0)
+                if height_target_tolerance > 0:
+                    r_height, _, _ = reward_target_centered_height(
+                        pelvis_xpos[2],
+                        target_z,
+                        height_target_tolerance,
+                        height_w,
+                    )
+                else:
+                    # Legacy one-sided gradient saturates at the species
+                    # standing height, not the termination ceiling.
+                    r_height = reward_height_maintenance(
+                        pelvis_xpos[2],
+                        config.healthy_z_range[0],
+                        target_z,
+                        height_w,
+                    )
                 total_reward = total_reward + r_height
+
+            leg_home_pose_w = weights.get("leg_home_pose_weight", 0.0)
+            if leg_home_pose_w > 0:
+                leg_joint_positions = jnp.take(data.qpos, jnp.asarray(leg_home_pose_qpos_indices))
+                r_leg_home_pose, _, _ = reward_soft_home_pose(
+                    leg_joint_positions,
+                    leg_home_pose_targets,
+                    weights.get("leg_home_pose_tolerance", 0.35),
+                    leg_home_pose_w,
+                )
+                total_reward = total_reward + r_leg_home_pose
+
+            head_clearance_w = weights.get("head_clearance_weight", 0.0)
+            if head_clearance_w > 0 and head_clearance_site_id is not None:
+                r_head_clearance, _ = reward_head_clearance(
+                    data.site_xpos[head_clearance_site_id, 2],
+                    weights.get("head_clearance_target", 0.60),
+                    weights.get("head_clearance_tolerance", 0.48),
+                    head_clearance_w,
+                )
+                total_reward = total_reward + r_head_clearance
+
+            neck_posture_w = weights.get("neck_posture_weight", 0.0)
+            if neck_posture_w > 0:
+                neck_joint_positions = jnp.take(data.qpos, jnp.asarray(neck_posture_qpos_indices))
+                r_neck_posture, _, _ = reward_soft_home_pose(
+                    neck_joint_positions,
+                    neck_posture_targets,
+                    weights.get("neck_posture_tolerance", 0.35),
+                    neck_posture_w,
+                )
+                total_reward = total_reward + r_neck_posture
 
             # Tail stability: penalise tail tip angular velocity
             tail_w = weights.get("tail_stability_weight", 0.0)

@@ -48,6 +48,14 @@ class EvalConfig:
     sensor_quat_start: int = 6
     action_mapping: str = "midpoint/v1"
     reset_noise_scale: float = 0.01
+    init_qpos_noise: float = 0.0
+    init_yaw_noise: float = 0.0
+    # ``None`` preserves the historical CPU-eval behavior of leaving the
+    # XML-authored target in place.  Stage evaluation supplies the effective
+    # training-environment ranges.
+    target_distance_range: tuple[float, float] | None = None
+    target_lateral_range: tuple[float, float] | None = None
+    target_z: float = 0.5
     forward_vel_max: float = 8.0
     # Success bonus added to the reward when a success site reaches the
     # target (stage 3), and penalty applied on fall termination — both
@@ -78,6 +86,58 @@ def _posture_reward_for_eval(
             config.posture_target_forward_z,
         )
     return float(reward)
+
+
+def _apply_eval_reset_randomization(
+    mj_model: Any,
+    mj_data: Any,
+    config: EvalConfig,
+    reset_rng: np.random.Generator,
+    target_body_id: int,
+) -> None:
+    """Apply the reset distribution used by ``MJXDinoEnv`` on CPU.
+
+    NumPy's RNG is intentionally used for deterministic CPU evaluation; exact
+    bitwise equality with JAX's PRNG is neither required nor expected.
+    """
+    if config.target_distance_range is not None and config.target_lateral_range is not None:
+        distance = reset_rng.uniform(*config.target_distance_range)
+        lateral = reset_rng.uniform(*config.target_lateral_range)
+        if target_body_id < 0:
+            raise ValueError("random target reset requires a valid target body")
+        target_mocap_id = int(mj_model.body_mocapid[target_body_id])
+        if target_mocap_id < 0:
+            raise ValueError("random target reset requires the target body to be mocap-controlled")
+        mj_data.mocap_pos[target_mocap_id] = np.array([distance, lateral, config.target_z])
+
+    if config.reset_noise_scale > 0:
+        mj_data.qpos[7:] += reset_rng.uniform(
+            -config.reset_noise_scale,
+            config.reset_noise_scale,
+            size=mj_data.qpos[7:].shape,
+        )
+
+    if config.init_qpos_noise > 0:
+        mj_data.qpos[:2] += reset_rng.uniform(
+            -config.init_qpos_noise,
+            config.init_qpos_noise,
+            size=2,
+        )
+
+    if config.init_yaw_noise > 0:
+        yaw_angle = reset_rng.uniform(-config.init_yaw_noise, config.init_yaw_noise)
+        half_yaw = yaw_angle / 2.0
+        yaw_quat = np.array([np.cos(half_yaw), 0.0, 0.0, np.sin(half_yaw)])
+        w1, x1, y1, z1 = yaw_quat
+        w2, x2, y2, z2 = mj_data.qpos[3:7].copy()
+        mj_data.qpos[3:7] = np.array(
+            [
+                w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+                w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+                w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+                w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+            ]
+        )
 
 
 @dataclass
@@ -115,6 +175,11 @@ class EvalResults:
             "smoothness": [],
         }
     )
+    # Non-reward state used to explain the reward components (for example,
+    # bilateral-support quality and the alive gate).  Kept separate so plots
+    # and exported ``reward_*`` series cannot mistake qualities/errors for
+    # additive reward terms.
+    diag_reward_diagnostics: dict[str, list[float]] = field(default_factory=dict)
 
     @property
     def mean_reward(self) -> float:
@@ -167,6 +232,7 @@ def evaluate_policy_cpu(
     config: EvalConfig,
     foot_sensor_indices: tuple[int, ...] = (),
     foot_aux_indices: tuple[tuple[int, ...], ...] = (),
+    reward_components_fn: Any | None = None,
 ) -> EvalResults:
     """Run deterministic evaluation episodes on CPU MuJoCo.
 
@@ -187,6 +253,10 @@ def evaluate_policy_cpu(
             aligned with ``foot_sensor_indices``.  Species whose toes are
             separate bodies need these, since one touch sensor cannot see
             geoms on child bodies.
+        reward_components_fn: Optional canonical detailed reward function
+            with the same call shape as ``reward_fn``.  When provided, its
+            values replace the legacy hand-calculated component estimates;
+            keys prefixed with ``_`` are recorded as non-reward diagnostics.
 
     Returns:
         ``EvalResults`` with per-episode and per-step metrics.
@@ -236,10 +306,12 @@ def evaluate_policy_cpu(
             mujoco.mj_resetData(mj_model, mj_data)
         else:
             raise ValueError(f"unknown JAX action mapping {config.action_mapping!r}")
-        mj_data.qpos[7:] += reset_rng.uniform(
-            -config.reset_noise_scale,
-            config.reset_noise_scale,
-            size=mj_data.qpos[7:].shape,
+        _apply_eval_reset_randomization(
+            mj_model,
+            mj_data,
+            config,
+            reset_rng,
+            _target_body_id,
         )
         mujoco.mj_forward(mj_model, mj_data)
 
@@ -248,7 +320,7 @@ def evaluate_policy_cpu(
         ep_tilts = []
         ep_heights = []
         ep_success = False
-        start_pos = mj_data.qpos[:2].copy()
+        start_pos = mj_data.xpos[config.root_body_id, :2].copy()
         prev_action = None
         # Track the target for reward parity with the training env (approach
         # shaping compares against the previous step's distance).
@@ -284,6 +356,8 @@ def evaluate_policy_cpu(
             results.diag_tilt.append(tilt)
             results.diag_pelvis_h.append(body_z)
             results.diag_energy.append(energy)
+            body_height_terminated = any(mj_data.xpos[bid, 2] < zt for bid, zt in _body_checks)
+            site_height_terminated = any(mj_data.site_xpos[sid, 2] < zt for sid, zt in _site_checks)
 
             # Foot contacts — sensor order alternates right/left (bipeds:
             # R, L; quadrupeds: R, L, RR, RL), so split by parity rather
@@ -336,7 +410,7 @@ def evaluate_policy_cpu(
             # Drift penalty
             drift_w = reward_cfg.get("drift_penalty_weight", 0.0)
             if drift_w > 0:
-                drift_dist = float(np.linalg.norm(mj_data.qpos[:2] - start_pos))
+                drift_dist = float(np.linalg.norm(mj_data.xpos[config.root_body_id, :2] - start_pos))
                 drift_norm = drift_dist / 2.0
                 results.diag_reward_components["drift"].append(-drift_w * drift_norm**2)
             else:
@@ -378,7 +452,13 @@ def evaluate_policy_cpu(
             # (approach shaping), previous action (smoothness), and success
             # site positions (proximity reward + success bonus).  Passed as
             # kwargs so simple 3-arg reward_fns keep working when absent.
-            step_kwargs: dict[str, Any] = {}
+            step_kwargs: dict[str, Any] = {
+                "initial_pos_2d": jnp.asarray(start_pos),
+                # Pelvis/tilt/nosedive termination is handled inside the
+                # canonical scalar reward.  Supply only the extra body/site
+                # checks so its fall penalty is applied exactly once.
+                "additional_terminated": jnp.asarray(body_height_terminated or site_height_terminated),
+            }
             if _target_body_id >= 0:
                 target_pos_np = np.array(mj_data.xpos[_target_body_id])
                 pelvis_np = np.array(mj_data.xpos[config.root_body_id])
@@ -400,6 +480,30 @@ def evaluate_policy_cpu(
             # Reuse a single mjx.put_data call for the post-step data;
             # mj_data has already been advanced by frame_skip mj_step calls.
             post_step_data = mjx.put_data(mj_model, mj_data)
+            if reward_components_fn is not None:
+                canonical_details = reward_components_fn(
+                    post_step_data,
+                    action,
+                    reward_cfg,
+                    **step_kwargs,
+                )
+                step_count = len(results.diag_fwd_vel)
+                for name, value in canonical_details.items():
+                    scalar = float(value)
+                    if name.startswith("_"):
+                        diagnostic_name = name[1:]
+                        results.diag_reward_diagnostics.setdefault(diagnostic_name, []).append(scalar)
+                        continue
+
+                    component_values = results.diag_reward_components.setdefault(name, [])
+                    # Legacy diagnostics above have already appended this
+                    # step for their fixed set of keys.  Replace those
+                    # estimates with the canonical implementation; append
+                    # newly introduced components such as stance rewards.
+                    if len(component_values) == step_count:
+                        component_values[-1] = scalar
+                    else:
+                        component_values.append(scalar)
             r = float(reward_fn(post_step_data, action, reward_cfg, **step_kwargs))
             ep_reward += r
 
@@ -424,11 +528,11 @@ def evaluate_policy_cpu(
                 break
 
             # Body-height floor contact termination
-            if any(mj_data.xpos[bid, 2] < zt for bid, zt in _body_checks):
+            if body_height_terminated:
                 break
 
             # Site-height termination (extremities like snout tip)
-            if any(mj_data.site_xpos[sid, 2] < zt for sid, zt in _site_checks):
+            if site_height_terminated:
                 break
 
             # Stage 3 success: proximity-based contact detection

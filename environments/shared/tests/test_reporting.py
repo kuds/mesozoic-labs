@@ -772,6 +772,10 @@ class _FakeEvalResults:
             "forward": [0.3, 0.4, 0.35],
             "alive": [0.1, 0.1, 0.1],
         }
+        self.diag_reward_diagnostics = {
+            "bilateral_support_quality": [0.4, 0.6, 0.8],
+            "alive_gate": [0.7, 0.8, 0.9],
+        }
 
 
 class _FakeFinalEvalResults:
@@ -903,6 +907,8 @@ class TestSaveJaxStageArtifacts:
         assert "forward_vel" in data
         assert "l_foot_contact" in data
         assert "reward_forward" in data
+        assert "bilateral_support_quality" in data
+        assert "alive_gate" in data
         assert all(len(data[key]) == len(data["timesteps"]) for key in data.files)
 
     def test_trex_stage1_diagnostics_derive_support_duty_and_load_share(self, tmp_path):

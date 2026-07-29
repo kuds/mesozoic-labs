@@ -159,12 +159,25 @@ class TestOnStep:
         assert callback._step_infos["forward_vel"] == [1.0, 2.0, 3.0]
         assert callback._step_infos["reward_forward"] == [0.5, 1.0, 1.5]
 
-    def test_diagnostics_add_no_stance_reward_components(self, callback):
-        assert "reward_bilateral_support" not in callback.REWARD_KEYS
-        assert "reward_foot_load_balance" not in callback.REWARD_KEYS
-        assert "reward_leg_home_pose" not in callback.REWARD_KEYS
-        assert "reward_head_clearance" not in callback.REWARD_KEYS
-        assert "reward_neck_posture" not in callback.REWARD_KEYS
+    def test_collects_stance_reward_components(self, callback):
+        callback.locals = {
+            "infos": [
+                {
+                    "reward_bilateral_support": 0.5,
+                    "reward_foot_load_balance": -0.1,
+                    "reward_leg_home_pose": 0.4,
+                    "reward_head_clearance": 0.3,
+                    "reward_neck_posture": 0.2,
+                }
+            ]
+        }
+        callback._on_step()
+
+        assert callback._step_infos["reward_bilateral_support"] == [0.5]
+        assert callback._step_infos["reward_foot_load_balance"] == [-0.1]
+        assert callback._step_infos["reward_leg_home_pose"] == [0.4]
+        assert callback._step_infos["reward_head_clearance"] == [0.3]
+        assert callback._step_infos["reward_neck_posture"] == [0.2]
 
     def test_empty_infos(self, callback):
         callback.locals = {"infos": []}
