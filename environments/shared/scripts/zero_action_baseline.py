@@ -118,8 +118,16 @@ def score(env, episodes: int, seed: int, noise: float | None = None) -> dict:
         # do-nothing policy survives are worth far more than its average.  A
         # gate set above ``reward_mean`` but below this one is cleared by a
         # policy that has learned only "do not fall".
-        "reward_mean_standing": float(rewards_arr[standing].mean()) if standing.any() else float("nan"),
-        "reward_std_standing": float(rewards_arr[standing].std()) if standing.any() else float("nan"),
+        #
+        # ``None``, not NaN, when the statue never reaches the horizon: this
+        # dict is serialised straight into the baseline records the notebook
+        # writes to Drive, and ``json.dumps`` renders a float NaN as a bare
+        # ``NaN`` literal, which RFC 8259 does not allow.  Python and jq accept
+        # it; strict parsers (JavaScript ``JSON.parse``, most Go/Rust decoders)
+        # reject the whole file.  ``None`` serialises to ``null``.  Brachiosaurus
+        # hits this today -- it never survives a full episode under zero action.
+        "reward_mean_standing": float(rewards_arr[standing].mean()) if standing.any() else None,
+        "reward_std_standing": float(rewards_arr[standing].std()) if standing.any() else None,
         "n_standing": int(standing.sum()),
         "length_mean": float(lengths_arr.mean()),
         "full_horizon_share": float(standing.mean()),
@@ -128,6 +136,13 @@ def score(env, episodes: int, seed: int, noise: float | None = None) -> dict:
         "episodes": int(rewards_arr.size),
         "reset_noise_scale": float(env.reset_noise_scale),
     }
+
+
+def _standing_text(result: dict) -> str:
+    """Format the standing score, which is ``None`` when nothing stood."""
+    if result["n_standing"] == 0:
+        return "-"
+    return f"{result['reward_mean_standing']:.1f}"
 
 
 def report(species: str, stage: int, episodes: int, seed: int, sweep: bool) -> None:
@@ -141,7 +156,7 @@ def report(species: str, stage: int, episodes: int, seed: int, sweep: bool) -> N
                 result = score(env, episodes, seed, noise=noise)
                 print(
                     f"  {noise:>7}{result['reward_mean']:>12.1f}{result['reward_mean_minus_std']:>11.1f}"
-                    f"{result['reward_mean_standing']:>11.1f}"
+                    f"{_standing_text(result):>11}"
                     f"{result['length_mean']:>11.1f}{result['full_horizon_share']:>13.0%}"
                 )
             return
@@ -150,8 +165,13 @@ def report(species: str, stage: int, episodes: int, seed: int, sweep: bool) -> N
         print(f"\n{label}: zero-action baseline ({episodes} episodes, reset_noise={env.reset_noise_scale})")
         print(f"  reward             {result['reward_mean']:.2f} +/- {result['reward_std']:.2f}")
         print(f"  reward mean-std    {result['reward_mean_minus_std']:.2f}")
+        standing = (
+            "never reached the horizon"
+            if result["n_standing"] == 0
+            else f"{result['reward_mean_standing']:.2f} +/- {result['reward_std_standing']:.2f}"
+        )
         print(
-            f"  reward standing    {result['reward_mean_standing']:.2f} +/- {result['reward_std_standing']:.2f}"
+            f"  reward standing    {standing}"
             f"   ({result['n_standing']} of {result['episodes']} episodes reached the horizon)"
         )
         print(f"  episode length     {result['length_mean']:.1f} of {result['horizon']}")
