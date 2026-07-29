@@ -694,6 +694,8 @@ def run_stage_evaluation(
 
     final_params = jax.device_get(params)
     selected_params = best_params if best_params is not None else final_params
+    target_distance_range = tuple(env.config.target_distance_range)
+    target_lateral_range = tuple(env.config.target_lateral_range)
 
     eval_config = EvalConfig(
         n_episodes=n_episodes,
@@ -721,8 +723,8 @@ def run_stage_evaluation(
         reset_noise_scale=float(env.config.reset_noise_scale),
         init_qpos_noise=float(env.config.init_qpos_noise),
         init_yaw_noise=float(env.config.init_yaw_noise),
-        target_distance_range=tuple(env.config.target_distance_range),
-        target_lateral_range=tuple(env.config.target_lateral_range),
+        target_distance_range=target_distance_range,
+        target_lateral_range=target_lateral_range,
         target_z=float(env.config.target_z),
         forward_vel_max=ctx.forward_vel_max,
         target_standing_z=(ctx.target_standing_z if ctx.target_standing_z is not None else 0.90),
@@ -813,8 +815,8 @@ def run_stage_evaluation(
         "evaluation_reset_noise_scale": eval_config.reset_noise_scale,
         "evaluation_init_qpos_noise": eval_config.init_qpos_noise,
         "evaluation_init_yaw_noise": eval_config.init_yaw_noise,
-        "evaluation_target_distance_range": list(eval_config.target_distance_range),
-        "evaluation_target_lateral_range": list(eval_config.target_lateral_range),
+        "evaluation_target_distance_range": list(target_distance_range),
+        "evaluation_target_lateral_range": list(target_lateral_range),
         "evaluation_target_z": eval_config.target_z,
         "evaluation_seed": eval_config.seed,
         "best_model_reward": round(selected_eval_results.mean_reward, 2),

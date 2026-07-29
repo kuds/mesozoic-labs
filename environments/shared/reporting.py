@@ -1472,10 +1472,7 @@ def generate_stage_artifacts(
         final_path = model_dir / f"stage{stage}_final"
         final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
         replay_diagnostics = species.lower() == "trex" and stage == 1
-        replay_kwargs = {
-            "camera_views": TREX_STAGE1_CAMERA_VIEWS if replay_diagnostics else None,
-            "collect_stance_diagnostics": replay_diagnostics,
-        }
+        replay_camera_views = TREX_STAGE1_CAMERA_VIEWS if replay_diagnostics else None
 
         if (model_dir / "best_model.zip").exists():
             best_model = alg_cls.load(str(best_model_path))
@@ -1498,7 +1495,8 @@ def generate_stage_artifacts(
                 label="best",
                 plant_identity=plant_identity,
                 allow_legacy_plant=allow_legacy_plant,
-                **replay_kwargs,
+                camera_views=replay_camera_views,
+                collect_stance_diagnostics=replay_diagnostics,
             )
 
         if (Path(str(final_path) + ".zip")).exists():
@@ -1522,7 +1520,8 @@ def generate_stage_artifacts(
                 label="final",
                 plant_identity=plant_identity,
                 allow_legacy_plant=allow_legacy_plant,
-                **replay_kwargs,
+                camera_views=replay_camera_views,
+                collect_stance_diagnostics=replay_diagnostics,
             )
     except PlantCompatibilityError:
         raise

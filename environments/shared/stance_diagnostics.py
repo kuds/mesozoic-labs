@@ -11,7 +11,7 @@ from __future__ import annotations
 import csv
 import math
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 import numpy as np
 
@@ -304,7 +304,7 @@ def capture_trex_stance_snapshot(env: Any, info: Mapping[str, Any], step: int) -
     return row
 
 
-def write_stance_diagnostics_csv(path: str | Path, rows: list[Mapping[str, Any]]) -> Path | None:
+def write_stance_diagnostics_csv(path: str | Path, rows: Sequence[Mapping[str, Any]]) -> Path | None:
     """Write per-frame stance diagnostics, preserving every observed column."""
     if not rows:
         return None
