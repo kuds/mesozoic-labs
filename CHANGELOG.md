@@ -157,6 +157,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   across jobs. `harnesses/` and the mjlab adapter stay omitted, now with
   accurate reasons — hand-run, and GPU-only with no job able to reach it.
 
+  The combined gate reports **80% over 11,071 statements**. On the comparable
+  `environments/shared` slice that is 78.07% over 9,987 statements against the
+  old 79.57% over 7,652 — the figure barely moves while the denominator grows
+  31%, which was the point. `fail_under` stays at 70 rather than being tuned to
+  the result. The combine log reads `Combined 15 files, skipped 3` against 18
+  artifacts: coverage.py content-hashes each data file and skips one whose
+  bytes match a file already combined, so three matrix runs that produced
+  identical data to a sibling Python version contributed nothing new. No data
+  is dropped.
+
 ### Removed
 - **The top-level `Images/` directory** (25 MB): its three GIFs were
   byte-identical to the copies under `website/static/img/`, which are the ones
@@ -269,6 +279,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already terminated.
 
 ### Added
+- **Tests for the unified training entry point** (`environments/shared/train.py`),
+  which the newly-honest combined coverage showed at **0%** — the module was
+  never imported by any test. It is the `--species` shim in front of
+  `train_base.main`, so a break there takes out every documented
+  `python -m environments.shared.train ...` invocation while the species
+  packages stay green. 13 tests cover both validation exits, the argv rewrite
+  (species pair at the front, middle and end; `argv[0]` preserved), the
+  hand-off to `get_species_config`/`main`, and an unknown species propagating
+  the registry's `ValueError` rather than being swallowed. The `sys.path`
+  bootstrap is pinned against repository landmarks rather than its
+  `parents[2]` arithmetic — the same depth-counting failure that produced the
+  provenance-root bug on this branch — and the `__main__` guard is exercised
+  end to end as a subprocess. 0% → 95%, the remainder being the guard body
+  itself, which only runs out of process. All nine mutations of the module
+  (both exit codes, the argv slice bounds, the parent depth, the guarded
+  `sys.path` insert, and swallowing the registry error) turn the suite red.
+
 - **New species: *Dibothrosuchus elaphros*** (77 obs / 27 actuators / 8.65 kg
   / nq=35, nv=34) — a sphenosuchian crocodylomorph and the first non-dinosaur
   in the project. It is a small, gracile quadruped that held its limbs erect
