@@ -174,6 +174,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Images/` except the `.dockerignore` entry excluding it, now also dropped.
 
 ### Fixed
+- **Being airborne is no longer cheaper than honest single support.**
+  `reward_foot_load_balance` computed `|R − L| / (R + L + 1e-8)`, which
+  evaluates to **zero** when both feet read zero — so a plant off the ground
+  scored the same as one standing evenly on both feet, and strictly better than
+  one carrying its weight on a single foot, which pays the full penalty. On the
+  stage-1 weights that ordering was `both feet down +0.600 > airborne 0.000 >
+  single support −0.300`: flight was the second-best available state on the
+  stage whose entire job is to stand still, and a policy off the ground cannot
+  reject a disturbance at all. An unsupported pair now reports maximal
+  imbalance, giving `both feet down +0.600 > single support = airborne −0.300`.
+  A new optional `foot_load_balance_min_support_force` sets the total force
+  below which the pair counts as unsupported; it defaults to `0.0`, which closes
+  only the exact `[0, 0]` case and leaves **every loaded state numerically
+  unchanged**, and can be raised during gate calibration to also deny credit for
+  a token grazing contact. Wired identically through the Gymnasium, MJX and
+  JAX paths, with the `[0, 0]` case now covered in both `test_reward_functions`
+  and `test_trex_mjx_reward_parity` — neither covered it before, which is how
+  the hole survived. Note the two failure states are now *tied* rather than
+  airborne being strictly worst; separating them needs a term this fix does not
+  add.
 - **The curriculum advancement gate now fails closed** (breaking — every stage
   config must declare `gate_schema_version` and `gate_kind`). The gate plumbing
   failed *open* in three independent ways, so a stage could advance on evidence

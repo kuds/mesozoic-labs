@@ -139,6 +139,7 @@ def compute_total_reward(
     r_foot_load_balance, _ = reward_foot_load_balance(
         foot_forces[:2],
         reward_cfg.get("foot_load_balance_weight", 0.0),
+        reward_cfg.get("foot_load_balance_min_support_force", 0.0),
     )
 
     # The opt-in path is formula-identical to Gymnasium.  Fraction zero
@@ -384,6 +385,7 @@ def compute_reward_components(
     r_foot_load_balance, foot_load_imbalance = reward_foot_load_balance(
         foot_forces[:2],
         reward_cfg.get("foot_load_balance_weight", 0.0),
+        reward_cfg.get("foot_load_balance_min_support_force", 0.0),
     )
 
     raw_alive = reward_alive(reward_cfg.get("alive_bonus", 0.1))
