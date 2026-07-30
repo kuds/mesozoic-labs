@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.4)
+## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
 ### Changed
 - **T-Rex home stance corrected to a flexed theropod limb** (breaking — plant
@@ -86,6 +86,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   discovery produced no successes until ~5.5M, leaving only ~2.5M of
   effective hunting curriculum. 12M matches the brachiosaurus stage-3
   budget.
+
+- **The four largest `environments/shared` modules are now packages**, each
+  split along the seams its own docstring already described. Public surfaces
+  are unchanged — every package `__init__` re-exports exactly what the module
+  exported, so no import site outside the packages moved:
+  - `reporting.py` (1,929 lines) → `formatting`, `gates`, `csv_output`,
+    `text_summaries`, `summaries`, `bundles`, `stage_artifacts`
+  - `plant_contract.py` (1,822) → one module per contract layer
+    (`source_layer`, `policy_layer`, `physics_layer`, `visual_layer`) over
+    `constants`/`errors`/`digests`/`identity`/`versions`/`introspection`, with
+    `manifest`, `validation`, and a `__main__` for the existing
+    `python -m environments.shared.plant_contract --check` entry point
+  - `curriculum.py` (1,316) → `sb3_compat`, `manager`, `schedules`,
+    `advancement`, `early_stopping`, `checkpoints`; the manager no longer
+    shares a module with the SB3 integration
+  - `result_bundle.py` (1,201) → `constants`, `errors`, `naming`, `hashing`,
+    `provenance`, `manifest`, `evidence`, `audit`
+
+  Three test patch points moved with the code they belong to: the plant
+  contract's `configs/` paths are read through its `constants` module,
+  `_SB3_AVAILABLE` through `curriculum.sb3_compat`, and the provenance helpers
+  through `result_bundle.provenance`. Each is now a single patch point rather
+  than one per consuming module.
+
+- **Fixed: default provenance capture resolved the repository root one level
+  too shallow.** `initialize_result_bundle` derived it as
+  `Path(__file__).resolve().parents[2]`, correct while the code lived in
+  `environments/shared/result_bundle.py` but off by one once it moved into
+  `result_bundle/provenance.py`, where it resolved to `<repo>/environments`.
+  `git status` reports repo-wide while `git ls-files --others` is scoped to its
+  working directory, so an untracked file under `configs/` or the repository
+  root set `repository_dirty` without entering `repository_patch_sha256` —
+  materially different dirty trees could share one provenance hash. The root is
+  now `REPOSITORY_ROOT` in `result_bundle/constants.py`, derived from a named
+  `_SHARED_ROOT` anchor rather than a bare parent count, read through the
+  `constants` module so there is one authoritative binding, and pinned by three
+  tests — one on the constant, one on the initializer's default wiring, and one
+  asserting a root-level untracked file changes the patch hash. Note the expression was byte-identical across the move, so an AST-level
+  verbatim check could not see it; only evaluating it could.
+
+- **The per-species script harnesses moved to `environments/shared/harnesses/`**
+  and no longer use `test_` names: `test_env_base.py` → `harnesses/env_smoke.py`,
+  `test_actuators_base.py` → `harnesses/actuators.py`, `view_model_base.py` →
+  `harnesses/viewer.py`, with `test_actuators()` → `run_actuator_test()` and the
+  internal `test_*` checks → `check_*`. These are hand-run smoke checks and
+  viewers, but pytest collected them as tests — and errored on their unfillable
+  `env_class`/`cfg` arguments — for any invocation that reached them, which the
+  repository's `testpaths`/`norecursedirs` settings were the only thing
+  preventing. The coverage `omit` entry added to work around the old naming is
+  replaced by one covering the package.
+
+### Removed
+- **The top-level `Images/` directory** (25 MB): its three GIFs were
+  byte-identical to the copies under `website/static/img/`, which are the ones
+  the site and README actually reference. Nothing in the repository referred to
+  `Images/` except the `.dockerignore` entry excluding it, now also dropped.
 
 ### Fixed
 - **T-Rex stages 2 and 3 no longer terminate at a different pitch angle on the

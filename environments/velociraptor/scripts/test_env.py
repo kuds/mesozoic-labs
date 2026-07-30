@@ -16,7 +16,7 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.shared.test_env_base import run_env_tests
+from environments.shared.harnesses.env_smoke import run_env_tests
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
 REWARD_KEYS = [

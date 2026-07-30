@@ -17,7 +17,7 @@ Controls:
 
 from pathlib import Path
 
-from environments.shared.view_model_base import ViewerConfig, view_model
+from environments.shared.harnesses.viewer import ViewerConfig, view_model
 
 if __name__ == "__main__":
     view_model(

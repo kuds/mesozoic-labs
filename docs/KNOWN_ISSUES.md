@@ -141,7 +141,7 @@ tolerance) remains the standing recommendation for the divergences above.
 - **LOW** — `CurriculumCallback` / `LocomotionMetrics` hardcode success keys
   (`bite_success`, `strike_success`, `food_reached`) instead of using
   `SpeciesConfig.success_keys`. (June §6.4)
-- **LOW** — `curriculum.py` `_read_latest_eval`: the
+- **LOW** — `curriculum/advancement.py` `_read_latest_eval`: the
   `successes.shape[0] == n_evals` guard permanently discards npz successes
   if SB3 starts recording them one eval late. (July §2)
 - **LOW (JAX)** — two same-named `check_stage_gate` functions with different
