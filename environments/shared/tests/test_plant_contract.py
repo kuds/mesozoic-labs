@@ -21,9 +21,6 @@ from environments.shared.plant_contract import (
     PlantCompatibilityError,
     PlantContractError,
     PlantVersion,
-    _enforce_revision_changes,
-    _normalized_python_tokens,
-    _option_payload,
     attach_plant_identity,
     check_plant_manifest,
     current_plant_identity,
@@ -36,6 +33,15 @@ from environments.shared.plant_contract import (
     validate_recorded_identity,
     write_plant_identity,
 )
+from environments.shared.plant_contract.digests import (
+    _canonical_float,
+    _normalized_python_tokens,
+    _semantic_digest,
+)
+from environments.shared.plant_contract.manifest import _enforce_revision_changes
+from environments.shared.plant_contract.physics_layer import _option_payload
+from environments.shared.plant_contract.policy_layer import _policy_interface_payload
+from environments.shared.plant_contract.source_layer import _source_payload
 from environments.trex.envs.trex_env import TRexEnv
 from environments.velociraptor.envs.raptor_env import RaptorEnv
 
@@ -80,17 +86,17 @@ def test_committed_manifest_is_current_and_covers_all_species():
 
 @pytest.mark.parametrize("value", [0.1, -0.1, 1.234567890123, 1e-9, 1e9, -math.pi])
 def test_portable_float_canonicalization_collapses_compiler_ulp_noise(value):
-    expected = plant_contract._canonical_float(value)
+    expected = _canonical_float(value)
 
     for direction in (-math.inf, math.inf):
         perturbed = value
         for _ in range(4):
             perturbed = math.nextafter(perturbed, direction)
-        assert plant_contract._canonical_float(perturbed) == expected
+        assert _canonical_float(perturbed) == expected
 
 
 def test_portable_float_canonicalization_preserves_meaningful_changes():
-    assert plant_contract._canonical_float(1.0) != plant_contract._canonical_float(1.000000001)
+    assert _canonical_float(1.0) != _canonical_float(1.000000001)
 
     base = np.array([0.1, -math.pi, 1e-9, 1e9], dtype=np.float64)
     perturbed = base.copy()
@@ -98,35 +104,35 @@ def test_portable_float_canonicalization_preserves_meaningful_changes():
     for _ in range(4):
         perturbed = np.nextafter(perturbed, directions)
 
-    assert plant_contract._semantic_digest("portable-array-test/v1", base) == plant_contract._semantic_digest(
+    assert _semantic_digest("portable-array-test/v1", base) == _semantic_digest(
         "portable-array-test/v1", perturbed
     )
 
     changed = base.copy()
     changed[0] *= 1.0 + 1e-9
-    assert plant_contract._semantic_digest("portable-array-test/v1", base) != plant_contract._semantic_digest(
+    assert _semantic_digest("portable-array-test/v1", base) != _semantic_digest(
         "portable-array-test/v1", changed
     )
 
 
 def test_portable_float_canonicalization_handles_special_values():
-    assert plant_contract._canonical_float(0.0) == plant_contract._canonical_float(-0.0) == "0"
-    assert plant_contract._canonical_float(math.inf) == "+inf"
-    assert plant_contract._canonical_float(-math.inf) == "-inf"
+    assert _canonical_float(0.0) == _canonical_float(-0.0) == "0"
+    assert _canonical_float(math.inf) == "+inf"
+    assert _canonical_float(-math.inf) == "-inf"
     with pytest.raises(PlantContractError, match="cannot encode NaN"):
-        plant_contract._canonical_float(math.nan)
+        _canonical_float(math.nan)
 
 
 def test_source_closure_remains_byte_exact(monkeypatch, tmp_path):
     model_path = tmp_path / "model.xml"
     model_path.write_text('<mujoco model="test"><worldbody/></mujoco>\n', encoding="utf-8")
-    monkeypatch.setattr(plant_contract, "REPOSITORY_ROOT", tmp_path)
+    monkeypatch.setattr(plant_contract.constants, "REPOSITORY_ROOT", tmp_path)
 
-    original = plant_contract._source_payload(model_path)
-    original_digest = plant_contract._semantic_digest(plant_contract.SOURCE_SCHEMA, original)
+    original = _source_payload(model_path)
+    original_digest = _semantic_digest(plant_contract.SOURCE_SCHEMA, original)
     model_path.write_text('<mujoco model="test"><!-- byte change --><worldbody/></mujoco>\n', encoding="utf-8")
-    changed = plant_contract._source_payload(model_path)
-    changed_digest = plant_contract._semantic_digest(plant_contract.SOURCE_SCHEMA, changed)
+    changed = _source_payload(model_path)
+    changed_digest = _semantic_digest(plant_contract.SOURCE_SCHEMA, changed)
 
     assert original["dependencies"][0]["content_sha256"] != changed["dependencies"][0]["content_sha256"]
     assert original_digest != changed_digest
@@ -137,9 +143,9 @@ def test_bundled_runtime_manifest_matches_repository_manifest():
 
 
 def test_runtime_identity_falls_back_to_bundled_manifest(monkeypatch, tmp_path):
-    monkeypatch.setattr(plant_contract, "SPECIES_MANIFEST_PATH", tmp_path / "missing-species.toml")
-    monkeypatch.setattr(plant_contract, "PLANT_VERSIONS_PATH", tmp_path / "missing-versions.toml")
-    monkeypatch.setattr(plant_contract, "GENERATED_MANIFEST_PATH", tmp_path / "missing-manifest.json")
+    monkeypatch.setattr(plant_contract.constants, "SPECIES_MANIFEST_PATH", tmp_path / "missing-species.toml")
+    monkeypatch.setattr(plant_contract.constants, "PLANT_VERSIONS_PATH", tmp_path / "missing-versions.toml")
+    monkeypatch.setattr(plant_contract.constants, "GENERATED_MANIFEST_PATH", tmp_path / "missing-manifest.json")
 
     identity = plant_contract.current_plant_identity("velociraptor")
 
@@ -392,7 +398,7 @@ def test_biped_policy_contract_records_home_residual_action_mapping(env_class, s
     env = env_class(reset_noise_scale=0.0)
     try:
         version = load_plant_versions()[1][species]
-        payload = plant_contract._policy_interface_payload(env.model, env, version, require_backend_parity=True)
+        payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
         mapping = payload["action_mapping"]
 
         assert mapping["mode"] == "home-keyframe-residual/v1"
@@ -409,7 +415,7 @@ def test_brachio_retains_midpoint_action_mapping_contract():
     env = BrachioEnv(reset_noise_scale=0.0)
     try:
         version = load_plant_versions()[1]["brachiosaurus"]
-        payload = plant_contract._policy_interface_payload(env.model, env, version, require_backend_parity=True)
+        payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
     finally:
         env.close()
 
