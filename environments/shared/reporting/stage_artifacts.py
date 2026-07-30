@@ -125,6 +125,7 @@ def build_stage_results_from_eval_data(
         result["plant_identity"] = dict(plant_identity)
     return result
 
+
 def generate_stage_artifacts(
     species_cfg,
     stage_config: dict[str, Any],
@@ -297,6 +298,7 @@ def generate_stage_artifacts(
         logger.warning("Video recording failed.", exc_info=True)
 
     return stage_results
+
 
 def save_jax_stage_artifacts(
     species: str,

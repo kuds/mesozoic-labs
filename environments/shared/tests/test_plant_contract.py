@@ -104,15 +104,11 @@ def test_portable_float_canonicalization_preserves_meaningful_changes():
     for _ in range(4):
         perturbed = np.nextafter(perturbed, directions)
 
-    assert _semantic_digest("portable-array-test/v1", base) == _semantic_digest(
-        "portable-array-test/v1", perturbed
-    )
+    assert _semantic_digest("portable-array-test/v1", base) == _semantic_digest("portable-array-test/v1", perturbed)
 
     changed = base.copy()
     changed[0] *= 1.0 + 1e-9
-    assert _semantic_digest("portable-array-test/v1", base) != _semantic_digest(
-        "portable-array-test/v1", changed
-    )
+    assert _semantic_digest("portable-array-test/v1", base) != _semantic_digest("portable-array-test/v1", changed)
 
 
 def test_portable_float_canonicalization_handles_special_values():

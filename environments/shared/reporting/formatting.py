@@ -38,6 +38,7 @@ def parse_optional_bool(value: Any) -> bool | None:
             return parse_optional_bool(scalar)
     return None
 
+
 def _optional_metric(value: Any, *, digits: int | None = None) -> int | float | None:
     """Normalize an optional numeric metric for JSON output."""
     if value is None or value == "":
@@ -56,6 +57,7 @@ def _optional_metric(value: Any, *, digits: int | None = None) -> int | float | 
         return int(value)
     return round(numeric, digits) if digits is not None else numeric
 
+
 def format_duration(seconds: float) -> str:
     """Format seconds into a human-readable string (e.g. ``2h 15m 30s``)."""
     h = int(seconds // 3600)
@@ -66,6 +68,7 @@ def format_duration(seconds: float) -> str:
     elif m > 0:
         return f"{m}m {s}s"
     return f"{s}s"
+
 
 def format_duration_hms(seconds: float) -> str:
     """Format seconds as ``H:MM:SS``."""

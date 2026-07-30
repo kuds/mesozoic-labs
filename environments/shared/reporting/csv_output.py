@@ -40,6 +40,7 @@ CSV_METRIC_COLUMNS: list[str] = [
     "quality_rank",
 ]
 
+
 def _compute_fieldnames(
     rows: list[dict[str, Any]],
     fixed_columns: list[str] | None = None,
@@ -59,6 +60,7 @@ def _compute_fieldnames(
     all_known = set(fixed_columns) | set(CSV_METRIC_COLUMNS) | set(eval_cols)
     hparam_cols: list[str] = sorted({k for row in rows for k in row if k not in all_known})
     return fixed_columns + hparam_cols + CSV_METRIC_COLUMNS + eval_cols
+
 
 def write_results_csv(
     rows: list[dict[str, Any]],
@@ -186,6 +188,7 @@ def write_results_csv(
     logger.info("Results CSV written to: %s", path_str)
     return Path(path_str)
 
+
 def build_results_csv_rows(
     stage_results_list: Sequence[Mapping[str, Any]],
     stage_configs: Mapping[int, Mapping[str, Any]],
@@ -289,6 +292,7 @@ def build_results_csv_rows(
         rows.append(row)
     return rows
 
+
 def save_results_csv(
     stage_results_list: list[dict[str, Any]],
     stage_configs: dict[int, dict[str, Any]],
@@ -338,6 +342,7 @@ def save_results_csv(
             *plant_columns,
         ],
     )
+
 
 def save_evaluation_episodes(
     stage_dir: str | Path,

@@ -23,6 +23,7 @@ def _backend_version(algorithm: str) -> "str | None":
     except Exception:
         return None
 
+
 def _run_provenance(overrides: "Mapping[str, Any] | None" = None) -> dict[str, Any]:
     """Build a summary ``provenance`` block, recording the repository commit.
 
@@ -46,6 +47,7 @@ def _run_provenance(overrides: "Mapping[str, Any] | None" = None) -> dict[str, A
     if overrides:
         provenance.update(overrides)
     return provenance
+
 
 def _canonical_stage_summary(result: Mapping[str, Any]) -> dict[str, Any]:
     """Normalize one in-memory stage result to the public schema-v2 shape."""
@@ -91,6 +93,7 @@ def _canonical_stage_summary(result: Mapping[str, Any]) -> dict[str, Any]:
         if result_key in result:
             stage_summary[output_key] = _optional_metric(result.get(result_key), digits=digits)
     return stage_summary
+
 
 def build_result_summary(
     stage_results_list: Sequence[Mapping[str, Any]],
@@ -155,6 +158,7 @@ def build_result_summary(
     if effective_plant_identity is not None:
         summary["plant_identity"] = dict(effective_plant_identity)
     return summary
+
 
 def save_results_json(
     stage_results_list: list[dict[str, Any]],

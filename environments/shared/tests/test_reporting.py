@@ -794,10 +794,10 @@ class TestSaveJaxStageArtifacts:
 
     @pytest.fixture(autouse=True)
     def _clean_repository_state(self, monkeypatch):
-        from environments.shared import result_bundle
+        from environments.shared.result_bundle import provenance
 
         monkeypatch.setattr(
-            result_bundle,
+            provenance,
             "_repository_state",
             lambda _root: {
                 "repository_url": "https://github.com/kuds/mesozoic-labs.git",

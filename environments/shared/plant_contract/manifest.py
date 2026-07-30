@@ -234,7 +234,11 @@ def write_plant_manifest() -> Path:
 def check_plant_manifest(*, baseline_path: Path | None = None) -> dict[str, Any]:
     """Fail when the committed generated manifest is stale."""
     expected = render_plant_manifest(build_plant_manifest(require_canonical_mujoco=True))
-    source_path = constants.GENERATED_MANIFEST_PATH if constants.GENERATED_MANIFEST_PATH.is_file() else constants.BUNDLED_MANIFEST_PATH
+    source_path = (
+        constants.GENERATED_MANIFEST_PATH
+        if constants.GENERATED_MANIFEST_PATH.is_file()
+        else constants.BUNDLED_MANIFEST_PATH
+    )
     try:
         actual = source_path.read_text(encoding="utf-8")
     except OSError as exc:

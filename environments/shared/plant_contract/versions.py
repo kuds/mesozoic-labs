@@ -23,7 +23,11 @@ def _read_toml(path: Path) -> dict[str, Any]:
 
 def _load_generated_manifest(path: Path | None = None) -> dict[str, Any]:
     if path is None:
-        path = constants.GENERATED_MANIFEST_PATH if constants.GENERATED_MANIFEST_PATH.is_file() else constants.BUNDLED_MANIFEST_PATH
+        path = (
+            constants.GENERATED_MANIFEST_PATH
+            if constants.GENERATED_MANIFEST_PATH.is_file()
+            else constants.BUNDLED_MANIFEST_PATH
+        )
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -55,7 +59,9 @@ def _species_entries() -> dict[str, dict[str, Any]]:
     for entry in raw.get("species", []):
         species = str(entry.get("id", ""))
         if not species or species in entries:
-            raise PlantContractError(f"invalid or duplicate species id in {constants.SPECIES_MANIFEST_PATH.name}: {species!r}")
+            raise PlantContractError(
+                f"invalid or duplicate species id in {constants.SPECIES_MANIFEST_PATH.name}: {species!r}"
+            )
         entries[species] = dict(entry)
     if not entries:
         raise PlantContractError("species manifest contains no species")

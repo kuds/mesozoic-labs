@@ -20,6 +20,7 @@ from environments.shared.result_bundle import (
     verify_artifact_manifest,
     write_artifact_manifest,
 )
+from environments.shared.result_bundle import provenance as result_bundle_provenance
 from environments.shared.result_schema import validate_result_summary
 
 _COMMIT = "a" * 40
@@ -109,7 +110,7 @@ def _stage_config(stage: int, algorithm: str) -> dict[str, Any]:
 def stable_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
     """Remove host Git/package state from result-bundle assertions."""
     monkeypatch.setattr(
-        result_bundle,
+        result_bundle_provenance,
         "_repository_state",
         lambda _root: {
             "repository_url": "https://github.com/kuds/mesozoic-labs.git",
@@ -119,7 +120,7 @@ def stable_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
         },
     )
     monkeypatch.setattr(
-        result_bundle,
+        result_bundle_provenance,
         "_dependency_versions",
         lambda: {
             "mesozoic_labs": "0.3.3.dev0",
@@ -887,7 +888,7 @@ def test_repository_url_sanitizer_never_publishes_credentials_or_local_paths(
     remote: str,
     expected: str | None,
 ) -> None:
-    assert result_bundle._sanitize_repository_url(remote) == expected
+    assert result_bundle_provenance._sanitize_repository_url(remote) == expected
 
 
 def test_complete_bundle_requires_selected_evaluation_evidence(

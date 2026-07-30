@@ -29,6 +29,7 @@ def _resolve_model_artifact(model_path: Any, *, run_dir: Path) -> Path | None:
             return path
     return None
 
+
 def save_result_bundle(
     stage_results_list: list[dict[str, Any]],
     stage_configs: dict[int, dict[str, Any]],

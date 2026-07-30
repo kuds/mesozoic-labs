@@ -88,6 +88,7 @@ def write_stage_summary(
     summary_path.write_text(summary_text)
     return summary_path
 
+
 def write_training_summary(
     run_dir,
     stage_results_list: list[dict[str, Any]],
