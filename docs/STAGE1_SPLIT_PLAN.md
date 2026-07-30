@@ -7,17 +7,24 @@ Follows from [investigations/TREX_REVIEW_2026_07.md](investigations/TREX_REVIEW_
 §F1 and §NS-1, and from the measurements recorded in
 [PR #471](https://github.com/kuds/mesozoic-labs/pull/471).
 
-Revision 2 incorporates review feedback on
-[PR #474](https://github.com/kuds/mesozoic-labs/pull/474); §11 records what changed and why.
-Every claim below carries a label from the ledger in §11.
+Revision 3 incorporates two rounds of review feedback on
+[PR #474](https://github.com/kuds/mesozoic-labs/pull/474), including its empirical addendum;
+§11 records what changed and why. Every claim below carries a label from the ledger in §11.
+
+**Blocking prerequisites discovered during review** — these are environment and plumbing defects
+that must be fixed before any gate in this document can mean anything: reset validity (§7.5),
+fail-closed gate schema (§5.2), and the collapse-detector coupling (§7.4).
 
 ## TL;DR
 
 Stage 1 currently asks one number to answer two questions: *did the plant reach a stable
 stance*, and *is that stance actively controlled rather than passively propped*. The first is
 legitimately satisfied by a controller that settles and then stops working. The second is not
-measurable at all without a disturbance. No gate on episode return can separate them, which is
-why the gate has been either unbindable or unclearable in every configuration tried so far.
+measurable at all without a disturbance. On the undisturbed task — where a passive and an
+active controller can generate the *same trajectory* — realized on-trajectory return cannot
+identify active feedback, which is why the gate has been either unbindable or unclearable in
+every configuration tried so far. (This is a claim about the undisturbed task, not a universal
+impossibility result about return-based gates.)
 
 Splitting gives each question its own stage and its own gate:
 
@@ -103,16 +110,27 @@ action-cost terms are exactly zero because a constant action has no action delta
 Zero-action baseline, all four species, `48fd90a`, 40 episodes, seed 3042:
 
 ```
-species              mean     len   gate  len gate   reward?   length?   FULL GATE
+species              mean     len   gate  len gate   reward?   length?   REWARD+LENGTH
 trex               1971.6   638.1   1840       750    CLEARS    blocks   blocked
 velociraptor       1704.9   977.5    100       750    CLEARS    CLEARS   STATUE PASSES
 brachiosaurus       108.2    98.7    100       750    CLEARS    blocks   blocked
 dibothrosuchus     1702.0   674.2    100       750    CLEARS    blocks   blocked
 ```
 
+The last column is the reward-plus-length conjunction evaluated on **one 40-episode
+aggregate**. It is not the complete advancement predicate, which also involves evaluation
+batching, `min_eval_episodes` and `required_consecutive`.
+
 Every stage-1 **reward** threshold is cleared by a statue. Velociraptor's **complete** gate is
 cleared by a statue. In the other three, `min_avg_episode_length` is doing all of the gating
 work and the reward threshold is decorative.
+
+**Zero-action survival is stable across panels; its reward is not.** `[artifact-derived]` Four
+disjoint 40-seed T-Rex panels (3042/4042/5042/6042) gave 23, 23, 22 and 25 full-horizon
+episodes — pooled **93/160 = 58.125%**, exact two-sided 95% CP interval **50.08%–65.87%** —
+while per-panel reward means ranged **1884.71 to 2157.53**. The physical result is reproducible;
+the reward scalar attached to it is not stable enough to gate on. This is the empirical case for
+making stance a *state-capability* gate rather than a reward gate.
 
 ### 1.5 The observed policy appears to hop rather than stand  `[measured diagnostics, inferred behaviour]`
 
@@ -207,9 +225,39 @@ of this can gate advancement, the following must be specified and implemented:
 * persistence through reporting, result bundles, notebook and sweeps.
 
 Provisional T-Rex values, to be calibrated rather than adopted: `T_settle` 200 steps,
-`h_max` 0.03 m, `d_max` 0.5 m, `P(stance_success)` LCB ≥ 0.90. `[inferred]`
+`h_max` 0.03 m, `d_max` 0.5 m. `[inferred]`
 
-`min_avg_reward` is **unset** for 1a.
+`min_avg_reward` is **unset** for 1a — see §5.2, which makes that safe rather than fail-open.
+
+#### 2.3.1 The statistical operating point must be declared  `[measured]`
+
+Interval method: **exact one-sided 95% Clopper-Pearson**. With that fixed, `LCB95 ≥ 0.90`
+implies these cutoffs and these chances of a *good* policy passing:
+
+```
+    n   cutoff   P(pass | true p=0.95)   P(pass | true p=0.98)
+   30    30/30                 21.464%                 54.548%
+   40    40/40                 12.851%                 44.570%
+   80    77/80                 42.845%                 92.315%
+  100    96/100                43.598%                 94.917%
+```
+
+At n=30 and n=40 the rule permits **no failures at all**. That is not a theoretical concern:
+evaluated on four 40-seed panels, the current checkpoint scored 39/40, 39/40, 40/40, 40/40 —
+pooled **158/160 = 98.75%** — and therefore **fails two of the four panels** under this rule.
+`[artifact-derived]`
+
+Pick one operating point and write it down:
+
+* **capability target p ≈ 0.95, ~80% power** → `n = 179`, cutoff `168` (or `n = 180`, cutoff
+  `169`, power 80.8%);
+* **capability target p ≈ 0.98** → `n = 100`, cutoff `96`, power 94.9%.
+
+**Do not multiply confidence by `required_consecutive`.** Re-running the *same* deterministic
+panel three times adds no statistical evidence, and demanding three independent panels each
+clear a low-power cutoff has worse power than one properly sized panel. Use cheap evaluations
+plus `required_consecutive` as scheduler hysteresis only; once a candidate qualifies, freeze it
+and run **one predeclared held-out confirmation panel** at the declared `n`.
 
 ### 2.4 Budget
 
@@ -236,7 +284,7 @@ change.
 
 ```toml
 [env]
-perturbation_delta_v      = 1.5     # multiple of capture-point velocity
+perturbation_capture_velocity_multiple = 1.5   # dimensionless; see note below
 perturbation_interval     = 2.0     # seconds between shoves
 perturbation_jitter       = 0.5     # +/- seconds, defeats a blind clock-timed brace
 perturbation_duration     = 0.20    # seconds of applied force
@@ -245,6 +293,12 @@ perturbation_direction    = "uniform_horizontal"
 
 On the T-Rex plant `1.5×` capture-point velocity is roughly **150 N for 0.20 s**.
 `[artifact-derived]`
+
+Revision 2 named this key `perturbation_delta_v = 1.5`, which is dimensionally ambiguous — the
+name says a velocity, the value is a multiplier. Use either the dimensionless multiple above or
+an explicit `perturbation_delta_v_mps`, never a bare number whose unit depends on prose. The
+**derived force and impulse must be persisted per species**, since the same multiple produces
+different absolute forces on different plants.
 
 **Checkpoint compatibility — narrower than revision 1 claimed.** `plant_contract.py:895-921`
 fingerprints observation/action implementations and selected reset semantics; `step` appears
@@ -257,7 +311,21 @@ gap, not evidence of task equivalence.
 
 Add a distinct **task/evaluation fingerprint** covering perturbation implementation, schedule,
 RNG protocol, force parameters, reset configuration, horizon, reward and termination semantics,
-and backend. Resume must not cross that boundary silently.
+and backend.
+
+**Two distinct load modes.** Revision 2 said "resume must not cross that boundary silently,"
+which contradicts the fact that 1b is *meant* to start from a 1a checkpoint across exactly that
+boundary. Separate them:
+
+| mode | task fingerprint | requires | notes |
+|---|---|---|---|
+| `resume_same_stage` | must match exactly | resolved gate, scheduler/ramp state, optimizer + normalization compatibility | continuation of one run |
+| `initialize_next_stage` | mismatch **expected**, recorded as lineage | policy-interface compatibility only | explicit optimizer / normalization / ramp reset behaviour |
+
+**Narrow the reproducibility promise.** Exact mid-stage reproducibility needs more than current
+checkpoints preserve — PRNG state, environment and scheduler state, registered schedule
+position, global transition count, and ramp progress. Until those are persisted, promise
+*reproducible stage-boundary restart*, not exact mid-stage resumption.
 
 **Scheduler requirements** — a shared force kernel does not give backend-neutral scheduling.
 The design must specify: explicit clearing of `xfrc_applied` after each pulse and on reset;
@@ -296,7 +364,8 @@ Three cautions on reading this, all verified by exact binomial calculation `[mea
 
 1. **0 of 40 is a bound, not zero.** The exact one-sided 95% upper bound on zero-action survival
    is **0.07216** (equivalently `1 − 0.05^(1/40)`). Strong separation from a 70% requirement,
-   but the correct statement is "bounded below ~7.2%," not "zero."
+   but the correct statement is that survival is bounded **above by** ~7.2%, not that it is
+   zero. (Revision 2 said "bounded below," which inverts the direction.)
 2. **The candidate evidence is thinner than it looks.** 85% is 34 of 40; its exact one-sided 95%
    lower bound is **0.72526** — only narrowly above a 0.70 gate. And it was measured at noise
    0.05, while §2.2 retains 0.10, where the checkpoint is unmeasured.
@@ -318,8 +387,24 @@ All of `p_recovery`, `Δ_success`, `T_recover` and the `800`/`0.70`/`3` figures 
 are **provisional** until the finalised pushed task is measured (§8.1, §8.2). The push figures
 above also predate `435f35f`.
 
-**Null suite.** Zero action alone is insufficient — survival does not prove feedback control.
-Calibrate against zero action, constant/brace controllers, *and* the incoming 1a checkpoint.
+**Null suite, and the multiplicity rule.** Zero action alone is insufficient — survival does not
+prove feedback control. Calibrate against zero action, constant/brace controllers, *and* the
+incoming 1a checkpoint.
+
+The paired formula above names only zero action while the prose names three nulls; that gap has
+to close one of two ways, declared in advance:
+
+* **simultaneous** — require the paired lower bound against *every* predeclared null, with a
+  multiplicity correction across the suite; or
+* **select-then-confirm** — identify the strongest null on calibration seeds, then confirm once
+  against it on held-out seeds.
+
+**Pair identity is part of the estimand.** Two panels with identical marginal totals
+(policy 30/40, baseline 20/40) can yield materially different paired bounds depending on *which*
+seeds succeeded. `[artifact-derived]` Every canonical gate record must therefore carry, per
+episode: controller ID, pair ID, episode seed, success outcome, return, and realized push
+schedule. An aggregate CSV of marginal means cannot reproduce a paired decision and is not
+acceptable evidence.
 
 ### 3.5 Budget
 
@@ -350,10 +435,47 @@ plus a schema-version bump and backward readers for existing three-stage artifac
 `recovery` for T-Rex only at first, and per species thereafter only once that species has
 task-matched evidence.
 
+**Make this an executable manifest, not a naming convention.** A versioned, ordered per-species
+manifest is what lets T-Rex carry a `recovery` stage while the other three do not, without
+reinterpreting any historical artifact:
+
+```
+stage_manifest/v1  (per species, ordered)
+  - id: stance      config: configs/trex/stance.toml      terminal: false   legacy_alias: 1
+  - id: recovery    config: configs/trex/recovery.toml    terminal: false   legacy_alias: null
+  - id: locomotion  config: configs/trex/locomotion.toml  terminal: false   legacy_alias: 2
+  - id: behavior    config: configs/trex/bite.toml        terminal: true    legacy_alias: 3
+```
+
+Keep two fingerprints separate, because they answer different questions:
+
+* **task identity** — plant and policy-interface identity, model and implementation hashes, full
+  effective environment/reward/termination/perturbation config, backend and precision, relevant
+  dependency versions.
+* **evaluation protocol** — null-controller definitions, ordered episode seeds, pair IDs,
+  episode count, confidence procedure, and both the *intended* and *realized* push schedule.
+
+Recovery evidence emits one row per shove: push ID, actual start and end step, force vector and
+impulse, schedule hash, recovery-entry step, and dwell result.
+
 ## 5. Gate resolution
 
-Both stages should resolve thresholds from a measured baseline rather than a TOML literal. The
-lifecycle:
+**Capability requirements are normative; baselines are evidence.** Revision 2 said "both stages
+resolve their thresholds from a measured baseline," which wrongly implies that safe height,
+tilt, speed, drift, settling time, required recovery probability and maximum recovery time
+should track whatever the null controller happens to do. They should not — those are task
+requirements. A baseline exists to support the blocking preflight (§5.2) and relative-superiority
+comparisons, nothing more.
+
+Freeze three separate artifacts per run:
+
+| artifact | kind | contents |
+|---|---|---|
+| `capability_spec` | **normative**, versioned | `h_max`, `angle_max`, `v_max`, `omega_max`, `d_max`, `T_settle`, `p_recovery`, `T_recover`, dwell |
+| `null_manifest` | **evidential**, measured | null-controller definitions and their measured outcomes on a compatible task |
+| `decision_procedure` | **predeclared** | interval method, `n`, cutoff, calibration and held-out panels, multiplicity rule |
+
+Only the relative-superiority margins are derived from the baseline. The lifecycle:
 
 1. Materialise the fully effective reward/environment/perturbation/backend config.
 2. Measure or validate a compatible baseline on a registered seed vector.
@@ -406,7 +528,41 @@ mean moved 3244.04 / 3250.45 / 3233.99 (spread 16.5). `[artifact-derived]`
 
 For 1b, reward should be secondary to directly measured recovery capability regardless.
 
-### 5.2 Blocking pre-flight
+### 5.2 The gate schema must fail closed  `[measured]`
+
+**This is a blocking prerequisite, and the current plumbing demonstrably fails open.** Review
+constructed a composite-only gate:
+
+```toml
+[curriculum]
+gate_schema_version = 1
+gate_kind = "stance_success_lcb"
+min_stance_success_lcb = 0.90
+```
+
+The loader preserved the unknown fields but `thresholds_from_configs` silently discarded them.
+SB3 then materialised legacy permissive defaults (`min_avg_reward = -inf`, length and success
+floors `0`) and **advanced** — returning `False, False, True` across three ten-episode
+evaluations whose reward was deliberately `-1e12` and whose episode length was `1`. The legacy
+JAX check returned `True`; the active JAX evaluation check returned `(True, [])`. Existing
+focused tests passed, because they currently codify permissive missing-threshold behaviour.
+`[artifact-derived]`
+
+Independently confirmed here: `jax_curriculum.py:36-37` logs a warning and `return True` when
+`min_avg_reward` is absent, and `StageThreshold` (`curriculum.py:79-84`) defaults every omitted
+threshold to a permissive value. `[measured]`
+
+So removing `min_avg_reward` for 1a — as §2.3 proposes — converts the gate into a no-op on both
+backends unless the schema lands first. Requirements:
+
+* versioned `gate_schema_version` and `gate_kind` on every stage config;
+* **unknown gate kinds and unknown fields are fatal** whenever advancement is enabled;
+* absence of a gate is acceptable **only** in an explicit, recorded non-advancing
+  diagnostic/pilot mode;
+* config, SB3 consumer, JAX consumer and parity tests land **atomically** — the existing tests
+  must be updated in the same change, since today they assert the permissive behaviour.
+
+### 5.3 Blocking pre-flight
 
 Worth shipping before the resolver: make the §3b notebook cell raise instead of print, and
 evaluate the **full joint predicate** against the null suite rather than the reward
@@ -491,10 +647,41 @@ inherited that error from §NS-1 correction 4.
 
 `curriculum.py:1014` falls back to `min_avg_reward` for `peak_floor` when `collapse_peak_floor`
 is unset. `configs/trex/stage1_balance.toml:164` sets it to `2200.0`; the other eleven stage
-configs do not. Since 1a removes `min_avg_reward` entirely, the fallback becomes undefined
-there — set `collapse_peak_floor` explicitly per stage, or decouple it, **before** removing the
-reward gate. Single-stage pilots still install plateau/collapse callbacks, so "advancement
+configs do not. Revision 2 said that removing `min_avg_reward` makes the fallback "undefined."
+It does not — `curriculum.py:1010` chains `collapse_peak_floor` → `min_avg_reward` → **`0.0`**.
+`[measured]` The real failure mode is that a `0.0` floor arms collapse detection after *any*
+positive robust peak, which is more eager than intended and silently so. Set
+`collapse_peak_floor` explicitly per stage, or decouple it, **before** removing the reward
+gate. Single-stage pilots still install plateau/collapse callbacks, so "advancement
 disabled" does not make an inherited threshold inert.
+
+### 7.5 Reset-validity preflight — blocking  `[measured]`
+
+**About 1% of episodes are unwinnable at generation.** Reset randomisation
+(`reset_noise_scale = 0.10`) can place the pelvis below the height termination floor, so the
+episode ends before the policy acts. Verified directly:
+
+```
+seed 3077: pelvis_height 0.66230 after one zero-action step, terminated=True
+scan of seeds 3042-5041: 16/2000 = 0.800% already-terminal
+```
+
+A wider independent scan of seeds 3042–7041 found **43/4000 = 1.075%** (exact two-sided 95%
+interval 0.779%–1.445%), all for the same height-floor reason. `[artifact-derived]`
+
+This interacts badly with everything in §2.3.1: a ~1% floor of unwinnable episodes makes any
+"no failures permitted" cutoff unreachable for reasons that have nothing to do with the policy.
+It is also the direct cause of the current checkpoint's 39/40 panels — its first failure, seed
+3077, is this bug.
+
+Requirements:
+
+* reset must produce a **nonterminal** initial state;
+* or use deterministic, constraint-aware resampling, recording the number of attempts and the
+  realized initial state;
+* already-terminal task generation must **not** be counted as a policy failure;
+* and it must **not** be discarded after outcomes are observed — post-hoc filtering of episodes
+  by their result invalidates the panel.
 
 ## 8. Open questions — measure before committing
 
@@ -525,21 +712,34 @@ disabled" does not make an inherited threshold inert.
 
 ## 10. Sequencing
 
-1. §7.2 sensor verification — gates §7.1, §6.3 and the §1.5 behavioural claim.
-2. §7.4 collapse decoupling — must precede removing any reward gate.
-3. §3.2 task fingerprint and §4 semantic IDs with backward readers.
-4. §7.1 `foot_load_balance` fix, with parity tests.
-5. §2.3 episode-level gate metrics, implemented and parity-tested.
-6. Deterministic perturbation scheduler, with force-off regression, clearing, seed/schedule,
-   SB3/MJX and resume tests. Default `0.0` — no behaviour change until enabled.
-7. §8.1 T-Rex evaluation: zero action, constant/brace controls, and the existing checkpoint at
-   noise 0.10 under the finalised full push, on one registered 40-seed schedule; repeat on a
-   held-out block.
-8. Calibrate thresholds; decide ramp versus fixed.
-9. Stage split enabled for T-Rex only; other species after their own preflights.
-10. Gate resolver (§5) before, or atomically with, any executable stage depending on it.
+**Blocking defects first.** Steps 1–4 are environment and plumbing bugs. Until they are fixed,
+no gate defined in this document measures what it claims to, so they are not optional
+preliminaries — they are the work.
 
-Steps 1, 2 and 4 are measurement and small fixes. None require the split, and all should happen
+1. **§7.5 reset validity.** ~1% of episodes are terminal at generation. Fix before any
+   reliability target is set, or every high-`n` cutoff is unreachable for reasons unrelated to
+   the policy.
+2. **§5.2 fail-closed gate schema**, landed atomically across config, SB3, JAX and the tests
+   that currently assert permissive behaviour. Must precede removing `min_avg_reward` anywhere.
+3. **§7.4 collapse decoupling** — must precede removing any reward gate, since the fallback
+   chain ends at `0.0`.
+4. **§7.2 sensor verification** — gates §7.1, §6.3 and the §1.5 behavioural claim.
+5. §7.1 `foot_load_balance` fix, with parity tests.
+6. §3.2 task fingerprint and load modes; §4 executable stage manifest with backward readers.
+7. §2.3 episode-level gate metrics, implemented and parity-tested; declare the §2.3.1 operating
+   point.
+8. **Gate resolver (§5)** — before, or atomically with, any executable stage that depends on it.
+9. Deterministic perturbation scheduler, with force-off regression, clearing, seed/schedule,
+   SB3/MJX and resume tests. Default off — no behaviour change until enabled.
+10. §8.1 T-Rex evaluation: zero action, constant/brace controls, the 1a checkpoint and the
+    candidate, at noise 0.10 under the finalised full push, on registered calibration and
+    held-out panels, saving one row per episode and per shove.
+11. Calibrate thresholds; decide ramp versus fixed.
+12. Stage split enabled for T-Rex only; other species after their own plant and learnability
+    preflights.
+
+Revision 2 listed the resolver *after* stage enablement while asserting it must land before —
+that ordering is corrected above. Steps 1–5 require no part of the split and should happen
 regardless.
 
 ## 11. Claim ledger
@@ -564,6 +764,20 @@ the three-block seed stability figures.
 perturbation implementation, exact schedule and raw per-episode outcomes are not present, so
 those numbers cannot be independently verified until §10.6 lands. They are marked `stale` for
 the additional reason that they predate `435f35f`.
+
+**Surrounding documentation is stale and must be updated with, or before, this document.**
+
+* The **PR #474 description** still describes revision 1 — assumed ramping, numeric renumbering,
+  broad checkpoint validity, hopping as established, and concrete calibrated thresholds. It
+  needs rewriting to match this revision.
+* `TREX_REVIEW_2026_07` **§NS-2 still recommends the survivor-conditioned standing floor**, which
+  §5.1 here rejects on measured grounds, and its §NS-1 correction 5 contradicts §NS-2 on T-Rex.
+  Merging this document alone would leave two contradictory canonical recommendations in the
+  repository. Supersede those sections explicitly.
+* The pushed-task numbers in §3.4 cannot be reproduced from this repository: the scheduler,
+  authoritative force conversion, registered schedule, realized per-episode pushes and raw
+  outcomes are all absent. The checkpoint available today also differs from the artifact cited
+  for the published `2489.65` comparison. `[artifact-derived, unverified]`
 
 **Outstanding provenance work.** Each retained load-bearing number should carry its command,
 exact effective config, backend, dependency versions, ordered seeds, raw episode data and
