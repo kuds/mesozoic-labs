@@ -95,7 +95,7 @@ jobs:
       - name: Run plant-contract integration tests
         run: |
           pytest \
-            environments/shared/tests/test_plant_contract.py \
+            environments/shared/tests/test_plant_contract_*.py \
             environments/shared/tests/test_species_catalog.py \
             -v --tb=short
 
@@ -320,7 +320,7 @@ jobs:
         run: |
           pytest \
             environments/shared/tests/test_config.py \
-            environments/shared/tests/test_curriculum.py \
+            environments/shared/tests/test_curriculum_*.py \
             environments/shared/tests/test_diagnostics.py \
             environments/shared/tests/test_eval_diagnostics.py \
             environments/shared/tests/test_evaluation.py \
