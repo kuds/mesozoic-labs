@@ -14,7 +14,7 @@ from typing import Any, Mapping, cast
 import mujoco
 import numpy as np
 
-from . import constants
+from . import constants, physics_layer, policy_layer, source_layer, visual_layer
 from .constants import (
     FINGERPRINT_TOOL_VERSION,
     PHYSICS_SCHEMA,
@@ -27,16 +27,15 @@ from .constants import (
 from .digests import _semantic_digest
 from .errors import PlantContractError
 from .identity import PlantIdentity, PlantVersion
-from .physics_layer import _physics_payload
-from .policy_layer import _policy_interface_payload
-from .source_layer import _source_payload
+
+# Imported by name, not through the module: `versions` is also used as a local
+# variable here, so `versions.x()` would shadow it. Patch these at this module.
 from .versions import (
     _load_generated_manifest,
     _resolve_repo_path,
     _species_entries,
     load_plant_versions,
 )
-from .visual_layer import _visual_payload
 
 _logger = logging.getLogger(__name__)
 
@@ -66,15 +65,15 @@ def fingerprint_model_layers(
     return {
         "policy_interface_sha256": _semantic_digest(
             POLICY_INTERFACE_SCHEMA,
-            _policy_interface_payload(
+            policy_layer._policy_interface_payload(
                 model,
                 env,
                 version,
                 require_backend_parity=require_backend_parity,
             ),
         ),
-        "physics_sha256": _semantic_digest(PHYSICS_SCHEMA, _physics_payload(model, version)),
-        "visual_sha256": _semantic_digest(VISUAL_SCHEMA, _visual_payload(model, version)),
+        "physics_sha256": _semantic_digest(PHYSICS_SCHEMA, physics_layer._physics_payload(model, version)),
+        "visual_sha256": _semantic_digest(VISUAL_SCHEMA, visual_layer._visual_payload(model, version)),
     }
 
 
@@ -89,7 +88,7 @@ def _manifest_entry_for_identity(
     env = env_class(reset_noise_scale=0.0)
     try:
         model = env.model
-        source_payload = _source_payload(model_path)
+        source_payload = source_layer._source_payload(model_path)
         source_digest = _semantic_digest(SOURCE_SCHEMA, source_payload)
         layer_digests = fingerprint_model_layers(model, env, version, require_backend_parity=True)
         declared_model = mujoco.MjModel.from_xml_path(str(model_path))

@@ -9,14 +9,16 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from . import evidence, hashing
 from .constants import (
     ARTIFACT_MANIFEST_SCHEMA_VERSION,
     DEFAULT_MANIFEST_NAME,
     DEFAULT_PROVENANCE_NAME,
 )
 from .errors import ResultBundleError
-from .evidence import compare_summary_to_csv, validate_evaluation_evidence
-from .hashing import aggregate_file_hash, sha256_file
+
+# Imported by name, not through the module: `manifest` is also used as a local
+# variable here, so `manifest.x()` would shadow it. Patch these at this module.
 from .manifest import verify_artifact_manifest
 from .naming import _normalize_plant_identity, _portable_relative_path
 from .provenance import load_provenance
@@ -97,7 +99,7 @@ def audit_result_bundle(
 
     if summary is not None and csv_path.exists():
         try:
-            errors.extend(compare_summary_to_csv(summary, csv_path))
+            errors.extend(evidence.compare_summary_to_csv(summary, csv_path))
         except (OSError, ResultBundleError, ValueError) as exc:
             errors.append(str(exc))
     elif summary is None and csv_path.exists():
@@ -203,7 +205,7 @@ def audit_result_bundle(
                 errors.append("complete bundle is missing summary.json")
             else:
                 try:
-                    validate_evaluation_evidence(run_path, summary, provenance)
+                    evidence.validate_evaluation_evidence(run_path, summary, provenance)
                 except (OSError, ResultBundleError) as exc:
                     errors.append(str(exc))
             if not plant_path.is_file():
@@ -211,7 +213,7 @@ def audit_result_bundle(
 
             config_paths = [run_path / f"stage{stage}" / "stage_config.json" for stage in (1, 2, 3)]
             if all(path.is_file() for path in config_paths):
-                actual_config_hash = aggregate_file_hash(config_paths, root=run_path)
+                actual_config_hash = hashing.aggregate_file_hash(config_paths, root=run_path)
                 if actual_config_hash != provenance.get("config_hash"):
                     errors.append(
                         "resolved stage config hash does not match provenance: "
@@ -248,7 +250,7 @@ def audit_result_bundle(
                 if not selected_model.is_file():
                     errors.append(f"selected checkpoint is missing: {selected_model_key}")
                 else:
-                    actual_model_hash = sha256_file(selected_model)
+                    actual_model_hash = hashing.sha256_file(selected_model)
                     if actual_model_hash != provenance.get("model_hash"):
                         errors.append(
                             "selected checkpoint hash does not match provenance: "
@@ -287,7 +289,7 @@ def audit_result_bundle(
                             if not artifact.is_file():
                                 errors.append(f"stage {stage_key} selected {artifact_kind} is missing: {artifact_key}")
                             else:
-                                actual_hash = sha256_file(artifact)
+                                actual_hash = hashing.sha256_file(artifact)
                                 if actual_hash != expected_hash:
                                     errors.append(
                                         f"stage {stage_key} selected {artifact_kind} hash does not match "

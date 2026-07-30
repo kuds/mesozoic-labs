@@ -10,9 +10,8 @@ import json as _json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from .csv_output import build_results_csv_rows, save_results_csv
+from . import csv_output, summaries
 from .formatting import parse_optional_bool
-from .summaries import _backend_version, build_result_summary
 
 
 def _resolve_model_artifact(model_path: Any, *, run_dir: Path) -> Path | None:
@@ -134,7 +133,7 @@ def save_result_bundle(
 
     public_algorithm = canonical_algorithm(algorithm)
     public_backend = canonical_backend(algorithm, backend)
-    detected_backend_version = backend_version or _backend_version(
+    detected_backend_version = backend_version or summaries._backend_version(
         "JAX_PPO" if public_backend == "jax-mjx" else algorithm
     )
     if promotion_ready and not detected_backend_version:
@@ -292,7 +291,7 @@ def save_result_bundle(
 
     prospective_summary: dict[str, Any] | None = None
     if promotion_ready:
-        prospective_summary = build_result_summary(
+        prospective_summary = summaries.build_result_summary(
             stage_results_list,
             species,
             algorithm,
@@ -326,7 +325,7 @@ def save_result_bundle(
             }
 
     # Exercise CSV construction before removing the previous completion marker.
-    build_results_csv_rows(
+    csv_output.build_results_csv_rows(
         stage_results_list,
         resolved_stage_configs,
         species,
@@ -345,7 +344,7 @@ def save_result_bundle(
     captured = load_provenance(run_path)
     hashing._write_json(run_path / "plant_identity.json", normalized_plant)
 
-    csv_path = save_results_csv(
+    csv_path = csv_output.save_results_csv(
         stage_results_list,
         resolved_stage_configs,
         species,

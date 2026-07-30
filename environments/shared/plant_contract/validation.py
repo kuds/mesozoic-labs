@@ -14,6 +14,7 @@ from typing import Any, Mapping
 import mujoco
 import numpy as np
 
+from . import physics_layer
 from .constants import (
     _ACTION_MAPPING_MIDPOINT,
     _MISSING_IDENTITY,
@@ -23,8 +24,10 @@ from .constants import (
 from .digests import _semantic_digest
 from .errors import PlantCompatibilityError
 from .identity import PlantIdentity
+
+# Imported by name, not through the module: `manifest` is also used as a local
+# variable here, so `manifest.x()` would shadow it. Patch these at this module.
 from .manifest import fingerprint_model_layers
-from .physics_layer import _physics_payload
 from .versions import load_plant_versions
 
 _logger = logging.getLogger(__name__)
@@ -46,7 +49,7 @@ def validate_compiled_plant(
     version = versions.get(current.species)
     if version is None:
         raise PlantCompatibilityError(f"{artifact} uses unknown species {current.species!r}")
-    actual_physics = _semantic_digest(PHYSICS_SCHEMA, _physics_payload(model, version))
+    actual_physics = _semantic_digest(PHYSICS_SCHEMA, physics_layer._physics_payload(model, version))
     errors = []
     for field_name in ("nq", "nv", "nu"):
         actual = int(getattr(model, field_name))

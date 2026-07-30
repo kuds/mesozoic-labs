@@ -11,9 +11,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
-from .bundles import save_result_bundle
-from .csv_output import save_evaluation_episodes
-from .text_summaries import write_stage_summary, write_training_summary
+from . import bundles, csv_output, text_summaries
 
 if TYPE_CHECKING:
     from ..plant_contract import PlantIdentity
@@ -168,7 +166,7 @@ def generate_stage_artifacts(
             timesteps=timesteps,
         )
 
-    write_stage_summary(stage_dir, stage_results, species, algorithm)
+    text_summaries.write_stage_summary(stage_dir, stage_results, species, algorithm)
     logger.info("Stage summary written to: %s", stage_dir / "stage_summary.txt")
 
     # ── Generate training graphs ────────────────────────────────────────
@@ -497,7 +495,7 @@ def save_jax_stage_artifacts(
     stage_results["plant_identity"] = plant_identity.to_dict()
 
     # 1. Stage summary text file
-    summary_path = write_stage_summary(stage_dir, stage_results, species, "JAX/MJX PPO")
+    summary_path = text_summaries.write_stage_summary(stage_dir, stage_results, species, "JAX/MJX PPO")
     paths["stage_summary"] = summary_path
     logger.info("Stage summary saved: %s", summary_path)
 
@@ -519,7 +517,7 @@ def save_jax_stage_artifacts(
     logger.info("Stage config saved: %s", config_path)
 
     # 3. Per-episode evidence for both the selected and terminal parameters.
-    evaluation_path = save_evaluation_episodes(
+    evaluation_path = csv_output.save_evaluation_episodes(
         stage_dir,
         rewards=eval_results.rewards,
         lengths=eval_results.lengths,
@@ -530,7 +528,7 @@ def save_jax_stage_artifacts(
         checkpoint_label="selected",
     )
     paths["evaluation_episodes"] = evaluation_path
-    final_evaluation_path = save_evaluation_episodes(
+    final_evaluation_path = csv_output.save_evaluation_episodes(
         stage_dir,
         rewards=terminal_eval_results.rewards,
         lengths=terminal_eval_results.lengths,
@@ -663,7 +661,7 @@ def save_jax_stage_artifacts(
     accumulated_results.sort(key=lambda result: int(result["stage"]))
 
     # 7. Training summary (run-level, regenerated from every saved stage)
-    training_summary_path = write_training_summary(
+    training_summary_path = text_summaries.write_training_summary(
         run_dir,
         accumulated_results,
         species,
@@ -675,7 +673,7 @@ def save_jax_stage_artifacts(
     logger.info("Training summary saved: %s", training_summary_path)
 
     # 8. Canonical CSV/provenance/manifest; summary.json appears at Stage 3.
-    bundle_paths = save_result_bundle(
+    bundle_paths = bundles.save_result_bundle(
         accumulated_results,
         accumulated_configs,
         species,

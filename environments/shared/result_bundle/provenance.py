@@ -25,7 +25,7 @@ from .constants import (
     PROVENANCE_SCHEMA_VERSION,
 )
 from .errors import ResultBundleError
-from .hashing import canonical_json_sha256, sha256_file
+from .hashing import canonical_json_sha256
 from .naming import _normalize_plant_identity, canonical_algorithm, canonical_backend
 
 
@@ -91,7 +91,7 @@ def _repository_state(repository_root: Path) -> dict[str, Any]:
             except ValueError:
                 continue
             if candidate.is_file():
-                untracked.append({"path": relative, "sha256": sha256_file(candidate)})
+                untracked.append({"path": relative, "sha256": hashing.sha256_file(candidate)})
         patch_sha256 = canonical_json_sha256(
             {
                 "tracked_diff_sha256": f"sha256:{hashlib.sha256(diff.encode('utf-8')).hexdigest()}",

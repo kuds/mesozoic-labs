@@ -15,7 +15,9 @@ from .constants import (
     DEFAULT_MANIFEST_NAME,
 )
 from .errors import ResultBundleError
-from .hashing import sha256_file
+
+# Imported by name, not through the module: `provenance` is also used as a local
+# variable here, so `provenance.x()` would shadow it. Patch these at this module.
 from .provenance import load_provenance
 
 
@@ -40,7 +42,7 @@ def write_artifact_manifest(
             {
                 "path": relative,
                 "size_bytes": path.stat().st_size,
-                "sha256": sha256_file(path),
+                "sha256": hashing.sha256_file(path),
             }
         )
     manifest = {
@@ -96,7 +98,7 @@ def verify_artifact_manifest(
             raise ResultBundleError(f"manifest artifact is missing: {relative}")
         if path.stat().st_size != entry.get("size_bytes"):
             raise ResultBundleError(f"artifact size mismatch: {relative}")
-        if sha256_file(path) != entry.get("sha256"):
+        if hashing.sha256_file(path) != entry.get("sha256"):
             raise ResultBundleError(f"artifact hash mismatch: {relative}")
         declared.add(relative)
 
