@@ -41,10 +41,35 @@ canonical_mujoco_version = "3.10.0"
 #    unchanged.  build_mjx_observation is fingerprinted directly and had to
 #    learn to sum, so every species' policy interface revision increments;
 #    only the T-Rex's observation values actually change.
+#
+# 5. Reset can no longer generate an already-terminal state.  The root-height
+#    jitter was the only UNBOUNDED term in the reset -- every other one is a
+#    bounded uniform -- so BaseDinoEnv.reset now truncates it to the distance to
+#    the nearer end of healthy_z_range, less a 0.02 m margin.  This is
+#    fingerprinted through home_reset, so the three home-keyframe-residual
+#    species increment and brachiosaurus does not.
+#
+#    Only T-Rex was actually broken.  Its 0.926 m home pelvis sits 0.226 m above
+#    the 0.70 m floor, which at sigma 0.10 m is a 2.26 sigma margin, so 1.19% of
+#    spawns landed below the floor and terminated on step 1 whatever the policy
+#    did (measured: 18/2000 sub-floor spawns over seeds 3042-5041, 16 of them
+#    terminal; 43/4000 over the wider range).  Those episodes are not policy
+#    failures, and counting them as such caps any reliability gate near 99% for
+#    reasons unrelated to the policy -- they are the direct cause of the 39/40
+#    evaluation panels.  The bound binds at 2.07 sigma for T-Rex (3.9% of draws)
+#    against 3.6-3.8 sigma for velociraptor and dibothrosuchus (~0.02%), so the
+#    latter two change only in the far tail.
+#
+#    The bound is symmetric, so the mean spawn height is unchanged (0.9262 ->
+#    0.9261 m over 2000 seeds) while the standard deviation tightens 0.1007 ->
+#    0.0980.  Sub-floor spawns go 18/2000 -> 0/2000 and 43/4000 -> 0/4000.
+#    All three species' reset DISTRIBUTIONS move, so their existing checkpoints
+#    are trained against a different task and the zero-action baseline must be
+#    re-measured before any stage-1 gate is calibrated against it.
 
 [plants.velociraptor]
 physics_revision = 2
-policy_interface_revision = 6
+policy_interface_revision = 7
 visual_revision = 3
 observation_schema = "bipedal-target/v1"
 
@@ -72,7 +97,7 @@ observation_schema = "bipedal-target/v1"
 #    existing T-Rex checkpoint is invalidated.
 [plants.trex]
 physics_revision = 5
-policy_interface_revision = 7
+policy_interface_revision = 8
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
 
@@ -84,6 +109,6 @@ observation_schema = "quadrupedal-target/v1"
 
 [plants.dibothrosuchus]
 physics_revision = 1
-policy_interface_revision = 3
+policy_interface_revision = 4
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"

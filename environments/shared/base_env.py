@@ -40,6 +40,13 @@ from .reward_functions import reward_nosedive as _reward_nosedive_pure
 from .reward_functions import reward_posture as _reward_posture_pure
 from .reward_functions import reward_speed_penalty as _reward_speed_penalty_pure
 
+# Clearance in METRES kept between a reset spawn and the nearer end of
+# healthy_z_range.  Reset must never generate an already-terminal state: an
+# episode that ends on step 1 regardless of the action is not a policy failure,
+# and counting it as one puts an unreachable ceiling on any reliability gate.
+# See BaseDinoEnv._bounded_reset_height_delta.
+_RESET_HEIGHT_TERMINATION_MARGIN = 0.02
+
 
 class BaseDinoEnv(gym.Env, ABC):
     """Abstract base class for dinosaur locomotion environments."""
@@ -828,6 +835,32 @@ class BaseDinoEnv(gym.Env, ABC):
         """Check if episode should be truncated (time limit)."""
         return self._step_count >= self.max_episode_steps
 
+    def _bounded_reset_height_delta(self, base_z: float, delta: float) -> float:
+        """Bound a reset height perturbation so the spawn is never terminal.
+
+        The root-height jitter is the only UNBOUNDED term in the reset — every
+        other one is a bounded uniform — and an unbounded Gaussian will
+        eventually place the root outside ``healthy_z_range``.  On T-Rex it did
+        so often enough to matter: home pelvis 0.926 m against a 0.70 m floor
+        is a 0.226 m margin, and at sigma 0.10 m that is only 2.26 sigma, so
+        1.19% of spawns landed below the floor.  Measured over seeds 3042-5041,
+        18/2000 spawned sub-floor and 16 of those terminated on the first step
+        whatever the policy did — capping any reliability measurement at ~99%
+        for reasons that have nothing to do with the policy.
+
+        The bound is the distance to the nearer end of ``healthy_z_range``, less
+        a small margin, and is applied symmetrically so the mean spawn height is
+        unchanged.  Clipping rather than resampling keeps the number of RNG
+        draws per reset fixed and the reset deterministic; the cost is a small
+        point mass at each bound (~2% per side on T-Rex).  Species with ample
+        headroom are effectively unaffected, since the bound then sits far out
+        in the tail.
+        """
+        low, high = self.healthy_z_range
+        headroom = min(base_z - low, high - base_z) - _RESET_HEIGHT_TERMINATION_MARGIN
+        bound = max(headroom, 0.0)
+        return float(np.clip(delta, -bound, bound))
+
     def reset(
         self,
         seed: int | None = None,
@@ -861,7 +894,9 @@ class BaseDinoEnv(gym.Env, ABC):
             height_scale = 0.0
             if noise_scale > 0.0:
                 height_scale = noise_scale if self.reset_height_noise_scale is None else self.reset_height_noise_scale
-            self.data.qpos[2] += self.np_random.normal(0, height_scale)
+            base_z = float(self.data.qpos[2])
+            height_delta = self.np_random.normal(0, height_scale)
+            self.data.qpos[2] = base_z + self._bounded_reset_height_delta(base_z, height_delta)
 
         # Randomize target position (species-specific)
         self._spawn_target()

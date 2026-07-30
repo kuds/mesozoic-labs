@@ -174,6 +174,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Images/` except the `.dockerignore` entry excluding it, now also dropped.
 
 ### Fixed
+- **Reset can no longer generate an already-terminal episode** (breaking —
+  policy interface revision bumps for the three home-keyframe-residual species:
+  velociraptor 6 → 7, T-Rex 7 → 8, dibothrosuchus 3 → 4; brachiosaurus does not
+  carry `home_reset` and is unchanged). The root-height jitter was the **only
+  unbounded term in the reset** — every other one is a bounded uniform — so
+  `BaseDinoEnv.reset` drew `normal(0, height_scale)` with nothing stopping it
+  from placing the root outside `healthy_z_range` before the policy acted.
+  T-Rex is the species it actually broke: a 0.926 m home pelvis sits 0.226 m
+  above the 0.70 m floor, which at σ = 0.10 m is only **2.26σ**, so a predicted
+  **1.19%** of spawns started sub-floor. Measured over seeds 3042–5041, 18/2000
+  spawned below the floor and **16 of those terminated on step 1 whatever the
+  policy did**; a wider scan of 3042–7041 found 43/4000. The draw is now
+  truncated to the distance to the nearer end of `healthy_z_range` less a 0.02 m
+  margin, which takes sub-floor spawns to **0/4000**. The bound is symmetric, so
+  the mean spawn height is unchanged (0.9262 → 0.9261 m over 2000 seeds) while
+  the standard deviation tightens 0.1007 → 0.0980. It binds at 2.07σ for T-Rex
+  (3.9% of draws) against 3.6–3.8σ for velociraptor and dibothrosuchus (~0.02%),
+  so those two move only in the far tail. Dibothrosuchus hit this same defect
+  first and fixed it by decoupling `reset_height_noise_scale`; T-Rex was left
+  coupled and nobody re-checked it.
+
+  **This does not meaningfully move the zero-action baseline, and that is the
+  point.** Re-measured on seeds 3042–3081 the statue is unchanged where it
+  matters — still 23/40 full-horizon, `reward standing` still 3244.04 ± 23.55,
+  unconditional mean 1971.57 → 1976.62 — because a statue fails those seeds
+  anyway. What the defect capped was the **competent** policy: an episode that
+  ends on step 1 regardless of the action is not a policy failure, and counting
+  it as one put an unreachable ceiling on any reliability gate. Seed 3077 is
+  precisely the first failure in the 39/40 evaluation panels that
+  `docs/STAGE1_SPLIT_PLAN.md` §2.3.1 reports, and it is this bug rather than the
+  policy. Existing checkpoints for the three bumped species were trained against
+  a different reset distribution and must be re-baselined before any stage-1
+  gate is calibrated against them.
 - **T-Rex stages 2 and 3 no longer terminate at a different pitch angle on the
   MJX path than on the Gymnasium one**: `nosedive_termination_threshold` is the
   per-stage tunable pitch gate, and only `stage1_balance.toml` sets it. When a

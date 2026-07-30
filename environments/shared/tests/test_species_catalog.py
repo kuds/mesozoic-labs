@@ -75,13 +75,17 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "brachiosaurus": "quadrupedal-target/v1",
         "dibothrosuchus": "quadrupedal-target/v1",
     }
-    # The T-Rex is at policy r7 / physics r5 for the theropod stance correction:
-    # the home keyframe moved off a near-straight knee onto a 135 deg one and
-    # the leg ctrlranges were re-centred on it, so both the compiled dynamics
-    # and the control interface changed. Its visual revision is deliberately
-    # NOT bumped -- the visual layer fingerprints geom/site/material/camera
-    # definitions, all of which are body-local and unchanged by a pose edit.
-    expected_policy_revisions = {"velociraptor": 6, "trex": 7, "brachiosaurus": 3, "dibothrosuchus": 3}
+    # The T-Rex is at physics r5 for the theropod stance correction: the home
+    # keyframe moved off a near-straight knee onto a 135 deg one and the leg
+    # ctrlranges were re-centred on it, so both the compiled dynamics and the
+    # control interface changed. Its visual revision is deliberately NOT bumped
+    # -- the visual layer fingerprints geom/site/material/camera definitions,
+    # all of which are body-local and unchanged by a pose edit.
+    #
+    # The three home-keyframe-residual species then took one more policy bump
+    # for the bounded reset height (plant_versions note 5); brachiosaurus does
+    # not carry home_reset and so stays at r3.
+    expected_policy_revisions = {"velociraptor": 7, "trex": 8, "brachiosaurus": 3, "dibothrosuchus": 4}
     expected_physics_revisions = {"velociraptor": 2, "trex": 5, "brachiosaurus": 1, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 1, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
