@@ -152,31 +152,18 @@ known-first-party = ["environments"]
 
 [tool.coverage.run]
 source = ["environments"]
+# Every test job writes its own .coverage.<job>; the `coverage` job combines
+# them and gates on the union. Paths must be relative for that combine to line
+# up across jobs.
+relative_files = true
 omit = [
     "*/tests/*",
     "*/scripts/*",
     # Hand-run smoke-check and viewer harnesses behind the per-species scripts
     # (the scripts themselves are already excluded by */scripts/*).
     "environments/shared/harnesses/*",
-    # Training entry-point infrastructure (equivalent to the per-species scripts
-    # that were already excluded by */scripts/*). Utility helpers in this module
-    # are tested via test_train_base.py.
-    "environments/shared/train_base.py",
-    # JAX/MJX modules require the [jax] optional dependency which is not
-    # available in the standard CI test environment.  These are tested
-    # separately when JAX is installed.
-    "environments/shared/mjx_env.py",
-    "environments/shared/mjx_utils.py",
-    "environments/shared/jax_ppo.py",
-    "environments/shared/jax_training.py",
-    "environments/shared/jax_normalization.py",
-    "environments/shared/jax_curriculum.py",
-    "environments/shared/jax_reward_termination.py",
-    "environments/shared/jax_setup.py",
-    "environments/shared/jax_trainer.py",
-    "environments/*/mjx_config.py",
-    # mjlab adapter — scaffold only, requires the optional [mjlab] extra
-    # and an NVIDIA GPU, so it's excluded from default CI coverage.
+    # mjlab adapter — scaffold only, requires the optional [mjlab] extra and an
+    # NVIDIA GPU, so no CI job can exercise it.
     "environments/shared/mjlab_env.py",
     "environments/*/mjlab_config.py",
 ]

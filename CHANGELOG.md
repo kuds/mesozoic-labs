@@ -137,6 +137,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preventing. The coverage `omit` entry added to work around the old naming is
   replaced by one covering the package.
 
+- **CI now measures the coverage it actually produces.** Three jobs ran tests
+  without `--cov` — `test-jax-cpu`, `test-sb3` and `plant-contract` — and those
+  are precisely the jobs carrying the optional dependencies. The only job
+  reporting a number for `environments/shared` was `test-shared`, which installs
+  neither JAX nor SB3, so the modules needing them were omitted from the report
+  as "not available in the standard CI test environment". That stopped being
+  true when `test-jax-cpu` was added: 1,840 statements of JAX/MJX and 495 of
+  `train_base.py` — 23% of the production code in `environments/shared` — were
+  being exercised by CI and excluded from its number, which read 79.57% over the
+  remaining 7,652 statements.
+
+  Deleting the omits alone does not work; it drops `test-shared` to 66%, under
+  the `fail_under = 70` gate, because that job genuinely cannot import those
+  modules. So every test job now writes its own `.coverage.<job>` and uploads
+  it, and a new `coverage` job combines them and gates the union. Per-job
+  reports are suppressed with `--cov-fail-under=0`, since no single job's slice
+  is meaningful alone. `relative_files` is enabled so the combine lines up
+  across jobs. `harnesses/` and the mjlab adapter stay omitted, now with
+  accurate reasons — hand-run, and GPU-only with no job able to reach it.
+
 ### Removed
 - **The top-level `Images/` directory** (25 MB): its three GIFs were
   byte-identical to the copies under `website/static/img/`, which are the ones
