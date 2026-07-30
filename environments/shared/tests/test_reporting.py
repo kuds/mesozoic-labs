@@ -8,7 +8,6 @@ import pytest
 from environments.shared.plant_contract import MODEL_IDENTITY_ATTRIBUTE, PlantIdentity
 from environments.shared.reporting import (
     CSV_METRIC_COLUMNS,
-    _compute_fieldnames,
     build_stage_results_from_eval_data,
     evaluate_recorded_gate,
     format_duration,
@@ -21,6 +20,7 @@ from environments.shared.reporting import (
     write_stage_summary,
     write_training_summary,
 )
+from environments.shared.reporting.csv_output import _compute_fieldnames
 
 
 def _plant_identity():
