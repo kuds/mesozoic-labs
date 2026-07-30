@@ -237,6 +237,43 @@ def test_repository_root_resolves_to_the_repository(tmp_path: Path) -> None:
     assert result_bundle.constants.REPOSITORY_ROOT.name != "environments"
 
 
+def test_initializer_defaults_to_the_repository_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`initialize_result_bundle` must hand `_repository_state` the repository root.
+
+    Pinning `constants.REPOSITORY_ROOT` alone is not enough: it fixes the value
+    but not the wiring, so re-introducing the original
+    `Path(__file__).resolve().parents[2]` inside the initializer left every other
+    test in this module green. This spies on the seam the initializer actually
+    uses.
+    """
+    seen: list[Path] = []
+
+    def spy(root: Path) -> dict[str, Any]:
+        seen.append(root)
+        return {
+            "repository_url": "https://github.com/kuds/mesozoic-labs.git",
+            "repository_commit": _COMMIT,
+            "repository_dirty": False,
+            "repository_patch_sha256": None,
+        }
+
+    monkeypatch.setattr(result_bundle_provenance, "_repository_state", spy)
+    initialize_result_bundle(
+        tmp_path / "run",
+        species="velociraptor",
+        algorithm="PPO",
+        backend="stable-baselines3",
+        seed=42,
+        evaluation_seeds=[11],
+        evaluation_episodes=2,
+        parallel_envs=4,
+        plant_identity=_plant_identity(),
+        run_id="default-root-run",
+    )
+
+    assert seen == [result_bundle.constants.REPOSITORY_ROOT]
+
+
 def test_untracked_file_at_repository_root_enters_the_patch_hash(tmp_path: Path) -> None:
     """A root-level untracked file must change `repository_patch_sha256`.
 

@@ -17,13 +17,12 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlsplit, urlunsplit
 
-from . import hashing
+from . import constants, hashing
 from .constants import (
     _DEPENDENCY_PACKAGES,
     _FINALIZATION_PROVENANCE_FIELDS,
     DEFAULT_PROVENANCE_NAME,
     PROVENANCE_SCHEMA_VERSION,
-    REPOSITORY_ROOT,
 )
 from .errors import ResultBundleError
 from .hashing import canonical_json_sha256
@@ -199,7 +198,7 @@ def initialize_result_bundle(
     run_path.mkdir(parents=True, exist_ok=True)
     provenance_path = run_path / DEFAULT_PROVENANCE_NAME
     if repository_root is None:
-        repository = REPOSITORY_ROOT
+        repository = constants.REPOSITORY_ROOT
     else:
         repository = Path(repository_root).resolve()
     current_repository_state = _repository_state(repository)

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.4)
+## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
 ### Changed
 - **T-Rex home stance corrected to a flexed theropod limb** (breaking — plant
@@ -120,8 +120,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   root set `repository_dirty` without entering `repository_patch_sha256` —
   materially different dirty trees could share one provenance hash. The root is
   now `REPOSITORY_ROOT` in `result_bundle/constants.py`, derived from a named
-  `_SHARED_ROOT` anchor rather than a bare parent count, and pinned by two
-  tests. Note the expression was byte-identical across the move, so an AST-level
+  `_SHARED_ROOT` anchor rather than a bare parent count, read through the
+  `constants` module so there is one authoritative binding, and pinned by three
+  tests — one on the constant, one on the initializer's default wiring, and one
+  asserting a root-level untracked file changes the patch hash. Note the expression was byte-identical across the move, so an AST-level
   verbatim check could not see it; only evaluating it could.
 
 - **The per-species script harnesses moved to `environments/shared/harnesses/`**
