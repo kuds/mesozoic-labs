@@ -461,7 +461,7 @@ class TestSaveVecNormalizeCallback:
 
     def test_raises_without_sb3(self):
         """Constructor raises ImportError when SB3 is unavailable."""
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
             with pytest.raises(ImportError, match="stable-baselines3"):
                 SaveVecNormalizeCallback(save_path="/tmp/test.pkl")
 
@@ -470,7 +470,7 @@ class TestCallbacksWithoutSB3:
     """Test that SB3-dependent classes fail gracefully when SB3 is unavailable."""
 
     def test_curriculum_callback_raises_without_sb3(self):
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
             with pytest.raises(ImportError, match="stable-baselines3"):
                 CurriculumCallback(
                     curriculum_manager=MagicMock(),
@@ -478,17 +478,17 @@ class TestCallbacksWithoutSB3:
                 )
 
     def test_stage_warmup_callback_raises_without_sb3(self):
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
             with pytest.raises(ImportError, match="stable-baselines3"):
                 StageWarmupCallback()
 
     def test_reward_ramp_callback_raises_without_sb3(self):
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
             with pytest.raises(ImportError, match="stable-baselines3"):
                 RewardRampCallback()
 
     def test_load_vecnorm_stats_returns_false_without_sb3(self):
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
             result = load_vecnorm_stats("/any/path.pkl", MagicMock(), unsafe_skip_plant_validation=True)
             assert result is False
 
@@ -582,7 +582,7 @@ class TestLoadVecnormStatsMocked:
 
     def test_missing_file_returns_false_with_sb3(self):
         mods, _ = self._sb3_mock_modules()
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
             result = load_vecnorm_stats(
                 "/nonexistent/path.pkl",
                 MagicMock(),
@@ -605,7 +605,7 @@ class TestLoadVecnormStatsMocked:
         mock_train.norm_reward = False
         mock_eval = MagicMock()
 
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
             result = load_vecnorm_stats(
                 str(fake_pkl),
                 mock_train,
@@ -630,7 +630,7 @@ class TestLoadVecnormStatsMocked:
 
         mock_train = MagicMock()
 
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", True), patch.dict(sys.modules, mods):
             result = load_vecnorm_stats(
                 str(fake_pkl),
                 mock_train,
@@ -654,7 +654,7 @@ class TestLoadVecnormStatsMocked:
         current_plant = MagicMock()
 
         with (
-            patch("environments.shared.curriculum._SB3_AVAILABLE", True),
+            patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", True),
             patch.dict(sys.modules, mods),
             patch(
                 "environments.shared.plant_contract.validate_model_plant",
@@ -734,8 +734,8 @@ class TestCallbackMethodsMocked:
         }
 
         with (
-            patch("environments.shared.curriculum.LocomotionMetrics") as MockMetrics,
-            patch("environments.shared.curriculum.log_eval_metrics") as mock_log,
+            patch("environments.shared.curriculum.advancement.LocomotionMetrics") as MockMetrics,
+            patch("environments.shared.curriculum.advancement.log_eval_metrics") as mock_log,
         ):
             MockMetrics.aggregate_episodes.return_value = mock_agg
             cb._log_locomotion_metrics([{"some": "report"}])
@@ -1086,7 +1086,7 @@ class TestEvalCollapseEarlyStopCallback:
     """Test EvalCollapseEarlyStopCallback early stopping logic."""
 
     def test_raises_without_sb3(self):
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
             with pytest.raises(ImportError, match="stable-baselines3"):
                 EvalCollapseEarlyStopCallback(eval_callback=MagicMock())
 
@@ -1600,7 +1600,7 @@ class TestRobustBestModelCallback:
     def test_raises_without_sb3(self):
         from environments.shared.curriculum import RobustBestModelCallback
 
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
             with pytest.raises(ImportError, match="stable-baselines3"):
                 RobustBestModelCallback(eval_callback=MagicMock(), model_dir="/tmp/x")
 
@@ -1646,7 +1646,7 @@ class TestEntCoefDecayCallback:
     def test_raises_without_sb3(self):
         from environments.shared.curriculum import EntCoefDecayCallback
 
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
             with pytest.raises(ImportError, match="stable-baselines3"):
                 EntCoefDecayCallback()
 
@@ -1723,6 +1723,6 @@ class TestPublishEvalArtifactsCallback:
     def test_raises_without_sb3(self):
         from environments.shared.curriculum import PublishEvalArtifactsCallback
 
-        with patch("environments.shared.curriculum._SB3_AVAILABLE", False):
+        with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
             with pytest.raises(ImportError, match="stable-baselines3"):
                 PublishEvalArtifactsCallback(eval_callback=MagicMock(), publish_dir="/tmp/x")
