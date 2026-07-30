@@ -280,7 +280,8 @@ An env parameter scaling the normalized action about the ctrlrange midpoint,
 exposed per stage in the TOML `[env]` block.
 
 - Pure function of the action, so it fits the existing action-mapping contract
-  (`plant_contract.py:56-58`) as a new mode. `policy_interface_revision` 6→7,
+  (the `_ACTION_MAPPING_*` constants in `plant_contract/constants.py`) as a new
+  mode. `policy_interface_revision` 6→7,
   physics untouched. Preserves zero-action behaviour, so the 1800.56 baseline
   and the 1900 gate survive.
 - **Demoted because sizing it against the current stance would tune it to
@@ -313,8 +314,8 @@ to carry filter state (`mjx_env.py:508-556`, `jax_setup.py:487-509`).
 ### 4. Narrow the leg `ctrlrange` alone (rejected)
 
 `actuator_ctrlrange` feeds both the policy-interface payload
-(`plant_contract.py:961`) and the physics payload (`:1107`), so it bumps both
-revisions — the same cost as fixing the stance properly, without fixing it.
+(`plant_contract/policy_layer.py`) and the physics payload
+(`plant_contract/physics_layer.py`), so it bumps both revisions — the same cost as fixing the stance properly, without fixing it.
 Also global across stages, and stage 2 reaches 6.36 m/s on that swing.
 
 ## Recommended sequence
