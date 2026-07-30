@@ -155,8 +155,9 @@ source = ["environments"]
 omit = [
     "*/tests/*",
     "*/scripts/*",
-    # Test utility (not application code) — lives outside tests/ dir
-    "environments/shared/test_env_base.py",
+    # Hand-run smoke-check and viewer harnesses behind the per-species scripts
+    # (the scripts themselves are already excluded by */scripts/*).
+    "environments/shared/harnesses/*",
     # Training entry-point infrastructure (equivalent to the per-species scripts
     # that were already excluded by */scripts/*). Utility helpers in this module
     # are tested via test_train_base.py.

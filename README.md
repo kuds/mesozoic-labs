@@ -49,7 +49,10 @@ mesozoic-labs/
 │   └── shared/                # Shared base classes and utilities
 │       ├── base_env.py        # BaseDinoEnv abstract class
 │       ├── config.py          # TOML configuration loading
-│       ├── curriculum.py      # Curriculum learning manager
+│       ├── curriculum/        # Curriculum manager and SB3 callbacks
+│       ├── plant_contract/    # Layered MuJoCo plant safety contract
+│       ├── reporting/         # Result summaries, CSVs, and stage artifacts
+│       ├── result_bundle/     # Provenance, hashing, and bundle validation
 │       ├── train_base.py      # Shared SB3 training infrastructure
 │       ├── species_registry.py # Species configuration registry
 │       ├── metrics.py         # Locomotion evaluation metrics
@@ -57,6 +60,7 @@ mesozoic-labs/
 │       ├── mjx_env.py         # JAX/MJX batched environment
 │       ├── jax_ppo.py         # JAX-native PPO implementation
 │       ├── jax_training.py    # JAX training loop
+│       ├── harnesses/         # Hand-run smoke checks and MJCF viewers
 │       └── tests/             # Shared utility tests
 ├── configs/                   # TOML hyperparameter configs per species/stage
 ├── notebooks/                 # Jupyter training, sweep, and reporting workflows

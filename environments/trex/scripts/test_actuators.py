@@ -4,15 +4,15 @@ Test actuators by applying sinusoidal control signals.
 Useful for verifying joint ranges and actuator gains.
 
 Usage:
-    python test_actuators.py
+    python run_actuator_test.py
 """
 
 from pathlib import Path
 
-from environments.shared.test_actuators_base import ActuatorTestConfig, test_actuators
+from environments.shared.harnesses.actuators import ActuatorTestConfig, run_actuator_test
 
 if __name__ == "__main__":
-    test_actuators(
+    run_actuator_test(
         ActuatorTestConfig(
             model_path=Path(__file__).parent.parent / "assets" / "trex.xml",
             camera_distance=3.0,

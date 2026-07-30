@@ -17,7 +17,7 @@ if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
 from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
-from environments.shared.test_env_base import run_env_tests
+from environments.shared.harnesses.env_smoke import run_env_tests
 
 REWARD_KEYS = [
     "reward_forward",
