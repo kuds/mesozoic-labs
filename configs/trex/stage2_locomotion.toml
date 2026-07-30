@@ -107,8 +107,13 @@ ramp_start_fraction = 0.2              # Start at 20% of target forward_vel_weig
 net_arch = [512, 256]
 
 [curriculum]
+gate_schema_version = 1                 # Fail-closed gate declaration; see
+gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 8000000                     # Increase from 5M: your best T-Rex stage2 was only at 2M steps and still improving
 min_avg_reward = 100.0
+collapse_peak_floor = 100.0    # Explicit: this used to fall back to min_avg_reward, coupling an
+                                        # early-stop backstop to an unrelated advancement threshold. Set to
+                                        # the value that fallback produced, so behaviour is unchanged.
 min_avg_episode_length = 750            # Reduce from 800: T-Rex best run reached 682, 800 is too strict
 min_avg_forward_vel = 2.0               # Gate on sustained running (matches raptor stage 2 gate)
 required_consecutive = 3

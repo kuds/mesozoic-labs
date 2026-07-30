@@ -96,8 +96,13 @@ ramp_start_fraction = 0.16             # Match SB3 sweep winner — gentler star
 net_arch = [512, 256]
 
 [curriculum]
+gate_schema_version = 1                 # Fail-closed gate declaration; see
+gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 16000000                   # Reverted to 16M: 20M run (03-22) showed late-training collapse (2396→809). 16M was sufficient for the only S2 pass.
 min_avg_reward = 100.0
+collapse_peak_floor = 100.0    # Explicit: this used to fall back to min_avg_reward, coupling an
+                                        # early-stop backstop to an unrelated advancement threshold. Set to
+                                        # the value that fallback produced, so behaviour is unchanged.
 min_avg_episode_length = 750
 min_avg_forward_vel = 0.75             # Gate on actual locomotion; without this, a standing-still policy passes on alive_bonus alone. Realistic walking speed for a heavy sauropod.
 required_consecutive = 3

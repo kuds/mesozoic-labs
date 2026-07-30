@@ -7,6 +7,18 @@ from environments.shared.curriculum import (
     StageThreshold,
     thresholds_from_configs,
 )
+from environments.shared.curriculum.gate_schema import (
+    GATE_SCHEMA_VERSION,
+    GateSchemaError,
+    validate_gate_configs,
+)
+
+#: The gate declaration every real stage config carries. Tests that exercise a
+#: working gate must include it, because an undeclared gate is now fatal.
+_GATE = {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "reward_and_length/v1"}
+
+#: The explicit, recorded non-advancing mode.
+_PILOT = {"gate_schema_version": GATE_SCHEMA_VERSION, "gate_kind": "none/v1"}
 
 
 class TestStageThreshold:
@@ -273,27 +285,28 @@ class TestThresholdsFromConfigs:
 
     def test_extracts_reward_threshold(self):
         configs = {
-            1: {"curriculum_kwargs": {"min_avg_reward": 10.0, "required_consecutive": 2}},
-            2: {"curriculum_kwargs": {"min_avg_reward": 50.0}},
-            3: {"curriculum_kwargs": {}},
+            1: {"curriculum_kwargs": dict(_GATE, min_avg_reward=10.0, required_consecutive=2)},
+            2: {"curriculum_kwargs": dict(_GATE, min_avg_reward=50.0)},
+            3: {"curriculum_kwargs": dict(_PILOT)},
         }
-        thresholds = thresholds_from_configs(configs)
+        thresholds = thresholds_from_configs(configs, advancement_enabled=False)
         assert thresholds[1]["min_avg_reward"] == 10.0
         assert thresholds[1]["required_consecutive"] == 2
         assert thresholds[2]["min_avg_reward"] == 50.0
-        assert 3 not in thresholds  # empty curriculum_kwargs -> no entry
+        assert 3 not in thresholds  # declared non-advancing pilot -> no entry
 
     def test_extracts_all_threshold_fields(self):
         configs = {
             1: {
-                "curriculum_kwargs": {
-                    "min_avg_reward": 10.0,
-                    "min_avg_episode_length": 100,
-                    "min_avg_forward_vel": 0.5,
-                    "min_success_rate": 0.3,
-                    "min_eval_episodes": 12,
-                    "required_consecutive": 3,
-                },
+                "curriculum_kwargs": dict(
+                    _GATE,
+                    min_avg_reward=10.0,
+                    min_avg_episode_length=100,
+                    min_avg_forward_vel=0.5,
+                    min_success_rate=0.3,
+                    min_eval_episodes=12,
+                    required_consecutive=3,
+                ),
             },
         }
         thresholds = thresholds_from_configs(configs)
@@ -304,6 +317,42 @@ class TestThresholdsFromConfigs:
     def test_empty_configs(self):
         thresholds = thresholds_from_configs({})
         assert thresholds == {}
+
+    def test_undeclared_gate_is_fatal_when_advancement_is_enabled(self):
+        """Fail closed: a stage with no gate declaration must not advance.
+
+        A composite-only gate config used to have its unknown fields silently
+        discarded here, after which StageThreshold's permissive defaults
+        (min_avg_reward = -inf, length and success floors 0) advanced the stage
+        on any evaluation at all. See docs/STAGE1_SPLIT_PLAN.md section 5.2.
+        """
+        configs = {1: {"curriculum_kwargs": {"min_avg_reward": 10.0}}}
+        with pytest.raises(GateSchemaError, match="no gate_kind declared"):
+            thresholds_from_configs(configs)
+
+    def test_unknown_field_is_fatal_rather_than_silently_dropped(self):
+        configs = {1: {"curriculum_kwargs": dict(_GATE, min_stance_success_lcb=0.90)}}
+        with pytest.raises(GateSchemaError, match="unrecognised"):
+            thresholds_from_configs(configs)
+
+    def test_threshold_belonging_to_another_gate_kind_is_fatal(self):
+        """A leftover threshold implies a gate that is not actually enforced."""
+        configs = {1: {"curriculum_kwargs": dict(_PILOT, min_avg_reward=10.0)}}
+        with pytest.raises(GateSchemaError, match="does not consume"):
+            thresholds_from_configs(configs, advancement_enabled=False)
+
+    def test_non_advancing_pilot_is_rejected_when_advancement_is_enabled(self):
+        configs = {1: {"curriculum_kwargs": dict(_PILOT)}}
+        with pytest.raises(GateSchemaError, match="non-advancing pilot"):
+            thresholds_from_configs(configs)
+
+    def test_every_committed_stage_config_declares_a_valid_gate(self):
+        """The shipped configs must satisfy the schema on every species."""
+        from environments.shared.config import load_all_stages
+
+        for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
+            kinds = validate_gate_configs(load_all_stages(species))
+            assert set(kinds.values()) == {"reward_and_length/v1"}, species
 
     def test_with_real_configs(self):
         """Integration test: extract thresholds from actual TOML configs."""

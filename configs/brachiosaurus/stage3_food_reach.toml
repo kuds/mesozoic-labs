@@ -89,8 +89,13 @@ ramp_start_fraction = 0.2
 net_arch = [512, 256]
 
 [curriculum]
+gate_schema_version = 1                 # Fail-closed gate declaration; see
+gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 12000000                   # Extended from 8M: best model was at 3.9M and policy degraded after — more time with stable config gives room to recover and converge
 min_avg_reward = 100.0                  # Minimum average reward to confirm food-reaching behavior
+collapse_peak_floor = 100.0    # Explicit: this used to fall back to min_avg_reward, coupling an
+                                        # early-stop backstop to an unrelated advancement threshold. Set to
+                                        # the value that fallback produced, so behaviour is unchanged.
 min_success_rate = 0.5                 # At least 50% food reach success — confirms behavior emerged
 required_consecutive = 3
 warmup_timesteps = 300000               # Tripled from 100k: agent needs more time to adapt from locomotion to food-reach reward landscape without losing walking ability

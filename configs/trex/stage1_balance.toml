@@ -149,6 +149,8 @@ init_yaw_noise = 0.1                   # Yaw rotation perturbation at reset (rad
 net_arch = [512, 256]                  # Match SB3 PPO architecture
 
 [curriculum]
+gate_schema_version = 1                 # Fail-closed gate declaration; see
+gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 6000000
 min_avg_reward = 1840.0                 # Provisional legacy gate only. The stance reward changes the score scale,
                                         # so run Stage 1 pilots without curriculum advancement and recalibrate this

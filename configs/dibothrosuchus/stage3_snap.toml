@@ -86,8 +86,13 @@ ramp_start_fraction = 0.1
 net_arch = [512, 256]
 
 [curriculum]
+gate_schema_version = 1                 # Fail-closed gate declaration; see
+gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 8000000
 min_avg_reward = 100.0
+collapse_peak_floor = 100.0    # Explicit: this used to fall back to min_avg_reward, coupling an
+                                        # early-stop backstop to an unrelated advancement threshold. Set to
+                                        # the value that fallback produced, so behaviour is unchanged.
 min_success_rate = 0.5                # At least 50% snap success — confirms the hunting behaviour emerged
 required_consecutive = 3
 warmup_timesteps = 200000               # Constrain policy updates while the critic adapts (PPO only)

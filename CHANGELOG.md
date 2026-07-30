@@ -174,6 +174,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Images/` except the `.dockerignore` entry excluding it, now also dropped.
 
 ### Fixed
+- **The curriculum advancement gate now fails closed** (breaking — every stage
+  config must declare `gate_schema_version` and `gate_kind`). The gate plumbing
+  failed *open* in three independent ways, so a stage could advance on evidence
+  nobody had checked. `thresholds_from_configs` copied six known keys out of
+  `[curriculum]` and **silently discarded everything else**, so a config
+  carrying only new-style gate fields produced no thresholds at all and SB3 fell
+  back to `StageThreshold`'s permissive defaults (`min_avg_reward = -inf`,
+  length and success floors `0`) — which advance on any evaluation whatsoever.
+  `jax_curriculum.check_stage_gate` logged a warning and returned `True` when
+  `min_avg_reward` was absent. And neither backend rejected an unrecognised key,
+  so a misspelled threshold name *disabled* that threshold instead of failing.
+  Together these made "no gate" indistinguishable from "gate satisfied", with
+  the permissive reading always winning — which is the wrong default for the
+  mechanism that decides whether a policy is good enough to build the next stage
+  on. A new `environments/shared/curriculum/gate_schema.py` makes the
+  declaration explicit and versioned: unknown keys, unknown gate kinds and
+  unsupported schema versions are **fatal** whenever advancement is enabled, and
+  a threshold field its declared kind does not consume is fatal too, since it
+  implies a gate that is not actually enforced. Running without a gate is still
+  possible, but only by declaring `gate_kind = "none/v1"`, which is recorded in
+  the config and *refuses* to advance rather than passing by default. All twelve
+  stage configs declare `reward_and_length/v1`; the existing tests that asserted
+  the permissive behaviour were updated in the same change, as they were the
+  reason the defect survived. Effective thresholds for all four species are
+  unchanged.
+- **`collapse_peak_floor` no longer inherits `min_avg_reward`**, which coupled
+  an early-stop backstop to an unrelated advancement threshold. The builder
+  chained `collapse_peak_floor` → `min_avg_reward` → `0.0`, and only
+  `configs/trex/stage1_balance.toml` set the key explicitly (1 of 12), so
+  removing a stage's reward gate — which a state-capability gate would do —
+  silently dropped its arming floor to `0.0` and armed collapse detection after
+  *any* positive robust peak. A missing floor now means **never arm**, because a
+  backstop that is not configured should not abort a run; the eleven configs
+  that were relying on the fallback now set the value it produced, so every
+  effective floor is bit-identical (`100.0` everywhere except T-Rex stage 1's
+  `2200.0`). `collapse_smoothing_window` was also readable but undeclared, and
+  is now part of the schema.
 - **Reset can no longer generate an already-terminal episode** (breaking —
   policy interface revision bumps for the three home-keyframe-residual species:
   velociraptor 6 → 7, T-Rex 7 → 8, dibothrosuchus 3 → 4; brachiosaurus does not

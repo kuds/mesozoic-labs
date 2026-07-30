@@ -270,14 +270,17 @@ class TestBuildCoreCallbacks:
         assert cb.peak_floor == 42.0
         assert cb.smoothing_window == 3
 
-        # Defaults are lenient (looser than the old hardcoded 8 / 5 / 0.3),
-        # the arming floor falls back to the stage's own reward gate, and the
-        # smoothing window defaults to 5 evals.
+        # Defaults are lenient (looser than the old hardcoded 8 / 5 / 0.3) and
+        # the smoothing window defaults to 5 evals.  The arming floor no longer
+        # falls back to the stage's reward gate: an unconfigured backstop must
+        # not abort a run, and coupling it to min_avg_reward meant removing the
+        # reward gate silently armed collapse detection on any positive peak.
+        # See docs/STAGE1_SPLIT_PLAN.md section 7.4.
         cb_default = _build_collapse_cb({"min_avg_reward": 100.0})
         assert cb_default.min_evals == 12
         assert cb_default.patience == 8
         assert cb_default.drop_fraction == 0.4
-        assert cb_default.peak_floor == 100.0
+        assert cb_default.peak_floor == float("inf")
         assert cb_default.smoothing_window == 5
 
 

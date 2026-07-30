@@ -90,11 +90,16 @@ ramp_start_fraction = 0.1
 net_arch = [512, 256]
 
 [curriculum]
+gate_schema_version = 1                 # Fail-closed gate declaration; see
+gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 12000000                    # Raised from 8M (run 20260721_141523): best checkpoint landed at 7.9M with
                                         # success still climbing (last evals 0.63->0.87->0.77) -- strike discovery
                                         # produced no successes until ~5.5M, leaving only ~2.5M of effective hunting
                                         # curriculum. 12M matches the brachiosaurus stage-3 budget.
 min_avg_reward = 100.0
+collapse_peak_floor = 100.0    # Explicit: this used to fall back to min_avg_reward, coupling an
+                                        # early-stop backstop to an unrelated advancement threshold. Set to
+                                        # the value that fallback produced, so behaviour is unchanged.
 min_success_rate = 0.5                  # At least 50% strike success — confirms hunting behavior emerged
 required_consecutive = 3
 warmup_timesteps = 300000               # Increased from 100k: Stage 3 introduces new reward components, critic needs more adaptation time
