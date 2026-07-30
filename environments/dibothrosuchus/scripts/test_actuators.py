@@ -4,7 +4,7 @@ Test actuators by applying sinusoidal control signals.
 Useful for verifying joint ranges and actuator gains.
 
 Usage:
-    python run_actuator_test.py
+    python test_actuators.py
 """
 
 from pathlib import Path

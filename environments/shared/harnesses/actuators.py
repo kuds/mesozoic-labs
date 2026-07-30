@@ -1,6 +1,6 @@
 """Shared actuator test viewer for MJCF dinosaur models.
 
-Each species' ``scripts/run_actuator_test.py`` calls :func:`run_actuator_test`
+Each species' ``scripts/test_actuators.py`` calls :func:`run_actuator_test`
 with its species-specific parameters, eliminating duplicated test logic.
 """
 

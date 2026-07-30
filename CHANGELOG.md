@@ -87,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   effective hunting curriculum. 12M matches the brachiosaurus stage-3
   budget.
 
-- **The five largest `environments/shared` modules are now packages**, each
+- **The four largest `environments/shared` modules are now packages**, each
   split along the seams its own docstring already described. Public surfaces
   are unchanged — every package `__init__` re-exports exactly what the module
   exported, so no import site outside the packages moved:
@@ -109,6 +109,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `_SB3_AVAILABLE` through `curriculum.sb3_compat`, and the provenance helpers
   through `result_bundle.provenance`. Each is now a single patch point rather
   than one per consuming module.
+
+- **Fixed: default provenance capture resolved the repository root one level
+  too shallow.** `initialize_result_bundle` derived it as
+  `Path(__file__).resolve().parents[2]`, correct while the code lived in
+  `environments/shared/result_bundle.py` but off by one once it moved into
+  `result_bundle/provenance.py`, where it resolved to `<repo>/environments`.
+  `git status` reports repo-wide while `git ls-files --others` is scoped to its
+  working directory, so an untracked file under `configs/` or the repository
+  root set `repository_dirty` without entering `repository_patch_sha256` —
+  materially different dirty trees could share one provenance hash. The root is
+  now `REPOSITORY_ROOT` in `result_bundle/constants.py`, derived from a named
+  `_SHARED_ROOT` anchor rather than a bare parent count, and pinned by two
+  tests. Note the expression was byte-identical across the move, so an AST-level
+  verbatim check could not see it; only evaluating it could.
 
 - **The per-species script harnesses moved to `environments/shared/harnesses/`**
   and no longer use `test_` names: `test_env_base.py` → `harnesses/env_smoke.py`,

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from environments.shared import result_bundle
 from environments.shared.reporting import save_result_bundle
 from environments.shared.result_bundle import (
     ResultBundleError,
@@ -219,3 +221,52 @@ def test_summary_date_is_derived_from_immutable_capture_time(
         run_id="stable-date",
     )
     assert json.loads(paths["summary"].read_text(encoding="utf-8"))["date"] == "2020-02-03"
+
+
+def test_repository_root_resolves_to_the_repository(tmp_path: Path) -> None:
+    """The default provenance root must be the repository, not a subdirectory.
+
+    Regression: this was `Path(__file__).resolve().parents[2]`, correct while it
+    lived in `environments/shared/result_bundle.py` but off by one level once the
+    module moved into the package — it resolved to `<repo>/environments`. The
+    expression stayed byte-identical through the move, so an AST diff could not
+    see it; only evaluating it can.
+    """
+    assert (result_bundle.constants.REPOSITORY_ROOT / "pyproject.toml").is_file()
+    assert (result_bundle.constants.REPOSITORY_ROOT / "environments").is_dir()
+    assert result_bundle.constants.REPOSITORY_ROOT.name != "environments"
+
+
+def test_untracked_file_at_repository_root_enters_the_patch_hash(tmp_path: Path) -> None:
+    """A root-level untracked file must change `repository_patch_sha256`.
+
+    `git status` reports repo-wide, but `git ls-files --others` is scoped to its
+    working directory. Pointed at a subdirectory, the state therefore reports the
+    tree dirty while a file above that directory never enters the patch hash —
+    two materially different dirty trees produce identical provenance.
+    """
+    repo = tmp_path / "repo"
+    (repo / "environments" / "shared").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True)
+    (repo / "environments" / "shared" / "mod.py").write_text("x = 1\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "init"], cwd=repo, check=True)
+    (repo / "environments" / "shared" / "untracked_below.txt").write_text("below\n")
+
+    subdir = repo / "environments"
+
+    def patch_hash(root: Path) -> Any:
+        state = result_bundle_provenance._repository_state(root)
+        assert state["repository_dirty"] is True
+        return state["repository_patch_sha256"]
+
+    root_before, subdir_before = patch_hash(repo), patch_hash(subdir)
+    (repo / "root_level_untracked.txt").write_text("at the root\n")
+    root_after, subdir_after = patch_hash(repo), patch_hash(subdir)
+
+    assert root_after != root_before, "the repository root must notice a root-level untracked file"
+    assert subdir_after == subdir_before, (
+        "a too-deep root cannot see it — which is why REPOSITORY_ROOT must be the repository"
+    )

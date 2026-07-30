@@ -23,6 +23,7 @@ from .constants import (
     _FINALIZATION_PROVENANCE_FIELDS,
     DEFAULT_PROVENANCE_NAME,
     PROVENANCE_SCHEMA_VERSION,
+    REPOSITORY_ROOT,
 )
 from .errors import ResultBundleError
 from .hashing import canonical_json_sha256
@@ -198,7 +199,7 @@ def initialize_result_bundle(
     run_path.mkdir(parents=True, exist_ok=True)
     provenance_path = run_path / DEFAULT_PROVENANCE_NAME
     if repository_root is None:
-        repository = Path(__file__).resolve().parents[2]
+        repository = REPOSITORY_ROOT
     else:
         repository = Path(repository_root).resolve()
     current_repository_state = _repository_state(repository)

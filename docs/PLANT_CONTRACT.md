@@ -64,7 +64,7 @@ After an intentional model or interface change:
 
    ```bash
    python -m environments.shared.species_catalog
-   pytest environments/shared/tests/test_plant_contract.py environments/shared/tests/test_species_catalog.py
+   pytest environments/shared/tests/test_plant_contract_*.py environments/shared/tests/test_species_catalog.py
    ```
 
 The writer updates both `configs/plant_manifest.generated.json` and the byte-identical runtime copy under
