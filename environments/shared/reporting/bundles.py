@@ -59,11 +59,11 @@ def save_result_bundle(
     from ..result_bundle import (
         ResultBundleError,
         _normalize_plant_identity,
-        _write_json,
         aggregate_file_hash,
         canonical_algorithm,
         canonical_backend,
         compare_summary_to_csv,
+        hashing,
         initialize_result_bundle,
         load_provenance,
         sha256_file,
@@ -343,7 +343,7 @@ def save_result_bundle(
         previous_manifest.unlink()
     update_provenance(run_path, **finalization)
     captured = load_provenance(run_path)
-    _write_json(run_path / "plant_identity.json", normalized_plant)
+    hashing._write_json(run_path / "plant_identity.json", normalized_plant)
 
     csv_path = save_results_csv(
         stage_results_list,
@@ -363,7 +363,7 @@ def save_result_bundle(
 
     if promotion_ready:
         assert prospective_summary is not None
-        _write_json(summary_path, prospective_summary)
+        hashing._write_json(summary_path, prospective_summary)
         contradictions = compare_summary_to_csv(prospective_summary, csv_path)
         if contradictions:
             raise ResultBundleError("summary/CSV contradictions: " + "; ".join(contradictions))

@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlsplit, urlunsplit
 
+from . import hashing
 from .constants import (
     _DEPENDENCY_PACKAGES,
     _FINALIZATION_PROVENANCE_FIELDS,
@@ -24,7 +25,7 @@ from .constants import (
     PROVENANCE_SCHEMA_VERSION,
 )
 from .errors import ResultBundleError
-from .hashing import _write_json, canonical_json_sha256, sha256_file
+from .hashing import canonical_json_sha256, sha256_file
 from .naming import _normalize_plant_identity, canonical_algorithm, canonical_backend
 
 
@@ -257,7 +258,7 @@ def initialize_result_bundle(
         "config_hash": None,
         **current_repository_state,
     }
-    return _write_json(provenance_path, provenance)
+    return hashing._write_json(provenance_path, provenance)
 
 
 def load_provenance(run_dir: str | Path) -> dict[str, Any]:
@@ -284,4 +285,4 @@ def update_provenance(run_dir: str | Path, **updates: Any) -> Path:
             f"only finalization provenance fields may be updated; cannot replace captured fields: {sorted(forbidden)}"
         )
     provenance.update(updates)
-    return _write_json(run_path / DEFAULT_PROVENANCE_NAME, provenance)
+    return hashing._write_json(run_path / DEFAULT_PROVENANCE_NAME, provenance)

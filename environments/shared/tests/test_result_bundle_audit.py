@@ -338,7 +338,11 @@ def test_identical_completed_export_is_a_write_free_noop(
     def fail_write(*_args: Any, **_kwargs: Any) -> None:
         raise OSError("simulated Drive write failure")
 
-    monkeypatch.setattr(result_bundle, "_write_json", fail_write)
+    # Patch the hashing module, not the package re-export: every internal
+    # writer calls it through that module, so this one point covers
+    # initialize_result_bundle, update_provenance, write_artifact_manifest
+    # and save_result_bundle's own writes.
+    monkeypatch.setattr(result_bundle.hashing, "_write_json", fail_write)
     paths = save_result_bundle(
         stage_results,
         stage_configs,

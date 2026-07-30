@@ -9,12 +9,13 @@ import json
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from . import hashing
 from .constants import (
     ARTIFACT_MANIFEST_SCHEMA_VERSION,
     DEFAULT_MANIFEST_NAME,
 )
 from .errors import ResultBundleError
-from .hashing import _write_json, sha256_file
+from .hashing import sha256_file
 from .provenance import load_provenance
 
 
@@ -48,7 +49,7 @@ def write_artifact_manifest(
         "status": status,
         "files": entries,
     }
-    return _write_json(manifest_path, manifest)
+    return hashing._write_json(manifest_path, manifest)
 
 
 def verify_artifact_manifest(
