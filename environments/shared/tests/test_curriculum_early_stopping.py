@@ -9,6 +9,7 @@ from environments.shared.curriculum import (
     EvalCollapseEarlyStopCallback,
     build_eval_collapse_early_stop_callback,
 )
+from environments.shared.curriculum.early_stopping import collapse_settings_from_config
 
 
 class TestEvalCollapseEarlyStopCallback:
@@ -414,18 +415,20 @@ class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
     """
 
     def test_reward_gate_no_longer_leaks_into_the_floor(self):
-        cb = build_eval_collapse_early_stop_callback(
-            eval_callback=None,
-            curriculum_kwargs={"min_avg_reward": 1840.0},
-        )
-        assert cb.peak_floor != 1840.0
+        settings = collapse_settings_from_config({"min_avg_reward": 1840.0})
+        assert settings["peak_floor"] != 1840.0
 
     def test_missing_floor_never_arms_rather_than_arming_eagerly(self):
         """An unconfigured backstop must not abort a run."""
-        cb = build_eval_collapse_early_stop_callback(eval_callback=None, curriculum_kwargs={})
-        assert cb.peak_floor == float("inf")
+        assert collapse_settings_from_config({})["peak_floor"] == float("inf")
 
     def test_explicit_floor_is_honoured(self):
+        settings = collapse_settings_from_config({"collapse_peak_floor": 2200.0, "min_avg_reward": 1840.0})
+        assert settings["peak_floor"] == 2200.0
+
+    def test_builder_passes_the_resolved_floor_through(self):
+        """Pin the wiring too, where stable-baselines3 is available."""
+        pytest.importorskip("stable_baselines3")
         cb = build_eval_collapse_early_stop_callback(
             eval_callback=None,
             curriculum_kwargs={"collapse_peak_floor": 2200.0, "min_avg_reward": 1840.0},

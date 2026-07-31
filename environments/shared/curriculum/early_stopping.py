@@ -139,15 +139,14 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         return True
 
 
-def build_eval_collapse_early_stop_callback(
-    eval_callback: Any,
-    curriculum_kwargs: dict[str, Any],
-    *,
-    verbose: int = 0,
-) -> EvalCollapseEarlyStopCallback:
-    """Build the shared eval-collapse backstop from curriculum settings.
+def collapse_settings_from_config(curriculum_kwargs: dict[str, Any]) -> dict[str, Any]:
+    """Resolve the eval-collapse backstop's settings from a stage config.
 
-    ``collapse_peak_floor`` is deliberately NOT inherited from
+    Kept separate from the callback so the resolution can be tested without
+    stable-baselines3 installed — it is plain arithmetic on a config dict, and
+    the one rule worth pinning does not need SB3 to state.
+
+    That rule: ``collapse_peak_floor`` is deliberately **not** inherited from
     ``min_avg_reward``.  It used to chain ``collapse_peak_floor`` ->
     ``min_avg_reward`` -> ``0.0``, which coupled an early-stop backstop to an
     unrelated advancement threshold: removing the reward gate from a stage --
@@ -157,12 +156,33 @@ def build_eval_collapse_early_stop_callback(
     configured should not abort a run; every stage config sets the value it
     actually wants.  See docs/STAGE1_SPLIT_PLAN.md section 7.4.
     """
+    return {
+        "min_evals": int(curriculum_kwargs.get("collapse_min_evals", 12)),
+        "patience": int(curriculum_kwargs.get("collapse_patience", 8)),
+        "drop_fraction": float(curriculum_kwargs.get("collapse_drop_fraction", 0.4)),
+        "peak_floor": float(curriculum_kwargs.get("collapse_peak_floor", float("inf"))),
+        "smoothing_window": int(curriculum_kwargs.get("collapse_smoothing_window", 5)),
+    }
+
+
+def build_eval_collapse_early_stop_callback(
+    eval_callback: Any,
+    curriculum_kwargs: dict[str, Any],
+    *,
+    verbose: int = 0,
+) -> EvalCollapseEarlyStopCallback:
+    """Build the shared eval-collapse backstop from curriculum settings.
+
+    See :func:`collapse_settings_from_config` for how the settings resolve, in
+    particular why ``collapse_peak_floor`` does not inherit ``min_avg_reward``.
+    """
+    settings = collapse_settings_from_config(curriculum_kwargs)
     return EvalCollapseEarlyStopCallback(
         eval_callback=eval_callback,
-        min_evals=int(curriculum_kwargs.get("collapse_min_evals", 12)),
-        patience=int(curriculum_kwargs.get("collapse_patience", 8)),
-        drop_fraction=float(curriculum_kwargs.get("collapse_drop_fraction", 0.4)),
-        peak_floor=float(curriculum_kwargs.get("collapse_peak_floor", float("inf"))),
+        min_evals=settings["min_evals"],
+        patience=settings["patience"],
+        drop_fraction=settings["drop_fraction"],
+        peak_floor=settings["peak_floor"],
         verbose=verbose,
-        smoothing_window=int(curriculum_kwargs.get("collapse_smoothing_window", 5)),
+        smoothing_window=settings["smoothing_window"],
     )
