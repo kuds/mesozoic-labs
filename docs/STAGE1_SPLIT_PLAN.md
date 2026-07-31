@@ -13,7 +13,20 @@ Revision 3 incorporated two rounds of review feedback on
 identified has been fixed. §11 records what changed and why. Every claim below carries a label
 from the ledger in §11.
 
-## Status of the blocking prerequisites — all landed
+**Revision 5 (`ca56f6c`) reports the re-baseline.** It changes three things materially:
+
+* **§7.5 fixed the wrong invariant.** The real reset defect was geometric interpenetration on
+  *every* episode, not a ~1% terminal tail. With it fixed the statue baseline rose to 2243.12,
+  which puts the trained stage-1 policy's best evaluation (1992.7) **below do-nothing**.
+* **No reward threshold can gate 1a.** The statue collects 97.0% of the theoretical maximum
+  return with zero actuation cost, so it is the optimum, and a policy's ceiling is strictly
+  below it. §2.3's `stance_success` event is the only viable gate.
+* **Reset noise is the 1a/1b dial**, measured: 100% statue full-horizon at ≤ 0.05, 65% at the
+  configured 0.10, 22% at 0.20, with the *standing* score nearly flat throughout.
+
+§2.3.1 carries the measurements and per-species gate proposals for review.
+
+## Status of the blocking prerequisites — all landed, one superseded
 
 Revision 3 opened by saying these defects "must be fixed before any gate in this document can
 mean anything," and §10 called them "not optional preliminaries — they are the work." They
@@ -21,7 +34,9 @@ landed in [PR #478](https://github.com/kuds/mesozoic-labs/pull/478):
 
 | § | defect | status on `34a7002` |
 |---|---|---|
-| 7.5 | ~1% of episodes terminal at generation | **fixed** — 0/4000, `71a91b7` |
+| 7.5 | ~1% of episodes terminal at generation | **superseded** — right fix, wrong invariant; see §2.3.1 and `ca56f6c` |
+| — | every reset interpenetrates the floor (≤ 0.198 m, ≤ 19× body weight) | **fixed** — `ca56f6c` |
+| — | two permanent home-pose self-collisions (16.3 kN trex, 25.9 kN brachiosaurus) | **fixed** — `ca56f6c` |
 | 5.2 | gate plumbing fails open on both backends | **fixed** — both reject, `17ca4e5` |
 | 7.4 | `collapse_peak_floor` inherits `min_avg_reward` | **fixed** — decoupled, `17ca4e5` |
 | 7.1 | `[0, 0]` scores airborne as perfectly balanced | **fixed** — reports 1.0, `c667938` |
@@ -167,7 +182,46 @@ while per-panel reward means ranged **1884.71 to 2157.53**. The physical result 
 the reward scalar attached to it is not stable enough to gate on. This is the empirical case for
 making stance a *state-capability* gate rather than a reward gate.
 
-### 1.5 The observed policy appears to hop rather than stand  `[measured diagnostics, inferred behaviour]`
+### 1.5 The observed policy hops rather than stands — confirmed on video  `[measured]`
+
+> **UPGRADED from inferred to measured.** Frame-by-frame analysis of
+> `trex_ppo_stage1_best.mp4` / `_final_side.mp4` from run `20260731_132102` confirms the
+> behaviour this section inferred from duty ratios, and resolves it into **two** superimposed
+> oscillations. Note the renders are 1000 frames at 50 fps for a 1000-step episode at a 100 Hz
+> control rate, i.e. **2× slow motion** — frequencies below are real-time.
+>
+> | | best (4.65M) | final (6.0M) |
+> |---|---|---|
+> | episode survived | 20.0 s (full) | 8.5 s (fell) |
+> | toe lift-downs / sec | ~15 | ~14 |
+> | dominant fast frequency | 4.3 Hz | **13.5 Hz** |
+> | toe-motion power > 2 Hz (real-time > 4 Hz) | 35% | **71%** |
+> | unsupported duty | 0.351 | 0.300 |
+>
+> 1. **Fast toe chatter, ~15 lift-downs per second** — at 100 Hz control that is ~7 control
+>    steps per cycle, i.e. a control-bandwidth limit cycle, not a gait.
+> 2. **A slow whole-body crouch↔extend bob at ~0.6–1.0 Hz**, ~30 cm peak-to-peak in the
+>    silhouette centroid.
+>
+> Stance breakdown at the best checkpoint: **bilateral 52% / airborne 35% / single 13%**. Single
+> support is the *rarest* state. A walk alternates bilateral↔single; this alternates
+> bilateral↔airborne.
+>
+> The collapse between the two checkpoints is the same chatter with the slow postural control
+> stripped out: identical lift-down rate, double the high-frequency share.
+>
+> **`smoothness_weight` cannot see this.** It penalises action-delta *magnitude*, not frequency.
+> From best to final, `action_delta` **fell** 12.0 → 10.5 and the smoothness penalty *improved*
+> (−0.286 → −0.250) while high-frequency power doubled. The policy got smoother by the metric
+> while getting buzzier in fact. Any fix needs a frequency-aware or contact-switch-rate cost —
+> see §7.1's successor.
+>
+> Caveat carried forward: a large share of the airborne duty was **learned from the broken
+> reset** (§2.3.1) — if episodes routinely opened with a catapult and ~60 ballistic steps,
+> airborne-tolerant behaviour is what training rewarded. How much of the chatter survives on the
+> repaired plant is unmeasured, and needs a fresh run.
+
+Original inference, retained:
 
 Final stage-1 diagnostics from run `20260729_151044` (6,004,736 steps):
 
@@ -299,6 +353,155 @@ Provisional T-Rex values, to be calibrated rather than adopted: `T_settle` 200 s
 
 #### 2.3.1 The statistical operating point must be declared  `[measured]`
 
+> **RE-BASELINED on `ca56f6c`.** Step 6 of §10 is done for the baseline half. Everything from
+> here to the end of this subsection is measured on the repaired plant; the pre-`ca56f6c`
+> numbers that used to head this section are retained below only as the *before* column.
+
+##### The reset defect was misdiagnosed, and §7.5 fixed the wrong invariant  `[measured]`
+
+§7.5 bounded the root-height draw against `healthy_z_range` and reported 43/4000 → 0/4000
+already-terminal spawns. That measurement was correct and it was beside the point.
+`healthy_z_range` is a **termination predicate on the root**; it says nothing about
+foot-to-floor geometry. A T-Rex pelvis at 0.739 m is "healthy" while the toes are 0.198 m
+underground.
+
+Measured over 40 seeds on the pre-fix plant, spawns ranged from **0.198 m inside the floor** to
+**0.18 m above it**, and the solver answered penetration with up to **19× body weight**:
+
+```
+seed 2:  t= 0  pelvis 0.746  feet 5777.6 / 6033.7 N   <- spawned inside the floor
+         t=30  pelvis 1.255  feet    0.0 /    0.0 N   <- ejected 0.52 m, ballistic
+         t=60  pelvis 0.879  forward_z -0.440         <- lands nose-first
+         t=66         forward_z -0.530                <- nosedive termination
+```
+
+Penetration depth predicted failure: failed resets averaged −0.088 m, survivors −0.034 m.
+Two independent controller sweeps confirmed the diagnosis by failing — no PD gain on trunk
+pitch (70 combinations, both signs) and no static posture offset (75 combinations) beat zero
+action, because for the first ~60 steps there is no ground contact to act against.
+
+Separately, two MJCF geom pairs overlapped in the home pose and injected a constant,
+**pose-independent** force into every step of every episode in every run to date:
+`trex tail_1_geom` against both thighs (18.8 mm, 16.3 kN = 11.0× weight) and
+`brachiosaurus torso_main` against `tail_2_geom` (66.9 mm, 25.9 kN = 12.7× weight).
+
+Both are fixed in `ca56f6c`; `environments/shared/tests/test_reset_plant_invariants.py` asserts
+the invariants for all four species. T-Rex t=0 contact force went 16990 N → 190 N.
+
+##### Re-measured statue baseline  `[measured]`
+
+Same protocol as before — `zero_action_baseline.py`, seed 3042, 40 episodes, noise 0.10:
+
+| | before (broken plant) | after (`ca56f6c`) |
+|---|---|---|
+| reward mean | 1974.74 | **2243.12** |
+| reward mean − std | 492.94 | **867.21** |
+| reward standing | 3243.10 ± 23.65 | 3250.27 ± 24.49 |
+| episodes reaching horizon | 23/40 (57.5%) | **26/40 (65%)** |
+| episode length | 640.85 | **716.5** |
+| terminations | fallen 3, nosedive 14, trunc 23 | fallen 2, nosedive 12, trunc 26 |
+
+**The trained stage-1 policy is now worse than doing nothing.** Run `20260731_132102` peaked at
+**1992.7** mean eval reward; the repaired statue scores **2243.12**. That run cleared
+`min_avg_reward = 1840` sixteen times, including an eight-evaluation streak, while sitting 250
+points below the do-nothing floor. `[artifact-derived]`
+
+Nosedive remains 12 of 14 failures, so the catapult was not the only source — a residual pitch
+instability in the home pose survives at noise 0.10. That is a real Stage 1a target; it was
+previously masked.
+
+##### The operating point: reset noise is the 1a/1b dial  `[measured]`
+
+`zero_action_baseline.py trex --sweep-noise`, 40 episodes each:
+
+| reset noise | reward | mean−std | standing | ep length | full-horizon |
+|---|---|---|---|---|---|
+| 0.01 | 3287.9 | 3286.3 | 3287.9 | 1000.0 | **100%** |
+| 0.05 | 3271.8 | 3259.7 | 3271.8 | 1000.0 | **100%** |
+| **0.10** ← stage-1 default | 2243.1 | 867.2 | 3250.3 | 716.5 | 65% |
+| 0.15 | 1348.2 | −96.9 | 3209.9 | 465.7 | 38% |
+| 0.20 | 845.4 | −411.7 | 3166.9 | 324.4 | 22% |
+
+`standing` is nearly flat across the whole sweep (3288 → 3167) while `full-horizon` collapses
+100% → 22%. Reset noise does not make standing *harder*; it decides how often you get to stand
+at all. Stage 1 currently sits exactly on the knee, which is why survival and stance quality
+have been inseparable in every measurement to date.
+
+This is the split, quantified. **1a belongs at noise ≤ 0.05**, where a statue is at 100%
+full-horizon and survival is not the binding constraint, so the gate can be about stance
+quality. **1b supplies robustness through `xfrc_applied` perturbations** (§3.2) at a declared
+magnitude, rather than through reset noise where a lucky draw and a good controller are
+indistinguishable.
+
+##### No reward threshold can separate a statue from a policy  `[measured]`
+
+§1.3 asserted the stance reward "saturates against a statue". It is stronger than that: on
+stage 1 as configured, **the statue is the global optimum**.
+
+Summing the positive T-Rex stage-1 weights — `alive_bonus` 1.00, `height` 0.60,
+`bilateral_support` 0.60, `leg_home_pose` 0.50, `head_clearance` 0.35, `neck_posture` 0.20,
+`heading` 0.10 — gives a theoretical maximum of **3.35/step = 3350** over the horizon. The
+statue collects **3250.27 = 97.0%** of it, with `energy` and `smoothness` at exactly zero. Any
+active policy pays both; run `20260731_132102` paid 0.30/step on smoothness alone, which alone
+is a 300-point handicap.
+
+So a policy's realistic ceiling is *below* the statue's score, and there is no threshold that
+admits a competent policy and excludes a passive one. This is not a calibration problem to be
+solved with a better number — it retires reward thresholds for 1a entirely, and it is why §2.3
+gates on the episode-level `stance_success` event instead.
+
+##### Proposed per-species 1a operating point — FOR REVIEW, not adopted  `[measured baseline, inferred thresholds]`
+
+Statue stance quality at the proposed 1a noise of 0.05, 40 episodes from seed 3042:
+
+| species | full-horizon | all-feet duty | unsupported duty | contact switches | standing reward |
+|---|---|---|---|---|---|
+| trex | 100% | 0.998 | 0.000 | 0.09 /s | 3271.8 ± 12.0 |
+| velociraptor | 100% | 1.000 | 0.000 | 0.00 /s | 1745.8 ± 5.0 |
+| dibothrosuchus | 100% | 0.997 | 0.000 | 0.14 /s | 2598.3 ± 0.9 |
+| brachiosaurus | **0%** | 0.000 | 0.885 | 0.00 /s | never reaches horizon |
+
+These are the numbers a 1a policy must **match**, not beat — the statue defines the quality
+ceiling, and 1a's job is to certify a policy has not bought stability with actuation. Proposed
+per-species thresholds:
+
+| species | noise | full-horizon | unsupported duty | contact switches | reward floor |
+|---|---|---|---|---|---|
+| trex | 0.05 | ≥ 95% | ≤ 0.02 | ≤ 1.0 /s | ≥ 2900 (0.89 × statue) |
+| velociraptor | 0.05 | ≥ 95% | ≤ 0.02 | ≤ 1.0 /s | ≥ 1550 (0.89 × statue) |
+| dibothrosuchus | 0.05 | ≥ 95% | ≤ 0.02 | ≤ 1.0 /s | ≥ 2300 (0.89 × statue) |
+| brachiosaurus | — | **blocked** — see below | | | |
+
+Three notes on these, all of which need a decision rather than adoption:
+
+* The reward floor is a **sanity rail, not the gate**. It is set *below* the statue on purpose,
+  because above it is unreachable; its only job is to reject a policy that has thrown away most
+  of the available return. The `stance_success` event of §2.3 remains the actual gate. The
+  0.89 multiplier is a round number chosen to sit clear of the ~0.30/step smoothness cost a
+  reasonable active policy pays; it is **not** measured and should be revisited once any policy
+  clears 1a.
+* The unsupported-duty and switch-rate ceilings are set well above the statue's measured 0.000
+  and 0.00–0.14 /s so that normal weight-shifting is not penalised. Note the switch metric
+  conflates bilateral↔single with bilateral↔airborne; the repaired plant moved T-Rex's raw
+  switch count *up* (0.86 → 1.00 /s) while unsupported duty went to zero, because the extra
+  switches are weight-shifting. **Gate on unsupported duty; treat switch rate as diagnostic**
+  until it is decomposed.
+* Every current stage-1 `min_avg_reward` is cleared by a statue: trex 1840 vs 2243, and 100 vs
+  1746 / 163 / 1834 for the other three. Whatever is decided for 1a, those four values are
+  wrong today.
+
+**Brachiosaurus stage 1 is not currently a balance task.** The statue scores 0/40 full-horizon,
+mean length 130.7, terminations `fallen 34, tail_contact 6` — it falls every single time. There
+is no "do not fall" floor to beat, so no brachiosaurus stage-1 result is interpretable. Verified
+identical before and after `ca56f6c`, so this is pre-existing and not a regression. It needs its
+own stance fix before any gate is set for it, and it is a new blocking item — see §10 step 7.
+
+**Velociraptor is the best species to prototype the 1a gate on**: 40/40 at 1745.84 ± **5.03**.
+That variance is small enough that a paired test against the statue has real power at n=40,
+which is not true for T-Rex (± 24.49 on standing, ± 1375.90 overall).
+
+##### Power table — arithmetic, unchanged
+
 Interval method: **exact one-sided 95% Clopper-Pearson**. With that fixed, `LCB95 ≥ 0.90`
 implies these cutoffs and these chances of a *good* policy passing:
 
@@ -327,6 +530,14 @@ theoretical concern" on the grounds that the current checkpoint scored 39/40, 39
 > With it removed the checkpoint may well be 40/40 on all four, in which case `LCB95 ≥ 0.90` at
 > n=40 is *not* the impractical rule this section makes it out to be, and the case for n=179
 > weakens considerably.
+>
+> **AMENDED on `ca56f6c`.** The above reasoning was right in shape and wrong in magnitude. Seed
+> 3077 was not one instance of a ~1% tail; it was one instance of a defect affecting **every
+> reset**, which the height bound did not address because it checked the root against a
+> termination range rather than against floor geometry. See the re-baseline at the top of this
+> subsection. The panels still need re-measuring and the conclusion about n is still open, but
+> the premise is now "the plant was wrong for every episode", not "1% of episodes were
+> unwinnable".
 >
 > **The power table above is arithmetic and stands.** What is stale is the empirical premise
 > that a good policy fails the cutoff. Nothing here should be read as settled until the panels
@@ -850,7 +1061,15 @@ disabled" does not make an inherited threshold inert.
 > again after the resolver was extracted in `e3958f9`. `collapse_smoothing_window` was readable
 > but undeclared and is now part of the gate schema.
 
-### 7.5 Reset-validity preflight — LANDED  `[measured]`
+### 7.5 Reset-validity preflight — LANDED, then SUPERSEDED by `ca56f6c`  `[measured]`
+
+> **This section fixed the wrong invariant.** The height bound below is real and still in place,
+> but `healthy_z_range` is a termination predicate on the *root* and constrains nothing about
+> foot-to-floor geometry. The actual defect was geometric interpenetration on **every** reset
+> (up to 0.198 m, answered by up to 19× body weight), plus two permanent home-pose
+> self-collisions. Both are fixed in `ca56f6c` and asserted by
+> `environments/shared/tests/test_reset_plant_invariants.py`. Read §2.3.1 for the measurement;
+> the "~1%" framing below understates the problem by two orders of magnitude.
 
 **About 1% of episodes are unwinnable at generation.** Reset randomisation
 (`reset_noise_scale = 0.10`) can place the pelvis below the height termination floor, so the
@@ -963,14 +1182,21 @@ they required no part of the split — which is why they went first and shipped 
 **Remaining, in order.** Step 6 is new in revision 4 and comes first because everything
 downstream calibrates against it.
 
-6. **Re-baseline.** Re-measure the four 40-seed panels on the repaired reset (§8.7) and
-   re-derive the §2.3.1 operating point from the result rather than from the pre-fix panels.
-   Three species' checkpoints are interface-invalid and were trained on the old reset
-   distribution, so this needs a fresh stage-1 run, not just an evaluation. Nothing below should
-   be calibrated until it lands.
+6. **Re-baseline** — **baseline half done, `ca56f6c`.** The plant defects that made the old
+   panels meaningless are fixed (geometric reset settling, two home-pose self-collisions), and
+   the statue baselines and noise sweep are re-measured for all four species in §2.3.1. What
+   remains is the *policy* half: every checkpoint is now interface-invalid and was trained on a
+   different task, so the four 40-seed panels (§8.7) need a fresh stage-1 run, not an
+   evaluation. Nothing below should be calibrated until that lands.
+6a. **Re-derive the four stage-1 `min_avg_reward` values.** Every one is currently cleared by a
+   statue — trex 1840 vs 2243, and 100 vs 1746 / 163 / 1834. §2.3.1 carries proposals for
+   review. Cheap, and independent of the fresh run.
+6b. **Fix brachiosaurus's stance collapse.** Its statue scores 0/40 full-horizon (mean length
+   130.7, `fallen` 34), so brachiosaurus stage 1 is not a balance task and no result for it is
+   interpretable. Pre-existing, not a regression. Blocks any brachiosaurus gate.
 7. **Repair the velociraptor and brachiosaurus foot sensors** (§7.2) — per-species MJCF changes.
    Not on the T-Rex critical path, but they gate enabling either stage for those species, and
-   both invalidate that species' checkpoints, so they are cheapest done alongside step 6.
+   both invalidate that species' checkpoints, so they are cheapest done alongside step 6b.
 8. §3.2 task fingerprint and load modes; §4 executable stage manifest with backward readers.
 9. §2.3 episode-level gate metrics, implemented and parity-tested.
 10. **Gate resolver (§5)** — before, or atomically with, any executable stage that depends on it.
