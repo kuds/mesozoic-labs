@@ -119,6 +119,7 @@ class TRexEnv(BaseDinoEnv):
         bilateral_support_weight: float = 0.0,
         foot_contact_saturation_force: float = 100.0,
         foot_load_balance_weight: float = 0.0,
+        foot_load_balance_min_support_force: float = 0.0,
         support_conditioned_alive_fraction: float = 0.0,
         leg_home_pose_weight: float = 0.0,
         leg_home_pose_tolerance: float = 0.35,
@@ -185,6 +186,7 @@ class TRexEnv(BaseDinoEnv):
         self.bilateral_support_weight = bilateral_support_weight
         self.foot_contact_saturation_force = foot_contact_saturation_force
         self.foot_load_balance_weight = foot_load_balance_weight
+        self.foot_load_balance_min_support_force = foot_load_balance_min_support_force
         self.support_conditioned_alive_fraction = support_conditioned_alive_fraction
         self.leg_home_pose_weight = leg_home_pose_weight
         self.leg_home_pose_tolerance = leg_home_pose_tolerance
@@ -373,12 +375,16 @@ class TRexEnv(BaseDinoEnv):
         )
         return float(quality)
 
-    @staticmethod
-    def _foot_load_imbalance(right_force: float, left_force: float) -> float:
-        """Return normalized left/right load mismatch in ``[0, 1]``."""
+    def _foot_load_imbalance(self, right_force: float, left_force: float) -> float:
+        """Return normalized left/right load mismatch in ``[0, 1]``.
+
+        An unsupported pair returns ``1.0``, not ``0.0``: airborne is maximally
+        imbalanced, not perfectly balanced.
+        """
         _, imbalance = _reward_foot_load_balance_pure(
             np.asarray((right_force, left_force)),
             1.0,
+            self.foot_load_balance_min_support_force,
         )
         return float(imbalance)
 

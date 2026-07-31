@@ -173,7 +173,140 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the site and README actually reference. Nothing in the repository referred to
   `Images/` except the `.dockerignore` entry excluding it, now also dropped.
 
+### Added
+- **`stance_duty_validation.py`, which shows the support-duty metrics measure
+  what they claim.** `unsupported_duty` and its siblings classify each step by
+  thresholding the foot touch sensors at 0.1 N, and that reading is the evidence
+  behind the claim that the stage-1 policy is off the ground ~21% of the time —
+  a sensor that under-reports contact looks exactly like a foot in flight. The
+  static check above covers one operating point; this sweeps driver policies
+  producing **3% to 67%** airtime and compares the sensors against both
+  `mj_contactForce` over foot-geom contacts and `mj_geomDistance` from every
+  foot geom to the floor, the latter computed from geometry alone and so
+  independent of the sensor path. The metric tracks kinematic truth to within
+  **0.52%** of steps across the whole range (2.6% only under uniform-random
+  actuation, which no policy occupies), and the two error directions nearly
+  cancel. The decisive row is low-amplitude jitter — **16.07% true airtime
+  against 16.21% reported**, straddling the figure under dispute. Combined with
+  the 0.1 N threshold sitting against ~421 N per foot in quiet stance, the
+  sensor-artifact explanation for `STAGE1_SPLIT_PLAN.md` §1.5 is exhausted and
+  its hopping reading can be relied on. This validates the *instrument*, not the
+  policy: the checkpoint was not replayed, and the causal half of §1.5 ("the
+  reward caused the hop") still needs a counterfactual run.
+- **`foot_sensor_report.py`, and a four-species audit of what the foot touch
+  sensors actually measure.** A MuJoCo touch sensor sums only contacts on geoms
+  belonging to its site's own body, so a site on a parent segment silently
+  misses whatever the child geoms carry — a failure invisible from the reward
+  trace, because a sensor reading zero looks exactly like a foot off the ground.
+  Checking every species against `mj_contactForce` found T-Rex and dibothrosuchus
+  correct (ratio **1.000**) and two species wrong: **velociraptor at 0.553**,
+  missing its `metatarsus` (17.54 N) and lateral `toe_d4` (12.03 N) per foot
+  because the site sits on `toe_d3` alone, and **brachiosaurus at 0.000**, blind
+  to all 1699.2 N of its floor contact. Total floor reaction equals body weight
+  on all four, so the contacts are real and these are sensor-scope defects, not
+  physics ones. Neither reaches a stage-1 reward term today, but both reach the
+  **observation**: brachiosaurus trains with four permanently zero input
+  channels (indices 75–78 of 83) and the raptor's policy sees 55% of true
+  per-foot load. Repairs are per-species MJCF changes and are *not* included
+  here. Recorded in `docs/investigations/FOOT_SENSOR_VERIFICATION.md`, which
+  also corrects the ground-reaction-force reading in `STAGE1_SPLIT_PLAN.md` §6.2:
+  the T-Rex statue's 841 N is *exactly* body weight (840.9 N, ratio 1.002), and
+  the 1483 N that makes it look low is `mj_getTotalmass` counting the 65.45 kg
+  **prey body** — 43% of the model total. A GRF diagnostic must divide by the
+  animal's kinematic subtree or it reports a false 0.57 on a plant standing in
+  perfect equilibrium.
+
 ### Fixed
+- **Being airborne is no longer cheaper than honest single support.**
+  `reward_foot_load_balance` computed `|R − L| / (R + L + 1e-8)`, which
+  evaluates to **zero** when both feet read zero — so a plant off the ground
+  scored the same as one standing evenly on both feet, and strictly better than
+  one carrying its weight on a single foot, which pays the full penalty. On the
+  stage-1 weights that ordering was `both feet down +0.600 > airborne 0.000 >
+  single support −0.300`: flight was the second-best available state on the
+  stage whose entire job is to stand still, and a policy off the ground cannot
+  reject a disturbance at all. An unsupported pair now reports maximal
+  imbalance, giving `both feet down +0.600 > single support = airborne −0.300`.
+  A new optional `foot_load_balance_min_support_force` sets the total force
+  below which the pair counts as unsupported; it defaults to `0.0`, which closes
+  only the exact `[0, 0]` case and leaves **every loaded state numerically
+  unchanged**, and can be raised during gate calibration to also deny credit for
+  a token grazing contact. Wired identically through the Gymnasium, MJX and
+  JAX paths, with the `[0, 0]` case now covered in both `test_reward_functions`
+  and `test_trex_mjx_reward_parity` — neither covered it before, which is how
+  the hole survived. Note the two failure states are now *tied* rather than
+  airborne being strictly worst; separating them needs a term this fix does not
+  add.
+- **The curriculum advancement gate now fails closed** (breaking — every stage
+  config must declare `gate_schema_version` and `gate_kind`). The gate plumbing
+  failed *open* in three independent ways, so a stage could advance on evidence
+  nobody had checked. `thresholds_from_configs` copied six known keys out of
+  `[curriculum]` and **silently discarded everything else**, so a config
+  carrying only new-style gate fields produced no thresholds at all and SB3 fell
+  back to `StageThreshold`'s permissive defaults (`min_avg_reward = -inf`,
+  length and success floors `0`) — which advance on any evaluation whatsoever.
+  `jax_curriculum.check_stage_gate` logged a warning and returned `True` when
+  `min_avg_reward` was absent. And neither backend rejected an unrecognised key,
+  so a misspelled threshold name *disabled* that threshold instead of failing.
+  Together these made "no gate" indistinguishable from "gate satisfied", with
+  the permissive reading always winning — which is the wrong default for the
+  mechanism that decides whether a policy is good enough to build the next stage
+  on. A new `environments/shared/curriculum/gate_schema.py` makes the
+  declaration explicit and versioned: unknown keys, unknown gate kinds and
+  unsupported schema versions are **fatal** whenever advancement is enabled, and
+  a threshold field its declared kind does not consume is fatal too, since it
+  implies a gate that is not actually enforced. Running without a gate is still
+  possible, but only by declaring `gate_kind = "none/v1"`, which is recorded in
+  the config and *refuses* to advance rather than passing by default. All twelve
+  stage configs declare `reward_and_length/v1`; the existing tests that asserted
+  the permissive behaviour were updated in the same change, as they were the
+  reason the defect survived. Effective thresholds for all four species are
+  unchanged.
+- **`collapse_peak_floor` no longer inherits `min_avg_reward`**, which coupled
+  an early-stop backstop to an unrelated advancement threshold. The builder
+  chained `collapse_peak_floor` → `min_avg_reward` → `0.0`, and only
+  `configs/trex/stage1_balance.toml` set the key explicitly (1 of 12), so
+  removing a stage's reward gate — which a state-capability gate would do —
+  silently dropped its arming floor to `0.0` and armed collapse detection after
+  *any* positive robust peak. A missing floor now means **never arm**, because a
+  backstop that is not configured should not abort a run; the eleven configs
+  that were relying on the fallback now set the value it produced, so every
+  effective floor is bit-identical (`100.0` everywhere except T-Rex stage 1's
+  `2200.0`). `collapse_smoothing_window` was also readable but undeclared, and
+  is now part of the schema.
+- **Reset can no longer generate an already-terminal episode** (breaking —
+  policy interface revision bumps for the three home-keyframe-residual species:
+  velociraptor 6 → 7, T-Rex 7 → 8, dibothrosuchus 3 → 4; brachiosaurus does not
+  carry `home_reset` and is unchanged). The root-height jitter was the **only
+  unbounded term in the reset** — every other one is a bounded uniform — so
+  `BaseDinoEnv.reset` drew `normal(0, height_scale)` with nothing stopping it
+  from placing the root outside `healthy_z_range` before the policy acted.
+  T-Rex is the species it actually broke: a 0.926 m home pelvis sits 0.226 m
+  above the 0.70 m floor, which at σ = 0.10 m is only **2.26σ**, so a predicted
+  **1.19%** of spawns started sub-floor. Measured over seeds 3042–5041, 18/2000
+  spawned below the floor and **16 of those terminated on step 1 whatever the
+  policy did**; a wider scan of 3042–7041 found 43/4000. The draw is now
+  truncated to the distance to the nearer end of `healthy_z_range` less a 0.02 m
+  margin, which takes sub-floor spawns to **0/4000**. The bound is symmetric, so
+  the mean spawn height is unchanged (0.9262 → 0.9261 m over 2000 seeds) while
+  the standard deviation tightens 0.1007 → 0.0980. It binds at 2.07σ for T-Rex
+  (3.9% of draws) against 3.6–3.8σ for velociraptor and dibothrosuchus (~0.02%),
+  so those two move only in the far tail. Dibothrosuchus hit this same defect
+  first and fixed it by decoupling `reset_height_noise_scale`; T-Rex was left
+  coupled and nobody re-checked it.
+
+  **This does not meaningfully move the zero-action baseline, and that is the
+  point.** Re-measured on seeds 3042–3081 the statue is unchanged where it
+  matters — still 23/40 full-horizon, `reward standing` still 3244.04 ± 23.55,
+  unconditional mean 1971.57 → 1976.62 — because a statue fails those seeds
+  anyway. What the defect capped was the **competent** policy: an episode that
+  ends on step 1 regardless of the action is not a policy failure, and counting
+  it as one put an unreachable ceiling on any reliability gate. Seed 3077 is
+  precisely the first failure in the 39/40 evaluation panels that
+  `docs/STAGE1_SPLIT_PLAN.md` §2.3.1 reports, and it is this bug rather than the
+  policy. Existing checkpoints for the three bumped species were trained against
+  a different reset distribution and must be re-baselined before any stage-1
+  gate is calibrated against them.
 - **T-Rex stages 2 and 3 no longer terminate at a different pitch angle on the
   MJX path than on the Gymnasium one**: `nosedive_termination_threshold` is the
   per-stage tunable pitch gate, and only `stage1_balance.toml` sets it. When a

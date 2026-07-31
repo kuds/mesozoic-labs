@@ -323,7 +323,12 @@ class TestStageOneStanceRewardPrimitives:
             ((100.0, 100.0), 0.0),
             ((100.0, 300.0), 0.5),
             ((0.0, 100.0), 1.0),
-            ((0.0, 0.0), 0.0),
+            # Airborne is MAXIMALLY imbalanced, not perfectly balanced. This
+            # case asserted 0.0 until the arithmetic hole was closed, which
+            # made flight (0.000) cheaper than honest single support (-0.300)
+            # on the stage whose entire job is to stand still.
+            # See docs/STAGE1_SPLIT_PLAN.md section 7.1.
+            ((0.0, 0.0), 1.0),
         ],
     )
     def test_foot_load_balance_is_normalized(self, forces, expected_imbalance):

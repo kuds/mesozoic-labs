@@ -184,3 +184,50 @@ def test_stage1_factory_enables_stance_terms_without_changing_dimensions():
     assert len(env._leg_home_pose_qpos_indices) == 8
     assert len(env._neck_posture_qpos_indices) == 3
     assert env._head_clearance_site_id is not None
+
+
+@pytest.mark.parametrize("min_support_force", [0.0, 10.0])
+def test_airborne_foot_load_balance_agrees_across_backends(min_support_force):
+    """The ``[0, 0]`` case, which neither backend covered before.
+
+    ``|R - L| / (R + L + 1e-8)`` is zero when both feet read zero, so an
+    airborne plant scored as perfectly balanced -- cheaper than honest single
+    support. Both paths must now report maximal imbalance, and must agree on
+    where the unsupported threshold sits. See docs/STAGE1_SPLIT_PLAN.md
+    section 7.1.
+    """
+    from environments.shared.reward_functions import reward_foot_load_balance
+    from environments.trex.envs.trex_env import TRexEnv
+
+    weight = 0.3
+    env = TRexEnv(foot_load_balance_weight=weight, foot_load_balance_min_support_force=min_support_force)
+    try:
+        sb3_imbalance = env._foot_load_imbalance(0.0, 0.0)
+    finally:
+        env.close()
+
+    jax_reward, jax_imbalance = reward_foot_load_balance(jnp.asarray([0.0, 0.0]), weight, min_support_force)
+    numpy_reward, numpy_imbalance = reward_foot_load_balance(np.asarray([0.0, 0.0]), weight, min_support_force)
+
+    assert sb3_imbalance == pytest.approx(1.0)
+    assert float(jax_imbalance) == pytest.approx(1.0, abs=1e-6)
+    assert float(numpy_imbalance) == pytest.approx(1.0, abs=1e-6)
+    assert float(jax_reward) == pytest.approx(-weight, abs=1e-6)
+    assert float(numpy_reward) == pytest.approx(-weight, abs=1e-6)
+
+
+def test_grazing_contact_threshold_agrees_across_backends():
+    """A token contact is denied credit identically on both paths."""
+    from environments.shared.reward_functions import reward_foot_load_balance
+    from environments.trex.envs.trex_env import TRexEnv
+
+    forces = (0.25, 0.25)
+    env = TRexEnv(foot_load_balance_weight=0.3, foot_load_balance_min_support_force=10.0)
+    try:
+        sb3_imbalance = env._foot_load_imbalance(*forces)
+    finally:
+        env.close()
+
+    _, jax_imbalance = reward_foot_load_balance(jnp.asarray(forces), 0.3, 10.0)
+    assert sb3_imbalance == pytest.approx(1.0)
+    assert float(jax_imbalance) == pytest.approx(1.0, abs=1e-6)

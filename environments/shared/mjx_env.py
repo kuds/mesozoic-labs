@@ -89,6 +89,7 @@ _KNOWN_REWARD_KEYS: frozenset = frozenset(
         "bilateral_support_weight",
         "foot_contact_saturation_force",
         "foot_load_balance_weight",
+        "foot_load_balance_min_support_force",
         "support_conditioned_alive_fraction",
         "leg_home_pose_weight",
         "leg_home_pose_tolerance",
@@ -718,6 +719,7 @@ class MJXDinoEnv:
             r_foot_load_balance, _ = reward_foot_load_balance(
                 foot_forces[:2],
                 weights.get("foot_load_balance_weight", 0.0),
+                weights.get("foot_load_balance_min_support_force", 0.0),
             )
 
             # The opt-in support-conditioned path mirrors the Gymnasium

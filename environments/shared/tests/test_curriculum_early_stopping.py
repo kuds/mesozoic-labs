@@ -7,7 +7,9 @@ import pytest
 
 from environments.shared.curriculum import (
     EvalCollapseEarlyStopCallback,
+    build_eval_collapse_early_stop_callback,
 )
+from environments.shared.curriculum.early_stopping import collapse_settings_from_config
 
 
 class TestEvalCollapseEarlyStopCallback:
@@ -399,3 +401,46 @@ class TestEvalCollapseEarlyStopCallback:
             peak_floor=100.0,
         )
         assert fired is not None, "backstop failed to catch a genuine sustained collapse"
+
+
+class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
+    """``collapse_peak_floor`` must not inherit ``min_avg_reward``.
+
+    The builder used to chain ``collapse_peak_floor`` -> ``min_avg_reward`` ->
+    ``0.0``, coupling an early-stop backstop to an unrelated advancement
+    threshold. Removing the reward gate from a stage -- which a state-capability
+    gate would do -- silently dropped the floor to ``0.0``, arming collapse
+    detection after any positive robust peak. See docs/STAGE1_SPLIT_PLAN.md
+    section 7.4.
+    """
+
+    def test_reward_gate_no_longer_leaks_into_the_floor(self):
+        settings = collapse_settings_from_config({"min_avg_reward": 1840.0})
+        assert settings["peak_floor"] != 1840.0
+
+    def test_missing_floor_never_arms_rather_than_arming_eagerly(self):
+        """An unconfigured backstop must not abort a run."""
+        assert collapse_settings_from_config({})["peak_floor"] == float("inf")
+
+    def test_explicit_floor_is_honoured(self):
+        settings = collapse_settings_from_config({"collapse_peak_floor": 2200.0, "min_avg_reward": 1840.0})
+        assert settings["peak_floor"] == 2200.0
+
+    def test_builder_passes_the_resolved_floor_through(self):
+        """Pin the wiring too, where stable-baselines3 is available."""
+        pytest.importorskip("stable_baselines3")
+        cb = build_eval_collapse_early_stop_callback(
+            eval_callback=None,
+            curriculum_kwargs={"collapse_peak_floor": 2200.0, "min_avg_reward": 1840.0},
+        )
+        assert cb.peak_floor == 2200.0
+
+    def test_every_committed_stage_config_sets_the_floor_explicitly(self):
+        from environments.shared.config import load_all_stages
+
+        for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
+            for stage, cfg in load_all_stages(species).items():
+                cur = cfg.get("curriculum_kwargs", {})
+                assert "collapse_peak_floor" in cur, (
+                    f"{species} stage {stage} relies on the removed min_avg_reward fallback"
+                )

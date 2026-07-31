@@ -302,16 +302,49 @@ def reward_bilateral_support(
 def reward_foot_load_balance(
     foot_forces: Array,
     weight: float,
+    min_support_force: float = 0.0,
 ) -> tuple[Array, Array]:
     """Penalise unequal loading of a bilateral support pair.
 
+    An unsupported pair is treated as maximally imbalanced rather than
+    perfectly balanced.  The ratio ``|R - L| / (R + L + 1e-8)`` evaluates to
+    **zero** when both feet read zero, so being airborne used to score the same
+    as standing evenly on both feet -- and strictly better than honest single
+    support, which pays the full penalty:
+
+    ======================  =========  ===================  =======
+    state                   bilateral  foot_load_balance    sum
+    ======================  =========  ===================  =======
+    both feet down, even      +0.600              -0.000     +0.600
+    airborne                   0.000              -0.000      0.000
+    one foot carries load      0.000              -0.300     -0.300
+    ======================  =========  ===================  =======
+
+    That ordering makes flight cheaper than single support, which is the one
+    thing a balance stage must never reward -- a policy off the ground cannot
+    reject a disturbance at all.
+
+    Args:
+        foot_forces: ``(right, left)`` normal forces.
+        weight: Penalty weight.
+        min_support_force: Total force below which the pair counts as
+            unsupported.  The default ``0.0`` closes only the exact ``[0, 0]``
+            case and leaves every loaded state numerically unchanged; raise it
+            to also deny credit for a token grazing contact.
+
     Returns:
         ``(reward, normalized_load_imbalance)``.  The diagnostic is zero for
-        equal loads and approaches one when one foot carries all the load.
+        equal loads, approaches one when one foot carries all the load, and is
+        exactly one when the pair is unsupported.
     """
     xp = _array_mod(foot_forces)
     right_force, left_force = foot_forces[0], foot_forces[1]
-    imbalance = xp.abs(right_force - left_force) / (right_force + left_force + 1e-8)
+    total = right_force + left_force
+    imbalance = xp.where(
+        total > min_support_force,
+        xp.abs(right_force - left_force) / (total + 1e-8),
+        1.0,
+    )
     return -weight * imbalance, imbalance
 
 

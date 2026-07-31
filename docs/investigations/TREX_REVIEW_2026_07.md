@@ -876,35 +876,187 @@ The MJX default of 0.5 is shared and every SB3 default differs (T-Rex 0.62, Dibo
 0.55). Not audited — out of scope for this review by instruction.
 *What would resolve it:* running the F2 probe for each species, or the general fix in NS-4.
 
+**OQ-6 — Brachiosaurus's four foot touch sensors read exactly 0.0 N while its feet are on the
+floor.** Found while measuring the cross-species zero-action floor; **not part of this review's
+scope and not investigated**, but confirmed directly and filed because it is live:
+
+```
+$ # brachiosaurus, zero action, 200 steps settled
+touch sensors: [('fr_foot_touch', 0.0), ('fl_foot_touch', 0.0),
+                ('rr_foot_touch', 0.0), ('rl_foot_touch', 0.0)]
+floor contacts: 9, total normal force: 1733.3 N   (via mj_contactForce)
+```
+
+This is the same defect class as the T-Rex repair in `aa87445` and the raptor repair in
+`aa3395c`.
+
+**Since audited across all four species — see
+[FOOT_SENSOR_VERIFICATION.md](FOOT_SENSOR_VERIFICATION.md).** Two claims above need amending:
+
+* The velociraptor number was right and is now verified: **0.553**, because the touch site sits
+  on `toe_d3` alone and misses the `metatarsus` (17.54 N) and lateral `toe_d4` (12.03 N) per
+  foot. `aa3395c` fixed that site's *size*, not its *body scope*.
+* The reward-path claim is **not** correct on current `main`:
+  `configs/brachiosaurus/stage1_balance.toml` sets neither `foot_contact_gate` nor
+  `foot_contact_weight` (nor `bilateral_support_weight` or `foot_load_balance_weight`), so no
+  stage-1 reward term reads these sensors on either affected species. The live impact is on the
+  **observation** — brachiosaurus trains with four permanently zero input channels at indices
+  75–78 of 83, and the raptor policy sees 55% of true per-foot load.
+
+*What resolves it:* the same repair `aa87445` made — per-geom touch sites and sensors, appended
+so existing sensor indices keep their positions, summed per foot on both backends. One change
+per species, each moving that species' physics and policy fingerprints.
+
 ---
 
 ## 5. Next steps, ranked
 
-**NS-1 — Give stage 1 a term the statue cannot collect. (Addresses F1.)**
-*Change:* add a stance-quality term that a constant action scores near zero on — the
-strongest candidate is a centre-of-pressure / support-polygon margin term, since the plant
-already carries per-digit touch sensors that make CoP computable; a cheaper stand-in is
-re-enabling `reset_noise_scale` sweeps so the reward has to buy recoveries rather than luck.
-*Touches:* `configs/trex/stage1_balance.toml` `[env]`, plus a new helper in
-`environments/shared/reward_functions.py`.
-*Expected:* the zero-action full-horizon score drops well below the trained score; the
-per-step comparison in F1 inverts.
-*Measurement that decides it:* re-run `zero_action_baseline.py trex` and the F1 per-step
-table. Success is the trained per-step return exceeding the standing statue's, on the same
-seed family. Until that inverts, stage 1 is not measuring balance.
-*Note:* this makes future runs incomparable with §2. Do it once, deliberately, and re-baseline.
+**NS-1 — Change the task, not the reward. (Addresses F1.)**
 
-**NS-2 — Re-derive `min_avg_reward` against the *standing* floor, not the falling one —
-for all four species, not just T-Rex.**
-*Change:* `configs/*/stage1_balance.toml` `min_avg_reward`. T-Rex's 1840 is +5.5% over the
-all-episode zero-action mean (1743.73); the standing-statue score is 2834.95. The other three
-are still at the default 100.0, which their own statues clear by 17×, 1.1× and 17×.
-*Expected:* a gate that a statue cannot clear even when it survives, on every species.
-*Measurement:* the §3b pre-flight cell should report `OK` for all four. Do NS-1 first —
-raising the gate against today's reward would just fail every run.
-*Note:* this is the single highest-leverage item on the list now that the floor is measured
-across species. Three of four gates currently cannot fail, so three of four stage-1 results
-carry no information.
+An earlier draft of this item proposed "add a stance-quality term the statue cannot collect,
+strongest candidate a centre-of-pressure / support-polygon margin." **That was wrong, and the
+reason it is wrong is the most useful thing in this section.**
+
+Four candidate designs were built and each attacked by two independent verifiers who
+implemented the proposed term in a standalone rollout and measured it for the statue and for
+`robust_best_model.zip`. **None survived.** Three of the four add a per-step reward term, and
+all three were refuted 2/2 on the same measured failure — the statue collects the term *at
+least as much as* the trained policy:
+
+| candidate | statue (per 1000 standing steps) | trained policy | winner |
+|---|---|---|---|
+| two-sided height error (repair the existing term) | −1.25, and −0.00 in the settled window | −51.57 | statue by 50.32 |
+| capture-point / support-polygon containment | −392.86 | −1792.58 | statue by 1399.72 |
+| potential-based shaping on divergent CoM velocity | +0.99/ep | −1.45/ep | statue by 2.44 |
+
+Three unrelated mathematical families, same result. That is not three tuning failures, it is
+one structural fact: **the plant is passively stable at the home keyframe, and at any static
+equilibrium the centre of pressure lies exactly under the centre of mass** (measured to 0.2 mm
+over 6126 statue steps — it is forced, since at rest the ground reaction must pass through the
+CoM). Any bounded per-step function of the standing state that means "well balanced" is
+therefore *maximised by standing perfectly still*, which is exactly what `action = 0` does
+under `home-keyframe-residual/v1`. **With no disturbance, the optimal balance controller is the
+statue.** You cannot pay a policy to beat it at a game where it is already the optimum.
+
+Two of the three also made F1 numerically worse: the height repair moves the equal-survival
+deficit 333.66 → 381.32 and drops the achievable stage-1 ceiling to 1850.00 against
+`min_avg_reward = 1840.0`, i.e. it would make the shipped gate near-unclearable and halt the
+curriculum at `train_base.py:1292`.
+
+*Change instead:* apply a scheduled external shove — a runtime write to
+`data.xfrc_applied[root, 0:3]` in `BaseDinoEnv.step`, no reward term, no observation change.
+Every ~2 s, push the root horizontally in a uniformly random direction with an impulse sized at
+1.5× the capture-point velocity (≈150 N for 0.20 s on this plant).
+*Touches:* a new `_apply_perturbation()` in `environments/shared/base_env.py` called at the top
+of `step()`, a pure `external_push_force()` kernel in `environments/shared/reward_functions.py`
+so both backends share it, and new `perturbation_*` keys in `configs/trex/stage1_balance.toml`
+`[env]` defaulting to `0.0` everywhere else.
+
+**It must go in `step()`, not `reset()`.** Verified: `plant_contract.py:916` hashes
+`_callable_semantics(env.reset)` into `policy_interface_revision` for every
+`home-keyframe-residual/v1` species, while `step` appears **zero** times in the interface
+payload. A `step()` hook moves no fingerprint and invalidates no checkpoint.
+
+*Measured, 40 episodes, seed 3042, reproduced independently by two verifiers:*
+
+| | statue | trained checkpoint |
+|---|---|---|
+| shipped (no push) | 1743.73, 57% full-horizon | 2489.65, 100% |
+| push on, noise 0.05 | **711.05 ± 403.76, 0 of 40 full-horizon** | 2418.38 ± 357.61, 85% |
+| push on, noise 0.10 | **604.18 ± 483.99, 0 of 40** | **NOT MEASURED** |
+
+The statue does not merely score less — *the standing statue ceases to exist*, so
+`reward_mean_standing` becomes undefined and the F1 comparison has no left-hand side. Gaming
+was hunted hard and found nothing: 13 hand-designed constant stances, two independent CEM
+searches over the full 21-dim constant action space (best holdouts 490.3 and 692.0, both ≤
+zeros), the trained policy's own settled mean action held constant (184.6), and a blind
+clock-driven brace policy (732.8 mean, worse mean-minus-std, 1 of 40 full-horizon).
+
+*The one load-bearing number that does not exist:* the trained checkpoint has never been
+evaluated at noise 0.10 with the push on. That is a ~10-minute eval, not a training run, and it
+gates everything below.
+
+> **Staleness warning on the pushed table above.** These figures are `[artifact-derived,
+> unverified]` and **cannot be reproduced from this repository**: the perturbation
+> implementation, the authoritative force conversion, the registered schedule and the raw
+> per-episode outcomes are all absent, and the checkpoint available today differs from the
+> artifact behind the published `2489.65`. They also predate `435f35f`, which changed the
+> stage-1 stance reward — on the undisturbed task that commit moved the statue **+227.84** mean
+> and **+409.09** standing with byte-identical trajectories. Re-measure every one of them on a
+> registered seed schedule once the scheduler lands, before treating any of them as a
+> calibration input. `STAGE1_SPLIT_PLAN.md` §10 step 10 is the experiment that does this.
+>
+> Two statistical corrections to how the table reads: `0 of 40` bounds zero-action survival
+> **above** by 7.216% (exact one-sided 95%), not at zero; and the checkpoint's 85% is 34/40,
+> whose exact one-sided 95% lower bound is 0.72526 — only narrowly above a 0.70 requirement,
+> and measured at noise 0.05 while the config retains 0.10.
+
+*Mandatory corrections to the proposal as filed* — each measured, not argued:
+
+1. **Do not bundle `reset_noise_scale` 0.10 → 0.05.** At 0.05 with the push off the statue
+   scores 2568.7 at 90% full-horizon against the checkpoint's 2498.8 — the statue wins
+   outright, reversing the shipped config's +660.5 edge to the policy. Keep 0.10.
+2. ~~**Ship the impulse fixed, not ramped.** `set_reward_weight` is a bare `setattr`, so a
+   `RewardRampCallback` would be a step function.~~ **This correction was wrong about the
+   mechanism, and is withdrawn.** `RewardRampCallback` already computes linearly interpolated
+   values from global timesteps and propagates them periodically via `env_method`; the setter
+   merely applies what the callback computed, so it does not force a step function. The real
+   gap is a *dynamic perturbation-scale input* with one defined unit across backends and defined
+   resume behaviour. Ramp versus fixed is an open question to be settled by a transfer pilot,
+   not a decision this review can make — see `STAGE1_SPLIT_PLAN.md` §3.3.
+3. **Jitter the interval** (`perturbation_jitter`). The blind-clock brace exploit is weak but
+   real (+17% mean); one line removes it. Re-measure the floor with jitter on.
+4. ~~**Force `perturbation_delta_v = 0.0` in every diagnostic script.**~~ **Superseded.**
+   Forcing the perturbation off everywhere recreates the incompatible-baseline problem it was
+   meant to prevent: a recovery gate must be calibrated against the *pushed* floor, and a tool
+   that silently disables the configured task cannot produce one. Diagnostic tooling needs
+   explicit, persisted task modes instead — `plant_sanity` (perturbation forced off) and
+   `task_gate` (perturbation exactly matching advancement evaluation). See
+   `STAGE1_SPLIT_PLAN.md` §7.3. This item also listed `actuator_saturation_report` in error: it
+   loads raw XML via `mujoco.MjModel.from_xml_string` and steps MuJoCo directly
+   (`environments/shared/scripts/actuator_saturation_report.py:44-76`), so it never builds an
+   env from the TOML and is unaffected. The genuinely affected tools are `zero_action_baseline`,
+   `joint_excursion_report`, `action_bound_report` and `observation_ablation_report`.
+5. **Leave `min_avg_reward = 1840.0` alone.** The "+5.5% over the measured floor" rule dies
+   with the floor: 1840 is 2.6× the pushed statue and the un-retrained checkpoint clears it by
+   ~580. Rewrite the comment block, not the value. NS-2 above is now superseded outright rather
+   than only for T-Rex, so this item no longer contradicts it.
+
+*Honest scope.* This does **not** repair the per-step reward. Under the push the statue still
+earns more shaping per surviving step than the policy (2.680 vs 2.553); all the separation comes
+from termination plus `fall_penalty`. Stage 1 stays a survival test — it becomes a survival test
+a statue fails. Record that in the TOML rather than claiming the reward now measures balance.
+
+*Worth re-testing afterwards, not before:* the support-polygon term was refuted on an
+**undisturbed** plant, where the statue's capture point barely moves. Once a disturbance exists
+the statue no longer stands and a disturbance-rejection term is no longer maximised by
+stillness. It would still need its two real defects fixed first — a single-support exploit (the
+isotropic `patch_radius²·I` floor lets one loaded digit score containment 1.0000) and the fact
+that 90% of its measured statue deficit is a 13.2 mm touch-site placement artefact rather than a
+stance error.
+
+**NS-2 — ~~Re-derive `min_avg_reward` against the *standing* floor~~ — SUPERSEDED.**
+
+> **Do not implement the survivor-conditioned standing floor.** This item, and NS-1
+> correction 5 which contradicts it for T-Rex, are superseded by `STAGE1_SPLIT_PLAN.md` §5.1.
+> The recommendation was to gate on the zero-action mean *conditioned on full-horizon survival*
+> — but the policy is gated on its **unconditional** mean, so the conditioning removes exactly
+> the failure mode the policy is supposed to eliminate. Measured counterexample: over 120
+> seed-matched episodes the trained policy beat zero action by **+568.02** with survival
+> **118/120 against 68/120**, while sitting 677–775 points *below* the survivor-conditioned
+> statue mean. A standing-floor gate would reject a policy that is unambiguously better than
+> doing nothing.
+>
+> The replacement is a **paired** superiority test on identical seeds,
+> `LCB95(mean(R_policy_i − R_zero_i)) ≥ Δ_R`, which is authoritative; any unpaired scalar is
+> for display and screening only and must never override it.
+
+The observation that motivated this item still stands and is still the point: three of four
+stage-1 gates cannot fail. On `48fd90a` a zero-action policy clears the **reward** threshold on
+all four species and clears velociraptor's **complete** reward-plus-length gate outright. What
+changed is the remedy — raising a reward threshold cannot fix a stage where a statue is the
+optimal controller (NS-1), so the answer is a state-capability gate and a disturbance, not a
+bigger number.
 
 **NS-3 — Decide the alive-bonus semantics once, and pin it with a test. (F3.)**
 *Change:* either scale SB3's `_reward_alive` by `height_frac` to match `mjx_env.py:602-613`,
@@ -1001,7 +1153,7 @@ precisely the configuration in which 13 h of training tells you nothing.
 
 | finding | why not |
 |---|---|
-| **F1** | Reward-weight tuning, excluded by instruction, and it makes every run in §2 incomparable. Needs the NS-1/NS-2 pair done together and re-baselined. |
+| **F1** | Reward-weight tuning, excluded by instruction, and it makes every run in §2 incomparable. Now addressed by NS-1 alone — NS-2 is superseded, since no reward threshold can fix a stage where a statue is the optimal controller. Still needs a re-baseline. |
 | **F3** | Either direction changes the reward scale on one backend; a design decision, not a bug fix. |
 | **F4** | Shared code affecting all four species, and the per-stage semantics (chase vs straight-line) are a design call. |
 | **F5** | One-way door — your call by instruction. Also blocked on OQ-1. |

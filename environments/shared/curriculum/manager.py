@@ -14,6 +14,8 @@ import numpy as np
 
 from environments.shared.config import load_all_stages
 
+from .gate_schema import validate_gate_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -251,6 +253,8 @@ class CurriculumManager:
 
 def thresholds_from_configs(
     configs: dict[int, dict[str, Any]],
+    *,
+    advancement_enabled: bool = True,
 ) -> dict[int, dict[str, Any]]:
     """Extract stage thresholds from loaded TOML configs.
 
@@ -259,13 +263,25 @@ def thresholds_from_configs(
 
     Args:
         configs: Dict mapping stage number to config dict (from ``load_all_stages``).
+        advancement_enabled: Whether this run may advance between stages. Passed
+            through to :func:`~environments.shared.curriculum.gate_schema.validate_gate_config`,
+            which tolerates a missing gate declaration only when it is ``False``.
 
     Returns:
         Dict mapping stage number to threshold kwargs.
+
+    Raises:
+        GateSchemaError: If any stage's gate declaration is missing, unknown,
+            or malformed.
     """
     thresholds: dict[int, dict[str, Any]] = {}
     for stage, cfg in configs.items():
         cur = cfg.get("curriculum_kwargs", {})
+        # Fail closed. Silently dropping an unrecognised key here is what let a
+        # composite-only gate config produce no thresholds at all, after which
+        # StageThreshold's permissive defaults advanced the stage on any
+        # evaluation whatsoever. See gate_schema for the full failure mode.
+        validate_gate_config(stage, cur, advancement_enabled=advancement_enabled)
         threshold_fields: dict[str, Any] = {}
         if "min_avg_reward" in cur:
             threshold_fields["min_avg_reward"] = cur["min_avg_reward"]

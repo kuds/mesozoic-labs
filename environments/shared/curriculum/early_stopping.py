@@ -34,10 +34,11 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
     even though the episode mean remains healthy.
 
     Detection stays disarmed until the rolling-median peak clears
-    ``peak_floor`` (wired to the stage's ``min_avg_reward`` curriculum gate
-    by ``_build_core_callbacks``): a run can only "collapse" from a level
-    that was actually good, so the pre-convergence grind cannot trip the
-    backstop.
+    ``peak_floor``: a run can only "collapse" from a level that was actually
+    good, so the pre-convergence grind cannot trip the backstop. Each stage
+    config sets its own ``collapse_peak_floor``; the value is deliberately not
+    inherited from ``min_avg_reward``, which would couple this backstop to an
+    unrelated advancement threshold.
 
     Args:
         eval_callback: The ``EvalCallback`` whose ``evaluations.npz``
@@ -138,19 +139,50 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         return True
 
 
+def collapse_settings_from_config(curriculum_kwargs: dict[str, Any]) -> dict[str, Any]:
+    """Resolve the eval-collapse backstop's settings from a stage config.
+
+    Kept separate from the callback so the resolution can be tested without
+    stable-baselines3 installed — it is plain arithmetic on a config dict, and
+    the one rule worth pinning does not need SB3 to state.
+
+    That rule: ``collapse_peak_floor`` is deliberately **not** inherited from
+    ``min_avg_reward``.  It used to chain ``collapse_peak_floor`` ->
+    ``min_avg_reward`` -> ``0.0``, which coupled an early-stop backstop to an
+    unrelated advancement threshold: removing the reward gate from a stage --
+    as a state-capability gate would -- silently dropped the floor to ``0.0``,
+    arming collapse detection after *any* positive robust peak.  A missing
+    floor now means "never arm" instead, because a backstop that is not
+    configured should not abort a run; every stage config sets the value it
+    actually wants.  See docs/STAGE1_SPLIT_PLAN.md section 7.4.
+    """
+    return {
+        "min_evals": int(curriculum_kwargs.get("collapse_min_evals", 12)),
+        "patience": int(curriculum_kwargs.get("collapse_patience", 8)),
+        "drop_fraction": float(curriculum_kwargs.get("collapse_drop_fraction", 0.4)),
+        "peak_floor": float(curriculum_kwargs.get("collapse_peak_floor", float("inf"))),
+        "smoothing_window": int(curriculum_kwargs.get("collapse_smoothing_window", 5)),
+    }
+
+
 def build_eval_collapse_early_stop_callback(
     eval_callback: Any,
     curriculum_kwargs: dict[str, Any],
     *,
     verbose: int = 0,
 ) -> EvalCollapseEarlyStopCallback:
-    """Build the shared eval-collapse backstop from curriculum settings."""
+    """Build the shared eval-collapse backstop from curriculum settings.
+
+    See :func:`collapse_settings_from_config` for how the settings resolve, in
+    particular why ``collapse_peak_floor`` does not inherit ``min_avg_reward``.
+    """
+    settings = collapse_settings_from_config(curriculum_kwargs)
     return EvalCollapseEarlyStopCallback(
         eval_callback=eval_callback,
-        min_evals=int(curriculum_kwargs.get("collapse_min_evals", 12)),
-        patience=int(curriculum_kwargs.get("collapse_patience", 8)),
-        drop_fraction=float(curriculum_kwargs.get("collapse_drop_fraction", 0.4)),
-        peak_floor=float(curriculum_kwargs.get("collapse_peak_floor", curriculum_kwargs.get("min_avg_reward", 0.0))),
+        min_evals=settings["min_evals"],
+        patience=settings["patience"],
+        drop_fraction=settings["drop_fraction"],
+        peak_floor=settings["peak_floor"],
         verbose=verbose,
-        smoothing_window=int(curriculum_kwargs.get("collapse_smoothing_window", 5)),
+        smoothing_window=settings["smoothing_window"],
     )

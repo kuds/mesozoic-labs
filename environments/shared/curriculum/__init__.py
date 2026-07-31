@@ -39,6 +39,8 @@ training loop can drive the curriculum without importing SB3 at all:
   entropy-coefficient decay
 * :mod:`~environments.shared.curriculum.advancement` — stage entry, reward
   ramping, and gate evaluation
+* :mod:`~environments.shared.curriculum.gate_schema` — the versioned,
+  fail-closed declaration every stage config's gate is validated against
 * :mod:`~environments.shared.curriculum.early_stopping` — abort a stage whose
   evaluation return has collapsed
 * :mod:`~environments.shared.curriculum.checkpoints` — checkpoint selection,
@@ -59,14 +61,24 @@ from .early_stopping import (
     EvalCollapseEarlyStopCallback,
     build_eval_collapse_early_stop_callback,
 )
+from .gate_schema import (
+    GATE_KINDS,
+    GATE_SCHEMA_VERSION,
+    GateSchemaError,
+    validate_gate_config,
+    validate_gate_configs,
+)
 from .manager import CurriculumManager, StageThreshold, thresholds_from_configs
 from .schedules import EntCoefDecayCallback, _ConstantSchedule
 
 __all__ = [
+    "GATE_KINDS",
+    "GATE_SCHEMA_VERSION",
     "CurriculumCallback",
     "CurriculumManager",
     "EntCoefDecayCallback",
     "EvalCollapseEarlyStopCallback",
+    "GateSchemaError",
     "PublishEvalArtifactsCallback",
     "RewardRampCallback",
     "RobustBestModelCallback",
@@ -78,4 +90,6 @@ __all__ = [
     "load_vecnorm_stats",
     "sb3_compat",
     "thresholds_from_configs",
+    "validate_gate_config",
+    "validate_gate_configs",
 ]
