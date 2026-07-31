@@ -48,6 +48,73 @@ tolerance) remains the standing recommendation for the divergences above.
 
 ## Training / RL
 
+<!-- The six items below come from the 2026-07-31 plant validation pass; full
+     evidence in PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md. The reset and
+     self-collision defects that pass also found are FIXED in PR #479 and so
+     are deliberately not listed here. -->
+
+- **HIGH** — **the stage-1 objective's global optimum is the zero-action
+  policy, so no reward threshold can gate it.** Summing the positive T-Rex
+  stage-1 weights gives 3.35/step = 3350; the statue collects 3250.27 = **97.0%**
+  of it with `energy` and `smoothness` at exactly zero. Every active policy pays
+  both — the 7/31 run paid 0.30/step on smoothness alone — so a policy's ceiling
+  sits *below* the statue's score. Set a threshold above the statue and stage 1
+  is unpassable; below, and a statue passes. Needs the episode-level
+  `stance_success` gate (STAGE1_SPLIT_PLAN §2.3), not a better number.
+  (PLANT_VALIDATION §9)
+
+- **HIGH** — **all four stage-1 `min_avg_reward` values are cleared by their own
+  species' statue**: trex 1840 vs 2243.12; velociraptor, brachiosaurus and
+  dibothrosuchus all 100, vs 1746 / 163 / 1834. The gates certify nothing today.
+  Cheap to fix and independent of any training run. (PLANT_VALIDATION §6)
+
+- **HIGH** — **brachiosaurus stage 1 is not a balance task.** Its zero-action
+  baseline scores **0/40** full-horizon at a mean length of 130.7
+  (`fallen` 34, `tail_contact` 6) — the statue falls every time, so there is no
+  "do not fall" floor to beat and no brachiosaurus stage-1 result is
+  interpretable. Pre-existing; verified identical before and after the PR #479
+  plant repair. Mechanism not diagnosed. (PLANT_VALIDATION §6)
+
+- **HIGH** — **`foot_load_balance_min_support_force = 0.0` makes the §7.1
+  airborne repair a no-op.** `derive_stance_info` and `reward_foot_load_balance`
+  differ only in the near-zero branch, yet produced bit-identical output over all
+  709 logged rollouts (`max |diff| = 0.000000`, correlation `1.000000`) spanning
+  30–67% unsupported duty. The sum of two touch-sensor readings is essentially
+  never exactly `0.0`, so the airborne branch never fires. The duty metrics use
+  `> 0.1 N` per foot, so a foot at 0.001 N is *unsupported* in the diagnostic and
+  *supported* in the reward. Needs a real threshold and a **monotone** ordering
+  (airborne strictly worse than single support, not equal). `derive_stance_info`
+  still scores true-airborne as perfect balance for the same reason.
+  (PLANT_VALIDATION §11.1)
+
+- **MEDIUM** — **`smoothness_weight` penalises action-delta magnitude, not
+  frequency, and cannot see a high-frequency limit cycle.** From the 7/31 run's
+  best to final checkpoint, `action_delta` *fell* 12.0 → 10.5 and the smoothness
+  penalty *improved* −0.286 → −0.250, while toe-motion power above 4 Hz
+  **doubled** 35% → 71%. The policy got smoother by the metric while getting
+  buzzier in fact. Needs a contact-switch-rate cost or smoothness on the second
+  difference of actions. (PLANT_VALIDATION §11.2)
+
+- **MEDIUM** — **`collapse_peak_floor` is an absolute reward value and cannot
+  survive a reward-function edit.** Calibrated at 2200 against the 7/29 run
+  (rolling-median peak 2496), it left the 7/31 run (peak **1934.1**) permanently
+  disarmed through a **−59%** collapse (2148.3 → 888.0; full-horizon 93% → 7%).
+  Simulation confirms it never armed; it also confirms that even armed at the old
+  inherited 1840 floor, `drop_fraction=0.5` + `patience=10` would not have fired.
+  Make the floor relative to the zero-action standing baseline and tighten the
+  drop/patience pair independently. (PLANT_VALIDATION §11.4)
+
+- **LOW** — **contact-switch rate conflates bilateral↔single with
+  bilateral↔airborne.** The PR #479 plant repair moved T-Rex's raw switch count
+  *up* (0.86 → 1.00 /s) while unsupported duty went to **zero** — the extra
+  switches are ordinary weight-shifting. Do not gate on it until decomposed;
+  gate on unsupported duty instead. (PLANT_VALIDATION §11.3)
+
+- **LOW** — **four stage-1 reward terms are saturated and contribute no
+  gradient**: `head_clearance` pinned at exactly its full 0.350 weight in every
+  measured window, `height` 0.578 of 0.6, `neck_posture` 0.173 of 0.2,
+  `leg_home_pose` 0.312 of 0.5. (PLANT_VALIDATION §14)
+
 - **MEDIUM** — **the policy saturates its action bound, and the
   `diagnostics/action_*` family mixes pre-clip and post-clip quantities.**
   Measured on T-Rex stage-1 run `20260727_130726` (PPO, 6.0M steps), from its
