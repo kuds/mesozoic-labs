@@ -49,7 +49,10 @@ mesozoic-labs/
 │   └── shared/                # Shared base classes and utilities
 │       ├── base_env.py        # BaseDinoEnv abstract class
 │       ├── config.py          # TOML configuration loading
-│       ├── curriculum.py      # Curriculum learning manager
+│       ├── curriculum/        # Curriculum manager and SB3 callbacks
+│       ├── plant_contract/    # Layered MuJoCo plant safety contract
+│       ├── reporting/         # Result summaries, CSVs, and stage artifacts
+│       ├── result_bundle/     # Provenance, hashing, and bundle validation
 │       ├── train_base.py      # Shared SB3 training infrastructure
 │       ├── species_registry.py # Species configuration registry
 │       ├── metrics.py         # Locomotion evaluation metrics
@@ -57,6 +60,7 @@ mesozoic-labs/
 │       ├── mjx_env.py         # JAX/MJX batched environment
 │       ├── jax_ppo.py         # JAX-native PPO implementation
 │       ├── jax_training.py    # JAX training loop
+│       ├── harnesses/         # Hand-run smoke checks and MJCF viewers
 │       └── tests/             # Shared utility tests
 ├── configs/                   # TOML hyperparameter configs per species/stage
 ├── notebooks/                 # Jupyter training, sweep, and reporting workflows
@@ -81,7 +85,7 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 | Action dimension / actuators | 22 |
 | Generalized coordinates / velocities | nq=31, nv=30 |
 | Compiled dynamic model mass | 13.5 kg |
-| Plant contract revisions | policy r6; physics r2; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r7; physics r2; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/velociraptor/assets/raptor.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -108,7 +112,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Action dimension / actuators | 21 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
 | Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r7; physics r5; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r8; physics r5; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/trex/assets/trex.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -157,7 +161,7 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 | Action dimension / actuators | 27 |
 | Generalized coordinates / velocities | nq=35, nv=34 |
 | Compiled dynamic model mass | 8.7 kg |
-| Plant contract revisions | policy r3; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r4; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/dibothrosuchus/assets/dibothrosuchus.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |

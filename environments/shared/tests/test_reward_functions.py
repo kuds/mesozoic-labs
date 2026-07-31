@@ -261,6 +261,41 @@ class TestStageOneStancePrimitives:
         assert unilateral_imbalance == pytest.approx(1.0)
         assert unilateral_reward == pytest.approx(-1.5)
 
+    def test_airborne_is_maximally_imbalanced_not_perfectly_balanced(self):
+        """Regression: ``[0, 0]`` used to return imbalance 0.0.
+
+        ``|R - L| / (R + L + 1e-8)`` evaluates to zero when both feet read
+        zero, so being airborne scored the same as standing evenly and
+        strictly better than honest single support -- which pays the full
+        penalty. On a balance stage that makes flight the cheapest way to
+        avoid the term, and a policy off the ground cannot reject a
+        disturbance at all. See docs/STAGE1_SPLIT_PLAN.md section 7.1.
+        """
+        reward, imbalance = reward_foot_load_balance(np.array([0.0, 0.0]), 1.5)
+        assert imbalance == pytest.approx(1.0)
+        assert reward == pytest.approx(-1.5)
+
+    def test_airborne_is_no_cheaper_than_single_support(self):
+        """The ordering the stage-1 reward depends on."""
+        _, airborne = reward_foot_load_balance(np.array([0.0, 0.0]), 1.5)
+        _, single = reward_foot_load_balance(np.array([80.0, 0.0]), 1.5)
+        _, even = reward_foot_load_balance(np.array([80.0, 80.0]), 1.5)
+        assert even < single <= airborne
+
+    def test_min_support_force_denies_credit_for_a_grazing_contact(self):
+        forces = np.array([0.25, 0.25])
+        _, unguarded = reward_foot_load_balance(forces, 1.5)
+        _, guarded = reward_foot_load_balance(forces, 1.5, 10.0)
+        assert unguarded == pytest.approx(0.0)
+        assert guarded == pytest.approx(1.0)
+
+    def test_default_leaves_every_loaded_state_unchanged(self):
+        """The default 0.0 threshold must close only the exact [0, 0] case."""
+        for forces in ([80.0, 80.0], [80.0, 0.0], [120.0, 40.0], [1e-6, 1e-6]):
+            _, imbalance = reward_foot_load_balance(np.array(forces), 1.0)
+            expected = abs(forces[0] - forces[1]) / (forces[0] + forces[1] + 1e-8)
+            assert imbalance == pytest.approx(expected)
+
     def test_soft_home_pose_reports_rms_and_mean_joint_quality(self):
         tolerance = 0.5
         joint_positions = np.array([0.0, tolerance])

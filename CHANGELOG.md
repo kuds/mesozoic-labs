@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.4)
+## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
 ### Changed
 - **T-Rex home stance corrected to a flexed theropod limb** (breaking — plant
@@ -87,7 +87,226 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   effective hunting curriculum. 12M matches the brachiosaurus stage-3
   budget.
 
+- **The four largest `environments/shared` modules are now packages**, each
+  split along the seams its own docstring already described. Public surfaces
+  are unchanged — every package `__init__` re-exports exactly what the module
+  exported, so no import site outside the packages moved:
+  - `reporting.py` (1,929 lines) → `formatting`, `gates`, `csv_output`,
+    `text_summaries`, `summaries`, `bundles`, `stage_artifacts`
+  - `plant_contract.py` (1,822) → one module per contract layer
+    (`source_layer`, `policy_layer`, `physics_layer`, `visual_layer`) over
+    `constants`/`errors`/`digests`/`identity`/`versions`/`introspection`, with
+    `manifest`, `validation`, and a `__main__` for the existing
+    `python -m environments.shared.plant_contract --check` entry point
+  - `curriculum.py` (1,316) → `sb3_compat`, `manager`, `schedules`,
+    `advancement`, `early_stopping`, `checkpoints`; the manager no longer
+    shares a module with the SB3 integration
+  - `result_bundle.py` (1,201) → `constants`, `errors`, `naming`, `hashing`,
+    `provenance`, `manifest`, `evidence`, `audit`
+
+  Three test patch points moved with the code they belong to: the plant
+  contract's `configs/` paths are read through its `constants` module,
+  `_SB3_AVAILABLE` through `curriculum.sb3_compat`, and the provenance helpers
+  through `result_bundle.provenance`. Each is now a single patch point rather
+  than one per consuming module.
+
+- **Fixed: default provenance capture resolved the repository root one level
+  too shallow.** `initialize_result_bundle` derived it as
+  `Path(__file__).resolve().parents[2]`, correct while the code lived in
+  `environments/shared/result_bundle.py` but off by one once it moved into
+  `result_bundle/provenance.py`, where it resolved to `<repo>/environments`.
+  `git status` reports repo-wide while `git ls-files --others` is scoped to its
+  working directory, so an untracked file under `configs/` or the repository
+  root set `repository_dirty` without entering `repository_patch_sha256` —
+  materially different dirty trees could share one provenance hash. The root is
+  now `REPOSITORY_ROOT` in `result_bundle/constants.py`, derived from a named
+  `_SHARED_ROOT` anchor rather than a bare parent count, read through the
+  `constants` module so there is one authoritative binding, and pinned by three
+  tests — one on the constant, one on the initializer's default wiring, and one
+  asserting a root-level untracked file changes the patch hash. Note the expression was byte-identical across the move, so an AST-level
+  verbatim check could not see it; only evaluating it could.
+
+- **The per-species script harnesses moved to `environments/shared/harnesses/`**
+  and no longer use `test_` names: `test_env_base.py` → `harnesses/env_smoke.py`,
+  `test_actuators_base.py` → `harnesses/actuators.py`, `view_model_base.py` →
+  `harnesses/viewer.py`, with `test_actuators()` → `run_actuator_test()` and the
+  internal `test_*` checks → `check_*`. These are hand-run smoke checks and
+  viewers, but pytest collected them as tests — and errored on their unfillable
+  `env_class`/`cfg` arguments — for any invocation that reached them, which the
+  repository's `testpaths`/`norecursedirs` settings were the only thing
+  preventing. The coverage `omit` entry added to work around the old naming is
+  replaced by one covering the package.
+
+- **CI now measures the coverage it actually produces.** Three jobs ran tests
+  without `--cov` — `test-jax-cpu`, `test-sb3` and `plant-contract` — and those
+  are precisely the jobs carrying the optional dependencies. The only job
+  reporting a number for `environments/shared` was `test-shared`, which installs
+  neither JAX nor SB3, so the modules needing them were omitted from the report
+  as "not available in the standard CI test environment". That stopped being
+  true when `test-jax-cpu` was added: 1,840 statements of JAX/MJX and 495 of
+  `train_base.py` — 23% of the production code in `environments/shared` — were
+  being exercised by CI and excluded from its number, which read 79.57% over the
+  remaining 7,652 statements.
+
+  Deleting the omits alone does not work; it drops `test-shared` to 66%, under
+  the `fail_under = 70` gate, because that job genuinely cannot import those
+  modules. So every test job now writes its own `.coverage.<job>` and uploads
+  it, and a new `coverage` job combines them and gates the union. Per-job
+  reports are suppressed with `--cov-fail-under=0`, since no single job's slice
+  is meaningful alone. `relative_files` is enabled so the combine lines up
+  across jobs. `harnesses/` and the mjlab adapter stay omitted, now with
+  accurate reasons — hand-run, and GPU-only with no job able to reach it.
+
+  The combined gate reports **80% over 11,071 statements**. On the comparable
+  `environments/shared` slice that is 78.07% over 9,987 statements against the
+  old 79.57% over 7,652 — the figure barely moves while the denominator grows
+  31%, which was the point. `fail_under` stays at 70 rather than being tuned to
+  the result. The combine log reads `Combined 15 files, skipped 3` against 18
+  artifacts: coverage.py content-hashes each data file and skips one whose
+  bytes match a file already combined, so three matrix runs that produced
+  identical data to a sibling Python version contributed nothing new. No data
+  is dropped.
+
+### Removed
+- **The top-level `Images/` directory** (25 MB): its three GIFs were
+  byte-identical to the copies under `website/static/img/`, which are the ones
+  the site and README actually reference. Nothing in the repository referred to
+  `Images/` except the `.dockerignore` entry excluding it, now also dropped.
+
+### Added
+- **`stance_duty_validation.py`, which shows the support-duty metrics measure
+  what they claim.** `unsupported_duty` and its siblings classify each step by
+  thresholding the foot touch sensors at 0.1 N, and that reading is the evidence
+  behind the claim that the stage-1 policy is off the ground ~21% of the time —
+  a sensor that under-reports contact looks exactly like a foot in flight. The
+  static check above covers one operating point; this sweeps driver policies
+  producing **3% to 67%** airtime and compares the sensors against both
+  `mj_contactForce` over foot-geom contacts and `mj_geomDistance` from every
+  foot geom to the floor, the latter computed from geometry alone and so
+  independent of the sensor path. The metric tracks kinematic truth to within
+  **0.52%** of steps across the whole range (2.6% only under uniform-random
+  actuation, which no policy occupies), and the two error directions nearly
+  cancel. The decisive row is low-amplitude jitter — **16.07% true airtime
+  against 16.21% reported**, straddling the figure under dispute. Combined with
+  the 0.1 N threshold sitting against ~421 N per foot in quiet stance, the
+  sensor-artifact explanation for `STAGE1_SPLIT_PLAN.md` §1.5 is exhausted and
+  its hopping reading can be relied on. This validates the *instrument*, not the
+  policy: the checkpoint was not replayed, and the causal half of §1.5 ("the
+  reward caused the hop") still needs a counterfactual run.
+- **`foot_sensor_report.py`, and a four-species audit of what the foot touch
+  sensors actually measure.** A MuJoCo touch sensor sums only contacts on geoms
+  belonging to its site's own body, so a site on a parent segment silently
+  misses whatever the child geoms carry — a failure invisible from the reward
+  trace, because a sensor reading zero looks exactly like a foot off the ground.
+  Checking every species against `mj_contactForce` found T-Rex and dibothrosuchus
+  correct (ratio **1.000**) and two species wrong: **velociraptor at 0.553**,
+  missing its `metatarsus` (17.54 N) and lateral `toe_d4` (12.03 N) per foot
+  because the site sits on `toe_d3` alone, and **brachiosaurus at 0.000**, blind
+  to all 1699.2 N of its floor contact. Total floor reaction equals body weight
+  on all four, so the contacts are real and these are sensor-scope defects, not
+  physics ones. Neither reaches a stage-1 reward term today, but both reach the
+  **observation**: brachiosaurus trains with four permanently zero input
+  channels (indices 75–78 of 83) and the raptor's policy sees 55% of true
+  per-foot load. Repairs are per-species MJCF changes and are *not* included
+  here. Recorded in `docs/investigations/FOOT_SENSOR_VERIFICATION.md`, which
+  also corrects the ground-reaction-force reading in `STAGE1_SPLIT_PLAN.md` §6.2:
+  the T-Rex statue's 841 N is *exactly* body weight (840.9 N, ratio 1.002), and
+  the 1483 N that makes it look low is `mj_getTotalmass` counting the 65.45 kg
+  **prey body** — 43% of the model total. A GRF diagnostic must divide by the
+  animal's kinematic subtree or it reports a false 0.57 on a plant standing in
+  perfect equilibrium.
+
 ### Fixed
+- **Being airborne is no longer cheaper than honest single support.**
+  `reward_foot_load_balance` computed `|R − L| / (R + L + 1e-8)`, which
+  evaluates to **zero** when both feet read zero — so a plant off the ground
+  scored the same as one standing evenly on both feet, and strictly better than
+  one carrying its weight on a single foot, which pays the full penalty. On the
+  stage-1 weights that ordering was `both feet down +0.600 > airborne 0.000 >
+  single support −0.300`: flight was the second-best available state on the
+  stage whose entire job is to stand still, and a policy off the ground cannot
+  reject a disturbance at all. An unsupported pair now reports maximal
+  imbalance, giving `both feet down +0.600 > single support = airborne −0.300`.
+  A new optional `foot_load_balance_min_support_force` sets the total force
+  below which the pair counts as unsupported; it defaults to `0.0`, which closes
+  only the exact `[0, 0]` case and leaves **every loaded state numerically
+  unchanged**, and can be raised during gate calibration to also deny credit for
+  a token grazing contact. Wired identically through the Gymnasium, MJX and
+  JAX paths, with the `[0, 0]` case now covered in both `test_reward_functions`
+  and `test_trex_mjx_reward_parity` — neither covered it before, which is how
+  the hole survived. Note the two failure states are now *tied* rather than
+  airborne being strictly worst; separating them needs a term this fix does not
+  add.
+- **The curriculum advancement gate now fails closed** (breaking — every stage
+  config must declare `gate_schema_version` and `gate_kind`). The gate plumbing
+  failed *open* in three independent ways, so a stage could advance on evidence
+  nobody had checked. `thresholds_from_configs` copied six known keys out of
+  `[curriculum]` and **silently discarded everything else**, so a config
+  carrying only new-style gate fields produced no thresholds at all and SB3 fell
+  back to `StageThreshold`'s permissive defaults (`min_avg_reward = -inf`,
+  length and success floors `0`) — which advance on any evaluation whatsoever.
+  `jax_curriculum.check_stage_gate` logged a warning and returned `True` when
+  `min_avg_reward` was absent. And neither backend rejected an unrecognised key,
+  so a misspelled threshold name *disabled* that threshold instead of failing.
+  Together these made "no gate" indistinguishable from "gate satisfied", with
+  the permissive reading always winning — which is the wrong default for the
+  mechanism that decides whether a policy is good enough to build the next stage
+  on. A new `environments/shared/curriculum/gate_schema.py` makes the
+  declaration explicit and versioned: unknown keys, unknown gate kinds and
+  unsupported schema versions are **fatal** whenever advancement is enabled, and
+  a threshold field its declared kind does not consume is fatal too, since it
+  implies a gate that is not actually enforced. Running without a gate is still
+  possible, but only by declaring `gate_kind = "none/v1"`, which is recorded in
+  the config and *refuses* to advance rather than passing by default. All twelve
+  stage configs declare `reward_and_length/v1`; the existing tests that asserted
+  the permissive behaviour were updated in the same change, as they were the
+  reason the defect survived. Effective thresholds for all four species are
+  unchanged.
+- **`collapse_peak_floor` no longer inherits `min_avg_reward`**, which coupled
+  an early-stop backstop to an unrelated advancement threshold. The builder
+  chained `collapse_peak_floor` → `min_avg_reward` → `0.0`, and only
+  `configs/trex/stage1_balance.toml` set the key explicitly (1 of 12), so
+  removing a stage's reward gate — which a state-capability gate would do —
+  silently dropped its arming floor to `0.0` and armed collapse detection after
+  *any* positive robust peak. A missing floor now means **never arm**, because a
+  backstop that is not configured should not abort a run; the eleven configs
+  that were relying on the fallback now set the value it produced, so every
+  effective floor is bit-identical (`100.0` everywhere except T-Rex stage 1's
+  `2200.0`). `collapse_smoothing_window` was also readable but undeclared, and
+  is now part of the schema.
+- **Reset can no longer generate an already-terminal episode** (breaking —
+  policy interface revision bumps for the three home-keyframe-residual species:
+  velociraptor 6 → 7, T-Rex 7 → 8, dibothrosuchus 3 → 4; brachiosaurus does not
+  carry `home_reset` and is unchanged). The root-height jitter was the **only
+  unbounded term in the reset** — every other one is a bounded uniform — so
+  `BaseDinoEnv.reset` drew `normal(0, height_scale)` with nothing stopping it
+  from placing the root outside `healthy_z_range` before the policy acted.
+  T-Rex is the species it actually broke: a 0.926 m home pelvis sits 0.226 m
+  above the 0.70 m floor, which at σ = 0.10 m is only **2.26σ**, so a predicted
+  **1.19%** of spawns started sub-floor. Measured over seeds 3042–5041, 18/2000
+  spawned below the floor and **16 of those terminated on step 1 whatever the
+  policy did**; a wider scan of 3042–7041 found 43/4000. The draw is now
+  truncated to the distance to the nearer end of `healthy_z_range` less a 0.02 m
+  margin, which takes sub-floor spawns to **0/4000**. The bound is symmetric, so
+  the mean spawn height is unchanged (0.9262 → 0.9261 m over 2000 seeds) while
+  the standard deviation tightens 0.1007 → 0.0980. It binds at 2.07σ for T-Rex
+  (3.9% of draws) against 3.6–3.8σ for velociraptor and dibothrosuchus (~0.02%),
+  so those two move only in the far tail. Dibothrosuchus hit this same defect
+  first and fixed it by decoupling `reset_height_noise_scale`; T-Rex was left
+  coupled and nobody re-checked it.
+
+  **This does not meaningfully move the zero-action baseline, and that is the
+  point.** Re-measured on seeds 3042–3081 the statue is unchanged where it
+  matters — still 23/40 full-horizon, `reward standing` still 3244.04 ± 23.55,
+  unconditional mean 1971.57 → 1976.62 — because a statue fails those seeds
+  anyway. What the defect capped was the **competent** policy: an episode that
+  ends on step 1 regardless of the action is not a policy failure, and counting
+  it as one put an unreachable ceiling on any reliability gate. Seed 3077 is
+  precisely the first failure in the 39/40 evaluation panels that
+  `docs/STAGE1_SPLIT_PLAN.md` §2.3.1 reports, and it is this bug rather than the
+  policy. Existing checkpoints for the three bumped species were trained against
+  a different reset distribution and must be re-baselined before any stage-1
+  gate is calibrated against them.
 - **T-Rex stages 2 and 3 no longer terminate at a different pitch angle on the
   MJX path than on the Gymnasium one**: `nosedive_termination_threshold` is the
   per-stage tunable pitch gate, and only `stage1_balance.toml` sets it. When a
@@ -193,6 +412,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already terminated.
 
 ### Added
+- **Tests for the unified training entry point** (`environments/shared/train.py`),
+  which the newly-honest combined coverage showed at **0%** — the module was
+  never imported by any test. It is the `--species` shim in front of
+  `train_base.main`, so a break there takes out every documented
+  `python -m environments.shared.train ...` invocation while the species
+  packages stay green. 13 tests cover both validation exits, the argv rewrite
+  (species pair at the front, middle and end; `argv[0]` preserved), the
+  hand-off to `get_species_config`/`main`, and an unknown species propagating
+  the registry's `ValueError` rather than being swallowed. The `sys.path`
+  bootstrap is pinned against repository landmarks rather than its
+  `parents[2]` arithmetic — the same depth-counting failure that produced the
+  provenance-root bug on this branch — and the `__main__` guard is exercised
+  end to end as a subprocess. 0% → 95%, the remainder being the guard body
+  itself, which only runs out of process. All nine mutations of the module
+  (both exit codes, the argv slice bounds, the parent depth, the guarded
+  `sys.path` insert, and swallowing the registry error) turn the suite red.
+
 - **New species: *Dibothrosuchus elaphros*** (77 obs / 27 actuators / 8.65 kg
   / nq=35, nv=34) — a sphenosuchian crocodylomorph and the first non-dinosaur
   in the project. It is a small, gracile quadruped that held its limbs erect

@@ -15,6 +15,13 @@ foot_contact_weight = 0.0                      # Disable the legacy any-foot bon
 bilateral_support_weight = 0.6                 # Reward the weaker-loaded foot, so both feet must carry weight
 foot_contact_saturation_force = 350.0          # N per foot; quiet home support (~421 N/foot) already earns full credit
 foot_load_balance_weight = 0.3                 # Penalize normalized left/right load imbalance
+foot_load_balance_min_support_force = 0.0      # Total foot force below which the pair counts as unsupported, and so
+                                               # maximally imbalanced. 0.0 closes only the exact airborne [0, 0] case,
+                                               # which used to score as perfectly balanced -- making flight cheaper
+                                               # than honest single support (0.000 against -0.300). Every loaded state
+                                               # is numerically unchanged at this setting. Raise it to also deny credit
+                                               # for a token grazing contact; pick the value during gate calibration,
+                                               # against measured flight phases rather than by eye.
 support_conditioned_alive_fraction = 0.5       # Keep recovery headroom while making one-foot survival less profitable
 leg_home_pose_weight = 0.5                     # Softly retain the authored p5 theropod leg stance
 leg_home_pose_tolerance = 0.20                 # rad; broad enough for balancing corrections without joint locking
@@ -149,6 +156,8 @@ init_yaw_noise = 0.1                   # Yaw rotation perturbation at reset (rad
 net_arch = [512, 256]                  # Match SB3 PPO architecture
 
 [curriculum]
+gate_schema_version = 1                 # Fail-closed gate declaration; see
+gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 6000000
 min_avg_reward = 1840.0                 # Provisional legacy gate only. The stance reward changes the score scale,
                                         # so run Stage 1 pilots without curriculum advancement and recalibrate this

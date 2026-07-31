@@ -485,3 +485,82 @@ class TestScaleActionClipping:
             np.testing.assert_allclose(scaled, ctrl_max, atol=1e-6)
         finally:
             env.close()
+
+
+class TestResetHeightTruncation:
+    """Reset must never generate an already-terminal state.
+
+    The root-height jitter was the only unbounded term in the reset — every
+    other one is a bounded uniform — so an unbounded Gaussian eventually placed
+    the root outside ``healthy_z_range`` before the policy acted.  An episode
+    that ends on step 1 whatever the action is not a policy failure, and
+    counting it as one puts an unreachable ceiling on any reliability gate.
+    """
+
+    def test_delta_is_bounded_by_distance_to_the_floor(self):
+        env = RaptorEnv()
+        try:
+            low, high = env.healthy_z_range
+            base_z = 0.5 * (low + high)
+            headroom = min(base_z - low, high - base_z)
+            huge = 10.0 * (high - low)
+
+            assert env._bounded_reset_height_delta(base_z, huge) < headroom
+            assert env._bounded_reset_height_delta(base_z, -huge) > -headroom
+        finally:
+            env.close()
+
+    def test_bound_is_symmetric_so_the_mean_spawn_height_is_unchanged(self):
+        env = RaptorEnv()
+        try:
+            low, high = env.healthy_z_range
+            base_z = 0.5 * (low + high)
+            for delta in (0.05, 0.2, 5.0):
+                up = env._bounded_reset_height_delta(base_z, delta)
+                down = env._bounded_reset_height_delta(base_z, -delta)
+                assert up == pytest.approx(-down)
+        finally:
+            env.close()
+
+    def test_small_deltas_pass_through_untouched(self):
+        """Species with ample headroom must be unaffected in practice."""
+        env = RaptorEnv()
+        try:
+            low, high = env.healthy_z_range
+            base_z = 0.5 * (low + high)
+            tiny = 1e-4
+            assert env._bounded_reset_height_delta(base_z, tiny) == pytest.approx(tiny)
+        finally:
+            env.close()
+
+    def test_no_headroom_pins_the_spawn_to_the_keyframe(self):
+        """A base height already at the floor yields a deterministic spawn."""
+        env = RaptorEnv()
+        try:
+            low, _ = env.healthy_z_range
+            assert env._bounded_reset_height_delta(low, 1.0) == pytest.approx(0.0)
+            assert env._bounded_reset_height_delta(low, -1.0) == pytest.approx(0.0)
+        finally:
+            env.close()
+
+    @pytest.mark.parametrize("env_cls", [RaptorEnv, BrachioEnv])
+    def test_reset_never_spawns_outside_the_healthy_range(self, env_cls):
+        env = env_cls(reset_noise_scale=0.5)
+        try:
+            low, high = env.healthy_z_range
+            for seed in range(200):
+                env.reset(seed=seed)
+                root_z = float(env.data.qpos[2])
+                assert low < root_z < high, f"seed {seed} spawned at {root_z:.4f}, outside [{low}, {high}]"
+        finally:
+            env.close()
+
+    def test_zero_noise_still_gives_a_deterministic_reset(self):
+        env = RaptorEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=1)
+            first = env.data.qpos.copy()
+            env.reset(seed=999)
+            np.testing.assert_allclose(env.data.qpos, first)
+        finally:
+            env.close()

@@ -12,6 +12,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .config import load_stage_config
+from .curriculum.gate_schema import GateSchemaError, validate_gate_config
 
 _logger = logging.getLogger(__name__)
 
@@ -30,12 +31,23 @@ def check_stage_gate(
 
     Returns:
         ``True`` if the gate is passed and training should advance.
+
+    Raises:
+        GateSchemaError: If the stage's gate declaration is missing, unknown,
+            or malformed. This used to log a warning and return ``True``, so a
+            stage with no reward threshold advanced unconditionally — the same
+            fail-open behaviour the SB3 path had, reached by a different route.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
+    validate_gate_config(stage_config.get("stage", "?"), curriculum, advancement_enabled=True)
     min_reward = curriculum.get("min_avg_reward")
     if min_reward is None:
-        _logger.warning("Stage config has no curriculum_kwargs.min_avg_reward — gate passes by default.")
-        return True
+        raise GateSchemaError(
+            "stage config declares an advancement gate but sets no "
+            "min_avg_reward, so there is nothing for the JAX path to check. "
+            'Declare gate_kind = "none/v1" for a non-advancing pilot instead of '
+            "leaving the threshold out."
+        )
     # min_avg_reward is an EPISODE-level threshold (shared with the SB3
     # TOMLs, e.g. 100.0).  The trainer's "mean_reward" is the mean PER-STEP
     # rollout reward (~0.5-2 for a good policy), so gating on it would fail

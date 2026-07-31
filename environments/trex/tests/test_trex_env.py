@@ -397,3 +397,49 @@ class TestHeightTargetTracksStance:
                 )
         finally:
             env.close()
+
+
+class TestStage1ResetStaysInsideTheHealthyEnvelope:
+    """No stage-1 seed may start already terminated.
+
+    Dibothrosuchus hit this first and fixed it by decoupling
+    ``reset_height_noise_scale`` from the radian-scale joint noise.  T-Rex was
+    left coupled, and at ``reset_noise_scale = 0.10`` its 0.926 m home pelvis
+    sits only 0.226 m — 2.26 sigma — above the 0.70 m floor, so 1.19% of spawns
+    landed below it.  Measured over seeds 3042-5041 before the fix: 18/2000
+    spawned sub-floor and 16 terminated on step 1 whatever the policy did.
+    That is the direct cause of the 39/40 evaluation panels, and it caps any
+    reliability gate below the level a stance gate needs to certify.
+    """
+
+    def test_stage1_reset_never_spawns_out_of_bounds(self):
+        from environments.shared.config import load_stage_config
+
+        kwargs = load_stage_config("trex", 1)["env_kwargs"]
+        kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
+        env = TRexEnv(**kwargs)
+        try:
+            low, high = env.healthy_z_range
+            for seed in range(3042, 3242):
+                env.reset(seed=seed)
+                pelvis_z = float(env.data.qpos[2])
+                assert low < pelvis_z < high, f"seed {seed} spawned at {pelvis_z:.4f} m, outside [{low}, {high}]"
+                terminated, info = env._is_terminated()
+                assert not terminated, f"seed {seed} starts terminated: {info.get('termination_reason')}"
+        finally:
+            env.close()
+
+    def test_seed_3077_is_no_longer_terminal_on_the_first_step(self):
+        """The specific seed that produced the first failure of a 40-episode panel."""
+        from environments.shared.config import load_stage_config
+
+        kwargs = load_stage_config("trex", 1)["env_kwargs"]
+        kwargs = {k: v for k, v in kwargs.items() if k not in {"foot_contact_weight", "foot_contact_gate"}}
+        env = TRexEnv(**kwargs)
+        try:
+            env.reset(seed=3077)
+            assert float(env.data.qpos[2]) > env.healthy_z_range[0]
+            _, _, terminated, _, _ = env.step(np.zeros(env.action_space.shape))
+            assert not terminated, "seed 3077 must survive one zero-action step"
+        finally:
+            env.close()
