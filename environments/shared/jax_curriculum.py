@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .config import load_stage_config
-from .curriculum.gate_schema import GateSchemaError, validate_gate_config
+from .curriculum.gate_schema import validate_gate_config
 
 _logger = logging.getLogger(__name__)
 
@@ -40,14 +40,10 @@ def check_stage_gate(
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
     validate_gate_config(stage_config.get("stage", "?"), curriculum, advancement_enabled=True)
-    min_reward = curriculum.get("min_avg_reward")
-    if min_reward is None:
-        raise GateSchemaError(
-            "stage config declares an advancement gate but sets no "
-            "min_avg_reward, so there is nothing for the JAX path to check. "
-            'Declare gate_kind = "none/v1" for a non-advancing pilot instead of '
-            "leaving the threshold out."
-        )
+    # The schema requires min_avg_reward for every advancing gate kind, so a
+    # validated config always carries it; a KeyError here would mean the two
+    # fell out of sync.
+    min_reward = curriculum["min_avg_reward"]
     # min_avg_reward is an EPISODE-level threshold (shared with the SB3
     # TOMLs, e.g. 100.0).  The trainer's "mean_reward" is the mean PER-STEP
     # rollout reward (~0.5-2 for a good policy), so gating on it would fail

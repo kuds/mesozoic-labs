@@ -495,6 +495,12 @@ class TestResetHeightTruncation:
     the root outside ``healthy_z_range`` before the policy acted.  An episode
     that ends on step 1 whatever the action is not a policy failure, and
     counting it as one puts an unreachable ceiling on any reliability gate.
+
+    SUPERSEDED in effect by ground settling, which overwrites the root height
+    from the sampled joint pose; the bound and its draw survive only for
+    RNG-stream compatibility (see TestHeightJitterIsInertSinceGroundSettling).
+    These tests keep pinning the function's arithmetic until the height
+    channel is removed outright.
     """
 
     def test_delta_is_bounded_by_distance_to_the_floor(self):
@@ -562,5 +568,97 @@ class TestResetHeightTruncation:
             first = env.data.qpos.copy()
             env.reset(seed=999)
             np.testing.assert_allclose(env.data.qpos, first)
+        finally:
+            env.close()
+
+
+class TestHeightJitterIsInertSinceGroundSettling:
+    """The reset's root-height draw must stay drawn, and must stay inert.
+
+    ``_settle_root_on_ground`` overwrites the root height as a pure function
+    of the sampled joint pose, so ``reset_height_noise_scale`` no longer
+    reaches the post-reset state.  The draw is deliberately KEPT so the reset
+    consumes the same RNG sequence — removing it would shift every subsequent
+    draw and re-anchor all seeded baselines.  These tests pin both halves of
+    that contract: the knob changes nothing, and the stream stays aligned.
+    """
+
+    def test_height_scale_does_not_change_the_post_reset_state(self):
+        from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+
+        quiet = DibothrosuchusEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.0)
+        loud = DibothrosuchusEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.5)
+        try:
+            for seed in (0, 17, 41):
+                quiet.reset(seed=seed)
+                loud.reset(seed=seed)
+                # Identical up to the one-ULP roundoff of settling from a
+                # different pre-settle height; anything larger means the knob
+                # has grown a real effect again.
+                np.testing.assert_allclose(quiet.data.qpos, loud.data.qpos, rtol=0, atol=1e-12)
+                np.testing.assert_allclose(quiet.data.qvel, loud.data.qvel, rtol=0, atol=0)
+        finally:
+            quiet.close()
+            loud.close()
+
+    def test_height_scale_does_not_desync_the_rng_stream(self):
+        from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
+
+        quiet = DibothrosuchusEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.0)
+        loud = DibothrosuchusEnv(reset_noise_scale=0.30, reset_height_noise_scale=0.5)
+        try:
+            quiet.reset(seed=3)
+            loud.reset(seed=3)
+            assert quiet.np_random.bit_generator.state == loud.np_random.bit_generator.state
+        finally:
+            quiet.close()
+            loud.close()
+
+
+class TestLowestGroundClearanceDataArgument:
+    """The probe must measure the ``MjData`` it is handed, not ``self.data``.
+
+    The parameter used to be accepted and silently ignored — the probe always
+    read ``self.data``, and ``home_ground_clearance`` had to swap ``self.data``
+    out to use a scratch buffer.  A caller passing a scratch pose would get
+    the live pose's clearance with no error.
+    """
+
+    def test_probe_reads_the_passed_data(self):
+        import mujoco
+
+        env = RaptorEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            mujoco.mj_forward(env.model, env.data)
+            settled = env.lowest_ground_clearance()
+
+            # Home pose lowered by 0.1 m: over a plane floor the clearance
+            # must drop by exactly the shift.
+            buried = mujoco.MjData(env.model)
+            mujoco.mj_resetDataKeyframe(env.model, buried, int(getattr(env, "_reset_keyframe_id", 0)))
+            buried.qpos[2] -= 0.1
+            mujoco.mj_forward(env.model, buried)
+            probed = env.lowest_ground_clearance(buried)
+
+            assert probed == pytest.approx(env.home_ground_clearance() - 0.1, abs=1e-9), (
+                f"clearance({probed:.4f}) should reflect the buried scratch pose, "
+                f"not the settled live pose ({settled:.4f})"
+            )
+            # And the live probe is unaffected by having probed other data.
+            assert env.lowest_ground_clearance() == settled
+        finally:
+            env.close()
+
+    def test_home_clearance_no_longer_depends_on_live_state(self):
+        env = RaptorEnv(reset_noise_scale=0.1)
+        try:
+            env.reset(seed=5)
+            home_after_reset = env.home_ground_clearance()
+            fresh = RaptorEnv(reset_noise_scale=0.1)
+            try:
+                assert home_after_reset == fresh.home_ground_clearance()
+            finally:
+                fresh.close()
         finally:
             env.close()

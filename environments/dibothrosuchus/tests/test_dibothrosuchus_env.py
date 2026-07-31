@@ -205,8 +205,13 @@ class TestResetStaysInsideTheHealthyEnvelope:
     also used it as a root-height jitter in metres.  On this 0.313 m stance that
     put a quarter of stage-1 episodes outside ``healthy_z_range`` at step 1,
     which inflated the zero-action baseline's apparent difficulty with noise no
-    policy can act on.  ``reset_height_noise_scale`` decouples the two; these
-    tests pin that it stays decoupled.
+    policy can act on.  ``reset_height_noise_scale`` decoupled the two.
+
+    Since the ground settle the whole height channel is STATE-INERT — the root
+    height is overwritten from the sampled joint pose (see
+    TestHeightJitterIsInertSinceGroundSettling in test_base_env.py) — but the
+    knob still exists for RNG-stream compatibility, so these tests keep pinning
+    that it stays set and stays decoupled until the channel is removed.
     """
 
     def test_height_noise_is_decoupled_from_joint_noise(self):

@@ -115,6 +115,17 @@ tolerance) remains the standing recommendation for the divergences above.
   measured window, `height` 0.578 of 0.6, `neck_posture` 0.173 of 0.2,
   `leg_home_pose` 0.312 of 0.5. (PLANT_VALIDATION §14)
 
+- **LOW** — **the reset's root-height jitter channel is state-inert but still
+  present.** The PR #479 ground settle overwrites the root height as a pure
+  function of the sampled joint pose, so `reset_height_noise_scale` and
+  `_bounded_reset_height_delta` no longer reach the post-reset state (verified
+  to one ULP; pinned by `TestHeightJitterIsInertSinceGroundSettling`). The RNG
+  draw is deliberately kept — removing it would shift every subsequent draw and
+  re-anchor all seeded baselines, including the PLANT_VALIDATION §6 tables.
+  Remove the whole channel (draw, knob, bound) at the next policy-interface
+  revision. Note this also retires PLANT_VALIDATION §16's reset-height-clip
+  hypothesis *going forward*: the clip cannot influence any future run.
+
 - **MEDIUM** — **the policy saturates its action bound, and the
   `diagnostics/action_*` family mixes pre-clip and post-clip quantities.**
   Measured on T-Rex stage-1 run `20260727_130726` (PPO, 6.0M steps), from its

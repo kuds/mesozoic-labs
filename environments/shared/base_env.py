@@ -856,7 +856,16 @@ class BaseDinoEnv(gym.Env, ABC):
     def _bounded_reset_height_delta(self, base_z: float, delta: float) -> float:
         """Bound a reset height perturbation so the spawn is never terminal.
 
-        The root-height jitter is the only UNBOUNDED term in the reset — every
+        SUPERSEDED by ``_settle_root_on_ground``, which overwrites the root
+        height as a pure function of the sampled joint pose, so the bounded
+        delta this returns no longer reaches the post-reset state (verified to
+        one ULP).  The draw and this bound are retained only to keep the reset
+        deterministic in its seed: removing the draw would shift every
+        subsequent RNG draw and re-anchor all seeded baselines.  Remove both at
+        the next policy-interface revision.
+
+        The historical rationale, for the record: the root-height jitter is
+        the only UNBOUNDED term in the reset — every
         other one is a bounded uniform — and an unbounded Gaussian will
         eventually place the root outside ``healthy_z_range``.  On T-Rex it did
         so often enough to matter: home pelvis 0.926 m against a 0.70 m floor
@@ -905,7 +914,15 @@ class BaseDinoEnv(gym.Env, ABC):
         return ids
 
     def _static_floor_geoms(self) -> "np.ndarray":
-        """Geom IDs of the static ground the animal is expected to stand on."""
+        """Geom IDs of the static ground the animal is expected to stand on.
+
+        HFIELD is accepted here so the probe still reports clearance on one,
+        but ``_settle_root_on_ground``'s single-shift exactness argument holds
+        only for a horizontal PLANE — over a heightfield the nearest-distance
+        pair can change as the root translates, so a species standing on one
+        would need an iterative settle.  Every current species floors on a
+        plane at z=0.
+        """
         if self._static_floor_geom_ids is not None:
             return self._static_floor_geom_ids
         ids = np.array(
@@ -933,7 +950,7 @@ class BaseDinoEnv(gym.Env, ABC):
         worst = float("inf")
         for g in body_geoms:
             for f in floor_geoms:
-                d = mujoco.mj_geomDistance(self.model, self.data, int(g), int(f), _GROUND_PROBE_DISTANCE, None)
+                d = mujoco.mj_geomDistance(self.model, data, int(g), int(f), _GROUND_PROBE_DISTANCE, None)
                 worst = min(worst, float(d))
         return worst
 
@@ -958,11 +975,7 @@ class BaseDinoEnv(gym.Env, ABC):
         else:
             mujoco.mj_resetData(self.model, scratch)
         mujoco.mj_forward(self.model, scratch)
-        saved, self.data = self.data, scratch
-        try:
-            value = self.lowest_ground_clearance()
-        finally:
-            self.data = saved
+        value = self.lowest_ground_clearance(scratch)
         if not np.isfinite(value):
             value = _RESET_GROUND_CLEARANCE
         self._home_ground_clearance_m = float(value)
@@ -1025,12 +1038,14 @@ class BaseDinoEnv(gym.Env, ABC):
             noise_scale = self.reset_noise_scale
             self.data.qpos[7:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qpos[7:].shape)
             self.data.qvel[:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qvel.shape)
-            # Slightly vary starting height to improve policy robustness.  This
-            # is a length, not an angle, so it takes its own scale when the
-            # species supplies one; see reset_height_noise_scale.
-            # reset_noise_scale stays the master switch — zero must still give a
-            # deterministic reset, so a species height scale sets only the
-            # MAGNITUDE of this term and never re-enables noise on its own.
+            # STATE-INERT since _settle_root_on_ground below, which overwrites
+            # the root height as a pure function of the sampled joint pose
+            # (verified to one ULP across height scales).  The draw is kept so
+            # the reset stays deterministic in its seed: dropping it would
+            # shift every subsequent draw and re-anchor all seeded baselines.
+            # Remove the whole height channel — this draw, reset_height_noise_scale
+            # and _bounded_reset_height_delta — at the next policy-interface
+            # revision.
             height_scale = 0.0
             if noise_scale > 0.0:
                 height_scale = noise_scale if self.reset_height_noise_scale is None else self.reset_height_noise_scale

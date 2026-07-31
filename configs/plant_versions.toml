@@ -108,6 +108,19 @@ canonical_mujoco_version = "3.10.0"
 #    Every existing checkpoint is trained against a different task: the
 #    zero-action baseline, the stage-1 operating point and any gate calibrated
 #    against them must all be re-measured.
+#
+#    ADDENDUM: the MJX reset lagged this entry and kept spawning with joint and
+#    yaw jitter at a fixed root height -- measured on T-Rex at stage-1 noise,
+#    -41.2 mm to +5.2 mm around the authored contact -- and the midpoint action
+#    mapping's qpos0 base pose hovered 610 mm over the floor on brachiosaurus,
+#    opening every MJX episode with a half-metre free fall.  MJX now settles to
+#    the same authored keyframe clearance analytically (exact for the species'
+#    sphere/capsule/cylinder/box/ellipsoid geoms over the plane floor, verified
+#    against mj_geomDistance to ~1e-9).  No further revision bump: this entry's
+#    bump already declared the reset-placement interface moved for every
+#    species, and no MJX checkpoint or baseline was produced between the two
+#    landings.  A noise-free home-residual MJX reset is bit-identical to the
+#    pre-settle behaviour; only jittered and midpoint spawns move.
 
 [plants.velociraptor]
 physics_revision = 2

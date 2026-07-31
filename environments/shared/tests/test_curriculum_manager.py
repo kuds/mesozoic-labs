@@ -346,6 +346,22 @@ class TestThresholdsFromConfigs:
         with pytest.raises(GateSchemaError, match="non-advancing pilot"):
             thresholds_from_configs(configs)
 
+    def test_declared_gate_without_required_thresholds_is_fatal(self):
+        """A reward gate with no reward threshold must raise, not default open.
+
+        This shape used to pass the schema (which only rejected *misplaced*
+        threshold keys), yield no threshold_fields, and drop through to
+        StageThreshold's permissive defaults (min_avg_reward = -inf) — the SB3
+        path advancing on any evaluation while the JAX path raised. The schema
+        now requires each gate kind's core field, so both backends reject it.
+        """
+        configs = {1: {"curriculum_kwargs": dict(_GATE)}}
+        with pytest.raises(GateSchemaError, match="missing required threshold"):
+            thresholds_from_configs(configs)
+        # Malformed is malformed even when the run cannot advance.
+        with pytest.raises(GateSchemaError, match="missing required threshold"):
+            thresholds_from_configs(configs, advancement_enabled=False)
+
     def test_every_committed_stage_config_declares_a_valid_gate(self):
         """The shipped configs must satisfy the schema on every species."""
         from environments.shared.config import load_all_stages

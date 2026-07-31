@@ -217,6 +217,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   perfect equilibrium.
 
 ### Fixed
+- **The MJX reset now settles the animal on the ground, closing the plant gap
+  the PR #479 review found.** The `ca56f6c` ground settle landed only in
+  `BaseDinoEnv.reset`; the MJX reset kept applying joint and yaw jitter with
+  the root height fixed at the keyframe value — the same defect class, measured
+  on T-Rex at the stage-1 noise (0.10) as spawns from **41.2 mm inside the
+  floor to 5.2 mm above it**. The midpoint action mapping was worse: its reset
+  base pose is `qpos0`, which on brachiosaurus hovers **610 mm** over the
+  floor, so every MJX episode opened with a half-metre free fall. MJX has no
+  `mj_geomDistance`, so the settle probes an analytic support extent per geom
+  — exact for the sphere/capsule/cylinder/box/ellipsoid primitives the species
+  use over a horizontal plane floor, and verified against `mj_geomDistance` to
+  ~1e-9 across random poses on all four species. The settle target is the home
+  keyframe's authored clearance (the `BaseDinoEnv.home_ground_clearance`
+  semantics), probed once at construction through the reset's own kinematics
+  path, so a noise-free home-residual reset computes a shift of exactly `0.0`
+  and stays bit-identical to the pre-settle behaviour; only jittered and
+  midpoint spawns move. Jittered spawns now land within 0.4 µm of the authored
+  contact, deterministically in the PRNG key, with no extra RNG consumed. A
+  new `test_mjx_reset_plant_invariants.py` suite pins penetration, hover,
+  determinism, the bit-exact no-op, the brachiosaurus hover fix, and
+  cross-backend agreement of the settle target — every assertion cross-checked
+  with CPU `mj_geomDistance` rather than the implementation's own formula.
+  Cost: one extra `mjx.kinematics` pass (the cheap position stage, no
+  collision or constraint work) per reset, which the fused auto-reset step
+  computes every step; the final full forward still runs once, on the settled
+  pose. No plant revision bump: entry 6's bump already declared reset placement moved
+  for every species, and no MJX checkpoint or baseline was produced between
+  the two landings (addendum recorded in `configs/plant_versions.toml`).
+- **A declared reward gate must now carry its reward threshold.** The gate
+  schema only rejected *misplaced* threshold keys, so a config declaring
+  `gate_kind = "reward_and_length/v1"` with no thresholds at all passed
+  validation, produced no `threshold_fields`, and fell through to
+  `StageThreshold`'s permissive defaults (`min_avg_reward = -inf`) on the SB3
+  path — advancing on any evaluation — while the JAX path raised on the same
+  config. That is precisely the backend divergence the schema exists to
+  prevent. Each gate kind now declares required threshold fields
+  (`reward_and_length/v1` requires `min_avg_reward`), enforced in
+  `validate_gate_config` whenever the kind is declared, so both backends
+  reject the shape identically; the JAX path's now-redundant local check is
+  removed.
+- **`BaseDinoEnv.lowest_ground_clearance` honours its `data` argument.** The
+  parameter was accepted and silently ignored — the probe always measured
+  `self.data`, and `home_ground_clearance` had to swap `self.data` out to use
+  a scratch buffer. A caller passing a scratch pose got the live pose's
+  clearance with no error. The probe now reads the passed `MjData` (pinned by
+  a test probing the home pose shifted 0.1 m down), the swap hack is gone, and
+  the noise-free reset state is verified bit-identical across the change.
+- **The reset's root-height jitter is now documented and pinned as
+  state-inert.** The ground settle overwrites the root height as a pure
+  function of the sampled joint pose, which silently made
+  `reset_height_noise_scale` and PR #478's `_bounded_reset_height_delta`
+  dead — verified to one ULP with RNG streams identical across height scales.
+  Behaviour is unchanged: the draw is deliberately kept so seeded resets and
+  the freshly re-measured baselines stay anchored, the inertness is now stated
+  at every definition site, `TestHeightJitterIsInertSinceGroundSettling`
+  pins both the inertness and the stream alignment, and a KNOWN_ISSUES entry
+  schedules the channel's removal for the next policy-interface revision.
 - **Being airborne is no longer cheaper than honest single support.**
   `reward_foot_load_balance` computed `|R − L| / (R + L + 1e-8)`, which
   evaluates to **zero** when both feet read zero — so a plant off the ground

@@ -69,8 +69,13 @@ class TestCheckStageGate:
             check_stage_gate({"mean_reward": 0.0}, {"curriculum_kwargs": {}})
 
     def test_declared_gate_without_a_reward_threshold_is_fatal(self):
-        """A declared gate with nothing to check must raise, not pass."""
-        with pytest.raises(GateSchemaError, match="no min_avg_reward"):
+        """A declared gate with nothing to check must raise, not pass.
+
+        The raise now comes from the schema itself rather than a JAX-side
+        check, so the SB3 path rejects the same config instead of falling back
+        to StageThreshold's permissive ``min_avg_reward = -inf`` default.
+        """
+        with pytest.raises(GateSchemaError, match="missing required threshold"):
             check_stage_gate({"mean_episode_return": 0.0}, {"curriculum_kwargs": dict(_GATE)})
 
     def test_non_advancing_pilot_cannot_be_used_to_advance(self):
