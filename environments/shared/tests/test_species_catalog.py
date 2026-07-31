@@ -84,9 +84,11 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     #
     # The three home-keyframe-residual species then took one more policy bump
     # for the bounded reset height (plant_versions note 5); brachiosaurus does
-    # not carry home_reset and so stays at r3.
-    expected_policy_revisions = {"velociraptor": 7, "trex": 8, "brachiosaurus": 3, "dibothrosuchus": 4}
-    expected_physics_revisions = {"velociraptor": 2, "trex": 5, "brachiosaurus": 1, "dibothrosuchus": 1}
+    # not carry home_reset and so stayed at r3 for that one.
+    # Ground settling at reset (note 6) then bumped ALL FOUR, brachiosaurus
+    # included: settling applies to every species regardless of keyframe style.
+    expected_policy_revisions = {"velociraptor": 8, "trex": 9, "brachiosaurus": 4, "dibothrosuchus": 5}
+    expected_physics_revisions = {"velociraptor": 2, "trex": 6, "brachiosaurus": 2, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 1, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:

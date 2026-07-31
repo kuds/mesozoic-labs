@@ -505,6 +505,16 @@
     <exclude body1="pelvis" body2="r_thigh"/>
     <exclude body1="pelvis" body2="l_thigh"/>
 
+    <!-- The tail base capsule is anchored 0.2 m behind the pelvis origin and
+         is wide enough (140 mm) to overlap both thighs in the home pose. Left
+         colliding it penetrated 18.8 mm and injected 8143 N per side — 16.3 kN,
+         eleven times body weight — into EVERY reset, identically and
+         independently of the sampled pose, polluting both the solver and every
+         contact-force reward and diagnostic. Same fix, and same reason, as the
+         sibling toe capsules below. -->
+    <exclude body1="tail_1" body2="r_thigh"/>
+    <exclude body1="tail_1" body2="l_thigh"/>
+
     <!-- Arm-torso -->
     <exclude body1="pelvis" body2="r_arm"/>
     <exclude body1="pelvis" body2="l_arm"/>
@@ -515,8 +525,10 @@
          the stance or foot sensors. -->
     <exclude body1="r_toe_d2" body2="r_toe_d3"/>
     <exclude body1="r_toe_d3" body2="r_toe_d4"/>
+    <exclude body1="r_toe_d2" body2="r_toe_d4"/>
     <exclude body1="l_toe_d2" body2="l_toe_d3"/>
     <exclude body1="l_toe_d3" body2="l_toe_d4"/>
+    <exclude body1="l_toe_d2" body2="l_toe_d4"/>
   </contact>
 
   <!-- ==================== KEYFRAMES ==================== -->

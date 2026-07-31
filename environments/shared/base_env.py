@@ -47,9 +47,27 @@ from .reward_functions import reward_speed_penalty as _reward_speed_penalty_pure
 # See BaseDinoEnv._bounded_reset_height_delta.
 _RESET_HEIGHT_TERMINATION_MARGIN = 0.02
 
+# Fallback settle target in METRES, used only when a species has no keyframe to
+# read an authored contact depth from.  Reset normally settles to the home
+# keyframe's OWN clearance so the noise-free reset stays bit-identical and each
+# species keeps the resting contact depth its MJCF was authored with.
+_RESET_GROUND_CLEARANCE = 0.0
+
+# Upper bound in METRES on the body-to-floor distance probe.  Only the sign and
+# small magnitudes matter for settling, so this just has to exceed any plausible
+# spawn offset; mj_geomDistance saturates beyond it.
+_GROUND_PROBE_DISTANCE = 10.0
+
 
 class BaseDinoEnv(gym.Env, ABC):
     """Abstract base class for dinosaur locomotion environments."""
+
+    # Ground-settling caches, all derived from the model and so fixed for the
+    # lifetime of the instance.  Declared here rather than assigned via getattr
+    # so their types are visible; see _settle_root_on_ground.
+    _root_subtree_geom_ids: "np.ndarray | None" = None
+    _static_floor_geom_ids: "np.ndarray | None" = None
+    _home_ground_clearance_m: float | None = None
 
     metadata = {
         "render_modes": ["human", "rgb_array"],
@@ -861,6 +879,128 @@ class BaseDinoEnv(gym.Env, ABC):
         bound = max(headroom, 0.0)
         return float(np.clip(delta, -bound, bound))
 
+    def _root_subtree_geoms(self) -> "np.ndarray":
+        """Geom IDs belonging to the animal, i.e. the free-joint root's subtree.
+
+        Everything the reset translates vertically moves together, and nothing
+        else does: prey, food and other spawned props hang off the world or
+        their own joints, so they must not take part in ground settling.
+        """
+        if self._root_subtree_geom_ids is not None:
+            return self._root_subtree_geom_ids
+        free = [j for j in range(self.model.njnt) if self.model.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE]
+        if not free:
+            ids = np.empty(0, dtype=np.int32)
+        else:
+            root = int(self.model.jnt_bodyid[free[0]])
+            bodies = {root}
+            for b in range(root + 1, self.model.nbody):
+                if int(self.model.body_parentid[b]) in bodies:
+                    bodies.add(b)
+            ids = np.array(
+                [g for g in range(self.model.ngeom) if int(self.model.geom_bodyid[g]) in bodies],
+                dtype=np.int32,
+            )
+        self._root_subtree_geom_ids = ids
+        return ids
+
+    def _static_floor_geoms(self) -> "np.ndarray":
+        """Geom IDs of the static ground the animal is expected to stand on."""
+        if self._static_floor_geom_ids is not None:
+            return self._static_floor_geom_ids
+        ids = np.array(
+            [
+                g
+                for g in range(self.model.ngeom)
+                if int(self.model.geom_bodyid[g]) == 0
+                and self.model.geom_type[g] in (mujoco.mjtGeom.mjGEOM_PLANE, mujoco.mjtGeom.mjGEOM_HFIELD)
+            ],
+            dtype=np.int32,
+        )
+        self._static_floor_geom_ids = ids
+        return ids
+
+    def lowest_ground_clearance(self, data: "mujoco.MjData | None" = None) -> float:
+        """Signed distance from the animal's lowest geom to the ground, in METRES.
+
+        Negative means the pose is interpenetrating the floor.  Requires the
+        caller to have run ``mj_forward`` (or ``mj_kinematics``) first.
+        """
+        data = self.data if data is None else data
+        body_geoms, floor_geoms = self._root_subtree_geoms(), self._static_floor_geoms()
+        if not len(body_geoms) or not len(floor_geoms):
+            return float("inf")
+        worst = float("inf")
+        for g in body_geoms:
+            for f in floor_geoms:
+                d = mujoco.mj_geomDistance(self.model, self.data, int(g), int(f), _GROUND_PROBE_DISTANCE, None)
+                worst = min(worst, float(d))
+        return worst
+
+    def home_ground_clearance(self) -> float:
+        """The ground clearance the unperturbed home keyframe was authored with.
+
+        Species author a deliberate resting contact depth into the keyframe --
+        T-Rex's plantar pad and digits sit 0.5 mm into the floor, for instance.
+        Settling every reset back to *this* value rather than to an arbitrary
+        constant keeps the noise-free reset bit-identical, preserves each
+        species' authored contact, and still removes the pose-dependent error
+        that joint jitter introduces.
+        """
+        if self._home_ground_clearance_m is not None:
+            return self._home_ground_clearance_m
+        scratch = mujoco.MjData(self.model)
+        if self.model.nkey > 0:
+            keyframe = int(getattr(self, "_reset_keyframe_id", 0))
+            if not 0 <= keyframe < self.model.nkey:
+                keyframe = 0
+            mujoco.mj_resetDataKeyframe(self.model, scratch, keyframe)
+        else:
+            mujoco.mj_resetData(self.model, scratch)
+        mujoco.mj_forward(self.model, scratch)
+        saved, self.data = self.data, scratch
+        try:
+            value = self.lowest_ground_clearance()
+        finally:
+            self.data = saved
+        if not np.isfinite(value):
+            value = _RESET_GROUND_CLEARANCE
+        self._home_ground_clearance_m = float(value)
+        return self._home_ground_clearance_m
+
+    def _settle_root_on_ground(self, clearance: float | None = None) -> float:
+        """Translate the root vertically so the animal starts *on* the ground.
+
+        The reset perturbs joint angles and root height independently, but the
+        two are not independent in the world: bending the legs changes how far
+        the feet sit below the root, so any fixed root height is wrong for most
+        sampled poses.  Left uncorrected on T-Rex this spawned the model up to
+        0.198 m inside the floor, and the contact solver answered with ~19x body
+        weight, launching it 0.5 m into the air to tumble ballistically for ~60
+        steps before landing nose-down — an "episode" whose outcome no policy
+        could influence.  The same jitter spawned other seeds 0.18 m *above* the
+        floor, opening the episode with a free fall instead.
+
+        Because the ground is a horizontal plane, translating the root changes
+        every body-to-floor distance by exactly the same amount, so a single
+        shift settles the pose exactly — no iteration, no extra RNG draws, and
+        the reset stays deterministic in the seed.
+
+        The settle target is the home keyframe's own clearance, so a noise-free
+        reset is a no-op and each species keeps its authored resting contact.
+
+        Returns the applied shift in metres (positive = raised).
+        """
+        target = self.home_ground_clearance() if clearance is None else clearance
+        mujoco.mj_forward(self.model, self.data)
+        worst = self.lowest_ground_clearance()
+        if not np.isfinite(worst):
+            return 0.0
+        shift = target - worst
+        self.data.qpos[2] += shift
+        mujoco.mj_forward(self.model, self.data)
+        return float(shift)
+
     def reset(
         self,
         seed: int | None = None,
@@ -900,6 +1040,14 @@ class BaseDinoEnv(gym.Env, ABC):
 
         # Randomize target position (species-specific)
         self._spawn_target()
+
+        # Place the animal ON the ground.  This has to come after BOTH the joint
+        # jitter and the height jitter, since either one changes how far the
+        # lowest geom sits below the root.  _bounded_reset_height_delta above
+        # keeps the spawn inside healthy_z_range, but that is a termination
+        # predicate on the ROOT and says nothing about foot-to-floor geometry —
+        # a pelvis at 0.739 m is "healthy" with the toes 0.198 m underground.
+        self._settle_root_on_ground()
 
         # Forward pass to update derived quantities
         mujoco.mj_forward(self.model, self.data)
