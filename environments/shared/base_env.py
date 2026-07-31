@@ -62,6 +62,13 @@ _GROUND_PROBE_DISTANCE = 10.0
 class BaseDinoEnv(gym.Env, ABC):
     """Abstract base class for dinosaur locomotion environments."""
 
+    # Ground-settling caches, all derived from the model and so fixed for the
+    # lifetime of the instance.  Declared here rather than assigned via getattr
+    # so their types are visible; see _settle_root_on_ground.
+    _root_subtree_geom_ids: "np.ndarray | None" = None
+    _static_floor_geom_ids: "np.ndarray | None" = None
+    _home_ground_clearance_m: float | None = None
+
     metadata = {
         "render_modes": ["human", "rgb_array"],
         "render_fps": 50,
@@ -879,9 +886,8 @@ class BaseDinoEnv(gym.Env, ABC):
         else does: prey, food and other spawned props hang off the world or
         their own joints, so they must not take part in ground settling.
         """
-        cached = getattr(self, "_root_subtree_geom_ids", None)
-        if cached is not None:
-            return cached
+        if self._root_subtree_geom_ids is not None:
+            return self._root_subtree_geom_ids
         free = [j for j in range(self.model.njnt) if self.model.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE]
         if not free:
             ids = np.empty(0, dtype=np.int32)
@@ -900,9 +906,8 @@ class BaseDinoEnv(gym.Env, ABC):
 
     def _static_floor_geoms(self) -> "np.ndarray":
         """Geom IDs of the static ground the animal is expected to stand on."""
-        cached = getattr(self, "_static_floor_geom_ids", None)
-        if cached is not None:
-            return cached
+        if self._static_floor_geom_ids is not None:
+            return self._static_floor_geom_ids
         ids = np.array(
             [
                 g
@@ -942,9 +947,8 @@ class BaseDinoEnv(gym.Env, ABC):
         species' authored contact, and still removes the pose-dependent error
         that joint jitter introduces.
         """
-        cached = getattr(self, "_home_ground_clearance_m", None)
-        if cached is not None:
-            return cached
+        if self._home_ground_clearance_m is not None:
+            return self._home_ground_clearance_m
         scratch = mujoco.MjData(self.model)
         if self.model.nkey > 0:
             keyframe = int(getattr(self, "_reset_keyframe_id", 0))

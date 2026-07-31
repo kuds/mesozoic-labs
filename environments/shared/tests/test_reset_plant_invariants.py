@@ -152,7 +152,11 @@ def test_home_pose_has_no_self_collision(env_cls):
     env = env_cls(reset_noise_scale=0.0)
     env.reset(seed=0)
     mujoco.mj_forward(env.model, env.data)
-    floor = set(int(g) for g in env._static_floor_geoms())
+    floor = {int(g) for g in env._static_floor_geoms()}
+
+    def geom_name(geom_id: int) -> str:
+        return mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, geom_id) or f"geom{geom_id}"
+
     offenders = []
     for i in range(env.data.ncon):
         g1, g2 = int(env.data.contact.geom1[i]), int(env.data.contact.geom2[i])
@@ -160,8 +164,7 @@ def test_home_pose_has_no_self_collision(env_cls):
             continue
         depth = float(env.data.contact.dist[i])
         if depth < -MAX_EXTRA_PENETRATION:
-            name = lambda g: mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, g) or f"geom{g}"
-            offenders.append(f"{name(g1)}<->{name(g2)} ({depth * 1000:.1f} mm)")
+            offenders.append(f"{geom_name(g1)}<->{geom_name(g2)} ({depth * 1000:.1f} mm)")
     assert not offenders, (
         f"{env_cls.__name__} home pose has overlapping geoms: {', '.join(offenders)}. "
         "Exclude the pair in <contact> or fix the geometry — an overlap here is a "
