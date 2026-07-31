@@ -173,6 +173,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the site and README actually reference. Nothing in the repository referred to
   `Images/` except the `.dockerignore` entry excluding it, now also dropped.
 
+### Added
+- **`foot_sensor_report.py`, and a four-species audit of what the foot touch
+  sensors actually measure.** A MuJoCo touch sensor sums only contacts on geoms
+  belonging to its site's own body, so a site on a parent segment silently
+  misses whatever the child geoms carry — a failure invisible from the reward
+  trace, because a sensor reading zero looks exactly like a foot off the ground.
+  Checking every species against `mj_contactForce` found T-Rex and dibothrosuchus
+  correct (ratio **1.000**) and two species wrong: **velociraptor at 0.553**,
+  missing its `metatarsus` (17.54 N) and lateral `toe_d4` (12.03 N) per foot
+  because the site sits on `toe_d3` alone, and **brachiosaurus at 0.000**, blind
+  to all 1699.2 N of its floor contact. Total floor reaction equals body weight
+  on all four, so the contacts are real and these are sensor-scope defects, not
+  physics ones. Neither reaches a stage-1 reward term today, but both reach the
+  **observation**: brachiosaurus trains with four permanently zero input
+  channels (indices 75–78 of 83) and the raptor's policy sees 55% of true
+  per-foot load. Repairs are per-species MJCF changes and are *not* included
+  here. Recorded in `docs/investigations/FOOT_SENSOR_VERIFICATION.md`, which
+  also corrects the ground-reaction-force reading in `STAGE1_SPLIT_PLAN.md` §6.2:
+  the T-Rex statue's 841 N is *exactly* body weight (840.9 N, ratio 1.002), and
+  the 1483 N that makes it look low is `mj_getTotalmass` counting the 65.45 kg
+  **prey body** — 43% of the model total. A GRF diagnostic must divide by the
+  animal's kinematic subtree or it reports a false 0.57 on a plant standing in
+  perfect equilibrium.
+
 ### Fixed
 - **Being airborne is no longer cheaper than honest single support.**
   `reward_foot_load_balance` computed `|R − L| / (R + L + 1e-8)`, which

@@ -263,6 +263,34 @@ Neutral-action stability and truly actuator-disabled passive behavior are now
 separate test contracts. Layered policy, physics, visual, and source identities
 are documented in [PLANT_CONTRACT.md](PLANT_CONTRACT.md).
 
+### Foot touch sensors under-report on two species — open (July 2026 sensor audit)
+
+A MuJoCo touch sensor sums only contacts on geoms belonging to its site's **own body**, so a
+site on a parent segment silently misses whatever the child geoms carry. Auditing all four
+species against `mj_contactForce` found T-Rex and dibothrosuchus correct (ratio 1.000) and two
+species wrong:
+
+| species | sensor / measured contact | missing |
+|---|---|---|
+| velociraptor | **0.553** | `metatarsus` 17.54 N + `toe_d4` 12.03 N per foot; the site is on `toe_d3` only |
+| brachiosaurus | **0.000** | everything — 1699.2 N of real floor contact is invisible |
+
+Total floor reaction equals body weight on all four species, so the contacts are real and the
+plants are in equilibrium; these are sensor-scope defects, not physics ones. `aa3395c` fixed the
+raptor site's *size* but not its *body scope*, one repair short of `aa87445`.
+
+Neither defect reaches a stage-1 reward term today — no stage-1 config for either species sets
+`foot_contact_gate`, `foot_contact_weight`, `bilateral_support_weight` or
+`foot_load_balance_weight`, and the raptor's `gait_symmetry_weight` is 0.0. Both reach the
+**observation**: brachiosaurus trains with four permanently zero input channels (indices 75–78
+of 83) and the raptor's policy sees 55% of true per-foot load.
+
+Repair is an MJCF change of the `aa87445` shape — per-geom touch sites and sensors, appended so
+existing sensor indices keep their positions, summed per foot on both backends — and moves that
+species' physics and policy fingerprints. Full evidence, method and reproduction in
+[investigations/FOOT_SENSOR_VERIFICATION.md](investigations/FOOT_SENSOR_VERIFICATION.md);
+re-check any repair with `environments/shared/scripts/foot_sensor_report.py`.
+
 ### Velociraptor plant — open (July 2026 raptor review)
 
 **The stance-referenced-spring migration above never reached the raptor.** It
