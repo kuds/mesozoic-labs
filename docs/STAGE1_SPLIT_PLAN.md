@@ -4,16 +4,42 @@ Design proposal to replace the single balance stage with two: **1a — stance**,
 holding a stable pose, and **1b — recovery**, holding it against external disturbance.
 
 Follows from [investigations/TREX_REVIEW_2026_07.md](investigations/TREX_REVIEW_2026_07.md)
-§F1 and §NS-1, and from the measurements recorded in
-[PR #471](https://github.com/kuds/mesozoic-labs/pull/471).
+§F1 and §NS-1. The task-change rewrite of §NS-1 that originated in PR #471 was ported onto
+`main` in `3774301`; that PR is closed and its measurements now live in `TREX_REVIEW_2026_07`.
 
-Revision 3 incorporates two rounds of review feedback on
-[PR #474](https://github.com/kuds/mesozoic-labs/pull/474), including its empirical addendum;
-§11 records what changed and why. Every claim below carries a label from the ledger in §11.
+Revision 3 incorporated two rounds of review feedback on
+[PR #474](https://github.com/kuds/mesozoic-labs/pull/474), including its empirical addendum.
+**Revision 4 rebases the document onto `34a7002`**, where every blocking prerequisite it
+identified has been fixed. §11 records what changed and why. Every claim below carries a label
+from the ledger in §11.
 
-**Blocking prerequisites discovered during review** — these are environment and plumbing defects
-that must be fixed before any gate in this document can mean anything: reset validity (§7.5),
-fail-closed gate schema (§5.2), and the collapse-detector coupling (§7.4).
+## Status of the blocking prerequisites — all landed
+
+Revision 3 opened by saying these defects "must be fixed before any gate in this document can
+mean anything," and §10 called them "not optional preliminaries — they are the work." They
+landed in [PR #478](https://github.com/kuds/mesozoic-labs/pull/478):
+
+| § | defect | status on `34a7002` |
+|---|---|---|
+| 7.5 | ~1% of episodes terminal at generation | **fixed** — 0/4000, `71a91b7` |
+| 5.2 | gate plumbing fails open on both backends | **fixed** — both reject, `17ca4e5` |
+| 7.4 | `collapse_peak_floor` inherits `min_avg_reward` | **fixed** — decoupled, `17ca4e5` |
+| 7.1 | `[0, 0]` scores airborne as perfectly balanced | **fixed** — reports 1.0, `c667938` |
+| 7.2 | foot touch sensors unverified | **done** — audited, `2ab5ae6` / `efe93dd` |
+
+Each section below keeps its original diagnosis, because the reasoning is what justifies the
+gate design, and adds a **STATUS** note recording what shipped. Two consequences propagate
+outwards and are the substantive content of this revision:
+
+* **§2.3.1's empirical argument is stale.** It rejected `LCB95 ≥ 0.90` at n=40 partly because
+  the current checkpoint scored 39/40 on two panels — but the first failure, seed 3077, *was*
+  the reset defect. That is fixed, so the panels must be re-measured before the operating point
+  is chosen.
+* **§7.2 found two defects nobody had filed**, one of them on velociraptor, which changes the
+  per-species enablement order in §4 and the risk table in §9.
+
+**What is still outstanding is the split itself** — §2.3's episode-level gate metrics, §3's
+perturbation scheduler, §4's stage manifest, and §5's gate resolver. None of those has started.
 
 ## TL;DR
 
@@ -125,6 +151,15 @@ Every stage-1 **reward** threshold is cleared by a statue. Velociraptor's **comp
 cleared by a statue. In the other three, `min_avg_episode_length` is doing all of the gating
 work and the reward threshold is decorative.
 
+> **STATUS — re-measured on `34a7002`, and the conclusion is unchanged.** `[measured]` The reset
+> repair (§7.5) moved three species' reset distributions, so this table was re-taken. T-Rex is
+> **1976.62** mean / 23 of 40 full-horizon (was 1971.6 / 23 of 40) and velociraptor is
+> **1704.93** mean / **977.5** length / 39 of 40 (unchanged to three decimals, because its bound
+> binds at 3.6σ and clips ~0.02% of draws). Velociraptor's statue still clears its complete
+> reward-plus-length gate, which is the load-bearing claim of this section. Brachiosaurus and
+> dibothrosuchus were not re-taken; brachiosaurus's reset is unchanged, and dibothrosuchus's
+> moved only in the far tail.
+
 **Zero-action survival is stable across panels; its reward is not.** `[artifact-derived]` Four
 disjoint 40-seed T-Rex panels (3042/4042/5042/6042) gave 23, 23, 22 and 25 full-horizon
 episodes — pooled **93/160 = 58.125%**, exact two-sided 95% CP interval **50.08%–65.87%** —
@@ -152,12 +187,33 @@ The reward makes single support the worst available state, which would explain i
 | airborne | 0.000 | −0.000 | **0.000** |
 | one foot carries load | 0.000 | −0.300 | **−0.300** |
 
-**Status of this claim.** The `[0, 0]` arithmetic hole in `reward_foot_load_balance` is
-`[measured]` — verified directly against the shipped weights. That the policy *is* hopping, and
-that the reward *caused* it, remain `[inferred]` until the touch sensors are cross-checked
-against `mj_contactForce` and kinematic flight phases (§7.2). The duty figures are sensor
-readings; if the sensors under-report, the behavioural conclusion changes even though the
-formula defect does not.
+**Status of this claim.** The `[0, 0]` arithmetic hole in `reward_foot_load_balance` was
+`[measured]` — verified directly against the shipped weights.
+
+> **STATUS — the sensor escape route is closed; the cost table is repaired.** `[measured]`
+>
+> The hole is fixed (§7.1): an unsupported pair now reports maximal imbalance, so the ordering
+> above becomes `both feet down +0.600 > single support = airborne −0.300`. Airborne is no
+> longer the second-best state on a balance stage.
+>
+> The sensor caveat is discharged (§7.2), in the direction this section did not expect. T-Rex's
+> touch sensors agree with `mj_contactForce` to **1.000** on a settled plant, and the duty
+> classifier tracks kinematic ground truth — `mj_geomDistance` from every foot geom to the floor
+> — to within **0.52%** of steps across a swept 3%–67% airborne range. The nearest regime to the
+> disputed reading, low-amplitude jitter, measured **16.07% true airtime against 16.21%
+> reported**. The classifier's threshold is 0.1 N against ~421 N per foot in quiet stance, far
+> too low for partial unloading to manufacture a false `unsupported`.
+>
+> So `unsupported_duty = 0.209` can be taken at face value: **the plant really is off the ground
+> about 21% of the time.** This claim moves from `[inferred]` to `[measured instrument, inferred
+> behaviour]`.
+>
+> **What remains `[inferred]` is causation** — that the *reward* produced the hop. No sensor work
+> can establish that; it needs the counterfactual run with the §7.1 repair in place. That run is
+> now possible and is the cheapest open question in §8.
+>
+> Full method and results:
+> [investigations/FOOT_SENSOR_VERIFICATION.md](investigations/FOOT_SENSOR_VERIFICATION.md).
 
 ## 2. Stage 1a — Stance
 
@@ -186,6 +242,18 @@ Keep `reset_noise_scale = 0.10`. §NS-1 correction 1 measured that dropping to 0
 statue win outright (2568.7 at 90% full-horizon against the checkpoint's 2498.8), reversing the
 shipped config's edge to the policy. `[artifact-derived]`
 
+> **STATUS — the setting stands, but what it *means* changed slightly.** `[measured]` The §7.5
+> repair bounds the root-height draw, so at `reset_noise_scale = 0.10` T-Rex's spawn-height
+> standard deviation is now **0.0980** rather than 0.1007, with the mean unchanged at 0.9261 m.
+> The recommendation is unaffected — the statue still reaches the full horizon in 57.5% of
+> episodes at 0.10, which is the number §2.3's 90% requirement is set against — but the reset
+> distribution is no longer exactly the one the pre-`34a7002` figures were taken under, and the
+> key is now a joint-angle scale that no longer doubles as an unbounded length.
+>
+> Note also that `perturbation_delta_v` is the name revision 2 used; §3.2 replaced it with a
+> dimensionless `perturbation_capture_velocity_multiple`. The 1a config should set whichever
+> name the scheduler ships with, explicitly, to `0.0`.
+
 ### 2.3 Gate
 
 **Stop gating 1a on beating a statue.** Episode return in this stage is ~100% collectable by a
@@ -209,7 +277,7 @@ Quantiles over a defined tail window rather than episode averages, because avera
 oscillation and large transients — which is precisely the failure mode in §1.5.
 
 **This is new machinery, not a config change.** `StageThreshold`
-(`environments/shared/curriculum.py:79-84`) currently supports exactly `min_avg_reward`,
+(`environments/shared/curriculum/manager.py:23-30`) currently supports exactly `min_avg_reward`,
 `min_avg_episode_length`, `min_avg_forward_vel`, `min_success_rate`, `min_eval_episodes` and
 `required_consecutive`. `[measured]` Revision 1 of this document said the proposed quantities
 "are already logged"; that conflated diagnostic logging with canonical gate evidence. Before any
@@ -242,12 +310,36 @@ implies these cutoffs and these chances of a *good* policy passing:
   100    96/100                43.598%                 94.917%
 ```
 
-At n=30 and n=40 the rule permits **no failures at all**. That is not a theoretical concern:
-evaluated on four 40-seed panels, the current checkpoint scored 39/40, 39/40, 40/40, 40/40 —
-pooled **158/160 = 98.75%** — and therefore **fails two of the four panels** under this rule.
+At n=30 and n=40 the rule permits **no failures at all**. Revision 3 argued this was "not a
+theoretical concern" on the grounds that the current checkpoint scored 39/40, 39/40, 40/40,
+40/40 across four 40-seed panels — pooled **158/160 = 98.75%** — and so failed two of them.
 `[artifact-derived]`
 
-Pick one operating point and write it down:
+> **STATUS — that evidence is stale, and the argument it supported may not survive.**
+> `[measured]`
+>
+> §7.5 identified the first failure, **seed 3077, as the reset defect**: the pelvis spawned
+> below the height floor and the episode ended on step 1 whatever the policy did. That defect is
+> fixed. Re-checked on `34a7002`, seed 3077 now spawns at **0.72000 m** against the 0.70 m floor
+> and survives a zero-action step.
+>
+> So the two 39/40 panels were an artifact of an environment bug, not a property of the policy.
+> With it removed the checkpoint may well be 40/40 on all four, in which case `LCB95 ≥ 0.90` at
+> n=40 is *not* the impractical rule this section makes it out to be, and the case for n=179
+> weakens considerably.
+>
+> **The power table above is arithmetic and stands.** What is stale is the empirical premise
+> that a good policy fails the cutoff. Nothing here should be read as settled until the panels
+> are re-measured on the repaired reset.
+>
+> Two caveats on that re-measurement. The available checkpoint is at
+> `policy_interface_revision` 7 against the current 8, and was trained under the old reset
+> distribution, so it is unvalidated for this task — it can be evaluated as *evidence about the
+> defect*, but a properly re-baselined policy is what should set the operating point. And the
+> ~1% floor of unwinnable episodes is gone, which is precisely what makes a no-failures-permitted
+> cutoff reachable in principle for the first time.
+
+Pick one operating point and write it down — **after** the re-measurement above, not before:
 
 * **capability target p ≈ 0.95, ~80% power** → `n = 179`, cutoff `168` (or `n = 180`, cutoff
   `169`, power 80.8%);
@@ -300,7 +392,7 @@ an explicit `perturbation_delta_v_mps`, never a bare number whose unit depends o
 **derived force and impulse must be persisted per species**, since the same multiple produces
 different absolute forces on different plants.
 
-**Checkpoint compatibility — narrower than revision 1 claimed.** `plant_contract.py:895-921`
+**Checkpoint compatibility — narrower than revision 1 claimed.** `plant_contract/policy_layer.py:292-374`
 fingerprints observation/action implementations and selected reset semantics; `step` appears
 zero times in the interface payload, so a `step()` hook moves no `policy_interface_revision`.
 `[measured]` Revision 1 concluded from this that the change "invalidates no existing
@@ -338,9 +430,9 @@ always run at frozen full strength, never partway through a ramp.
 ### 3.3 Ramp versus fixed — an open question, not a decision
 
 §NS-1 correction 2 recommends a fixed impulse, attributing the problem to `set_reward_weight`
-(`base_env.py:752`) being a bare `setattr`. Revision 1 of this document repeated that.
+(`base_env.py:759`) being a bare `setattr`. Revision 1 of this document repeated that.
 **Both are wrong about the mechanism.** `RewardRampCallback`
-(`environments/shared/curriculum.py:794-877`) already computes linearly interpolated values from
+(`environments/shared/curriculum/advancement.py:477-560`) already computes linearly interpolated values from
 global timesteps and propagates them periodically via `env_method`; the setter merely applies
 what the callback computed. `[measured]`
 
@@ -416,7 +508,7 @@ Revision 1 proposed renumbering 2→3 and 3→4 and called it "mechanical." It i
 migration. Verified blockers `[measured]`:
 
 * `environments/shared/config.py:154` — `_STAGE_FILE_PREFIX = {1: "stage1_", 2: "stage2_", 3: "stage3_"}`; stage 4 raises `KeyError`.
-* `environments/shared/reporting.py:968` — result bundles reject any stage set not a subset of `{1, 2, 3}`.
+* `environments/shared/reporting/bundles.py:90` — result bundles reject any stage set not a subset of `{1, 2, 3}`.
 * `train_base.py:1285` assumes `stage < 3`.
 
 Renumbering also silently changes the historical meaning of "stage 2" and "stage 3" in every
@@ -530,7 +622,7 @@ For 1b, reward should be secondary to directly measured recovery capability rega
 
 ### 5.2 The gate schema must fail closed  `[measured]`
 
-**This is a blocking prerequisite, and the current plumbing demonstrably fails open.** Review
+**This was a blocking prerequisite, and the plumbing demonstrably failed open.** Review
 constructed a composite-only gate:
 
 ```toml
@@ -548,12 +640,12 @@ JAX check returned `True`; the active JAX evaluation check returned `(True, [])`
 focused tests passed, because they currently codify permissive missing-threshold behaviour.
 `[artifact-derived]`
 
-Independently confirmed here: `jax_curriculum.py:36-37` logs a warning and `return True` when
-`min_avg_reward` is absent, and `StageThreshold` (`curriculum.py:79-84`) defaults every omitted
+Independently confirmed here: `jax_curriculum.py:44-50` logs a warning and `return True` when
+`min_avg_reward` is absent, and `StageThreshold` (`curriculum/manager.py:23-30`) defaults every omitted
 threshold to a permissive value. `[measured]`
 
-So removing `min_avg_reward` for 1a — as §2.3 proposes — converts the gate into a no-op on both
-backends unless the schema lands first. Requirements:
+So removing `min_avg_reward` for 1a — as §2.3 proposes — would have converted the gate into a
+no-op on both backends unless the schema landed first. Requirements, all now met:
 
 * versioned `gate_schema_version` and `gate_kind` on every stage config;
 * **unknown gate kinds and unknown fields are fatal** whenever advancement is enabled;
@@ -561,6 +653,26 @@ backends unless the schema lands first. Requirements:
   diagnostic/pilot mode;
 * config, SB3 consumer, JAX consumer and parity tests land **atomically** — the existing tests
   must be updated in the same change, since today they assert the permissive behaviour.
+
+> **STATUS — landed in `17ca4e5`.** `[measured]` `environments/shared/curriculum/gate_schema.py`
+> implements every requirement above. All twelve stage configs declare
+> `gate_schema_version = 1` and `gate_kind = "reward_and_length/v1"`; unknown keys, unknown
+> kinds and unsupported versions are fatal when advancement is enabled, as is a threshold field
+> the declared kind does not consume. `gate_kind = "none/v1"` is the recorded non-advancing
+> mode and refuses to advance rather than passing by default.
+>
+> The composite-only experiment from the addendum was re-run against the shipped schema: both
+> backends now raise `GateSchemaError` where they previously produced permissive thresholds and
+> `True`. Effective thresholds for all four species are unchanged. The tests that asserted the
+> permissive behaviour were rewritten in the same commit, and the resolution logic was later
+> extracted (`e3958f9`) so it is pinned in the SB3-free CI job too — the job with the least
+> installed is where a fail-open regression would otherwise hide.
+>
+> A third fail-open path this section did not list also closed: a **misspelled** threshold key
+> used to disable the threshold it meant to set, silently. It is now fatal.
+>
+> **§2.3 can now safely unset `min_avg_reward` for 1a.** That was the dependency this section
+> existed to remove.
 
 ### 5.3 Blocking pre-flight
 
@@ -579,11 +691,30 @@ Both stages need instruments that separate *standing* from *not yet fallen*, and
    as a horizontal line and in `training_summary.txt`.
 2. **Ground-reaction-force check against body weight.** Time-averaged total GRF must equal body
    weight for periodic motion — a physics invariant, so deviation is a sensor or accounting bug.
-   Log `mean(total_contact_force) / (m·g)` and alarm outside `[0.95, 1.05]`. This would already
-   be firing: the statue's static total is 841 N while the policy's logged mean is 1460 N.
-   `[measured]`
+   Log `mean(total_contact_force) / (m·g)` and alarm outside `[0.95, 1.05]`.
+
+   > **CORRECTION — this item read the invariant backwards.** `[measured]` Revision 3 wrote
+   > "this would already be firing: the statue's static total is 841 N while the policy's logged
+   > mean is 1460 N," implying 841 N was the anomaly. **841 N is exactly right.** The T-Rex
+   > *animal* masses 85.72 kg, so its weight is 840.9 N and the measured static total of 842.2 N
+   > is a ratio of **1.002** — the invariant holds essentially perfectly.
+   >
+   > The 1483 N that made 841 N look low is `mj_getTotalmass`, which includes the **65.45 kg
+   > prey body** — 43% of the 151.17 kg model total. **Any implementation of this diagnostic must
+   > divide by the mass of the animal's kinematic subtree**, or it will report a false 0.57 on a
+   > plant standing in perfect equilibrium and fire on every species that carries prey or food.
+   > `environments/shared/scripts/foot_sensor_report.py` does this by summing only the subtrees
+   > containing actuated joints; reuse that rather than `mj_getTotalmass`.
+   >
+   > The diagnostic would still fire — on the **policy's** 1460 N, at 1.74× body weight. That is
+   > consistent with intermittent ground contact rather than a steady stance, and so with §1.5,
+   > but the figure is `[artifact-derived]` and must be re-measured with the corrected
+   > denominator before it is relied on.
 3. **Support-state transition matrix** over `{bilateral, single-L, single-R, airborne}`. A walk
-   is dominated by `single-L ↔ single-R`, a bounce by `bilateral ↔ airborne`.
+   is dominated by `single-L ↔ single-R`, a bounce by `bilateral ↔ airborne`. The underlying
+   duty classification is now validated against kinematic ground truth across a 3%–67% airborne
+   range (§7.2), so this matrix can be built on it for T-Rex — but **not** for velociraptor or
+   brachiosaurus, whose foot sensors report 55% and 0% of true load respectively.
 4. **Centre-of-pressure position, excursion and velocity** — the biomechanical definition of
    balance, and the primary success metric for 1b.
 5. **Recovery time after each shove** (1b only) — steps from impulse to CoP re-entering the
@@ -593,11 +724,23 @@ Both stages need instruments that separate *standing* from *not yet fallen*, and
    entire behaviour. `[measured]`
 7. **Fix `alternation_ratio`, or stop reporting it.** Verified against the shipped
    `_compute_gait_symmetry`: synchronized bounce **1.000**, true alternating walk **1.000**,
-   statue **1.000**, limp 0.684. `[measured]` Root cause at `base_env.py:512-515` — a
+   statue **1.000**, limp 0.684. `[measured]` Root cause at `base_env.py:520-523` — a
    simultaneous two-foot landing appends `"R"` then `"L"`, so every bounce reads as a textbook
    alternation. Record a simultaneous touchdown as one `BOTH` event.
+   **Still open on `34a7002`** — re-verified, a synchronized bounce still scores 1.000. The
+   citation is now `base_env.py:520-523`.
 
-## 7. Prerequisites
+## 7. Prerequisites — §7.1, §7.2, §7.4 and §7.5 landed
+
+Those four shipped in PR #478 (`34a7002`). Each keeps its original diagnosis, because that
+reasoning is what justifies the gate design downstream, and carries a **STATUS** note recording
+what actually shipped and where it differed from the proposal.
+
+**§7.3 has not landed and cannot yet**: it specifies `plant_sanity` / `task_gate` modes for
+diagnostic tooling, and there is no perturbation to switch off or match until the scheduler
+exists (§10.11). Its one immediately actionable correction — that
+`actuator_saturation_report` is unaffected because it loads raw XML rather than building an env
+from TOML — was applied to `TREX_REVIEW_2026_07` in `3774301`.
 
 ### 7.1 Fix the airborne hole in `reward_foot_load_balance`  `[measured]`
 
@@ -615,12 +758,56 @@ imbalance = xp.where(total > min_support_force,
 Needs the matching JAX-path edit for parity, and `[0, 0]` cases in `test_reward_functions.py`
 and `test_trex_mjx_reward_parity.py`; neither covers it today.
 
+> **STATUS — landed in `c667938`.** `[measured]` An unsupported pair now reports maximal
+> imbalance, so the §1.5 cost table becomes `both feet down +0.600 > single support = airborne
+> −0.300`. The shipped form takes an optional `min_support_force`, defaulting to `0.0`, which
+> closes only the exact `[0, 0]` case and leaves **every loaded state numerically unchanged**;
+> raise it during gate calibration to also deny credit for a token grazing contact, against
+> measured flight phases rather than by eye. Wired identically through the Gymnasium, MJX and
+> JAX paths, with `[0, 0]` coverage added to both test files — neither covered it, which is how
+> the hole survived, and `test_trex_rewards.py` actively asserted the old `0.0`.
+>
+> One residual: the two failure states are now **tied** rather than airborne being strictly
+> worst. Separating them needs a term this repair does not add, and is worth revisiting once
+> §1.5's causal question is settled.
+
 ### 7.2 Verify the foot touch sensors — gates §7.1, §6.3 and §1.5
 
 `unsupported_duty = 0.209` on a plant holding 0.93 m pelvis height that never falls is more
 consistent with sensor under-reporting than with 21% airtime. Cross-check touch-sensor sums
 against `mj_contactForce` *and* kinematic flight phases during a policy rollout, per OQ-6. The
 formula defect in §7.1 is real regardless; the behavioural story in §1.5 depends on this.
+
+> **STATUS — done in `2ab5ae6` and `efe93dd`, and it found more than it was looking for.**
+> `[measured]` Full method in
+> [investigations/FOOT_SENSOR_VERIFICATION.md](investigations/FOOT_SENSOR_VERIFICATION.md);
+> reproduce with `foot_sensor_report.py` and `stance_duty_validation.py`.
+>
+> **T-Rex is clean, so the hypothesis this section raised is refuted.** Its sensors agree with
+> `mj_contactForce` to 1.000 statically, and the duty classifier tracks `mj_geomDistance`
+> ground truth to within 0.52% of steps across a swept 3%–67% airborne range. §1.5's reading
+> stands.
+>
+> **Two other species do not pass**, and neither was previously filed:
+>
+> | species | sensor / measured contact | contact / weight |
+> |---|---|---|
+> | trex | 1.000 | 1.002 |
+> | dibothrosuchus | 1.000 | 1.000 |
+> | velociraptor | **0.553** | 1.000 |
+> | brachiosaurus | **0.000** | 0.988 |
+>
+> `contact / weight` is 1.00 everywhere, so the plants are in equilibrium and these are
+> sensor-scope defects, not physics ones. Velociraptor's site sits on `toe_d3` alone and misses
+> the `metatarsus` (17.54 N) and `toe_d4` (12.03 N) per foot; `aa3395c` fixed that site's *size*
+> but not its *body scope*. Brachiosaurus sees none of its 1699.2 N.
+>
+> Neither reaches a stage-1 reward term today, but both reach the **observation** —
+> brachiosaurus trains with four permanently zero input channels at indices 75–78 of 83.
+> **This changes §4 and §9**: a stance or recovery gate that reads contact state cannot be
+> trusted on either species until repaired, so T-Rex-first enablement is now forced by
+> instrumentation rather than merely preferred. The repairs are per-species MJCF changes that
+> move physics and policy fingerprints, and are filed rather than made.
 
 ### 7.3 Give diagnostic tooling explicit task modes
 
@@ -645,17 +832,25 @@ inherited that error from §NS-1 correction 4.
 
 ### 7.4 Decouple the collapse detector  `[measured]`
 
-`curriculum.py:1014` falls back to `min_avg_reward` for `peak_floor` when `collapse_peak_floor`
+`curriculum/early_stopping.py:163` falls back to `min_avg_reward` for `peak_floor` when `collapse_peak_floor`
 is unset. `configs/trex/stage1_balance.toml:164` sets it to `2200.0`; the other eleven stage
 configs do not. Revision 2 said that removing `min_avg_reward` makes the fallback "undefined."
-It does not — `curriculum.py:1010` chains `collapse_peak_floor` → `min_avg_reward` → **`0.0`**.
+It does not — `curriculum/early_stopping.py:163` chains `collapse_peak_floor` → `min_avg_reward` → **`0.0`**.
 `[measured]` The real failure mode is that a `0.0` floor arms collapse detection after *any*
 positive robust peak, which is more eager than intended and silently so. Set
 `collapse_peak_floor` explicitly per stage, or decouple it, **before** removing the reward
 gate. Single-stage pilots still install plateau/collapse callbacks, so "advancement
 disabled" does not make an inherited threshold inert.
 
-### 7.5 Reset-validity preflight — blocking  `[measured]`
+> **STATUS — landed in `17ca4e5`.** `[measured]` The fallback to `min_avg_reward` is removed
+> outright: a missing floor now means **never arm**, because a backstop that is not configured
+> should not abort a run. The eleven configs that relied on the fallback set the value it
+> produced, so every effective floor is bit-identical to before — `100.0` everywhere except
+> T-Rex stage 1's `2200.0`, verified config-by-config against `origin/main` both at the time and
+> again after the resolver was extracted in `e3958f9`. `collapse_smoothing_window` was readable
+> but undeclared and is now part of the gate schema.
+
+### 7.5 Reset-validity preflight — LANDED  `[measured]`
 
 **About 1% of episodes are unwinnable at generation.** Reset randomisation
 (`reset_noise_scale = 0.10`) can place the pelvis below the height termination floor, so the
@@ -683,6 +878,34 @@ Requirements:
 * and it must **not** be discarded after outcomes are observed — post-hoc filtering of episodes
   by their result invalidates the panel.
 
+> **STATUS — landed in `71a91b7`, and the root cause was narrower than described.** `[measured]`
+>
+> The defect was not reset randomisation in general. The root-height jitter was the **only
+> unbounded term in the reset** — every other one is a bounded uniform — so
+> `qpos[2] += normal(0, height_scale)` had nothing stopping it leaving `healthy_z_range`. T-Rex's
+> 0.926 m home pelvis sits 0.226 m above the 0.70 m floor, which at σ = 0.10 m is **2.26σ**,
+> predicting **1.19%** sub-floor spawns — closed-form, and it brackets both observed scans.
+>
+> Every failure was already sub-floor **at spawn**; none became terminal from the step itself, so
+> bounding the draw removes the whole failure mode rather than most of it. The draw is now
+> truncated to the distance to the nearer end of `healthy_z_range` less a 0.02 m margin:
+> **43/4000 → 0/4000**. The bound is symmetric, so the mean spawn height is unchanged
+> (0.9262 → 0.9261 m) while σ tightens 0.1007 → 0.0980. It binds at 2.07σ for T-Rex (3.9% of
+> draws) against 3.6–3.8σ for velociraptor and dibothrosuchus (~0.02%), so only T-Rex moves
+> materially. Dibothrosuchus had hit this same defect first and fixed it by decoupling
+> `reset_height_noise_scale`; T-Rex was left coupled and nobody re-checked it.
+>
+> Requirement 1 is met structurally rather than by resampling, which keeps the RNG draw count
+> per reset fixed and the reset deterministic; the cost is a small point mass at each bound.
+> Requirements 3 and 4 are moot — there are no already-terminal episodes left to count or
+> discard.
+>
+> **Two consequences.** Reset semantics are fingerprinted through `home_reset`, so the three
+> home-keyframe-residual species took a policy-interface bump (velociraptor 6 → 7, trex 7 → 8,
+> dibothrosuchus 3 → 4); their existing checkpoints were trained against a different reset
+> distribution and **must be re-baselined before any gate here is calibrated on them**. And
+> §2.3.1's central evidence is now stale — see the STATUS note there.
+
 ## 8. Open questions — measure before committing
 
 1. **Does a 1a policy transfer into 1b at all?** If the stance 1a learns is passive enough that
@@ -700,6 +923,19 @@ Requirements:
 6. **Do the §2.3 thresholds admit the current checkpoint?** Proposed from observed values, not
    calibrated.
 
+**Added in revision 4**, both cheap and both now unblocked:
+
+7. **Re-measure the four 40-seed panels on the repaired reset.** This is the highest-value
+   remaining evaluation, because §2.3.1's operating point currently rests on evidence known to
+   be an artifact of the reset defect. Cheap, and it may remove the case for n=179 entirely.
+   Note the available checkpoint is interface-invalid (rev 7 against 8) and was trained on the
+   old reset distribution, so it answers *"was 39/40 the bug?"* but should not itself set the
+   operating point.
+8. **Does the §7.1 repair change the hop?** The one remaining `[inferred]` claim in §1.5 is
+   causal — that the reward produced the bouncing. Airborne is no longer the cheap state, so a
+   single stage-1 run under the repaired reward is the counterfactual that settles it. Nothing
+   else in this document depends on the answer, but §6.3 and §1.5 both get firmer with it.
+
 ## 9. Risks
 
 | risk | mitigation |
@@ -708,78 +944,112 @@ Requirements:
 | Added wall-clock for a fourth stage | 1a shortened to ~3M (§2.4); partly offsets |
 | Stage-identity migration across four species and the website | semantic IDs + schema bump (§4); land as a separate prep change |
 | 1b unlearnable if a species' 1a is weak | per-species `perturbation_delta_v`; enable per species only after its own preflight |
-| Brachiosaurus zero action never reaches the horizon (0 of 40, `n_standing = 0`) | its 1a gate will fail, which is the `CHECK PLANT` signal surfacing. Note this is a *zero-action* result: it does not by itself show that no learned controller can stand, nor prove plant corruption. Investigate before concluding either. |
+| Brachiosaurus zero action never reaches the horizon (0 of 40, `n_standing = 0`) | its 1a gate will fail, which is the `CHECK PLANT` signal surfacing. Note this is a *zero-action* result: it does not by itself show that no learned controller can stand, nor prove plant corruption. Investigate before concluding either. **Revision 4:** part of the explanation is now measured — its four foot touch sensors read 0.0 N against 1699.2 N of real floor contact, so it trains with four permanently dead observation channels and no foot-contact information at all (§7.2). That is a plausible partial cause that does *not* require plant corruption, though it does not establish one either. |
+| **Velociraptor's foot sensors report 55.3% of true load** (§7.2, new in revision 4) | its 1a stance gate and any §6.3 support-state diagnostic read those sensors, so both would be calibrated against a 45% under-read. Repair the MJCF before enabling either stage for this species. This is the species whose *complete* stage-1 gate a statue already clears, so it has the least instrumentation margin to spare. |
 
 ## 10. Sequencing
 
-**Blocking defects first.** Steps 1–4 are environment and plumbing bugs. Until they are fixed,
-no gate defined in this document measures what it claims to, so they are not optional
-preliminaries — they are the work.
+**Steps 1–5 are done** (PR #478, `34a7002`). They were the environment and plumbing bugs, and
+they required no part of the split — which is why they went first and shipped independently.
 
-1. **§7.5 reset validity.** ~1% of episodes are terminal at generation. Fix before any
-   reliability target is set, or every high-`n` cutoff is unreachable for reasons unrelated to
-   the policy.
-2. **§5.2 fail-closed gate schema**, landed atomically across config, SB3, JAX and the tests
-   that currently assert permissive behaviour. Must precede removing `min_avg_reward` anywhere.
-3. **§7.4 collapse decoupling** — must precede removing any reward gate, since the fallback
-   chain ends at `0.0`.
-4. **§7.2 sensor verification** — gates §7.1, §6.3 and the §1.5 behavioural claim.
-5. §7.1 `foot_load_balance` fix, with parity tests.
-6. §3.2 task fingerprint and load modes; §4 executable stage manifest with backward readers.
-7. §2.3 episode-level gate metrics, implemented and parity-tested; declare the §2.3.1 operating
-   point.
-8. **Gate resolver (§5)** — before, or atomically with, any executable stage that depends on it.
-9. Deterministic perturbation scheduler, with force-off regression, clearing, seed/schedule,
-   SB3/MJX and resume tests. Default off — no behaviour change until enabled.
-10. §8.1 T-Rex evaluation: zero action, constant/brace controls, the 1a checkpoint and the
+| # | item | status |
+|---|---|---|
+| 1 | **§7.5 reset validity** | done, `71a91b7` — 43/4000 → 0/4000 |
+| 2 | **§5.2 fail-closed gate schema** | done, `17ca4e5` — config + SB3 + JAX + tests, atomically |
+| 3 | **§7.4 collapse decoupling** | done, `17ca4e5` — every effective floor preserved |
+| 4 | **§7.2 sensor verification** | done, `2ab5ae6` / `efe93dd` — and found two new defects |
+| 5 | **§7.1 `foot_load_balance`** | done, `c667938` — with the parity coverage that was missing |
+
+**Remaining, in order.** Step 6 is new in revision 4 and comes first because everything
+downstream calibrates against it.
+
+6. **Re-baseline.** Re-measure the four 40-seed panels on the repaired reset (§8.7) and
+   re-derive the §2.3.1 operating point from the result rather than from the pre-fix panels.
+   Three species' checkpoints are interface-invalid and were trained on the old reset
+   distribution, so this needs a fresh stage-1 run, not just an evaluation. Nothing below should
+   be calibrated until it lands.
+7. **Repair the velociraptor and brachiosaurus foot sensors** (§7.2) — per-species MJCF changes.
+   Not on the T-Rex critical path, but they gate enabling either stage for those species, and
+   both invalidate that species' checkpoints, so they are cheapest done alongside step 6.
+8. §3.2 task fingerprint and load modes; §4 executable stage manifest with backward readers.
+9. §2.3 episode-level gate metrics, implemented and parity-tested.
+10. **Gate resolver (§5)** — before, or atomically with, any executable stage that depends on it.
+11. Deterministic perturbation scheduler, with force-off regression, clearing, seed/schedule,
+    SB3/MJX and resume tests. Default off — no behaviour change until enabled.
+12. §8.1 T-Rex evaluation: zero action, constant/brace controls, the 1a checkpoint and the
     candidate, at noise 0.10 under the finalised full push, on registered calibration and
     held-out panels, saving one row per episode and per shove.
-11. Calibrate thresholds; decide ramp versus fixed.
-12. Stage split enabled for T-Rex only; other species after their own plant and learnability
-    preflights.
+13. Calibrate thresholds; decide ramp versus fixed.
+14. Stage split enabled for T-Rex only; other species after step 7 plus their own plant and
+    learnability preflights.
 
-Revision 2 listed the resolver *after* stage enablement while asserting it must land before —
-that ordering is corrected above. Steps 1–5 require no part of the split and should happen
-regardless.
+Two orderings are worth stating explicitly, because earlier revisions got them wrong. The
+resolver lands *before* stage enablement, not after (revision 2 had this backwards). And the
+re-baseline lands *before* the operating point is declared — revision 3 declared candidate
+operating points from panels that are now known to be contaminated by the reset defect.
 
 ## 11. Claim ledger
 
 | label | meaning |
 |---|---|
-| `measured` | reproduced directly against `48fd90a` for this document |
+| `measured` | reproduced directly against the stated commit for this document |
 | `artifact-derived` | taken from run artifacts or TREX_REVIEW_2026_07 §NS-1; not re-run here |
 | `inferred` | reasoning, not measurement |
-| `stale` | measured before `435f35f` changed the stage-1 reward; needs re-measuring |
+| `stale` | measured before a change that invalidates it; needs re-measuring |
 
-**`measured` here:** the four-species baseline and full-conjunction tables; the statue per-term
-decomposition and settled plant constants; the foot-state cost table and the `[0, 0]` hole; the
-`alternation_ratio` gait test; the `ec23125` → `48fd90a` counterfactual; the exact binomial
-bounds in §3.4; and the code citations in §2.3, §3.2, §3.3, §4, §7.3 and §7.4.
+**Two baseline commits are now in play.** Revision 3's `measured` claims were taken against
+`48fd90a`. Revision 4's STATUS notes were taken against `34a7002`, which carries the reset
+repair, the fail-closed gate schema, the collapse decoupling, the `foot_load_balance` repair and
+the sensor audit. Where the two disagree, `34a7002` wins; each STATUS note says which.
+
+**`measured` against `48fd90a`:** the statue per-term decomposition and settled plant constants;
+the foot-state cost table and the `[0, 0]` hole; the `alternation_ratio` gait test (re-verified
+still failing on `34a7002`); the `ec23125` → `48fd90a` counterfactual; and the exact binomial
+bounds in §3.4.
+
+**`measured` against `34a7002` (new in revision 4):** the reset-repair figures in §7.5; the
+re-measured §1.4 baselines for T-Rex and velociraptor; the four-species sensor audit and the
+duty-metric validation in §7.2; the body-mass correction in §6.2; the fail-closed reproduction
+in §5.2; the collapse-floor equivalence in §7.4; seed 3077's post-repair spawn in §2.3.1; and
+every code citation in the document, each re-resolved against the package split in #472–#477.
 
 **`artifact-derived`:** the §NS-1 refuted-candidate table, the CoP-under-CoM measurement, the
 push-on figures (also `stale`), the anti-gaming searches, the 120-seed paired comparison, and
 the three-block seed stability figures.
 
+**Newly `stale` in revision 4:**
+
+* **§2.3.1's four-panel checkpoint result (39/40, 39/40, 40/40, 40/40).** Contaminated by the
+  reset defect — its first failure, seed 3077, was the bug. Re-measure before declaring an
+  operating point. This is the single most consequential stale claim in the document.
+* **§6.2's `1460 N` policy GRF figure.** Never reproduced here, and the denominator it was
+  compared against was wrong. Re-measure against the animal's kinematic subtree mass.
+* **§1.4's brachiosaurus and dibothrosuchus rows.** Not re-taken; brachiosaurus's reset is
+  unchanged and dibothrosuchus's moved only in the far tail, so both are expected to hold, but
+  neither has been confirmed on `34a7002`.
+
 **Not yet reproducible from this repository:** the push-on measurements in §3.4. The
 perturbation implementation, exact schedule and raw per-episode outcomes are not present, so
-those numbers cannot be independently verified until §10.6 lands. They are marked `stale` for
-the additional reason that they predate `435f35f`.
+those numbers cannot be independently verified until the scheduler lands (§10.11). They are
+`stale` for the additional reason that they predate `435f35f`.
 
-**Surrounding documentation is stale and must be updated with, or before, this document.**
+**Surrounding documentation — the revision-3 items are now closed.**
 
-* The **PR #474 description** still describes revision 1 — assumed ramping, numeric renumbering,
-  broad checkpoint validity, hopping as established, and concrete calibrated thresholds. It
-  needs rewriting to match this revision.
-* `TREX_REVIEW_2026_07` **§NS-2 still recommends the survivor-conditioned standing floor**, which
-  §5.1 here rejects on measured grounds, and its §NS-1 correction 5 contradicts §NS-2 on T-Rex.
-  Merging this document alone would leave two contradictory canonical recommendations in the
-  repository. Supersede those sections explicitly.
-* The pushed-task numbers in §3.4 cannot be reproduced from this repository: the scheduler,
-  authoritative force conversion, registered schedule, realized per-episode pushes and raw
-  outcomes are all absent. The checkpoint available today also differs from the artifact cited
-  for the published `2489.65` comparison. `[artifact-derived, unverified]`
+* The **PR #474 description** described revision 1. It should be rewritten to match revision 4;
+  in particular its "Blocking prerequisites found during review" section now describes work that
+  has shipped, and its "Known outstanding: §NS-2" line is resolved.
+* `TREX_REVIEW_2026_07` **§NS-2 is superseded on `main`** as of `3774301` — explicitly, in the
+  document itself, on the measured grounds §5.1 gives. Its §NS-1 was replaced by the task-change
+  rewrite in the same commit, with four of that rewrite's own corrections withdrawn or narrowed.
+  The contradictory-canonical-guidance risk revision 3 flagged no longer exists.
+* The pushed-task numbers in §3.4 remain unreproducible from this repository, and the checkpoint
+  available today differs from the artifact behind the published `2489.65`.
+  `[artifact-derived, unverified]`
 
 **Outstanding provenance work.** Each retained load-bearing number should carry its command,
 exact effective config, backend, dependency versions, ordered seeds, raw episode data and
 artifact hash. This document groups provenance by claim class rather than per number; a
-per-measurement manifest is the next improvement.
+per-measurement manifest is the next improvement. The two scripts added in #478 —
+`foot_sensor_report.py` and `stance_duty_validation.py` — are the first load-bearing numbers
+here that are reproducible by a single documented command, which is the pattern the rest should
+follow.
