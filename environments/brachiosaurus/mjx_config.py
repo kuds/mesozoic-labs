@@ -17,14 +17,35 @@ _SENSOR_RR_FOOT = 12
 _SENSOR_RL_FOOT = 13
 # Tail tip gyro starts after: gyro(3)+accel(3)+quat(4)+touch(4)+head_pos(3)+tail_pos(3)+tail_linvel(3)=23
 _SENSOR_TAIL_GYRO_START = 23
+# Per-leg meta touch sensors, appended after the tail block (26-29) so the
+# indices above keep their positions.  Summed into each leg's pad reading:
+# the pad sensor sees the foot-pad ellipsoid only, while the metacarpus/
+# metatarsus is the pad's parent body with its own floor contact
+# (FOOT_SENSOR_VERIFICATION.md section 4).
+_SENSOR_FR_META = 26
+_SENSOR_FL_META = 27
+_SENSOR_RR_META = 28
+_SENSOR_RL_META = 29
 
 register_species_mjx(
     species="brachiosaurus",
     frame_skip=5,
     max_episode_steps=1000,
+    # Residual mapping, matching the other three species and BrachioEnv: the
+    # home stance is not the ctrlrange midpoint (knees sit up to 0.35 rad
+    # off-centre), so under the midpoint mapping "do nothing" never commanded
+    # the standing pose.  This also makes the MJX reset base pose the home
+    # keyframe instead of qpos0, which hovered 610 mm above the floor.
+    action_mapping="home-keyframe-residual/v1",
     healthy_z_range=(1.0, 3.5),
     max_tilt_angle=1.047,
     sensor_foot_indices=(_SENSOR_FR_FOOT, _SENSOR_FL_FOOT, _SENSOR_RR_FOOT, _SENSOR_RL_FOOT),
+    sensor_foot_aux_indices=(
+        (_SENSOR_FR_META,),
+        (_SENSOR_FL_META,),
+        (_SENSOR_RR_META,),
+        (_SENSOR_RL_META,),
+    ),
     sensor_gyro_start=0,
     sensor_accel_start=3,
     sensor_quat_start=6,

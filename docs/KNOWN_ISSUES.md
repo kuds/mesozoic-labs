@@ -63,17 +63,19 @@ tolerance) remains the standing recommendation for the divergences above.
   `stance_success` gate (STAGE1_SPLIT_PLAN §2.3), not a better number.
   (PLANT_VALIDATION §9)
 
-- **HIGH** — **all four stage-1 `min_avg_reward` values are cleared by their own
-  species' statue**: trex 1840 vs 2243.12; velociraptor, brachiosaurus and
-  dibothrosuchus all 100, vs 1746 / 163 / 1834. The gates certify nothing today.
-  Cheap to fix and independent of any training run. (PLANT_VALIDATION §6)
-
-- **HIGH** — **brachiosaurus stage 1 is not a balance task.** Its zero-action
-  baseline scores **0/40** full-horizon at a mean length of 130.7
-  (`fallen` 34, `tail_contact` 6) — the statue falls every time, so there is no
-  "do not fall" floor to beat and no brachiosaurus stage-1 result is
-  interpretable. Pre-existing; verified identical before and after the PR #479
-  plant repair. Mechanism not diagnosed. (PLANT_VALIDATION §6)
+- **HIGH → MEDIUM** — **stage 1's real gate machinery does not exist yet.** The
+  four `min_avg_reward` values are no longer arbitrary — each is now the §12
+  sanity rail (0.89 × its statue's standing reward at the 0.05 operating
+  point), `min_avg_episode_length = 950` encodes the full-horizon ≥ 95% floor,
+  and stage-1 `reset_noise_scale` sits at 0.05 for every species so survival
+  is no longer the binding constraint. But a statue still clears the rail *by
+  §12's own design* — the rail only rejects return-discarding policies. What
+  separates a competent policy from a statue is the episode-level
+  `stance_success` event over unsupported duty (STAGE1_SPLIT_PLAN §2.3), which
+  is new machinery: per-episode aggregation, an LCB gate, duty metrics fed to
+  both backends' evaluators, and a `stance_quality/v1` gate kind. Until it
+  lands, passing stage 1a certifies "did not discard return and did not fall",
+  not stance quality. (PLANT_VALIDATION §12/§14)
 
 - **HIGH** — **`foot_load_balance_min_support_force = 0.0` makes the §7.1
   airborne repair a no-op.** `derive_stance_info` and `reward_foot_load_balance`
@@ -351,17 +353,17 @@ species wrong:
 | species | sensor / measured contact | missing |
 |---|---|---|
 | velociraptor | **0.553** | `metatarsus` 17.54 N + `toe_d4` 12.03 N per foot; the site is on `toe_d3` only |
-| brachiosaurus | **0.000** | everything — 1699.2 N of real floor contact is invisible |
+| brachiosaurus | ~~0.000~~ **FIXED** — now 1.000 | was everything; repaired per plant_versions note 8 (pad sites enlarged, meta sensors appended, pad + meta summed on both backends) |
 
 Total floor reaction equals body weight on all four species, so the contacts are real and the
 plants are in equilibrium; these are sensor-scope defects, not physics ones. `aa3395c` fixed the
 raptor site's *size* but not its *body scope*, one repair short of `aa87445`.
 
-Neither defect reaches a stage-1 reward term today — no stage-1 config for either species sets
-`foot_contact_gate`, `foot_contact_weight`, `bilateral_support_weight` or
-`foot_load_balance_weight`, and the raptor's `gait_symmetry_weight` is 0.0. Both reach the
-**observation**: brachiosaurus trains with four permanently zero input channels (indices 75–78
-of 83) and the raptor's policy sees 55% of true per-foot load.
+The remaining raptor defect does not reach a stage-1 reward term today — its stage-1 config sets
+none of `foot_contact_gate`, `foot_contact_weight`, `bilateral_support_weight` or
+`foot_load_balance_weight`, and its `gait_symmetry_weight` is 0.0. It does reach the
+**observation**: the raptor's policy sees 55% of true per-foot load. (Brachiosaurus's four
+permanently-zero input channels were revived by the note-8 repair.)
 
 Repair is an MJCF change of the `aa87445` shape — per-geom touch sites and sensors, appended so
 existing sensor indices keep their positions, summed per foot on both backends — and moves that
@@ -462,19 +464,16 @@ Still open:
   torque-to-inertia; slams its limits); contype-0 neck geoms can visually
   clip the floor; no `<light>`/`<visual>` block for nicer renders; brachio
   food has no collision partner.
-- **HIGH** — the brachiosaurus cannot hold its home stance. Under the neutral
-  action (`action = 0`, i.e. the exact home controls) with `reset_noise_scale`
-  set to **zero**, the torso sags 1.21 m → ~1.04 m and the episode terminates
-  `fallen` at step 202 of 1000, against a `healthy_z_range` floor of 1.0 m.
-  With stage-1 noise it falls at ~100 steps, and the zero-action baseline is
-  0% full-horizon at every reset-noise level (110.37 ± 57.86 reward). CI misses
-  it because `NeutralActionStabilityBase.test_survives_100_neutral_action_steps`
-  stops at 100 steps and the full-horizon variant
-  (`test_survives_full_noise_free_episode`) is defined only on the T-Rex
-  subclass. Either the servo-held stand from the July 2026 repair regressed or
-  it never held for a full episode. Fix the sag, add the full-horizon neutral
-  test to the shared base, then re-measure with
-  `environments/shared/scripts/zero_action_baseline.py brachiosaurus`.
+- ~~HIGH — the brachiosaurus cannot hold its home stance.~~ **FIXED**
+  (plant_versions notes 7–8): the collapse decomposed into the midpoint action
+  mapping never commanding the home pose (knees dragged up to 0.35 rad off)
+  and leg servos that sagged 71.6 mm under static weight, leaving the planted
+  stance's roll stiffness at parity with `m·g·h`. Brachiosaurus now uses the
+  home-keyframe-residual mapping like the other species, leg kp is doubled
+  (sag 11.1 mm), and the zero-action baseline is 40/40 full-horizon at
+  1739.08 ± 1.17 (was 0/40 at 163.35 ± 81.40). The full-horizon neutral test
+  this entry asked for now exists on the brachiosaurus
+  `TestNeutralActionStability` subclass.
 - **LOW** — the T-Rex `tail_1_geom` overlaps both thigh capsules by 18.8 mm at
   the home keyframe, injecting a constant self-contact force into the stance
   (pre-existing; unchanged by the July 2026 plant revision, which measured it

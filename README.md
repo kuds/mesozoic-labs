@@ -137,7 +137,7 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 | Action dimension / actuators | 30 |
 | Generalized coordinates / velocities | nq=38, nv=37 |
 | Compiled dynamic model mass | 175.3 kg |
-| Plant contract revisions | policy r4; physics r2; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r6; physics r4; visual r2 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |

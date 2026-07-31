@@ -156,10 +156,68 @@ policy_interface_revision = 9
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
 
+# 7. Brachiosaurus can stand: residual action mapping and load-bearing servos.
+#
+#    Stage 1 was not a balance task for this species: the zero-action statue
+#    fell on 40 of 40 episodes at mean length 130.7 (PLANT_VALIDATION §6), so
+#    there was no "do not fall" floor and no stage-1 result was interpretable.
+#    Two compounding defects, both measured:
+#
+#    a) BrachioEnv was the only species still on the inherited MIDPOINT action
+#       mapping, and its home stance is not the ctrlrange midpoint: "do
+#       nothing" dragged the knees up to 0.349 rad and the ankles 0.175 rad
+#       away from the standing pose on every step.  Commanding the actual home
+#       controls tripled statue survival (mean length 141 -> 455) on its own.
+#       Both backends now use home-keyframe-residual/v1 like the other three
+#       species; on MJX this also moves the reset base pose from qpos0 (which
+#       hovered 610 mm above the floor) to the home keyframe.
+#
+#    b) The leg position servos could not statically carry the animal: it
+#       sagged 71.6 mm under its own weight, putting the planted stance's roll
+#       stiffness (~1.9e3 N*m/rad) at parity with the destabilising gravity
+#       stiffness m*g*h (~1.77e3), so the statue tipped over in slow roll on
+#       9 of 10 resets even when commanding the exact home pose.  Leg kp is
+#       doubled (sag 11.1 mm), with forceranges scaled to keep each actuator's
+#       documented force-to-stiffness sizing.
+#
+#    Zero action, 40 episodes, stage-1 noise 0.05, before -> after: reward
+#    163.35 +/- 81.40 -> 1739.08 +/- 1.17; full-horizon 0/40 -> 40/40;
+#    terminations (fallen 34, tail_contact 6) -> (truncated 40).  The +/- 1.17
+#    spread is the tightest of any species and makes brachiosaurus a good
+#    gate-prototyping plant (PLANT_VALIDATION §6 asked for exactly this
+#    property).  PHYSICS moves (actuator gains); the POLICY INTERFACE moves
+#    (action mapping).
+#
+# 8. Brachiosaurus can feel its feet: pad sites enlarged, meta sensors added.
+#
+#    FOOT_SENSOR_VERIFICATION section 4: all four foot touch sensors read
+#    exactly 0.0 N while mj_contactForce reported 98.8% of body weight over
+#    four real floor contacts, so the policy trained with four permanently
+#    dead input dimensions and the support-duty diagnostics scored the
+#    standing statue as 88.5% airborne.  Two causes: the pad sites were
+#    r=0.03 spheres that did not contain the pad's floor contact points, and
+#    the metacarpus/metatarsus carries part of the load on the pad's PARENT
+#    body, which no site on the pad body can see however large.  The pad
+#    sites are now boxes enclosing the pad's contact zone, and four meta
+#    touch sensors are APPENDED (sensordata 26-29) so existing indices keep
+#    their positions; both backends sum pad + meta per leg (the same repair
+#    shape as the T-Rex digit sensors, aa87445).  Verified: summed sensors
+#    now report 100.0% of the mj_contactForce floor total in settled stance
+#    (fr/fl 313 N, rr/rl 535 N).  Statue stance quality at noise 0.05 moved
+#    from all-feet 0.000 / unsupported 0.885 to all-feet 0.998 / unsupported
+#    0.000.  The POLICY INTERFACE moves (sensor layout and observation
+#    values).  PHYSICS also moves, by the layer's own definition rather than
+#    by dynamics: the physics fingerprint covers structural dimensions
+#    including nsite and nsensor, so adding sites and sensors bumps it even
+#    though they carry no mass and no contacts and every trajectory is
+#    unchanged.  VISUAL moves for the same structural reason: that layer
+#    fingerprints body-local site definitions (all new sites are group 4,
+#    hidden in default renders).  Velociraptor's 45% under-read (same doc,
+#    section 3) remains open and is NOT part of this entry.
 [plants.brachiosaurus]
-physics_revision = 2
-policy_interface_revision = 4
-visual_revision = 1
+physics_revision = 4
+policy_interface_revision = 6
+visual_revision = 2
 observation_schema = "quadrupedal-target/v1"
 
 [plants.dibothrosuchus]

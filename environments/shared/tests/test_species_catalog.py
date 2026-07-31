@@ -87,9 +87,17 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # not carry home_reset and so stayed at r3 for that one.
     # Ground settling at reset (note 6) then bumped ALL FOUR, brachiosaurus
     # included: settling applies to every species regardless of keyframe style.
-    expected_policy_revisions = {"velociraptor": 8, "trex": 9, "brachiosaurus": 4, "dibothrosuchus": 5}
-    expected_physics_revisions = {"velociraptor": 2, "trex": 6, "brachiosaurus": 2, "dibothrosuchus": 1}
-    expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 1, "dibothrosuchus": 1}
+    # Brachiosaurus then took a physics bump (leg servo kp doubled so the
+    # animal can statically carry its own weight) and a policy bump (migrated
+    # to the home-keyframe-residual mapping the other species use) for the
+    # stance repair in plant_versions note 7, and one more bump of each for
+    # the foot-sensor repair in note 8 (pad sites enlarged, meta sensors
+    # appended, pad + meta summed per leg on both backends; the physics layer
+    # fingerprints nsite/nsensor, so new sites move it even though dynamics
+    # are unchanged).
+    expected_policy_revisions = {"velociraptor": 8, "trex": 9, "brachiosaurus": 6, "dibothrosuchus": 5}
+    expected_physics_revisions = {"velociraptor": 2, "trex": 6, "brachiosaurus": 4, "dibothrosuchus": 1}
+    expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
         plant = species["model"]["plant_contract"]

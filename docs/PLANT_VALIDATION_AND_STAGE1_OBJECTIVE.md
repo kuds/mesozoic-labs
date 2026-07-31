@@ -534,3 +534,37 @@ broken reset.
 
 **Not claimed:** any statement that the repaired plant produces better *training* outcomes. No
 training run has been performed on it.
+
+---
+
+## Addendum — 2026-07-31, after `ca56f6c`
+
+Work landed on the review branch since this document was written, recorded here so the sections
+above stay a faithful snapshot:
+
+* **§6/§8's brachiosaurus rows are resolved** (plant_versions notes 7–8). The collapse mechanism
+  §16 left undiagnosed was measured to be two defects: the midpoint action mapping never
+  commanded the home pose (knees dragged up to 0.349 rad off), and the leg servos sagged
+  71.6 mm under static weight, leaving the planted stance's roll stiffness at parity with
+  `m·g·h` so the statue tipped over in slow roll even holding home exactly. With the residual
+  mapping and doubled leg kp the statue is **40/40 full-horizon at 1739.08 ± 1.17** (was 0/40 at
+  163.35 ± 81.40); with the foot-sensor repair its stance-quality row reads all-feet 0.998 /
+  unsupported 0.000 (was 0.000 / 0.885). §12's "blocked" row and decision §17.4 are discharged;
+  the **± 1.17** spread supersedes velociraptor's ± 5.03 as the tightest gate-prototyping
+  variance.
+* **The MJX reset now settles on the ground** like §5's Gymnasium repair (plant_versions note 6
+  addendum). Un-settled MJX spawns measured −41.2 mm to +5.2 mm at stage-1 noise on T-Rex, and
+  the brachiosaurus midpoint base pose hovered 610 mm. Part I's findings therefore applied to
+  the JAX path too; they no longer do.
+* **§16's reset-height-clip hypothesis is retired going forward**: the ground settle makes the
+  entire root-height jitter channel state-inert (verified to one ULP), so the clip cannot
+  influence any future run. It remains a candidate explanation for the historical 7/29→7/31
+  regression.
+* **§12's operating point and §17's decisions 1–2 are adopted, provisionally.** Stage-1
+  `reset_noise_scale` is 0.05 for all four species (decision §17.2); the four `min_avg_reward`
+  values are the §12 rails at 0.89 × each statue's standing reward (decision §17.1, keeping the
+  rail per §17.3 until reviewed), with brachiosaurus's rail derived from its repaired-plant
+  statue (1739.1 ± 1.2 → 1550); `min_avg_episode_length = 950` encodes the full-horizon ≥ 95%
+  floor; `collapse_peak_floor` is 0.75 × each statue's standing reward, still absolute pending
+  §14 item 3. The `stance_success` machinery (§12's actual gate) and the §14 reward changes
+  remain unimplemented — the latter deliberately, per §14's "wait for the fresh run".

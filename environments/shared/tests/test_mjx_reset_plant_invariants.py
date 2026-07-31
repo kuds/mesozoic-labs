@@ -150,33 +150,20 @@ def test_settle_target_matches_the_gymnasium_plant(species):
             gym_env.close()
 
 
-def test_noise_free_residual_reset_is_a_bit_exact_noop():
-    """With noise off, settling must not move the home-residual base pose.
+@pytest.mark.parametrize("species", SPECIES)
+def test_noise_free_reset_is_a_bit_exact_noop(species):
+    """With noise off, settling must not move the home-keyframe base pose.
 
     The settle target is probed through the reset's own kinematics path at
     construction, so the shift is exactly ``0.0`` — not merely small — and a
-    zero-noise MJX reset stays byte-identical to the pre-settle behaviour.
+    zero-noise MJX reset stays byte-identical to an un-settled one.  All four
+    species now use the home-residual mapping whose base pose IS the keyframe;
+    the midpoint mapping this settle also guards (base pose ``qpos0``, which
+    hovered 610 mm above the floor on pre-residual brachiosaurus) has no
+    remaining user, so the keyframe-targeted branch is the covered path.
     """
-    env = make_env("trex", noisy=False, num_envs=2)
+    env = make_env(species, noisy=False, num_envs=2)
     states = env.reset(jax.random.PRNGKey(0))
     base = np.asarray(env._default_data.qpos)
     for qpos in np.asarray(states.data.qpos):
         np.testing.assert_array_equal(qpos, base)
-
-
-def test_midpoint_base_pose_settles_onto_the_ground():
-    """The midpoint mapping's ``qpos0`` base pose must not spawn airborne.
-
-    Brachiosaurus' ``qpos0`` sits 610 mm above the floor, so before the settle
-    every MJX episode opened with a half-metre free fall — the plant defect
-    class of PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md Part I, surviving on the
-    MJX path.  The settle now places the base pose at the keyframe's authored
-    clearance while intentionally leaving its joint angles alone.
-    """
-    env = make_env("brachiosaurus", noisy=False, num_envs=2)
-    states = env.reset(jax.random.PRNGKey(0))
-    clearances = reference_clearances(env, np.asarray(states.data.qpos))
-    np.testing.assert_allclose(clearances, env._home_ground_clearance, atol=1e-4)
-    base_root_z = float(np.asarray(env._default_data.qpos)[2])
-    settled_root_z = float(np.asarray(states.data.qpos)[0][2])
-    assert settled_root_z < base_root_z - 0.5, "the 610 mm hover should be gone"
