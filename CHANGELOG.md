@@ -174,6 +174,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Images/` except the `.dockerignore` entry excluding it, now also dropped.
 
 ### Added
+- **`stance_duty_validation.py`, which shows the support-duty metrics measure
+  what they claim.** `unsupported_duty` and its siblings classify each step by
+  thresholding the foot touch sensors at 0.1 N, and that reading is the evidence
+  behind the claim that the stage-1 policy is off the ground ~21% of the time —
+  a sensor that under-reports contact looks exactly like a foot in flight. The
+  static check above covers one operating point; this sweeps driver policies
+  producing **3% to 67%** airtime and compares the sensors against both
+  `mj_contactForce` over foot-geom contacts and `mj_geomDistance` from every
+  foot geom to the floor, the latter computed from geometry alone and so
+  independent of the sensor path. The metric tracks kinematic truth to within
+  **0.52%** of steps across the whole range (2.6% only under uniform-random
+  actuation, which no policy occupies), and the two error directions nearly
+  cancel. The decisive row is low-amplitude jitter — **16.07% true airtime
+  against 16.21% reported**, straddling the figure under dispute. Combined with
+  the 0.1 N threshold sitting against ~421 N per foot in quiet stance, the
+  sensor-artifact explanation for `STAGE1_SPLIT_PLAN.md` §1.5 is exhausted and
+  its hopping reading can be relied on. This validates the *instrument*, not the
+  policy: the checkpoint was not replayed, and the causal half of §1.5 ("the
+  reward caused the hop") still needs a counterfactual run.
 - **`foot_sensor_report.py`, and a four-species audit of what the foot touch
   sensors actually measure.** A MuJoCo touch sensor sums only contacts on geoms
   belonging to its site's own body, so a site on a parent segment silently

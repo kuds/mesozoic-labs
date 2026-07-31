@@ -16,9 +16,10 @@ that nobody had checked, and unfounded for the one it was raised about.
 component of `mj_contactForce` over every floor contact, and both against body weight.
 Reproduce with `python environments/shared/scripts/foot_sensor_report.py`.
 
-**Scope.** This is the **static** check. §7.2 also asks for the cross-check *during a policy
-rollout*, against kinematic flight phases; that still needs the checkpoint and is not done
-here. What follows constrains the sensor hypothesis without settling the behavioural one.
+**Scope.** §1–§5 are the **static** check, on a settled plant. §6 is the dynamic half §7.2 also
+asks for — the cross-check against kinematic flight phases — done by sweeping driver policies
+rather than by replaying the trained checkpoint. Read §6 for what that substitution does and
+does not buy.
 
 ## Results  `[measured]`
 
@@ -40,9 +41,8 @@ equals body weight to 0.2%. The post-`aa87445` pad-plus-digits summation is corr
 
 This does not prove the plant hops, but it removes the alternative §7.2 raised: the
 `unsupported_duty = 0.209` reading cannot be explained by sensors failing to see contact,
-because statically they see all of it. §1.5's claim should move from "pending sensor
-verification" to "sensor hypothesis excluded statically" — the outstanding work is the rollout
-comparison against kinematic flight phases, not sensor fidelity.
+because statically they see all of it. §6 then closes the dynamic half, and together they
+exhaust the sensor-artifact explanation.
 
 ## 2. §6.2 reads the GRF invariant backwards  `[correction]`
 
@@ -126,3 +126,63 @@ contacting geom its own touch site and sensor, append them so existing sensor in
 their positions, and sum per foot on both the Gymnasium and MJX paths. Each moves that species'
 physics and policy fingerprints and so belongs in its own change with its own revision bump.
 Both invalidate that species' existing checkpoints, since the observation values change.
+
+## 6. The dynamic half: do the duty metrics track kinematic ground truth?  `[measured]`
+
+§1–§5 verify the sensors at one operating point — quiet bilateral stance, steady load. The
+`unsupported_duty = 0.209` reading comes from a different regime entirely: touchdown transients,
+rapid load transfer, and whatever flight phases exist. A sensor exact at 842 N steady can still
+mis-time the *transitions* that decide how a step is classified.
+
+**Method.** Sweep driver policies that produce airborne fractions from 3% to 67%, and compare
+three signals per timestep — the summed touch sensors, `mj_contactForce` over foot-geom floor
+contacts, and `mj_geomDistance` from every foot geom to the floor. The third is computed from
+geometry alone and never touches the sensor path, so it is the arbiter: if the steps labelled
+`unsupported` are the steps where the feet are genuinely clear of the ground, the metric
+measures what it claims. Reproduce with
+`python environments/shared/scripts/stance_duty_validation.py`.
+
+| regime | airborne (kinematic) | `unsupported_duty` | misclassified |
+|---|---|---|---|
+| drop test (+0.25 m spawn) | 8.17% | 8.17% | **0.000%** |
+| settled stance | 3.37% | 3.51% | 0.137% |
+| low-amplitude jitter | 16.07% | 16.21% | 0.216% |
+| forced hop | 67.25% | 66.74% | 0.515% |
+| random thrash | 64.51% | 63.45% | 2.613% |
+
+**The metric is sound.** Across a twenty-fold range of airtime it tracks kinematic truth to
+within 0.52% of steps, degrading to 2.6% only under uniform-random actuation, which is not a
+regime any policy occupies. The two error directions also very nearly cancel — in the jitter
+band, 9 false-airborne against 2 false-supported out of 5095 steps, a net overstatement of
+0.14%.
+
+The **low-amplitude jitter** row is the one that matters: at 16.07% true airtime against 16.21%
+reported it straddles the 0.209 figure under dispute, and it is the regime whose contact
+transitions most resemble a balancing policy's. Mean sensor-versus-force error there is 4.4 N
+against a 13,079 N peak.
+
+**What this settles.** `unsupported_duty = 0.209` can be taken at face value: the instrument
+producing it is accurate in exactly that band, so the trained policy really is off the ground
+about 21% of the time. Combined with §1 — the sensors see all of the contact statically — and
+with the classifier's 0.1 N threshold against ~421 N per foot in quiet stance, which is far too
+low for partial unloading to manufacture a false `unsupported`, the sensor-artifact explanation
+for §1.5 is exhausted. **§1.5's hopping reading should move from `[inferred]` to `[measured
+instrument, inferred behaviour]`.**
+
+**What this does not settle.** This validates the *instrument* across swept regimes; it does not
+replay the trained policy. The 0.209 figure comes from that run's logged diagnostics, and I have
+not independently reproduced the policy's behaviour — the checkpoint is a 4 MB artifact on Drive
+and could not be pulled into this environment. The remaining claim in §1.5 is causal ("the
+reward *caused* the hop"), which no amount of sensor verification can establish; that needs the
+counterfactual run with the §7.1 repair in place.
+
+**A caution for anyone writing similar diagnostics.** Two bugs surfaced while building this, both
+worth avoiding:
+
+* Comparing the foot sensors against *every* floor contact counts tail and torso strikes as
+  sensor disagreement. Restrict the force reference to foot-geom contacts.
+* Selecting foot geoms by name with a `foot|toe|metatarsus|pad` filter **misses
+  `r_plantar_geom` and `l_plantar_geom`**, which carry the majority of the load — 190–200 kN·steps
+  against 4.6–6.0 kN·steps for the metatarsus across a 15-episode sweep. Enumerate from actual
+  contacts instead. This is the same mistake class as the sensor-scope defects above: a
+  plausible-looking name filter silently omitting the primary load path.
