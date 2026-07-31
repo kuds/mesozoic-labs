@@ -67,9 +67,51 @@ canonical_mujoco_version = "3.10.0"
 #    are trained against a different task and the zero-action baseline must be
 #    re-measured before any stage-1 gate is calibrated against it.
 
+#
+# 6. Reset now settles the animal ON the ground, and two permanent
+#    self-collisions were excluded.
+#
+#    BaseDinoEnv.reset placed the root by height alone.  But joint jitter
+#    changes how far the lowest geom sits below the root, so no fixed root
+#    height is right for most sampled poses, and entry 5's bound did not help:
+#    healthy_z_range is a termination predicate on the ROOT and says nothing
+#    about foot-to-floor geometry -- a T-Rex pelvis at 0.739 m is "healthy"
+#    with the toes 0.198 m underground.  Measured over 40 seeds, spawns ranged
+#    from 0.198 m inside the floor to 0.18 m above it; the solver answered
+#    penetration with up to 19x body weight and launched the model 0.52 m
+#    upward to tumble ballistically for ~60 steps before landing nose-down past
+#    the nosedive threshold.  Reset now shifts the root so the lowest body geom
+#    sits at the clearance the HOME KEYFRAME was authored with -- T-Rex's
+#    plantar pad and digits at 0.491 mm of contact, and so on per species.
+#    Settling to the authored depth rather than to a constant keeps the
+#    noise-free reset bit-identical and keeps real foot-floor contact at spawn,
+#    which the species static-balance suites already require.  Because the floor
+#    is a horizontal plane a single shift settles the pose exactly, so no extra
+#    RNG draws are consumed and the reset stays deterministic in its seed.
+#
+#    Separately, two MJCF geom pairs overlapped in the home pose and injected a
+#    constant, pose-independent force into every step of every episode ever
+#    run: trex tail_1_geom against both thigh capsules (18.8 mm, 8143 N per
+#    side = 16.3 kN = 11x body weight) and brachiosaurus torso_main against
+#    tail_2_geom (66.9 mm, 25.9 kN = 12.7x body weight).  Both are now
+#    <exclude>d, matching the existing sibling-toe precedent.  T-Rex sibling
+#    toe pair d2<->d4 was excluded for consistency with d2<->d3 and d3<->d4.
+#
+#    Effect on T-Rex, zero action, 40 seeds: t=0 contact force 16990 N (11.5x
+#    body weight) -> 190 N (0.13x, i.e. resting rather than colliding); stance
+#    duty bilateral 0.983 -> 0.992, single 0.003 -> 0.008, UNSUPPORTED
+#    0.014 -> 0.000; survival 25/40 -> 28/40; mean episode length 683 -> 757.
+#
+#    PHYSICS moves for trex and brachiosaurus (MJCF contact exclusions).  The
+#    POLICY INTERFACE moves for every species, since reset placement is
+#    fingerprinted through home_reset and the settling applies to all four.
+#    Every existing checkpoint is trained against a different task: the
+#    zero-action baseline, the stage-1 operating point and any gate calibrated
+#    against them must all be re-measured.
+
 [plants.velociraptor]
 physics_revision = 2
-policy_interface_revision = 7
+policy_interface_revision = 8
 visual_revision = 3
 observation_schema = "bipedal-target/v1"
 
@@ -96,19 +138,19 @@ observation_schema = "bipedal-target/v1"
 #    commands under home-keyframe-residual/v1 -- moved with them.  Every
 #    existing T-Rex checkpoint is invalidated.
 [plants.trex]
-physics_revision = 5
-policy_interface_revision = 8
+physics_revision = 6
+policy_interface_revision = 9
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
 
 [plants.brachiosaurus]
-physics_revision = 1
-policy_interface_revision = 3
+physics_revision = 2
+policy_interface_revision = 4
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"
 
 [plants.dibothrosuchus]
 physics_revision = 1
-policy_interface_revision = 4
+policy_interface_revision = 5
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"

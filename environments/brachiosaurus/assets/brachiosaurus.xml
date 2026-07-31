@@ -381,8 +381,12 @@
     <exclude body1="neck_3" body2="neck_4"/>
     <exclude body1="neck_4" body2="head"/>
 
-    <!-- Tail chain -->
+    <!-- Tail chain.  The chain excludes adjacent links, but torso_main is long
+         enough to reach two links back: it overlapped tail_2_geom by 66.9 mm in
+         the home pose, injecting 25.9 kN — 12.7x body weight — of constant
+         self-contact into every reset.  Same defect as tail_1<->thigh on T-Rex. -->
     <exclude body1="torso" body2="tail_1"/>
+    <exclude body1="torso" body2="tail_2"/>
     <exclude body1="tail_1" body2="tail_2"/>
     <exclude body1="tail_2" body2="tail_3"/>
     <exclude body1="tail_3" body2="tail_4"/>
