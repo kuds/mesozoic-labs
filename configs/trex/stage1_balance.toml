@@ -29,16 +29,33 @@ foot_load_balance_airborne_penalty = 0.3       # Makes the ordering MONOTONE. Wi
                                                # both feet even +0.600 > single support -0.300 > airborne -0.600.
                                                # Run 20260801_021545 ended at 28.4% unsupported duty against the
                                                # statue's 0.000, so the tie was not academic.
-action_jerk_weight = 1.0                       # Frequency-aware smoothness: penalises the SECOND difference of
-                                               # actions, which smoothness_weight cannot see. Measured on run
-                                               # 20260731_132102, best -> final checkpoint: action_delta FELL
-                                               # 12.0 -> 10.5 and the smoothness penalty IMPROVED -0.286 -> -0.250
-                                               # while toe-motion power above 4 Hz DOUBLED (35% -> 71%). A
-                                               # small-amplitude high-frequency limit cycle is nearly free under a
-                                               # first-difference term and expensive under a second-difference one.
-                                               # Provisional: sized to be comparable to the smoothness term's typical
-                                               # magnitude, NOT calibrated -- recheck against the >4 Hz power share
-                                               # after the next run rather than trusting this number.
+action_jerk_weight = 4.0                       # Frequency-aware smoothness: penalises the SECOND difference of
+                                               # actions, which smoothness_weight cannot see. Motivation, measured on
+                                               # run 20260731_132102 best -> final: action_delta FELL 12.0 -> 10.5 and
+                                               # the smoothness penalty IMPROVED -0.286 -> -0.250 while toe-motion
+                                               # power above 4 Hz DOUBLED (35% -> 71%). A small-amplitude
+                                               # high-frequency limit cycle is nearly free under a first-difference
+                                               # term and expensive under a second-difference one.
+                                               #
+                                               # CALIBRATED against the real policy, not inferred: run
+                                               # 20260801_021545's stage-1 robust_best_model rolled out on this plant
+                                               # at this noise (8 episodes, all full-horizon, VecNormalize stats
+                                               # applied) measures action_delta 5.72, action_jerk 9.82 per step, and
+                                               # 98.1% of action-space power above 4 Hz -- far buzzier than the
+                                               # 35-71% the VIDEO analysis suggested, with a jerk/delta ratio of 1.72
+                                               # implying an effective 22.7 Hz. Measuring mattered: an estimate from
+                                               # the video figures put this weight at 12.0, which the rollout shows
+                                               # would cost an UNTRAINED policy 1.49/step -- more than the entire
+                                               # 1.00 alive_bonus, i.e. it would pay PPO to stop surviving.
+                                               #
+                                               # At 4.0: the measured buzz pays 117/episode (86% of the smoothness
+                                               # term that demonstrably failed to suppress it), a smooth 1.5 Hz
+                                               # corrective policy pays ~0.001/episode -- a discrimination ratio of
+                                               # ~8e4, so this is nearly free for the behaviour we want -- and an
+                                               # untrained policy pays 0.50/step, half the alive bonus, which is
+                                               # real pressure without cancelling the incentive to survive. That
+                                               # early-training bound, not over-suppression of good policies, is
+                                               # what caps this weight.
 support_conditioned_alive_fraction = 0.5       # Keep recovery headroom while making one-foot survival less profitable
 leg_home_pose_weight = 0.5                     # Softly retain the authored p5 theropod leg stance
 leg_home_pose_tolerance = 0.20                 # rad; broad enough for balancing corrections without joint locking

@@ -573,6 +573,18 @@ above stay a faithful snapshot:
   0.00 where a Nyquist buzz scores 336, while the *first* difference rates the ramp as
   rougher — the §11.2 blindness, inverted), and `derive_stance_info`'s airborne branch keyed to
   the same threshold the duty metrics use.
+* **The action signal is far buzzier than the video analysis showed.** `[measured]` §11.6's
+  frame-by-frame figures (35–71% of toe-motion power above 4 Hz, dominant 13.5 Hz) are
+  *video* measurements; rolling run `20260801_021545`'s stage-1 `robust_best_model` on this
+  plant at noise 0.05 — 8 episodes, all full-horizon, with the run's own VecNormalize
+  statistics — measures the **action** signal at **98.1% of power above 4 Hz**, `action_delta`
+  5.72 and `action_jerk` 9.82 per step, a jerk/delta ratio of 1.72 implying an effective
+  **22.7 Hz**. Action-space chatter is therefore worse than toe-motion chatter suggested, and
+  §11.6's figures should not be used as a proxy for it. This is what `action_jerk_weight` was
+  calibrated against: an estimate derived from the video numbers gave 12.0, while the rollout
+  shows that weight would cost an *untrained* policy 1.49/step — more than the entire 1.00
+  `alive_bonus`, i.e. it would pay PPO to stop surviving. The shipped 4.0 charges the measured
+  buzz 117/episode while a smooth 1.5 Hz corrective policy pays ~0.001/episode.
 * **§11.4 repeated, and the absolute floor is retired.** `collapse_peak_floor` failed to arm a
   second time: 2450 (0.75 × statue) against a run whose best evaluation was **2347.67**, so the
   detector watched eval degrade 2347.67 → 1666.33 without firing. Deriving the floor from the
