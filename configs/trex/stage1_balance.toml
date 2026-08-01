@@ -29,7 +29,7 @@ foot_load_balance_airborne_penalty = 0.3       # Makes the ordering MONOTONE. Wi
                                                # both feet even +0.600 > single support -0.300 > airborne -0.600.
                                                # Run 20260801_021545 ended at 28.4% unsupported duty against the
                                                # statue's 0.000, so the tie was not academic.
-action_jerk_weight = 4.0                       # Frequency-aware smoothness: penalises the SECOND difference of
+action_jerk_weight = 3.0                       # Frequency-aware smoothness: penalises the SECOND difference of
                                                # actions, which smoothness_weight cannot see. Motivation, measured on
                                                # run 20260731_132102 best -> final: action_delta FELL 12.0 -> 10.5 and
                                                # the smoothness penalty IMPROVED -0.286 -> -0.250 while toe-motion
@@ -48,14 +48,20 @@ action_jerk_weight = 4.0                       # Frequency-aware smoothness: pen
                                                # would cost an UNTRAINED policy 1.49/step -- more than the entire
                                                # 1.00 alive_bonus, i.e. it would pay PPO to stop surviving.
                                                #
-                                               # At 4.0: the measured buzz pays 117/episode (86% of the smoothness
-                                               # term that demonstrably failed to suppress it), a smooth 1.5 Hz
+                                               # The cap is the UNTRAINED regime: a fresh PPO policy (log_std_init
+                                               # = 0, so actions ~ clip(N(0,1))) measures jerk 65.4/step, which an
+                                               # earlier iid-uniform estimate understated by 57% (41.8). Corrected,
+                                               # the design target "roughly half the 1.00 alive_bonus at init, so
+                                               # the term never pays PPO to stop surviving" lands at w ~ 2.6-3.0,
+                                               # not the 4.0 that estimate produced -- 4.0 actually costs 0.78/step
+                                               # at init, 78% of the alive bonus.
+                                               #
+                                               # At 3.0: init pays 0.58/step (clear margin under the alive bonus),
+                                               # the measured buzz pays 88/episode (65% of the smoothness term that
+                                               # demonstrably failed to suppress it), and a smooth 1.5 Hz
                                                # corrective policy pays ~0.001/episode -- a discrimination ratio of
-                                               # ~8e4, so this is nearly free for the behaviour we want -- and an
-                                               # untrained policy pays 0.50/step, half the alive bonus, which is
-                                               # real pressure without cancelling the incentive to survive. That
-                                               # early-training bound, not over-suppression of good policies, is
-                                               # what caps this weight.
+                                               # ~8e4, so the term is nearly free for the behaviour we want and is
+                                               # charged almost entirely to chatter.
 support_conditioned_alive_fraction = 0.5       # Keep recovery headroom while making one-foot survival less profitable
 leg_home_pose_weight = 0.5                     # Softly retain the authored p5 theropod leg stance
 leg_home_pose_tolerance = 0.20                 # rad; broad enough for balancing corrections without joint locking

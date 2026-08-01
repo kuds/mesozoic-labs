@@ -573,6 +573,27 @@ above stay a faithful snapshot:
   0.00 where a Nyquist buzz scores 336, while the *first* difference rates the ramp as
   rougher — the §11.2 blindness, inverted), and `derive_stance_info`'s airborne branch keyed to
   the same threshold the duty metrics use.
+* **CORRECTION to §7/§8: the statue is not 100% full-horizon at noise 0.05.** `[measured]`
+  That figure came from one 40-seed block. Pooled over three independent blocks the
+  zero-action policy scores **119/120 = 99.17%** (exact 95% LCB 0.961) — 40/40 on seeds
+  3042-3081 and 9000-9039, but **39/40** on seeds 0-39, the exception a `nosedive`. Two
+  consequences. §12's `full-horizon >= 95%` threshold is unaffected (99.2% clears it
+  comfortably). But a binomial `LCB95 >= 0.90` gate at n=40 requires 40/40 and would
+  therefore **reject the statue itself 28% of the time**, which is the strongest argument yet
+  for the hybrid statistic adopted in STAGE1_SPLIT_PLAN §2.3 over a pure binomial LCB. Note
+  the *standing* reward is robust across blocks (3271.8 / 3270.8), so every value calibrated
+  against it — the 0.60x rails and the collapse-floor reference — is unaffected.
+* **The reward changes leave the statue baseline exactly where it was.** `[measured]` Re-run
+  after §14: **3271.77 ± 12.03, 40/40 full-horizon** on the doc's seed block, versus 3271.8 ±
+  12.0 before. The statue commands zero action (so zero jerk) and carries 840.9 N median foot
+  load (so it never approaches the 42 N airborne threshold — measured minimum 98.95 N, a 2.4x
+  margin), so neither new term touches it. The rails and the collapse reference therefore did
+  not need re-deriving.
+* **The 42 N support threshold is not a sensitive choice.** `[measured]` Foot load is
+  strongly bimodal — either ~0 N or several hundred N — so on the trained policy the reward's
+  airborne test (`total <= 42 N`) and the duty metrics' test (both feet `<= 0.1 N`) agree on
+  **31.7% vs 31.7%** of steps. Any threshold in the wide empty gap between them gives the
+  same answer.
 * **The action signal is far buzzier than the video analysis showed.** `[measured]` §11.6's
   frame-by-frame figures (35–71% of toe-motion power above 4 Hz, dominant 13.5 Hz) are
   *video* measurements; rolling run `20260801_021545`'s stage-1 `robust_best_model` on this
