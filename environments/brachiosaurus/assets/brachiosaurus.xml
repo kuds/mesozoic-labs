@@ -188,13 +188,14 @@
             <joint name="fr_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40" springref="20"/>
             <geom name="fr_meta_geom" type="capsule" fromto="0 0 0  0.03 0 -0.12" size="0.07"
                   mass="1.5" material="body_mat"/>
+            <site name="fr_meta_contact" type="box" pos="0.03 0 -0.14" size="0.11 0.10 0.06" group="4"/>
 
             <!-- Foot pad: fleshy digital pad at ground contact -->
             <body name="fr_foot" pos="0.03 0 -0.12">
               <joint name="fr_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25" springref="5.7"/>
               <geom name="fr_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
                     mass="1.5" material="foot_mat"/>
-              <site name="fr_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
+              <site name="fr_foot_contact" type="box" pos="0.03 0 -0.05" size="0.14 0.12 0.035" group="4"/>
             </body>
           </body>
         </body>
@@ -217,12 +218,13 @@
             <joint name="fl_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40" springref="20"/>
             <geom name="fl_meta_geom" type="capsule" fromto="0 0 0  0.03 0 -0.12" size="0.07"
                   mass="1.5" material="body_mat"/>
+            <site name="fl_meta_contact" type="box" pos="0.03 0 -0.14" size="0.11 0.10 0.06" group="4"/>
 
             <body name="fl_foot" pos="0.03 0 -0.12">
               <joint name="fl_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25" springref="5.7"/>
               <geom name="fl_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
                     mass="1.5" material="foot_mat"/>
-              <site name="fl_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
+              <site name="fl_foot_contact" type="box" pos="0.03 0 -0.05" size="0.14 0.12 0.035" group="4"/>
             </body>
           </body>
         </body>
@@ -248,12 +250,13 @@
             <joint name="rr_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40" springref="20"/>
             <geom name="rr_meta_geom" type="capsule" fromto="0 0 0  0.04 0 -0.15" size="0.065"
                   mass="1.5" material="body_mat"/>
+            <site name="rr_meta_contact" type="box" pos="0.04 0 -0.17" size="0.11 0.10 0.07" group="4"/>
 
             <body name="rr_foot" pos="0.04 0 -0.15">
               <joint name="rr_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25" springref="5.7"/>
               <geom name="rr_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
                     mass="1.5" material="foot_mat"/>
-              <site name="rr_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
+              <site name="rr_foot_contact" type="box" pos="0.03 0 -0.05" size="0.14 0.12 0.035" group="4"/>
             </body>
           </body>
         </body>
@@ -276,12 +279,13 @@
             <joint name="rl_ankle" class="meta_joint" type="hinge" axis="0 1 0" range="-20 40" springref="20"/>
             <geom name="rl_meta_geom" type="capsule" fromto="0 0 0  0.04 0 -0.15" size="0.065"
                   mass="1.5" material="body_mat"/>
+            <site name="rl_meta_contact" type="box" pos="0.04 0 -0.17" size="0.11 0.10 0.07" group="4"/>
 
             <body name="rl_foot" pos="0.04 0 -0.15">
               <joint name="rl_toe" class="meta_joint" type="hinge" axis="0 1 0" range="-15 25" springref="5.7"/>
               <geom name="rl_foot_geom" type="ellipsoid" pos="0.03 0 -0.03" size="0.12 0.1 0.04"
                     mass="1.5" material="foot_mat"/>
-              <site name="rl_foot_contact" pos="0.03 0 -0.06" size="0.03"/>
+              <site name="rl_foot_contact" type="box" pos="0.03 0 -0.05" size="0.14 0.12 0.035" group="4"/>
             </body>
           </body>
         </body>
@@ -310,32 +314,40 @@
          20-33% of a slow 1.5 Hz walk cycle on all four hips — same defect class that
          broke velociraptor stage-2. Knees/ankles/toes measured 0% and keep their
          original sizing. See docs/investigations/STAGE2_RECOMMENDATIONS.md. -->
-    <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="600" forcerange="-900 900" ctrlrange="-0.6981 0.8727"/>
-    <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="300" forcerange="-200 200" ctrlrange="-0.1745 0.1745"/>
-    <position name="fr_knee_act" joint="fr_knee" kp="800" forcerange="-500 500" ctrlrange="-1.0472 0"/>
-    <position name="fr_ankle_act" joint="fr_ankle" kp="350" forcerange="-250 250" ctrlrange="-0.3491 0.6981"/>
-    <position name="fr_toe_act" joint="fr_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
+    <!-- Leg kp doubled (2026-07-31): at the original gains the animal sagged 71.6 mm
+         under its own static weight, putting the lateral (roll) stiffness of the
+         planted stance at ~1.9e3 N*m/rad against a destabilising gravity stiffness
+         of m*g*h ~ 1.77e3 — marginal, so the statue tipped over in slow roll on 9
+         of 10 stage-1 resets even when commanding the exact home pose.  Doubled,
+         static sag is 11.1 mm and the home-pose statue survives 10/10 full-horizon
+         episodes at reset noise 0.05.  Forceranges scale with kp so each actuator
+         keeps its documented force-to-stiffness sizing (hip pitch at 1.5x kp). -->
+    <position name="fr_hip_pitch_act" joint="fr_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-0.6981 0.8727"/>
+    <position name="fr_hip_roll_act" joint="fr_hip_roll" kp="600" forcerange="-400 400" ctrlrange="-0.1745 0.1745"/>
+    <position name="fr_knee_act" joint="fr_knee" kp="1600" forcerange="-1000 1000" ctrlrange="-1.0472 0"/>
+    <position name="fr_ankle_act" joint="fr_ankle" kp="700" forcerange="-500 500" ctrlrange="-0.3491 0.6981"/>
+    <position name="fr_toe_act" joint="fr_toe" kp="300" forcerange="-200 200" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Front left leg -->
-    <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="600" forcerange="-900 900" ctrlrange="-0.6981 0.8727"/>
-    <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="300" forcerange="-200 200" ctrlrange="-0.1745 0.1745"/>
-    <position name="fl_knee_act" joint="fl_knee" kp="800" forcerange="-500 500" ctrlrange="-1.0472 0"/>
-    <position name="fl_ankle_act" joint="fl_ankle" kp="350" forcerange="-250 250" ctrlrange="-0.3491 0.6981"/>
-    <position name="fl_toe_act" joint="fl_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
+    <position name="fl_hip_pitch_act" joint="fl_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-0.6981 0.8727"/>
+    <position name="fl_hip_roll_act" joint="fl_hip_roll" kp="600" forcerange="-400 400" ctrlrange="-0.1745 0.1745"/>
+    <position name="fl_knee_act" joint="fl_knee" kp="1600" forcerange="-1000 1000" ctrlrange="-1.0472 0"/>
+    <position name="fl_ankle_act" joint="fl_ankle" kp="700" forcerange="-500 500" ctrlrange="-0.3491 0.6981"/>
+    <position name="fl_toe_act" joint="fl_toe" kp="300" forcerange="-200 200" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Rear right leg -->
-    <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="550" forcerange="-825 825" ctrlrange="-0.6981 0.8727"/>
-    <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="260" forcerange="-180 180" ctrlrange="-0.1745 0.1745"/>
-    <position name="rr_knee_act" joint="rr_knee" kp="700" forcerange="-450 450" ctrlrange="-1.0472 0"/>
-    <position name="rr_ankle_act" joint="rr_ankle" kp="300" forcerange="-220 220" ctrlrange="-0.3491 0.6981"/>
-    <position name="rr_toe_act" joint="rr_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
+    <position name="rr_hip_pitch_act" joint="rr_hip_pitch" kp="1100" forcerange="-1650 1650" ctrlrange="-0.6981 0.8727"/>
+    <position name="rr_hip_roll_act" joint="rr_hip_roll" kp="520" forcerange="-360 360" ctrlrange="-0.1745 0.1745"/>
+    <position name="rr_knee_act" joint="rr_knee" kp="1400" forcerange="-900 900" ctrlrange="-1.0472 0"/>
+    <position name="rr_ankle_act" joint="rr_ankle" kp="600" forcerange="-440 440" ctrlrange="-0.3491 0.6981"/>
+    <position name="rr_toe_act" joint="rr_toe" kp="300" forcerange="-200 200" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Rear left leg -->
-    <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="550" forcerange="-825 825" ctrlrange="-0.6981 0.8727"/>
-    <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="260" forcerange="-180 180" ctrlrange="-0.1745 0.1745"/>
-    <position name="rl_knee_act" joint="rl_knee" kp="700" forcerange="-450 450" ctrlrange="-1.0472 0"/>
-    <position name="rl_ankle_act" joint="rl_ankle" kp="300" forcerange="-220 220" ctrlrange="-0.3491 0.6981"/>
-    <position name="rl_toe_act" joint="rl_toe" kp="150" forcerange="-100 100" ctrlrange="-0.2618 0.4363"/>
+    <position name="rl_hip_pitch_act" joint="rl_hip_pitch" kp="1100" forcerange="-1650 1650" ctrlrange="-0.6981 0.8727"/>
+    <position name="rl_hip_roll_act" joint="rl_hip_roll" kp="520" forcerange="-360 360" ctrlrange="-0.1745 0.1745"/>
+    <position name="rl_knee_act" joint="rl_knee" kp="1400" forcerange="-900 900" ctrlrange="-1.0472 0"/>
+    <position name="rl_ankle_act" joint="rl_ankle" kp="600" forcerange="-440 440" ctrlrange="-0.3491 0.6981"/>
+    <position name="rl_toe_act" joint="rl_toe" kp="300" forcerange="-200 200" ctrlrange="-0.2618 0.4363"/>
 
     <!-- Tail actuators for active balance control (match T-Rex/Raptor pattern:
          actuate proximal segments, leave distal tail_4 passive) -->
@@ -369,6 +381,18 @@
     <framepos name="tail_tip_pos" objtype="site" objname="tail_tip"/>
     <velocimeter name="tail_tip_linvel" site="tail_tip"/>
     <gyro name="tail_tip_angvel" site="tail_tip"/>
+
+    <!-- Per-leg metacarpus/metatarsus touch, APPENDED so the pad sensors above
+         keep sensordata indices 10-13 (FOOT_SENSOR_VERIFICATION.md section 4:
+         the pad sites were r=0.03 spheres that missed the pad's floor contacts
+         and all four feet read 0.0 N in stance).  A touch sensor sums contacts
+         on geoms of its site's OWN body, so however large the pad sites are
+         made they cannot see the meta capsules; Python and MJX sum pad + meta
+         per foot instead.  These occupy sensordata 26-29. -->
+    <touch name="fr_meta_touch" site="fr_meta_contact"/>
+    <touch name="fl_meta_touch" site="fl_meta_contact"/>
+    <touch name="rr_meta_touch" site="rr_meta_contact"/>
+    <touch name="rl_meta_touch" site="rl_meta_contact"/>
   </sensor>
 
   <!-- ==================== CONTACT EXCLUSIONS ==================== -->

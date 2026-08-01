@@ -81,12 +81,18 @@ bite_bonus = 0.0
 bite_approach_weight = 0.0                     # Must be explicit — species default was leaking into stage 1 via key mismatch bug
 prey_distance_range = [10.0, 15.0]
 max_episode_steps = 1000                       # Match stage 2/3 for consistent episode horizon across curriculum
-reset_noise_scale = 0.10                       # Calibrated against the zero-action baseline
-                                               # (environments/shared/scripts/zero_action_baseline.py): at 0.05 the
-                                               # do-nothing policy already reaches the full horizon in 93% of episodes,
-                                               # so the stage rewards a statue and training can only lose ground. 0.10
-                                               # drops that floor to ~67%, leaving real headroom; 0.15 drops it to 23%,
-                                               # which starts to look unlearnable.
+reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT_VALIDATION §7/§12): the noise sweep on
+                                               # the repaired plant showed reset noise does not make STANDING harder
+                                               # (statue standing reward 3288 -> 3167 across 0.01-0.20), it decides how
+                                               # often you get to stand at all (full-horizon 100% at <=0.05, 65% at
+                                               # 0.10, 22% at 0.20). At 0.10 survival and stance quality were
+                                               # inseparable, which is why no scalar gate over both ever worked. At
+                                               # 0.05 a statue survives 100%, so survival stops being the binding
+                                               # constraint and stance-quality gates measure stance quality. The old
+                                               # 0.10 rationale ("leave headroom below the statue") optimised for a
+                                               # reward gate, which §9 retired: the statue is the reward optimum at
+                                               # every noise level. Robustness is stage 1b's job, via perturbations,
+                                               # not lucky-draw reset noise (§13).
 
 [ppo]
 learning_rate = 3e-5                    # Setting 4 sweep: 3.23e-5 — 10x lower. All successful S1→S3 runs used this. Old 3e-4 caused instability.
@@ -148,7 +154,7 @@ vf_clip_range = 10.0                    # Clip value function updates to prevent
 ent_coef = 0.005                        # Match SB3 PPO — 0.01 caused entropy to increase and policy std to diverge
 target_kl = 0.05                        # Early-stop PPO epochs when approx KL exceeds this — prevents policy collapse
 fall_penalty = -10.0                    # Reduced from -50: large penalties cause value loss to dominate early training (v≈1174 at init → divergence)
-reset_noise_scale = 0.10               # Match [env]: calibrated against the zero-action baseline
+reset_noise_scale = 0.05               # Match [env]: stage 1a operating point (PLANT_VALIDATION §7/§12)
 init_qpos_noise = 0.01                 # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
 init_yaw_noise = 0.1                   # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
 
@@ -159,10 +165,31 @@ net_arch = [512, 256]                  # Match SB3 PPO architecture
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 6000000
-min_avg_reward = 1840.0                 # Provisional legacy gate only. The stance reward changes the score scale,
-                                        # so run Stage 1 pilots without curriculum advancement and recalibrate this
-                                        # value before merging or starting a full curriculum run.
-min_avg_episode_length = 750             # Provisional legacy gate; calibrate jointly with min_avg_reward after pilots.
+min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
+                                        # can separate a competent policy from a statue, because the statue is the
+                                        # reward optimum (97.0% of the 3.35/step ceiling with zero actuation cost).
+                                        # Sized to the one job a rail CAN do — rejecting a policy that discarded
+                                        # most of the available return — at 0.60 x the statue's standing reward at
+                                        # the 0.05 operating point (3271.8 +/- 12.0, 40 episodes).
+                                        #
+                                        # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
+                                        # full-horizon 93% -> 7%) bottomed at 888 = 0.27 x statue, so 0.60 clears
+                                        # it by better than 2x. Meanwhile 0.89 = 2900 sat within ~2.4% of a
+                                        # competent policy's estimated ceiling (statue minus the ~0.30/step
+                                        # smoothness cost = ~2970, before energy and the posture terms a moving
+                                        # policy inevitably gives up) — close enough to reject the very policy it
+                                        # was meant to admit. §12 chose 0.89 to sit just under a good policy, which
+                                        # is competence-bar reasoning, and §9 is the argument that a competence bar
+                                        # cannot work here.
+                                        #
+                                        # The real 1a gate is the episode-level stance_success event
+                                        # (STAGE1_SPLIT_PLAN §2.3) over unsupported duty — machinery still to be
+                                        # built. The old 1840 was cleared by the statue itself and certified
+                                        # nothing.
+min_avg_episode_length = 950             # Encodes §12's full-horizon >= 95% in the existing machinery. The statue
+                                        # measures 100% at noise 0.05, so this is a floor a competent policy must
+                                        # MATCH, not beat; the old 750 was calibrated at noise 0.10 where survival
+                                        # and stance quality were inseparable.
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so transition turbulence won't abort the stage.
@@ -170,4 +197,11 @@ collapse_drop_fraction = 0.5            # Only raw means >50% below the robust r
                                         # low-reward grind then a noisy breakthrough (run 20260721_004731: dip to ~1.2M,
                                         # turbulent transition at 2.2-2.3M, converged ~2.65M); the old stage-1 defaults
                                         # killed run 20260720_203454 at 1.1M off a variance-inflated 50k peak.
-collapse_peak_floor = 2200.0             # Arm only above the measured ~1972 noisy zero-action mean; recalibrate with the gate.
+collapse_peak_floor = 2450.0             # 0.75 x the statue's standing reward at noise 0.05 (3271.8): above the
+                                         # pre-convergence grind, below a plausible active-policy peak (~2970 =
+                                         # statue minus the ~300 smoothness cost). The old absolute 2200 was
+                                         # calibrated against a run whose reward scale then shifted, and sat above
+                                         # the 7/31 run's peak forever — the detector never armed through a -59%
+                                         # collapse (PLANT_VALIDATION §11.4). Still an absolute number: making it
+                                         # RELATIVE to the zero-action baseline needs code (§14 item 3) and waits
+                                         # for the fresh-run measurements.

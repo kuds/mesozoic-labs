@@ -35,6 +35,11 @@ class TrainerState:
     reward_history: list[float] = field(default_factory=list)
     loss_history: list[float] = field(default_factory=list)
     episode_return_history: list[float] = field(default_factory=list)
+    # Tracked alongside the return so the curriculum gate can enforce
+    # min_avg_episode_length.  Without it the JAX path could only check
+    # min_avg_reward, silently ignoring half of the reward_and_length/v1 gate
+    # that the SB3 path enforces in full.
+    episode_length_history: list[float] = field(default_factory=list)
     t_rollout_cumulative: float = 0.0
     t_ppo_cumulative: float = 0.0
 

@@ -113,8 +113,9 @@ _SB3_ONLY_ENV_KEYS: frozenset = frozenset(
         "idle_velocity_threshold",
         "strike_proximity_weight",
         "food_height_range",
-        # SB3-only by construction: the MJX reset jitters joints and XY but
-        # never root height, so it has no counterpart to scale.
+        # Inert everywhere since ground settling: both resets overwrite the
+        # root height as a function of the sampled joint pose.  SB3 still
+        # draws it for RNG-stream compatibility; MJX never drew it at all.
         "reset_height_noise_scale",
     }
 )
@@ -385,6 +386,150 @@ def _resolve_home_pose_joints(
 
 
 # ---------------------------------------------------------------------------
+# Ground settling
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _GroundSettle:
+    """Per-model constants for the analytic reset ground settle.
+
+    The reset jitters joint angles and yaw with the root height fixed at the
+    keyframe value, but the two are not independent in the world: bending the
+    legs changes how far the lowest geom sits below the root, so a fixed root
+    height is wrong for most sampled poses — the same plant defect the
+    Gymnasium reset settled in ``BaseDinoEnv._settle_root_on_ground``, where
+    the contact solver answered spawn penetration with up to 19x body weight.
+
+    MJX has no ``mj_geomDistance``, so the probe is analytic instead: for each
+    animal geom the lowest point under gravity is ``xpos_z`` minus a support
+    extent that decomposes over the world-z row ``r2`` of the geom rotation as
+
+        extent = const + sum_i lin[i] * |r2[i]| + sqrt(sum_i (ell[i] * r2[i])^2)
+
+    which is EXACT for every primitive the species use (sphere, capsule,
+    cylinder, box, ellipsoid) against a horizontal plane floor.  Meshes have
+    no closed form here and raise at construction rather than mis-settling.
+
+    Floor assumptions, kept in step with ``BaseDinoEnv._static_floor_geoms``:
+    exactly one horizontal floor, treated as an INFINITE plane at the highest
+    floor geom's z.  The Gymnasium probe instead takes the minimum
+    ``mj_geomDistance`` over every floor geom, which respects finite plane
+    extents.  Against one 100x100 plane at z=0 with a spawn near the origin the
+    two agree to ~1e-9 (pinned by the cross-backend settle-target test), but
+    multiple floors at different heights, or a spawn past the plane's extent,
+    would diverge.  A non-+z plane normal and a heightfield both raise here
+    rather than settle wrongly.
+    """
+
+    geom_ids: Any  # (n,) int32 ndarray of animal (free-root subtree) geom ids
+    const_extent: Any  # (n,) float32 ndarray, constant term per geom
+    lin_extent: Any  # (n, 3) float32 ndarray, coefficients on |r2|
+    ell_extent: Any  # (n, 3) float32 ndarray, coefficients inside the sqrt
+    floor_z: float  # surface height of the highest horizontal floor plane
+    root_z_index: int  # qpos index of the free root's height
+
+
+def _ground_settle_constants(mj_model: Any) -> _GroundSettle | None:
+    """Precompute :class:`_GroundSettle` for a model, or ``None`` if the model
+    has no free-jointed animal or no plane floor to settle it against."""
+    import mujoco
+    import numpy as np
+
+    free = [j for j in range(mj_model.njnt) if mj_model.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE]
+    if not free:
+        return None
+
+    floor_zs: list[float] = []
+    for g in range(mj_model.ngeom):
+        if int(mj_model.geom_bodyid[g]) != 0:
+            continue
+        if mj_model.geom_type[g] == mujoco.mjtGeom.mjGEOM_HFIELD:
+            raise ValueError(
+                "MJX ground settling supports horizontal plane floors only; a "
+                "heightfield floor needs an iterative settle (see "
+                "BaseDinoEnv._static_floor_geoms for the same caveat on SB3)."
+            )
+        if mj_model.geom_type[g] != mujoco.mjtGeom.mjGEOM_PLANE:
+            continue
+        normal = np.empty(3)
+        mujoco.mju_rotVecQuat(normal, np.array([0.0, 0.0, 1.0]), np.asarray(mj_model.geom_quat[g], dtype=float))
+        if abs(normal[2] - 1.0) > 1e-9:
+            raise ValueError("MJX ground settling requires the floor plane normal to be world +z")
+        floor_zs.append(float(mj_model.geom_pos[g][2]))
+    if not floor_zs:
+        return None
+
+    root_body = int(mj_model.jnt_bodyid[free[0]])
+    bodies = {root_body}
+    for b in range(root_body + 1, mj_model.nbody):
+        if int(mj_model.body_parentid[b]) in bodies:
+            bodies.add(b)
+
+    geom_ids: list[int] = []
+    const_extent: list[float] = []
+    lin_extent: list[tuple[float, float, float]] = []
+    ell_extent: list[tuple[float, float, float]] = []
+    for g in range(mj_model.ngeom):
+        if int(mj_model.geom_bodyid[g]) not in bodies:
+            continue
+        # Skip non-colliding geoms, matching BaseDinoEnv._root_subtree_geoms:
+        # a geom that generates no contacts can never rest on the floor, so
+        # settling to one would hold the real feet above the ground.
+        if int(mj_model.geom_contype[g]) == 0 and int(mj_model.geom_conaffinity[g]) == 0:
+            continue
+        geom_type = mj_model.geom_type[g]
+        size = mj_model.geom_size[g]
+        if geom_type == mujoco.mjtGeom.mjGEOM_SPHERE:
+            parts = (float(size[0]), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0))
+        elif geom_type == mujoco.mjtGeom.mjGEOM_CAPSULE:
+            parts = (float(size[0]), (0.0, 0.0, float(size[1])), (0.0, 0.0, 0.0))
+        elif geom_type == mujoco.mjtGeom.mjGEOM_CYLINDER:
+            parts = (0.0, (0.0, 0.0, float(size[1])), (float(size[0]), float(size[0]), 0.0))
+        elif geom_type == mujoco.mjtGeom.mjGEOM_BOX:
+            parts = (0.0, (float(size[0]), float(size[1]), float(size[2])), (0.0, 0.0, 0.0))
+        elif geom_type == mujoco.mjtGeom.mjGEOM_ELLIPSOID:
+            parts = (0.0, (0.0, 0.0, 0.0), (float(size[0]), float(size[1]), float(size[2])))
+        else:
+            name = mujoco.mj_id2name(mj_model, mujoco.mjtObj.mjOBJ_GEOM, g) or f"geom{g}"
+            raise ValueError(f"MJX ground settling has no support extent for geom {name!r} (type {int(geom_type)})")
+        geom_ids.append(g)
+        const_extent.append(parts[0])
+        lin_extent.append(parts[1])
+        ell_extent.append(parts[2])
+    if not geom_ids:
+        return None
+
+    return _GroundSettle(
+        geom_ids=np.array(geom_ids, dtype=np.int32),
+        const_extent=np.array(const_extent, dtype=np.float32),
+        lin_extent=np.array(lin_extent, dtype=np.float32),
+        ell_extent=np.array(ell_extent, dtype=np.float32),
+        floor_z=max(floor_zs),
+        root_z_index=int(mj_model.jnt_qposadr[free[0]]) + 2,
+    )
+
+
+def _mjx_lowest_ground_clearance(settle: _GroundSettle, geom_xpos: Any, geom_xmat: Any) -> Any:
+    """Signed distance from the animal's lowest geom to the floor, in metres.
+
+    JAX counterpart of ``BaseDinoEnv.lowest_ground_clearance``; negative means
+    the pose interpenetrates the floor.  Requires kinematics to have been run
+    on the state the arrays come from.
+    """
+    import jax.numpy as jnp
+
+    xpos = geom_xpos[settle.geom_ids]
+    r2 = geom_xmat[settle.geom_ids].reshape(-1, 3, 3)[:, 2, :]
+    extent = (
+        settle.const_extent
+        + jnp.sum(settle.lin_extent * jnp.abs(r2), axis=1)
+        + jnp.sqrt(jnp.sum((settle.ell_extent * r2) ** 2, axis=1))
+    )
+    return jnp.min(xpos[:, 2] - extent) - settle.floor_z
+
+
+# ---------------------------------------------------------------------------
 # MJX Environment
 # ---------------------------------------------------------------------------
 
@@ -584,6 +729,30 @@ class MJXDinoEnv:
             self._default_data = mjx.make_data(self.mjx_model)
         else:
             raise ValueError(f"unknown MJX action mapping {self.config.action_mapping!r}")
+
+        # Ground-settle constants and target.  The target is the clearance the
+        # model's home keyframe was authored with — the same semantics as
+        # BaseDinoEnv.home_ground_clearance — probed once here through the
+        # exact kinematics path the reset uses.  For the home-residual mapping
+        # the reset base pose IS that keyframe, so a noise-free reset computes
+        # shift == 0.0 bit-for-bit.  For the midpoint mapping the base pose is
+        # qpos0, which can hover far above the floor (brachiosaurus: 610 mm);
+        # targeting the keyframe clearance settles it onto the ground instead
+        # of preserving the drop.
+        self._ground_settle = _ground_settle_constants(self.mj_model)
+        self._home_ground_clearance = 0.0
+        if self._ground_settle is not None:
+            keyframe = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_KEY, "home")
+            if keyframe < 0 and self.mj_model.nkey > 0:
+                keyframe = 0
+            if keyframe >= 0:
+                target_qpos = jnp.array(self.mj_model.key_qpos[keyframe])
+            else:
+                target_qpos = self._default_data.qpos
+            probed = mjx.kinematics(self.mjx_model, self._default_data.replace(qpos=target_qpos))
+            self._home_ground_clearance = float(
+                _mjx_lowest_ground_clearance(self._ground_settle, probed.geom_xpos, probed.geom_xmat)
+            )
 
         # Pre-compile step and reset functions.  ``forward_vel_scale`` is
         # passed as a JAX scalar (broadcast via in_axes=None) so the reward
@@ -958,6 +1127,8 @@ class MJXDinoEnv:
         model = self.mjx_model
         config = self.config
         default_data = self._default_data
+        settle = self._ground_settle
+        home_clearance = self._home_ground_clearance
 
         def reset_fn(rng):
             """Pure single-environment reset function."""
@@ -1024,6 +1195,23 @@ class MJXDinoEnv:
                 qpos = qpos.at[3:7].set(new_quat)
 
             data = data.replace(qpos=qpos)
+
+            if settle is not None:
+                # Settle the animal ON the ground.  Joint and yaw jitter change
+                # how far the lowest geom sits below the root, so the fixed
+                # keyframe root height is wrong for most sampled poses — the
+                # defect the Gymnasium reset settled in ca56f6c, which the
+                # contact solver otherwise answers with a catapult (up to 19x
+                # body weight measured on SB3).  This must come after ALL pose
+                # noise.  A kinematics pass is enough to place the geoms; the
+                # full forward below then runs once on the settled pose.  The
+                # shift is a pure function of the sampled pose: no RNG drawn,
+                # and a noise-free reset yields shift == 0.0 exactly because
+                # the target was probed through this same code path at init.
+                probed = mjx.kinematics(model, data)
+                clearance = _mjx_lowest_ground_clearance(settle, probed.geom_xpos, probed.geom_xmat)
+                qpos = qpos.at[settle.root_z_index].add(home_clearance - clearance)
+                data = data.replace(qpos=qpos)
 
             # Forward kinematics
             data = mjx.forward(model, data)

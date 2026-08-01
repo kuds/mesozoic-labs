@@ -65,6 +65,29 @@ GATE_KINDS: dict[str, frozenset[str]] = {
     "none/v1": frozenset(),
 }
 
+#: Threshold fields a gate kind cannot function without.  Declaring a kind and
+#: omitting its required fields used to fail OPEN on the SB3 path: the schema
+#: passed, ``thresholds_from_configs`` produced no fields, and
+#: ``CurriculumManager`` fell back to ``StageThreshold``'s permissive defaults
+#: (``min_avg_reward = -inf``) — advancing on any evaluation — while the JAX
+#: path raised.  Requiring the core field here closes that hole and keeps the
+#: two backends agreeing, which is the schema's whole job.
+_REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
+    "reward_and_length/v1": frozenset({"min_avg_reward"}),
+    "none/v1": frozenset(),
+}
+
+# A gate kind with no required-keys declaration would fail with a bare
+# KeyError mid-validation; make the omission unmissable at import instead.
+# Deliberately a raise, not an assert: `python -O` strips asserts, and a
+# fail-closed guarantee that disappears under an optimisation flag is the
+# same class of defect as the gates this module exists to harden.
+if set(_REQUIRED_THRESHOLD_KEYS) != set(GATE_KINDS):
+    raise RuntimeError(
+        "every gate kind must declare its required threshold fields; "
+        f"missing from _REQUIRED_THRESHOLD_KEYS: {sorted(set(GATE_KINDS) - set(_REQUIRED_THRESHOLD_KEYS))}"
+    )
+
 #: Keys that configure the stage's schedule rather than its gate.
 _SCHEDULE_KEYS = frozenset(
     {
@@ -179,6 +202,16 @@ def validate_gate_config(
             f"{_describe(stage)}: gate_kind {declared_kind!r} does not consume "
             f"threshold field(s) {misplaced}. Leaving them in the config implies "
             "a gate that is not actually enforced."
+        )
+
+    missing = sorted(_REQUIRED_THRESHOLD_KEYS[declared_kind] - set(curriculum_kwargs))
+    if missing:
+        raise GateSchemaError(
+            f"{_describe(stage)}: gate_kind {declared_kind!r} is missing required "
+            f"threshold field(s) {missing}. Declaring a gate without them fails "
+            "open on the SB3 path (StageThreshold defaults to min_avg_reward = "
+            '-inf) while the JAX path rejects it; declare gate_kind = "none/v1" '
+            "for a non-advancing pilot instead."
         )
 
     if advancement_enabled and declared_kind == "none/v1":

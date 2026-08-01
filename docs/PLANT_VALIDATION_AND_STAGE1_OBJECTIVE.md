@@ -534,3 +534,60 @@ broken reset.
 
 **Not claimed:** any statement that the repaired plant produces better *training* outcomes. No
 training run has been performed on it.
+
+---
+
+## Addendum — 2026-07-31, after `ca56f6c`
+
+Work landed on the review branch since this document was written, recorded here so the sections
+above stay a faithful snapshot:
+
+* **§6/§8's brachiosaurus rows are resolved** (plant_versions notes 7–8). The collapse mechanism
+  §16 left undiagnosed was measured to be two defects: the midpoint action mapping never
+  commanded the home pose (knees dragged up to 0.349 rad off), and the leg servos sagged
+  71.6 mm under static weight, leaving the planted stance's roll stiffness at parity with
+  `m·g·h` so the statue tipped over in slow roll even holding home exactly. With the residual
+  mapping and doubled leg kp the statue is **40/40 full-horizon at 1739.08 ± 1.17** (was 0/40 at
+  163.35 ± 81.40); with the foot-sensor repair its stance-quality row reads all-feet 0.998 /
+  unsupported 0.000 (was 0.000 / 0.885). §12's "blocked" row and decision §17.4 are discharged;
+  the **± 1.17** spread supersedes velociraptor's ± 5.03 as the tightest gate-prototyping
+  variance.
+* **The MJX reset now settles on the ground** like §5's Gymnasium repair (plant_versions note 6
+  addendum). Un-settled MJX spawns measured −41.2 mm to +5.2 mm at stage-1 noise on T-Rex, and
+  the brachiosaurus midpoint base pose hovered 610 mm. Part I's findings therefore applied to
+  the JAX path too; they no longer do.
+* **§16's reset-height-clip hypothesis is retired going forward**: the ground settle makes the
+  entire root-height jitter channel state-inert (verified to one ULP), so the clip cannot
+  influence any future run. It remains a candidate explanation for the historical 7/29→7/31
+  regression.
+* **§17's decisions are now ADOPTED, not provisional**, following a decision review on
+  2026-08-01. Each is recorded here with what actually got decided:
+
+  1. **§17.2 — 1a operating noise: `reset_noise_scale = 0.05`, all four species.** §7's argument
+     taken as written. Accepted consequence: a statue passes 1a by construction, with
+     discrimination deferred to 1b's perturbations (§13). Accepted risk: if 1b never lands,
+     stage 1 is trivially passable.
+  2. **§17.3 — the reward rail is kept, as a gate component.** It stays in `min_avg_reward` and
+     blocks advancement, because it is the only enforcement slot that exists and the collapse it
+     catches is real.
+  3. **§17.1 — the four rail values are 0.60 × statue, NOT §12's 0.89 ×**: trex 1950,
+     velociraptor 1050, brachiosaurus 1040, dibothrosuchus 1560. §12 chose 0.89 to sit just
+     below a competent policy, which is competence-bar reasoning that §9 refutes. Sized instead
+     to the rail's actual job: the measured collapse bottomed at **888 = 0.27 × statue**, so
+     0.60 clears it by better than 2×, whereas 0.89 = 2900 sat within ~2.4% of a competent
+     policy's estimated ceiling (~2970 = statue − the 0.30/step smoothness cost, before energy
+     and the posture terms a moving policy gives up) and risked rejecting the policy it was
+     meant to admit. **§12's table is superseded on this point.**
+  4. **§12's gate statistic is a hybrid**, reconciling §2.3 (binomial LCB) with §12 (raw
+     fractions), which disagreed by ~5 points of certified capability: raw-fraction screening at
+     n=40 with `required_consecutive` as scheduler hysteresis only, a one-sided bound on **mean
+     unsupported duty** at n=40 where a continuous metric has real power, and one predeclared
+     held-out panel at n≈100–180 for the binary full-horizon event. See STAGE1_SPLIT_PLAN §2.3.
+  5. **§17.4 — brachiosaurus was fixed first** (notes 7–8 above), so no ordering question
+     remains.
+
+  `min_avg_episode_length = 950` encodes the full-horizon ≥ 95% floor and is **now enforced on
+  both backends** — the JAX gate previously read only `min_avg_reward`, half-enforcing the gate
+  kind named `reward_and_length/v1`. `collapse_peak_floor` is 0.75 × each statue's standing
+  reward, still absolute pending §14 item 3. The `stance_success` machinery and the §14 reward
+  changes remain unimplemented — the latter deliberately, per §14's "wait for the fresh run".

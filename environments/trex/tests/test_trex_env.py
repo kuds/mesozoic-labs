@@ -404,12 +404,20 @@ class TestStage1ResetStaysInsideTheHealthyEnvelope:
 
     Dibothrosuchus hit this first and fixed it by decoupling
     ``reset_height_noise_scale`` from the radian-scale joint noise.  T-Rex was
-    left coupled, and at ``reset_noise_scale = 0.10`` its 0.926 m home pelvis
-    sits only 0.226 m — 2.26 sigma — above the 0.70 m floor, so 1.19% of spawns
-    landed below it.  Measured over seeds 3042-5041 before the fix: 18/2000
-    spawned sub-floor and 16 terminated on step 1 whatever the policy did.
-    That is the direct cause of the 39/40 evaluation panels, and it caps any
-    reliability gate below the level a stance gate needs to certify.
+    left coupled, and at the then-current ``reset_noise_scale = 0.10`` its
+    0.926 m home pelvis sat only 0.226 m — 2.26 sigma — above the 0.70 m floor,
+    so 1.19% of spawns landed below it.  Measured over seeds 3042-5041 before
+    the fix: 18/2000 spawned sub-floor and 16 terminated on step 1 whatever the
+    policy did.  That is the direct cause of the 39/40 evaluation panels, and it
+    caps any reliability gate below the level a stance gate needs to certify.
+
+    Two things have since moved and this test outlives both, which is why it
+    reads the shipped config rather than a literal: stage 1 now runs at 0.05
+    (PLANT_VALIDATION section 12), and root height is no longer sampled at all
+    — the ground settle derives it from the sampled joint pose, leaving the
+    whole height-jitter channel state-inert (see KNOWN_ISSUES).  The invariant
+    asserted here — no seed starts already terminated — is what must hold
+    regardless.
     """
 
     def test_stage1_reset_never_spawns_out_of_bounds(self):

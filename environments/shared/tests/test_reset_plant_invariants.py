@@ -41,8 +41,11 @@ SPECIES = [
     pytest.param(DibothrosuchusEnv, id="dibothrosuchus"),
 ]
 
-# Reset noise large enough to exercise the settling path.  The species configs
-# use 0.05-0.10; 0.10 is the widest any stage ships, so test the worst case.
+# Reset noise large enough to exercise the settling path.  Every shipped stage
+# now runs at 0.05 (the stage-1a operating point, PLANT_VALIDATION section 12),
+# so this is deliberately 2x the widest configured value: the invariants are
+# about reset GEOMETRY, which must hold at any noise a future stage might pick,
+# not only at today's.
 RESET_NOISE = 0.10
 SEEDS = range(48)
 
@@ -228,3 +231,32 @@ def test_reset_keeps_feet_on_the_floor(env_cls):
             if int(env.data.contact.geom1[i]) in floor or int(env.data.contact.geom2[i]) in floor
         )
         assert touching > 0, f"{env_cls.__name__} seed {seed} spawned with no ground contact at all"
+
+
+@pytest.mark.parametrize("env_cls", SPECIES)
+def test_settle_ignores_geoms_that_cannot_touch_the_ground(env_cls):
+    """Only collidable geometry may decide where the ground is.
+
+    A geom with ``contype == 0`` and ``conaffinity == 0`` generates no
+    contacts, so it can never rest on the floor.  Settling to one would hold
+    the animal's real feet above the ground -- the hover these invariants
+    exist to catch -- and every species carries some: cosmetic detail
+    (``brow_ridge``, ``crest``, ``sagittal_crest``, dibothrosuchus' twelve
+    ``scute``\\s) plus the necks that are non-collidable on every species
+    except velociraptor, whose neck IS real and terminates the episode on
+    ground contact.
+    """
+    env = make_env(env_cls)
+    try:
+        probed = {int(g) for g in env._root_subtree_geoms()}
+        assert probed, "the settle probe must consider at least one geom"
+        for geom_id in probed:
+            contype = int(env.model.geom_contype[geom_id])
+            conaffinity = int(env.model.geom_conaffinity[geom_id])
+            name = mujoco.mj_id2name(env.model, mujoco.mjtObj.mjOBJ_GEOM, geom_id) or f"geom{geom_id}"
+            assert contype != 0 or conaffinity != 0, (
+                f"{env_cls.__name__} settle probe includes {name!r}, which cannot collide; "
+                "settling to it would hold the real feet off the floor"
+            )
+    finally:
+        env.close()

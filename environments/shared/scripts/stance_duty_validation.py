@@ -74,7 +74,18 @@ def _probe(env, foot_gids, floor_gid):
     import mujoco
 
     model, data = env.model, env.data
-    right, left = env._foot_contact_forces()
+    # ``_foot_contact_forces`` returns ONE VALUE PER FOOT, so its arity is
+    # species-dependent: 2 on the bipeds, 4 on the quadrupeds.  This probe is
+    # bipedal by construction -- it feeds ``derive_stance_info``, which is
+    # defined on an r/l pair -- so check rather than let a quadruped raise an
+    # opaque unpacking error several frames away from the cause.
+    forces = env._foot_contact_forces()
+    if len(forces) != 2:
+        raise ValueError(
+            f"{type(env).__name__} reports {len(forces)} feet; this validation is bipedal "
+            "(derive_stance_info takes an r/l pair). Generalise both before pointing it at a quadruped."
+        )
+    right, left = forces
 
     foot_force = other_force = 0.0
     for i in range(data.ncon):

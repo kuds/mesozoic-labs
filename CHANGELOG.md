@@ -8,6 +8,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
 ### Changed
+- **The stage-1 reward rails are sized to reject collapse, not to approximate
+  competence** (0.60 × each statue's standing reward, superseding
+  PLANT_VALIDATION §12's 0.89 ×): trex 2900 → **1950**, velociraptor and
+  brachiosaurus 1550 → **1050 / 1040**, dibothrosuchus 2300 → **1560**. §12
+  picked 0.89 to sit just below a competent policy, which is competence-bar
+  reasoning that §9 refutes — the statue is the reward optimum, so no
+  threshold separates competent from passive. Sized instead to the rail's one
+  real job: the measured collapse (full-horizon 93% → 7%) bottomed at
+  **888 = 0.27 × statue**, so 0.60 clears it by better than 2×, whereas 0.89 =
+  2900 sat within ~2.4% of a competent policy's estimated ceiling (~2970 =
+  statue − the measured 0.30/step smoothness cost, before energy and the
+  posture terms a moving policy gives up) and risked rejecting the very policy
+  it was meant to admit. `collapse_peak_floor` stays at 0.75 ×, which *should*
+  sit near a good level since its job is arming a detector rather than
+  admitting a policy.
+- **`min_avg_episode_length` is now enforced on the JAX path.**
+  `check_stage_gate` read only `min_avg_reward`, and the trainer's
+  `eval_metrics` carried no length key at all — so the gate kind named
+  `reward_and_length/v1` was fully enforced on SB3 and half-enforced on JAX,
+  the exact "one backend silently ignores a gate the other enforces"
+  divergence `gate_schema` exists to prevent. It became load-bearing when
+  stage 1 began encoding its full-horizon ≥ 95% floor in that field. The
+  trainer now tracks `episode_length_history` and emits `mean_episode_length`
+  (NaN windows collapse to 0.0, which fails a length gate rather than passing
+  it), and the gate enforces both halves; declaring the threshold without the
+  metric raises rather than passing on reward alone.
+- **The ground settle no longer probes geoms that cannot touch the ground.**
+  Both backends included `contype=0, conaffinity=0` geoms — 2 on T-Rex, 5 on
+  brachiosaurus, **14 of dibothrosuchus's 39** — when deciding where the floor
+  is. Settling to one would hold the animal's real feet above the ground,
+  which is the hover the settle exists to prevent. Measured latent (no phantom
+  is currently the lowest geom at any shipped noise), so the filter is
+  behaviour-preserving: resets are verified **bit-identical across all four
+  species** after the change. A new invariant test pins that only collidable
+  geometry can drive the settle.
+- **Stage 1 moved to the 1a operating point and the reward gates were
+  re-founded as sanity rails** (PLANT_VALIDATION §7/§9/§12; changes what
+  stage 1 *is*, per decision §17.2). Every species' stage-1
+  `reset_noise_scale` is now **0.05** (T-Rex was 0.10, dibothrosuchus 0.30):
+  the noise sweep on the repaired plant showed reset noise does not make
+  standing harder (statue standing reward nearly flat, 3288 → 3167 across
+  0.01–0.20 on T-Rex) — it decides how often you get to stand at all
+  (full-horizon 100% at ≤ 0.05, 65% at 0.10, 22% at 0.20). At the old
+  operating points survival and stance quality were inseparable in every
+  metric, which is why no scalar gate ever said anything useful; at 0.05 a
+  statue survives 100% and stance-quality gates can measure stance quality.
+  Robustness becomes stage 1b's job via declared `xfrc_applied`
+  perturbations, where a lucky draw and a good controller are
+  distinguishable — not reset noise. The four `min_avg_reward` values (all
+  previously cleared by their own species' statue, certifying nothing) are
+  now §12 sanity **rails** at 0.89 × each statue's standing reward at 0.05:
+  trex 2900 (statue 3271.8 ± 12.0), velociraptor 1550 (1745.8 ± 5.0),
+  brachiosaurus 1550 (1739.1 ± 1.2, on the repaired plant), dibothrosuchus
+  2300 (2598.3 ± 0.9). A rail sits *below* the statue on purpose — above it
+  is unreachable, since the statue is the reward optimum — and only rejects
+  a policy that discarded most of the available return; `min_avg_episode_length`
+  rises 750 → **950** on all four to encode §12's full-horizon ≥ 95% floor,
+  and `collapse_peak_floor` moves to 0.75 × each statue's standing reward
+  (still absolute; relative floors are §14 item 3 and wait for the fresh
+  run). All values are provisional per §12 ("for review, not adopted") and
+  the real 1a gate — the episode-level `stance_success` event over
+  unsupported duty — remains unbuilt (tracked in KNOWN_ISSUES).
 - **T-Rex home stance corrected to a flexed theropod limb** (breaking — plant
   change, physics revision 4 → 5 **and** policy interface revision 6 → 7; all
   existing T-Rex checkpoints are invalidated): the home keyframe stood the
@@ -217,6 +279,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   perfect equilibrium.
 
 ### Fixed
+- **Brachiosaurus stage 1 is a balance task again** (breaking — plant change,
+  physics revision 2 → 4, policy interface revision 4 → 6, visual revision
+  1 → 2; all existing brachiosaurus checkpoints are invalidated). The
+  zero-action statue fell on 40 of 40 episodes at mean length 130.7, so no
+  stage-1 result was interpretable (PLANT_VALIDATION §6, KNOWN_ISSUES). The
+  collapse decomposed into two measured defects. First, BrachioEnv was the
+  only species still on the inherited midpoint action mapping, and its home
+  stance is not the ctrlrange midpoint: "do nothing" dragged the rear knees
+  0.349 rad, the front knees 0.262 rad and all four ankles 0.175 rad away
+  from the standing pose on every step; commanding the actual home controls
+  tripled statue survival (mean length 141 → 455) on its own. Both backends
+  now use `home-keyframe-residual/v1` like the other three species — on MJX
+  this also moves the reset base pose from `qpos0`, which hovered 610 mm
+  above the floor, to the home keyframe. Second, the leg position servos
+  could not statically carry the animal: it sagged 71.6 mm under its own
+  weight, putting the planted stance's lateral (roll) stiffness (~1.9·10³
+  N·m/rad) at parity with the destabilising gravity stiffness m·g·h
+  (~1.77·10³), so the statue tipped over in slow roll on 9 of 10 resets even
+  when commanding the exact home pose — the same-signed slow roll to
+  `fallen` visible in every trace. Leg kp is doubled (sag 11.1 mm), with
+  forceranges scaled so each actuator keeps its documented
+  force-to-stiffness sizing. Zero action, 40 episodes at stage-1 noise 0.05,
+  before → after: reward 163.35 ± 81.40 → **1739.08 ± 1.17**, full-horizon
+  **0/40 → 40/40**, terminations (fallen 34, tail_contact 6) → (truncated
+  40). The ± 1.17 spread is the tightest of any species, making
+  brachiosaurus the best-conditioned gate-prototyping plant — the property
+  PLANT_VALIDATION §6 wanted. The full-horizon neutral-action test the
+  KNOWN_ISSUES entry prescribed now exists on the brachiosaurus static
+  balance suite.
+- **Brachiosaurus can feel its feet.** All four foot touch sensors read
+  exactly 0.0 N while `mj_contactForce` reported 98.8% of body weight over
+  four real floor contacts (FOOT_SENSOR_VERIFICATION §4) — the policy
+  trained with four permanently dead input dimensions, and the support-duty
+  diagnostics scored the standing statue as 88.5% airborne (PLANT_VALIDATION
+  §8). Two scope defects: the pad sites were r=0.03 spheres that did not
+  contain the pad's floor contact points, and the metacarpus/metatarsus
+  carries part of the load on the pad's *parent* body, invisible to any site
+  on the pad body. The pad sites are now boxes enclosing the pad's contact
+  zone, four meta touch sensors are appended at sensordata 26–29 so existing
+  indices keep their positions, and both backends sum pad + meta per leg —
+  the same repair shape as the T-Rex digit sensors (`aa87445`). Verified:
+  summed sensors report **100.0%** of the independently measured
+  `mj_contactForce` floor total in settled stance (fr/fl 313 N, rr/rl
+  535 N), and statue stance quality at noise 0.05 moved from all-feet 0.000
+  / unsupported 0.885 to **all-feet 0.998 / unsupported 0.000** — in line
+  with the other three species. On attribution: with the stance repair above
+  in place, the **pad-site enlargement alone** accounts for that 100.0% —
+  the meta capsules no longer reach the floor and the meta sensors read
+  0.0 N at home. They were carrying real load on the pre-repair sagging
+  plant and remain correct cover for poses that put the meta back down, but
+  nothing should read them as load-bearing today. Two gaps stay open:
+  velociraptor's 45% under-read (same doc, §3), and the fact that only pads
+  and metas are instrumented — a brachiosaurus kneeling on its shins
+  (measured: shins carrying the full 1695 N with the feet clear) reads zero
+  on every foot sensor, so support-duty scores it as airborne. That errs
+  safely for a stance gate, but distinguishing "kneeling" from "airborne"
+  would need shin instrumentation. With this and the stance repair, every species' §8
+  stance-quality row is now interpretable, unblocking the §12 brachiosaurus
+  gate row.
+- **The MJX reset now settles the animal on the ground, closing the plant gap
+  the PR #479 review found.** The `ca56f6c` ground settle landed only in
+  `BaseDinoEnv.reset`; the MJX reset kept applying joint and yaw jitter with
+  the root height fixed at the keyframe value — the same defect class, measured
+  on T-Rex at the stage-1 noise (0.10) as spawns from **41.2 mm inside the
+  floor to 5.2 mm above it**. The midpoint action mapping was worse: its reset
+  base pose is `qpos0`, which on brachiosaurus hovers **610 mm** over the
+  floor, so every MJX episode opened with a half-metre free fall. MJX has no
+  `mj_geomDistance`, so the settle probes an analytic support extent per geom
+  — exact for the sphere/capsule/cylinder/box/ellipsoid primitives the species
+  use over a horizontal plane floor, and verified against `mj_geomDistance` to
+  ~1e-9 across random poses on all four species. The settle target is the home
+  keyframe's authored clearance (the `BaseDinoEnv.home_ground_clearance`
+  semantics), probed once at construction through the reset's own kinematics
+  path, so a noise-free home-residual reset computes a shift of exactly `0.0`
+  and stays bit-identical to the pre-settle behaviour; only jittered and
+  midpoint spawns move. Jittered spawns now land within 0.4 µm of the authored
+  contact, deterministically in the PRNG key, with no extra RNG consumed. A
+  new `test_mjx_reset_plant_invariants.py` suite pins penetration, hover,
+  determinism, the bit-exact no-op, the brachiosaurus hover fix, and
+  cross-backend agreement of the settle target — every assertion cross-checked
+  with CPU `mj_geomDistance` rather than the implementation's own formula.
+  Cost: one extra `mjx.kinematics` pass (the cheap position stage, no
+  collision or constraint work) per reset, which the fused auto-reset step
+  computes every step; the final full forward still runs once, on the settled
+  pose. No plant revision bump: entry 6's bump already declared reset placement moved
+  for every species, and no MJX checkpoint or baseline was produced between
+  the two landings (addendum recorded in `configs/plant_versions.toml`).
+- **A declared reward gate must now carry its reward threshold.** The gate
+  schema only rejected *misplaced* threshold keys, so a config declaring
+  `gate_kind = "reward_and_length/v1"` with no thresholds at all passed
+  validation, produced no `threshold_fields`, and fell through to
+  `StageThreshold`'s permissive defaults (`min_avg_reward = -inf`) on the SB3
+  path — advancing on any evaluation — while the JAX path raised on the same
+  config. That is precisely the backend divergence the schema exists to
+  prevent. Each gate kind now declares required threshold fields
+  (`reward_and_length/v1` requires `min_avg_reward`), enforced in
+  `validate_gate_config` whenever the kind is declared, so both backends
+  reject the shape identically; the JAX path's now-redundant local check is
+  removed.
+- **`BaseDinoEnv.lowest_ground_clearance` honours its `data` argument.** The
+  parameter was accepted and silently ignored — the probe always measured
+  `self.data`, and `home_ground_clearance` had to swap `self.data` out to use
+  a scratch buffer. A caller passing a scratch pose got the live pose's
+  clearance with no error. The probe now reads the passed `MjData` (pinned by
+  a test probing the home pose shifted 0.1 m down), the swap hack is gone, and
+  the noise-free reset state is verified bit-identical across the change.
+- **The reset's root-height jitter is now documented and pinned as
+  state-inert.** The ground settle overwrites the root height as a pure
+  function of the sampled joint pose, which silently made
+  `reset_height_noise_scale` and PR #478's `_bounded_reset_height_delta`
+  dead — verified to one ULP with RNG streams identical across height scales.
+  Behaviour is unchanged: the draw is deliberately kept so seeded resets and
+  the freshly re-measured baselines stay anchored, the inertness is now stated
+  at every definition site, `TestHeightJitterIsInertSinceGroundSettling`
+  pins both the inertness and the stream alignment, and a KNOWN_ISSUES entry
+  schedules the channel's removal for the next policy-interface revision.
 - **Being airborne is no longer cheaper than honest single support.**
   `reward_foot_load_balance` computed `|R − L| / (R + L + 1e-8)`, which
   evaluates to **zero** when both feet read zero — so a plant off the ground

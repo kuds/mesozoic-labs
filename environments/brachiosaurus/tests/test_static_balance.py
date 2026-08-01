@@ -5,13 +5,17 @@ contacts. These catch model regressions (e.g. mass changes, keyframe edits
 that violate joint limits) before any RL training is attempted.
 
 The Brachiosaurus is quadrupedal with front legs longer than rear legs
-(giraffe-like posture). A normalized neutral action still drives the active
-position servos at their control-range midpoints; separate actuator-disabled
-tests characterize the truly passive plant. The front feet contact the ground
-at reset, but the rear feet may settle over the first few simulation steps.
+(giraffe-like posture). A normalized neutral action drives the active position
+servos to the XML ``home`` keyframe controls -- NOT to their control-range
+midpoints, which is what it did before plant_versions note 7 and is half of
+why the zero-action statue used to fall on every episode. Separate
+actuator-disabled tests characterize the truly passive plant. The front feet
+contact the ground at reset, but the rear feet may settle over the first few
+simulation steps.
 """
 
 import mujoco
+import numpy as np
 import pytest
 
 from environments.brachiosaurus.envs.brachio_env import BrachioEnv
@@ -76,6 +80,26 @@ class TestNeutralActionStability(NeutralActionStabilityBase):
     def test_torso_starts_in_healthy_range(self, env):
         torso_z = env.data.xpos[env.torso_id, 2]
         assert 1.0 < torso_z < 3.5, f"Torso z ({torso_z:.3f}) is outside plausible range at reset."
+
+    def test_survives_full_noise_free_episode(self, env):
+        """The home-centered zero residual must remain viable for 1,000 Gym steps.
+
+        The 100-step base test missed a slow collapse: under the old midpoint
+        action mapping and half-strength leg servos the animal sagged 71.6 mm,
+        drifted into a slow roll, and terminated ``fallen`` around step 200 —
+        so the statue baseline read 0/40 full-horizon and no stage-1 result
+        was interpretable (PLANT_VALIDATION §6, plant_versions note 7).
+        """
+        env.reset(seed=0)
+        neutral_action = np.zeros(env.action_space.shape, dtype=np.float32)
+
+        for step in range(1, env.max_episode_steps + 1):
+            _, _, terminated, truncated, info = env.step(neutral_action)
+            assert not terminated, (
+                f"Brachiosaurus terminated at step {step}/{env.max_episode_steps} "
+                f"under the XML home command: {info.get('termination_reason', 'unknown')}"
+            )
+            assert truncated is (step == env.max_episode_steps)
 
 
 class TestActuatorDisabledPassive(ActuatorDisabledPassiveBase):

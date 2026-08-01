@@ -90,7 +90,7 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Learn to stand and balance without falling | 6M | reward ≥ 100; episode length ≥ 750; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Learn to stand and balance without falling | 6M | reward ≥ 1050; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Strike | Sprint and strike prey with sickle claw | 12M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
@@ -117,7 +117,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Learn to stand and balance without falling | 6M | reward ≥ 1840; episode length ≥ 750; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Learn to stand and balance without falling | 6M | reward ≥ 1950; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Bite | Sprint to prey and make contact with the head bite proxy | 8M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
@@ -137,12 +137,12 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 | Action dimension / actuators | 30 |
 | Generalized coordinates / velocities | nq=38, nv=37 |
 | Compiled dynamic model mass | 175.3 kg |
-| Plant contract revisions | policy r4; physics r2; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r6; physics r4; visual r2 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Learn to stand on four legs without falling | 6M | reward ≥ 100; episode length ≥ 750; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Learn to stand on four legs without falling | 6M | reward ≥ 1040; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | Learn coordinated quadrupedal walking | 16M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 0.75 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Food Reach | Move the head tip within the configured distance threshold of food | 12M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
@@ -166,7 +166,7 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Hold the erect quadrupedal stance without collapsing into a sprawl | 6M | reward ≥ 100; episode length ≥ 750; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Hold the erect quadrupedal stance without collapsing into a sprawl | 6M | reward ≥ 1560; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | Learn a coordinated erect-limbed diagonal-pair walk | 12M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 0.9 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Snap | Close on small prey and touch it with the snout snap proxy | 8M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 

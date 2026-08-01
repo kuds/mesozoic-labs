@@ -108,6 +108,19 @@ canonical_mujoco_version = "3.10.0"
 #    Every existing checkpoint is trained against a different task: the
 #    zero-action baseline, the stage-1 operating point and any gate calibrated
 #    against them must all be re-measured.
+#
+#    ADDENDUM: the MJX reset lagged this entry and kept spawning with joint and
+#    yaw jitter at a fixed root height -- measured on T-Rex at stage-1 noise,
+#    -41.2 mm to +5.2 mm around the authored contact -- and the midpoint action
+#    mapping's qpos0 base pose hovered 610 mm over the floor on brachiosaurus,
+#    opening every MJX episode with a half-metre free fall.  MJX now settles to
+#    the same authored keyframe clearance analytically (exact for the species'
+#    sphere/capsule/cylinder/box/ellipsoid geoms over the plane floor, verified
+#    against mj_geomDistance to ~1e-9).  No further revision bump: this entry's
+#    bump already declared the reset-placement interface moved for every
+#    species, and no MJX checkpoint or baseline was produced between the two
+#    landings.  A noise-free home-residual MJX reset is bit-identical to the
+#    pre-settle behaviour; only jittered and midpoint spawns move.
 
 [plants.velociraptor]
 physics_revision = 2
@@ -143,10 +156,87 @@ policy_interface_revision = 9
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
 
+# 7. Brachiosaurus can stand: residual action mapping and load-bearing servos.
+#
+#    Stage 1 was not a balance task for this species: the zero-action statue
+#    fell on 40 of 40 episodes at mean length 130.7 (PLANT_VALIDATION §6), so
+#    there was no "do not fall" floor and no stage-1 result was interpretable.
+#    Two compounding defects, both measured:
+#
+#    a) BrachioEnv was the only species still on the inherited MIDPOINT action
+#       mapping, and its home stance is not the ctrlrange midpoint: "do
+#       nothing" dragged the knees up to 0.349 rad and the ankles 0.175 rad
+#       away from the standing pose on every step.  Commanding the actual home
+#       controls tripled statue survival (mean length 141 -> 455) on its own.
+#       Both backends now use home-keyframe-residual/v1 like the other three
+#       species; on MJX this also moves the reset base pose from qpos0 (which
+#       hovered 610 mm above the floor) to the home keyframe.
+#
+#    b) The leg position servos could not statically carry the animal: it
+#       sagged 71.6 mm under its own weight, putting the planted stance's roll
+#       stiffness (~1.9e3 N*m/rad) at parity with the destabilising gravity
+#       stiffness m*g*h (~1.77e3), so the statue tipped over in slow roll on
+#       9 of 10 resets even when commanding the exact home pose.  Leg kp is
+#       doubled (sag 11.1 mm), with forceranges scaled to keep each actuator's
+#       documented force-to-stiffness sizing.
+#
+#    Zero action, 40 episodes, stage-1 noise 0.05, before -> after: reward
+#    163.35 +/- 81.40 -> 1739.08 +/- 1.17; full-horizon 0/40 -> 40/40;
+#    terminations (fallen 34, tail_contact 6) -> (truncated 40).  The +/- 1.17
+#    spread is the tightest of any species and makes brachiosaurus a good
+#    gate-prototyping plant (PLANT_VALIDATION §6 asked for exactly this
+#    property).  PHYSICS moves (actuator gains); the POLICY INTERFACE moves
+#    (action mapping).
+#
+# 8. Brachiosaurus can feel its feet: pad sites enlarged, meta sensors added.
+#
+#    FOOT_SENSOR_VERIFICATION section 4: all four foot touch sensors read
+#    exactly 0.0 N while mj_contactForce reported 98.8% of body weight over
+#    four real floor contacts, so the policy trained with four permanently
+#    dead input dimensions and the support-duty diagnostics scored the
+#    standing statue as 88.5% airborne.  Two causes: the pad sites were
+#    r=0.03 spheres that did not contain the pad's floor contact points, and
+#    the metacarpus/metatarsus carries part of the load on the pad's PARENT
+#    body, which no site on the pad body can see however large.  The pad
+#    sites are now boxes enclosing the pad's contact zone, and four meta
+#    touch sensors are APPENDED (sensordata 26-29) so existing indices keep
+#    their positions; both backends sum pad + meta per leg (the same repair
+#    shape as the T-Rex digit sensors, aa87445).  Verified: summed sensors
+#    now report 100.0% of the mj_contactForce floor total in settled stance
+#    (fr/fl 313 N, rr/rl 535 N).
+#
+#    Attribution, measured on the repaired plant: the PAD-SITE enlargement
+#    alone accounts for that 100.0% -- with note 7's stance fix the meta
+#    capsules no longer reach the floor and the meta sensors read 0.0 N at
+#    home.  They earned their place on the pre-repair SAGGING plant, where
+#    the meta carried a real share (fr/fl contact at 34.4 mm depth), and they
+#    remain the correct defensive cover for any pose that puts the meta back
+#    on the ground.  Do not read the note as "the meta was carrying load
+#    here"; it is not, today.
+#
+#    Known remaining gap, NOT fixed here: only the pads and metas are
+#    instrumented.  A brachiosaurus kneeling on its SHINS (measured: a deep
+#    knee/ankle command settles onto fr/fl/rr/rl_shin_geom carrying the full
+#    1695 N, feet clear of the floor) reads 0.0 N on every foot sensor, so
+#    the support-duty metrics score it identically to airborne.  For the
+#    section 12 unsupported-duty gate that errs in the safe direction -- a
+#    kneeling policy fails a stance gate, which is the desired outcome -- but
+#    any future diagnostic that needs to tell "kneeling" from "airborne"
+#    needs shin instrumentation.  Statue stance quality at noise 0.05 moved
+#    from all-feet 0.000 / unsupported 0.885 to all-feet 0.998 / unsupported
+#    0.000.  The POLICY INTERFACE moves (sensor layout and observation
+#    values).  PHYSICS also moves, by the layer's own definition rather than
+#    by dynamics: the physics fingerprint covers structural dimensions
+#    including nsite and nsensor, so adding sites and sensors bumps it even
+#    though they carry no mass and no contacts and every trajectory is
+#    unchanged.  VISUAL moves for the same structural reason: that layer
+#    fingerprints body-local site definitions (all new sites are group 4,
+#    hidden in default renders).  Velociraptor's 45% under-read (same doc,
+#    section 3) remains open and is NOT part of this entry.
 [plants.brachiosaurus]
-physics_revision = 2
-policy_interface_revision = 4
-visual_revision = 1
+physics_revision = 4
+policy_interface_revision = 6
+visual_revision = 2
 observation_schema = "quadrupedal-target/v1"
 
 [plants.dibothrosuchus]

@@ -149,6 +149,19 @@ class TrainResult:
 # ---------------------------------------------------------------------------
 
 
+def _finite_mean(values: "list[float]") -> float:
+    """Mean of the finite entries, or ``0.0`` when there are none.
+
+    Episode-length windows carry ``nan`` for updates where no episode
+    completed.  A gate threshold must not be handed a ``nan`` -- every
+    comparison against it is ``False``, which reads as "gate failed" for the
+    length check but would be indistinguishable from a real short-episode
+    failure.  Collapsing to ``0.0`` keeps the fail-closed reading explicit.
+    """
+    finite = [v for v in values if np.isfinite(v)]
+    return float(np.mean(finite)) if finite else 0.0
+
+
 def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, env=None):
     """Build all JIT-compiled functions for the training loop.
 
@@ -1337,6 +1350,7 @@ class JaxTrainer:
 
                 state.reward_history.append(mean_reward)
                 state.episode_return_history.append(mean_ep_return)
+                state.episode_length_history.append(mean_ep_length)
 
                 update_metrics = {
                     "update": update,
@@ -1378,6 +1392,11 @@ class JaxTrainer:
             "mean_episode_return": float(jnp.mean(jnp.array(state.episode_return_history[-10:])))
             if state.episode_return_history
             else 0.0,
+            # Episode length over the same window, so check_stage_gate can
+            # enforce min_avg_episode_length.  NaN windows (no episode
+            # completed yet) collapse to 0.0, which fails a length gate rather
+            # than passing it -- the fail-closed direction.
+            "mean_episode_length": _finite_mean(state.episode_length_history[-10:]),
             "total_steps": state.total_steps,
             "elapsed": elapsed,
             "t_rollout_cumulative": state.t_rollout_cumulative,

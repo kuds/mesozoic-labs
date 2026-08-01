@@ -113,11 +113,13 @@ class DibothrosuchusEnv(BaseDinoEnv):
         healthy_z_range: tuple[float, float] = (0.18, 0.55),
         max_tilt_angle: float = 0.9,
         reset_noise_scale: float = 0.01,
-        # Metres, decoupled from the radian-scale joint jitter.  0.03 is ~10%
-        # of the 0.313 m settled stance, matching the ratio the taller species
-        # get from their coupled default, and 4.5 sigma clear of the 0.18 m
-        # healthy-height floor so reset noise perturbs the pose rather than
-        # spawning episodes already terminated.
+        # STATE-INERT: the ground settle overwrites root height from the
+        # sampled joint pose, so this scale no longer reaches the post-reset
+        # state.  Kept (with its historical 0.03) only so the reset's RNG
+        # draw count is unchanged and seeded baselines stay anchored; remove
+        # with the rest of the height channel at the next policy-interface
+        # revision.  It was originally the metre-scale decoupling of root
+        # height from the radian-scale joint jitter.
         reset_height_noise_scale: float | None = 0.03,
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "dibothrosuchus.xml")

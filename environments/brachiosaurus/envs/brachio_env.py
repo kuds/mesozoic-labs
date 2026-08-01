@@ -55,6 +55,7 @@ from environments.shared.base_env import BaseDinoEnv
 class BrachioEnv(BaseDinoEnv):
     """Brachiosaurus quadrupedal locomotion and food-reaching environment."""
 
+    action_mapping = "home-keyframe-residual/v1"
     _camera_distance = 5.0
     _camera_azimuth = 135
     _camera_elevation = -20
@@ -178,6 +179,14 @@ class BrachioEnv(BaseDinoEnv):
 
     def _cache_ids(self):
         """Cache MuJoCo IDs for bodies, geoms, and sites."""
+        # Policies command residuals around the complete XML home control
+        # vector, so Gymnasium reset and action zero share one nominal state.
+        self.home_keyframe_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        if self.home_keyframe_id < 0:
+            raise ValueError("Brachiosaurus model must define a named 'home' keyframe")
+        self._reset_keyframe_id = self.home_keyframe_id
+        self._home_ctrl = self.model.key_ctrl[self.home_keyframe_id].copy()
+
         # Body IDs
         self.torso_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "torso")
 
@@ -236,6 +245,48 @@ class BrachioEnv(BaseDinoEnv):
         self._sensor_fl_foot = 11
         self._sensor_rr_foot = 12
         self._sensor_rl_foot = 13
+        # The pad sensors above see the foot-pad ellipsoid only: a touch
+        # sensor sums contacts on geoms of its site's own body, and each
+        # metacarpus/metatarsus is the pad's PARENT body with its own floor
+        # contact.  The meta sensors are appended after the tail block, so
+        # pad + meta is the force the leg actually transmits (see
+        # FOOT_SENSOR_VERIFICATION.md §4 — before this repair all four feet
+        # read exactly 0.0 N while carrying 98.8% of body weight).
+        self._sensor_fr_meta = 26
+        self._sensor_fl_meta = 27
+        self._sensor_rr_meta = 28
+        self._sensor_rl_meta = 29
+
+    def _foot_contact_forces(self) -> tuple[float, float, float, float]:
+        """Total floor contact force under each leg: foot pad plus meta."""
+        sensordata = self.data.sensordata
+        return (
+            float(sensordata[self._sensor_fr_foot] + sensordata[self._sensor_fr_meta]),
+            float(sensordata[self._sensor_fl_foot] + sensordata[self._sensor_fl_meta]),
+            float(sensordata[self._sensor_rr_foot] + sensordata[self._sensor_rr_meta]),
+            float(sensordata[self._sensor_rl_foot] + sensordata[self._sensor_rl_meta]),
+        )
+
+    def _scale_action(self, action: np.ndarray) -> np.ndarray:
+        """Map normalized residual actions around the XML home controls.
+
+        The two halves are scaled independently so the mapping preserves the
+        actuator endpoints while making action zero exactly the named home
+        control, even when that control is not the range midpoint.  Under the
+        inherited midpoint mapping, "do nothing" dragged all four knees up to
+        0.35 rad away from the standing pose — the statue that §6 of
+        PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md measured falling on 40 of 40
+        episodes was never commanding the home stance at all.
+        """
+        residual = np.clip(action, -1.0, 1.0)
+        ctrl_range = self.model.actuator_ctrlrange
+        ctrl_min = ctrl_range[:, 0]
+        ctrl_max = ctrl_range[:, 1]
+
+        below_home = residual * (self._home_ctrl - ctrl_min)
+        above_home = residual * (ctrl_max - self._home_ctrl)
+        scaled = self._home_ctrl + np.where(residual < 0.0, below_home, above_home)
+        return np.asarray(scaled)
 
     def _get_obs(self) -> np.ndarray:
         """Construct observation vector."""
@@ -253,15 +304,9 @@ class BrachioEnv(BaseDinoEnv):
         # Torso linear velocity (from root freejoint)
         torso_linvel = self.data.qvel[0:3].copy()
 
-        # Foot contacts (from touch sensors)
-        foot_contact = np.array(
-            [
-                self.data.sensordata[self._sensor_fr_foot],
-                self.data.sensordata[self._sensor_fl_foot],
-                self.data.sensordata[self._sensor_rr_foot],
-                self.data.sensordata[self._sensor_rl_foot],
-            ]
-        )
+        # Foot contacts: per-leg pad + meta totals, keeping the observation
+        # width at four values while reporting the force each leg transmits.
+        foot_contact = np.array(self._foot_contact_forces())
 
         # Food info (relative to torso)
         torso_pos = self.data.xpos[self.torso_id]
@@ -361,10 +406,7 @@ class BrachioEnv(BaseDinoEnv):
         info["reward_height"] = reward_height
 
         # 9. Gait symmetry (reward alternating diagonal pair contacts)
-        fr_contact = self.data.sensordata[self._sensor_fr_foot]
-        fl_contact = self.data.sensordata[self._sensor_fl_foot]
-        rr_contact = self.data.sensordata[self._sensor_rr_foot]
-        rl_contact = self.data.sensordata[self._sensor_rl_foot]
+        fr_contact, fl_contact, rr_contact, rl_contact = self._foot_contact_forces()
         info["r_foot_contact"] = float(fr_contact)
         info["l_foot_contact"] = float(fl_contact)
         info["rr_foot_contact"] = float(rr_contact)

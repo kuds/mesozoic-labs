@@ -28,24 +28,19 @@ snap_approach_weight = 0.0                     # Must be explicit — the specie
 snap_snout_proximity_weight = 0.0
 prey_distance_range = [4.0, 6.0]               # Far enough that approach is never incidentally rewarded
 max_episode_steps = 1000
-reset_noise_scale = 0.30                       # Joint-angle jitter in RADIANS (~17 deg), and the same scalar bounds the
-                                               # uniform qvel kick, so the perturbation is a jittered pose AND a small
-                                               # initial velocity, not angles alone. Calibrated against the
-                                               # zero-action baseline (environments/shared/scripts/zero_action_baseline.py),
-                                               # 40 episodes per point, with the root-height jitter decoupled via the env's
-                                               # reset_height_noise_scale.
-                                               #
-                                               # An earlier 0.14 here was mis-calibrated: root height took the same scalar
-                                               # as a length in METRES, so on this 0.313 m stance a quarter of episodes
-                                               # spawned outside healthy_z_range and died at step 1. That read as
-                                               # "62% full-horizon" but the difficulty was unlearnable spawn noise, not
-                                               # balance. With height decoupled, 0.05 / 0.10 / 0.14 all leave the
-                                               # do-nothing policy at 100%.
-                                               #
-                                               # Measured now: 0.18 -> 95%, 0.22 -> 82%, 0.26 -> 72%, 0.30 -> 65%
-                                               # (mean-std 485). At 0.30 nothing spawns out of bounds, the earliest
-                                               # failure is step 40 and the median is 58, and every failure is a genuine
-                                               # topple (excessive_tilt / tail_contact).
+reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT_VALIDATION §7/§12): joint-angle jitter
+                                               # in RADIANS, and the same scalar bounds the uniform qvel kick. The old
+                                               # 0.30 was calibrated to leave headroom below the statue (65% statue
+                                               # full-horizon) — an objective §9 retired: the statue is the reward
+                                               # optimum at every noise level, so "headroom below the statue" cannot
+                                               # be earned back by a better reward score, and at 0.30 survival and
+                                               # stance quality are conflated in every metric. At 0.05 the statue is
+                                               # 100% full-horizon (standing 2598.3 +/- 0.9), so survival stops being
+                                               # the binding constraint and stance-quality gates measure stance.
+                                               # Robustness moves to stage 1b's declared perturbations (§13), where a
+                                               # lucky draw and a good controller are distinguishable. The 0.30-era
+                                               # sweep (0.18 -> 95%, 0.22 -> 82%, 0.26 -> 72%, 0.30 -> 65%) remains
+                                               # valid data for choosing 1b's perturbation magnitude.
 
 [ppo]
 learning_rate = 3e-5                    # Matches the balance-stage LR that the other species converged on; 3e-4 was unstable for them
@@ -97,9 +92,7 @@ vf_clip_range = 10.0
 ent_coef = 0.005
 target_kl = 0.05                        # Early-stop PPO epochs when approx KL exceeds this
 fall_penalty = -10.0                    # Smaller than the SB3 penalty: large penalties let value loss dominate early JAX training
-reset_noise_scale = 0.30                # Match [env]. The MJX reset jitters joints and XY but never root height,
-                                        # so decoupling the SB3 height jitter also brings the two backends' reset
-                                        # distributions closer together rather than further apart.
+reset_noise_scale = 0.05                # Match [env]: stage 1a operating point (PLANT_VALIDATION §7/§12).
 init_qpos_noise = 0.01                  # XY position jitter at reset (meters) — JAX-only MJXEnvConfig field
 init_yaw_noise = 0.1                    # Yaw rotation perturbation at reset (radians) — JAX-only MJXEnvConfig field
 
@@ -110,11 +103,14 @@ net_arch = [512, 256]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 6000000
-min_avg_reward = 100.0
-collapse_peak_floor = 100.0    # Explicit: this used to fall back to min_avg_reward, coupling an
-                                        # early-stop backstop to an unrelated advancement threshold. Set to
-                                        # the value that fallback produced, so behaviour is unchanged.
-min_avg_episode_length = 750
+min_avg_reward = 1560.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): 0.60 x the statue's
+                                        # standing reward at noise 0.05 (2598.3 +/- 0.9, 40 episodes). Only
+                                        # rejects a policy that discarded most of the available return; 0.60
+                                        # rather than §12's 0.89 for the reason derived in the trex config. The
+                                        # old 100.0 was cleared by the statue (18x over) and certified nothing.
+collapse_peak_floor = 1950.0            # 0.75 x the statue's standing reward at noise 0.05: above the grind,
+                                        # below a plausible active-policy peak. Absolute pending §14 item 3.
+min_avg_episode_length = 950            # Encodes §12's full-horizon >= 95%; the statue measures 100% at 0.05.
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so transition turbulence won't abort the stage.

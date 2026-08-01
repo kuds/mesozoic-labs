@@ -60,7 +60,19 @@ _GROUND_PROBE_DISTANCE = 10.0
 
 
 class BaseDinoEnv(gym.Env, ABC):
-    """Abstract base class for dinosaur locomotion environments."""
+    """Abstract base class for dinosaur locomotion environments.
+
+    Optional species hook, documented here because it has no base
+    implementation and its shape is easy to get wrong:
+
+    ``_foot_contact_forces() -> tuple[float, ...]``
+        Total floor-contact force under each foot, in a stable per-species
+        order, summing every sensor that sees that foot (T-Rex: plantar pad +
+        three digits; brachiosaurus: pad + meta).  **The arity is the number
+        of feet** -- 2 on the bipeds, 4 on the quadrupeds -- so callers must
+        either sum it or check ``len`` before unpacking.  Species that expose
+        no foot sensors simply do not define it, which is why consumers guard
+        with ``hasattr`` rather than calling a base stub."""
 
     # Ground-settling caches, all derived from the model and so fixed for the
     # lifetime of the instance.  Declared here rather than assigned via getattr
@@ -856,7 +868,16 @@ class BaseDinoEnv(gym.Env, ABC):
     def _bounded_reset_height_delta(self, base_z: float, delta: float) -> float:
         """Bound a reset height perturbation so the spawn is never terminal.
 
-        The root-height jitter is the only UNBOUNDED term in the reset — every
+        SUPERSEDED by ``_settle_root_on_ground``, which overwrites the root
+        height as a pure function of the sampled joint pose, so the bounded
+        delta this returns no longer reaches the post-reset state (verified to
+        one ULP).  The draw and this bound are retained only to keep the reset
+        deterministic in its seed: removing the draw would shift every
+        subsequent RNG draw and re-anchor all seeded baselines.  Remove both at
+        the next policy-interface revision.
+
+        The historical rationale, for the record: the root-height jitter is
+        the only UNBOUNDED term in the reset — every
         other one is a bounded uniform — and an unbounded Gaussian will
         eventually place the root outside ``healthy_z_range``.  On T-Rex it did
         so often enough to matter: home pelvis 0.926 m against a 0.70 m floor
@@ -885,6 +906,17 @@ class BaseDinoEnv(gym.Env, ABC):
         Everything the reset translates vertically moves together, and nothing
         else does: prey, food and other spawned props hang off the world or
         their own joints, so they must not take part in ground settling.
+
+        NON-COLLIDING geoms are excluded.  A geom with ``contype == 0`` and
+        ``conaffinity == 0`` generates no contacts, so it can never rest on the
+        floor -- settling to one would hold the animal's real feet above the
+        ground, which is the hover this method exists to prevent.  Every
+        species carries some: cosmetic surface detail (``brow_ridge``,
+        ``crest``, ``sagittal_crest``, dibothrosuchus' twelve ``scute``\\s) and
+        the necks that are deliberately non-collidable on every species except
+        velociraptor.  None of them is currently the lowest geom at any shipped
+        noise level, so this filter is behaviour-preserving today; it stops the
+        probe from disagreeing with its own definition of "the ground".
         """
         if self._root_subtree_geom_ids is not None:
             return self._root_subtree_geom_ids
@@ -898,14 +930,36 @@ class BaseDinoEnv(gym.Env, ABC):
                 if int(self.model.body_parentid[b]) in bodies:
                     bodies.add(b)
             ids = np.array(
-                [g for g in range(self.model.ngeom) if int(self.model.geom_bodyid[g]) in bodies],
+                [
+                    g
+                    for g in range(self.model.ngeom)
+                    if int(self.model.geom_bodyid[g]) in bodies
+                    and (int(self.model.geom_contype[g]) != 0 or int(self.model.geom_conaffinity[g]) != 0)
+                ],
                 dtype=np.int32,
             )
         self._root_subtree_geom_ids = ids
         return ids
 
     def _static_floor_geoms(self) -> "np.ndarray":
-        """Geom IDs of the static ground the animal is expected to stand on."""
+        """Geom IDs of the static ground the animal is expected to stand on.
+
+        HFIELD is accepted here so the probe still reports clearance on one,
+        but ``_settle_root_on_ground``'s single-shift exactness argument holds
+        only for a horizontal PLANE — over a heightfield the nearest-distance
+        pair can change as the root translates, so a species standing on one
+        would need an iterative settle.  Every current species floors on a
+        plane at z=0.
+
+        Assumptions this shares with the MJX settle, stated so the two stay
+        comparable: exactly ONE horizontal floor, and a spawn over it.  This
+        side takes the minimum ``mj_geomDistance`` over every floor geom, which
+        respects finite plane extents; MJX takes the highest floor's z and
+        treats the plane as infinite.  With one 100x100 plane at z=0 and a
+        spawn near the origin the two agree to ~1e-9, but multiple floors at
+        different heights, a tilted plane, or a spawn beyond the plane's extent
+        would diverge.  MJX raises on a heightfield rather than mis-settling.
+        """
         if self._static_floor_geom_ids is not None:
             return self._static_floor_geom_ids
         ids = np.array(
@@ -933,7 +987,7 @@ class BaseDinoEnv(gym.Env, ABC):
         worst = float("inf")
         for g in body_geoms:
             for f in floor_geoms:
-                d = mujoco.mj_geomDistance(self.model, self.data, int(g), int(f), _GROUND_PROBE_DISTANCE, None)
+                d = mujoco.mj_geomDistance(self.model, data, int(g), int(f), _GROUND_PROBE_DISTANCE, None)
                 worst = min(worst, float(d))
         return worst
 
@@ -958,11 +1012,7 @@ class BaseDinoEnv(gym.Env, ABC):
         else:
             mujoco.mj_resetData(self.model, scratch)
         mujoco.mj_forward(self.model, scratch)
-        saved, self.data = self.data, scratch
-        try:
-            value = self.lowest_ground_clearance()
-        finally:
-            self.data = saved
+        value = self.lowest_ground_clearance(scratch)
         if not np.isfinite(value):
             value = _RESET_GROUND_CLEARANCE
         self._home_ground_clearance_m = float(value)
@@ -1025,12 +1075,14 @@ class BaseDinoEnv(gym.Env, ABC):
             noise_scale = self.reset_noise_scale
             self.data.qpos[7:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qpos[7:].shape)
             self.data.qvel[:] += self.np_random.uniform(-noise_scale, noise_scale, size=self.data.qvel.shape)
-            # Slightly vary starting height to improve policy robustness.  This
-            # is a length, not an angle, so it takes its own scale when the
-            # species supplies one; see reset_height_noise_scale.
-            # reset_noise_scale stays the master switch — zero must still give a
-            # deterministic reset, so a species height scale sets only the
-            # MAGNITUDE of this term and never re-enables noise on its own.
+            # STATE-INERT since _settle_root_on_ground below, which overwrites
+            # the root height as a pure function of the sampled joint pose
+            # (verified to one ULP across height scales).  The draw is kept so
+            # the reset stays deterministic in its seed: dropping it would
+            # shift every subsequent draw and re-anchor all seeded baselines.
+            # Remove the whole height channel — this draw, reset_height_noise_scale
+            # and _bounded_reset_height_delta — at the next policy-interface
+            # revision.
             height_scale = 0.0
             if noise_scale > 0.0:
                 height_scale = noise_scale if self.reset_height_noise_scale is None else self.reset_height_noise_scale

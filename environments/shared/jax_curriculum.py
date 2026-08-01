@@ -40,14 +40,10 @@ def check_stage_gate(
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
     validate_gate_config(stage_config.get("stage", "?"), curriculum, advancement_enabled=True)
-    min_reward = curriculum.get("min_avg_reward")
-    if min_reward is None:
-        raise GateSchemaError(
-            "stage config declares an advancement gate but sets no "
-            "min_avg_reward, so there is nothing for the JAX path to check. "
-            'Declare gate_kind = "none/v1" for a non-advancing pilot instead of '
-            "leaving the threshold out."
-        )
+    # The schema requires min_avg_reward for every advancing gate kind, so a
+    # validated config always carries it; a KeyError here would mean the two
+    # fell out of sync.
+    min_reward = curriculum["min_avg_reward"]
     # min_avg_reward is an EPISODE-level threshold (shared with the SB3
     # TOMLs, e.g. 100.0).  The trainer's "mean_reward" is the mean PER-STEP
     # rollout reward (~0.5-2 for a good policy), so gating on it would fail
@@ -59,7 +55,27 @@ def check_stage_gate(
             "mean_reward, which is NOT comparable to TOML min_avg_reward."
         )
         episode_return = eval_metrics.get("mean_reward", 0.0)
-    return bool(episode_return >= min_reward)
+    if not bool(episode_return >= min_reward):
+        return False
+
+    # The length half of reward_and_length/v1.  This used to be ignored here
+    # while the SB3 CurriculumManager enforced it, so a stage carrying
+    # min_avg_episode_length was gated on reward alone under JAX -- the exact
+    # "one backend silently ignores a gate the other enforces" divergence the
+    # gate schema exists to prevent.  It matters more since stage 1 began
+    # encoding its full-horizon floor in this field (PLANT_VALIDATION §12).
+    min_length = curriculum.get("min_avg_episode_length")
+    if min_length is None:
+        return True
+    episode_length = eval_metrics.get("mean_episode_length")
+    if episode_length is None:
+        raise GateSchemaError(
+            "stage config sets min_avg_episode_length but eval_metrics carries "
+            "no mean_episode_length, so the length half of the gate cannot be "
+            "checked. Passing on reward alone would silently half-enforce the "
+            "gate; emit mean_episode_length from the trainer instead."
+        )
+    return bool(episode_length >= min_length)
 
 
 def run_curriculum(
