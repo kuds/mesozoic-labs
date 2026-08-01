@@ -90,6 +90,8 @@ _KNOWN_REWARD_KEYS: frozenset = frozenset(
         "foot_contact_saturation_force",
         "foot_load_balance_weight",
         "foot_load_balance_min_support_force",
+        "foot_load_balance_airborne_penalty",
+        "action_jerk_weight",
         "support_conditioned_alive_fraction",
         "leg_home_pose_weight",
         "leg_home_pose_tolerance",
@@ -238,6 +240,8 @@ class EnvState:
     obs: Any  # jnp.ndarray
     step_count: Any  # jnp.int32
     prev_action: Any  # jnp.ndarray
+    # Second lag, for the frequency-aware jerk term (see reward_action_jerk).
+    prev_prev_action: Any  # jnp.ndarray
     prev_target_distance: Any  # jnp.float32
     target_pos: Any  # jnp.ndarray (3,)
     initial_pos_2d: Any  # jnp.ndarray (2,) — spawn XY for drift penalty
@@ -255,6 +259,7 @@ try:
             "obs",
             "step_count",
             "prev_action",
+            "prev_prev_action",
             "prev_target_distance",
             "target_pos",
             "initial_pos_2d",
@@ -778,6 +783,7 @@ class MJXDinoEnv:
             check_nosedive_termination,
             quat_to_forward_2d,
             quat_to_forward_z,
+            reward_action_jerk,
             reward_action_smoothness,
             reward_alive,
             reward_angular_velocity_penalty,
@@ -889,6 +895,7 @@ class MJXDinoEnv:
                 foot_forces[:2],
                 weights.get("foot_load_balance_weight", 0.0),
                 weights.get("foot_load_balance_min_support_force", 0.0),
+                weights.get("foot_load_balance_airborne_penalty", 0.0),
             )
 
             # The opt-in support-conditioned path mirrors the Gymnasium
@@ -974,9 +981,18 @@ class MJXDinoEnv:
                 total_reward = total_reward + r_spin
 
             smoothness_w = weights.get("smoothness_weight", 0.0)
+            jerk_w = weights.get("action_jerk_weight", 0.0)
             if smoothness_w > 0:
                 r_smooth, _ = reward_action_smoothness(action, state.prev_action, ctrl_range.shape[0], smoothness_w)
                 total_reward = total_reward + r_smooth
+            # Gated independently of smoothness_w: the jerk term exists
+            # precisely because the first-difference term cannot see frequency,
+            # so a stage may enable either without the other.
+            if jerk_w > 0:
+                r_jerk, _ = reward_action_jerk(
+                    action, state.prev_action, state.prev_prev_action, ctrl_range.shape[0], jerk_w
+                )
+                total_reward = total_reward + r_jerk
 
             height_w = weights.get("height_weight", 0.0)
             if height_w > 0:
@@ -1109,6 +1125,7 @@ class MJXDinoEnv:
                 obs=obs,
                 step_count=step_count,
                 prev_action=action,
+                prev_prev_action=state.prev_action,
                 prev_target_distance=target_dist,
                 target_pos=target_pos,
                 initial_pos_2d=initial_pos_2d,
@@ -1229,6 +1246,7 @@ class MJXDinoEnv:
                 obs=obs,
                 step_count=jnp.int32(0),
                 prev_action=jnp.zeros(action_dim),
+                prev_prev_action=jnp.zeros(action_dim),
                 prev_target_distance=target_dist,
                 target_pos=target_pos,
                 initial_pos_2d=pelvis_xpos[:2],

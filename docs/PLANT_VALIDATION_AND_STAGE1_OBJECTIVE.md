@@ -556,6 +556,39 @@ above stay a faithful snapshot:
   addendum). Un-settled MJX spawns measured −41.2 mm to +5.2 mm at stage-1 noise on T-Rex, and
   the brachiosaurus midpoint base pose hovered 610 mm. Part I's findings therefore applied to
   the JAX path too; they no longer do.
+* **§16's HEADLINE QUESTION IS ANSWERED — and the answer is "no".** Run `20260801_021545`
+  (T-Rex, 6.0M steps, this document's repaired plant, `reset_noise_scale = 0.05`) ended at
+  **28.4% unsupported duty** against the statue's 0.000, versus 30–35% on the broken plant.
+  §16 asked whether "a substantial share of the airborne duty was learned from the broken
+  reset." It was not: the plant repair moved it by ~19% relative and left it an order of
+  magnitude away from the target. **The chatter is a reward-design problem**, which promotes
+  §14 from inferred to evidence-backed. Duty fell monotonically (0.657 → 0.524 → 0.322 →
+  0.284) and had *not* converged at 6M — so §18's 3M pilot would have read ~0.45 and
+  understated the trend. `[measured]`
+* **§14 items 1–4 are now implemented** on the strength of that result: a real
+  `foot_load_balance_min_support_force` (42 N = 5% of the animal's own weight, versus the
+  measured no-op at 0.0), a `foot_load_balance_airborne_penalty` making the ordering strictly
+  monotone (`+0.600 > −0.300 > −0.600`, ending the flat region §14.1 identified), a
+  frequency-aware `action_jerk_weight` on the second difference of actions (a slow ramp scores
+  0.00 where a Nyquist buzz scores 336, while the *first* difference rates the ramp as
+  rougher — the §11.2 blindness, inverted), and `derive_stance_info`'s airborne branch keyed to
+  the same threshold the duty metrics use.
+* **§11.4 repeated, and the absolute floor is retired.** `collapse_peak_floor` failed to arm a
+  second time: 2450 (0.75 × statue) against a run whose best evaluation was **2347.67**, so the
+  detector watched eval degrade 2347.67 → 1666.33 without firing. Deriving the floor from the
+  statue was only half a fix — the statue bounds what is *achievable*, not what a *learning*
+  policy passes through. It is now relative (`collapse_peak_floor_fraction` ×
+  `collapse_peak_floor_reference`, 0.45 × 3271.8 = 1472), which the failing run cleared by ~2M
+  steps while still sitting well above the 888 collapse bottom.
+* **§11.5 repeated too**: rollout diagnostics improved monotonically straight through the
+  window where deterministic evaluation degraded. Healthy rollouts plus failing eval, still
+  surfaced by no dashboard.
+* **The 2026-08-01 run was not the §18 pilot** — 6M steps with advancement enabled through
+  stages 2 and 3, not the 3M stage-1-only diagnostic. Its stage 1 "passed" on a transient peak
+  at 5.75M while the *final* model fails both gates (1666.33 < the 1950 rail; 742.8 < the 950
+  length floor). Note the 0.89 × rail this addendum superseded would have blocked that
+  advancement; 0.60 × did not. The deeper point stands either way — no reward threshold
+  detects 28.4% airborne duty, which is what the unbuilt `stance_success` gate is for.
 * **§16's reset-height-clip hypothesis is retired going forward**: the ground settle makes the
   entire root-height jitter channel state-inert (verified to one ULP), so the clip cannot
   influence any future run. It remains a candidate explanation for the historical 7/29→7/31

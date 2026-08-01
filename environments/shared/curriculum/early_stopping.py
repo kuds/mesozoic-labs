@@ -155,12 +155,38 @@ def collapse_settings_from_config(curriculum_kwargs: dict[str, Any]) -> dict[str
     floor now means "never arm" instead, because a backstop that is not
     configured should not abort a run; every stage config sets the value it
     actually wants.  See docs/STAGE1_SPLIT_PLAN.md section 7.4.
+
+    **The floor should be expressed RELATIVELY.** An absolute number cannot
+    survive a reward-function edit, and has now failed to arm twice for the
+    same reason.  Run ``20260731_132102``: floor 2200 calibrated against a run
+    whose peak was 2496, reward scale shifted, next run peaked at 1934.1, the
+    detector never armed and watched a -59% collapse.  Run ``20260801_021545``:
+    floor 2450 re-derived as 0.75x the zero-action statue (3271.8), the run's
+    best evaluation was 2347.67 -- still below it -- so the detector never
+    armed again and watched eval degrade 2347.67 -> 1666.33.  Deriving the
+    floor from the statue is only half a fix: the statue bounds what is
+    *achievable*, not what a *learning* policy passes through.
+
+    ``collapse_peak_floor_fraction`` therefore sets the floor as a fraction of
+    ``collapse_peak_floor_reference`` -- the zero-action standing baseline for
+    the species and stage, which is measurable before training and re-anchors
+    automatically whenever the reward changes.  An explicit
+    ``collapse_peak_floor`` still wins when present, so existing configs are
+    untouched.
     """
+    peak_floor = curriculum_kwargs.get("collapse_peak_floor")
+    if peak_floor is None:
+        fraction = curriculum_kwargs.get("collapse_peak_floor_fraction")
+        reference = curriculum_kwargs.get("collapse_peak_floor_reference")
+        if fraction is not None and reference is not None:
+            peak_floor = float(fraction) * float(reference)
+        else:
+            peak_floor = float("inf")
     return {
         "min_evals": int(curriculum_kwargs.get("collapse_min_evals", 12)),
         "patience": int(curriculum_kwargs.get("collapse_patience", 8)),
         "drop_fraction": float(curriculum_kwargs.get("collapse_drop_fraction", 0.4)),
-        "peak_floor": float(curriculum_kwargs.get("collapse_peak_floor", float("inf"))),
+        "peak_floor": float(peak_floor),
         "smoothing_window": int(curriculum_kwargs.get("collapse_smoothing_window", 5)),
     }
 

@@ -14,6 +14,8 @@ from environments.shared.reward_functions import (
     quat_to_forward_2d,
     quat_to_forward_z,
     quat_to_tilt,
+    reward_action_jerk,
+    reward_action_smoothness,
     reward_alive,
     reward_approach_shaping,
     reward_backward_penalty,
@@ -495,3 +497,90 @@ class TestNumpyJaxParity:
 
         gradient = jax.grad(posture_reward_for_pitch)(jnp.float32(natural_pitch))
         assert np.isfinite(float(gradient))
+
+
+class TestFootLoadBalanceMonotoneOrdering:
+    """Airborne must be strictly worse than honest single support.
+
+    Before ``airborne_penalty_weight`` the two states both scored ``-weight``,
+    a flat region with no gradient out of the air on the stage whose entire
+    job is to stay on the ground.  Run ``20260801_021545`` ended at 28.4%
+    unsupported duty against the statue's 0.000, so the tie was not academic.
+    """
+
+    WEIGHT = 0.3
+    BILATERAL = 0.6
+    MIN_SUPPORT = 42.0
+    AIRBORNE = 0.3
+
+    def _score(self, right, left, bilateral_credit):
+        reward, imbalance = reward_foot_load_balance(
+            np.array([right, left]), self.WEIGHT, self.MIN_SUPPORT, self.AIRBORNE
+        )
+        return float(reward) + bilateral_credit, float(imbalance)
+
+    def test_ordering_is_strictly_monotone(self):
+        even, _ = self._score(420.0, 420.0, self.BILATERAL)
+        single, _ = self._score(840.0, 0.0, 0.0)
+        airborne, _ = self._score(0.0, 0.0, 0.0)
+        assert even > single > airborne, f"expected even > single > airborne, got {even} {single} {airborne}"
+
+    def test_grazing_contact_earns_no_credit(self):
+        """A token contact below the support threshold counts as airborne."""
+        grazing, imbalance = self._score(0.05, 0.0, 0.0)
+        airborne, _ = self._score(0.0, 0.0, 0.0)
+        assert grazing == pytest.approx(airborne)
+        assert imbalance == pytest.approx(1.0)
+
+    def test_diagnostic_stays_in_unit_range(self):
+        """The ordering lives in the reward; the diagnostic keeps [0, 1]."""
+        for right, left in ((420.0, 420.0), (840.0, 0.0), (0.0, 0.0), (0.05, 0.0)):
+            _, imbalance = self._score(right, left, 0.0)
+            assert 0.0 <= imbalance <= 1.0
+
+    def test_defaults_preserve_the_previous_behaviour(self):
+        """Both new parameters default to the pre-existing semantics."""
+        legacy, _ = reward_foot_load_balance(np.array([840.0, 0.0]), self.WEIGHT)
+        assert float(legacy) == pytest.approx(-self.WEIGHT)
+
+
+class TestActionJerkIsFrequencyAware:
+    """The second difference charges buzz that the first difference cannot see.
+
+    Measured motivation (PLANT_VALIDATION section 11.2): from the best to the
+    final checkpoint of run ``20260731_132102``, ``action_delta`` FELL
+    12.0 -> 10.5 and the smoothness penalty IMPROVED while toe-motion power
+    above 4 Hz DOUBLED.
+    """
+
+    N = 21
+
+    def _pair(self, a2, a1, a0):
+        _, jerk = reward_action_jerk(a2, a1, a0, self.N, 1.0)
+        _, delta = reward_action_smoothness(a2, a1, self.N, 1.0)
+        return float(jerk), float(delta)
+
+    def test_constant_ramp_has_zero_jerk_but_nonzero_delta(self):
+        """The exact blindness inversion: a ramp moves more than a slow wave."""
+        ramp = [np.full(self.N, 0.5 * t) for t in (0, 1, 2)]
+        jerk, delta = self._pair(ramp[2], ramp[1], ramp[0])
+        assert jerk == pytest.approx(0.0)
+        assert delta > 0.0
+
+    def test_alternating_buzz_dominates(self):
+        """A Nyquist-rate limit cycle is maximally penalised."""
+        buzz = [np.full(self.N, (-1.0) ** t) for t in (0, 1, 2)]
+        buzz_jerk, _ = self._pair(buzz[2], buzz[1], buzz[0])
+        ramp = [np.full(self.N, 0.5 * t) for t in (0, 1, 2)]
+        ramp_jerk, _ = self._pair(ramp[2], ramp[1], ramp[0])
+        assert buzz_jerk > 100.0 * max(ramp_jerk, 1e-9)
+
+    def test_first_two_steps_are_never_charged(self):
+        a = np.zeros(self.N)
+        assert reward_action_jerk(a, None, None, self.N, 1.0) == (0.0, 0.0)
+        assert reward_action_jerk(a, a, None, self.N, 1.0) == (0.0, 0.0)
+
+    def test_zero_weight_is_a_no_op(self):
+        buzz = [np.full(self.N, (-1.0) ** t) for t in (0, 1, 2)]
+        reward, _ = reward_action_jerk(buzz[2], buzz[1], buzz[0], self.N, 0.0)
+        assert float(reward) == pytest.approx(0.0)

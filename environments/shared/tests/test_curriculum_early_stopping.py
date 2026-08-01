@@ -1,6 +1,7 @@
 """Tests for environments.shared.curriculum.early_stopping."""
 
 import inspect
+import math
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -436,11 +437,68 @@ class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
         assert cb.peak_floor == 2200.0
 
     def test_every_committed_stage_config_sets_the_floor_explicitly(self):
+        """Every stage must configure the floor, by either mechanism.
+
+        Checked on the RESOLVED value rather than on the presence of
+        ``collapse_peak_floor``, because a stage may now set the floor
+        relatively (``collapse_peak_floor_fraction`` x
+        ``collapse_peak_floor_reference``) so it re-anchors when the reward
+        changes -- see PLANT_VALIDATION section 14 item 3 and the two runs
+        where an absolute floor silently never armed.  A stage that configures
+        neither resolves to ``inf``, i.e. never arms, which is what this test
+        exists to prevent.
+        """
         from environments.shared.config import load_all_stages
 
         for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
             for stage, cfg in load_all_stages(species).items():
                 cur = cfg.get("curriculum_kwargs", {})
-                assert "collapse_peak_floor" in cur, (
-                    f"{species} stage {stage} relies on the removed min_avg_reward fallback"
+                floor = collapse_settings_from_config(cur)["peak_floor"]
+                assert math.isfinite(floor), (
+                    f"{species} stage {stage} configures no collapse floor (neither collapse_peak_floor "
+                    "nor the fraction/reference pair), so the backstop can never arm"
                 )
+
+
+class TestRelativeCollapsePeakFloor:
+    """A relative floor re-anchors when the reward function changes.
+
+    An absolute floor failed to arm TWICE for the same reason: 2200 against
+    run ``20260731_132102`` (peak 1934.1, watched a -59% collapse), then 2450
+    against run ``20260801_021545`` (best eval 2347.67, watched
+    2347.67 -> 1666.33).  Deriving the number from the statue was only half a
+    fix -- the statue bounds what is achievable, not what a learning policy
+    passes through -- so the floor is now a fraction of a declared reference.
+    """
+
+    def test_fraction_times_reference_resolves_the_floor(self):
+        settings = collapse_settings_from_config(
+            {"collapse_peak_floor_fraction": 0.45, "collapse_peak_floor_reference": 3271.8}
+        )
+        assert settings["peak_floor"] == pytest.approx(0.45 * 3271.8)
+
+    def test_explicit_absolute_floor_still_wins(self):
+        """Existing configs keep their behaviour exactly."""
+        settings = collapse_settings_from_config(
+            {
+                "collapse_peak_floor": 2450.0,
+                "collapse_peak_floor_fraction": 0.45,
+                "collapse_peak_floor_reference": 3271.8,
+            }
+        )
+        assert settings["peak_floor"] == pytest.approx(2450.0)
+
+    def test_incomplete_relative_pair_never_arms(self):
+        """Half a declaration must not silently become a low floor."""
+        for partial in ({"collapse_peak_floor_fraction": 0.45}, {"collapse_peak_floor_reference": 3271.8}):
+            assert collapse_settings_from_config(partial)["peak_floor"] == float("inf")
+
+    def test_trex_stage_one_floor_would_have_armed_on_the_failing_run(self):
+        """Regression against the measured miss, not against a chosen number."""
+        from environments.shared.config import load_stage_config
+
+        floor = collapse_settings_from_config(load_stage_config("trex", 1)["curriculum_kwargs"])["peak_floor"]
+        best_eval_20260801 = 2347.67
+        collapse_bottom = 888.0
+        assert best_eval_20260801 >= floor, "the detector must arm on a run that reached this peak"
+        assert floor > collapse_bottom, "the floor must sit above the measured collapse bottom"

@@ -120,6 +120,8 @@ class TRexEnv(BaseDinoEnv):
         foot_contact_saturation_force: float = 100.0,
         foot_load_balance_weight: float = 0.0,
         foot_load_balance_min_support_force: float = 0.0,
+        foot_load_balance_airborne_penalty: float = 0.0,
+        action_jerk_weight: float = 0.0,
         support_conditioned_alive_fraction: float = 0.0,
         leg_home_pose_weight: float = 0.0,
         leg_home_pose_tolerance: float = 0.35,
@@ -187,6 +189,8 @@ class TRexEnv(BaseDinoEnv):
         self.foot_contact_saturation_force = foot_contact_saturation_force
         self.foot_load_balance_weight = foot_load_balance_weight
         self.foot_load_balance_min_support_force = foot_load_balance_min_support_force
+        self.foot_load_balance_airborne_penalty = foot_load_balance_airborne_penalty
+        self.action_jerk_weight = action_jerk_weight
         self.support_conditioned_alive_fraction = support_conditioned_alive_fraction
         self.leg_home_pose_weight = leg_home_pose_weight
         self.leg_home_pose_tolerance = leg_home_pose_tolerance
@@ -375,18 +379,25 @@ class TRexEnv(BaseDinoEnv):
         )
         return float(quality)
 
-    def _foot_load_imbalance(self, right_force: float, left_force: float) -> float:
-        """Return normalized left/right load mismatch in ``[0, 1]``.
+    def _foot_load_balance(self, right_force: float, left_force: float) -> tuple[float, float]:
+        """Return ``(reward, normalized load imbalance)`` for the foot pair.
 
-        An unsupported pair returns ``1.0``, not ``0.0``: airborne is maximally
-        imbalanced, not perfectly balanced.
+        An unsupported pair reports imbalance ``1.0``, not ``0.0`` -- airborne
+        is maximally imbalanced, not perfectly balanced -- and additionally
+        pays ``foot_load_balance_airborne_penalty`` so that airborne is
+        strictly worse than honest single support rather than tied with it.
         """
-        _, imbalance = _reward_foot_load_balance_pure(
+        reward, imbalance = _reward_foot_load_balance_pure(
             np.asarray((right_force, left_force)),
-            1.0,
+            self.foot_load_balance_weight,
             self.foot_load_balance_min_support_force,
+            self.foot_load_balance_airborne_penalty,
         )
-        return float(imbalance)
+        return float(reward), float(imbalance)
+
+    def _foot_load_imbalance(self, right_force: float, left_force: float) -> float:
+        """Backwards-compatible diagnostic accessor: the imbalance alone."""
+        return self._foot_load_balance(right_force, left_force)[1]
 
     def _home_pose_quality(
         self,
@@ -517,8 +528,11 @@ class TRexEnv(BaseDinoEnv):
         info["bilateral_support_quality"] = bilateral_support_quality
         info["reward_bilateral_support"] = reward_bilateral_support
 
-        foot_load_imbalance = self._foot_load_imbalance(r_contact, l_contact)
-        reward_foot_load_balance = -self.foot_load_balance_weight * foot_load_imbalance
+        # Take the pure function's REWARD, not just its diagnostic: the
+        # airborne penalty that makes the ordering monotone lives in the
+        # reward, so recomputing `-weight * imbalance` here would silently drop
+        # it (and did, for the imbalance-only version this replaces).
+        reward_foot_load_balance, foot_load_imbalance = self._foot_load_balance(r_contact, l_contact)
         info["foot_load_imbalance"] = foot_load_imbalance
         info["reward_foot_load_balance"] = reward_foot_load_balance
 
@@ -677,6 +691,13 @@ class TRexEnv(BaseDinoEnv):
         info["reward_gait"] = reward_gait
 
         # 10. Action smoothness (shared helper)
+        # Jerk BEFORE smoothness: _reward_action_smoothness rotates the action
+        # history, so calling it first would leave the jerk term reading this
+        # step's own action as its first lag.
+        reward_action_jerk, action_jerk = self._reward_action_jerk(action)
+        info["action_jerk"] = action_jerk
+        info["reward_action_jerk"] = reward_action_jerk
+
         reward_smoothness, action_delta = self._reward_action_smoothness(action)
         info["action_delta"] = action_delta
         info["reward_smoothness"] = reward_smoothness
@@ -740,6 +761,7 @@ class TRexEnv(BaseDinoEnv):
             + reward_leg_home_pose
             + reward_gait
             + reward_smoothness
+            + reward_action_jerk
             + reward_heading
             + reward_lateral
             + reward_spin
@@ -826,6 +848,7 @@ class TRexEnv(BaseDinoEnv):
         # Reset delta-based tracking (first step will produce zero deltas)
         self._prev_prey_distance = None
         self._prev_action = None
+        self._prev_prev_action = None
 
         # Reset gait symmetry tracking
         self._reset_gait_state()
