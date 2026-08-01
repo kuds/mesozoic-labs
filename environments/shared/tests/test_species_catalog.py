@@ -147,22 +147,38 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     catalog = build_catalog()
     species = {entry["id"]: entry for entry in catalog["species"]}
 
-    # Stage-1 reward gates are per-species because only the T-Rex has been
-    # calibrated against its zero-action baseline. 100.0 is the original
-    # placeholder, which cannot bind: every species' do-nothing policy clears
-    # it by a wide margin, so a statue advances into stage 2. The T-Rex's 1840
-    # sits just above its measured floor of 1743.73 +/- 1275.54
-    # (environments/shared/scripts/zero_action_baseline.py trex). That floor
-    # is a property of the plant, so it moved with the theropod stance
-    # correction (from 1800.56) and the gate was re-derived from it at the
-    # same +5.5% margin. The other three still need the same treatment.
-    stage_one_min_avg_reward = {"trex": 1840.0, "velociraptor": 100.0, "brachiosaurus": 100.0, "dibothrosuchus": 100.0}
+    # Stage-1 reward gates are now the PLANT_VALIDATION section 12 sanity
+    # rails: 0.89 x each species' zero-action statue standing reward at the
+    # 1a operating point (reset noise 0.05), measured over 40 episodes with
+    # environments/shared/scripts/stance_quality_baseline.py -- trex 3271.8,
+    # velociraptor 1745.8, brachiosaurus 1739.1 (on the plant repaired by
+    # plant_versions notes 7-8), dibothrosuchus 2598.3.
+    #
+    # A rail sits BELOW its statue deliberately. Section 9 showed the statue
+    # is the reward optimum -- it collects 97.0% of the theoretical maximum
+    # while paying zero energy and smoothness cost -- so a threshold above it
+    # is unreachable and one below it is clearable by a statue. The rail's
+    # only job is to reject a policy that has discarded most of the available
+    # return; what separates competent from passive is the episode-level
+    # stance_success gate, which is not built yet. The previous values (trex
+    # 1840, everyone else the 100.0 placeholder) were all cleared by their own
+    # species' statue and certified nothing.
+    stage_one_min_avg_reward = {
+        "trex": 2900.0,
+        "velociraptor": 1550.0,
+        "brachiosaurus": 1550.0,
+        "dibothrosuchus": 2300.0,
+    }
 
     for species_id, entry in species.items():
         stage_one, stage_two, stage_three = [stage["advancement_gate"] for stage in entry["stages"]]
         assert stage_one == {
             "min_avg_reward": stage_one_min_avg_reward[species_id],
-            "min_avg_episode_length": 750,
+            # Encodes section 12's full-horizon >= 95% floor. Every species'
+            # statue reaches 100% at noise 0.05, so this is a floor a policy
+            # must MATCH; the old 750 was set at operating points where
+            # survival and stance quality were inseparable.
+            "min_avg_episode_length": 950,
             "min_avg_forward_velocity": None,
             "min_success_rate": None,
             "min_eval_episodes": 10,

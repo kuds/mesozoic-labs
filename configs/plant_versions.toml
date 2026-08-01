@@ -203,7 +203,26 @@ observation_schema = "bipedal-target/v1"
 #    their positions; both backends sum pad + meta per leg (the same repair
 #    shape as the T-Rex digit sensors, aa87445).  Verified: summed sensors
 #    now report 100.0% of the mj_contactForce floor total in settled stance
-#    (fr/fl 313 N, rr/rl 535 N).  Statue stance quality at noise 0.05 moved
+#    (fr/fl 313 N, rr/rl 535 N).
+#
+#    Attribution, measured on the repaired plant: the PAD-SITE enlargement
+#    alone accounts for that 100.0% -- with note 7's stance fix the meta
+#    capsules no longer reach the floor and the meta sensors read 0.0 N at
+#    home.  They earned their place on the pre-repair SAGGING plant, where
+#    the meta carried a real share (fr/fl contact at 34.4 mm depth), and they
+#    remain the correct defensive cover for any pose that puts the meta back
+#    on the ground.  Do not read the note as "the meta was carrying load
+#    here"; it is not, today.
+#
+#    Known remaining gap, NOT fixed here: only the pads and metas are
+#    instrumented.  A brachiosaurus kneeling on its SHINS (measured: a deep
+#    knee/ankle command settles onto fr/fl/rr/rl_shin_geom carrying the full
+#    1695 N, feet clear of the floor) reads 0.0 N on every foot sensor, so
+#    the support-duty metrics score it identically to airborne.  For the
+#    section 12 unsupported-duty gate that errs in the safe direction -- a
+#    kneeling policy fails a stance gate, which is the desired outcome -- but
+#    any future diagnostic that needs to tell "kneeling" from "airborne"
+#    needs shin instrumentation.  Statue stance quality at noise 0.05 moved
 #    from all-feet 0.000 / unsupported 0.885 to all-feet 0.998 / unsupported
 #    0.000.  The POLICY INTERFACE moves (sensor layout and observation
 #    values).  PHYSICS also moves, by the layer's own definition rather than

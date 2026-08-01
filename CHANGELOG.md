@@ -289,8 +289,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `mj_contactForce` floor total in settled stance (fr/fl 313 N, rr/rl
   535 N), and statue stance quality at noise 0.05 moved from all-feet 0.000
   / unsupported 0.885 to **all-feet 0.998 / unsupported 0.000** — in line
-  with the other three species. Velociraptor's 45% under-read (same doc, §3)
-  remains open. With this and the stance repair, every species' §8
+  with the other three species. On attribution: with the stance repair above
+  in place, the **pad-site enlargement alone** accounts for that 100.0% —
+  the meta capsules no longer reach the floor and the meta sensors read
+  0.0 N at home. They were carrying real load on the pre-repair sagging
+  plant and remain correct cover for poses that put the meta back down, but
+  nothing should read them as load-bearing today. Two gaps stay open:
+  velociraptor's 45% under-read (same doc, §3), and the fact that only pads
+  and metas are instrumented — a brachiosaurus kneeling on its shins
+  (measured: shins carrying the full 1695 N with the feet clear) reads zero
+  on every foot sensor, so support-duty scores it as airborne. That errs
+  safely for a stance gate, but distinguishing "kneeling" from "airborne"
+  would need shin instrumentation. With this and the stance repair, every species' §8
   stance-quality row is now interpretable, unblocking the §12 brachiosaurus
   gate row.
 - **The MJX reset now settles the animal on the ground, closing the plant gap

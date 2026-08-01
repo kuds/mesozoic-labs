@@ -41,8 +41,11 @@ SPECIES = [
     pytest.param(DibothrosuchusEnv, id="dibothrosuchus"),
 ]
 
-# Reset noise large enough to exercise the settling path.  The species configs
-# use 0.05-0.10; 0.10 is the widest any stage ships, so test the worst case.
+# Reset noise large enough to exercise the settling path.  Every shipped stage
+# now runs at 0.05 (the stage-1a operating point, PLANT_VALIDATION section 12),
+# so this is deliberately 2x the widest configured value: the invariants are
+# about reset GEOMETRY, which must hold at any noise a future stage might pick,
+# not only at today's.
 RESET_NOISE = 0.10
 SEEDS = range(48)
 

@@ -238,17 +238,33 @@ def test_biped_policy_contract_records_home_residual_action_mapping(env_class, s
         env.close()
 
 
-def test_brachio_retains_midpoint_action_mapping_contract():
+def test_brachio_records_home_residual_action_mapping():
+    """Brachiosaurus migrated off the midpoint mapping, and must stay off it.
+
+    It was the last species on ``clip[-1,1]-then-affine-to-ordered-ctrlrange/v1``,
+    whose action zero is the ctrlrange MIDPOINT -- and its home stance is not
+    the midpoint, so "do nothing" commanded the rear knees 0.349 rad, the front
+    knees 0.262 rad and all four ankles 0.175 rad away from the standing pose
+    on every step.  That is half of why the zero-action statue fell on 40 of 40
+    episodes and no brachiosaurus stage-1 result was interpretable
+    (PLANT_VALIDATION section 6, plant_versions note 7).  Reverting to the
+    midpoint mapping would silently reintroduce it, so this test now pins the
+    residual mapping rather than the midpoint one it replaced.
+    """
     env = BrachioEnv(reset_noise_scale=0.0)
     try:
         version = load_plant_versions()[1]["brachiosaurus"]
         payload = _policy_interface_payload(env.model, env, version, require_backend_parity=True)
+        mapping = payload["action_mapping"]
+
+        assert mapping["mode"] == "home-keyframe-residual/v1"
+        assert mapping["origin"]["keyframe"] == "home"
+        np.testing.assert_allclose(mapping["origin"]["ctrl"], env.model.key_ctrl[env.home_keyframe_id])
+        assert set(payload["interface_implementations"]["jax_action_mapping"]) == {"scale_action_around_nominal_jax"}
+        assert set(payload["interface_implementations"]["home_reset"]["jax"]) == {"reset_mujoco_data_to_home"}
+        assert payload["jax_interface"]["action_mapping"] == "home-keyframe-residual/v1"
     finally:
         env.close()
-
-    assert payload["action_mapping"] == "clip[-1,1]-then-affine-to-ordered-ctrlrange/v1"
-    assert set(payload["interface_implementations"]["jax_action_mapping"]) == {"scale_action_jax"}
-    assert "action_mapping" not in payload["jax_interface"]
 
 
 def test_human_revision_counters_do_not_change_semantic_fingerprints(raptor_layers):

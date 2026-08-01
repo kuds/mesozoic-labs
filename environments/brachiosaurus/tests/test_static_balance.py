@@ -5,10 +5,13 @@ contacts. These catch model regressions (e.g. mass changes, keyframe edits
 that violate joint limits) before any RL training is attempted.
 
 The Brachiosaurus is quadrupedal with front legs longer than rear legs
-(giraffe-like posture). A normalized neutral action still drives the active
-position servos at their control-range midpoints; separate actuator-disabled
-tests characterize the truly passive plant. The front feet contact the ground
-at reset, but the rear feet may settle over the first few simulation steps.
+(giraffe-like posture). A normalized neutral action drives the active position
+servos to the XML ``home`` keyframe controls -- NOT to their control-range
+midpoints, which is what it did before plant_versions note 7 and is half of
+why the zero-action statue used to fall on every episode. Separate
+actuator-disabled tests characterize the truly passive plant. The front feet
+contact the ground at reset, but the rear feet may settle over the first few
+simulation steps.
 """
 
 import mujoco
