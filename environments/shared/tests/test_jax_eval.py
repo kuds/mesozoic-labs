@@ -411,7 +411,15 @@ def test_stage_evaluation_uses_effective_training_noise_and_detailed_rewards(mon
         stage_config["env_kwargs"],
         stage_config["jax_kwargs"],
     )
-    assert effective_env_kwargs["reset_noise_scale"] == pytest.approx(0.10)
+    # Deliberately NOT pinned to a literal: this test is about the COUPLING
+    # (evaluation must run at the effective training noise), and the stage-1
+    # operating point is a design decision that moves -- it went 0.10 -> 0.05
+    # when stage 1 adopted the 1a point (PLANT_VALIDATION section 12).  Pinning
+    # the literal here made a deliberate config change look like a JAX-eval
+    # regression.  What must not silently change is that evaluation noise is
+    # real, so guard that instead and compare everything downstream to this.
+    training_noise = effective_env_kwargs["reset_noise_scale"]
+    assert training_noise > 0.0, "evaluation would be noise-free, which is not the training distribution"
 
     def scalar_reward(*_args, **_kwargs):
         return 0.0
@@ -492,14 +500,14 @@ def test_stage_evaluation_uses_effective_training_noise_and_detailed_rewards(mon
     )
 
     assert len(captured) == 1
-    assert captured[0]["config"].reset_noise_scale == pytest.approx(0.10)
+    assert captured[0]["config"].reset_noise_scale == pytest.approx(training_noise)
     assert captured[0]["config"].init_qpos_noise == pytest.approx(0.01)
     assert captured[0]["config"].init_yaw_noise == pytest.approx(0.10)
     assert captured[0]["config"].target_distance_range == (10.0, 15.0)
     assert captured[0]["config"].target_lateral_range == (-2.0, 2.0)
     assert captured[0]["config"].target_z == pytest.approx(0.5)
     assert captured[0]["reward_components_fn"] is detailed_reward
-    assert stage_results["evaluation_reset_noise_scale"] == pytest.approx(0.10)
+    assert stage_results["evaluation_reset_noise_scale"] == pytest.approx(training_noise)
     assert stage_results["evaluation_init_qpos_noise"] == pytest.approx(0.01)
     assert stage_results["evaluation_init_yaw_noise"] == pytest.approx(0.10)
     assert stage_results["evaluation_target_distance_range"] == [10.0, 15.0]
