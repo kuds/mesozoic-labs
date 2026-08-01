@@ -173,6 +173,28 @@ def collapse_settings_from_config(curriculum_kwargs: dict[str, Any]) -> dict[str
     automatically whenever the reward changes.  An explicit
     ``collapse_peak_floor`` still wins when present, so existing configs are
     untouched.
+
+    **Do NOT tighten ``drop_fraction`` / ``patience`` to make this fire more
+    often.**  PLANT_VALIDATION section 14 item 3 asked for that, and simulating
+    the detector against run ``20260801_021545``'s real 120-evaluation series
+    refutes it.  Stage-1 evaluation reward on this task is enormously noisy:
+    45 of 94 pre-peak evaluations sit below HALF their running rolling-median
+    peak, and 52 below 70%.  The run's endgame dip is milder than 53 separate
+    mid-training excursions, so any threshold that catches the endgame fires
+    dozens of times earlier -- every (drop_fraction, patience) pair tried,
+    from 0.5/10 down to 0.2/3, first stops the run somewhere between
+    evaluation 66 and 103, all of them BEFORE the best model at evaluation
+    114.  Tightening does not detect collapse sooner; it aborts healthy runs.
+    Episode length behaves the same way (48 of 94 below 70%), so switching
+    signals does not rescue it either.
+
+    Nor was there anything to catch: the final evaluation of that run (1630.7)
+    is HIGHER than 76 of its own 119 preceding evaluations, and its late-run
+    spread (618-2348) matches its mid-run spread (625-2312).  The gap between
+    the best checkpoint and the last one is ordinary evaluation variance --
+    which is what ``robust_best_model`` exists to absorb -- not a collapse.
+    The defaults 0.5/10 are the only setting tested that does NOT abort that
+    run, and declining to fire on it was correct behaviour.
     """
     peak_floor = curriculum_kwargs.get("collapse_peak_floor")
     if peak_floor is None:

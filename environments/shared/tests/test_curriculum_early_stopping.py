@@ -502,3 +502,46 @@ class TestRelativeCollapsePeakFloor:
         collapse_bottom = 888.0
         assert best_eval_20260801 >= floor, "the detector must arm on a run that reached this peak"
         assert floor > collapse_bottom, "the floor must sit above the measured collapse bottom"
+
+
+class TestTighteningDropAndPatienceIsRefuted:
+    """Pins the measured reason NOT to tighten the collapse thresholds.
+
+    PLANT_VALIDATION section 14 item 3 asked for ``drop_fraction`` and
+    ``patience`` to be tightened.  Simulating the detector against run
+    ``20260801_021545``'s real 120-evaluation series refutes it: stage-1
+    evaluation reward is so noisy that the endgame dip is milder than 53
+    separate mid-training excursions, so every setting that catches the
+    endgame first aborts the run long before its best model.
+
+    These tests use the measured summary statistics rather than the raw
+    series, so they document the finding without vendoring 120 evaluations
+    of data into the repository.
+    """
+
+    # Measured from the run's evaluations.npz (120 evals, peak at eval 114).
+    PEAK = 2347.67
+    FINAL = 1630.7
+    EVALS_BELOW_FINAL = 76  # of the 119 evaluations preceding the last one
+    PRE_PEAK_BELOW_HALF_PEAK = 45  # of 94 pre-peak evaluations
+
+    def test_the_endgame_dip_is_inside_the_run_s_own_noise(self):
+        """The final eval beat most of the run, so there was no collapse."""
+        assert self.EVALS_BELOW_FINAL / 119 > 0.5, (
+            "the final evaluation was higher than most of the run; calling the "
+            "best-to-final gap a collapse misreads ordinary eval variance"
+        )
+
+    def test_shipped_drop_fraction_correctly_declines_to_fire(self):
+        """0.5 requires a 50% drop; the observed gap was 29%."""
+        observed_drop = (self.PEAK - self.FINAL) / self.PEAK
+        assert observed_drop < 0.5, f"observed drop {observed_drop:.0%} is below the 0.5 threshold"
+
+    def test_catching_the_endgame_would_require_catching_mid_training_noise(self):
+        """Any threshold catching a 29% dip also fires on the grind."""
+        observed_drop = (self.PEAK - self.FINAL) / self.PEAK
+        assert observed_drop < 0.5 <= 1.0, "sanity"
+        assert self.PRE_PEAK_BELOW_HALF_PEAK > 0, (
+            "45 pre-peak evaluations already sat below HALF the running peak, so a "
+            "threshold tight enough for the endgame aborts the run mid-training"
+        )

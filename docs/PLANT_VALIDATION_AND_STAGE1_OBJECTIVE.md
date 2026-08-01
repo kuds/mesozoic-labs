@@ -606,13 +606,28 @@ above stay a faithful snapshot:
   shows that weight would cost an *untrained* policy 1.49/step — more than the entire 1.00
   `alive_bonus`, i.e. it would pay PPO to stop surviving. The shipped 4.0 charges the measured
   buzz 117/episode while a smooth 1.5 Hz corrective policy pays ~0.001/episode.
-* **§11.4 repeated, and the absolute floor is retired.** `collapse_peak_floor` failed to arm a
-  second time: 2450 (0.75 × statue) against a run whose best evaluation was **2347.67**, so the
-  detector watched eval degrade 2347.67 → 1666.33 without firing. Deriving the floor from the
-  statue was only half a fix — the statue bounds what is *achievable*, not what a *learning*
-  policy passes through. It is now relative (`collapse_peak_floor_fraction` ×
-  `collapse_peak_floor_reference`, 0.45 × 3271.8 = 1472), which the failing run cleared by ~2M
-  steps while still sitting well above the 888 collapse bottom.
+* **§11.4's absolute floor is retired — but the 8/01 run was NOT a collapse, and §14 item 3's
+  "tighten drop/patience" is refuted.** `[measured]` Two separate claims, both corrected after
+  simulating the detector against that run's real 120-evaluation series:
+  1. The floor genuinely could not arm: 2450 (0.75 × statue) sat above the run's best
+     evaluation of 2347.67. It is now relative (`collapse_peak_floor_fraction` ×
+     `collapse_peak_floor_reference`, 0.45 × 3271.8 = 1472), cleared by ~2M steps while still
+     far above the 888 bottom of the genuine 7/31 collapse. That fix stands.
+  2. **An earlier draft of this addendum said the detector "watched eval degrade 2347.67 →
+     1666.33." That framing was wrong** — it implies a collapse was missed. The run's final
+     evaluation (1630.7) is *higher than 76 of its own 119 preceding evaluations*, and its
+     late-run spread (618–2348) matches its mid-run spread (625–2312). The best-to-final gap is
+     ordinary evaluation variance, which is exactly what `robust_best_model` absorbs.
+  3. Consequently **do not tighten `drop_fraction`/`patience`.** Stage-1 eval reward is
+     enormously noisy — 45 of 94 pre-peak evaluations fall below *half* their running peak, 52
+     below 70% — so the endgame dip is milder than 53 mid-training excursions. Every pair
+     tested, 0.5/10 through 0.2/3, first fires between evaluations 66 and 103, all **before**
+     the best model at evaluation 114: tightening aborts healthy runs rather than catching
+     collapse. Episode length behaves identically (48 of 94 below 70%). The shipped 0.5/10 is
+     the only tested setting that does not abort the run, and declining to fire was correct.
+  The open question this leaves is not the thresholds but the *signal*: a per-evaluation reward
+  detector has little power against this much variance, and §11.5's real signature — healthy
+  rollouts alongside failing deterministic eval — remains unsurfaced.
 * **§11.5 repeated too**: rollout diagnostics improved monotonically straight through the
   window where deterministic evaluation degraded. Healthy rollouts plus failing eval, still
   surfaced by no dashboard.
