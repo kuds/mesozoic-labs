@@ -368,6 +368,13 @@ def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dic
                     "min_avg_episode_length": curriculum.get("min_avg_episode_length"),
                     "min_avg_forward_velocity": curriculum.get("min_avg_forward_vel"),
                     "min_success_rate": curriculum.get("min_success_rate"),
+                    # stance_quality/v1. Exported so the published gate is the
+                    # one actually enforced: a stance-gated stage whose only
+                    # listed criterion was its reward rail would read as gated
+                    # on a threshold its own statue clears by 68%.
+                    "min_full_horizon_fraction": curriculum.get("min_full_horizon_fraction"),
+                    "max_unsupported_duty": curriculum.get("max_unsupported_duty"),
+                    "max_unsupported_duty_ucb": curriculum.get("max_unsupported_duty_ucb"),
                     "min_eval_episodes": int(
                         curriculum.get("min_eval_episodes", DEFAULT_STAGE_THRESHOLD.min_eval_episodes)
                     ),
@@ -688,6 +695,12 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
         criteria.append(f"avg. velocity ≥ {gate['min_avg_forward_velocity']:g} m/s")
     if gate["min_success_rate"] is not None:
         criteria.append(f"task success ≥ {_format_percent(gate['min_success_rate'])}")
+    if gate.get("min_full_horizon_fraction") is not None:
+        criteria.append(f"full-horizon episodes ≥ {_format_percent(gate['min_full_horizon_fraction'])}")
+    if gate.get("max_unsupported_duty") is not None:
+        criteria.append(f"unsupported duty ≤ {gate['max_unsupported_duty']:g}")
+    if gate.get("max_unsupported_duty_ucb") is not None:
+        criteria.append(f"unsupported duty 95% upper bound ≤ {gate['max_unsupported_duty_ucb']:g}")
     criteria.append(f"≥ {gate['min_eval_episodes']} episodes/evaluation")
     criteria.append(f"{gate['required_consecutive']} consecutive passes")
     return "; ".join(criteria)

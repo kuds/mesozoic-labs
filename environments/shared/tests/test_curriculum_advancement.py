@@ -138,6 +138,9 @@ class TestCallbackMethodsMocked:
             [1000.0] * 3,
             [1.0, 1.5, 2.0],
             None,
+            # No stance panel: this stage gates on reward_and_length/v1, so
+            # the stance capture is not consulted at all.
+            None,
         )
 
 

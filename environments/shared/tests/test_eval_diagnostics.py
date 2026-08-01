@@ -33,17 +33,27 @@ class TestSuccessMetricApplicable:
         assert success_metric_applicable(configs[3]) is True
 
 
-def _bare_stage_aware_callback(*, success_applicable: bool) -> StageAwareEvalCallback:
+def _bare_stage_aware_callback(
+    *,
+    success_applicable: bool,
+    settle_steps: int = 0,
+) -> StageAwareEvalCallback:
     if success_applicable:
         pytest.importorskip("stable_baselines3")
     callback = object.__new__(StageAwareEvalCallback)
     callback.stage = 3 if success_applicable else 1
     callback.success_applicable = success_applicable
+    callback.settle_steps = settle_steps
     callback._is_success_buffer = []
     callback.evaluations_forward_velocities = []
+    callback.evaluations_unsupported_duties = []
     callback._episode_forward_sums = {}
     callback._episode_forward_counts = {}
     callback._current_eval_forward_velocities = []
+    callback._episode_steps = {}
+    callback._episode_unsupported = {}
+    callback._episode_measured = {}
+    callback._current_eval_unsupported_duties = []
     return callback
 
 

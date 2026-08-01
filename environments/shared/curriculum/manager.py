@@ -15,18 +15,45 @@ import numpy as np
 from environments.shared.config import load_all_stages
 
 from .gate_schema import validate_gate_config
+from .stance_gate import (
+    STANCE_GATE_KIND,
+    StanceGateThresholds,
+    StancePanel,
+    evaluate_stance_gate,
+)
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class StageThreshold:
-    """Performance thresholds that must be met to advance past a stage."""
+    """Performance thresholds that must be met to advance past a stage.
 
+    Carries the union of every gate kind's fields; ``gate_kind`` selects which
+    subset :meth:`CurriculumManager.should_advance` actually evaluates. The
+    defaults are the permissive ones only for ``reward_and_length/v1``, which
+    is why :func:`thresholds_from_configs` runs the fail-closed schema check
+    before any of them is populated.
+    """
+
+    gate_kind: str = "reward_and_length/v1"
+
+    # reward_and_length/v1
     min_avg_reward: float = -np.inf
     min_avg_episode_length: float = 0.0
     min_avg_forward_vel: float = 0.0
     min_success_rate: float = 0.0
+
+    # stance_quality/v1.  Ceilings default to +inf and the floor to 0.0 so a
+    # field the schema failed to populate cannot silently tighten the gate;
+    # the schema requires all three of the real ones, so these defaults are
+    # only ever seen by a stage using a different kind.
+    min_full_horizon_fraction: float = 0.0
+    max_unsupported_duty: float = np.inf
+    max_unsupported_duty_ucb: float = np.inf
+    settle_steps: int = 0
+
+    # Shared
     min_eval_episodes: int = 10
     required_consecutive: int = 3
 
@@ -103,6 +130,7 @@ class CurriculumManager:
         episode_lengths: list[float],
         forward_velocities: list[float] | None = None,
         success_rates: list[float] | None = None,
+        stance_panel: StancePanel | None = None,
     ) -> dict[str, float]:
         """Record evaluation results for the current stage.
 
@@ -113,6 +141,13 @@ class CurriculumManager:
                 per episode (m/s). Used for locomotion stage gating.
             success_rates: Optional list of per-episode success flags
                 (1.0 if prey contact / food reached, 0.0 otherwise).
+            stance_panel: Optional stance summary for ``stance_quality/v1``.
+                Both backends must build this with
+                :func:`~environments.shared.curriculum.stance_gate.summarize_stance_panel`
+                rather than reducing per-episode traces themselves, so the
+                settling window and the failed-episode rule cannot drift
+                between SB3 and JAX — which is the whole point of the
+                versioned schema.
 
         Returns:
             Summary dict with mean/std statistics.
@@ -128,6 +163,14 @@ class CurriculumManager:
             summary["mean_forward_vel"] = float(np.mean(forward_velocities))
         if success_rates is not None:
             summary["mean_success_rate"] = float(np.mean(success_rates))
+        if stance_panel is not None:
+            # The bound is stored as a scalar rather than the raw duties: it is
+            # a pure function of them, and the history is serialized into run
+            # summaries where per-episode traces would not belong.
+            summary["full_horizon_fraction"] = stance_panel.full_horizon_fraction
+            summary["mean_unsupported_duty"] = stance_panel.mean_unsupported_duty
+            summary["unsupported_duty_ucb"] = stance_panel.unsupported_duty_ucb
+            summary["n_duty_episodes"] = stance_panel.n_duty_episodes
         self._eval_history[self._current_stage].append(summary)
 
         vel_str = ""
@@ -136,8 +179,15 @@ class CurriculumManager:
         success_str = ""
         if "mean_success_rate" in summary:
             success_str = f", success={summary['mean_success_rate']:.0%}"
+        stance_str = ""
+        if "full_horizon_fraction" in summary:
+            stance_str = (
+                f", horizon={summary['full_horizon_fraction']:.1%}"
+                f", duty={summary['mean_unsupported_duty']:.4f}"
+                f" (ucb {summary['unsupported_duty_ucb']:.4f}, n={summary['n_duty_episodes']:.0f})"
+            )
         logger.info(
-            "Stage %d eval: reward=%.2f +/- %.2f, length=%.1f +/- %.1f%s%s (%d eps)",
+            "Stage %d eval: reward=%.2f +/- %.2f, length=%.1f +/- %.1f%s%s%s (%d eps)",
             self._current_stage,
             summary["mean_reward"],
             summary["std_reward"],
@@ -145,6 +195,7 @@ class CurriculumManager:
             summary["std_length"],
             vel_str,
             success_str,
+            stance_str,
             summary["n_episodes"],
         )
         return summary
@@ -155,6 +206,7 @@ class CurriculumManager:
         episode_lengths: list[float] | None = None,
         forward_velocities: list[float] | None = None,
         success_rates: list[float] | None = None,
+        stance_panel: StancePanel | None = None,
     ) -> bool:
         """Check whether performance thresholds are met for advancement.
 
@@ -167,13 +219,15 @@ class CurriculumManager:
             forward_velocities: Per-episode mean forward velocities (m/s).
             success_rates: Per-episode success flags (1.0 if prey contact
                 / food reached, 0.0 otherwise).
+            stance_panel: Stance summary, required by ``stance_quality/v1``.
+                A stage declaring that kind without one fails closed.
 
         Returns:
             True if the current stage thresholds have been met for the
             required number of consecutive evaluations.
         """
         if rewards is not None and episode_lengths is not None:
-            self.record_eval(rewards, episode_lengths, forward_velocities, success_rates)
+            self.record_eval(rewards, episode_lengths, forward_velocities, success_rates, stance_panel)
 
         threshold = self._thresholds[self._current_stage]
         history = self._eval_history[self._current_stage]
@@ -183,21 +237,17 @@ class CurriculumManager:
 
         latest = history[-1]
 
-        passes = (
-            latest["mean_reward"] >= threshold.min_avg_reward
-            and latest["mean_length"] >= threshold.min_avg_episode_length
-            and latest["n_episodes"] >= threshold.min_eval_episodes
-        )
-
-        # Forward velocity gate (only checked when threshold is > 0)
-        if threshold.min_avg_forward_vel > 0.0:
-            mean_vel = latest.get("mean_forward_vel", 0.0)
-            passes = passes and mean_vel >= threshold.min_avg_forward_vel
-
-        # Success rate gate (only checked when threshold is > 0)
-        if threshold.min_success_rate > 0.0:
-            mean_success = latest.get("mean_success_rate", 0.0)
-            passes = passes and mean_success >= threshold.min_success_rate
+        if threshold.gate_kind == "none/v1":
+            # A declared non-advancing pilot. Previously this stage produced no
+            # threshold entry at all and fell through to StageThreshold's
+            # permissive defaults, which pass on any evaluation — the schema
+            # rejects "none/v1" whenever advancement is enabled, so nothing
+            # reached that path, but it was fail-open one config change away.
+            passes = False
+        elif threshold.gate_kind == STANCE_GATE_KIND:
+            passes = self._stance_gate_passes(latest)
+        else:
+            passes = self._reward_and_length_gate_passes(latest, threshold)
 
         if passes:
             self._consecutive_passes[self._current_stage] += 1
@@ -214,6 +264,76 @@ class CurriculumManager:
             )
 
         return met
+
+    def _reward_and_length_gate_passes(self, latest: dict[str, float], threshold: StageThreshold) -> bool:
+        """Evaluate ``reward_and_length/v1`` against one evaluation."""
+        passes = (
+            latest["mean_reward"] >= threshold.min_avg_reward
+            and latest["mean_length"] >= threshold.min_avg_episode_length
+            and latest["n_episodes"] >= threshold.min_eval_episodes
+        )
+
+        # Forward velocity gate (only checked when threshold is > 0)
+        if threshold.min_avg_forward_vel > 0.0:
+            mean_vel = latest.get("mean_forward_vel", 0.0)
+            passes = passes and mean_vel >= threshold.min_avg_forward_vel
+
+        # Success rate gate (only checked when threshold is > 0)
+        if threshold.min_success_rate > 0.0:
+            mean_success = latest.get("mean_success_rate", 0.0)
+            passes = passes and mean_success >= threshold.min_success_rate
+
+        return passes
+
+    def _stance_gate_passes(self, latest: dict[str, float]) -> bool:
+        """Evaluate ``stance_quality/v1`` against one evaluation.
+
+        Reconstructs a :class:`StancePanel` from the recorded summary so the
+        shared criterion logic in
+        :func:`~environments.shared.curriculum.stance_gate.evaluate_stance_gate`
+        is the single implementation both backends run.
+
+        A stage declaring this kind whose evaluation carried no stance panel
+        fails closed and says so once per evaluation, rather than falling
+        through to the reward criteria — advancing on evidence nobody
+        collected is the exact failure mode the versioned schema exists to
+        prevent.
+        """
+        threshold = self._thresholds[self._current_stage]
+
+        if "full_horizon_fraction" not in latest:
+            logger.warning(
+                "Stage %d declares gate_kind %s but the evaluation carried no stance panel; "
+                "refusing to advance. The eval path must build one with "
+                "stance_gate.summarize_stance_panel().",
+                self._current_stage,
+                STANCE_GATE_KIND,
+            )
+            return False
+
+        panel = StancePanel(
+            n_episodes=int(latest["n_episodes"]),
+            full_horizon_fraction=latest["full_horizon_fraction"],
+            mean_reward=latest["mean_reward"],
+            n_duty_episodes=int(latest["n_duty_episodes"]),
+            mean_unsupported_duty=latest["mean_unsupported_duty"],
+            unsupported_duty_ucb=latest["unsupported_duty_ucb"],
+        )
+        passed, failures = evaluate_stance_gate(
+            panel,
+            StanceGateThresholds(
+                min_full_horizon_fraction=threshold.min_full_horizon_fraction,
+                max_unsupported_duty=threshold.max_unsupported_duty,
+                max_unsupported_duty_ucb=threshold.max_unsupported_duty_ucb,
+                settle_steps=threshold.settle_steps,
+                min_eval_episodes=threshold.min_eval_episodes,
+                min_avg_reward=threshold.min_avg_reward,
+                required_consecutive=threshold.required_consecutive,
+            ),
+        )
+        if not passed:
+            logger.info("Stage %d stance gate not met: %s", self._current_stage, "; ".join(failures))
+        return passed
 
     def advance(self) -> int:
         """Advance to the next curriculum stage.
@@ -281,20 +401,25 @@ def thresholds_from_configs(
         # composite-only gate config produce no thresholds at all, after which
         # StageThreshold's permissive defaults advanced the stage on any
         # evaluation whatsoever. See gate_schema for the full failure mode.
-        validate_gate_config(stage, cur, advancement_enabled=advancement_enabled)
-        threshold_fields: dict[str, Any] = {}
-        if "min_avg_reward" in cur:
-            threshold_fields["min_avg_reward"] = cur["min_avg_reward"]
-        if "min_avg_episode_length" in cur:
-            threshold_fields["min_avg_episode_length"] = cur["min_avg_episode_length"]
-        if "min_avg_forward_vel" in cur:
-            threshold_fields["min_avg_forward_vel"] = cur["min_avg_forward_vel"]
-        if "min_success_rate" in cur:
-            threshold_fields["min_success_rate"] = cur["min_success_rate"]
-        if "min_eval_episodes" in cur:
-            threshold_fields["min_eval_episodes"] = cur["min_eval_episodes"]
-        if "required_consecutive" in cur:
-            threshold_fields["required_consecutive"] = cur["required_consecutive"]
-        if threshold_fields:
-            thresholds[stage] = threshold_fields
+        gate_kind = validate_gate_config(stage, cur, advancement_enabled=advancement_enabled)
+        # The kind is carried onto the threshold so ``should_advance`` selects
+        # the same criteria the schema validated, rather than inferring the
+        # gate from which fields happen to be present — inference is how a
+        # dropped field used to become a disabled criterion.
+        threshold_fields: dict[str, Any] = {"gate_kind": gate_kind}
+        for key in (
+            "min_avg_reward",
+            "min_avg_episode_length",
+            "min_avg_forward_vel",
+            "min_success_rate",
+            "min_full_horizon_fraction",
+            "max_unsupported_duty",
+            "max_unsupported_duty_ucb",
+            "settle_steps",
+            "min_eval_episodes",
+            "required_consecutive",
+        ):
+            if key in cur:
+                threshold_fields[key] = cur[key]
+        thresholds[stage] = threshold_fields
     return thresholds

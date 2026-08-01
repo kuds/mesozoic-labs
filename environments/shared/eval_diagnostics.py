@@ -15,6 +15,8 @@ from typing import Any
 
 import numpy as np
 
+from .stance_diagnostics import derive_stance_info
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -53,6 +55,20 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     Mean forward velocity is also captured for every evaluation episode so
     the plateau diagnostic can follow the Stage 2 locomotion gate without
     launching another evaluation pass.
+
+    Per-episode **unsupported duty** is captured the same way, for the
+    ``stance_quality/v1`` advancement gate.  It has to come from this pass
+    rather than from the small supplementary evaluation: the gate's bound is
+    specified at the full evaluation panel size, and reducing it to the
+    10-episode supplementary sample would throw away most of the power the
+    bound exists to provide.
+
+    The duty signal is :func:`~environments.shared.stance_diagnostics.derive_stance_info`'s
+    ``unsupported_duty`` at its default 0.1 N contact threshold -- deliberately
+    *not* the reward's 42 N ``min_support_force``.  Every calibration point the
+    gate's ceiling rests on is measured at 0.1 N: the statue's 0.000 and run
+    ``20260801_021545``'s 0.284.  Switching thresholds here would silently
+    shift duty upward and invalidate the 0.02 ceiling.
     """
 
     def __init__(
@@ -61,6 +77,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         *,
         stage: int,
         success_applicable: bool,
+        settle_steps: int = 0,
         **kwargs: Any,
     ) -> None:
         if not _SB3_AVAILABLE:
@@ -70,18 +87,28 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         super().__init__(eval_env, **kwargs)
         self.stage = stage
         self.success_applicable = success_applicable
+        self.settle_steps = int(settle_steps)
         self.evaluations_forward_velocities: list[list[float]] = []
+        self.evaluations_unsupported_duties: list[list[float]] = []
         self._episode_forward_sums: dict[int, float] = {}
         self._episode_forward_counts: dict[int, int] = {}
         self._current_eval_forward_velocities: list[float] = []
+        self._episode_steps: dict[int, int] = {}
+        self._episode_unsupported: dict[int, int] = {}
+        self._episode_measured: dict[int, int] = {}
+        self._current_eval_unsupported_duties: list[float] = []
 
     def _reset_forward_velocity_capture(self) -> None:
         self._episode_forward_sums.clear()
         self._episode_forward_counts.clear()
         self._current_eval_forward_velocities = []
+        self._episode_steps.clear()
+        self._episode_unsupported.clear()
+        self._episode_measured.clear()
+        self._current_eval_unsupported_duties = []
 
     def _log_success_callback(self, locals_: dict[str, Any], globals_: dict[str, Any]) -> None:
-        """Capture evaluation velocity and conditionally delegate success."""
+        """Capture evaluation velocity and duty, conditionally delegate success."""
 
         info = locals_["info"]
         env_index = int(locals_.get("i", 0))
@@ -92,10 +119,31 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                 self._episode_forward_sums[env_index] = self._episode_forward_sums.get(env_index, 0.0) + value
                 self._episode_forward_counts[env_index] = self._episode_forward_counts.get(env_index, 0) + 1
 
+        # Duty is accumulated only after the settling window, because a policy
+        # that corrects reset randomisation may legitimately move a foot doing
+        # it -- and settling is the capability stage 1a exists to certify.
+        step_index = self._episode_steps.get(env_index, 0)
+        self._episode_steps[env_index] = step_index + 1
+        if step_index >= self.settle_steps:
+            stance = derive_stance_info(info)
+            if stance:
+                self._episode_measured[env_index] = self._episode_measured.get(env_index, 0) + 1
+                self._episode_unsupported[env_index] = self._episode_unsupported.get(env_index, 0) + int(
+                    stance["unsupported_duty"]
+                )
+
         if locals_["done"]:
             count = self._episode_forward_counts.pop(env_index, 0)
             total = self._episode_forward_sums.pop(env_index, 0.0)
             self._current_eval_forward_velocities.append(total / count if count else float("nan"))
+
+            measured = self._episode_measured.pop(env_index, 0)
+            unsupported = self._episode_unsupported.pop(env_index, 0)
+            self._episode_steps.pop(env_index, None)
+            # NaN for an episode with no measurable tail (shorter than the
+            # settling window, or an env that reports no foot contacts). The
+            # panel builder drops those rather than scoring them as zero.
+            self._current_eval_unsupported_duties.append(unsupported / measured if measured else float("nan"))
 
         if self.success_applicable:
             super()._log_success_callback(locals_, globals_)
@@ -109,6 +157,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
 
         if evaluation_due:
             self.evaluations_forward_velocities.append(list(self._current_eval_forward_velocities))
+            self.evaluations_unsupported_duties.append(list(self._current_eval_unsupported_duties))
             if not self.success_applicable and self.verbose >= 1:
                 print(f"Success rate: N/A (not an active Stage {self.stage} gate)")
 
@@ -383,6 +432,11 @@ def build_stage_evaluation_callbacks(
         eval_env,
         stage=stage,
         success_applicable=success_metric_applicable(stage_config),
+        # Taken from the stage's own gate declaration so the duty this
+        # callback measures uses the same settling window the gate compares
+        # it against. Absent (any non-stance gate) it is 0, which measures the
+        # whole episode and costs nothing.
+        settle_steps=int(curriculum_kwargs.get("settle_steps", 0)),
         **eval_callback_kwargs,
     )
     plateau_callback = StageGatePlateauCallback(

@@ -203,8 +203,55 @@ net_arch = [512, 256]                  # Match SB3 PPO architecture
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
-gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
+gate_kind = "stance_quality/v1"         # environments/shared/curriculum/gate_schema.py
 timesteps = 6000000
+
+# ---------------------------------------------------------------------------
+# The 1a gate: physical stance quality, not return.
+#
+# Adopted 2026-08-01, replacing reward_and_length/v1. That gate was passable by
+# doing nothing: the statue scores 3271.8 (clearing min_avg_reward = 1950) at
+# 1000.0 steps (clearing min_avg_episode_length = 950), which this run's own
+# zero_action_baseline.json reported as "FAILS — a statue clears this gate".
+# Worse, it also passed the policy we actually needed to reject — run
+# 20260801_021545's best checkpoint scored 2347.67 while spending 28.4% of its
+# steps with neither foot loaded.
+#
+# The gate is NOT trying to beat the statue. STAGE1_SPLIT_PLAN §2.3.1 is
+# explicit that the statue's numbers are what a 1a policy must MATCH, not
+# beat: it defines the quality ceiling, and 1a's job is to certify a policy
+# has not bought stability with actuation. Robustness belongs to 1b, via
+# declared xfrc_applied perturbations rather than reset noise, where a lucky
+# draw and a good controller are indistinguishable.
+#
+# Duty is derive_stance_info's unsupported_duty at its default 0.1 N contact
+# threshold — deliberately NOT the reward's 42 N min_support_force. Every
+# calibration point below is measured at 0.1 N.
+# ---------------------------------------------------------------------------
+min_full_horizon_fraction = 0.95         # Statue: 99.17% pooled over three independent 40-seed blocks (119/120).
+                                         # A floor to MATCH, not beat. Replaces min_avg_episode_length = 950, which
+                                         # encoded the same §12 requirement through the only field the old gate had.
+max_unsupported_duty = 0.02              # Screening ceiling. Statue 0.000; the chatterer we must reject 0.284, i.e.
+                                         # 14x over. Set well above 0.000 so ordinary weight-shifting is not
+                                         # penalised — note the repaired plant moved raw contact-switch count UP
+                                         # (0.86 -> 1.00 /s) while duty went to zero, because the extra switches are
+                                         # weight shifts. Gate on duty; switch rate stays diagnostic until it is
+                                         # decomposed into bilateral<->single vs bilateral<->airborne.
+max_unsupported_duty_ucb = 0.02          # The CERTIFYING criterion: one-sided 95% UPPER bound on mean duty.
+                                         # Binarising instead costs nearly all the power at this panel size — a
+                                         # binomial LCB95 >= 0.90 at n=40 needs a clean 40/40 and would reject the
+                                         # statue 28% of the time (true rate 0.9917 -> P(40/40) = 71.6%). Duty is
+                                         # continuous with tiny variance, so an interval on it has real power at 40
+                                         # where the pass/fail count has almost none. UCB >= mean by construction,
+                                         # so this subsumes the screening ceiling while both sit at 0.02; both are
+                                         # kept configurable in case a tighter screen than bound is ever wanted.
+settle_steps = 200                       # [inferred], NOT measured. Duty is scored only after this prefix, because
+                                         # a policy that corrects reset randomisation may legitimately move a foot
+                                         # doing it — and settling is the capability 1a exists to certify. 20% of
+                                         # the horizon. Calibrate against rollout data before treating as evidence.
+min_eval_episodes = 40                   # The panel size every figure above is specified at. n_eval_episodes must
+                                         # match: at n=30 the bound's power and the 28%-rejection analysis no longer
+                                         # describe this gate.
 min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
                                         # can separate a competent policy from a statue, because the statue is the
                                         # reward optimum (97.0% of the 3.35/step ceiling with zero actuation cost).
@@ -222,15 +269,17 @@ min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # is competence-bar reasoning, and §9 is the argument that a competence bar
                                         # cannot work here.
                                         #
-                                        # The real 1a gate is the episode-level stance_success event
-                                        # (STAGE1_SPLIT_PLAN §2.3) over unsupported duty — machinery still to be
-                                        # built. The old 1840 was cleared by the statue itself and certified
-                                        # nothing.
-min_avg_episode_length = 950             # Encodes §12's full-horizon >= 95% in the existing machinery. The statue
-                                        # measures 100% at noise 0.05, so this is a floor a competent policy must
-                                        # MATCH, not beat; the old 750 was calibrated at noise 0.10 where survival
-                                        # and stance quality were inseparable.
-required_consecutive = 3
+                                        # The real 1a gate is now the stance criteria above; this stays purely as a
+                                        # rail. The old 1840 was cleared by the statue itself and certified nothing.
+                                        #
+                                        # Superseded, kept for the record:
+                                        # min_avg_episode_length = 950 — encoded §12's full-horizon >= 95% through
+                                        # the only field reward_and_length/v1 had. min_full_horizon_fraction states
+                                        # the same requirement directly, so the schema now rejects this key for this
+                                        # gate kind rather than letting both express it.
+required_consecutive = 3                # Scheduler hysteresis ONLY. Re-running a deterministic panel is not
+                                        # statistical replication (§3.4 caution 3) — the certified claim comes from
+                                        # the bound above, not from repeating the same evaluation three times.
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so transition turbulence won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count. Stage-1 balance learning has a long

@@ -8,6 +8,7 @@ from __future__ import annotations
 import pytest
 
 from environments.shared.curriculum.gate_schema import GATE_SCHEMA_VERSION, GateSchemaError
+from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
 from environments.shared.jax_curriculum import check_stage_gate
 
 #: The gate declaration every real stage config carries. Tests that exercise a
@@ -149,12 +150,31 @@ class TestLengthThresholdIsEnforced:
         stage_config = {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0)}
         assert check_stage_gate({"mean_episode_return": 150.0}, stage_config) is True
 
-    def test_every_stage_one_config_length_gate_binds_on_both_backends(self):
-        """The shipped stage-1 configs all carry the full-horizon floor."""
+    def test_every_stage_one_config_binds_a_full_horizon_floor(self):
+        """Every shipped stage-1 config enforces a full-horizon requirement.
+
+        The two gate kinds express it differently -- ``reward_and_length/v1``
+        as a mean episode-step floor, ``stance_quality/v1`` as a fraction of
+        episodes reaching the horizon -- but neither may be satisfied by
+        unbounded reward alone. That is the property worth pinning: the
+        specific field is an implementation detail of the kind.
+        """
         from environments.shared.config import load_stage_config
 
         for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
             cfg = load_stage_config(species, 1)
-            floor = cfg["curriculum_kwargs"]["min_avg_episode_length"]
-            generous = {"mean_episode_return": 1e9, "mean_episode_length": floor - 1}
+            curriculum = cfg["curriculum_kwargs"]
+            if curriculum["gate_kind"] == STANCE_GATE_KIND:
+                floor = curriculum["min_full_horizon_fraction"]
+                generous = {
+                    "mean_episode_return": 1e9,
+                    "n_eval_episodes": curriculum["min_eval_episodes"],
+                    "full_horizon_fraction": floor - 0.01,
+                    "n_duty_episodes": curriculum["min_eval_episodes"],
+                    "mean_unsupported_duty": 0.0,
+                    "unsupported_duty_ucb": 0.0,
+                }
+            else:
+                floor = curriculum["min_avg_episode_length"]
+                generous = {"mean_episode_return": 1e9, "mean_episode_length": floor - 1}
             assert check_stage_gate(generous, cfg) is False, species

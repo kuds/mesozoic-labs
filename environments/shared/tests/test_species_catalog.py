@@ -175,20 +175,45 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "dibothrosuchus": 1560.0,
     }
 
+    # T-Rex 1a has moved to stance_quality/v1, which does not consume
+    # min_avg_episode_length: min_full_horizon_fraction states section 12's
+    # >= 95% requirement directly instead of encoding it as a step count. Its
+    # min_avg_reward stays, demoted to a rail. The other three species are
+    # still on reward_and_length/v1 pending their own stance calibration.
+    stage_one_length = {"trex": None, "velociraptor": 950, "brachiosaurus": 950, "dibothrosuchus": 950}
+    # The stance bound's power is specified at n=40; the other species keep
+    # the historical default.
+    stage_one_eval_episodes = {"trex": 40, "velociraptor": 10, "brachiosaurus": 10, "dibothrosuchus": 10}
+    # Only T-Rex 1a declares stance criteria; the rest export nulls.
+    stance_null = {
+        "min_full_horizon_fraction": None,
+        "max_unsupported_duty": None,
+        "max_unsupported_duty_ucb": None,
+    }
+    stage_one_stance = {
+        "trex": {
+            "min_full_horizon_fraction": 0.95,
+            "max_unsupported_duty": 0.02,
+            "max_unsupported_duty_ucb": 0.02,
+        },
+        "velociraptor": stance_null,
+        "brachiosaurus": stance_null,
+        "dibothrosuchus": stance_null,
+    }
+
     for species_id, entry in species.items():
         stage_one, stage_two, stage_three = [stage["advancement_gate"] for stage in entry["stages"]]
         assert stage_one == {
             "min_avg_reward": stage_one_min_avg_reward[species_id],
-            # Encodes section 12's full-horizon >= 95% floor. Every species'
-            # statue reaches 100% at noise 0.05, so this is a floor a policy
-            # must MATCH; the old 750 was set at operating points where
-            # survival and stance quality were inseparable.
-            "min_avg_episode_length": 950,
+            "min_avg_episode_length": stage_one_length[species_id],
             "min_avg_forward_velocity": None,
             "min_success_rate": None,
-            "min_eval_episodes": 10,
+            "min_eval_episodes": stage_one_eval_episodes[species_id],
             "required_consecutive": 3,
+            **stage_one_stance[species_id],
         }
+        # Stages 2 and 3 stay on reward_and_length/v1, so their stance fields
+        # export as nulls.
         assert stage_two | {"min_avg_forward_velocity": None} == {
             "min_avg_reward": 100.0,
             "min_avg_episode_length": 750,
@@ -196,6 +221,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "min_success_rate": None,
             "min_eval_episodes": 10,
             "required_consecutive": 3,
+            **stance_null,
         }
         assert stage_three == {
             "min_avg_reward": 100.0,
@@ -204,6 +230,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "min_success_rate": 0.5,
             "min_eval_episodes": 10,
             "required_consecutive": 3,
+            **stance_null,
         }
 
     assert species["velociraptor"]["stages"][1]["advancement_gate"]["min_avg_forward_velocity"] == 2.0
