@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .config import load_stage_config
-from .curriculum.gate_schema import validate_gate_config
+from .curriculum.gate_schema import GateSchemaError, validate_gate_config
 
 _logger = logging.getLogger(__name__)
 
@@ -55,7 +55,27 @@ def check_stage_gate(
             "mean_reward, which is NOT comparable to TOML min_avg_reward."
         )
         episode_return = eval_metrics.get("mean_reward", 0.0)
-    return bool(episode_return >= min_reward)
+    if not bool(episode_return >= min_reward):
+        return False
+
+    # The length half of reward_and_length/v1.  This used to be ignored here
+    # while the SB3 CurriculumManager enforced it, so a stage carrying
+    # min_avg_episode_length was gated on reward alone under JAX -- the exact
+    # "one backend silently ignores a gate the other enforces" divergence the
+    # gate schema exists to prevent.  It matters more since stage 1 began
+    # encoding its full-horizon floor in this field (PLANT_VALIDATION §12).
+    min_length = curriculum.get("min_avg_episode_length")
+    if min_length is None:
+        return True
+    episode_length = eval_metrics.get("mean_episode_length")
+    if episode_length is None:
+        raise GateSchemaError(
+            "stage config sets min_avg_episode_length but eval_metrics carries "
+            "no mean_episode_length, so the length half of the gate cannot be "
+            "checked. Passing on reward alone would silently half-enforce the "
+            "gate; emit mean_episode_length from the trainer instead."
+        )
+    return bool(episode_length >= min_length)
 
 
 def run_curriculum(

@@ -79,7 +79,14 @@ _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
 
 # A gate kind with no required-keys declaration would fail with a bare
 # KeyError mid-validation; make the omission unmissable at import instead.
-assert set(_REQUIRED_THRESHOLD_KEYS) == set(GATE_KINDS), "every gate kind must declare its required threshold fields"
+# Deliberately a raise, not an assert: `python -O` strips asserts, and a
+# fail-closed guarantee that disappears under an optimisation flag is the
+# same class of defect as the gates this module exists to harden.
+if set(_REQUIRED_THRESHOLD_KEYS) != set(GATE_KINDS):
+    raise RuntimeError(
+        "every gate kind must declare its required threshold fields; "
+        f"missing from _REQUIRED_THRESHOLD_KEYS: {sorted(set(GATE_KINDS) - set(_REQUIRED_THRESHOLD_KEYS))}"
+    )
 
 #: Keys that configure the stage's schedule rather than its gate.
 _SCHEDULE_KEYS = frozenset(

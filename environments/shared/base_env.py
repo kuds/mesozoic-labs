@@ -60,7 +60,19 @@ _GROUND_PROBE_DISTANCE = 10.0
 
 
 class BaseDinoEnv(gym.Env, ABC):
-    """Abstract base class for dinosaur locomotion environments."""
+    """Abstract base class for dinosaur locomotion environments.
+
+    Optional species hook, documented here because it has no base
+    implementation and its shape is easy to get wrong:
+
+    ``_foot_contact_forces() -> tuple[float, ...]``
+        Total floor-contact force under each foot, in a stable per-species
+        order, summing every sensor that sees that foot (T-Rex: plantar pad +
+        three digits; brachiosaurus: pad + meta).  **The arity is the number
+        of feet** -- 2 on the bipeds, 4 on the quadrupeds -- so callers must
+        either sum it or check ``len`` before unpacking.  Species that expose
+        no foot sensors simply do not define it, which is why consumers guard
+        with ``hasattr`` rather than calling a base stub."""
 
     # Ground-settling caches, all derived from the model and so fixed for the
     # lifetime of the instance.  Declared here rather than assigned via getattr
@@ -894,6 +906,17 @@ class BaseDinoEnv(gym.Env, ABC):
         Everything the reset translates vertically moves together, and nothing
         else does: prey, food and other spawned props hang off the world or
         their own joints, so they must not take part in ground settling.
+
+        NON-COLLIDING geoms are excluded.  A geom with ``contype == 0`` and
+        ``conaffinity == 0`` generates no contacts, so it can never rest on the
+        floor -- settling to one would hold the animal's real feet above the
+        ground, which is the hover this method exists to prevent.  Every
+        species carries some: cosmetic surface detail (``brow_ridge``,
+        ``crest``, ``sagittal_crest``, dibothrosuchus' twelve ``scute``\\s) and
+        the necks that are deliberately non-collidable on every species except
+        velociraptor.  None of them is currently the lowest geom at any shipped
+        noise level, so this filter is behaviour-preserving today; it stops the
+        probe from disagreeing with its own definition of "the ground".
         """
         if self._root_subtree_geom_ids is not None:
             return self._root_subtree_geom_ids
@@ -907,7 +930,12 @@ class BaseDinoEnv(gym.Env, ABC):
                 if int(self.model.body_parentid[b]) in bodies:
                     bodies.add(b)
             ids = np.array(
-                [g for g in range(self.model.ngeom) if int(self.model.geom_bodyid[g]) in bodies],
+                [
+                    g
+                    for g in range(self.model.ngeom)
+                    if int(self.model.geom_bodyid[g]) in bodies
+                    and (int(self.model.geom_contype[g]) != 0 or int(self.model.geom_conaffinity[g]) != 0)
+                ],
                 dtype=np.int32,
             )
         self._root_subtree_geom_ids = ids
@@ -922,6 +950,15 @@ class BaseDinoEnv(gym.Env, ABC):
         pair can change as the root translates, so a species standing on one
         would need an iterative settle.  Every current species floors on a
         plane at z=0.
+
+        Assumptions this shares with the MJX settle, stated so the two stay
+        comparable: exactly ONE horizontal floor, and a spawn over it.  This
+        side takes the minimum ``mj_geomDistance`` over every floor geom, which
+        respects finite plane extents; MJX takes the highest floor's z and
+        treats the plane as infinite.  With one 100x100 plane at z=0 and a
+        spawn near the origin the two agree to ~1e-9, but multiple floors at
+        different heights, a tilted plane, or a spawn beyond the plane's extent
+        would diverge.  MJX raises on a heightfield rather than mis-settling.
         """
         if self._static_floor_geom_ids is not None:
             return self._static_floor_geom_ids

@@ -165,17 +165,27 @@ net_arch = [512, 256]                  # Match SB3 PPO architecture
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 6000000
-min_avg_reward = 2900.0                 # Sanity RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
+min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
                                         # can separate a competent policy from a statue, because the statue is the
                                         # reward optimum (97.0% of the 3.35/step ceiling with zero actuation cost).
-                                        # This sits at 0.89 x the statue's standing reward at the 0.05 operating
-                                        # point (3271.8 +/- 12.0, 40 episodes) — deliberately BELOW the statue,
-                                        # clearing the ~0.30/step smoothness cost a reasonable active policy pays;
-                                        # its only job is to reject a policy that discarded most of the available
-                                        # return. The real 1a gate is the episode-level stance_success event
+                                        # Sized to the one job a rail CAN do — rejecting a policy that discarded
+                                        # most of the available return — at 0.60 x the statue's standing reward at
+                                        # the 0.05 operating point (3271.8 +/- 12.0, 40 episodes).
+                                        #
+                                        # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
+                                        # full-horizon 93% -> 7%) bottomed at 888 = 0.27 x statue, so 0.60 clears
+                                        # it by better than 2x. Meanwhile 0.89 = 2900 sat within ~2.4% of a
+                                        # competent policy's estimated ceiling (statue minus the ~0.30/step
+                                        # smoothness cost = ~2970, before energy and the posture terms a moving
+                                        # policy inevitably gives up) — close enough to reject the very policy it
+                                        # was meant to admit. §12 chose 0.89 to sit just under a good policy, which
+                                        # is competence-bar reasoning, and §9 is the argument that a competence bar
+                                        # cannot work here.
+                                        #
+                                        # The real 1a gate is the episode-level stance_success event
                                         # (STAGE1_SPLIT_PLAN §2.3) over unsupported duty — machinery still to be
                                         # built. The old 1840 was cleared by the statue itself and certified
-                                        # nothing. Provisional (§12: for review, not adopted).
+                                        # nothing.
 min_avg_episode_length = 950             # Encodes §12's full-horizon >= 95% in the existing machinery. The statue
                                         # measures 100% at noise 0.05, so this is a floor a competent policy must
                                         # MATCH, not beat; the old 750 was calibrated at noise 0.10 where survival

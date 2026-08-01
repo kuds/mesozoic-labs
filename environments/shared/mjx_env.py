@@ -410,6 +410,16 @@ class _GroundSettle:
     which is EXACT for every primitive the species use (sphere, capsule,
     cylinder, box, ellipsoid) against a horizontal plane floor.  Meshes have
     no closed form here and raise at construction rather than mis-settling.
+
+    Floor assumptions, kept in step with ``BaseDinoEnv._static_floor_geoms``:
+    exactly one horizontal floor, treated as an INFINITE plane at the highest
+    floor geom's z.  The Gymnasium probe instead takes the minimum
+    ``mj_geomDistance`` over every floor geom, which respects finite plane
+    extents.  Against one 100x100 plane at z=0 with a spawn near the origin the
+    two agree to ~1e-9 (pinned by the cross-backend settle-target test), but
+    multiple floors at different heights, or a spawn past the plane's extent,
+    would diverge.  A non-+z plane normal and a heightfield both raise here
+    rather than settle wrongly.
     """
 
     geom_ids: Any  # (n,) int32 ndarray of animal (free-root subtree) geom ids
@@ -462,6 +472,11 @@ def _ground_settle_constants(mj_model: Any) -> _GroundSettle | None:
     ell_extent: list[tuple[float, float, float]] = []
     for g in range(mj_model.ngeom):
         if int(mj_model.geom_bodyid[g]) not in bodies:
+            continue
+        # Skip non-colliding geoms, matching BaseDinoEnv._root_subtree_geoms:
+        # a geom that generates no contacts can never rest on the floor, so
+        # settling to one would hold the real feet above the ground.
+        if int(mj_model.geom_contype[g]) == 0 and int(mj_model.geom_conaffinity[g]) == 0:
             continue
         geom_type = mj_model.geom_type[g]
         size = mj_model.geom_size[g]

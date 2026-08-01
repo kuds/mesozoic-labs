@@ -117,6 +117,35 @@ tolerance) remains the standing recommendation for the divergences above.
   measured window, `height` 0.578 of 0.6, `neck_posture` 0.173 of 0.2,
   `leg_home_pose` 0.312 of 0.5. (PLANT_VALIDATION §14)
 
+- **MEDIUM** — **JAX evaluation cannot produce per-episode foot duty for
+  quadrupeds.** `jax_eval` routes per-foot force with
+  `results.diag_r_foot if i % 2 == 0 else results.diag_l_foot`, so on a
+  four-footed species feet 0 and 2 both land in `diag_r_foot` and feet 1 and 3
+  in `diag_l_foot`: the arrays carry two feet interleaved at twice the step
+  count, under labels that no longer mean right and left. Bipeds are correct
+  (foot 0 → r, foot 1 → l, one entry per step), which is why episode
+  boundaries reconstruct exactly from `cumsum(lengths)` there and not for
+  quadrupeds. This blocks the adopted 1a duty bound (STAGE1_SPLIT_PLAN §2.3)
+  on brachiosaurus and dibothrosuchus, and it became load-bearing when the
+  brachiosaurus stance and sensor repairs made its §8 stance-quality row
+  interpretable for the first time. The T-Rex pilot is unaffected.
+
+- **LOW** — **collidable necks are deferred until terrain lands.** Velociraptor
+  is the reference: its neck geom collides *and* sits in `_body_ground_geoms`,
+  so hitting the ground with it terminates the episode. The other three carry
+  `contype=0` necks (plus cosmetic `brow_ridge` / `crest` / `sagittal_crest`
+  and dibothrosuchus' twelve `scute`s), and brachiosaurus documents the choice
+  explicitly, using the collidable head as the termination proxy. On a flat
+  floor this is unobservable — an animal whose neck reaches the ground has
+  already tripped tilt, height or head-contact termination — so the decision
+  was to leave physics alone and revisit when heightfield terrain arrives, at
+  which point the raptor's pattern is the template. Note the MJX settle
+  currently *raises* on a heightfield floor and would need an iterative settle,
+  and newly-colliding long neck capsules must be checked for home-pose
+  self-collision (the defect class fixed twice in the PR #480 series). The
+  cosmetic geoms should stay non-collidable permanently; they are already
+  excluded from the ground-settle probe.
+
 - **LOW** — **the reset's root-height jitter channel is state-inert but still
   present.** The PR #479 ground settle overwrites the root height as a pure
   function of the sampled joint pose, so `reset_height_noise_scale` and

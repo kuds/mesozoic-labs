@@ -8,6 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
 ### Changed
+- **The stage-1 reward rails are sized to reject collapse, not to approximate
+  competence** (0.60 × each statue's standing reward, superseding
+  PLANT_VALIDATION §12's 0.89 ×): trex 2900 → **1950**, velociraptor and
+  brachiosaurus 1550 → **1050 / 1040**, dibothrosuchus 2300 → **1560**. §12
+  picked 0.89 to sit just below a competent policy, which is competence-bar
+  reasoning that §9 refutes — the statue is the reward optimum, so no
+  threshold separates competent from passive. Sized instead to the rail's one
+  real job: the measured collapse (full-horizon 93% → 7%) bottomed at
+  **888 = 0.27 × statue**, so 0.60 clears it by better than 2×, whereas 0.89 =
+  2900 sat within ~2.4% of a competent policy's estimated ceiling (~2970 =
+  statue − the measured 0.30/step smoothness cost, before energy and the
+  posture terms a moving policy gives up) and risked rejecting the very policy
+  it was meant to admit. `collapse_peak_floor` stays at 0.75 ×, which *should*
+  sit near a good level since its job is arming a detector rather than
+  admitting a policy.
+- **`min_avg_episode_length` is now enforced on the JAX path.**
+  `check_stage_gate` read only `min_avg_reward`, and the trainer's
+  `eval_metrics` carried no length key at all — so the gate kind named
+  `reward_and_length/v1` was fully enforced on SB3 and half-enforced on JAX,
+  the exact "one backend silently ignores a gate the other enforces"
+  divergence `gate_schema` exists to prevent. It became load-bearing when
+  stage 1 began encoding its full-horizon ≥ 95% floor in that field. The
+  trainer now tracks `episode_length_history` and emits `mean_episode_length`
+  (NaN windows collapse to 0.0, which fails a length gate rather than passing
+  it), and the gate enforces both halves; declaring the threshold without the
+  metric raises rather than passing on reward alone.
+- **The ground settle no longer probes geoms that cannot touch the ground.**
+  Both backends included `contype=0, conaffinity=0` geoms — 2 on T-Rex, 5 on
+  brachiosaurus, **14 of dibothrosuchus's 39** — when deciding where the floor
+  is. Settling to one would hold the animal's real feet above the ground,
+  which is the hover the settle exists to prevent. Measured latent (no phantom
+  is currently the lowest geom at any shipped noise), so the filter is
+  behaviour-preserving: resets are verified **bit-identical across all four
+  species** after the change. A new invariant test pins that only collidable
+  geometry can drive the settle.
 - **Stage 1 moved to the 1a operating point and the reward gates were
   re-founded as sanity rails** (PLANT_VALIDATION §7/§9/§12; changes what
   stage 1 *is*, per decision §17.2). Every species' stage-1

@@ -84,11 +84,14 @@ net_arch = [512, 256]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 6000000
-min_avg_reward = 1550.0                 # Sanity RAIL, not the gate (PLANT_VALIDATION §9/§12): the statue is the
-                                        # reward optimum, so this sits at 0.89 x its standing reward at noise 0.05
+min_avg_reward = 1050.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): the statue is the
+                                        # reward optimum, so this sits at 0.60 x its standing reward at noise 0.05
                                         # (1745.8 +/- 5.0, 40 episodes) and only rejects a policy that discarded
-                                        # most of the available return. The old 100.0 was cleared by the statue
-                                        # (17x over) and certified nothing. Provisional (§12).
+                                        # most of the available return. 0.60 rather than §12's 0.89 because the
+                                        # measured collapse bottoms at 0.27 x statue, while 0.89 lands within a
+                                        # few percent of a competent policy's ceiling; see the trex config for the
+                                        # full derivation. The old 100.0 was cleared by the statue (17x over) and
+                                        # certified nothing.
 collapse_peak_floor = 1300.0            # 0.75 x the statue's standing reward at noise 0.05: above the grind,
                                         # below a plausible active-policy peak. The old 100.0 armed on any
                                         # positive blip. Absolute pending §14 item 3 (relative floors).

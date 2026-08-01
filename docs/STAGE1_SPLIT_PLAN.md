@@ -330,6 +330,36 @@ Gate on a one-sided lower confidence bound of `P(stance_success)`, not on a mean
 Quantiles over a defined tail window rather than episode averages, because averages hide
 oscillation and large transients — which is precisely the failure mode in §1.5.
 
+> **DECIDED 2026-08-01 — the statistic is a HYBRID, reconciling this section with §12 of
+> PLANT_VALIDATION.** The two documents specified different rules: this section's binomial
+> `LCB95(P(stance_success)) ≥ 0.90`, and §12's raw fractions (full-horizon ≥ 95%, unsupported
+> duty ≤ 0.02). They are about five points of certified capability apart — verified by exact
+> binomial calculation, a raw 38/40 certifies only `P ≥ 0.851`, while `LCB95 ≥ 0.90` at n=40
+> requires **40/40** and passes a genuinely-95% policy just 12.9% of the time. `[measured]`
+>
+> The cliff is not an argument against confidence bounds; it is an argument against small
+> panels *for a binarised metric*. Adopted rule, in three parts:
+>
+> 1. **Screening, every evaluation at n=40** — raw fractions, with `required_consecutive` as
+>    scheduler hysteresis ONLY. Re-running a deterministic panel is not statistical
+>    replication (§3.4 caution 3).
+> 2. **The load-bearing bound — one-sided LCB on MEAN UNSUPPORTED DUTY at n=40.** Duty is
+>    continuous with tiny measured variance (the statue sits at 0.000 on all four species), so
+>    an interval on it has real power at 40 episodes where the pass/fail count has almost none.
+>    This is what actually certifies stance quality.
+> 3. **Confirmation — one predeclared held-out panel at n≈100–180** for the binary
+>    full-horizon event, run once a candidate qualifies (96/100 certifies `P ≥ 0.911`; 168/179
+>    certifies `P ≥ 0.900`). Evaluation is minutes and training is days, so this is the cheapest
+>    rigour available.
+>
+> **Artifact requirement, verified against the current evaluator:** the per-episode outcomes
+> this needs are already recoverable. `EvalResults` carries per-episode `rewards`, `lengths`
+> and `successes`, and the per-step `diag_*` arrays are appended inside the sequential
+> per-episode loop, so episode boundaries reconstruct exactly from `cumsum(lengths)` — for
+> BIPEDS. For quadrupeds they do not; see the `diag_r_foot`/`diag_l_foot` interleaving defect
+> recorded in KNOWN_ISSUES, which must be fixed before this rule can be applied to
+> brachiosaurus or dibothrosuchus.
+
 **This is new machinery, not a config change.** `StageThreshold`
 (`environments/shared/curriculum/manager.py:23-30`) currently supports exactly `min_avg_reward`,
 `min_avg_episode_length`, `min_avg_forward_vel`, `min_success_rate`, `min_eval_episodes` and

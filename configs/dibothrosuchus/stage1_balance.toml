@@ -103,11 +103,11 @@ net_arch = [512, 256]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 6000000
-min_avg_reward = 2300.0                 # Sanity RAIL, not the gate (PLANT_VALIDATION §9/§12): 0.89 x the statue's
+min_avg_reward = 1560.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): 0.60 x the statue's
                                         # standing reward at noise 0.05 (2598.3 +/- 0.9, 40 episodes). Only
-                                        # rejects a policy that discarded most of the available return. The old
-                                        # 100.0 was cleared by the statue (18x over) and certified nothing.
-                                        # Provisional (§12).
+                                        # rejects a policy that discarded most of the available return; 0.60
+                                        # rather than §12's 0.89 for the reason derived in the trex config. The
+                                        # old 100.0 was cleared by the statue (18x over) and certified nothing.
 collapse_peak_floor = 1950.0            # 0.75 x the statue's standing reward at noise 0.05: above the grind,
                                         # below a plausible active-policy peak. Absolute pending §14 item 3.
 min_avg_episode_length = 950            # Encodes §12's full-horizon >= 95%; the statue measures 100% at 0.05.

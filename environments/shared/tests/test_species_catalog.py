@@ -147,9 +147,9 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     catalog = build_catalog()
     species = {entry["id"]: entry for entry in catalog["species"]}
 
-    # Stage-1 reward gates are now the PLANT_VALIDATION section 12 sanity
-    # rails: 0.89 x each species' zero-action statue standing reward at the
-    # 1a operating point (reset noise 0.05), measured over 40 episodes with
+    # Stage-1 reward gates are COLLAPSE RAILS: 0.60 x each species' zero-action
+    # statue standing reward at the 1a operating point (reset noise 0.05),
+    # measured over 40 episodes with
     # environments/shared/scripts/stance_quality_baseline.py -- trex 3271.8,
     # velociraptor 1745.8, brachiosaurus 1739.1 (on the plant repaired by
     # plant_versions notes 7-8), dibothrosuchus 2598.3.
@@ -160,14 +160,19 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # is unreachable and one below it is clearable by a statue. The rail's
     # only job is to reject a policy that has discarded most of the available
     # return; what separates competent from passive is the episode-level
-    # stance_success gate, which is not built yet. The previous values (trex
-    # 1840, everyone else the 100.0 placeholder) were all cleared by their own
+    # stance_success gate, which is not built yet.
+    #
+    # 0.60 rather than section 12's 0.89: the measured collapse bottomed at
+    # 0.27 x statue, so 0.60 clears it by better than 2x, while 0.89 sat within
+    # ~2.4% of a competent policy's estimated ceiling and risked rejecting the
+    # very policy it was meant to admit. The previous values (trex 1840,
+    # everyone else the 100.0 placeholder) were all cleared by their own
     # species' statue and certified nothing.
     stage_one_min_avg_reward = {
-        "trex": 2900.0,
-        "velociraptor": 1550.0,
-        "brachiosaurus": 1550.0,
-        "dibothrosuchus": 2300.0,
+        "trex": 1950.0,
+        "velociraptor": 1050.0,
+        "brachiosaurus": 1040.0,
+        "dibothrosuchus": 1560.0,
     }
 
     for species_id, entry in species.items():

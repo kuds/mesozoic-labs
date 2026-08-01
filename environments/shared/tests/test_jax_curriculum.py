@@ -35,8 +35,24 @@ class TestCheckStageGate:
         stage_config = load_stage_config("velociraptor", 1)
         assert "curriculum_kwargs" in stage_config
         min_reward = stage_config["curriculum_kwargs"]["min_avg_reward"]
-        assert check_stage_gate({"mean_episode_return": min_reward + 1.0}, stage_config) is True
-        assert check_stage_gate({"mean_episode_return": min_reward - 1.0}, stage_config) is False
+        # The shipped config also declares a length floor, which the gate now
+        # enforces, so hold length comfortably clear to isolate the reward
+        # threshold this test is about.
+        passing_length = stage_config["curriculum_kwargs"]["min_avg_episode_length"] + 1.0
+        assert (
+            check_stage_gate(
+                {"mean_episode_return": min_reward + 1.0, "mean_episode_length": passing_length},
+                stage_config,
+            )
+            is True
+        )
+        assert (
+            check_stage_gate(
+                {"mean_episode_return": min_reward - 1.0, "mean_episode_length": passing_length},
+                stage_config,
+            )
+            is False
+        )
 
     def test_prefers_episode_return_over_per_step_reward(self):
         """Regression: JaxTrainer eval_metrics carry BOTH a per-step
@@ -94,3 +110,51 @@ class TestCheckStageGate:
         typo = {"curriculum_kwargs": dict(_GATE, min_avg_rewrad=100.0)}
         with pytest.raises(GateSchemaError, match="unrecognised"):
             check_stage_gate({"mean_episode_return": 0.0}, typo)
+
+
+class TestLengthThresholdIsEnforced:
+    """The length half of ``reward_and_length/v1`` must bind on JAX too.
+
+    ``check_stage_gate`` used to read only ``min_avg_reward`` while the SB3
+    ``CurriculumManager`` enforced reward AND length, so a stage carrying
+    ``min_avg_episode_length`` advanced on reward alone under JAX.  That is the
+    "one backend silently ignores a gate the other enforces" divergence
+    ``gate_schema`` exists to prevent, and it became load-bearing when stage 1
+    started encoding its full-horizon floor in that field.
+    """
+
+    def test_short_episodes_fail_even_with_sufficient_reward(self):
+        stage_config = {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0, min_avg_episode_length=950)}
+        metrics = {"mean_episode_return": 5000.0, "mean_episode_length": 300.0}
+        assert check_stage_gate(metrics, stage_config) is False
+
+    def test_passes_when_both_thresholds_are_met(self):
+        stage_config = {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0, min_avg_episode_length=950)}
+        metrics = {"mean_episode_return": 5000.0, "mean_episode_length": 1000.0}
+        assert check_stage_gate(metrics, stage_config) is True
+
+    def test_reward_still_binds_independently(self):
+        stage_config = {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0, min_avg_episode_length=950)}
+        metrics = {"mean_episode_return": 50.0, "mean_episode_length": 1000.0}
+        assert check_stage_gate(metrics, stage_config) is False
+
+    def test_declared_length_gate_without_the_metric_is_fatal(self):
+        """Half-enforcing must raise rather than pass on reward alone."""
+        stage_config = {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0, min_avg_episode_length=950)}
+        with pytest.raises(GateSchemaError, match="no mean_episode_length"):
+            check_stage_gate({"mean_episode_return": 5000.0}, stage_config)
+
+    def test_reward_only_config_is_unaffected(self):
+        """A stage that declares no length threshold keeps its old behaviour."""
+        stage_config = {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0)}
+        assert check_stage_gate({"mean_episode_return": 150.0}, stage_config) is True
+
+    def test_every_stage_one_config_length_gate_binds_on_both_backends(self):
+        """The shipped stage-1 configs all carry the full-horizon floor."""
+        from environments.shared.config import load_stage_config
+
+        for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
+            cfg = load_stage_config(species, 1)
+            floor = cfg["curriculum_kwargs"]["min_avg_episode_length"]
+            generous = {"mean_episode_return": 1e9, "mean_episode_length": floor - 1}
+            assert check_stage_gate(generous, cfg) is False, species
