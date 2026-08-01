@@ -556,6 +556,87 @@ above stay a faithful snapshot:
   addendum). Un-settled MJX spawns measured −41.2 mm to +5.2 mm at stage-1 noise on T-Rex, and
   the brachiosaurus midpoint base pose hovered 610 mm. Part I's findings therefore applied to
   the JAX path too; they no longer do.
+* **§16's HEADLINE QUESTION IS ANSWERED — and the answer is "no".** Run `20260801_021545`
+  (T-Rex, 6.0M steps, this document's repaired plant, `reset_noise_scale = 0.05`) ended at
+  **28.4% unsupported duty** against the statue's 0.000, versus 30–35% on the broken plant.
+  §16 asked whether "a substantial share of the airborne duty was learned from the broken
+  reset." It was not: the plant repair moved it by ~19% relative and left it an order of
+  magnitude away from the target. **The chatter is a reward-design problem**, which promotes
+  §14 from inferred to evidence-backed. Duty fell monotonically (0.657 → 0.524 → 0.322 →
+  0.284) and had *not* converged at 6M — so §18's 3M pilot would have read ~0.45 and
+  understated the trend. `[measured]`
+* **§14 items 1–4 are now implemented** on the strength of that result: a real
+  `foot_load_balance_min_support_force` (42 N = 5% of the animal's own weight, versus the
+  measured no-op at 0.0), a `foot_load_balance_airborne_penalty` making the ordering strictly
+  monotone (`+0.600 > −0.300 > −0.600`, ending the flat region §14.1 identified), a
+  frequency-aware `action_jerk_weight` on the second difference of actions (a slow ramp scores
+  0.00 where a Nyquist buzz scores 336, while the *first* difference rates the ramp as
+  rougher — the §11.2 blindness, inverted), and `derive_stance_info`'s airborne branch keyed to
+  the same threshold the duty metrics use.
+* **CORRECTION to §7/§8: the statue is not 100% full-horizon at noise 0.05.** `[measured]`
+  That figure came from one 40-seed block. Pooled over three independent blocks the
+  zero-action policy scores **119/120 = 99.17%** (exact 95% LCB 0.961) — 40/40 on seeds
+  3042-3081 and 9000-9039, but **39/40** on seeds 0-39, the exception a `nosedive`. Two
+  consequences. §12's `full-horizon >= 95%` threshold is unaffected (99.2% clears it
+  comfortably). But a binomial `LCB95 >= 0.90` gate at n=40 requires 40/40 and would
+  therefore **reject the statue itself 28% of the time**, which is the strongest argument yet
+  for the hybrid statistic adopted in STAGE1_SPLIT_PLAN §2.3 over a pure binomial LCB. Note
+  the *standing* reward is robust across blocks (3271.8 / 3270.8), so every value calibrated
+  against it — the 0.60x rails and the collapse-floor reference — is unaffected.
+* **The reward changes leave the statue baseline exactly where it was.** `[measured]` Re-run
+  after §14: **3271.77 ± 12.03, 40/40 full-horizon** on the doc's seed block, versus 3271.8 ±
+  12.0 before. The statue commands zero action (so zero jerk) and carries 840.9 N median foot
+  load (so it never approaches the 42 N airborne threshold — measured minimum 98.95 N, a 2.4x
+  margin), so neither new term touches it. The rails and the collapse reference therefore did
+  not need re-deriving.
+* **The 42 N support threshold is not a sensitive choice.** `[measured]` Foot load is
+  strongly bimodal — either ~0 N or several hundred N — so on the trained policy the reward's
+  airborne test (`total <= 42 N`) and the duty metrics' test (both feet `<= 0.1 N`) agree on
+  **31.7% vs 31.7%** of steps. Any threshold in the wide empty gap between them gives the
+  same answer.
+* **The action signal is far buzzier than the video analysis showed.** `[measured]` §11.6's
+  frame-by-frame figures (35–71% of toe-motion power above 4 Hz, dominant 13.5 Hz) are
+  *video* measurements; rolling run `20260801_021545`'s stage-1 `robust_best_model` on this
+  plant at noise 0.05 — 8 episodes, all full-horizon, with the run's own VecNormalize
+  statistics — measures the **action** signal at **98.1% of power above 4 Hz**, `action_delta`
+  5.72 and `action_jerk` 9.82 per step, a jerk/delta ratio of 1.72 implying an effective
+  **22.7 Hz**. Action-space chatter is therefore worse than toe-motion chatter suggested, and
+  §11.6's figures should not be used as a proxy for it. This is what `action_jerk_weight` was
+  calibrated against: an estimate derived from the video numbers gave 12.0, while the rollout
+  shows that weight would cost an *untrained* policy 1.49/step — more than the entire 1.00
+  `alive_bonus`, i.e. it would pay PPO to stop surviving. The shipped 4.0 charges the measured
+  buzz 117/episode while a smooth 1.5 Hz corrective policy pays ~0.001/episode.
+* **§11.4's absolute floor is retired — but the 8/01 run was NOT a collapse, and §14 item 3's
+  "tighten drop/patience" is refuted.** `[measured]` Two separate claims, both corrected after
+  simulating the detector against that run's real 120-evaluation series:
+  1. The floor genuinely could not arm: 2450 (0.75 × statue) sat above the run's best
+     evaluation of 2347.67. It is now relative (`collapse_peak_floor_fraction` ×
+     `collapse_peak_floor_reference`, 0.45 × 3271.8 = 1472), cleared by ~2M steps while still
+     far above the 888 bottom of the genuine 7/31 collapse. That fix stands.
+  2. **An earlier draft of this addendum said the detector "watched eval degrade 2347.67 →
+     1666.33." That framing was wrong** — it implies a collapse was missed. The run's final
+     evaluation (1630.7) is *higher than 76 of its own 119 preceding evaluations*, and its
+     late-run spread (618–2348) matches its mid-run spread (625–2312). The best-to-final gap is
+     ordinary evaluation variance, which is exactly what `robust_best_model` absorbs.
+  3. Consequently **do not tighten `drop_fraction`/`patience`.** Stage-1 eval reward is
+     enormously noisy — 45 of 94 pre-peak evaluations fall below *half* their running peak, 52
+     below 70% — so the endgame dip is milder than 53 mid-training excursions. Every pair
+     tested, 0.5/10 through 0.2/3, first fires between evaluations 66 and 103, all **before**
+     the best model at evaluation 114: tightening aborts healthy runs rather than catching
+     collapse. Episode length behaves identically (48 of 94 below 70%). The shipped 0.5/10 is
+     the only tested setting that does not abort the run, and declining to fire was correct.
+  The open question this leaves is not the thresholds but the *signal*: a per-evaluation reward
+  detector has little power against this much variance, and §11.5's real signature — healthy
+  rollouts alongside failing deterministic eval — remains unsurfaced.
+* **§11.5 repeated too**: rollout diagnostics improved monotonically straight through the
+  window where deterministic evaluation degraded. Healthy rollouts plus failing eval, still
+  surfaced by no dashboard.
+* **The 2026-08-01 run was not the §18 pilot** — 6M steps with advancement enabled through
+  stages 2 and 3, not the 3M stage-1-only diagnostic. Its stage 1 "passed" on a transient peak
+  at 5.75M while the *final* model fails both gates (1666.33 < the 1950 rail; 742.8 < the 950
+  length floor). Note the 0.89 × rail this addendum superseded would have blocked that
+  advancement; 0.60 × did not. The deeper point stands either way — no reward threshold
+  detects 28.4% airborne duty, which is what the unbuilt `stance_success` gate is for.
 * **§16's reset-height-clip hypothesis is retired going forward**: the ground settle makes the
   entire root-height jitter channel state-inert (verified to one ULP), so the clip cannot
   influence any future run. It remains a candidate explanation for the historical 7/29→7/31

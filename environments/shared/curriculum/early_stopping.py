@@ -155,12 +155,60 @@ def collapse_settings_from_config(curriculum_kwargs: dict[str, Any]) -> dict[str
     floor now means "never arm" instead, because a backstop that is not
     configured should not abort a run; every stage config sets the value it
     actually wants.  See docs/STAGE1_SPLIT_PLAN.md section 7.4.
+
+    **The floor should be expressed RELATIVELY.** An absolute number cannot
+    survive a reward-function edit, and has now failed to arm twice for the
+    same reason.  Run ``20260731_132102``: floor 2200 calibrated against a run
+    whose peak was 2496, reward scale shifted, next run peaked at 1934.1, the
+    detector never armed and watched a -59% collapse.  Run ``20260801_021545``:
+    floor 2450 re-derived as 0.75x the zero-action statue (3271.8), the run's
+    best evaluation was 2347.67 -- still below it -- so the detector never
+    armed again and watched eval degrade 2347.67 -> 1666.33.  Deriving the
+    floor from the statue is only half a fix: the statue bounds what is
+    *achievable*, not what a *learning* policy passes through.
+
+    ``collapse_peak_floor_fraction`` therefore sets the floor as a fraction of
+    ``collapse_peak_floor_reference`` -- the zero-action standing baseline for
+    the species and stage, which is measurable before training and re-anchors
+    automatically whenever the reward changes.  An explicit
+    ``collapse_peak_floor`` still wins when present, so existing configs are
+    untouched.
+
+    **Do NOT tighten ``drop_fraction`` / ``patience`` to make this fire more
+    often.**  PLANT_VALIDATION section 14 item 3 asked for that, and simulating
+    the detector against run ``20260801_021545``'s real 120-evaluation series
+    refutes it.  Stage-1 evaluation reward on this task is enormously noisy:
+    45 of 94 pre-peak evaluations sit below HALF their running rolling-median
+    peak, and 52 below 70%.  The run's endgame dip is milder than 53 separate
+    mid-training excursions, so any threshold that catches the endgame fires
+    dozens of times earlier -- every (drop_fraction, patience) pair tried,
+    from 0.5/10 down to 0.2/3, first stops the run somewhere between
+    evaluation 66 and 103, all of them BEFORE the best model at evaluation
+    114.  Tightening does not detect collapse sooner; it aborts healthy runs.
+    Episode length behaves the same way (48 of 94 below 70%), so switching
+    signals does not rescue it either.
+
+    Nor was there anything to catch: the final evaluation of that run (1630.7)
+    is HIGHER than 76 of its own 119 preceding evaluations, and its late-run
+    spread (618-2348) matches its mid-run spread (625-2312).  The gap between
+    the best checkpoint and the last one is ordinary evaluation variance --
+    which is what ``robust_best_model`` exists to absorb -- not a collapse.
+    The defaults 0.5/10 are the only setting tested that does NOT abort that
+    run, and declining to fire on it was correct behaviour.
     """
+    peak_floor = curriculum_kwargs.get("collapse_peak_floor")
+    if peak_floor is None:
+        fraction = curriculum_kwargs.get("collapse_peak_floor_fraction")
+        reference = curriculum_kwargs.get("collapse_peak_floor_reference")
+        if fraction is not None and reference is not None:
+            peak_floor = float(fraction) * float(reference)
+        else:
+            peak_floor = float("inf")
     return {
         "min_evals": int(curriculum_kwargs.get("collapse_min_evals", 12)),
         "patience": int(curriculum_kwargs.get("collapse_patience", 8)),
         "drop_fraction": float(curriculum_kwargs.get("collapse_drop_fraction", 0.4)),
-        "peak_floor": float(curriculum_kwargs.get("collapse_peak_floor", float("inf"))),
+        "peak_floor": float(peak_floor),
         "smoothing_window": int(curriculum_kwargs.get("collapse_smoothing_window", 5)),
     }
 

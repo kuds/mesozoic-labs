@@ -279,6 +279,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   perfect equilibrium.
 
 ### Fixed
+- **The stage-1 reward now charges the two things run `20260801_021545`
+  proved it could not see** (PLANT_VALIDATION §14 items 1, 2 and 4). That run
+  — T-Rex, 6.0M steps on the repaired plant at the 1a operating point — ended
+  at **28.4% unsupported duty** against the statue's 0.000, versus 30–35% on
+  the broken plant. §16's headline question ("was the airborne duty learned
+  from the broken reset?") is therefore answered **no**: the plant repair
+  moved it ~19% relative, so the chatter is a reward-design problem. Three
+  changes follow:
+  - `foot_load_balance_min_support_force` is **42.0** on T-Rex stage 1, 5% of
+    the animal's own weight (85.72 kg excluding the prey prop = 840.9 N). The
+    previous `0.0` was a *measured* no-op — two touch readings essentially
+    never sum to exactly zero, so the airborne branch never fired once across
+    709 logged rollouts. It now sits well above the duty metrics' 0.1 N/foot,
+    so reward and diagnostics agree about what "unsupported" means.
+  - A new `foot_load_balance_airborne_penalty` (0.3) makes the ordering
+    **strictly monotone**: `both feet even +0.600 > single support −0.300 >
+    airborne −0.600`. Previously airborne and single support both scored
+    −0.300 — a flat region with no gradient out of the air, on the stage whose
+    whole job is staying on the ground.
+  - A new frequency-aware `action_jerk_weight` (1.0) penalises the **second**
+    difference of actions. `smoothness_weight` charges first-difference
+    magnitude and is blind to frequency: from the best to the final checkpoint
+    of run `20260731_132102`, `action_delta` *fell* 12.0 → 10.5 and its penalty
+    *improved* while toe-motion power above 4 Hz doubled. The new term inverts
+    that — a slow ramp scores jerk 0.00 (though it has the *higher*
+    `action_delta`) while a Nyquist-rate buzz scores 336.
+  - `derive_stance_info` keys its airborne branch to the same
+    `> contact_threshold` test the duty metrics use, so a foot at 0.001 N is
+    unsupported in both instead of supported in one. It previously reported
+    *perfect balance* for a truly airborne pair, and never fired anyway.
+  All wired through the Gymnasium, MJX and JAX paths with matching parameters;
+  every new weight defaults to `0.0`, so untouched species and stages are
+  numerically unchanged.
+- **`collapse_peak_floor` can be relative, because the absolute one failed to
+  arm a second time.** Set to 2450 (0.75 × the statue) it sat above run
+  `20260801_021545`'s best evaluation of **2347.67**, so the detector never
+  armed and watched eval degrade 2347.67 → 1666.33 — the identical failure to
+  the 2200-vs-1934.1 case in §11.4. Deriving the number from the statue was
+  only half a fix: the statue bounds what is *achievable*, not what a
+  *learning* policy passes through. `collapse_peak_floor_fraction` ×
+  `collapse_peak_floor_reference` (0.45 × 3271.8 = 1472 on T-Rex stage 1)
+  re-anchors whenever the reward changes; the failing run cleared it by ~2M
+  steps while it still sits well above the 888 collapse bottom. An explicit
+  `collapse_peak_floor` still takes precedence, so existing configs are
+  unchanged, and a half-declared pair resolves to "never arm" rather than to a
+  silently low floor.
 - **Brachiosaurus stage 1 is a balance task again** (breaking — plant change,
   physics revision 2 → 4, policy interface revision 4 → 6, visual revision
   1 → 2; all existing brachiosaurus checkpoints are invalidated). The

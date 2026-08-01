@@ -132,6 +132,49 @@ def reward_action_smoothness(
     return reward, action_delta
 
 
+def reward_action_jerk(
+    action: Array,
+    prev_action: Array | None,
+    prev_prev_action: Array | None,
+    n_actuators: int,
+    weight: float,
+) -> tuple[Array, Array]:
+    """Frequency-aware action-smoothness penalty: the SECOND difference.
+
+    ``reward_action_smoothness`` penalises the first difference, i.e. action
+    *magnitude* change, which is blind to frequency.  Measured on run
+    ``20260731_132102``: from the best to the final checkpoint ``action_delta``
+    FELL 12.0 -> 10.5 and the smoothness penalty improved -0.286 -> -0.250
+    while toe-motion power above 4 Hz DOUBLED, 35% -> 71%.  The policy got
+    smoother by the metric while getting buzzier in fact, because a
+    small-amplitude high-frequency limit cycle is nearly free under a
+    first-difference term.
+
+    The second difference ``a_t - 2*a_{t-1} + a_{t-2}`` is the discrete
+    curvature of the action sequence.  For a sinusoid at frequency f its gain
+    scales as ``(2*sin(pi*f*dt))^2``, i.e. ~f^2 at low frequency and maximal at
+    Nyquist, so it charges precisely the buzz the first difference ignores
+    while leaving a smooth ramp (constant first difference, zero second)
+    almost untouched.  That is the property that makes it a frequency
+    discriminator rather than another magnitude penalty.
+
+    Normalised by ``n_actuators * 16.0``: the second difference of actions
+    bounded to [-1, 1] lies in [-4, 4], so the per-actuator square is at most
+    16 and the reported penalty stays comparable across species.
+
+    Returns:
+        ``(reward, action_jerk)``.  Both are zero until two actions have been
+        seen, so the first two steps of an episode are never charged.
+    """
+    if prev_action is None or prev_prev_action is None:
+        return 0.0, 0.0
+    xp = _array_mod(action)
+    jerk = xp.sum(xp.square(action - 2.0 * prev_action + prev_prev_action))
+    max_jerk = n_actuators * 16.0
+    reward = -weight * (jerk / max_jerk)
+    return reward, jerk
+
+
 # ---------------------------------------------------------------------------
 # Posture / orientation
 # ---------------------------------------------------------------------------
@@ -303,6 +346,7 @@ def reward_foot_load_balance(
     foot_forces: Array,
     weight: float,
     min_support_force: float = 0.0,
+    airborne_penalty_weight: float = 0.0,
 ) -> tuple[Array, Array]:
     """Penalise unequal loading of a bilateral support pair.
 
@@ -328,24 +372,41 @@ def reward_foot_load_balance(
         foot_forces: ``(right, left)`` normal forces.
         weight: Penalty weight.
         min_support_force: Total force below which the pair counts as
-            unsupported.  The default ``0.0`` closes only the exact ``[0, 0]``
-            case and leaves every loaded state numerically unchanged; raise it
-            to also deny credit for a token grazing contact.
+            unsupported.  ``0.0`` closes only the exact ``[0, 0]`` case, which
+            is a NO-OP in practice: the sum of two MuJoCo touch readings is
+            essentially never exactly zero, so over all 709 logged rollouts of
+            run ``20260731_132102`` -- spanning 30-67% unsupported duty -- the
+            branch never once fired (``max |diff| = 0.000000``, correlation
+            ``1.000000`` against the diagnostic).  Give it a real value: the
+            duty metrics count a foot supported above ``0.1 N``, and ~5% of the
+            animal's own weight is the defensible physical scale (T-Rex: 85.72
+            kg of animal, excluding the prey prop, = 840.9 N, so ~42 N).
+        airborne_penalty_weight: EXTRA penalty applied only when the pair is
+            unsupported, making the ordering strictly monotone.  Without it
+            airborne and single support both score ``-weight`` -- a flat region
+            with no gradient out of the air, which is the one thing a balance
+            stage must never contain.  At the T-Rex stage-1 weights, 0.3 gives
+            ``both feet even +0.600 > single support -0.300 > airborne
+            -0.600``.  Defaults to ``0.0``, preserving the previous tie.
 
     Returns:
         ``(reward, normalized_load_imbalance)``.  The diagnostic is zero for
         equal loads, approaches one when one foot carries all the load, and is
-        exactly one when the pair is unsupported.
+        exactly one when the pair is unsupported.  It stays in ``[0, 1]``: the
+        monotone ordering lives in the reward, so the diagnostic keeps its
+        documented range.
     """
     xp = _array_mod(foot_forces)
     right_force, left_force = foot_forces[0], foot_forces[1]
     total = right_force + left_force
+    supported = total > min_support_force
     imbalance = xp.where(
-        total > min_support_force,
+        supported,
         xp.abs(right_force - left_force) / (total + 1e-8),
         1.0,
     )
-    return -weight * imbalance, imbalance
+    airborne_penalty = airborne_penalty_weight * xp.where(supported, 0.0, 1.0)
+    return -weight * imbalance - airborne_penalty, imbalance
 
 
 def reward_soft_home_pose(

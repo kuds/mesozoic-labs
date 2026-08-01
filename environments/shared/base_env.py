@@ -24,6 +24,7 @@ from .reward_functions import check_height_tilt_termination as _check_height_til
 from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
 from .reward_functions import quat_to_forward_z as _quat_to_forward_z_pure
 from .reward_functions import quat_to_tilt as _quat_to_tilt_pure
+from .reward_functions import reward_action_jerk as _reward_action_jerk_pure
 from .reward_functions import reward_action_smoothness as _reward_action_smoothness_pure
 from .reward_functions import reward_alive as _reward_alive_pure
 from .reward_functions import reward_angular_velocity_penalty as _reward_angular_velocity_penalty_pure
@@ -224,6 +225,11 @@ class BaseDinoEnv(gym.Env, ABC):
     # checking; actual values are set in subclass ``__init__``.
     smoothness_weight: float
     _prev_action: "np.ndarray | None"
+    # Second-most-recent action, for the frequency-aware jerk term.  Separate
+    # from _prev_action because the jerk needs two lags; both are cleared on
+    # reset so an episode never charges jerk across an episode boundary.
+    _prev_prev_action: "np.ndarray | None" = None
+    action_jerk_weight: float = 0.0
 
     def _reward_energy(self, action: np.ndarray) -> float:
         """Compute normalised energy penalty. Identical across all species.
@@ -245,8 +251,22 @@ class BaseDinoEnv(gym.Env, ABC):
         reward, action_delta = _reward_action_smoothness_pure(
             action, self._prev_action, n_actuators, self.smoothness_weight
         )
+        self._prev_prev_action = None if self._prev_action is None else self._prev_action.copy()
         self._prev_action = action.copy()
         return reward, action_delta
+
+    def _reward_action_jerk(self, action: np.ndarray) -> tuple[float, float]:
+        """Frequency-aware smoothness penalty and raw action jerk.
+
+        MUST be called BEFORE :meth:`_reward_action_smoothness` in a step, so
+        it sees the two prior actions rather than this step's own action as
+        its first lag.  Returns ``(reward, action_jerk)``.
+        """
+        n_actuators: int = self.action_space.shape[0]  # type: ignore[index]
+        reward, jerk = _reward_action_jerk_pure(
+            action, self._prev_action, self._prev_prev_action, n_actuators, self.action_jerk_weight
+        )
+        return float(reward), float(jerk)
 
     # ------------------------------------------------------------------
     # Consolidated reward helpers (extracted from species envs)

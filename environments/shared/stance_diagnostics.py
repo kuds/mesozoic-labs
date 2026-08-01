@@ -88,15 +88,24 @@ def derive_stance_info(info: Mapping[str, Any], contact_threshold: float = 0.1) 
     left_supported = left_force > contact_threshold
     total_force = right_force + left_force
 
-    if total_force > 1e-8:
-        right_share = right_force / total_force
-        left_share = left_force / total_force
-        imbalance = abs(right_force - left_force) / total_force
+    if right_supported or left_supported:
+        right_share = right_force / total_force if total_force > 1e-8 else 0.0
+        left_share = left_force / total_force if total_force > 1e-8 else 0.0
+        imbalance = abs(right_force - left_force) / total_force if total_force > 1e-8 else 1.0
         balance = 1.0 - imbalance
     else:
+        # UNSUPPORTED is maximally imbalanced, not perfectly balanced.  The
+        # previous `total_force > 1e-8` branch reported imbalance 0.0 for a
+        # truly airborne pair -- i.e. PERFECT balance for an animal in the air
+        # -- and, because two touch readings essentially never sum to exactly
+        # zero, the else-branch never fired anyway (PLANT_VALIDATION §11.1).
+        # Keying on the same `> contact_threshold` test the duty metrics use
+        # makes the diagnostic agree with them: a foot at 0.001 N is now
+        # unsupported here exactly as it is in *_contact_duty, instead of
+        # counting as supported in one metric and not the other.
         right_share = 0.0
         left_share = 0.0
-        imbalance = 0.0
+        imbalance = 1.0
         balance = 0.0
 
     return {

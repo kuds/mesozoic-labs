@@ -337,6 +337,16 @@ oscillation and large transients — which is precisely the failure mode in §1.
 > binomial calculation, a raw 38/40 certifies only `P ≥ 0.851`, while `LCB95 ≥ 0.90` at n=40
 > requires **40/40** and passes a genuinely-95% policy just 12.9% of the time. `[measured]`
 >
+> **The decisive evidence, measured 2026-08-02: a binomial `LCB95 >= 0.90` at n=40 would
+> reject the STATUE.** The claim that the statue is 100% full-horizon at noise 0.05 is
+> seed-block dependent, not a property of the plant. Pooled over three independent 40-seed
+> blocks the zero-action policy scores **119/120 = 99.17%** (exact one-sided 95% LCB
+> **0.961**): 40/40 on seeds 3042-3081 and 9000-9039, but **39/40** on seeds 0-39, the odd
+> one out a `nosedive`. At a true rate of 0.9917 the probability of scoring 40/40 is
+> **71.6%**, so the rule that requires 40/40 would fail the theoretical optimum **28% of the
+> time**. A gate that rejects a perfect controller more than a quarter of the time is not
+> measuring the policy. `[measured]`
+>
 > The cliff is not an argument against confidence bounds; it is an argument against small
 > panels *for a binarised metric*. Adopted rule, in three parts:
 >

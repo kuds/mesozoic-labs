@@ -15,13 +15,53 @@ foot_contact_weight = 0.0                      # Disable the legacy any-foot bon
 bilateral_support_weight = 0.6                 # Reward the weaker-loaded foot, so both feet must carry weight
 foot_contact_saturation_force = 350.0          # N per foot; quiet home support (~421 N/foot) already earns full credit
 foot_load_balance_weight = 0.3                 # Penalize normalized left/right load imbalance
-foot_load_balance_min_support_force = 0.0      # Total foot force below which the pair counts as unsupported, and so
-                                               # maximally imbalanced. 0.0 closes only the exact airborne [0, 0] case,
-                                               # which used to score as perfectly balanced -- making flight cheaper
-                                               # than honest single support (0.000 against -0.300). Every loaded state
-                                               # is numerically unchanged at this setting. Raise it to also deny credit
-                                               # for a token grazing contact; pick the value during gate calibration,
-                                               # against measured flight phases rather than by eye.
+foot_load_balance_min_support_force = 42.0     # 5% of the animal's own weight (85.72 kg excluding the prey prop =
+                                               # 840.9 N), which is the smallest load that is unambiguously bearing
+                                               # rather than grazing. The previous 0.0 was a measured NO-OP: two
+                                               # MuJoCo touch readings essentially never sum to exactly zero, so over
+                                               # all 709 logged rollouts of run 20260731_132102 the airborne branch
+                                               # never fired once (PLANT_VALIDATION §11.1). Well above the duty
+                                               # metrics' 0.1 N/foot, so a foot the diagnostics call unsupported is
+                                               # now unsupported in the reward too, instead of the two disagreeing.
+foot_load_balance_airborne_penalty = 0.3       # Makes the ordering MONOTONE. Without it airborne and single support
+                                               # both scored -0.300 -- a flat region with no gradient out of the air,
+                                               # on the stage whose entire job is to stay on the ground. Now:
+                                               # both feet even +0.600 > single support -0.300 > airborne -0.600.
+                                               # Run 20260801_021545 ended at 28.4% unsupported duty against the
+                                               # statue's 0.000, so the tie was not academic.
+action_jerk_weight = 3.0                       # Frequency-aware smoothness: penalises the SECOND difference of
+                                               # actions, which smoothness_weight cannot see. Motivation, measured on
+                                               # run 20260731_132102 best -> final: action_delta FELL 12.0 -> 10.5 and
+                                               # the smoothness penalty IMPROVED -0.286 -> -0.250 while toe-motion
+                                               # power above 4 Hz DOUBLED (35% -> 71%). A small-amplitude
+                                               # high-frequency limit cycle is nearly free under a first-difference
+                                               # term and expensive under a second-difference one.
+                                               #
+                                               # CALIBRATED against the real policy, not inferred: run
+                                               # 20260801_021545's stage-1 robust_best_model rolled out on this plant
+                                               # at this noise (8 episodes, all full-horizon, VecNormalize stats
+                                               # applied) measures action_delta 5.72, action_jerk 9.82 per step, and
+                                               # 98.1% of action-space power above 4 Hz -- far buzzier than the
+                                               # 35-71% the VIDEO analysis suggested, with a jerk/delta ratio of 1.72
+                                               # implying an effective 22.7 Hz. Measuring mattered: an estimate from
+                                               # the video figures put this weight at 12.0, which the rollout shows
+                                               # would cost an UNTRAINED policy 1.49/step -- more than the entire
+                                               # 1.00 alive_bonus, i.e. it would pay PPO to stop surviving.
+                                               #
+                                               # The cap is the UNTRAINED regime: a fresh PPO policy (log_std_init
+                                               # = 0, so actions ~ clip(N(0,1))) measures jerk 65.4/step, which an
+                                               # earlier iid-uniform estimate understated by 57% (41.8). Corrected,
+                                               # the design target "roughly half the 1.00 alive_bonus at init, so
+                                               # the term never pays PPO to stop surviving" lands at w ~ 2.6-3.0,
+                                               # not the 4.0 that estimate produced -- 4.0 actually costs 0.78/step
+                                               # at init, 78% of the alive bonus.
+                                               #
+                                               # At 3.0: init pays 0.58/step (clear margin under the alive bonus),
+                                               # the measured buzz pays 88/episode (65% of the smoothness term that
+                                               # demonstrably failed to suppress it), and a smooth 1.5 Hz
+                                               # corrective policy pays ~0.001/episode -- a discrimination ratio of
+                                               # ~8e4, so the term is nearly free for the behaviour we want and is
+                                               # charged almost entirely to chatter.
 support_conditioned_alive_fraction = 0.5       # Keep recovery headroom while making one-foot survival less profitable
 leg_home_pose_weight = 0.5                     # Softly retain the authored p5 theropod leg stance
 leg_home_pose_tolerance = 0.20                 # rad; broad enough for balancing corrections without joint locking
@@ -197,7 +237,21 @@ collapse_drop_fraction = 0.5            # Only raw means >50% below the robust r
                                         # low-reward grind then a noisy breakthrough (run 20260721_004731: dip to ~1.2M,
                                         # turbulent transition at 2.2-2.3M, converged ~2.65M); the old stage-1 defaults
                                         # killed run 20260720_203454 at 1.1M off a variance-inflated 50k peak.
-collapse_peak_floor = 2450.0             # 0.75 x the statue's standing reward at noise 0.05 (3271.8): above the
+collapse_peak_floor_reference = 3271.8   # The zero-action statue's standing reward at noise 0.05, 40 episodes.
+collapse_peak_floor_fraction = 0.45      # RELATIVE floor (PLANT_VALIDATION §14 item 3). An absolute floor has now
+                                         # failed to arm TWICE for the same reason: 2200 against run 20260731_132102
+                                         # (peak 1934.1, watched a -59% collapse), then 2450 against run
+                                         # 20260801_021545 (best eval 2347.67 -- still under it, watched
+                                         # 2347.67 -> 1666.33). Deriving from the statue was only half the fix: the
+                                         # statue bounds what is ACHIEVABLE, not what a learning policy passes
+                                         # through. 0.45 x 3271.8 = 1472, which the 2026-08-01 run cleared by ~2M
+                                         # steps, so the detector would have been armed for the degradation it
+                                         # missed -- while still sitting well above the 888 (0.27x) collapse floor,
+                                         # so the pre-convergence grind cannot trip it. Re-derive the reference,
+                                         # not this fraction, whenever the reward changes.
+                                         #
+                                         # Superseded absolute value, kept for the record:
+                                         # collapse_peak_floor = 2450.0  # 0.75 x the statue's standing reward at noise 0.05 (3271.8): above the
                                          # pre-convergence grind, below a plausible active-policy peak (~2970 =
                                          # statue minus the ~300 smoothness cost). The old absolute 2200 was
                                          # calibrated against a run whose reward scale then shifted, and sat above

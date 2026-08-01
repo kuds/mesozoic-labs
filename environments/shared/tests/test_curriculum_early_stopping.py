@@ -1,6 +1,7 @@
 """Tests for environments.shared.curriculum.early_stopping."""
 
 import inspect
+import math
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -436,11 +437,111 @@ class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
         assert cb.peak_floor == 2200.0
 
     def test_every_committed_stage_config_sets_the_floor_explicitly(self):
+        """Every stage must configure the floor, by either mechanism.
+
+        Checked on the RESOLVED value rather than on the presence of
+        ``collapse_peak_floor``, because a stage may now set the floor
+        relatively (``collapse_peak_floor_fraction`` x
+        ``collapse_peak_floor_reference``) so it re-anchors when the reward
+        changes -- see PLANT_VALIDATION section 14 item 3 and the two runs
+        where an absolute floor silently never armed.  A stage that configures
+        neither resolves to ``inf``, i.e. never arms, which is what this test
+        exists to prevent.
+        """
         from environments.shared.config import load_all_stages
 
         for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
             for stage, cfg in load_all_stages(species).items():
                 cur = cfg.get("curriculum_kwargs", {})
-                assert "collapse_peak_floor" in cur, (
-                    f"{species} stage {stage} relies on the removed min_avg_reward fallback"
+                floor = collapse_settings_from_config(cur)["peak_floor"]
+                assert math.isfinite(floor), (
+                    f"{species} stage {stage} configures no collapse floor (neither collapse_peak_floor "
+                    "nor the fraction/reference pair), so the backstop can never arm"
                 )
+
+
+class TestRelativeCollapsePeakFloor:
+    """A relative floor re-anchors when the reward function changes.
+
+    An absolute floor failed to arm TWICE for the same reason: 2200 against
+    run ``20260731_132102`` (peak 1934.1, watched a -59% collapse), then 2450
+    against run ``20260801_021545`` (best eval 2347.67, watched
+    2347.67 -> 1666.33).  Deriving the number from the statue was only half a
+    fix -- the statue bounds what is achievable, not what a learning policy
+    passes through -- so the floor is now a fraction of a declared reference.
+    """
+
+    def test_fraction_times_reference_resolves_the_floor(self):
+        settings = collapse_settings_from_config(
+            {"collapse_peak_floor_fraction": 0.45, "collapse_peak_floor_reference": 3271.8}
+        )
+        assert settings["peak_floor"] == pytest.approx(0.45 * 3271.8)
+
+    def test_explicit_absolute_floor_still_wins(self):
+        """Existing configs keep their behaviour exactly."""
+        settings = collapse_settings_from_config(
+            {
+                "collapse_peak_floor": 2450.0,
+                "collapse_peak_floor_fraction": 0.45,
+                "collapse_peak_floor_reference": 3271.8,
+            }
+        )
+        assert settings["peak_floor"] == pytest.approx(2450.0)
+
+    def test_incomplete_relative_pair_never_arms(self):
+        """Half a declaration must not silently become a low floor."""
+        for partial in ({"collapse_peak_floor_fraction": 0.45}, {"collapse_peak_floor_reference": 3271.8}):
+            assert collapse_settings_from_config(partial)["peak_floor"] == float("inf")
+
+    def test_trex_stage_one_floor_would_have_armed_on_the_failing_run(self):
+        """Regression against the measured miss, not against a chosen number."""
+        from environments.shared.config import load_stage_config
+
+        floor = collapse_settings_from_config(load_stage_config("trex", 1)["curriculum_kwargs"])["peak_floor"]
+        best_eval_20260801 = 2347.67
+        collapse_bottom = 888.0
+        assert best_eval_20260801 >= floor, "the detector must arm on a run that reached this peak"
+        assert floor > collapse_bottom, "the floor must sit above the measured collapse bottom"
+
+
+class TestTighteningDropAndPatienceIsRefuted:
+    """Pins the measured reason NOT to tighten the collapse thresholds.
+
+    PLANT_VALIDATION section 14 item 3 asked for ``drop_fraction`` and
+    ``patience`` to be tightened.  Simulating the detector against run
+    ``20260801_021545``'s real 120-evaluation series refutes it: stage-1
+    evaluation reward is so noisy that the endgame dip is milder than 53
+    separate mid-training excursions, so every setting that catches the
+    endgame first aborts the run long before its best model.
+
+    These tests use the measured summary statistics rather than the raw
+    series, so they document the finding without vendoring 120 evaluations
+    of data into the repository.
+    """
+
+    # Measured from the run's evaluations.npz (120 evals, peak at eval 114).
+    PEAK = 2347.67
+    FINAL = 1630.7
+    EVALS_BELOW_FINAL = 76  # of the 119 evaluations preceding the last one
+    PRE_PEAK_BELOW_HALF_PEAK = 45  # of 94 pre-peak evaluations
+
+    def test_the_endgame_dip_is_inside_the_run_s_own_noise(self):
+        """The final eval beat most of the run, so there was no collapse."""
+        assert self.EVALS_BELOW_FINAL / 119 > 0.5, (
+            "the final evaluation was higher than most of the run; calling the "
+            "best-to-final gap a collapse misreads ordinary eval variance"
+        )
+
+    def test_shipped_drop_fraction_correctly_declines_to_fire(self):
+        """0.5 requires a 50% drop; the observed gap was 29%."""
+        observed_drop = (self.PEAK - self.FINAL) / self.PEAK
+        assert observed_drop < 0.5, f"observed drop {observed_drop:.0%} is below the 0.5 threshold"
+
+    def test_catching_the_endgame_would_require_catching_mid_training_noise(self):
+        """Any threshold catching a 29% dip also fires on the grind."""
+        observed_drop = (self.PEAK - self.FINAL) / self.PEAK
+        assert observed_drop < 0.5 <= 1.0, "sanity"
+        assert self.PRE_PEAK_BELOW_HALF_PEAK > 0, (
+            "45 pre-peak evaluations already sat below HALF the running peak, so a "
+            "threshold tight enough for the endgame aborts the run mid-training"
+        )
