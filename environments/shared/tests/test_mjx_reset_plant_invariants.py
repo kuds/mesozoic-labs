@@ -67,6 +67,7 @@ def reference_clearances(env: MJXDinoEnv, batched_qpos: np.ndarray) -> np.ndarra
     model = env.mj_model
     data = mujoco.MjData(model)
     settle = _ground_settle_constants(model)
+    assert settle is not None, "every SPECIES here has a free-jointed animal and a plane floor"
     floors = [
         g
         for g in range(model.ngeom)
