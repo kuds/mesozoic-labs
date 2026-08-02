@@ -423,6 +423,20 @@ oscillation and large transients — which is precisely the failure mode in §1.
 > metrics, so it cannot half-enforce; the MJX evaluator does not yet emit them, so
 > `stance_quality/v1` stages are SB3-only until it does. Quadrupeds remain blocked on the
 > `diag_r_foot`/`diag_l_foot` interleaving defect.
+>
+> > **CORRECTED 2026-08-02 — stance stages are no longer SB3-only for bipeds.** `[implemented]`
+> > `jax_setup.run_stage_evaluation` was calling `jax_eval.check_stage_gate`, which reads four
+> > fixed thresholds and never looks at `gate_kind`, so a stance-gated stage was certified on
+> > `min_avg_reward` alone — which on trex 1a both the zero-action statue (3271.8) and the
+> > chatterer (2133.4, duty 0.319) clear, with the verdict written into
+> > `publication_gate_passed`. `jax_eval.check_stage_gate_for_config` now dispatches on the
+> > declared kind and reconstructs the panel from the CPU-eval `diag_r_foot`/`diag_l_foot`
+> > traces via `cumsum(lengths)`, so the JAX path enforces the same criteria as SB3.
+> >
+> > Quadrupeds do remain blocked, but the block is now **enforced rather than assumed**: the
+> > guard is `len(diag_r_foot) == sum(lengths)`, a measurement of the data in hand rather than
+> > a species allow-list, so the interleaving defect fails the gate closed with its reason
+> > instead of silently mis-pairing feet.
 
 **This was new machinery, not a config change.** `StageThreshold`
 (`environments/shared/curriculum/manager.py:23-30`) supported exactly `min_avg_reward`,

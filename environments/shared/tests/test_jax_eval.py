@@ -650,3 +650,46 @@ class TestCheckStageGateForConfig:
         chatterer = self._results(duty=1 / 3, episodes=episodes, reward=2133.4)
         passed, _ = check_stage_gate_for_config(chatterer, config)
         assert not passed
+
+
+def test_run_stage_evaluation_routes_through_the_gate_kind_aware_check(monkeypatch):
+    """The integration, not just the function.
+
+    ``run_stage_evaluation`` imported ``check_stage_gate`` -- the four-fixed-
+    threshold one -- so a stance-gated stage was certified on ``min_avg_reward``
+    alone and that verdict became ``publication_gate_passed``. Teaching
+    ``check_stage_gate_for_config`` the stance criteria fixes nothing if this
+    call site still reaches the old function.
+    """
+    import inspect
+
+    from environments.shared import jax_setup
+
+    source = inspect.getsource(jax_setup.run_stage_evaluation)
+    assert "check_stage_gate_for_config(" in source
+    # The legacy name must not survive as a call; it appears only in the
+    # comment explaining why it was replaced.
+    assert "check_stage_gate(" not in source.replace("check_stage_gate_for_config(", "")
+
+
+def test_the_legacy_jax_gate_is_not_reachable_from_production_code():
+    """Only the gate-kind-aware wrapper may call it."""
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[3]
+    offenders = []
+    for path in (repo / "environments").rglob("*.py"):
+        if "tests" in path.parts or path.name == "jax_eval.py":
+            continue
+        text = path.read_text(encoding="utf-8")
+        for number, line in enumerate(text.splitlines(), start=1):
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if "check_stage_gate(" in stripped.replace("check_stage_gate_for_config(", ""):
+                # jax_curriculum has its own same-named adapter over a metrics
+                # dict; it dispatches on gate_kind itself and is not this one.
+                if path.name == "jax_curriculum.py":
+                    continue
+                offenders.append(f"{path.relative_to(repo)}:{number}")
+    assert not offenders, f"legacy four-threshold gate called from: {offenders}"

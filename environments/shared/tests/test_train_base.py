@@ -755,3 +755,102 @@ class TestSaveFinalAndSyncTb:
                 tmp_path / "local_tb",
                 tmp_path / "gcs_tb",
             )
+
+
+class TestCheckpointRetentionIsWired:
+    """The retention callback must actually be installed, not merely exist.
+
+    It is unit-tested in isolation in test_curriculum_checkpoints.py; this
+    covers the wiring in ``_build_core_callbacks``, which is the only thing
+    that makes it run during training.
+    """
+
+    def _build(self, tmp_path, stage_config, n_envs=1, save_freq=100):
+        gym = pytest.importorskip("gymnasium")
+        pytest.importorskip("stable_baselines3")
+        from stable_baselines3.common.callbacks import CheckpointCallback
+        from stable_baselines3.common.vec_env import DummyVecEnv
+
+        class TinyEnv(gym.Env):
+            observation_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+            action_space = gym.spaces.Box(-1.0, 1.0, (1,), dtype=np.float32)
+
+            def reset(self, *, seed=None, options=None):
+                super().reset(seed=seed)
+                return np.zeros(1, dtype=np.float32), {}
+
+            def step(self, action):
+                return np.zeros(1, dtype=np.float32), 0.0, False, False, {}
+
+        eval_env = DummyVecEnv([TinyEnv])
+        try:
+            callbacks, _, _ = _build_core_callbacks(
+                {"CheckpointCallback": CheckpointCallback},
+                eval_env,
+                tmp_path / "models",
+                tmp_path / "logs",
+                1,
+                n_envs,
+                100,
+                save_freq,
+                0,
+                stage_config,
+            )
+        finally:
+            eval_env.close()
+        return callbacks
+
+    def _retention(self, callbacks):
+        from environments.shared.curriculum import CheckpointRetentionCallback
+
+        return next(cb for cb in callbacks if isinstance(cb, CheckpointRetentionCallback))
+
+    def test_it_is_installed_with_the_default_cap(self, tmp_path):
+        from environments.shared.curriculum import DEFAULT_MAX_CHECKPOINTS
+
+        retention = self._retention(self._build(tmp_path, {"curriculum_kwargs": {"min_avg_reward": 1.0}}))
+        assert retention.max_checkpoints == DEFAULT_MAX_CHECKPOINTS
+        assert retention.name_prefix == "stage1"
+
+    def test_it_runs_after_the_checkpoint_callback(self, tmp_path):
+        # Otherwise it would prune before the checkpoint that displaced one
+        # had been written, on the step they share.
+        from stable_baselines3.common.callbacks import CheckpointCallback as _CC
+
+        from environments.shared.curriculum import CheckpointRetentionCallback
+
+        callbacks = self._build(tmp_path, {"curriculum_kwargs": {"min_avg_reward": 1.0}})
+        kinds = [type(cb) for cb in callbacks]
+        assert kinds.index(_CC) < kinds.index(CheckpointRetentionCallback)
+
+    def test_it_shares_the_checkpoint_callbacks_cadence(self, tmp_path):
+        # Both must fire on the same n_calls, or pruning happens on steps
+        # where nothing was written -- a Drive glob for no reason.
+        from stable_baselines3.common.callbacks import CheckpointCallback as _CC
+
+        callbacks = self._build(tmp_path, {"curriculum_kwargs": {"min_avg_reward": 1.0}}, n_envs=4, save_freq=100)
+        checkpoint = next(cb for cb in callbacks if isinstance(cb, _CC))
+        assert self._retention(callbacks).save_freq == checkpoint.save_freq
+
+    def test_the_config_knob_reaches_it(self, tmp_path):
+        retention = self._retention(
+            self._build(tmp_path, {"curriculum_kwargs": {"min_avg_reward": 1.0, "max_checkpoints": 2}})
+        )
+        assert retention.max_checkpoints == 2
+
+    def test_zero_disables_retention_without_disabling_checkpointing(self, tmp_path):
+        from stable_baselines3.common.callbacks import CheckpointCallback as _CC
+
+        callbacks = self._build(tmp_path, {"curriculum_kwargs": {"min_avg_reward": 1.0, "max_checkpoints": 0}})
+        assert self._retention(callbacks).max_checkpoints == 0
+        assert any(isinstance(cb, _CC) for cb in callbacks)
+
+    def test_more_envs_than_save_freq_does_not_divide_to_zero(self, tmp_path):
+        # save_freq // n_envs used to reach CheckpointCallback as 0, and SB3
+        # then evaluates `n_calls % 0` -> ZeroDivisionError on the first step.
+        from stable_baselines3.common.callbacks import CheckpointCallback as _CC
+
+        callbacks = self._build(tmp_path, {"curriculum_kwargs": {"min_avg_reward": 1.0}}, n_envs=64, save_freq=8)
+        checkpoint = next(cb for cb in callbacks if isinstance(cb, _CC))
+        assert checkpoint.save_freq >= 1
+        assert self._retention(callbacks).save_freq >= 1

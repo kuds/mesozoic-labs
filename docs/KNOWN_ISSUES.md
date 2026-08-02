@@ -130,6 +130,14 @@ tolerance) remains the standing recommendation for the divergences above.
   brachiosaurus stance and sensor repairs made its §8 stance-quality row
   interpretable for the first time. The T-Rex pilot is unaffected.
 
+  **Contained, not fixed (2026-08-02).** `jax_eval.stance_panel_from_eval_results`
+  refuses to reconstruct a panel unless `len(diag_r_foot) == sum(lengths)` —
+  one reading per side per step, which holds for bipeds and gives exactly 2x
+  for a four-footed species. A quadruped therefore fails the stance gate
+  closed with that ratio named, rather than being scored on mis-paired feet.
+  The routing defect itself is unchanged; fixing it still means keying feet by
+  sensor identity instead of `i % 2`.
+
 - **LOW** — **collidable necks are deferred until terrain lands.** Velociraptor
   is the reference: its neck geom collides *and* sits in `_body_ground_geoms`,
   so hitting the ground with it terminates the episode. The other three carry
