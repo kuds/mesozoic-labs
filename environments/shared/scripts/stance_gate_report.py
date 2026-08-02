@@ -111,7 +111,11 @@ def _load_policy(model_path: str, vecnorm_path: str | None, env_factory: Any):
 
     def predict(obs: np.ndarray) -> np.ndarray:
         normalized = np.clip((obs - mean) / np.sqrt(var + epsilon), -clip, clip).astype(np.float32)
-        return model.predict(normalized, deterministic=True)[0]
+        # np.asarray, not a bare return: SB3's predict() is untyped when
+        # stable-baselines3 is absent (as it is in the lint job), so the value
+        # is Any there and typed here. Coercing makes the annotation true in
+        # both environments instead of only the one that happens to run mypy.
+        return np.asarray(model.predict(normalized, deterministic=True)[0])
 
     return predict, f"VecNormalize stats applied (clip {clip:g})"
 
