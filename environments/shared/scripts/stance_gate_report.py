@@ -139,6 +139,10 @@ def run_panel(
     rewards: list[float] = []
     duties: list[float] = []
     terminations: dict[str, int] = {}
+    # Per-term totals, so a failing panel can be read for *why*. A policy that
+    # keeps paying the airborne penalty is being funded by some other term;
+    # which one is not guessable from the aggregate score.
+    components: dict[str, float] = {}
 
     for index in range(episodes):
         obs, _ = env.reset(seed=seed + index)
@@ -149,6 +153,9 @@ def run_panel(
         while True:
             obs, reward, terminated, truncated, info = env.step(predict(obs))
             total += float(reward)
+            for key, value in info.items():
+                if key.startswith("reward_") and key != "reward_total":
+                    components[key] = components.get(key, 0.0) + float(value)
             stance = derive_stance_info(info)
             if stance and steps >= settle_steps:
                 measured += 1
@@ -173,6 +180,7 @@ def run_panel(
         "lengths": np.asarray(lengths),
         "rewards": np.asarray(rewards),
         "terminations": terminations,
+        "components": {key: value / episodes for key, value in components.items()},
     }
 
 
@@ -261,6 +269,15 @@ def main() -> int:
     print(f"unsupported_duty_ucb   {panel.unsupported_duty_ucb:9.4f}   (<= {thresholds.max_unsupported_duty_ucb:.4f})")
     print(f"duty episodes          {panel.n_duty_episodes:9d}   (full-horizon episodes only)")
     print(f"terminations           {result['terminations']}")
+    components = result["components"]
+    if components:
+        print()
+        print("reward per episode, by term (largest magnitude first):")
+        for key in sorted(components, key=lambda k: -abs(components[k])):
+            value = components[key]
+            if abs(value) > 0.05:
+                print(f"  {key:28s} {value:10.2f}")
+
     print()
     print(f"GATE: {'PASS' if passed else 'FAIL'}")
     for failure in failures:
