@@ -293,7 +293,8 @@ The two are often conflated; they are different policies with different scores.
 > what a 1a policy must **match, not beat** — it defines the quality ceiling, and 1a's job is to
 > certify a policy has not bought stability with actuation. The policy the gate must reject is
 > the **chatterer**, not the statue: run `20260801_021545`'s best checkpoint reached the horizon
-> on every rolled-out episode and scored 2347.67 while spending **28.4%** of its steps with
+> on every rolled-out episode and, re-rolled on the current plant and reward over 40 episodes,
+> scores 2133.4 while spending **31.9%** of its post-settling steps with
 > neither foot loaded. Robustness is 1b's job, supplied through declared `xfrc_applied`
 > perturbations rather than reset noise, where a lucky draw and a good controller are
 > indistinguishable.
@@ -403,9 +404,9 @@ oscillation and large transients — which is precisely the failure mode in §1.
 > | criterion | T-Rex 1a | statue | chatterer (`20260801_021545`) |
 > |---|---|---|---|
 > | `min_full_horizon_fraction` | ≥ 0.95 | 0.9917 ✓ | 1.000 ✓ |
-> | `max_unsupported_duty` | ≤ 0.02 | 0.000 ✓ | **0.284 ✗** |
-> | `max_unsupported_duty_ucb` | ≤ 0.02 | 0.000 ✓ | **0.284 ✗** |
-> | `min_avg_reward` (rail) | ≥ 1950 | 3271.8 ✓ | 2347.7 ✓ |
+> | `max_unsupported_duty` | ≤ 0.02 | 0.000 ✓ | **0.319 ✗** |
+> | `max_unsupported_duty_ucb` | ≤ 0.02 | 0.000 ✓ | **0.322 ✗** |
+> | `min_avg_reward` (rail) | ≥ 1950 | 3271.8 ✓ | 2133.4 ✓ |
 >
 > Two semantics were decided rather than inferred, and are recorded in the module docstring:
 > **failed episodes are excluded from duty** rather than scored as 1.0 (survival is already

@@ -20,11 +20,21 @@ declared ``xfrc_applied`` perturbations rather than through reset noise, where
 a lucky draw and a good controller are indistinguishable.
 
 The policy this gate exists to reject is therefore the **chatterer**.  Run
-``20260801_021545``'s best checkpoint reached the full horizon in every rolled
-out episode and scored 2347.67 -- clearing ``min_avg_reward = 1950`` -- while
-spending **28.4%** of its steps with neither foot bearing load.  Against the
-statue's 0.000 that is the defect stage 1a is supposed to catch, and the
+``20260801_021545``'s best checkpoint, re-rolled on the current plant and
+reward over 40 episodes (seeds 3042-3081), reaches the full horizon **40/40**
+and scores **2133.4** -- clearing ``min_avg_reward = 1950`` -- while spending
+**0.319** of its post-settling steps with neither foot bearing load.  Against
+the statue's 0.000 that is the defect stage 1a is supposed to catch, and the
 reward gate waved it through.
+
+    Two earlier figures for this policy are superseded and should not be
+    quoted.  ``0.284`` duty came from an 8-episode rollout; 40 episodes give
+    0.319, so the small sample understated it.  ``2347.67`` was the run's best
+    *evaluation* mean under the reward in force at the time; under the shipped
+    section 14 reward the same checkpoint scores 2133.4, the ~214-point drop
+    being ``action_jerk_weight`` charging exactly the behaviour it targets.
+    Both revisions strengthen the case rather than weaken it, and the rail is
+    still cleared either way.
 
 The statistic
 -------------
@@ -252,9 +262,28 @@ def stance_panel_from_episode_duties(
 
     ``episode_duties`` is positionally aligned with ``episode_lengths``; use
     ``None`` for an episode whose duty could not be measured.
+
+    Raises:
+        ValueError: If the three sequences are not the same length.  They are
+            matched **positionally**, so a mismatch does not merely lose data
+            -- it pairs each duty with the wrong episode's length, and the
+            gate then certifies a short sample while reporting the full panel
+            size.  Measured: 40 lengths against 5 duties certified stance
+            quality from 5 episodes and passed.  Loud, because a silent
+            truncation here reads as "40 episodes agreed".
     """
     lengths = np.asarray(list(episode_lengths), dtype=float)
     n = lengths.size
+    duty_list = list(episode_duties)
+    reward_list = list(episode_rewards)
+    if len(duty_list) != n or len(reward_list) != n:
+        raise ValueError(
+            "stance panel inputs must be positionally aligned: got "
+            f"{n} episode_lengths, {len(duty_list)} episode_duties, "
+            f"{len(reward_list)} episode_rewards"
+        )
+    episode_duties = duty_list
+    episode_rewards = reward_list
     reached = lengths >= horizon
 
     duties = [
@@ -314,10 +343,39 @@ def evaluate_stance_gate(
     """
     failures: list[str] = []
 
+    # NaN fails every comparison below, so an unchecked NaN passes the entire
+    # gate. Measured on this implementation: a NaN ``mean_reward`` cleared the
+    # rail, and a NaN duty cleared both duty criteria. Reject non-finite
+    # values up front. The legitimate "unmeasurable" sentinel is ``+inf``,
+    # which fails the ceilings the ordinary way.
+    for name, value in (
+        ("full_horizon_fraction", panel.full_horizon_fraction),
+        ("mean_unsupported_duty", panel.mean_unsupported_duty),
+        ("unsupported_duty_ucb", panel.unsupported_duty_ucb),
+        ("mean_reward", panel.mean_reward),
+    ):
+        if math.isnan(value):
+            failures.append(f"{name} is NaN, so the gate cannot be evaluated")
+    if failures:
+        return False, failures
+
     if panel.n_episodes < thresholds.min_eval_episodes:
         failures.append(
             f"n_episodes {panel.n_episodes} < {thresholds.min_eval_episodes} "
             "(the bound's power is specified at this panel size)"
+        )
+
+    # The bound must rest on at least as many episodes as the survival
+    # requirement implies the panel should have produced. Without this a panel
+    # reporting 40 episodes while supplying 5 duties certified stance quality
+    # from those 5 and still cleared the panel-size check on the 40.
+    min_duty_episodes = math.ceil(thresholds.min_eval_episodes * thresholds.min_full_horizon_fraction)
+    if panel.n_duty_episodes < min_duty_episodes:
+        failures.append(
+            f"n_duty_episodes {panel.n_duty_episodes} < {min_duty_episodes} "
+            f"(min_eval_episodes {thresholds.min_eval_episodes} x min_full_horizon_fraction "
+            f"{thresholds.min_full_horizon_fraction:g}); the bound would certify a smaller "
+            "sample than the panel reports"
         )
 
     if panel.full_horizon_fraction < thresholds.min_full_horizon_fraction:
@@ -327,6 +385,10 @@ def evaluate_stance_gate(
 
     if panel.n_duty_episodes == 0:
         failures.append("no full-horizon episode supplied a measurable unsupported duty")
+    elif not 0.0 <= panel.mean_unsupported_duty <= 1.0 and math.isfinite(panel.mean_unsupported_duty):
+        # Outside [0, 1] is not a stricter or looser policy, it is a broken
+        # measurement -- and a negative one sails under every ceiling.
+        failures.append(f"mean_unsupported_duty {panel.mean_unsupported_duty:.4f} is outside [0, 1]")
     else:
         if panel.mean_unsupported_duty > thresholds.max_unsupported_duty:
             failures.append(

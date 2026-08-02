@@ -131,6 +131,20 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         duties = list(histories[n_evals - 1])
         if not duties:
             return None
+        if len(duties) != len(lengths):
+            # The two sources are matched positionally: lengths come from
+            # EvalCallback's npz, duties from the capture callback. If they
+            # disagree, every duty is paired with the wrong episode's length.
+            # Refuse rather than raise, so a training run degrades to "does
+            # not advance" instead of dying mid-stage.
+            logger.warning(
+                "Stage %d stance capture recorded %d episode duties for a %d-episode "
+                "evaluation; refusing to advance rather than pairing them positionally.",
+                self.curriculum_manager.current_stage,
+                len(duties),
+                len(lengths),
+            )
+            return None
 
         return stance_panel_from_episode_duties(
             episode_lengths=lengths,

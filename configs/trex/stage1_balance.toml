@@ -214,8 +214,11 @@ timesteps = 6000000
 # 1000.0 steps (clearing min_avg_episode_length = 950), which this run's own
 # zero_action_baseline.json reported as "FAILS — a statue clears this gate".
 # Worse, it also passed the policy we actually needed to reject — run
-# 20260801_021545's best checkpoint scored 2347.67 while spending 28.4% of its
-# steps with neither foot loaded.
+# 20260801_021545's best checkpoint, re-rolled on this plant and reward over 40
+# episodes (seeds 3042-3081), reaches the horizon 40/40 and scores 2133.4 while
+# spending 0.319 of its post-settling steps with neither foot loaded. Two
+# earlier figures for it are superseded: 0.284 duty came from an 8-episode
+# sample, and 2347.67 was its evaluation mean under the pre-§14 reward.
 #
 # The gate is NOT trying to beat the statue. STAGE1_SPLIT_PLAN §2.3.1 is
 # explicit that the statue's numbers are what a 1a policy must MATCH, not
@@ -231,8 +234,8 @@ timesteps = 6000000
 min_full_horizon_fraction = 0.95         # Statue: 99.17% pooled over three independent 40-seed blocks (119/120).
                                          # A floor to MATCH, not beat. Replaces min_avg_episode_length = 950, which
                                          # encoded the same §12 requirement through the only field the old gate had.
-max_unsupported_duty = 0.02              # Screening ceiling. Statue 0.000; the chatterer we must reject 0.284, i.e.
-                                         # 14x over. Set well above 0.000 so ordinary weight-shifting is not
+max_unsupported_duty = 0.02              # Screening ceiling. Statue 0.000; the chatterer we must reject 0.319, i.e.
+                                         # 16x over. Set well above 0.000 so ordinary weight-shifting is not
                                          # penalised — note the repaired plant moved raw contact-switch count UP
                                          # (0.86 -> 1.00 /s) while duty went to zero, because the extra switches are
                                          # weight shifts. Gate on duty; switch rate stays diagnostic until it is
@@ -254,7 +257,8 @@ min_eval_episodes = 40                   # The panel size every figure above is 
                                          # describe this gate.
 min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
                                         # can separate a competent policy from a statue, because the statue is the
-                                        # reward optimum (97.0% of the 3.35/step ceiling with zero actuation cost).
+                                        # reward optimum (3271.8 = 97.7% of the 3.35/step ceiling with zero actuation
+                                        # cost; the 97.0% quoted elsewhere is the pre-repair 3250.27 measurement).
                                         # Sized to the one job a rail CAN do — rejecting a policy that discarded
                                         # most of the available return — at 0.60 x the statue's standing reward at
                                         # the 0.05 operating point (3271.8 +/- 12.0, 40 episodes).

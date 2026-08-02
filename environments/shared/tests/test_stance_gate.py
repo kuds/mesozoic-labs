@@ -4,9 +4,15 @@ The measured anchors these assert against, all at reset noise 0.05 and all
 using ``derive_stance_info``'s 0.1 N contact threshold:
 
 * the zero-action statue -- 119/120 = 99.17% full-horizon pooled over three
-  independent 40-seed blocks, unsupported duty 0.000, reward 3271.8 +/- 12.0;
-* run ``20260801_021545``'s best checkpoint -- full-horizon on every rolled
-  out episode, reward 2347.67, unsupported duty **0.284**.
+  independent 40-seed blocks (40/40, 40/40, 39/40), unsupported duty 0.000,
+  reward 3271.8;
+* run ``20260801_021545``'s best checkpoint, re-rolled on the current plant
+  and reward over 40 episodes -- full-horizon 40/40, reward **2133.4**,
+  unsupported duty **0.319**.
+
+Both were re-measured against this implementation rather than carried over.
+Two earlier figures for the checkpoint are superseded: 0.284 duty (8-episode
+sample) and 2347.67 reward (evaluation mean under the pre-section-14 reward).
 
 The gate exists to pass the first and reject the second.  The old
 ``reward_and_length/v1`` configuration passed both.
@@ -22,6 +28,7 @@ import pytest
 from environments.shared.curriculum.stance_gate import (
     STANCE_GATE_KIND,
     StanceGateThresholds,
+    StancePanel,
     episode_unsupported_duty,
     evaluate_stance_gate,
     mean_upper_confidence_bound,
@@ -81,7 +88,7 @@ class TestDiscrimination:
 
     def test_chatterer_fails_on_duty(self):
         """Run 20260801_021545's best model: passed the old gate, must fail this one."""
-        panel = _panel(0.284, 2347.7)
+        panel = _panel(0.319, 2133.4)
         passed, failures = evaluate_stance_gate(panel, TREX_1A)
         assert not passed
         assert any("mean_unsupported_duty" in f for f in failures)
@@ -226,12 +233,92 @@ class TestUnderPoweredPanel:
         assert any("n_episodes" in f for f in failures)
 
 
+class TestFailsClosedOnBrokenInput:
+    """Adversarial: every one of these passed the gate before it was hardened.
+
+    NaN loses every comparison, so an unchecked NaN cleared whichever
+    criterion it reached. Positional misalignment let a 5-episode sample be
+    certified while the panel reported 40. A negative duty sailed under every
+    ceiling.
+    """
+
+    @pytest.mark.parametrize(
+        "field,label",
+        [
+            ("mean_reward", "mean_reward"),
+            ("mean_unsupported_duty", "mean_unsupported_duty"),
+            ("unsupported_duty_ucb", "unsupported_duty_ucb"),
+            ("full_horizon_fraction", "full_horizon_fraction"),
+        ],
+    )
+    def test_nan_in_any_criterion_fails_closed(self, field, label):
+        clean = {
+            "n_episodes": 40,
+            "full_horizon_fraction": 1.0,
+            "mean_reward": 3271.8,
+            "n_duty_episodes": 40,
+            "mean_unsupported_duty": 0.0,
+            "unsupported_duty_ucb": 0.0,
+        }
+        panel = StancePanel(**{**clean, field: float("nan")})
+        passed, failures = evaluate_stance_gate(panel, TREX_1A)
+        assert not passed
+        assert any(label in f and "NaN" in f for f in failures)
+
+    def test_misaligned_inputs_raise_rather_than_truncate(self):
+        with pytest.raises(ValueError, match="positionally aligned"):
+            stance_panel_from_episode_duties(
+                episode_lengths=[HORIZON] * 40,
+                episode_duties=[0.0] * 5,
+                episode_rewards=[3271.8] * 40,
+                horizon=HORIZON,
+            )
+
+    def test_short_duty_sample_cannot_certify_a_full_panel(self):
+        # Reports 40 episodes but only 5 supplied a duty: the bound would rest
+        # on 5 while the panel-size check passed on the 40.
+        panel = StancePanel(
+            n_episodes=40,
+            full_horizon_fraction=1.0,
+            mean_reward=3271.8,
+            n_duty_episodes=5,
+            mean_unsupported_duty=0.0,
+            unsupported_duty_ucb=0.0,
+        )
+        passed, failures = evaluate_stance_gate(panel, TREX_1A)
+        assert not passed
+        assert any("n_duty_episodes" in f for f in failures)
+
+    def test_the_legitimate_short_sample_still_passes(self):
+        """38/40 survivors is exactly the survival floor, and must not trip it."""
+        panel = stance_panel_from_episode_duties(
+            episode_lengths=[HORIZON] * 38 + [400.0] * 2,
+            episode_duties=[0.0] * 38 + [float("nan")] * 2,
+            episode_rewards=[3271.8] * 40,
+            horizon=HORIZON,
+        )
+        assert panel.n_duty_episodes == 38
+        passed, failures = evaluate_stance_gate(panel, TREX_1A)
+        assert passed, failures
+
+    def test_out_of_range_duty_fails_closed(self):
+        panel = stance_panel_from_episode_duties(
+            episode_lengths=[HORIZON] * 40,
+            episode_duties=[-1.0] * 40,
+            episode_rewards=[3271.8] * 40,
+            horizon=HORIZON,
+        )
+        passed, failures = evaluate_stance_gate(panel, TREX_1A)
+        assert not passed
+        assert any("outside [0, 1]" in f for f in failures)
+
+
 class TestBackendParity:
     """SB3 and JAX must reach the same verdict from the same panel."""
 
     @pytest.mark.parametrize(
         "duty,reward,expected",
-        [(0.000, 3271.8, True), (0.284, 2347.7, False), (0.005, 3100.0, True)],
+        [(0.000, 3271.8, True), (0.319, 2133.4, False), (0.005, 3100.0, True)],
     )
     def test_sb3_and_jax_agree(self, duty, reward, expected):
         from environments.shared.curriculum.manager import CurriculumManager
