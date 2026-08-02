@@ -426,7 +426,7 @@ class TestStanceSharesSumToOne:
     HORIZON = 1000
     SETTLE = 200
 
-    def _run(self, n_short: int) -> dict:
+    def _run(self, monkeypatch, n_short: int) -> dict:
         import types
 
         import numpy as np
@@ -463,38 +463,39 @@ class TestStanceSharesSumToOne:
             def close(self):
                 pass
 
-        original = stance_gate_report.SPECIES_FACTORIES
-        stance_gate_report.SPECIES_FACTORIES = {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
-        try:
-            return stance_gate_report.run_panel(
-                "trex",
-                predict=lambda obs: np.zeros(6),
-                episodes=40,
-                seed=0,
-                settle_steps=settle,
-                horizon=horizon,
-                env_kwargs={},
-            )
-        finally:
-            stance_gate_report.SPECIES_FACTORIES = original
+        # monkeypatch rather than assign-and-restore: it restores on failure
+        # too, and it keeps mypy from checking a SimpleNamespace stub against
+        # the registry's declared Callable[[], SpeciesConfig].
+        monkeypatch.setattr(
+            stance_gate_report, "SPECIES_FACTORIES", {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
+        )
+        return stance_gate_report.run_panel(
+            "trex",
+            predict=lambda obs: np.zeros(6),
+            episodes=40,
+            seed=0,
+            settle_steps=settle,
+            horizon=horizon,
+            env_kwargs={},
+        )
 
-    def test_the_shares_sum_to_one_when_episodes_fail_early(self):
-        result = self._run(n_short=5)
+    def test_the_shares_sum_to_one_when_episodes_fail_early(self, monkeypatch):
+        result = self._run(monkeypatch, n_short=5)
         panel = result["panel"]
         assert panel.n_duty_episodes == 35, "duty is measured on full-horizon episodes only"
         total = panel.mean_unsupported_duty + result["bilateral_duty"] + result["single_duty"]
         assert total == pytest.approx(1.0)
 
-    def test_the_shares_sum_to_one_on_a_clean_panel(self):
-        result = self._run(n_short=0)
+    def test_the_shares_sum_to_one_on_a_clean_panel(self, monkeypatch):
+        result = self._run(monkeypatch, n_short=0)
         panel = result["panel"]
         total = panel.mean_unsupported_duty + result["bilateral_duty"] + result["single_duty"]
         assert total == pytest.approx(1.0)
 
-    def test_shares_are_nan_when_no_episode_reaches_the_horizon(self):
+    def test_shares_are_nan_when_no_episode_reaches_the_horizon(self, monkeypatch):
         import math
 
-        result = self._run(n_short=40)
+        result = self._run(monkeypatch, n_short=40)
         assert math.isnan(result["bilateral_duty"])
         assert math.isnan(result["single_duty"])
 
@@ -528,44 +529,44 @@ class TestPanelHygiene:
 
         return FakeEnv
 
-    def _run_panel(self, recorder, **overrides):
+    def _run_panel(self, monkeypatch, recorder, **overrides):
         import types
 
         import numpy as np
 
-        original = stance_gate_report.SPECIES_FACTORIES
-        stance_gate_report.SPECIES_FACTORIES = {
-            "trex": lambda: types.SimpleNamespace(env_class=self._fake_env_class(recorder))
-        }
-        try:
-            kwargs = dict(
-                predict=lambda obs: np.zeros(6),
-                episodes=3,
-                seed=0,
-                settle_steps=0,
-                horizon=10,
-                env_kwargs={},
-            )
-            kwargs.update(overrides)
-            return stance_gate_report.run_panel("trex", **kwargs)
-        finally:
-            stance_gate_report.SPECIES_FACTORIES = original
+        monkeypatch.setattr(
+            stance_gate_report,
+            "SPECIES_FACTORIES",
+            {"trex": lambda: types.SimpleNamespace(env_class=self._fake_env_class(recorder))},
+        )
+        kwargs = dict(
+            predict=lambda obs: np.zeros(6),
+            episodes=3,
+            seed=0,
+            settle_steps=0,
+            horizon=10,
+            env_kwargs={},
+        )
+        kwargs.update(overrides)
+        return stance_gate_report.run_panel("trex", **kwargs)
 
-    def test_the_environment_is_closed(self):
+    def test_the_environment_is_closed(self, monkeypatch):
         # A MuJoCo env holds native handles and the artifact path builds one
         # per stage; leaking them across a sweep is how a worker runs out.
         recorder: dict = {}
-        self._run_panel(recorder)
+        self._run_panel(monkeypatch, recorder)
         assert recorder["closed"] == recorder["opened"]
 
-    def test_the_environment_is_closed_when_the_rollout_raises(self):
+    def test_the_environment_is_closed_when_the_rollout_raises(self, monkeypatch):
         recorder: dict = {}
         with pytest.raises(RuntimeError):
-            self._run_panel(recorder, predict=lambda obs: (_ for _ in ()).throw(RuntimeError("policy blew up")))
+            self._run_panel(
+                monkeypatch, recorder, predict=lambda obs: (_ for _ in ()).throw(RuntimeError("policy blew up"))
+            )
         assert recorder["closed"] == recorder["opened"]
 
-    def test_per_episode_evidence_is_returned_not_discarded(self):
-        result = self._run_panel({})
+    def test_per_episode_evidence_is_returned_not_discarded(self, monkeypatch):
+        result = self._run_panel(monkeypatch, {})
         evidence = result["episodes"]
         assert len(evidence) == 3
         first = evidence[0]
