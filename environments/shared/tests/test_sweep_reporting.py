@@ -89,12 +89,17 @@ class TestGenerateTrialArtifacts:
         assert results["best_eval_reward"] == 21.0
         assert results["best_eval_timestep"] == 100000
 
-        # Training graphs should be generated when matplotlib is available
+        # Training graphs should be generated when matplotlib is available,
+        # into stage_dir/figures/ rather than loose in the stage root.
         try:
             import matplotlib  # noqa: F401
 
-            assert (tmp_path / "training_curves.png").exists()
-            assert (tmp_path / "locomotion_health.png").exists()
-            assert (tmp_path / "behavioral_metrics.png").exists()
+            from environments.shared.reporting import stage_layout
+
+            figures = stage_layout.figures_dir(tmp_path)
+            assert (figures / "training_curves.png").exists()
+            assert (figures / "locomotion_health.png").exists()
+            assert (figures / "behavioral_metrics.png").exists()
+            assert not list(tmp_path.glob("*.png")), "figures must not be loose in the stage root"
         except ImportError:
             pass  # graphs are skipped gracefully without matplotlib

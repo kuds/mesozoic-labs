@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
 ### Changed
+- **A stage's generated figures and replays are grouped into `figures/` and
+  `replays/`, and render to local scratch before publishing.** A stage
+  directory held 20 loose entries — 5 PNGs, 6 MP4s and 2 per-frame stance CSVs
+  intermixed with the config, summary and npz files — written by three
+  unrelated call sites, with the only reader
+  (`config.upload_curriculum_artifacts`) finding the videos through a
+  hand-written `glob("*.mp4")` that would have silently stopped uploading them
+  the moment either side moved. `reporting.stage_layout` now owns the layout
+  for both backends, and every accessor falls back to the legacy flat location
+  so the existing runs on Drive keep resolving; nothing rewrites history.
+  Rendering happens in local scratch and publishes in one batched pass of
+  atomic copies, because a stage directory is normally a Drive or GCS-FUSE
+  mount and both matplotlib's `savefig` and mediapy's encoder write
+  incrementally — every flush of a 700 KB mp4 was a separate round trip
+  interleaved with the encode. On run `20260801_021545` stage 1 that is
+  **130 writes against the mount reduced to 13** for the same 8.15 MB; the
+  time saved is a fraction of a second, so the durability is the real gain,
+  and the ~30 model and vecnorm files under `models/` remain the dominant
+  Drive cost and are untouched here. It also means a runtime that dies mid-encode
+  leaves the previous complete artifact set in place rather than a truncated
+  video, and that the replays which *did* render still land when a later one
+  raises. `evaluations.npz`, `diagnostics.npz` and `evaluation_{selected,final}.csv`
+  deliberately do **not** move: the first two are written on the training hot
+  path and read by a dozen call sites including the sweep tooling, and the
+  evaluation CSVs are the publication evidence contract `result_bundle.audit`
+  names by fixed relative path. Filenames inside `replays/` are unchanged and
+  still carry the redundant `<species>_<algo>_stage<N>` prefix the path already
+  states; dropping it is a separate rename.
 - **The stage-1 reward rails are sized to reject collapse, not to approximate
   competence** (0.60 × each statue's standing reward, superseding
   PLANT_VALIDATION §12's 0.89 ×): trex 2900 → **1950**, velociraptor and

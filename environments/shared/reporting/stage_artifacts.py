@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
-from . import bundles, csv_output, text_summaries
+from . import bundles, csv_output, stage_layout, text_summaries
 
 if TYPE_CHECKING:
     from ..plant_contract import PlantIdentity
@@ -246,58 +246,102 @@ def generate_stage_artifacts(
         model_dir=model_dir,
     )
 
-    # ── Generate training graphs ────────────────────────────────────────
-    if generate_graphs:
-        try:
-            from environments.shared.visualization import (
-                plot_diagnostics_graphs,
-                plot_foot_contacts,
-                plot_stance_diagnostics,
-                plot_training_curves,
-            )
+    # Figures and replays render into local scratch and publish to the stage
+    # directory in one pass on exit.  The plots and videos below read their
+    # inputs from `stage_dir` (evaluations.npz, diagnostics.npz, models/) and
+    # only their *outputs* are staged — see stage_layout.staged_artifacts for
+    # why writing an mp4 straight onto a Drive mount is the expensive part.
+    with stage_layout.staged_artifacts(stage_dir) as staging:
+        figures_out = stage_layout.figures_dir(staging, create=True)
+        replays_out = stage_layout.replays_dir(staging, create=True)
 
-            stage_dirs = [(stage, stage_dir)]
-            stage_configs = {stage: stage_config}
+        # ── Generate training graphs ────────────────────────────────────
+        if generate_graphs:
+            try:
+                from environments.shared.visualization import (
+                    plot_diagnostics_graphs,
+                    plot_foot_contacts,
+                    plot_stance_diagnostics,
+                    plot_training_curves,
+                )
 
-            plot_training_curves(
-                stage_dirs,
-                stage_configs,
-                species,
-                algorithm,
-                save_path=stage_dir / "training_curves.png",
-                show=False,
-            )
-            plot_diagnostics_graphs(
-                stage_dirs,
-                stage_configs,
-                species,
-                algorithm,
-                save_dir=stage_dir,
-                show=False,
-            )
-            plot_foot_contacts(
-                stage_dirs,
-                stage_configs,
-                species,
-                algorithm,
-                save_path=stage_dir / "foot_contacts.png",
-                show=False,
-            )
-            plot_stance_diagnostics(
-                stage_dirs,
-                stage_configs,
-                species,
-                algorithm,
-                save_path=stage_dir / "stance_diagnostics.png",
-                show=False,
-            )
-        except ImportError:
-            logger.warning("Skipping graph generation (matplotlib not installed).")
-        except Exception:
-            logger.warning("Graph generation failed.", exc_info=True)
+                stage_dirs = [(stage, stage_dir)]
+                stage_configs = {stage: stage_config}
 
-    if not record_videos:
-        return stage_results
+                plot_training_curves(
+                    stage_dirs,
+                    stage_configs,
+                    species,
+                    algorithm,
+                    save_path=figures_out / "training_curves.png",
+                    show=False,
+                )
+                plot_diagnostics_graphs(
+                    stage_dirs,
+                    stage_configs,
+                    species,
+                    algorithm,
+                    save_dir=figures_out,
+                    show=False,
+                )
+                plot_foot_contacts(
+                    stage_dirs,
+                    stage_configs,
+                    species,
+                    algorithm,
+                    save_path=figures_out / "foot_contacts.png",
+                    show=False,
+                )
+                plot_stance_diagnostics(
+                    stage_dirs,
+                    stage_configs,
+                    species,
+                    algorithm,
+                    save_path=figures_out / "stance_diagnostics.png",
+                    show=False,
+                )
+            except ImportError:
+                logger.warning("Skipping graph generation (matplotlib not installed).")
+            except Exception:
+                logger.warning("Graph generation failed.", exc_info=True)
+
+        if not record_videos:
+            return stage_results
+
+        return _record_stage_replays(
+            species_cfg=species_cfg,
+            stage_config=stage_config,
+            stage=stage,
+            algorithm=algorithm,
+            stage_dir=stage_dir,
+            replays_out=replays_out,
+            model_dir=model_dir,
+            seed=seed,
+            stage_results=stage_results,
+            allow_legacy_plant=allow_legacy_plant,
+        )
+
+
+def _record_stage_replays(
+    *,
+    species_cfg,
+    stage_config: dict[str, Any],
+    stage: int,
+    algorithm: str,
+    stage_dir: Path,
+    replays_out: Path,
+    model_dir: Path,
+    seed: int,
+    stage_results: dict[str, Any],
+    allow_legacy_plant: bool,
+) -> dict[str, Any]:
+    """Record the best and final replays into *replays_out*.
+
+    Split out of :func:`generate_stage_artifacts` only so the staging
+    context there stays readable; the behaviour is unchanged apart from
+    the videos landing under ``replays/`` instead of the stage root.
+    """
+    species = species_cfg.species
 
     # ── Record replay videos for best and final models ──────────────────
     from ..plant_contract import PlantCompatibilityError, current_plant_identity, validate_model_plant
@@ -332,6 +376,7 @@ def generate_stage_artifacts(
                 env_kwargs=env_kwargs,
                 stage=stage,
                 stage_dir=stage_dir,
+                output_dir=replays_out,
                 species=species,
                 algorithm=algorithm,
                 seed=seed,
@@ -357,6 +402,7 @@ def generate_stage_artifacts(
                 env_kwargs=env_kwargs,
                 stage=stage,
                 stage_dir=stage_dir,
+                output_dir=replays_out,
                 species=species,
                 algorithm=algorithm,
                 seed=seed,
