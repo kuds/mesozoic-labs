@@ -24,6 +24,61 @@ from .curriculum.stance_gate import (
 _logger = logging.getLogger(__name__)
 
 
+def episode_return_for_gate(eval_metrics: dict[str, float], *, threshold: float) -> float:
+    """The EPISODE-level mean return the TOML reward thresholds are stated in.
+
+    ``min_avg_reward`` is an episode-level threshold shared with the SB3
+    TOMLs — trex stage 1 sets 1950.0.  The MJX trainer emits **both** a
+    per-step ``mean_reward`` (~3.3 for a standing T-Rex) and an episode-level
+    ``mean_episode_return``; only the second is comparable.
+
+    Three call sites used to substitute the per-step value when the episode
+    return was absent, with three different behaviours: the
+    ``reward_and_length`` branch warned and defaulted to ``0.0``, the stance
+    branch fell back **silently** and defaulted to ``-inf``, and
+    ``run_curriculum``'s log line did its own third version.  Substituting is
+    always wrong — it compares numbers three orders of magnitude apart — and
+    it merely happens to give the right verdict sometimes.  Against trex
+    stage 1's rail it gives 3.3 < 1950, so the stage never advances and the
+    only clue is a rail failure that reads like a bad policy.
+
+    Absent-and-needed is therefore fatal, matching how this module already
+    treats a declared ``min_avg_episode_length`` with no ``mean_episode_length``
+    to check it against.
+
+    Args:
+        eval_metrics: The trainer's evaluation metrics.
+        threshold: The reward criterion this value will be compared against.
+            A non-finite threshold means no reward criterion is configured —
+            the stance gate's rail is optional — so nothing is compared and
+            the absence does not matter.
+
+    Raises:
+        GateSchemaError: If a finite reward threshold is configured but the
+            metrics carry no ``mean_episode_return``.
+    """
+    episode_return = eval_metrics.get("mean_episode_return")
+    if episode_return is not None:
+        return float(episode_return)
+
+    if not math.isfinite(threshold):
+        # No reward criterion to check, so there is nothing to be wrong about.
+        return -math.inf
+
+    per_step = eval_metrics.get("mean_reward")
+    measured = (
+        f" The metrics do carry a per-step mean_reward of {float(per_step):.4g}, which is NOT comparable: "
+        f"substituting it would compare it against {threshold:g}."
+        if per_step is not None
+        else ""
+    )
+    raise GateSchemaError(
+        "stage config sets min_avg_reward but eval_metrics carries no "
+        f"mean_episode_return, so the reward criterion cannot be checked.{measured} "
+        "Emit mean_episode_return from the trainer instead."
+    )
+
+
 def check_stage_gate(
     eval_metrics: dict[str, float],
     stage_config: dict[str, Any],
@@ -54,18 +109,8 @@ def check_stage_gate(
     # reward_and_length/v1 requires min_avg_reward, so a validated config of
     # that kind always carries it; a KeyError here would mean the schema and
     # this branch fell out of sync.
-    min_reward = curriculum["min_avg_reward"]
-    # min_avg_reward is an EPISODE-level threshold (shared with the SB3
-    # TOMLs, e.g. 100.0).  The trainer's "mean_reward" is the mean PER-STEP
-    # rollout reward (~0.5-2 for a good policy), so gating on it would fail
-    # every well-trained policy.
-    episode_return = eval_metrics.get("mean_episode_return")
-    if episode_return is None:
-        _logger.warning(
-            "eval_metrics has no mean_episode_return — falling back to per-step "
-            "mean_reward, which is NOT comparable to TOML min_avg_reward."
-        )
-        episode_return = eval_metrics.get("mean_reward", 0.0)
+    min_reward = float(curriculum["min_avg_reward"])
+    episode_return = episode_return_for_gate(eval_metrics, threshold=min_reward)
     if not bool(episode_return >= min_reward):
         return False
 
@@ -128,10 +173,16 @@ def _check_stance_gate(eval_metrics: dict[str, float], curriculum: dict[str, Any
             "brachiosaurus or dibothrosuchus."
         )
 
+    # The rail is optional for this kind, so resolve it against the declared
+    # threshold: absent-and-unused is fine, absent-and-needed is fatal. This
+    # used to fall back to the per-step mean_reward silently — 3.3 against
+    # trex stage 1's 1950 rail, which never advances and reads like a bad
+    # policy rather than a missing metric.
+    min_avg_reward = float(curriculum.get("min_avg_reward", -math.inf))
     panel = StancePanel(
         n_episodes=int(eval_metrics["n_eval_episodes"]),
         full_horizon_fraction=float(eval_metrics["full_horizon_fraction"]),
-        mean_reward=float(eval_metrics.get("mean_episode_return", eval_metrics.get("mean_reward", -math.inf))),
+        mean_reward=episode_return_for_gate(eval_metrics, threshold=min_avg_reward),
         n_duty_episodes=int(eval_metrics["n_duty_episodes"]),
         mean_unsupported_duty=float(eval_metrics["mean_unsupported_duty"]),
         unsupported_duty_ucb=float(eval_metrics["unsupported_duty_ucb"]),
@@ -142,7 +193,7 @@ def _check_stance_gate(eval_metrics: dict[str, float], curriculum: dict[str, Any
         max_unsupported_duty_ucb=float(curriculum["max_unsupported_duty_ucb"]),
         settle_steps=int(curriculum.get("settle_steps", 0)),
         min_eval_episodes=int(curriculum.get("min_eval_episodes", 40)),
-        min_avg_reward=float(curriculum.get("min_avg_reward", -math.inf)),
+        min_avg_reward=min_avg_reward,
         required_consecutive=int(curriculum.get("required_consecutive", 3)),
     )
     passed, failures = evaluate_stance_gate(panel, thresholds)
@@ -242,10 +293,14 @@ def run_curriculum(
         # Check gate (skip for last stage)
         if stage != stages[-1]:
             if not check_stage_gate(eval_metrics, stage_config):
+                episode_return = eval_metrics.get("mean_episode_return")
                 _logger.warning(
-                    "Stage %d gate NOT passed (episode return=%.1f). Stopping early.",
+                    "Stage %d gate NOT passed (episode return=%s). Stopping early.",
                     stage,
-                    eval_metrics.get("mean_episode_return", eval_metrics.get("mean_reward", 0.0)),
+                    # Never the per-step mean_reward: labelling it "episode
+                    # return" in the one message a stopped run leaves behind
+                    # is how a unit mismatch stays invisible.
+                    f"{float(episode_return):.1f}" if episode_return is not None else "not reported",
                 )
                 break
             _logger.info("Stage %d gate passed. Advancing to stage %d.", stage, stage + 1)

@@ -66,10 +66,43 @@ class TestCheckStageGate:
         realistic_trainer_metrics = {"mean_reward": 1.2, "mean_episode_return": 240.0}
         assert check_stage_gate(realistic_trainer_metrics, stage_config) is True
 
-    def test_falls_back_to_mean_reward_when_no_episode_return(self):
+    def test_a_missing_episode_return_is_fatal_not_a_per_step_substitute(self):
+        """Substituting the per-step value compares different units.
+
+        It used to fall back to ``mean_reward`` with a warning, which meant a
+        gate verdict computed from numbers three orders of magnitude apart --
+        right by accident when the per-step value happened to land on the
+        correct side of the threshold, and wrong the rest of the time. Against
+        trex stage 1's rail it gives 3.3 < 1950, so the stage never advances
+        and the only clue is a rail failure that reads like a bad policy.
+        """
         stage_config = {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0)}
-        assert check_stage_gate({"mean_reward": 150.0}, stage_config) is True
-        assert check_stage_gate({"mean_reward": 50.0}, stage_config) is False
+
+        with pytest.raises(GateSchemaError) as excinfo:
+            check_stage_gate({"mean_reward": 150.0}, stage_config)
+        message = str(excinfo.value)
+        assert "mean_episode_return" in message
+        # Names the number it refused to substitute and what it would have
+        # been compared against, so the mismatch is diagnosable from the log.
+        assert "150" in message
+        assert "100" in message
+
+        with pytest.raises(GateSchemaError):
+            check_stage_gate({}, stage_config)
+
+    def test_the_rail_is_optional_so_an_absent_return_is_not_fatal(self):
+        """``stance_quality/v1`` may decline to set a reward rail.
+
+        Nothing is compared then, so the missing metric cannot be wrong.
+        """
+        from environments.shared.jax_curriculum import episode_return_for_gate
+
+        assert episode_return_for_gate({}, threshold=float("-inf")) == float("-inf")
+
+    def test_the_episode_return_is_used_when_present(self):
+        from environments.shared.jax_curriculum import episode_return_for_gate
+
+        assert episode_return_for_gate({"mean_reward": 1.2, "mean_episode_return": 240.0}, threshold=100.0) == 240.0
 
     def test_missing_gate_declaration_is_fatal(self):
         """Fail closed: an undeclared gate must not advance by default.
@@ -178,3 +211,51 @@ class TestLengthThresholdIsEnforced:
                 floor = curriculum["min_avg_episode_length"]
                 generous = {"mean_episode_return": 1e9, "mean_episode_length": floor - 1}
             assert check_stage_gate(generous, cfg) is False, species
+
+
+class TestStanceRailUnits:
+    """The stance gate's reward rail is episode-level too.
+
+    Its branch used to fall back to the per-step ``mean_reward`` *silently* --
+    no warning at all, unlike the ``reward_and_length`` branch. Against trex
+    stage 1's 1950 rail that is 3.3 < 1950: the stage never advances, and the
+    only trace is an INFO-level rail failure indistinguishable from a policy
+    that genuinely threw away its return.
+    """
+
+    STANCE = {
+        "gate_schema_version": GATE_SCHEMA_VERSION,
+        "gate_kind": "stance_quality/v1",
+        "min_full_horizon_fraction": 0.95,
+        "max_unsupported_duty": 0.02,
+        "max_unsupported_duty_ucb": 0.02,
+        "min_eval_episodes": 40,
+    }
+
+    def _metrics(self, **overrides):
+        metrics = {
+            "n_eval_episodes": 40,
+            "full_horizon_fraction": 1.0,
+            "n_duty_episodes": 40,
+            "mean_unsupported_duty": 0.001,
+            "unsupported_duty_ucb": 0.002,
+        }
+        metrics.update(overrides)
+        return metrics
+
+    def test_a_declared_rail_without_the_episode_return_is_fatal(self):
+        config = {"curriculum_kwargs": dict(self.STANCE, min_avg_reward=1950.0)}
+        with pytest.raises(GateSchemaError) as excinfo:
+            check_stage_gate(self._metrics(mean_reward=3.27), config)
+        message = str(excinfo.value)
+        assert "3.27" in message
+        assert "1950" in message
+
+    def test_no_rail_means_the_episode_return_is_not_required(self):
+        config = {"curriculum_kwargs": dict(self.STANCE)}
+        assert check_stage_gate(self._metrics(mean_reward=3.27), config) is True
+
+    def test_the_rail_is_checked_against_the_episode_return(self):
+        config = {"curriculum_kwargs": dict(self.STANCE, min_avg_reward=1950.0)}
+        assert check_stage_gate(self._metrics(mean_reward=3.27, mean_episode_return=3271.8), config) is True
+        assert check_stage_gate(self._metrics(mean_reward=3.27, mean_episode_return=900.0), config) is False

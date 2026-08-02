@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
 ### Fixed
+- **A missing `mean_episode_return` is fatal instead of silently substituting
+  the per-step reward.** `min_avg_reward` is an episode-level threshold shared
+  with the SB3 TOMLs — trex stage 1 sets 1950.0 — while the MJX trainer's
+  `mean_reward` is the mean *per-step* rollout reward, ~3.3 for a standing
+  T-Rex. Three call sites substituted one for the other with three different
+  behaviours: `reward_and_length` warned and defaulted to `0.0`, the stance
+  branch fell back **silently** and defaulted to `-inf`, and
+  `run_curriculum`'s log line printed a third variant *labelled "episode
+  return"*. Substituting is always wrong — it compares numbers three orders
+  of magnitude apart — and merely happens to give the right verdict
+  sometimes; against the stance rail it gives 3.3 < 1950, so the stage never
+  advances and the only clue is a rail failure indistinguishable from a
+  policy that genuinely threw away its return. One resolver,
+  `episode_return_for_gate`, now raises `GateSchemaError` naming both numbers
+  when a finite reward criterion is configured and the episode return is
+  absent — matching how this module already treats a declared
+  `min_avg_episode_length` with no `mean_episode_length`. The rail is
+  optional for `stance_quality/v1`, so an absent return with no rail declared
+  stays fine. The live path is unaffected: `jax_trainer` always emits
+  `mean_episode_return`, so only a hand-written `train_fn` can reach the
+  raise — which is exactly who needs to be told which key to emit.
 - **The JAX/MJX publication gate no longer certifies a stance-gated stage on
   the reward rail alone.** `jax_setup.run_stage_evaluation` called
   `jax_eval.check_stage_gate`, which reads four fixed thresholds and knows
