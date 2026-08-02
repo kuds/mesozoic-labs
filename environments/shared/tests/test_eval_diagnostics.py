@@ -47,13 +47,16 @@ def _bare_stage_aware_callback(
     callback._is_success_buffer = []
     callback.evaluations_forward_velocities = []
     callback.evaluations_unsupported_duties = []
+    callback.evaluations_bilateral_duties = []
     callback._episode_forward_sums = {}
     callback._episode_forward_counts = {}
     callback._current_eval_forward_velocities = []
     callback._episode_steps = {}
     callback._episode_unsupported = {}
+    callback._episode_bilateral = {}
     callback._episode_measured = {}
     callback._current_eval_unsupported_duties = []
+    callback._current_eval_bilateral_duties = []
     return callback
 
 
@@ -183,6 +186,7 @@ def _plateau_callback(
         evaluations_forward_velocities=[],
         evaluations_successes=[],
         evaluations_unsupported_duties=[],
+        evaluations_bilateral_duties=[],
     )
     callback = object.__new__(StageGatePlateauCallback)
     callback.eval_callback = cast(StageAwareEvalCallback, eval_callback)
@@ -217,11 +221,14 @@ def _add_evaluation(
     forward_vel_episodes: int | None = None,
     success_episodes: int | None = None,
     unsupported_duty: float | None = None,
+    bilateral_duty: float | None = None,
 ) -> None:
     eval_callback.evaluations_results.append([reward] * n_episodes)
     eval_callback.evaluations_length.append([length] * n_episodes)
     if unsupported_duty is not None:
         eval_callback.evaluations_unsupported_duties.append([unsupported_duty] * n_episodes)
+    if bilateral_duty is not None:
+        eval_callback.evaluations_bilateral_duties.append([bilateral_duty] * n_episodes)
     if forward_vel is not None:
         count = n_episodes if forward_vel_episodes is None else forward_vel_episodes
         eval_callback.evaluations_forward_velocities.append([forward_vel] * count)
@@ -500,3 +507,59 @@ class TestStanceGateIsACeilingNotAFloor:
         metric = next(m for m in callback._metrics_for_evaluation(0) if m.key == "full_horizon_fraction")
         assert metric.value == pytest.approx(0.95)
         assert not metric.is_failing()
+
+
+class TestStanceShareCapture:
+    """Bilateral duty is captured to CALIBRATE a future threshold.
+
+    It is not a gate criterion. The three stance shares sum to 1, so a falling
+    unsupported duty says nothing about whether the feet are being planted --
+    that time can land in single support. Bounding bilateral duty is the
+    obvious fix, but the only reference available is the statue's 0.998, and
+    the statue never shifts weight. Recording the share every evaluation is
+    what turns the eventual threshold into evidence instead of a guess.
+    """
+
+    def test_both_shares_are_captured_per_episode(self):
+        callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=0)
+        # Two steps planted on both feet, then one airborne, then done.
+        for forces, done in (((400.0, 400.0), False), ((400.0, 400.0), False), ((0.0, 0.0), True)):
+            callback._log_success_callback(
+                {"i": 0, "done": done, "info": {"r_foot_contact": forces[0], "l_foot_contact": forces[1]}},
+                {},
+            )
+        assert callback._current_eval_unsupported_duties == [pytest.approx(1 / 3)]
+        assert callback._current_eval_bilateral_duties == [pytest.approx(2 / 3)]
+
+    def test_shares_sum_with_single_support(self):
+        """Single support counts toward neither share, which is the point."""
+        callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=0)
+        for forces, done in (((400.0, 0.0), False), ((400.0, 400.0), False), ((0.0, 0.0), True)):
+            callback._log_success_callback(
+                {"i": 0, "done": done, "info": {"r_foot_contact": forces[0], "l_foot_contact": forces[1]}},
+                {},
+            )
+        unsupported = callback._current_eval_unsupported_duties[0]
+        bilateral = callback._current_eval_bilateral_duties[0]
+        assert unsupported == pytest.approx(1 / 3)
+        assert bilateral == pytest.approx(1 / 3)
+        # The missing third is single support — the share a bilateral floor
+        # would catch and an unsupported ceiling would not.
+        assert 1.0 - unsupported - bilateral == pytest.approx(1 / 3)
+
+    def test_shares_are_logged_even_when_the_gate_panel_is_incomplete(self):
+        """The early, incomplete evaluations are the calibration data."""
+        callback, eval_callback = _plateau_callback({"min_avg_reward": 100.0, "min_eval_episodes": 40}, stage=1)
+        _add_evaluation(
+            callback,
+            eval_callback,
+            reward=200.0,
+            length=1000.0,
+            n_episodes=5,  # below min_eval_episodes -> gate data incomplete
+            unsupported_duty=0.19,
+            bilateral_duty=0.66,
+        )
+        recorded = dict(call.args for call in callback.logger.record.call_args_list)
+        assert recorded["diagnostics/eval_gate_data_complete"] == 0.0
+        assert recorded["diagnostics/eval_unsupported_duty"] == pytest.approx(0.19)
+        assert recorded["diagnostics/eval_bilateral_support_duty"] == pytest.approx(0.66)

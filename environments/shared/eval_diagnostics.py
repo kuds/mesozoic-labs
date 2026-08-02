@@ -90,13 +90,25 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self.settle_steps = int(settle_steps)
         self.evaluations_forward_velocities: list[list[float]] = []
         self.evaluations_unsupported_duties: list[list[float]] = []
+        # Not a gate criterion -- captured so a run GENERATES the data needed
+        # to set one honestly. The three stance shares sum to 1, so a falling
+        # unsupported duty says nothing about whether the feet are being
+        # planted; that time can land in single support instead. Bounding
+        # bilateral duty is the obvious fix, but the only reference point
+        # available today is the statue's 0.998, and the statue never shifts
+        # weight. A competent active policy legitimately spends some time in
+        # single support, and how much is unmeasured. Recording it every
+        # evaluation is what turns that into evidence instead of a guess.
+        self.evaluations_bilateral_duties: list[list[float]] = []
         self._episode_forward_sums: dict[int, float] = {}
         self._episode_forward_counts: dict[int, int] = {}
         self._current_eval_forward_velocities: list[float] = []
         self._episode_steps: dict[int, int] = {}
         self._episode_unsupported: dict[int, int] = {}
+        self._episode_bilateral: dict[int, int] = {}
         self._episode_measured: dict[int, int] = {}
         self._current_eval_unsupported_duties: list[float] = []
+        self._current_eval_bilateral_duties: list[float] = []
 
     def _reset_forward_velocity_capture(self) -> None:
         self._episode_forward_sums.clear()
@@ -104,8 +116,10 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self._current_eval_forward_velocities = []
         self._episode_steps.clear()
         self._episode_unsupported.clear()
+        self._episode_bilateral.clear()
         self._episode_measured.clear()
         self._current_eval_unsupported_duties = []
+        self._current_eval_bilateral_duties = []
 
     def _log_success_callback(self, locals_: dict[str, Any], globals_: dict[str, Any]) -> None:
         """Capture evaluation velocity and duty, conditionally delegate success."""
@@ -131,6 +145,9 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                 self._episode_unsupported[env_index] = self._episode_unsupported.get(env_index, 0) + int(
                     stance["unsupported_duty"]
                 )
+                self._episode_bilateral[env_index] = self._episode_bilateral.get(env_index, 0) + int(
+                    stance["bilateral_support_duty"]
+                )
 
         if locals_["done"]:
             count = self._episode_forward_counts.pop(env_index, 0)
@@ -139,11 +156,13 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
 
             measured = self._episode_measured.pop(env_index, 0)
             unsupported = self._episode_unsupported.pop(env_index, 0)
+            bilateral = self._episode_bilateral.pop(env_index, 0)
             self._episode_steps.pop(env_index, None)
             # NaN for an episode with no measurable tail (shorter than the
             # settling window, or an env that reports no foot contacts). The
             # panel builder drops those rather than scoring them as zero.
             self._current_eval_unsupported_duties.append(unsupported / measured if measured else float("nan"))
+            self._current_eval_bilateral_duties.append(bilateral / measured if measured else float("nan"))
 
         if self.success_applicable:
             super()._log_success_callback(locals_, globals_)
@@ -158,6 +177,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         if evaluation_due:
             self.evaluations_forward_velocities.append(list(self._current_eval_forward_velocities))
             self.evaluations_unsupported_duties.append(list(self._current_eval_unsupported_duties))
+            self.evaluations_bilateral_duties.append(list(self._current_eval_bilateral_duties))
             if not self.success_applicable and self.verbose >= 1:
                 print(f"Success rate: N/A (not an active Stage {self.stage} gate)")
 
@@ -404,6 +424,23 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         reward_metric = next((metric for metric in metrics if metric.key == "mean_reward"), None)
         if reward_metric is not None:
             self.logger.record("diagnostics/eval_episode_count", reward_metric.sample_count)
+
+        # Stance shares for EVERY evaluation, recorded before the gate-data
+        # completeness check returns. These are what a later
+        # min_bilateral_support_duty gets calibrated from, and the early part
+        # of a run -- exactly where the panel is most likely to be incomplete
+        # -- is the part that shows whether bilateral duty is climbing at all.
+        # Losing it there would leave only the converged tail.
+        for attribute, scalar in (
+            ("evaluations_unsupported_duties", "diagnostics/eval_unsupported_duty"),
+            ("evaluations_bilateral_duties", "diagnostics/eval_bilateral_support_duty"),
+        ):
+            history = getattr(self.eval_callback, attribute, [])
+            if index < len(history):
+                share = self._finite_mean(history[index])
+                if share is not None:
+                    self.logger.record(scalar, share)
+
         if any(metric.value is None or metric.sample_count < min_eval_episodes for metric in metrics):
             self.logger.record("diagnostics/eval_gate_data_complete", 0.0)
             return
