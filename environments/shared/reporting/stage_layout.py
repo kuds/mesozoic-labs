@@ -147,12 +147,13 @@ def iter_replay_files(stage_dir: "str | Path") -> Iterator[Path]:
             if path.is_file() and path.suffix in _REPLAY_SUFFIXES:
                 seen.add(path.name)
                 yield path
-    for path in sorted(stage_path.glob("*.mp4")):
-        if path.name not in seen:
-            yield path
-    for path in sorted(stage_path.glob("*_stance.csv")):
-        if path.name not in seen:
-            yield path
+    # `is_file()` on the legacy branch too: the nested branch guards it, and an
+    # accessor that yields a directory for one layout but not the other hands
+    # its caller -- the GCS upload -- something it cannot read.
+    for pattern in ("*.mp4", "*_stance.csv"):
+        for path in sorted(stage_path.glob(pattern)):
+            if path.name not in seen and path.is_file():
+                yield path
 
 
 def iter_generated_artifacts(stage_dir: "str | Path") -> Iterator[Path]:

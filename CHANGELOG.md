@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
 ### Fixed
+- **The evaluation diagnostic no longer contradicts the gate it reports on.**
+  `evaluate_stance_gate` certifies on
+  `ceil(min_eval_episodes x min_full_horizon_fraction)` duty episodes — 38 of
+  40 for trex 1a — but `StageGatePlateauCallback` marked the duty metric
+  usable only at the full panel size, so a 39-of-40 panel **passed the gate
+  while `eval_gate_met` read 0**. That is the same curve-vs-gate disagreement
+  the stance scalars were fixed for, reintroduced one layer up. Both now
+  share `stance_gate.required_duty_episodes`. Two smaller companions:
+  `iter_replay_files` guarded `is_file()` on the nested branch but not the
+  legacy one, so a directory named `*.mp4` was handed to the GCS upload for
+  one layout and not the other; and the report's `plant_validated` was
+  `not allow_legacy_plant`, but the rollout environment is validated
+  unconditionally and the flag only relaxes the *checkpoint* check — so for
+  `--zero-action`, which has no checkpoint, `False` claimed something untrue.
+  It is now `checkpoint_plant_validated`, `None` when there is no checkpoint.
 - **Six smaller defects in the stance gate report.** (1) Its JSON now carries
   `episode_evidence` — per-episode length, reward, duty and the two ungated
   shares — which `write_stance_gate_report`'s docstring already claimed it

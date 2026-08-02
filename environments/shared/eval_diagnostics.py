@@ -15,6 +15,7 @@ from typing import Any
 
 import numpy as np
 
+from .curriculum.stance_gate import required_duty_episodes
 from .stance_diagnostics import derive_stance_info
 
 logger = logging.getLogger(__name__)
@@ -192,6 +193,12 @@ class _GateMetric:
     value: float | None
     sample_count: int
     percent: bool = False
+    #: Samples this metric needs before it can be followed.  ``None`` means
+    #: the stage's ``min_eval_episodes``.  The stance duty overrides it: the
+    #: gate certifies on ``ceil(min_eval_episodes x min_full_horizon_fraction)``
+    #: duty episodes, so requiring the full panel size here made a 39-of-40
+    #: panel report ``eval_gate_met = 0`` while the curriculum advanced on it.
+    min_samples: int | None = None
     #: True when the threshold is an upper bound the metric must stay under
     #: (``stance_quality/v1``'s duty ceilings) rather than a floor it must
     #: clear. Without the distinction a ceiling read as a floor inverts:
@@ -417,6 +424,11 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
                 float(self.curriculum_kwargs.get("max_unsupported_duty", math.inf)),
                 values["mean_unsupported_duty"],
                 counts["mean_unsupported_duty"],
+                # The gate's own rule, not the panel size -- see _GateMetric.
+                min_samples=required_duty_episodes(
+                    int(self.curriculum_kwargs.get("min_eval_episodes", 10)),
+                    float(self.curriculum_kwargs.get("min_full_horizon_fraction", 0.0)),
+                ),
                 ceiling=True,
             ),
             _GateMetric(
@@ -530,7 +542,12 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         # plateaued" warning under reward_and_length/v1 and ZERO under the
         # stance gate, with eval_gate_met and eval_plateau_active never
         # recorded at all.
-        usable = [metric for metric in metrics if metric.value is not None and metric.sample_count >= min_eval_episodes]
+        usable = [
+            metric
+            for metric in metrics
+            if metric.value is not None
+            and metric.sample_count >= (min_eval_episodes if metric.min_samples is None else metric.min_samples)
+        ]
         complete = len(usable) == len(metrics)
         self.logger.record("diagnostics/eval_gate_data_complete", 1.0 if complete else 0.0)
         if not usable:

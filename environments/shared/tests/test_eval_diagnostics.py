@@ -747,3 +747,87 @@ class TestPlateauSurvivesAnUnmeasurableMetric:
         assert recorded["diagnostics/eval_gate_data_complete"] == [1.0] * 8
         assert recorded["diagnostics/eval_gate_met"] == [1.0] * 8
         assert not warnings
+
+
+class TestDiagnosticAgreesWithTheGate:
+    """The curve must not contradict the gate it reports on.
+
+    ``evaluate_stance_gate`` certifies on
+    ``ceil(min_eval_episodes x min_full_horizon_fraction)`` duty episodes --
+    38 of 40 for trex 1a. Requiring the full panel size here made a 39-of-40
+    panel PASS the gate while ``eval_gate_met`` read 0, which is the same
+    curve-vs-gate disagreement the stance scalars were fixed for.
+    """
+
+    HORIZON = 1000
+    CURRICULUM = {
+        "gate_kind": "stance_quality/v1",
+        "min_full_horizon_fraction": 0.95,
+        "max_unsupported_duty": 0.02,
+        "max_unsupported_duty_ucb": 0.02,
+        "settle_steps": 200,
+        "min_eval_episodes": 40,
+        "min_avg_reward": -1e9,
+    }
+
+    def _both_verdicts(self, n_short):
+        from unittest.mock import MagicMock
+
+        from environments.shared.curriculum.stance_gate import (
+            StanceGateThresholds,
+            evaluate_stance_gate,
+            stance_panel_from_episode_duties,
+        )
+        from environments.shared.eval_diagnostics import StageGatePlateauCallback
+
+        lengths = [1000.0] * (40 - n_short) + [400.0] * n_short
+        duties = [0.001] * (40 - n_short) + [0.5] * n_short
+        rewards = [3000.0] * 40
+
+        panel = stance_panel_from_episode_duties(
+            episode_lengths=lengths, episode_duties=duties, episode_rewards=rewards, horizon=self.HORIZON
+        )
+        gate_passes, _ = evaluate_stance_gate(
+            panel,
+            StanceGateThresholds(
+                min_full_horizon_fraction=0.95,
+                max_unsupported_duty=0.02,
+                max_unsupported_duty_ucb=0.02,
+                settle_steps=200,
+                min_eval_episodes=40,
+                min_avg_reward=-1e9,
+            ),
+        )
+
+        eval_callback = MagicMock()
+        eval_callback.evaluations_results = [rewards]
+        eval_callback.evaluations_length = [lengths]
+        eval_callback.evaluations_forward_velocities = [[]]
+        eval_callback.evaluations_successes = []
+        eval_callback.evaluations_unsupported_duties = [duties]
+        eval_callback.evaluations_bilateral_duties = [[0.9] * 40]
+
+        callback = StageGatePlateauCallback(
+            eval_callback, stage=1, curriculum_kwargs=self.CURRICULUM, horizon=self.HORIZON
+        )
+        recorded: dict = {}
+        callback.model = MagicMock()
+        callback.model.logger.record.side_effect = lambda key, value: recorded.setdefault(key, []).append(value)
+        callback.num_timesteps = 0
+        callback._process_evaluation(0)
+        return gate_passes, recorded.get("diagnostics/eval_gate_met", [None])[0]
+
+    @pytest.mark.parametrize("n_short", [0, 1, 2, 3, 5])
+    def test_eval_gate_met_matches_the_gate_verdict(self, n_short):
+        gate_passes, reported = self._both_verdicts(n_short)
+        assert reported == (1.0 if gate_passes else 0.0), (
+            f"{n_short} early failures: gate says {gate_passes}, curve says {reported}"
+        )
+
+    def test_the_boundary_is_the_gates_own_rule(self):
+        from environments.shared.curriculum.stance_gate import required_duty_episodes
+
+        assert required_duty_episodes(40, 0.95) == 38
+        # 38 duty episodes is enough for both; 37 is enough for neither.
+        assert self._both_verdicts(2) == (True, 1.0)
+        assert self._both_verdicts(3) == (False, 0.0)

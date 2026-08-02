@@ -453,11 +453,12 @@ def build_stance_gate_report(
             "bilateral_support_duty": result["bilateral_duty"],
             "single_support_duty": result["single_duty"],
         },
-        # True when the checkpoint carried a plant identity matching the tree.
-        # A verdict scored against a different plant is not a verdict about
-        # this stage, so it travels with the number rather than being
-        # reconstructable only from the console.
-        "plant_validated": not allow_legacy_plant,
+        # Whether the CHECKPOINT's plant identity was checked against the
+        # tree. `None` for --zero-action, which has no checkpoint to check.
+        # The rollout ENVIRONMENT is always validated regardless, so this
+        # field is deliberately narrow rather than a blanket "plant_validated"
+        # that would claim something false in the zero-action case.
+        "checkpoint_plant_validated": None if zero_action else not allow_legacy_plant,
         "terminations": result["terminations"],
         "reward_components": result["components"],
         # The per-episode measurements the panel was reduced from. This is

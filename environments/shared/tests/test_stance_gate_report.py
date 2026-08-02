@@ -736,7 +736,7 @@ class TestPlantValidation:
             "horizon": 1000,
             "passed": True,
             "failures": [],
-            "plant_validated": False,
+            "checkpoint_plant_validated": False,
             "thresholds": {
                 "min_full_horizon_fraction": 0.95,
                 "max_unsupported_duty": 0.02,
@@ -763,4 +763,68 @@ class TestPlantValidation:
 
         stance_gate_report.write_stance_gate_report(tmp_path, report)
         payload = json.loads((tmp_path / "stance_gate_report.json").read_text())
-        assert payload["plant_validated"] is False
+        assert payload["checkpoint_plant_validated"] is False
+
+
+class TestCheckpointPlantProvenance:
+    """The recorded flag must describe what was actually checked.
+
+    It was ``plant_validated = not allow_legacy_plant``, but the rollout
+    environment is validated unconditionally and ``allow_legacy_plant`` only
+    relaxes the *checkpoint* check -- so for ``--zero-action``, which has no
+    checkpoint at all, a ``False`` here claimed something untrue.
+    """
+
+    def _stage_config(self):
+        return {
+            "curriculum_kwargs": {
+                "gate_schema_version": 1,
+                "gate_kind": "stance_quality/v1",
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_eval_episodes": 1,
+            },
+            "env_kwargs": {"max_episode_steps": 4},
+        }
+
+    def _report(self, monkeypatch, **kwargs):
+        import types
+
+        import numpy as np
+
+        class FakeEnv:
+            action_space = types.SimpleNamespace(shape=(6,))
+
+            def __init__(self, **kw):
+                self.steps = 0
+
+            def reset(self, seed=None):
+                self.steps = 0
+                return np.zeros(4), {}
+
+            def step(self, action):
+                self.steps += 1
+                return np.zeros(4), 1.0, False, self.steps >= 4, {"r_foot_contact": 50.0, "l_foot_contact": 50.0}
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr(
+            stance_gate_report, "SPECIES_FACTORIES", {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
+        )
+        monkeypatch.setattr(
+            "environments.shared.plant_contract.validate_environment_plant", lambda *a, **k: None, raising=False
+        )
+        return stance_gate_report.build_stance_gate_report(
+            "trex", 1, stage_config=self._stage_config(), episodes=1, **kwargs
+        )
+
+    def test_zero_action_records_none_because_there_is_no_checkpoint(self, monkeypatch):
+        report = self._report(monkeypatch, zero_action=True)
+        assert report["checkpoint_plant_validated"] is None
+
+    def test_zero_action_with_allow_legacy_still_records_none(self, monkeypatch):
+        # The flag is about a checkpoint; there isn't one either way.
+        report = self._report(monkeypatch, zero_action=True, allow_legacy_plant=True)
+        assert report["checkpoint_plant_validated"] is None

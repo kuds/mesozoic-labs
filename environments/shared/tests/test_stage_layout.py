@@ -465,3 +465,33 @@ class TestRecordedModelPathFollowsTheSelector:
         # caller can check for itself.
         results = self._results(tmp_path, ())
         assert results["model_path"].endswith("best_model")
+
+
+class TestAccessorsNeverYieldDirectories:
+    """Both layouts must behave the same way.
+
+    The nested branch guarded ``is_file()`` and the legacy one did not, so a
+    directory whose name ended in ``.mp4`` was handed to the GCS upload for
+    one layout but not the other.
+    """
+
+    def test_a_directory_named_like_a_replay_is_not_yielded(self, tmp_path):
+        (tmp_path / "weird.mp4").mkdir()
+        (tmp_path / "weird_stance.csv").mkdir()
+        _touch(tmp_path / "real.mp4")
+        found = list(stage_layout.iter_replay_files(tmp_path))
+        assert [p.name for p in found] == ["real.mp4"]
+        assert all(p.is_file() for p in found)
+
+    def test_the_nested_layout_agrees(self, tmp_path):
+        (tmp_path / "replays").mkdir()
+        (tmp_path / "replays" / "weird.mp4").mkdir()
+        _touch(tmp_path / "replays" / "real.mp4")
+        found = list(stage_layout.iter_replay_files(tmp_path))
+        assert [p.name for p in found] == ["real.mp4"]
+
+    def test_generated_artifacts_are_all_readable(self, tmp_path):
+        (tmp_path / "weird.mp4").mkdir()
+        _touch(tmp_path / "figures" / "training_curves.png")
+        _touch(tmp_path / "replays" / "real.mp4")
+        assert all(p.is_file() for p in stage_layout.iter_generated_artifacts(tmp_path))
