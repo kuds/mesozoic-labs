@@ -12,6 +12,7 @@ import math
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..curriculum.stance_gate import STANCE_GATE_KIND
 from .errors import ResultBundleError
 
 
@@ -344,6 +345,30 @@ def validate_evaluation_evidence(
         curriculum = config_value.get("curriculum", config_value.get("curriculum_kwargs", {}))
         if not isinstance(curriculum, Mapping):
             raise ResultBundleError(f"publication gate config for stage {stage} must contain a curriculum object")
+        # A stage whose gate this evidence file cannot express must NOT be
+        # certified on whichever thresholds happen to be checkable.
+        #
+        # ``stance_quality/v1`` carries ``min_avg_reward`` only as a rail --
+        # deliberately set below the zero-action statue, which clears it by
+        # 68% -- and states its real criteria as a full-horizon fraction and
+        # two ceilings on unsupported duty. The per-episode evidence CSV has
+        # ``reward`` and ``length`` but no duty column, so evaluating the four
+        # legacy thresholds here would certify the stage on the rail alone:
+        # exactly the "a statue clears this gate" failure the stance gate was
+        # introduced to remove, reappearing in the publication path.
+        gate_kind = curriculum.get("gate_kind")
+        if gate_kind == STANCE_GATE_KIND:
+            raise ResultBundleError(
+                f"stage {stage} declares gate_kind {gate_kind!r}, whose criteria "
+                "(min_full_horizon_fraction, max_unsupported_duty, "
+                "max_unsupported_duty_ucb) cannot be checked from the publication "
+                "evidence file: it records per-episode reward and length but no "
+                "unsupported duty. Certifying on min_avg_reward alone would pass a "
+                "policy this gate exists to reject, so the bundle refuses instead. "
+                "Add a per-episode duty column to evaluation_selected.csv and teach "
+                "this function to evaluate the stance criteria."
+            )
+
         publication_thresholds = {
             "min_avg_reward": "reward",
             "min_avg_episode_length": "episode_length",

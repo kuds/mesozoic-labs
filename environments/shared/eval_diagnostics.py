@@ -67,7 +67,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     ``unsupported_duty`` at its default 0.1 N contact threshold -- deliberately
     *not* the reward's 42 N ``min_support_force``.  Every calibration point the
     gate's ceiling rests on is measured at 0.1 N: the statue's 0.000 and run
-    ``20260801_021545``'s 0.284.  Switching thresholds here would silently
+    ``20260801_021545``'s 0.319.  Switching thresholds here would silently
     shift duty upward and invalidate the 0.02 ceiling.
     """
 
@@ -172,6 +172,17 @@ class _GateMetric:
     value: float | None
     sample_count: int
     percent: bool = False
+    #: True when the threshold is an upper bound the metric must stay under
+    #: (``stance_quality/v1``'s duty ceilings) rather than a floor it must
+    #: clear. Without the distinction a ceiling read as a floor inverts:
+    #: a policy chattering at duty 0.3 against a 0.02 ceiling would be
+    #: reported as comfortably passing.
+    ceiling: bool = False
+
+    def is_failing(self) -> bool:
+        if self.value is None:
+            return False
+        return self.value > self.threshold if self.ceiling else self.value < self.threshold
 
 
 class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
@@ -187,9 +198,16 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     from both curriculum advancement and collapse early stopping.
     """
 
+    # Ordered most behaviourally specific first. The stance metrics sit above
+    # episode length and reward because on a stance-gated stage they ARE the
+    # gate: without them the callback would follow mean_reward and hand out
+    # reward-tuning guidance for a stage whose blocking criterion is foot
+    # contact, which is worse than silence.
     _METRIC_PRIORITY = (
         "mean_success_rate",
         "mean_forward_vel",
+        "mean_unsupported_duty",
+        "full_horizon_fraction",
         "mean_episode_length",
         "mean_reward",
     )
@@ -204,6 +222,14 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         "mean_episode_length": (
             "Inspect termination reasons, posture, and balance stability before tuning the optimizer."
         ),
+        "mean_unsupported_duty": (
+            "Inspect foot contact forces, the action smoothness and jerk penalties, and exploration noise: "
+            "the policy is spending too much time with neither foot loaded."
+        ),
+        "full_horizon_fraction": (
+            "Inspect termination reasons and the reset distribution before tuning the optimizer: "
+            "episodes are ending early rather than degrading in quality."
+        ),
         "mean_reward": (
             "Inspect reward components and policy diagnostics to identify which behavior has stopped improving."
         ),
@@ -217,6 +243,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         curriculum_kwargs: dict[str, Any],
         plateau_window: int = 5,
         min_relative_variation: float = 0.05,
+        horizon: int = 1000,
         verbose: int = 0,
     ) -> None:
         if not _SB3_AVAILABLE:
@@ -230,6 +257,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             raise ValueError("min_relative_variation must be non-negative")
         super().__init__(verbose)
         self.eval_callback = eval_callback
+        self.horizon = int(horizon)
         self.stage = stage
         self.curriculum_kwargs = dict(curriculum_kwargs)
         self.plateau_window = plateau_window
@@ -258,14 +286,28 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         velocities = self.eval_callback.evaluations_forward_velocities
         successes = self.eval_callback.evaluations_successes
 
+        duties = getattr(self.eval_callback, "evaluations_unsupported_duties", [])
+
         samples: dict[str, Any | None] = {
             "mean_reward": rewards[index] if index < len(rewards) else None,
             "mean_episode_length": lengths[index] if index < len(lengths) else None,
             "mean_forward_vel": velocities[index] if index < len(velocities) else None,
             "mean_success_rate": successes[index] if index < len(successes) else None,
+            "mean_unsupported_duty": duties[index] if index < len(duties) else None,
         }
         values = {key: self._finite_mean(sample) if sample is not None else None for key, sample in samples.items()}
         counts = {key: self._finite_count(sample) if sample is not None else 0 for key, sample in samples.items()}
+
+        # Derived, not sampled: the fraction of episodes reaching the horizon.
+        # It comes from the same per-episode lengths the length gate uses, so
+        # no extra capture is needed.
+        episode_lengths = samples["mean_episode_length"]
+        if episode_lengths is not None and len(episode_lengths):
+            finite = [float(v) for v in episode_lengths if math.isfinite(float(v))]
+            horizon_fraction = sum(1.0 for v in finite if v >= self.horizon) / len(finite) if finite else None
+            horizon_count = len(finite)
+        else:
+            horizon_fraction, horizon_count = None, 0
 
         configured = (
             _GateMetric(
@@ -282,6 +324,26 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
                 float(self.curriculum_kwargs.get("min_avg_forward_vel", 0.0)),
                 values["mean_forward_vel"],
                 counts["mean_forward_vel"],
+            ),
+            _GateMetric(
+                "mean_unsupported_duty",
+                "unsupported duty",
+                # inf when absent, so the isfinite filter drops it for stages
+                # that do not gate on stance. A ceiling cannot use 0.0 as its
+                # "absent" default the way a floor does -- 0.0 would be the
+                # strictest possible bound, not the loosest.
+                float(self.curriculum_kwargs.get("max_unsupported_duty", math.inf)),
+                values["mean_unsupported_duty"],
+                counts["mean_unsupported_duty"],
+                ceiling=True,
+            ),
+            _GateMetric(
+                "full_horizon_fraction",
+                "full-horizon episodes",
+                float(self.curriculum_kwargs.get("min_full_horizon_fraction", 0.0)),
+                horizon_fraction,
+                horizon_count,
+                percent=True,
             ),
             _GateMetric(
                 "mean_episode_length",
@@ -323,6 +385,8 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             return f"{value:.3f} m/s"
         if metric.key == "mean_episode_length":
             return f"{value:.1f} steps"
+        if metric.key == "mean_unsupported_duty":
+            return f"{value:.4f}"
         return f"{value:.3f}"
 
     @staticmethod
@@ -349,7 +413,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             assert metric.value is not None
             self._histories[metric.key].append(metric.value)
 
-        failing = [metric for metric in metrics if metric.value is not None and metric.value < metric.threshold]
+        failing = [metric for metric in metrics if metric.is_failing()]
         if not failing:
             self.logger.record("diagnostics/eval_gate_met", 1.0)
             self.logger.record("diagnostics/eval_plateau_active", 0.0)
@@ -445,6 +509,9 @@ def build_stage_evaluation_callbacks(
         curriculum_kwargs=curriculum_kwargs,
         plateau_window=int(curriculum_kwargs.get("diagnostics_plateau_window", 5)),
         min_relative_variation=float(curriculum_kwargs.get("diagnostics_plateau_min_relative_variation", 0.05)),
+        # From [env], not [curriculum]: the horizon defines what "full" means
+        # for the full-horizon fraction, and it is an environment property.
+        horizon=int(stage_config.get("env_kwargs", {}).get("max_episode_steps", 1000)),
         verbose=diagnostics_verbose,
     )
     return eval_callback, plateau_callback

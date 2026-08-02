@@ -243,6 +243,45 @@ def test_publication_gate_is_recomputed_from_frozen_thresholds(
         )
 
 
+def test_stance_gated_stage_refuses_publication_rather_than_certifying_on_the_rail(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """A gate this evidence file cannot express must not be half-checked.
+
+    stance_quality/v1 carries min_avg_reward only as a RAIL, set below the
+    zero-action statue. The per-episode evidence CSV records reward and
+    length but no unsupported duty, so evaluating the legacy thresholds would
+    certify the stage on the rail alone -- reintroducing exactly the "a statue
+    clears this gate" failure the stance gate was built to remove.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    config_path = run_dir / "stage1" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["curriculum_kwargs"]["gate_kind"] = "stance_quality/v1"
+    config["curriculum_kwargs"]["min_full_horizon_fraction"] = 0.95
+    config["curriculum_kwargs"]["max_unsupported_duty"] = 0.02
+    config["curriculum_kwargs"]["max_unsupported_duty_ucb"] = 0.02
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ResultBundleError, match=r"cannot be checked from the publication evidence"):
+        save_result_bundle(
+            stage_results,
+            stage_configs,
+            "velociraptor",
+            "PPO",
+            42,
+            run_dir,
+            backend="stable-baselines3",
+            backend_version="2.7.0",
+            parallel_envs=4,
+            evaluation_episodes=3,
+            evaluation_seeds=[101, 102, 103],
+            plant_identity=_plant_identity(),
+        )
+
+
 def test_final_evaluation_claims_are_bound_to_terminal_episode_evidence(
     tmp_path: Path,
     stable_provenance: None,

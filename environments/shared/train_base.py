@@ -1408,6 +1408,12 @@ def _record_stage_result(
         "ep_length_threshold": cur_kwargs.get("min_avg_episode_length", ""),
         "forward_vel_threshold": cur_kwargs.get("min_avg_forward_vel", ""),
         "success_rate_threshold": cur_kwargs.get("min_success_rate", ""),
+        # stance_quality/v1. A stance-gated stage otherwise records only its
+        # reward rail, which reads as though reward were the gate.
+        "gate_kind": cur_kwargs.get("gate_kind", ""),
+        "full_horizon_fraction_threshold": cur_kwargs.get("min_full_horizon_fraction", ""),
+        "unsupported_duty_ceiling": cur_kwargs.get("max_unsupported_duty", ""),
+        "unsupported_duty_ucb_ceiling": cur_kwargs.get("max_unsupported_duty_ucb", ""),
         "stage_passed": bool(curriculum_cb is not None and curriculum_cb.ready_to_advance),
     }
     if plant_identity is not None:
