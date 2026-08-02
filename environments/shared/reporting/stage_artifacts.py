@@ -161,6 +161,13 @@ def _write_stance_gate_report(
     ``stage_summary.txt`` in the run directory -- which is on Drive, so the
     verdict survives a lost runtime.
 
+    ``stance_report_episodes`` in ``[curriculum]`` overrides the panel size;
+    ``0`` skips the report entirely. It exists because "a few minutes" is per
+    stage AND per sweep trial, and a sweep of fifty trials pays it fifty
+    times for a verdict nobody reads until a trial is shortlisted. Overriding
+    downward makes the bound weaker than the gate claims -- the panel size is
+    what its power is specified at -- so the log says so when it happens.
+
     Deliberately non-fatal. This is a diagnostic; losing it must never cost a
     completed training run its artifacts, and the checkpoint may legitimately
     be absent (a stage stopped before its first evaluation produced one).
@@ -170,6 +177,26 @@ def _write_stance_gate_report(
     curriculum = stage_config.get("curriculum_kwargs", {})
     if curriculum.get("gate_kind") != STANCE_GATE_KIND:
         return
+
+    declared_episodes = int(curriculum.get("min_eval_episodes", 40))
+    report_episodes = curriculum.get("stance_report_episodes")
+    report_episodes = declared_episodes if report_episodes is None else int(report_episodes)
+    if report_episodes < 1:
+        logger.info(
+            "Stance gate report skipped for stage %d: stance_report_episodes = %d",
+            stage,
+            report_episodes,
+        )
+        return
+    if report_episodes != declared_episodes:
+        logger.warning(
+            "Stance gate report for stage %d rolls %d episodes, not the stage's min_eval_episodes "
+            "%d. The bound's power is specified at the latter; this panel does not certify what "
+            "the gate claims.",
+            stage,
+            report_episodes,
+            declared_episodes,
+        )
 
     # The SELECTED checkpoint, through the one selector — the same call the
     # replay and the next-stage handoff make. This used to be a third private
@@ -203,6 +230,7 @@ def _write_stance_gate_report(
             stage_config=stage_config,
             model_path=f"{selected_path}.zip",
             vecnorm_path=selected_vecnorm,
+            episodes=report_episodes,
         )
         written = write_stance_gate_report(stage_dir, report)
         logger.info(

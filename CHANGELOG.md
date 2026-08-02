@@ -8,6 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
 ### Fixed
+- **Six smaller defects in the stance gate report.** (1) Its JSON now carries
+  `episode_evidence` — per-episode length, reward, duty and the two ungated
+  shares — which `write_stance_gate_report`'s docstring already claimed it
+  did. `run_panel` computed those and threw them away, so the file held only
+  a summary that cannot be re-checked. Note this does **not** by itself lift
+  `result_bundle.evidence`'s refusal of stance-gated bundles, which reads
+  `evaluation_selected.csv`; that docstring now says so instead of implying
+  otherwise. (2) `run_panel` closes its environment, including when the
+  rollout raises — a MuJoCo env holds native handles and the artifact path
+  builds one per stage. (3) Its unused `stage` parameter is gone. (4)
+  `stance_report_episodes` in `[curriculum]` overrides the report's panel
+  size, and `0` skips the report: the 40-episode rollout costs a few minutes
+  per stage *and* per sweep trial, which a fifty-trial sweep paid fifty times
+  with no way to decline. Overriding downward is logged as not certifying
+  what the gate claims. (5) `--episodes 0` is rejected rather than falling
+  through `episodes or min_eval_episodes` to a full-size panel while also
+  skipping the under-powered warning — it read as an override that silently
+  did nothing. (6) The checkpoint and the rollout environment are validated
+  against the species' current plant identity, as every other artifact path
+  already does; `--allow-legacy-plant` scores a checkpoint that predates the
+  contract — a real use, since the script exists partly to judge finished
+  runs — and the report records `plant_validated` so the flag travels with
+  the number.
+- **`[curriculum]` keys that were read but unregistered are now settable.**
+  `diagnostics_plateau_window`, `diagnostics_plateau_min_relative_variation`
+  and `supplementary_episodes` are each read with a default in the trainer,
+  which means each was intended to be configurable — but `validate_gate_config`
+  rejects any key it does not know, so setting one in a TOML was fatal. The
+  same trap `max_checkpoints` hit. Registered alongside the new
+  `stance_report_episodes`.
 - **A missing `mean_episode_return` is fatal instead of silently substituting
   the per-step reward.** `min_avg_reward` is an episode-level threshold shared
   with the SB3 TOMLs — trex stage 1 sets 1950.0 — while the MJX trainer's

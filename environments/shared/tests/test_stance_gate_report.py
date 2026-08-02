@@ -468,7 +468,6 @@ class TestStanceSharesSumToOne:
         try:
             return stance_gate_report.run_panel(
                 "trex",
-                1,
                 predict=lambda obs: np.zeros(6),
                 episodes=40,
                 seed=0,
@@ -498,3 +497,270 @@ class TestStanceSharesSumToOne:
         result = self._run(n_short=40)
         assert math.isnan(result["bilateral_duty"])
         assert math.isnan(result["single_duty"])
+
+
+class TestPanelHygiene:
+    """Lower-severity defects in the rollout harness."""
+
+    def _fake_env_class(self, recorder):
+        import types
+
+        import numpy as np
+
+        class FakeEnv:
+            action_space = types.SimpleNamespace(shape=(6,))
+
+            def __init__(self, **kwargs):
+                self.steps = 0
+                recorder["opened"] = recorder.get("opened", 0) + 1
+
+            def reset(self, seed=None):
+                self.steps = 0
+                return np.zeros(4), {}
+
+            def step(self, action):
+                self.steps += 1
+                info = {"r_foot_contact": 50.0, "l_foot_contact": 50.0}
+                return np.zeros(4), 1.0, False, self.steps >= 10, info
+
+            def close(self):
+                recorder["closed"] = recorder.get("closed", 0) + 1
+
+        return FakeEnv
+
+    def _run_panel(self, recorder, **overrides):
+        import types
+
+        import numpy as np
+
+        original = stance_gate_report.SPECIES_FACTORIES
+        stance_gate_report.SPECIES_FACTORIES = {
+            "trex": lambda: types.SimpleNamespace(env_class=self._fake_env_class(recorder))
+        }
+        try:
+            kwargs = dict(
+                predict=lambda obs: np.zeros(6),
+                episodes=3,
+                seed=0,
+                settle_steps=0,
+                horizon=10,
+                env_kwargs={},
+            )
+            kwargs.update(overrides)
+            return stance_gate_report.run_panel("trex", **kwargs)
+        finally:
+            stance_gate_report.SPECIES_FACTORIES = original
+
+    def test_the_environment_is_closed(self):
+        # A MuJoCo env holds native handles and the artifact path builds one
+        # per stage; leaking them across a sweep is how a worker runs out.
+        recorder: dict = {}
+        self._run_panel(recorder)
+        assert recorder["closed"] == recorder["opened"]
+
+    def test_the_environment_is_closed_when_the_rollout_raises(self):
+        recorder: dict = {}
+        with pytest.raises(RuntimeError):
+            self._run_panel(recorder, predict=lambda obs: (_ for _ in ()).throw(RuntimeError("policy blew up")))
+        assert recorder["closed"] == recorder["opened"]
+
+    def test_per_episode_evidence_is_returned_not_discarded(self):
+        result = self._run_panel({})
+        evidence = result["episodes"]
+        assert len(evidence) == 3
+        first = evidence[0]
+        assert set(first) == {
+            "episode",
+            "seed",
+            "length",
+            "reward",
+            "reached_horizon",
+            "unsupported_duty",
+            "bilateral_support_duty",
+            "single_support_duty",
+        }
+        # Aligned with the panel it was reduced into.
+        assert [row["length"] for row in evidence] == list(result["lengths"])
+        assert all(row["reached_horizon"] for row in evidence)
+
+
+class TestBuildReportArguments:
+    def _stage_config(self):
+        return {
+            "curriculum_kwargs": {
+                "gate_schema_version": 1,
+                "gate_kind": "stance_quality/v1",
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_eval_episodes": 40,
+            },
+            "env_kwargs": {"max_episode_steps": 1000},
+        }
+
+    def test_zero_episodes_is_rejected_rather_than_treated_as_absent(self):
+        # `episodes or min_eval_episodes` silently produced a full 40-episode
+        # panel for `--episodes 0`, and skipped the under-powered warning too,
+        # so the flag read as an override that did nothing.
+        with pytest.raises(ValueError, match="at least 1"):
+            stance_gate_report.build_stance_gate_report(
+                "trex", 1, stage_config=self._stage_config(), zero_action=True, episodes=0
+            )
+
+    def test_negative_episodes_is_rejected(self):
+        with pytest.raises(ValueError, match="at least 1"):
+            stance_gate_report.build_stance_gate_report(
+                "trex", 1, stage_config=self._stage_config(), zero_action=True, episodes=-5
+            )
+
+
+class TestStanceReportEpisodesKnob:
+    """`stance_report_episodes` gives the artifact path a cost control.
+
+    The report costs a 40-episode rollout per stage AND per sweep trial,
+    which a fifty-trial sweep pays fifty times for a verdict nobody reads
+    until a trial is shortlisted.
+    """
+
+    def _stage_config(self, **curriculum):
+        base = {
+            "gate_schema_version": 1,
+            "gate_kind": "stance_quality/v1",
+            "min_full_horizon_fraction": 0.95,
+            "max_unsupported_duty": 0.02,
+            "max_unsupported_duty_ucb": 0.02,
+            "min_eval_episodes": 40,
+        }
+        base.update(curriculum)
+        return {"curriculum_kwargs": base, "env_kwargs": {"max_episode_steps": 1000}}
+
+    def _invoke(self, tmp_path, monkeypatch, stage_config):
+        from environments.shared.reporting import stage_artifacts
+
+        models = tmp_path / "models"
+        models.mkdir(exist_ok=True)
+        (models / "robust_best_model.zip").write_bytes(b"x")
+        (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
+
+        seen: dict = {}
+        monkeypatch.setattr(
+            stance_gate_report,
+            "build_stance_gate_report",
+            lambda *a, **k: seen.update(k) or (_ for _ in ()).throw(RuntimeError("stop after the call")),
+        )
+        stage_artifacts._write_stance_gate_report(
+            species="trex",
+            stage=1,
+            stage_config=stage_config,
+            stage_dir=tmp_path,
+            model_dir=models,
+        )
+        return seen
+
+    def test_defaults_to_the_stages_panel_size(self, tmp_path, monkeypatch):
+        seen = self._invoke(tmp_path, monkeypatch, self._stage_config())
+        assert seen["episodes"] == 40
+
+    def test_zero_skips_the_report_entirely(self, tmp_path, monkeypatch):
+        seen = self._invoke(tmp_path, monkeypatch, self._stage_config(stance_report_episodes=0))
+        assert seen == {}, "no rollout should be attempted"
+        assert not (tmp_path / "stance_gate_report.json").exists()
+
+    def test_an_override_is_honoured_and_warned_about(self, tmp_path, monkeypatch, caplog):
+        with caplog.at_level("WARNING"):
+            seen = self._invoke(tmp_path, monkeypatch, self._stage_config(stance_report_episodes=8))
+        assert seen["episodes"] == 8
+        # The bound's power is specified at min_eval_episodes; a smaller panel
+        # does not certify what the gate claims, and the log has to say so.
+        assert "does not certify what the gate claims" in caplog.text
+
+    def test_the_schema_accepts_the_key(self):
+        from environments.shared.curriculum.gate_schema import validate_gate_config
+
+        assert validate_gate_config(1, self._stage_config(stance_report_episodes=8)["curriculum_kwargs"])
+
+
+class TestPlantValidation:
+    """A verdict measured on a different plant is not a verdict about this stage.
+
+    Every other artifact path already refuses that pairing; this script did
+    not, while its own docstring advertises scoring already-finished runs --
+    exactly the checkpoints most likely to predate the current plant.
+    """
+
+    def _stage_config(self):
+        return {
+            "curriculum_kwargs": {
+                "gate_schema_version": 1,
+                "gate_kind": "stance_quality/v1",
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_eval_episodes": 2,
+            },
+            "env_kwargs": {"max_episode_steps": 1000},
+        }
+
+    def test_a_checkpoint_without_a_plant_identity_is_refused(self, stub_ppo):
+        from environments.shared.plant_contract import PlantCompatibilityError, current_plant_identity
+
+        identity = current_plant_identity("trex", verify_generated=False)
+        with pytest.raises(PlantCompatibilityError):
+            stance_gate_report._load_policy("model.zip", None, lambda: None, plant_identity=identity)
+
+    def test_allow_legacy_plant_permits_it(self, stub_ppo):
+        from environments.shared.plant_contract import current_plant_identity
+
+        identity = current_plant_identity("trex", verify_generated=False)
+        predict, _ = stance_gate_report._load_policy(
+            "model.zip", None, lambda: None, plant_identity=identity, allow_legacy_plant=True
+        )
+        assert callable(predict)
+
+    def test_no_identity_supplied_skips_validation(self, stub_ppo):
+        predict, _ = stance_gate_report._load_policy("model.zip", None, lambda: None)
+        assert callable(predict)
+
+    def test_the_report_records_whether_the_plant_was_validated(self, tmp_path):
+        # The flag travels with the number rather than being reconstructable
+        # only from whoever happened to read the console.
+        report = {
+            "schema": "mesozoic.stance-gate-report/v1",
+            "species": "trex",
+            "stage": 1,
+            "gate_kind": "stance_quality/v1",
+            "policy": "p",
+            "episodes": 40,
+            "seed": 3042,
+            "settle_steps": 200,
+            "horizon": 1000,
+            "passed": True,
+            "failures": [],
+            "plant_validated": False,
+            "thresholds": {
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_avg_reward": 1950.0,
+                "min_eval_episodes": 40,
+            },
+            "metrics": {
+                "reward_mean": 1.0,
+                "reward_std": 0.0,
+                "episode_length_mean": 1000.0,
+                "full_horizon_fraction": 1.0,
+                "mean_unsupported_duty": 0.0,
+                "unsupported_duty_ucb": 0.0,
+                "n_duty_episodes": 40,
+                "bilateral_support_duty": 1.0,
+                "single_support_duty": 0.0,
+            },
+            "terminations": {},
+            "reward_components": {},
+            "episode_evidence": [],
+        }
+        import json
+
+        stance_gate_report.write_stance_gate_report(tmp_path, report)
+        payload = json.loads((tmp_path / "stance_gate_report.json").read_text())
+        assert payload["plant_validated"] is False
