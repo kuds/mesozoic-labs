@@ -202,6 +202,7 @@ def record_stage_video(
     vecnorm_path: str | None = None,
     max_steps: int = 1000,
     label: str | None = None,
+    output_dir: "str | Path | None" = None,
     plant_identity: PlantIdentity | None = None,
     allow_legacy_plant: bool = False,
     camera_views: Mapping[str, Mapping[str, float]] | None = None,
@@ -216,6 +217,11 @@ def record_stage_video(
     When *camera_views* is supplied, one additional synchronized video is
     written per named camera preset. When *collect_stance_diagnostics* is
     true, a per-frame ``*_stance.csv`` is written beside the replay.
+
+    *output_dir* is where the video files land; it defaults to *stage_dir*
+    for callers that predate the ``replays/`` subdirectory. *stage_dir* is
+    still what identifies the stage in log messages, so the two are separate
+    parameters rather than one overloaded path.
 
     Requires the ``mediapy`` package (``pip install mediapy``).
     """
@@ -314,7 +320,9 @@ def record_stage_video(
         vec_normalize.close()
 
     suffix = f"_{label}" if label else ""
-    video_path = str(Path(stage_dir) / f"{species}_{algorithm.lower()}_stage{stage}{suffix}.mp4")
+    destination = Path(output_dir) if output_dir is not None else Path(stage_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+    video_path = str(destination / f"{species}_{algorithm.lower()}_stage{stage}{suffix}.mp4")
     mediapy.write_video(video_path, frames, fps=50)
     video_stem = Path(video_path).with_suffix("")
     for view_name, view_frames in named_frames.items():

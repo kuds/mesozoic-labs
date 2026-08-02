@@ -284,6 +284,13 @@ min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VAL
 required_consecutive = 3                # Scheduler hysteresis ONLY. Re-running a deterministic panel is not
                                         # statistical replication (§3.4 caution 3) — the certified claim comes from
                                         # the bound above, not from repeating the same evaluation three times.
+max_checkpoints = 5                     # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
+                                        # wrote 12 and kept all of them: 48 MB of the 60 MB models/ on run 20260801_021545, on a
+                                        # Drive mount, for files nothing in this repository reads — they exist for manual rollback,
+                                        # which needs recent history, not all of it. 5 matches the JAX backend's max_checkpoints so a
+                                        # stage keeps the same rollback depth whichever backend produced it. best_model,
+                                        # robust_best_model and stage1_final are never periodic checkpoints and are never pruned.
+                                        # Set 0 to keep every one.
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so transition turbulence won't abort the stage.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count. Stage-1 balance learning has a long

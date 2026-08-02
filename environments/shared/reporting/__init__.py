@@ -22,12 +22,15 @@ from that layout:
   ``summary.json`` construction and its provenance block
 * :mod:`~environments.shared.reporting.bundles` — idempotent, Drive-portable
   result bundle publication
+* :mod:`~environments.shared.reporting.stage_layout` — where a stage's
+  generated figures and replays live, and the local-staging publish
 * :mod:`~environments.shared.reporting.stage_artifacts` — post-training
   artifact generation for the SB3 and JAX/MJX backends
 """
 
 from __future__ import annotations
 
+from . import stage_layout
 from .bundles import save_result_bundle
 from .csv_output import (
     CSV_METRIC_COLUMNS,
@@ -61,6 +64,7 @@ __all__ = [
     "save_result_bundle",
     "save_results_csv",
     "save_results_json",
+    "stage_layout",
     "write_results_csv",
     "write_stage_summary",
     "write_training_summary",

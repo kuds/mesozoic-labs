@@ -446,3 +446,146 @@ class TestPublishEvalArtifactsCallback:
         with patch("environments.shared.curriculum.sb3_compat._SB3_AVAILABLE", False):
             with pytest.raises(ImportError, match="stable-baselines3"):
                 PublishEvalArtifactsCallback(eval_callback=MagicMock(), publish_dir="/tmp/x")
+
+
+class TestPrunePeriodicCheckpoints:
+    """Retention for SB3's periodic checkpoints (`prune_periodic_checkpoints`)."""
+
+    def _populate(self, model_dir, steps=(500_000, 1_000_000, 1_500_000, 2_000_000)):
+        model_dir.mkdir(parents=True, exist_ok=True)
+        for step in steps:
+            (model_dir / f"stage1_{step}_steps.zip").write_bytes(b"policy")
+            (model_dir / f"stage1_vecnormalize_{step}_steps.pkl").write_bytes(b"stats")
+        # The three checkpoints that must never be pruned.
+        for keeper in ("best_model", "robust_best_model", "stage1_final"):
+            (model_dir / f"{keeper}.zip").write_bytes(b"policy")
+            (model_dir / f"{keeper}_vecnorm.pkl").write_bytes(b"stats")
+
+    def test_keeps_the_newest_n_step_points(self, tmp_path):
+        from environments.shared.curriculum import prune_periodic_checkpoints
+
+        self._populate(tmp_path)
+        removed = prune_periodic_checkpoints(tmp_path, "stage1", max_checkpoints=2)
+
+        assert {p.name for p in removed} == {
+            "stage1_500000_steps.zip",
+            "stage1_vecnormalize_500000_steps.pkl",
+            "stage1_1000000_steps.zip",
+            "stage1_vecnormalize_1000000_steps.pkl",
+        }
+        assert (tmp_path / "stage1_2000000_steps.zip").exists()
+        assert (tmp_path / "stage1_1500000_steps.zip").exists()
+
+    def test_never_touches_best_robust_or_final(self, tmp_path):
+        from environments.shared.curriculum import prune_periodic_checkpoints
+
+        self._populate(tmp_path)
+        prune_periodic_checkpoints(tmp_path, "stage1", max_checkpoints=1)
+
+        for keeper in ("best_model", "robust_best_model", "stage1_final"):
+            assert (tmp_path / f"{keeper}.zip").exists()
+            assert (tmp_path / f"{keeper}_vecnorm.pkl").exists()
+
+    def test_a_pruned_step_takes_its_vecnormalize_with_it(self, tmp_path):
+        # An orphaned .pkl belongs to no policy left in the directory.
+        from environments.shared.curriculum import prune_periodic_checkpoints
+
+        self._populate(tmp_path)
+        prune_periodic_checkpoints(tmp_path, "stage1", max_checkpoints=1)
+
+        surviving_zips = sorted(p.name for p in tmp_path.glob("stage1_*_steps.zip"))
+        surviving_pkls = sorted(p.name for p in tmp_path.glob("stage1_vecnormalize_*_steps.pkl"))
+        assert surviving_zips == ["stage1_2000000_steps.zip"]
+        assert surviving_pkls == ["stage1_vecnormalize_2000000_steps.pkl"]
+
+    def test_orders_by_step_count_not_mtime(self, tmp_path):
+        # On a Drive/GCS-FUSE mount mtime reflects when the upload finished,
+        # which is not the order the checkpoints were produced in.
+        import os
+
+        from environments.shared.curriculum import prune_periodic_checkpoints
+
+        self._populate(tmp_path, steps=(500_000, 2_000_000))
+        # Make the OLD checkpoint look newest by mtime.
+        os.utime(tmp_path / "stage1_500000_steps.zip", (10**9, 10**9))
+        os.utime(tmp_path / "stage1_2000000_steps.zip", (10**6, 10**6))
+
+        prune_periodic_checkpoints(tmp_path, "stage1", max_checkpoints=1)
+
+        assert (tmp_path / "stage1_2000000_steps.zip").exists()
+        assert not (tmp_path / "stage1_500000_steps.zip").exists()
+
+    def test_zero_disables_pruning(self, tmp_path):
+        from environments.shared.curriculum import prune_periodic_checkpoints
+
+        self._populate(tmp_path)
+        assert prune_periodic_checkpoints(tmp_path, "stage1", max_checkpoints=0) == []
+        assert len(list(tmp_path.glob("stage1_*_steps.zip"))) == 4
+
+    def test_leaves_unparsed_names_alone(self, tmp_path):
+        from environments.shared.curriculum import prune_periodic_checkpoints
+
+        self._populate(tmp_path, steps=(500_000,))
+        stray = tmp_path / "stage1_handwritten_steps.zip"
+        stray.write_bytes(b"not mine")
+        prune_periodic_checkpoints(tmp_path, "stage1", max_checkpoints=0 + 1)
+        assert stray.exists()
+
+    def test_missing_directory_is_not_an_error(self, tmp_path):
+        from environments.shared.curriculum import prune_periodic_checkpoints
+
+        assert prune_periodic_checkpoints(tmp_path / "nope", "stage1", max_checkpoints=2) == []
+
+
+class TestCheckpointRetentionCallback:
+    def _callback(self, tmp_path, save_freq=10, max_checkpoints=2):
+        pytest.importorskip("stable_baselines3")
+        from unittest.mock import MagicMock
+
+        from environments.shared.curriculum import CheckpointRetentionCallback
+
+        cb = CheckpointRetentionCallback(
+            model_dir=tmp_path,
+            name_prefix="stage1",
+            save_freq=save_freq,
+            max_checkpoints=max_checkpoints,
+        )
+        cb.model = MagicMock()
+        return cb
+
+    def _populate(self, tmp_path):
+        for step in (500_000, 1_000_000, 1_500_000):
+            (tmp_path / f"stage1_{step}_steps.zip").write_bytes(b"policy")
+
+    def test_prunes_only_on_the_checkpoint_cadence(self, tmp_path):
+        # _on_step runs every training step; globbing a Drive mount six
+        # million times a stage would cost more than the storage it saves.
+        self._populate(tmp_path)
+        cb = self._callback(tmp_path, save_freq=10, max_checkpoints=2)
+
+        for _ in range(9):
+            cb.n_calls += 1
+            cb._on_step()
+        assert len(list(tmp_path.glob("stage1_*_steps.zip"))) == 3, "must not prune between save points"
+
+        cb.n_calls += 1  # n_calls == 10, a save step
+        cb._on_step()
+        assert len(list(tmp_path.glob("stage1_*_steps.zip"))) == 2
+
+    def test_training_end_prunes_a_stage_that_stopped_between_save_points(self, tmp_path):
+        # EvalCollapseEarlyStopCallback can end a stage anywhere.
+        self._populate(tmp_path)
+        cb = self._callback(tmp_path, save_freq=10, max_checkpoints=1)
+        cb.n_calls = 7
+        cb._on_training_end()
+        assert sorted(p.name for p in tmp_path.glob("stage1_*_steps.zip")) == ["stage1_1500000_steps.zip"]
+
+    def test_rejects_a_save_freq_that_would_prune_every_step(self, tmp_path):
+        import pytest
+
+        pytest.importorskip("stable_baselines3")
+
+        from environments.shared.curriculum import CheckpointRetentionCallback
+
+        with pytest.raises(ValueError, match="save_freq"):
+            CheckpointRetentionCallback(model_dir=tmp_path, name_prefix="stage1", save_freq=0)

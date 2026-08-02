@@ -566,7 +566,15 @@ def check_stage_gate(
     gate_min_forward_vel: float = 0.0,
     gate_min_success_rate: float = 0.0,
 ) -> tuple[bool, list[str]]:
-    """Check curriculum stage gate conditions.
+    """Check the ``reward_and_length/v1`` criteria against evaluation results.
+
+    Prefer :func:`check_stage_gate_for_config`, which reads the stage's
+    declared ``gate_kind`` and dispatches.  This function takes four fixed
+    thresholds and knows nothing about gate kinds, so calling it directly for
+    a stage on any other kind certifies that stage on whichever of the four
+    happens to be set — which is how ``jax_setup`` came to pass a zero-action
+    statue on a ``stance_quality/v1`` stage and write it into
+    ``publication_gate_passed``.
 
     Args:
         results: Evaluation results.
@@ -590,3 +598,138 @@ def check_stage_gate(
     if gate_min_success_rate > 0 and results.mean_success_rate < gate_min_success_rate:
         failures.append(f"success rate {results.mean_success_rate:.2f} < {gate_min_success_rate}")
     return len(failures) == 0, failures
+
+
+#: Contact force above which a foot counts as bearing load, in newtons.
+#: Deliberately :func:`~environments.shared.stance_diagnostics.derive_stance_info`'s
+#: default rather than the reward's 42 N ``min_support_force``: every
+#: calibration point the stance gate's ceiling rests on is measured at 0.1 N
+#: (the statue's 0.000 and run ``20260801_021545``'s 0.319), and switching
+#: thresholds here would shift duty upward and invalidate the 0.02 ceiling.
+STANCE_CONTACT_THRESHOLD_N = 0.1
+
+
+def stance_panel_from_eval_results(results: "EvalResults", *, horizon: int, settle_steps: int):
+    """Reduce CPU-eval foot traces into the stance gate's panel, or explain why not.
+
+    Returns ``(panel, reason)`` — exactly one is ``None``.
+
+    ``diag_r_foot`` / ``diag_l_foot`` are flat per-step lists spanning every
+    episode, so per-episode boundaries are recovered from ``cumsum(lengths)``.
+    That reconstruction is only valid when each step contributed exactly one
+    reading per side, which is the **biped** case: ``evaluate_policy_cpu``
+    routes foot sensors by ``i % 2``, so a species with four foot sensors
+    appends two readings per side per step and the alternation no longer
+    means right/left (see the ``diag_r_foot``/``diag_l_foot`` interleaving
+    defect in KNOWN_ISSUES).
+
+    The length check below detects exactly that: a biped gives
+    ``len(diag_r_foot) == sum(lengths)``, a quadruped twice that. It is a
+    measurement of the data in hand rather than a species allow-list, so it
+    cannot go stale when a species is added.
+    """
+    from .curriculum.stance_gate import episode_unsupported_duty, stance_panel_from_episode_duties
+
+    lengths = [int(value) for value in results.lengths]
+    if not lengths:
+        return None, "the evaluation produced no episodes"
+
+    total_steps = sum(lengths)
+    right = list(results.diag_r_foot)
+    left = list(results.diag_l_foot)
+    if not right or not left:
+        return None, "the evaluation collected no foot-contact traces (diag_r_foot/diag_l_foot are empty)"
+    if len(right) != total_steps or len(left) != total_steps:
+        return None, (
+            f"foot traces do not align with episode boundaries: {len(right)} right and {len(left)} left "
+            f"readings for {total_steps} steps across {len(lengths)} episodes. Per-episode duty cannot be "
+            "reconstructed. A ratio of 2 is the known diag_r_foot/diag_l_foot interleaving defect, which "
+            "makes this gate unusable for species with four foot sensors until it is fixed"
+        )
+
+    duties: list[float | None] = []
+    cursor = 0
+    for length in lengths:
+        window = slice(cursor, cursor + length)
+        unsupported = [
+            float(
+                max(right_force, 0.0) <= STANCE_CONTACT_THRESHOLD_N
+                and max(left_force, 0.0) <= STANCE_CONTACT_THRESHOLD_N
+            )
+            for right_force, left_force in zip(right[window], left[window])
+        ]
+        duties.append(episode_unsupported_duty(unsupported, settle_steps=settle_steps))
+        cursor += length
+
+    return (
+        stance_panel_from_episode_duties(
+            episode_lengths=[float(value) for value in lengths],
+            episode_duties=duties,
+            episode_rewards=[float(value) for value in results.rewards],
+            horizon=horizon,
+        ),
+        None,
+    )
+
+
+def check_stage_gate_for_config(
+    results: "EvalResults",
+    stage_config: dict[str, Any],
+) -> "tuple[bool, list[str]]":
+    """Check a stage's declared gate against CPU-eval results.
+
+    The gate-kind-aware entry point.  :func:`check_stage_gate` below reads
+    four fixed thresholds and knows nothing about ``gate_kind``; calling it
+    for a ``stance_quality/v1`` stage silently certified the stage on
+    whichever of those four happened to be set. On trex stage 1 that is
+    ``min_avg_reward = 1950`` alone — a rail the zero-action statue clears at
+    3271.8 and the chattering policy the gate exists to reject clears at
+    2133.4 — and ``jax_setup`` writes the verdict straight into
+    ``publication_gate_passed``.
+
+    A gate kind whose criteria cannot be evaluated from *results* fails
+    closed with the reason, rather than passing on the subset that can.
+
+    Raises:
+        GateSchemaError: If the gate declaration is missing, unknown or
+            malformed — including ``none/v1``, which the schema rejects
+            outright for an advancing run rather than letting a declared
+            pilot reach a verdict here.
+    """
+    from .curriculum.gate_schema import validate_gate_config
+    from .curriculum.stance_gate import STANCE_GATE_KIND, StanceGateThresholds, evaluate_stance_gate
+
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    gate_kind = validate_gate_config(stage_config.get("stage", "?"), curriculum, advancement_enabled=True)
+
+    if gate_kind == STANCE_GATE_KIND:
+        horizon = int(stage_config.get("env_kwargs", {}).get("max_episode_steps", 1000))
+        thresholds = StanceGateThresholds(
+            min_full_horizon_fraction=float(curriculum["min_full_horizon_fraction"]),
+            max_unsupported_duty=float(curriculum["max_unsupported_duty"]),
+            max_unsupported_duty_ucb=float(curriculum["max_unsupported_duty_ucb"]),
+            settle_steps=int(curriculum.get("settle_steps", 0)),
+            min_eval_episodes=int(curriculum.get("min_eval_episodes", 40)),
+            min_avg_reward=float(curriculum.get("min_avg_reward", -float("inf"))),
+            required_consecutive=int(curriculum.get("required_consecutive", 3)),
+        )
+        panel, reason = stance_panel_from_eval_results(
+            results,
+            horizon=horizon,
+            settle_steps=thresholds.settle_steps,
+        )
+        if panel is None:
+            return False, [
+                f"stance_quality/v1 cannot be evaluated from this evaluation: {reason}. "
+                "Refusing to certify the stage on the reward rail alone, which a zero-action "
+                "statue clears."
+            ]
+        return evaluate_stance_gate(panel, thresholds)
+
+    return check_stage_gate(
+        results,
+        curriculum.get("min_avg_reward", -float("inf")),
+        curriculum.get("min_avg_episode_length", 0),
+        gate_min_forward_vel=curriculum.get("min_avg_forward_vel", 0.0),
+        gate_min_success_rate=curriculum.get("min_success_rate", 0.0),
+    )

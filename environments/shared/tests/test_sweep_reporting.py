@@ -79,22 +79,30 @@ class TestGenerateTrialArtifacts:
         assert "Balance" in text
         assert "Velociraptor" in text
 
-        # Videos should be recorded for both best and final models
+        # Videos should be recorded for the selected and final checkpoints.
+        # "selected", not "best": the replay comes from the same selector that
+        # decides the next-stage handoff and that evaluation_selected.csv is
+        # evidence for, so the two describe one policy.
         assert mock_video.call_count == 2
         labels = [call.kwargs["label"] for call in mock_video.call_args_list]
-        assert "best" in labels
+        assert "selected" in labels
         assert "final" in labels
 
         # Returned results should have best eval metrics from evaluations.npz
         assert results["best_eval_reward"] == 21.0
         assert results["best_eval_timestep"] == 100000
 
-        # Training graphs should be generated when matplotlib is available
+        # Training graphs should be generated when matplotlib is available,
+        # into stage_dir/figures/ rather than loose in the stage root.
         try:
             import matplotlib  # noqa: F401
 
-            assert (tmp_path / "training_curves.png").exists()
-            assert (tmp_path / "locomotion_health.png").exists()
-            assert (tmp_path / "behavioral_metrics.png").exists()
+            from environments.shared.reporting import stage_layout
+
+            figures = stage_layout.figures_dir(tmp_path)
+            assert (figures / "training_curves.png").exists()
+            assert (figures / "locomotion_health.png").exists()
+            assert (figures / "behavioral_metrics.png").exists()
+            assert not list(tmp_path.glob("*.png")), "figures must not be loose in the stage root"
         except ImportError:
             pass  # graphs are skipped gracefully without matplotlib

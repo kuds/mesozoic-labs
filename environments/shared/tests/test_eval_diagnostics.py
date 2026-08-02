@@ -1,5 +1,6 @@
 """Tests for stage-aware SB3 evaluation diagnostics."""
 
+import logging
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import MagicMock, patch
@@ -368,7 +369,12 @@ class TestStageGatePlateauCallback:
         assert "mean reward" in caplog.text
         assert "required 0.000" in caplog.text
 
-    def test_missing_active_gate_metric_skips_safely(self, caplog):
+    def test_missing_active_gate_metric_still_follows_what_is_measurable(self, caplog):
+        # Forward velocity has no samples, but reward does and is plateaued
+        # below its gate. Vetoing the whole diagnostic because one metric is
+        # unmeasurable is what silenced stage 1a entirely in early training;
+        # the warning instead names what could not be measured, so the reader
+        # knows a more specific criterion may be the real blocker.
         callback, eval_callback = _plateau_callback(
             {"min_avg_reward": 100.0, "min_avg_forward_vel": 2.0},
             stage=2,
@@ -378,7 +384,10 @@ class TestStageGatePlateauCallback:
             for _ in range(3):
                 _add_evaluation(callback, eval_callback, reward=50.0, length=1000.0)
 
-        assert "EVALUATION PLATEAU" not in caplog.text
+        assert "mean reward" in caplog.text
+        assert "forward velocity could not be measured" in caplog.text
+        assert "may be the real blocker" in caplog.text
+        # The panel is still honestly reported as incomplete.
         callback.logger.record.assert_any_call("diagnostics/eval_gate_data_complete", 0.0)
 
     def test_undersized_evaluation_cannot_claim_gate_met(self, caplog):
@@ -563,3 +572,265 @@ class TestStanceShareCapture:
         assert recorded["diagnostics/eval_gate_data_complete"] == 0.0
         assert recorded["diagnostics/eval_unsupported_duty"] == pytest.approx(0.19)
         assert recorded["diagnostics/eval_bilateral_support_duty"] == pytest.approx(0.66)
+
+
+class TestStanceScalarsMatchTheGate:
+    """What the callback publishes must be what the curriculum decides."""
+
+    HORIZON = 1000
+    CURRICULUM = {
+        "gate_kind": "stance_quality/v1",
+        "min_full_horizon_fraction": 0.95,
+        "max_unsupported_duty": 0.02,
+        "max_unsupported_duty_ucb": 0.02,
+        "settle_steps": 200,
+        "min_eval_episodes": 40,
+        "min_avg_reward": 1950.0,
+    }
+
+    def _callback(self, *, lengths, duties, bilateral=None, curriculum=None):
+        pytest.importorskip("stable_baselines3")
+        from unittest.mock import MagicMock
+
+        from environments.shared.eval_diagnostics import StageGatePlateauCallback
+
+        eval_callback = MagicMock()
+        eval_callback.evaluations_results = [[3000.0] * len(lengths)]
+        eval_callback.evaluations_length = [lengths]
+        eval_callback.evaluations_forward_velocities = [[]]
+        eval_callback.evaluations_successes = []
+        eval_callback.evaluations_unsupported_duties = [duties]
+        eval_callback.evaluations_bilateral_duties = [bilateral if bilateral is not None else [0.5] * len(lengths)]
+
+        callback = StageGatePlateauCallback(
+            eval_callback,
+            stage=1,
+            curriculum_kwargs=curriculum if curriculum is not None else self.CURRICULUM,
+            horizon=self.HORIZON,
+        )
+        recorded: dict = {}
+        callback.model = MagicMock()
+        callback.model.logger.record.side_effect = lambda key, value: recorded.setdefault(key, []).append(value)
+        callback.num_timesteps = 0
+        return callback, recorded
+
+    def test_the_duty_scalar_is_the_gated_value(self):
+        # 35 clean full-horizon episodes at 0.01 plus 5 that die at 400 while
+        # chattering at 0.60. The scalar used to average all 40 and read
+        # 0.084 against a 0.02 ceiling the policy was actually clearing.
+        from environments.shared.curriculum.stance_gate import stance_panel_from_episode_duties
+
+        lengths = [1000.0] * 35 + [400.0] * 5
+        duties = [0.01] * 35 + [0.60] * 5
+        callback, recorded = self._callback(lengths=lengths, duties=duties)
+        callback._process_evaluation(0)
+
+        panel = stance_panel_from_episode_duties(
+            episode_lengths=lengths,
+            episode_duties=duties,
+            episode_rewards=[3000.0] * 40,
+            horizon=self.HORIZON,
+        )
+        assert recorded["diagnostics/eval_unsupported_duty"][0] == pytest.approx(panel.mean_unsupported_duty)
+        assert recorded["diagnostics/eval_unsupported_duty"][0] == pytest.approx(0.01)
+
+    def test_every_gating_quantity_is_published(self):
+        lengths = [1000.0] * 40
+        callback, recorded = self._callback(lengths=lengths, duties=[0.01] * 40)
+        callback._process_evaluation(0)
+
+        for scalar in (
+            "diagnostics/eval_unsupported_duty",
+            "diagnostics/eval_unsupported_duty_ucb",
+            "diagnostics/eval_full_horizon_fraction",
+            "diagnostics/eval_duty_episodes",
+        ):
+            assert scalar in recorded, scalar
+
+    def test_bilateral_uses_the_same_episode_set_as_the_duty(self):
+        # The shares are only readable together if they are measured over the
+        # same episodes.
+        lengths = [1000.0] * 35 + [400.0] * 5
+        callback, recorded = self._callback(
+            lengths=lengths,
+            duties=[0.0] * 35 + [0.5] * 5,
+            bilateral=[1.0] * 35 + [0.0] * 5,
+        )
+        callback._process_evaluation(0)
+        assert recorded["diagnostics/eval_bilateral_support_duty"][0] == pytest.approx(1.0)
+
+    def test_duty_episodes_is_published_even_when_zero(self):
+        # The early-training signal that nothing survived the settling window.
+        lengths = [120.0] * 40
+        callback, recorded = self._callback(lengths=lengths, duties=[float("nan")] * 40)
+        callback._process_evaluation(0)
+        assert recorded["diagnostics/eval_duty_episodes"] == [0]
+        assert recorded["diagnostics/eval_full_horizon_fraction"] == [0.0]
+
+
+class TestPlateauSurvivesAnUnmeasurableMetric:
+    """One unmeasurable metric must not switch the whole diagnostic off."""
+
+    HORIZON = 1000
+
+    def _run(self, *, lengths, duties, curriculum, evaluations=8):
+        pytest.importorskip("stable_baselines3")
+        from unittest.mock import MagicMock
+
+        from environments.shared.eval_diagnostics import StageGatePlateauCallback
+
+        eval_callback = MagicMock()
+        eval_callback.evaluations_results = [[300.0] * len(lengths) for _ in range(evaluations)]
+        eval_callback.evaluations_length = [list(lengths) for _ in range(evaluations)]
+        eval_callback.evaluations_forward_velocities = [[] for _ in range(evaluations)]
+        eval_callback.evaluations_successes = []
+        eval_callback.evaluations_unsupported_duties = [list(duties) for _ in range(evaluations)]
+        eval_callback.evaluations_bilateral_duties = [list(duties) for _ in range(evaluations)]
+
+        callback = StageGatePlateauCallback(
+            eval_callback, stage=1, curriculum_kwargs=curriculum, plateau_window=5, horizon=self.HORIZON
+        )
+        recorded: dict = {}
+        callback.model = MagicMock()
+        callback.model.logger.record.side_effect = lambda key, value: recorded.setdefault(key, []).append(value)
+        callback.num_timesteps = 0
+
+        warnings: list[str] = []
+        handler = type("H", (logging.Handler,), {"emit": lambda _self, record: warnings.append(record.getMessage())})()
+        diagnostics_logger = logging.getLogger("environments.shared.eval_diagnostics")
+        diagnostics_logger.addHandler(handler)
+        try:
+            for index in range(evaluations):
+                callback._process_evaluation(index)
+        finally:
+            diagnostics_logger.removeHandler(handler)
+        return recorded, [message for message in warnings if "PLATEAU" in message]
+
+    STANCE = {
+        "gate_kind": "stance_quality/v1",
+        "min_full_horizon_fraction": 0.95,
+        "max_unsupported_duty": 0.02,
+        "max_unsupported_duty_ucb": 0.02,
+        "settle_steps": 200,
+        "min_eval_episodes": 40,
+        "min_avg_reward": 1950.0,
+    }
+
+    def test_a_dying_run_still_reports_the_length_plateau(self):
+        # Episodes end at 120 steps, before settle_steps=200, so every duty is
+        # NaN. Adding duty to the priority list used to make _process_evaluation
+        # return early, silencing the length plateau warning that had worked --
+        # in exactly the phase where a stuck policy needs flagging.
+        recorded, warnings = self._run(lengths=[120.0] * 40, duties=[float("nan")] * 40, curriculum=self.STANCE)
+        assert warnings, "the survival plateau must still be reported"
+        assert "full-horizon episodes" in warnings[0]
+        assert "episodes are ending early" in warnings[0]
+        assert recorded["diagnostics/eval_gate_met"] == [0.0] * 8
+        # Still honestly marked as an incomplete panel.
+        assert recorded["diagnostics/eval_gate_data_complete"] == [0.0] * 8
+
+    def test_a_partial_panel_is_never_reported_as_meeting_the_gate(self):
+        # Length and reward clear their criteria; duty is unmeasurable. The
+        # gate is not met, because it was not fully checked.
+        recorded, _ = self._run(
+            lengths=[1000.0] * 40,
+            duties=[float("nan")] * 40,
+            curriculum={**self.STANCE, "min_avg_reward": -1e9},
+        )
+        assert recorded["diagnostics/eval_gate_data_complete"] == [0.0] * 8
+        assert recorded["diagnostics/eval_gate_met"] == [0.0] * 8
+
+    def test_a_complete_panel_that_clears_everything_is_reported_met(self):
+        recorded, warnings = self._run(
+            lengths=[1000.0] * 40,
+            duties=[0.001] * 40,
+            curriculum={**self.STANCE, "min_avg_reward": -1e9},
+        )
+        assert recorded["diagnostics/eval_gate_data_complete"] == [1.0] * 8
+        assert recorded["diagnostics/eval_gate_met"] == [1.0] * 8
+        assert not warnings
+
+
+class TestDiagnosticAgreesWithTheGate:
+    """The curve must not contradict the gate it reports on.
+
+    ``evaluate_stance_gate`` certifies on
+    ``ceil(min_eval_episodes x min_full_horizon_fraction)`` duty episodes --
+    38 of 40 for trex 1a. Requiring the full panel size here made a 39-of-40
+    panel PASS the gate while ``eval_gate_met`` read 0, which is the same
+    curve-vs-gate disagreement the stance scalars were fixed for.
+    """
+
+    HORIZON = 1000
+    CURRICULUM = {
+        "gate_kind": "stance_quality/v1",
+        "min_full_horizon_fraction": 0.95,
+        "max_unsupported_duty": 0.02,
+        "max_unsupported_duty_ucb": 0.02,
+        "settle_steps": 200,
+        "min_eval_episodes": 40,
+        "min_avg_reward": -1e9,
+    }
+
+    def _both_verdicts(self, n_short):
+        pytest.importorskip("stable_baselines3")
+        from unittest.mock import MagicMock
+
+        from environments.shared.curriculum.stance_gate import (
+            StanceGateThresholds,
+            evaluate_stance_gate,
+            stance_panel_from_episode_duties,
+        )
+        from environments.shared.eval_diagnostics import StageGatePlateauCallback
+
+        lengths = [1000.0] * (40 - n_short) + [400.0] * n_short
+        duties = [0.001] * (40 - n_short) + [0.5] * n_short
+        rewards = [3000.0] * 40
+
+        panel = stance_panel_from_episode_duties(
+            episode_lengths=lengths, episode_duties=duties, episode_rewards=rewards, horizon=self.HORIZON
+        )
+        gate_passes, _ = evaluate_stance_gate(
+            panel,
+            StanceGateThresholds(
+                min_full_horizon_fraction=0.95,
+                max_unsupported_duty=0.02,
+                max_unsupported_duty_ucb=0.02,
+                settle_steps=200,
+                min_eval_episodes=40,
+                min_avg_reward=-1e9,
+            ),
+        )
+
+        eval_callback = MagicMock()
+        eval_callback.evaluations_results = [rewards]
+        eval_callback.evaluations_length = [lengths]
+        eval_callback.evaluations_forward_velocities = [[]]
+        eval_callback.evaluations_successes = []
+        eval_callback.evaluations_unsupported_duties = [duties]
+        eval_callback.evaluations_bilateral_duties = [[0.9] * 40]
+
+        callback = StageGatePlateauCallback(
+            eval_callback, stage=1, curriculum_kwargs=self.CURRICULUM, horizon=self.HORIZON
+        )
+        recorded: dict = {}
+        callback.model = MagicMock()
+        callback.model.logger.record.side_effect = lambda key, value: recorded.setdefault(key, []).append(value)
+        callback.num_timesteps = 0
+        callback._process_evaluation(0)
+        return gate_passes, recorded.get("diagnostics/eval_gate_met", [None])[0]
+
+    @pytest.mark.parametrize("n_short", [0, 1, 2, 3, 5])
+    def test_eval_gate_met_matches_the_gate_verdict(self, n_short):
+        gate_passes, reported = self._both_verdicts(n_short)
+        assert reported == (1.0 if gate_passes else 0.0), (
+            f"{n_short} early failures: gate says {gate_passes}, curve says {reported}"
+        )
+
+    def test_the_boundary_is_the_gates_own_rule(self):
+        from environments.shared.curriculum.stance_gate import required_duty_episodes
+
+        assert required_duty_episodes(40, 0.95) == 38
+        # 38 duty episodes is enough for both; 37 is enough for neither.
+        assert self._both_verdicts(2) == (True, 1.0)
+        assert self._both_verdicts(3) == (False, 0.0)

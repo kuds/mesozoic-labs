@@ -408,8 +408,9 @@ def upload_curriculum_artifacts(
       ``training/<species>/<run>/stage<N>/models/``
     * Each stage's ``stage_summary.txt`` →
       ``training/<species>/<run>/stage<N>/stage_summary.txt``
-    * Each stage's replay videos (``*.mp4``) →
-      ``training/<species>/<run>/stage<N>/``
+    * Each stage's replay videos (``replays/*.mp4``, or ``*.mp4`` in a
+      legacy flat stage directory) →
+      ``training/<species>/<run>/stage<N>/``, at the same relative path
 
     When *bucket* is ``None`` (no GCP info provided), this function is a
     no-op and all artifacts remain local only.
@@ -475,9 +476,24 @@ def upload_curriculum_artifacts(
             if sidecar.exists():
                 _upload_to_gcs(sidecar, bucket, f"{gcs_stage_prefix}/{name}", project=project, client=client)
 
-        # Replay videos (*.mp4)
-        for video in stage_dir.glob("*.mp4"):
-            _upload_to_gcs(video, bucket, f"{gcs_stage_prefix}/{video.name}", project=project, client=client)
+        # Replay videos.  Resolved through stage_layout rather than a local
+        # glob so both the nested `replays/` directory and the legacy flat
+        # layout upload, and so a future move cannot silently stop uploading
+        # them the way a `glob("*.mp4")` here would.  The relative path is
+        # preserved, so GCS mirrors the run directory.
+        #
+        # Deliberately videos only, matching what this function has always
+        # uploaded.  `iter_generated_artifacts` would also sweep in the
+        # figures and the per-frame stance CSVs — the latter are ~1.7 MB
+        # each — and quietly enlarging what lands in someone's bucket is not
+        # a layout change.  Widening the scope is a separate decision.
+        from .reporting import stage_layout
+
+        for artifact in stage_layout.iter_replay_files(stage_dir):
+            if artifact.suffix != ".mp4":
+                continue
+            relative = artifact.relative_to(stage_dir).as_posix()
+            _upload_to_gcs(artifact, bucket, f"{gcs_stage_prefix}/{relative}", project=project, client=client)
 
         # Models
         stage_model_dir = stage_dir / "models"

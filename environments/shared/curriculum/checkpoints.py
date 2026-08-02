@@ -275,3 +275,150 @@ def load_vecnorm_stats(
         eval_env.norm_reward = False
 
     return True
+
+
+#: Periodic checkpoints kept by default.  Matches the JAX backend's
+#: ``JaxTrainerConfig.max_checkpoints``, so a stage keeps the same amount of
+#: rollback history whichever backend produced it.
+DEFAULT_MAX_CHECKPOINTS = 5
+
+#: The three artifact families SB3's ``CheckpointCallback`` emits, as
+#: ``(infix, extension)``.  Its filenames are
+#: ``f"{name_prefix}_{infix}{num_timesteps}_steps.{ext}"``
+#: (``stable_baselines3.common.callbacks.CheckpointCallback._checkpoint_path``).
+_CHECKPOINT_KINDS: tuple[tuple[str, str], ...] = (
+    ("", "zip"),
+    ("vecnormalize_", "pkl"),
+    ("replay_buffer_", "pkl"),
+)
+
+
+def prune_periodic_checkpoints(
+    model_dir: "str | Path",
+    name_prefix: str,
+    max_checkpoints: int,
+) -> list[Path]:
+    """Delete all but the newest *max_checkpoints* periodic checkpoints.
+
+    Matches only SB3's periodic ``{prefix}_{steps}_steps.*`` files and their
+    ``vecnormalize_`` / ``replay_buffer_`` siblings.  ``best_model``,
+    ``robust_best_model`` and ``stage<N>_final`` do not fit that pattern and
+    are therefore unreachable from here by construction rather than by an
+    exclusion list that could fall out of date.
+
+    Ordering is by the **step count parsed from the filename**, not by mtime:
+    on a Drive or GCS-FUSE mount the modification times reflect when the
+    bytes finished uploading, which is not the order they were produced in.
+
+    A checkpoint whose model ``.zip`` is pruned takes its matched
+    ``vecnormalize_`` statistics with it — keeping orphaned statistics would
+    leave a ``.pkl`` that no longer belongs to any policy in the directory.
+
+    Returns the paths actually deleted, oldest step first.  A file that
+    cannot be unlinked is logged and skipped rather than aborting the rest:
+    these are archival copies, and one locked file must not leave the
+    directory half-pruned.  ``max_checkpoints <= 0`` disables pruning
+    entirely and returns ``[]``.
+    """
+    directory = Path(model_dir)
+    if max_checkpoints <= 0 or not directory.is_dir():
+        return []
+
+    # Group every artifact by the step count in its name, so a step is only
+    # ever dropped as a complete set.
+    by_step: dict[int, list[Path]] = {}
+    for infix, extension in _CHECKPOINT_KINDS:
+        pattern = f"{name_prefix}_{infix}*_steps.{extension}"
+        for path in directory.glob(pattern):
+            remainder = path.name[len(f"{name_prefix}_{infix}") : -len(f"_steps.{extension}")]
+            if not remainder.isdigit():
+                # The remainder between the prefix and `_steps.<ext>` must be
+                # the step count and nothing else. Anything unparsed is not a
+                # file this function put here, so it is left alone rather than
+                # deleted on a guess.
+                continue
+            by_step.setdefault(int(remainder), []).append(path)
+
+    doomed_steps = sorted(sorted(by_step, reverse=True)[max_checkpoints:])
+    removed: list[Path] = []
+    for step in doomed_steps:
+        for path in by_step[step]:
+            try:
+                path.unlink()
+            except OSError:
+                logger.warning("Could not prune checkpoint %s", path, exc_info=True)
+                continue
+            removed.append(path)
+    return removed
+
+
+class CheckpointRetentionCallback(BaseCallback):  # type: ignore[misc]
+    """Keep only the newest *max_checkpoints* periodic checkpoints.
+
+    SB3's ``CheckpointCallback`` never deletes anything.  At the shipped
+    ``save_freq = 500_000`` a 6M-step stage 1 leaves **twelve** 4.02 MB
+    policy zips plus their VecNormalize sidecars — measured on run
+    ``20260801_021545``, where ``models/`` totals 60 MB of which 48 MB is
+    periodic history, and a three-stage run is ~200 MB. Those files live on
+    a Drive mount and nothing in this repository reads them: they exist for
+    manual rollback, which needs recent history, not all of it.
+
+    Place this **after** the ``CheckpointCallback`` in the callback list so
+    it prunes on the same step a new checkpoint lands.  It never touches
+    ``best_model``, ``robust_best_model`` or ``stage<N>_final`` — see
+    :func:`prune_periodic_checkpoints` for why that is structural rather
+    than an exclusion list.
+
+    Args:
+        model_dir: Directory the paired ``CheckpointCallback`` saves into.
+        name_prefix: Its ``name_prefix`` (``f"stage{N}"``).
+        save_freq: The paired callback's ``save_freq``, already divided by
+            ``n_envs``. Pruning fires on the same ``n_calls`` cadence, which
+            matters: ``_on_step`` runs on *every* training step, and globbing
+            a Drive mount six million times a stage would cost far more than
+            the storage it reclaims.
+        max_checkpoints: How many step-points to keep. ``0`` disables
+            pruning, which is how a stage opts out of retention entirely.
+        verbose: Verbosity level.
+    """
+
+    def __init__(
+        self,
+        model_dir: "str | Path",
+        name_prefix: str,
+        save_freq: int,
+        max_checkpoints: int = DEFAULT_MAX_CHECKPOINTS,
+        verbose: int = 0,
+    ):
+        if not sb3_compat._SB3_AVAILABLE:
+            raise ImportError("stable-baselines3 is required for CheckpointRetentionCallback.")
+        if save_freq < 1:
+            raise ValueError("save_freq must be at least 1")
+        super().__init__(verbose)
+        self.model_dir = Path(model_dir)
+        self.name_prefix = name_prefix
+        self.save_freq = int(save_freq)
+        self.max_checkpoints = int(max_checkpoints)
+
+    def _prune(self) -> None:
+        removed = prune_periodic_checkpoints(self.model_dir, self.name_prefix, self.max_checkpoints)
+        if removed:
+            logger.info(
+                "Pruned %d periodic checkpoint file(s), keeping the newest %d step-points: %s",
+                len(removed),
+                self.max_checkpoints,
+                ", ".join(sorted(path.name for path in removed)),
+            )
+
+    def _on_step(self) -> bool:
+        # Same trigger CheckpointCallback uses, so pruning happens on exactly
+        # the steps a new checkpoint was written and never in between.
+        if self.n_calls % self.save_freq == 0:
+            self._prune()
+        return True
+
+    def _on_training_end(self) -> None:
+        # A stage can stop between save points (EvalCollapseEarlyStopCallback,
+        # or a budget that is not a multiple of save_freq), leaving the last
+        # prune stale. Cheap once, at the end.
+        self._prune()

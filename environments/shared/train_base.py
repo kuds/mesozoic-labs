@@ -402,6 +402,8 @@ def _build_core_callbacks(
     append additional stage-specific callbacks.
     """
     from .curriculum import (
+        DEFAULT_MAX_CHECKPOINTS,
+        CheckpointRetentionCallback,
         PublishEvalArtifactsCallback,
         RobustBestModelCallback,
         SaveVecNormalizeCallback,
@@ -446,13 +448,32 @@ def _build_core_callbacks(
     # best_model; next-stage loading prefers it when present.
     callbacks.append(RobustBestModelCallback(eval_callback, model_dir=model_dir, verbose=verbose))
 
+    checkpoint_stride = max(1, save_freq // n_envs)
     checkpoint_callback = sb3["CheckpointCallback"](
-        save_freq=save_freq // n_envs,
+        save_freq=checkpoint_stride,
         save_path=str(model_dir),
         name_prefix=f"stage{stage}",
         save_vecnormalize=True,
     )
     callbacks.append(checkpoint_callback)
+    # Immediately after, so a new checkpoint and the prune of the one it
+    # displaced land on the same step. SB3's CheckpointCallback never deletes
+    # anything: at save_freq = 500k a 6M-step stage kept twelve 4.02 MB policy
+    # zips plus their VecNormalize sidecars (48 MB of the 60 MB `models/`
+    # measured on run 20260801_021545), on a Drive mount, for files nothing in
+    # this repository reads. Set `max_checkpoints = 0` in [curriculum] to keep
+    # every one.
+    callbacks.append(
+        CheckpointRetentionCallback(
+            model_dir=model_dir,
+            name_prefix=f"stage{stage}",
+            save_freq=checkpoint_stride,
+            max_checkpoints=int(
+                stage_config.get("curriculum_kwargs", {}).get("max_checkpoints", DEFAULT_MAX_CHECKPOINTS)
+            ),
+            verbose=verbose,
+        )
+    )
 
     callbacks.append(_DiagCB(log_dir=str(log_path), verbose=verbose))
 

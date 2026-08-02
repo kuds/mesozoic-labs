@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -59,7 +60,28 @@ from environments.shared.species_registry import SPECIES_FACTORIES  # noqa: E402
 from environments.shared.stance_diagnostics import derive_stance_info  # noqa: E402
 
 
-def _load_policy(model_path: str, vecnorm_path: str | None, env_factory: Any):
+class StanceGateReportError(RuntimeError):
+    """The report could not be produced for a reason the caller should see.
+
+    Deliberately a plain ``Exception`` subclass rather than ``SystemExit``,
+    which is what these paths used to raise.  ``SystemExit`` derives from
+    ``BaseException``, so it sailed straight through the ``except Exception``
+    guard in ``reporting.stage_artifacts._write_stance_gate_report`` that
+    exists precisely so a diagnostic cannot sink a finished training run --
+    a truncated VecNormalize ``.pkl`` aborted artifact generation before the
+    graphs and videos were written.  ``main`` converts this to ``SystemExit``
+    for CLI use, which is where that behaviour belongs.
+    """
+
+
+def _load_policy(
+    model_path: str,
+    vecnorm_path: str | None,
+    env_factory: Any,
+    *,
+    plant_identity: Any = None,
+    allow_legacy_plant: bool = False,
+):
     """Return ``(predict_fn, describe)`` for a saved SB3 checkpoint.
 
     Observation normalisation is applied from the saved ``VecNormalize``
@@ -77,6 +99,10 @@ def _load_policy(model_path: str, vecnorm_path: str | None, env_factory: Any):
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
     model = PPO.load(model_path, device="cpu")
+    if plant_identity is not None:
+        from environments.shared.plant_contract import validate_model_plant
+
+        validate_model_plant(model, plant_identity, artifact=model_path, allow_legacy=allow_legacy_plant)
 
     if vecnorm_path is None:
         return (lambda obs: model.predict(obs, deterministic=True)[0]), "no obs normalisation"
@@ -87,12 +113,17 @@ def _load_policy(model_path: str, vecnorm_path: str | None, env_factory: Any):
         # A truncated or text-mode-copied .pkl is the usual cause, and the raw
         # UnpicklingError/KeyError gives no hint that the file rather than the
         # code is at fault.
-        raise SystemExit(
+        raise StanceGateReportError(
             f"cannot read VecNormalize statistics from {vecnorm_path}: "
             f"{type(exc).__name__}: {exc}. Re-copy the file in binary mode. "
             "Running without --vecnorm would evaluate the policy on unnormalised "
             "observations — a different policy — so this is fatal, not a warning."
         ) from exc
+
+    if plant_identity is not None:
+        from environments.shared.plant_contract import validate_model_plant
+
+        validate_model_plant(normalizer, plant_identity, artifact=vecnorm_path, allow_legacy=allow_legacy_plant)
 
     obs_rms = normalizer.obs_rms
     if isinstance(obs_rms, dict):
@@ -101,7 +132,7 @@ def _load_policy(model_path: str, vecnorm_path: str | None, env_factory: Any):
         # trained against a different observation contract than the stage
         # config builds — normalising with the wrong statistics would silently
         # score a different policy.
-        raise SystemExit(
+        raise StanceGateReportError(
             f"{vecnorm_path} holds per-key statistics for a Dict observation space "
             f"(keys: {sorted(obs_rms)}), but this stage builds a flat Box observation."
         )
@@ -123,7 +154,6 @@ def _load_policy(model_path: str, vecnorm_path: str | None, env_factory: Any):
 
 def run_panel(
     species: str,
-    stage: int,
     *,
     predict: Any,
     episodes: int,
@@ -131,10 +161,27 @@ def run_panel(
     settle_steps: int,
     horizon: int,
     env_kwargs: dict[str, Any],
+    plant_identity: Any = None,
 ) -> dict[str, Any]:
-    """Roll ``episodes`` deterministic episodes and reduce them for the gate."""
+    """Roll ``episodes`` deterministic episodes and reduce them for the gate.
+
+    The rollout environment is validated against *plant_identity* when one is
+    supplied, and always closed -- a MuJoCo env holds native handles, and the
+    artifact path builds one of these per stage.
+
+    Returns the panel plus the per-episode evidence it was reduced from, so a
+    caller can serialize the measurements rather than only their summary.
+    """
     env_class = SPECIES_FACTORIES[species]().env_class
     env = env_class(**env_kwargs)
+    if plant_identity is not None:
+        from environments.shared.plant_contract import validate_environment_plant
+
+        try:
+            validate_environment_plant(env, plant_identity, artifact=f"{species} stance gate report environment")
+        except BaseException:
+            env.close()
+            raise
 
     lengths: list[float] = []
     rewards: list[float] = []
@@ -147,6 +194,96 @@ def run_panel(
     # which one is not guessable from the aggregate score.
     components: dict[str, float] = {}
 
+    try:
+        _roll_episodes(
+            env,
+            predict=predict,
+            episodes=episodes,
+            seed=seed,
+            settle_steps=settle_steps,
+            lengths=lengths,
+            rewards=rewards,
+            duties=duties,
+            bilateral_duties=bilateral_duties,
+            single_duties=single_duties,
+            terminations=terminations,
+            components=components,
+        )
+    finally:
+        env.close()
+
+    panel = stance_panel_from_episode_duties(
+        episode_lengths=lengths,
+        episode_duties=duties,
+        episode_rewards=rewards,
+        horizon=horizon,
+    )
+
+    def _full_horizon_mean(values: list[float]) -> float:
+        """Mean over the same episodes the gate measures duty on.
+
+        The ungated shares used to be averaged over every episode that
+        measured anything, while the gated duty uses full-horizon episodes
+        only. The three then did not sum to 1 whenever an episode failed
+        early -- measured 0.90 with 5 failures in 40 -- which is exactly the
+        identity the report cites as the reason for printing bilateral at
+        all. Worse, the drift ran in the direction that hides the problem:
+        the flailing episodes were folded into bilateral and single but
+        excluded from unsupported.
+        """
+        kept = [value for value, length in zip(values, lengths) if length >= horizon and not np.isnan(value)]
+        return float(np.mean(kept)) if kept else float("nan")
+
+    return {
+        "panel": panel,
+        "lengths": np.asarray(lengths),
+        "rewards": np.asarray(rewards),
+        "terminations": terminations,
+        "components": {key: value / episodes for key, value in components.items()},
+        "bilateral_duty": _full_horizon_mean(bilateral_duties),
+        "single_duty": _full_horizon_mean(single_duties),
+        # The measurements the panel was reduced from. Kept rather than
+        # discarded so the report can serialize the evidence, not only its
+        # summary: an aggregate cannot be re-checked, and duty is the one
+        # column the publication evidence CSV does not carry.
+        "episodes": [
+            {
+                "episode": index,
+                "seed": seed + index,
+                "length": length,
+                "reward": reward,
+                "reached_horizon": length >= horizon,
+                "unsupported_duty": duty,
+                "bilateral_support_duty": bilateral,
+                "single_support_duty": single,
+            }
+            for index, (length, reward, duty, bilateral, single) in enumerate(
+                zip(lengths, rewards, duties, bilateral_duties, single_duties)
+            )
+        ],
+    }
+
+
+def _roll_episodes(
+    env: Any,
+    *,
+    predict: Any,
+    episodes: int,
+    seed: int,
+    settle_steps: int,
+    lengths: list[float],
+    rewards: list[float],
+    duties: list[float],
+    bilateral_duties: list[float],
+    single_duties: list[float],
+    terminations: dict[str, int],
+    components: dict[str, float],
+) -> None:
+    """Roll the panel, appending per-episode measurements to the given lists.
+
+    Split out only so ``run_panel`` can wrap it in the ``finally`` that closes
+    the environment; the accumulation is unchanged.
+    """
     for index in range(episodes):
         obs, _ = env.reset(seed=seed + index)
         total = 0.0
@@ -178,26 +315,11 @@ def run_panel(
                 break
         lengths.append(float(steps))
         rewards.append(total)
+        # All three shares stay positionally aligned with `lengths`, so the
+        # full-horizon filter below applies to them identically.
         duties.append(unsupported / measured if measured else float("nan"))
-        if measured:
-            bilateral_duties.append(bilateral / measured)
-            single_duties.append(single / measured)
-
-    panel = stance_panel_from_episode_duties(
-        episode_lengths=lengths,
-        episode_duties=duties,
-        episode_rewards=rewards,
-        horizon=horizon,
-    )
-    return {
-        "panel": panel,
-        "lengths": np.asarray(lengths),
-        "rewards": np.asarray(rewards),
-        "terminations": terminations,
-        "components": {key: value / episodes for key, value in components.items()},
-        "bilateral_duty": float(np.mean(bilateral_duties)) if bilateral_duties else float("nan"),
-        "single_duty": float(np.mean(single_duties)) if single_duties else float("nan"),
-    }
+        bilateral_duties.append(bilateral / measured if measured else float("nan"))
+        single_duties.append(single / measured if measured else float("nan"))
 
 
 #: Bumped when the JSON report's field meanings change.
@@ -232,17 +354,36 @@ def build_stance_gate_report(
     zero_action: bool = False,
     episodes: int | None = None,
     seed: int = 3042,
+    allow_legacy_plant: bool = False,
 ) -> dict[str, Any]:
     """Roll a policy and return its gate verdict as a serializable dict.
 
     Importable so the training pipeline can emit the same report it would
     produce by hand, rather than a second implementation that could disagree.
+
+    The checkpoint and the rollout environment are validated against the
+    species' current plant identity: a verdict measured on a different plant
+    than the one in the tree is not a verdict about this stage, and every
+    other artifact path in the repository already refuses that pairing. Pass
+    *allow_legacy_plant* to score a checkpoint that predates the contract --
+    which is a real use for this script, since it exists partly to judge
+    already-finished runs -- and the report records that it was done.
+
+    ``episodes`` of ``None`` means the stage's own ``min_eval_episodes``,
+    the panel size the bound's power is specified at. ``0`` is rejected
+    rather than silently treated as absent.
     """
+    if episodes is not None and episodes < 1:
+        raise ValueError(f"episodes must be at least 1 if given, got {episodes}")
     curriculum = stage_config["curriculum_kwargs"]
     env_kwargs = dict(stage_config["env_kwargs"])
     horizon = int(env_kwargs.get("max_episode_steps", 1000))
     thresholds = thresholds_from_curriculum(curriculum)
-    panel_episodes = episodes or thresholds.min_eval_episodes
+    panel_episodes = thresholds.min_eval_episodes if episodes is None else episodes
+
+    from environments.shared.plant_contract import current_plant_identity
+
+    plant_identity = current_plant_identity(species)
 
     env_class = SPECIES_FACTORIES[species]().env_class
     if zero_action:
@@ -257,18 +398,24 @@ def build_stance_gate_report(
     else:
         if model_path is None:
             raise ValueError("model_path is required unless zero_action is set")
-        predict, note = _load_policy(model_path, vecnorm_path, lambda: env_class(**env_kwargs))
+        predict, note = _load_policy(
+            model_path,
+            vecnorm_path,
+            lambda: env_class(**env_kwargs),
+            plant_identity=plant_identity,
+            allow_legacy_plant=allow_legacy_plant,
+        )
         description = f"{Path(model_path).name} — {note}"
 
     result = run_panel(
         species,
-        stage,
         predict=predict,
         episodes=panel_episodes,
         seed=seed,
         settle_steps=thresholds.settle_steps,
         horizon=horizon,
         env_kwargs=env_kwargs,
+        plant_identity=plant_identity,
     )
     panel = result["panel"]
     passed, failures = evaluate_stance_gate(panel, thresholds)
@@ -306,8 +453,20 @@ def build_stance_gate_report(
             "bilateral_support_duty": result["bilateral_duty"],
             "single_support_duty": result["single_duty"],
         },
+        # Whether the CHECKPOINT's plant identity was checked against the
+        # tree. `None` for --zero-action, which has no checkpoint to check.
+        # The rollout ENVIRONMENT is always validated regardless, so this
+        # field is deliberately narrow rather than a blanket "plant_validated"
+        # that would claim something false in the zero-action case.
+        "checkpoint_plant_validated": None if zero_action else not allow_legacy_plant,
         "terminations": result["terminations"],
         "reward_components": result["components"],
+        # The per-episode measurements the panel was reduced from. This is
+        # the duty evidence `result_bundle.evidence` refuses stance-gated
+        # bundles for lacking -- note it does NOT by itself lift that
+        # refusal, which reads `evaluation_selected.csv`; teaching that
+        # function to consume this is the remaining step.
+        "episode_evidence": result["episodes"],
     }
 
 
@@ -355,20 +514,56 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _json_safe(value: Any) -> Any:
+    """Replace non-finite floats with ``null``, recursively.
+
+    ``json.dumps`` writes bare ``NaN`` and ``Infinity`` tokens, which Python
+    reads back but RFC 8259 does not permit -- ``jq``, ``JSON.parse`` and Go's
+    ``encoding/json`` all reject them.  That bit exactly when it hurt most:
+    the gate's "unmeasurable" sentinel is ``+inf`` and the ungated shares are
+    ``NaN``, so it was the FAILING panel, the one worth inspecting, that
+    produced the unparseable file -- while the docstring below promises this
+    form exists so later tooling can read it without parsing prose.
+
+    ``null`` rather than a string, so a consumer's numeric parse fails loudly
+    instead of silently comparing ``"inf"``.  The human-readable text form
+    still prints ``inf``, and ``failures`` says which criterion was
+    unmeasurable.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
 def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) -> dict[str, Path]:
     """Write the report beside the stage's other artifacts.
 
     Two forms on purpose: the text is what a human opens next to
     ``stage_summary.txt``, and the JSON is what later tooling can read without
-    parsing prose -- including the per-episode duty evidence the publication
-    gate currently refuses stance-gated bundles for lacking.
+    parsing prose.
+
+    The JSON carries ``episode_evidence``: per-episode length, reward, duty
+    and the two ungated stance shares. That is the duty measurement
+    ``result_bundle.evidence`` refuses stance-gated bundles for lacking --
+    but it does **not** by itself lift that refusal, which reads
+    ``evaluation_selected.csv``. Teaching that function to consume this file,
+    or adding a duty column to the CSV, is the remaining step.
     """
     directory = Path(stage_dir)
     directory.mkdir(parents=True, exist_ok=True)
     text_path = directory / "stance_gate_report.txt"
     json_path = directory / "stance_gate_report.json"
     text_path.write_text(render_stance_gate_report(report) + "\n", encoding="utf-8")
-    json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    # allow_nan=False turns any non-finite value _json_safe missed into a
+    # ValueError here rather than an unparseable artifact on Drive.
+    json_path.write_text(
+        json.dumps(_json_safe(report), indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
     return {"stance_gate_report_txt": text_path, "stance_gate_report_json": json_path}
 
 
@@ -384,6 +579,12 @@ def main() -> int:
         help="Score the do-nothing policy instead of a checkpoint (the reference the gate is calibrated against)",
     )
     parser.add_argument("--episodes", type=int, default=None, help="Defaults to the stage's min_eval_episodes")
+    parser.add_argument(
+        "--allow-legacy-plant",
+        action="store_true",
+        help="Score a checkpoint that predates the plant contract. The verdict is then about a plant "
+        "that may differ from the one in the tree, and the report records plant_validated=false.",
+    )
     parser.add_argument("--seed", type=int, default=3042, help="First evaluation seed (default: publication seed)")
     parser.add_argument("--config", help="Explicit stage TOML path")
     parser.add_argument("--out-dir", help="Also write stance_gate_report.{txt,json} to this directory")
@@ -391,18 +592,29 @@ def main() -> int:
 
     if not args.zero_action and not args.model:
         parser.error("pass --model, or --zero-action for the do-nothing reference")
+    # `--episodes 0` used to fall through `episodes or min_eval_episodes` to the
+    # stage default AND skip the under-powered-panel warning below, so it
+    # silently produced a full-size panel while reading as an override.
+    if args.episodes is not None and args.episodes < 1:
+        parser.error(f"--episodes must be at least 1, got {args.episodes}")
 
     stage_config = load_stage_config(args.species, args.stage, config_path=args.config)
-    report = build_stance_gate_report(
-        args.species,
-        args.stage,
-        stage_config=stage_config,
-        model_path=args.model,
-        vecnorm_path=args.vecnorm,
-        zero_action=args.zero_action,
-        episodes=args.episodes,
-        seed=args.seed,
-    )
+    try:
+        report = build_stance_gate_report(
+            args.species,
+            args.stage,
+            stage_config=stage_config,
+            model_path=args.model,
+            vecnorm_path=args.vecnorm,
+            zero_action=args.zero_action,
+            episodes=args.episodes,
+            seed=args.seed,
+            allow_legacy_plant=args.allow_legacy_plant,
+        )
+    except StanceGateReportError as exc:
+        # The CLI boundary is where a diagnosable failure becomes an exit
+        # status; inside the library it stays an ordinary exception.
+        raise SystemExit(str(exc)) from exc
     print()
     print(render_stance_gate_report(report))
 
@@ -411,7 +623,7 @@ def main() -> int:
             print(f"written: {path}")
 
     declared = report["thresholds"]["min_eval_episodes"]
-    if args.episodes and args.episodes != declared:
+    if args.episodes is not None and args.episodes != declared:
         print()
         print(
             f"WARNING: --episodes {args.episodes} differs from the stage's min_eval_episodes "

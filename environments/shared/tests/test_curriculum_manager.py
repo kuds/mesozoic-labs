@@ -11,6 +11,7 @@ from environments.shared.curriculum.gate_schema import (
     GATE_KINDS,
     GATE_SCHEMA_VERSION,
     GateSchemaError,
+    validate_gate_config,
     validate_gate_configs,
 )
 
@@ -405,3 +406,24 @@ class TestThresholdsFromConfigs:
         configs = load_all_stages("velociraptor")
         thresholds = thresholds_from_configs(configs)
         assert isinstance(thresholds, dict)
+
+
+class TestRetentionKeys:
+    """``max_checkpoints`` configures artifact retention, not the gate."""
+
+    def test_the_schema_accepts_it(self):
+        # It is only settable from a TOML, and the fail-closed unknown-key
+        # check would otherwise make it unreachable there.
+        assert (
+            validate_gate_config(
+                1,
+                {**_GATE, "min_avg_reward": 100.0, "max_checkpoints": 3},
+            )
+            == "reward_and_length/v1"
+        )
+
+    def test_it_is_not_carried_onto_the_threshold(self):
+        thresholds = thresholds_from_configs(
+            {1: {"curriculum_kwargs": {**_GATE, "min_avg_reward": 100.0, "max_checkpoints": 3}}}
+        )
+        assert "max_checkpoints" not in thresholds[1]

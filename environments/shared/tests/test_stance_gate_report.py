@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from environments.shared.scripts import stance_gate_report
+from environments.shared.scripts.stance_gate_report import StanceGateReportError
 
 
 class _StubModel:
@@ -44,7 +45,7 @@ def test_corrupt_vecnorm_is_fatal_with_a_diagnosable_message(stub_ppo, tmp_path:
     truncated = tmp_path / "vecnorm.pkl"
     truncated.write_bytes(pickle.dumps({"obs_rms": None})[:12])
 
-    with pytest.raises(SystemExit) as excinfo:
+    with pytest.raises(StanceGateReportError) as excinfo:
         stance_gate_report._load_policy("model.zip", str(truncated), lambda: None)
 
     message = str(excinfo.value)
@@ -84,7 +85,7 @@ def test_dict_observation_statistics_are_rejected(stub_ppo, monkeypatch) -> None
     )
     monkeypatch.setattr(vec_env_module, "DummyVecEnv", lambda fns: None)
 
-    with pytest.raises(SystemExit) as excinfo:
+    with pytest.raises(StanceGateReportError) as excinfo:
         stance_gate_report._load_policy("model.zip", "v.pkl", lambda: None)
 
     message = str(excinfo.value)
@@ -170,6 +171,7 @@ class TestTrainingPipelineHook:
         models = tmp_path / "models"
         models.mkdir()
         (models / "robust_best_model.zip").write_bytes(b"not really a checkpoint")
+        (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
 
         monkeypatch.setattr(
             stance_gate_report,
@@ -186,13 +188,74 @@ class TestTrainingPipelineHook:
             )
         assert "Stance gate report failed" in caplog.text
 
+    def test_skips_when_the_selected_checkpoint_has_no_vecnorm(self, tmp_path, monkeypatch, caplog):
+        """No statistics means no verdict, rather than a verdict for another policy.
+
+        This used to pass ``vecnorm_path=None`` and score the checkpoint on
+        unnormalised observations -- a different policy -- then write the
+        result as this one's stance-gate verdict.
+        """
+        from environments.shared.reporting import stage_artifacts
+
+        models = tmp_path / "models"
+        models.mkdir()
+        (models / "robust_best_model.zip").write_bytes(b"x")
+        (models / "best_model.zip").write_bytes(b"x")
+
+        called: list = []
+        monkeypatch.setattr(
+            stance_gate_report,
+            "build_stance_gate_report",
+            lambda *a, **k: called.append(k) or {},
+        )
+        with caplog.at_level("WARNING"):
+            stage_artifacts._write_stance_gate_report(
+                species="trex",
+                stage=1,
+                stage_config=self._stage_config("stance_quality/v1"),
+                stage_dir=tmp_path,
+                model_dir=models,
+            )
+
+        assert called == []
+        assert "matched _vecnorm.pkl" in caplog.text
+        assert not (tmp_path / "stance_gate_report.json").exists()
+
+    def test_falls_back_when_only_best_model_is_complete(self, tmp_path, monkeypatch):
+        """A robust checkpoint without its statistics is skipped, not paired."""
+        from environments.shared.reporting import stage_artifacts
+
+        models = tmp_path / "models"
+        models.mkdir()
+        (models / "robust_best_model.zip").write_bytes(b"x")
+        (models / "best_model.zip").write_bytes(b"x")
+        (models / "best_model_vecnorm.pkl").write_bytes(b"stats")
+
+        seen: dict = {}
+        monkeypatch.setattr(
+            stance_gate_report,
+            "build_stance_gate_report",
+            lambda *a, **k: seen.update(k) or (_ for _ in ()).throw(RuntimeError("stop here")),
+        )
+        stage_artifacts._write_stance_gate_report(
+            species="trex",
+            stage=1,
+            stage_config=self._stage_config("stance_quality/v1"),
+            stage_dir=tmp_path,
+            model_dir=models,
+        )
+
+        assert seen["model_path"].endswith("best_model.zip")
+        assert seen["vecnorm_path"].endswith("best_model_vecnorm.pkl")
+
     def test_prefers_robust_best_model_and_writes_both_forms(self, tmp_path, monkeypatch):
         from environments.shared.reporting import stage_artifacts
 
         models = tmp_path / "models"
         models.mkdir()
-        (models / "best_model.zip").write_bytes(b"x")
-        (models / "robust_best_model.zip").write_bytes(b"x")
+        for name in ("best_model", "robust_best_model"):
+            (models / f"{name}.zip").write_bytes(b"x")
+            (models / f"{name}_vecnorm.pkl").write_bytes(b"stats")
         seen: dict = {}
 
         def _fake(species, stage, *, stage_config, model_path, vecnorm_path=None, **kwargs):
@@ -242,10 +305,13 @@ class TestTrainingPipelineHook:
         )
 
         # robust_best_model wins over SB3's mean-reward best_model, matching
-        # the order the trainer itself reloads in.
+        # the order the trainer itself reloads in — the same
+        # _select_handoff_checkpoint call the replay and the next-stage
+        # handoff make, so all three describe one policy.
         assert seen["model_path"].endswith("robust_best_model.zip")
-        # Absent vecnorm is passed as None rather than a path that is not there.
-        assert seen["vecnorm_path"] is None
+        # Its MATCHED statistics, never None: scoring on unnormalised
+        # observations would report a verdict for a different policy.
+        assert seen["vecnorm_path"].endswith("robust_best_model_vecnorm.pkl")
 
         import json as _json
 
@@ -254,3 +320,512 @@ class TestTrainingPipelineHook:
         assert "bilateral support" in text
         payload = _json.loads((tmp_path / "stance_gate_report.json").read_text())
         assert payload["metrics"]["mean_unsupported_duty"] == pytest.approx(0.1877)
+
+
+def test_loader_failures_are_ordinary_exceptions_not_systemexit() -> None:
+    """They used to be ``SystemExit``, which is a ``BaseException``.
+
+    ``reporting.stage_artifacts._write_stance_gate_report`` guards the report
+    with ``except Exception`` so a diagnostic cannot sink a finished run.
+    ``SystemExit`` sailed straight through it, so a truncated VecNormalize
+    ``.pkl`` aborted artifact generation before the graphs and videos.
+    """
+    assert issubclass(StanceGateReportError, Exception)
+    assert not issubclass(StanceGateReportError, SystemExit)
+
+
+class TestJsonIsParseable:
+    """The JSON form must be readable by tooling that is not Python."""
+
+    def _report(self, **metric_overrides):
+        metrics = {
+            "reward_mean": 210.0,
+            "reward_std": 30.0,
+            "episode_length_mean": 140.0,
+            "full_horizon_fraction": 0.0,
+            "mean_unsupported_duty": float("inf"),
+            "unsupported_duty_ucb": float("inf"),
+            "n_duty_episodes": 0,
+            "bilateral_support_duty": float("nan"),
+            "single_support_duty": float("nan"),
+        }
+        metrics.update(metric_overrides)
+        return {
+            "schema": "mesozoic.stance-gate-report/v1",
+            "species": "trex",
+            "stage": 1,
+            "gate_kind": "stance_quality/v1",
+            "policy": "robust_best_model.zip",
+            "episodes": 40,
+            "seed": 3042,
+            "settle_steps": 200,
+            "horizon": 1000,
+            "passed": False,
+            "failures": ["no full-horizon episode supplied a measurable unsupported duty"],
+            "thresholds": {
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_avg_reward": 1950.0,
+                "min_eval_episodes": 40,
+            },
+            "metrics": metrics,
+            "terminations": {"fell": 40},
+            "reward_components": {"reward_alive": 140.0},
+        }
+
+    def test_a_failed_panel_still_writes_strict_json(self, tmp_path):
+        # The unmeasurable panel is the one worth inspecting, and it is the
+        # one that used to emit bare NaN / Infinity tokens.
+        import json
+
+        stance_gate_report.write_stance_gate_report(tmp_path, self._report())
+        text = (tmp_path / "stance_gate_report.json").read_text()
+
+        assert "NaN" not in text
+        assert "Infinity" not in text
+        payload = json.loads(
+            text,
+            parse_constant=lambda name: pytest.fail(f"bare {name} is not valid JSON"),
+        )
+        assert payload["metrics"]["mean_unsupported_duty"] is None
+        assert payload["metrics"]["bilateral_support_duty"] is None
+        # The count is a real zero, not a sentinel, and must survive as one.
+        assert payload["metrics"]["n_duty_episodes"] == 0
+
+    def test_the_text_form_still_shows_the_sentinel(self, tmp_path):
+        stance_gate_report.write_stance_gate_report(tmp_path, self._report())
+        text = (tmp_path / "stance_gate_report.txt").read_text()
+        assert "inf" in text
+
+    def test_finite_values_are_untouched(self, tmp_path):
+        import json
+
+        stance_gate_report.write_stance_gate_report(
+            tmp_path,
+            self._report(mean_unsupported_duty=0.0187, unsupported_duty_ucb=0.0191),
+        )
+        payload = json.loads((tmp_path / "stance_gate_report.json").read_text())
+        assert payload["metrics"]["mean_unsupported_duty"] == 0.0187
+        assert payload["metrics"]["unsupported_duty_ucb"] == 0.0191
+
+
+class TestStanceSharesSumToOne:
+    """The three shares must be measured over the same episodes.
+
+    The report prints bilateral and single support *because* the three sum to
+    1 -- that identity is the stated reason a falling unsupported duty does
+    not by itself mean the feet are being planted. They used to be averaged
+    over every episode that measured anything while the gated duty uses
+    full-horizon episodes only, so the identity broke whenever an episode
+    failed early, and it broke in the direction that hides the problem: the
+    flailing episodes were folded into bilateral and single but excluded from
+    unsupported.
+    """
+
+    HORIZON = 1000
+    SETTLE = 200
+
+    def _run(self, monkeypatch, n_short: int) -> dict:
+        import types
+
+        import numpy as np
+
+        horizon, settle = self.HORIZON, self.SETTLE
+
+        class FakeEnv:
+            action_space = types.SimpleNamespace(shape=(6,))
+
+            def __init__(self, **kwargs):
+                self.index = -1
+
+            def reset(self, seed=None):
+                self.index += 1
+                self.step_count = 0
+                self.short = self.index < n_short
+                return np.zeros(4), {}
+
+            def step(self, action):
+                self.step_count += 1
+                if self.short:
+                    # Flailing: airborne 4 steps in 5.
+                    unsupported, bilateral = self.step_count % 5 != 0, self.step_count % 5 == 0
+                else:
+                    unsupported, bilateral = False, True
+                info = {
+                    "r_foot_contact": 0.0 if unsupported else 50.0,
+                    "l_foot_contact": 0.0 if (unsupported or not bilateral) else 50.0,
+                    "reward_alive": 1.0,
+                }
+                done = self.step_count >= (400 if self.short else horizon)
+                return np.zeros(4), 3.0, done and self.short, done and not self.short, info
+
+            def close(self):
+                pass
+
+        # monkeypatch rather than assign-and-restore: it restores on failure
+        # too, and it keeps mypy from checking a SimpleNamespace stub against
+        # the registry's declared Callable[[], SpeciesConfig].
+        monkeypatch.setattr(
+            stance_gate_report, "SPECIES_FACTORIES", {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
+        )
+        return stance_gate_report.run_panel(
+            "trex",
+            predict=lambda obs: np.zeros(6),
+            episodes=40,
+            seed=0,
+            settle_steps=settle,
+            horizon=horizon,
+            env_kwargs={},
+        )
+
+    def test_the_shares_sum_to_one_when_episodes_fail_early(self, monkeypatch):
+        result = self._run(monkeypatch, n_short=5)
+        panel = result["panel"]
+        assert panel.n_duty_episodes == 35, "duty is measured on full-horizon episodes only"
+        total = panel.mean_unsupported_duty + result["bilateral_duty"] + result["single_duty"]
+        assert total == pytest.approx(1.0)
+
+    def test_the_shares_sum_to_one_on_a_clean_panel(self, monkeypatch):
+        result = self._run(monkeypatch, n_short=0)
+        panel = result["panel"]
+        total = panel.mean_unsupported_duty + result["bilateral_duty"] + result["single_duty"]
+        assert total == pytest.approx(1.0)
+
+    def test_shares_are_nan_when_no_episode_reaches_the_horizon(self, monkeypatch):
+        import math
+
+        result = self._run(monkeypatch, n_short=40)
+        assert math.isnan(result["bilateral_duty"])
+        assert math.isnan(result["single_duty"])
+
+
+class TestPanelHygiene:
+    """Lower-severity defects in the rollout harness."""
+
+    def _fake_env_class(self, recorder):
+        import types
+
+        import numpy as np
+
+        class FakeEnv:
+            action_space = types.SimpleNamespace(shape=(6,))
+
+            def __init__(self, **kwargs):
+                self.steps = 0
+                recorder["opened"] = recorder.get("opened", 0) + 1
+
+            def reset(self, seed=None):
+                self.steps = 0
+                return np.zeros(4), {}
+
+            def step(self, action):
+                self.steps += 1
+                info = {"r_foot_contact": 50.0, "l_foot_contact": 50.0}
+                return np.zeros(4), 1.0, False, self.steps >= 10, info
+
+            def close(self):
+                recorder["closed"] = recorder.get("closed", 0) + 1
+
+        return FakeEnv
+
+    def _run_panel(self, monkeypatch, recorder, **overrides):
+        import types
+
+        import numpy as np
+
+        monkeypatch.setattr(
+            stance_gate_report,
+            "SPECIES_FACTORIES",
+            {"trex": lambda: types.SimpleNamespace(env_class=self._fake_env_class(recorder))},
+        )
+        kwargs = dict(
+            predict=lambda obs: np.zeros(6),
+            episodes=3,
+            seed=0,
+            settle_steps=0,
+            horizon=10,
+            env_kwargs={},
+        )
+        kwargs.update(overrides)
+        return stance_gate_report.run_panel("trex", **kwargs)
+
+    def test_the_environment_is_closed(self, monkeypatch):
+        # A MuJoCo env holds native handles and the artifact path builds one
+        # per stage; leaking them across a sweep is how a worker runs out.
+        recorder: dict = {}
+        self._run_panel(monkeypatch, recorder)
+        assert recorder["closed"] == recorder["opened"]
+
+    def test_the_environment_is_closed_when_the_rollout_raises(self, monkeypatch):
+        recorder: dict = {}
+        with pytest.raises(RuntimeError):
+            self._run_panel(
+                monkeypatch, recorder, predict=lambda obs: (_ for _ in ()).throw(RuntimeError("policy blew up"))
+            )
+        assert recorder["closed"] == recorder["opened"]
+
+    def test_per_episode_evidence_is_returned_not_discarded(self, monkeypatch):
+        result = self._run_panel(monkeypatch, {})
+        evidence = result["episodes"]
+        assert len(evidence) == 3
+        first = evidence[0]
+        assert set(first) == {
+            "episode",
+            "seed",
+            "length",
+            "reward",
+            "reached_horizon",
+            "unsupported_duty",
+            "bilateral_support_duty",
+            "single_support_duty",
+        }
+        # Aligned with the panel it was reduced into.
+        assert [row["length"] for row in evidence] == list(result["lengths"])
+        assert all(row["reached_horizon"] for row in evidence)
+
+
+class TestBuildReportArguments:
+    def _stage_config(self):
+        return {
+            "curriculum_kwargs": {
+                "gate_schema_version": 1,
+                "gate_kind": "stance_quality/v1",
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_eval_episodes": 40,
+            },
+            "env_kwargs": {"max_episode_steps": 1000},
+        }
+
+    def test_zero_episodes_is_rejected_rather_than_treated_as_absent(self):
+        # `episodes or min_eval_episodes` silently produced a full 40-episode
+        # panel for `--episodes 0`, and skipped the under-powered warning too,
+        # so the flag read as an override that did nothing.
+        with pytest.raises(ValueError, match="at least 1"):
+            stance_gate_report.build_stance_gate_report(
+                "trex", 1, stage_config=self._stage_config(), zero_action=True, episodes=0
+            )
+
+    def test_negative_episodes_is_rejected(self):
+        with pytest.raises(ValueError, match="at least 1"):
+            stance_gate_report.build_stance_gate_report(
+                "trex", 1, stage_config=self._stage_config(), zero_action=True, episodes=-5
+            )
+
+
+class TestStanceReportEpisodesKnob:
+    """`stance_report_episodes` gives the artifact path a cost control.
+
+    The report costs a 40-episode rollout per stage AND per sweep trial,
+    which a fifty-trial sweep pays fifty times for a verdict nobody reads
+    until a trial is shortlisted.
+    """
+
+    def _stage_config(self, **curriculum):
+        base = {
+            "gate_schema_version": 1,
+            "gate_kind": "stance_quality/v1",
+            "min_full_horizon_fraction": 0.95,
+            "max_unsupported_duty": 0.02,
+            "max_unsupported_duty_ucb": 0.02,
+            "min_eval_episodes": 40,
+        }
+        base.update(curriculum)
+        return {"curriculum_kwargs": base, "env_kwargs": {"max_episode_steps": 1000}}
+
+    def _invoke(self, tmp_path, monkeypatch, stage_config):
+        from environments.shared.reporting import stage_artifacts
+
+        models = tmp_path / "models"
+        models.mkdir(exist_ok=True)
+        (models / "robust_best_model.zip").write_bytes(b"x")
+        (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
+
+        seen: dict = {}
+        monkeypatch.setattr(
+            stance_gate_report,
+            "build_stance_gate_report",
+            lambda *a, **k: seen.update(k) or (_ for _ in ()).throw(RuntimeError("stop after the call")),
+        )
+        stage_artifacts._write_stance_gate_report(
+            species="trex",
+            stage=1,
+            stage_config=stage_config,
+            stage_dir=tmp_path,
+            model_dir=models,
+        )
+        return seen
+
+    def test_defaults_to_the_stages_panel_size(self, tmp_path, monkeypatch):
+        seen = self._invoke(tmp_path, monkeypatch, self._stage_config())
+        assert seen["episodes"] == 40
+
+    def test_zero_skips_the_report_entirely(self, tmp_path, monkeypatch):
+        seen = self._invoke(tmp_path, monkeypatch, self._stage_config(stance_report_episodes=0))
+        assert seen == {}, "no rollout should be attempted"
+        assert not (tmp_path / "stance_gate_report.json").exists()
+
+    def test_an_override_is_honoured_and_warned_about(self, tmp_path, monkeypatch, caplog):
+        with caplog.at_level("WARNING"):
+            seen = self._invoke(tmp_path, monkeypatch, self._stage_config(stance_report_episodes=8))
+        assert seen["episodes"] == 8
+        # The bound's power is specified at min_eval_episodes; a smaller panel
+        # does not certify what the gate claims, and the log has to say so.
+        assert "does not certify what the gate claims" in caplog.text
+
+    def test_the_schema_accepts_the_key(self):
+        from environments.shared.curriculum.gate_schema import validate_gate_config
+
+        assert validate_gate_config(1, self._stage_config(stance_report_episodes=8)["curriculum_kwargs"])
+
+
+class TestPlantValidation:
+    """A verdict measured on a different plant is not a verdict about this stage.
+
+    Every other artifact path already refuses that pairing; this script did
+    not, while its own docstring advertises scoring already-finished runs --
+    exactly the checkpoints most likely to predate the current plant.
+    """
+
+    def _stage_config(self):
+        return {
+            "curriculum_kwargs": {
+                "gate_schema_version": 1,
+                "gate_kind": "stance_quality/v1",
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_eval_episodes": 2,
+            },
+            "env_kwargs": {"max_episode_steps": 1000},
+        }
+
+    def test_a_checkpoint_without_a_plant_identity_is_refused(self, stub_ppo):
+        from environments.shared.plant_contract import PlantCompatibilityError, current_plant_identity
+
+        identity = current_plant_identity("trex", verify_generated=False)
+        with pytest.raises(PlantCompatibilityError):
+            stance_gate_report._load_policy("model.zip", None, lambda: None, plant_identity=identity)
+
+    def test_allow_legacy_plant_permits_it(self, stub_ppo):
+        from environments.shared.plant_contract import current_plant_identity
+
+        identity = current_plant_identity("trex", verify_generated=False)
+        predict, _ = stance_gate_report._load_policy(
+            "model.zip", None, lambda: None, plant_identity=identity, allow_legacy_plant=True
+        )
+        assert callable(predict)
+
+    def test_no_identity_supplied_skips_validation(self, stub_ppo):
+        predict, _ = stance_gate_report._load_policy("model.zip", None, lambda: None)
+        assert callable(predict)
+
+    def test_the_report_records_whether_the_plant_was_validated(self, tmp_path):
+        # The flag travels with the number rather than being reconstructable
+        # only from whoever happened to read the console.
+        report = {
+            "schema": "mesozoic.stance-gate-report/v1",
+            "species": "trex",
+            "stage": 1,
+            "gate_kind": "stance_quality/v1",
+            "policy": "p",
+            "episodes": 40,
+            "seed": 3042,
+            "settle_steps": 200,
+            "horizon": 1000,
+            "passed": True,
+            "failures": [],
+            "checkpoint_plant_validated": False,
+            "thresholds": {
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_avg_reward": 1950.0,
+                "min_eval_episodes": 40,
+            },
+            "metrics": {
+                "reward_mean": 1.0,
+                "reward_std": 0.0,
+                "episode_length_mean": 1000.0,
+                "full_horizon_fraction": 1.0,
+                "mean_unsupported_duty": 0.0,
+                "unsupported_duty_ucb": 0.0,
+                "n_duty_episodes": 40,
+                "bilateral_support_duty": 1.0,
+                "single_support_duty": 0.0,
+            },
+            "terminations": {},
+            "reward_components": {},
+            "episode_evidence": [],
+        }
+        import json
+
+        stance_gate_report.write_stance_gate_report(tmp_path, report)
+        payload = json.loads((tmp_path / "stance_gate_report.json").read_text())
+        assert payload["checkpoint_plant_validated"] is False
+
+
+class TestCheckpointPlantProvenance:
+    """The recorded flag must describe what was actually checked.
+
+    It was ``plant_validated = not allow_legacy_plant``, but the rollout
+    environment is validated unconditionally and ``allow_legacy_plant`` only
+    relaxes the *checkpoint* check -- so for ``--zero-action``, which has no
+    checkpoint at all, a ``False`` here claimed something untrue.
+    """
+
+    def _stage_config(self):
+        return {
+            "curriculum_kwargs": {
+                "gate_schema_version": 1,
+                "gate_kind": "stance_quality/v1",
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_eval_episodes": 1,
+            },
+            "env_kwargs": {"max_episode_steps": 4},
+        }
+
+    def _report(self, monkeypatch, **kwargs):
+        import types
+
+        import numpy as np
+
+        class FakeEnv:
+            action_space = types.SimpleNamespace(shape=(6,))
+
+            def __init__(self, **kw):
+                self.steps = 0
+
+            def reset(self, seed=None):
+                self.steps = 0
+                return np.zeros(4), {}
+
+            def step(self, action):
+                self.steps += 1
+                return np.zeros(4), 1.0, False, self.steps >= 4, {"r_foot_contact": 50.0, "l_foot_contact": 50.0}
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr(
+            stance_gate_report, "SPECIES_FACTORIES", {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
+        )
+        monkeypatch.setattr(
+            "environments.shared.plant_contract.validate_environment_plant", lambda *a, **k: None, raising=False
+        )
+        return stance_gate_report.build_stance_gate_report(
+            "trex", 1, stage_config=self._stage_config(), episodes=1, **kwargs
+        )
+
+    def test_zero_action_records_none_because_there_is_no_checkpoint(self, monkeypatch):
+        report = self._report(monkeypatch, zero_action=True)
+        assert report["checkpoint_plant_validated"] is None
+
+    def test_zero_action_with_allow_legacy_still_records_none(self, monkeypatch):
+        # The flag is about a checkpoint; there isn't one either way.
+        report = self._report(monkeypatch, zero_action=True, allow_legacy_plant=True)
+        assert report["checkpoint_plant_validated"] is None

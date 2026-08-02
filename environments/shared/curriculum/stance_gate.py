@@ -330,6 +330,22 @@ def summarize_stance_panel(
     )
 
 
+def required_duty_episodes(min_eval_episodes: int, min_full_horizon_fraction: float) -> int:
+    """How many episodes must supply a duty before the bound means anything.
+
+    The survival requirement implies the panel should have produced this many
+    full-horizon episodes, so the bound must rest on at least that many.
+
+    Exported rather than inlined because two places need the same number: the
+    gate itself, and the evaluation diagnostic that plots whether the gate is
+    met.  When the diagnostic used the panel size instead, a 39-of-40 panel
+    PASSED the gate while the curve reported ``eval_gate_met = 0`` -- the
+    curve disagreeing with the gate it reports on, which is the defect the
+    diagnostic work exists to remove.
+    """
+    return math.ceil(min_eval_episodes * min_full_horizon_fraction)
+
+
 def evaluate_stance_gate(
     panel: StancePanel,
     thresholds: StanceGateThresholds,
@@ -369,7 +385,7 @@ def evaluate_stance_gate(
     # requirement implies the panel should have produced. Without this a panel
     # reporting 40 episodes while supplying 5 duties certified stance quality
     # from those 5 and still cleared the panel-size check on the 40.
-    min_duty_episodes = math.ceil(thresholds.min_eval_episodes * thresholds.min_full_horizon_fraction)
+    min_duty_episodes = required_duty_episodes(thresholds.min_eval_episodes, thresholds.min_full_horizon_fraction)
     if panel.n_duty_episodes < min_duty_episodes:
         failures.append(
             f"n_duty_episodes {panel.n_duty_episodes} < {min_duty_episodes} "

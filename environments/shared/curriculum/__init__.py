@@ -52,10 +52,13 @@ from __future__ import annotations
 from . import sb3_compat
 from .advancement import CurriculumCallback, RewardRampCallback, StageWarmupCallback
 from .checkpoints import (
+    DEFAULT_MAX_CHECKPOINTS,
+    CheckpointRetentionCallback,
     PublishEvalArtifactsCallback,
     RobustBestModelCallback,
     SaveVecNormalizeCallback,
     load_vecnorm_stats,
+    prune_periodic_checkpoints,
 )
 from .early_stopping import (
     EvalCollapseEarlyStopCallback,
@@ -79,6 +82,8 @@ __all__ = [
     "EntCoefDecayCallback",
     "EvalCollapseEarlyStopCallback",
     "GateSchemaError",
+    "CheckpointRetentionCallback",
+    "DEFAULT_MAX_CHECKPOINTS",
     "PublishEvalArtifactsCallback",
     "RewardRampCallback",
     "RobustBestModelCallback",
@@ -88,6 +93,7 @@ __all__ = [
     "_ConstantSchedule",
     "build_eval_collapse_early_stop_callback",
     "load_vecnorm_stats",
+    "prune_periodic_checkpoints",
     "sb3_compat",
     "thresholds_from_configs",
     "validate_gate_config",

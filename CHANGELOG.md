@@ -5,9 +5,216 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
+## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
+
+### Fixed
+- **The evaluation diagnostic no longer contradicts the gate it reports on.**
+  `evaluate_stance_gate` certifies on
+  `ceil(min_eval_episodes x min_full_horizon_fraction)` duty episodes — 38 of
+  40 for trex 1a — but `StageGatePlateauCallback` marked the duty metric
+  usable only at the full panel size, so a 39-of-40 panel **passed the gate
+  while `eval_gate_met` read 0**. That is the same curve-vs-gate disagreement
+  the stance scalars were fixed for, reintroduced one layer up. Both now
+  share `stance_gate.required_duty_episodes`. Two smaller companions:
+  `iter_replay_files` guarded `is_file()` on the nested branch but not the
+  legacy one, so a directory named `*.mp4` was handed to the GCS upload for
+  one layout and not the other; and the report's `plant_validated` was
+  `not allow_legacy_plant`, but the rollout environment is validated
+  unconditionally and the flag only relaxes the *checkpoint* check — so for
+  `--zero-action`, which has no checkpoint, `False` claimed something untrue.
+  It is now `checkpoint_plant_validated`, `None` when there is no checkpoint.
+- **Six smaller defects in the stance gate report.** (1) Its JSON now carries
+  `episode_evidence` — per-episode length, reward, duty and the two ungated
+  shares — which `write_stance_gate_report`'s docstring already claimed it
+  did. `run_panel` computed those and threw them away, so the file held only
+  a summary that cannot be re-checked. Note this does **not** by itself lift
+  `result_bundle.evidence`'s refusal of stance-gated bundles, which reads
+  `evaluation_selected.csv`; that docstring now says so instead of implying
+  otherwise. (2) `run_panel` closes its environment, including when the
+  rollout raises — a MuJoCo env holds native handles and the artifact path
+  builds one per stage. (3) Its unused `stage` parameter is gone. (4)
+  `stance_report_episodes` in `[curriculum]` overrides the report's panel
+  size, and `0` skips the report: the 40-episode rollout costs a few minutes
+  per stage *and* per sweep trial, which a fifty-trial sweep paid fifty times
+  with no way to decline. Overriding downward is logged as not certifying
+  what the gate claims. (5) `--episodes 0` is rejected rather than falling
+  through `episodes or min_eval_episodes` to a full-size panel while also
+  skipping the under-powered warning — it read as an override that silently
+  did nothing. (6) The checkpoint and the rollout environment are validated
+  against the species' current plant identity, as every other artifact path
+  already does; `--allow-legacy-plant` scores a checkpoint that predates the
+  contract — a real use, since the script exists partly to judge finished
+  runs — and the report records `plant_validated` so the flag travels with
+  the number.
+- **`[curriculum]` keys that were read but unregistered are now settable.**
+  `diagnostics_plateau_window`, `diagnostics_plateau_min_relative_variation`
+  and `supplementary_episodes` are each read with a default in the trainer,
+  which means each was intended to be configurable — but `validate_gate_config`
+  rejects any key it does not know, so setting one in a TOML was fatal. The
+  same trap `max_checkpoints` hit. Registered alongside the new
+  `stance_report_episodes`.
+- **A missing `mean_episode_return` is fatal instead of silently substituting
+  the per-step reward.** `min_avg_reward` is an episode-level threshold shared
+  with the SB3 TOMLs — trex stage 1 sets 1950.0 — while the MJX trainer's
+  `mean_reward` is the mean *per-step* rollout reward, ~3.3 for a standing
+  T-Rex. Three call sites substituted one for the other with three different
+  behaviours: `reward_and_length` warned and defaulted to `0.0`, the stance
+  branch fell back **silently** and defaulted to `-inf`, and
+  `run_curriculum`'s log line printed a third variant *labelled "episode
+  return"*. Substituting is always wrong — it compares numbers three orders
+  of magnitude apart — and merely happens to give the right verdict
+  sometimes; against the stance rail it gives 3.3 < 1950, so the stage never
+  advances and the only clue is a rail failure indistinguishable from a
+  policy that genuinely threw away its return. One resolver,
+  `episode_return_for_gate`, now raises `GateSchemaError` naming both numbers
+  when a finite reward criterion is configured and the episode return is
+  absent — matching how this module already treats a declared
+  `min_avg_episode_length` with no `mean_episode_length`. The rail is
+  optional for `stance_quality/v1`, so an absent return with no rail declared
+  stays fine. The live path is unaffected: `jax_trainer` always emits
+  `mean_episode_return`, so only a hand-written `train_fn` can reach the
+  raise — which is exactly who needs to be told which key to emit.
+- **The JAX/MJX publication gate no longer certifies a stance-gated stage on
+  the reward rail alone.** `jax_setup.run_stage_evaluation` called
+  `jax_eval.check_stage_gate`, which reads four fixed thresholds and knows
+  nothing about `gate_kind` — so for `stance_quality/v1` it certified on
+  whichever of the four happened to be set. On trex stage 1 that is
+  `min_avg_reward = 1950` alone, since `min_avg_episode_length` was retired
+  when the stance gate replaced it, and the verdict is written straight into
+  `stage_results["publication_gate_passed"]`. Measured: the zero-action
+  statue (3271.8) and the chattering policy the gate exists to reject
+  (2133.4, duty 0.319) **both passed**. The new
+  `check_stage_gate_for_config` dispatches on the declared kind and
+  reconstructs the stance panel from the CPU-eval foot traces, so the JAX
+  path now enforces the same criteria the SB3 one does. Reconstruction is
+  valid only where each step contributed one reading per side — the biped
+  case — and the guard is a measurement of the data in hand
+  (`len(diag_r_foot) == sum(lengths)`) rather than a species allow-list, so
+  the known `diag_r_foot`/`diag_l_foot` interleaving defect fails the gate
+  closed with its reason instead of silently mis-pairing feet.
+- **One unmeasurable metric no longer switches the whole evaluation
+  diagnostic off.** `StageGatePlateauCallback._process_evaluation` returned
+  early if *any* configured metric was short of samples. Adding unsupported
+  duty to the priority list then silenced the callback entirely for the case
+  it is most needed: early stage-1 training, where episodes end before
+  `settle_steps` and every duty is NaN. Measured — a flat, dying run produced
+  one plateau warning under `reward_and_length/v1` and **zero** under the
+  stance gate, with `eval_gate_met` and `eval_plateau_active` never recorded.
+  It now follows the metrics the evaluation can support and names the ones it
+  could not measure in the warning, so a partial panel cannot imply the
+  metric it reports is the whole story. `eval_gate_met` is still only 1.0
+  when every criterion was checkable.
+- **The TensorBoard duty scalar is the number the gate compares.**
+  `diagnostics/eval_unsupported_duty` averaged every episode while the gate
+  averages full-horizon episodes only: on a panel of 35 clean episodes at
+  0.01 plus 5 early failures at 0.60 the curve read **0.084 against a 0.02
+  ceiling the policy was actually clearing**. It is now built from the same
+  `stance_gate` reduction the curriculum runs. The three quantities that
+  actually decide advancement reached no logger at all and are now published
+  as `eval_unsupported_duty_ucb`, `eval_full_horizon_fraction` and
+  `eval_duty_episodes` — the last even when zero, which is the early-training
+  signal that nothing survived the settling window and otherwise reads
+  identically to "not evaluated". `eval_bilateral_support_duty` moved to the
+  same full-horizon episode set so the shares stay comparable.
+- **A failed stance gate report no longer costs a finished run its
+  artifacts.** `_load_policy` raised `SystemExit`, which derives from
+  `BaseException` and sailed through the `except Exception` guard in
+  `_write_stance_gate_report` that exists precisely so a diagnostic cannot
+  sink a run — a truncated VecNormalize `.pkl` aborted artifact generation
+  before the graphs and videos were written. It now raises
+  `StanceGateReportError`, and `main` converts that to `SystemExit` at the
+  CLI boundary where the behaviour belongs.
+- **The report's three stance shares sum to 1 again.** Bilateral and single
+  support were averaged over every episode that measured anything while the
+  gated duty uses full-horizon episodes only, so the identity broke whenever
+  an episode failed early — measured 0.90 with 5 failures in 40 — and it
+  broke in the direction that hides the problem, folding the flailing
+  episodes into bilateral and single but excluding them from unsupported.
+  That identity is the stated reason the report prints those shares at all.
+- **`stance_gate_report.json` is valid JSON.** `json.dumps` emitted bare
+  `NaN` and `Infinity` for the gate's unmeasurable sentinels — Python reads
+  them back, `jq`, `JSON.parse` and Go's `encoding/json` do not — so it was
+  the *failing* panel, the one worth inspecting, that produced an unparseable
+  file, while the docstring promises this form exists for tooling that does
+  not parse prose. Non-finite values now serialize as `null` (with
+  `allow_nan=False` as a backstop); the text form still prints `inf`.
 
 ### Changed
+- **The replay video now shows the checkpoint the evidence CSV is evidence
+  for.** `generate_stage_artifacts` recorded it from `best_model` and labelled
+  it `best`, while `evaluation_selected.csv`, the next-stage handoff, and the
+  stance gate report all resolve through `_select_handoff_checkpoint`, which
+  prefers the risk-adjusted `robust_best_model`. Both checkpoints normally
+  exist, so a stage directory held a video and an evidence CSV describing
+  **different policies**, with nothing in either name saying so — the kind of
+  mismatch that makes a published figure not match the numbers beside it.
+  There were four private copies of the preference order (the artifact
+  generator, `build_stage_results_from_eval_data`'s recorded `model_path`
+  — which is what the sweep trial worker records, with nothing else to
+  re-derive it — the stance gate report, and the SB3 notebook's
+  `train_stage`); all four now call the one selector, and the replay is
+  labelled `selected`
+  (`<species>_<algo>_stage<N>_selected.mp4`). Because that selector requires
+  the matched VecNormalize statistics, two silent-wrong-answer paths close
+  with it: the stance gate report no longer passes `vecnorm_path=None` when
+  the statistics are missing (scoring the policy on unnormalised observations
+  — a different policy — and reporting the verdict as this one's), and the
+  replay is skipped with a reason rather than showing footage that
+  misrepresents the checkpoint. The notebook's "robust weights, best_model's
+  statistics" hybrid case now falls back to `best_model` the way next-stage
+  loading always did, instead of raising.
+- **SB3 keeps only the newest `max_checkpoints` periodic checkpoints
+  (default 5).** SB3's `CheckpointCallback` never deletes anything: at the
+  shipped `save_freq = 500_000` a 6M-step stage 1 left **twelve** 4.02 MB
+  policy zips plus their VecNormalize sidecars — 48 MB of the 60 MB `models/`
+  measured on run `20260801_021545`, and ~200 MB for a three-stage run — on a
+  Drive mount, for files nothing in this repository reads. They exist for
+  manual rollback, which needs recent history, not all of it. The JAX backend
+  already capped this at `max_checkpoints = 5`; the default here matches so a
+  stage keeps the same rollback depth whichever backend produced it. At that
+  default the measured stage-1 `models/` goes **60.4 MB → 32.2 MB** (30 files
+  → 16), a three-stage run 181 MB → 97 MB. Note this reclaims *storage*, not
+  write bandwidth: all twelve checkpoints are still written and seven are
+  deleted again. Writing fewer would mean raising `save_freq`, which is a
+  different and lossier decision. Pruning
+  matches only the periodic `stage<N>_{steps}_steps.*` pattern, so
+  `best_model`, `robust_best_model` and `stage<N>_final` are unreachable from
+  it by construction rather than by an exclusion list that could fall out of
+  date; a pruned step takes its matched `vecnormalize_` statistics with it;
+  and ordering is by the step count parsed from the filename, not mtime,
+  which on a Drive mount records when the upload finished rather than when
+  the checkpoint was produced. It fires on the `CheckpointCallback` cadence,
+  not every step — `_on_step` runs millions of times a stage and globbing a
+  Drive mount that often would cost far more than the storage it reclaims.
+  Set `max_checkpoints = 0` in `[curriculum]` to keep every one.
+- **A stage's generated figures and replays are grouped into `figures/` and
+  `replays/`, and render to local scratch before publishing.** A stage
+  directory held 20 loose entries — 5 PNGs, 6 MP4s and 2 per-frame stance CSVs
+  intermixed with the config, summary and npz files — written by three
+  unrelated call sites, with the only reader
+  (`config.upload_curriculum_artifacts`) finding the videos through a
+  hand-written `glob("*.mp4")` that would have silently stopped uploading them
+  the moment either side moved. `reporting.stage_layout` now owns the layout
+  for both backends, and every accessor falls back to the legacy flat location
+  so the existing runs on Drive keep resolving; nothing rewrites history.
+  Rendering happens in local scratch and publishes in one batched pass of
+  atomic copies, because a stage directory is normally a Drive or GCS-FUSE
+  mount and both matplotlib's `savefig` and mediapy's encoder write
+  incrementally — every flush of a 700 KB mp4 was a separate round trip
+  interleaved with the encode. On run `20260801_021545` stage 1 that is
+  **130 writes against the mount reduced to 13** for the same 8.15 MB; the
+  time saved is a fraction of a second, so the durability is the real gain,
+  and the ~30 model and vecnorm files under `models/` remain the dominant
+  Drive cost and are untouched here. It also means a runtime that dies mid-encode
+  leaves the previous complete artifact set in place rather than a truncated
+  video, and that the replays which *did* render still land when a later one
+  raises. `evaluations.npz`, `diagnostics.npz` and `evaluation_{selected,final}.csv`
+  deliberately do **not** move: the first two are written on the training hot
+  path and read by a dozen call sites including the sweep tooling, and the
+  evaluation CSVs are the publication evidence contract `result_bundle.audit`
+  names by fixed relative path. Filenames inside `replays/` are unchanged and
+  still carry the redundant `<species>_<algo>_stage<N>` prefix the path already
+  states; dropping it is a separate rename.
 - **The stage-1 reward rails are sized to reject collapse, not to approximate
   competence** (0.60 × each statue's standing reward, superseding
   PLANT_VALIDATION §12's 0.89 ×): trex 2900 → **1950**, velociraptor and
