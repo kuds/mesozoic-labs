@@ -253,8 +253,8 @@ class TestGenerateStageArtifactsLayout:
         # Replays are rendered off the stage directory, then published into it.
         assert captured and all(d != tmp_path for d in captured), "replays must render off the Drive mount"
         assert sorted(p.name for p in (tmp_path / "replays").iterdir()) == [
-            "velociraptor_ppo_stage1_best.mp4",
             "velociraptor_ppo_stage1_final.mp4",
+            "velociraptor_ppo_stage1_selected.mp4",
         ]
         assert (tmp_path / "figures" / "training_curves.png").is_file()
 
@@ -266,14 +266,14 @@ class TestGenerateStageArtifactsLayout:
         assert (tmp_path / "stage_summary.txt").is_file()
         assert (tmp_path / "evaluations.npz").is_file()
 
-    def test_the_best_replay_survives_a_failure_on_the_final_one(self, tmp_path):
+    def test_the_selected_replay_survives_a_failure_on_the_final_one(self, tmp_path):
         def blow_up_on_final(label):
             if label == "final":
                 raise RuntimeError("plant identity mismatch")
 
         self._run(tmp_path, video_side_effect=blow_up_on_final)
         published = sorted(p.name for p in (tmp_path / "replays").iterdir())
-        assert published == ["velociraptor_ppo_stage1_best.mp4"]
+        assert published == ["velociraptor_ppo_stage1_selected.mp4"]
 
 
 class TestGcsUploadScope:
@@ -314,3 +314,154 @@ class TestGcsUploadScope:
         _touch(stage / "figures" / "training_curves.png")
         keys = self._uploaded(tmp_path, monkeypatch)
         assert not [k for k in keys if k.endswith(".png") or k.endswith("_stance.csv")]
+
+
+class TestSelectedCheckpointReplay:
+    """The replay must show the checkpoint the evidence CSV is evidence for.
+
+    `evaluation_selected.csv`, the next-stage handoff, and the stance gate
+    report all resolve through `_select_handoff_checkpoint`, which prefers
+    the risk-adjusted `robust_best_model`. The replay used to hardcode
+    `best_model`, so on any run carrying both the video and the evidence in
+    one folder described different policies.
+    """
+
+    def _run(self, tmp_path, present):
+        from unittest.mock import MagicMock, patch
+
+        import numpy as np
+
+        from environments.shared.plant_contract import attach_plant_identity, current_plant_identity
+        from environments.shared.reporting import generate_stage_artifacts
+
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+        for name in present:
+            (model_dir / name).write_bytes(b"fake")
+        np.savez(
+            str(tmp_path / "evaluations.npz"),
+            results=np.array([[10.0, 12.0]]),
+            ep_lengths=np.array([[100, 110]]),
+            timesteps=np.array([50000]),
+        )
+
+        species_cfg = MagicMock()
+        species_cfg.species = "velociraptor"
+        species_cfg.env_class = MagicMock
+
+        fake_model = MagicMock()
+        attach_plant_identity(fake_model, current_plant_identity("velociraptor", verify_generated=False))
+        algorithm = MagicMock()
+        algorithm.load.return_value = fake_model
+
+        with (
+            patch("environments.shared.train_base._ensure_sb3", return_value={"PPO": algorithm, "SAC": algorithm}),
+            patch("environments.shared.evaluation.record_stage_video") as video,
+        ):
+            generate_stage_artifacts(
+                species_cfg=species_cfg,
+                stage_config={
+                    "name": "Balance",
+                    "description": "Stand up",
+                    "env_kwargs": {"sim_dt": 0.01},
+                    "ppo_kwargs": {},
+                },
+                stage=1,
+                algorithm="ppo",
+                stage_dir=tmp_path,
+                seed=42,
+                timesteps=100_000,
+                generate_graphs=False,
+            )
+        calls = {c.kwargs["label"]: c.kwargs for c in video.call_args_list}
+        return calls, algorithm
+
+    ALL = (
+        "best_model.zip",
+        "best_model_vecnorm.pkl",
+        "robust_best_model.zip",
+        "robust_best_model_vecnorm.pkl",
+        "stage1_final.zip",
+        "stage1_final_vecnorm.pkl",
+    )
+
+    def test_replays_the_risk_adjusted_checkpoint_when_both_exist(self, tmp_path):
+        calls, algorithm = self._run(tmp_path, self.ALL)
+
+        assert set(calls) == {"selected", "final"}
+        assert calls["selected"]["vecnorm_path"].endswith("robust_best_model_vecnorm.pkl")
+        loaded = [str(c.args[0]) for c in algorithm.load.call_args_list]
+        assert any(path.endswith("robust_best_model") for path in loaded)
+        assert not any(path.endswith("/best_model") for path in loaded)
+
+    def test_falls_back_to_best_model_when_no_robust_checkpoint(self, tmp_path):
+        present = [n for n in self.ALL if not n.startswith("robust_")]
+        calls, _ = self._run(tmp_path, present)
+
+        assert set(calls) == {"selected", "final"}
+        assert calls["selected"]["vecnorm_path"].endswith("best_model_vecnorm.pkl")
+
+    def test_falls_back_when_the_robust_checkpoint_lacks_its_vecnorm(self, tmp_path):
+        # A hybrid — robust weights with best_model's statistics — is a third
+        # policy that is neither. The selector skips the incomplete candidate.
+        present = [n for n in self.ALL if n != "robust_best_model_vecnorm.pkl"]
+        calls, _ = self._run(tmp_path, present)
+
+        assert calls["selected"]["vecnorm_path"].endswith("best_model_vecnorm.pkl")
+
+    def test_skips_the_replay_when_no_candidate_has_its_vecnorm(self, tmp_path):
+        # Replaying on unnormalised observations shows a different policy;
+        # footage that misrepresents the checkpoint is worse than none.
+        present = ("best_model.zip", "robust_best_model.zip", "stage1_final.zip", "stage1_final_vecnorm.pkl")
+        calls, _ = self._run(tmp_path, present)
+
+        assert set(calls) == {"final"}
+
+
+class TestRecordedModelPathFollowsTheSelector:
+    """`stage_results["model_path"]` must name the checkpoint the replay shows.
+
+    `build_stage_results_from_eval_data` feeds the sweep trial worker, where
+    nothing else re-derives the path.
+    """
+
+    def _results(self, tmp_path, present):
+        import numpy as np
+
+        from environments.shared.reporting import build_stage_results_from_eval_data
+
+        model_dir = tmp_path / "models"
+        model_dir.mkdir()
+        for name in present:
+            (model_dir / name).write_bytes(b"fake")
+        np.savez(
+            str(tmp_path / "evaluations.npz"),
+            results=np.array([[1.0, 2.0]]),
+            ep_lengths=np.array([[10, 20]]),
+            timesteps=np.array([100]),
+        )
+        return build_stage_results_from_eval_data(
+            tmp_path,
+            1,
+            {"name": "Balance", "description": "d", "env_kwargs": {"sim_dt": 0.01}},
+            timesteps=1000,
+        )
+
+    def test_records_the_risk_adjusted_checkpoint(self, tmp_path):
+        results = self._results(
+            tmp_path,
+            ("best_model.zip", "best_model_vecnorm.pkl", "robust_best_model.zip", "robust_best_model_vecnorm.pkl"),
+        )
+        assert results["model_path"].endswith("robust_best_model")
+        assert results["vecnorm_path"].endswith("robust_best_model_vecnorm.pkl")
+
+    def test_records_best_model_when_that_is_the_selection(self, tmp_path):
+        results = self._results(tmp_path, ("best_model.zip", "best_model_vecnorm.pkl"))
+        assert results["model_path"].endswith("best_model")
+        assert results["vecnorm_path"].endswith("best_model_vecnorm.pkl")
+
+    def test_still_describes_a_run_with_no_complete_checkpoint(self, tmp_path):
+        # Descriptive, not a loader: an empty path would lose information the
+        # caller can check for itself.
+        results = self._results(tmp_path, ())
+        assert results["model_path"].endswith("best_model")

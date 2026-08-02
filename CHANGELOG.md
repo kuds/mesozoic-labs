@@ -8,6 +8,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
 ### Changed
+- **The replay video now shows the checkpoint the evidence CSV is evidence
+  for.** `generate_stage_artifacts` recorded it from `best_model` and labelled
+  it `best`, while `evaluation_selected.csv`, the next-stage handoff, and the
+  stance gate report all resolve through `_select_handoff_checkpoint`, which
+  prefers the risk-adjusted `robust_best_model`. Both checkpoints normally
+  exist, so a stage directory held a video and an evidence CSV describing
+  **different policies**, with nothing in either name saying so — the kind of
+  mismatch that makes a published figure not match the numbers beside it.
+  There were four private copies of the preference order (the artifact
+  generator, `build_stage_results_from_eval_data`'s recorded `model_path`
+  — which is what the sweep trial worker records, with nothing else to
+  re-derive it — the stance gate report, and the SB3 notebook's
+  `train_stage`); all four now call the one selector, and the replay is
+  labelled `selected`
+  (`<species>_<algo>_stage<N>_selected.mp4`). Because that selector requires
+  the matched VecNormalize statistics, two silent-wrong-answer paths close
+  with it: the stance gate report no longer passes `vecnorm_path=None` when
+  the statistics are missing (scoring the policy on unnormalised observations
+  — a different policy — and reporting the verdict as this one's), and the
+  replay is skipped with a reason rather than showing footage that
+  misrepresents the checkpoint. The notebook's "robust weights, best_model's
+  statistics" hybrid case now falls back to `best_model` the way next-stage
+  loading always did, instead of raising.
+- **SB3 keeps only the newest `max_checkpoints` periodic checkpoints
+  (default 5).** SB3's `CheckpointCallback` never deletes anything: at the
+  shipped `save_freq = 500_000` a 6M-step stage 1 left **twelve** 4.02 MB
+  policy zips plus their VecNormalize sidecars — 48 MB of the 60 MB `models/`
+  measured on run `20260801_021545`, and ~200 MB for a three-stage run — on a
+  Drive mount, for files nothing in this repository reads. They exist for
+  manual rollback, which needs recent history, not all of it. The JAX backend
+  already capped this at `max_checkpoints = 5`; the default here matches so a
+  stage keeps the same rollback depth whichever backend produced it. At that
+  default the measured stage-1 `models/` goes **60.4 MB → 32.2 MB** (30 files
+  → 16), a three-stage run 181 MB → 97 MB. Note this reclaims *storage*, not
+  write bandwidth: all twelve checkpoints are still written and seven are
+  deleted again. Writing fewer would mean raising `save_freq`, which is a
+  different and lossier decision. Pruning
+  matches only the periodic `stage<N>_{steps}_steps.*` pattern, so
+  `best_model`, `robust_best_model` and `stage<N>_final` are unreachable from
+  it by construction rather than by an exclusion list that could fall out of
+  date; a pruned step takes its matched `vecnormalize_` statistics with it;
+  and ordering is by the step count parsed from the filename, not mtime,
+  which on a Drive mount records when the upload finished rather than when
+  the checkpoint was produced. It fires on the `CheckpointCallback` cadence,
+  not every step — `_on_step` runs millions of times a stage and globbing a
+  Drive mount that often would cost far more than the storage it reclaims.
+  Set `max_checkpoints = 0` in `[curriculum]` to keep every one.
 - **A stage's generated figures and replays are grouped into `figures/` and
   `replays/`, and render to local scratch before publishing.** A stage
   directory held 20 loose entries — 5 PNGs, 6 MP4s and 2 per-frame stance CSVs

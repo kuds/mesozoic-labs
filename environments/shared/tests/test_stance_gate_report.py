@@ -170,6 +170,7 @@ class TestTrainingPipelineHook:
         models = tmp_path / "models"
         models.mkdir()
         (models / "robust_best_model.zip").write_bytes(b"not really a checkpoint")
+        (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
 
         monkeypatch.setattr(
             stance_gate_report,
@@ -186,13 +187,74 @@ class TestTrainingPipelineHook:
             )
         assert "Stance gate report failed" in caplog.text
 
+    def test_skips_when_the_selected_checkpoint_has_no_vecnorm(self, tmp_path, monkeypatch, caplog):
+        """No statistics means no verdict, rather than a verdict for another policy.
+
+        This used to pass ``vecnorm_path=None`` and score the checkpoint on
+        unnormalised observations -- a different policy -- then write the
+        result as this one's stance-gate verdict.
+        """
+        from environments.shared.reporting import stage_artifacts
+
+        models = tmp_path / "models"
+        models.mkdir()
+        (models / "robust_best_model.zip").write_bytes(b"x")
+        (models / "best_model.zip").write_bytes(b"x")
+
+        called: list = []
+        monkeypatch.setattr(
+            stance_gate_report,
+            "build_stance_gate_report",
+            lambda *a, **k: called.append(k) or {},
+        )
+        with caplog.at_level("WARNING"):
+            stage_artifacts._write_stance_gate_report(
+                species="trex",
+                stage=1,
+                stage_config=self._stage_config("stance_quality/v1"),
+                stage_dir=tmp_path,
+                model_dir=models,
+            )
+
+        assert called == []
+        assert "matched _vecnorm.pkl" in caplog.text
+        assert not (tmp_path / "stance_gate_report.json").exists()
+
+    def test_falls_back_when_only_best_model_is_complete(self, tmp_path, monkeypatch):
+        """A robust checkpoint without its statistics is skipped, not paired."""
+        from environments.shared.reporting import stage_artifacts
+
+        models = tmp_path / "models"
+        models.mkdir()
+        (models / "robust_best_model.zip").write_bytes(b"x")
+        (models / "best_model.zip").write_bytes(b"x")
+        (models / "best_model_vecnorm.pkl").write_bytes(b"stats")
+
+        seen: dict = {}
+        monkeypatch.setattr(
+            stance_gate_report,
+            "build_stance_gate_report",
+            lambda *a, **k: seen.update(k) or (_ for _ in ()).throw(RuntimeError("stop here")),
+        )
+        stage_artifacts._write_stance_gate_report(
+            species="trex",
+            stage=1,
+            stage_config=self._stage_config("stance_quality/v1"),
+            stage_dir=tmp_path,
+            model_dir=models,
+        )
+
+        assert seen["model_path"].endswith("best_model.zip")
+        assert seen["vecnorm_path"].endswith("best_model_vecnorm.pkl")
+
     def test_prefers_robust_best_model_and_writes_both_forms(self, tmp_path, monkeypatch):
         from environments.shared.reporting import stage_artifacts
 
         models = tmp_path / "models"
         models.mkdir()
-        (models / "best_model.zip").write_bytes(b"x")
-        (models / "robust_best_model.zip").write_bytes(b"x")
+        for name in ("best_model", "robust_best_model"):
+            (models / f"{name}.zip").write_bytes(b"x")
+            (models / f"{name}_vecnorm.pkl").write_bytes(b"stats")
         seen: dict = {}
 
         def _fake(species, stage, *, stage_config, model_path, vecnorm_path=None, **kwargs):
@@ -242,10 +304,13 @@ class TestTrainingPipelineHook:
         )
 
         # robust_best_model wins over SB3's mean-reward best_model, matching
-        # the order the trainer itself reloads in.
+        # the order the trainer itself reloads in — the same
+        # _select_handoff_checkpoint call the replay and the next-stage
+        # handoff make, so all three describe one policy.
         assert seen["model_path"].endswith("robust_best_model.zip")
-        # Absent vecnorm is passed as None rather than a path that is not there.
-        assert seen["vecnorm_path"] is None
+        # Its MATCHED statistics, never None: scoring on unnormalised
+        # observations would report a verdict for a different policy.
+        assert seen["vecnorm_path"].endswith("robust_best_model_vecnorm.pkl")
 
         import json as _json
 

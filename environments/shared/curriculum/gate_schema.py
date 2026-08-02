@@ -147,6 +147,12 @@ _COLLAPSE_KEYS = frozenset(
     }
 )
 
+#: Keys that configure artifact retention rather than the gate.  Without an
+#: entry here the fail-closed unknown-key check below would reject any TOML
+#: that set one, which would make the setting unreachable from config —
+#: the only place it is meant to be set.
+_RETENTION_KEYS = frozenset({"max_checkpoints"})
+
 #: The schema's own declaration keys.
 _SCHEMA_KEYS = frozenset({"gate_schema_version", "gate_kind"})
 
@@ -189,7 +195,7 @@ def validate_gate_config(
             that its declared kind does not consume, or omits the gate
             declaration entirely while advancement is enabled.
     """
-    known = _SCHEMA_KEYS | _SCHEDULE_KEYS | _COLLAPSE_KEYS | _ALL_THRESHOLD_KEYS
+    known = _SCHEMA_KEYS | _SCHEDULE_KEYS | _COLLAPSE_KEYS | _RETENTION_KEYS | _ALL_THRESHOLD_KEYS
     unknown = sorted(set(curriculum_kwargs) - known)
     if unknown:
         raise GateSchemaError(

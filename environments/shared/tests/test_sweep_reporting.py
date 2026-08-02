@@ -79,10 +79,13 @@ class TestGenerateTrialArtifacts:
         assert "Balance" in text
         assert "Velociraptor" in text
 
-        # Videos should be recorded for both best and final models
+        # Videos should be recorded for the selected and final checkpoints.
+        # "selected", not "best": the replay comes from the same selector that
+        # decides the next-stage handoff and that evaluation_selected.csv is
+        # evidence for, so the two describe one policy.
         assert mock_video.call_count == 2
         labels = [call.kwargs["label"] for call in mock_video.call_args_list]
-        assert "best" in labels
+        assert "selected" in labels
         assert "final" in labels
 
         # Returned results should have best eval metrics from evaluations.npz

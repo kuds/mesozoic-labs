@@ -93,8 +93,26 @@ def build_stage_results_from_eval_data(
             saved_config = _json.loads(saved_config_path.read_text())
             plant_identity = saved_config.get("plant_identity")
 
-    best_model_path = model_dir / "best_model"
-    vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
+    # The SELECTED checkpoint, so the `model_path` this records is the one the
+    # replay shows and the evidence CSV is evidence for. It used to hardcode
+    # `best_model` while the replay, the stance gate report and the next-stage
+    # handoff all resolved through `_select_handoff_checkpoint`, which prefers
+    # the risk-adjusted `robust_best_model`. This path feeds the sweep trial
+    # worker, where nothing else re-derives it.
+    #
+    # Falls back to `best_model` rather than skipping when no candidate is
+    # complete: unlike the replay and the gate report, this function only
+    # *describes* a run, and an empty model_path would lose information the
+    # caller can still check for itself.
+    from environments.shared.train_base import _select_handoff_checkpoint
+
+    handoff = _select_handoff_checkpoint(model_dir)
+    if handoff is None:
+        best_model_path = model_dir / "best_model"
+        vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
+    else:
+        _, selected_path, vecnorm_path = handoff
+        best_model_path = Path(selected_path)
     sim_dt = stage_config.get("env_kwargs", {}).get("sim_dt", 0.01)
 
     result = {
@@ -145,7 +163,7 @@ def _write_stance_gate_report(
 
     Deliberately non-fatal. This is a diagnostic; losing it must never cost a
     completed training run its artifacts, and the checkpoint may legitimately
-    be absent (a stage stopped before its first ``best_model`` was saved).
+    be absent (a stage stopped before its first evaluation produced one).
     """
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
 
@@ -153,33 +171,38 @@ def _write_stance_gate_report(
     if curriculum.get("gate_kind") != STANCE_GATE_KIND:
         return
 
-    # Same preference order the trainer uses when it reloads a stage's policy:
-    # the risk-adjusted checkpoint first, SB3's mean-reward one as fallback.
-    for name in ("robust_best_model", "best_model"):
-        model_path = model_dir / f"{name}.zip"
-        if model_path.is_file():
-            break
-    else:
+    # The SELECTED checkpoint, through the one selector — the same call the
+    # replay and the next-stage handoff make. This used to be a third private
+    # copy of the preference order that also passed `vecnorm_path=None` when
+    # the statistics were missing, silently scoring the policy on unnormalised
+    # observations: a different policy, reported as this one's gate verdict.
+    from environments.shared.train_base import _select_handoff_checkpoint
+
+    handoff = _select_handoff_checkpoint(model_dir)
+    if handoff is None:
         logger.warning(
-            "Stance gate report skipped for stage %d: no checkpoint in %s",
+            "Stance gate report skipped for stage %d: no checkpoint in %s has its "
+            "matched _vecnorm.pkl, and scoring without the observation statistics "
+            "would report a verdict for a different policy.",
             stage,
             model_dir,
         )
         return
 
-    vecnorm_path = model_dir / f"{model_path.stem}_vecnorm.pkl"
+    selected_name, selected_path, selected_vecnorm = handoff
     try:
         from environments.shared.scripts.stance_gate_report import (
             build_stance_gate_report,
             write_stance_gate_report,
         )
 
+        logger.info("Stance gate report scoring stage %d checkpoint: %s", stage, selected_name)
         report = build_stance_gate_report(
             species,
             stage,
             stage_config=stage_config,
-            model_path=str(model_path),
-            vecnorm_path=str(vecnorm_path) if vecnorm_path.is_file() else None,
+            model_path=f"{selected_path}.zip",
+            vecnorm_path=selected_vecnorm,
         )
         written = write_stance_gate_report(stage_dir, report)
         logger.info(
@@ -343,35 +366,59 @@ def _record_stage_replays(
     """
     species = species_cfg.species
 
-    # ── Record replay videos for best and final models ──────────────────
+    # ── Record replay videos for the selected and final checkpoints ──────
     from ..plant_contract import PlantCompatibilityError, current_plant_identity, validate_model_plant
 
     try:
         from environments.shared.evaluation import TREX_STAGE1_CAMERA_VIEWS, record_stage_video
-        from environments.shared.train_base import _ensure_sb3
+        from environments.shared.train_base import _ensure_sb3, _select_handoff_checkpoint
 
         sb3 = _ensure_sb3()
         env_kwargs = stage_config["env_kwargs"].copy()
         alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
         plant_identity = current_plant_identity(species)
 
-        best_model_path = model_dir / "best_model"
-        vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
         final_path = model_dir / f"stage{stage}_final"
         final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
         replay_diagnostics = species.lower() == "trex" and stage == 1
         replay_camera_views = TREX_STAGE1_CAMERA_VIEWS if replay_diagnostics else None
 
-        if (model_dir / "best_model.zip").exists():
-            best_model = alg_cls.load(str(best_model_path))
+        # The SELECTED checkpoint, via the same selector that decides the
+        # next-stage handoff and that `evaluation_selected.csv` is evidence
+        # for. This used to hardcode `best_model` and label the replay
+        # "best", while the selector prefers the risk-adjusted
+        # `robust_best_model` — so on any run where both exist (they
+        # normally do) the video and the evidence CSV in the same folder
+        # described DIFFERENT POLICIES, with nothing in either name saying
+        # so. `stance_gate_report` picks the risk-adjusted one too. One
+        # selector, one label.
+        #
+        # Returning None means no candidate has its matched VecNormalize
+        # statistics. Recording anyway would replay the policy on
+        # unnormalised observations — a different policy again — so the
+        # replay is skipped and says why, rather than producing footage
+        # that misrepresents the checkpoint.
+        handoff = _select_handoff_checkpoint(model_dir)
+        if handoff is None:
+            logger.warning(
+                "Stage %d selected-checkpoint replay skipped: neither robust_best_model nor "
+                "best_model in %s has its matched _vecnorm.pkl, and replaying without the "
+                "observation statistics would show a different policy.",
+                stage,
+                model_dir,
+            )
+        else:
+            selected_name, selected_path, selected_vecnorm = handoff
+            logger.info("Stage %d selected checkpoint for replay: %s", stage, selected_name)
+            selected_model = alg_cls.load(selected_path)
             validate_model_plant(
-                best_model,
+                selected_model,
                 plant_identity,
-                artifact=str(best_model_path) + ".zip",
+                artifact=f"{selected_path}.zip",
                 allow_legacy=allow_legacy_plant,
             )
             record_stage_video(
-                best_model,
+                selected_model,
                 env_class=species_cfg.env_class,
                 env_kwargs=env_kwargs,
                 stage=stage,
@@ -380,8 +427,8 @@ def _record_stage_replays(
                 species=species,
                 algorithm=algorithm,
                 seed=seed,
-                vecnorm_path=vecnorm_path,
-                label="best",
+                vecnorm_path=selected_vecnorm,
+                label="selected",
                 plant_identity=plant_identity,
                 allow_legacy_plant=allow_legacy_plant,
                 camera_views=replay_camera_views,
