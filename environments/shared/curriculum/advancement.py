@@ -12,12 +12,14 @@ from typing import Any, Callable, Optional
 import numpy as np
 
 from environments.shared.metrics import LocomotionMetrics, env_dt
+from environments.shared.stance_diagnostics import derive_stance_info
 from environments.shared.wandb_integration import log_eval_metrics
 
 from . import sb3_compat
 from .manager import CurriculumManager
 from .sb3_compat import BaseCallback
 from .schedules import _ConstantSchedule
+from .stance_gate import STANCE_GATE_KIND, StancePanel, stance_panel_from_episode_duties
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +106,57 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
             if latest:
                 return latest
         return fallback
+
+    def _stance_panel_for_eval(
+        self,
+        n_evals: int,
+        rewards: list[float],
+        lengths: list[float],
+    ) -> StancePanel | None:
+        """Build this evaluation's stance panel, or ``None`` if unavailable.
+
+        Read from ``StageAwareEvalCallback``'s per-episode capture over the
+        *main* evaluation pass, so the bound is formed at the panel size it is
+        specified for rather than at the 10-episode supplementary sample.
+        Returns ``None`` when the stage does not gate on stance or the
+        callback did not record duties, which makes the gate fail closed
+        rather than advance on evidence nobody collected.
+        """
+        if self.curriculum_manager.current_threshold.gate_kind != STANCE_GATE_KIND:
+            return None
+
+        histories = getattr(self.eval_callback, "evaluations_unsupported_duties", None)
+        if histories is None or n_evals <= 0 or len(histories) < n_evals:
+            return None
+        duties = list(histories[n_evals - 1])
+        if not duties:
+            return None
+        if len(duties) != len(lengths):
+            # The two sources are matched positionally: lengths come from
+            # EvalCallback's npz, duties from the capture callback. If they
+            # disagree, every duty is paired with the wrong episode's length.
+            # Refuse rather than raise, so a training run degrades to "does
+            # not advance" instead of dying mid-stage.
+            logger.warning(
+                "Stage %d stance capture recorded %d episode duties for a %d-episode "
+                "evaluation; refusing to advance rather than pairing them positionally.",
+                self.curriculum_manager.current_stage,
+                len(duties),
+                len(lengths),
+            )
+            return None
+
+        return stance_panel_from_episode_duties(
+            episode_lengths=lengths,
+            episode_duties=duties,
+            episode_rewards=rewards,
+            horizon=self._eval_horizon(),
+        )
+
+    def _eval_horizon(self) -> int:
+        """Episode-step count that counts as reaching the horizon."""
+        env_kwargs = self.curriculum_manager.current_config().get("env_kwargs", {})
+        return int(env_kwargs.get("max_episode_steps", 1000))
 
     def _on_step(self) -> bool:
         if (self.num_timesteps - self._last_eval_step) < self.eval_freq:
@@ -268,7 +321,8 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         # when task success is an active gate for this stage.  Incidental
         # target contacts in balance/locomotion are not stage success.
         success_arg = self._success_rates_for_stage(npz_successes, success_flags or None)
-        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg):
+        stance_panel = self._stance_panel_for_eval(n_evals, rewards, lengths)
+        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg, stance_panel):
             self.ready_to_advance = True
             logger.info(
                 "CurriculumCallback: stage %d thresholds met at step %d. Stopping training for stage advancement.",
@@ -299,6 +353,11 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
         forward_vels: list[float] = []
         success_flags: list[float] = []
         episode_reports: list[dict[str, Any]] = []
+        # Per-episode unsupported duty, so this path can drive
+        # stance_quality/v1 too. Without it a stage on that gate would fail
+        # closed forever here — correct, but a silent dead end.
+        settle_steps = self.curriculum_manager.current_threshold.settle_steps
+        episode_duties: list[float] = []
 
         try:
             eval_dt = env_dt(self.eval_env)
@@ -309,16 +368,23 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 episode_length = 0
                 ep_forward_vels: list[float] = []
                 ep_success = 0.0
+                unsupported_steps = 0
+                measured_steps = 0
                 done = False
                 while not done:
                     action, _ = self.model.predict(obs, deterministic=True)
                     obs, reward, dones, infos = self.eval_env.step(action)
                     step_reward = float(reward[0])
                     episode_reward += step_reward
-                    episode_length += 1
                     metrics.record_step(infos[0], step_reward)
                     if "forward_vel" in infos[0]:
                         ep_forward_vels.append(float(infos[0]["forward_vel"]))
+                    if episode_length >= settle_steps:
+                        stance = derive_stance_info(infos[0])
+                        if stance:
+                            measured_steps += 1
+                            unsupported_steps += int(stance["unsupported_duty"])
+                    episode_length += 1
                     for key in ("bite_success", "strike_success", "food_reached"):
                         if infos[0].get(key):
                             ep_success = 1.0
@@ -329,6 +395,7 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
                 if ep_forward_vels:
                     forward_vels.append(float(np.mean(ep_forward_vels)))
                 success_flags.append(ep_success)
+                episode_duties.append(unsupported_steps / measured_steps if measured_steps else float("nan"))
                 episode_reports.append(metrics.compute())
         finally:
             if old_training is not None:
@@ -340,7 +407,15 @@ class CurriculumCallback(BaseCallback):  # type: ignore[misc]
 
         fwd_vel_arg = forward_vels if forward_vels else None
         success_arg = self._success_rates_for_stage(None, success_flags or None)
-        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg):
+        stance_panel = None
+        if self.curriculum_manager.current_threshold.gate_kind == STANCE_GATE_KIND:
+            stance_panel = stance_panel_from_episode_duties(
+                episode_lengths=lengths,
+                episode_duties=episode_duties,
+                episode_rewards=rewards,
+                horizon=self._eval_horizon(),
+            )
+        if self.curriculum_manager.should_advance(rewards, lengths, fwd_vel_arg, success_arg, stance_panel):
             self.ready_to_advance = True
             logger.info(
                 "CurriculumCallback: stage %d thresholds met at step %d. Stopping training for stage advancement.",

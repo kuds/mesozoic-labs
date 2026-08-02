@@ -118,6 +118,18 @@ def plot_training_curves(
             axes[0, 0].axhline(y=min_reward, color=color, linestyle="--", alpha=0.5)
         if min_length is not None:
             axes[0, 1].axhline(y=min_length, color=color, linestyle="--", alpha=0.5)
+        elif cur.get("min_full_horizon_fraction") is not None:
+            # stance_quality/v1 states the survival requirement as a fraction
+            # of episodes rather than a mean step count, so the length panel
+            # would otherwise lose its threshold line entirely. Draw the
+            # equivalent step count so the plot still shows what must be met.
+            horizon = stage_configs[stage_num].get("env_kwargs", {}).get("max_episode_steps", 1000)
+            axes[0, 1].axhline(
+                y=float(cur["min_full_horizon_fraction"]) * float(horizon),
+                color=color,
+                linestyle=":",
+                alpha=0.5,
+            )
 
         # Tilt angle and forward velocity from diagnostics
         diag_log = stage_dir / "diagnostics.npz"

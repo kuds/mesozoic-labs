@@ -371,6 +371,12 @@ luck.
 
 **Gate on unsupported duty; treat switch rate as diagnostic** until §11.3 is resolved.
 
+> **DONE for T-Rex 1a, 2026-08-01.** `[implemented]` Shipped as gate kind `stance_quality/v1`:
+> `min_full_horizon_fraction ≥ 0.95`, `max_unsupported_duty ≤ 0.02`, and a one-sided 95% upper
+> bound on mean duty `≤ 0.02`, over a 40-episode panel, with reward demoted to a rail. Switch
+> rate stayed diagnostic as directed. The full `stance_success` quantile conjunction is not
+> built; the two discriminating criteria and the certifying bound are.
+
 Proposed per-species thresholds — **for review, not adopted**:
 
 | species | noise | full-horizon | unsupported duty | contact switches | reward floor |
@@ -672,3 +678,22 @@ above stay a faithful snapshot:
   kind named `reward_and_length/v1`. `collapse_peak_floor` is 0.75 × each statue's standing
   reward, still absolute pending §14 item 3. The `stance_success` machinery and the §14 reward
   changes remain unimplemented — the latter deliberately, per §14's "wait for the fresh run".
+
+  > **SUPERSEDED 2026-08-01 for T-Rex stage 1.** `[implemented]` The §14 reward changes shipped,
+  > and the gate itself moved to a new kind, `stance_quality/v1`
+  > (`environments/shared/curriculum/stance_gate.py`). Three things above no longer describe
+  > T-Rex 1a:
+  >
+  > * `min_avg_episode_length` is **retired** for that stage. `min_full_horizon_fraction = 0.95`
+  >   states the same §12 requirement directly instead of encoding it as a mean step count, and
+  >   the schema now rejects the old key for this gate kind so both cannot express it at once.
+  > * `min_avg_reward = 1950` survives only as a **rail**, not a gate criterion. Run
+  >   `20260801_203206`'s own `zero_action_baseline.json` returned *"FAILS — a statue clears this
+  >   gate"*: the statue scores 3271.8 at 1000.0 steps, clearing both retired criteria.
+  > * `collapse_peak_floor` is no longer absolute — §14 item 3 shipped, and the floor is now
+  >   `0.45 × collapse_peak_floor_reference`.
+  >
+  > The `stance_success` conjunction of quantile criteria is still unbuilt; what shipped is the
+  > two criteria that discriminate, plus the certifying bound. The other three species remain on
+  > `reward_and_length/v1` pending their own calibration, and quadrupeds stay blocked on the
+  > `diag_r_foot`/`diag_l_foot` interleaving defect.

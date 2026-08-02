@@ -8,6 +8,7 @@ from environments.shared.curriculum import (
     thresholds_from_configs,
 )
 from environments.shared.curriculum.gate_schema import (
+    GATE_KINDS,
     GATE_SCHEMA_VERSION,
     GateSchemaError,
     validate_gate_configs,
@@ -293,7 +294,12 @@ class TestThresholdsFromConfigs:
         assert thresholds[1]["min_avg_reward"] == 10.0
         assert thresholds[1]["required_consecutive"] == 2
         assert thresholds[2]["min_avg_reward"] == 50.0
-        assert 3 not in thresholds  # declared non-advancing pilot -> no entry
+        # A declared non-advancing pilot now gets an explicit entry carrying its
+        # gate kind, rather than no entry at all. The old "no entry" shape left
+        # it on StageThreshold's permissive defaults (min_avg_reward = -inf),
+        # which pass on any evaluation; only the schema's refusal to accept
+        # "none/v1" under advancement kept that from being reachable.
+        assert thresholds[3]["gate_kind"] == "none/v1"
 
     def test_extracts_all_threshold_fields(self):
         configs = {
@@ -363,12 +369,34 @@ class TestThresholdsFromConfigs:
             thresholds_from_configs(configs, advancement_enabled=False)
 
     def test_every_committed_stage_config_declares_a_valid_gate(self):
-        """The shipped configs must satisfy the schema on every species."""
+        """The shipped configs must satisfy the schema on every species.
+
+        Asserts every declared kind is one the registry knows and both
+        backends evaluate, rather than pinning the specific kind each stage
+        uses — pinning the literal made adopting stance_quality/v1 for T-Rex
+        stage 1a look like a regression instead of the intended change.
+        """
         from environments.shared.config import load_all_stages
 
         for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
             kinds = validate_gate_configs(load_all_stages(species))
-            assert set(kinds.values()) == {"reward_and_length/v1"}, species
+            assert set(kinds.values()) <= set(GATE_KINDS), species
+            # "none/v1" refuses to advance, so a shipped curriculum stage must
+            # never declare it.
+            assert "none/v1" not in set(kinds.values()), species
+
+    def test_trex_stage1_gates_on_stance_quality(self):
+        """T-Rex 1a must not be gated on return: a statue is the reward optimum."""
+        from environments.shared.config import load_all_stages
+
+        curriculum = load_all_stages("trex")[1]["curriculum_kwargs"]
+        assert curriculum["gate_kind"] == "stance_quality/v1"
+        # The statue scores 3271.8 at 1000.0 steps, so the retired reward and
+        # length criteria were both cleared by doing nothing.
+        assert curriculum["min_avg_reward"] < 3271.8, "reward must be a rail below the statue, not a gate"
+        assert "min_avg_episode_length" not in curriculum
+        # The bound's power is specified at this panel size.
+        assert curriculum["min_eval_episodes"] == 40
 
     def test_with_real_configs(self):
         """Integration test: extract thresholds from actual TOML configs."""

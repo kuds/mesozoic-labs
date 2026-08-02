@@ -279,9 +279,25 @@ From a randomised initial state, converge to a stable upright pose and hold it t
 passive. That is the intended null for this stage and it is *not* a defect — settling is the
 capability 1a exists to certify.
 
-**What does not pass:** literal zero action, which reaches the full horizon in only 57.5% of
-episodes against the 90% proposed below. The two are often conflated; they are different
-policies with different scores.
+**What does not pass:** *(revision 2 text, now STALE — see the correction below)* literal zero
+action, which reaches the full horizon in only 57.5% of episodes against the 90% proposed below.
+The two are often conflated; they are different policies with different scores.
+
+> **CORRECTED 2026-08-01 — at the adopted 1a operating point, zero action DOES pass.** `[measured]`
+> The 57.5% figure is measured at `reset_noise_scale = 0.10`. §2.3.1 subsequently moved 1a to
+> **0.05**, where the statue reaches the full horizon in **99.17%** of episodes (119/120 pooled
+> over three independent 40-seed blocks) with unsupported duty **0.000**. Against the adopted
+> `min_full_horizon_fraction = 0.95` it passes comfortably.
+>
+> That is intentional, not a hole. §2.3.1 states the position directly: the statue's numbers are
+> what a 1a policy must **match, not beat** — it defines the quality ceiling, and 1a's job is to
+> certify a policy has not bought stability with actuation. The policy the gate must reject is
+> the **chatterer**, not the statue: run `20260801_021545`'s best checkpoint reached the horizon
+> on every rolled-out episode and, re-rolled on the current plant and reward over 40 episodes,
+> scores 2133.4 while spending **31.9%** of its post-settling steps with
+> neither foot loaded. Robustness is 1b's job, supplied through declared `xfrc_applied`
+> perturbations rather than reset noise, where a lucky draw and a good controller are
+> indistinguishable.
 
 ### 2.2 Configuration
 
@@ -353,10 +369,18 @@ oscillation and large transients — which is precisely the failure mode in §1.
 > 1. **Screening, every evaluation at n=40** — raw fractions, with `required_consecutive` as
 >    scheduler hysteresis ONLY. Re-running a deterministic panel is not statistical
 >    replication (§3.4 caution 3).
-> 2. **The load-bearing bound — one-sided LCB on MEAN UNSUPPORTED DUTY at n=40.** Duty is
+> 2. **The load-bearing bound — one-sided UCB on MEAN UNSUPPORTED DUTY at n=40.** Duty is
 >    continuous with tiny measured variance (the statue sits at 0.000 on all four species), so
 >    an interval on it has real power at 40 episodes where the pass/fail count has almost none.
 >    This is what actually certifies stance quality.
+>
+>    > **CORRECTED 2026-08-01 — this said LCB, which is the wrong direction.** Unsupported duty
+>    > is required to stay *below* a ceiling, so the conservative bound is the **upper** one.
+>    > A lower bound would pass a policy whose mean already exceeded the ceiling whenever the
+>    > panel happened to be noisy, which inverts the gate. The distinction does not apply to
+>    > item 1's `P(stance_success)`, where a lower bound is correct because that quantity must
+>    > stay *above* a floor. Implemented as UCB in
+>    > `environments/shared/curriculum/stance_gate.py`.
 > 3. **Confirmation — one predeclared held-out panel at n≈100–180** for the binary
 >    full-horizon event, run once a candidate qualifies (96/100 certifies `P ≥ 0.911`; 168/179
 >    certifies `P ≥ 0.900`). Evaluation is minutes and training is days, so this is the cheapest
@@ -370,26 +394,63 @@ oscillation and large transients — which is precisely the failure mode in §1.
 > recorded in KNOWN_ISSUES, which must be fixed before this rule can be applied to
 > brachiosaurus or dibothrosuchus.
 
-**This is new machinery, not a config change.** `StageThreshold`
-(`environments/shared/curriculum/manager.py:23-30`) currently supports exactly `min_avg_reward`,
+> **BUILT 2026-08-01 — `stance_quality/v1`.** `[implemented]` The gate now exists as a
+> registered kind in `environments/shared/curriculum/gate_schema.py`, evaluated by
+> `environments/shared/curriculum/stance_gate.py` and run identically by both backends. What
+> shipped is items 1 and 2 of the adopted rule, over the two criteria that discriminate; the
+> richer `stance_success` conjunction below (settling time, tail quantiles on height,
+> orientation, speed and drift) is **not** implemented, and neither is item 3's held-out panel.
+>
+> | criterion | T-Rex 1a | statue | chatterer (`20260801_021545`) |
+> |---|---|---|---|
+> | `min_full_horizon_fraction` | ≥ 0.95 | 0.9917 ✓ | 1.000 ✓ |
+> | `max_unsupported_duty` | ≤ 0.02 | 0.000 ✓ | **0.319 ✗** |
+> | `max_unsupported_duty_ucb` | ≤ 0.02 | 0.000 ✓ | **0.322 ✗** |
+> | `min_avg_reward` (rail) | ≥ 1950 | 3271.8 ✓ | 2133.4 ✓ |
+>
+> Two semantics were decided rather than inferred, and are recorded in the module docstring:
+> **failed episodes are excluded from duty** rather than scored as 1.0 (survival is already
+> gated by the horizon fraction; averaging duty over a failed episode's steps would flatter a
+> policy that faceplanted early), and **duty is measured after `settle_steps = 200`**, which is
+> `[inferred]`, not measured, and should be calibrated against rollout data.
+>
+> Duty is `derive_stance_info`'s `unsupported_duty` at its default **0.1 N** contact threshold,
+> deliberately not the reward's 42 N `min_support_force` — every calibration point above is
+> measured at 0.1 N.
+>
+> **JAX is gate-complete but emitter-incomplete.** `check_stage_gate` evaluates the kind through
+> the same shared function and raises `GateSchemaError` when the trainer supplies no stance
+> metrics, so it cannot half-enforce; the MJX evaluator does not yet emit them, so
+> `stance_quality/v1` stages are SB3-only until it does. Quadrupeds remain blocked on the
+> `diag_r_foot`/`diag_l_foot` interleaving defect.
+
+**This was new machinery, not a config change.** `StageThreshold`
+(`environments/shared/curriculum/manager.py:23-30`) supported exactly `min_avg_reward`,
 `min_avg_episode_length`, `min_avg_forward_vel`, `min_success_rate`, `min_eval_episodes` and
 `required_consecutive`. `[measured]` Revision 1 of this document said the proposed quantities
-"are already logged"; that conflated diagnostic logging with canonical gate evidence. Before any
-of this can gate advancement, the following must be specified and implemented:
+"are already logged"; that conflated diagnostic logging with canonical gate evidence. The
+following had to be specified and implemented — items still open are marked:
 
-* per-step → per-episode → per-evaluation aggregation, explicitly;
-* whether failed episodes contribute, and with what value;
-* the settling and tail window definitions;
-* whether drift means final, maximum, time-averaged or cumulative displacement;
-* per-species thresholds or morphology-normalised ones — `height_error` is currently T-Rex
-  instrumentation, not a four-species advancement metric;
-* SB3 and MJX/JAX parity;
-* persistence through reporting, result bundles, notebook and sweeps.
+* ~~per-step → per-episode → per-evaluation aggregation, explicitly~~ **done** —
+  `summarize_stance_panel` / `stance_panel_from_episode_duties`, the single reduction both
+  backends call;
+* ~~whether failed episodes contribute, and with what value~~ **done** — excluded;
+* the settling window is defined (`settle_steps`, applied before duty is accumulated); the
+  **tail window** for the quantile criteria is not, because those criteria are not built;
+* **open** — whether drift means final, maximum, time-averaged or cumulative displacement;
+* **open** — per-species thresholds or morphology-normalised ones. `height_error` is T-Rex
+  instrumentation, not a four-species advancement metric. Only T-Rex 1a is configured;
+* SB3 and MJX/JAX parity — **criteria done, MJX emitter open** (see the note above);
+* **open** — persistence through reporting, result bundles, notebook and sweeps.
 
-Provisional T-Rex values, to be calibrated rather than adopted: `T_settle` 200 steps,
-`h_max` 0.03 m, `d_max` 0.5 m. `[inferred]`
+Provisional T-Rex values, to be calibrated rather than adopted: `T_settle` 200 steps (adopted as
+`settle_steps`, still `[inferred]`), `h_max` 0.03 m, `d_max` 0.5 m. `[inferred]`
 
-`min_avg_reward` is **unset** for 1a — see §5.2, which makes that safe rather than fail-open.
+`min_avg_reward` is **set but demoted** for 1a, not unset. Revision 2 proposed unsetting it; the
+adopted position keeps it at 1950 (0.60 × the statue's 3271.8) as a *rail* whose only job is
+rejecting a policy that discarded most of the available return. A fail-closed schema makes "no
+reward criterion" something a config must declare deliberately, and a rail two-thirds below the
+achievable optimum cannot act as a competence bar. See §5.2.
 
 #### 2.3.1 The statistical operating point must be declared  `[measured]`
 

@@ -281,6 +281,12 @@ def build_results_csv_rows(
         row["ep_length_threshold"] = cur.get("min_avg_episode_length", "")
         row["forward_vel_threshold"] = cur.get("min_avg_forward_vel", "")
         row["success_rate_threshold"] = cur.get("min_success_rate", "")
+        # stance_quality/v1. Without these a stance-gated stage exports only
+        # its reward RAIL, reading as though reward were the gate.
+        row["gate_kind"] = cur.get("gate_kind", "")
+        row["full_horizon_fraction_threshold"] = cur.get("min_full_horizon_fraction", "")
+        row["unsupported_duty_ceiling"] = cur.get("max_unsupported_duty", "")
+        row["unsupported_duty_ucb_ceiling"] = cur.get("max_unsupported_duty_ucb", "")
         row["stage_passed"] = r.get("publication_gate_passed", "")
         row["publication_gate_passed"] = r.get("publication_gate_passed", "")
 

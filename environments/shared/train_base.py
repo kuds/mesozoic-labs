@@ -145,6 +145,27 @@ def cosine_schedule(initial_lr: float, final_lr: float):
 # ── Environment creation ─────────────────────────────────────────────────
 
 
+#: Evaluation panel size when a stage's gate does not demand a specific one.
+_DEFAULT_EVAL_EPISODES = 30
+
+
+def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
+    """Episodes per evaluation, never fewer than the stage's gate requires.
+
+    A gate that demands ``min_eval_episodes = 40`` against a 30-episode panel
+    can never pass — the panel-size criterion fails at every evaluation and
+    the stage runs to its timestep budget looking like a training failure.
+    Taking the maximum couples the two deliberately: the evaluation is sized
+    to the claim the gate intends to certify.
+
+    It matters for ``stance_quality/v1``, whose bound and whose 28%-rejection
+    analysis are both specified at n=40; at n=30 neither describes the gate
+    being run.
+    """
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    return max(_DEFAULT_EVAL_EPISODES, int(curriculum.get("min_eval_episodes", 0)))
+
+
 def make_env(
     species_cfg: SpeciesConfig,
     stage_configs: dict[int, dict[str, Any]],
@@ -412,7 +433,7 @@ def _build_core_callbacks(
         best_model_save_path=str(model_dir),
         log_path=local_eval_dir,
         eval_freq=eval_freq // n_envs,
-        n_eval_episodes=30,
+        n_eval_episodes=_eval_episodes_for_stage(stage_config),
         deterministic=True,
         render=False,
         verbose=max(verbose, 1),
@@ -1174,7 +1195,7 @@ def train_curriculum(
             curriculum_manager=manager,
             eval_env=eval_env,
             eval_freq=eval_freq,
-            n_eval_episodes=30,
+            n_eval_episodes=_eval_episodes_for_stage(config),
             eval_callback=eval_callback,
             supplementary_episodes=cur_kwargs.get("supplementary_episodes", 10),
         )
@@ -1387,6 +1408,12 @@ def _record_stage_result(
         "ep_length_threshold": cur_kwargs.get("min_avg_episode_length", ""),
         "forward_vel_threshold": cur_kwargs.get("min_avg_forward_vel", ""),
         "success_rate_threshold": cur_kwargs.get("min_success_rate", ""),
+        # stance_quality/v1. A stance-gated stage otherwise records only its
+        # reward rail, which reads as though reward were the gate.
+        "gate_kind": cur_kwargs.get("gate_kind", ""),
+        "full_horizon_fraction_threshold": cur_kwargs.get("min_full_horizon_fraction", ""),
+        "unsupported_duty_ceiling": cur_kwargs.get("max_unsupported_duty", ""),
+        "unsupported_duty_ucb_ceiling": cur_kwargs.get("max_unsupported_duty_ucb", ""),
         "stage_passed": bool(curriculum_cb is not None and curriculum_cb.ready_to_advance),
     }
     if plant_identity is not None:

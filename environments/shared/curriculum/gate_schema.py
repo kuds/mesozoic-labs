@@ -37,6 +37,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from .stance_gate import STANCE_GATE_KIND
+
 #: Bumped when the meaning of an existing key changes.  Adding a new gate
 #: kind does not require a bump; changing how an existing one is evaluated
 #: does.
@@ -59,6 +61,26 @@ GATE_KINDS: dict[str, frozenset[str]] = {
             "required_consecutive",
         }
     ),
+    # Stage 1a's stance-quality gate.  Judges physical stance -- did the body
+    # reach the horizon, and did it keep both feet loaded once settled --
+    # rather than return, because on stage 1 the zero-action statue is the
+    # global optimum and no reward threshold separates it from a competent
+    # policy (docs/STAGE1_SPLIT_PLAN.md 2.3.1).  ``min_avg_reward`` is carried
+    # here too, but as a RAIL set well below the statue: its only job is
+    # rejecting a policy that threw away most of the available return, and it
+    # is deliberately not the gate.  See
+    # :mod:`environments.shared.curriculum.stance_gate` for the statistic.
+    STANCE_GATE_KIND: frozenset(
+        {
+            "min_full_horizon_fraction",
+            "max_unsupported_duty",
+            "max_unsupported_duty_ucb",
+            "settle_steps",
+            "min_avg_reward",
+            "min_eval_episodes",
+            "required_consecutive",
+        }
+    ),
     # An explicit, recorded non-advancing mode for pilots and diagnostics.
     # Declaring it is the ONLY supported way to run a stage with no gate, and
     # it refuses to advance rather than passing by default.
@@ -74,6 +96,18 @@ GATE_KINDS: dict[str, frozenset[str]] = {
 #: two backends agreeing, which is the schema's whole job.
 _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
     "reward_and_length/v1": frozenset({"min_avg_reward"}),
+    # All three stance criteria are required.  The UCB in particular is the
+    # one that certifies -- omitting it would leave the gate resting on raw
+    # panel fractions, which is the low-power reading this kind exists to
+    # replace.  ``min_avg_reward`` is NOT required: it is a rail, and a config
+    # may legitimately decline to set one.
+    STANCE_GATE_KIND: frozenset(
+        {
+            "min_full_horizon_fraction",
+            "max_unsupported_duty",
+            "max_unsupported_duty_ucb",
+        }
+    ),
     "none/v1": frozenset(),
 }
 

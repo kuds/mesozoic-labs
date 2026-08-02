@@ -8,11 +8,18 @@ files used by the SB3 path.
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable
 from typing import Any
 
 from .config import load_stage_config
 from .curriculum.gate_schema import GateSchemaError, validate_gate_config
+from .curriculum.stance_gate import (
+    STANCE_GATE_KIND,
+    StanceGateThresholds,
+    StancePanel,
+    evaluate_stance_gate,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -39,10 +46,14 @@ def check_stage_gate(
             fail-open behaviour the SB3 path had, reached by a different route.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
-    validate_gate_config(stage_config.get("stage", "?"), curriculum, advancement_enabled=True)
-    # The schema requires min_avg_reward for every advancing gate kind, so a
-    # validated config always carries it; a KeyError here would mean the two
-    # fell out of sync.
+    gate_kind = validate_gate_config(stage_config.get("stage", "?"), curriculum, advancement_enabled=True)
+
+    if gate_kind == STANCE_GATE_KIND:
+        return _check_stance_gate(eval_metrics, curriculum)
+
+    # reward_and_length/v1 requires min_avg_reward, so a validated config of
+    # that kind always carries it; a KeyError here would mean the schema and
+    # this branch fell out of sync.
     min_reward = curriculum["min_avg_reward"]
     # min_avg_reward is an EPISODE-level threshold (shared with the SB3
     # TOMLs, e.g. 100.0).  The trainer's "mean_reward" is the mean PER-STEP
@@ -76,6 +87,68 @@ def check_stage_gate(
             "gate; emit mean_episode_length from the trainer instead."
         )
     return bool(episode_length >= min_length)
+
+
+#: Metrics the MJX trainer must emit for ``stance_quality/v1``.  Named here so
+#: the error message can say exactly what is missing.
+_STANCE_METRIC_KEYS = (
+    "n_eval_episodes",
+    "full_horizon_fraction",
+    "n_duty_episodes",
+    "mean_unsupported_duty",
+    "unsupported_duty_ucb",
+)
+
+
+def _check_stance_gate(eval_metrics: dict[str, float], curriculum: dict[str, Any]) -> bool:
+    """Evaluate ``stance_quality/v1`` on the JAX path.
+
+    Runs the *same* :func:`~environments.shared.curriculum.stance_gate.evaluate_stance_gate`
+    the SB3 ``CurriculumManager`` runs, on a panel the MJX trainer must supply
+    already reduced -- so the two backends cannot disagree about the criteria.
+
+    Raises:
+        GateSchemaError: If the trainer emitted none of the stance metrics.
+            Deliberately loud rather than a warning-and-pass: a stage that
+            declares this kind and is then gated on nothing is precisely the
+            "one backend silently ignores a gate the other enforces"
+            divergence the versioned schema exists to prevent.
+    """
+    missing = [key for key in _STANCE_METRIC_KEYS if eval_metrics.get(key) is None]
+    if missing:
+        raise GateSchemaError(
+            f"stage declares gate_kind {STANCE_GATE_KIND!r} but eval_metrics is missing "
+            f"{missing}, so stance quality cannot be checked. Passing on the metrics that "
+            "are present would half-enforce the gate. The MJX evaluator must reduce its "
+            "rollout into a StancePanel with stance_gate.summarize_stance_panel() -- "
+            "reconstructing episode boundaries from cumsum(lengths) over the per-step "
+            "diag_* arrays -- and emit these keys. Note that reconstruction is valid for "
+            "BIPEDS only: see the diag_r_foot/diag_l_foot interleaving defect in "
+            "KNOWN_ISSUES, which must be fixed before this gate can be used for "
+            "brachiosaurus or dibothrosuchus."
+        )
+
+    panel = StancePanel(
+        n_episodes=int(eval_metrics["n_eval_episodes"]),
+        full_horizon_fraction=float(eval_metrics["full_horizon_fraction"]),
+        mean_reward=float(eval_metrics.get("mean_episode_return", eval_metrics.get("mean_reward", -math.inf))),
+        n_duty_episodes=int(eval_metrics["n_duty_episodes"]),
+        mean_unsupported_duty=float(eval_metrics["mean_unsupported_duty"]),
+        unsupported_duty_ucb=float(eval_metrics["unsupported_duty_ucb"]),
+    )
+    thresholds = StanceGateThresholds(
+        min_full_horizon_fraction=float(curriculum["min_full_horizon_fraction"]),
+        max_unsupported_duty=float(curriculum["max_unsupported_duty"]),
+        max_unsupported_duty_ucb=float(curriculum["max_unsupported_duty_ucb"]),
+        settle_steps=int(curriculum.get("settle_steps", 0)),
+        min_eval_episodes=int(curriculum.get("min_eval_episodes", 40)),
+        min_avg_reward=float(curriculum.get("min_avg_reward", -math.inf)),
+        required_consecutive=int(curriculum.get("required_consecutive", 3)),
+    )
+    passed, failures = evaluate_stance_gate(panel, thresholds)
+    if not passed:
+        _logger.info("Stance gate not met: %s", "; ".join(failures))
+    return passed
 
 
 def run_curriculum(

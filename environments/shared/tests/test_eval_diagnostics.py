@@ -33,17 +33,30 @@ class TestSuccessMetricApplicable:
         assert success_metric_applicable(configs[3]) is True
 
 
-def _bare_stage_aware_callback(*, success_applicable: bool) -> StageAwareEvalCallback:
+def _bare_stage_aware_callback(
+    *,
+    success_applicable: bool,
+    settle_steps: int = 0,
+) -> StageAwareEvalCallback:
     if success_applicable:
         pytest.importorskip("stable_baselines3")
     callback = object.__new__(StageAwareEvalCallback)
     callback.stage = 3 if success_applicable else 1
     callback.success_applicable = success_applicable
+    callback.settle_steps = settle_steps
     callback._is_success_buffer = []
     callback.evaluations_forward_velocities = []
+    callback.evaluations_unsupported_duties = []
+    callback.evaluations_bilateral_duties = []
     callback._episode_forward_sums = {}
     callback._episode_forward_counts = {}
     callback._current_eval_forward_velocities = []
+    callback._episode_steps = {}
+    callback._episode_unsupported = {}
+    callback._episode_bilateral = {}
+    callback._episode_measured = {}
+    callback._current_eval_unsupported_duties = []
+    callback._current_eval_bilateral_duties = []
     return callback
 
 
@@ -172,9 +185,12 @@ def _plateau_callback(
         evaluations_length=[],
         evaluations_forward_velocities=[],
         evaluations_successes=[],
+        evaluations_unsupported_duties=[],
+        evaluations_bilateral_duties=[],
     )
     callback = object.__new__(StageGatePlateauCallback)
     callback.eval_callback = cast(StageAwareEvalCallback, eval_callback)
+    callback.horizon = 1000
     callback.stage = stage
     callback.curriculum_kwargs = dict(curriculum_kwargs)
     callback.plateau_window = plateau_window
@@ -204,9 +220,15 @@ def _add_evaluation(
     n_episodes: int = 10,
     forward_vel_episodes: int | None = None,
     success_episodes: int | None = None,
+    unsupported_duty: float | None = None,
+    bilateral_duty: float | None = None,
 ) -> None:
     eval_callback.evaluations_results.append([reward] * n_episodes)
     eval_callback.evaluations_length.append([length] * n_episodes)
+    if unsupported_duty is not None:
+        eval_callback.evaluations_unsupported_duties.append([unsupported_duty] * n_episodes)
+    if bilateral_duty is not None:
+        eval_callback.evaluations_bilateral_duties.append([bilateral_duty] * n_episodes)
     if forward_vel is not None:
         count = n_episodes if forward_vel_episodes is None else forward_vel_episodes
         eval_callback.evaluations_forward_velocities.append([forward_vel] * count)
@@ -414,3 +436,130 @@ class TestStageGatePlateauCallback:
                 curriculum_kwargs={"min_avg_reward": 100.0},
                 plateau_window=1,
             )
+
+
+class TestStanceGateIsACeilingNotAFloor:
+    """Duty must fail when it is too HIGH, unlike every other gate metric.
+
+    The plateau machinery originally tested ``value < threshold`` for every
+    metric. Read that way a policy chattering at duty 0.30 against a 0.02
+    ceiling looks comfortably passing, and the callback would follow
+    ``mean_reward`` instead -- handing out reward-tuning advice for a stage
+    whose blocking criterion is foot contact.
+    """
+
+    def test_gate_metric_direction(self):
+        floor = eval_diagnostics_module._GateMetric("mean_reward", "reward", 1950.0, 1200.0, 40)
+        assert floor.is_failing()
+        assert not eval_diagnostics_module._GateMetric("mean_reward", "reward", 1950.0, 3271.8, 40).is_failing()
+
+        ceiling = eval_diagnostics_module._GateMetric(
+            "mean_unsupported_duty", "unsupported duty", 0.02, 0.319, 40, ceiling=True
+        )
+        assert ceiling.is_failing()
+        assert not eval_diagnostics_module._GateMetric(
+            "mean_unsupported_duty", "unsupported duty", 0.02, 0.0, 40, ceiling=True
+        ).is_failing()
+
+    def test_missing_value_is_not_failing_in_either_direction(self):
+        for ceiling in (False, True):
+            metric = eval_diagnostics_module._GateMetric("k", "l", 0.02, None, 0, ceiling=ceiling)
+            assert not metric.is_failing()
+
+    def test_duty_blocks_ahead_of_reward_on_a_stance_stage(self, caplog):
+        callback, eval_callback = _plateau_callback(
+            {
+                "min_avg_reward": 1950.0,
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+            },
+            stage=1,
+        )
+        with caplog.at_level("WARNING", logger="environments.shared.eval_diagnostics"):
+            for _ in range(4):
+                # Clears the reward rail and the horizon floor; only duty fails.
+                _add_evaluation(
+                    callback,
+                    eval_callback,
+                    reward=2133.4,
+                    length=1000.0,
+                    unsupported_duty=0.319,
+                )
+        warnings = [r.message for r in caplog.records if "EVALUATION PLATEAU" in r.message]
+        assert len(warnings) == 1
+        assert "unsupported duty" in warnings[0]
+        assert callback._plateau_metric == "mean_unsupported_duty"
+
+    def test_a_stage_without_stance_thresholds_ignores_duty(self):
+        callback, eval_callback = _plateau_callback({"min_avg_reward": 100.0}, stage=2)
+        _add_evaluation(callback, eval_callback, reward=200.0, length=1000.0, unsupported_duty=0.9)
+        keys = {metric.key for metric in callback._metrics_for_evaluation(0)}
+        assert "mean_unsupported_duty" not in keys
+        assert "full_horizon_fraction" not in keys
+
+    def test_full_horizon_fraction_is_derived_from_episode_lengths(self):
+        callback, eval_callback = _plateau_callback(
+            {"min_avg_reward": 1950.0, "min_full_horizon_fraction": 0.95}, stage=1
+        )
+        eval_callback.evaluations_results.append([3271.8] * 40)
+        # 38 reach the 1000-step horizon, 2 fall at 400.
+        eval_callback.evaluations_length.append([1000.0] * 38 + [400.0] * 2)
+        metric = next(m for m in callback._metrics_for_evaluation(0) if m.key == "full_horizon_fraction")
+        assert metric.value == pytest.approx(0.95)
+        assert not metric.is_failing()
+
+
+class TestStanceShareCapture:
+    """Bilateral duty is captured to CALIBRATE a future threshold.
+
+    It is not a gate criterion. The three stance shares sum to 1, so a falling
+    unsupported duty says nothing about whether the feet are being planted --
+    that time can land in single support. Bounding bilateral duty is the
+    obvious fix, but the only reference available is the statue's 0.998, and
+    the statue never shifts weight. Recording the share every evaluation is
+    what turns the eventual threshold into evidence instead of a guess.
+    """
+
+    def test_both_shares_are_captured_per_episode(self):
+        callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=0)
+        # Two steps planted on both feet, then one airborne, then done.
+        for forces, done in (((400.0, 400.0), False), ((400.0, 400.0), False), ((0.0, 0.0), True)):
+            callback._log_success_callback(
+                {"i": 0, "done": done, "info": {"r_foot_contact": forces[0], "l_foot_contact": forces[1]}},
+                {},
+            )
+        assert callback._current_eval_unsupported_duties == [pytest.approx(1 / 3)]
+        assert callback._current_eval_bilateral_duties == [pytest.approx(2 / 3)]
+
+    def test_shares_sum_with_single_support(self):
+        """Single support counts toward neither share, which is the point."""
+        callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=0)
+        for forces, done in (((400.0, 0.0), False), ((400.0, 400.0), False), ((0.0, 0.0), True)):
+            callback._log_success_callback(
+                {"i": 0, "done": done, "info": {"r_foot_contact": forces[0], "l_foot_contact": forces[1]}},
+                {},
+            )
+        unsupported = callback._current_eval_unsupported_duties[0]
+        bilateral = callback._current_eval_bilateral_duties[0]
+        assert unsupported == pytest.approx(1 / 3)
+        assert bilateral == pytest.approx(1 / 3)
+        # The missing third is single support — the share a bilateral floor
+        # would catch and an unsupported ceiling would not.
+        assert 1.0 - unsupported - bilateral == pytest.approx(1 / 3)
+
+    def test_shares_are_logged_even_when_the_gate_panel_is_incomplete(self):
+        """The early, incomplete evaluations are the calibration data."""
+        callback, eval_callback = _plateau_callback({"min_avg_reward": 100.0, "min_eval_episodes": 40}, stage=1)
+        _add_evaluation(
+            callback,
+            eval_callback,
+            reward=200.0,
+            length=1000.0,
+            n_episodes=5,  # below min_eval_episodes -> gate data incomplete
+            unsupported_duty=0.19,
+            bilateral_duty=0.66,
+        )
+        recorded = dict(call.args for call in callback.logger.record.call_args_list)
+        assert recorded["diagnostics/eval_gate_data_complete"] == 0.0
+        assert recorded["diagnostics/eval_unsupported_duty"] == pytest.approx(0.19)
+        assert recorded["diagnostics/eval_bilateral_support_duty"] == pytest.approx(0.66)
