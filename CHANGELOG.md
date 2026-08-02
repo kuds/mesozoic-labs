@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.5)
 
+### Fixed
+- **The JAX/MJX publication gate no longer certifies a stance-gated stage on
+  the reward rail alone.** `jax_setup.run_stage_evaluation` called
+  `jax_eval.check_stage_gate`, which reads four fixed thresholds and knows
+  nothing about `gate_kind` — so for `stance_quality/v1` it certified on
+  whichever of the four happened to be set. On trex stage 1 that is
+  `min_avg_reward = 1950` alone, since `min_avg_episode_length` was retired
+  when the stance gate replaced it, and the verdict is written straight into
+  `stage_results["publication_gate_passed"]`. Measured: the zero-action
+  statue (3271.8) and the chattering policy the gate exists to reject
+  (2133.4, duty 0.319) **both passed**. The new
+  `check_stage_gate_for_config` dispatches on the declared kind and
+  reconstructs the stance panel from the CPU-eval foot traces, so the JAX
+  path now enforces the same criteria the SB3 one does. Reconstruction is
+  valid only where each step contributed one reading per side — the biped
+  case — and the guard is a measurement of the data in hand
+  (`len(diag_r_foot) == sum(lengths)`) rather than a species allow-list, so
+  the known `diag_r_foot`/`diag_l_foot` interleaving defect fails the gate
+  closed with its reason instead of silently mis-pairing feet.
+- **One unmeasurable metric no longer switches the whole evaluation
+  diagnostic off.** `StageGatePlateauCallback._process_evaluation` returned
+  early if *any* configured metric was short of samples. Adding unsupported
+  duty to the priority list then silenced the callback entirely for the case
+  it is most needed: early stage-1 training, where episodes end before
+  `settle_steps` and every duty is NaN. Measured — a flat, dying run produced
+  one plateau warning under `reward_and_length/v1` and **zero** under the
+  stance gate, with `eval_gate_met` and `eval_plateau_active` never recorded.
+  It now follows the metrics the evaluation can support and names the ones it
+  could not measure in the warning, so a partial panel cannot imply the
+  metric it reports is the whole story. `eval_gate_met` is still only 1.0
+  when every criterion was checkable.
+- **The TensorBoard duty scalar is the number the gate compares.**
+  `diagnostics/eval_unsupported_duty` averaged every episode while the gate
+  averages full-horizon episodes only: on a panel of 35 clean episodes at
+  0.01 plus 5 early failures at 0.60 the curve read **0.084 against a 0.02
+  ceiling the policy was actually clearing**. It is now built from the same
+  `stance_gate` reduction the curriculum runs. The three quantities that
+  actually decide advancement reached no logger at all and are now published
+  as `eval_unsupported_duty_ucb`, `eval_full_horizon_fraction` and
+  `eval_duty_episodes` — the last even when zero, which is the early-training
+  signal that nothing survived the settling window and otherwise reads
+  identically to "not evaluated". `eval_bilateral_support_duty` moved to the
+  same full-horizon episode set so the shares stay comparable.
+- **A failed stance gate report no longer costs a finished run its
+  artifacts.** `_load_policy` raised `SystemExit`, which derives from
+  `BaseException` and sailed through the `except Exception` guard in
+  `_write_stance_gate_report` that exists precisely so a diagnostic cannot
+  sink a run — a truncated VecNormalize `.pkl` aborted artifact generation
+  before the graphs and videos were written. It now raises
+  `StanceGateReportError`, and `main` converts that to `SystemExit` at the
+  CLI boundary where the behaviour belongs.
+- **The report's three stance shares sum to 1 again.** Bilateral and single
+  support were averaged over every episode that measured anything while the
+  gated duty uses full-horizon episodes only, so the identity broke whenever
+  an episode failed early — measured 0.90 with 5 failures in 40 — and it
+  broke in the direction that hides the problem, folding the flailing
+  episodes into bilateral and single but excluding them from unsupported.
+  That identity is the stated reason the report prints those shares at all.
+- **`stance_gate_report.json` is valid JSON.** `json.dumps` emitted bare
+  `NaN` and `Infinity` for the gate's unmeasurable sentinels — Python reads
+  them back, `jq`, `JSON.parse` and Go's `encoding/json` do not — so it was
+  the *failing* panel, the one worth inspecting, that produced an unparseable
+  file, while the docstring promises this form exists for tooling that does
+  not parse prose. Non-finite values now serialize as `null` (with
+  `allow_nan=False` as a backstop); the text form still prints `inf`.
+
 ### Changed
 - **The replay video now shows the checkpoint the evidence CSV is evidence
   for.** `generate_stage_artifacts` recorded it from `best_model` and labelled

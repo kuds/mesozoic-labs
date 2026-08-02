@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from environments.shared.scripts import stance_gate_report
+from environments.shared.scripts.stance_gate_report import StanceGateReportError
 
 
 class _StubModel:
@@ -44,7 +45,7 @@ def test_corrupt_vecnorm_is_fatal_with_a_diagnosable_message(stub_ppo, tmp_path:
     truncated = tmp_path / "vecnorm.pkl"
     truncated.write_bytes(pickle.dumps({"obs_rms": None})[:12])
 
-    with pytest.raises(SystemExit) as excinfo:
+    with pytest.raises(StanceGateReportError) as excinfo:
         stance_gate_report._load_policy("model.zip", str(truncated), lambda: None)
 
     message = str(excinfo.value)
@@ -84,7 +85,7 @@ def test_dict_observation_statistics_are_rejected(stub_ppo, monkeypatch) -> None
     )
     monkeypatch.setattr(vec_env_module, "DummyVecEnv", lambda fns: None)
 
-    with pytest.raises(SystemExit) as excinfo:
+    with pytest.raises(StanceGateReportError) as excinfo:
         stance_gate_report._load_policy("model.zip", "v.pkl", lambda: None)
 
     message = str(excinfo.value)
@@ -319,3 +320,181 @@ class TestTrainingPipelineHook:
         assert "bilateral support" in text
         payload = _json.loads((tmp_path / "stance_gate_report.json").read_text())
         assert payload["metrics"]["mean_unsupported_duty"] == pytest.approx(0.1877)
+
+
+def test_loader_failures_are_ordinary_exceptions_not_systemexit() -> None:
+    """They used to be ``SystemExit``, which is a ``BaseException``.
+
+    ``reporting.stage_artifacts._write_stance_gate_report`` guards the report
+    with ``except Exception`` so a diagnostic cannot sink a finished run.
+    ``SystemExit`` sailed straight through it, so a truncated VecNormalize
+    ``.pkl`` aborted artifact generation before the graphs and videos.
+    """
+    assert issubclass(StanceGateReportError, Exception)
+    assert not issubclass(StanceGateReportError, SystemExit)
+
+
+class TestJsonIsParseable:
+    """The JSON form must be readable by tooling that is not Python."""
+
+    def _report(self, **metric_overrides):
+        metrics = {
+            "reward_mean": 210.0,
+            "reward_std": 30.0,
+            "episode_length_mean": 140.0,
+            "full_horizon_fraction": 0.0,
+            "mean_unsupported_duty": float("inf"),
+            "unsupported_duty_ucb": float("inf"),
+            "n_duty_episodes": 0,
+            "bilateral_support_duty": float("nan"),
+            "single_support_duty": float("nan"),
+        }
+        metrics.update(metric_overrides)
+        return {
+            "schema": "mesozoic.stance-gate-report/v1",
+            "species": "trex",
+            "stage": 1,
+            "gate_kind": "stance_quality/v1",
+            "policy": "robust_best_model.zip",
+            "episodes": 40,
+            "seed": 3042,
+            "settle_steps": 200,
+            "horizon": 1000,
+            "passed": False,
+            "failures": ["no full-horizon episode supplied a measurable unsupported duty"],
+            "thresholds": {
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_avg_reward": 1950.0,
+                "min_eval_episodes": 40,
+            },
+            "metrics": metrics,
+            "terminations": {"fell": 40},
+            "reward_components": {"reward_alive": 140.0},
+        }
+
+    def test_a_failed_panel_still_writes_strict_json(self, tmp_path):
+        # The unmeasurable panel is the one worth inspecting, and it is the
+        # one that used to emit bare NaN / Infinity tokens.
+        import json
+
+        stance_gate_report.write_stance_gate_report(tmp_path, self._report())
+        text = (tmp_path / "stance_gate_report.json").read_text()
+
+        assert "NaN" not in text
+        assert "Infinity" not in text
+        payload = json.loads(
+            text,
+            parse_constant=lambda name: pytest.fail(f"bare {name} is not valid JSON"),
+        )
+        assert payload["metrics"]["mean_unsupported_duty"] is None
+        assert payload["metrics"]["bilateral_support_duty"] is None
+        # The count is a real zero, not a sentinel, and must survive as one.
+        assert payload["metrics"]["n_duty_episodes"] == 0
+
+    def test_the_text_form_still_shows_the_sentinel(self, tmp_path):
+        stance_gate_report.write_stance_gate_report(tmp_path, self._report())
+        text = (tmp_path / "stance_gate_report.txt").read_text()
+        assert "inf" in text
+
+    def test_finite_values_are_untouched(self, tmp_path):
+        import json
+
+        stance_gate_report.write_stance_gate_report(
+            tmp_path,
+            self._report(mean_unsupported_duty=0.0187, unsupported_duty_ucb=0.0191),
+        )
+        payload = json.loads((tmp_path / "stance_gate_report.json").read_text())
+        assert payload["metrics"]["mean_unsupported_duty"] == 0.0187
+        assert payload["metrics"]["unsupported_duty_ucb"] == 0.0191
+
+
+class TestStanceSharesSumToOne:
+    """The three shares must be measured over the same episodes.
+
+    The report prints bilateral and single support *because* the three sum to
+    1 -- that identity is the stated reason a falling unsupported duty does
+    not by itself mean the feet are being planted. They used to be averaged
+    over every episode that measured anything while the gated duty uses
+    full-horizon episodes only, so the identity broke whenever an episode
+    failed early, and it broke in the direction that hides the problem: the
+    flailing episodes were folded into bilateral and single but excluded from
+    unsupported.
+    """
+
+    HORIZON = 1000
+    SETTLE = 200
+
+    def _run(self, n_short: int) -> dict:
+        import types
+
+        import numpy as np
+
+        horizon, settle = self.HORIZON, self.SETTLE
+
+        class FakeEnv:
+            action_space = types.SimpleNamespace(shape=(6,))
+
+            def __init__(self, **kwargs):
+                self.index = -1
+
+            def reset(self, seed=None):
+                self.index += 1
+                self.step_count = 0
+                self.short = self.index < n_short
+                return np.zeros(4), {}
+
+            def step(self, action):
+                self.step_count += 1
+                if self.short:
+                    # Flailing: airborne 4 steps in 5.
+                    unsupported, bilateral = self.step_count % 5 != 0, self.step_count % 5 == 0
+                else:
+                    unsupported, bilateral = False, True
+                info = {
+                    "r_foot_contact": 0.0 if unsupported else 50.0,
+                    "l_foot_contact": 0.0 if (unsupported or not bilateral) else 50.0,
+                    "reward_alive": 1.0,
+                }
+                done = self.step_count >= (400 if self.short else horizon)
+                return np.zeros(4), 3.0, done and self.short, done and not self.short, info
+
+            def close(self):
+                pass
+
+        original = stance_gate_report.SPECIES_FACTORIES
+        stance_gate_report.SPECIES_FACTORIES = {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
+        try:
+            return stance_gate_report.run_panel(
+                "trex",
+                1,
+                predict=lambda obs: np.zeros(6),
+                episodes=40,
+                seed=0,
+                settle_steps=settle,
+                horizon=horizon,
+                env_kwargs={},
+            )
+        finally:
+            stance_gate_report.SPECIES_FACTORIES = original
+
+    def test_the_shares_sum_to_one_when_episodes_fail_early(self):
+        result = self._run(n_short=5)
+        panel = result["panel"]
+        assert panel.n_duty_episodes == 35, "duty is measured on full-horizon episodes only"
+        total = panel.mean_unsupported_duty + result["bilateral_duty"] + result["single_duty"]
+        assert total == pytest.approx(1.0)
+
+    def test_the_shares_sum_to_one_on_a_clean_panel(self):
+        result = self._run(n_short=0)
+        panel = result["panel"]
+        total = panel.mean_unsupported_duty + result["bilateral_duty"] + result["single_duty"]
+        assert total == pytest.approx(1.0)
+
+    def test_shares_are_nan_when_no_episode_reaches_the_horizon(self):
+        import math
+
+        result = self._run(n_short=40)
+        assert math.isnan(result["bilateral_duty"])
+        assert math.isnan(result["single_duty"])

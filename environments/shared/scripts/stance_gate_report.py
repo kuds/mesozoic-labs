@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,20 @@ from environments.shared.curriculum.stance_gate import (  # noqa: E402
 )
 from environments.shared.species_registry import SPECIES_FACTORIES  # noqa: E402
 from environments.shared.stance_diagnostics import derive_stance_info  # noqa: E402
+
+
+class StanceGateReportError(RuntimeError):
+    """The report could not be produced for a reason the caller should see.
+
+    Deliberately a plain ``Exception`` subclass rather than ``SystemExit``,
+    which is what these paths used to raise.  ``SystemExit`` derives from
+    ``BaseException``, so it sailed straight through the ``except Exception``
+    guard in ``reporting.stage_artifacts._write_stance_gate_report`` that
+    exists precisely so a diagnostic cannot sink a finished training run --
+    a truncated VecNormalize ``.pkl`` aborted artifact generation before the
+    graphs and videos were written.  ``main`` converts this to ``SystemExit``
+    for CLI use, which is where that behaviour belongs.
+    """
 
 
 def _load_policy(model_path: str, vecnorm_path: str | None, env_factory: Any):
@@ -87,7 +102,7 @@ def _load_policy(model_path: str, vecnorm_path: str | None, env_factory: Any):
         # A truncated or text-mode-copied .pkl is the usual cause, and the raw
         # UnpicklingError/KeyError gives no hint that the file rather than the
         # code is at fault.
-        raise SystemExit(
+        raise StanceGateReportError(
             f"cannot read VecNormalize statistics from {vecnorm_path}: "
             f"{type(exc).__name__}: {exc}. Re-copy the file in binary mode. "
             "Running without --vecnorm would evaluate the policy on unnormalised "
@@ -101,7 +116,7 @@ def _load_policy(model_path: str, vecnorm_path: str | None, env_factory: Any):
         # trained against a different observation contract than the stage
         # config builds — normalising with the wrong statistics would silently
         # score a different policy.
-        raise SystemExit(
+        raise StanceGateReportError(
             f"{vecnorm_path} holds per-key statistics for a Dict observation space "
             f"(keys: {sorted(obs_rms)}), but this stage builds a flat Box observation."
         )
@@ -178,10 +193,11 @@ def run_panel(
                 break
         lengths.append(float(steps))
         rewards.append(total)
+        # All three shares stay positionally aligned with `lengths`, so the
+        # full-horizon filter below applies to them identically.
         duties.append(unsupported / measured if measured else float("nan"))
-        if measured:
-            bilateral_duties.append(bilateral / measured)
-            single_duties.append(single / measured)
+        bilateral_duties.append(bilateral / measured if measured else float("nan"))
+        single_duties.append(single / measured if measured else float("nan"))
 
     panel = stance_panel_from_episode_duties(
         episode_lengths=lengths,
@@ -189,14 +205,30 @@ def run_panel(
         episode_rewards=rewards,
         horizon=horizon,
     )
+
+    def _full_horizon_mean(values: list[float]) -> float:
+        """Mean over the same episodes the gate measures duty on.
+
+        The ungated shares used to be averaged over every episode that
+        measured anything, while the gated duty uses full-horizon episodes
+        only. The three then did not sum to 1 whenever an episode failed
+        early -- measured 0.90 with 5 failures in 40 -- which is exactly the
+        identity the report cites as the reason for printing bilateral at
+        all. Worse, the drift ran in the direction that hides the problem:
+        the flailing episodes were folded into bilateral and single but
+        excluded from unsupported.
+        """
+        kept = [value for value, length in zip(values, lengths) if length >= horizon and not np.isnan(value)]
+        return float(np.mean(kept)) if kept else float("nan")
+
     return {
         "panel": panel,
         "lengths": np.asarray(lengths),
         "rewards": np.asarray(rewards),
         "terminations": terminations,
         "components": {key: value / episodes for key, value in components.items()},
-        "bilateral_duty": float(np.mean(bilateral_duties)) if bilateral_duties else float("nan"),
-        "single_duty": float(np.mean(single_duties)) if single_duties else float("nan"),
+        "bilateral_duty": _full_horizon_mean(bilateral_duties),
+        "single_duty": _full_horizon_mean(single_duties),
     }
 
 
@@ -355,6 +387,31 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _json_safe(value: Any) -> Any:
+    """Replace non-finite floats with ``null``, recursively.
+
+    ``json.dumps`` writes bare ``NaN`` and ``Infinity`` tokens, which Python
+    reads back but RFC 8259 does not permit -- ``jq``, ``JSON.parse`` and Go's
+    ``encoding/json`` all reject them.  That bit exactly when it hurt most:
+    the gate's "unmeasurable" sentinel is ``+inf`` and the ungated shares are
+    ``NaN``, so it was the FAILING panel, the one worth inspecting, that
+    produced the unparseable file -- while the docstring below promises this
+    form exists so later tooling can read it without parsing prose.
+
+    ``null`` rather than a string, so a consumer's numeric parse fails loudly
+    instead of silently comparing ``"inf"``.  The human-readable text form
+    still prints ``inf``, and ``failures`` says which criterion was
+    unmeasurable.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return value
+
+
 def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) -> dict[str, Path]:
     """Write the report beside the stage's other artifacts.
 
@@ -368,7 +425,12 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
     text_path = directory / "stance_gate_report.txt"
     json_path = directory / "stance_gate_report.json"
     text_path.write_text(render_stance_gate_report(report) + "\n", encoding="utf-8")
-    json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    # allow_nan=False turns any non-finite value _json_safe missed into a
+    # ValueError here rather than an unparseable artifact on Drive.
+    json_path.write_text(
+        json.dumps(_json_safe(report), indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
     return {"stance_gate_report_txt": text_path, "stance_gate_report_json": json_path}
 
 
@@ -393,16 +455,21 @@ def main() -> int:
         parser.error("pass --model, or --zero-action for the do-nothing reference")
 
     stage_config = load_stage_config(args.species, args.stage, config_path=args.config)
-    report = build_stance_gate_report(
-        args.species,
-        args.stage,
-        stage_config=stage_config,
-        model_path=args.model,
-        vecnorm_path=args.vecnorm,
-        zero_action=args.zero_action,
-        episodes=args.episodes,
-        seed=args.seed,
-    )
+    try:
+        report = build_stance_gate_report(
+            args.species,
+            args.stage,
+            stage_config=stage_config,
+            model_path=args.model,
+            vecnorm_path=args.vecnorm,
+            zero_action=args.zero_action,
+            episodes=args.episodes,
+            seed=args.seed,
+        )
+    except StanceGateReportError as exc:
+        # The CLI boundary is where a diagnosable failure becomes an exit
+        # status; inside the library it stays an ordinary exception.
+        raise SystemExit(str(exc)) from exc
     print()
     print(render_stance_gate_report(report))
 

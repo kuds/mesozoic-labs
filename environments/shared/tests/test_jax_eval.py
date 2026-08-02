@@ -514,3 +514,139 @@ def test_stage_evaluation_uses_effective_training_noise_and_detailed_rewards(mon
     assert stage_results["evaluation_target_lateral_range"] == [-2.0, 2.0]
     assert stage_results["evaluation_target_z"] == pytest.approx(0.5)
     assert stage_results["evaluation_seed"] == 42
+
+
+class TestCheckStageGateForConfig:
+    """The gate-kind-aware JAX gate (`check_stage_gate_for_config`).
+
+    `jax_setup.run_stage_evaluation` used to call `check_stage_gate` directly,
+    which reads four fixed thresholds and knows nothing about `gate_kind`. For
+    a stance-gated stage that certified on `min_avg_reward` alone -- a rail
+    the zero-action statue clears -- and wrote the verdict into
+    `publication_gate_passed`.
+    """
+
+    HORIZON = 1000
+    SETTLE = 200
+
+    def _config(self, gate_kind="stance_quality/v1", **curriculum):
+        base = {
+            "gate_schema_version": 1,
+            "gate_kind": gate_kind,
+            "min_eval_episodes": 4,
+            "required_consecutive": 3,
+        }
+        if gate_kind == "stance_quality/v1":
+            base.update(
+                {
+                    "min_full_horizon_fraction": 0.95,
+                    "max_unsupported_duty": 0.02,
+                    "max_unsupported_duty_ucb": 0.02,
+                    "settle_steps": self.SETTLE,
+                    "min_avg_reward": 1950.0,
+                }
+            )
+        else:
+            base["min_avg_reward"] = 1950.0
+        base.update(curriculum)
+        return {"curriculum_kwargs": base, "env_kwargs": {"max_episode_steps": self.HORIZON}}
+
+    def _results(self, *, duty, episodes=4, length=None, readings_per_side=1, reward=3271.8):
+        from environments.shared.jax_eval import EvalResults
+
+        results = EvalResults()
+        length = length or self.HORIZON
+        for _ in range(episodes):
+            results.lengths.append(length)
+            results.rewards.append(reward)
+            results.forward_vels.append(0.0)
+            results.distances.append(0.0)
+            results.successes.append(False)
+            post = max(0, length - self.SETTLE)
+            airborne_steps = round(duty * post)
+            for step in range(length):
+                airborne = step >= self.SETTLE and (step - self.SETTLE) < airborne_steps
+                for _ in range(readings_per_side):
+                    results.diag_r_foot.append(0.0 if airborne else 50.0)
+                    results.diag_l_foot.append(0.0 if airborne else 50.0)
+        return results
+
+    def test_the_zero_action_statue_passes(self):
+        # By design: STAGE1_SPLIT_PLAN 2.3.1 says the statue's numbers are what
+        # a 1a policy must MATCH, not beat.
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        passed, failures = check_stage_gate_for_config(self._results(duty=0.0), self._config())
+        assert passed, failures
+
+    def test_the_chatterer_is_rejected(self):
+        # The policy the gate exists to reject: full horizon, clears the reward
+        # rail, but spends a third of its post-settling steps airborne.
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        passed, failures = check_stage_gate_for_config(self._results(duty=1 / 3, reward=2133.4), self._config())
+        assert not passed
+        assert any("unsupported_duty" in failure for failure in failures)
+
+    def test_fails_closed_when_foot_traces_are_absent(self):
+        from environments.shared.jax_eval import EvalResults, check_stage_gate_for_config
+
+        bare = EvalResults()
+        bare.lengths = [self.HORIZON] * 4
+        bare.rewards = [3271.8] * 4
+        passed, failures = check_stage_gate_for_config(bare, self._config())
+        assert not passed
+        assert "cannot be evaluated" in failures[0]
+        assert "reward rail alone" in failures[0]
+
+    def test_fails_closed_on_the_quadruped_interleaving_defect(self):
+        # Four foot sensors append two readings per side per step, so the
+        # i % 2 routing in evaluate_policy_cpu no longer means right/left.
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        passed, failures = check_stage_gate_for_config(self._results(duty=0.0, readings_per_side=2), self._config())
+        assert not passed
+        assert "do not align with episode boundaries" in failures[0]
+
+    def test_a_declared_pilot_is_rejected_by_the_schema(self):
+        # none/v1 never reaches a verdict here: the schema refuses a declared
+        # non-advancing pilot in a run that advances, which is louder than
+        # returning False.
+        from environments.shared.curriculum.gate_schema import GateSchemaError
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        with pytest.raises(GateSchemaError, match="non-advancing pilot"):
+            check_stage_gate_for_config(
+                self._results(duty=0.0),
+                {"curriculum_kwargs": {"gate_schema_version": 1, "gate_kind": "none/v1"}},
+            )
+
+    def test_an_undeclared_gate_is_rejected(self):
+        from environments.shared.curriculum.gate_schema import GateSchemaError
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        with pytest.raises(GateSchemaError):
+            check_stage_gate_for_config(self._results(duty=0.0), {"curriculum_kwargs": {"min_avg_reward": 1.0}})
+
+    def test_reward_and_length_stages_are_unchanged(self):
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        config = self._config(gate_kind="reward_and_length/v1", min_avg_episode_length=950)
+        passed, _ = check_stage_gate_for_config(self._results(duty=0.0), config)
+        assert passed
+
+        short = self._results(duty=0.0, length=500)
+        passed, failures = check_stage_gate_for_config(short, config)
+        assert not passed
+        assert any("episode length" in failure for failure in failures)
+
+    def test_the_real_trex_stage1_config_rejects_the_chatterer(self):
+        from environments.shared.config import load_stage_config
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        config = load_stage_config("trex", 1)
+        assert config["curriculum_kwargs"]["gate_kind"] == "stance_quality/v1"
+        episodes = int(config["curriculum_kwargs"]["min_eval_episodes"])
+        chatterer = self._results(duty=1 / 3, episodes=episodes, reward=2133.4)
+        passed, _ = check_stage_gate_for_config(chatterer, config)
+        assert not passed

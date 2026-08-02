@@ -681,7 +681,7 @@ def run_stage_evaluation(
     import numpy as np
 
     from .config import load_stage_config
-    from .jax_eval import EvalConfig, check_stage_gate, evaluate_policy_cpu
+    from .jax_eval import EvalConfig, check_stage_gate_for_config, evaluate_policy_cpu
     from .jax_normalization import normalize_obs
 
     # Bind every evaluation helper to the actual instantiated training
@@ -769,21 +769,19 @@ def run_stage_evaluation(
         )
     )
 
-    # Gate check — all four TOML curriculum thresholds, matching the SB3
-    # CurriculumManager (forward-vel gates stage 2, success-rate stage 3).
+    # Gate check — dispatched on the stage's declared gate_kind, so the
+    # criteria checked here are the ones the config actually names.
+    #
+    # This used to read four fixed thresholds and call check_stage_gate
+    # directly, which knows nothing about gate_kind. For a stance_quality/v1
+    # stage that certified on whichever of the four happened to be set: on
+    # trex stage 1 that is min_avg_reward = 1950 alone, since
+    # min_avg_episode_length was retired when the stance gate replaced it.
+    # Both the zero-action statue (3271.8) and the chattering policy the gate
+    # exists to reject (2133.4) cleared it — and the verdict is written into
+    # publication_gate_passed below.
     stage_config = load_stage_config(ctx.species, ctx.stage)
-    curriculum = stage_config.get("curriculum_kwargs", {})
-    gate_min_reward = curriculum.get("min_avg_reward", -float("inf"))
-    gate_min_length = curriculum.get("min_avg_episode_length", 0)
-    gate_min_forward_vel = curriculum.get("min_avg_forward_vel", 0.0)
-    gate_min_success_rate = curriculum.get("min_success_rate", 0.0)
-    gate_passed, gate_failures = check_stage_gate(
-        selected_eval_results,
-        gate_min_reward,
-        gate_min_length,
-        gate_min_forward_vel=gate_min_forward_vel,
-        gate_min_success_rate=gate_min_success_rate,
-    )
+    gate_passed, gate_failures = check_stage_gate_for_config(selected_eval_results, stage_config)
 
     num_envs = env.num_envs
     rollout_len = ctx.jax_kwargs.get("rollout_len", 64)

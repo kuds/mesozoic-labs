@@ -300,23 +300,85 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         array = np.asarray(values, dtype=float).reshape(-1)
         return int(np.count_nonzero(np.isfinite(array)))
 
-    def _metrics_for_evaluation(self, index: int) -> list[_GateMetric]:
+    def _series(self, attribute: str, index: int) -> Any | None:
+        """One evaluation's per-episode series from the capture callback."""
+        history = getattr(self.eval_callback, attribute, None) or []
+        return history[index] if index < len(history) else None
+
+    def _stance_panel(self, index: int) -> Any | None:
+        """This evaluation's stance panel, or ``None`` if it cannot be built.
+
+        Built with the same :mod:`~environments.shared.curriculum.stance_gate`
+        reduction the curriculum runs, so what this callback plots is what the
+        gate decides. Reducing the duties here independently is how the
+        TensorBoard curve came to disagree with the gate by 8x: the scalar
+        averaged every episode while the gate averages the full-horizon ones
+        only, and on a panel with 5 early failures at duty 0.60 among 35 clean
+        episodes at 0.01 that reads 0.084 against a 0.02 ceiling the policy
+        was actually clearing.
+        """
+        from .curriculum.stance_gate import stance_panel_from_episode_duties
+
+        duties = self._series("evaluations_unsupported_duties", index)
+        lengths = self._series("evaluations_length", index)
+        rewards = self._series("evaluations_results", index)
+        if duties is None or lengths is None or rewards is None:
+            return None
+        if not len(duties) or len(duties) != len(lengths) or len(duties) != len(rewards):
+            # Positional alignment is the whole contract; a mismatch pairs each
+            # duty with the wrong episode's length.
+            return None
+        try:
+            return stance_panel_from_episode_duties(
+                episode_lengths=[float(v) for v in lengths],
+                episode_duties=[float(v) for v in duties],
+                episode_rewards=[float(v) for v in rewards],
+                horizon=self.horizon,
+            )
+        except (TypeError, ValueError):
+            return None
+
+    def _full_horizon_mean(self, attribute: str, index: int) -> float | None:
+        """Mean of a per-episode series over full-horizon episodes only.
+
+        The set the gate's duty is measured over.  Averaging a stance share
+        over a different set than the gated one is what makes the three
+        shares stop summing to 1 and the pair stop being readable together.
+        """
+        series = self._series(attribute, index)
+        lengths = self._series("evaluations_length", index)
+        if series is None or lengths is None or len(series) != len(lengths):
+            return None
+        kept = [
+            float(value)
+            for value, length in zip(series, lengths)
+            if float(length) >= self.horizon and math.isfinite(float(value))
+        ]
+        return float(np.mean(kept)) if kept else None
+
+    def _metrics_for_evaluation(self, index: int, panel: Any | None = None) -> list[_GateMetric]:
         rewards = self.eval_callback.evaluations_results
         lengths = self.eval_callback.evaluations_length
         velocities = self.eval_callback.evaluations_forward_velocities
         successes = self.eval_callback.evaluations_successes
-
-        duties = getattr(self.eval_callback, "evaluations_unsupported_duties", [])
 
         samples: dict[str, Any | None] = {
             "mean_reward": rewards[index] if index < len(rewards) else None,
             "mean_episode_length": lengths[index] if index < len(lengths) else None,
             "mean_forward_vel": velocities[index] if index < len(velocities) else None,
             "mean_success_rate": successes[index] if index < len(successes) else None,
-            "mean_unsupported_duty": duties[index] if index < len(duties) else None,
         }
         values = {key: self._finite_mean(sample) if sample is not None else None for key, sample in samples.items()}
         counts = {key: self._finite_count(sample) if sample is not None else 0 for key, sample in samples.items()}
+
+        # Duty comes from the panel, not from a second reduction, so the
+        # metric the plateau follows is the number the gate compares.
+        if panel is not None and panel.n_duty_episodes:
+            values["mean_unsupported_duty"] = panel.mean_unsupported_duty
+            counts["mean_unsupported_duty"] = panel.n_duty_episodes
+        else:
+            values["mean_unsupported_duty"] = None
+            counts["mean_unsupported_duty"] = 0
 
         # Derived, not sampled: the fraction of episodes reaching the horizon.
         # It comes from the same per-episode lengths the length gate uses, so
@@ -415,8 +477,38 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
 
         return abs(threshold) if threshold != 0.0 else 1.0
 
+    def _record_stance_scalars(self, index: int, panel: Any | None) -> None:
+        """Emit the quantities the stance gate actually decides on.
+
+        All three gating numbers used to be absent from TensorBoard and W&B
+        entirely — only a raw all-episode duty mean was published — so a
+        stance-gated stage gave no way to tell whether it was blocked on the
+        mean or on panel variance driving the bound, which is the single most
+        useful thing to know.
+
+        ``eval_duty_episodes`` is recorded even when it is zero: that is the
+        early-training signal that no episode survived the settling window,
+        and it reads identically to "not evaluated" if it is simply omitted.
+        """
+        if panel is None:
+            return
+        self.logger.record("diagnostics/eval_full_horizon_fraction", panel.full_horizon_fraction)
+        self.logger.record("diagnostics/eval_duty_episodes", panel.n_duty_episodes)
+        if not panel.n_duty_episodes:
+            return
+        self.logger.record("diagnostics/eval_unsupported_duty", panel.mean_unsupported_duty)
+        if math.isfinite(panel.unsupported_duty_ucb):
+            self.logger.record("diagnostics/eval_unsupported_duty_ucb", panel.unsupported_duty_ucb)
+        # Not gated. Measured over the SAME full-horizon episodes as the duty
+        # above so the two are comparable; averaging it over every episode is
+        # what made the three stance shares stop summing to 1.
+        bilateral = self._full_horizon_mean("evaluations_bilateral_duties", index)
+        if bilateral is not None:
+            self.logger.record("diagnostics/eval_bilateral_support_duty", bilateral)
+
     def _process_evaluation(self, index: int) -> None:
-        metrics = self._metrics_for_evaluation(index)
+        panel = self._stance_panel(index)
+        metrics = self._metrics_for_evaluation(index, panel)
         if not metrics:
             return
 
@@ -425,41 +517,59 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         if reward_metric is not None:
             self.logger.record("diagnostics/eval_episode_count", reward_metric.sample_count)
 
-        # Stance shares for EVERY evaluation, recorded before the gate-data
-        # completeness check returns. These are what a later
-        # min_bilateral_support_duty gets calibrated from, and the early part
-        # of a run -- exactly where the panel is most likely to be incomplete
-        # -- is the part that shows whether bilateral duty is climbing at all.
-        # Losing it there would leave only the converged tail.
-        for attribute, scalar in (
-            ("evaluations_unsupported_duties", "diagnostics/eval_unsupported_duty"),
-            ("evaluations_bilateral_duties", "diagnostics/eval_bilateral_support_duty"),
-        ):
-            history = getattr(self.eval_callback, attribute, [])
-            if index < len(history):
-                share = self._finite_mean(history[index])
-                if share is not None:
-                    self.logger.record(scalar, share)
+        self._record_stance_scalars(index, panel)
 
-        if any(metric.value is None or metric.sample_count < min_eval_episodes for metric in metrics):
-            self.logger.record("diagnostics/eval_gate_data_complete", 0.0)
+        # Follow the metrics this evaluation can actually support, rather than
+        # abandoning the whole diagnostic when one of them is unmeasurable.
+        #
+        # This used to `return` if ANY configured metric was short of samples.
+        # Adding unsupported duty to the priority list then switched the entire
+        # callback off for exactly the case it is most needed: early stage-1
+        # training, where episodes end before settle_steps and every duty is
+        # NaN. Measured — a flat, dying run produced one "episode length
+        # plateaued" warning under reward_and_length/v1 and ZERO under the
+        # stance gate, with eval_gate_met and eval_plateau_active never
+        # recorded at all.
+        usable = [metric for metric in metrics if metric.value is not None and metric.sample_count >= min_eval_episodes]
+        complete = len(usable) == len(metrics)
+        self.logger.record("diagnostics/eval_gate_data_complete", 1.0 if complete else 0.0)
+        if not usable:
             return
 
-        self.logger.record("diagnostics/eval_gate_data_complete", 1.0)
-        for metric in metrics:
+        for metric in usable:
             assert metric.value is not None
             self._histories[metric.key].append(metric.value)
 
-        failing = [metric for metric in metrics if metric.is_failing()]
+        failing = [metric for metric in usable if metric.is_failing()]
         if not failing:
-            self.logger.record("diagnostics/eval_gate_met", 1.0)
+            # "Met" only when every configured criterion was checkable. A
+            # partial panel that happens to clear the criteria it could
+            # measure has not met the gate, and publishing 1.0 here would say
+            # it had.
+            self.logger.record("diagnostics/eval_gate_met", 1.0 if complete else 0.0)
             self.logger.record("diagnostics/eval_plateau_active", 0.0)
-            self._clear_plateau("all active stage gates are currently met")
+            if complete:
+                self._clear_plateau("all active stage gates are currently met")
             return
 
         self.logger.record("diagnostics/eval_gate_met", 0.0)
         blocking = next(metric for key in self._METRIC_PRIORITY for metric in failing if metric.key == key)
         assert blocking.value is not None
+
+        # `blocking` is the most behaviourally specific failing metric AMONG
+        # THOSE MEASURABLE. When the panel is partial, a more specific
+        # criterion may be the real blocker and simply have no data, so the
+        # warning has to say which ones went unmeasured rather than implying
+        # the named metric is the whole story.
+        unmeasured = [metric.label for metric in metrics if metric not in usable]
+        caveat = (
+            ""
+            if complete
+            else (
+                f" NOTE: {', '.join(unmeasured)} could not be measured this evaluation, "
+                "so a more specific criterion may be the real blocker."
+            )
+        )
 
         if self._plateau_metric is not None and self._plateau_metric != blocking.key:
             self._clear_plateau(f"the blocking gate changed to {blocking.label}")
@@ -485,7 +595,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         elif not self._plateau_active:
             logger.warning(
                 "STAGE %d EVALUATION PLATEAU: %s stayed within a %s range (%s of its gate) "
-                "across the last %d evaluations; latest %s, required %s, step %d. %s "
+                "across the last %d evaluations; latest %s, required %s, step %d. %s%s "
                 "Training continues; this diagnostic is not the curriculum gate or collapse early-stop.",
                 self.stage,
                 blocking.label,
@@ -496,6 +606,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
                 self._format_value(blocking, blocking.threshold),
                 self.num_timesteps,
                 self._GUIDANCE[blocking.key],
+                caveat,
             )
             self._plateau_active = True
 
