@@ -185,12 +185,12 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # the historical default.
     stage_one_eval_episodes = {"trex": 40, "velociraptor": 10, "brachiosaurus": 10, "dibothrosuchus": 10}
     # Only T-Rex 1a declares stance criteria; the rest export nulls.
-    stance_null = {
+    stance_null: dict[str, float | None] = {
         "min_full_horizon_fraction": None,
         "max_unsupported_duty": None,
         "max_unsupported_duty_ucb": None,
     }
-    stage_one_stance = {
+    stage_one_stance: dict[str, dict[str, float | None]] = {
         "trex": {
             "min_full_horizon_fraction": 0.95,
             "max_unsupported_duty": 0.02,
