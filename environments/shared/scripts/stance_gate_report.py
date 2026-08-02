@@ -138,6 +138,8 @@ def run_panel(
     lengths: list[float] = []
     rewards: list[float] = []
     duties: list[float] = []
+    bilateral_duties: list[float] = []
+    single_duties: list[float] = []
     terminations: dict[str, int] = {}
     # Per-term totals, so a failing panel can be read for *why*. A policy that
     # keeps paying the airborne penalty is being funded by some other term;
@@ -149,6 +151,8 @@ def run_panel(
         total = 0.0
         steps = 0
         unsupported = 0
+        bilateral = 0
+        single = 0
         measured = 0
         while True:
             obs, reward, terminated, truncated, info = env.step(predict(obs))
@@ -160,6 +164,12 @@ def run_panel(
             if stance and steps >= settle_steps:
                 measured += 1
                 unsupported += int(stance["unsupported_duty"])
+                # The gate bounds unsupported duty only. Reporting the full
+                # three-way split shows where recovered airborne time actually
+                # went: a policy that trades flight for SINGLE support drives
+                # the gated number down without ever planting both feet.
+                bilateral += int(stance["bilateral_support_duty"])
+                single += int(stance["single_support_duty"])
             steps += 1
             if terminated or truncated:
                 reason = info.get("termination_reason", "terminated" if terminated else "truncated")
@@ -168,6 +178,9 @@ def run_panel(
         lengths.append(float(steps))
         rewards.append(total)
         duties.append(unsupported / measured if measured else float("nan"))
+        if measured:
+            bilateral_duties.append(bilateral / measured)
+            single_duties.append(single / measured)
 
     panel = stance_panel_from_episode_duties(
         episode_lengths=lengths,
@@ -181,6 +194,8 @@ def run_panel(
         "rewards": np.asarray(rewards),
         "terminations": terminations,
         "components": {key: value / episodes for key, value in components.items()},
+        "bilateral_duty": float(np.mean(bilateral_duties)) if bilateral_duties else float("nan"),
+        "single_duty": float(np.mean(single_duties)) if single_duties else float("nan"),
     }
 
 
@@ -268,6 +283,11 @@ def main() -> int:
     print(f"mean_unsupported_duty  {panel.mean_unsupported_duty:9.4f}   (<= {thresholds.max_unsupported_duty:.4f})")
     print(f"unsupported_duty_ucb   {panel.unsupported_duty_ucb:9.4f}   (<= {thresholds.max_unsupported_duty_ucb:.4f})")
     print(f"duty episodes          {panel.n_duty_episodes:9d}   (full-horizon episodes only)")
+    # Not gated, but decisive for reading a falling unsupported duty: the
+    # three shares sum to 1, so a policy can cut flight without ever planting
+    # both feet.
+    print(f"  bilateral support    {result['bilateral_duty']:9.4f}   (statue 0.998, not gated)")
+    print(f"  single support       {result['single_duty']:9.4f}   (statue 0.002, not gated)")
     print(f"terminations           {result['terminations']}")
     components = result["components"]
     if components:
