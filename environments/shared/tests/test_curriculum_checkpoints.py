@@ -539,6 +539,7 @@ class TestPrunePeriodicCheckpoints:
 
 class TestCheckpointRetentionCallback:
     def _callback(self, tmp_path, save_freq=10, max_checkpoints=2):
+        pytest.importorskip("stable_baselines3")
         from unittest.mock import MagicMock
 
         from environments.shared.curriculum import CheckpointRetentionCallback
@@ -581,6 +582,8 @@ class TestCheckpointRetentionCallback:
 
     def test_rejects_a_save_freq_that_would_prune_every_step(self, tmp_path):
         import pytest
+
+        pytest.importorskip("stable_baselines3")
 
         from environments.shared.curriculum import CheckpointRetentionCallback
 

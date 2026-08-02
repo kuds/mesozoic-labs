@@ -589,6 +589,7 @@ class TestStanceScalarsMatchTheGate:
     }
 
     def _callback(self, *, lengths, duties, bilateral=None, curriculum=None):
+        pytest.importorskip("stable_baselines3")
         from unittest.mock import MagicMock
 
         from environments.shared.eval_diagnostics import StageGatePlateauCallback
@@ -673,6 +674,7 @@ class TestPlateauSurvivesAnUnmeasurableMetric:
     HORIZON = 1000
 
     def _run(self, *, lengths, duties, curriculum, evaluations=8):
+        pytest.importorskip("stable_baselines3")
         from unittest.mock import MagicMock
 
         from environments.shared.eval_diagnostics import StageGatePlateauCallback
@@ -771,6 +773,7 @@ class TestDiagnosticAgreesWithTheGate:
     }
 
     def _both_verdicts(self, n_short):
+        pytest.importorskip("stable_baselines3")
         from unittest.mock import MagicMock
 
         from environments.shared.curriculum.stance_gate import (

@@ -815,6 +815,7 @@ class TestCheckpointRetentionIsWired:
     def test_it_runs_after_the_checkpoint_callback(self, tmp_path):
         # Otherwise it would prune before the checkpoint that displaced one
         # had been written, on the step they share.
+        pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback as _CC
 
         from environments.shared.curriculum import CheckpointRetentionCallback
@@ -826,6 +827,7 @@ class TestCheckpointRetentionIsWired:
     def test_it_shares_the_checkpoint_callbacks_cadence(self, tmp_path):
         # Both must fire on the same n_calls, or pruning happens on steps
         # where nothing was written -- a Drive glob for no reason.
+        pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback as _CC
 
         callbacks = self._build(tmp_path, {"curriculum_kwargs": {"min_avg_reward": 1.0}}, n_envs=4, save_freq=100)
@@ -839,6 +841,7 @@ class TestCheckpointRetentionIsWired:
         assert retention.max_checkpoints == 2
 
     def test_zero_disables_retention_without_disabling_checkpointing(self, tmp_path):
+        pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback as _CC
 
         callbacks = self._build(tmp_path, {"curriculum_kwargs": {"min_avg_reward": 1.0, "max_checkpoints": 0}})
@@ -848,6 +851,7 @@ class TestCheckpointRetentionIsWired:
     def test_more_envs_than_save_freq_does_not_divide_to_zero(self, tmp_path):
         # save_freq // n_envs used to reach CheckpointCallback as 0, and SB3
         # then evaluates `n_calls % 0` -> ZeroDivisionError on the first step.
+        pytest.importorskip("stable_baselines3")
         from stable_baselines3.common.callbacks import CheckpointCallback as _CC
 
         callbacks = self._build(tmp_path, {"curriculum_kwargs": {"min_avg_reward": 1.0}}, n_envs=64, save_freq=8)
