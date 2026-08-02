@@ -37,6 +37,7 @@ claims, and the report says so.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -199,6 +200,178 @@ def run_panel(
     }
 
 
+#: Bumped when the JSON report's field meanings change.
+REPORT_SCHEMA = "mesozoic.stance-gate-report/v1"
+
+
+def thresholds_from_curriculum(curriculum: dict[str, Any]) -> StanceGateThresholds:
+    """Read the stance thresholds a stage declares.
+
+    Ceilings default to ``+inf`` and floors to ``0.0`` so a stage that does not
+    gate on stance still produces a readable report rather than a spuriously
+    strict one -- ``0.0`` would be the tightest possible ceiling, not "absent".
+    """
+    return StanceGateThresholds(
+        min_full_horizon_fraction=float(curriculum.get("min_full_horizon_fraction", 0.0)),
+        max_unsupported_duty=float(curriculum.get("max_unsupported_duty", float("inf"))),
+        max_unsupported_duty_ucb=float(curriculum.get("max_unsupported_duty_ucb", float("inf"))),
+        settle_steps=int(curriculum.get("settle_steps", 0)),
+        min_eval_episodes=int(curriculum.get("min_eval_episodes", 40)),
+        min_avg_reward=float(curriculum.get("min_avg_reward", -float("inf"))),
+        required_consecutive=int(curriculum.get("required_consecutive", 3)),
+    )
+
+
+def build_stance_gate_report(
+    species: str,
+    stage: int,
+    *,
+    stage_config: dict[str, Any],
+    model_path: str | None = None,
+    vecnorm_path: str | None = None,
+    zero_action: bool = False,
+    episodes: int | None = None,
+    seed: int = 3042,
+) -> dict[str, Any]:
+    """Roll a policy and return its gate verdict as a serializable dict.
+
+    Importable so the training pipeline can emit the same report it would
+    produce by hand, rather than a second implementation that could disagree.
+    """
+    curriculum = stage_config["curriculum_kwargs"]
+    env_kwargs = dict(stage_config["env_kwargs"])
+    horizon = int(env_kwargs.get("max_episode_steps", 1000))
+    thresholds = thresholds_from_curriculum(curriculum)
+    panel_episodes = episodes or thresholds.min_eval_episodes
+
+    env_class = SPECIES_FACTORIES[species]().env_class
+    if zero_action:
+        probe = env_class(**env_kwargs)
+        zero = np.zeros(probe.action_space.shape[0], dtype=np.float32)
+        probe.close()
+
+        def predict(_obs: np.ndarray) -> np.ndarray:
+            return zero
+
+        description = "zero action (do-nothing reference)"
+    else:
+        if model_path is None:
+            raise ValueError("model_path is required unless zero_action is set")
+        predict, note = _load_policy(model_path, vecnorm_path, lambda: env_class(**env_kwargs))
+        description = f"{Path(model_path).name} — {note}"
+
+    result = run_panel(
+        species,
+        stage,
+        predict=predict,
+        episodes=panel_episodes,
+        seed=seed,
+        settle_steps=thresholds.settle_steps,
+        horizon=horizon,
+        env_kwargs=env_kwargs,
+    )
+    panel = result["panel"]
+    passed, failures = evaluate_stance_gate(panel, thresholds)
+
+    return {
+        "schema": REPORT_SCHEMA,
+        "species": species,
+        "stage": stage,
+        "gate_kind": curriculum.get("gate_kind"),
+        "policy": description,
+        "episodes": panel_episodes,
+        "seed": seed,
+        "settle_steps": thresholds.settle_steps,
+        "horizon": horizon,
+        "passed": passed,
+        "failures": failures,
+        "thresholds": {
+            "min_full_horizon_fraction": thresholds.min_full_horizon_fraction,
+            "max_unsupported_duty": thresholds.max_unsupported_duty,
+            "max_unsupported_duty_ucb": thresholds.max_unsupported_duty_ucb,
+            "min_avg_reward": thresholds.min_avg_reward,
+            "min_eval_episodes": thresholds.min_eval_episodes,
+        },
+        "metrics": {
+            "reward_mean": float(result["rewards"].mean()),
+            "reward_std": float(result["rewards"].std()),
+            "episode_length_mean": float(result["lengths"].mean()),
+            "full_horizon_fraction": panel.full_horizon_fraction,
+            "mean_unsupported_duty": panel.mean_unsupported_duty,
+            "unsupported_duty_ucb": panel.unsupported_duty_ucb,
+            "n_duty_episodes": panel.n_duty_episodes,
+            # Not gated. Reported because the three shares sum to 1, so a
+            # falling unsupported duty does not by itself mean the feet are
+            # being planted -- the time can land in single support instead.
+            "bilateral_support_duty": result["bilateral_duty"],
+            "single_support_duty": result["single_duty"],
+        },
+        "terminations": result["terminations"],
+        "reward_components": result["components"],
+    }
+
+
+def render_stance_gate_report(report: dict[str, Any]) -> str:
+    """Render a report dict as the human-readable text form."""
+    thresholds = report["thresholds"]
+    metrics = report["metrics"]
+    lines: list[str] = []
+    if report["gate_kind"] != STANCE_GATE_KIND:
+        lines.append(
+            f"NOTE: {report['species']} stage {report['stage']} declares gate_kind "
+            f"{report['gate_kind']!r}, not {STANCE_GATE_KIND!r}. The stance criteria "
+            "below are reported but are not what this stage advances on."
+        )
+        lines.append("")
+    measured = report["horizon"] - report["settle_steps"]
+    lines += [
+        f"policy              {report['policy']}",
+        f"stage               {report['species']} stage {report['stage']} ({report['gate_kind']})",
+        f"panel               {report['episodes']} episodes, "
+        f"seeds {report['seed']}-{report['seed'] + report['episodes'] - 1}",
+        f"settle_steps        {report['settle_steps']} (duty measured over the remaining {measured})",
+        "",
+        f"reward                 {metrics['reward_mean']:9.1f} +/- {metrics['reward_std']:.1f}",
+        f"episode length         {metrics['episode_length_mean']:9.1f}",
+        f"full_horizon_fraction  {metrics['full_horizon_fraction']:9.4f}   "
+        f"(>= {thresholds['min_full_horizon_fraction']:.4f})",
+        f"mean_unsupported_duty  {metrics['mean_unsupported_duty']:9.4f}   "
+        f"(<= {thresholds['max_unsupported_duty']:.4f})",
+        f"unsupported_duty_ucb   {metrics['unsupported_duty_ucb']:9.4f}   "
+        f"(<= {thresholds['max_unsupported_duty_ucb']:.4f})",
+        f"duty episodes          {metrics['n_duty_episodes']:9d}   (full-horizon episodes only)",
+        f"  bilateral support    {metrics['bilateral_support_duty']:9.4f}   (statue 0.998, not gated)",
+        f"  single support       {metrics['single_support_duty']:9.4f}   (statue 0.002, not gated)",
+        f"terminations           {report['terminations']}",
+    ]
+    components = report["reward_components"]
+    if components:
+        lines += ["", "reward per episode, by term (largest magnitude first):"]
+        for key in sorted(components, key=lambda k: -abs(components[k])):
+            if abs(components[key]) > 0.05:
+                lines.append(f"  {key:28s} {components[key]:10.2f}")
+    lines += ["", f"GATE: {'PASS' if report['passed'] else 'FAIL'}"]
+    lines += [f"  - {failure}" for failure in report["failures"]]
+    return "\n".join(lines)
+
+
+def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) -> dict[str, Path]:
+    """Write the report beside the stage's other artifacts.
+
+    Two forms on purpose: the text is what a human opens next to
+    ``stage_summary.txt``, and the JSON is what later tooling can read without
+    parsing prose -- including the per-episode duty evidence the publication
+    gate currently refuses stance-gated bundles for lacking.
+    """
+    directory = Path(stage_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    text_path = directory / "stance_gate_report.txt"
+    json_path = directory / "stance_gate_report.json"
+    text_path.write_text(render_stance_gate_report(report) + "\n", encoding="utf-8")
+    json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return {"stance_gate_report_txt": text_path, "stance_gate_report_json": json_path}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("species", help="Species id, e.g. trex")
@@ -213,103 +386,39 @@ def main() -> int:
     parser.add_argument("--episodes", type=int, default=None, help="Defaults to the stage's min_eval_episodes")
     parser.add_argument("--seed", type=int, default=3042, help="First evaluation seed (default: publication seed)")
     parser.add_argument("--config", help="Explicit stage TOML path")
+    parser.add_argument("--out-dir", help="Also write stance_gate_report.{txt,json} to this directory")
     args = parser.parse_args()
 
     if not args.zero_action and not args.model:
         parser.error("pass --model, or --zero-action for the do-nothing reference")
 
     stage_config = load_stage_config(args.species, args.stage, config_path=args.config)
-    curriculum = stage_config["curriculum_kwargs"]
-    env_kwargs = dict(stage_config["env_kwargs"])
-    horizon = int(env_kwargs.get("max_episode_steps", 1000))
-
-    gate_kind = curriculum.get("gate_kind")
-    if gate_kind != STANCE_GATE_KIND:
-        print(f"NOTE: {args.species} stage {args.stage} declares gate_kind {gate_kind!r}, not {STANCE_GATE_KIND!r}.")
-        print("      The stance criteria below are reported but are not what this stage advances on.")
-
-    thresholds = StanceGateThresholds(
-        min_full_horizon_fraction=float(curriculum.get("min_full_horizon_fraction", 0.0)),
-        max_unsupported_duty=float(curriculum.get("max_unsupported_duty", float("inf"))),
-        max_unsupported_duty_ucb=float(curriculum.get("max_unsupported_duty_ucb", float("inf"))),
-        settle_steps=int(curriculum.get("settle_steps", 0)),
-        min_eval_episodes=int(curriculum.get("min_eval_episodes", 40)),
-        min_avg_reward=float(curriculum.get("min_avg_reward", -float("inf"))),
-        required_consecutive=int(curriculum.get("required_consecutive", 3)),
-    )
-    episodes = args.episodes or thresholds.min_eval_episodes
-
-    env_class = SPECIES_FACTORIES[args.species]().env_class
-
-    if args.zero_action:
-        probe = env_class(**env_kwargs)
-        zero = np.zeros(probe.action_space.shape[0], dtype=np.float32)
-        probe.close()
-
-        def predict(_obs: np.ndarray) -> np.ndarray:
-            return zero
-
-        description = "zero action (do-nothing reference)"
-    else:
-        predict, description = _load_policy(args.model, args.vecnorm, lambda: env_class(**env_kwargs))
-        description = f"{Path(args.model).name} — {description}"
-
-    result = run_panel(
+    report = build_stance_gate_report(
         args.species,
         args.stage,
-        predict=predict,
-        episodes=episodes,
+        stage_config=stage_config,
+        model_path=args.model,
+        vecnorm_path=args.vecnorm,
+        zero_action=args.zero_action,
+        episodes=args.episodes,
         seed=args.seed,
-        settle_steps=thresholds.settle_steps,
-        horizon=horizon,
-        env_kwargs=env_kwargs,
     )
-    panel = result["panel"]
-    passed, failures = evaluate_stance_gate(panel, thresholds)
+    print()
+    print(render_stance_gate_report(report))
 
-    print()
-    print(f"policy              {description}")
-    print(f"stage               {args.species} stage {args.stage} ({gate_kind})")
-    print(f"panel               {episodes} episodes, seeds {args.seed}-{args.seed + episodes - 1}")
-    print(
-        f"settle_steps        {thresholds.settle_steps} (duty measured over the remaining {horizon - thresholds.settle_steps})"
-    )
-    print()
-    print(f"reward                 {result['rewards'].mean():9.1f} +/- {result['rewards'].std():.1f}")
-    print(f"episode length         {result['lengths'].mean():9.1f}")
-    print(
-        f"full_horizon_fraction  {panel.full_horizon_fraction:9.4f}   (>= {thresholds.min_full_horizon_fraction:.4f})"
-    )
-    print(f"mean_unsupported_duty  {panel.mean_unsupported_duty:9.4f}   (<= {thresholds.max_unsupported_duty:.4f})")
-    print(f"unsupported_duty_ucb   {panel.unsupported_duty_ucb:9.4f}   (<= {thresholds.max_unsupported_duty_ucb:.4f})")
-    print(f"duty episodes          {panel.n_duty_episodes:9d}   (full-horizon episodes only)")
-    # Not gated, but decisive for reading a falling unsupported duty: the
-    # three shares sum to 1, so a policy can cut flight without ever planting
-    # both feet.
-    print(f"  bilateral support    {result['bilateral_duty']:9.4f}   (statue 0.998, not gated)")
-    print(f"  single support       {result['single_duty']:9.4f}   (statue 0.002, not gated)")
-    print(f"terminations           {result['terminations']}")
-    components = result["components"]
-    if components:
-        print()
-        print("reward per episode, by term (largest magnitude first):")
-        for key in sorted(components, key=lambda k: -abs(components[k])):
-            value = components[key]
-            if abs(value) > 0.05:
-                print(f"  {key:28s} {value:10.2f}")
+    if args.out_dir:
+        for path in write_stance_gate_report(args.out_dir, report).values():
+            print(f"written: {path}")
 
-    print()
-    print(f"GATE: {'PASS' if passed else 'FAIL'}")
-    for failure in failures:
-        print(f"  - {failure}")
-    if args.episodes and args.episodes != thresholds.min_eval_episodes:
+    declared = report["thresholds"]["min_eval_episodes"]
+    if args.episodes and args.episodes != declared:
         print()
         print(
             f"WARNING: --episodes {args.episodes} differs from the stage's min_eval_episodes "
-            f"{thresholds.min_eval_episodes}. The bound's power is specified at the latter; "
-            "this panel does not certify what the gate claims."
+            f"{declared}. The bound's power is specified at the latter; this panel does not "
+            "certify what the gate claims."
         )
-    return 0 if passed else 1
+    return 0 if report["passed"] else 1
 
 
 if __name__ == "__main__":

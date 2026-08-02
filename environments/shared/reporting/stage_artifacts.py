@@ -124,6 +124,75 @@ def build_stage_results_from_eval_data(
     return result
 
 
+def _write_stance_gate_report(
+    *,
+    species: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_dir: Path,
+) -> None:
+    """Score the selected checkpoint against the stance gate, into the run dir.
+
+    Only for stages that actually declare ``stance_quality/v1``: rolling a
+    40-episode panel costs a few minutes, which is nothing beside a multi-hour
+    stage but is pure waste for a stage the criteria do not govern.
+
+    Runs here rather than in the notebook so it happens for every SB3 run and
+    every sweep trial without anyone remembering, and lands beside
+    ``stage_summary.txt`` in the run directory -- which is on Drive, so the
+    verdict survives a lost runtime.
+
+    Deliberately non-fatal. This is a diagnostic; losing it must never cost a
+    completed training run its artifacts, and the checkpoint may legitimately
+    be absent (a stage stopped before its first ``best_model`` was saved).
+    """
+    from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
+
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    if curriculum.get("gate_kind") != STANCE_GATE_KIND:
+        return
+
+    # Same preference order the trainer uses when it reloads a stage's policy:
+    # the risk-adjusted checkpoint first, SB3's mean-reward one as fallback.
+    for name in ("robust_best_model", "best_model"):
+        model_path = model_dir / f"{name}.zip"
+        if model_path.is_file():
+            break
+    else:
+        logger.warning(
+            "Stance gate report skipped for stage %d: no checkpoint in %s",
+            stage,
+            model_dir,
+        )
+        return
+
+    vecnorm_path = model_dir / f"{model_path.stem}_vecnorm.pkl"
+    try:
+        from environments.shared.scripts.stance_gate_report import (
+            build_stance_gate_report,
+            write_stance_gate_report,
+        )
+
+        report = build_stance_gate_report(
+            species,
+            stage,
+            stage_config=stage_config,
+            model_path=str(model_path),
+            vecnorm_path=str(vecnorm_path) if vecnorm_path.is_file() else None,
+        )
+        written = write_stance_gate_report(stage_dir, report)
+        logger.info(
+            "Stance gate report: %s (duty %.4f, bilateral %.4f) -> %s",
+            "PASS" if report["passed"] else "FAIL",
+            report["metrics"]["mean_unsupported_duty"],
+            report["metrics"]["bilateral_support_duty"],
+            written["stance_gate_report_txt"],
+        )
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+        logger.warning("Stance gate report failed for stage %d", stage, exc_info=True)
+
+
 def generate_stage_artifacts(
     species_cfg,
     stage_config: dict[str, Any],
@@ -168,6 +237,14 @@ def generate_stage_artifacts(
 
     text_summaries.write_stage_summary(stage_dir, stage_results, species, algorithm)
     logger.info("Stage summary written to: %s", stage_dir / "stage_summary.txt")
+
+    _write_stance_gate_report(
+        species=species,
+        stage=stage,
+        stage_config=stage_config,
+        stage_dir=stage_dir,
+        model_dir=model_dir,
+    )
 
     # ── Generate training graphs ────────────────────────────────────────
     if generate_graphs:
