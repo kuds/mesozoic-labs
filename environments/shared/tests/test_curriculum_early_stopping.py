@@ -609,19 +609,38 @@ class TestPeakWarmup:
                 return cb.num_timesteps, cb
         return None, cb
 
-    def _run_20260803_shape(self):
-        """Near-statue spike, then the documented dip. 29 evals = 1.45M."""
-        return [1800.0, self.STATUE_PEAK, 2100.0, 1900.0, 1700.0] + [400.0] * 24
+    # The REAL per-evaluation mean rewards of run 20260803_012355 stage 1, read
+    # from its evaluations.npz: 29 evaluations at 50k spacing, ending at the
+    # 1.45M step where the backstop actually stopped it. Full-horizon fraction
+    # runs 50.0% -> 70.0% -> 37.5% -> 7.5% -> 0.0% across the first five, so
+    # the initialisation advantage is spent by 200k; the rise from evaluation
+    # 14 (59.4) to 27 (350.7) is the recovery that the stop cut short.
+    RUN_20260803 = [
+        2007.3, 2469.4, 1506.5, 580.5, 314.6,
+        323.9, 498.0, 522.1, 585.7, 539.9,
+        238.1, 189.7, 112.6, 59.4, 80.8,
+        111.0, 152.6, 150.6, 172.9, 226.5,
+        236.2, 217.2, 270.4, 346.7, 349.5,
+        379.4, 350.7, 275.1, 281.2,
+    ]  # fmt: skip
 
-    def test_without_warmup_the_statue_spike_aborts_the_run(self):
-        """Reproduces the defect, so the fix below is measured, not assumed."""
-        stopped_at, _ = self._drive(self._run_20260803_shape(), warmup=0.0)
-        assert stopped_at == 1_450_000  # the real run's stopping point
+    def test_without_warmup_it_reproduces_the_real_stopping_point(self):
+        """Not an approximation of the failure — the failure itself."""
+        stopped_at, cb = self._drive(self.RUN_20260803, warmup=0.0)
+        assert stopped_at == 1_450_000
+        # Armed on the first window's median by 34.2, a 2.3% margin. Every
+        # other window in the run maxes out at 580.5, far under the floor.
+        assert cb._peak_score == pytest.approx(1506.5)
 
-    def test_a_warmup_past_the_spike_lets_the_run_continue(self):
-        stopped_at, cb = self._drive(self._run_20260803_shape(), warmup=2_500_000)
+    def test_the_configured_warmup_lets_the_real_run_continue(self):
+        stopped_at, cb = self._drive(self.RUN_20260803, warmup=1_000_000)
         assert stopped_at is None
-        assert cb._peak_score == float("-inf")  # never armed
+        assert cb._peak_score < self.PEAK_FLOOR  # never armed
+
+    @pytest.mark.parametrize("warmup", [150_000, 250_000, 500_000, 1_000_000, 2_500_000])
+    def test_every_warmup_past_the_initialisation_spike_works(self, warmup):
+        """The spike is spent by 200k, so the choice is not knife-edge."""
+        assert self._drive(self.RUN_20260803, warmup=warmup)[0] is None
 
     def test_a_genuine_late_collapse_still_stops(self):
         """The warm-up delays the peak; it must not disarm the backstop."""
@@ -643,7 +662,7 @@ class TestPeakWarmup:
 
     def test_missing_eval_timesteps_stays_disarmed_rather_than_aborting(self):
         """A backstop that cannot tell early from late must not end the run."""
-        trace = self._run_20260803_shape()
+        trace = self.RUN_20260803
         cb = object.__new__(EvalCollapseEarlyStopCallback)
         cb.eval_callback = MagicMock(spec=["evaluations_results"])
         cb.eval_callback.evaluations_results = [[m] for m in trace]
@@ -655,7 +674,7 @@ class TestPeakWarmup:
         cb.drop_fraction = 0.5
         cb.smoothing_window = 5
         cb.peak_floor = self.PEAK_FLOOR
-        cb.peak_warmup_timesteps = 2_500_000
+        cb.peak_warmup_timesteps = 1_000_000
         cb.num_timesteps = 1_450_000
         assert cb._on_step() is True
 
@@ -663,5 +682,5 @@ class TestPeakWarmup:
         assert collapse_settings_from_config({})["peak_warmup_timesteps"] == 0.0
 
     def test_config_key_is_read(self):
-        settings = collapse_settings_from_config({"collapse_peak_warmup_timesteps": 2_500_000})
-        assert settings["peak_warmup_timesteps"] == 2_500_000.0
+        settings = collapse_settings_from_config({"collapse_peak_warmup_timesteps": 1_000_000})
+        assert settings["peak_warmup_timesteps"] == 1_000_000.0
