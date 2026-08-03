@@ -1394,3 +1394,131 @@ per-measurement manifest is the next improvement. The two scripts added in #478 
 `foot_sensor_report.py` and `stance_duty_validation.py` — are the first load-bearing numbers
 here that are reproducible by a single documented command, which is the pattern the rest should
 follow.
+
+---
+
+## 12. Lessons from the 2026-08-02 and 2026-08-03 runs
+
+Two consecutive T-Rex stage-1 runs failed for two unrelated reasons, neither of which was the
+policy. Both were found by reading the runs' own artifacts against each other. The numbers below
+are `measured` from `collected_results.csv`, `stage_summary.txt` and `stance_gate_report.txt` of
+runs `20260802_203215` and `20260803_012355` unless labelled otherwise.
+
+### 12.1 A gate the trainer never calls is not a gate
+
+`stance_quality/v1` was implemented in `CurriculumManager.should_advance`, registered in the
+schema, wired into recorded-gate reporting, taught to `result_bundle.evidence`, and given ~30
+tests. It was never enforced, because `notebooks/sb3_training.ipynb` — the thing that actually
+runs training on Colab — carried its own checklist and never called any of it.
+`_build_core_callbacks` constructs no `CurriculumCallback`, so on that path the gate was dead
+code.
+
+Three copies of the advancement rule existed (notebook, `CurriculumManager`,
+`sweep/ray_tune.py`). The one that ran was the one nobody had updated. **Check the call path, not
+the implementation**: the question to ask of a new gate is not "is it correct?" but "what code
+would have to be deleted for it to stop being consulted?"
+
+Retiring `min_avg_episode_length` from the 1a config made this worse rather than neutral: the
+notebook's `.get("min_avg_episode_length", 0.0)` silently became a 0.0 floor, so the stage's
+enforced gate reduced to *reward alone*. **A default that means "absent" and a default that means
+"no constraint" are the same literal**, and the fail-closed schema in `gate_schema.py` exists
+precisely because that coincidence is invisible at the call site.
+
+### 12.2 On stage 1 the untrained policy is already near the reward optimum
+
+With `home-keyframe-residual/v1` and `log_std_init = 0`, action = 0 commands the nominal stance.
+The consequence is quantitative, not rhetorical. Decomposing run `20260803_012355`'s selected
+checkpoint (`measured`: panel mean 2319.7, sd 1263.7, 26 of 40 full-horizon) as a two-point
+mixture of *survive* and *fall* episodes gives
+
+| quantity | value |
+|---|---|
+| survive | 3247.0 |
+| fall | 597.6 |
+| zero-action statue (§2.3.1) | 3271.8 |
+
+The survive value is within **0.76%** of the statue. Cross-checking against the same checkpoint's
+100k-step selection evaluation (`measured`: mean 2469.43, sd 1195.52) implies 70.65% survival and
+predicts sd 1206.4 against 1195.52 observed — **0.91% apart**. The checkpoint is the statue, on
+whichever episodes it does not fall over.
+
+So on this stage **no reward-referenced threshold separates "already good" from "hasn't started
+learning"** — they are the same number. That single fact explains three separate failures already
+in this document's history: two absolute `collapse_peak_floor` values that never armed (§7.4), and
+the reward rail that the statue clears by 68% (§12 of PLANT_VALIDATION). Any future threshold on
+stage-1 *return* should be assumed broken until shown otherwise; threshold on stance instead.
+
+### 12.3 A robust statistic protects against an outlier, not against a regime
+
+The collapse backstop uses the max of rolling **medians** of 5 evaluations, specifically so one
+variance-inflated evaluation cannot set the peak. That is the right defence against an outlier and
+no defence at all here: the accidental statue sits **5.2σ above** the 0.45 × 3271.8 = 1472.3
+arming floor, where σ = 190.8 is the evaluation-mean spread from survival sampling alone at
+n = 40. Five consecutive draws from that distribution have a median far above the floor. The
+median was doing its job; the job was the wrong one.
+
+The fix (`collapse_peak_warmup_timesteps`) therefore changes *which evaluations may set the peak*
+rather than making the test more robust or more sensitive. It is expressed in timesteps rather
+than reward, which is the property the two failed absolute floors lacked: it survives a
+reward-function edit.
+
+### 12.4 The run that survived was lucky, not protected
+
+The two runs' configs differ by **exactly one line** (`timesteps = 6000000` → `10000000`;
+`measured` by diffing `2d032ce..8f0f7a9`). Only the learning-rate schedule reads it —
+`linear_schedule` is parameterised on `progress_remaining`, so the 10M run holds a 0.45% higher LR
+at 100k steps and 7.7% higher by 1.45M. Nothing else in the stage is a function of the budget;
+`ent_coef_decay_timesteps` is absolute.
+
+It is tempting to conclude the 6M run was protected by something the 10M run lacked. It was not.
+Since the accidental-statue regime sits 5.2σ above the arming floor, **any** run passing through
+it arms the detector, and both runs start from the same seed and the same initialisation — so the
+6M run almost certainly armed too `[inferred]`. What differed was only whether the subsequent dip
+produced `patience = 10` *consecutive* sub-threshold evaluations. It did in the 10M run; it did
+not in the 6M one, whose sibling `20260801_021545` is documented in
+`collapse_settings_from_config` as putting 45 of 94 pre-peak evaluations below half their running
+peak — frequent, but interspersed with recoveries that reset the counter.
+
+The inference is bounded rather than free. The 6M run's best evaluation anywhere in 6M steps was
+2273.3, attained at its *final* evaluation, so its early evaluations were all below that — which
+puts its statue-regime survival at roughly ≤62% against the 10M run's 70.65%, still far above the
+1472.3 floor. Neither run's full evaluation series has been read (both live in `evaluations.npz`),
+so the consecutive-versus-interspersed claim is `[inferred]` from the stopping step alone:
+1,450,000 = evaluation 29 at `eval_freq` 50k, with `patience = 10` and `min_evals = 20`. Reading
+the two series would settle it, and would also let the 2.5M warm-up be re-derived by simulation
+rather than from breakthrough timings.
+
+The general form: **a backstop whose arming depends on a noise-dominated early evaluation converts
+run-to-run variance into a categorical outcome** — the run completes, or it dies at 14.5% of
+budget and hands a near-statue checkpoint to two downstream stages for 9¼ hours. Surviving that
+once is not evidence the configuration is safe.
+
+### 12.5 Reproduce the failure before claiming the fix
+
+The warm-up's regression test replays the failing run's evaluation shape through the callback and
+asserts it stops at **exactly 1,450,000** — the real run's stopping point — *before* asserting
+that the warm-up prevents it. A test that only asserts the fixed behaviour cannot distinguish "I
+fixed it" from "I disabled it".
+
+The same applies to the gate: replaying run `20260802_203215`'s own config and metrics shows the
+old checklist evaluating one criterion and returning `True` where the new gate returns `False`
+naming both duty failures.
+
+### 12.6 Fail-open defects cluster around absence
+
+Every hole found by adversarial probing of the new gate code was a case where *nothing was
+compared* and the result read as a pass: a NaN metric (`nan < threshold` is `False`, so it cleared
+every floor), a gate kind declared with no thresholds set (a vacuously-true empty conjunction),
+and a missing stance panel. The stance gate itself had four of the same shape earlier in this
+work.
+
+The pattern is worth stating as a rule: **enumerate the paths that can return "pass" without
+having performed a comparison, and make each of them return "fail" with a reason.** "We could not
+check" must never be encoded the same way as "it passed".
+
+### 12.7 What this does not explain
+
+Stage 1a still has no certified checkpoint, and the two runs failed the gate on *opposite*
+criteria — `20260802_203215` at duty 0.2120 with full-horizon 1.0000, `20260803_012355` at
+full-horizon 0.6500 with duty 0.0000. Neither result tells us whether a policy satisfying both
+exists within the current reward. That question is open and is not addressed by either fix here.
