@@ -143,6 +143,7 @@ _COLLAPSE_KEYS = frozenset(
         "collapse_peak_floor",
         "collapse_peak_floor_fraction",
         "collapse_peak_floor_reference",
+        "collapse_peak_warmup_timesteps",
         "collapse_smoothing_window",
     }
 )

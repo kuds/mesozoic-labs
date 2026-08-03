@@ -297,6 +297,27 @@ collapse_drop_fraction = 0.5            # Only raw means >50% below the robust r
                                         # low-reward grind then a noisy breakthrough (run 20260721_004731: dip to ~1.2M,
                                         # turbulent transition at 2.2-2.3M, converged ~2.65M); the old stage-1 defaults
                                         # killed run 20260720_203454 at 1.1M off a variance-inflated 50k peak.
+collapse_peak_warmup_timesteps = 2500000 # Evaluations before this step cannot SET the peak. Not a tightening of
+                                         # the detector (see collapse_settings_from_config on why tightening
+                                         # aborts healthy runs) -- a separate axis, and the only one that works on
+                                         # this stage. With home-keyframe-residual/v1 and log_std_init = 0,
+                                         # action = 0 commands the nominal stance, so the UNTRAINED policy already
+                                         # scores near the reward optimum: run 20260803_012355 peaked at 2469.4 on
+                                         # its SECOND evaluation (100k steps), 75% of the 3271.8 baseline. The
+                                         # floor below (1472.3) therefore armed on initialisation, and the
+                                         # ordinary exploration dip that follows read as a collapse: it stopped at
+                                         # 1.45M of a 10M budget and stages 2-3 spent 9 1/4 hours on the
+                                         # near-statue checkpoint. No floor separates those two -- above
+                                         # initialisation (>0.75x) is above what a learning policy passes through,
+                                         # which is exactly how the two absolute floors below failed.
+                                         #
+                                         # 2.5M brackets every breakthrough this task has shown: 20260721_004731
+                                         # transitioned at 2.2-2.3M, 20260802_203215 produced new bests at 2.8M,
+                                         # 3.3M and 4.55M with its best evaluation at 6.0M of 6M. Nothing before
+                                         # 2.5M has been learned that a collapse could destroy. [inferred] from
+                                         # those three runs' breakthrough timings, NOT from a simulated sweep over
+                                         # 20260803_012355's own 29-evaluation series -- re-derive it against that
+                                         # series when convenient.
 collapse_peak_floor_reference = 3271.8   # The zero-action statue's standing reward at noise 0.05, 40 episodes.
 collapse_peak_floor_fraction = 0.45      # RELATIVE floor (PLANT_VALIDATION §14 item 3). An absolute floor has now
                                          # failed to arm TWICE for the same reason: 2200 against run 20260731_132102
