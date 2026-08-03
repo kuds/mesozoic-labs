@@ -40,7 +40,7 @@ from .csv_output import (
     write_results_csv,
 )
 from .formatting import format_duration, format_duration_hms, parse_optional_bool
-from .gates import evaluate_recorded_gate
+from .gates import evaluate_recorded_gate, evaluate_stage_gate
 from .stage_artifacts import (
     build_stage_results_from_eval_data,
     generate_stage_artifacts,
@@ -55,6 +55,7 @@ __all__ = [
     "build_results_csv_rows",
     "build_stage_results_from_eval_data",
     "evaluate_recorded_gate",
+    "evaluate_stage_gate",
     "format_duration",
     "format_duration_hms",
     "generate_stage_artifacts",

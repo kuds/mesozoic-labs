@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Fixed
+- **The training notebook never enforced the stance gate, and advanced a
+  failing stage on its reward rail.** `notebooks/sb3_training.ipynb` computed
+  `publication_gate_passed` from its own checklist over `min_avg_reward` /
+  `min_avg_episode_length` / `min_avg_forward_vel` / `min_success_rate`. It
+  never called `CurriculumManager.should_advance`, where `stance_quality/v1`
+  is evaluated — `_build_core_callbacks` constructs no `CurriculumCallback`,
+  so on the Colab path the stance gate was **dead code**. Retiring
+  `min_avg_episode_length` from the trex 1a config then made the checklist's
+  only other criterion vacuous (`.get(..., 0.0)`), leaving *reward alone* —
+  the one threshold the zero-action statue clears by 68%, and the exact
+  reading `stance_quality/v1` exists to refute. Run `20260802_203215`
+  recorded `stage_passed = publication_gate_passed = True` in
+  `collected_results.csv` beside its own `stance_gate_report.txt` reading
+  `GATE: FAIL`, `mean_unsupported_duty 0.2120 > 0.0200` — 10.6x the ceiling —
+  and started stage 2 on that checkpoint. The rule now exists once, as
+  `reporting.gates.evaluate_stage_gate`, dispatched on the declared
+  `gate_kind` and called from `generate_stage_artifacts`: the entry point the
+  notebook and the sweep trial worker already share, so no caller can advance
+  on a checklist that has drifted away from the schema. It is fail-closed at
+  every branch — an undeclared or unknown kind, `none/v1`, a missing stance
+  panel, a verdict scored for a different gate, and a non-boolean verdict all
+  fail with a stated reason, because "we could not check" must never read as
+  "it passed". Replayed against the run's own config and measurements, the
+  old checklist evaluates one criterion and returns `True`; the new gate
+  returns `False` naming both duty failures. Stage 2 and 3 semantics are
+  unchanged: thresholds still apply only when declared, and the velocity and
+  success floors only when positive. Three fail-open holes were found by
+  probing the new code and closed before it shipped — a NaN metric cleared
+  every floor (`nan < threshold` is `False`, measured returning
+  `(True, [])`), a `reward_and_length/v1` block with no threshold set was a
+  vacuously-true empty conjunction, and a `failures` string was shredded into
+  one-character reasons.
 - **The evaluation diagnostic no longer contradicts the gate it reports on.**
   `evaluate_stance_gate` certifies on
   `ceil(min_eval_episodes x min_full_horizon_fraction)` duty episodes — 38 of
