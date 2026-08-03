@@ -33,9 +33,14 @@ class TestEvalCollapseEarlyStopCallback:
             "peak_floor",
             "verbose",
             "smoothing_window",
+            "peak_warmup_timesteps",
         ]
         assert params["verbose"].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
         assert params["smoothing_window"].kind is inspect.Parameter.KEYWORD_ONLY
+        # Keyword-only for the same reason: every new knob goes after the
+        # `*`, so `verbose` keeps its historical positional slot forever.
+        assert params["peak_warmup_timesteps"].kind is inspect.Parameter.KEYWORD_ONLY
+        assert params["peak_warmup_timesteps"].default == 0.0
 
     def test_returns_true_without_eval_results(self):
         cb = object.__new__(EvalCollapseEarlyStopCallback)
@@ -45,6 +50,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         assert cb._on_step() is True
 
     def test_returns_true_when_eval_results_empty(self):
@@ -56,6 +62,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         assert cb._on_step() is True
 
     def test_returns_true_before_min_evals(self, tmp_path):
@@ -68,6 +75,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 5  # Need 5 evals, only have 2
         cb.drop_fraction = 0.3
         cb.patience = 3
@@ -83,6 +91,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         assert cb._on_step() is True
 
     def test_stops_after_patience_drops(self, tmp_path):
@@ -103,6 +112,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 3
         cb.drop_fraction = 0.3
         cb.patience = 1  # Stop after 1 drop
@@ -131,6 +141,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 5
         cb.drop_fraction = 0.3
         cb.patience = 5  # High patience
@@ -153,6 +164,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 100.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 5
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 3
         cb.drop_fraction = 0.5
         cb.patience = 1
@@ -199,6 +211,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 100.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 5
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 3
         cb.drop_fraction = 0.5
         cb.patience = 1
@@ -228,6 +241,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 100.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 5
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 3
         cb.drop_fraction = 0.4
         cb.patience = 1
@@ -276,6 +290,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.patience = patience
         cb.drop_fraction = drop_fraction
         cb.smoothing_window = smoothing_window
+        cb.peak_warmup_timesteps = 0.0
         cb.peak_floor = peak_floor
         for i in range(len(evaluations)):
             cb.eval_callback.evaluations_results = evaluations[: i + 1]
@@ -545,3 +560,108 @@ class TestTighteningDropAndPatienceIsRefuted:
             "45 pre-peak evaluations already sat below HALF the running peak, so a "
             "threshold tight enough for the endgame aborts the run mid-training"
         )
+
+
+class TestPeakWarmup:
+    """Evaluations before the warm-up must not set the peak.
+
+    Regression for run `20260803_012355`: trex stage 1 peaked at 2469.4 on its
+    SECOND evaluation (100k steps), because with `home-keyframe-residual/v1`
+    and `log_std_init = 0` an untrained policy already commands the nominal
+    stance. That armed the 0.45 x 3271.8 = 1472.3 floor on initialisation, and
+    the ordinary exploration dip that follows read as a collapse -- stopping at
+    1.45M of a 10M budget, after which stages 2 and 3 spent 9 1/4 hours on the
+    near-statue checkpoint it left behind.
+
+    No `peak_floor` value separates those two cases: set it above
+    initialisation (>0.75x the baseline) and it sits above what a learning
+    policy passes through, which is how both absolute floors in
+    `collapse_settings_from_config` failed. The warm-up is a different axis.
+    """
+
+    STATUE_PEAK = 2469.4
+    PEAK_FLOOR = 0.45 * 3271.8  # 1472.31, as configured for trex stage 1
+
+    def _drive(self, trace, *, warmup, eval_freq=50_000, min_evals=20, patience=10, drop_fraction=0.5):
+        """Feed a per-eval mean trace one eval at a time, tracking timesteps.
+
+        Returns ``(stopped_at_step_or_None, callback)`` so a test can assert on
+        the peak as well as the verdict.
+        """
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_results = []
+        cb.eval_callback.evaluations_timesteps = []
+        cb._last_seen_n_evals = 0
+        cb._peak_score = float("-inf")
+        cb._consecutive_drops = 0
+        cb.min_evals = min_evals
+        cb.patience = patience
+        cb.drop_fraction = drop_fraction
+        cb.smoothing_window = 5
+        cb.peak_floor = self.PEAK_FLOOR
+        cb.peak_warmup_timesteps = warmup
+        for i in range(len(trace)):
+            cb.eval_callback.evaluations_results = [[m] for m in trace[: i + 1]]
+            cb.eval_callback.evaluations_timesteps = [(j + 1) * eval_freq for j in range(i + 1)]
+            cb.num_timesteps = (i + 1) * eval_freq
+            if cb._on_step() is False:
+                return cb.num_timesteps, cb
+        return None, cb
+
+    def _run_20260803_shape(self):
+        """Near-statue spike, then the documented dip. 29 evals = 1.45M."""
+        return [1800.0, self.STATUE_PEAK, 2100.0, 1900.0, 1700.0] + [400.0] * 24
+
+    def test_without_warmup_the_statue_spike_aborts_the_run(self):
+        """Reproduces the defect, so the fix below is measured, not assumed."""
+        stopped_at, _ = self._drive(self._run_20260803_shape(), warmup=0.0)
+        assert stopped_at == 1_450_000  # the real run's stopping point
+
+    def test_a_warmup_past_the_spike_lets_the_run_continue(self):
+        stopped_at, cb = self._drive(self._run_20260803_shape(), warmup=2_500_000)
+        assert stopped_at is None
+        assert cb._peak_score == float("-inf")  # never armed
+
+    def test_a_genuine_late_collapse_still_stops(self):
+        """The warm-up delays the peak; it must not disarm the backstop."""
+        trace = [400.0] * 50 + [2400.0] * 10 + [300.0] * 12
+        stopped_at, cb = self._drive(trace, warmup=2_500_000)
+        assert stopped_at is not None
+        assert cb._peak_score == pytest.approx(2400.0)
+
+    def test_a_window_straddling_the_warmup_is_excluded_whole(self):
+        """Eligibility is by window START, so no kept window spans the line.
+
+        Judging by the window's END would keep the very first window here --
+        five consecutive spikes, median 2469.4 -- and a median survives one
+        contaminating sample out of five, not five.
+        """
+        trace = [self.STATUE_PEAK] * 5 + [400.0] * 40
+        _, cb = self._drive(trace, warmup=250_000)
+        assert cb._peak_score == pytest.approx(400.0)
+
+    def test_missing_eval_timesteps_stays_disarmed_rather_than_aborting(self):
+        """A backstop that cannot tell early from late must not end the run."""
+        trace = self._run_20260803_shape()
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock(spec=["evaluations_results"])
+        cb.eval_callback.evaluations_results = [[m] for m in trace]
+        cb._last_seen_n_evals = 0
+        cb._peak_score = float("-inf")
+        cb._consecutive_drops = 0
+        cb.min_evals = 20
+        cb.patience = 10
+        cb.drop_fraction = 0.5
+        cb.smoothing_window = 5
+        cb.peak_floor = self.PEAK_FLOOR
+        cb.peak_warmup_timesteps = 2_500_000
+        cb.num_timesteps = 1_450_000
+        assert cb._on_step() is True
+
+    def test_default_config_leaves_every_existing_stage_unchanged(self):
+        assert collapse_settings_from_config({})["peak_warmup_timesteps"] == 0.0
+
+    def test_config_key_is_read(self):
+        settings = collapse_settings_from_config({"collapse_peak_warmup_timesteps": 2_500_000})
+        assert settings["peak_warmup_timesteps"] == 2_500_000.0

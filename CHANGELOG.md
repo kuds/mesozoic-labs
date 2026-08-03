@@ -8,6 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Fixed
+- **The collapse backstop armed on the untrained policy and killed stage 1 at
+  14.5% of its budget.** With `home-keyframe-residual/v1` and
+  `log_std_init = 0`, action = 0 commands the nominal stance, so an *untrained*
+  T-Rex already scores near the reward optimum. Run `20260803_012355` peaked at
+  2469.4 on its **second** evaluation (100k steps) — 75% of the 3271.8
+  zero-action baseline — which cleared the 0.45 × 3271.8 = 1472.3 arming floor
+  on initialisation. The ordinary exploration dip that follows then read as a
+  collapse: training stopped at 1.45M of a 10M budget, and stages 2 and 3 spent
+  9¼ hours on the near-statue checkpoint it left. The 6M run at the same seed
+  passed through that same dip to new bests at 2.8M, 3.3M and 4.55M, so there
+  was nothing to catch.
+  No `peak_floor` fixes this, because on stage 1 "already good" and "hasn't
+  started learning" are the same number: set the floor above initialisation
+  (>0.75×) and it lands above what a learning policy passes through — exactly
+  how the two absolute floors documented in `collapse_settings_from_config`
+  failed to arm. `collapse_peak_warmup_timesteps` is a different axis: rolling
+  windows containing any evaluation before it cannot **set** the peak.
+  Eligibility is by window *start*, so no surviving window straddles the
+  boundary — a median absorbs one contaminating sample out of five, not five.
+  While nothing qualifies, the backstop stays disarmed, which is the fail-safe
+  direction; if the evaluation timesteps are unavailable it also stays
+  disarmed rather than aborting a multi-hour run on a signal it cannot read.
+  Expressed in timesteps rather than reward, so unlike an absolute floor it
+  survives a reward-function edit. Defaults to `0.0` — every existing stage
+  behaves exactly as before; only trex 1a sets it, to 2.5M, which brackets
+  every breakthrough this task has shown (2.2–2.3M, 2.8M, 3.3M, 4.55M).
+  Note this is **not** a tightening of `drop_fraction`/`patience`, which
+  `collapse_settings_from_config` documents at length as aborting healthy runs.
+  Replaying run `20260803_012355`'s shape through the callback stops it at
+  exactly 1,450,000 without the warm-up and never arms with it.
 - **The training notebook never enforced the stance gate, and advanced a
   failing stage on its reward rail.** `notebooks/sb3_training.ipynb` computed
   `publication_gate_passed` from its own checklist over `min_avg_reward` /

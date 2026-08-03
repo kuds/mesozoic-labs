@@ -40,6 +40,28 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
     inherited from ``min_avg_reward``, which would couple this backstop to an
     unrelated advancement threshold.
 
+    ``peak_warmup_timesteps`` excludes early evaluations from *peak candidacy*,
+    which is a different axis from the floor and exists because on stage 1 no
+    floor value can work. With ``home-keyframe-residual/v1`` and
+    ``log_std_init = 0``, action = 0 commands the nominal stance, so the
+    UNTRAINED policy already scores near the reward optimum: run
+    ``20260803_012355`` peaked at 2469.4 on its second evaluation (100k steps),
+    75% of the 3271.8 zero-action baseline. Its floor of 0.45 x 3271.8 = 1472.3
+    therefore armed on initialisation, and the ordinary exploration dip that
+    follows -- the documented "dips before it gets better" pattern, which the
+    6M run at the same seed passed through on its way to new bests at 2.8M,
+    3.3M and 4.55M -- read as a collapse. It stopped at 1.45M of a 10M budget,
+    14.5%, and stages 2 and 3 then trained 9 1/4 hours on the near-statue
+    checkpoint it left.
+
+    No floor fixes that. Set it above initialisation (> 0.75x baseline) and it
+    lands above what a learning policy passes through, so it never arms -- the
+    two historical failures :func:`collapse_settings_from_config` documents.
+    Set it lower and it arms on initialisation. The two are the same number on
+    this stage. A warm-up separates them, and it is expressed in TIMESTEPS
+    rather than reward, so unlike an absolute floor it survives a
+    reward-function edit.
+
     Args:
         eval_callback: The ``EvalCallback`` whose ``evaluations.npz``
             to monitor.
@@ -55,6 +77,10 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         smoothing_window: Number of per-evaluation means in each full
             rolling-median peak window (default 5). Keyword-only so the
             historical positional slot for ``verbose`` remains stable.
+        peak_warmup_timesteps: Windows containing any evaluation before this
+            step do not set the peak (default 0.0 — every window counts, the
+            historical behaviour). While no window qualifies the backstop stays
+            disarmed, which is the fail-safe direction for a backstop.
     """
 
     def __init__(
@@ -67,6 +93,7 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         verbose: int = 0,
         *,
         smoothing_window: int = 5,
+        peak_warmup_timesteps: float = 0.0,
     ):
         if not sb3_compat._SB3_AVAILABLE:
             raise ImportError("stable-baselines3 is required for EvalCollapseEarlyStopCallback.")
@@ -77,9 +104,28 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         self.min_evals = min_evals
         self.peak_floor = peak_floor
         self.smoothing_window = max(1, int(smoothing_window))
+        self.peak_warmup_timesteps = float(peak_warmup_timesteps)
         self._peak_score = -np.inf
         self._consecutive_drops = 0
         self._last_seen_n_evals = 0
+
+    def _windows_after_warmup(self, n_windows: int, window: int) -> np.ndarray | None:
+        """Mask of rolling-median windows that start at or after the warm-up.
+
+        ``None`` when the evaluation timesteps are unavailable or do not line
+        up with the results — the caller then stays disarmed, because a
+        backstop that cannot tell early evaluations from late ones must not be
+        the thing that aborts a multi-hour run.
+        """
+        timesteps = getattr(self.eval_callback, "evaluations_timesteps", None)
+        if timesteps is None or len(timesteps) < n_windows + window - 1:
+            logger.warning(
+                "EvalCollapseEarlyStop: peak_warmup_timesteps is set but evaluation "
+                "timesteps are unavailable; staying disarmed."
+            )
+            return None
+        starts = np.asarray(timesteps[:n_windows], dtype=float)
+        return starts >= self.peak_warmup_timesteps
 
     def _on_step(self) -> bool:
         # EvalCallback keeps per-eval episode rewards in memory (populated
@@ -107,6 +153,20 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         rolling_medians = np.array(
             [float(np.median(eval_means[i - window + 1 : i + 1])) for i in range(window - 1, len(eval_means))]
         )
+
+        # Window w covers eval_means[w : w + window], so requiring
+        # timesteps[w] >= warmup drops every window that CONTAINS a
+        # pre-warm-up evaluation, not merely those ending in one. A median
+        # is robust to one contaminating sample out of five, not to three.
+        if self.peak_warmup_timesteps > 0.0:
+            eligible = self._windows_after_warmup(rolling_medians.size, window)
+            if eligible is None or not eligible.any():
+                # Nothing has yet been learned that could be destroyed, so
+                # there is no peak to collapse from. Stay disarmed.
+                self._consecutive_drops = 0
+                return True
+            rolling_medians = rolling_medians[eligible]
+
         self._peak_score = float(rolling_medians.max())
 
         latest_mean = float(eval_means[-1])
@@ -210,6 +270,10 @@ def collapse_settings_from_config(curriculum_kwargs: dict[str, Any]) -> dict[str
         "drop_fraction": float(curriculum_kwargs.get("collapse_drop_fraction", 0.4)),
         "peak_floor": float(peak_floor),
         "smoothing_window": int(curriculum_kwargs.get("collapse_smoothing_window", 5)),
+        # Defaults to 0.0 = every window may set the peak, the behaviour every
+        # existing config already has. Only a stage that declares the key
+        # changes, so this cannot silently disarm a backstop elsewhere.
+        "peak_warmup_timesteps": float(curriculum_kwargs.get("collapse_peak_warmup_timesteps", 0.0)),
     }
 
 
@@ -233,4 +297,5 @@ def build_eval_collapse_early_stop_callback(
         peak_floor=settings["peak_floor"],
         verbose=verbose,
         smoothing_window=settings["smoothing_window"],
+        peak_warmup_timesteps=settings["peak_warmup_timesteps"],
     )
