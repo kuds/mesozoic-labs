@@ -450,3 +450,60 @@ class TestSaveJaxStageArtifacts:
 
         after = {path.relative_to(run_dir): path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
         assert after == before
+
+
+class TestApplyStageGate:
+    """The wiring: generate_stage_artifacts must record a verdict, always.
+
+    Both trainers read `publication_gate_passed` off the dict this writes. If
+    it were absent the notebook's `if not results_1["publication_gate_passed"]`
+    would raise KeyError; if it were reward-derived we would be back to run
+    20260802_203215, which advanced a stance-gated stage on its rail alone.
+    """
+
+    STANCE_CONFIG = {
+        "name": "Balance",
+        "description": "Stand",
+        "curriculum_kwargs": {
+            "gate_kind": "stance_quality/v1",
+            "gate_schema_version": 1,
+            "min_full_horizon_fraction": 0.95,
+            "max_unsupported_duty": 0.02,
+            "max_unsupported_duty_ucb": 0.02,
+            "min_eval_episodes": 40,
+            "min_avg_reward": 1950.0,
+        },
+    }
+
+    def _apply(self, stage_config, stage_results, stance_report):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        _apply_stage_gate(
+            stage=1,
+            stage_config=stage_config,
+            stage_results=stage_results,
+            stance_report=stance_report,
+        )
+        return stage_results
+
+    def test_a_missing_stance_panel_records_a_failure_not_a_pass(self):
+        results = self._apply(self.STANCE_CONFIG, {"best_model_reward": 2297.0}, None)
+        assert results["publication_gate_passed"] is False
+        assert results["gate_passed"] is False
+        assert results["gate_failures"]
+
+    def test_records_the_stance_panel_verdict(self):
+        report = {"gate_kind": "stance_quality/v1", "passed": True, "failures": []}
+        results = self._apply(self.STANCE_CONFIG, {"best_model_reward": 2297.0}, report)
+        assert results["publication_gate_passed"] is True
+        assert results["gate_failures"] == []
+
+    def test_verdict_keys_are_always_written(self):
+        """Absent keys would turn a gate failure into a KeyError at the check."""
+        results = self._apply(
+            {"name": "Run", "description": "Go", "curriculum_kwargs": {}},
+            {},
+            None,
+        )
+        assert set(results) >= {"gate_passed", "publication_gate_passed", "gate_failures"}
+        assert results["publication_gate_passed"] is False

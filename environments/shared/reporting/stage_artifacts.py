@@ -149,8 +149,12 @@ def _write_stance_gate_report(
     stage_config: dict[str, Any],
     stage_dir: Path,
     model_dir: Path,
-) -> None:
+) -> dict[str, Any] | None:
     """Score the selected checkpoint against the stance gate, into the run dir.
+
+    Returns the report dict, or ``None`` when no panel was rolled.  The return
+    value is what :func:`_apply_stage_gate` certifies a ``stance_quality/v1``
+    stage from, so ``None`` fails that stage closed.
 
     Only for stages that actually declare ``stance_quality/v1``: rolling a
     40-episode panel costs a few minutes, which is nothing beside a multi-hour
@@ -168,15 +172,18 @@ def _write_stance_gate_report(
     downward makes the bound weaker than the gate claims -- the panel size is
     what its power is specified at -- so the log says so when it happens.
 
-    Deliberately non-fatal. This is a diagnostic; losing it must never cost a
-    completed training run its artifacts, and the checkpoint may legitimately
-    be absent (a stage stopped before its first evaluation produced one).
+    Deliberately non-fatal to *artifact generation*: losing it must never cost
+    a completed training run its summary, replays and graphs, and the
+    checkpoint may legitimately be absent (a stage stopped before its first
+    evaluation produced one).  It is emphatically fatal to *certification* —
+    a stance-gated stage with no panel fails, because the alternative is
+    certifying stance quality nobody measured.
     """
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
 
     curriculum = stage_config.get("curriculum_kwargs", {})
     if curriculum.get("gate_kind") != STANCE_GATE_KIND:
-        return
+        return None
 
     declared_episodes = int(curriculum.get("min_eval_episodes", 40))
     report_episodes = curriculum.get("stance_report_episodes")
@@ -187,7 +194,7 @@ def _write_stance_gate_report(
             stage,
             report_episodes,
         )
-        return
+        return None
     if report_episodes != declared_episodes:
         logger.warning(
             "Stance gate report for stage %d rolls %d episodes, not the stage's min_eval_episodes "
@@ -214,7 +221,7 @@ def _write_stance_gate_report(
             stage,
             model_dir,
         )
-        return
+        return None
 
     selected_name, selected_path, selected_vecnorm = handoff
     try:
@@ -240,8 +247,48 @@ def _write_stance_gate_report(
             report["metrics"]["bilateral_support_duty"],
             written["stance_gate_report_txt"],
         )
+        return report
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Stance gate report failed for stage %d", stage, exc_info=True)
+    return None
+
+
+def _apply_stage_gate(
+    *,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_results: dict[str, Any],
+    stance_report: dict[str, Any] | None,
+) -> None:
+    """Record this stage's gate verdict onto *stage_results*, in place.
+
+    Runs here, in the one entry point both the notebook and the sweep trial
+    worker already call, because the alternative is what actually happened:
+    each caller kept a private checklist, the notebook's drifted out of step
+    with ``gate_kind``, and run ``20260802_203215`` recorded
+    ``publication_gate_passed = True`` beside a ``GATE: FAIL`` stance report
+    and advanced to stage 2 on it.
+
+    Sets ``gate_passed``, ``publication_gate_passed`` and ``gate_failures``;
+    callers enforce them.  Never raises: a stage that cannot be certified is
+    recorded as failing, which is the fail-closed reading, and an exception
+    here would instead cost the run the artifacts written around it.
+    """
+    from .gates import evaluate_stage_gate
+
+    passed, failures = evaluate_stage_gate(
+        stage_config.get("curriculum_kwargs", {}),
+        stage_results,
+        stage=stage,
+        stance_report=stance_report,
+    )
+    stage_results["gate_passed"] = passed
+    stage_results["publication_gate_passed"] = passed
+    stage_results["gate_failures"] = failures
+    if passed:
+        logger.info("Stage %d curriculum gate: PASS", stage)
+    else:
+        logger.warning("Stage %d curriculum gate: FAIL — %s", stage, "; ".join(failures))
 
 
 def generate_stage_artifacts(
@@ -272,6 +319,13 @@ def generate_stage_artifacts(
     diagnostic graphs are saved to the stage directory.  Requires
     ``matplotlib``.
 
+    Also evaluates the stage's declared curriculum gate and records the
+    verdict onto *stage_results* as ``gate_passed`` /
+    ``publication_gate_passed`` / ``gate_failures``.  It happens here, not in
+    each caller, so no trainer can advance on a checklist that has drifted
+    away from ``gate_kind`` — see :func:`_apply_stage_gate`.  Callers must
+    enforce the verdict; this function records it.
+
     Returns the (possibly enriched) *stage_results* dict.
     """
     stage_dir = Path(stage_dir)
@@ -289,12 +343,20 @@ def generate_stage_artifacts(
     text_summaries.write_stage_summary(stage_dir, stage_results, species, algorithm)
     logger.info("Stage summary written to: %s", stage_dir / "stage_summary.txt")
 
-    _write_stance_gate_report(
+    stance_report = _write_stance_gate_report(
         species=species,
         stage=stage,
         stage_config=stage_config,
         stage_dir=stage_dir,
         model_dir=model_dir,
+    )
+    # Before the replays and graphs below, which are best-effort and can be
+    # skipped: the verdict must not depend on whether matplotlib imported.
+    _apply_stage_gate(
+        stage=stage,
+        stage_config=stage_config,
+        stage_results=stage_results,
+        stance_report=stance_report,
     )
 
     # Figures and replays render into local scratch and publish to the stage
