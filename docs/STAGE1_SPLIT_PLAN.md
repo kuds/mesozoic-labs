@@ -1451,16 +1451,40 @@ stage-1 *return* should be assumed broken until shown otherwise; threshold on st
 ### 12.3 A robust statistic protects against an outlier, not against a regime
 
 The collapse backstop uses the max of rolling **medians** of 5 evaluations, specifically so one
-variance-inflated evaluation cannot set the peak. That is the right defence against an outlier and
-no defence at all here: the accidental statue sits **5.2σ above** the 0.45 × 3271.8 = 1472.3
-arming floor, where σ = 190.8 is the evaluation-mean spread from survival sampling alone at
-n = 40. Five consecutive draws from that distribution have a median far above the floor. The
-median was doing its job; the job was the wrong one.
+variance-inflated evaluation cannot set the peak. Reading run `20260803_012355`'s actual
+29-evaluation series shows what that bought and what it did not (`measured`, from
+`stage1/evaluations.npz`):
+
+| evaluation | 1 | 2 | 3 | 4 | 5 | … | 14 | … | 27 | 29 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| step (k) | 50 | 100 | 150 | 200 | 250 | | 700 | | 1350 | 1450 |
+| mean | 2007.3 | **2469.4** | 1506.5 | 580.5 | 314.6 | | 59.4 | | 350.7 | 281.2 |
+| full-horizon | 50.0% | 70.0% | 37.5% | 7.5% | 0.0% | | 0.0% | | 0.0% | 0.0% |
+
+The median did suppress the eval-2 spike: the first window's median is 1506.5, not 2469.4. It
+still armed, because 1506.5 clears the 1472.3 floor — **by 34.2, a margin of 2.3%**. And that
+first window is the *only* one that ever clears it: the maximum rolling median over the other 24
+windows is 580.5.
+
+So the earlier reading of this section was wrong, and the correction matters. It is not that the
+statue regime sits far above the floor and any run must arm — that figure was computed from a
+single evaluation rather than from the window median that actually arms. What happened is that a
+**2.3% margin on a quantity whose sampling noise is ~190 decided a ten-hour outcome**. The median
+was doing its job; the job was the wrong one, and it very nearly went the other way.
 
 The fix (`collapse_peak_warmup_timesteps`) therefore changes *which evaluations may set the peak*
 rather than making the test more robust or more sensitive. It is expressed in timesteps rather
 than reward, which is the property the two failed absolute floors lacked: it survives a
 reward-function edit.
+
+The value is `measured` at **1.0M** by replaying the detector over the series above: warm-up 0
+reproduces the real stopping point of exactly 1,450,000, and anything from 150k up never arms. It
+is deliberately *not* larger. The warm-up's only job is excluding the initialisation spike, because
+the floor already blocks arming through the trough — the best post-150k rolling median is 580.5
+against a 1472.3 floor. 1.0M is 5× the 200k at which the initialisation advantage is spent, sits
+past the trough bottom at 700k, and leaves 88% of a 10M budget under the backstop. 2.5M, the first
+guess made from breakthrough timings before the series was read, would have left 72% and bought
+nothing.
 
 ### 12.4 The run that survived was lucky, not protected
 
@@ -1470,23 +1494,26 @@ The two runs' configs differ by **exactly one line** (`timesteps = 6000000` → 
 at 100k steps and 7.7% higher by 1.45M. Nothing else in the stage is a function of the budget;
 `ent_coef_decay_timesteps` is absolute.
 
-It is tempting to conclude the 6M run was protected by something the 10M run lacked. It was not.
-Since the accidental-statue regime sits 5.2σ above the arming floor, **any** run passing through
-it arms the detector, and both runs start from the same seed and the same initialisation — so the
-6M run almost certainly armed too `[inferred]`. What differed was only whether the subsequent dip
-produced `patience = 10` *consecutive* sub-threshold evaluations. It did in the 10M run; it did
-not in the 6M one, whose sibling `20260801_021545` is documented in
-`collapse_settings_from_config` as putting 45 of 94 pre-peak evaluations below half their running
-peak — frequent, but interspersed with recoveries that reset the counter.
+The 10M run's series is now read (`measured`), and it says the difference was **2.3%**. Its first
+rolling-median window came to 1506.5 against a 1472.3 floor. Nothing else in the run came close —
+the best of the other 24 windows is 580.5. Had that first window landed 35 points lower, the
+detector would never have armed and the run would have used its budget.
 
-The inference is bounded rather than free. The 6M run's best evaluation anywhere in 6M steps was
-2273.3, attained at its *final* evaluation, so its early evaluations were all below that — which
-puts its statue-regime survival at roughly ≤62% against the 10M run's 70.65%, still far above the
-1472.3 floor. Neither run's full evaluation series has been read (both live in `evaluations.npz`),
-so the consecutive-versus-interspersed claim is `[inferred]` from the stopping step alone:
-1,450,000 = evaluation 29 at `eval_freq` 50k, with `patience = 10` and `min_evals = 20`. Reading
-the two series would settle it, and would also let the 2.5M warm-up be re-derived by simulation
-rather than from breakthrough timings.
+The 6M run's series has *not* been read (78.5 KB against the 10M run's 19.5 KB), so whether it
+armed is still `[inferred]` — but the inference now points the other way from the first draft of
+this section. With a margin that thin, the two runs need not have behaved alike at all: the 6M
+run's best evaluation anywhere was 2273.3, attained at its *final* evaluation, so its early
+evaluations were all below that, and its first window could easily have fallen under 1472.3. The
+honest summary is that **a 35-point difference in one early evaluation window decided whether a
+ten-hour run completed**, and the 6M run may simply have drawn on the safe side of it.
+
+Two further things the series settles, both of which cut against reading this as a healthy run
+misdiagnosed. The policy genuinely degraded: full-horizon goes 70.0% → 0.0% by evaluation 5 and
+stays at 0.0% for the remaining 25 evaluations. But it was also **recovering when it was killed** —
+means rise 59.4 → 350.7 from evaluation 14 to 27, a 5.9× climb over 650k steps — and the threshold
+it had to clear to reset the counter was 753.3, half of a peak set by an untrained policy. A
+recovering balancer climbing through the low hundreds cannot clear a bar anchored to the statue,
+however healthy its trajectory.
 
 The general form: **a backstop whose arming depends on a noise-dominated early evaluation converts
 run-to-run variance into a categorical outcome** — the run completes, or it dies at 14.5% of

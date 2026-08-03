@@ -32,12 +32,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   disarmed rather than aborting a multi-hour run on a signal it cannot read.
   Expressed in timesteps rather than reward, so unlike an absolute floor it
   survives a reward-function edit. Defaults to `0.0` — every existing stage
-  behaves exactly as before; only trex 1a sets it, to 2.5M, which brackets
-  every breakthrough this task has shown (2.2–2.3M, 2.8M, 3.3M, 4.55M).
+  behaves exactly as before; only trex 1a sets it, to **1.0M**.
   Note this is **not** a tightening of `drop_fraction`/`patience`, which
   `collapse_settings_from_config` documents at length as aborting healthy runs.
-  Replaying run `20260803_012355`'s shape through the callback stops it at
-  exactly 1,450,000 without the warm-up and never arms with it.
+  The value and the diagnosis are both measured against that run's real
+  29-evaluation series: replaying the detector over it reproduces the stopping
+  point of exactly 1,450,000, and any warm-up from 150k up never arms. The
+  margin was **2.3%** — the first rolling-median window came to 1506.5 against
+  the 1472.3 floor, and the best of the other 24 windows is 580.5, so a
+  35-point difference in one early evaluation decided a ten-hour run. The
+  policy was also *recovering* when it was stopped (means rise 59.4 → 350.7
+  from evaluation 14 to 27) against a threshold of 753.3 anchored to an
+  untrained policy. 1.0M rather than a larger value because the floor already
+  blocks arming through the trough, so the warm-up only has to clear the
+  initialisation spike, which is spent by 200k; 1.0M leaves 88% of a 10M budget
+  under the backstop where 2.5M would leave 72%.
 - **The training notebook never enforced the stance gate, and advanced a
   failing stage on its reward rail.** `notebooks/sb3_training.ipynb` computed
   `publication_gate_passed` from its own checklist over `min_avg_reward` /
