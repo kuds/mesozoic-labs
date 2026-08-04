@@ -37,6 +37,7 @@ claims, and the report says so.
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import math
 import sys
@@ -546,12 +547,22 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
     ``stage_summary.txt``, and the JSON is what later tooling can read without
     parsing prose.
 
-    The JSON carries ``episode_evidence``: per-episode length, reward, duty
-    and the two ungated stance shares. That is the duty measurement
-    ``result_bundle.evidence`` refuses stance-gated bundles for lacking --
-    but it does **not** by itself lift that refusal, which reads
-    ``evaluation_selected.csv``. Teaching that function to consume this file,
-    or adding a duty column to the CSV, is the remaining step.
+    Three forms, and the third is load-bearing. ``stance_panel_selected.csv``
+    is the per-episode duty evidence ``result_bundle.evidence`` needs to
+    certify a stance-gated stage: it used to refuse such bundles outright
+    because ``evaluation_selected.csv`` records reward and length but no duty,
+    and certifying on the reward rail alone would pass the statue. The refusal
+    was correct and it also made the milestone unreachable -- a run that
+    genuinely cleared the stance gate still could not produce a publishable
+    bundle. This file is what lifts it, and it is a CSV rather than the JSON's
+    ``episode_evidence`` so the auditor recomputes the panel from the same
+    kind of per-episode record it already uses for reward and length.
+
+    The panel is a different evaluation from ``evaluation_selected.csv``: 40
+    episodes at the panel seeds versus 30 at the publication seed. That is
+    deliberate -- ``min_eval_episodes`` is the sample size the bound's power
+    is specified at -- so it gets its own file rather than columns bolted
+    onto a file with a different episode count.
     """
     directory = Path(stage_dir)
     directory.mkdir(parents=True, exist_ok=True)
@@ -564,7 +575,63 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
         json.dumps(_json_safe(report), indent=2, sort_keys=True, allow_nan=False) + "\n",
         encoding="utf-8",
     )
-    return {"stance_gate_report_txt": text_path, "stance_gate_report_json": json_path}
+    written = {"stance_gate_report_txt": text_path, "stance_gate_report_json": json_path}
+    panel_path = write_stance_panel_evidence(directory, report)
+    if panel_path is not None:
+        written["stance_panel_csv"] = panel_path
+    return written
+
+
+#: Column order of ``stance_panel_selected.csv``.  ``unsupported_duty`` is
+#: empty for an episode whose duty could not be measured (one shorter than the
+#: settling window); the auditor treats empty as unmeasured rather than zero,
+#: because zero is the statue's value and the best possible score.
+STANCE_PANEL_FIELDNAMES = (
+    "episode",
+    "panel_seed",
+    "length",
+    "reward",
+    "reached_horizon",
+    "unsupported_duty",
+    "bilateral_support_duty",
+    "single_support_duty",
+)
+
+
+def write_stance_panel_evidence(stage_dir: "str | Path", report: dict[str, Any]) -> "Path | None":
+    """Write the panel's per-episode measurements as publication evidence.
+
+    Returns ``None`` when the report carries no ``episode_evidence`` -- an
+    older report, or one built before the field existed. The caller records
+    only what was written, and the auditor's own refusal covers the absence,
+    so a missing file fails the bundle rather than passing it.
+    """
+    episodes = report.get("episode_evidence")
+    if not episodes:
+        return None
+    output = Path(stage_dir) / "stance_panel_selected.csv"
+    with output.open("w", newline="", encoding="utf-8") as destination:
+        writer = csv.DictWriter(destination, fieldnames=list(STANCE_PANEL_FIELDNAMES))
+        writer.writeheader()
+        for episode in episodes:
+            duty = episode.get("unsupported_duty")
+            writer.writerow(
+                {
+                    "episode": episode["episode"],
+                    "panel_seed": episode["seed"],
+                    "length": int(episode["length"]),
+                    "reward": float(episode["reward"]),
+                    "reached_horizon": bool(episode["reached_horizon"]),
+                    "unsupported_duty": "" if duty is None else float(duty),
+                    "bilateral_support_duty": _optional_float_cell(episode.get("bilateral_support_duty")),
+                    "single_support_duty": _optional_float_cell(episode.get("single_support_duty")),
+                }
+            )
+    return output
+
+
+def _optional_float_cell(value: Any) -> str | float:
+    return "" if value is None else float(value)
 
 
 def main() -> int:

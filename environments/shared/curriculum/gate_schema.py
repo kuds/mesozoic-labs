@@ -34,6 +34,7 @@ one backend understand a gate the other silently ignores.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from typing import Any
 
@@ -143,6 +144,7 @@ _COLLAPSE_KEYS = frozenset(
         "collapse_peak_floor",
         "collapse_peak_floor_fraction",
         "collapse_peak_floor_reference",
+        "collapse_peak_warmup_timesteps",
         "collapse_smoothing_window",
     }
 )
@@ -173,6 +175,37 @@ _SCHEMA_KEYS = frozenset({"gate_schema_version", "gate_kind"})
 #: Every threshold key any gate kind knows about, used to tell "belongs to a
 #: different gate kind" apart from "not a gate key at all".
 _ALL_THRESHOLD_KEYS = frozenset().union(*GATE_KINDS.values())
+
+
+def finite_gate_metric(value: Any) -> float | None:
+    """The metric as a float, or ``None`` when it was not measured.
+
+    Lives here, at the bottom of the gate stack, because both backends need
+    the same answer and both got it wrong in the same way.  A threshold
+    comparison against an unmeasured metric is the archetypal fail-open:
+    ``nan < threshold`` is ``False``, so an unfiltered NaN *clears* every
+    floor beneath it, and a gate that could not measure anything reports a
+    pass.  Measured on both paths before this guard existed --
+    ``min_avg_reward = 1950`` against a NaN reward returned ``(True, [])``
+    from ``reporting.gates`` and from ``jax_eval.check_stage_gate`` alike.
+
+    ``None`` and ``""`` are the two "not measured" sentinels the trainers
+    actually write, and non-finite values join them, so every caller can
+    treat one return of ``None`` as "this criterion is unproven" and fail.
+
+    The empty-string test is ``isinstance`` rather than ``value == ""``
+    because the latter is an elementwise comparison against a numpy array,
+    and ``if array_of_bools`` then raises "truth value ... is ambiguous".
+    A gate helper that can raise on its input is a gate that can take a
+    stage's artifacts down with it, so the comparison is one that cannot.
+    """
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
 
 
 class GateSchemaError(ValueError):

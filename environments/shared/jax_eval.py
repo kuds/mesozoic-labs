@@ -588,15 +588,40 @@ def check_stage_gate(
     Returns:
         (passed, failures) tuple where failures is a list of failure descriptions.
     """
+    from .curriculum.gate_schema import finite_gate_metric
+
     failures = []
-    if results.mean_reward < gate_min_reward:
-        failures.append(f"mean reward {results.mean_reward:.2f} < {gate_min_reward}")
-    if results.mean_length < gate_min_length:
-        failures.append(f"mean episode length {results.mean_length:.1f} < {gate_min_length}")
-    if gate_min_forward_vel > 0 and results.mean_forward_vel < gate_min_forward_vel:
-        failures.append(f"mean forward vel {results.mean_forward_vel:.2f} < {gate_min_forward_vel}")
-    if gate_min_success_rate > 0 and results.mean_success_rate < gate_min_success_rate:
-        failures.append(f"success rate {results.mean_success_rate:.2f} < {gate_min_success_rate}")
+
+    # Every comparison below goes through `finite_gate_metric` first, because
+    # an unmeasured metric used to CLEAR its threshold rather than fail it:
+    # `nan < gate_min_reward` is False, so an evaluation that produced no
+    # usable episodes -- a crashed rollout, an ASHA-pruned trial, a stage that
+    # ended before its first evaluation -- returned `(True, [])` and
+    # `jax_setup` wrote that straight into `publication_gate_passed`.
+    # Reproduced against all four thresholds at once before the guard existed.
+    # A threshold nothing can fail (an unset -inf rail, a zero floor) asserts
+    # nothing, so it stays skipped exactly as before -- "we could not measure
+    # it" is only a refusal where a real threshold was declared. That keeps
+    # this change confined to the declared thresholds, which is where the
+    # fail-open actually mattered.
+    # `asserts_nothing` is per-metric because the "unset" value is: the reward
+    # rail is unset at -inf, the other three at 0. Both readings are unchanged
+    # from the original comparisons -- no length is below 0 and no reward
+    # below -inf -- so only genuinely declared thresholds change behaviour.
+    checks: list[tuple[str, Any, float, str, bool]] = [
+        ("mean reward", results.mean_reward, float(gate_min_reward), ".2f", gate_min_reward == -float("inf")),
+        ("mean episode length", results.mean_length, float(gate_min_length), ".1f", gate_min_length <= 0),
+        ("mean forward vel", results.mean_forward_vel, float(gate_min_forward_vel), ".2f", gate_min_forward_vel <= 0),
+        ("success rate", results.mean_success_rate, float(gate_min_success_rate), ".2f", gate_min_success_rate <= 0),
+    ]
+    for name, raw, threshold, fmt, asserts_nothing in checks:
+        if asserts_nothing:
+            continue
+        measured = finite_gate_metric(raw)
+        if measured is None:
+            failures.append(f"no {name} measurement available to check the {threshold:{fmt}} threshold")
+        elif measured < threshold:
+            failures.append(f"{name} {measured:{fmt}} < {threshold}")
     return len(failures) == 0, failures
 
 

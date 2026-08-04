@@ -8,6 +8,130 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Fixed
+- **A stance-gated run that passed every gate still could not publish.**
+  `result_bundle.evidence` refused any complete bundle whose stage declares
+  `stance_quality/v1`, because `evaluation_selected.csv` records per-episode
+  reward and length but no unsupported duty, and certifying on `min_avg_reward`
+  alone would pass the zero-action statue. The refusal was correct and it also
+  made the stage-1 milestone unreachable: the refusal fires only once all three
+  stages have passed, so the first genuinely successful run would train for ten
+  hours and then fail at finalisation. Observed on run `20260803_012355`, whose
+  `collected_results.csv` and `artifact_manifest.json` stop at stage 2 while
+  stage 3's own artifacts (`stage_summary.txt`, `figures/`, `replays/`, both
+  evaluation CSVs) were written in full.
+  The stance panel now persists its per-episode measurements as
+  `stance_panel_selected.csv` beside the report it already wrote, and the
+  auditor **re-derives** the verdict from those episodes rather than trusting
+  the `passed` recorded in `stance_gate_report.json` — an evidence file whose
+  claim is not reproducible from the episodes behind it certifies nothing, and
+  run `20260802_203215` is the counterexample that motivated it. Reduction and
+  scoring both go through `curriculum.stance_gate`, so the auditor cannot drift
+  from the gate the trainer applied. An unmeasurable duty is written blank and
+  read as unmeasured, never as `0.0` — zero is the statue's score and the best
+  attainable one, so coercing would turn missing evidence into a perfect
+  result. A separate file rather than new columns because the panel is a
+  different evaluation from the publication one: 40 episodes at the panel seeds
+  against 30 at the publication seed, and `min_eval_episodes` is the sample
+  size the bound's power is specified at.
+- **The JAX gate cleared its thresholds on metrics it never measured.**
+  `nan < threshold` is `False`, so `jax_eval.check_stage_gate` returned
+  `(True, [])` for an evaluation that produced no usable episodes — and
+  `jax_setup` writes that verdict straight into `publication_gate_passed`.
+  This is the same fail-open closed on the SB3 path, in the function that
+  gates JAX stages 2 and 3. The rule now lives once as
+  `gate_schema.finite_gate_metric` and both backends read it. Confined to
+  declared thresholds: an unset rail (`-inf`) and an unset floor (`0`) could
+  not be failed before and still cannot, so no legitimate config changes
+  verdict.
+
+### Changed
+- **The curriculum gate verdict is now durable.** `gate_failures` was computed
+  and persisted nowhere — not in `stage_summary.txt`, not in
+  `collected_results.csv`, not in the `stage_result.json` allowlist — so on a
+  failure the notebook disconnected the runtime and raised, and the reasons
+  went with it. `stage_summary.txt` now states the verdict and every failing
+  criterion, and the reasons are persisted on both backends.
+  `generate_stage_artifacts` writes the summary *after* evaluating the gate,
+  which it previously did not, so the summary could never contain the verdict.
+- **The collapse backstop says what it is doing.** The resolved settings are
+  logged once at construction, and the disarmed → armed transition is announced
+  once with the peak, the floor and the drop threshold. Neither appeared
+  anywhere before, which is why diagnosing runs `20260802_203215` and
+  `20260803_012355` required replaying their evaluation series against the TOML
+  at each run's commit. A `collapse_peak_warmup_timesteps` at or beyond the
+  stage's own budget — a plausible extra-zero typo — now warns rather than
+  silently disabling the backstop for the whole run.
+- **The collapse backstop armed on the untrained policy and killed stage 1 at
+  14.5% of its budget.** With `home-keyframe-residual/v1` and
+  `log_std_init = 0`, action = 0 commands the nominal stance, so an *untrained*
+  T-Rex already scores near the reward optimum. Run `20260803_012355` peaked at
+  2469.4 on its **second** evaluation (100k steps) — 75% of the 3271.8
+  zero-action baseline — which cleared the 0.45 × 3271.8 = 1472.3 arming floor
+  on initialisation. The ordinary exploration dip that follows then read as a
+  collapse: training stopped at 1.45M of a 10M budget, and stages 2 and 3 spent
+  9¼ hours on the near-statue checkpoint it left. The 6M run at the same seed
+  passed through that same dip to new bests at 2.8M, 3.3M and 4.55M, so there
+  was nothing to catch.
+  No `peak_floor` fixes this, because on stage 1 "already good" and "hasn't
+  started learning" are the same number: set the floor above initialisation
+  (>0.75×) and it lands above what a learning policy passes through — exactly
+  how the two absolute floors documented in `collapse_settings_from_config`
+  failed to arm. `collapse_peak_warmup_timesteps` is a different axis: rolling
+  windows containing any evaluation before it cannot **set** the peak.
+  Eligibility is by window *start*, so no surviving window straddles the
+  boundary — a median absorbs one contaminating sample out of five, not five.
+  While nothing qualifies, the backstop stays disarmed, which is the fail-safe
+  direction; if the evaluation timesteps are unavailable it also stays
+  disarmed rather than aborting a multi-hour run on a signal it cannot read.
+  Expressed in timesteps rather than reward, so unlike an absolute floor it
+  survives a reward-function edit. Defaults to `0.0` — every existing stage
+  behaves exactly as before; only trex 1a sets it, to **1.0M**.
+  Note this is **not** a tightening of `drop_fraction`/`patience`, which
+  `collapse_settings_from_config` documents at length as aborting healthy runs.
+  The value and the diagnosis are both measured against that run's real
+  29-evaluation series: replaying the detector over it reproduces the stopping
+  point of exactly 1,450,000, and any warm-up from 150k up never arms. The
+  margin was **2.3%** — the first rolling-median window came to 1506.5 against
+  the 1472.3 floor, and the best of the other 24 windows is 580.5, so a
+  35-point difference in one early evaluation decided a ten-hour run. The
+  policy was also *recovering* when it was stopped (means rise 59.4 → 350.7
+  from evaluation 14 to 27) against a threshold of 753.3 anchored to an
+  untrained policy. 1.0M rather than a larger value because the floor already
+  blocks arming through the trough, so the warm-up only has to clear the
+  initialisation spike, which is spent by 200k; 1.0M leaves 88% of a 10M budget
+  under the backstop where 2.5M would leave 72%.
+- **The training notebook never enforced the stance gate, and advanced a
+  failing stage on its reward rail.** `notebooks/sb3_training.ipynb` computed
+  `publication_gate_passed` from its own checklist over `min_avg_reward` /
+  `min_avg_episode_length` / `min_avg_forward_vel` / `min_success_rate`. It
+  never called `CurriculumManager.should_advance`, where `stance_quality/v1`
+  is evaluated — `_build_core_callbacks` constructs no `CurriculumCallback`,
+  so on the Colab path the stance gate was **dead code**. Retiring
+  `min_avg_episode_length` from the trex 1a config then made the checklist's
+  only other criterion vacuous (`.get(..., 0.0)`), leaving *reward alone* —
+  the one threshold the zero-action statue clears by 68%, and the exact
+  reading `stance_quality/v1` exists to refute. Run `20260802_203215`
+  recorded `stage_passed = publication_gate_passed = True` in
+  `collected_results.csv` beside its own `stance_gate_report.txt` reading
+  `GATE: FAIL`, `mean_unsupported_duty 0.2120 > 0.0200` — 10.6x the ceiling —
+  and started stage 2 on that checkpoint. The rule now exists once, as
+  `reporting.gates.evaluate_stage_gate`, dispatched on the declared
+  `gate_kind` and called from `generate_stage_artifacts`: the entry point the
+  notebook and the sweep trial worker already share, so no caller can advance
+  on a checklist that has drifted away from the schema. It is fail-closed at
+  every branch — an undeclared or unknown kind, `none/v1`, a missing stance
+  panel, a verdict scored for a different gate, and a non-boolean verdict all
+  fail with a stated reason, because "we could not check" must never read as
+  "it passed". Replayed against the run's own config and measurements, the
+  old checklist evaluates one criterion and returns `True`; the new gate
+  returns `False` naming both duty failures. Stage 2 and 3 semantics are
+  unchanged: thresholds still apply only when declared, and the velocity and
+  success floors only when positive. Three fail-open holes were found by
+  probing the new code and closed before it shipped — a NaN metric cleared
+  every floor (`nan < threshold` is `False`, measured returning
+  `(True, [])`), a `reward_and_length/v1` block with no threshold set was a
+  vacuously-true empty conjunction, and a `failures` string was shredded into
+  one-character reasons.
 - **The evaluation diagnostic no longer contradicts the gate it reports on.**
   `evaluate_stance_gate` certifies on
   `ceil(min_eval_episodes x min_full_horizon_fraction)` duty episodes — 38 of

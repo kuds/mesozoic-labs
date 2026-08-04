@@ -12,13 +12,17 @@ loudly rather than degrade.
 
 from __future__ import annotations
 
+import csv
 import pickle
 from pathlib import Path
 
 import pytest
 
 from environments.shared.scripts import stance_gate_report
-from environments.shared.scripts.stance_gate_report import StanceGateReportError
+from environments.shared.scripts.stance_gate_report import (
+    StanceGateReportError,
+    write_stance_gate_report,
+)
 
 
 class _StubModel:
@@ -829,3 +833,119 @@ class TestCheckpointPlantProvenance:
         # The flag is about a checkpoint; there isn't one either way.
         report = self._report(monkeypatch, zero_action=True, allow_legacy_plant=True)
         assert report["checkpoint_plant_validated"] is None
+
+
+class TestStancePanelEvidenceFile:
+    """The per-episode duty record the result bundle certifies a stage from.
+
+    `result_bundle.evidence` used to refuse stance-gated bundles outright,
+    because `evaluation_selected.csv` carries reward and length but no duty
+    and certifying on the reward rail alone would pass the statue. The refusal
+    was right and it also made the stage-1 milestone unreachable. This file is
+    what lifts it, so its shape is part of the contract.
+    """
+
+    @staticmethod
+    def _report(episodes):
+        return {
+            "schema": "mesozoic.stance-gate-report/v1",
+            "species": "trex",
+            "stage": 1,
+            "gate_kind": "stance_quality/v1",
+            "policy": "robust_best_model.zip",
+            "episodes": len(episodes),
+            "seed": 3042,
+            "settle_steps": 200,
+            "horizon": 1000,
+            "passed": False,
+            "failures": ["mean_unsupported_duty 0.2120 > 0.0200"],
+            "thresholds": {
+                "min_full_horizon_fraction": 0.95,
+                "max_unsupported_duty": 0.02,
+                "max_unsupported_duty_ucb": 0.02,
+                "min_avg_reward": 1950.0,
+                "min_eval_episodes": 40,
+            },
+            "metrics": {
+                "reward_mean": 2295.5,
+                "reward_std": 36.9,
+                "episode_length_mean": 1000.0,
+                "full_horizon_fraction": 1.0,
+                "mean_unsupported_duty": 0.212,
+                "unsupported_duty_ucb": 0.2153,
+                "n_duty_episodes": len(episodes),
+                "bilateral_support_duty": 0.667,
+                "single_support_duty": 0.121,
+            },
+            "checkpoint_plant_validated": True,
+            "terminations": {"truncated": len(episodes)},
+            "reward_components": {},
+            "episode_evidence": episodes,
+        }
+
+    @staticmethod
+    def _episode(index, *, length, reward, duty):
+        return {
+            "episode": index,
+            "seed": 3042 + index,
+            "length": length,
+            "reward": reward,
+            "reached_horizon": length >= 1000,
+            "unsupported_duty": duty,
+            "bilateral_support_duty": None if duty is None else 1.0 - duty,
+            "single_support_duty": None if duty is None else 0.0,
+        }
+
+    def test_the_panel_csv_is_written_beside_the_report(self, tmp_path):
+        written = write_stance_gate_report(
+            tmp_path,
+            self._report([self._episode(0, length=1000, reward=2295.5, duty=0.212)]),
+        )
+        assert written["stance_panel_csv"] == tmp_path / "stance_panel_selected.csv"
+        assert written["stance_panel_csv"].is_file()
+
+    def test_an_unmeasurable_duty_is_blank_rather_than_zero(self, tmp_path):
+        """Zero duty is the statue's score and the best attainable one.
+
+        Writing 0.0 for an episode too short to measure would turn missing
+        evidence into a perfect result, which is the fail-open shape this
+        gate exists to refuse.
+        """
+        written = write_stance_gate_report(
+            tmp_path,
+            self._report([self._episode(0, length=300, reward=600.0, duty=None)]),
+        )
+        with written["stance_panel_csv"].open(newline="", encoding="utf-8") as source:
+            rows = list(csv.DictReader(source))
+        assert rows[0]["unsupported_duty"] == ""
+        assert rows[0]["bilateral_support_duty"] == ""
+
+    def test_the_evidence_the_auditor_reads_round_trips(self, tmp_path):
+        """Writer and auditor must agree on the columns, not merely coexist."""
+        from environments.shared.result_bundle.evidence import _validate_stance_panel_evidence
+
+        episodes = [self._episode(index, length=1000, reward=2400.0, duty=0.0) for index in range(40)]
+        written = write_stance_gate_report(tmp_path, self._report(episodes))
+        curriculum = {
+            "gate_kind": "stance_quality/v1",
+            "min_full_horizon_fraction": 0.95,
+            "max_unsupported_duty": 0.02,
+            "max_unsupported_duty_ucb": 0.02,
+            "min_eval_episodes": 40,
+            "settle_steps": 200,
+        }
+        # Passing panel: no refusal.
+        _validate_stance_panel_evidence(
+            written["stance_panel_csv"],
+            curriculum,
+            env_kwargs={"max_episode_steps": 1000},
+            stage=1,
+        )
+
+    def test_a_report_without_episode_evidence_writes_no_panel(self, tmp_path):
+        """Older reports predate the field; the auditor's own refusal covers it."""
+        report = self._report([])
+        report.pop("episode_evidence")
+        written = write_stance_gate_report(tmp_path, report)
+        assert "stance_panel_csv" not in written
+        assert not (tmp_path / "stance_panel_selected.csv").exists()

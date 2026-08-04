@@ -47,7 +47,10 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     }
 
     assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [6_000_000, 8_000_000, 12_000_000]
-    assert [stage["timesteps"] for stage in species["trex"]["stages"]] == [6_000_000, 8_000_000, 8_000_000]
+    # Stage 1 is 10M, not the 6M every other species uses: trex 1a is the
+    # stance-gated stage, and its 6M budget ran out mid-improvement -- run
+    # 20260802_203215's best evaluation was its last, at 6.0M of 6M.
+    assert [stage["timesteps"] for stage in species["trex"]["stages"]] == [10_000_000, 8_000_000, 8_000_000]
     assert [stage["timesteps"] for stage in species["brachiosaurus"]["stages"]] == [
         6_000_000,
         16_000_000,
@@ -436,6 +439,67 @@ def test_sb3_notebook_refuses_a_hybrid_model_and_vecnormalize_checkpoint() -> No
 
     assert "refusing to evaluate or export a hybrid checkpoint" in source_text
     assert "using final VecNormalize for best model" not in source_text
+
+
+def test_sb3_notebook_enforces_the_gate_it_no_longer_evaluates() -> None:
+    """Every stage cell must halt on its own gate verdict.
+
+    The notebook used to carry an inline checklist over min_avg_reward /
+    min_avg_episode_length / min_avg_forward_vel / min_success_rate. That was
+    deleted in favour of the shared `reporting.gates.evaluate_stage_gate`,
+    which `generate_stage_artifacts` runs and records onto the results dict --
+    so the notebook's remaining job is purely to ENFORCE the recorded verdict.
+
+    Nothing pinned that it still does. Deleting the three enforcement blocks
+    leaves the whole `environments/shared/tests` suite green while every run
+    silently advances on a failed gate, which is section 12.1's lesson ("a
+    gate the trainer never calls is not a gate") reappearing one level up.
+    """
+    notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
+    code_cells = ["".join(cell.get("source", [])) for cell in notebook["cells"] if cell.get("cell_type") == "code"]
+
+    for stage in (1, 2, 3):
+        results = f"results_{stage}"
+        artifact_cells = [cell for cell in code_cells if f"{results} = generate_stage_artifacts(" in cell]
+        assert len(artifact_cells) == 1, (
+            f"stage {stage} must capture generate_stage_artifacts' return value into {results}; "
+            "the gate verdict is recorded onto the dict it returns"
+        )
+        cell = artifact_cells[0]
+        assert f'if not {results}["publication_gate_passed"]:' in cell, (
+            f"stage {stage} does not halt on its recorded gate verdict"
+        )
+        assert f'"; ".join({results}["gate_failures"])' in cell, f"stage {stage} does not report which criteria failed"
+        assert "raise RuntimeError(_gate_msg)" in cell, f"stage {stage} warns about gate failure without halting"
+
+    # The deleted checklist must not creep back: a second implementation that
+    # knows nothing about `gate_kind` is the exact defect that let a stance-
+    # gated stage advance on its reward rail.
+    #
+    # Scoped to the cells the checklist actually lived in -- `train_stage` and
+    # the three artifact cells. The zero-action baseline cell legitimately
+    # reads `min_avg_reward` to report whether the statue clears the rail,
+    # which is a diagnostic about the gate rather than a second copy of it.
+    #
+    # Comment lines are excluded because the cell that replaced the checklist
+    # explains what it deleted, and naming the retired keys is the point.
+    gate_cells = [cell for cell in code_cells if "def train_stage(" in cell or "generate_stage_artifacts(" in cell]
+    assert gate_cells, "expected to find the training and artifact cells"
+    executable = "\n".join(
+        line for cell in gate_cells for line in cell.splitlines() if not line.lstrip().startswith("#")
+    )
+    for retired in (
+        'get("min_avg_reward"',
+        'get("min_avg_episode_length"',
+        'get("min_avg_forward_vel"',
+        'get("min_success_rate"',
+        "gate_failures.append(",
+        "gate_failures = []",
+    ):
+        assert retired not in executable, (
+            f"{retired!r} is back in the notebook — the curriculum gate belongs in "
+            "reporting.gates.evaluate_stage_gate, not in a private per-caller checklist"
+        )
 
 
 def test_sb3_notebook_finalizes_complete_bundle_once() -> None:

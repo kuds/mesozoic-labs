@@ -450,3 +450,165 @@ class TestSaveJaxStageArtifacts:
 
         after = {path.relative_to(run_dir): path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
         assert after == before
+
+
+class TestApplyStageGate:
+    """The wiring: generate_stage_artifacts must record a verdict, always.
+
+    Both trainers read `publication_gate_passed` off the dict this writes. If
+    it were absent the notebook's `if not results_1["publication_gate_passed"]`
+    would raise KeyError; if it were reward-derived we would be back to run
+    20260802_203215, which advanced a stance-gated stage on its rail alone.
+    """
+
+    STANCE_CONFIG = {
+        "name": "Balance",
+        "description": "Stand",
+        "curriculum_kwargs": {
+            "gate_kind": "stance_quality/v1",
+            "gate_schema_version": 1,
+            "min_full_horizon_fraction": 0.95,
+            "max_unsupported_duty": 0.02,
+            "max_unsupported_duty_ucb": 0.02,
+            "min_eval_episodes": 40,
+            "min_avg_reward": 1950.0,
+        },
+    }
+
+    def _apply(self, stage_config, stage_results, stance_report):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        _apply_stage_gate(
+            stage=1,
+            stage_config=stage_config,
+            stage_results=stage_results,
+            stance_report=stance_report,
+        )
+        return stage_results
+
+    def test_a_missing_stance_panel_records_a_failure_not_a_pass(self):
+        results = self._apply(self.STANCE_CONFIG, {"best_model_reward": 2297.0}, None)
+        assert results["publication_gate_passed"] is False
+        assert results["gate_passed"] is False
+        assert results["gate_failures"]
+
+    def test_records_the_stance_panel_verdict(self):
+        report = {"gate_kind": "stance_quality/v1", "passed": True, "failures": []}
+        results = self._apply(self.STANCE_CONFIG, {"best_model_reward": 2297.0}, report)
+        assert results["publication_gate_passed"] is True
+        assert results["gate_failures"] == []
+
+    def test_verdict_keys_are_always_written(self):
+        """Absent keys would turn a gate failure into a KeyError at the check."""
+        results = self._apply(
+            {"name": "Run", "description": "Go", "curriculum_kwargs": {}},
+            {},
+            None,
+        )
+        assert set(results) >= {"gate_passed", "publication_gate_passed", "gate_failures"}
+        assert results["publication_gate_passed"] is False
+
+    def test_a_malformed_config_records_a_failure_instead_of_raising(self):
+        """The docstring promises "never raises"; enforce it.
+
+        `evaluate_stage_gate` coerces config values, so a non-numeric
+        threshold reaches it as a ValueError. Propagating would cost a
+        finished multi-hour stage the artifacts written around this call.
+        """
+        config = {
+            "name": "Balance",
+            "description": "Stand",
+            "curriculum_kwargs": {
+                "gate_kind": "reward_and_length/v1",
+                "gate_schema_version": 1,
+                "min_avg_reward": "not-a-number",
+            },
+        }
+        results = self._apply(config, {"best_model_reward": 2297.0}, None)
+        assert results["publication_gate_passed"] is False
+        assert any("gate evaluation raised" in failure for failure in results["gate_failures"])
+
+    def test_a_non_iterable_failures_field_records_a_failure_instead_of_raising(self):
+        report = {"gate_kind": "stance_quality/v1", "passed": False, "failures": 7}
+        results = self._apply(self.STANCE_CONFIG, {"best_model_reward": 2297.0}, report)
+        assert results["publication_gate_passed"] is False
+        assert results["gate_failures"]
+
+
+class TestStageSummaryRecordsTheVerdict:
+    """The reasons must outlive the Colab cell that raised them.
+
+    On gate failure the notebook calls `disconnect_runtime` and then raises,
+    so the failure text is the first thing lost. `collected_results.csv`
+    carries the boolean but not the criteria, and before this the stage
+    summary carried neither.
+    """
+
+    @staticmethod
+    def _results(**overrides):
+        base = {
+            "stage": 1,
+            "name": "Balance",
+            "description": "Stand",
+            "timesteps": 1_450_000,
+            "duration_seconds": 3114.1,
+            "mean_reward": 281.85,
+            "std_reward": 154.5,
+            "mean_episode_length": 313.0,
+            "std_episode_length": 142.0,
+        }
+        base.update(overrides)
+        return base
+
+    def test_failing_stage_summary_names_every_criterion(self, tmp_path):
+        from environments.shared.reporting import text_summaries
+
+        text_summaries.write_stage_summary(
+            tmp_path,
+            self._results(
+                publication_gate_passed=False,
+                gate_failures=[
+                    "mean_unsupported_duty 0.2120 > 0.0200",
+                    "unsupported_duty_ucb 0.2153 > 0.0200",
+                ],
+            ),
+            "trex",
+            "PPO",
+        )
+        summary = (tmp_path / "stage_summary.txt").read_text(encoding="utf-8")
+        assert "Curriculum Gate" in summary
+        assert "Verdict:      FAIL" in summary
+        assert "mean_unsupported_duty 0.2120 > 0.0200" in summary
+        assert "unsupported_duty_ucb 0.2153 > 0.0200" in summary
+
+    def test_passing_stage_summary_states_the_pass(self, tmp_path):
+        from environments.shared.reporting import text_summaries
+
+        text_summaries.write_stage_summary(
+            tmp_path,
+            self._results(publication_gate_passed=True, gate_failures=[]),
+            "trex",
+            "PPO",
+        )
+        summary = (tmp_path / "stage_summary.txt").read_text(encoding="utf-8")
+        assert "Verdict:      PASS" in summary
+
+    def test_a_summary_with_no_verdict_omits_the_section(self, tmp_path):
+        """Pre-gate callers (and the JAX path's own ordering) must still work."""
+        from environments.shared.reporting import text_summaries
+
+        text_summaries.write_stage_summary(tmp_path, self._results(), "trex", "PPO")
+        assert "Curriculum Gate" not in (tmp_path / "stage_summary.txt").read_text(encoding="utf-8")
+
+    def test_generate_stage_artifacts_writes_the_summary_after_the_gate(self):
+        """Ordering regression: the summary must see the verdict.
+
+        `write_stage_summary` used to run before `_apply_stage_gate`, which
+        would print a stage summary with no gate section on every SB3 run.
+        """
+        import inspect
+
+        from environments.shared.reporting import stage_artifacts
+
+        source = inspect.getsource(stage_artifacts.generate_stage_artifacts)
+        assert source.index("_apply_stage_gate(") < source.index("write_stage_summary(")

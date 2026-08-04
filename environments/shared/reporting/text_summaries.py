@@ -84,6 +84,23 @@ def write_stage_summary(
         if "vecnorm_path" in results_dict:
             lines.append(f"VecNormalize:   {results_dict['vecnorm_path']}")
         lines.append("")
+
+    # The gate verdict, and every criterion that did not hold. Written here
+    # because this was the only stage artifact a human reads that did not
+    # record it: `collected_results.csv` carries the boolean but not the
+    # reasons, and the reasons otherwise existed only in the exception text
+    # of a Colab cell -- which is exactly what is lost when the runtime
+    # disconnects on gate failure. Run 20260802_203215 advanced on a verdict
+    # no artifact contradicted; a stage summary that states the failing
+    # criteria makes that contradiction visible without re-running anything.
+    gate_passed = results_dict.get("publication_gate_passed", results_dict.get("gate_passed"))
+    if gate_passed is not None:
+        lines.append("Curriculum Gate")
+        lines.append("-" * 40)
+        lines.append(f"  Verdict:      {'PASS' if gate_passed else 'FAIL'}")
+        for failure in results_dict.get("gate_failures") or []:
+            lines.append(f"  - {failure}")
+        lines.append("")
     summary_text = "\n".join(lines) + "\n"
     summary_path.write_text(summary_text)
     return summary_path

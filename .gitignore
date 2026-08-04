@@ -16,6 +16,14 @@ venv/
 .venv/
 env/
 
+# uv writes this whenever anything resolves dependencies (`uv run`, `uv sync`),
+# so it reappears on any machine that runs the test suite. The repository has
+# never tracked it and pins reproducibility elsewhere -- `provenance.json`
+# records the repository commit, config hash and backend version for every run
+# -- so it is ignored rather than committed. Delete this line if the project
+# later wants the resolved dependency set under version control.
+uv.lock
+
 # IDE
 .vscode/
 .idea/

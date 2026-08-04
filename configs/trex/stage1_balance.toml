@@ -297,6 +297,34 @@ collapse_drop_fraction = 0.5            # Only raw means >50% below the robust r
                                         # low-reward grind then a noisy breakthrough (run 20260721_004731: dip to ~1.2M,
                                         # turbulent transition at 2.2-2.3M, converged ~2.65M); the old stage-1 defaults
                                         # killed run 20260720_203454 at 1.1M off a variance-inflated 50k peak.
+collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot SET the peak. Not a tightening of
+                                         # the detector (see collapse_settings_from_config on why tightening
+                                         # aborts healthy runs) -- a separate axis, and the only one that works on
+                                         # this stage. With home-keyframe-residual/v1 and log_std_init = 0,
+                                         # action = 0 commands the nominal stance, so the UNTRAINED policy already
+                                         # scores near the reward optimum: run 20260803_012355 peaked at 2469.4 on
+                                         # its SECOND evaluation (100k steps), 75% of the 3271.8 baseline. The
+                                         # floor below (1472.3) therefore armed on initialisation, and the
+                                         # ordinary exploration dip that follows read as a collapse: it stopped at
+                                         # 1.45M of a 10M budget and stages 2-3 spent 9 1/4 hours on the
+                                         # near-statue checkpoint. No floor separates those two -- above
+                                         # initialisation (>0.75x) is above what a learning policy passes through,
+                                         # which is exactly how the two absolute floors below failed.
+                                         #
+                                         # 1.0M is MEASURED by simulating this detector over 20260803_012355's own
+                                         # 29-evaluation series (STAGE1_SPLIT_PLAN §12.4). The initialisation
+                                         # advantage is brief and sharp: full-horizon runs 50.0% -> 70.0% -> 37.5%
+                                         # -> 7.5% -> 0.0% across evaluations 1-5, so it is gone by 200k. 1.0M is
+                                         # 10x that, and sits past the trough bottom at 700k. Replaying the series:
+                                         # warm-up 0 stops at exactly 1,450,000 (the real stopping point);
+                                         # >= 150k never arms.
+                                         #
+                                         # NOT set higher, though 2.5M was the first guess from breakthrough
+                                         # timings: the warm-up's only job is excluding the initialisation spike,
+                                         # because the FLOOR already blocks arming during the trough -- the best
+                                         # post-150k rolling median in that run is 580.5, well under 1472.3. A
+                                         # larger warm-up buys nothing and costs coverage: 1.0M leaves 88% of a 10M
+                                         # budget protected, 2.5M only 72%.
 collapse_peak_floor_reference = 3271.8   # The zero-action statue's standing reward at noise 0.05, 40 episodes.
 collapse_peak_floor_fraction = 0.45      # RELATIVE floor (PLANT_VALIDATION §14 item 3). An absolute floor has now
                                          # failed to arm TWICE for the same reason: 2200 against run 20260731_132102

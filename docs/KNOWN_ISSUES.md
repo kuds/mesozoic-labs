@@ -138,6 +138,31 @@ tolerance) remains the standing recommendation for the divergences above.
   The routing defect itself is unchanged; fixing it still means keying feet by
   sensor identity instead of `i % 2`.
 
+- **MEDIUM** — **the JAX backend cannot finalise a stance-gated result bundle.**
+  `result_bundle.evidence` certifies a `stance_quality/v1` stage by re-deriving
+  its criteria from `stage<N>/stance_panel_selected.csv`, the per-episode duty
+  record `write_stance_gate_report` emits. Only the SB3 path writes it:
+  `generate_stage_artifacts` calls `_write_stance_gate_report`, and
+  `save_jax_stage_artifacts` has no equivalent. A JAX run whose stage 1
+  declares the stance gate will therefore train all three stages and then fail
+  bundle finalisation with `stance_panel_selected.csv is missing`.
+
+  This is a **fail-closed** limitation, not a wrong verdict — the bundle
+  refuses rather than certifying stance quality nobody recorded — and it is
+  not a regression: the same bundle previously refused unconditionally, on
+  every backend. What changed is that the SB3 path is now unblocked and the
+  JAX path is not.
+
+  The measurements exist on the JAX side already:
+  `jax_eval.stance_panel_from_eval_results` reduces `diag_r_foot`/`diag_l_foot`
+  into per-episode duties before summarising them into a `StancePanel`. Fixing
+  this means returning those per-episode duties alongside the panel and having
+  `save_jax_stage_artifacts` write them through the same
+  `write_stance_panel_evidence` the SB3 path uses — deliberately the same
+  writer, so the two backends cannot disagree about the evidence format the
+  auditor reads. Note the quadruped restriction above applies to that
+  reconstruction too.
+
 - **LOW** — **collidable necks are deferred until terrain lands.** Velociraptor
   is the reference: its neck geom collides *and* sits in `_body_ground_geoms`,
   so hitting the ground with it terminates the episode. The other three carry

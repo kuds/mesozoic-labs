@@ -1394,3 +1394,192 @@ per-measurement manifest is the next improvement. The two scripts added in #478 
 `foot_sensor_report.py` and `stance_duty_validation.py` — are the first load-bearing numbers
 here that are reproducible by a single documented command, which is the pattern the rest should
 follow.
+
+---
+
+## 12. Lessons from the 2026-08-02 and 2026-08-03 runs
+
+Two consecutive T-Rex stage-1 runs failed for two unrelated reasons, neither of which was the
+policy. Both were found by reading the runs' own artifacts against each other. The numbers below
+are `measured` from `collected_results.csv`, `stage_summary.txt` and `stance_gate_report.txt` of
+runs `20260802_203215` and `20260803_012355` unless labelled otherwise.
+
+### 12.1 A gate the trainer never calls is not a gate
+
+`stance_quality/v1` was implemented in `CurriculumManager.should_advance`, registered in the
+schema, wired into recorded-gate reporting, taught to `result_bundle.evidence`, and given ~30
+tests. It was never enforced, because `notebooks/sb3_training.ipynb` — the thing that actually
+runs training on Colab — carried its own checklist and never called any of it.
+`_build_core_callbacks` constructs no `CurriculumCallback`, so on that path the gate was dead
+code.
+
+Three copies of the advancement rule existed (notebook, `CurriculumManager`,
+`sweep/ray_tune.py`). The one that ran was the one nobody had updated. **Check the call path, not
+the implementation**: the question to ask of a new gate is not "is it correct?" but "what code
+would have to be deleted for it to stop being consulted?"
+
+Retiring `min_avg_episode_length` from the 1a config made this worse rather than neutral: the
+notebook's `.get("min_avg_episode_length", 0.0)` silently became a 0.0 floor, so the stage's
+enforced gate reduced to *reward alone*. **A default that means "absent" and a default that means
+"no constraint" are the same literal**, and the fail-closed schema in `gate_schema.py` exists
+precisely because that coincidence is invisible at the call site.
+
+### 12.2 On stage 1 the untrained policy is already near the reward optimum
+
+With `home-keyframe-residual/v1` and `log_std_init = 0`, action = 0 commands the nominal stance.
+The consequence is quantitative, not rhetorical. Decomposing run `20260803_012355`'s selected
+checkpoint (`measured`: panel mean 2319.7, sd 1263.7, 26 of 40 full-horizon) as a two-point
+mixture of *survive* and *fall* episodes gives
+
+| quantity | value |
+|---|---|
+| survive | 3247.0 |
+| fall | 597.6 |
+| zero-action statue (§2.3.1) | 3271.8 |
+
+The survive value is within **0.76%** of the statue. Cross-checking against the same checkpoint's
+100k-step selection evaluation (`measured`: mean 2469.43, sd 1195.52) implies 70.65% survival and
+predicts sd 1206.4 against 1195.52 observed — **0.91% apart**. The checkpoint is the statue, on
+whichever episodes it does not fall over.
+
+So on this stage **no reward-referenced threshold separates "already good" from "hasn't started
+learning"** — they are the same number. That single fact explains three separate failures already
+in this document's history: two absolute `collapse_peak_floor` values that never armed (§7.4), and
+the reward rail that the statue clears by 68% (§12 of PLANT_VALIDATION). Any future threshold on
+stage-1 *return* should be assumed broken until shown otherwise; threshold on stance instead.
+
+### 12.3 A robust statistic protects against an outlier, not against a regime
+
+The collapse backstop uses the max of rolling **medians** of 5 evaluations, specifically so one
+variance-inflated evaluation cannot set the peak. Reading run `20260803_012355`'s actual
+29-evaluation series shows what that bought and what it did not (`measured`, from
+`stage1/evaluations.npz`):
+
+| evaluation | 1 | 2 | 3 | 4 | 5 | … | 14 | … | 27 | 29 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| step (k) | 50 | 100 | 150 | 200 | 250 | | 700 | | 1350 | 1450 |
+| mean | 2007.3 | **2469.4** | 1506.5 | 580.5 | 314.6 | | 59.4 | | 350.7 | 281.2 |
+| full-horizon | 50.0% | 70.0% | 37.5% | 7.5% | 0.0% | | 0.0% | | 0.0% | 0.0% |
+
+The median did suppress the eval-2 spike: the first window's median is 1506.5, not 2469.4. It
+still armed, because 1506.5 clears the 1472.3 floor — **by 34.2, a margin of 2.3%**. And that
+first window is the *only* one that ever clears it: the maximum rolling median over the other 24
+windows is 580.5.
+
+The sibling 6M run is the control, and it says the median can win this contest as easily as lose
+it: there the initialisation spike was one evaluation rather than three, the same statistic
+reported 812.4, and the backstop never armed early at all. So the heading is right as a general
+rule but the boundary is narrower than "outlier vs regime" suggests — a median of 5 survives one
+contaminating sample and fails against three, and which of those an untrained policy produces is
+not something the configuration decides. See §12.4.
+
+So the earlier reading of this section was wrong, and the correction matters. It is not that the
+statue regime sits far above the floor and any run must arm — that figure was computed from a
+single evaluation rather than from the window median that actually arms. What happened is that a
+**2.3% margin on a quantity whose sampling noise is ~190 decided a ten-hour outcome**. The median
+was doing its job; the job was the wrong one, and it very nearly went the other way.
+
+The fix (`collapse_peak_warmup_timesteps`) therefore changes *which evaluations may set the peak*
+rather than making the test more robust or more sensitive. It is expressed in timesteps rather
+than reward, which is the property the two failed absolute floors lacked: it survives a
+reward-function edit.
+
+The value is `measured` at **1.0M** by replaying the detector over the series above: warm-up 0
+reproduces the real stopping point of exactly 1,450,000, and anything from 150k up never arms. It
+is deliberately *not* larger. The warm-up's only job is excluding the initialisation spike, because
+the floor already blocks arming through the trough — the best post-150k rolling median is 580.5
+against a 1472.3 floor. 1.0M is 5× the 200k at which the initialisation advantage is spent, sits
+past the trough bottom at 700k, and leaves 88% of a 10M budget under the backstop. 2.5M, the first
+guess made from breakthrough timings before the series was read, would have left 72% and bought
+nothing.
+
+### 12.4 The run that survived was lucky, not protected
+
+The two runs' configs differ by **exactly one line** (`timesteps = 6000000` → `10000000`;
+`measured` by diffing `2d032ce..8f0f7a9`). Only the learning-rate schedule reads it —
+`linear_schedule` is parameterised on `progress_remaining`, so the 10M run holds a 0.45% higher LR
+at 100k steps and 7.7% higher by 1.45M. Nothing else in the stage is a function of the budget;
+`ent_coef_decay_timesteps` is absolute.
+
+The 10M run's series is now read (`measured`), and it says the difference was **2.3%**. Its first
+rolling-median window came to 1506.5 against a 1472.3 floor. Nothing else in the run came close —
+the best of the other 24 windows is 580.5. Had that first window landed 35 points lower, the
+detector would never have armed and the run would have used its budget.
+
+The 6M run's series has now been read too (`measured`, 120 evaluations at 50k spacing), and it
+settles the question the two paragraphs above left open — against the guess in both of them.
+
+**The 6M run never armed early.** Its first five evaluations are 812.4, 1503.2, 934.6, 587.7,
+454.0, so its first rolling-median window is **812.4** — not 35 points below the 1472.3 floor but
+**45% below it**, and that is the maximum over every window starting before 1.0M. Its peak reaches
+the floor only at 5.8M, on a rolling median of 2252.7, by which point the policy has genuinely
+learned and a collapse backstop is doing exactly the job it was written for. Across all 120
+evaluations the run records **zero** consecutive sub-threshold evaluations, so `patience` was never
+close to being the deciding factor either.
+
+So the earlier explanation — both runs armed, and the 6M run survived because its dip never
+produced ten consecutive sub-threshold evaluations — is wrong in both halves. What actually
+differed is the **size of the initialisation spike**: the 6M run's first evaluation is 812.4
+against the 10M run's 2007.3, a 2.47× difference at the same seed, from configs differing by one
+line. One run's spike cleared the floor after the median; the other's was not close.
+
+That is a *stronger* argument for the warm-up than the one it replaces, not a weaker one. If
+arming on initialisation turned on `patience`, tuning `patience` would be a defensible response.
+It turns instead on how large an untrained policy's first few evaluations happen to be — a
+quantity nothing in the configuration controls and no threshold can separate from competence on
+this stage (§12.2). The honest summary is that **whether a ten-hour run completes was decided by
+the magnitude of a spike produced before any learning had occurred.**
+
+It also corrects §12.3's reading of the median. The median was not overwhelmed by a regime in the
+6M run: it absorbed a lone 1503.2 spike exactly as designed and reported 812.4. In the 10M run the
+spike lasted three evaluations out of five and the median reported 1506.5. A rolling median of 5
+defends against one contaminating sample and fails against three — which is a statement about how
+long the initialisation advantage happens to persist, not about the statistic being the wrong
+choice.
+
+Replaying the 6M series through the callback confirms the fix is safe in the other direction:
+warm-ups of 0, 1.0M and 2.5M all leave that run completing its budget, and it still arms
+legitimately at 5.8M under each.
+
+Two further things the series settles, both of which cut against reading this as a healthy run
+misdiagnosed. The policy genuinely degraded: full-horizon goes 70.0% → 0.0% by evaluation 5 and
+stays at 0.0% for the remaining 25 evaluations. But it was also **recovering when it was killed** —
+means rise 59.4 → 350.7 from evaluation 14 to 27, a 5.9× climb over 650k steps — and the threshold
+it had to clear to reset the counter was 753.3, half of a peak set by an untrained policy. A
+recovering balancer climbing through the low hundreds cannot clear a bar anchored to the statue,
+however healthy its trajectory.
+
+The general form: **a backstop whose arming depends on a noise-dominated early evaluation converts
+run-to-run variance into a categorical outcome** — the run completes, or it dies at 14.5% of
+budget and hands a near-statue checkpoint to two downstream stages for 9¼ hours. Surviving that
+once is not evidence the configuration is safe.
+
+### 12.5 Reproduce the failure before claiming the fix
+
+The warm-up's regression test replays the failing run's evaluation shape through the callback and
+asserts it stops at **exactly 1,450,000** — the real run's stopping point — *before* asserting
+that the warm-up prevents it. A test that only asserts the fixed behaviour cannot distinguish "I
+fixed it" from "I disabled it".
+
+The same applies to the gate: replaying run `20260802_203215`'s own config and metrics shows the
+old checklist evaluating one criterion and returning `True` where the new gate returns `False`
+naming both duty failures.
+
+### 12.6 Fail-open defects cluster around absence
+
+Every hole found by adversarial probing of the new gate code was a case where *nothing was
+compared* and the result read as a pass: a NaN metric (`nan < threshold` is `False`, so it cleared
+every floor), a gate kind declared with no thresholds set (a vacuously-true empty conjunction),
+and a missing stance panel. The stance gate itself had four of the same shape earlier in this
+work.
+
+The pattern is worth stating as a rule: **enumerate the paths that can return "pass" without
+having performed a comparison, and make each of them return "fail" with a reason.** "We could not
+check" must never be encoded the same way as "it passed".
+
+### 12.7 What this does not explain
+
+Stage 1a still has no certified checkpoint, and the two runs failed the gate on *opposite*
+criteria — `20260802_203215` at duty 0.2120 with full-horizon 1.0000, `20260803_012355` at
+full-horizon 0.6500 with duty 0.0000. Neither result tells us whether a policy satisfying both
+exists within the current reward. That question is open and is not addressed by either fix here.

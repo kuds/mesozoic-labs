@@ -268,6 +268,123 @@ def _compare_evaluation_aggregates(
             )
 
 
+def _validate_stance_panel_evidence(
+    panel_path: Path,
+    curriculum: Mapping[str, Any],
+    *,
+    env_kwargs: Mapping[str, Any],
+    stage: int,
+) -> None:
+    """Re-derive the stance verdict from the panel's per-episode measurements.
+
+    Deliberately recomputes rather than reading the verdict recorded in
+    ``stance_gate_report.json``.  The whole point of an evidence file is that
+    the published claim is reproducible from the episodes behind it; trusting
+    a stored ``passed`` would certify the summary rather than the measurement,
+    and a summary is exactly what cannot be re-checked.
+
+    Reduction and scoring both go through
+    :mod:`~environments.shared.curriculum.stance_gate`, so this cannot drift
+    from the gate the trainer applied — a second implementation of the
+    full-horizon rule or the bound here would recreate the divergence that
+    let run ``20260802_203215`` record a pass beside a ``GATE: FAIL`` report.
+    """
+    from ..curriculum.stance_gate import (
+        StanceGateThresholds,
+        evaluate_stance_gate,
+        stance_panel_from_episode_duties,
+    )
+
+    if not panel_path.is_file():
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {STANCE_GATE_KIND!r} but {panel_path.name} is "
+            "missing, so its duty criteria are unproven. Certifying on min_avg_reward alone "
+            "would pass a zero-action statue, which is what this gate kind exists to reject."
+        )
+
+    lengths: list[float] = []
+    duties: list[float | None] = []
+    rewards: list[float] = []
+    reached_flags: list[bool | None] = []
+    with panel_path.open(newline="", encoding="utf-8") as source:
+        for index, row in enumerate(csv.DictReader(source), start=1):
+            length = _optional_csv_number(row.get("length"))
+            reward = _optional_csv_number(row.get("reward"))
+            if length is None or reward is None:
+                raise ResultBundleError(f"stage {stage} stance panel episode {index} is missing length or reward")
+            lengths.append(length)
+            rewards.append(reward)
+            reached_flags.append(_optional_csv_bool(row.get("reached_horizon")))
+            # An empty duty cell means "not measurable for this episode", which
+            # is not the same as 0.0 -- zero is the statue's score and the best
+            # possible one, so coercing would turn missing evidence into a
+            # perfect result.
+            duties.append(_optional_csv_number(row.get("unsupported_duty")))
+    if not lengths:
+        raise ResultBundleError(f"stage {stage} stance panel evidence records no episodes")
+
+    # No default. The horizon decides which episodes count as survivals, so
+    # guessing it is a fail-open with a very quiet failure mode: assume 1000
+    # against a stage whose real horizon is 2000 and every episode that fell
+    # at step 1500 is certified as having reached the horizon. Measured on
+    # this function before the guard -- 40 such episodes passed the gate.
+    # "We do not know the horizon" must refuse, like every other branch here.
+    horizon_value = env_kwargs.get("max_episode_steps")
+    if horizon_value is None:
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {STANCE_GATE_KIND!r} but its config records no "
+            "max_episode_steps, so which episodes reached the horizon cannot be determined and "
+            "the full-horizon fraction is unprovable"
+        )
+    try:
+        horizon = int(horizon_value)
+    except (TypeError, ValueError) as exc:
+        raise ResultBundleError(f"stage {stage} records a non-integer max_episode_steps ({horizon_value!r})") from exc
+    if horizon < 1:
+        raise ResultBundleError(f"stage {stage} records max_episode_steps={horizon}, which no episode can reach")
+
+    # `reached_horizon` is written by the panel and re-derived here from
+    # `length`; they must agree. The auditor uses `length`, so a disagreeing
+    # column would mislead a human reading the file while the verdict came
+    # from somewhere else. Cheap to check, and it makes the artifact
+    # internally consistent rather than half-authoritative.
+    for index, (length, claimed) in enumerate(zip(lengths, reached_flags), start=1):
+        if claimed is not None and claimed != (length >= horizon):
+            raise ResultBundleError(
+                f"stage {stage} stance panel episode {index} claims reached_horizon={claimed} but "
+                f"its length {length:.0f} against horizon {horizon} says otherwise"
+            )
+
+    panel = stance_panel_from_episode_duties(
+        episode_lengths=lengths,
+        episode_duties=duties,
+        episode_rewards=rewards,
+        horizon=int(horizon),
+    )
+    required = ("min_full_horizon_fraction", "max_unsupported_duty", "max_unsupported_duty_ucb")
+    missing = [key for key in required if curriculum.get(key) is None]
+    if missing:
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {STANCE_GATE_KIND!r} without {', '.join(missing)}, "
+            "so its evidence cannot be scored"
+        )
+    thresholds = StanceGateThresholds(
+        min_full_horizon_fraction=float(curriculum["min_full_horizon_fraction"]),
+        max_unsupported_duty=float(curriculum["max_unsupported_duty"]),
+        max_unsupported_duty_ucb=float(curriculum["max_unsupported_duty_ucb"]),
+        settle_steps=int(curriculum.get("settle_steps", 0)),
+        min_eval_episodes=int(curriculum.get("min_eval_episodes", 40)),
+        min_avg_reward=float(curriculum.get("min_avg_reward", -math.inf)),
+        required_consecutive=int(curriculum.get("required_consecutive", 3)),
+    )
+    passed, failures = evaluate_stance_gate(panel, thresholds)
+    if not passed:
+        raise ResultBundleError(
+            f"stage {stage} publication gate fails {STANCE_GATE_KIND}, re-derived from "
+            f"{panel_path.name}: " + "; ".join(failures)
+        )
+
+
 def validate_evaluation_evidence(
     run_dir: str | Path,
     summary: Mapping[str, Any],
@@ -351,47 +468,62 @@ def validate_evaluation_evidence(
         # ``stance_quality/v1`` carries ``min_avg_reward`` only as a rail --
         # deliberately set below the zero-action statue, which clears it by
         # 68% -- and states its real criteria as a full-horizon fraction and
-        # two ceilings on unsupported duty. The per-episode evidence CSV has
+        # two ceilings on unsupported duty. ``evaluation_selected.csv`` has
         # ``reward`` and ``length`` but no duty column, so evaluating the four
         # legacy thresholds here would certify the stage on the rail alone:
         # exactly the "a statue clears this gate" failure the stance gate was
         # introduced to remove, reappearing in the publication path.
+        #
+        # So the criteria are re-derived from the panel's own per-episode
+        # evidence instead. This used to be a flat refusal, which was the
+        # right call while no duty evidence was persisted -- and which also
+        # made the stage-1 milestone unreachable: a run that genuinely
+        # cleared the stance gate trained all three stages and then failed
+        # at bundle finalisation. Observed on run 20260803_012355, whose
+        # collected_results.csv and artifact_manifest.json stop at stage 2
+        # while stage 3's own artifacts were written in full.
         gate_kind = curriculum.get("gate_kind")
         if gate_kind == STANCE_GATE_KIND:
-            raise ResultBundleError(
-                f"stage {stage} declares gate_kind {gate_kind!r}, whose criteria "
-                "(min_full_horizon_fraction, max_unsupported_duty, "
-                "max_unsupported_duty_ucb) cannot be checked from the publication "
-                "evidence file: it records per-episode reward and length but no "
-                "unsupported duty. Certifying on min_avg_reward alone would pass a "
-                "policy this gate exists to reject, so the bundle refuses instead. "
-                "Add a per-episode duty column to evaluation_selected.csv and teach "
-                "this function to evaluate the stance criteria."
+            # The stance criteria REPLACE the legacy threshold loop below
+            # rather than joining it: applying `min_avg_reward` here as if it
+            # were the gate is the reading this kind exists to reject, and
+            # `evaluate_stance_gate` already checks it as a rail against the
+            # same panel. Only this block is stance-specific -- the
+            # final-checkpoint evidence below is validated for every stage.
+            _validate_stance_panel_evidence(
+                run_path / f"stage{stage}" / "stance_panel_selected.csv",
+                curriculum,
+                # `save_stage_config` names the env block `reward_weights`;
+                # `env_kwargs` is the in-memory name the same dict carries.
+                env_kwargs=config_value.get("reward_weights", config_value.get("env_kwargs", {})),
+                stage=stage,
             )
-
-        publication_thresholds = {
-            "min_avg_reward": "reward",
-            "min_avg_episode_length": "episode_length",
-            "min_avg_forward_vel": "forward_vel",
-            "min_success_rate": "success_rate",
-        }
-        for threshold_name, aggregate_name in publication_thresholds.items():
-            threshold_value = curriculum.get(threshold_name)
-            if threshold_value is None:
-                continue
-            if not isinstance(threshold_value, (int, float)) or isinstance(threshold_value, bool):
-                raise ResultBundleError(
-                    f"publication gate threshold {threshold_name} for stage {stage} must be numeric"
-                )
-            threshold = float(threshold_value)
-            if not math.isfinite(threshold):
-                raise ResultBundleError(f"publication gate threshold {threshold_name} for stage {stage} must be finite")
-            actual = selected_aggregates[aggregate_name]
-            if actual < threshold:
-                raise ResultBundleError(
-                    f"stage {stage} publication gate fails {threshold_name}: "
-                    f"evidence={actual:.6g} threshold={threshold:.6g}"
-                )
+        else:
+            publication_thresholds = {
+                "min_avg_reward": "reward",
+                "min_avg_episode_length": "episode_length",
+                "min_avg_forward_vel": "forward_vel",
+                "min_success_rate": "success_rate",
+            }
+            for threshold_name, aggregate_name in publication_thresholds.items():
+                threshold_value = curriculum.get(threshold_name)
+                if threshold_value is None:
+                    continue
+                if not isinstance(threshold_value, (int, float)) or isinstance(threshold_value, bool):
+                    raise ResultBundleError(
+                        f"publication gate threshold {threshold_name} for stage {stage} must be numeric"
+                    )
+                threshold = float(threshold_value)
+                if not math.isfinite(threshold):
+                    raise ResultBundleError(
+                        f"publication gate threshold {threshold_name} for stage {stage} must be finite"
+                    )
+                actual = selected_aggregates[aggregate_name]
+                if actual < threshold:
+                    raise ResultBundleError(
+                        f"stage {stage} publication gate fails {threshold_name}: "
+                        f"evidence={actual:.6g} threshold={threshold:.6g}"
+                    )
         final_aggregates = _evaluation_evidence_aggregates(
             run_path / f"stage{stage}" / "evaluation_final.csv",
             checkpoint_label="final",

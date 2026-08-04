@@ -1,6 +1,7 @@
 """Tests for environments.shared.curriculum.early_stopping."""
 
 import inspect
+import logging
 import math
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,7 @@ import pytest
 from environments.shared.curriculum import (
     EvalCollapseEarlyStopCallback,
     build_eval_collapse_early_stop_callback,
+    early_stopping,
 )
 from environments.shared.curriculum.early_stopping import collapse_settings_from_config
 
@@ -33,9 +35,14 @@ class TestEvalCollapseEarlyStopCallback:
             "peak_floor",
             "verbose",
             "smoothing_window",
+            "peak_warmup_timesteps",
         ]
         assert params["verbose"].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
         assert params["smoothing_window"].kind is inspect.Parameter.KEYWORD_ONLY
+        # Keyword-only for the same reason: every new knob goes after the
+        # `*`, so `verbose` keeps its historical positional slot forever.
+        assert params["peak_warmup_timesteps"].kind is inspect.Parameter.KEYWORD_ONLY
+        assert params["peak_warmup_timesteps"].default == 0.0
 
     def test_returns_true_without_eval_results(self):
         cb = object.__new__(EvalCollapseEarlyStopCallback)
@@ -45,6 +52,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         assert cb._on_step() is True
 
     def test_returns_true_when_eval_results_empty(self):
@@ -56,6 +64,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         assert cb._on_step() is True
 
     def test_returns_true_before_min_evals(self, tmp_path):
@@ -68,6 +77,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 5  # Need 5 evals, only have 2
         cb.drop_fraction = 0.3
         cb.patience = 3
@@ -83,6 +93,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         assert cb._on_step() is True
 
     def test_stops_after_patience_drops(self, tmp_path):
@@ -103,6 +114,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 3
         cb.drop_fraction = 0.3
         cb.patience = 1  # Stop after 1 drop
@@ -131,6 +143,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 0.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 1
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 5
         cb.drop_fraction = 0.3
         cb.patience = 5  # High patience
@@ -153,6 +166,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 100.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 5
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 3
         cb.drop_fraction = 0.5
         cb.patience = 1
@@ -199,6 +213,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 100.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 5
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 3
         cb.drop_fraction = 0.5
         cb.patience = 1
@@ -228,6 +243,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.peak_floor = 100.0
         cb._consecutive_drops = 0
         cb.smoothing_window = 5
+        cb.peak_warmup_timesteps = 0.0
         cb.min_evals = 3
         cb.drop_fraction = 0.4
         cb.patience = 1
@@ -276,6 +292,7 @@ class TestEvalCollapseEarlyStopCallback:
         cb.patience = patience
         cb.drop_fraction = drop_fraction
         cb.smoothing_window = smoothing_window
+        cb.peak_warmup_timesteps = 0.0
         cb.peak_floor = peak_floor
         for i in range(len(evaluations)):
             cb.eval_callback.evaluations_results = evaluations[: i + 1]
@@ -545,3 +562,216 @@ class TestTighteningDropAndPatienceIsRefuted:
             "45 pre-peak evaluations already sat below HALF the running peak, so a "
             "threshold tight enough for the endgame aborts the run mid-training"
         )
+
+
+class TestPeakWarmup:
+    """Evaluations before the warm-up must not set the peak.
+
+    Regression for run `20260803_012355`: trex stage 1 peaked at 2469.4 on its
+    SECOND evaluation (100k steps), because with `home-keyframe-residual/v1`
+    and `log_std_init = 0` an untrained policy already commands the nominal
+    stance. That armed the 0.45 x 3271.8 = 1472.3 floor on initialisation, and
+    the ordinary exploration dip that follows read as a collapse -- stopping at
+    1.45M of a 10M budget, after which stages 2 and 3 spent 9 1/4 hours on the
+    near-statue checkpoint it left behind.
+
+    No `peak_floor` value separates those two cases: set it above
+    initialisation (>0.75x the baseline) and it sits above what a learning
+    policy passes through, which is how both absolute floors in
+    `collapse_settings_from_config` failed. The warm-up is a different axis.
+    """
+
+    STATUE_PEAK = 2469.4
+    PEAK_FLOOR = 0.45 * 3271.8  # 1472.31, as configured for trex stage 1
+
+    def _drive(self, trace, *, warmup, eval_freq=50_000, min_evals=20, patience=10, drop_fraction=0.5):
+        """Feed a per-eval mean trace one eval at a time, tracking timesteps.
+
+        Returns ``(stopped_at_step_or_None, callback)`` so a test can assert on
+        the peak as well as the verdict.
+        """
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock()
+        cb.eval_callback.evaluations_results = []
+        cb.eval_callback.evaluations_timesteps = []
+        cb._last_seen_n_evals = 0
+        cb._peak_score = float("-inf")
+        cb._consecutive_drops = 0
+        cb.min_evals = min_evals
+        cb.patience = patience
+        cb.drop_fraction = drop_fraction
+        cb.smoothing_window = 5
+        cb.peak_floor = self.PEAK_FLOOR
+        cb.peak_warmup_timesteps = warmup
+        for i in range(len(trace)):
+            cb.eval_callback.evaluations_results = [[m] for m in trace[: i + 1]]
+            cb.eval_callback.evaluations_timesteps = [(j + 1) * eval_freq for j in range(i + 1)]
+            cb.num_timesteps = (i + 1) * eval_freq
+            if cb._on_step() is False:
+                return cb.num_timesteps, cb
+        return None, cb
+
+    # The REAL per-evaluation mean rewards of run 20260803_012355 stage 1, read
+    # from its evaluations.npz: 29 evaluations at 50k spacing, ending at the
+    # 1.45M step where the backstop actually stopped it. Full-horizon fraction
+    # runs 50.0% -> 70.0% -> 37.5% -> 7.5% -> 0.0% across the first five, so
+    # the initialisation advantage is spent by 200k; the rise from evaluation
+    # 14 (59.4) to 27 (350.7) is the recovery that the stop cut short.
+    RUN_20260803 = [
+        2007.3, 2469.4, 1506.5, 580.5, 314.6,
+        323.9, 498.0, 522.1, 585.7, 539.9,
+        238.1, 189.7, 112.6, 59.4, 80.8,
+        111.0, 152.6, 150.6, 172.9, 226.5,
+        236.2, 217.2, 270.4, 346.7, 349.5,
+        379.4, 350.7, 275.1, 281.2,
+    ]  # fmt: skip
+
+    def test_without_warmup_it_reproduces_the_real_stopping_point(self):
+        """Not an approximation of the failure — the failure itself."""
+        stopped_at, cb = self._drive(self.RUN_20260803, warmup=0.0)
+        assert stopped_at == 1_450_000
+        # Armed on the first window's median by 34.2, a 2.3% margin. Every
+        # other window in the run maxes out at 580.5, far under the floor.
+        assert cb._peak_score == pytest.approx(1506.5)
+
+    def test_the_configured_warmup_lets_the_real_run_continue(self):
+        stopped_at, cb = self._drive(self.RUN_20260803, warmup=1_000_000)
+        assert stopped_at is None
+        assert cb._peak_score < self.PEAK_FLOOR  # never armed
+
+    @pytest.mark.parametrize("warmup", [150_000, 250_000, 500_000, 1_000_000, 2_500_000])
+    def test_every_warmup_past_the_initialisation_spike_works(self, warmup):
+        """The spike is spent by 200k, so the choice is not knife-edge."""
+        assert self._drive(self.RUN_20260803, warmup=warmup)[0] is None
+
+    def test_a_genuine_late_collapse_still_stops(self):
+        """The warm-up delays the peak; it must not disarm the backstop."""
+        trace = [400.0] * 50 + [2400.0] * 10 + [300.0] * 12
+        stopped_at, cb = self._drive(trace, warmup=2_500_000)
+        assert stopped_at is not None
+        assert cb._peak_score == pytest.approx(2400.0)
+
+    def test_a_window_straddling_the_warmup_is_excluded_whole(self):
+        """Eligibility is by window START, so no kept window spans the line.
+
+        Judging by the window's END would keep the very first window here --
+        five consecutive spikes, median 2469.4 -- and a median survives one
+        contaminating sample out of five, not five.
+        """
+        trace = [self.STATUE_PEAK] * 5 + [400.0] * 40
+        _, cb = self._drive(trace, warmup=250_000)
+        assert cb._peak_score == pytest.approx(400.0)
+
+    def test_missing_eval_timesteps_stays_disarmed_rather_than_aborting(self):
+        """A backstop that cannot tell early from late must not end the run."""
+        trace = self.RUN_20260803
+        cb = object.__new__(EvalCollapseEarlyStopCallback)
+        cb.eval_callback = MagicMock(spec=["evaluations_results"])
+        cb.eval_callback.evaluations_results = [[m] for m in trace]
+        cb._last_seen_n_evals = 0
+        cb._peak_score = float("-inf")
+        cb._consecutive_drops = 0
+        cb.min_evals = 20
+        cb.patience = 10
+        cb.drop_fraction = 0.5
+        cb.smoothing_window = 5
+        cb.peak_floor = self.PEAK_FLOOR
+        cb.peak_warmup_timesteps = 1_000_000
+        cb.num_timesteps = 1_450_000
+        assert cb._on_step() is True
+
+    def test_default_config_leaves_every_existing_stage_unchanged(self):
+        assert collapse_settings_from_config({})["peak_warmup_timesteps"] == 0.0
+
+    def test_config_key_is_read(self):
+        settings = collapse_settings_from_config({"collapse_peak_warmup_timesteps": 1_000_000})
+        assert settings["peak_warmup_timesteps"] == 1_000_000.0
+
+    def test_the_builder_forwards_the_warmup_to_the_callback(self, monkeypatch):
+        """The wiring, asserted without stable-baselines3.
+
+        `collapse_settings_from_config` resolving the value and the callback
+        honouring it were both covered; the step BETWEEN them -- the builder
+        passing it through -- was asserted nowhere, and the one builder test
+        that exists is `importorskip("stable_baselines3")`, so it is skipped
+        in CI. A dropped kwarg here silently restores the old behaviour on
+        every run while every other test stays green.
+        """
+        captured: dict[str, object] = {}
+
+        def _capture(**kwargs):
+            captured.update(kwargs)
+            return "callback"
+
+        monkeypatch.setattr(early_stopping, "EvalCollapseEarlyStopCallback", _capture)
+        built = early_stopping.build_eval_collapse_early_stop_callback(
+            eval_callback=None,
+            curriculum_kwargs={
+                "collapse_peak_warmup_timesteps": 1_000_000,
+                "collapse_peak_floor": 1472.31,
+            },
+        )
+        assert built == "callback"
+        assert captured["peak_warmup_timesteps"] == 1_000_000.0
+        assert captured["peak_floor"] == 1472.31
+
+    def test_a_warmup_past_the_stage_budget_is_announced(self, monkeypatch, caplog):
+        """Silently disabling the backstop for a whole run is the bad outcome.
+
+        An extra zero on a step count in the millions is a plausible typo, and
+        its only symptom is a run that never stops early — indistinguishable
+        from a run that simply never collapsed.
+        """
+        monkeypatch.setattr(early_stopping, "EvalCollapseEarlyStopCallback", lambda **kwargs: "callback")
+        with caplog.at_level(logging.WARNING, logger=early_stopping.logger.name):
+            early_stopping.build_eval_collapse_early_stop_callback(
+                eval_callback=None,
+                curriculum_kwargs={
+                    "collapse_peak_warmup_timesteps": 20_000_000,
+                    "timesteps": 10_000_000,
+                    "collapse_peak_floor": 1472.31,
+                },
+            )
+        assert any("collapse backstop is disabled for the whole run" in record.message for record in caplog.records)
+
+    def test_a_reachable_warmup_is_not_warned_about(self, monkeypatch, caplog):
+        monkeypatch.setattr(early_stopping, "EvalCollapseEarlyStopCallback", lambda **kwargs: "callback")
+        with caplog.at_level(logging.WARNING, logger=early_stopping.logger.name):
+            early_stopping.build_eval_collapse_early_stop_callback(
+                eval_callback=None,
+                curriculum_kwargs={
+                    "collapse_peak_warmup_timesteps": 1_000_000,
+                    "timesteps": 10_000_000,
+                    "collapse_peak_floor": 1472.31,
+                },
+            )
+        assert not any("disabled for the whole run" in record.message for record in caplog.records)
+
+    def test_every_committed_stage_can_still_arm_within_its_budget(self):
+        """A declared warm-up must leave room for the backstop to work.
+
+        Pairs with `test_every_committed_stage_config_sets_the_floor_explicitly`:
+        that one proves the floor is configured, this one proves the warm-up
+        does not push the peak past the end of the stage, which would disarm
+        the backstop just as completely.
+        """
+        from environments.shared.config import load_all_stages
+
+        for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
+            for stage, cfg in load_all_stages(species).items():
+                cur = cfg.get("curriculum_kwargs", {})
+                warmup = collapse_settings_from_config(cur)["peak_warmup_timesteps"]
+                if warmup <= 0.0:
+                    continue
+                budget = float(cur["timesteps"])
+                assert warmup < budget, (
+                    f"{species} stage {stage} sets collapse_peak_warmup_timesteps={warmup:.0f} "
+                    f"at or beyond its timesteps={budget:.0f}, so no window can ever set the "
+                    "peak and the collapse backstop can never arm"
+                )
+                # Not merely reachable: reachable with enough of the run left
+                # for `patience` consecutive evaluations to accumulate.
+                assert warmup <= 0.5 * budget, (
+                    f"{species} stage {stage} spends {100 * warmup / budget:.0f}% of its budget "
+                    "in collapse warm-up, leaving too little of the run protected"
+                )
