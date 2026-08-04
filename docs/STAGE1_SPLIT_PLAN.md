@@ -1466,6 +1466,13 @@ still armed, because 1506.5 clears the 1472.3 floor — **by 34.2, a margin of 2
 first window is the *only* one that ever clears it: the maximum rolling median over the other 24
 windows is 580.5.
 
+The sibling 6M run is the control, and it says the median can win this contest as easily as lose
+it: there the initialisation spike was one evaluation rather than three, the same statistic
+reported 812.4, and the backstop never armed early at all. So the heading is right as a general
+rule but the boundary is narrower than "outlier vs regime" suggests — a median of 5 survives one
+contaminating sample and fails against three, and which of those an untrained policy produces is
+not something the configuration decides. See §12.4.
+
 So the earlier reading of this section was wrong, and the correction matters. It is not that the
 statue regime sits far above the floor and any run must arm — that figure was computed from a
 single evaluation rather than from the window median that actually arms. What happened is that a
@@ -1499,13 +1506,40 @@ rolling-median window came to 1506.5 against a 1472.3 floor. Nothing else in the
 the best of the other 24 windows is 580.5. Had that first window landed 35 points lower, the
 detector would never have armed and the run would have used its budget.
 
-The 6M run's series has *not* been read (78.5 KB against the 10M run's 19.5 KB), so whether it
-armed is still `[inferred]` — but the inference now points the other way from the first draft of
-this section. With a margin that thin, the two runs need not have behaved alike at all: the 6M
-run's best evaluation anywhere was 2273.3, attained at its *final* evaluation, so its early
-evaluations were all below that, and its first window could easily have fallen under 1472.3. The
-honest summary is that **a 35-point difference in one early evaluation window decided whether a
-ten-hour run completed**, and the 6M run may simply have drawn on the safe side of it.
+The 6M run's series has now been read too (`measured`, 120 evaluations at 50k spacing), and it
+settles the question the two paragraphs above left open — against the guess in both of them.
+
+**The 6M run never armed early.** Its first five evaluations are 812.4, 1503.2, 934.6, 587.7,
+454.0, so its first rolling-median window is **812.4** — not 35 points below the 1472.3 floor but
+**45% below it**, and that is the maximum over every window starting before 1.0M. Its peak reaches
+the floor only at 5.8M, on a rolling median of 2252.7, by which point the policy has genuinely
+learned and a collapse backstop is doing exactly the job it was written for. Across all 120
+evaluations the run records **zero** consecutive sub-threshold evaluations, so `patience` was never
+close to being the deciding factor either.
+
+So the earlier explanation — both runs armed, and the 6M run survived because its dip never
+produced ten consecutive sub-threshold evaluations — is wrong in both halves. What actually
+differed is the **size of the initialisation spike**: the 6M run's first evaluation is 812.4
+against the 10M run's 2007.3, a 2.47× difference at the same seed, from configs differing by one
+line. One run's spike cleared the floor after the median; the other's was not close.
+
+That is a *stronger* argument for the warm-up than the one it replaces, not a weaker one. If
+arming on initialisation turned on `patience`, tuning `patience` would be a defensible response.
+It turns instead on how large an untrained policy's first few evaluations happen to be — a
+quantity nothing in the configuration controls and no threshold can separate from competence on
+this stage (§12.2). The honest summary is that **whether a ten-hour run completes was decided by
+the magnitude of a spike produced before any learning had occurred.**
+
+It also corrects §12.3's reading of the median. The median was not overwhelmed by a regime in the
+6M run: it absorbed a lone 1503.2 spike exactly as designed and reported 812.4. In the 10M run the
+spike lasted three evaluations out of five and the median reported 1506.5. A rolling median of 5
+defends against one contaminating sample and fails against three — which is a statement about how
+long the initialisation advantage happens to persist, not about the statistic being the wrong
+choice.
+
+Replaying the 6M series through the callback confirms the fix is safe in the other direction:
+warm-ups of 0, 1.0M and 2.5M all leave that run completing its budget, and it still arms
+legitimately at 5.8M under each.
 
 Two further things the series settles, both of which cut against reading this as a healthy run
 misdiagnosed. The policy genuinely degraded: full-horizon goes 70.0% → 0.0% by evaluation 5 and

@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -16,6 +17,7 @@ from environments.shared.result_bundle import (
     validate_result_bundle,
     write_artifact_manifest,
 )
+from environments.shared.scripts.stance_gate_report import STANCE_PANEL_FIELDNAMES
 
 from .result_bundle_helpers import (
     _complete_bundle,
@@ -243,43 +245,201 @@ def test_publication_gate_is_recomputed_from_frozen_thresholds(
         )
 
 
-def test_stance_gated_stage_refuses_publication_rather_than_certifying_on_the_rail(
+_STANCE_HORIZON = 1000
+
+
+def _make_stance_gated(run_dir: Path, stage: int = 1) -> None:
+    """Declare stance_quality/v1 on a stage of an otherwise complete bundle."""
+    config_path = run_dir / f"stage{stage}" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["curriculum_kwargs"] = {
+        "gate_kind": "stance_quality/v1",
+        "gate_schema_version": 1,
+        "min_full_horizon_fraction": 0.95,
+        "max_unsupported_duty": 0.02,
+        "max_unsupported_duty_ucb": 0.02,
+        "min_eval_episodes": 40,
+        "settle_steps": 200,
+    }
+    config["env_kwargs"] = {**config.get("env_kwargs", {}), "max_episode_steps": _STANCE_HORIZON}
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _write_stance_panel(run_dir: Path, rows: list[dict[str, Any]], stage: int = 1) -> Path:
+    path = run_dir / f"stage{stage}" / "stance_panel_selected.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as destination:
+        writer = csv.DictWriter(destination, fieldnames=list(STANCE_PANEL_FIELDNAMES))
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
+def _stance_panel_rows(
+    *,
+    episodes: int = 40,
+    duty: float = 0.0,
+    full_horizon: int | None = None,
+    reward: float = 2400.0,
+) -> list[dict[str, Any]]:
+    reached = episodes if full_horizon is None else full_horizon
+    rows = []
+    for index in range(episodes):
+        is_full = index < reached
+        rows.append(
+            {
+                "episode": index,
+                "panel_seed": 3042 + index,
+                "length": _STANCE_HORIZON if is_full else 300,
+                "reward": reward if is_full else 600.0,
+                "reached_horizon": is_full,
+                "unsupported_duty": duty,
+                "bilateral_support_duty": 1.0 - duty,
+                "single_support_duty": 0.0,
+            }
+        )
+    return rows
+
+
+def _save_bundle(run_dir: Path, stage_results: Any, stage_configs: Any) -> Any:
+    return save_result_bundle(
+        stage_results,
+        stage_configs,
+        "velociraptor",
+        "PPO",
+        42,
+        run_dir,
+        backend="stable-baselines3",
+        backend_version="2.7.0",
+        parallel_envs=4,
+        evaluation_episodes=3,
+        evaluation_seeds=[101, 102, 103],
+        plant_identity=_plant_identity(),
+    )
+
+
+def test_stance_gated_stage_refuses_publication_without_duty_evidence(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
-    """A gate this evidence file cannot express must not be half-checked.
+    """A gate whose criteria nothing measured must not be half-checked.
 
     stance_quality/v1 carries min_avg_reward only as a RAIL, set below the
-    zero-action statue. The per-episode evidence CSV records reward and
-    length but no unsupported duty, so evaluating the legacy thresholds would
-    certify the stage on the rail alone -- reintroducing exactly the "a statue
-    clears this gate" failure the stance gate was built to remove.
+    zero-action statue. `evaluation_selected.csv` records reward and length
+    but no unsupported duty, so evaluating the legacy thresholds would certify
+    the stage on the rail alone -- reintroducing exactly the "a statue clears
+    this gate" failure the stance gate was built to remove.
     """
     run_dir = tmp_path / "run"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
-    config_path = run_dir / "stage1" / "stage_config.json"
-    config = json.loads(config_path.read_text(encoding="utf-8"))
-    config["curriculum_kwargs"]["gate_kind"] = "stance_quality/v1"
-    config["curriculum_kwargs"]["min_full_horizon_fraction"] = 0.95
-    config["curriculum_kwargs"]["max_unsupported_duty"] = 0.02
-    config["curriculum_kwargs"]["max_unsupported_duty_ucb"] = 0.02
-    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _make_stance_gated(run_dir)
 
-    with pytest.raises(ResultBundleError, match=r"cannot be checked from the publication evidence"):
-        save_result_bundle(
-            stage_results,
-            stage_configs,
-            "velociraptor",
-            "PPO",
-            42,
-            run_dir,
-            backend="stable-baselines3",
-            backend_version="2.7.0",
-            parallel_envs=4,
-            evaluation_episodes=3,
-            evaluation_seeds=[101, 102, 103],
-            plant_identity=_plant_identity(),
-        )
+    with pytest.raises(ResultBundleError, match=r"stance_panel_selected\.csv is missing"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_stance_gated_stage_publishes_when_the_panel_evidence_clears_the_gate(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """The milestone must actually be reachable.
+
+    Before the panel evidence existed this refused unconditionally, so a run
+    that genuinely cleared the stance gate trained all three stages and then
+    failed at bundle finalisation -- observed on run 20260803_012355, whose
+    collected_results.csv and artifact_manifest.json stop at stage 2 while
+    stage 3's own artifacts were written in full.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    _write_stance_panel(run_dir, _stance_panel_rows(duty=0.0))
+
+    paths = _save_bundle(run_dir, stage_results, stage_configs)
+    assert paths["summary"].is_file()
+    assert (run_dir / "collected_results.csv").is_file()
+
+
+def test_stance_gated_stage_fails_on_the_real_duty_breach(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Run 20260802_203215's actual panel: full horizon 1.0000, duty 0.2120.
+
+    That run recorded publication_gate_passed = True beside a stance report
+    reading GATE: FAIL at 10.6x the duty ceiling. Re-derived from per-episode
+    evidence, the bundle must refuse it.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    _write_stance_panel(run_dir, _stance_panel_rows(duty=0.2120, reward=2295.5))
+
+    with pytest.raises(ResultBundleError, match=r"publication gate fails stance_quality/v1"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_stance_gated_stage_fails_on_the_real_survival_breach(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Run 20260803_012355's actual panel: duty 0.0000 but only 26 of 40 full.
+
+    The two runs failed on opposite criteria, so both directions need pinning:
+    a perfect duty score must not rescue a panel that mostly fell over.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    _write_stance_panel(run_dir, _stance_panel_rows(duty=0.0, full_horizon=26, reward=2319.7))
+
+    with pytest.raises(ResultBundleError, match=r"publication gate fails stance_quality/v1"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_an_unmeasured_duty_cell_is_not_read_as_a_perfect_score(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Empty must mean "unmeasured", never 0.0.
+
+    Zero duty is the statue's score and the best attainable one, so coercing a
+    blank cell to 0.0 would turn missing evidence into a perfect result — the
+    fail-open shape this whole gate exists to refuse.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    rows = _stance_panel_rows(duty=0.0)
+    for row in rows:
+        row["unsupported_duty"] = ""
+    _write_stance_panel(run_dir, rows)
+
+    with pytest.raises(ResultBundleError, match=r"publication gate fails stance_quality/v1"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_the_recorded_verdict_is_re_derived_not_trusted(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """A stored `passed: true` must not be able to certify a failing panel.
+
+    The point of an evidence file is that the published claim is reproducible
+    from the episodes behind it. Run 20260802_203215 is the counterexample:
+    a recorded pass beside measurements that refute it.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    _write_stance_panel(run_dir, _stance_panel_rows(duty=0.2120))
+    (run_dir / "stage1" / "stance_gate_report.json").write_text(
+        json.dumps({"gate_kind": "stance_quality/v1", "passed": True, "failures": []}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ResultBundleError, match=r"publication gate fails stance_quality/v1"):
+        _save_bundle(run_dir, stage_results, stage_configs)
 
 
 def test_final_evaluation_claims_are_bound_to_terminal_episode_evidence(

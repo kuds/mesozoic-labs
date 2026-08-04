@@ -131,31 +131,36 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         the thing that aborts a multi-hour run.
         """
         timesteps = getattr(self.eval_callback, "evaluations_timesteps", None)
-        # The two causes need different fixes, so they need different
-        # messages: "absent" means the EvalCallback was built without a
-        # log_path, "misaligned" means its two arrays disagree, which is a
-        # bug rather than a configuration mistake.
-        reason: str | None = None
+        # The two causes need different fixes, so they get different messages:
+        # "absent" means the EvalCallback was built without a log_path,
+        # "misaligned" means its two arrays disagree, which is a bug rather
+        # than a configuration mistake. Written as two early returns rather
+        # than a shared `reason` branch so the narrowing survives to the
+        # indexing below.
         if timesteps is None:
-            reason = "the EvalCallback records no evaluation timesteps (is its log_path set?)"
-        elif len(timesteps) < n_windows + window - 1:
-            reason = (
-                f"only {len(timesteps)} evaluation timesteps for "
-                f"{n_windows + window - 1} recorded evaluations, so windows cannot be dated"
-            )
-        if reason is not None:
-            if not self._warned_unreadable_timesteps:
-                self._warned_unreadable_timesteps = True
-                logger.warning(
-                    "EvalCollapseEarlyStop: peak_warmup_timesteps=%.0f is set but %s. "
-                    "Staying disarmed for the rest of this stage — a backstop that cannot "
-                    "tell early evaluations from late ones must not abort the run.",
-                    self.peak_warmup_timesteps,
-                    reason,
-                )
+            self._warn_disarmed("the EvalCallback records no evaluation timesteps (is its log_path set?)")
             return None
-        starts = np.asarray(timesteps[:n_windows], dtype=float)
+        expected = n_windows + window - 1
+        if len(timesteps) < expected:
+            self._warn_disarmed(
+                f"only {len(timesteps)} evaluation timesteps for {expected} recorded "
+                "evaluations, so windows cannot be dated"
+            )
+            return None
+        starts: np.ndarray = np.asarray(timesteps[:n_windows], dtype=np.float64)
         return starts >= self.peak_warmup_timesteps
+
+    def _warn_disarmed(self, reason: str) -> None:
+        """Explain the disarm once, then stay quiet for the rest of the stage."""
+        if not self._warned_unreadable_timesteps:
+            self._warned_unreadable_timesteps = True
+            logger.warning(
+                "EvalCollapseEarlyStop: peak_warmup_timesteps=%.0f is set but %s. "
+                "Staying disarmed for the rest of this stage — a backstop that cannot "
+                "tell early evaluations from late ones must not abort the run.",
+                self.peak_warmup_timesteps,
+                reason,
+            )
 
     def _on_step(self) -> bool:
         # EvalCallback keeps per-eval episode rewards in memory (populated

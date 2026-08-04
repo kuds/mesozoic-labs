@@ -8,6 +8,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Fixed
+- **A stance-gated run that passed every gate still could not publish.**
+  `result_bundle.evidence` refused any complete bundle whose stage declares
+  `stance_quality/v1`, because `evaluation_selected.csv` records per-episode
+  reward and length but no unsupported duty, and certifying on `min_avg_reward`
+  alone would pass the zero-action statue. The refusal was correct and it also
+  made the stage-1 milestone unreachable: the refusal fires only once all three
+  stages have passed, so the first genuinely successful run would train for ten
+  hours and then fail at finalisation. Observed on run `20260803_012355`, whose
+  `collected_results.csv` and `artifact_manifest.json` stop at stage 2 while
+  stage 3's own artifacts (`stage_summary.txt`, `figures/`, `replays/`, both
+  evaluation CSVs) were written in full.
+  The stance panel now persists its per-episode measurements as
+  `stance_panel_selected.csv` beside the report it already wrote, and the
+  auditor **re-derives** the verdict from those episodes rather than trusting
+  the `passed` recorded in `stance_gate_report.json` — an evidence file whose
+  claim is not reproducible from the episodes behind it certifies nothing, and
+  run `20260802_203215` is the counterexample that motivated it. Reduction and
+  scoring both go through `curriculum.stance_gate`, so the auditor cannot drift
+  from the gate the trainer applied. An unmeasurable duty is written blank and
+  read as unmeasured, never as `0.0` — zero is the statue's score and the best
+  attainable one, so coercing would turn missing evidence into a perfect
+  result. A separate file rather than new columns because the panel is a
+  different evaluation from the publication one: 40 episodes at the panel seeds
+  against 30 at the publication seed, and `min_eval_episodes` is the sample
+  size the bound's power is specified at.
+- **The JAX gate cleared its thresholds on metrics it never measured.**
+  `nan < threshold` is `False`, so `jax_eval.check_stage_gate` returned
+  `(True, [])` for an evaluation that produced no usable episodes — and
+  `jax_setup` writes that verdict straight into `publication_gate_passed`.
+  This is the same fail-open closed on the SB3 path, in the function that
+  gates JAX stages 2 and 3. The rule now lives once as
+  `gate_schema.finite_gate_metric` and both backends read it. Confined to
+  declared thresholds: an unset rail (`-inf`) and an unset floor (`0`) could
+  not be failed before and still cannot, so no legitimate config changes
+  verdict.
+
+### Changed
+- **The curriculum gate verdict is now durable.** `gate_failures` was computed
+  and persisted nowhere — not in `stage_summary.txt`, not in
+  `collected_results.csv`, not in the `stage_result.json` allowlist — so on a
+  failure the notebook disconnected the runtime and raised, and the reasons
+  went with it. `stage_summary.txt` now states the verdict and every failing
+  criterion, and the reasons are persisted on both backends.
+  `generate_stage_artifacts` writes the summary *after* evaluating the gate,
+  which it previously did not, so the summary could never contain the verdict.
+- **The collapse backstop says what it is doing.** The resolved settings are
+  logged once at construction, and the disarmed → armed transition is announced
+  once with the peak, the floor and the drop threshold. Neither appeared
+  anywhere before, which is why diagnosing runs `20260802_203215` and
+  `20260803_012355` required replaying their evaluation series against the TOML
+  at each run's commit. A `collapse_peak_warmup_timesteps` at or beyond the
+  stage's own budget — a plausible extra-zero typo — now warns rather than
+  silently disabling the backstop for the whole run.
 - **The collapse backstop armed on the untrained policy and killed stage 1 at
   14.5% of its budget.** With `home-keyframe-residual/v1` and
   `log_std_init = 0`, action = 0 commands the nominal stance, so an *untrained*
