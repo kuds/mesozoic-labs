@@ -395,6 +395,7 @@ def _build_core_callbacks(
     use_wandb: bool = False,
     local_tb_dir: Path | None = None,
     gcs_tb_path: Path | None = None,
+    species: str | None = None,
 ) -> tuple[list, Any, Any]:
     """Build the standard callback set shared by train() and train_curriculum().
 
@@ -407,6 +408,7 @@ def _build_core_callbacks(
         PublishEvalArtifactsCallback,
         RobustBestModelCallback,
         SaveVecNormalizeCallback,
+        build_baseline_progress_callback,
         build_eval_collapse_early_stop_callback,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
@@ -495,6 +497,29 @@ def _build_core_callbacks(
             verbose=verbose,
         )
     )
+
+    # Advisory only: reports each evaluation against the run's captured
+    # zero-action baseline. Run 20260804_143747 spent its whole 10M budget
+    # (8h 13m) below the statue on every major reward term and nothing said
+    # so -- reward was climbing, full-horizon was 100%, the backstop correctly
+    # never fired. The comparison costs one float already on disk. See
+    # `curriculum.baseline_watch` for why this warns rather than stops.
+    # `species` is optional so the existing positional callers keep working,
+    # but a caller that omits it silently loses the watch -- so the notebook
+    # passes it and a test pins that it still does.
+    baseline_cb = (
+        build_baseline_progress_callback(
+            eval_callback,
+            run_dir=Path(log_path).parent if log_path is not None else None,
+            species=species,
+            stage_config=stage_config,
+            verbose=verbose,
+        )
+        if species
+        else None
+    )
+    if baseline_cb is not None:
+        callbacks.append(baseline_cb)
 
     if use_wandb:
         callbacks.append(WandbCallback())

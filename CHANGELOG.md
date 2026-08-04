@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
+### Added
+- **A watch on the do-nothing baseline.** Run `20260804_143747` trained T-Rex
+  stage 1 for its full 10,002,432 steps — 8h 13m — and finished at **2686.9
+  against the zero-action statue's 3271.8**: below the do-nothing policy on
+  every major reward term, for the entire run. Nothing reported it. Every
+  logged signal looked healthy (reward climbing, full-horizon 100%, evaluation
+  sd down to 5, the collapse backstop correctly silent), and the run was only
+  found to be in a worse-than-trivial local optimum by scoring `action = 0` by
+  hand afterwards (issue #486).
+  `curriculum.baseline_watch.BaselineProgressCallback` now reports every
+  evaluation against the run's own captured `zero_action_baseline.json` — one
+  float already written to the run directory before training starts, so the
+  comparison is free — and warns **once** if the policy has still never beaten
+  it past `baseline_warn_after_budget_fraction` of the budget (0.35 on trex
+  1a, i.e. 3.5M steps with ~5.5 hours still to save).
+  Deliberately **advisory**: it logs and warns, never stops. On stage 1 the
+  statue *is* the reward optimum, so a learning policy legitimately sits below
+  it for millions of steps; aborting on that would kill healthy runs for the
+  same reason tightening the collapse detector does. A run that beats the
+  baseline at any point is never warned about again — falling back under it is
+  what the collapse backstop is for.
+  `_build_core_callbacks` takes `species` to construct it, and a test pins that
+  `sb3_training.ipynb` passes it, because an optional argument the trainer
+  forgets is exactly how the stance gate became dead code on the Colab path.
+
 ### Fixed
 - **A stance-gated run that passed every gate still could not publish.**
   `result_bundle.evidence` refused any complete bundle whose stage declares
