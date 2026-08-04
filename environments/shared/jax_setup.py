@@ -831,6 +831,10 @@ def run_stage_evaluation(
         "best_model_n_episodes": n_episodes,
         "gate_passed": gate_passed,
         "publication_gate_passed": gate_passed,
+        # Carried on the results dict, not only returned alongside it, so the
+        # REASONS reach the stage summary and stage_result.json rather than
+        # living only in this function's return value and the console.
+        "gate_failures": gate_failures,
     }
 
     return selected_eval_results, final_eval_results, stage_results, gate_passed, gate_failures

@@ -245,9 +245,17 @@ def evaluate_stage_gate(
         hold, so the reason survives into ``gate_failures`` and the raised
         message without re-running anything.
     """
-    # Imported here rather than at module scope: `environments.shared.curriculum`
-    # pulls in the SB3 callbacks, and `reporting` must stay importable without
-    # stable-baselines3 installed (the lint job and the sweep reader both do).
+    # Imported here rather than at module scope to break the import cycle:
+    # `environments.shared.curriculum` re-exports the SB3 callbacks, several of
+    # which reach back into `reporting`, so a module-scope import here would
+    # close the loop at import time.
+    #
+    # It is NOT what keeps `reporting` importable without stable-baselines3 --
+    # importing the `gate_schema` SUBMODULE executes the `curriculum` package
+    # `__init__` regardless, so deferring changes only when that happens.
+    # SB3-optionality comes from `curriculum.sb3_compat`, which makes the
+    # callbacks raise at construction rather than at import; the whole test
+    # suite passes with stable-baselines3 absent because of that, not this.
     from environments.shared.curriculum.gate_schema import GATE_KINDS
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
 

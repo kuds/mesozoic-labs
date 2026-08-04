@@ -276,12 +276,23 @@ def _apply_stage_gate(
     """
     from .gates import evaluate_stage_gate
 
-    passed, failures = evaluate_stage_gate(
-        stage_config.get("curriculum_kwargs", {}),
-        stage_results,
-        stage=stage,
-        stance_report=stance_report,
-    )
+    try:
+        passed, failures = evaluate_stage_gate(
+            stage_config.get("curriculum_kwargs", {}),
+            stage_results,
+            stage=stage,
+            stance_report=stance_report,
+        )
+    except Exception as exc:  # noqa: BLE001 - the docstring's promise, kept
+        # "Never raises" has to be enforced, not asserted. `evaluate_stage_gate`
+        # coerces config values (`float(min_avg_reward)`) and iterates a
+        # report's `failures`, so a malformed TOML value or a hand-edited
+        # report reaches here as TypeError/ValueError. Letting it propagate
+        # would cost a completed multi-hour run the artifacts written around
+        # this call; recording it as a failure keeps the fail-closed reading
+        # AND the artifacts.
+        logger.warning("Stage %d curriculum gate could not be evaluated", stage, exc_info=True)
+        passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
     stage_results["gate_passed"] = passed
     stage_results["publication_gate_passed"] = passed
     stage_results["gate_failures"] = failures
@@ -340,9 +351,6 @@ def generate_stage_artifacts(
             timesteps=timesteps,
         )
 
-    text_summaries.write_stage_summary(stage_dir, stage_results, species, algorithm)
-    logger.info("Stage summary written to: %s", stage_dir / "stage_summary.txt")
-
     stance_report = _write_stance_gate_report(
         species=species,
         stage=stage,
@@ -358,6 +366,12 @@ def generate_stage_artifacts(
         stage_results=stage_results,
         stance_report=stance_report,
     )
+
+    # After the gate, not before it: the summary now states the verdict and
+    # every criterion that failed, and writing it first would print a stage
+    # summary that says nothing about the decision the stage turns on.
+    text_summaries.write_stage_summary(stage_dir, stage_results, species, algorithm)
+    logger.info("Stage summary written to: %s", stage_dir / "stage_summary.txt")
 
     # Figures and replays render into local scratch and publish to the stage
     # directory in one pass on exit.  The plots and videos below read their
@@ -887,6 +901,10 @@ def save_jax_stage_artifacts(
         "selection_training_update",
         "gate_passed",
         "publication_gate_passed",
+        # The reasons, not only the boolean. A persisted `false` with no
+        # explanation forces a re-run to find out which criterion failed,
+        # and for a stance gate the panel that produced it is gone.
+        "gate_failures",
         "best_model_reward",
         "best_model_std_reward",
         "best_model_length",
