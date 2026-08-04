@@ -83,6 +83,14 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
             disarmed, which is the fail-safe direction for a backstop.
     """
 
+    #: Log-once latches, declared at class scope so an instance built without
+    #: ``__init__`` still has them. The test suite constructs this callback
+    #: with ``object.__new__`` to exercise ``_on_step`` without SB3 installed,
+    #: and a new instance attribute that only ``__init__`` sets would turn
+    #: every one of those tests into an AttributeError.
+    _warned_unreadable_timesteps = False
+    _announced_armed = False
+
     def __init__(
         self,
         eval_callback: Any,
@@ -108,6 +116,11 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         self._peak_score = -np.inf
         self._consecutive_drops = 0
         self._last_seen_n_evals = 0
+        # Both are "say it once, not once per evaluation": a backstop that
+        # repeats the same line for the rest of a 10M-step run buries whatever
+        # else the log had to say.
+        self._warned_unreadable_timesteps = False
+        self._announced_armed = False
 
     def _windows_after_warmup(self, n_windows: int, window: int) -> np.ndarray | None:
         """Mask of rolling-median windows that start at or after the warm-up.
@@ -118,11 +131,28 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         the thing that aborts a multi-hour run.
         """
         timesteps = getattr(self.eval_callback, "evaluations_timesteps", None)
-        if timesteps is None or len(timesteps) < n_windows + window - 1:
-            logger.warning(
-                "EvalCollapseEarlyStop: peak_warmup_timesteps is set but evaluation "
-                "timesteps are unavailable; staying disarmed."
+        # The two causes need different fixes, so they need different
+        # messages: "absent" means the EvalCallback was built without a
+        # log_path, "misaligned" means its two arrays disagree, which is a
+        # bug rather than a configuration mistake.
+        reason: str | None = None
+        if timesteps is None:
+            reason = "the EvalCallback records no evaluation timesteps (is its log_path set?)"
+        elif len(timesteps) < n_windows + window - 1:
+            reason = (
+                f"only {len(timesteps)} evaluation timesteps for "
+                f"{n_windows + window - 1} recorded evaluations, so windows cannot be dated"
             )
+        if reason is not None:
+            if not self._warned_unreadable_timesteps:
+                self._warned_unreadable_timesteps = True
+                logger.warning(
+                    "EvalCollapseEarlyStop: peak_warmup_timesteps=%.0f is set but %s. "
+                    "Staying disarmed for the rest of this stage — a backstop that cannot "
+                    "tell early evaluations from late ones must not abort the run.",
+                    self.peak_warmup_timesteps,
+                    reason,
+                )
             return None
         starts = np.asarray(timesteps[:n_windows], dtype=float)
         return starts >= self.peak_warmup_timesteps
@@ -172,6 +202,25 @@ class EvalCollapseEarlyStopCallback(BaseCallback):  # type: ignore[misc]
         latest_mean = float(eval_means[-1])
         threshold = (1.0 - self.drop_fraction) * self._peak_score
         armed = self._peak_score > 0 and self._peak_score >= self.peak_floor
+
+        # The single line that makes an early stop diagnosable from the log
+        # alone. Reconstructing whether run 20260803_012355's backstop armed
+        # on its second evaluation took replaying the whole evaluation series
+        # against the config, because nothing recorded the transition. Said
+        # once, at the step the backstop becomes able to end the run.
+        if armed and not self._announced_armed:
+            self._announced_armed = True
+            logger.info(
+                "EvalCollapseEarlyStop: armed at step %d — rolling-median peak %.1f "
+                "reached the floor %.1f; training now stops after %d consecutive "
+                "evaluations below %.1f (%.0f%% of peak).",
+                self.num_timesteps,
+                self._peak_score,
+                self.peak_floor,
+                self.patience,
+                threshold,
+                100 * (1 - self.drop_fraction),
+            )
 
         if armed and latest_mean < threshold:
             self._consecutive_drops += 1
@@ -289,6 +338,40 @@ def build_eval_collapse_early_stop_callback(
     particular why ``collapse_peak_floor`` does not inherit ``min_avg_reward``.
     """
     settings = collapse_settings_from_config(curriculum_kwargs)
+
+    # State the resolved settings once, at construction. Whether a run stopped
+    # early -- and whether it *could* have -- turns entirely on these five
+    # numbers, and none of them appeared anywhere in a run's log: diagnosing
+    # runs 20260802_203215 and 20260803_012355 meant reading the TOML at the
+    # run's commit against the artifacts, because the log never said which
+    # floor was in force.
+    warmup = settings["peak_warmup_timesteps"]
+    logger.info(
+        "EvalCollapseEarlyStop: min_evals=%d patience=%d drop_fraction=%.2f "
+        "peak_floor=%.1f smoothing_window=%d peak_warmup_timesteps=%.0f",
+        settings["min_evals"],
+        settings["patience"],
+        settings["drop_fraction"],
+        settings["peak_floor"],
+        settings["smoothing_window"],
+        warmup,
+    )
+
+    # A warm-up at or past the stage's own budget disarms the backstop for the
+    # entire run, and does it silently -- the run simply never stops early and
+    # nothing says why. It is a plausible typo (an extra zero) on a key whose
+    # value is a step count in the millions, so say so rather than leave the
+    # protection quietly switched off.
+    budget = curriculum_kwargs.get("timesteps")
+    if warmup > 0.0 and budget is not None and warmup >= float(budget):
+        logger.warning(
+            "EvalCollapseEarlyStop: collapse_peak_warmup_timesteps=%.0f is at or beyond this "
+            "stage's timesteps=%.0f, so no window can ever set the peak and the collapse "
+            "backstop is disabled for the whole run.",
+            warmup,
+            float(budget),
+        )
+
     return EvalCollapseEarlyStopCallback(
         eval_callback=eval_callback,
         min_evals=settings["min_evals"],

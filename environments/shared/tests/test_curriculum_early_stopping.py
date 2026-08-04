@@ -1,6 +1,7 @@
 """Tests for environments.shared.curriculum.early_stopping."""
 
 import inspect
+import logging
 import math
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,7 @@ import pytest
 from environments.shared.curriculum import (
     EvalCollapseEarlyStopCallback,
     build_eval_collapse_early_stop_callback,
+    early_stopping,
 )
 from environments.shared.curriculum.early_stopping import collapse_settings_from_config
 
@@ -684,3 +686,92 @@ class TestPeakWarmup:
     def test_config_key_is_read(self):
         settings = collapse_settings_from_config({"collapse_peak_warmup_timesteps": 1_000_000})
         assert settings["peak_warmup_timesteps"] == 1_000_000.0
+
+    def test_the_builder_forwards_the_warmup_to_the_callback(self, monkeypatch):
+        """The wiring, asserted without stable-baselines3.
+
+        `collapse_settings_from_config` resolving the value and the callback
+        honouring it were both covered; the step BETWEEN them -- the builder
+        passing it through -- was asserted nowhere, and the one builder test
+        that exists is `importorskip("stable_baselines3")`, so it is skipped
+        in CI. A dropped kwarg here silently restores the old behaviour on
+        every run while every other test stays green.
+        """
+        captured: dict[str, object] = {}
+
+        def _capture(**kwargs):
+            captured.update(kwargs)
+            return "callback"
+
+        monkeypatch.setattr(early_stopping, "EvalCollapseEarlyStopCallback", _capture)
+        built = early_stopping.build_eval_collapse_early_stop_callback(
+            eval_callback=None,
+            curriculum_kwargs={
+                "collapse_peak_warmup_timesteps": 1_000_000,
+                "collapse_peak_floor": 1472.31,
+            },
+        )
+        assert built == "callback"
+        assert captured["peak_warmup_timesteps"] == 1_000_000.0
+        assert captured["peak_floor"] == 1472.31
+
+    def test_a_warmup_past_the_stage_budget_is_announced(self, monkeypatch, caplog):
+        """Silently disabling the backstop for a whole run is the bad outcome.
+
+        An extra zero on a step count in the millions is a plausible typo, and
+        its only symptom is a run that never stops early — indistinguishable
+        from a run that simply never collapsed.
+        """
+        monkeypatch.setattr(early_stopping, "EvalCollapseEarlyStopCallback", lambda **kwargs: "callback")
+        with caplog.at_level(logging.WARNING, logger=early_stopping.logger.name):
+            early_stopping.build_eval_collapse_early_stop_callback(
+                eval_callback=None,
+                curriculum_kwargs={
+                    "collapse_peak_warmup_timesteps": 20_000_000,
+                    "timesteps": 10_000_000,
+                    "collapse_peak_floor": 1472.31,
+                },
+            )
+        assert any("collapse backstop is disabled for the whole run" in record.message for record in caplog.records)
+
+    def test_a_reachable_warmup_is_not_warned_about(self, monkeypatch, caplog):
+        monkeypatch.setattr(early_stopping, "EvalCollapseEarlyStopCallback", lambda **kwargs: "callback")
+        with caplog.at_level(logging.WARNING, logger=early_stopping.logger.name):
+            early_stopping.build_eval_collapse_early_stop_callback(
+                eval_callback=None,
+                curriculum_kwargs={
+                    "collapse_peak_warmup_timesteps": 1_000_000,
+                    "timesteps": 10_000_000,
+                    "collapse_peak_floor": 1472.31,
+                },
+            )
+        assert not any("disabled for the whole run" in record.message for record in caplog.records)
+
+    def test_every_committed_stage_can_still_arm_within_its_budget(self):
+        """A declared warm-up must leave room for the backstop to work.
+
+        Pairs with `test_every_committed_stage_config_sets_the_floor_explicitly`:
+        that one proves the floor is configured, this one proves the warm-up
+        does not push the peak past the end of the stage, which would disarm
+        the backstop just as completely.
+        """
+        from environments.shared.config import load_all_stages
+
+        for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
+            for stage, cfg in load_all_stages(species).items():
+                cur = cfg.get("curriculum_kwargs", {})
+                warmup = collapse_settings_from_config(cur)["peak_warmup_timesteps"]
+                if warmup <= 0.0:
+                    continue
+                budget = float(cur["timesteps"])
+                assert warmup < budget, (
+                    f"{species} stage {stage} sets collapse_peak_warmup_timesteps={warmup:.0f} "
+                    f"at or beyond its timesteps={budget:.0f}, so no window can ever set the "
+                    "peak and the collapse backstop can never arm"
+                )
+                # Not merely reachable: reachable with enough of the run left
+                # for `patience` consecutive evaluations to accumulate.
+                assert warmup <= 0.5 * budget, (
+                    f"{species} stage {stage} spends {100 * warmup / budget:.0f}% of its budget "
+                    "in collapse warm-up, leaving too little of the run protected"
+                )
