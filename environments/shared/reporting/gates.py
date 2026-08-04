@@ -27,7 +27,6 @@ passed".
 
 from __future__ import annotations
 
-import math
 from collections.abc import Mapping
 from typing import Any
 
@@ -100,16 +99,16 @@ def _gate_metric(stage_results: Mapping[str, Any], *keys: str) -> float | None:
     guard existed — ``min_avg_reward = 100`` against a NaN best-model reward
     returned ``(True, [])``.  Falling through reaches ``None``, which the
     callers report as an unmeasurable criterion and fail.
+
+    The per-value rule itself is :func:`~environments.shared.curriculum.
+    gate_schema.finite_gate_metric`, shared with the JAX backend so the two
+    cannot drift on what counts as measured.
     """
+    from environments.shared.curriculum.gate_schema import finite_gate_metric
+
     for key in keys:
-        value = stage_results.get(key)
-        if value is None or value == "":
-            continue
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            continue
-        if math.isfinite(number):
+        number = finite_gate_metric(stage_results.get(key))
+        if number is not None:
             return number
     return None
 

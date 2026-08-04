@@ -11,6 +11,7 @@ from environments.shared.jax_eval import (
     _apply_eval_reset_randomization,
     _posture_reward_for_eval,
     check_stage_gate,
+    check_stage_gate_for_config,
 )
 
 
@@ -207,6 +208,85 @@ class TestCheckStageGate:
         passed, failures = check_stage_gate(results, gate_min_reward=50.0, gate_min_length=100)
         assert passed is True
         assert failures == []
+
+
+class TestUnmeasuredMetricsFailClosed:
+    """An evaluation that measured nothing must not clear the thresholds.
+
+    `nan < threshold` is False, so before the `finite_gate_metric` guard an
+    unmeasured metric CLEARED every floor beneath it. The SB3 path closed this
+    in `reporting.gates`; this path -- which gates JAX stages 2 and 3 and
+    whose verdict `jax_setup` writes straight into `publication_gate_passed`
+    -- still returned `(True, [])` for an evaluation with no usable episodes.
+    """
+
+    @staticmethod
+    def _nan_results():
+        results = EvalResults()
+        results.rewards = [float("nan")]
+        results.lengths = [1]
+        results.forward_vels = [float("nan")]
+        return results
+
+    def test_nan_reward_fails_a_declared_rail(self):
+        passed, failures = check_stage_gate(self._nan_results(), gate_min_reward=1950.0)
+        assert passed is False
+        assert any("no mean reward measurement available" in failure for failure in failures)
+
+    def test_nan_forward_vel_fails_a_declared_floor(self):
+        passed, failures = check_stage_gate(self._nan_results(), gate_min_forward_vel=2.0)
+        assert passed is False
+        assert any("no mean forward vel measurement available" in failure for failure in failures)
+
+    def test_undeclared_thresholds_still_assert_nothing(self):
+        """Only a declared threshold makes "unmeasurable" a refusal.
+
+        An unset rail (-inf) and an unset floor (0) could not be failed
+        before this guard either, so they must not start failing now — that
+        would abort stages whose configs are entirely legitimate.
+        """
+        passed, failures = check_stage_gate(self._nan_results())
+        assert passed is True
+        assert failures == []
+
+    def test_a_stance_gated_stage_2_config_with_no_usable_evaluation_fails(self):
+        """End to end through the entry point `jax_setup` actually calls."""
+        results = EvalResults()
+        results.rewards = [float("nan")]
+        results.lengths = [1]
+        stage_config = {
+            "stage": 2,
+            "curriculum_kwargs": {
+                "gate_kind": "reward_and_length/v1",
+                "gate_schema_version": 1,
+                "min_avg_reward": 100.0,
+                "min_avg_episode_length": 750,
+                "min_avg_forward_vel": 2.0,
+                "required_consecutive": 3,
+            },
+        }
+        passed, failures = check_stage_gate_for_config(results, stage_config)
+        assert passed is False
+        assert len(failures) == 3
+
+    def test_a_genuinely_passing_stage_2_still_passes(self):
+        """Guard against over-correction, on run 20260803_012355's real stage 2."""
+        results = EvalResults()
+        results.rewards = [3031.22] * 4
+        results.lengths = [1000] * 4
+        results.forward_vels = [3.94] * 4
+        stage_config = {
+            "stage": 2,
+            "curriculum_kwargs": {
+                "gate_kind": "reward_and_length/v1",
+                "gate_schema_version": 1,
+                "min_avg_reward": 100.0,
+                "min_avg_episode_length": 750,
+                "min_avg_forward_vel": 2.0,
+                "required_consecutive": 3,
+            },
+        }
+        assert check_stage_gate_for_config(results, stage_config) == (True, [])
 
 
 class TestSuccessAndVelGates:
