@@ -419,6 +419,50 @@ def test_an_unmeasured_duty_cell_is_not_read_as_a_perfect_score(
         _save_bundle(run_dir, stage_results, stage_configs)
 
 
+def test_a_missing_horizon_refuses_rather_than_assuming_one(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Guessing the horizon is a fail-open with a very quiet failure mode.
+
+    The horizon decides which episodes count as survivals. Defaulting it to
+    1000 against a stage whose real horizon is 2000 certifies every episode
+    that fell at step 1500 as having reached the horizon. Measured on this
+    function while the default was in place: 40 such episodes passed the gate.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    config_path = run_dir / "stage1" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["env_kwargs"].pop("max_episode_steps")
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_stance_panel(run_dir, _stance_panel_rows(duty=0.0))
+
+    with pytest.raises(ResultBundleError, match=r"records no max_episode_steps"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_a_reached_horizon_column_that_contradicts_its_length_is_rejected(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """The auditor scores from `length`; the column must not say otherwise.
+
+    A disagreeing column would mislead a human reading the evidence file
+    while the verdict came from a different column of the same row.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    rows = _stance_panel_rows(duty=0.0)
+    rows[3]["length"] = 300
+    _write_stance_panel(run_dir, rows)
+
+    with pytest.raises(ResultBundleError, match=r"claims reached_horizon=True but its length 300"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
 def test_the_recorded_verdict_is_re_derived_not_trusted(
     tmp_path: Path,
     stable_provenance: None,

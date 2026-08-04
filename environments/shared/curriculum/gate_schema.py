@@ -192,8 +192,14 @@ def finite_gate_metric(value: Any) -> float | None:
     ``None`` and ``""`` are the two "not measured" sentinels the trainers
     actually write, and non-finite values join them, so every caller can
     treat one return of ``None`` as "this criterion is unproven" and fail.
+
+    The empty-string test is ``isinstance`` rather than ``value == ""``
+    because the latter is an elementwise comparison against a numpy array,
+    and ``if array_of_bools`` then raises "truth value ... is ambiguous".
+    A gate helper that can raise on its input is a gate that can take a
+    stage's artifacts down with it, so the comparison is one that cannot.
     """
-    if value is None or value == "":
+    if value is None or (isinstance(value, str) and not value.strip()):
         return None
     try:
         number = float(value)

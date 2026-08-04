@@ -305,6 +305,7 @@ def _validate_stance_panel_evidence(
     lengths: list[float] = []
     duties: list[float | None] = []
     rewards: list[float] = []
+    reached_flags: list[bool | None] = []
     with panel_path.open(newline="", encoding="utf-8") as source:
         for index, row in enumerate(csv.DictReader(source), start=1):
             length = _optional_csv_number(row.get("length"))
@@ -313,6 +314,7 @@ def _validate_stance_panel_evidence(
                 raise ResultBundleError(f"stage {stage} stance panel episode {index} is missing length or reward")
             lengths.append(length)
             rewards.append(reward)
+            reached_flags.append(_optional_csv_bool(row.get("reached_horizon")))
             # An empty duty cell means "not measurable for this episode", which
             # is not the same as 0.0 -- zero is the statue's score and the best
             # possible one, so coercing would turn missing evidence into a
@@ -321,7 +323,38 @@ def _validate_stance_panel_evidence(
     if not lengths:
         raise ResultBundleError(f"stage {stage} stance panel evidence records no episodes")
 
-    horizon = env_kwargs.get("max_episode_steps", 1000)
+    # No default. The horizon decides which episodes count as survivals, so
+    # guessing it is a fail-open with a very quiet failure mode: assume 1000
+    # against a stage whose real horizon is 2000 and every episode that fell
+    # at step 1500 is certified as having reached the horizon. Measured on
+    # this function before the guard -- 40 such episodes passed the gate.
+    # "We do not know the horizon" must refuse, like every other branch here.
+    horizon_value = env_kwargs.get("max_episode_steps")
+    if horizon_value is None:
+        raise ResultBundleError(
+            f"stage {stage} declares gate_kind {STANCE_GATE_KIND!r} but its config records no "
+            "max_episode_steps, so which episodes reached the horizon cannot be determined and "
+            "the full-horizon fraction is unprovable"
+        )
+    try:
+        horizon = int(horizon_value)
+    except (TypeError, ValueError) as exc:
+        raise ResultBundleError(f"stage {stage} records a non-integer max_episode_steps ({horizon_value!r})") from exc
+    if horizon < 1:
+        raise ResultBundleError(f"stage {stage} records max_episode_steps={horizon}, which no episode can reach")
+
+    # `reached_horizon` is written by the panel and re-derived here from
+    # `length`; they must agree. The auditor uses `length`, so a disagreeing
+    # column would mislead a human reading the file while the verdict came
+    # from somewhere else. Cheap to check, and it makes the artifact
+    # internally consistent rather than half-authoritative.
+    for index, (length, claimed) in enumerate(zip(lengths, reached_flags), start=1):
+        if claimed is not None and claimed != (length >= horizon):
+            raise ResultBundleError(
+                f"stage {stage} stance panel episode {index} claims reached_horizon={claimed} but "
+                f"its length {length:.0f} against horizon {horizon} says otherwise"
+            )
+
     panel = stance_panel_from_episode_duties(
         episode_lengths=lengths,
         episode_duties=duties,

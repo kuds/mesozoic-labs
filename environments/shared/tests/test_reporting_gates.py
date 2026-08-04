@@ -315,3 +315,45 @@ class TestEvaluateStageGateAdversarial:
             stance_report={"gate_kind": "stance_quality/v1", "passed": False, "failures": "duty too high"},
         )
         assert failures == ["duty too high"]
+
+
+class TestFiniteGateMetricCannotRaise:
+    """A gate helper that raises takes a finished stage's artifacts with it.
+
+    `value == ""` is an ELEMENTWISE comparison against a numpy array, so the
+    following `if` raised "truth value of an array ... is ambiguous". Reachable
+    from any caller that hands through an array-valued metric, and on the JAX
+    path there is no try/except above it.
+    """
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (None, None),
+            ("", None),
+            ("   ", None),
+            ("abc", None),
+            ("3.5", 3.5),
+            (1.5, 1.5),
+            (float("nan"), None),
+            (float("inf"), None),
+            (float("-inf"), None),
+        ],
+    )
+    def test_scalar_sentinels(self, value, expected):
+        from environments.shared.curriculum.gate_schema import finite_gate_metric
+
+        assert finite_gate_metric(value) == expected or finite_gate_metric(value) is expected
+
+    def test_numpy_inputs_never_raise(self):
+        import numpy as np
+
+        from environments.shared.curriculum.gate_schema import finite_gate_metric
+
+        assert finite_gate_metric(np.float64(2.5)) == 2.5
+        assert finite_gate_metric(np.float64("nan")) is None
+        assert finite_gate_metric(np.array(2.0)) == 2.0
+        # The case that used to raise. Unmeasurable is the right answer; what
+        # matters is that it is an answer rather than an exception.
+        assert finite_gate_metric(np.array([1.0, 2.0])) is None
+        assert finite_gate_metric(np.array([])) is None
