@@ -1,6 +1,7 @@
 """Tests for stage-aware SB3 evaluation diagnostics."""
 
 import logging
+import math
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import MagicMock, patch
@@ -58,6 +59,22 @@ def _bare_stage_aware_callback(
     callback._episode_measured = {}
     callback._current_eval_unsupported_duties = []
     callback._current_eval_bilateral_duties = []
+    callback.evaluations_action_dc = []
+    callback.evaluations_action_ac_rms = []
+    callback.evaluations_action_delta = []
+    callback.evaluations_action_jerk = []
+    callback.evaluations_reward_terms = []
+    callback._action_sum = None
+    callback._action_sq_sum = None
+    callback._action_delta_sum = 0.0
+    callback._action_jerk_sum = 0.0
+    callback._action_count = 0
+    callback._action_delta_count = 0
+    callback._action_jerk_count = 0
+    callback._prev_action = {}
+    callback._prev_prev_action = {}
+    callback._reward_term_sums = {}
+    callback._reward_term_episodes = 0
     return callback
 
 
@@ -950,3 +967,130 @@ class TestGateProgressIsPersisted:
         cb.num_timesteps = 50_000
         cb._record_gate_progress(unsupported_duty=0.42)
         assert cb._gate_progress["unsupported_duty"] == [0.42]
+
+
+class TestDeterministicActionStatistics:
+    """The gate scores the deterministic policy; only training rollouts were logged.
+
+    Issue #489 had to recover the commanded pose and the tremor about it by
+    inverting per-episode reward totals under a narrowband assumption, because
+    every action number on disk came from exploration-noisy training rollouts.
+    """
+
+    @staticmethod
+    def _feed(callback, actions, *, env_index=0, done_at=None, info=None):
+        for step, action in enumerate(actions):
+            callback._log_success_callback(
+                {
+                    "i": env_index,
+                    "done": done_at is not None and step == done_at,
+                    "info": dict(info or {}),
+                    "actions": np.array([action]),
+                },
+                {},
+            )
+
+    def test_dc_and_ac_are_separated(self):
+        """A steady offset with a tremor on top must not read as one number."""
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        # Two actuators: the first holds 0.5 and shakes +/-0.1, the second
+        # holds 0.0 and is still. A pooled std cannot express that.
+        self._feed(callback, [[0.6, 0.0], [0.4, 0.0]] * 10, done_at=19)
+        callback._publish_action_statistics()
+        dc = callback.evaluations_action_dc[0]
+        ac = callback.evaluations_action_ac_rms[0]
+        assert dc == pytest.approx([0.5, 0.0])
+        assert ac == pytest.approx([0.1, 0.0])
+
+    def test_differences_invert_through_the_reward_formulas(self):
+        """Sums are over actuators, so they feed straight back into the terms."""
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        # Alternating +/-1 on one actuator: |delta| = 2 every step after the
+        # first, and the second difference is -/+4.
+        self._feed(callback, [[1.0], [-1.0]] * 8, done_at=15)
+        callback._publish_action_statistics()
+        # Averaged over differencing opportunities, not samples: 15 pairs and
+        # 14 triples, so the alternation reads as its exact amplitude.
+        assert callback.evaluations_action_delta[0] == pytest.approx(4.0)
+        assert callback.evaluations_action_jerk[0] == pytest.approx(16.0)
+
+    def test_the_settling_window_is_excluded(self):
+        """Same window as the duty: the reset transient is not the tremor."""
+        callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=4)
+        self._feed(callback, [[9.0]] * 4 + [[1.0]] * 4, done_at=7)
+        callback._publish_action_statistics()
+        assert callback.evaluations_action_dc[0] == pytest.approx([1.0])
+
+    def test_an_evaluation_with_no_actions_records_nan_not_zero(self):
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback._publish_action_statistics()
+        assert callback.evaluations_action_dc[0] == []
+        assert math.isnan(callback.evaluations_action_delta[0])
+
+    def test_a_missing_actions_local_does_not_raise(self):
+        """`actions` is a local of SB3's evaluate_policy, not a contract."""
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback._log_success_callback({"i": 0, "done": True, "info": {}}, {})
+        callback._publish_action_statistics()
+        assert callback.evaluations_action_dc[0] == []
+
+    def test_episodes_do_not_leak_their_last_action_into_the_next(self):
+        """The difference across an episode boundary is not a real difference."""
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        self._feed(callback, [[1.0]], done_at=0)
+        self._feed(callback, [[-1.0]], done_at=0)
+        callback._publish_action_statistics()
+        # Two episodes of one step each: no within-episode pair exists, so the
+        # boundary jump of 2.0 must not be charged. NaN rather than 0.0,
+        # because nothing was measured -- 0.0 would read as "perfectly smooth".
+        assert math.isnan(callback.evaluations_action_delta[0])
+        assert callback._action_delta_count == 0
+
+    def test_reward_terms_are_averaged_per_episode(self):
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        self._feed(callback, [[0.0]] * 4, done_at=3, info={"reward_energy": -1.0})
+        callback._publish_action_statistics()
+        assert callback.evaluations_reward_terms[0] == {"reward_energy": pytest.approx(-4.0)}
+
+
+class TestGateProgressCarriesTheNewSeries:
+    @staticmethod
+    def _plateau(eval_callback, tmp_path):
+        cb = object.__new__(StageGatePlateauCallback)
+        cb._gate_progress_dir = tmp_path
+        cb.num_timesteps = 50_000
+        cb.eval_callback = eval_callback
+        cb.control_dt = 0.01
+        return cb
+
+    def test_action_statistics_and_terms_reach_the_file(self, tmp_path):
+        ev = _bare_stage_aware_callback(success_applicable=False)
+        ev.evaluations_action_dc = [[0.8, 0.8]]
+        ev.evaluations_action_ac_rms = [[0.2, 0.2]]
+        ev.evaluations_action_delta = [1.0]
+        ev.evaluations_action_jerk = [1.699]
+        ev.evaluations_reward_terms = [{"reward_energy": -53.68}]
+        cb = self._plateau(ev, tmp_path)
+        cb._record_gate_progress(**cb._action_statistics(0), **cb._reward_term_scalars(0))
+        data = np.load(tmp_path / "gate_progress.npz")
+        assert data["action_dc_rms"][0] == pytest.approx(0.8)
+        assert data["action_ac_rms"][0] == pytest.approx(0.2)
+        assert data["term_energy"][0] == pytest.approx(-53.68)
+        # jerk/delta = 1.699 -> 2 sin(pi f dt) = 1.3034 -> ~22.6 Hz, the
+        # tremor issue #489 had to derive by inverting reward totals.
+        assert data["action_freq_hz"][0] == pytest.approx(22.6, abs=0.2)
+        assert data["action_dc_per_actuator"].shape == (1, 2)
+
+    def test_a_constant_action_reports_zero_frequency_not_nan(self, tmp_path):
+        ev = _bare_stage_aware_callback(success_applicable=False)
+        ev.evaluations_action_dc = [[0.5]]
+        ev.evaluations_action_ac_rms = [[0.0]]
+        ev.evaluations_action_delta = [0.0]
+        ev.evaluations_action_jerk = [0.0]
+        ev.evaluations_reward_terms = [{}]
+        cb = self._plateau(ev, tmp_path)
+        stats = cb._action_statistics(0)
+        # delta == 0 leaves the ratio undefined; NaN is the honest answer and
+        # 0 Hz would read as a measured slow drift.
+        assert math.isnan(stats["action_freq_hz"])
+        assert stats["action_dc_rms"] == pytest.approx(0.5)

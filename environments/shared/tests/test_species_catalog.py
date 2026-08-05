@@ -172,7 +172,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # everyone else the 100.0 placeholder) were all cleared by their own
     # species' statue and certified nothing.
     stage_one_min_avg_reward = {
-        "trex": 1950.0,
+        # 0.60 x the statue's standing reward, which moved with
+        # leg_home_pose_weight 0.5 -> 1.5: statue 3271.8 -> 4250.4 (issue #489).
+        # The FRACTION is the invariant here, not the absolute reward.
+        "trex": 2550.0,
         "velociraptor": 1050.0,
         "brachiosaurus": 1040.0,
         "dibothrosuchus": 1560.0,

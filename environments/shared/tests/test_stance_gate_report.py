@@ -13,9 +13,11 @@ loudly rather than degrade.
 from __future__ import annotations
 
 import csv
+import math
 import pickle
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from environments.shared.scripts import stance_gate_report
@@ -949,3 +951,317 @@ class TestStancePanelEvidenceFile:
         written = write_stance_gate_report(tmp_path, report)
         assert "stance_panel_csv" not in written
         assert not (tmp_path / "stance_panel_selected.csv").exists()
+
+
+def _minimal_stance_report() -> dict:
+    """A report dict complete enough for the renderer."""
+    return {
+        "schema": "mesozoic.stance-gate-report/v1",
+        "species": "trex",
+        "stage": 1,
+        "gate_kind": "stance_quality/v1",
+        "policy": "robust_best_model.zip",
+        "episodes": 40,
+        "seed": 3042,
+        "settle_steps": 200,
+        "horizon": 1000,
+        "passed": True,
+        "failures": [],
+        "thresholds": {
+            "min_full_horizon_fraction": 0.95,
+            "max_unsupported_duty": 0.02,
+            "max_unsupported_duty_ucb": 0.02,
+            "min_avg_reward": 2550.0,
+            "min_eval_episodes": 40,
+        },
+        "metrics": {
+            "reward_mean": 3004.3,
+            "reward_std": 17.1,
+            "episode_length_mean": 1000.0,
+            "full_horizon_fraction": 1.0,
+            "mean_unsupported_duty": 0.0,
+            "unsupported_duty_ucb": 0.0,
+            "n_duty_episodes": 40,
+            "bilateral_support_duty": 1.0,
+            "single_support_duty": 0.0,
+        },
+        "terminations": {"truncated": 40},
+        "reward_components": {"reward_alive": 995.2},
+    }
+
+
+class TestActionFilterProbe:
+    """`--filter-actions` scores a MODIFIED policy, and must say so.
+
+    It exists to answer whether a policy's high-frequency action content is
+    load-bearing or waste (issue #489): if a filtered policy still stands, the
+    tremor was waste and the fix belongs on the action path; if it falls, the
+    tremor is closed-loop stabilisation and the fix belongs elsewhere.
+    """
+
+    @staticmethod
+    def _filtered(cutoff_hz, control_dt=0.01, actions=None):
+        from environments.shared.scripts.stance_gate_report import _low_pass_predict
+
+        seq = iter(actions or [])
+        base = lambda _obs: np.asarray(next(seq), dtype=np.float64)  # noqa: E731
+        return _low_pass_predict(base, cutoff_hz, control_dt)
+
+    def test_a_constant_action_passes_through_unchanged(self):
+        """A low-pass must be a no-op on DC, or it would move the pose itself."""
+        predict = self._filtered(5.0, actions=[[0.5]] * 20)
+        out = [float(predict(None)[0]) for _ in range(20)]
+        assert out[0] == pytest.approx(0.5)
+        assert out[-1] == pytest.approx(0.5)
+
+    def test_it_attenuates_a_fast_alternation(self):
+        predict = self._filtered(5.0, actions=[[1.0], [-1.0]] * 30)
+        out = [float(predict(None)[0]) for _ in range(60)]
+        # Seeded with the first action, so settle before measuring.
+        tail = out[20:]
+        assert max(abs(v) for v in tail) < 0.4, "22.6 Hz-class content should be cut hard at 5 Hz"
+
+    def test_it_seeds_on_the_first_action_rather_than_zero(self):
+        """Starting from zero injects a step transient that is a probe artefact."""
+        predict = self._filtered(5.0, actions=[[0.9]])
+        assert float(predict(None)[0]) == pytest.approx(0.9)
+
+    def test_reset_prevents_one_episode_leaking_into_the_next(self):
+        predict = self._filtered(5.0, actions=[[1.0], [-1.0]])
+        assert float(predict(None)[0]) == pytest.approx(1.0)
+        predict.reset()
+        assert float(predict(None)[0]) == pytest.approx(-1.0)
+
+    def test_the_report_records_the_probe_so_a_pass_cannot_be_mistaken(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        report = _minimal_stance_report()
+        report["filter_actions_hz"] = 5.0
+        text = render_stance_gate_report(report)
+        assert "PROBE" in text
+        assert "not a gate result" in text
+        # The warning must precede the verdict a reader would otherwise act on.
+        assert text.index("PROBE") < text.index("GATE:")
+
+    def test_an_unfiltered_report_says_nothing_about_the_probe(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        assert "PROBE" not in render_stance_gate_report(_minimal_stance_report())
+
+
+class TestTheProbeCannotBeMistakenForTheVerdict:
+    """A filtered rollout scored a policy that was never actually run.
+
+    Two ways it could corrupt the record: overwriting the real report, or
+    supplying `stance_panel_selected.csv`, which is the per-episode evidence
+    `result_bundle.evidence` certifies a stance-gated stage from. Both are
+    made structurally impossible rather than left to the caller.
+    """
+
+    def test_a_probe_writes_its_own_filenames(self, tmp_path):
+        report = _minimal_stance_report()
+        report["filter_actions_hz"] = 5.0
+        written = write_stance_gate_report(tmp_path, report)
+        assert (tmp_path / "stance_gate_probe_filtered.txt").exists()
+        assert (tmp_path / "stance_gate_probe_filtered.json").exists()
+        assert not (tmp_path / "stance_gate_report.txt").exists()
+        assert "stance_panel_csv" not in written
+
+    def test_a_probe_never_writes_the_certification_evidence(self, tmp_path):
+        real = _minimal_stance_report()
+        real["episode_evidence"] = [
+            {
+                "episode": 0,
+                "seed": 3042,
+                "length": 1000,
+                "reward": 3004.3,
+                "reached_horizon": True,
+                "unsupported_duty": 0.0,
+                "bilateral_support_duty": 1.0,
+                "single_support_duty": 0.0,
+            }
+        ]
+        write_stance_gate_report(tmp_path, real)
+        before = (tmp_path / "stance_panel_selected.csv").read_text()
+
+        probe = dict(real)
+        probe["filter_actions_hz"] = 5.0
+        probe["metrics"] = dict(real["metrics"], reward_mean=-99.0)
+        write_stance_gate_report(tmp_path, probe)
+
+        # The real panel must be untouched: a filtered panel here would
+        # certify a policy that was never run.
+        assert (tmp_path / "stance_panel_selected.csv").read_text() == before
+
+    def test_the_real_report_is_unaffected(self, tmp_path):
+        written = write_stance_gate_report(tmp_path, _minimal_stance_report())
+        assert (tmp_path / "stance_gate_report.txt").exists()
+        assert not (tmp_path / "stance_gate_probe_filtered.txt").exists()
+        # No episode_evidence in this fixture, so no panel CSV either; the
+        # evidence path is covered by the test above.
+        assert "stance_panel_csv" not in written
+
+
+class TestTheProbeIsWiredIntoTrainingArtifacts:
+    def test_it_is_skipped_when_unconfigured(self, tmp_path, monkeypatch):
+        from environments.shared.reporting import stage_artifacts
+
+        called = False
+
+        def _boom(*a, **k):
+            nonlocal called
+            called = True
+
+        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        stage_artifacts._write_filtered_action_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            episodes=40,
+        )
+        assert not called
+
+    def test_it_passes_the_configured_cutoff_through(self, tmp_path, monkeypatch):
+        from environments.shared.reporting import stage_artifacts
+
+        seen = {}
+
+        def _capture(species, stage, **kwargs):
+            seen.update(kwargs)
+            report = _minimal_stance_report()
+            report["filter_actions_hz"] = kwargs["filter_actions_hz"]
+            return report
+
+        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _capture)
+        stage_artifacts._write_filtered_action_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {"stance_probe_filter_hz": 5.0}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            episodes=40,
+        )
+        assert seen["filter_actions_hz"] == 5.0
+        assert (tmp_path / "stance_gate_probe_filtered.txt").exists()
+
+    def test_a_failing_probe_does_not_sink_the_run(self, tmp_path, monkeypatch, caplog):
+        from environments.shared.reporting import stage_artifacts
+
+        monkeypatch.setattr(
+            stance_gate_report,
+            "build_stance_gate_report",
+            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("probe exploded")),
+        )
+        with caplog.at_level("WARNING"):
+            stage_artifacts._write_filtered_action_probe(
+                species="trex",
+                stage=1,
+                stage_config={"curriculum_kwargs": {"stance_probe_filter_hz": 5.0}},
+                stage_dir=tmp_path,
+                model_path="m.zip",
+                vecnorm_path="v.pkl",
+                episodes=40,
+            )
+        assert "Filtered action probe failed" in caplog.text
+
+    def test_the_config_key_is_accepted_by_the_gate_schema(self):
+        """An unregistered key is unreachable under the fail-closed check."""
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum.gate_schema import validate_gate_config
+
+        curriculum = load_stage_config("trex", 1)["curriculum_kwargs"]
+        assert curriculum["stance_probe_filter_hz"] == 5.0
+        validate_gate_config(1, curriculum)
+
+
+class TestPerActuatorActionReporting:
+    """Which actuators carry the offset decides whether a pose weight reaches it.
+
+    `leg_home_pose` covers only the leg joints, so a displacement living in the
+    tail or neck is invisible to it and unfixable by it (issue #489). The
+    scalar summaries cannot answer that; this is what makes one five-minute
+    run on an existing checkpoint test it.
+    """
+
+    @staticmethod
+    def _stats(sequence):
+        from environments.shared.scripts.stance_gate_report import (
+            _accumulate_action,
+            _new_action_stats,
+        )
+
+        stats = _new_action_stats()
+        for action in sequence:
+            _accumulate_action(stats, np.asarray(action, dtype=np.float64))
+        return stats
+
+    def test_dc_and_ac_are_reported_per_actuator(self):
+        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+
+        # Actuator 0 holds 0.5 and shakes +/-0.1; actuator 1 is still at 0.
+        stats = self._stats([[0.6, 0.0], [0.4, 0.0]] * 10)
+        out = _reduce_action_stats(stats, ["r_hip_pitch", "tail_1"], 0.01)
+        by_joint = {entry["joint"]: entry for entry in out["per_actuator"]}
+        assert by_joint["r_hip_pitch"]["dc"] == pytest.approx(0.5)
+        assert by_joint["r_hip_pitch"]["ac_rms"] == pytest.approx(0.1)
+        assert by_joint["tail_1"]["dc"] == pytest.approx(0.0)
+        assert by_joint["tail_1"]["ac_rms"] == pytest.approx(0.0)
+
+    def test_the_effective_frequency_matches_the_inversion(self):
+        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+
+        # Alternating every step is the Nyquist rate: 50 Hz at dt = 0.01.
+        stats = self._stats([[1.0], [-1.0]] * 20)
+        out = _reduce_action_stats(stats, ["j"], 0.01)
+        assert out["effective_freq_hz"] == pytest.approx(50.0, abs=0.5)
+
+    def test_a_constant_action_has_no_frequency(self):
+        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+
+        out = _reduce_action_stats(self._stats([[0.5]] * 10), ["j"], 0.01)
+        # No first difference leaves the ratio undefined. NaN is honest;
+        # 0 Hz would read as a measured slow drift.
+        assert math.isnan(out["effective_freq_hz"])
+        assert out["dc_rms"] == pytest.approx(0.5)
+
+    def test_no_measured_steps_yields_an_empty_block(self):
+        from environments.shared.scripts.stance_gate_report import (
+            _new_action_stats,
+            _reduce_action_stats,
+        )
+
+        assert _reduce_action_stats(_new_action_stats(), [], 0.01) == {}
+
+    def test_unnamed_actuators_fall_back_to_an_index(self):
+        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+
+        out = _reduce_action_stats(self._stats([[0.1, 0.2]] * 4), [], 0.01)
+        assert [entry["joint"] for entry in out["per_actuator"]] == ["actuator_0", "actuator_1"]
+
+    def test_the_text_form_lists_the_largest_offsets_first(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        report = _minimal_stance_report()
+        report["action"] = {
+            "dc_rms": 0.8,
+            "ac_rms": 0.277,
+            "delta_per_step": 2.73,
+            "jerk_per_step": 4.64,
+            "effective_freq_hz": 22.6,
+            "per_actuator": [
+                {"index": 0, "joint": "tail_1", "dc": 0.9, "ac_rms": 0.1},
+                {"index": 1, "joint": "r_knee", "dc": -0.2, "ac_rms": 0.3},
+            ],
+        }
+        text = render_stance_gate_report(report)
+        assert "22.6 Hz" in text
+        assert text.index("tail_1") < text.index("r_knee")
+
+    def test_a_report_without_the_block_still_renders(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        assert "commanded action" not in render_stance_gate_report(_minimal_stance_report())

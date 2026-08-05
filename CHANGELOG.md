@@ -8,6 +8,116 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Added
+- **The deterministic policy's action, measured instead of inferred.** Every
+  action number on disk came from *training* rollouts, so all of it carried
+  exploration noise; diagnosing issue #489 meant recovering the commanded pose
+  and the tremor about it by inverting per-episode reward totals under a
+  narrowband assumption. `StageAwareEvalCallback` now measures them directly
+  during evaluation and `gate_progress.npz` carries them:
+  `action_dc_rms` (the static distance from the home keyframe, which under
+  `home-keyframe-residual/v1` is exactly `action = 0`), `action_ac_rms` (the
+  tremor about it), `action_delta`, `action_jerk`, and `action_freq_hz`.
+  The DC/AC split is the point: a pooled standard deviation over actuators and
+  time — which is what `diagnostics.action_std` computes — cannot separate
+  "sitting in the wrong place" from "shaking", and those have different causes
+  and different fixes. Measured over the post-settle window, the same one the
+  duty uses, so the reset transient does not inflate the AC term.
+- **`action_dc_per_actuator` / `action_ac_rms_per_actuator`**, the same two
+  quantities as `(n_evals, n_actuators)` matrices. Which actuators carry the
+  offset decides whether a leg-pose weight can reach it at all: `leg_home_pose`
+  covers only the leg joints, so a displacement living in the tail or neck is
+  invisible to it and unfixable by it. Logged per actuator rather than
+  per group because grouping is an analysis decision, and resolving joint names
+  through the VecEnv wrappers is exactly the kind of best-effort lookup that
+  silently returns nothing.
+- **`term_*` in `gate_progress.npz`** — every reward term, per evaluation.
+  Only `mean_reward` was kept, so comparing two runs meant comparing their
+  final checkpoints and nothing in between, with no way to ask *when* a policy
+  adopted the pose it ended up with.
+- **`action_jerk` in `diagnostics.npz`.** The environment has always emitted it
+  (it is what `reward_action_jerk` charges) and `INFO_KEYS` has always dropped
+  it, so the signal was computed every step and discarded. With both
+  differences recorded the effective frequency is free:
+  `jerk/delta = (2 sin πfΔt)²`, which unlike either alone is blind to a
+  constant offset.
+- **`stance_gate_report.py --filter-actions HZ`**, a probe for whether a
+  policy's high-frequency action content is load-bearing or waste. It
+  low-passes the action between the policy and the plant and scores *that*:
+  if the policy still stands, the tremor was waste and the fix belongs on the
+  action path; if it falls, the tremor is closed-loop stabilisation and the fix
+  belongs elsewhere (#489). Open-loop experiments on the statue bound what a
+  tremor *can* do; only filtering the real policy answers it for that policy.
+  A filtered rollout scores a **modified** policy, so the report records
+  `filter_actions_hz` and the text form prints the warning *above* the verdict
+  — a PASS obtained this way must never be mistakable for a gate result.
+  **Wired into the training path**, not left as a manual script: with
+  `stance_probe_filter_hz` set in `[curriculum]` (5.0 on trex 1a) the artifact
+  writer re-scores the selected checkpoint after the gate report and emits
+  `stance_gate_probe_filtered.{txt,json}`, so every run answers the question
+  without anyone remembering to. Unset elsewhere, because it costs a second
+  40-episode panel per stage and per sweep trial.
+  The probe can corrupt the record two ways, and both are made structurally
+  impossible rather than left to the caller: it gets its own filenames derived
+  from the report itself, and it never writes `stance_panel_selected.csv` —
+  that file is the per-episode evidence `result_bundle.evidence` certifies a
+  stance-gated stage from, and a filtered panel there would certify a policy
+  that was never run. `stance_probe_filter_hz` is registered in
+  `gate_schema._DIAGNOSTIC_KEYS`, without which the fail-closed unknown-key
+  check would make the setting unreachable.
+- Every new evaluation series is recorded to the **SB3 logger as well as the
+  npz**, so TensorBoard and W&B carry them live: `diagnostics/eval_action_*`
+  and `reward_terms/eval_*`. A diagnostic that exists only in a file nobody
+  opens mid-run is how the stance gate criteria stayed invisible for the whole
+  of run `20260804_143747`.
+- **`stance_gate_report.py` now reports the commanded action per actuator** —
+  DC, AC rms, and the effective frequency, over the post-settle window, with
+  real joint names (`r_hip_pitch`, `r_knee`, …). This script holds the
+  environment directly rather than through VecEnv wrappers, so the
+  actuator→joint mapping is exact rather than a best-effort lookup.
+  It means **one five-minute run against an existing checkpoint** tests both
+  premises of the `leg_home_pose_weight` change: whether the tremor is
+  load-bearing (`--filter-actions`) and whether the static offset is even in
+  the leg joints, which is the other way that change can fail by construction.
+  Neither previously needed a training run to answer — they needed instrumentation
+  that did not exist.
+
+### Changed
+- **T-Rex stage 1 `leg_home_pose_weight` 0.5 → 1.5, and the two constants
+  derived from the statue re-measured with it.** Run `20260805_011234` **passed**
+  `stance_quality/v1` — unsupported duty 0.0000 against a 0.0200 ceiling, 40/40
+  episodes at the horizon, bilateral support 1.0000, confirming the entropy
+  diagnosis in #487 — but scored **3004.3 against the zero-action statue's
+  3274.4** and never crossed it in 200 evaluations (issue #489).
+  The whole 270-point gap has one cause. Inverting the action penalties through
+  their closed forms gives a per-actuator DC offset of **0.800** with an AC
+  tremor of **rms 0.277 at an effective 22.6 Hz** (from `J/D = (2 sin πfΔt)²`,
+  which is DC-blind); reproducing that tremor on the statue matches the trained
+  policy's per-step penalties to within 2%. Both halves are open-loop fatal:
+  a static offset of just **0.10 rms falls in every direction tested**
+  (107–268 steps), and a 0.277 rms tremor collapses the statue at **every**
+  frequency from 2 to 40 Hz (38–80 steps), while `action = 0` stands
+  indefinitely. So the policy is holding a displaced pose upright with
+  closed-loop feedback that the home keyframe does not need — the tremor is the
+  cost of the pose, not a separate defect.
+  That is why the fix is not on `action_jerk_weight`, whose penalty sits at
+  1.4% of its normaliser and looks like the obvious lever. Penalising the
+  tremor attacks load-bearing feedback, and the cheapest response to a bigger
+  jerk penalty is to fall over. Raising the pose weight instead makes the
+  displaced operating point uncompetitive — the pose gap goes 85 → 255 points,
+  dominating the tremor's 112-point cost by 2.3× — and if the policy returns to
+  the home keyframe the feedback becomes unnecessary and its cost goes too:
+  **245 points, not the 112 a smoothness penalty could reach.**
+  `min_avg_reward` 1950 → **2550** and `collapse_peak_floor_reference` 3271.8 →
+  **4250.4**. Both are documented as derived from the statue (0.60× and 1.00×),
+  and neither updates itself — leaving them would arm the collapse backstop
+  against the wrong scale, the exact staleness the config's own comments warn
+  about. The new baseline is measured, not scaled: 4250.40 ± 13.86 over 40
+  episodes at noise 0.05, 100% full-horizon, from `zero_action_baseline.py`.
+  The ratios are unchanged (rail 0.60×, floor 0.45× → 1913), which is what
+  carries across a rescale; the absolute numbers do not, and neither do the
+  historical run figures quoted in the config, now flagged as old-scale.
+
+### Added
 - **A watch on the do-nothing baseline.** Run `20260804_143747` trained T-Rex
   stage 1 for its full 10,002,432 steps — 8h 13m — and finished at **2686.9
   against the zero-action statue's 3271.8**: below the do-nothing policy on

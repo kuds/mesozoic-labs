@@ -163,6 +163,7 @@ def run_panel(
     horizon: int,
     env_kwargs: dict[str, Any],
     plant_identity: Any = None,
+    control_dt: float = 0.01,
 ) -> dict[str, Any]:
     """Roll ``episodes`` deterministic episodes and reduce them for the gate.
 
@@ -194,8 +195,15 @@ def run_panel(
     # keeps paying the airborne penalty is being funded by some other term;
     # which one is not guessable from the aggregate score.
     components: dict[str, float] = {}
+    # Per-actuator action statistics. Which actuators carry a static offset
+    # decides whether a leg-pose weight can reach it at all: `leg_home_pose`
+    # covers only the leg joints, so a displacement living in the tail or neck
+    # is invisible to it and unfixable by it (issue #489).
+    action_stats = _new_action_stats()
+    joint_names: list[str] = []
 
     try:
+        joint_names = _actuator_joint_names(env)
         _roll_episodes(
             env,
             predict=predict,
@@ -209,6 +217,7 @@ def run_panel(
             single_duties=single_duties,
             terminations=terminations,
             components=components,
+            action_stats=action_stats,
         )
     finally:
         env.close()
@@ -243,6 +252,7 @@ def run_panel(
         "components": {key: value / episodes for key, value in components.items()},
         "bilateral_duty": _full_horizon_mean(bilateral_duties),
         "single_duty": _full_horizon_mean(single_duties),
+        "action": _reduce_action_stats(action_stats, joint_names, control_dt),
         # The measurements the panel was reduced from. Kept rather than
         # discarded so the report can serialize the evidence, not only its
         # summary: an aggregate cannot be re-checked, and duty is the one
@@ -265,6 +275,111 @@ def run_panel(
     }
 
 
+def _new_action_stats() -> dict[str, Any]:
+    return {
+        "sum": None,
+        "sq_sum": None,
+        "count": 0,
+        "delta": 0.0,
+        "jerk": 0.0,
+        # Counted separately: a difference needs two samples and a second
+        # difference three, and episode boundaries reset the history, so
+        # dividing all three by the sample count biases the ratio -- and the
+        # ratio is what becomes a frequency.
+        "delta_count": 0,
+        "jerk_count": 0,
+        "prev": None,
+        "prev_prev": None,
+    }
+
+
+def _accumulate_action(stats: dict[str, Any], action: np.ndarray) -> None:
+    """Accumulate one post-settle action into the per-actuator statistics."""
+    if stats["sum"] is None or stats["sum"].shape != action.shape:
+        stats["sum"] = np.zeros_like(action)
+        stats["sq_sum"] = np.zeros_like(action)
+    stats["sum"] += action
+    stats["sq_sum"] += action * action
+    stats["count"] += 1
+    prev, prev_prev = stats["prev"], stats["prev_prev"]
+    if prev is not None and prev.shape == action.shape:
+        # Summed over actuators, matching the `Sum` in the reward terms so
+        # these invert straight back through `reward_action_smoothness` and
+        # `reward_action_jerk`.
+        stats["delta"] += float(np.sum((action - prev) ** 2))
+        stats["delta_count"] += 1
+        if prev_prev is not None and prev_prev.shape == action.shape:
+            stats["jerk"] += float(np.sum((action - 2.0 * prev + prev_prev) ** 2))
+            stats["jerk_count"] += 1
+    stats["prev_prev"] = prev
+    stats["prev"] = action
+
+
+def _actuator_joint_names(env: Any) -> list[str]:
+    """Names of the joint each actuator drives, or ``[]`` if unavailable.
+
+    Unlike the training callback -- which reaches the environment only through
+    VecEnv wrappers and so cannot resolve these without a best-effort lookup
+    that silently returns nothing -- this script holds the env directly, so the
+    mapping is exact and the per-actuator report can be read by joint rather
+    than by index.
+    """
+    try:
+        import mujoco
+
+        model = env.unwrapped.model
+        names = []
+        for index in range(model.nu):
+            joint_id = int(model.actuator_trnid[index, 0])
+            name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, joint_id)
+            names.append(name or f"actuator_{index}")
+        return names
+    except Exception:  # noqa: BLE001 - names are a convenience, not the measurement
+        return []
+
+
+def _reduce_action_stats(stats: dict[str, Any], names: list[str], control_dt: float) -> dict[str, Any]:
+    """Reduce the accumulators into the report's ``action`` block.
+
+    The DC/AC split is the point. ``mean(a)`` per actuator is the static pose
+    the policy commands -- under ``home-keyframe-residual/v1`` the distance
+    from the home keyframe, since ``action = 0`` *is* that keyframe -- and the
+    spread about it is what the policy does on top. They have different causes
+    and different fixes, and a single pooled number cannot tell them apart
+    (issue #489).
+    """
+    count = stats["count"]
+    if not count or stats["sum"] is None:
+        return {}
+    mean = stats["sum"] / count
+    var = np.maximum(stats["sq_sum"] / count - mean * mean, 0.0)
+    ac = np.sqrt(var)
+    delta = stats["delta"] / stats["delta_count"] if stats["delta_count"] else 0.0
+    jerk = stats["jerk"] / stats["jerk_count"] if stats["jerk_count"] else 0.0
+    # For a narrowband action signal `jerk/delta = (2 sin(pi f dt))^2`, blind
+    # to any constant offset. At the white-noise limit the ratio saturates,
+    # which means broadband rather than a tone at that frequency.
+    freq = float("nan")
+    if delta > 0.0:
+        freq = math.asin(min(1.0, math.sqrt(jerk / delta) / 2.0)) / (math.pi * control_dt)
+    return {
+        "dc_rms": float(np.sqrt(np.mean(mean * mean))),
+        "ac_rms": float(np.sqrt(np.mean(var))),
+        "delta_per_step": float(delta),
+        "jerk_per_step": float(jerk),
+        "effective_freq_hz": freq,
+        "per_actuator": [
+            {
+                "index": index,
+                "joint": names[index] if index < len(names) else f"actuator_{index}",
+                "dc": float(mean[index]),
+                "ac_rms": float(ac[index]),
+            }
+            for index in range(mean.size)
+        ],
+    }
+
+
 def _roll_episodes(
     env: Any,
     *,
@@ -279,6 +394,7 @@ def _roll_episodes(
     single_duties: list[float],
     terminations: dict[str, int],
     components: dict[str, float],
+    action_stats: dict[str, Any],
 ) -> None:
     """Roll the panel, appending per-episode measurements to the given lists.
 
@@ -287,6 +403,11 @@ def _roll_episodes(
     """
     for index in range(episodes):
         obs, _ = env.reset(seed=seed + index)
+        # A stateful predict (the low-pass probe) must not carry one episode's
+        # tail into the next; plain policies have no reset and are untouched.
+        reset_predict = getattr(predict, "reset", None)
+        if callable(reset_predict):
+            reset_predict()
         total = 0.0
         steps = 0
         unsupported = 0
@@ -294,7 +415,12 @@ def _roll_episodes(
         single = 0
         measured = 0
         while True:
-            obs, reward, terminated, truncated, info = env.step(predict(obs))
+            action = np.asarray(predict(obs), dtype=np.float64).ravel()
+            # Post-settle only, the same window the duty uses, so the reset
+            # transient does not read as tremor.
+            if steps >= settle_steps:
+                _accumulate_action(action_stats, action)
+            obs, reward, terminated, truncated, info = env.step(action)
             total += float(reward)
             for key, value in info.items():
                 if key.startswith("reward_") and key != "reward_total":
@@ -314,6 +440,9 @@ def _roll_episodes(
                 reason = info.get("termination_reason", "terminated" if terminated else "truncated")
                 terminations[reason] = terminations.get(reason, 0) + 1
                 break
+        # An episode boundary is not an action difference.
+        action_stats["prev"] = None
+        action_stats["prev_prev"] = None
         lengths.append(float(steps))
         rewards.append(total)
         # All three shares stay positionally aligned with `lengths`, so the
@@ -345,6 +474,47 @@ def thresholds_from_curriculum(curriculum: dict[str, Any]) -> StanceGateThreshol
     )
 
 
+def _low_pass_predict(predict: Any, cutoff_hz: float, control_dt: float) -> Any:
+    """Wrap *predict* so its action is low-passed before reaching the plant.
+
+    A probe, not a feature: it answers whether a policy's high-frequency
+    action content is load-bearing or waste. Run ``20260805_011234`` passed
+    the stance gate carrying a tremor of rms 0.277 at an effective 22.6 Hz,
+    and whether that tremor is closed-loop stabilisation or a free-running
+    buzz decides whether the fix belongs on the pose or on the action path
+    (issue #489). Open-loop experiments on the statue bound what a tremor
+    *can* do; only filtering the real policy answers it for that policy.
+
+    First-order IIR, ``y += alpha * (x - y)`` with
+    ``alpha = dt / (RC + dt)`` and ``RC = 1 / (2*pi*fc)`` -- the discrete
+    equivalent of an RC filter, chosen because it is the one a plant-side
+    implementation would most plausibly use. Filtering happens between the
+    policy and the environment, so the policy still sees unfiltered
+    observations and is genuinely being asked to stand without its own
+    high-frequency component.
+
+    The state is per-call-sequence and reset by the caller between episodes
+    via :func:`reset`, so one episode's tail cannot leak into the next.
+    """
+    rc = 1.0 / (2.0 * math.pi * cutoff_hz)
+    alpha = control_dt / (rc + control_dt)
+    state: dict[str, Any] = {"y": None}
+
+    def filtered(obs: np.ndarray) -> np.ndarray:
+        action = np.asarray(predict(obs), dtype=np.float64)
+        previous = state["y"]
+        # Seeded with the first action rather than zeros: starting from zero
+        # would inject a step transient that is an artefact of the probe, not
+        # a property of the policy.
+        state["y"] = (
+            action if previous is None or previous.shape != action.shape else previous + alpha * (action - previous)
+        )
+        return np.asarray(state["y"], dtype=np.float32)
+
+    filtered.reset = lambda: state.update(y=None)  # type: ignore[attr-defined]
+    return filtered
+
+
 def build_stance_gate_report(
     species: str,
     stage: int,
@@ -356,6 +526,7 @@ def build_stance_gate_report(
     episodes: int | None = None,
     seed: int = 3042,
     allow_legacy_plant: bool = False,
+    filter_actions_hz: float | None = None,
 ) -> dict[str, Any]:
     """Roll a policy and return its gate verdict as a serializable dict.
 
@@ -376,9 +547,12 @@ def build_stance_gate_report(
     """
     if episodes is not None and episodes < 1:
         raise ValueError(f"episodes must be at least 1 if given, got {episodes}")
+    if filter_actions_hz is not None and filter_actions_hz <= 0:
+        raise ValueError(f"filter_actions_hz must be positive if given, got {filter_actions_hz}")
     curriculum = stage_config["curriculum_kwargs"]
     env_kwargs = dict(stage_config["env_kwargs"])
     horizon = int(env_kwargs.get("max_episode_steps", 1000))
+    control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
     thresholds = thresholds_from_curriculum(curriculum)
     panel_episodes = thresholds.min_eval_episodes if episodes is None else episodes
 
@@ -408,6 +582,10 @@ def build_stance_gate_report(
         )
         description = f"{Path(model_path).name} — {note}"
 
+    if filter_actions_hz is not None:
+        predict = _low_pass_predict(predict, filter_actions_hz, control_dt)
+        description += f" — actions low-passed at {filter_actions_hz:g} Hz"
+
     result = run_panel(
         species,
         predict=predict,
@@ -417,6 +595,7 @@ def build_stance_gate_report(
         horizon=horizon,
         env_kwargs=env_kwargs,
         plant_identity=plant_identity,
+        control_dt=control_dt,
     )
     panel = result["panel"]
     passed, failures = evaluate_stance_gate(panel, thresholds)
@@ -460,6 +639,15 @@ def build_stance_gate_report(
         # field is deliberately narrow rather than a blanket "plant_validated"
         # that would claim something false in the zero-action case.
         "checkpoint_plant_validated": None if zero_action else not allow_legacy_plant,
+        # `None` for an ordinary run. Recorded because a filtered rollout is
+        # NOT a verdict about the policy: it is a probe of a modified one, and
+        # a PASS produced this way must never be mistakable for a real PASS in
+        # a stored report. `render_stance_gate_report` prints it for the same
+        # reason.
+        "filter_actions_hz": filter_actions_hz,
+        # Where the commanded pose sits and what the policy does around it,
+        # per actuator. `{}` when no post-settle step was measured.
+        "action": result.get("action", {}),
         "terminations": result["terminations"],
         "reward_components": result["components"],
         # The per-episode measurements the panel was reduced from. This is
@@ -483,6 +671,15 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
             "below are reported but are not what this stage advances on."
         )
         lines.append("")
+    # Before the verdict, not after: a filtered rollout scores a MODIFIED
+    # policy, so its PASS/FAIL is not a statement about the checkpoint and a
+    # reader must not reach the verdict line without knowing that.
+    if report.get("filter_actions_hz") is not None:
+        lines += [
+            f"PROBE: actions low-passed at {report['filter_actions_hz']:g} Hz before reaching the plant.",
+            "This scores a MODIFIED policy. The verdict below is not a gate result for this checkpoint.",
+            "",
+        ]
     measured = report["horizon"] - report["settle_steps"]
     lines += [
         f"policy              {report['policy']}",
@@ -510,6 +707,23 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
         for key in sorted(components, key=lambda k: -abs(components[k])):
             if abs(components[key]) > 0.05:
                 lines.append(f"  {key:28s} {components[key]:10.2f}")
+    action = report.get("action") or {}
+    if action:
+        lines += [
+            "",
+            "commanded action, post-settle "
+            f"(DC {action['dc_rms']:.3f} rms, AC {action['ac_rms']:.3f} rms, "
+            f"~{action['effective_freq_hz']:.1f} Hz):",
+            "  DC is the distance from the home keyframe (action = 0 IS that pose);",
+            "  AC is what the policy does around it. Different causes, different fixes.",
+        ]
+        per_actuator = action.get("per_actuator") or []
+        # Largest offset first: the question this answers is WHICH joints are
+        # displaced, because a leg-pose weight can only reach the leg ones.
+        for entry in sorted(per_actuator, key=lambda e: -abs(e["dc"]))[:12]:
+            lines.append(f"  {entry['joint']:28s} DC {entry['dc']:+7.3f}   AC {entry['ac_rms']:6.3f}")
+        if len(per_actuator) > 12:
+            lines.append(f"  ... {len(per_actuator) - 12} more (full list in the JSON)")
     lines += ["", f"GATE: {'PASS' if report['passed'] else 'FAIL'}"]
     lines += [f"  - {failure}" for failure in report["failures"]]
     return "\n".join(lines)
@@ -566,8 +780,17 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
     """
     directory = Path(stage_dir)
     directory.mkdir(parents=True, exist_ok=True)
-    text_path = directory / "stance_gate_report.txt"
-    json_path = directory / "stance_gate_report.json"
+    # A filtered rollout scored a MODIFIED policy, so it gets its own filenames
+    # and never the certification ones. Derived here rather than passed in so a
+    # caller cannot land a probe on top of the real verdict by forgetting an
+    # argument -- and `stance_panel_selected.csv` is skipped entirely below,
+    # because that file is the per-episode evidence `result_bundle.evidence`
+    # certifies a stance-gated stage from. Writing a filtered panel there would
+    # certify a policy that was never run.
+    probe = report.get("filter_actions_hz") is not None
+    stem = "stance_gate_probe_filtered" if probe else "stance_gate_report"
+    text_path = directory / f"{stem}.txt"
+    json_path = directory / f"{stem}.json"
     text_path.write_text(render_stance_gate_report(report) + "\n", encoding="utf-8")
     # allow_nan=False turns any non-finite value _json_safe missed into a
     # ValueError here rather than an unparseable artifact on Drive.
@@ -576,6 +799,8 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
         encoding="utf-8",
     )
     written = {"stance_gate_report_txt": text_path, "stance_gate_report_json": json_path}
+    if probe:
+        return written
     panel_path = write_stance_panel_evidence(directory, report)
     if panel_path is not None:
         written["stance_panel_csv"] = panel_path
@@ -655,10 +880,21 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=3042, help="First evaluation seed (default: publication seed)")
     parser.add_argument("--config", help="Explicit stage TOML path")
     parser.add_argument("--out-dir", help="Also write stance_gate_report.{txt,json} to this directory")
+    parser.add_argument(
+        "--filter-actions",
+        type=float,
+        metavar="HZ",
+        help="Low-pass the policy's actions at HZ before they reach the plant, and score THAT. "
+        "A probe for whether a policy's high-frequency action content is load-bearing: if it "
+        "still stands, the tremor was waste and belongs on the action path; if it falls, the "
+        "tremor is closed-loop stabilisation and the fix belongs elsewhere (issue #489).",
+    )
     args = parser.parse_args()
 
     if not args.zero_action and not args.model:
         parser.error("pass --model, or --zero-action for the do-nothing reference")
+    if args.filter_actions is not None and args.filter_actions <= 0:
+        parser.error(f"--filter-actions must be positive, got {args.filter_actions}")
     # `--episodes 0` used to fall through `episodes or min_eval_episodes` to the
     # stage default AND skip the under-powered-panel warning below, so it
     # silently produced a full-size panel while reading as an override.
@@ -677,6 +913,7 @@ def main() -> int:
             episodes=args.episodes,
             seed=args.seed,
             allow_legacy_plant=args.allow_legacy_plant,
+            filter_actions_hz=args.filter_actions,
         )
     except StanceGateReportError as exc:
         # The CLI boundary is where a diagnosable failure becomes an exit

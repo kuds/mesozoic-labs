@@ -536,3 +536,27 @@ class TestSaveThrottle:
         cb._on_training_end()  # final flush writes the full history
         data = np.load(str(tmp_path / "diagnostics.npz"))
         assert len(data["timesteps"]) == 2
+
+
+class TestActionJerkIsNotDiscarded:
+    """The environment emitted `action_jerk` every step and nothing kept it.
+
+    `INFO_KEYS` carried `action_delta` but not its second difference, so the
+    signal `reward_action_jerk` charges was computed and thrown away. Their
+    ratio is a frequency — `jerk/delta = (2 sin(pi f dt))^2`, blind to any
+    constant offset — and recovering the 22.6 Hz tremor in issue #489 had to
+    invert it back out of per-episode reward totals instead of reading it.
+    """
+
+    def test_both_action_differences_are_tracked(self):
+        from environments.shared.diagnostics import DiagnosticsCallback
+
+        assert "action_delta" in DiagnosticsCallback.INFO_KEYS
+        assert "action_jerk" in DiagnosticsCallback.INFO_KEYS
+
+    def test_the_trex_env_actually_emits_it(self):
+        """A tracked key the environment never sets is a silently empty column."""
+        from pathlib import Path
+
+        source = (Path(__file__).resolve().parents[3] / "environments/trex/envs/trex_env.py").read_text()
+        assert 'info["action_jerk"]' in source

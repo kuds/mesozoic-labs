@@ -117,7 +117,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Learn to stand and balance without falling | 10M | reward ≥ 1950; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Learn to stand and balance without falling | 10M | reward ≥ 2550; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Bite | Sprint to prey and make contact with the head bite proxy | 8M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
