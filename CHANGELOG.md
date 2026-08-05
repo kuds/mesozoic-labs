@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
+### Changed
+- **Reverted T-Rex stage 1 `leg_home_pose_weight` to 0.5**, and the two statue-
+  derived constants with it (`min_avg_reward` 2550 → 1950,
+  `collapse_peak_floor_reference` 4250.4 → 3271.8). The 1.5 experiment **could
+  not have worked**, and the instrumentation added alongside it says why
+  (issue #491).
+  `leg_home_pose` governs eight joints — r/l `hip_pitch`, `hip_roll`, `knee`,
+  `ankle` — and measured per actuator, those eight carry **1.2% of the
+  policy's commanded pose offset**. The other 98.8% is in the tail, neck, head
+  and toes, which no term in this stage touches; 10–12 of 21 actuators sit
+  pinned at `|action| = 1.000`. The governed joints were **already** near home
+  (|DC| 0.035–0.263), so tripling their weight had nothing to pull on.
+  Measured, it didn't: commanded DC moved **0.766 → 0.738**, 3.7%, while the
+  run took roughly 2M extra steps to escape its early collapse. The joint
+  *list*, not the weight, is the problem.
+  What survives the revert is the discipline: both constants are documented as
+  derived from the statue and neither updates itself, so any reward-weight
+  change has to re-measure with `zero_action_baseline.py` and re-derive both.
+  Because the statue commands `action = 0` at any weight its trajectory never
+  changes and only the affected term rescales — which makes the new value
+  exact and cheap to obtain, and makes forgetting it silent.
+  `stance_probe_filter_hz` is **kept**: the probe is what showed the tremor is
+  load-bearing, and it is the regression metric for #491.
+
 ### Added
 - **The deterministic policy's action, measured instead of inferred.** Every
   action number on disk came from *training* rollouts, so all of it carried

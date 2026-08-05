@@ -63,33 +63,17 @@ action_jerk_weight = 3.0                       # Frequency-aware smoothness: pen
                                                # ~8e4, so the term is nearly free for the behaviour we want and is
                                                # charged almost entirely to chatter.
 support_conditioned_alive_fraction = 0.5       # Keep recovery headroom while making one-foot survival less profitable
-leg_home_pose_weight = 1.5                     # Retain the authored p5 theropod leg stance. Raised 0.5 -> 1.5 because
-                                               # run 20260805_011234 PASSED the stance gate (duty 0.0000) while scoring
-                                               # 3004.3 against the statue's 3274.4, and the whole 270-point gap traces
-                                               # to ONE cause: it holds a displaced pose it must actively stabilise
-                                               # (issue #489).
-                                               #
-                                               # Inverting its action penalties gives a per-actuator DC offset of 0.800
-                                               # with an AC tremor of rms 0.277 at an effective 22.6 Hz. Measured, both
-                                               # halves of that are open-loop fatal: a static offset of just 0.10 rms
-                                               # falls in every direction tested (107-268 steps), and a 0.277 rms tremor
-                                               # collapses the statue at EVERY frequency from 2 to 40 Hz (38-80 steps),
-                                               # while action = 0 stands indefinitely. So the tremor is not waste, it is
-                                               # the closed-loop feedback holding up a pose the home keyframe holds for
-                                               # free -- which is why the fix is here and NOT on action_jerk_weight.
-                                               # Penalising the tremor attacks load-bearing feedback, and the cheapest
-                                               # response to a bigger jerk penalty is to fall over.
-                                               #
-                                               # 1.5 sizes the pose gap (85 -> 255 points) to dominate the tremor's
-                                               # 112-point cost by 2.3x, so the displaced operating point stops being
-                                               # competitive. If the policy returns to the home keyframe the feedback
-                                               # becomes unnecessary and the tremor cost goes with it -- 245 points, not
-                                               # the 112 a smoothness penalty could reach. 2.0 (3x) is the next step if
-                                               # 1.5 does not move it.
-                                               #
-                                               # NOTE: this rescales the reward. min_avg_reward and
-                                               # collapse_peak_floor_reference below are both derived from the statue
-                                               # and were re-measured for this weight; re-derive them again if it moves.
+leg_home_pose_weight = 0.5                     # Softly retain the authored p5 theropod leg stance.
+                                               # REVERTED from 1.5 (issue #491): the 1.5 experiment could not have
+                                               # worked, and measurement says why. This term governs 8 joints --
+                                               # r/l hip_pitch, hip_roll, knee, ankle -- and those 8 carry only
+                                               # 1.2% of the policy's commanded pose offset. 98.8% sits in the
+                                               # tail, neck, head and toes, which no term here touches, and 10-12
+                                               # of 21 actuators are pinned at |action| = 1.000. The governed
+                                               # joints were ALREADY near home (|DC| 0.035-0.263), so tripling the
+                                               # weight had nothing to pull on: measured DC moved 0.766 -> 0.738,
+                                               # 3.7%, while the run took ~2M extra steps to escape its early
+                                               # collapse. The list, not the weight, is the problem (#491).
 leg_home_pose_tolerance = 0.20                 # rad; broad enough for balancing corrections without joint locking
 head_clearance_weight = 0.35                   # Prevent the learned head-droop posture
 head_clearance_target = 0.90                   # m; settled home head tip is ~0.94 m
@@ -315,19 +299,19 @@ settle_steps = 200                       # [inferred], NOT measured. Duty is sco
 min_eval_episodes = 40                   # The panel size every figure above is specified at. n_eval_episodes must
                                          # match: at n=30 the bound's power and the 28%-rejection analysis no longer
                                          # describe this gate.
-min_avg_reward = 2550.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
+min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
                                         # can separate a competent policy from a statue, because the statue is the
                                         # reward optimum. Sized to the one job a rail CAN do — rejecting a policy
                                         # that discarded most of the available return — at 0.60 x the statue's
                                         # standing reward at the 0.05 operating point.
                                         #
-                                        # RE-DERIVED for leg_home_pose_weight 1.5 (issue #489). The statue is now
-                                        # 4250.40 +/- 13.86 (40 episodes, noise 0.05, 100% full-horizon, measured
-                                        # with zero_action_baseline.py on this config), so 0.60 x 4250.4 = 2550.
-                                        # Was 1950 = 0.60 x 3271.8 under weight 0.5. The FRACTION is what carries
-                                        # across the rescale; the absolute number does not, and neither do the
-                                        # historical run values quoted below, which are all on the old scale --
-                                        # compare them as ratios to the statue, not as rewards.
+                                        # 0.60 x 3271.8, the statue at leg_home_pose_weight 0.5. Briefly 2550 while
+                                        # that weight was 1.5, which moved the statue to 4250.40 +/- 13.86;
+                                        # reverted with it (issue #491). The lesson survives the revert: this
+                                        # number and collapse_peak_floor_reference are both DERIVED from the
+                                        # statue and neither updates itself, so any reward-weight change has to
+                                        # re-measure with zero_action_baseline.py and re-derive both. The FRACTION
+                                        # is what carries across a rescale; the absolute number does not.
                                         #
                                         # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
                                         # full-horizon 93% -> 7%) bottomed at 888 = 0.27 x statue, so 0.60 clears
@@ -404,12 +388,12 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # post-150k rolling median in that run is 580.5, well under 1472.3. A
                                          # larger warm-up buys nothing and costs coverage: 1.0M leaves 88% of a 10M
                                          # budget protected, 2.5M only 72%.
-collapse_peak_floor_reference = 4250.4   # The zero-action statue's standing reward at noise 0.05, 40 episodes.
-                                         # RE-MEASURED for leg_home_pose_weight 1.5 (issue #489): 4250.40 +/- 13.86,
-                                         # was 3271.8 under weight 0.5. The statue commands action = 0 at any weight,
-                                         # so its trajectory is unchanged and only the leg_home_pose term rescales --
-                                         # 488.93 -> 1466.80, exactly 3x. The relative floor below is therefore
-                                         # unaffected in MEANING; only its absolute value moves, 1472 -> 1913.
+collapse_peak_floor_reference = 3271.8   # The zero-action statue's standing reward at noise 0.05, 40 episodes.
+                                         # Briefly 4250.4 while leg_home_pose_weight was 1.5; reverted with it
+                                         # (issue #491). Re-measure this whenever a reward weight changes: the
+                                         # statue commands action = 0 at any weight, so its trajectory never
+                                         # changes and only the affected term rescales -- which makes the new
+                                         # value exact and cheap to obtain, and makes forgetting it silent.
 stance_probe_filter_hz = 5.0             # After the gate report, re-score the SAME checkpoint with its actions
                                          # low-passed at this cutoff and write stance_gate_probe_filtered.{txt,json}.
                                          # Costs a second 40-episode panel (a few minutes); unset to skip.
