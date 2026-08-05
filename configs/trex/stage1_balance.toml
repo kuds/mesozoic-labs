@@ -144,18 +144,48 @@ gamma = 0.98                            # Setting 4 sweep: 0.9797. Previous 0.99
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
-ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefDecayCallback). Velociraptor
-                                        # stages 1 & 2 both destabilized late under constant ent_coef
-                                        # (bimodal falls, action std growth); decay fixed its stage 2 and is
-                                        # enabled for its stage 1. See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
-ent_coef_decay_timesteps = 3000000      # Anchor the decay to ~half the 6M budget so ent_coef hits its 0.001 floor
-                                        # BEFORE the late std drift, instead of coasting high for the whole run. When
-                                        # unset, decay_timesteps defaults to the full stage budget
-                                        # (train_base._maybe_ent_coef_decay_callback), which is why run 20260723_204941
-                                        # never annealed: algo_std rose 1.01 -> 1.04 and the legs jittered at ~1.0
-                                        # RMS/joint for the entire run. Velociraptor stage 1 (annealed 1.01 -> 0.93,
-                                        # lowest jitter of any stage) and T-Rex stage 3 both anchor at 3M; stage 1 was
-                                        # the only balance stage missing it. See docs/investigations/TREX_STAGE1_LEG_JITTER.md.
+ent_coef_end = 0.0                      # Decay entropy to ZERO, not to a 0.001 floor. The floor is what kept run
+                                        # 20260804_143747 from ever standing still: ent_coef hit 0.001 at 3M and held
+                                        # there for the remaining 7M, and across 21 action dims that bonus holds the
+                                        # policy std at equilibrium ~0.375 indefinitely (`algo_std` 0.47 at 5.9M,
+                                        # 0.375 at 8.4M, still falling ~0.01/M -- it was never going to converge).
+                                        #
+                                        # In joint terms that std is enormous. Through `_scale_action`'s residual
+                                        # mapping and this model's ctrlranges, std 0.375 is a 1-sigma command noise of
+                                        # 24.4 deg at the hips and 18.8 deg at knee and ankle -- mean 20.6 deg across
+                                        # the major leg joints, resampled every control step at 100 Hz. A policy
+                                        # cannot learn to hold a pose it is being told to shake by 20 deg. PPO
+                                        # optimises expected return UNDER that noise, so the mean action it converges
+                                        # to is not the deterministic optimum but whatever survives its own tremor --
+                                        # in that run, a 16.7 Hz limit cycle with unsupported duty 0.1668 (issue #486).
+                                        #
+                                        # The target is known reachable and known still: `action = 0` IS the home
+                                        # keyframe under home-keyframe-residual/v1, and scores 3274.4 +/- 7.6 with
+                                        # duty 0.0000 (measured, stance_gate_report.py trex --stage 1 --zero-action).
+                                        # The trained policy scored 2686.9 -- 588 BELOW the do-nothing policy. This is
+                                        # a convergence failure, not a reward-shaping one, so the usual risk of
+                                        # zeroing entropy (premature convergence to a bad optimum) is unusually low:
+                                        # the good optimum is trivially reachable and the run's actual failure was
+                                        # never converging at all.
+                                        #
+                                        # 0.0 rather than a smaller floor because any floor sets a non-zero std
+                                        # equilibrium; std 0.05 (2.75 deg/joint, a plausible standing policy) needs
+                                        # the bonus to go away, not to get smaller.
+ent_coef_decay_timesteps = 7000000      # 70% of the 10M budget, not 30%. The old 3M anchor was chosen for a 6M
+                                        # stage (~half of it) and was never revisited when stage 1 went to 10M, so
+                                        # decay finished in the first third and the floor governed the rest. Keeping
+                                        # the decay live through 7M means entropy is still falling while the policy
+                                        # consolidates, instead of being pinned during the whole second half.
+                                        #
+                                        # Early exploration is deliberately unchanged: ent_coef still starts at 0.005
+                                        # and the first 3M now decays MORE slowly than before, so nothing about the
+                                        # early-training regime this stage depends on is tightened.
+                                        #
+                                        # Falsifiable prediction for the next run, to be checked at ~4M rather than
+                                        # at the end: `algo_std` should be well under 0.2 (it was 0.55 at 4.6M and
+                                        # 0.47 at 5.9M last run), and `unsupported_duty` should be below the 0.28 it
+                                        # showed at 4.34M. If either tracks the old curve, this hypothesis is wrong
+                                        # and the next suspect is the learning rate (3e-5 -> 1e-5 is very low).
 
 target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL); mirrors the JAX target_kl guard.
 
@@ -297,6 +327,19 @@ collapse_drop_fraction = 0.5            # Only raw means >50% below the robust r
                                         # low-reward grind then a noisy breakthrough (run 20260721_004731: dip to ~1.2M,
                                         # turbulent transition at 2.2-2.3M, converged ~2.65M); the old stage-1 defaults
                                         # killed run 20260720_203454 at 1.1M off a variance-inflated 50k peak.
+baseline_warn_after_budget_fraction = 0.35  # Warn once past this share of the budget if the policy has still never
+                                         # beaten the zero-action statue. Advisory only -- it never stops a run.
+                                         # Run 20260804_143747 trained all 10,002,432 steps (8h 13m) and finished at
+                                         # 2686.9 against the statue's 3271.8: BELOW the do-nothing policy on every
+                                         # major reward term, for the entire run, and nothing said so (issue #486).
+                                         # Reward was climbing, full-horizon hit 100%, eval sd fell to 5, and the
+                                         # collapse backstop correctly never fired -- every logged signal looked
+                                         # healthy. 0.35 puts the warning at 3.5M steps, ~2.9h in on that run's
+                                         # hardware with ~5.5h still to save, and past the point where its duty had
+                                         # already flattened. Not lower: a learning policy legitimately climbs
+                                         # toward the statue from below for millions of steps (STAGE1_SPLIT_PLAN
+                                         # 2.3.1), so an early warning would be noise on a healthy run.
+
 collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot SET the peak. Not a tightening of
                                          # the detector (see collapse_settings_from_config on why tightening
                                          # aborts healthy runs) -- a separate axis, and the only one that works on

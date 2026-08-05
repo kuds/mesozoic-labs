@@ -7,6 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
+### Added
+- **A watch on the do-nothing baseline.** Run `20260804_143747` trained T-Rex
+  stage 1 for its full 10,002,432 steps — 8h 13m — and finished at **2686.9
+  against the zero-action statue's 3271.8**: below the do-nothing policy on
+  every major reward term, for the entire run. Nothing reported it. Every
+  logged signal looked healthy (reward climbing, full-horizon 100%, evaluation
+  sd down to 5, the collapse backstop correctly silent), and the run was only
+  found to be in a worse-than-trivial local optimum by scoring `action = 0` by
+  hand afterwards (issue #486).
+  `curriculum.baseline_watch.BaselineProgressCallback` now reports every
+  evaluation against the run's own captured `zero_action_baseline.json` — one
+  float already written to the run directory before training starts, so the
+  comparison is free — and warns **once** if the policy has still never beaten
+  it past `baseline_warn_after_budget_fraction` of the budget (0.35 on trex
+  1a, i.e. 3.5M steps with ~5.5 hours still to save).
+  Deliberately **advisory**: it logs and warns, never stops. On stage 1 the
+  statue *is* the reward optimum, so a learning policy legitimately sits below
+  it for millions of steps; aborting on that would kill healthy runs for the
+  same reason tightening the collapse detector does. A run that beats the
+  baseline at any point is never warned about again — falling back under it is
+  what the collapse backstop is for.
+  `_build_core_callbacks` takes `species` to construct it, and a test pins that
+  `sb3_training.ipynb` passes it, because an optional argument the trainer
+  forgets is exactly how the stance gate became dead code on the Colab path.
+- **`gate_progress.npz`, the gate criteria per evaluation.** The deterministic
+  panel-estimator numbers the stance gate actually tests — `duty_episodes`,
+  `unsupported_duty`, `unsupported_duty_ucb`, `bilateral_support_duty`,
+  `mean_reward` and `full_horizon_fraction`, against `timesteps` — were computed
+  every evaluation and recorded only to the SB3 logger. Diagnosing run
+  `20260804_143747` therefore had to substitute the *training-rollout* duty
+  from `diagnostics.npz`, which is contaminated by exploration noise; it
+  happened to agree to three decimals, but that was luck.
+  `StageGatePlateauCallback` now writes the file to the stage directory (beside
+  `diagnostics.npz`, not the scratch eval dir) after each evaluation, so the
+  gate's own view of a run is readable from Drive mid-run without TensorBoard.
+  A separate file rather than columns in `diagnostics.npz` because the two are
+  on different clocks — per evaluation versus per training rollout — and
+  merging them would force one series to be NaN-padded against the other's
+  timeline.
+- **`action_abs_mean` and `action_std` in `diagnostics.npz`.** Mean |action| is
+  the direct distance from the zero-action statue, which under
+  `home-keyframe-residual/v1` is exactly `action = 0`. Neither existing series
+  gives it: signs cancel in `action_mean`, so it sits near zero even for a
+  large-magnitude policy, and `action_abs_max` is dominated by whichever single
+  joint is most saturated. It separates the two ways an entropy collapse can
+  end — std falls and the mean settles *on* the statue, versus std falls and
+  the mean settles on some other committed pose — which are indistinguishable
+  in `algo_std` alone and mean opposite things for what to do next.
+### Changed
+- **T-Rex stage 1 entropy now decays to zero, over 70% of the budget rather
+  than 30%** (`ent_coef_end` 0.001 → 0.0, `ent_coef_decay_timesteps` 3M → 7M).
+  Run `20260804_143747` trained the full 10M and finished at 2686.9 against
+  the zero-action statue's 3271.8 — **588 below the do-nothing policy** — with
+  unsupported duty pinned at 0.1668, 8.3× the gate ceiling (issue #486).
+  The cause is measured, not guessed: `ent_coef` reached its 0.001 floor at 3M
+  and held for the remaining 7M, which across 21 action dims holds the policy
+  std at equilibrium ~0.375 (`algo_std` 0.47 at 5.9M, 0.375 at 8.4M). Through
+  `_scale_action`'s residual mapping and this model's ctrlranges that std is a
+  1σ command noise of **24.4° at the hips and 18.8° at knee and ankle**, mean
+  **20.6°** across the major leg joints, resampled every control step at
+  100 Hz. A policy cannot learn to hold a pose it is being commanded to shake
+  by 20°; PPO optimises expected return *under* that noise, so it converged to
+  a 16.7 Hz limit cycle that survives its own tremor rather than to a still
+  stance.
+  The target is known reachable and known still: `action = 0` **is** the home
+  keyframe under `home-keyframe-residual/v1` and scores 3274.4 ± 7.6 with duty
+  0.0000 (measured locally with `stance_gate_report.py trex --stage 1
+  --zero-action`). So this is a convergence failure, not a reward-shaping one,
+  and the usual risk of zeroing entropy — premature convergence to a bad
+  optimum — is unusually low here.
+  Early exploration is deliberately unchanged: `ent_coef` still starts at
+  0.005, and the first 3M now decays more slowly than before. The 3M anchor
+  was sized for a 6M stage and never revisited when stage 1 became 10M.
+
 ### Fixed
 - **A stance-gated run that passed every gate still could not publish.**
   `result_bundle.evidence` refused any complete bundle whose stage declares

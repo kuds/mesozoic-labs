@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -262,6 +263,16 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         ),
     }
 
+    #: Declared at class scope so an instance built without ``__init__``
+    #: still has them. The suite constructs this callback with
+    #: ``object.__new__`` to exercise the plateau logic without
+    #: stable-baselines3, and a new instance attribute only ``__init__`` set
+    #: would turn every one of those tests into an AttributeError.
+    _gate_progress_dir: "Path | None" = None
+    _gate_progress_timesteps: list[int] = []
+    _gate_progress: dict[str, list[float]] = {}
+    _warned_gate_progress_unwritable = False
+
     def __init__(
         self,
         eval_callback: StageAwareEvalCallback,
@@ -271,6 +282,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         plateau_window: int = 5,
         min_relative_variation: float = 0.05,
         horizon: int = 1000,
+        gate_progress_dir: "str | Path | None" = None,
         verbose: int = 0,
     ) -> None:
         if not _SB3_AVAILABLE:
@@ -293,6 +305,11 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         self._histories: dict[str, list[float]] = {key: [] for key in self._METRIC_PRIORITY}
         self._plateau_active = False
         self._plateau_metric: str | None = None
+        # Per-evaluation gate criteria, persisted to `gate_progress.npz`.
+        self._gate_progress_dir = None if gate_progress_dir is None else Path(gate_progress_dir)
+        self._gate_progress_timesteps: list[int] = []
+        self._gate_progress: dict[str, list[float]] = {}
+        self._warned_gate_progress_unwritable = False
 
     @staticmethod
     def _finite_mean(values: Any) -> float | None:
@@ -506,6 +523,26 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             return
         self.logger.record("diagnostics/eval_full_horizon_fraction", panel.full_horizon_fraction)
         self.logger.record("diagnostics/eval_duty_episodes", panel.n_duty_episodes)
+        bilateral = self._full_horizon_mean("evaluations_bilateral_duties", index)
+        # Recorded to TensorBoard AND accumulated for `gate_progress.npz`.
+        # These are the deterministic, panel-estimator gate criteria -- the
+        # same numbers the stance gate tests -- and until now they existed
+        # only in TensorBoard. Post-hoc analysis of run 20260804_143747 had to
+        # substitute the TRAINING-rollout duty from `diagnostics.npz`, which is
+        # contaminated by exploration noise; it happened to agree to three
+        # decimals there, but that was luck, not a property worth relying on.
+        self._record_gate_progress(
+            full_horizon_fraction=panel.full_horizon_fraction,
+            duty_episodes=panel.n_duty_episodes,
+            unsupported_duty=panel.mean_unsupported_duty if panel.n_duty_episodes else float("nan"),
+            unsupported_duty_ucb=(
+                panel.unsupported_duty_ucb
+                if panel.n_duty_episodes and math.isfinite(panel.unsupported_duty_ucb)
+                else float("nan")
+            ),
+            bilateral_support_duty=float("nan") if bilateral is None else bilateral,
+            mean_reward=panel.mean_reward,
+        )
         if not panel.n_duty_episodes:
             return
         self.logger.record("diagnostics/eval_unsupported_duty", panel.mean_unsupported_duty)
@@ -514,9 +551,53 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         # Not gated. Measured over the SAME full-horizon episodes as the duty
         # above so the two are comparable; averaging it over every episode is
         # what made the three stance shares stop summing to 1.
-        bilateral = self._full_horizon_mean("evaluations_bilateral_duties", index)
         if bilateral is not None:
             self.logger.record("diagnostics/eval_bilateral_support_duty", bilateral)
+
+    def _record_gate_progress(self, **values: float) -> None:
+        """Append one evaluation's gate criteria and rewrite ``gate_progress.npz``.
+
+        A separate file rather than columns in ``diagnostics.npz`` because the
+        two are on different clocks: diagnostics is per training rollout, this
+        is per evaluation. Merging them would force one series to be padded
+        with NaN against the other's timeline, which is exactly the alignment
+        trap ``_history_algo`` already has to work around.
+        """
+        # Bind instance-local containers before appending: the class-scope
+        # defaults above exist only so `object.__new__` instances have the
+        # attribute, and appending to them would share state across every
+        # instance in the process.
+        if "_gate_progress_timesteps" not in self.__dict__:
+            self._gate_progress_timesteps = []
+            self._gate_progress = {}
+        self._gate_progress_timesteps.append(int(self.num_timesteps))
+        for key, value in values.items():
+            self._gate_progress.setdefault(key, []).append(float(value))
+        if self._gate_progress_dir is None:
+            return
+        try:
+            from .file_io import atomic_savez
+
+            n = len(self._gate_progress_timesteps)
+            payload = {"timesteps": np.array(self._gate_progress_timesteps)}
+            # Length-guarded against `timesteps`, like every optional series in
+            # `diagnostics.npz`. Today one call site supplies every key on every
+            # evaluation, so nothing can diverge -- but a future caller that
+            # supplies a key conditionally would otherwise write a short array
+            # that silently reads as the FIRST n evaluations rather than the
+            # ones it came from. Dropping it is recoverable; misaligning it is
+            # the kind of error this file exists to stop.
+            for key, series in self._gate_progress.items():
+                if len(series) == n:
+                    payload[key] = np.array(series)
+            atomic_savez(Path(self._gate_progress_dir) / "gate_progress.npz", **payload)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            # Once. An unwritable directory fails identically on all ~200
+            # evaluations of a 10M run, and 200 stack traces would bury the
+            # warnings this run is actually meant to surface.
+            if not self._warned_gate_progress_unwritable:
+                self._warned_gate_progress_unwritable = True
+                logger.warning("Could not write gate_progress.npz", exc_info=True)
 
     def _process_evaluation(self, index: int) -> None:
         panel = self._stance_panel(index)
@@ -652,6 +733,7 @@ def build_stage_evaluation_callbacks(
     stage: int,
     stage_config: dict[str, Any],
     diagnostics_verbose: int = 0,
+    gate_progress_dir: "str | Path | None" = None,
     **eval_callback_kwargs: Any,
 ) -> tuple[StageAwareEvalCallback, StageGatePlateauCallback]:
     """Build the paired evaluation and stage-gate diagnostic callbacks."""
@@ -677,6 +759,7 @@ def build_stage_evaluation_callbacks(
         # From [env], not [curriculum]: the horizon defines what "full" means
         # for the full-horizon fraction, and it is an environment property.
         horizon=int(stage_config.get("env_kwargs", {}).get("max_episode_steps", 1000)),
+        gate_progress_dir=gate_progress_dir,
         verbose=diagnostics_verbose,
     )
     return eval_callback, plateau_callback

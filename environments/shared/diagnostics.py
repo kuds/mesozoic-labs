@@ -198,6 +198,8 @@ class DiagnosticsCallback(_BaseCallback):
         # SAC critic_loss/ent_coef/…) captured from SB3's logger.
         self._history_algo_timesteps: list[int] = []
         self._history_algo: dict[str, list[float]] = {}
+        self._history_action_abs_mean: list[float] = []
+        self._history_action_std: list[float] = []
         # Throttle for diagnostics.npz rewrites (see _on_rollout_end).
         self.save_interval_seconds = save_interval_seconds
         self._last_save_time: float | None = None
@@ -284,8 +286,25 @@ class DiagnosticsCallback(_BaseCallback):
             self.logger.record("diagnostics/action_mean", _sanitize(float(_np.mean(acts))))
             self.logger.record("diagnostics/action_std", _sanitize(float(_np.std(acts))))
             self.logger.record("diagnostics/action_abs_max", _sanitize(float(_np.max(_np.abs(acts)))))
+            # Mean |action|, distinct from action_mean and action_abs_max and
+            # more informative than either for a residual interface. Under
+            # `home-keyframe-residual/v1` the zero-action statue is exactly
+            # `action = 0`, so this is the direct distance from it: signs
+            # cancel in action_mean (it sits near 0 even for a large-magnitude
+            # policy) and action_abs_max is dominated by whichever joint is
+            # most saturated. It separates the two ways an entropy collapse
+            # can end -- std falls and the mean settles ON the statue, versus
+            # std falls and the mean settles on some other committed pose --
+            # which look identical in algo_std alone and mean opposite things.
+            abs_mean = float(_np.mean(_np.abs(acts)))
+            self.logger.record("diagnostics/action_abs_mean", _sanitize(abs_mean))
             saturation = float(_np.mean(_np.abs(acts) >= self.action_saturation_threshold))
             self.logger.record("diagnostics/action_saturation", _sanitize(saturation))
+            # Persisted alongside the rollout series so post-hoc analysis sees
+            # it without TensorBoard. Aligned to _history_timesteps, which is
+            # appended in the same rollout-end pass.
+            self._history_action_abs_mean.append(abs_mean)
+            self._history_action_std.append(float(_np.std(acts)))
         self._step_actions = []
 
         # PPO post-update (clipped) gradient norm.  Scoped to PPO: SAC runs
@@ -393,6 +412,16 @@ class DiagnosticsCallback(_BaseCallback):
                 save_dict[key] = _np.array(arr)
         if len(self._history_heading_std) == len(self._history_timesteps):
             save_dict["heading_alignment_std"] = _np.array(self._history_heading_std)
+        for name, series in (
+            ("action_abs_mean", self._history_action_abs_mean),
+            ("action_std", self._history_action_std),
+        ):
+            # Length-guarded like every other optional series here: a rollout
+            # that collected no actions appends nothing, so the two clocks can
+            # legitimately diverge and a mismatched array would silently
+            # mis-align against `timesteps`.
+            if len(series) == len(self._history_timesteps):
+                save_dict[name] = _np.array(series)
         if self._history_term_timesteps:
             save_dict["term_timesteps"] = _np.array(self._history_term_timesteps)
             for reason, fracs in self._history_terminations.items():

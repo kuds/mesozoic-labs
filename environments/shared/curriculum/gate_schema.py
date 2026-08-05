@@ -160,6 +160,7 @@ _DIAGNOSTIC_KEYS = frozenset(
         "diagnostics_plateau_min_relative_variation",
         "supplementary_episodes",
         "stance_report_episodes",
+        "baseline_warn_after_budget_fraction",
     }
 )
 

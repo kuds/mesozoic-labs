@@ -51,6 +51,11 @@ from __future__ import annotations
 
 from . import sb3_compat
 from .advancement import CurriculumCallback, RewardRampCallback, StageWarmupCallback
+from .baseline_watch import (
+    BaselineProgressCallback,
+    build_baseline_progress_callback,
+    read_zero_action_baseline,
+)
 from .checkpoints import (
     DEFAULT_MAX_CHECKPOINTS,
     CheckpointRetentionCallback,
@@ -76,6 +81,7 @@ from .schedules import EntCoefDecayCallback, _ConstantSchedule
 
 __all__ = [
     "GATE_KINDS",
+    "BaselineProgressCallback",
     "GATE_SCHEMA_VERSION",
     "CurriculumCallback",
     "CurriculumManager",
@@ -91,8 +97,10 @@ __all__ = [
     "StageThreshold",
     "StageWarmupCallback",
     "_ConstantSchedule",
+    "build_baseline_progress_callback",
     "build_eval_collapse_early_stop_callback",
     "load_vecnorm_stats",
+    "read_zero_action_baseline",
     "prune_periodic_checkpoints",
     "sb3_compat",
     "thresholds_from_configs",
