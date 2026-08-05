@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
+### Changed
+- **T-Rex stage 1 `leg_home_pose_weight` 0.5 → 1.5, and the two constants
+  derived from the statue re-measured with it.** Run `20260805_011234` **passed**
+  `stance_quality/v1` — unsupported duty 0.0000 against a 0.0200 ceiling, 40/40
+  episodes at the horizon, bilateral support 1.0000, confirming the entropy
+  diagnosis in #487 — but scored **3004.3 against the zero-action statue's
+  3274.4** and never crossed it in 200 evaluations (issue #489).
+  The whole 270-point gap has one cause. Inverting the action penalties through
+  their closed forms gives a per-actuator DC offset of **0.800** with an AC
+  tremor of **rms 0.277 at an effective 22.6 Hz** (from `J/D = (2 sin πfΔt)²`,
+  which is DC-blind); reproducing that tremor on the statue matches the trained
+  policy's per-step penalties to within 2%. Both halves are open-loop fatal:
+  a static offset of just **0.10 rms falls in every direction tested**
+  (107–268 steps), and a 0.277 rms tremor collapses the statue at **every**
+  frequency from 2 to 40 Hz (38–80 steps), while `action = 0` stands
+  indefinitely. So the policy is holding a displaced pose upright with
+  closed-loop feedback that the home keyframe does not need — the tremor is the
+  cost of the pose, not a separate defect.
+  That is why the fix is not on `action_jerk_weight`, whose penalty sits at
+  1.4% of its normaliser and looks like the obvious lever. Penalising the
+  tremor attacks load-bearing feedback, and the cheapest response to a bigger
+  jerk penalty is to fall over. Raising the pose weight instead makes the
+  displaced operating point uncompetitive — the pose gap goes 85 → 255 points,
+  dominating the tremor's 112-point cost by 2.3× — and if the policy returns to
+  the home keyframe the feedback becomes unnecessary and its cost goes too:
+  **245 points, not the 112 a smoothness penalty could reach.**
+  `min_avg_reward` 1950 → **2550** and `collapse_peak_floor_reference` 3271.8 →
+  **4250.4**. Both are documented as derived from the statue (0.60× and 1.00×),
+  and neither updates itself — leaving them would arm the collapse backstop
+  against the wrong scale, the exact staleness the config's own comments warn
+  about. The new baseline is measured, not scaled: 4250.40 ± 13.86 over 40
+  episodes at noise 0.05, 100% full-horizon, from `zero_action_baseline.py`.
+  The ratios are unchanged (rail 0.60×, floor 0.45× → 1913), which is what
+  carries across a rescale; the absolute numbers do not, and neither do the
+  historical run figures quoted in the config, now flagged as old-scale.
+
 ### Added
 - **A watch on the do-nothing baseline.** Run `20260804_143747` trained T-Rex
   stage 1 for its full 10,002,432 steps — 8h 13m — and finished at **2686.9
