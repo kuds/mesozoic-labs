@@ -834,3 +834,66 @@ class TestDiagnosticAgreesWithTheGate:
         # 38 duty episodes is enough for both; 37 is enough for neither.
         assert self._both_verdicts(2) == (True, 1.0)
         assert self._both_verdicts(3) == (False, 0.0)
+
+
+class TestGateProgressIsPersisted:
+    """The deterministic gate criteria must survive outside TensorBoard.
+
+    They were computed every evaluation and recorded only to the SB3 logger,
+    so post-hoc analysis of run 20260804_143747 had to substitute the
+    TRAINING-rollout duty from `diagnostics.npz` — contaminated by exploration
+    noise. It happened to agree to three decimals there; that was luck, not a
+    property to rely on (issue #486).
+    """
+
+    @staticmethod
+    def _callback(tmp_path):
+        from environments.shared.eval_diagnostics import StageGatePlateauCallback
+
+        cb = object.__new__(StageGatePlateauCallback)
+        cb._gate_progress_dir = tmp_path
+        cb.num_timesteps = 0
+        return cb
+
+    def test_each_evaluation_appends_a_row_and_rewrites_the_file(self, tmp_path):
+        cb = self._callback(tmp_path)
+        for step, duty in ((50_000, 0.42), (100_000, 0.31), (150_000, 0.28)):
+            cb.num_timesteps = step
+            cb._record_gate_progress(
+                full_horizon_fraction=1.0,
+                duty_episodes=40,
+                unsupported_duty=duty,
+                unsupported_duty_ucb=duty + 0.001,
+                bilateral_support_duty=1.0 - duty,
+                mean_reward=2500.0,
+            )
+        data = np.load(tmp_path / "gate_progress.npz")
+        assert list(data["timesteps"]) == [50_000, 100_000, 150_000]
+        assert list(data["unsupported_duty"]) == pytest.approx([0.42, 0.31, 0.28])
+        assert list(data["unsupported_duty_ucb"]) == pytest.approx([0.421, 0.311, 0.281])
+        assert list(data["bilateral_support_duty"]) == pytest.approx([0.58, 0.69, 0.72])
+
+    def test_instances_do_not_share_the_class_level_defaults(self, tmp_path):
+        """The class attributes exist for `object.__new__`; appending to them
+        directly would leak one run's series into another's."""
+        a, b = self._callback(tmp_path / "a"), self._callback(tmp_path / "b")
+        (tmp_path / "a").mkdir()
+        (tmp_path / "b").mkdir()
+        a.num_timesteps = 1000
+        a._record_gate_progress(unsupported_duty=0.5)
+        b.num_timesteps = 2000
+        b._record_gate_progress(unsupported_duty=0.1)
+        assert a._gate_progress_timesteps == [1000]
+        assert b._gate_progress_timesteps == [2000]
+
+    def test_an_unwritable_directory_does_not_sink_the_run(self, tmp_path):
+        cb = self._callback(tmp_path / "does" / "not" / "exist")
+        cb.num_timesteps = 50_000
+        cb._record_gate_progress(unsupported_duty=0.42)  # must not raise
+        assert cb._gate_progress_timesteps == [50_000]
+
+    def test_no_directory_still_accumulates_in_memory(self, tmp_path):
+        cb = self._callback(None)
+        cb.num_timesteps = 50_000
+        cb._record_gate_progress(unsupported_duty=0.42)
+        assert cb._gate_progress["unsupported_duty"] == [0.42]

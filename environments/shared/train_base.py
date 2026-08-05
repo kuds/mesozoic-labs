@@ -434,6 +434,10 @@ def _build_core_callbacks(
         stage=stage,
         stage_config=stage_config,
         diagnostics_verbose=verbose,
+        # The stage dir, not the local scratch eval dir: gate_progress.npz is
+        # the artifact a human (or a Drive reader) checks mid-run, so it has
+        # to land beside diagnostics.npz rather than in a temp directory.
+        gate_progress_dir=log_path,
         best_model_save_path=str(model_dir),
         log_path=local_eval_dir,
         eval_freq=eval_freq // n_envs,

@@ -31,6 +31,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `_build_core_callbacks` takes `species` to construct it, and a test pins that
   `sb3_training.ipynb` passes it, because an optional argument the trainer
   forgets is exactly how the stance gate became dead code on the Colab path.
+- **`gate_progress.npz`, the gate criteria per evaluation.** The deterministic
+  panel-estimator numbers the stance gate actually tests — `duty_episodes`,
+  `unsupported_duty`, `unsupported_duty_ucb`, `bilateral_support_duty`,
+  `mean_reward` and `full_horizon_fraction`, against `timesteps` — were computed
+  every evaluation and recorded only to the SB3 logger. Diagnosing run
+  `20260804_143747` therefore had to substitute the *training-rollout* duty
+  from `diagnostics.npz`, which is contaminated by exploration noise; it
+  happened to agree to three decimals, but that was luck.
+  `StageGatePlateauCallback` now writes the file to the stage directory (beside
+  `diagnostics.npz`, not the scratch eval dir) after each evaluation, so the
+  gate's own view of a run is readable from Drive mid-run without TensorBoard.
+  A separate file rather than columns in `diagnostics.npz` because the two are
+  on different clocks — per evaluation versus per training rollout — and
+  merging them would force one series to be NaN-padded against the other's
+  timeline.
+- **`action_abs_mean` and `action_std` in `diagnostics.npz`.** Mean |action| is
+  the direct distance from the zero-action statue, which under
+  `home-keyframe-residual/v1` is exactly `action = 0`. Neither existing series
+  gives it: signs cancel in `action_mean`, so it sits near zero even for a
+  large-magnitude policy, and `action_abs_max` is dominated by whichever single
+  joint is most saturated. It separates the two ways an entropy collapse can
+  end — std falls and the mean settles *on* the statue, versus std falls and
+  the mean settles on some other committed pose — which are indistinguishable
+  in `algo_std` alone and mean opposite things for what to do next.
 ### Changed
 - **T-Rex stage 1 entropy now decays to zero, over 70% of the budget rather
   than 30%** (`ent_coef_end` 0.001 → 0.0, `ent_coef_decay_timesteps` 3M → 7M).
