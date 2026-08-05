@@ -31,6 +31,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `_build_core_callbacks` takes `species` to construct it, and a test pins that
   `sb3_training.ipynb` passes it, because an optional argument the trainer
   forgets is exactly how the stance gate became dead code on the Colab path.
+### Changed
+- **T-Rex stage 1 entropy now decays to zero, over 70% of the budget rather
+  than 30%** (`ent_coef_end` 0.001 → 0.0, `ent_coef_decay_timesteps` 3M → 7M).
+  Run `20260804_143747` trained the full 10M and finished at 2686.9 against
+  the zero-action statue's 3271.8 — **588 below the do-nothing policy** — with
+  unsupported duty pinned at 0.1668, 8.3× the gate ceiling (issue #486).
+  The cause is measured, not guessed: `ent_coef` reached its 0.001 floor at 3M
+  and held for the remaining 7M, which across 21 action dims holds the policy
+  std at equilibrium ~0.375 (`algo_std` 0.47 at 5.9M, 0.375 at 8.4M). Through
+  `_scale_action`'s residual mapping and this model's ctrlranges that std is a
+  1σ command noise of **24.4° at the hips and 18.8° at knee and ankle**, mean
+  **20.6°** across the major leg joints, resampled every control step at
+  100 Hz. A policy cannot learn to hold a pose it is being commanded to shake
+  by 20°; PPO optimises expected return *under* that noise, so it converged to
+  a 16.7 Hz limit cycle that survives its own tremor rather than to a still
+  stance.
+  The target is known reachable and known still: `action = 0` **is** the home
+  keyframe under `home-keyframe-residual/v1` and scores 3274.4 ± 7.6 with duty
+  0.0000 (measured locally with `stance_gate_report.py trex --stage 1
+  --zero-action`). So this is a convergence failure, not a reward-shaping one,
+  and the usual risk of zeroing entropy — premature convergence to a bad
+  optimum — is unusually low here.
+  Early exploration is deliberately unchanged: `ent_coef` still starts at
+  0.005, and the first 3M now decays more slowly than before. The 3M anchor
+  was sized for a 6M stage and never revisited when stage 1 became 10M.
 
 ### Fixed
 - **A stance-gated run that passed every gate still could not publish.**
