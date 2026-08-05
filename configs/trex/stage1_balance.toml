@@ -394,25 +394,33 @@ collapse_peak_floor_reference = 3271.8   # The zero-action statue's standing rew
                                          # statue commands action = 0 at any weight, so its trajectory never
                                          # changes and only the affected term rescales -- which makes the new
                                          # value exact and cheap to obtain, and makes forgetting it silent.
-stance_probe_filter_hz = 5.0             # After the gate report, re-score the SAME checkpoint with its actions
-                                         # low-passed at this cutoff and write stance_gate_probe_filtered.{txt,json}.
-                                         # Costs a second 40-episode panel (a few minutes); unset to skip.
+stance_probe_filter_hz = [5.0, 10.0, 20.0]  # After the gate report, re-score the SAME checkpoint with its actions
+                                         # low-passed at EACH of these cutoffs and write
+                                         # stance_gate_probe_filtered.{txt,json} as one curve. Unset to skip.
                                          #
-                                         # It settles the question this stage's remaining gap turns on. Run
-                                         # 20260805_011234 passed carrying a tremor of rms 0.277 at an effective
-                                         # 22.6 Hz, and whether that tremor is closed-loop stabilisation or a
-                                         # free-running buzz decides whether the fix belongs on the pose weight or
-                                         # on the action path (issue #489). Open-loop experiments on the statue
-                                         # bound what a tremor CAN do; only filtering the real policy answers it
-                                         # for that policy. If it still stands, the tremor was waste and
-                                         # leg_home_pose_weight is treating the wrong thing.
+                                         # A curve, not a point, because the yes/no is already answered and the
+                                         # answer is "no": the checkpoint that PASSED the gate falls at every
+                                         # cutoff from 5 to 35 Hz against a 100 Hz control rate, so a single
+                                         # cutoff's PASS/FAIL carries no information (issue #491). What can move
+                                         # is how long the filtered policy survives -- 96 steps at 5 Hz, 189 at
+                                         # 10, 289 at 20, against a 1000-step horizon -- and reading that against
+                                         # cutoff measures HOW MUCH high-frequency content the policy needs
+                                         # rather than merely that it needs some.
                                          #
-                                         # 5 Hz because balance corrections are a ~1-1.4 Hz phenomenon on this
-                                         # plant (body-on-leg resonance), so 5 Hz passes the control the policy
-                                         # plausibly needs while cutting a 22.6 Hz tremor hard.
+                                         # 5/10/20 spans the useful range. Balance correction on this plant is a
+                                         # ~1.1-1.4 Hz phenomenon and every cutoff here passes it essentially
+                                         # untouched (gain 0.963 at 1.4 Hz even at 5 Hz), while the measured
+                                         # 22.7 Hz tremor is cut 13.3 dB at 5 Hz and 3.6 dB at 20. So a short
+                                         # episode means dependence on content well above what the task needs.
                                          #
-                                         # The probe scores a MODIFIED policy: it gets its own filenames, never
-                                         # writes stance_panel_selected.csv, and its verdict is not a gate result.
+                                         # Each cutoff costs a panel, but the probe rolls 10 episodes rather than
+                                         # the gate's 40: it certifies nothing, and the effect is enormous
+                                         # (96 steps against 1000), so it does not need the sample size the
+                                         # bound's power is specified at. The sweep costs about what the old
+                                         # single 40-episode probe did.
+                                         #
+                                         # The probe scores a MODIFIED policy: its own filenames, never
+                                         # stance_panel_selected.csv, and its verdict is not a gate result.
 collapse_peak_floor_fraction = 0.45      # RELATIVE floor (PLANT_VALIDATION §14 item 3). An absolute floor has now
                                          # failed to arm TWICE for the same reason: 2200 against run 20260731_132102
                                          # (peak 1934.1, watched a -59% collapse), then 2450 against run

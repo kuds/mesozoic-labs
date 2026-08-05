@@ -28,8 +28,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Because the statue commands `action = 0` at any weight its trajectory never
   changes and only the affected term rescales — which makes the new value
   exact and cheap to obtain, and makes forgetting it silent.
-  `stance_probe_filter_hz` is **kept**: the probe is what showed the tremor is
-  load-bearing, and it is the regression metric for #491.
+  `stance_probe_filter_hz` is **kept**, and widened from a single cutoff to a
+  **sweep** — `[5.0, 10.0, 20.0]` on trex 1a. A single cutoff answers a yes/no
+  that is already answered: the checkpoint that PASSED the gate falls at every
+  cutoff from 5 to 35 Hz against a 100 Hz control rate, so its PASS/FAIL
+  carries no information. What can move is how long the filtered policy
+  survives — measured 101 steps at 5 Hz, 199 at 10, 288 at 20, against a
+  1000-step horizon — and reading that against cutoff measures *how much*
+  high-frequency content the policy depends on rather than merely that it
+  depends on some (#491).
+  Balance correction on this plant is a ~1.1–1.4 Hz phenomenon and every cutoff
+  passes it essentially untouched (gain 0.963 at 1.4 Hz even at 5 Hz), while
+  the measured 22.7 Hz tremor is cut 13.3 dB at 5 Hz and 3.6 dB at 20 — so a
+  short episode means dependence on content well above what the task requires.
+  `stance_probe_filter_hz` now accepts a number or a list; unusable entries are
+  dropped with a warning rather than costing the cutoffs that are fine.
+  The sweep lands in `stance_gate_probe_filtered.{txt,json}` as one curve
+  sorted by cutoff, and is written even if a cutoff raises — a partial curve is
+  still a curve. It rolls **10 episodes per cutoff** rather than the gate's 40:
+  it certifies nothing, and the effect it measures is enormous (101 steps
+  against 1000), so it does not need the sample size the bound's power is
+  specified at. The whole sweep costs about what the old single 40-episode
+  probe did.
 
 ### Added
 - **The deterministic policy's action, measured instead of inferred.** Every

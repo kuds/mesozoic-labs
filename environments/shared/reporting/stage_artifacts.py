@@ -18,6 +18,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+#: Episodes per cutoff in the action-filter probe sweep. Far below the gate's
+#: ``min_eval_episodes`` on purpose: the probe certifies nothing, and the
+#: effect it measures is enormous -- 96 steps against a 1000-step horizon on
+#: T-Rex stage 1 (issue #491) -- so it does not need the sample size the
+#: gate's bound has its power specified at. Keeping it small is what makes a
+#: multi-cutoff sweep cost about what the old single 40-episode probe did.
+_PROBE_EPISODES = 10
+
 
 def build_stage_results_from_eval_data(
     stage_dir: "str | Path",
@@ -262,6 +270,31 @@ def _write_stance_gate_report(
     return None
 
 
+def _probe_cutoffs(raw: Any) -> list[float]:
+    """Normalise ``stance_probe_filter_hz`` to a sorted list of cutoffs.
+
+    Accepts a single number or a list, because the useful reading is a curve
+    rather than a point. A single cutoff answers a yes/no that is already
+    known to be "no" on this plant -- the checkpoint that PASSED the gate
+    falls at every cutoff from 5 to 35 Hz against a 100 Hz control rate
+    (issue #491) -- so its PASS/FAIL carries no information. The scalar that
+    can actually move is how long the filtered policy survives, and reading
+    that against cutoff shows *how much* high-frequency content the policy
+    depends on rather than merely that it depends on some.
+    """
+    values = raw if isinstance(raw, (list, tuple)) else [raw]
+    cutoffs: list[float] = []
+    for value in values:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            logger.warning("stance_probe_filter_hz entry is not a number: %r; ignoring it", value)
+            continue
+        if number > 0:
+            cutoffs.append(number)
+    return sorted(set(cutoffs))
+
+
 def _write_filtered_action_probe(
     *,
     species: str,
@@ -272,62 +305,73 @@ def _write_filtered_action_probe(
     vecnorm_path: str | None,
     episodes: int,
 ) -> None:
-    """Re-score the selected checkpoint with its actions low-passed.
+    """Re-score the selected checkpoint with its actions low-passed, over a sweep.
 
-    Answers, automatically and for every run, whether the policy's
-    high-frequency action content is load-bearing or waste: if it still stands
-    with the tremor filtered out the tremor was waste and the fix belongs on
-    the action path, and if it falls the tremor is closed-loop stabilisation
-    and the fix belongs on the pose (issue #489). Deriving that by hand meant
-    inverting per-episode reward totals and running open-loop experiments on
-    the statue, which bound what a tremor *can* do but never answer it for the
-    actual policy.
+    Measures how much of its own high-frequency command content the policy
+    needs in order to stand. A first-order low-pass between policy and plant
+    attenuates the tremor while leaving balance correction -- a ~1.1-1.4 Hz
+    phenomenon on this plant -- essentially untouched, so survival under the
+    filter is a direct read on whether the tremor is load-bearing.
 
-    Off unless ``stance_probe_filter_hz`` is set, because it costs a second
-    panel -- a few minutes per stage, and per sweep trial.
+    That question is settled for today's policies and the answer is "yes"
+    (issue #491), which is why this logs a CURVE. Reported per cutoff, the
+    survival length is a regression metric: 96 steps at 5 Hz is the current
+    T-Rex stage-1 baseline, and a policy reaching the horizon there would be
+    one that could survive a real actuator's bandwidth limit.
+
+    Off unless ``stance_probe_filter_hz`` is set. Each cutoff costs a panel,
+    so the probe deliberately rolls far fewer episodes than the gate report:
+    it certifies nothing, and the effect it measures is enormous (96 steps
+    against 1000), so it does not need the sample size the bound's power is
+    specified at.
 
     Writes ``stance_gate_probe_filtered.{txt,json}`` and deliberately NOT
     ``stance_panel_selected.csv``; the probe scored a modified policy and must
     never supply the evidence a bundle is certified from.
     """
-    cutoff = stage_config.get("curriculum_kwargs", {}).get("stance_probe_filter_hz")
-    if cutoff is None:
+    cutoffs = _probe_cutoffs(stage_config.get("curriculum_kwargs", {}).get("stance_probe_filter_hz"))
+    if not cutoffs:
         return
-    try:
-        cutoff = float(cutoff)
-    except (TypeError, ValueError):
-        logger.warning("stance_probe_filter_hz is not a number: %r; skipping the probe", cutoff)
-        return
-    if cutoff <= 0:
-        logger.info("Filtered action probe skipped for stage %d: stance_probe_filter_hz = %g", stage, cutoff)
-        return
+    probe_episodes = max(1, min(episodes, _PROBE_EPISODES))
+    entries: list[dict[str, Any]] = []
     try:
         from environments.shared.scripts.stance_gate_report import (
             build_stance_gate_report,
-            write_stance_gate_report,
+            write_action_filter_sweep,
         )
 
-        probe = build_stance_gate_report(
-            species,
-            stage,
-            stage_config=stage_config,
-            model_path=model_path,
-            vecnorm_path=vecnorm_path,
-            episodes=episodes,
-            filter_actions_hz=cutoff,
-        )
-        written = write_stance_gate_report(stage_dir, probe)
-        logger.info(
-            "Filtered action probe (%.4g Hz): reward %.1f, full-horizon %.4f, duty %.4f -> %s. "
-            "This scored a MODIFIED policy and is not a gate verdict.",
-            cutoff,
-            probe["metrics"]["reward_mean"],
-            probe["metrics"]["full_horizon_fraction"],
-            probe["metrics"]["mean_unsupported_duty"],
-            written["stance_gate_report_txt"],
-        )
+        for cutoff in cutoffs:
+            probe = build_stance_gate_report(
+                species,
+                stage,
+                stage_config=stage_config,
+                model_path=model_path,
+                vecnorm_path=vecnorm_path,
+                episodes=probe_episodes,
+                filter_actions_hz=cutoff,
+            )
+            entries.append(probe)
+            logger.info(
+                "Filtered action probe %.4g Hz: episode length %.1f, full-horizon %.4f, reward %.1f. "
+                "MODIFIED policy -- not a gate verdict.",
+                cutoff,
+                probe["metrics"]["episode_length_mean"],
+                probe["metrics"]["full_horizon_fraction"],
+                probe["metrics"]["reward_mean"],
+            )
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Filtered action probe failed for stage %d", stage, exc_info=True)
+    # Written even if a later cutoff raised: a partial curve is still a curve,
+    # and discarding the cutoffs that succeeded would lose the measurement to
+    # a failure in one of them.
+    if entries:
+        try:
+            from environments.shared.scripts.stance_gate_report import write_action_filter_sweep
+
+            written = write_action_filter_sweep(stage_dir, entries, probe_episodes=probe_episodes)
+            logger.info("Filtered action probe sweep -> %s", written["action_filter_sweep_txt"])
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+            logger.warning("Could not write the filtered action probe sweep", exc_info=True)
 
 
 def _apply_stage_gate(
