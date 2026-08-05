@@ -69,6 +69,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `reward_terms/eval_*`. A diagnostic that exists only in a file nobody
   opens mid-run is how the stance gate criteria stayed invisible for the whole
   of run `20260804_143747`.
+- **`stance_gate_report.py` now reports the commanded action per actuator** —
+  DC, AC rms, and the effective frequency, over the post-settle window, with
+  real joint names (`r_hip_pitch`, `r_knee`, …). This script holds the
+  environment directly rather than through VecEnv wrappers, so the
+  actuator→joint mapping is exact rather than a best-effort lookup.
+  It means **one five-minute run against an existing checkpoint** tests both
+  premises of the `leg_home_pose_weight` change: whether the tremor is
+  load-bearing (`--filter-actions`) and whether the static offset is even in
+  the leg joints, which is the other way that change can fail by construction.
+  Neither previously needed a training run to answer — they needed instrumentation
+  that did not exist.
 
 ### Changed
 - **T-Rex stage 1 `leg_home_pose_weight` 0.5 → 1.5, and the two constants

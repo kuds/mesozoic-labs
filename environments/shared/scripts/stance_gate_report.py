@@ -163,6 +163,7 @@ def run_panel(
     horizon: int,
     env_kwargs: dict[str, Any],
     plant_identity: Any = None,
+    control_dt: float = 0.01,
 ) -> dict[str, Any]:
     """Roll ``episodes`` deterministic episodes and reduce them for the gate.
 
@@ -194,8 +195,15 @@ def run_panel(
     # keeps paying the airborne penalty is being funded by some other term;
     # which one is not guessable from the aggregate score.
     components: dict[str, float] = {}
+    # Per-actuator action statistics. Which actuators carry a static offset
+    # decides whether a leg-pose weight can reach it at all: `leg_home_pose`
+    # covers only the leg joints, so a displacement living in the tail or neck
+    # is invisible to it and unfixable by it (issue #489).
+    action_stats = _new_action_stats()
+    joint_names: list[str] = []
 
     try:
+        joint_names = _actuator_joint_names(env)
         _roll_episodes(
             env,
             predict=predict,
@@ -209,6 +217,7 @@ def run_panel(
             single_duties=single_duties,
             terminations=terminations,
             components=components,
+            action_stats=action_stats,
         )
     finally:
         env.close()
@@ -243,6 +252,7 @@ def run_panel(
         "components": {key: value / episodes for key, value in components.items()},
         "bilateral_duty": _full_horizon_mean(bilateral_duties),
         "single_duty": _full_horizon_mean(single_duties),
+        "action": _reduce_action_stats(action_stats, joint_names, control_dt),
         # The measurements the panel was reduced from. Kept rather than
         # discarded so the report can serialize the evidence, not only its
         # summary: an aggregate cannot be re-checked, and duty is the one
@@ -265,6 +275,111 @@ def run_panel(
     }
 
 
+def _new_action_stats() -> dict[str, Any]:
+    return {
+        "sum": None,
+        "sq_sum": None,
+        "count": 0,
+        "delta": 0.0,
+        "jerk": 0.0,
+        # Counted separately: a difference needs two samples and a second
+        # difference three, and episode boundaries reset the history, so
+        # dividing all three by the sample count biases the ratio -- and the
+        # ratio is what becomes a frequency.
+        "delta_count": 0,
+        "jerk_count": 0,
+        "prev": None,
+        "prev_prev": None,
+    }
+
+
+def _accumulate_action(stats: dict[str, Any], action: np.ndarray) -> None:
+    """Accumulate one post-settle action into the per-actuator statistics."""
+    if stats["sum"] is None or stats["sum"].shape != action.shape:
+        stats["sum"] = np.zeros_like(action)
+        stats["sq_sum"] = np.zeros_like(action)
+    stats["sum"] += action
+    stats["sq_sum"] += action * action
+    stats["count"] += 1
+    prev, prev_prev = stats["prev"], stats["prev_prev"]
+    if prev is not None and prev.shape == action.shape:
+        # Summed over actuators, matching the `Sum` in the reward terms so
+        # these invert straight back through `reward_action_smoothness` and
+        # `reward_action_jerk`.
+        stats["delta"] += float(np.sum((action - prev) ** 2))
+        stats["delta_count"] += 1
+        if prev_prev is not None and prev_prev.shape == action.shape:
+            stats["jerk"] += float(np.sum((action - 2.0 * prev + prev_prev) ** 2))
+            stats["jerk_count"] += 1
+    stats["prev_prev"] = prev
+    stats["prev"] = action
+
+
+def _actuator_joint_names(env: Any) -> list[str]:
+    """Names of the joint each actuator drives, or ``[]`` if unavailable.
+
+    Unlike the training callback -- which reaches the environment only through
+    VecEnv wrappers and so cannot resolve these without a best-effort lookup
+    that silently returns nothing -- this script holds the env directly, so the
+    mapping is exact and the per-actuator report can be read by joint rather
+    than by index.
+    """
+    try:
+        import mujoco
+
+        model = env.unwrapped.model
+        names = []
+        for index in range(model.nu):
+            joint_id = int(model.actuator_trnid[index, 0])
+            name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, joint_id)
+            names.append(name or f"actuator_{index}")
+        return names
+    except Exception:  # noqa: BLE001 - names are a convenience, not the measurement
+        return []
+
+
+def _reduce_action_stats(stats: dict[str, Any], names: list[str], control_dt: float) -> dict[str, Any]:
+    """Reduce the accumulators into the report's ``action`` block.
+
+    The DC/AC split is the point. ``mean(a)`` per actuator is the static pose
+    the policy commands -- under ``home-keyframe-residual/v1`` the distance
+    from the home keyframe, since ``action = 0`` *is* that keyframe -- and the
+    spread about it is what the policy does on top. They have different causes
+    and different fixes, and a single pooled number cannot tell them apart
+    (issue #489).
+    """
+    count = stats["count"]
+    if not count or stats["sum"] is None:
+        return {}
+    mean = stats["sum"] / count
+    var = np.maximum(stats["sq_sum"] / count - mean * mean, 0.0)
+    ac = np.sqrt(var)
+    delta = stats["delta"] / stats["delta_count"] if stats["delta_count"] else 0.0
+    jerk = stats["jerk"] / stats["jerk_count"] if stats["jerk_count"] else 0.0
+    # For a narrowband action signal `jerk/delta = (2 sin(pi f dt))^2`, blind
+    # to any constant offset. At the white-noise limit the ratio saturates,
+    # which means broadband rather than a tone at that frequency.
+    freq = float("nan")
+    if delta > 0.0:
+        freq = math.asin(min(1.0, math.sqrt(jerk / delta) / 2.0)) / (math.pi * control_dt)
+    return {
+        "dc_rms": float(np.sqrt(np.mean(mean * mean))),
+        "ac_rms": float(np.sqrt(np.mean(var))),
+        "delta_per_step": float(delta),
+        "jerk_per_step": float(jerk),
+        "effective_freq_hz": freq,
+        "per_actuator": [
+            {
+                "index": index,
+                "joint": names[index] if index < len(names) else f"actuator_{index}",
+                "dc": float(mean[index]),
+                "ac_rms": float(ac[index]),
+            }
+            for index in range(mean.size)
+        ],
+    }
+
+
 def _roll_episodes(
     env: Any,
     *,
@@ -279,6 +394,7 @@ def _roll_episodes(
     single_duties: list[float],
     terminations: dict[str, int],
     components: dict[str, float],
+    action_stats: dict[str, Any],
 ) -> None:
     """Roll the panel, appending per-episode measurements to the given lists.
 
@@ -299,7 +415,12 @@ def _roll_episodes(
         single = 0
         measured = 0
         while True:
-            obs, reward, terminated, truncated, info = env.step(predict(obs))
+            action = np.asarray(predict(obs), dtype=np.float64).ravel()
+            # Post-settle only, the same window the duty uses, so the reset
+            # transient does not read as tremor.
+            if steps >= settle_steps:
+                _accumulate_action(action_stats, action)
+            obs, reward, terminated, truncated, info = env.step(action)
             total += float(reward)
             for key, value in info.items():
                 if key.startswith("reward_") and key != "reward_total":
@@ -319,6 +440,9 @@ def _roll_episodes(
                 reason = info.get("termination_reason", "terminated" if terminated else "truncated")
                 terminations[reason] = terminations.get(reason, 0) + 1
                 break
+        # An episode boundary is not an action difference.
+        action_stats["prev"] = None
+        action_stats["prev_prev"] = None
         lengths.append(float(steps))
         rewards.append(total)
         # All three shares stay positionally aligned with `lengths`, so the
@@ -471,6 +595,7 @@ def build_stance_gate_report(
         horizon=horizon,
         env_kwargs=env_kwargs,
         plant_identity=plant_identity,
+        control_dt=control_dt,
     )
     panel = result["panel"]
     passed, failures = evaluate_stance_gate(panel, thresholds)
@@ -520,6 +645,9 @@ def build_stance_gate_report(
         # a stored report. `render_stance_gate_report` prints it for the same
         # reason.
         "filter_actions_hz": filter_actions_hz,
+        # Where the commanded pose sits and what the policy does around it,
+        # per actuator. `{}` when no post-settle step was measured.
+        "action": result.get("action", {}),
         "terminations": result["terminations"],
         "reward_components": result["components"],
         # The per-episode measurements the panel was reduced from. This is
@@ -579,6 +707,23 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
         for key in sorted(components, key=lambda k: -abs(components[k])):
             if abs(components[key]) > 0.05:
                 lines.append(f"  {key:28s} {components[key]:10.2f}")
+    action = report.get("action") or {}
+    if action:
+        lines += [
+            "",
+            "commanded action, post-settle "
+            f"(DC {action['dc_rms']:.3f} rms, AC {action['ac_rms']:.3f} rms, "
+            f"~{action['effective_freq_hz']:.1f} Hz):",
+            "  DC is the distance from the home keyframe (action = 0 IS that pose);",
+            "  AC is what the policy does around it. Different causes, different fixes.",
+        ]
+        per_actuator = action.get("per_actuator") or []
+        # Largest offset first: the question this answers is WHICH joints are
+        # displaced, because a leg-pose weight can only reach the leg ones.
+        for entry in sorted(per_actuator, key=lambda e: -abs(e["dc"]))[:12]:
+            lines.append(f"  {entry['joint']:28s} DC {entry['dc']:+7.3f}   AC {entry['ac_rms']:6.3f}")
+        if len(per_actuator) > 12:
+            lines.append(f"  ... {len(per_actuator) - 12} more (full list in the JSON)")
     lines += ["", f"GATE: {'PASS' if report['passed'] else 'FAIL'}"]
     lines += [f"  - {failure}" for failure in report["failures"]]
     return "\n".join(lines)

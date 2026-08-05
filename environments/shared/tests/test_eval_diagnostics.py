@@ -69,6 +69,8 @@ def _bare_stage_aware_callback(
     callback._action_delta_sum = 0.0
     callback._action_jerk_sum = 0.0
     callback._action_count = 0
+    callback._action_delta_count = 0
+    callback._action_jerk_count = 0
     callback._prev_action = {}
     callback._prev_prev_action = {}
     callback._reward_term_sums = {}
@@ -1007,9 +1009,10 @@ class TestDeterministicActionStatistics:
         # first, and the second difference is -/+4.
         self._feed(callback, [[1.0], [-1.0]] * 8, done_at=15)
         callback._publish_action_statistics()
-        # 15 of 16 steps have a previous action; 14 have two.
-        assert callback.evaluations_action_delta[0] == pytest.approx(15 * 4.0 / 16)
-        assert callback.evaluations_action_jerk[0] == pytest.approx(14 * 16.0 / 16)
+        # Averaged over differencing opportunities, not samples: 15 pairs and
+        # 14 triples, so the alternation reads as its exact amplitude.
+        assert callback.evaluations_action_delta[0] == pytest.approx(4.0)
+        assert callback.evaluations_action_jerk[0] == pytest.approx(16.0)
 
     def test_the_settling_window_is_excluded(self):
         """Same window as the duty: the reset transient is not the tremor."""
@@ -1038,8 +1041,10 @@ class TestDeterministicActionStatistics:
         self._feed(callback, [[-1.0]], done_at=0)
         callback._publish_action_statistics()
         # Two episodes of one step each: no within-episode pair exists, so the
-        # boundary jump of 2.0 must not be charged.
-        assert callback.evaluations_action_delta[0] == pytest.approx(0.0)
+        # boundary jump of 2.0 must not be charged. NaN rather than 0.0,
+        # because nothing was measured -- 0.0 would read as "perfectly smooth".
+        assert math.isnan(callback.evaluations_action_delta[0])
+        assert callback._action_delta_count == 0
 
     def test_reward_terms_are_averaged_per_episode(self):
         callback = _bare_stage_aware_callback(success_applicable=False)

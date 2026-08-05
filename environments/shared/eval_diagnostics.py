@@ -142,6 +142,12 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self._action_delta_sum = 0.0
         self._action_jerk_sum = 0.0
         self._action_count = 0
+        # Counted separately from the samples: a difference needs two and a
+        # second difference three, and episode boundaries reset the history.
+        # Dividing all three by the sample count biases their ratio, and that
+        # ratio is what becomes a frequency.
+        self._action_delta_count = 0
+        self._action_jerk_count = 0
         self._prev_action: dict[int, Any] = {}
         self._prev_prev_action: dict[int, Any] = {}
         # Reward terms accumulate over the WHOLE episode: they are episode
@@ -165,6 +171,8 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self._action_delta_sum = 0.0
         self._action_jerk_sum = 0.0
         self._action_count = 0
+        self._action_delta_count = 0
+        self._action_jerk_count = 0
         self._prev_action.clear()
         self._prev_prev_action.clear()
         self._reward_term_sums.clear()
@@ -200,8 +208,10 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                 # so the numbers invert straight back through those formulas.
                 if prev is not None and prev.shape == action.shape:
                     self._action_delta_sum += float(np.sum((action - prev) ** 2))
+                    self._action_delta_count += 1
                     if prev_prev is not None and prev_prev.shape == action.shape:
                         self._action_jerk_sum += float(np.sum((action - 2.0 * prev + prev_prev) ** 2))
+                        self._action_jerk_count += 1
             self._prev_prev_action[env_index] = prev
             self._prev_action[env_index] = action
         except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
@@ -283,9 +293,14 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             var = np.maximum(self._action_sq_sum / count - mean * mean, 0.0)
             self.evaluations_action_dc.append([float(v) for v in mean])
             self.evaluations_action_ac_rms.append([float(v) for v in np.sqrt(var)])
-            # Per step, so they invert directly through the reward formulas.
-            self.evaluations_action_delta.append(self._action_delta_sum / count)
-            self.evaluations_action_jerk.append(self._action_jerk_sum / count)
+            # Per differencing opportunity, so they invert directly through
+            # the reward formulas without an edge-effect bias.
+            self.evaluations_action_delta.append(
+                self._action_delta_sum / self._action_delta_count if self._action_delta_count else float("nan")
+            )
+            self.evaluations_action_jerk.append(
+                self._action_jerk_sum / self._action_jerk_count if self._action_jerk_count else float("nan")
+            )
         else:
             self.evaluations_action_dc.append([])
             self.evaluations_action_ac_rms.append([])

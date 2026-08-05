@@ -13,6 +13,7 @@ loudly rather than degrade.
 from __future__ import annotations
 
 import csv
+import math
 import pickle
 from pathlib import Path
 
@@ -1175,3 +1176,92 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         curriculum = load_stage_config("trex", 1)["curriculum_kwargs"]
         assert curriculum["stance_probe_filter_hz"] == 5.0
         validate_gate_config(1, curriculum)
+
+
+class TestPerActuatorActionReporting:
+    """Which actuators carry the offset decides whether a pose weight reaches it.
+
+    `leg_home_pose` covers only the leg joints, so a displacement living in the
+    tail or neck is invisible to it and unfixable by it (issue #489). The
+    scalar summaries cannot answer that; this is what makes one five-minute
+    run on an existing checkpoint test it.
+    """
+
+    @staticmethod
+    def _stats(sequence):
+        from environments.shared.scripts.stance_gate_report import (
+            _accumulate_action,
+            _new_action_stats,
+        )
+
+        stats = _new_action_stats()
+        for action in sequence:
+            _accumulate_action(stats, np.asarray(action, dtype=np.float64))
+        return stats
+
+    def test_dc_and_ac_are_reported_per_actuator(self):
+        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+
+        # Actuator 0 holds 0.5 and shakes +/-0.1; actuator 1 is still at 0.
+        stats = self._stats([[0.6, 0.0], [0.4, 0.0]] * 10)
+        out = _reduce_action_stats(stats, ["r_hip_pitch", "tail_1"], 0.01)
+        by_joint = {entry["joint"]: entry for entry in out["per_actuator"]}
+        assert by_joint["r_hip_pitch"]["dc"] == pytest.approx(0.5)
+        assert by_joint["r_hip_pitch"]["ac_rms"] == pytest.approx(0.1)
+        assert by_joint["tail_1"]["dc"] == pytest.approx(0.0)
+        assert by_joint["tail_1"]["ac_rms"] == pytest.approx(0.0)
+
+    def test_the_effective_frequency_matches_the_inversion(self):
+        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+
+        # Alternating every step is the Nyquist rate: 50 Hz at dt = 0.01.
+        stats = self._stats([[1.0], [-1.0]] * 20)
+        out = _reduce_action_stats(stats, ["j"], 0.01)
+        assert out["effective_freq_hz"] == pytest.approx(50.0, abs=0.5)
+
+    def test_a_constant_action_has_no_frequency(self):
+        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+
+        out = _reduce_action_stats(self._stats([[0.5]] * 10), ["j"], 0.01)
+        # No first difference leaves the ratio undefined. NaN is honest;
+        # 0 Hz would read as a measured slow drift.
+        assert math.isnan(out["effective_freq_hz"])
+        assert out["dc_rms"] == pytest.approx(0.5)
+
+    def test_no_measured_steps_yields_an_empty_block(self):
+        from environments.shared.scripts.stance_gate_report import (
+            _new_action_stats,
+            _reduce_action_stats,
+        )
+
+        assert _reduce_action_stats(_new_action_stats(), [], 0.01) == {}
+
+    def test_unnamed_actuators_fall_back_to_an_index(self):
+        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+
+        out = _reduce_action_stats(self._stats([[0.1, 0.2]] * 4), [], 0.01)
+        assert [entry["joint"] for entry in out["per_actuator"]] == ["actuator_0", "actuator_1"]
+
+    def test_the_text_form_lists_the_largest_offsets_first(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        report = _minimal_stance_report()
+        report["action"] = {
+            "dc_rms": 0.8,
+            "ac_rms": 0.277,
+            "delta_per_step": 2.73,
+            "jerk_per_step": 4.64,
+            "effective_freq_hz": 22.6,
+            "per_actuator": [
+                {"index": 0, "joint": "tail_1", "dc": 0.9, "ac_rms": 0.1},
+                {"index": 1, "joint": "r_knee", "dc": -0.2, "ac_rms": 0.3},
+            ],
+        }
+        text = render_stance_gate_report(report)
+        assert "22.6 Hz" in text
+        assert text.index("tail_1") < text.index("r_knee")
+
+    def test_a_report_without_the_block_still_renders(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        assert "commanded action" not in render_stance_gate_report(_minimal_stance_report())
