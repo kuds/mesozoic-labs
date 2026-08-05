@@ -215,3 +215,30 @@ def test_the_notebook_passes_species_so_the_watch_is_not_dead_code():
         "sb3_training.ipynb must pass species= to _build_core_callbacks, or the "
         "zero-action baseline watch is never constructed"
     )
+
+
+def test_every_trainer_call_site_passes_species():
+    """The notebook is not the only caller, and pinning only it missed two.
+
+    `train_stage` and `train_curriculum` both shipped omitting `species`,
+    which left the watch dead on both library entry points while the
+    notebook test above passed — the *same* dead-code failure that test was
+    written to prevent, one call site over. So this asserts over every call
+    site in `train_base.py` rather than a hand-listed one.
+    """
+    import ast
+
+    repo_root = Path(__file__).resolve().parents[3]
+    source = (repo_root / "environments" / "shared" / "train_base.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_build_core_callbacks"
+    ]
+    assert calls, "expected _build_core_callbacks to be called in train_base.py"
+    for call in calls:
+        assert any(kw.arg == "species" for kw in call.keywords), (
+            f"_build_core_callbacks call at train_base.py:{call.lineno} omits species=, "
+            "so the zero-action baseline watch is never constructed on that path"
+        )

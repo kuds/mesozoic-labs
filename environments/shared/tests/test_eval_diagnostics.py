@@ -886,11 +886,64 @@ class TestGateProgressIsPersisted:
         assert a._gate_progress_timesteps == [1000]
         assert b._gate_progress_timesteps == [2000]
 
+    @staticmethod
+    def _unwritable_dir(tmp_path):
+        """A target `atomic_copy` genuinely cannot create.
+
+        Not a merely absent directory: `atomic_copy` calls
+        `mkdir(parents=True)`, so a missing path is created rather than
+        failing, and asserting "does not raise" against one exercises the
+        success path under a name that claims otherwise. Rooting the target
+        under a regular *file* makes mkdir raise NotADirectoryError, and
+        unlike `chmod 000` it still fails when the suite runs as root.
+        """
+        blocker = tmp_path / "not-a-directory"
+        blocker.write_text("", encoding="utf-8")
+        return blocker / "gate"
+
+    def test_a_missing_directory_is_created_rather_than_dropped(self, tmp_path):
+        target = tmp_path / "does" / "not" / "exist"
+        cb = self._callback(target)
+        cb.num_timesteps = 50_000
+        cb._record_gate_progress(unsupported_duty=0.42)
+        assert list(np.load(target / "gate_progress.npz")["unsupported_duty"]) == pytest.approx([0.42])
+
     def test_an_unwritable_directory_does_not_sink_the_run(self, tmp_path):
-        cb = self._callback(tmp_path / "does" / "not" / "exist")
+        cb = self._callback(self._unwritable_dir(tmp_path))
         cb.num_timesteps = 50_000
         cb._record_gate_progress(unsupported_duty=0.42)  # must not raise
         assert cb._gate_progress_timesteps == [50_000]
+
+    def test_an_unwritable_directory_warns_once_not_per_evaluation(self, tmp_path, caplog):
+        """A 10M run evaluates ~200 times and would fail identically each time.
+
+        200 stack traces would bury the below-baseline warning this run is
+        actually meant to surface.
+        """
+        cb = self._callback(self._unwritable_dir(tmp_path))
+        with caplog.at_level(logging.WARNING, logger="environments.shared.eval_diagnostics"):
+            for step in range(1, 6):
+                cb.num_timesteps = step * 50_000
+                cb._record_gate_progress(unsupported_duty=0.42)
+        assert sum("gate_progress.npz" in r.message for r in caplog.records) == 1
+        assert len(cb._gate_progress_timesteps) == 5  # still accumulating in memory
+
+    def test_a_short_series_is_dropped_rather_than_written_misaligned(self, tmp_path):
+        """A key supplied on only some evaluations must not read as the first n.
+
+        Today one call site supplies every key every time, so this cannot
+        happen -- but a silently misaligned duty series is exactly the kind of
+        wrong number a kill/continue decision would be made on.
+        """
+        cb = self._callback(tmp_path)
+        cb.num_timesteps = 50_000
+        cb._record_gate_progress(unsupported_duty=0.42, duty_episodes=40)
+        cb.num_timesteps = 100_000
+        cb._record_gate_progress(unsupported_duty=0.31)  # duty_episodes absent
+        data = np.load(tmp_path / "gate_progress.npz")
+        assert list(data["timesteps"]) == [50_000, 100_000]
+        assert list(data["unsupported_duty"]) == pytest.approx([0.42, 0.31])
+        assert "duty_episodes" not in data
 
     def test_no_directory_still_accumulates_in_memory(self, tmp_path):
         cb = self._callback(None)

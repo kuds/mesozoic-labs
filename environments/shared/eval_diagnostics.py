@@ -271,6 +271,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     _gate_progress_dir: "Path | None" = None
     _gate_progress_timesteps: list[int] = []
     _gate_progress: dict[str, list[float]] = {}
+    _warned_gate_progress_unwritable = False
 
     def __init__(
         self,
@@ -308,6 +309,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         self._gate_progress_dir = None if gate_progress_dir is None else Path(gate_progress_dir)
         self._gate_progress_timesteps: list[int] = []
         self._gate_progress: dict[str, list[float]] = {}
+        self._warned_gate_progress_unwritable = False
 
     @staticmethod
     def _finite_mean(values: Any) -> float | None:
@@ -576,12 +578,26 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         try:
             from .file_io import atomic_savez
 
+            n = len(self._gate_progress_timesteps)
             payload = {"timesteps": np.array(self._gate_progress_timesteps)}
+            # Length-guarded against `timesteps`, like every optional series in
+            # `diagnostics.npz`. Today one call site supplies every key on every
+            # evaluation, so nothing can diverge -- but a future caller that
+            # supplies a key conditionally would otherwise write a short array
+            # that silently reads as the FIRST n evaluations rather than the
+            # ones it came from. Dropping it is recoverable; misaligning it is
+            # the kind of error this file exists to stop.
             for key, series in self._gate_progress.items():
-                payload[key] = np.array(series)
+                if len(series) == n:
+                    payload[key] = np.array(series)
             atomic_savez(Path(self._gate_progress_dir) / "gate_progress.npz", **payload)
         except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
-            logger.warning("Could not write gate_progress.npz", exc_info=True)
+            # Once. An unwritable directory fails identically on all ~200
+            # evaluations of a 10M run, and 200 stack traces would bury the
+            # warnings this run is actually meant to surface.
+            if not self._warned_gate_progress_unwritable:
+                self._warned_gate_progress_unwritable = True
+                logger.warning("Could not write gate_progress.npz", exc_info=True)
 
     def _process_evaluation(self, index: int) -> None:
         panel = self._stance_panel(index)

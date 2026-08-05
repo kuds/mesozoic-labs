@@ -752,6 +752,7 @@ def train(
         use_wandb,
         local_tb_dir=local_tb_dir,
         gcs_tb_path=gcs_tb_path,
+        species=species,
     )
 
     ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, total_timesteps)
@@ -1235,6 +1236,7 @@ def train_curriculum(
             use_wandb,
             local_tb_dir=local_tb_dir,
             gcs_tb_path=gcs_tb_path,
+            species=species,
         )
 
         ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, total_timesteps)
