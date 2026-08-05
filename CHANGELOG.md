@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
+### Added
+- **The deterministic policy's action, measured instead of inferred.** Every
+  action number on disk came from *training* rollouts, so all of it carried
+  exploration noise; diagnosing issue #489 meant recovering the commanded pose
+  and the tremor about it by inverting per-episode reward totals under a
+  narrowband assumption. `StageAwareEvalCallback` now measures them directly
+  during evaluation and `gate_progress.npz` carries them:
+  `action_dc_rms` (the static distance from the home keyframe, which under
+  `home-keyframe-residual/v1` is exactly `action = 0`), `action_ac_rms` (the
+  tremor about it), `action_delta`, `action_jerk`, and `action_freq_hz`.
+  The DC/AC split is the point: a pooled standard deviation over actuators and
+  time — which is what `diagnostics.action_std` computes — cannot separate
+  "sitting in the wrong place" from "shaking", and those have different causes
+  and different fixes. Measured over the post-settle window, the same one the
+  duty uses, so the reset transient does not inflate the AC term.
+- **`action_dc_per_actuator` / `action_ac_rms_per_actuator`**, the same two
+  quantities as `(n_evals, n_actuators)` matrices. Which actuators carry the
+  offset decides whether a leg-pose weight can reach it at all: `leg_home_pose`
+  covers only the leg joints, so a displacement living in the tail or neck is
+  invisible to it and unfixable by it. Logged per actuator rather than
+  per group because grouping is an analysis decision, and resolving joint names
+  through the VecEnv wrappers is exactly the kind of best-effort lookup that
+  silently returns nothing.
+- **`term_*` in `gate_progress.npz`** — every reward term, per evaluation.
+  Only `mean_reward` was kept, so comparing two runs meant comparing their
+  final checkpoints and nothing in between, with no way to ask *when* a policy
+  adopted the pose it ended up with.
+- **`action_jerk` in `diagnostics.npz`.** The environment has always emitted it
+  (it is what `reward_action_jerk` charges) and `INFO_KEYS` has always dropped
+  it, so the signal was computed every step and discarded. With both
+  differences recorded the effective frequency is free:
+  `jerk/delta = (2 sin πfΔt)²`, which unlike either alone is blind to a
+  constant offset.
+- **`stance_gate_report.py --filter-actions HZ`**, a probe for whether a
+  policy's high-frequency action content is load-bearing or waste. It
+  low-passes the action between the policy and the plant and scores *that*:
+  if the policy still stands, the tremor was waste and the fix belongs on the
+  action path; if it falls, the tremor is closed-loop stabilisation and the fix
+  belongs elsewhere (#489). Open-loop experiments on the statue bound what a
+  tremor *can* do; only filtering the real policy answers it for that policy.
+  A filtered rollout scores a **modified** policy, so the report records
+  `filter_actions_hz` and the text form prints the warning *above* the verdict
+  — a PASS obtained this way must never be mistakable for a gate result.
+
 ### Changed
 - **T-Rex stage 1 `leg_home_pose_weight` 0.5 → 1.5, and the two constants
   derived from the statue re-measured with it.** Run `20260805_011234` **passed**

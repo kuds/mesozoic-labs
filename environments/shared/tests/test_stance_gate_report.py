@@ -16,6 +16,7 @@ import csv
 import pickle
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from environments.shared.scripts import stance_gate_report
@@ -949,3 +950,99 @@ class TestStancePanelEvidenceFile:
         written = write_stance_gate_report(tmp_path, report)
         assert "stance_panel_csv" not in written
         assert not (tmp_path / "stance_panel_selected.csv").exists()
+
+
+def _minimal_stance_report() -> dict:
+    """A report dict complete enough for the renderer."""
+    return {
+        "schema": "mesozoic.stance-gate-report/v1",
+        "species": "trex",
+        "stage": 1,
+        "gate_kind": "stance_quality/v1",
+        "policy": "robust_best_model.zip",
+        "episodes": 40,
+        "seed": 3042,
+        "settle_steps": 200,
+        "horizon": 1000,
+        "passed": True,
+        "failures": [],
+        "thresholds": {
+            "min_full_horizon_fraction": 0.95,
+            "max_unsupported_duty": 0.02,
+            "max_unsupported_duty_ucb": 0.02,
+            "min_avg_reward": 2550.0,
+            "min_eval_episodes": 40,
+        },
+        "metrics": {
+            "reward_mean": 3004.3,
+            "reward_std": 17.1,
+            "episode_length_mean": 1000.0,
+            "full_horizon_fraction": 1.0,
+            "mean_unsupported_duty": 0.0,
+            "unsupported_duty_ucb": 0.0,
+            "n_duty_episodes": 40,
+            "bilateral_support_duty": 1.0,
+            "single_support_duty": 0.0,
+        },
+        "terminations": {"truncated": 40},
+        "reward_components": {"reward_alive": 995.2},
+    }
+
+
+class TestActionFilterProbe:
+    """`--filter-actions` scores a MODIFIED policy, and must say so.
+
+    It exists to answer whether a policy's high-frequency action content is
+    load-bearing or waste (issue #489): if a filtered policy still stands, the
+    tremor was waste and the fix belongs on the action path; if it falls, the
+    tremor is closed-loop stabilisation and the fix belongs elsewhere.
+    """
+
+    @staticmethod
+    def _filtered(cutoff_hz, control_dt=0.01, actions=None):
+        from environments.shared.scripts.stance_gate_report import _low_pass_predict
+
+        seq = iter(actions or [])
+        base = lambda _obs: np.asarray(next(seq), dtype=np.float64)  # noqa: E731
+        return _low_pass_predict(base, cutoff_hz, control_dt)
+
+    def test_a_constant_action_passes_through_unchanged(self):
+        """A low-pass must be a no-op on DC, or it would move the pose itself."""
+        predict = self._filtered(5.0, actions=[[0.5]] * 20)
+        out = [float(predict(None)[0]) for _ in range(20)]
+        assert out[0] == pytest.approx(0.5)
+        assert out[-1] == pytest.approx(0.5)
+
+    def test_it_attenuates_a_fast_alternation(self):
+        predict = self._filtered(5.0, actions=[[1.0], [-1.0]] * 30)
+        out = [float(predict(None)[0]) for _ in range(60)]
+        # Seeded with the first action, so settle before measuring.
+        tail = out[20:]
+        assert max(abs(v) for v in tail) < 0.4, "22.6 Hz-class content should be cut hard at 5 Hz"
+
+    def test_it_seeds_on_the_first_action_rather_than_zero(self):
+        """Starting from zero injects a step transient that is a probe artefact."""
+        predict = self._filtered(5.0, actions=[[0.9]])
+        assert float(predict(None)[0]) == pytest.approx(0.9)
+
+    def test_reset_prevents_one_episode_leaking_into_the_next(self):
+        predict = self._filtered(5.0, actions=[[1.0], [-1.0]])
+        assert float(predict(None)[0]) == pytest.approx(1.0)
+        predict.reset()
+        assert float(predict(None)[0]) == pytest.approx(-1.0)
+
+    def test_the_report_records_the_probe_so_a_pass_cannot_be_mistaken(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        report = _minimal_stance_report()
+        report["filter_actions_hz"] = 5.0
+        text = render_stance_gate_report(report)
+        assert "PROBE" in text
+        assert "not a gate result" in text
+        # The warning must precede the verdict a reader would otherwise act on.
+        assert text.index("PROBE") < text.index("GATE:")
+
+    def test_an_unfiltered_report_says_nothing_about_the_probe(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        assert "PROBE" not in render_stance_gate_report(_minimal_stance_report())

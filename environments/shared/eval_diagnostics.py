@@ -102,6 +102,29 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         # single support, and how much is unmeasured. Recording it every
         # evaluation is what turns that into evidence instead of a guess.
         self.evaluations_bilateral_duties: list[list[float]] = []
+        # Action statistics for the DETERMINISTIC policy, which is what the
+        # gate scores. `diagnostics.npz` records actions from training
+        # rollouts, so every number in it carries exploration noise; the
+        # quantities that matter here -- how far the commanded pose sits from
+        # the home keyframe, and how much the policy shakes about it -- are
+        # properties of the mean action and are unrecoverable from a noisy
+        # sample. Issue #489 had to invert them out of per-episode reward
+        # totals under a narrowband assumption. These measure them.
+        #
+        # Per actuator, not per group: grouping is an analysis decision, and
+        # resolving joint names through the VecEnv wrappers is exactly the kind
+        # of best-effort lookup that silently returns nothing. Recording the
+        # full vector keeps the grouping offline and impossible to get wrong
+        # here.
+        self.evaluations_action_dc: list[list[float]] = []
+        self.evaluations_action_ac_rms: list[list[float]] = []
+        self.evaluations_action_delta: list[float] = []
+        self.evaluations_action_jerk: list[float] = []
+        # Per-episode reward decomposition. Only `mean_reward` was kept, so
+        # comparing two runs meant comparing their final checkpoints and
+        # nothing in between -- there was no way to ask WHEN a policy adopted
+        # the pose it ended up with.
+        self.evaluations_reward_terms: list[dict[str, float]] = []
         self._episode_forward_sums: dict[int, float] = {}
         self._episode_forward_counts: dict[int, int] = {}
         self._current_eval_forward_velocities: list[float] = []
@@ -111,6 +134,21 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self._episode_measured: dict[int, int] = {}
         self._current_eval_unsupported_duties: list[float] = []
         self._current_eval_bilateral_duties: list[float] = []
+        # Action accumulators, over the post-settle window so the reset
+        # transient does not inflate the AC term -- the same window the duty
+        # uses, and for the same reason.
+        self._action_sum: Any = None
+        self._action_sq_sum: Any = None
+        self._action_delta_sum = 0.0
+        self._action_jerk_sum = 0.0
+        self._action_count = 0
+        self._prev_action: dict[int, Any] = {}
+        self._prev_prev_action: dict[int, Any] = {}
+        # Reward terms accumulate over the WHOLE episode: they are episode
+        # returns, and truncating them to the post-settle window would make
+        # them incomparable with `stance_gate_report.py`'s breakdown.
+        self._reward_term_sums: dict[str, float] = {}
+        self._reward_term_episodes = 0
 
     def _reset_forward_velocity_capture(self) -> None:
         self._episode_forward_sums.clear()
@@ -122,12 +160,67 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self._episode_measured.clear()
         self._current_eval_unsupported_duties = []
         self._current_eval_bilateral_duties = []
+        self._action_sum = None
+        self._action_sq_sum = None
+        self._action_delta_sum = 0.0
+        self._action_jerk_sum = 0.0
+        self._action_count = 0
+        self._prev_action.clear()
+        self._prev_prev_action.clear()
+        self._reward_term_sums.clear()
+        self._reward_term_episodes = 0
+
+    def _capture_action(self, locals_: dict[str, Any], env_index: int, after_settle: bool) -> None:
+        """Accumulate deterministic-policy action statistics for one step.
+
+        Wrapped defensively because ``actions`` is a local of SB3's
+        ``evaluate_policy``, not part of any documented callback contract: a
+        version that renames it must cost this diagnostic, not the run.
+        """
+        try:
+            actions = locals_.get("actions")
+            if actions is None:
+                return
+            action = np.asarray(actions)
+            action = action[env_index] if action.ndim > 1 else action
+            action = np.asarray(action, dtype=np.float64).ravel()
+            if not action.size:
+                return
+            prev = self._prev_action.get(env_index)
+            prev_prev = self._prev_prev_action.get(env_index)
+            if after_settle:
+                if self._action_sum is None or self._action_sum.shape != action.shape:
+                    self._action_sum = np.zeros_like(action)
+                    self._action_sq_sum = np.zeros_like(action)
+                self._action_sum += action
+                self._action_sq_sum += action * action
+                self._action_count += 1
+                # Both differences are summed over actuators, matching the
+                # `Sum` in `reward_action_smoothness` / `reward_action_jerk`
+                # so the numbers invert straight back through those formulas.
+                if prev is not None and prev.shape == action.shape:
+                    self._action_delta_sum += float(np.sum((action - prev) ** 2))
+                    if prev_prev is not None and prev_prev.shape == action.shape:
+                        self._action_jerk_sum += float(np.sum((action - 2.0 * prev + prev_prev) ** 2))
+            self._prev_prev_action[env_index] = prev
+            self._prev_action[env_index] = action
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            return
 
     def _log_success_callback(self, locals_: dict[str, Any], globals_: dict[str, Any]) -> None:
         """Capture evaluation velocity and duty, conditionally delegate success."""
 
         info = locals_["info"]
         env_index = int(locals_.get("i", 0))
+        for key, value in info.items():
+            if not key.startswith("reward_"):
+                continue
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(number):
+                self._reward_term_sums[key] = self._reward_term_sums.get(key, 0.0) + number
         forward_vel = info.get("forward_vel")
         if forward_vel is not None:
             value = float(forward_vel)
@@ -140,6 +233,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         # it -- and settling is the capability stage 1a exists to certify.
         step_index = self._episode_steps.get(env_index, 0)
         self._episode_steps[env_index] = step_index + 1
+        self._capture_action(locals_, env_index, after_settle=step_index >= self.settle_steps)
         if step_index >= self.settle_steps:
             stance = derive_stance_info(info)
             if stance:
@@ -165,9 +259,42 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             # panel builder drops those rather than scoring them as zero.
             self._current_eval_unsupported_duties.append(unsupported / measured if measured else float("nan"))
             self._current_eval_bilateral_duties.append(bilateral / measured if measured else float("nan"))
+            self._reward_term_episodes += 1
+            self._prev_action.pop(env_index, None)
+            self._prev_prev_action.pop(env_index, None)
 
         if self.success_applicable:
             super()._log_success_callback(locals_, globals_)
+
+    def _publish_action_statistics(self) -> None:
+        """Reduce one evaluation's accumulators into the published series.
+
+        The DC/AC split is the whole point. ``mean(a)`` per actuator is the
+        static pose the policy commands -- the distance from the home keyframe,
+        which under ``home-keyframe-residual/v1`` is exactly ``action = 0``.
+        ``sqrt(mean(a^2) - mean(a)^2)`` is what it does *around* that pose. The
+        two answer different questions and a pooled standard deviation over
+        actuators and time (which is what ``diagnostics.action_std`` computes)
+        cannot separate them.
+        """
+        count = self._action_count
+        if count and self._action_sum is not None:
+            mean = self._action_sum / count
+            var = np.maximum(self._action_sq_sum / count - mean * mean, 0.0)
+            self.evaluations_action_dc.append([float(v) for v in mean])
+            self.evaluations_action_ac_rms.append([float(v) for v in np.sqrt(var)])
+            # Per step, so they invert directly through the reward formulas.
+            self.evaluations_action_delta.append(self._action_delta_sum / count)
+            self.evaluations_action_jerk.append(self._action_jerk_sum / count)
+        else:
+            self.evaluations_action_dc.append([])
+            self.evaluations_action_ac_rms.append([])
+            self.evaluations_action_delta.append(float("nan"))
+            self.evaluations_action_jerk.append(float("nan"))
+        episodes = self._reward_term_episodes
+        self.evaluations_reward_terms.append(
+            {key: value / episodes for key, value in self._reward_term_sums.items()} if episodes else {}
+        )
 
     def _on_step(self) -> bool:
         evaluation_due = self.eval_freq > 0 and self.n_calls % self.eval_freq == 0
@@ -180,6 +307,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.evaluations_forward_velocities.append(list(self._current_eval_forward_velocities))
             self.evaluations_unsupported_duties.append(list(self._current_eval_unsupported_duties))
             self.evaluations_bilateral_duties.append(list(self._current_eval_bilateral_duties))
+            self._publish_action_statistics()
             if not self.success_applicable and self.verbose >= 1:
                 print(f"Success rate: N/A (not an active Stage {self.stage} gate)")
 
@@ -283,6 +411,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         min_relative_variation: float = 0.05,
         horizon: int = 1000,
         gate_progress_dir: "str | Path | None" = None,
+        control_dt: float = 0.01,
         verbose: int = 0,
     ) -> None:
         if not _SB3_AVAILABLE:
@@ -305,6 +434,9 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         self._histories: dict[str, list[float]] = {key: [] for key in self._METRIC_PRIORITY}
         self._plateau_active = False
         self._plateau_metric: str | None = None
+        # Seconds per control step: `timestep * frame_skip`, needed to turn the
+        # jerk/delta ratio into a frequency rather than a bare ratio.
+        self.control_dt = float(control_dt) if control_dt and control_dt > 0 else 0.01
         # Per-evaluation gate criteria, persisted to `gate_progress.npz`.
         self._gate_progress_dir = None if gate_progress_dir is None else Path(gate_progress_dir)
         self._gate_progress_timesteps: list[int] = []
@@ -542,6 +674,8 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             ),
             bilateral_support_duty=float("nan") if bilateral is None else bilateral,
             mean_reward=panel.mean_reward,
+            **self._action_statistics(index),
+            **self._reward_term_scalars(index),
         )
         if not panel.n_duty_episodes:
             return
@@ -553,6 +687,50 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         # what made the three stance shares stop summing to 1.
         if bilateral is not None:
             self.logger.record("diagnostics/eval_bilateral_support_duty", bilateral)
+
+    def _eval_series(self, name: str, index: int) -> Any:
+        series = getattr(self.eval_callback, name, None)
+        if not series or index >= len(series):
+            return None
+        return series[index]
+
+    def _action_statistics(self, index: int) -> dict[str, float]:
+        """Scalar summaries of the deterministic policy's action.
+
+        ``action_dc_rms`` is the distance from the home keyframe and
+        ``action_ac_rms`` is the tremor about it; keeping them apart is the
+        point, because they have different causes and different fixes
+        (issue #489). The per-actuator vectors go to `gate_progress.npz`
+        separately -- these scalars exist so the series is readable without
+        reducing a matrix.
+        """
+        out: dict[str, float] = {}
+        dc = self._eval_series("evaluations_action_dc", index)
+        ac = self._eval_series("evaluations_action_ac_rms", index)
+        out["action_dc_rms"] = float(np.sqrt(np.mean(np.square(dc)))) if dc else float("nan")
+        out["action_ac_rms"] = float(np.sqrt(np.mean(np.square(ac)))) if ac else float("nan")
+        for key, name in (("action_delta", "evaluations_action_delta"), ("action_jerk", "evaluations_action_jerk")):
+            series = getattr(self.eval_callback, name, None)
+            value = series[index] if series and index < len(series) else float("nan")
+            out[key] = float(value)
+        # The frequency the two differences imply, for a narrowband action
+        # signal: jerk/delta = (2 sin(pi f dt))^2, blind to any DC offset. A
+        # value at the white-noise limit means the ratio is saturated and the
+        # signal is broadband, not that it sits at that frequency.
+        delta, jerk = out["action_delta"], out["action_jerk"]
+        if math.isfinite(delta) and math.isfinite(jerk) and delta > 0.0:
+            gain = math.sqrt(jerk / delta)
+            out["action_freq_hz"] = math.asin(min(1.0, gain / 2.0)) / (math.pi * self.control_dt)
+        else:
+            out["action_freq_hz"] = float("nan")
+        return out
+
+    def _reward_term_scalars(self, index: int) -> dict[str, float]:
+        """Per-episode mean of each reward term, flattened into the npz."""
+        terms = self._eval_series("evaluations_reward_terms", index)
+        if not terms:
+            return {}
+        return {f"term_{key[len('reward_') :]}": float(value) for key, value in terms.items()}
 
     def _record_gate_progress(self, **values: float) -> None:
         """Append one evaluation's gate criteria and rewrite ``gate_progress.npz``.
@@ -580,6 +758,29 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
 
             n = len(self._gate_progress_timesteps)
             payload = {"timesteps": np.array(self._gate_progress_timesteps)}
+            # Per-actuator DC and AC as (n_evals, n_actuators) matrices. Which
+            # actuators carry the offset decides whether a leg-pose weight can
+            # reach it at all -- `leg_home_pose` covers only the leg joints, so
+            # a displacement living in the tail or neck is invisible to it and
+            # unfixable by it (issue #489). Scalar summaries alone cannot answer
+            # that, and the grouping is left to analysis rather than guessed at
+            # here.
+            # `getattr` on self, not `self.eval_callback` directly: these
+            # matrices are an enhancement, and an AttributeError here would be
+            # caught by the outer handler and take the ENTIRE file down with
+            # it -- losing the gate criteria to a failure in a side channel.
+            source = getattr(self, "eval_callback", None)
+            for key, name in (
+                ("action_dc_per_actuator", "evaluations_action_dc"),
+                ("action_ac_rms_per_actuator", "evaluations_action_ac_rms"),
+            ):
+                series = getattr(source, name, None) or []
+                rows = [row for row in series[:n] if row]
+                # Ragged rows would need padding, which invents values. A run
+                # whose actuator count changed mid-flight is not a thing that
+                # happens; a run with some empty evaluations is.
+                if len(rows) == n and len({len(row) for row in rows}) == 1:
+                    payload[key] = np.array(rows, dtype=float)
             # Length-guarded against `timesteps`, like every optional series in
             # `diagnostics.npz`. Today one call site supplies every key on every
             # evaluation, so nothing can diverge -- but a future caller that
@@ -760,6 +961,14 @@ def build_stage_evaluation_callbacks(
         # for the full-horizon fraction, and it is an environment property.
         horizon=int(stage_config.get("env_kwargs", {}).get("max_episode_steps", 1000)),
         gate_progress_dir=gate_progress_dir,
+        # Also from [env]: one control step is `timestep * frame_skip`, and
+        # without it the jerk/delta ratio is a bare number rather than a
+        # frequency. Defaults match the MuJoCo/repo defaults so a config that
+        # declares neither still reports a sane 100 Hz rather than nothing.
+        control_dt=(
+            float(stage_config.get("env_kwargs", {}).get("timestep", 0.002))
+            * int(stage_config.get("env_kwargs", {}).get("frame_skip", 5))
+        ),
         verbose=diagnostics_verbose,
     )
     return eval_callback, plateau_callback

@@ -287,6 +287,11 @@ def _roll_episodes(
     """
     for index in range(episodes):
         obs, _ = env.reset(seed=seed + index)
+        # A stateful predict (the low-pass probe) must not carry one episode's
+        # tail into the next; plain policies have no reset and are untouched.
+        reset_predict = getattr(predict, "reset", None)
+        if callable(reset_predict):
+            reset_predict()
         total = 0.0
         steps = 0
         unsupported = 0
@@ -345,6 +350,47 @@ def thresholds_from_curriculum(curriculum: dict[str, Any]) -> StanceGateThreshol
     )
 
 
+def _low_pass_predict(predict: Any, cutoff_hz: float, control_dt: float) -> Any:
+    """Wrap *predict* so its action is low-passed before reaching the plant.
+
+    A probe, not a feature: it answers whether a policy's high-frequency
+    action content is load-bearing or waste. Run ``20260805_011234`` passed
+    the stance gate carrying a tremor of rms 0.277 at an effective 22.6 Hz,
+    and whether that tremor is closed-loop stabilisation or a free-running
+    buzz decides whether the fix belongs on the pose or on the action path
+    (issue #489). Open-loop experiments on the statue bound what a tremor
+    *can* do; only filtering the real policy answers it for that policy.
+
+    First-order IIR, ``y += alpha * (x - y)`` with
+    ``alpha = dt / (RC + dt)`` and ``RC = 1 / (2*pi*fc)`` -- the discrete
+    equivalent of an RC filter, chosen because it is the one a plant-side
+    implementation would most plausibly use. Filtering happens between the
+    policy and the environment, so the policy still sees unfiltered
+    observations and is genuinely being asked to stand without its own
+    high-frequency component.
+
+    The state is per-call-sequence and reset by the caller between episodes
+    via :func:`reset`, so one episode's tail cannot leak into the next.
+    """
+    rc = 1.0 / (2.0 * math.pi * cutoff_hz)
+    alpha = control_dt / (rc + control_dt)
+    state: dict[str, Any] = {"y": None}
+
+    def filtered(obs: np.ndarray) -> np.ndarray:
+        action = np.asarray(predict(obs), dtype=np.float64)
+        previous = state["y"]
+        # Seeded with the first action rather than zeros: starting from zero
+        # would inject a step transient that is an artefact of the probe, not
+        # a property of the policy.
+        state["y"] = (
+            action if previous is None or previous.shape != action.shape else previous + alpha * (action - previous)
+        )
+        return np.asarray(state["y"], dtype=np.float32)
+
+    filtered.reset = lambda: state.update(y=None)  # type: ignore[attr-defined]
+    return filtered
+
+
 def build_stance_gate_report(
     species: str,
     stage: int,
@@ -356,6 +402,7 @@ def build_stance_gate_report(
     episodes: int | None = None,
     seed: int = 3042,
     allow_legacy_plant: bool = False,
+    filter_actions_hz: float | None = None,
 ) -> dict[str, Any]:
     """Roll a policy and return its gate verdict as a serializable dict.
 
@@ -376,9 +423,12 @@ def build_stance_gate_report(
     """
     if episodes is not None and episodes < 1:
         raise ValueError(f"episodes must be at least 1 if given, got {episodes}")
+    if filter_actions_hz is not None and filter_actions_hz <= 0:
+        raise ValueError(f"filter_actions_hz must be positive if given, got {filter_actions_hz}")
     curriculum = stage_config["curriculum_kwargs"]
     env_kwargs = dict(stage_config["env_kwargs"])
     horizon = int(env_kwargs.get("max_episode_steps", 1000))
+    control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
     thresholds = thresholds_from_curriculum(curriculum)
     panel_episodes = thresholds.min_eval_episodes if episodes is None else episodes
 
@@ -407,6 +457,10 @@ def build_stance_gate_report(
             allow_legacy_plant=allow_legacy_plant,
         )
         description = f"{Path(model_path).name} — {note}"
+
+    if filter_actions_hz is not None:
+        predict = _low_pass_predict(predict, filter_actions_hz, control_dt)
+        description += f" — actions low-passed at {filter_actions_hz:g} Hz"
 
     result = run_panel(
         species,
@@ -460,6 +514,12 @@ def build_stance_gate_report(
         # field is deliberately narrow rather than a blanket "plant_validated"
         # that would claim something false in the zero-action case.
         "checkpoint_plant_validated": None if zero_action else not allow_legacy_plant,
+        # `None` for an ordinary run. Recorded because a filtered rollout is
+        # NOT a verdict about the policy: it is a probe of a modified one, and
+        # a PASS produced this way must never be mistakable for a real PASS in
+        # a stored report. `render_stance_gate_report` prints it for the same
+        # reason.
+        "filter_actions_hz": filter_actions_hz,
         "terminations": result["terminations"],
         "reward_components": result["components"],
         # The per-episode measurements the panel was reduced from. This is
@@ -483,6 +543,15 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
             "below are reported but are not what this stage advances on."
         )
         lines.append("")
+    # Before the verdict, not after: a filtered rollout scores a MODIFIED
+    # policy, so its PASS/FAIL is not a statement about the checkpoint and a
+    # reader must not reach the verdict line without knowing that.
+    if report.get("filter_actions_hz") is not None:
+        lines += [
+            f"PROBE: actions low-passed at {report['filter_actions_hz']:g} Hz before reaching the plant.",
+            "This scores a MODIFIED policy. The verdict below is not a gate result for this checkpoint.",
+            "",
+        ]
     measured = report["horizon"] - report["settle_steps"]
     lines += [
         f"policy              {report['policy']}",
@@ -655,10 +724,21 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=3042, help="First evaluation seed (default: publication seed)")
     parser.add_argument("--config", help="Explicit stage TOML path")
     parser.add_argument("--out-dir", help="Also write stance_gate_report.{txt,json} to this directory")
+    parser.add_argument(
+        "--filter-actions",
+        type=float,
+        metavar="HZ",
+        help="Low-pass the policy's actions at HZ before they reach the plant, and score THAT. "
+        "A probe for whether a policy's high-frequency action content is load-bearing: if it "
+        "still stands, the tremor was waste and belongs on the action path; if it falls, the "
+        "tremor is closed-loop stabilisation and the fix belongs elsewhere (issue #489).",
+    )
     args = parser.parse_args()
 
     if not args.zero_action and not args.model:
         parser.error("pass --model, or --zero-action for the do-nothing reference")
+    if args.filter_actions is not None and args.filter_actions <= 0:
+        parser.error(f"--filter-actions must be positive, got {args.filter_actions}")
     # `--episodes 0` used to fall through `episodes or min_eval_episodes` to the
     # stage default AND skip the under-powered-panel warning below, so it
     # silently produced a full-size panel while reading as an override.
@@ -677,6 +757,7 @@ def main() -> int:
             episodes=args.episodes,
             seed=args.seed,
             allow_legacy_plant=args.allow_legacy_plant,
+            filter_actions_hz=args.filter_actions,
         )
     except StanceGateReportError as exc:
         # The CLI boundary is where a diagnosable failure becomes an exit

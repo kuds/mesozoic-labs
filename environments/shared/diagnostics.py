@@ -134,6 +134,15 @@ class DiagnosticsCallback(_BaseCallback):
         "tail_instability",
         "contact_asymmetry",
         "action_delta",
+        # The SECOND difference, alongside the first. The environment has
+        # always emitted it (it is what `reward_action_jerk` charges) and this
+        # list has always dropped it, so the signal was computed every step and
+        # discarded. Their ratio is a frequency: for a narrowband action
+        # signal, `jerk/delta = (2 sin(pi f dt))^2`, and unlike either alone it
+        # is blind to any constant offset. Recovering the 22.6 Hz tremor in
+        # issue #489 needed exactly this and had to invert it out of the
+        # per-episode reward terms instead.
+        "action_jerk",
         "heading_alignment",
         "lateral_vel",
         "forward_z",
