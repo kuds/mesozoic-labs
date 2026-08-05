@@ -76,6 +76,7 @@ than rewrite.
 | [STAGE2_RECOMMENDATIONS.md](investigations/STAGE2_RECOMMENDATIONS.md) | 2026-07-11 | Replication review of run 20260711_165924, corrected fall-penalty math, ranked plan — validated 2026-07-12 by run 20260711_235303 (stages 1–3 cleared, stage-2 record); §5 has the outcome and cross-species lessons |
 | [VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md](investigations/VELOCIRAPTOR_STAGE1_BASIN_INVESTIGATION.md) | 2026-07-20 | Commit A physics probe and A-only PPO run 20260720_203454; natural-lean reward-conflict diagnosis, pending Commit B validation, and fresh-run decision rules |
 | [TREX_HOME_EQUILIBRIUM.md](investigations/TREX_HOME_EQUILIBRIUM.md) | 2026-07-23 | T-Rex neutral-stance basin repair, home-residual action mapping, and live plantar contact sensors |
+| [TREX_STAGE1_BOUNCE_2026_08.md](investigations/TREX_STAGE1_BOUNCE_2026_08.md) | 2026-08-05 | Three 10M stage-1 runs (one pass, two phase-locked bounces at 1/6 and 1/5 duty). Why raising `leg_home_pose_weight` could not work, why the bounce is 450 points *worse* than not bouncing and so is not a reward problem, the filter probe confirming the tremor is load-bearing, and why seed replicates outrank any further reward tweak |
 
 ## Code & repo reviews
 

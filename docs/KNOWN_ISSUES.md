@@ -48,6 +48,40 @@ tolerance) remains the standing recommendation for the divergences above.
 
 ## Training / RL
 
+<!-- The three items below come from the 2026-08-05 stage-1 bounce
+     investigation; full evidence in
+     investigations/TREX_STAGE1_BOUNCE_2026_08.md. -->
+
+- **HIGH** — **T-Rex stage 1 passes or bounces depending on the run, and we
+  cannot yet say which is typical.** Three 10M runs, all seed 42: one passed
+  with duty 0.0000, two converged to a phase-locked vertical bounce at exact
+  integer subharmonics of the 100 Hz control rate (duty 1/6 = 16.7 Hz, and
+  1/5 = 20.0 Hz), both with single-support ≈ 0. **The bounce is not
+  reward-preferred** — scored under the same reward it is 450 points *worse*
+  than the policy that passed, and loses on every term. Every candidate reward
+  tweak (`foot_load_balance_airborne_penalty`, `support_conditioned_alive_fraction`,
+  `action_jerk_weight`) is already firing, already correct, and already losing,
+  so this is an optimisation failure rather than a shaping one and further
+  reward changes are not indicated. **The next experiment should be seed
+  replicates of the passing configuration**, which is the only thing that
+  distinguishes "solved" from "lucky".
+- **MEDIUM** — **half the actuators sit saturated and nothing opposes it.**
+  Ten to twelve of 21 actuators are pinned at `|action| ≥ 0.99` — tail, neck,
+  head, toes — in *both* passing and failing policies. `energy` charges
+  ~48/episode against an alive bonus paying ~1000, and `leg_home_pose` governs
+  only 8 joints carrying 1.2% of the commanded offset. A saturated actuator has
+  no headroom in one direction, so the recovery envelope on those axes is
+  one-sided. Not a stage-1 blocker (the passing policy saturates too) —
+  tracked as sim-to-real in #491.
+- **MEDIUM** — **a passing policy cannot stand if its actions are filtered, at
+  any cutoff.** Low-passing the checkpoint that passed the gate collapses it at
+  every cutoff from 5 to 35 Hz against a 100 Hz control rate (96 → 351 steps of
+  a 1000-step horizon). The high-frequency content is load-bearing closed-loop
+  stabilisation, so an action filter or rate limit **cannot be retrofitted** —
+  if one is wanted for sim-to-real it has to be present during training. The
+  probe conflates bandwidth-dependence with delay-sensitivity; a zero-phase
+  offline filter would separate them. Tracked in #491.
+
 <!-- The six items below come from the 2026-07-31 plant validation pass; full
      evidence in PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md. The reset and
      self-collision defects that pass also found are FIXED in PR #479 and so

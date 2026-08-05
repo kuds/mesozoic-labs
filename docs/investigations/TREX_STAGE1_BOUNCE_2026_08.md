@@ -1,0 +1,268 @@
+# T-Rex Stage 1: the phase-locked bounce, and what three runs taught us
+
+**Date:** 2026-08-05
+**Runs:** `20260804_143747` (FAIL), `20260805_011234` (**PASS**), `20260805_132950` (FAIL)
+**Issues:** #486 (closed), #489, #491 · **PRs:** #487, #490, #492
+
+Point-in-time record. Not rewritten — corrections are appended.
+
+---
+
+## 1. Summary
+
+Three consecutive 10M-step stage-1 runs, all seed 42, same plant. One passed.
+The two that failed converged to a **phase-locked vertical bounce** at an exact
+integer subharmonic of the control rate, with both feet leaving and landing
+together.
+
+| run | `leg_home_pose_weight` | duty | single support | frequency | verdict |
+|---|---|---|---|---|---|
+| `20260804_143747` | 0.5 | **0.1668** = 1/6 | 0.0000 | 16.7 Hz | FAIL |
+| `20260805_011234` | 0.5 | **0.0000** | 0.0000 | — | **PASS** |
+| `20260805_132950` | 1.5 | **0.2001** = 1/5 | 0.0011 | 20.0 Hz | FAIL |
+
+The headline result is negative and worth stating plainly: **the change made in
+#490 did not work, and the instrumentation added in the same PR is what proved
+it.** That is the outcome the instrumentation was built for.
+
+---
+
+## 2. What was tried, and what happened
+
+**#487 — entropy decays to zero over 70% of the budget.** Diagnosed #486's
+16.7 Hz bounce as an optimisation failure driven by an `ent_coef` floor holding
+policy std at ~0.375 (≈20.6° of commanded joint noise). Fix: `ent_coef_end`
+0.001 → 0.0, decay 3M → 7M. **This worked** — run `20260805_011234` passed with
+duty 0.0000.
+
+**#489 — the residual gap.** The passing policy scored 3004.3 against the
+zero-action statue's 3274.4. Inverting the action penalties through their closed
+forms gave a per-actuator DC offset of ~0.800 and an AC tremor of ~0.277 rms at
+an effective 22.6 Hz, and argued the two were **one phenomenon**: the tremor is
+closed-loop feedback holding up a displaced pose.
+
+**#490 — raise `leg_home_pose_weight` 0.5 → 1.5,** on that hypothesis, plus
+per-actuator instrumentation to check it.
+
+**Run `20260805_132950` — FAIL.** Duty locked at exactly 1/5 for the entire
+second half of the run.
+
+---
+
+## 3. Why #490 could not have worked
+
+`leg_home_pose_joint_names` for trex is **eight joints**: r/l `hip_pitch`,
+`hip_roll`, `knee`, `ankle`. Measured per actuator (4.5M+, in-flight):
+
+| | DC | AC (tremor) |
+|---|---|---|
+| the 8 governed joints | 0.035 – 0.263 → **1.2% of DC power** | 0.681 rms |
+| the other 13 | up to ±0.996 → **98.8%** | 0.253 rms |
+
+The governed joints were **already at home**. The displacement lives in the
+tail, neck, head and toes, which no term in this stage touches.
+
+The final report is the cleanest possible confirmation. `reward_leg_home_pose`
+reached **1409.17 of the statue's 1466.80 — 96%**. *The term did exactly what it
+was asked to do.* `action_dc_rms` still finished at 0.724 against the passing
+policy's 0.766, and the stage failed anyway.
+
+**Lesson: the joint list, not the weight, was the lever.** A term's weight can
+only move what the term measures.
+
+---
+
+## 4. The bounce is not reward-preferred
+
+Restating both policies under the **same** reward (only `leg_home_pose`
+rescales between them):
+
+| | score |
+|---|---|
+| statue | 3271.8 |
+| passing policy (duty 0.0000) | 3004.3 |
+| **bouncing policy (duty 0.2001)** | **2554.3** |
+
+The bounce is **450 points worse**, and loses on every term but the one whose
+weight was raised:
+
+| term | passing | bouncing | Δ |
+|---|---|---|---|
+| `foot_load_balance` | −16.9 | −154.9 | **−137.9** |
+| `bilateral_support` | 594.2 | 477.8 | **−116.5** |
+| `alive` | 995.2 | 898.1 | **−97.1** |
+| `neck_posture` | 175.6 | 116.0 | −59.6 |
+| `smoothness` | −65.0 | −102.4 | −37.4 |
+| `action_jerk` | −41.4 | −68.0 | −26.6 |
+
+**This rules out the obvious reward tweaks.** Every candidate is already firing,
+already correct, and already losing:
+
+- `foot_load_balance_airborne_penalty` charges the bouncer 138 points more.
+- `support_conditioned_alive_fraction` costs it 97 points of the single largest
+  term in the reward.
+- `action_jerk_weight` charges it 64% more than the policy that passed.
+
+None deterred it. Raising any of them deepens a trap the optimiser is already
+stuck in without creating a route out.
+
+**Lesson: this is an optimisation failure, not a reward-shaping one** — the same
+category as #486, and the same mistake that would have been made twice if a new
+penalty had been proposed here.
+
+---
+
+## 5. The tremor is load-bearing (#489's other claim held)
+
+`stance_gate_report.py --filter-actions`, on the **passing** checkpoint, a
+first-order low-pass between policy and plant:
+
+| cutoff | mean episode length | outcome |
+|---|---|---|
+| none | 1000 | PASS, duty 0.0000 |
+| 35 Hz | 351 | falls, `tail_contact` |
+| 20 Hz | 289 | falls |
+| 10 Hz | 189 | falls |
+| 5 Hz | 96 | falls |
+
+Control runs at 100 Hz, so 35 Hz is most of the way to Nyquist. The failing
+policy behaves the same way (109 steps at 5 Hz, 40/40 `tail_contact`).
+
+**An action low-pass or rate limit cannot be retrofitted.** If one is wanted for
+sim-to-real it must be present during training.
+
+**Caveat:** a causal low-pass adds phase lag as well as attenuation, and a tight
+stabilising loop is delay-sensitive. This proves the policy cannot tolerate added
+latency; it does not cleanly separate "needs 22 Hz of bandwidth" from "needs zero
+delay". A zero-phase (`filtfilt`) offline pass would isolate that.
+
+### The coupling hypothesis was wrong
+
+#489 argued the tremor holds up the displaced pose. Per-actuator measurement
+says otherwise: the **displaced** joints barely move (tail/neck/head/toes, AC
+0.253) and the **shaking** is in the load-bearing legs (hips/knees/ankles, AC
+0.681). Different joints, different phenomena. The tremor being load-bearing and
+the pose being displaced are both true and **not the same fact**.
+
+---
+
+## 6. The control rate permits the bounce; it does not encourage it
+
+Both failures landed on exact integer subharmonics of the 100 Hz control rate —
+1/6 and 1/5. **That alone is not evidence of pathology:** in a deterministic
+discrete-time closed loop every limit cycle has an integer period by definition.
+
+What does survive is the *frequency*. Body-on-leg resonance here is ~1.1–1.4 Hz;
+16.7 Hz on this mass would need ~1.66 MN/m of stiffness, and the statue holds
+`bilateral 1.0000` — it does not bounce passively. **The oscillation is actively
+driven**, which requires command authority in the 20 Hz band.
+
+| | control | Nyquist | period-5 cycle | 20 Hz reachable? |
+|---|---|---|---|---|
+| **frame_skip 5 (current)** | **100 Hz** | 50 Hz | 20.0 Hz | yes |
+| frame_skip 10 | 50 Hz | 25 Hz | 10.0 Hz | yes |
+| frame_skip 16 | 31 Hz | 15.6 Hz | 6.2 Hz | **no** |
+
+The task needs almost none of that: 100 Hz gives **71 control steps per balance
+cycle** at 1.4 Hz, and even 25 Hz control would give 18.
+
+**But the passing run ran at the same 100 Hz and did not bounce.** The control
+rate is a background condition that makes the failure *reachable*, not the thing
+that separates pass from fail. Changing `frame_skip` bumps
+`policy_interface_revision` and invalidates every checkpoint and every measured
+constant in the config — too large a change to buy on this evidence.
+
+**Falsifiable test if it becomes worth it:** train at `frame_skip 10`. A bounce
+at period 5–6 control steps (8–10 Hz) means the cycle is locked to the control
+clock and lowering the rate removes the failure class. A bounce at ~20 Hz again
+means it is a plant/task property and the rate is irrelevant.
+
+---
+
+## 7. Actuator saturation (open — see #491)
+
+**Ten to twelve of 21 actuators sit pinned at `|action| ≥ 0.99`** — tail, neck,
+head, toes — in *both* the passing and failing policies. Nothing in the reward
+opposes this: `energy` penalises `mean(a²)` at weight 0.075 (~48/episode against
+an alive bonus paying ~1000), and `leg_home_pose` covers 1.2% of the offset.
+
+A saturated actuator has **no headroom in one direction**, so the recovery
+envelope on those axes is one-sided.
+
+This is a genuine gap, and it is the one reward idea whose mechanism is *not*
+already firing — but the **passing** policy saturates just as hard, so it is not
+what separates pass from fail. Treat it as sim-to-real (#491), not a stage-1
+blocker.
+
+---
+
+## 8. Method lessons
+
+**Measure before shaping.** The #489 inversion was *correct* — reproducing the
+inferred tremor on the statue matched the trained policy's per-step penalties to
+within 2%, and direct measurement later confirmed DC 0.766 / AC 0.359 / 22.7 Hz
+against the inferred 0.800 / 0.277 / 22.6 Hz. The **causal story built on top of
+it** was wrong. Being able to measure a quantity accurately is not the same as
+knowing what causes it.
+
+**Instrumentation earns its cost by refuting you.** #490 shipped a config change
+and the instrumentation to check it. The instrumentation refuted the change. Had
+only the config change shipped, the run would have looked like ordinary bad luck.
+
+**n = 1 is not a result.** Three runs, all seed 42: one pass, two bounce. Nothing
+here establishes whether passing is *reliable* or was *lucky*, and that question
+determines everything about what to do next. **Seed replicates are the highest-
+value next experiment** — higher than any reward tweak.
+
+**Derived constants go stale silently.** `min_avg_reward` and
+`collapse_peak_floor_reference` are both derived from the zero-action statue,
+and the statue moves whenever a reward weight moves. Because the statue commands
+`action = 0` at any weight, its trajectory never changes and only the affected
+term rescales — which makes the new value exact and cheap to obtain, and makes
+forgetting it silent. Any reward-weight change must re-measure with
+`zero_action_baseline.py` and re-derive both.
+
+**A probe must not be able to masquerade as a verdict.** The `--filter-actions`
+report scores a *modified* policy. It gets its own filenames, prints its warning
+above the verdict, and never writes `stance_panel_selected.csv` — the
+per-episode evidence a bundle is certified from. All three are enforced
+structurally rather than by caller discipline.
+
+---
+
+## 9. Recommendations
+
+1. **Merge #492** (revert `leg_home_pose_weight` to 0.5 and the two
+   statue-derived constants with it) and re-run unchanged. That is the
+   configuration that produced duty 0.0000.
+2. **Then run it again at a different seed.** One pass and two failures at a
+   single seed cannot tell you whether the stage is solved or lucky. If two seeds
+   pass, #490 was the whole problem. If one bounces, the escape is a coin flip
+   and the work is making it reliable — which no reward term addresses.
+3. **Do not add or reweight reward terms** on this evidence (§4).
+4. **Do not raise `action_jerk_weight`** — the high-frequency content is
+   load-bearing in both policies (§5).
+5. **Leave saturation and near-Nyquist dependence in #491** as sim-to-real work.
+6. **`frame_skip` is a later experiment,** not a fix (§6).
+
+---
+
+## 10. Instrumentation added along the way
+
+All merged and running on every SB3 run, with no opt-in:
+
+- `gate_progress.npz` — the deterministic gate criteria per evaluation, plus
+  `action_dc_rms` / `action_ac_rms` / `action_delta` / `action_jerk` /
+  `action_freq_hz`, the per-actuator `action_dc_per_actuator` and
+  `action_ac_rms_per_actuator` matrices, and every reward term as `term_*`.
+- `action_jerk` in `diagnostics.npz` — the environment always emitted it and
+  `INFO_KEYS` always dropped it.
+- `stance_gate_report.py --filter-actions HZ` and the automatic probe, with
+  per-actuator DC/AC printed under real joint names.
+- `curriculum.baseline_watch` — reports every evaluation against the run's own
+  zero-action baseline, advisory only.
+
+The frequency estimate is `jerk/delta = (2 sin πfΔt)²`, which is blind to any
+constant offset — the DC/AC split is the point, because a pooled standard
+deviation over actuators and time cannot separate "sitting in the wrong place"
+from "shaking", and those have different causes and different fixes.
