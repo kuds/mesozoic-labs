@@ -1046,3 +1046,132 @@ class TestActionFilterProbe:
         from environments.shared.scripts.stance_gate_report import render_stance_gate_report
 
         assert "PROBE" not in render_stance_gate_report(_minimal_stance_report())
+
+
+class TestTheProbeCannotBeMistakenForTheVerdict:
+    """A filtered rollout scored a policy that was never actually run.
+
+    Two ways it could corrupt the record: overwriting the real report, or
+    supplying `stance_panel_selected.csv`, which is the per-episode evidence
+    `result_bundle.evidence` certifies a stance-gated stage from. Both are
+    made structurally impossible rather than left to the caller.
+    """
+
+    def test_a_probe_writes_its_own_filenames(self, tmp_path):
+        report = _minimal_stance_report()
+        report["filter_actions_hz"] = 5.0
+        written = write_stance_gate_report(tmp_path, report)
+        assert (tmp_path / "stance_gate_probe_filtered.txt").exists()
+        assert (tmp_path / "stance_gate_probe_filtered.json").exists()
+        assert not (tmp_path / "stance_gate_report.txt").exists()
+        assert "stance_panel_csv" not in written
+
+    def test_a_probe_never_writes_the_certification_evidence(self, tmp_path):
+        real = _minimal_stance_report()
+        real["episode_evidence"] = [
+            {
+                "episode": 0,
+                "seed": 3042,
+                "length": 1000,
+                "reward": 3004.3,
+                "reached_horizon": True,
+                "unsupported_duty": 0.0,
+                "bilateral_support_duty": 1.0,
+                "single_support_duty": 0.0,
+            }
+        ]
+        write_stance_gate_report(tmp_path, real)
+        before = (tmp_path / "stance_panel_selected.csv").read_text()
+
+        probe = dict(real)
+        probe["filter_actions_hz"] = 5.0
+        probe["metrics"] = dict(real["metrics"], reward_mean=-99.0)
+        write_stance_gate_report(tmp_path, probe)
+
+        # The real panel must be untouched: a filtered panel here would
+        # certify a policy that was never run.
+        assert (tmp_path / "stance_panel_selected.csv").read_text() == before
+
+    def test_the_real_report_is_unaffected(self, tmp_path):
+        written = write_stance_gate_report(tmp_path, _minimal_stance_report())
+        assert (tmp_path / "stance_gate_report.txt").exists()
+        assert not (tmp_path / "stance_gate_probe_filtered.txt").exists()
+        # No episode_evidence in this fixture, so no panel CSV either; the
+        # evidence path is covered by the test above.
+        assert "stance_panel_csv" not in written
+
+
+class TestTheProbeIsWiredIntoTrainingArtifacts:
+    def test_it_is_skipped_when_unconfigured(self, tmp_path, monkeypatch):
+        from environments.shared.reporting import stage_artifacts
+
+        called = False
+
+        def _boom(*a, **k):
+            nonlocal called
+            called = True
+
+        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        stage_artifacts._write_filtered_action_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            episodes=40,
+        )
+        assert not called
+
+    def test_it_passes_the_configured_cutoff_through(self, tmp_path, monkeypatch):
+        from environments.shared.reporting import stage_artifacts
+
+        seen = {}
+
+        def _capture(species, stage, **kwargs):
+            seen.update(kwargs)
+            report = _minimal_stance_report()
+            report["filter_actions_hz"] = kwargs["filter_actions_hz"]
+            return report
+
+        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _capture)
+        stage_artifacts._write_filtered_action_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {"stance_probe_filter_hz": 5.0}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            episodes=40,
+        )
+        assert seen["filter_actions_hz"] == 5.0
+        assert (tmp_path / "stance_gate_probe_filtered.txt").exists()
+
+    def test_a_failing_probe_does_not_sink_the_run(self, tmp_path, monkeypatch, caplog):
+        from environments.shared.reporting import stage_artifacts
+
+        monkeypatch.setattr(
+            stance_gate_report,
+            "build_stance_gate_report",
+            lambda *a, **k: (_ for _ in ()).throw(RuntimeError("probe exploded")),
+        )
+        with caplog.at_level("WARNING"):
+            stage_artifacts._write_filtered_action_probe(
+                species="trex",
+                stage=1,
+                stage_config={"curriculum_kwargs": {"stance_probe_filter_hz": 5.0}},
+                stage_dir=tmp_path,
+                model_path="m.zip",
+                vecnorm_path="v.pkl",
+                episodes=40,
+            )
+        assert "Filtered action probe failed" in caplog.text
+
+    def test_the_config_key_is_accepted_by_the_gate_schema(self):
+        """An unregistered key is unreachable under the fail-closed check."""
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum.gate_schema import validate_gate_config
+
+        curriculum = load_stage_config("trex", 1)["curriculum_kwargs"]
+        assert curriculum["stance_probe_filter_hz"] == 5.0
+        validate_gate_config(1, curriculum)

@@ -635,8 +635,17 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
     """
     directory = Path(stage_dir)
     directory.mkdir(parents=True, exist_ok=True)
-    text_path = directory / "stance_gate_report.txt"
-    json_path = directory / "stance_gate_report.json"
+    # A filtered rollout scored a MODIFIED policy, so it gets its own filenames
+    # and never the certification ones. Derived here rather than passed in so a
+    # caller cannot land a probe on top of the real verdict by forgetting an
+    # argument -- and `stance_panel_selected.csv` is skipped entirely below,
+    # because that file is the per-episode evidence `result_bundle.evidence`
+    # certifies a stance-gated stage from. Writing a filtered panel there would
+    # certify a policy that was never run.
+    probe = report.get("filter_actions_hz") is not None
+    stem = "stance_gate_probe_filtered" if probe else "stance_gate_report"
+    text_path = directory / f"{stem}.txt"
+    json_path = directory / f"{stem}.json"
     text_path.write_text(render_stance_gate_report(report) + "\n", encoding="utf-8")
     # allow_nan=False turns any non-finite value _json_safe missed into a
     # ValueError here rather than an unparseable artifact on Drive.
@@ -645,6 +654,8 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
         encoding="utf-8",
     )
     written = {"stance_gate_report_txt": text_path, "stance_gate_report_json": json_path}
+    if probe:
+        return written
     panel_path = write_stance_panel_evidence(directory, report)
     if panel_path is not None:
         written["stance_panel_csv"] = panel_path

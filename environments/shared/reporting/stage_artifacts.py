@@ -247,10 +247,87 @@ def _write_stance_gate_report(
             report["metrics"]["bilateral_support_duty"],
             written["stance_gate_report_txt"],
         )
+        _write_filtered_action_probe(
+            species=species,
+            stage=stage,
+            stage_config=stage_config,
+            stage_dir=stage_dir,
+            model_path=f"{selected_path}.zip",
+            vecnorm_path=selected_vecnorm,
+            episodes=report_episodes,
+        )
         return report
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Stance gate report failed for stage %d", stage, exc_info=True)
     return None
+
+
+def _write_filtered_action_probe(
+    *,
+    species: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_path: str,
+    vecnorm_path: str | None,
+    episodes: int,
+) -> None:
+    """Re-score the selected checkpoint with its actions low-passed.
+
+    Answers, automatically and for every run, whether the policy's
+    high-frequency action content is load-bearing or waste: if it still stands
+    with the tremor filtered out the tremor was waste and the fix belongs on
+    the action path, and if it falls the tremor is closed-loop stabilisation
+    and the fix belongs on the pose (issue #489). Deriving that by hand meant
+    inverting per-episode reward totals and running open-loop experiments on
+    the statue, which bound what a tremor *can* do but never answer it for the
+    actual policy.
+
+    Off unless ``stance_probe_filter_hz`` is set, because it costs a second
+    panel -- a few minutes per stage, and per sweep trial.
+
+    Writes ``stance_gate_probe_filtered.{txt,json}`` and deliberately NOT
+    ``stance_panel_selected.csv``; the probe scored a modified policy and must
+    never supply the evidence a bundle is certified from.
+    """
+    cutoff = stage_config.get("curriculum_kwargs", {}).get("stance_probe_filter_hz")
+    if cutoff is None:
+        return
+    try:
+        cutoff = float(cutoff)
+    except (TypeError, ValueError):
+        logger.warning("stance_probe_filter_hz is not a number: %r; skipping the probe", cutoff)
+        return
+    if cutoff <= 0:
+        logger.info("Filtered action probe skipped for stage %d: stance_probe_filter_hz = %g", stage, cutoff)
+        return
+    try:
+        from environments.shared.scripts.stance_gate_report import (
+            build_stance_gate_report,
+            write_stance_gate_report,
+        )
+
+        probe = build_stance_gate_report(
+            species,
+            stage,
+            stage_config=stage_config,
+            model_path=model_path,
+            vecnorm_path=vecnorm_path,
+            episodes=episodes,
+            filter_actions_hz=cutoff,
+        )
+        written = write_stance_gate_report(stage_dir, probe)
+        logger.info(
+            "Filtered action probe (%.4g Hz): reward %.1f, full-horizon %.4f, duty %.4f -> %s. "
+            "This scored a MODIFIED policy and is not a gate verdict.",
+            cutoff,
+            probe["metrics"]["reward_mean"],
+            probe["metrics"]["full_horizon_fraction"],
+            probe["metrics"]["mean_unsupported_duty"],
+            written["stance_gate_report_txt"],
+        )
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+        logger.warning("Filtered action probe failed for stage %d", stage, exc_info=True)
 
 
 def _apply_stage_gate(

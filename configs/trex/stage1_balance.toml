@@ -410,6 +410,25 @@ collapse_peak_floor_reference = 4250.4   # The zero-action statue's standing rew
                                          # so its trajectory is unchanged and only the leg_home_pose term rescales --
                                          # 488.93 -> 1466.80, exactly 3x. The relative floor below is therefore
                                          # unaffected in MEANING; only its absolute value moves, 1472 -> 1913.
+stance_probe_filter_hz = 5.0             # After the gate report, re-score the SAME checkpoint with its actions
+                                         # low-passed at this cutoff and write stance_gate_probe_filtered.{txt,json}.
+                                         # Costs a second 40-episode panel (a few minutes); unset to skip.
+                                         #
+                                         # It settles the question this stage's remaining gap turns on. Run
+                                         # 20260805_011234 passed carrying a tremor of rms 0.277 at an effective
+                                         # 22.6 Hz, and whether that tremor is closed-loop stabilisation or a
+                                         # free-running buzz decides whether the fix belongs on the pose weight or
+                                         # on the action path (issue #489). Open-loop experiments on the statue
+                                         # bound what a tremor CAN do; only filtering the real policy answers it
+                                         # for that policy. If it still stands, the tremor was waste and
+                                         # leg_home_pose_weight is treating the wrong thing.
+                                         #
+                                         # 5 Hz because balance corrections are a ~1-1.4 Hz phenomenon on this
+                                         # plant (body-on-leg resonance), so 5 Hz passes the control the policy
+                                         # plausibly needs while cutting a 22.6 Hz tremor hard.
+                                         #
+                                         # The probe scores a MODIFIED policy: it gets its own filenames, never
+                                         # writes stance_panel_selected.csv, and its verdict is not a gate result.
 collapse_peak_floor_fraction = 0.45      # RELATIVE floor (PLANT_VALIDATION §14 item 3). An absolute floor has now
                                          # failed to arm TWICE for the same reason: 2200 against run 20260731_132102
                                          # (peak 1934.1, watched a -59% collapse), then 2450 against run

@@ -663,6 +663,16 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         # substitute the TRAINING-rollout duty from `diagnostics.npz`, which is
         # contaminated by exploration noise; it happened to agree to three
         # decimals there, but that was luck, not a property worth relying on.
+        # Also to the SB3 logger, so TensorBoard and W&B carry them live
+        # rather than only the npz. A diagnostic that exists solely in a file
+        # nobody opens mid-run is how the stance gate criteria stayed invisible
+        # for the whole of run 20260804_143747.
+        action_stats = self._action_statistics(index)
+        for key, value in action_stats.items():
+            if math.isfinite(value):
+                self.logger.record(f"diagnostics/eval_{key}", value)
+        for key, value in self._reward_term_scalars(index).items():
+            self.logger.record(f"reward_terms/eval_{key[len('term_') :]}", value)
         self._record_gate_progress(
             full_horizon_fraction=panel.full_horizon_fraction,
             duty_episodes=panel.n_duty_episodes,
@@ -674,7 +684,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             ),
             bilateral_support_duty=float("nan") if bilateral is None else bilateral,
             mean_reward=panel.mean_reward,
-            **self._action_statistics(index),
+            **action_stats,
             **self._reward_term_scalars(index),
         )
         if not panel.n_duty_episodes:

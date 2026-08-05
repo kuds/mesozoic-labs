@@ -50,6 +50,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A filtered rollout scores a **modified** policy, so the report records
   `filter_actions_hz` and the text form prints the warning *above* the verdict
   — a PASS obtained this way must never be mistakable for a gate result.
+  **Wired into the training path**, not left as a manual script: with
+  `stance_probe_filter_hz` set in `[curriculum]` (5.0 on trex 1a) the artifact
+  writer re-scores the selected checkpoint after the gate report and emits
+  `stance_gate_probe_filtered.{txt,json}`, so every run answers the question
+  without anyone remembering to. Unset elsewhere, because it costs a second
+  40-episode panel per stage and per sweep trial.
+  The probe can corrupt the record two ways, and both are made structurally
+  impossible rather than left to the caller: it gets its own filenames derived
+  from the report itself, and it never writes `stance_panel_selected.csv` —
+  that file is the per-episode evidence `result_bundle.evidence` certifies a
+  stance-gated stage from, and a filtered panel there would certify a policy
+  that was never run. `stance_probe_filter_hz` is registered in
+  `gate_schema._DIAGNOSTIC_KEYS`, without which the fail-closed unknown-key
+  check would make the setting unreachable.
+- Every new evaluation series is recorded to the **SB3 logger as well as the
+  npz**, so TensorBoard and W&B carry them live: `diagnostics/eval_action_*`
+  and `reward_terms/eval_*`. A diagnostic that exists only in a file nobody
+  opens mid-run is how the stance gate criteria stayed invisible for the whole
+  of run `20260804_143747`.
 
 ### Changed
 - **T-Rex stage 1 `leg_home_pose_weight` 0.5 → 1.5, and the two constants
