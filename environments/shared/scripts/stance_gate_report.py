@@ -807,6 +807,92 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
     return written
 
 
+def write_action_filter_sweep(
+    stage_dir: "str | Path", reports: list[dict[str, Any]], *, probe_episodes: int
+) -> dict[str, Path]:
+    """Write the action-filter probe sweep as one curve, not N verdicts.
+
+    Each entry scored a MODIFIED policy, so none of them is a gate result and
+    the artifact says so before it says anything else. What is worth reading is
+    the trend: how long the filtered policy survives against cutoff. On T-Rex
+    stage 1 today that is 96 steps at 5 Hz rising to 351 at 35 Hz, against a
+    1000-step horizon -- the policy needs essentially its full command
+    bandwidth to stand (issue #491), and a future policy that reaches the
+    horizon at a low cutoff is one that could survive a real actuator.
+
+    Deliberately does not write ``stance_panel_selected.csv``: that file is the
+    per-episode evidence a stance-gated bundle is certified from, and none of
+    these panels scored the policy that would be certified.
+    """
+    directory = Path(stage_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    rows = sorted(
+        (
+            {
+                "filter_actions_hz": report["filter_actions_hz"],
+                "episode_length_mean": report["metrics"]["episode_length_mean"],
+                "full_horizon_fraction": report["metrics"]["full_horizon_fraction"],
+                "reward_mean": report["metrics"]["reward_mean"],
+                "mean_unsupported_duty": report["metrics"]["mean_unsupported_duty"],
+                "terminations": report["terminations"],
+            }
+            for report in reports
+        ),
+        key=lambda row: row["filter_actions_hz"],
+    )
+    horizon = reports[0]["horizon"]
+    # Each entry's `policy` carries its own cutoff suffix, so the first one
+    # would label the whole sweep "low-passed at 5 Hz" -- wrong for every other
+    # row. Strip it; the per-cutoff values are the table's first column.
+    policy = str(reports[0]["policy"]).split(" — actions low-passed at ")[0]
+    payload = {
+        "schema": "mesozoic.action-filter-sweep/v1",
+        "species": reports[0]["species"],
+        "stage": reports[0]["stage"],
+        "policy": policy,
+        "horizon": horizon,
+        "episodes_per_cutoff": probe_episodes,
+        "note": (
+            "Each row scored a MODIFIED policy (actions low-passed before reaching the "
+            "plant). No row is a gate verdict. The metric to read is episode_length_mean "
+            "against filter_actions_hz."
+        ),
+        "sweep": rows,
+        "reports": reports,
+    }
+    lines = [
+        "PROBE: actions low-passed before reaching the plant, at several cutoffs.",
+        "Every row scores a MODIFIED policy. None of them is a gate verdict.",
+        "",
+        f"policy              {policy}",
+        f"stage               {reports[0]['species']} stage {reports[0]['stage']}",
+        f"panel               {probe_episodes} episodes per cutoff, horizon {horizon}",
+        "",
+        f"  {'cutoff':>9}{'ep length':>12}{'full-horiz':>12}{'reward':>10}   terminations",
+    ]
+    for row in rows:
+        lines.append(
+            f"  {row['filter_actions_hz']:>7.4g} Hz{row['episode_length_mean']:>12.1f}"
+            f"{row['full_horizon_fraction']:>12.4f}{row['reward_mean']:>10.1f}   {row['terminations']}"
+        )
+    lines += [
+        "",
+        "Read the trend, not the rows: episode_length_mean against cutoff measures how",
+        "much of its own high-frequency command content the policy needs in order to",
+        "stand. Balance correction on this plant is ~1.1-1.4 Hz, which every cutoff here",
+        "passes essentially untouched, so a short episode means the policy depends on",
+        "content well above the frequency band the task itself requires.",
+    ]
+    text_path = directory / "stance_gate_probe_filtered.txt"
+    json_path = directory / "stance_gate_probe_filtered.json"
+    text_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    json_path.write_text(
+        json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    return {"action_filter_sweep_txt": text_path, "action_filter_sweep_json": json_path}
+
+
 #: Column order of ``stance_panel_selected.csv``.  ``unsupported_duty`` is
 #: empty for an episode whose duty could not be measured (one shorter than the
 #: settling window); the auditor treats empty as unmeasured rather than zero,

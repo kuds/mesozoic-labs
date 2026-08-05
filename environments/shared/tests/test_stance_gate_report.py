@@ -1124,6 +1124,99 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         )
         assert not called
 
+    def test_a_scalar_cutoff_still_works(self):
+        from environments.shared.reporting.stage_artifacts import _probe_cutoffs
+
+        assert _probe_cutoffs(5.0) == [5.0]
+
+    def test_a_list_becomes_a_sorted_deduplicated_sweep(self):
+        from environments.shared.reporting.stage_artifacts import _probe_cutoffs
+
+        assert _probe_cutoffs([20, 5.0, 10, 5.0]) == [5.0, 10.0, 20.0]
+
+    def test_unusable_entries_are_dropped_not_fatal(self):
+        """One bad entry must not cost the cutoffs that are fine."""
+        from environments.shared.reporting.stage_artifacts import _probe_cutoffs
+
+        assert _probe_cutoffs([5.0, "nonsense", -3.0, 0.0, 10.0]) == [5.0, 10.0]
+
+    def test_the_sweep_writes_one_curve_and_no_panel_evidence(self, tmp_path):
+        from environments.shared.scripts.stance_gate_report import write_action_filter_sweep
+
+        reports = []
+        for hz, length in ((20.0, 289.2), (5.0, 96.2), (10.0, 189.1)):
+            r = _minimal_stance_report()
+            r["filter_actions_hz"] = hz
+            r["metrics"] = dict(r["metrics"], episode_length_mean=length, full_horizon_fraction=0.0)
+            r["terminations"] = {"tail_contact": 10}
+            reports.append(r)
+        written = write_action_filter_sweep(tmp_path, reports, probe_episodes=10)
+        assert set(written) == {"action_filter_sweep_txt", "action_filter_sweep_json"}
+        text = (tmp_path / "stance_gate_probe_filtered.txt").read_text()
+        # Sorted by cutoff so the curve reads in order, whatever order they ran.
+        assert text.index("5 Hz") < text.index("10 Hz") < text.index("20 Hz")
+        assert "MODIFIED policy" in text
+        assert not (tmp_path / "stance_panel_selected.csv").exists()
+        assert not (tmp_path / "stance_gate_report.txt").exists()
+        import json
+
+        payload = json.loads((tmp_path / "stance_gate_probe_filtered.json").read_text())
+        assert [row["filter_actions_hz"] for row in payload["sweep"]] == [5.0, 10.0, 20.0]
+        assert payload["episodes_per_cutoff"] == 10
+
+    def test_a_partial_sweep_is_still_written(self, tmp_path, monkeypatch):
+        """A failure at one cutoff must not discard the ones that succeeded."""
+        from environments.shared.reporting import stage_artifacts
+
+        calls = {"n": 0}
+
+        def _flaky(species, stage, **kwargs):
+            calls["n"] += 1
+            if kwargs["filter_actions_hz"] == 10.0:
+                raise RuntimeError("this cutoff exploded")
+            r = _minimal_stance_report()
+            r["filter_actions_hz"] = kwargs["filter_actions_hz"]
+            return r
+
+        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _flaky)
+        stage_artifacts._write_filtered_action_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {"stance_probe_filter_hz": [5.0, 10.0, 20.0]}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            episodes=40,
+        )
+        import json
+
+        payload = json.loads((tmp_path / "stance_gate_probe_filtered.json").read_text())
+        assert [row["filter_actions_hz"] for row in payload["sweep"]] == [5.0]
+
+    def test_the_probe_rolls_fewer_episodes_than_the_gate(self, tmp_path, monkeypatch):
+        """Each cutoff costs a panel; the probe certifies nothing."""
+        from environments.shared.reporting import stage_artifacts
+
+        seen = {}
+
+        def _capture(species, stage, **kwargs):
+            seen["episodes"] = kwargs["episodes"]
+            r = _minimal_stance_report()
+            r["filter_actions_hz"] = kwargs["filter_actions_hz"]
+            return r
+
+        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _capture)
+        stage_artifacts._write_filtered_action_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {"stance_probe_filter_hz": [5.0]}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            episodes=40,
+        )
+        assert seen["episodes"] == 10
+
     def test_it_passes_the_configured_cutoff_through(self, tmp_path, monkeypatch):
         from environments.shared.reporting import stage_artifacts
 
@@ -1147,6 +1240,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         )
         assert seen["filter_actions_hz"] == 5.0
         assert (tmp_path / "stance_gate_probe_filtered.txt").exists()
+        assert not (tmp_path / "stance_panel_selected.csv").exists()
 
     def test_a_failing_probe_does_not_sink_the_run(self, tmp_path, monkeypatch, caplog):
         from environments.shared.reporting import stage_artifacts
@@ -1174,7 +1268,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         from environments.shared.curriculum.gate_schema import validate_gate_config
 
         curriculum = load_stage_config("trex", 1)["curriculum_kwargs"]
-        assert curriculum["stance_probe_filter_hz"] == 5.0
+        assert curriculum["stance_probe_filter_hz"] == [5.0, 10.0, 20.0]
         validate_gate_config(1, curriculum)
 
 
