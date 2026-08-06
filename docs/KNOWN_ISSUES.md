@@ -81,6 +81,32 @@ tolerance) remains the standing recommendation for the divergences above.
   if one is wanted for sim-to-real it has to be present during training. The
   probe conflates bandwidth-dependence with delay-sensitivity; a zero-phase
   offline filter would separate them. Tracked in #491.
+- **HIGH** — **the passing policy stands in a pose it cannot hold without
+  continuous feedback.** Freezing its commanded action to the constant it
+  averages collapses it from every handoff point — 348.9 steps of a 1000-step
+  horizon from settle, 330.2 when ramped in over 50 steps, 133.3 from reset —
+  while both controls reach the horizon (unmodified policy 1000, zero-action
+  statue 1000 at reward 3271.0). The ramped variant falling too rules out a
+  handoff transient. The statue holds the *home* pose on a constant forever;
+  the policy stands 0.765 rms away from home with 12 of 21 actuators pinned at
+  ±1.000, and **that** pose needs active stabilisation. So the tremor is the
+  price of where the policy chose to stand, not a property of the task, and
+  **raising `smoothness`/`action_jerk` is contraindicated** — they would
+  suppress the only thing holding the animal up. The open question is why the
+  policy leaves a pose that is free to hold for one costing 267 reward points
+  plus continuous stabilisation; the candidate answer is that no stage-1 term
+  constrains 13 of the 21 actuators (`leg_home_pose` covers 8 carrying 1.2% of
+  the offset). Measured by `stance_gate_report.py --hold-constant`; see the
+  2026-08-06 addendum in the bounce investigation. Untested next step: release
+  only the saturated joints back to home and re-measure.
+- **MEDIUM** — **stage 1 contains no in-episode disturbance, so it cannot ask
+  for postural correction.** The only perturbation is joint-angle noise at
+  reset (`reset_noise_scale 0.05`); nothing applies an external force during an
+  episode. A policy that learns active correction therefore earns nothing over
+  one that stands still, which is why the zero-action statue is the objective's
+  optimum. Active balance recovery is **absent from the task**, not
+  underweighted in the reward, and no reweighting substitutes for adding it —
+  that is what `STAGE1_SPLIT_PLAN.md`'s 1a stance / 1b recovery split is for.
 
 <!-- The six items below come from the 2026-07-31 plant validation pass; full
      evidence in PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md. The reset and

@@ -52,6 +52,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **A constant-hold probe, which separates "needs bandwidth" from "needs
+  feedback".** `stance_gate_report.py --hold-constant` replaces the policy's
+  commanded action with the constant it commands *on average* — its own
+  post-settle per-actuator DC — partway through each episode, and scores that.
+  Runs automatically after the gate report when a stage sets
+  `stance_probe_hold_constant`, writing
+  `stance_gate_probe_constant.{txt,json}`.
+  The existing low-pass probe could not answer this. A filtered policy still
+  responds to what it sees, just slowly, so a fall under the filter shows the
+  policy needs *bandwidth* without showing whether it needs *feedback* at all —
+  and the two have opposite fixes. Cutting the loop outright decides it.
+  Five variants bracketed by two controls: the unmodified policy (expressed as
+  a handoff at the horizon, so it still carries the probe marker and can never
+  land on the certification filenames) and the zero hold, which is the statue.
+  Between them the measured pose is held from settle, hard and ramped, and from
+  reset. The ramped variant exists to answer the obvious objection to a hard
+  switch — that a step transient rather than the loss of feedback knocked the
+  animal over — with a measurement instead of an argument.
+  Measured on the passing `20260805_011234` checkpoint: **both controls reach
+  the 1000-step horizon** (policy 3006.9, statue 3271.0) and **every held
+  variant collapses** — 348.9 steps from settle, 330.2 ramped, 133.3 from
+  reset, all at full-horizon 0.0000. The pose that policy holds requires
+  continuous feedback, so the tremor is stabilisation rather than waste and
+  raising `smoothness`/`action_jerk` is contraindicated. Full analysis in the
+  2026-08-06 addendum to `TREX_STAGE1_BOUNCE_2026_08.md`.
+  Probe branding is now a registry (`_PROBE_MARKERS`) rather than a chain of
+  `is not None` tests. The filter probe's guard was a single such test, and a
+  second probe added beside it would have silently inherited the certification
+  filenames and the `stance_panel_selected.csv` evidence a bundle is certified
+  from.
 - **The deterministic policy's action, measured instead of inferred.** Every
   action number on disk came from *training* rollouts, so all of it carried
   exploration noise; diagnosing issue #489 meant recovering the commanded pose

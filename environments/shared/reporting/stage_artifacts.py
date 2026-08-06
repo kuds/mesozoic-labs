@@ -264,6 +264,16 @@ def _write_stance_gate_report(
             vecnorm_path=selected_vecnorm,
             episodes=report_episodes,
         )
+        _write_constant_hold_probe(
+            species=species,
+            stage=stage,
+            stage_config=stage_config,
+            stage_dir=stage_dir,
+            model_path=f"{selected_path}.zip",
+            vecnorm_path=selected_vecnorm,
+            episodes=report_episodes,
+            measured=report,
+        )
         return report
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Stance gate report failed for stage %d", stage, exc_info=True)
@@ -372,6 +382,87 @@ def _write_filtered_action_probe(
             logger.info("Filtered action probe sweep -> %s", written["action_filter_sweep_txt"])
         except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
             logger.warning("Could not write the filtered action probe sweep", exc_info=True)
+
+
+def _write_constant_hold_probe(
+    *,
+    species: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_path: str,
+    vecnorm_path: str | None,
+    episodes: int,
+    measured: dict[str, Any],
+) -> None:
+    """Re-score the checkpoint with its action frozen to the constant it averages.
+
+    The question the filtered probe leaves open. Low-passing a policy still
+    lets it respond, just slowly, so a fall under the filter proves the policy
+    needs *bandwidth* without saying whether it needs *feedback*. Cutting the
+    feedback outright and commanding the policy's own post-settle mean
+    separates the two, and the two have opposite fixes: a pose that stands
+    under a constant means the tremor is waste the action penalties failed to
+    suppress, while a pose that falls means the tremor is the only thing
+    holding the animal up and penalising it harder would be actively wrong.
+
+    Off unless ``stance_probe_hold_constant`` is set. Reuses the gate report's
+    already-measured per-actuator DC rather than rolling a measurement panel of
+    its own, so the whole probe costs the variant panels and nothing else.
+
+    Writes ``stance_gate_probe_constant.{txt,json}`` and deliberately NOT
+    ``stance_panel_selected.csv``.
+    """
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    if not curriculum.get("stance_probe_hold_constant"):
+        return
+    probe_episodes = max(1, min(episodes, _PROBE_EPISODES))
+    entries: list[dict[str, Any]] = []
+    try:
+        from environments.shared.scripts.stance_gate_report import (
+            build_stance_gate_report,
+            constant_hold_actions,
+            constant_hold_variants,
+        )
+
+        hold = constant_hold_actions(measured)
+        variants = constant_hold_variants(
+            hold,
+            settle_steps=int(measured["settle_steps"]),
+            horizon=int(measured["horizon"]),
+        )
+        for variant in variants:
+            probe = build_stance_gate_report(
+                species,
+                stage,
+                stage_config=stage_config,
+                model_path=model_path,
+                vecnorm_path=vecnorm_path,
+                episodes=probe_episodes,
+                hold_constant=variant,
+            )
+            entries.append(probe)
+            logger.info(
+                "Constant-hold probe %s: episode length %.1f, full-horizon %.4f, reward %.1f. "
+                "MODIFIED policy -- not a gate verdict.",
+                variant.label,
+                probe["metrics"]["episode_length_mean"],
+                probe["metrics"]["full_horizon_fraction"],
+                probe["metrics"]["reward_mean"],
+            )
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+        logger.warning("Constant-hold probe failed for stage %d", stage, exc_info=True)
+    # Written even if a later variant raised, for the same reason the filter
+    # sweep is: the variants that succeeded are still a measurement, and the
+    # controls are what make the others readable.
+    if entries:
+        try:
+            from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+
+            written = write_constant_hold_probe(stage_dir, entries, probe_episodes=probe_episodes)
+            logger.info("Constant-hold probe -> %s", written["constant_hold_probe_txt"])
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+            logger.warning("Could not write the constant-hold probe", exc_info=True)
 
 
 def _apply_stage_gate(

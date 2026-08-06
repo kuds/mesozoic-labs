@@ -1359,3 +1359,300 @@ class TestPerActuatorActionReporting:
         from environments.shared.scripts.stance_gate_report import render_stance_gate_report
 
         assert "commanded action" not in render_stance_gate_report(_minimal_stance_report())
+
+
+def _held_report(label, *, holds=True, handoff=200, ramp=0, length=1000.0, full=1.0, reward=3004.3, source=None):
+    """A probe report for one constant-hold variant."""
+    report = _minimal_stance_report()
+    report["episodes"] = 10
+    report["hold_constant"] = {
+        "label": label,
+        "source": source or ("measured" if holds else "unmodified"),
+        "holds": holds,
+        "handoff_steps": handoff,
+        "ramp_steps": ramp,
+        "actions": [0.5, -0.25],
+    }
+    report["metrics"] = dict(
+        report["metrics"],
+        episode_length_mean=length,
+        full_horizon_fraction=full,
+        reward_mean=reward,
+    )
+    report["terminations"] = {"truncated": 10} if full > 0 else {"tail_contact": 10}
+    return report
+
+
+class TestConstantHoldWrapper:
+    """`--hold-constant` cuts the feedback, where the low-pass only slows it.
+
+    The distinction is the whole point: a filtered policy still responds to
+    what it sees, so a fall under the filter proves the policy needs bandwidth
+    without saying whether it needs feedback at all. Holding a constant says.
+    """
+
+    @staticmethod
+    def _held(hold, actions=None):
+        from environments.shared.scripts.stance_gate_report import _hold_constant_predict
+
+        seq = iter(actions or [])
+        base = lambda _obs: np.asarray(next(seq), dtype=np.float64)  # noqa: E731
+        return _hold_constant_predict(base, hold)
+
+    def test_the_policy_runs_until_handoff_then_stops_being_consulted(self):
+        from environments.shared.scripts.stance_gate_report import ConstantHold
+
+        hold = ConstantHold((0.5,), handoff_steps=2)
+        # Only two policy actions are supplied: a third call would raise
+        # StopIteration if the wrapper kept consulting it.
+        predict = self._held(hold, actions=[[0.1], [0.2]])
+        assert [float(predict(None)[0]) for _ in range(5)] == pytest.approx([0.1, 0.2, 0.5, 0.5, 0.5])
+
+    def test_a_handoff_at_the_horizon_never_substitutes(self):
+        """This is how the unmodified control variant is expressed."""
+        from environments.shared.scripts.stance_gate_report import ConstantHold
+
+        hold = ConstantHold((9.9,), handoff_steps=1000, holds=False)
+        predict = self._held(hold, actions=[[0.1], [0.2], [0.3]])
+        assert [float(predict(None)[0]) for _ in range(3)] == pytest.approx([0.1, 0.2, 0.3])
+
+    def test_the_ramp_blends_from_the_policys_last_action(self):
+        from environments.shared.scripts.stance_gate_report import ConstantHold
+
+        hold = ConstantHold((1.0,), handoff_steps=1, ramp_steps=4)
+        predict = self._held(hold, actions=[[0.0]])
+        out = [float(predict(None)[0]) for _ in range(6)]
+        assert out[0] == pytest.approx(0.0)
+        # Linear from the last commanded action to the constant, then held.
+        assert out[1:5] == pytest.approx([0.25, 0.5, 0.75, 1.0])
+        assert out[5] == pytest.approx(1.0)
+
+    def test_a_ramp_from_reset_starts_at_the_home_keyframe(self):
+        """There is no previous action at step 0, and `action = 0` IS home.
+
+        Starting the ramp anywhere else would jump the pose on the first step,
+        which is the transient the ramp exists to avoid.
+        """
+        from environments.shared.scripts.stance_gate_report import ConstantHold
+
+        hold = ConstantHold((1.0,), handoff_steps=0, ramp_steps=2)
+        predict = self._held(hold)
+        assert [float(predict(None)[0]) for _ in range(3)] == pytest.approx([0.5, 1.0, 1.0])
+
+    def test_reset_prevents_one_episode_starting_past_handoff(self):
+        from environments.shared.scripts.stance_gate_report import ConstantHold
+
+        hold = ConstantHold((0.5,), handoff_steps=1)
+        predict = self._held(hold, actions=[[0.1], [0.2]])
+        assert float(predict(None)[0]) == pytest.approx(0.1)
+        assert float(predict(None)[0]) == pytest.approx(0.5)
+        predict.reset()
+        # Without the reset the second episode would open already held, and the
+        # panel would average two different experiments.
+        assert float(predict(None)[0]) == pytest.approx(0.2)
+
+
+class TestConstantHoldExtraction:
+    def test_it_reads_the_per_actuator_dc_in_index_order(self):
+        from environments.shared.scripts.stance_gate_report import constant_hold_actions
+
+        report = {
+            "action": {
+                "per_actuator": [
+                    {"index": 2, "joint": "c", "dc": 0.3, "ac_rms": 0.0},
+                    {"index": 0, "joint": "a", "dc": 0.1, "ac_rms": 0.0},
+                    {"index": 1, "joint": "b", "dc": 0.2, "ac_rms": 0.0},
+                ]
+            }
+        }
+        assert constant_hold_actions(report) == pytest.approx((0.1, 0.2, 0.3))
+
+    def test_a_report_without_the_block_fails_loudly(self):
+        """Silently holding zeros would score the statue and call it the policy."""
+        from environments.shared.scripts.stance_gate_report import constant_hold_actions
+
+        with pytest.raises(StanceGateReportError, match="no per-actuator action statistics"):
+            constant_hold_actions(_minimal_stance_report())
+
+
+class TestConstantHoldVariants:
+    def test_the_set_brackets_the_held_rows_with_two_controls(self):
+        from environments.shared.scripts.stance_gate_report import constant_hold_variants
+
+        variants = constant_hold_variants((0.5, -0.5), settle_steps=200, horizon=1000)
+        by_label = {v.label: v for v in variants}
+        assert not by_label["policy (control)"].holds
+        assert by_label["policy (control)"].handoff_steps == 1000, "the control must never substitute"
+        assert by_label["hold_zero (statue control)"].actions == (0.0, 0.0)
+        assert by_label["hold_after_settle"].handoff_steps == 200
+        assert by_label["hold_after_settle"].ramp_steps == 0
+        assert by_label["hold_after_settle_ramped"].ramp_steps > 0
+        assert by_label["hold_from_reset"].handoff_steps == 0
+
+    def test_the_zero_control_matches_the_hold_width(self):
+        from environments.shared.scripts.stance_gate_report import constant_hold_variants
+
+        variants = constant_hold_variants(tuple([0.5] * 21), settle_steps=200, horizon=1000)
+        assert all(len(v.actions) == 21 for v in variants)
+
+
+class TestConstantHoldProbeCannotBeMistakenForTheVerdict:
+    def test_it_writes_its_own_filenames(self, tmp_path):
+        report = _held_report("hold_after_settle")
+        written = write_stance_gate_report(tmp_path, report)
+        assert (tmp_path / "stance_gate_probe_constant.txt").exists()
+        assert not (tmp_path / "stance_gate_report.txt").exists()
+        assert "stance_panel_csv" not in written
+
+    def test_even_the_unmodified_control_is_marked_a_probe(self, tmp_path):
+        """The control rolls the real policy, so nothing else would flag it.
+
+        Ten episodes at the panel seeds is not the gate's 40, and a report on
+        those filenames would be certified as if it were.
+        """
+        report = _held_report("policy (control)", holds=False, handoff=1000)
+        write_stance_gate_report(tmp_path, report)
+        assert (tmp_path / "stance_gate_probe_constant.txt").exists()
+        assert not (tmp_path / "stance_gate_report.txt").exists()
+
+    def test_the_banner_precedes_the_verdict(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        text = render_stance_gate_report(_held_report("hold_after_settle"))
+        assert "PROBE" in text
+        assert "not a gate result" in text
+        assert text.index("PROBE") < text.index("GATE:")
+
+    def test_the_control_row_says_it_was_not_held(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        text = render_stance_gate_report(_held_report("policy (control)", holds=False, handoff=1000))
+        assert "unmodified control" in text
+
+    def test_every_probe_marker_maps_to_a_distinct_stem(self):
+        """Two probes sharing a stem would overwrite each other's artifact."""
+        from environments.shared.scripts.stance_gate_report import _PROBE_MARKERS
+
+        assert len(set(_PROBE_MARKERS.values())) == len(_PROBE_MARKERS)
+        assert "stance_gate_report" not in set(_PROBE_MARKERS.values())
+
+    def test_an_ordinary_report_is_still_not_a_probe(self):
+        from environments.shared.scripts.stance_gate_report import probe_stem
+
+        assert probe_stem(_minimal_stance_report()) is None
+
+
+class TestConstantHoldProbeTable:
+    @staticmethod
+    def _standard(full_when_held):
+        """The five standard variants, with the three measured holds set to *full_when_held*."""
+        length = 1000.0 if full_when_held > 0 else 231.0
+        return [
+            _held_report("policy (control)", holds=False, handoff=1000),
+            _held_report("hold_after_settle", full=full_when_held, length=length),
+            _held_report("hold_after_settle_ramped", ramp=50, full=full_when_held, length=length),
+            _held_report("hold_from_reset", handoff=0, ramp=50, full=full_when_held, length=length),
+            _held_report("hold_zero (statue control)", handoff=0, source="zeros"),
+        ]
+
+    def test_the_statue_control_is_not_read_as_a_measurement(self, tmp_path):
+        """It holds a constant too, but its standing is a known fact about the plant.
+
+        Counting it among the measured holds would make an all-falling result
+        read as mixed, which is the one reading that stops the probe concluding.
+        """
+        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+
+        write_constant_hold_probe(tmp_path, self._standard(0.0), probe_episodes=10)
+        assert "REQUIRES" in (tmp_path / "stance_gate_probe_constant.txt").read_text()
+
+    def test_all_held_rows_standing_reads_as_an_optimisation_failure(self, tmp_path):
+        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+
+        write_constant_hold_probe(tmp_path, self._standard(1.0), probe_episodes=10)
+        text = (tmp_path / "stance_gate_probe_constant.txt").read_text()
+        assert "does NOT" in text and "optimisation" in text
+        assert "MODIFIED policy" in text
+
+    def test_all_held_rows_falling_reads_as_load_bearing_feedback(self, tmp_path):
+        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+
+        write_constant_hold_probe(tmp_path, self._standard(0.0), probe_episodes=10)
+        text = (tmp_path / "stance_gate_probe_constant.txt").read_text()
+        assert "REQUIRES" in text
+        assert "penalising" in text, "the conclusion must warn against the obvious wrong fix"
+
+    def test_a_mixed_result_refuses_to_conclude(self, tmp_path):
+        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+
+        reports = self._standard(1.0)
+        reports[1]["metrics"] = dict(reports[1]["metrics"], full_horizon_fraction=0.0, episode_length_mean=231.0)
+        write_constant_hold_probe(tmp_path, reports, probe_episodes=10)
+        text = (tmp_path / "stance_gate_probe_constant.txt").read_text()
+        assert "Mixed" in text
+        assert "step transient" in text, "the ramped variant is what tells the two apart"
+
+    def test_it_never_writes_the_certification_evidence(self, tmp_path):
+        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+
+        written = write_constant_hold_probe(tmp_path, self._standard(1.0), probe_episodes=10)
+        assert set(written) == {"constant_hold_probe_txt", "constant_hold_probe_json"}
+        assert not (tmp_path / "stance_panel_selected.csv").exists()
+        assert not (tmp_path / "stance_gate_report.txt").exists()
+
+    def test_the_json_carries_the_held_vector_not_the_controls_zeros(self, tmp_path):
+        import json
+
+        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+
+        write_constant_hold_probe(tmp_path, self._standard(1.0), probe_episodes=10)
+        payload = json.loads((tmp_path / "stance_gate_probe_constant.json").read_text())
+        assert payload["hold_actions"] == [0.5, -0.25]
+        assert payload["episodes_per_variant"] == 10
+        assert [row["label"] for row in payload["variants"]][0] == "policy (control)"
+
+
+class TestTheConstantHoldProbeIsWiredIntoTrainingArtifacts:
+    def test_it_is_skipped_when_unconfigured(self, tmp_path, monkeypatch):
+        from environments.shared.reporting import stage_artifacts
+
+        called = False
+
+        def _boom(*a, **k):
+            nonlocal called
+            called = True
+
+        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        stage_artifacts._write_constant_hold_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            episodes=40,
+            measured=_minimal_stance_report(),
+        )
+        assert not called
+
+    def test_a_measured_report_without_dc_does_not_sink_the_run(self, tmp_path):
+        """The gate report is the caller's return value; a probe must not raise."""
+        from environments.shared.reporting import stage_artifacts
+
+        stage_artifacts._write_constant_hold_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {"stance_probe_hold_constant": True}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            episodes=40,
+            measured=_minimal_stance_report(),
+        )
+        assert not (tmp_path / "stance_gate_probe_constant.txt").exists()
+
+    def test_the_config_key_is_reachable_from_a_toml(self):
+        """Unregistered keys are rejected fail-closed, which makes them unreachable."""
+        from environments.shared.curriculum.gate_schema import _DIAGNOSTIC_KEYS
+
+        assert "stance_probe_hold_constant" in _DIAGNOSTIC_KEYS

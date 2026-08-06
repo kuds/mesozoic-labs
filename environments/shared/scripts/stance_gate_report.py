@@ -27,6 +27,12 @@ Usage::
     # the do-nothing reference, for the same panel and seeds
     python environments/shared/scripts/stance_gate_report.py trex --zero-action
 
+    # probe: does the pose this policy holds need feedback, or only a constant?
+    python environments/shared/scripts/stance_gate_report.py trex \\
+        --model path/to/robust_best_model.zip \\
+        --vecnorm path/to/robust_best_model_vecnorm.pkl \\
+        --hold-constant
+
 Thresholds come from the stage TOML, so the report re-anchors automatically
 when the gate is retuned.  ``--episodes`` defaults to the stage's own
 ``min_eval_episodes``, because that is the panel size the bound's power is
@@ -41,6 +47,7 @@ import csv
 import json
 import math
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -515,6 +522,124 @@ def _low_pass_predict(predict: Any, cutoff_hz: float, control_dt: float) -> Any:
     return filtered
 
 
+@dataclass(frozen=True)
+class ConstantHold:
+    """A constant command to substitute for the policy, and when to substitute it.
+
+    The probe behind ``docs/investigations/TREX_STAGE1_BOUNCE_2026_08.md`` §5:
+    the passing T-Rex stage-1 policy stands with a 0.366 rms tremor at ~22.7 Hz,
+    and the low-pass probe shows that tremor is load-bearing. That leaves two
+    readings, which the filter probe cannot separate:
+
+    * the *pose* the policy holds needs continuous active stabilisation, or
+    * the pose is holdable by a constant and the tremor is waste the action
+      penalties failed to suppress.
+
+    Replacing the policy with the constant it commands **on average** decides
+    it. If the animal keeps standing, the smooth solution existed and the
+    optimiser did not find it. If it falls, the pose genuinely requires
+    feedback, and the question moves to why the policy chose a pose it then has
+    to fight -- which points at the 13 of 21 actuators no stage-1 term
+    constrains.
+
+    Attributes:
+        actions: The constant command, one entry per actuator.
+        handoff_steps: Steps of real policy before the substitution. ``0``
+            commands the constant from reset; a value at or above the horizon
+            never substitutes at all, which is how the probe rolls its own
+            unmodified control panel without producing a report that could be
+            mistaken for a gate verdict.
+        ramp_steps: Steps to blend from the last commanded action into
+            *actions*. ``0`` switches in one step. The ramp exists to answer
+            the obvious objection to a hard switch -- that the animal fell from
+            the step transient rather than from losing feedback -- with a
+            second measurement instead of an argument.
+        label: Short name for this variant in the probe artifact.
+        source: Where *actions* came from, recorded so a reader can tell a
+            measured hold from a hand-supplied one.
+    """
+
+    actions: tuple[float, ...]
+    handoff_steps: int
+    ramp_steps: int = 0
+    label: str = "hold"
+    source: str = "measured"
+    #: Set for the control variant that never substitutes, so the renderer can
+    #: say "this row is the unmodified policy" rather than implying a hold.
+    holds: bool = field(default=True)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "label": self.label,
+            "source": self.source,
+            "holds": self.holds,
+            "handoff_steps": self.handoff_steps,
+            "ramp_steps": self.ramp_steps,
+            "actions": list(self.actions),
+        }
+
+
+def _hold_constant_predict(predict: Any, hold: ConstantHold) -> Any:
+    """Wrap *predict* so the plant receives a constant command after handoff.
+
+    Feedback is cut, not attenuated: past ``handoff_steps`` the returned action
+    no longer depends on the observation at all. That is the point -- a
+    low-pass still lets the policy respond slowly, so it cannot distinguish
+    "needs bandwidth" from "needs feedback", and this can.
+
+    The step counter is per episode and reset by the caller through
+    :func:`reset`, exactly like the low-pass probe: without it the second
+    episode would start already past handoff and the panel would measure
+    something different from the first.
+    """
+    constant = np.asarray(hold.actions, dtype=np.float64)
+    state: dict[str, Any] = {"step": 0, "last": None}
+
+    def held(obs: np.ndarray) -> np.ndarray:
+        step = state["step"]
+        state["step"] = step + 1
+        if step < hold.handoff_steps:
+            action = np.asarray(predict(obs), dtype=np.float64).ravel()
+            state["last"] = action
+            return np.asarray(action, dtype=np.float32)
+        elapsed = step - hold.handoff_steps
+        if hold.ramp_steps > 0 and elapsed < hold.ramp_steps:
+            # Blend from whatever was last commanded. At handoff that is the
+            # policy's own last action; from reset there is none, and zero is
+            # the right start because `action = 0` IS the home keyframe the
+            # episode begins at -- so the ramp starts from the actual pose
+            # rather than jumping to one.
+            previous = state["last"]
+            if previous is None or previous.shape != constant.shape:
+                previous = np.zeros_like(constant)
+            weight = (elapsed + 1) / hold.ramp_steps
+            return np.asarray((1.0 - weight) * previous + weight * constant, dtype=np.float32)
+        return np.asarray(constant, dtype=np.float32)
+
+    held.reset = lambda: state.update(step=0, last=None)  # type: ignore[attr-defined]
+    return held
+
+
+def constant_hold_actions(report: dict[str, Any]) -> tuple[float, ...]:
+    """The per-actuator DC a report measured, as a constant command.
+
+    DC is the time-mean of the commanded action over the post-settle window --
+    under ``home-keyframe-residual/v1`` the static pose the policy holds, since
+    ``action = 0`` is the home keyframe. Holding exactly that is what makes the
+    probe a fair test of the pose rather than of some nearby pose: the animal
+    is asked to stand where it was already standing, with the variation about
+    it removed and nothing else changed.
+    """
+    per_actuator = (report.get("action") or {}).get("per_actuator") or []
+    if not per_actuator:
+        raise StanceGateReportError(
+            "the report carries no per-actuator action statistics, so there is no "
+            "measured pose to hold. It was produced before that block existed, or "
+            "from a panel in which no episode survived the settling window."
+        )
+    return tuple(float(entry["dc"]) for entry in sorted(per_actuator, key=lambda e: e["index"]))
+
+
 def build_stance_gate_report(
     species: str,
     stage: int,
@@ -527,6 +652,7 @@ def build_stance_gate_report(
     seed: int = 3042,
     allow_legacy_plant: bool = False,
     filter_actions_hz: float | None = None,
+    hold_constant: ConstantHold | None = None,
 ) -> dict[str, Any]:
     """Roll a policy and return its gate verdict as a serializable dict.
 
@@ -585,6 +711,23 @@ def build_stance_gate_report(
     if filter_actions_hz is not None:
         predict = _low_pass_predict(predict, filter_actions_hz, control_dt)
         description += f" — actions low-passed at {filter_actions_hz:g} Hz"
+
+    if hold_constant is not None:
+        expected = int(plant_identity.action_dim)
+        if len(hold_constant.actions) != expected:
+            # Checked before the rollout rather than at the first step: numpy
+            # broadcasts a mismatched length silently, which would score a
+            # policy nobody asked for and report it as this one.
+            raise ValueError(
+                f"hold_constant carries {len(hold_constant.actions)} actions but "
+                f"{species} has action_dim {expected}"
+            )
+        predict = _hold_constant_predict(predict, hold_constant)
+        description += (
+            f" — {hold_constant.label}"
+            if not hold_constant.holds
+            else f" — commanded action held constant from step {hold_constant.handoff_steps}"
+        )
 
     result = run_panel(
         species,
@@ -645,6 +788,10 @@ def build_stance_gate_report(
         # a stored report. `render_stance_gate_report` prints it for the same
         # reason.
         "filter_actions_hz": filter_actions_hz,
+        # `None` for an ordinary run. Same contract as `filter_actions_hz`: a
+        # held rollout scored a policy whose feedback was cut, so it is a probe
+        # and never a verdict, and `_PROBE_MARKERS` keys the filenames off this.
+        "hold_constant": None if hold_constant is None else hold_constant.as_dict(),
         # Where the commanded pose sits and what the policy does around it,
         # per actuator. `{}` when no post-settle step was measured.
         "action": result.get("action", {}),
@@ -659,6 +806,53 @@ def build_stance_gate_report(
     }
 
 
+#: Report keys that mark a rollout as a PROBE rather than a verdict, mapped to
+#: the filename stem that probe writes under. Each names a modification applied
+#: between the policy and the plant, so a report carrying any of them scored
+#: something other than the checkpoint -- and must never land on the real
+#: report's filenames or supply the evidence a bundle is certified from.
+#:
+#: A registry rather than a chain of ``if``s because the failure mode is
+#: forgetting to extend the check: the filter probe's guard was written as a
+#: single ``is not None`` test, and a second probe added beside it would have
+#: silently inherited the certification filenames.
+_PROBE_MARKERS: dict[str, str] = {
+    "filter_actions_hz": "stance_gate_probe_filtered",
+    "hold_constant": "stance_gate_probe_constant",
+}
+
+
+def probe_stem(report: dict[str, Any]) -> str | None:
+    """The filename stem a probe report writes under, or ``None`` if it is a verdict."""
+    for key, stem in _PROBE_MARKERS.items():
+        if report.get(key) is not None:
+            return stem
+    return None
+
+
+def _probe_banner(report: dict[str, Any]) -> list[str]:
+    """The warning a probe report must carry above its verdict line."""
+    if report.get("filter_actions_hz") is not None:
+        what = f"actions low-passed at {report['filter_actions_hz']:g} Hz before reaching the plant."
+    elif report.get("hold_constant") is not None:
+        hold = report["hold_constant"]
+        what = (
+            "the policy ran the whole episode; this row is the unmodified control."
+            if not hold.get("holds", True)
+            else (
+                f"the commanded action was frozen to a constant from step {hold['handoff_steps']}"
+                + (f", ramped in over {hold['ramp_steps']} steps." if hold.get("ramp_steps") else ".")
+            )
+        )
+    else:
+        return []
+    return [
+        f"PROBE: {what}",
+        "This scores a MODIFIED policy. The verdict below is not a gate result for this checkpoint.",
+        "",
+    ]
+
+
 def render_stance_gate_report(report: dict[str, Any]) -> str:
     """Render a report dict as the human-readable text form."""
     thresholds = report["thresholds"]
@@ -671,15 +865,10 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
             "below are reported but are not what this stage advances on."
         )
         lines.append("")
-    # Before the verdict, not after: a filtered rollout scores a MODIFIED
-    # policy, so its PASS/FAIL is not a statement about the checkpoint and a
-    # reader must not reach the verdict line without knowing that.
-    if report.get("filter_actions_hz") is not None:
-        lines += [
-            f"PROBE: actions low-passed at {report['filter_actions_hz']:g} Hz before reaching the plant.",
-            "This scores a MODIFIED policy. The verdict below is not a gate result for this checkpoint.",
-            "",
-        ]
+    # Before the verdict, not after: a probe rollout scores a MODIFIED policy,
+    # so its PASS/FAIL is not a statement about the checkpoint and a reader must
+    # not reach the verdict line without knowing that.
+    lines += _probe_banner(report)
     measured = report["horizon"] - report["settle_steps"]
     lines += [
         f"policy              {report['policy']}",
@@ -787,8 +976,9 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
     # because that file is the per-episode evidence `result_bundle.evidence`
     # certifies a stance-gated stage from. Writing a filtered panel there would
     # certify a policy that was never run.
-    probe = report.get("filter_actions_hz") is not None
-    stem = "stance_gate_probe_filtered" if probe else "stance_gate_report"
+    stem = probe_stem(report)
+    probe = stem is not None
+    stem = stem or "stance_gate_report"
     text_path = directory / f"{stem}.txt"
     json_path = directory / f"{stem}.json"
     text_path.write_text(render_stance_gate_report(report) + "\n", encoding="utf-8")
@@ -893,6 +1083,176 @@ def write_action_filter_sweep(
     return {"action_filter_sweep_txt": text_path, "action_filter_sweep_json": json_path}
 
 
+def render_constant_hold_probe(
+    reports: list[dict[str, Any]], *, probe_episodes: int
+) -> tuple[str, dict[str, Any]]:
+    """Reduce the constant-hold variants to their comparison table and payload.
+
+    Split from the writer so the CLI can print the table without depositing
+    files in whatever directory it was run from.
+
+    The rows are only meaningful against each other, which is why they share a
+    file. Two of them are controls that bracket the measurement:
+
+    * the **unmodified policy**, which must reach the horizon or the probe is
+      measuring a broken harness rather than a property of the pose, and
+    * the **zero hold**, the statue -- a constant that is already known to
+      stand all 1000 steps in 40 of 40 episodes.
+
+    Between them sit the held variants. Read them as a single yes/no:
+
+    * held rollouts reach the horizon -> the pose is holdable by a constant.
+      The tremor is not stabilisation; the action penalties simply failed to
+      find the smooth solution, and this is an optimisation problem.
+    * held rollouts fall while both controls stand -> the pose the policy chose
+      genuinely requires feedback. The question then moves to *why* it chose a
+      pose it has to fight, which points at the actuators no stage-1 term
+      constrains rather than at the action penalties.
+
+    The ramped variant exists to close the obvious objection to the hard
+    switch -- that a step transient, not the loss of feedback, is what knocked
+    the animal over -- with a measurement instead of an argument. If the hard
+    switch falls and the ramped one stands, the transient was the cause and
+    neither row says anything about the pose.
+
+    Deliberately does not write ``stance_panel_selected.csv``: no row here
+    scored the policy that would be certified.
+    """
+    rows = [
+        {
+            "label": report["hold_constant"]["label"],
+            "holds": report["hold_constant"]["holds"],
+            "source": report["hold_constant"]["source"],
+            "handoff_steps": report["hold_constant"]["handoff_steps"],
+            "ramp_steps": report["hold_constant"]["ramp_steps"],
+            "episode_length_mean": report["metrics"]["episode_length_mean"],
+            "full_horizon_fraction": report["metrics"]["full_horizon_fraction"],
+            "reward_mean": report["metrics"]["reward_mean"],
+            "mean_unsupported_duty": report["metrics"]["mean_unsupported_duty"],
+            "terminations": report["terminations"],
+        }
+        for report in reports
+    ]
+    horizon = reports[0]["horizon"]
+    policy = str(reports[0]["policy"]).split(" — commanded action held constant")[0].split(" — ")[0]
+    # The rows that hold the POLICY'S measured pose. Deliberately not "every
+    # row that holds something": `hold_zero` holds a constant too, and it is a
+    # control whose standing is already known and proves nothing about this
+    # policy. Folding it in would make an all-falling result read as mixed.
+    held = [row for row in rows if row["source"] == "measured"]
+    hold_actions = next(
+        (report["hold_constant"]["actions"] for report in reports if report["hold_constant"]["source"] == "measured"),
+        [],
+    )
+    payload = {
+        "schema": "mesozoic.constant-hold-probe/v1",
+        "species": reports[0]["species"],
+        "stage": reports[0]["stage"],
+        "policy": policy,
+        "horizon": horizon,
+        "episodes_per_variant": probe_episodes,
+        "hold_actions": hold_actions,
+        "note": (
+            "Each row scored a MODIFIED policy (its commanded action replaced by a "
+            "constant partway through the episode). No row is a gate verdict. The "
+            "question is whether the held rows reach the horizon: if they do, the "
+            "pose is holdable without feedback and the tremor is waste; if they "
+            "fall while both controls stand, the pose requires active stabilisation."
+        ),
+        "variants": rows,
+        "reports": reports,
+    }
+    lines = [
+        "PROBE: the policy's commanded action replaced by a constant partway through the episode.",
+        "Every held row scores a MODIFIED policy. None of them is a gate verdict.",
+        "",
+        f"policy              {policy}",
+        f"stage               {reports[0]['species']} stage {reports[0]['stage']}",
+        f"panel               {probe_episodes} episodes per variant, horizon {horizon}",
+        f"hold                the policy's own post-settle mean action, {len(hold_actions)} actuators",
+        "",
+        f"  {'variant':<26}{'handoff':>8}{'ramp':>6}{'ep length':>11}{'full-horiz':>12}{'reward':>10}   terminations",
+    ]
+    for row in rows:
+        handoff = "never" if not row["holds"] else str(row["handoff_steps"])
+        lines.append(
+            f"  {row['label']:<26}{handoff:>8}{row['ramp_steps']:>6}"
+            f"{row['episode_length_mean']:>11.1f}{row['full_horizon_fraction']:>12.4f}"
+            f"{row['reward_mean']:>10.1f}   {row['terminations']}"
+        )
+    lines += ["", "How to read it:"]
+    if held and all(row["full_horizon_fraction"] >= 0.95 for row in held):
+        lines += [
+            "  Every held variant reached the horizon. The pose the policy holds does NOT",
+            "  need feedback to stand -- a constant command suffices. The tremor is therefore",
+            "  not closed-loop stabilisation, and the gap to the statue is an optimisation",
+            "  failure rather than a missing reward term.",
+        ]
+    elif held and all(row["full_horizon_fraction"] <= 0.0 for row in held):
+        lines += [
+            "  No held variant reached the horizon. The pose the policy holds REQUIRES",
+            "  continuous feedback. The tremor is stabilisation, not waste, and penalising",
+            "  it harder would remove the only thing keeping the animal up. The question",
+            "  becomes why the policy settled on a pose it has to fight -- look at the",
+            "  actuators no stage-1 reward term constrains.",
+        ]
+    else:
+        lines += [
+            "  Mixed. Compare the ramped variant against the hard switch: if only the hard",
+            "  switch falls, the step transient caused it and neither row is evidence about",
+            "  the pose. Re-run with more episodes before drawing a conclusion.",
+        ]
+    lines += [
+        "",
+        "  The two controls bracket the measurement. 'policy' is the unmodified checkpoint",
+        "  and must reach the horizon; 'hold_zero' is the statue, a constant already known",
+        "  to stand. If either misbehaves, the harness is at fault, not the pose.",
+    ]
+    return "\n".join(lines) + "\n", payload
+
+
+def write_constant_hold_probe(
+    stage_dir: "str | Path", reports: list[dict[str, Any]], *, probe_episodes: int
+) -> dict[str, Path]:
+    """Write the constant-hold probe beside the stage's other artifacts.
+
+    Its own filenames, and never ``stance_panel_selected.csv`` -- the same
+    discipline the filtered probe follows, for the same reason: no row here
+    scored the policy a bundle would be certified from.
+    """
+    directory = Path(stage_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    text, payload = render_constant_hold_probe(reports, probe_episodes=probe_episodes)
+    text_path = directory / "stance_gate_probe_constant.txt"
+    json_path = directory / "stance_gate_probe_constant.json"
+    text_path.write_text(text, encoding="utf-8")
+    json_path.write_text(
+        json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    return {"constant_hold_probe_txt": text_path, "constant_hold_probe_json": json_path}
+
+
+def constant_hold_variants(
+    hold: tuple[float, ...], *, settle_steps: int, horizon: int, ramp_steps: int = 50
+) -> list[ConstantHold]:
+    """The standard variant set: two controls bracketing three held rollouts.
+
+    ``handoff_steps = horizon`` is how the unmodified control is expressed. It
+    rolls the real policy for the whole episode yet still carries the
+    ``hold_constant`` marker, so it can never be written to the certification
+    filenames by a caller who forgets which report is which.
+    """
+    zero = tuple(0.0 for _ in hold)
+    return [
+        ConstantHold(hold, handoff_steps=horizon, label="policy (control)", source="unmodified", holds=False),
+        ConstantHold(hold, handoff_steps=settle_steps, ramp_steps=0, label="hold_after_settle"),
+        ConstantHold(hold, handoff_steps=settle_steps, ramp_steps=ramp_steps, label="hold_after_settle_ramped"),
+        ConstantHold(hold, handoff_steps=0, ramp_steps=ramp_steps, label="hold_from_reset"),
+        ConstantHold(zero, handoff_steps=0, ramp_steps=0, label="hold_zero (statue control)", source="zeros"),
+    ]
+
+
 #: Column order of ``stance_panel_selected.csv``.  ``unsupported_duty`` is
 #: empty for an episode whose duty could not be measured (one shorter than the
 #: settling window); the auditor treats empty as unmeasured rather than zero,
@@ -975,10 +1335,43 @@ def main() -> int:
         "still stands, the tremor was waste and belongs on the action path; if it falls, the "
         "tremor is closed-loop stabilisation and the fix belongs elsewhere (issue #489).",
     )
+    parser.add_argument(
+        "--hold-constant",
+        action="store_true",
+        help="Replace the policy's action with the constant it commands ON AVERAGE partway through "
+        "each episode, and score THAT, over a standard variant set with two controls. Separates "
+        "'the pose needs feedback' from 'the tremor is waste the action penalties missed' -- the "
+        "one question the low-pass probe cannot answer, because a filtered policy still responds.",
+    )
+    parser.add_argument(
+        "--hold-from-report",
+        metavar="JSON",
+        help="Take the constant from an existing stance_gate_report.json instead of measuring it. "
+        "Skips the measurement panel when you already have one for this checkpoint.",
+    )
+    parser.add_argument(
+        "--hold-episodes",
+        type=int,
+        default=10,
+        help="Episodes per hold variant (default 10). The probe certifies nothing and the effect "
+        "it measures is a fall or a full horizon, so it does not need the gate's panel size.",
+    )
+    parser.add_argument(
+        "--hold-ramp-steps",
+        type=int,
+        default=50,
+        help="Steps to blend into the constant in the ramped variants (default 50).",
+    )
     args = parser.parse_args()
 
     if not args.zero_action and not args.model:
         parser.error("pass --model, or --zero-action for the do-nothing reference")
+    if args.hold_constant and args.filter_actions is not None:
+        parser.error("--hold-constant and --filter-actions are different probes; run them separately")
+    if args.hold_episodes < 1:
+        parser.error(f"--hold-episodes must be at least 1, got {args.hold_episodes}")
+    if args.hold_ramp_steps < 0:
+        parser.error(f"--hold-ramp-steps cannot be negative, got {args.hold_ramp_steps}")
     if args.filter_actions is not None and args.filter_actions <= 0:
         parser.error(f"--filter-actions must be positive, got {args.filter_actions}")
     # `--episodes 0` used to fall through `episodes or min_eval_episodes` to the
@@ -1011,6 +1404,44 @@ def main() -> int:
     if args.out_dir:
         for path in write_stance_gate_report(args.out_dir, report).values():
             print(f"written: {path}")
+
+    if args.hold_constant:
+        try:
+            hold = (
+                constant_hold_actions(json.loads(Path(args.hold_from_report).read_text(encoding="utf-8")))
+                if args.hold_from_report
+                else constant_hold_actions(report)
+            )
+        except StanceGateReportError as exc:
+            raise SystemExit(str(exc)) from exc
+        variants = constant_hold_variants(
+            hold,
+            settle_steps=report["settle_steps"],
+            horizon=report["horizon"],
+            ramp_steps=args.hold_ramp_steps,
+        )
+        probes = [
+            build_stance_gate_report(
+                args.species,
+                args.stage,
+                stage_config=stage_config,
+                model_path=args.model,
+                vecnorm_path=args.vecnorm,
+                zero_action=args.zero_action,
+                episodes=args.hold_episodes,
+                seed=args.seed,
+                allow_legacy_plant=args.allow_legacy_plant,
+                hold_constant=variant,
+            )
+            for variant in variants
+        ]
+        text, _ = render_constant_hold_probe(probes, probe_episodes=args.hold_episodes)
+        print()
+        print(text, end="")
+        if args.out_dir:
+            written = write_constant_hold_probe(args.out_dir, probes, probe_episodes=args.hold_episodes)
+            for path in written.values():
+                print(f"written: {path}")
 
     declared = report["thresholds"]["min_eval_episodes"]
     if args.episodes is not None and args.episodes != declared:

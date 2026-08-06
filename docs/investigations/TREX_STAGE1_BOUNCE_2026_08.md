@@ -266,3 +266,99 @@ The frequency estimate is `jerk/delta = (2 sin πfΔt)²`, which is blind to any
 constant offset — the DC/AC split is the point, because a pooled standard
 deviation over actuators and time cannot separate "sitting in the wrong place"
 from "shaking", and those have different causes and different fixes.
+
+---
+
+## Addendum, 2026-08-06 — the tremor is feedback, not bandwidth
+
+Appended, not rewritten. This settles the question §5 left open.
+
+### What §5 could not answer
+
+The low-pass probe proved the tremor is load-bearing, but a low-passed policy
+**still responds to what it sees** — just slowly. So a fall under the filter
+shows the policy needs *bandwidth*; it cannot show whether it needs *feedback*
+at all. Two readings survived, with opposite fixes:
+
+- the pose the policy holds needs continuous active stabilisation, or
+- the pose is holdable by a constant, and the tremor is waste the action
+  penalties failed to suppress.
+
+### The experiment
+
+Replace the commanded action with the constant the policy commands **on
+average** — its own post-settle per-actuator DC — and keep everything else
+identical. Feedback is cut outright rather than attenuated. Two controls
+bracket the measurement.
+
+`stance_gate_report.py --hold-constant`, on the **passing** checkpoint
+(`20260805_011234`), 10 episodes per variant:
+
+| variant | handoff | ramp | ep length | full-horizon | reward | terminations |
+|---|---|---|---|---|---|---|
+| policy (control) | never | — | **1000.0** | 1.0000 | 3006.9 | truncated 10 |
+| `hold_after_settle` | 200 | 0 | 348.9 | 0.0000 | 908.8 | tail_contact 9, fallen 1 |
+| `hold_after_settle_ramped` | 200 | 50 | 330.2 | 0.0000 | 795.0 | fallen 8, tail_contact 2 |
+| `hold_from_reset` | 0 | 50 | 133.3 | 0.0000 | 284.8 | tail_contact 10 |
+| `hold_zero` (statue control) | 0 | 0 | **1000.0** | 1.0000 | 3271.0 | truncated 10 |
+
+Both controls behave exactly as required — the unmodified policy reaches the
+horizon, and the statue reproduces its known 3271.8 within panel noise — so the
+harness is measuring the pose and not itself.
+
+### Result
+
+**The pose the policy holds requires continuous feedback.** Every held variant
+collapses, and the ramped variant collapses too, which removes the obvious
+objection: it is not a step transient at the handoff. Ramping in over 50 steps
+made it *slightly worse* and shifted the termination reason from `tail_contact`
+to `fallen`, which is what a slow topple looks like rather than a jolt.
+
+### Why this matters more than it first appears
+
+The statue stands at the home keyframe for the full horizon on a constant
+command. The policy stands 0.765 rms **away** from home — 12 of 21 actuators
+pinned at exactly ±1.000 with AC 0.000 — and *that* pose cannot be held by a
+constant. So the tremor is not a property of the task. It is the cost of
+standing where the policy chose to stand.
+
+That reframes the whole question. It is not "why does the policy shake?" but
+**"why did it walk off a pose that is free to hold, onto one that costs 267
+reward points *and* requires continuous stabilisation?"** The answer is not in
+the action penalties, and raising them is now positively contraindicated —
+§4 already showed they are firing and losing, and this shows the thing they
+would suppress is the only thing holding the animal up.
+
+The candidate answer is that **nothing in stage 1 constrains where 13 of the 21
+actuators sit.** `leg_home_pose` covers 8 joints carrying 1.2% of the offset
+(§3). The tail, neck, head and toes are unconstrained, they saturate, and the
+sagittal chain — hip pitch, knee, ankle, the joints with headroom left — pays
+for it at 22.6 Hz.
+
+### It does not, by itself, argue for a reward change
+
+Two things must not be read into this:
+
+1. **It says nothing about the bounce.** The bounce is still 450 points worse
+   under the same reward (§4), still an optimisation failure, and still not
+   addressable by reweighting.
+2. **It does not show the reward is wrong, only that it is silent.** A term
+   constraining the unconstrained joints is a *hypothesis*, and the last time a
+   pose term was reweighted on a plausible mechanism (#490) it did exactly what
+   it was asked to do and the stage failed anyway. Measure the mechanism before
+   shaping for it.
+
+The measurement that would test it is cheap and does not need a training run:
+hold the constant pose but **release only the saturated joints back to home**,
+and see whether the rest becomes holdable. If it does, the saturated pose is
+what creates the stabilisation load.
+
+### And a separate point about the task
+
+Stage 1 has **no in-episode disturbance** — the only perturbation is joint-angle
+noise at reset (`reset_noise_scale 0.05`); there is no external force anywhere
+in the environment. So a policy that learns active postural correction earns
+nothing over one that stands still, and "actively stand and correct posture"
+is not underweighted in this reward, it is absent from the task. That is the
+gap `STAGE1_SPLIT_PLAN.md` proposes 1a/1b for, and no reweighting substitutes
+for it.

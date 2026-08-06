@@ -421,7 +421,36 @@ stance_probe_filter_hz = [5.0, 10.0, 20.0]  # After the gate report, re-score th
                                          #
                                          # The probe scores a MODIFIED policy: its own filenames, never
                                          # stance_panel_selected.csv, and its verdict is not a gate result.
-collapse_peak_floor_fraction = 0.45      # RELATIVE floor (PLANT_VALIDATION §14 item 3). An absolute floor has now
+stance_probe_hold_constant = true        # After the gate report, re-score the SAME checkpoint with its commanded
+                                         # action FROZEN to the constant it averages, and write
+                                         # stance_gate_probe_constant.{txt,json}. Unset to skip.
+                                         #
+                                         # The question the filter probe cannot answer. A low-passed policy still
+                                         # responds to what it sees, just slowly, so a fall under the filter proves
+                                         # the policy needs BANDWIDTH without saying whether it needs FEEDBACK.
+                                         # Freezing the action cuts the loop outright, and the two readings have
+                                         # opposite fixes: a pose that stands under a constant means the tremor is
+                                         # waste the action penalties failed to suppress (an optimisation problem),
+                                         # while a pose that falls means the tremor is the only thing holding the
+                                         # animal up and penalising it harder would be actively wrong.
+                                         #
+                                         # Five variants bracketed by two controls -- the unmodified policy, which
+                                         # must reach the horizon, and the zero hold, which is the statue and
+                                         # already stands 40 of 40. Between them the measured pose is held from
+                                         # settle (hard and ramped) and from reset. The ramped variant exists to
+                                         # answer the objection that a step transient rather than the loss of
+                                         # feedback knocked the animal over, with a measurement instead of an
+                                         # argument.
+                                         #
+                                         # Measured on the 20260805_011234 checkpoint: policy 1000 steps, statue
+                                         # 1000, and every held variant falls. The pose this policy holds requires
+                                         # continuous feedback.
+                                         #
+                                         # Costs no measurement panel -- it reuses the gate report's per-actuator
+                                         # DC -- and rolls 10 episodes per variant for the same reason the filter
+                                         # sweep does. Scores a MODIFIED policy: own filenames, never
+                                         # stance_panel_selected.csv, verdict is not a gate result.
+collapse_peak_floor_fraction = 0.45    # RELATIVE floor (PLANT_VALIDATION §14 item 3). An absolute floor has now
                                          # failed to arm TWICE for the same reason: 2200 against run 20260731_132102
                                          # (peak 1934.1, watched a -59% collapse), then 2450 against run
                                          # 20260801_021545 (best eval 2347.67 -- still under it, watched

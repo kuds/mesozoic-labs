@@ -162,6 +162,7 @@ _DIAGNOSTIC_KEYS = frozenset(
         "stance_report_episodes",
         "baseline_warn_after_budget_fraction",
         "stance_probe_filter_hz",
+        "stance_probe_hold_constant",
     }
 )
 
