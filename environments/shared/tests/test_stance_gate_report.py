@@ -1656,3 +1656,227 @@ class TestTheConstantHoldProbeIsWiredIntoTrainingArtifacts:
         from environments.shared.curriculum.gate_schema import _DIAGNOSTIC_KEYS
 
         assert "stance_probe_hold_constant" in _DIAGNOSTIC_KEYS
+
+
+def _report_with_actuators(entries):
+    """A report carrying a per-actuator block, for the group selectors."""
+    report = _minimal_stance_report()
+    report["action"] = {
+        "dc_rms": 0.7,
+        "ac_rms": 0.36,
+        "delta_per_step": 2.7,
+        "jerk_per_step": 4.6,
+        "effective_freq_hz": 22.6,
+        "per_actuator": [
+            {"index": index, "joint": joint, "dc": dc, "ac_rms": 0.0}
+            for index, (joint, dc) in enumerate(entries)
+        ],
+    }
+    return report
+
+
+_TREX_ACTUATORS = [
+    ("neck_pitch", -0.433),
+    ("neck_yaw", -0.208),
+    ("head_pitch", -1.0),
+    ("r_hip_pitch", 0.052),
+    ("r_hip_roll", 1.0),
+    ("r_knee", 0.147),
+    ("r_ankle", -0.133),
+    ("r_toe_d2_joint", 1.0),
+    ("l_hip_roll", -1.0),
+    ("tail_1_yaw", 1.0),
+]
+
+
+class TestActuatorGroupSelection:
+    def test_saturation_is_measured_not_named(self):
+        from environments.shared.scripts.stance_gate_report import saturated_actuator_indices
+
+        report = _report_with_actuators(_TREX_ACTUATORS)
+        assert saturated_actuator_indices(report) == (2, 4, 7, 8, 9)
+
+    def test_the_threshold_is_a_magnitude_so_both_limits_count(self):
+        """`l_hip_roll` sits at -1.0 and is exactly as saturated as +1.0."""
+        from environments.shared.scripts.stance_gate_report import saturated_actuator_indices
+
+        report = _report_with_actuators([("a", -1.0), ("b", 0.5)])
+        assert saturated_actuator_indices(report) == (0,)
+
+    def test_groups_match_by_joint_name(self):
+        from environments.shared.scripts.stance_gate_report import actuator_indices_matching
+
+        report = _report_with_actuators(_TREX_ACTUATORS)
+        assert actuator_indices_matching(report, ("tail",)) == (9,)
+        assert actuator_indices_matching(report, ("toe",)) == (7,)
+        assert actuator_indices_matching(report, ("hip_roll",)) == (4, 8)
+        # head and neck are one region: three joints, two prefixes.
+        assert actuator_indices_matching(report, ("head", "neck")) == (0, 1, 2)
+
+    def test_release_returns_the_named_actuators_to_home(self):
+        from environments.shared.scripts.stance_gate_report import constant_hold_released
+
+        assert constant_hold_released((0.5, -0.5, 1.0), (0, 2)) == pytest.approx((0.0, -0.5, 0.0))
+
+    def test_releasing_everything_is_the_statue(self):
+        """The ablation is a path between two measured endpoints; this is one."""
+        from environments.shared.scripts.stance_gate_report import constant_hold_released
+
+        assert constant_hold_released((0.5, -0.5), (0, 1)) == pytest.approx((0.0, 0.0))
+
+    def test_releasing_nothing_leaves_the_pose_alone(self):
+        from environments.shared.scripts.stance_gate_report import constant_hold_released
+
+        assert constant_hold_released((0.5, -0.5), ()) == pytest.approx((0.5, -0.5))
+
+
+class TestReleaseAblationVariants:
+    @staticmethod
+    def _variants():
+        from environments.shared.scripts.stance_gate_report import (
+            constant_hold_actions,
+            constant_hold_release_variants,
+        )
+
+        report = _report_with_actuators(_TREX_ACTUATORS)
+        hold = constant_hold_actions(report)
+        return {v.label: v for v in constant_hold_release_variants(hold, report, horizon=1000)}
+
+    def test_every_group_gets_both_directions(self):
+        """One side alone is not evidence: necessity and sufficiency differ."""
+        variants = self._variants()
+        for group in ("saturated", "tail", "toes", "head_neck", "hip_rolls"):
+            assert f"release_{group}" in variants
+            assert f"only_{group}" in variants
+
+    def test_release_and_only_are_exact_complements(self):
+        variants = self._variants()
+        release = variants["release_tail"].actions
+        only = variants["only_tail"].actions
+        held = variants["hold_all"].actions
+        for index in range(len(held)):
+            # Exactly one side holds each actuator, and together they
+            # reconstruct the full pose. A gap or an overlap would make the
+            # necessity and sufficiency answers incomparable.
+            assert (release[index] == 0.0) != (only[index] == 0.0) or held[index] == 0.0
+            assert release[index] + only[index] == pytest.approx(held[index])
+
+    def test_the_endpoints_are_included_as_controls(self):
+        variants = self._variants()
+        assert not variants["policy (control)"].holds
+        assert all(value == 0.0 for value in variants["hold_zero (statue control)"].actions)
+        assert variants["hold_all"].actions == variants["policy (control)"].actions
+
+    def test_every_ablated_variant_is_commanded_from_reset(self):
+        """A handoff partway through makes the statue endpoint stop being the statue.
+
+        Measured, when this was wrong: handing off at settle_steps snaps some
+        subset of joints from +/-1.000 to 0 in one step, the transient swamps
+        the ablation, all thirteen variants land within 311-349 steps of each
+        other, and the all-released row -- which is supposed to BE the statue
+        and stand for 1000 -- falls at 323. Both endpoints on the same side of
+        the answer leaves the path with no signal to locate.
+        """
+        for label, variant in self._variants().items():
+            if label == "policy (control)":
+                continue
+            assert variant.handoff_steps == 0, f"{label} must be commanded from reset, not after a handoff"
+
+    def test_the_statue_endpoint_commands_home_for_the_whole_episode(self):
+        """Which is what makes it a control the other rows can be read against."""
+        statue = self._variants()["hold_zero (statue control)"]
+        assert statue.handoff_steps == 0
+        assert all(value == 0.0 for value in statue.actions)
+
+    def test_a_group_covering_every_actuator_is_not_an_ablation(self):
+        """Releasing all of them is the statue, which is already a row."""
+        from environments.shared.scripts.stance_gate_report import constant_hold_release_variants
+
+        report = _report_with_actuators([("tail_1_pitch", 1.0), ("tail_2_pitch", 1.0)])
+        labels = {v.label for v in constant_hold_release_variants((1.0, 1.0), report, horizon=1000)}
+        assert "release_tail" not in labels
+        assert "release_saturated" not in labels
+
+
+def _ablation_row(label, full, *, holds=True, length=None, released=0):
+    report = _held_report(label, holds=holds, full=full, length=length if length is not None else (1000.0 if full else 300.0))
+    report["hold_constant"]["actions"] = [0.0] * released + [0.5] * (21 - released)
+    return report
+
+
+class TestAblationVerdicts:
+    @staticmethod
+    def _render(pairs, **extra):
+        from environments.shared.scripts.stance_gate_report import render_constant_hold_ablation
+
+        reports = [_ablation_row("policy (control)", 1.0, holds=False), _ablation_row("hold_all", 0.0)]
+        for group, (release_full, only_full) in pairs.items():
+            reports.append(_ablation_row(f"release_{group}", release_full))
+            reports.append(_ablation_row(f"only_{group}", only_full))
+        reports.append(_ablation_row("hold_zero (statue control)", 1.0, released=21))
+        return render_constant_hold_ablation(reports, probe_episodes=8, **extra)
+
+    def test_necessary_and_sufficient_reads_as_the_cause(self):
+        text, payload = self._render({"tail": (1.0, 0.0)})
+        assert "CAUSE" in text
+        verdict = next(v for v in payload["verdicts"] if v["group"] == "tail")
+        assert verdict["necessary"] and verdict["sufficient"]
+
+    def test_necessary_alone_only_contributes(self):
+        """Removing it rescues the pose, but it cannot break the statue by itself."""
+        text, payload = self._render({"tail": (1.0, 1.0)})
+        assert "contributes" in text
+        verdict = next(v for v in payload["verdicts"] if v["group"] == "tail")
+        assert verdict["necessary"] and not verdict["sufficient"]
+
+    def test_neither_reads_as_a_bystander(self):
+        text, payload = self._render({"saturated": (0.0, 1.0)})
+        assert "bystander" in text
+        verdict = next(v for v in payload["verdicts"] if v["group"] == "saturated")
+        assert not verdict["necessary"] and not verdict["sufficient"]
+
+    def test_a_middling_result_refuses_to_round(self, ):
+        """The two conclusions are opposite, so the gap must not be split."""
+        text, payload = self._render({"tail": (0.5, 0.0)})
+        assert "inconclusive" in text
+        assert next(v for v in payload["verdicts"] if v["group"] == "tail")["verdict"].startswith("inconclusive")
+
+    def test_each_group_is_judged_independently(self):
+        _, payload = self._render({"tail": (1.0, 0.0), "toes": (0.0, 1.0)})
+        by_group = {v["group"]: v["verdict"] for v in payload["verdicts"]}
+        assert by_group["tail"].startswith("CAUSE")
+        assert by_group["toes"].startswith("bystander")
+
+    def test_the_table_warns_against_reading_one_side(self):
+        text, _ = self._render({"tail": (1.0, 0.0)})
+        assert "never one side" in text
+        assert "bystander" in text, "the failure mode must be named, not just the success"
+
+    def test_it_writes_its_own_filenames_and_no_evidence(self, tmp_path):
+        from environments.shared.scripts.stance_gate_report import write_constant_hold_ablation
+
+        reports = [_ablation_row("policy (control)", 1.0, holds=False), _ablation_row("hold_all", 0.0)]
+        written = write_constant_hold_ablation(tmp_path, reports, probe_episodes=8)
+        assert set(written) == {"constant_hold_ablation_txt", "constant_hold_ablation_json"}
+        assert (tmp_path / "stance_gate_probe_release.txt").exists()
+        assert not (tmp_path / "stance_panel_selected.csv").exists()
+        assert not (tmp_path / "stance_gate_report.txt").exists()
+        # The other two probes' artifacts must not be collided with either.
+        assert not (tmp_path / "stance_gate_probe_constant.txt").exists()
+        assert not (tmp_path / "stance_gate_probe_filtered.txt").exists()
+
+    def test_nothing_necessary_but_something_sufficient_reads_as_over_determined(self):
+        """Measured on the T-Rex checkpoint: toes break it alone, yet removing
+        them does not rescue it, because the rest of the pose breaks it too."""
+        text, _ = self._render({"toes": (0.0, 0.0), "tail": (0.0, 1.0)})
+        assert "OVER-DETERMINED" in text
+        assert "toes" in text.split("Overall:")[1]
+        assert "wrong question" in text
+
+    def test_nothing_necessary_and_nothing_sufficient_says_regroup(self):
+        text, _ = self._render({"tail": (0.0, 1.0), "toes": (0.0, 1.0)})
+        assert "Regroup" in text
+
+    def test_a_necessary_group_suppresses_the_over_determined_reading(self):
+        text, _ = self._render({"tail": (1.0, 0.0)})
+        assert "OVER-DETERMINED" not in text

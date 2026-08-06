@@ -97,8 +97,24 @@ tolerance) remains the standing recommendation for the divergences above.
   plus continuous stabilisation; the candidate answer is that no stage-1 term
   constrains 13 of the 21 actuators (`leg_home_pose` covers 8 carrying 1.2% of
   the offset). Measured by `stance_gate_report.py --hold-constant`; see the
-  2026-08-06 addendum in the bounce investigation. Untested next step: release
-  only the saturated joints back to home and re-measure.
+  2026-08-06 addendum in the bounce investigation.
+- **HIGH** — **the toes alone account for the unholdable pose; the tail is a
+  bystander.** Ablating the held pose one actuator group at a time
+  (`--hold-release-ablation`, necessity *and* sufficiency per group): holding
+  only the **six toe joints** at their commanded DC with everything else at
+  home reproduces the whole failure — **125.5 steps against the full pose's
+  128.6, `tail_contact` 8 of 8 in both**. Holding only the **four tail joints**
+  at `±1.000` stands the full horizon at reward **3254.0**, within 0.6% of the
+  statue; head and neck likewise at **3286.1**. No group is *necessary* —
+  releasing all twelve saturated actuators still falls (224.6 steps) — so the
+  pose is over-determined and several subsets break it independently. **This
+  refutes the saturation hypothesis** recorded above it: saturation is
+  conspicuous, not causal. Toes are the ground contact and five of six sit at
+  their stops, which changes the support polygon — a plant effect, not a
+  reward-shaping one. **Not yet a reason to add a toe reward term**: sufficiency
+  says the toe pose breaks a *statue*, not that constraining it would make the
+  policy stand. Unmeasured prerequisite: whether `±1.000` on a toe is a large
+  joint angle at all — read `ctrlrange` out of `trex.xml` first.
 - **MEDIUM** — **stage 1 contains no in-episode disturbance, so it cannot ask
   for postural correction.** The only perturbation is joint-angle noise at
   reset (`reset_noise_scale 0.05`); nothing applies an external force during an

@@ -1211,6 +1211,189 @@ def render_constant_hold_probe(
     return "\n".join(lines) + "\n", payload
 
 
+#: A variant is treated as standing when it clears this share of full-horizon
+#: episodes, and as falling at or below :data:`_ABLATION_FALLS`. Two thresholds
+#: with a gap between them on purpose: an ablation that lands in the gap is
+#: reported as inconclusive rather than rounded to whichever side is nearer,
+#: because the conclusions on the two sides are opposite.
+_ABLATION_STANDS = 0.95
+_ABLATION_FALLS = 0.05
+
+
+def _ablation_verdicts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Classify each ablated group by necessity and sufficiency.
+
+    Necessity and sufficiency are asked separately because either alone
+    misleads. A group that is merely *correlated* with the fall -- the
+    saturated set is the obvious candidate, since saturation is visible and
+    dramatic -- shows up as necessary-and-not-sufficient or as neither, and
+    only the pair distinguishes that from a cause.
+    """
+    by_label = {row["label"]: row for row in rows}
+    stands = lambda row: row is not None and row["full_horizon_fraction"] >= _ABLATION_STANDS  # noqa: E731
+    falls = lambda row: row is not None and row["full_horizon_fraction"] <= _ABLATION_FALLS  # noqa: E731
+    verdicts = []
+    for label in by_label:
+        if not label.startswith("release_"):
+            continue
+        group = label[len("release_") :]
+        release, only = by_label.get(label), by_label.get(f"only_{group}")
+        necessary = stands(release)
+        sufficient = falls(only)
+        if release is None or only is None:
+            verdict = "incomplete (a variant did not run)"
+        elif not (stands(release) or falls(release)) or not (stands(only) or falls(only)):
+            verdict = "inconclusive (a variant landed between the thresholds)"
+        elif necessary and sufficient:
+            verdict = "CAUSE — necessary and sufficient"
+        elif necessary:
+            verdict = "contributes — necessary, not sufficient alone"
+        elif sufficient:
+            verdict = "sufficient alone, but not necessary"
+        else:
+            verdict = "bystander — neither"
+        verdicts.append(
+            {
+                "group": group,
+                "necessary": necessary,
+                "sufficient": sufficient,
+                "verdict": verdict,
+                "release_full_horizon": None if release is None else release["full_horizon_fraction"],
+                "only_full_horizon": None if only is None else only["full_horizon_fraction"],
+            }
+        )
+    return verdicts
+
+
+def render_constant_hold_ablation(
+    reports: list[dict[str, Any]], *, probe_episodes: int
+) -> tuple[str, dict[str, Any]]:
+    """Reduce the release ablation to its table, per-group verdicts, and payload.
+
+    The ablation walks the path between two already-measured endpoints: the
+    policy's full held pose, which falls, and the statue, which stands. Each
+    row moves one actuator group between them, so the table asks which
+    coordinate carries the effect rather than merely restating that the pose
+    is unholdable.
+    """
+    rows = [
+        {
+            "label": report["hold_constant"]["label"],
+            "holds": report["hold_constant"]["holds"],
+            "source": report["hold_constant"]["source"],
+            "episode_length_mean": report["metrics"]["episode_length_mean"],
+            "full_horizon_fraction": report["metrics"]["full_horizon_fraction"],
+            "reward_mean": report["metrics"]["reward_mean"],
+            "terminations": report["terminations"],
+            "n_released": sum(1 for value in report["hold_constant"]["actions"] if value == 0.0),
+        }
+        for report in reports
+    ]
+    verdicts = _ablation_verdicts(rows)
+    horizon = reports[0]["horizon"]
+    policy = str(reports[0]["policy"]).split(" — ")[0]
+    payload = {
+        "schema": "mesozoic.constant-hold-ablation/v1",
+        "species": reports[0]["species"],
+        "stage": reports[0]["stage"],
+        "policy": policy,
+        "horizon": horizon,
+        "episodes_per_variant": probe_episodes,
+        "stands_threshold": _ABLATION_STANDS,
+        "falls_threshold": _ABLATION_FALLS,
+        "note": (
+            "Each row scored a MODIFIED policy: its commanded action frozen to a constant "
+            "with one actuator group returned to the home keyframe (released) or with only "
+            "that group held. No row is a gate verdict. release_G tests whether G is "
+            "NECESSARY for the fall; only_G tests whether G is SUFFICIENT to cause it."
+        ),
+        "variants": rows,
+        "verdicts": verdicts,
+        "reports": reports,
+    }
+    lines = [
+        "PROBE: a held constant pose, ablated one actuator group at a time.",
+        "Every row scores a MODIFIED policy. None of them is a gate verdict.",
+        "",
+        f"policy              {policy}",
+        f"stage               {reports[0]['species']} stage {reports[0]['stage']}",
+        f"panel               {probe_episodes} episodes per variant, horizon {horizon}",
+        "released            commanded 0, which IS the home keyframe under home-keyframe-residual/v1",
+        "",
+        f"  {'variant':<28}{'released':>9}{'ep length':>11}{'full-horiz':>12}{'reward':>10}   terminations",
+    ]
+    for row in rows:
+        released = "-" if not row["holds"] else str(row["n_released"])
+        lines.append(
+            f"  {row['label']:<28}{released:>9}{row['episode_length_mean']:>11.1f}"
+            f"{row['full_horizon_fraction']:>12.4f}{row['reward_mean']:>10.1f}   {row['terminations']}"
+        )
+    if verdicts:
+        lines += [
+            "",
+            "Per group — release_G asks if G is NECESSARY (does removing it rescue the pose?),",
+            "only_G asks if G is SUFFICIENT (does it alone break the statue?):",
+            "",
+            f"  {'group':<14}{'release stands':>16}{'only falls':>12}   verdict",
+        ]
+        for entry in verdicts:
+            release_text = "-" if entry["release_full_horizon"] is None else f"{entry['release_full_horizon']:.4f}"
+            only_text = "-" if entry["only_full_horizon"] is None else f"{entry['only_full_horizon']:.4f}"
+            lines.append(f"  {entry['group']:<14}{release_text:>16}{only_text:>12}   {entry['verdict']}")
+    if verdicts and not any(entry["necessary"] for entry in verdicts):
+        sufficient = [entry["group"] for entry in verdicts if entry["sufficient"]]
+        lines += ["", "Overall:"]
+        if sufficient:
+            lines += [
+                f"  No group is necessary, but {', '.join(sufficient)} " + ("is" if len(sufficient) == 1 else "are"),
+                "  sufficient. The pose is OVER-DETERMINED: more than one subset of it breaks",
+                "  the animal independently, so removing any single group leaves another still",
+                "  able to. 'Which joint is the cause' is therefore the wrong question -- but the",
+                "  sufficient groups are where the effect is concentrated, and a group that holds",
+                "  the full horizon on its own is exonerated no matter how extreme its DC looks.",
+            ]
+        else:
+            lines += [
+                "  No group is necessary and none is sufficient. Whatever makes the pose",
+                "  unholdable is not separated by these groupings -- it may be a combination",
+                "  that crosses them, or a joint outside every group. Regroup before concluding.",
+            ]
+    lines += [
+        "",
+        "Read the pair, never one side. A group can look implicated because it is",
+        "conspicuous -- twelve actuators pinned at exactly +/-1.000 are hard to ignore --",
+        "and still be a bystander. Only necessary AND sufficient identifies a cause;",
+        "necessary alone means it contributes with others, and neither means the",
+        "stabilisation load lives somewhere this ablation did not separate.",
+        "",
+        "The endpoints bound the path: 'hold_all' is the full pose and must fall,",
+        "'hold_zero' is the statue and must stand. If either misbehaves the harness is",
+        "at fault and no row below it means anything.",
+    ]
+    return "\n".join(lines) + "\n", payload
+
+
+def write_constant_hold_ablation(
+    stage_dir: "str | Path", reports: list[dict[str, Any]], *, probe_episodes: int
+) -> dict[str, Path]:
+    """Write the release ablation beside the stage's other artifacts.
+
+    Its own filenames, and never ``stance_panel_selected.csv`` -- same
+    discipline as the other two probes, for the same reason.
+    """
+    directory = Path(stage_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    text, payload = render_constant_hold_ablation(reports, probe_episodes=probe_episodes)
+    text_path = directory / "stance_gate_probe_release.txt"
+    json_path = directory / "stance_gate_probe_release.json"
+    text_path.write_text(text, encoding="utf-8")
+    json_path.write_text(
+        json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    return {"constant_hold_ablation_txt": text_path, "constant_hold_ablation_json": json_path}
+
+
 def write_constant_hold_probe(
     stage_dir: "str | Path", reports: list[dict[str, Any]], *, probe_episodes: int
 ) -> dict[str, Path]:
@@ -1231,6 +1414,140 @@ def write_constant_hold_probe(
         encoding="utf-8",
     )
     return {"constant_hold_probe_txt": text_path, "constant_hold_probe_json": json_path}
+
+
+#: Anatomical actuator groups, as substrings matched against joint names. Used
+#: to ablate a held pose one region at a time. Substrings rather than indices so
+#: the same groups resolve on any species whose joints follow the naming
+#: convention, and so adding a joint does not silently fall out of its group.
+_ACTUATOR_GROUPS: dict[str, tuple[str, ...]] = {
+    "tail": ("tail",),
+    "toes": ("toe",),
+    "head_neck": ("head", "neck"),
+    "hip_rolls": ("hip_roll",),
+}
+
+
+def actuator_indices_matching(report: dict[str, Any], patterns: "tuple[str, ...] | list[str]") -> tuple[int, ...]:
+    """Indices whose joint name contains any of *patterns*."""
+    per_actuator = (report.get("action") or {}).get("per_actuator") or []
+    return tuple(
+        int(entry["index"])
+        for entry in sorted(per_actuator, key=lambda e: e["index"])
+        if any(pattern in str(entry["joint"]) for pattern in patterns)
+    )
+
+
+def saturated_actuator_indices(report: dict[str, Any], threshold: float = 0.99) -> tuple[int, ...]:
+    """Indices whose commanded pose sits at or beyond *threshold* of the action range.
+
+    A saturated actuator has no headroom in one direction, so it cannot
+    contribute correction on that axis -- and on the T-Rex stage-1 checkpoint
+    the saturated set is also exactly the set with zero AC, i.e. the joints the
+    policy pins and then never moves.
+    """
+    per_actuator = (report.get("action") or {}).get("per_actuator") or []
+    return tuple(
+        int(entry["index"])
+        for entry in sorted(per_actuator, key=lambda e: e["index"])
+        if abs(float(entry["dc"])) >= threshold
+    )
+
+
+def constant_hold_released(hold: tuple[float, ...], release: "tuple[int, ...] | set[int]") -> tuple[float, ...]:
+    """*hold* with the given actuators returned to the home keyframe.
+
+    "Released" means commanded ``0``, which under ``home-keyframe-residual/v1``
+    is exactly the home pose -- so releasing every actuator gives the statue,
+    and releasing none gives the policy's own pose. Every ablation below is a
+    point on the path between a pose that falls and one that stands.
+    """
+    released = set(int(index) for index in release)
+    return tuple(0.0 if index in released else value for index, value in enumerate(hold))
+
+
+def constant_hold_release_variants(
+    hold: tuple[float, ...],
+    report: dict[str, Any],
+    *,
+    horizon: int,
+    ramp_steps: int = 50,
+) -> list[ConstantHold]:
+    """Ablate the held pose one actuator group at a time, both ways round.
+
+    Every ablated variant is commanded **from reset**, not from a handoff
+    partway through. That is load-bearing and was got wrong the first time:
+    handing off at ``settle_steps`` means the policy first establishes its own
+    displaced pose and velocities, and the ablation then snaps some subset of
+    joints from ``±1.000`` to ``0`` in one step. The transient dominates, every
+    variant lands within noise of every other (311-349 steps across all
+    thirteen), and -- decisively -- the all-released endpoint falls too, at 323
+    steps, when the statue it is supposed to be stands for 1000. Both endpoints
+    on the same side of the answer means the path has no signal to locate.
+
+    From reset the endpoints are the two known measurements: releasing every
+    actuator commands ``0`` throughout, which *is* the statue and stands the
+    full horizon, and releasing none reproduces the probe's own
+    ``hold_from_reset`` at 133 steps. The path then genuinely runs from falling
+    to standing, and an ablation on it locates which coordinate carries the
+    effect.
+
+    Each group gets two variants, because "which joints cause the fall" needs
+    two different questions answered and one of them alone is not evidence:
+
+    * ``release_G`` holds everything *except* G, testing **necessity** -- does
+      taking G away rescue a pose that otherwise falls?
+    * ``only_G`` holds *only* G, testing **sufficiency** -- does adding G alone
+      break the statue, which is known to stand?
+
+    A group that is both necessary and sufficient is the cause. A group that is
+    necessary but not sufficient contributes with others. A group that is
+    neither is a bystander, whatever its DC looks like -- and the saturated
+    joints look dramatic (twelve pinned at exactly +/-1.000) precisely because
+    saturation is visible, not because it was shown to matter.
+
+    The two endpoints of the path are included as controls: ``hold_all`` is the
+    full pose, already measured to fall, and ``hold_zero`` is the statue,
+    already measured to stand. Every ablation sits between them.
+    """
+    zero = tuple(0.0 for _ in hold)
+    groups: dict[str, tuple[int, ...]] = {"saturated": saturated_actuator_indices(report)}
+    for name, patterns in _ACTUATOR_GROUPS.items():
+        indices = actuator_indices_matching(report, patterns)
+        if indices:
+            groups[name] = indices
+    everything = tuple(range(len(hold)))
+
+    variants = [
+        ConstantHold(hold, handoff_steps=horizon, label="policy (control)", source="unmodified", holds=False),
+        ConstantHold(hold, handoff_steps=0, ramp_steps=ramp_steps, label="hold_all"),
+    ]
+    for name, indices in groups.items():
+        if not indices or len(indices) == len(hold):
+            # Releasing everything is the statue and releasing nothing is
+            # `hold_all`; neither is an ablation, and both are already rows.
+            continue
+        complement = tuple(index for index in everything if index not in set(indices))
+        variants.append(
+            ConstantHold(
+                constant_hold_released(hold, indices),
+                handoff_steps=0,
+                ramp_steps=ramp_steps,
+                label=f"release_{name}",
+            )
+        )
+        variants.append(
+            ConstantHold(
+                constant_hold_released(hold, complement),
+                handoff_steps=0,
+                ramp_steps=ramp_steps,
+                label=f"only_{name}",
+            )
+        )
+    variants.append(
+        ConstantHold(zero, handoff_steps=0, ramp_steps=ramp_steps, label="hold_zero (statue control)", source="zeros")
+    )
+    return variants
 
 
 def constant_hold_variants(
@@ -1362,7 +1679,16 @@ def main() -> int:
         default=50,
         help="Steps to blend into the constant in the ramped variants (default 50).",
     )
+    parser.add_argument(
+        "--hold-release-ablation",
+        action="store_true",
+        help="Instead of the standard hold variants, ablate the held pose one actuator group at a "
+        "time -- releasing each group back to the home keyframe, and holding each group alone. "
+        "Answers WHICH joints make the pose unholdable, by testing necessity and sufficiency "
+        "separately. Implies --hold-constant.",
+    )
     args = parser.parse_args()
+    args.hold_constant = args.hold_constant or args.hold_release_ablation
 
     if not args.zero_action and not args.model:
         parser.error("pass --model, or --zero-action for the do-nothing reference")
@@ -1414,11 +1740,25 @@ def main() -> int:
             )
         except StanceGateReportError as exc:
             raise SystemExit(str(exc)) from exc
-        variants = constant_hold_variants(
-            hold,
-            settle_steps=report["settle_steps"],
-            horizon=report["horizon"],
-            ramp_steps=args.hold_ramp_steps,
+        source_report = (
+            json.loads(Path(args.hold_from_report).read_text(encoding="utf-8"))
+            if args.hold_from_report
+            else report
+        )
+        variants = (
+            constant_hold_release_variants(
+                hold,
+                source_report,
+                horizon=report["horizon"],
+                ramp_steps=args.hold_ramp_steps,
+            )
+            if args.hold_release_ablation
+            else constant_hold_variants(
+                hold,
+                settle_steps=report["settle_steps"],
+                horizon=report["horizon"],
+                ramp_steps=args.hold_ramp_steps,
+            )
         )
         probes = [
             build_stance_gate_report(
@@ -1435,12 +1775,13 @@ def main() -> int:
             )
             for variant in variants
         ]
-        text, _ = render_constant_hold_probe(probes, probe_episodes=args.hold_episodes)
+        render = render_constant_hold_ablation if args.hold_release_ablation else render_constant_hold_probe
+        write = write_constant_hold_ablation if args.hold_release_ablation else write_constant_hold_probe
+        text, _ = render(probes, probe_episodes=args.hold_episodes)
         print()
         print(text, end="")
         if args.out_dir:
-            written = write_constant_hold_probe(args.out_dir, probes, probe_episodes=args.hold_episodes)
-            for path in written.values():
+            for path in write(args.out_dir, probes, probe_episodes=args.hold_episodes).values():
                 print(f"written: {path}")
 
     declared = report["thresholds"]["min_eval_episodes"]

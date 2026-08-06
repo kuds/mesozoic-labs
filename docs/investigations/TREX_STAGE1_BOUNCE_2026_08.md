@@ -353,6 +353,12 @@ hold the constant pose but **release only the saturated joints back to home**,
 and see whether the rest becomes holdable. If it does, the saturated pose is
 what creates the stabilisation load.
 
+> **Run, same day — and the answer is no.** See §Addendum 2 below. Releasing
+> all twelve saturated actuators does *not* rescue the pose, and the tail, the
+> single most conspicuous thing in the DC table, turns out to be a bystander.
+> The candidate answer above is **refuted**; the conspicuousness of saturation
+> is exactly why it needed testing rather than adopting.
+
 ### And a separate point about the task
 
 Stage 1 has **no in-episode disturbance** — the only perturbation is joint-angle
@@ -362,3 +368,119 @@ nothing over one that stands still, and "actively stand and correct posture"
 is not underweighted in this reward, it is absent from the task. That is the
 gap `STAGE1_SPLIT_PLAN.md` proposes 1a/1b for, and no reweighting substitutes
 for it.
+
+---
+
+## Addendum 2, 2026-08-06 — which joints make the pose unholdable
+
+Appended, not rewritten. This **refutes** the candidate answer in Addendum 1.
+
+### The experiment
+
+Addendum 1 established that the policy's pose cannot be held by a constant, and
+proposed that the twelve saturated actuators were why. Testing that needs two
+questions per group, not one, because either alone misleads:
+
+- `release_G` — hold everything **except** G. Is G **necessary**? Does removing
+  it rescue a pose that otherwise falls?
+- `only_G` — hold **only** G. Is G **sufficient**? Does it alone break the
+  statue, which is known to stand?
+
+All variants are commanded **from reset**, so the endpoints are the two known
+measurements: releasing everything is the statue (stands 1000), releasing
+nothing is Addendum 1's `hold_from_reset` (falls at ~133).
+
+`stance_gate_report.py --hold-release-ablation`, passing checkpoint, 8 episodes:
+
+| variant | released | ep length | full-horizon | reward | terminations |
+|---|---|---|---|---|---|
+| policy (control) | — | **1000.0** | 1.0000 | 3010.1 | truncated 8 |
+| `hold_all` | 0 | 128.6 | 0.0000 | 268.8 | tail_contact 8 |
+| `release_saturated` | 12 | 224.6 | 0.0000 | 460.1 | fallen 5, tail_contact 3 |
+| `only_saturated` | 9 | 140.5 | 0.0000 | 330.6 | tail_contact 8 |
+| `release_tail` | 4 | 116.6 | 0.0000 | 250.1 | tail_contact 8 |
+| **`only_tail`** | 17 | **1000.0** | **1.0000** | **3254.0** | truncated 8 |
+| `release_toes` | 6 | 198.5 | 0.0000 | 397.3 | fallen 6, tail_contact 2 |
+| **`only_toes`** | 15 | **125.5** | 0.0000 | 289.2 | tail_contact 8 |
+| `release_head_neck` | 3 | 123.2 | 0.0000 | 256.4 | tail_contact 8 |
+| **`only_head_neck`** | 18 | **1000.0** | **1.0000** | **3286.1** | truncated 8 |
+| `release_hip_rolls` | 2 | 129.4 | 0.0000 | 270.4 | tail_contact 8 |
+| `only_hip_rolls` | 19 | 989.8 | 0.8750 | 3190.5 | truncated 7, fallen 1 |
+| `hold_zero` (statue control) | 21 | **1000.0** | 1.0000 | 3274.4 | truncated 8 |
+
+Controls behave, and `hold_all` at 128.6 reproduces Addendum 1's 133.3 — the
+same experiment reached twice by different routes.
+
+### Result
+
+**The toes are sufficient on their own.** Holding the six toe joints at their
+commanded DC with every other actuator returned to home reproduces the full
+failure almost exactly — **125.5 steps against `hold_all`'s 128.6, with
+`tail_contact` 8 of 8 in both.** Six of 21 actuators account for essentially the
+whole effect.
+
+**The tail is a bystander.** All four tail joints held at `+1.000`, everything
+else at home, stands the **full horizon at reward 3254.0** — within 0.6% of the
+statue's 3274.4. Head and neck likewise: 1000 steps, **3286.1**, which is
+*above* the statue. The two groups whose DC looks most alarming do nothing.
+
+**No group is necessary.** `release_saturated` improves matters (128.6 → 224.6)
+but still falls; so does `release_toes` (198.5). The pose is **over-determined**
+— more than one subset breaks it independently, so removing any single group
+leaves another still able to. "Which joint is the cause" is the wrong question.
+"Where is the effect concentrated" has an answer, and it is the toes.
+
+### What this refutes
+
+Addendum 1 proposed that **saturation** creates the stabilisation load, on the
+reasoning that twelve actuators pinned at `±1.000` with no headroom must be
+doing something. Measured: releasing all twelve does not rescue the pose, and
+the largest saturated group — the tail — is provably inert. `only_saturated`
+falls (140.5), but it contains five of the six toes, so its sufficiency is
+plausibly the toes' and nothing else's.
+
+Saturation is *conspicuous*, not *causal*. It was worth testing precisely
+because it looked obvious, and the same instinct that made #490 attractive
+would have made a tail- or saturation-targeted reward term attractive here.
+
+### Why the toes are a plausible mechanism
+
+They are the ground contact. Five of six sit at `±1.000` — driven to their
+stops — which changes the foot's contact geometry and therefore the support
+polygon the whole body balances on. Unlike the tail, whose effect on a standing
+animal is a static moment the position servos absorb, a toe at its limit
+changes *where and how the animal touches the floor*. That is a mechanical
+effect on the plant, not a reward-shaping one, and it is the strongest evidence
+so far for the "something is off with the mechanics" reading.
+
+The termination reason agrees: `only_toes` and `hold_all` both end in
+`tail_contact` 8 of 8, while the partial rescues (`release_saturated`,
+`release_toes`) shift toward `fallen` — a different failure, reached later.
+
+### What this does NOT establish
+
+- **Not a reason to add a toe reward term.** Sufficiency says the toe pose
+  breaks a *statue*; it does not say the trained policy would stand if the toes
+  were constrained, because the rest of the pose falls on its own too
+  (`release_toes` = 198.5).
+- **Nothing about the bounce.** §4 is untouched: still 450 points worse, still
+  an optimisation failure.
+- **Nothing about `ctrlrange`.** Whether `±1.000` on a toe is a large joint
+  angle or a small one has not been measured. Read the actual ranges out of
+  `trex.xml` before concluding the toes are over-driven rather than merely
+  commanded to their limits.
+
+### Method note: the control caught a broken experiment
+
+The first run of this ablation handed off at `settle_steps` rather than from
+reset, so each variant snapped a subset of joints from `±1.000` to `0` in one
+step midway through the episode. The transient dominated: all thirteen variants
+landed within **311–349 steps** of each other, indistinguishable from
+`hold_all`. The tell was the `hold_zero` row — supposedly the statue — falling
+at **323 steps** when it is known to stand for 1000.
+
+Both endpoints on the same side of the answer means the path has no signal, and
+without the statue control the flat table would have read as "no group matters",
+which is a conclusion and a wrong one. The control cost 8 episodes and saved a
+false negative. `TestReleaseAblationVariants` now pins the from-reset
+requirement.

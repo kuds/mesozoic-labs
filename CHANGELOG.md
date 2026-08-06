@@ -77,6 +77,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   continuous feedback, so the tremor is stabilisation rather than waste and
   raising `smoothness`/`action_jerk` is contraindicated. Full analysis in the
   2026-08-06 addendum to `TREX_STAGE1_BOUNCE_2026_08.md`.
+- **A release ablation on top of it**, `--hold-release-ablation`, which asks
+  *which* joints make a held pose unholdable. Each actuator group gets two
+  variants: `release_G` holds everything except G (is G **necessary** — does
+  removing it rescue the pose?) and `only_G` holds G alone (is G
+  **sufficient** — does it break the statue by itself?). One side alone
+  misleads, and a group can look implicated purely because it is conspicuous.
+  Measured on the passing checkpoint: **holding only the six toe joints
+  reproduces the entire failure** (125.5 steps against the full pose's 128.6,
+  `tail_contact` 8 of 8 in both), while **holding only the four tail joints at
+  ±1.000 stands the full horizon** at reward 3254.0 — within 0.6% of the statue
+  — and head/neck likewise at 3286.1. No group is necessary (releasing all
+  twelve saturated actuators still falls at 224.6), so the pose is
+  over-determined, which the artifact now says in as many words.
+  **This refutes the saturation hypothesis** recorded the same day: saturation
+  is conspicuous, not causal, and the largest saturated group is provably inert.
+  Every ablated variant is commanded **from reset**, which is load-bearing and
+  was wrong in the first run: handing off at `settle_steps` snapped joints from
+  ±1.000 to 0 mid-episode, the transient dominated, all thirteen variants landed
+  within 311–349 steps of each other, and the `hold_zero` row — the statue,
+  known to stand 1000 — fell at 323. The control caught it; without it the flat
+  table would have read as "no group matters", which is a conclusion and a wrong
+  one. `TestReleaseAblationVariants` now pins the from-reset requirement.
   Probe branding is now a registry (`_PROBE_MARKERS`) rather than a chain of
   `is not None` tests. The filter probe's guard was a single such test, and a
   second probe added beside it would have silently inherited the certification
