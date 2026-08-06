@@ -77,6 +77,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   continuous feedback, so the tremor is stabilisation rather than waste and
   raising `smoothness`/`action_jerk` is contraindicated. Full analysis in the
   2026-08-06 addendum to `TREX_STAGE1_BOUNCE_2026_08.md`.
+- **Per-actuator pose reported in degrees, and the table ordered by them.**
+  `|action| = 1` is not one physical event: `_scale_action` maps `[-1, 1]` onto
+  each actuator's own `ctrlrange`, and on the T-Rex those differ by 6× — a
+  saturated tail joint is **8–12°** of deflection while a saturated toe is
+  **37.5°**. Sorted by normalised `|dc|`, the per-actuator table put twelve
+  joints at exactly `±1.000` at the top with no way to tell them apart, and the
+  most conspicuous of them (the tail) was the one later measured to be
+  mechanically inert.
+  This is the same error the DC/AC split was introduced to fix, one level down:
+  a pooled *normalised* offset cannot separate moving 8° from moving 37.5° any
+  more than a pooled standard deviation can separate "sitting in the wrong
+  place" from "shaking". The report now carries `dc_deg`, `ac_rms_deg`,
+  `range_deg` and `zero_offset_deg` per actuator plus `dc_rms_deg` overall, and
+  **orders the table by degrees** — which puts the five saturated toes on top at
+  ±37.5° and drops `tail_1_yaw` (±8°) out of the printed twelve. The normalised
+  `dc` is kept alongside, because that is what inverts through the action
+  penalties; the degrees are what say whether a joint moved.
+  It also surfaces that **`action = 0` is not exactly the home keyframe**: it is
+  the `ctrlrange` midpoint, and for four of 21 actuators the two differ — both
+  ankles by +5.5°, `head_pitch`/`neck_pitch` by +5.0°. Small enough that nothing
+  measured is invalidated, but `home-keyframe-residual/v1` is named for that
+  identity and both statue-derived constants lean on it, so the report now
+  prints the offset rather than leaving it to be rediscovered.
 - **A release ablation on top of it**, `--hold-release-ablation`, which asks
   *which* joints make a held pose unholdable. Each actuator group gets two
   variants: `release_G` holds everything except G (is G **necessary** — does

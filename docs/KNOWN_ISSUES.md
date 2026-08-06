@@ -67,7 +67,14 @@ tolerance) remains the standing recommendation for the divergences above.
   distinguishes "solved" from "lucky".
 - **MEDIUM** — **half the actuators sit saturated and nothing opposes it.**
   Ten to twelve of 21 actuators are pinned at `|action| ≥ 0.99` — tail, neck,
-  head, toes — in *both* passing and failing policies. `energy` charges
+  head, toes — in *both* passing and failing policies.
+  **Read this count with care (2026-08-06):** `|action| = 1` is not one physical
+  event. Actions map linearly onto each actuator's own `ctrlrange`, and those
+  differ by 6× — a saturated tail joint is **8–12°** of deflection while a
+  saturated toe is **37.5°**. The saturation count pools them, and the ablation
+  showed the tail is mechanically inert while the toes carry the whole effect.
+  The stance report now orders per-actuator DC by **degrees**; use that, not the
+  saturation count, to decide which joints moved. `energy` charges
   ~48/episode against an alive bonus paying ~1000, and `leg_home_pose` governs
   only 8 joints carrying 1.2% of the commanded offset. A saturated actuator has
   no headroom in one direction, so the recovery envelope on those axes is
@@ -113,8 +120,20 @@ tolerance) remains the standing recommendation for the divergences above.
   their stops, which changes the support polygon — a plant effect, not a
   reward-shaping one. **Not yet a reason to add a toe reward term**: sufficiency
   says the toe pose breaks a *statue*, not that constraining it would make the
-  policy stand. Unmeasured prerequisite: whether `±1.000` on a toe is a large
-  joint angle at all — read `ctrlrange` out of `trex.xml` first.
+  policy stand. **Prerequisite now measured:** `±1.000` on a toe is **±37.5°**
+  from home against a 75° range, and adjacent toes on the same foot are driven
+  to opposite ends — the foot is splayed into a twist, asymmetrically between
+  the two feet. The mechanism survives.
+- **LOW** — **`action = 0` is not exactly the home keyframe for 4 of 21
+  actuators.** It is the `ctrlrange` midpoint, which equals home only where the
+  range was authored centred on it: both ankles sit **+5.5°** off and
+  `head_pitch`/`neck_pitch` **+5.0°** off. Everything else is exact. Small
+  enough that the statue still reaches the horizon 40 of 40, so nothing measured
+  is invalidated — but "`action = 0` **is** the home keyframe" is the phrasing
+  `home-keyframe-residual/v1` is named for, and both statue-derived constants
+  and every DC interpretation rest on it. The stance report now prints the
+  offset. Fix by re-centring those four `ctrlrange`s, which bumps
+  `policy_interface_revision`.
 - **MEDIUM** — **stage 1 contains no in-episode disturbance, so it cannot ask
   for postural correction.** The only perturbation is joint-angle noise at
   reset (`reset_noise_scale 0.05`); nothing applies an external force during an

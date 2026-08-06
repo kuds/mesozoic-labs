@@ -1880,3 +1880,117 @@ class TestAblationVerdicts:
     def test_a_necessary_group_suppresses_the_over_determined_reading(self):
         text, _ = self._render({"tail": (1.0, 0.0)})
         assert "OVER-DETERMINED" not in text
+
+
+class TestDeflectionInDegrees:
+    """`|action| = 1` is not one physical event, and the report must not imply it is.
+
+    On the T-Rex a saturated tail joint is 12deg of travel and a saturated toe
+    is 50deg. Ranking the per-actuator table by normalised action put twelve
+    joints at exactly +/-1.000 at the top and gave no way to tell them apart --
+    and the most extreme-looking of them, the tail, was later measured to be
+    mechanically inert while the toes carried the whole effect.
+    """
+
+    @staticmethod
+    def _stats(means, mapping, names=None):
+        from environments.shared.scripts.stance_gate_report import _new_action_stats, _reduce_action_stats
+
+        stats = _new_action_stats()
+        stats["sum"] = np.asarray(means, dtype=float)
+        stats["sq_sum"] = np.asarray(means, dtype=float) ** 2
+        stats["count"] = 1
+        return _reduce_action_stats(stats, names or [f"j{i}" for i in range(len(means))], 0.01, mapping)
+
+    #: tail_1_pitch (+/-12deg, home-centred) and r_toe_d2 (-25..+50deg, home +12.5deg),
+    #: the two real T-Rex actuators the ablation separated.
+    _TAIL = {"ctrl_min": -0.2094, "ctrl_max": 0.2094, "home": 0.0}
+    _TOE = {"ctrl_min": -0.4363, "ctrl_max": 0.8727, "home": 0.2182}
+
+    def test_the_same_saturated_action_is_a_different_angle_per_joint(self):
+        action = self._stats([1.0, 1.0], [self._TAIL, self._TOE], names=["tail_1_pitch", "r_toe_d2_joint"])
+        by_joint = {entry["joint"]: entry for entry in action["per_actuator"]}
+        assert by_joint["tail_1_pitch"]["dc"] == pytest.approx(1.0)
+        assert by_joint["r_toe_d2_joint"]["dc"] == pytest.approx(1.0)
+        # Identical in normalised units, a factor of ~3 apart in the world.
+        assert by_joint["tail_1_pitch"]["dc_deg"] == pytest.approx(12.0, abs=0.1)
+        assert by_joint["r_toe_d2_joint"]["dc_deg"] == pytest.approx(37.5, abs=0.1)
+
+    def test_the_table_is_ordered_by_degrees_not_by_normalised_action(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        report = _minimal_stance_report()
+        report["action"] = self._stats(
+            [1.0, 0.6], [self._TAIL, self._TOE], names=["tail_1_pitch", "r_toe_d2_joint"]
+        )
+        text = render_stance_gate_report(report)
+        # The tail saturates and the toe does not, yet the toe moves further.
+        assert text.index("r_toe_d2_joint") < text.index("tail_1_pitch")
+        assert "Ordered by DEGREES" in text
+
+    def test_the_tremor_scales_by_half_the_range(self):
+        """A unit of action spans half the ctrlrange in each direction."""
+        from environments.shared.scripts.stance_gate_report import _new_action_stats, _reduce_action_stats
+
+        stats = _new_action_stats()
+        stats["sum"] = np.zeros(1)
+        stats["sq_sum"] = np.full(1, 0.25)  # mean 0, var 0.25 -> ac_rms 0.5
+        stats["count"] = 1
+        action = _reduce_action_stats(stats, ["r_toe_d2_joint"], 0.01, [self._TOE])
+        assert action["per_actuator"][0]["ac_rms"] == pytest.approx(0.5)
+        # 0.5 x half of 75deg = 18.75deg
+        assert action["per_actuator"][0]["ac_rms_deg"] == pytest.approx(18.75, abs=0.05)
+
+    def test_an_offset_ctrlrange_is_flagged_because_action_zero_is_not_home(self):
+        """`home-keyframe-residual/v1` asserts action 0 IS home; for some it is not.
+
+        On the T-Rex the ankles sit 5.5deg off and head/neck pitch 5.0deg off.
+        Small, but the phrasing is load-bearing -- statue-derived constants and
+        the DC interpretation both rest on it.
+        """
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        ankle = {"ctrl_min": 0.5655, "ctrl_max": 2.3108, "home": 1.3422}
+        report = _minimal_stance_report()
+        report["action"] = self._stats([0.0], [ankle], names=["r_ankle"])
+        assert report["action"]["per_actuator"][0]["zero_offset_deg"] == pytest.approx(5.5, abs=0.1)
+        text = render_stance_gate_report(report)
+        assert "action = 0 is not exactly home" in text
+        assert "r_ankle" in text
+
+    def test_a_home_centred_range_is_not_flagged(self):
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        report = _minimal_stance_report()
+        report["action"] = self._stats([0.5], [self._TAIL], names=["tail_1_pitch"])
+        assert report["action"]["per_actuator"][0]["zero_offset_deg"] == pytest.approx(0.0, abs=1e-9)
+        assert "action = 0 is not exactly home" not in render_stance_gate_report(report)
+
+    def test_degrees_are_added_not_substituted(self):
+        """`dc` still inverts through the action penalties; the degrees do not."""
+        action = self._stats([0.8], [self._TOE])
+        entry = action["per_actuator"][0]
+        assert entry["dc"] == pytest.approx(0.8)
+        assert "dc_deg" in entry and "range_deg" in entry
+        assert action["dc_rms"] == pytest.approx(0.8)
+        assert "dc_rms_deg" in action and "max_abs_dc_deg" in action
+
+    def test_a_report_without_a_mapping_still_renders(self):
+        """The model is unreachable from some callers; degrees are a convenience."""
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        report = _minimal_stance_report()
+        report["action"] = self._stats([1.0], [], names=["tail_1_pitch"])
+        assert "dc_deg" not in report["action"]["per_actuator"][0]
+        assert "dc_rms_deg" not in report["action"]
+        text = render_stance_gate_report(report)
+        assert "tail_1_pitch" in text
+        assert "Ordered by DEGREES" not in text
+
+    def test_the_hold_probe_still_reads_normalised_dc(self):
+        """`constant_hold_actions` commands actions, not angles."""
+        from environments.shared.scripts.stance_gate_report import constant_hold_actions
+
+        report = _minimal_stance_report()
+        report["action"] = self._stats([0.4, -0.7], [self._TAIL, self._TOE])
+        assert constant_hold_actions(report) == pytest.approx((0.4, -0.7))

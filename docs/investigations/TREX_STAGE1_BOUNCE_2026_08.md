@@ -484,3 +484,73 @@ without the statue control the flat table would have read as "no group matters",
 which is a conclusion and a wrong one. The control cost 8 episodes and saved a
 false negative. `TestReleaseAblationVariants` now pins the from-reset
 requirement.
+
+---
+
+## Addendum 3, 2026-08-06 — why the ablation was needed at all
+
+Appended. This answers the prerequisite Addendum 2 flagged as unmeasured, and
+the answer means the ablation should not have been necessary to find its result.
+
+### `|action| = 1` is not one physical event
+
+`_scale_action` maps `[-1, 1]` linearly onto each actuator's own `ctrlrange`.
+Those ranges differ by a factor of six across the T-Rex:
+
+| group | `action = +1` | `action = −1` | deflection from home | ablation verdict |
+|---|---|---|---|---|
+| **toes** | **+50°** | **−25°** | **±37.5°** | **sufficient** |
+| hip_roll | +25° | −25° | ±25° | inconclusive (0.875) |
+| head / neck | +20…40° | −20…30° | ~±25° | bystander |
+| **tail** | **+12° pitch, +8° yaw** | **−12° / −8°** | **±8–12°** | **bystander** |
+
+The ablation's result falls straight out of that column. The tail is inert
+because saturating a tail joint moves it **eight to twelve degrees**. The toes
+carry the effect because saturating a toe moves it **37.5°**, and adjacent toes
+on the same foot are driven to opposite ends — on the right foot d2 and d4 at
++50° while d3 sits at −25°, a **75° spread across one foot**. The foot is
+splayed into a twist, asymmetrically between the two feet.
+
+So the answer to Addendum 2's open question is **yes, very large** — and the
+"toes are the ground contact" mechanism survives.
+
+### The metric was the problem
+
+"Ten to twelve of 21 actuators pinned at `|action| ≥ 0.99`" — quoted in §7, in
+KNOWN_ISSUES and throughout this investigation — pools an 8° tail deflection
+with a 37.5° toe deflection and counts them as the same event. Sorted by `|dc|`,
+the per-actuator table put twelve joints at exactly `±1.000` at the top with no
+way to tell them apart, and the most conspicuous of them was the inert one.
+
+**This is the same error the DC/AC split was introduced to fix, one level
+down.** §10 says a pooled standard deviation "cannot separate sitting in the
+wrong place from shaking". A pooled *normalised* offset cannot separate moving
+8° from moving 37.5°, and the fix is the same shape: report the physical
+quantity next to the normalised one.
+
+`stance_gate_report.py` now emits `dc_deg`, `ac_rms_deg`, `range_deg` and
+`zero_offset_deg` per actuator, and **orders the table by degrees**. On the
+passing checkpoint that puts the five saturated toes at the top at ±37.5° and
+drops `tail_1_yaw` (±8°) out of the printed twelve entirely — the ablation's
+conclusion, readable directly off the report.
+
+**Lesson: a normalised summary is only as good as the assumption that its units
+mean the same thing everywhere.** Twice now that assumption has been false, and
+both times it hid the answer rather than merely blurring it.
+
+### And `action = 0` is not exactly the home keyframe
+
+`action = 0` is the `ctrlrange` **midpoint**, which equals home only where the
+range was authored centred on it. For four of 21 actuators it is not:
+
+| actuator | `action = 0` minus home |
+|---|---|
+| `r_ankle`, `l_ankle` | **+5.5°** |
+| `head_pitch`, `neck_pitch` | **+5.0°** |
+
+Everything else is exact to floating point. The magnitude is small and the
+statue still stands 40 of 40, so nothing measured here is invalidated. But
+"`action = 0` **is** the home keyframe" is the phrasing the residual mapping is
+named for, and both statue-derived constants and every DC interpretation in
+this document rest on it. It is inexact for those four, and the report now says
+so rather than leaving it to be rediscovered.

@@ -208,9 +208,11 @@ def run_panel(
     # is invisible to it and unfixable by it (issue #489).
     action_stats = _new_action_stats()
     joint_names: list[str] = []
+    pose_mapping: list[dict[str, float]] = []
 
     try:
         joint_names = _actuator_joint_names(env)
+        pose_mapping = _actuator_pose_mapping(env)
         _roll_episodes(
             env,
             predict=predict,
@@ -259,7 +261,7 @@ def run_panel(
         "components": {key: value / episodes for key, value in components.items()},
         "bilateral_duty": _full_horizon_mean(bilateral_duties),
         "single_duty": _full_horizon_mean(single_duties),
-        "action": _reduce_action_stats(action_stats, joint_names, control_dt),
+        "action": _reduce_action_stats(action_stats, joint_names, control_dt, pose_mapping),
         # The measurements the panel was reduced from. Kept rather than
         # discarded so the report can serialize the evidence, not only its
         # summary: an aggregate cannot be re-checked, and duty is the one
@@ -345,7 +347,62 @@ def _actuator_joint_names(env: Any) -> list[str]:
         return []
 
 
-def _reduce_action_stats(stats: dict[str, Any], names: list[str], control_dt: float) -> dict[str, Any]:
+def _actuator_pose_mapping(env: Any) -> list[dict[str, float]]:
+    """Per actuator, what a commanded action means as a joint angle.
+
+    Returns ``ctrl_min``/``ctrl_max`` (radians) and the ``home`` angle from the
+    keyframe the environment actually resets to, or ``[]`` when the model
+    cannot be reached.
+
+    This exists because ``|action| = 1`` is **not one physical event**.
+    ``_scale_action`` maps ``[-1, 1]`` linearly onto each actuator's own
+    ``ctrlrange``, and on the T-Rex those ranges differ by a factor of six: a
+    saturated tail joint is 8-12 degrees of deflection while a saturated toe is
+    50. Counting both as "saturated" pools them into one number, which is the
+    same mistake the DC/AC split was introduced to fix one level up -- a
+    normalized-unit summary hiding a physical distinction. Measured, it hid the
+    answer: the tail looked like the most extreme thing in the DC table and is
+    provably inert, while the toes carry the whole effect.
+    """
+    try:
+        # No `mujoco` import needed, unlike the joint-name lookup: everything
+        # below is attribute access on a model the environment already holds.
+        model = env.unwrapped.model
+        keyframe = int(getattr(env.unwrapped, "_reset_keyframe_id", 0))
+        if not 0 <= keyframe < model.nkey:
+            keyframe = 0
+        home_qpos = model.key_qpos[keyframe] if model.nkey else None
+        mapping = []
+        for index in range(model.nu):
+            joint_id = int(model.actuator_trnid[index, 0])
+            address = int(model.jnt_qposadr[joint_id])
+            low, high = (float(value) for value in model.actuator_ctrlrange[index])
+            mapping.append(
+                {
+                    "ctrl_min": low,
+                    "ctrl_max": high,
+                    # Falls back to the ctrlrange midpoint -- i.e. `action = 0`
+                    # -- when the model has no keyframe, which makes the
+                    # reported deflection zero rather than wrong.
+                    "home": float(home_qpos[address]) if home_qpos is not None else 0.5 * (low + high),
+                }
+            )
+        return mapping
+    except Exception:  # noqa: BLE001 - the angles are a convenience, not the measurement
+        return []
+
+
+def _commanded_angle(entry: dict[str, float], action: float) -> float:
+    """The joint angle an action commands, mirroring ``BaseDinoEnv._scale_action``."""
+    return entry["ctrl_min"] + (action + 1.0) * 0.5 * (entry["ctrl_max"] - entry["ctrl_min"])
+
+
+def _reduce_action_stats(
+    stats: dict[str, Any],
+    names: list[str],
+    control_dt: float,
+    pose_mapping: "list[dict[str, float]] | None" = None,
+) -> dict[str, Any]:
     """Reduce the accumulators into the report's ``action`` block.
 
     The DC/AC split is the point. ``mean(a)`` per actuator is the static pose
@@ -369,22 +426,45 @@ def _reduce_action_stats(stats: dict[str, Any], names: list[str], control_dt: fl
     freq = float("nan")
     if delta > 0.0:
         freq = math.asin(min(1.0, math.sqrt(jerk / delta) / 2.0)) / (math.pi * control_dt)
-    return {
+    mapping = pose_mapping or []
+    per_actuator = []
+    for index in range(mean.size):
+        entry: dict[str, Any] = {
+            "index": index,
+            "joint": names[index] if index < len(names) else f"actuator_{index}",
+            "dc": float(mean[index]),
+            "ac_rms": float(ac[index]),
+        }
+        if index < len(mapping):
+            scale = mapping[index]
+            span = scale["ctrl_max"] - scale["ctrl_min"]
+            entry["dc_deg"] = math.degrees(_commanded_angle(scale, float(mean[index])) - scale["home"])
+            # A unit of action is HALF the range, so that is what the tremor
+            # scales by.
+            entry["ac_rms_deg"] = math.degrees(float(ac[index]) * 0.5 * span)
+            entry["range_deg"] = math.degrees(span)
+            # Where `action = 0` sits relative to home. Non-zero means
+            # "action = 0 IS the home keyframe" -- which the residual mapping's
+            # name asserts and several derived constants lean on -- is inexact
+            # for this actuator.
+            entry["zero_offset_deg"] = math.degrees(_commanded_angle(scale, 0.0) - scale["home"])
+        per_actuator.append(entry)
+    reduced = {
         "dc_rms": float(np.sqrt(np.mean(mean * mean))),
         "ac_rms": float(np.sqrt(np.mean(var))),
         "delta_per_step": float(delta),
         "jerk_per_step": float(jerk),
         "effective_freq_hz": freq,
-        "per_actuator": [
-            {
-                "index": index,
-                "joint": names[index] if index < len(names) else f"actuator_{index}",
-                "dc": float(mean[index]),
-                "ac_rms": float(ac[index]),
-            }
-            for index in range(mean.size)
-        ],
+        "per_actuator": per_actuator,
     }
+    degrees = [entry["dc_deg"] for entry in per_actuator if "dc_deg" in entry]
+    if degrees:
+        # Reported alongside `dc_rms` rather than replacing it: the normalized
+        # figure is what inverts through the action penalties, and the degrees
+        # are what says whether a saturated actuator moved anything.
+        reduced["dc_rms_deg"] = float(np.sqrt(np.mean(np.square(degrees))))
+        reduced["max_abs_dc_deg"] = float(np.max(np.abs(degrees)))
+    return reduced
 
 
 def _roll_episodes(
@@ -898,21 +978,56 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
                 lines.append(f"  {key:28s} {components[key]:10.2f}")
     action = report.get("action") or {}
     if action:
+        summary = (
+            f"DC {action['dc_rms']:.3f} rms, AC {action['ac_rms']:.3f} rms, "
+            f"~{action['effective_freq_hz']:.1f} Hz"
+        )
+        if "dc_rms_deg" in action:
+            summary += f"; {action['dc_rms_deg']:.1f}deg rms of joint deflection"
         lines += [
             "",
-            "commanded action, post-settle "
-            f"(DC {action['dc_rms']:.3f} rms, AC {action['ac_rms']:.3f} rms, "
-            f"~{action['effective_freq_hz']:.1f} Hz):",
-            "  DC is the distance from the home keyframe (action = 0 IS that pose);",
-            "  AC is what the policy does around it. Different causes, different fixes.",
+            f"commanded action, post-settle ({summary}):",
+            "  DC is the distance from the home keyframe; AC is what the policy does",
+            "  around it. Different causes, different fixes.",
         ]
         per_actuator = action.get("per_actuator") or []
-        # Largest offset first: the question this answers is WHICH joints are
-        # displaced, because a leg-pose weight can only reach the leg ones.
-        for entry in sorted(per_actuator, key=lambda e: -abs(e["dc"]))[:12]:
-            lines.append(f"  {entry['joint']:28s} DC {entry['dc']:+7.3f}   AC {entry['ac_rms']:6.3f}")
+        has_degrees = any("dc_deg" in entry for entry in per_actuator)
+        if has_degrees:
+            lines += [
+                "  Ordered by DEGREES, not by normalised action: |action| = 1 maps onto each",
+                "  actuator's own ctrlrange, so a saturated joint can be 8deg or 50deg of",
+                "  deflection. Ranking by the normalised value pools those and hides which",
+                "  joints actually moved.",
+            ]
+        # Largest physical offset first when it can be computed. That ordering
+        # is the point: sorted by |dc| this table put twelve joints at exactly
+        # +/-1.000 at the top, of which the most extreme-looking (the tail, at
+        # 12deg of travel) was later measured to be mechanically inert.
+        key = (lambda e: -abs(e.get("dc_deg", 0.0))) if has_degrees else (lambda e: -abs(e["dc"]))
+        for entry in sorted(per_actuator, key=key)[:12]:
+            line = f"  {entry['joint']:22s} DC {entry['dc']:+7.3f}   AC {entry['ac_rms']:6.3f}"
+            if "dc_deg" in entry:
+                line += (
+                    f"   {entry['dc_deg']:+7.1f}deg   +/-{entry['ac_rms_deg']:5.1f}deg"
+                    f"   of {entry['range_deg']:5.1f}deg"
+                )
+            lines.append(line)
         if len(per_actuator) > 12:
             lines.append(f"  ... {len(per_actuator) - 12} more (full list in the JSON)")
+        # `action = 0` is the ctrlrange MIDPOINT, which equals the home keyframe
+        # only where the range was authored centred on it. Where it is not, the
+        # residual mapping's own name is inexact for that actuator and anything
+        # derived from "the statue commands home" carries the same small error.
+        offset = [
+            entry for entry in per_actuator if abs(entry.get("zero_offset_deg", 0.0)) > 0.05
+        ]
+        if offset:
+            worst = max(offset, key=lambda e: abs(e["zero_offset_deg"]))
+            lines.append(
+                f"  NOTE: action = 0 is not exactly home for {len(offset)} of {len(per_actuator)} "
+                f"actuators (worst {worst['joint']} {worst['zero_offset_deg']:+.1f}deg); "
+                "ctrlrange is centred elsewhere."
+            )
     lines += ["", f"GATE: {'PASS' if report['passed'] else 'FAIL'}"]
     lines += [f"  - {failure}" for failure in report["failures"]]
     return "\n".join(lines)
