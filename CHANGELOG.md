@@ -77,6 +77,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   continuous feedback, so the tremor is stabilisation rather than waste and
   raising `smoothness`/`action_jerk` is contraindicated. Full analysis in the
   2026-08-06 addendum to `TREX_STAGE1_BOUNCE_2026_08.md`.
+- **All four stance probes now run automatically on every SB3 run.** The
+  notebook calls `generate_stage_artifacts` and nothing else, so a probe
+  reachable only from the CLI produces nothing on a real run — and a diagnostic
+  nobody runs is a diagnostic that does not exist. `_write_stance_gate_report`
+  now dispatches to all four, each gated by its own `[curriculum]` key:
+  `stance_probe_filter_hz`, `stance_probe_hold_constant`,
+  `stance_probe_release_ablation`, `stance_probe_impulse_speeds`. All four are
+  on for trex stage 1; every other stage and species is unaffected.
+  Pinned by an AST check over the real call site rather than a mock, so a fifth
+  probe added beside them cannot quietly go unwired the way these two nearly
+  did. Each is individually non-fatal: a probe that raises loses itself and
+  nothing else, because the gate report is what certifies the stage.
+  Cost, per stage, at the trex settings: 3 filter panels at 10 episodes, 5 hold
+  panels at 10, 13 ablation panels at 8, and 14 impulse panels at 8 — the
+  impulse sweep doubled because the statue control is rolled over the same
+  magnitudes and is not optional.
 - **An impulse recovery probe**, `--impulse-probe`, which answers the one
   question no training artifact can: does a stage-1 policy actually *correct*,
   or has it only learned to stand still? Stage 1 declares no in-episode

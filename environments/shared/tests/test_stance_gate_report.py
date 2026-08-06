@@ -2231,3 +2231,137 @@ class TestImpulseRecoveryReading:
         )
         text, _ = render_impulse_probe(policy, statue, probe_episodes=8)
         assert "ACTIVE CORRECTION EXISTS" not in text
+
+
+class TestAllProbesAreWiredIntoTrainingArtifacts:
+    """Every probe must run from `generate_stage_artifacts`, not only the CLI.
+
+    The notebook calls `generate_stage_artifacts` and nothing else, so a probe
+    reachable only from the command line produces nothing on a real run -- and
+    a diagnostic nobody runs is a diagnostic that does not exist.
+    """
+
+    @staticmethod
+    def _artifacts():
+        from environments.shared.reporting import stage_artifacts
+
+        return stage_artifacts
+
+    def test_the_gate_report_calls_every_probe(self):
+        """AST-checked over the real call site, not a mock, so it cannot drift."""
+        import ast
+        import inspect
+
+        source = inspect.getsource(self._artifacts()._write_stance_gate_report)
+        called = {
+            node.func.id
+            for node in ast.walk(ast.parse(source.lstrip()))
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        }
+        for probe in (
+            "_write_filtered_action_probe",
+            "_write_constant_hold_probe",
+            "_write_constant_hold_ablation",
+            "_write_impulse_probe",
+        ):
+            assert probe in called, f"{probe} is never called from _write_stance_gate_report"
+
+    def test_every_probe_config_key_is_reachable_from_a_toml(self):
+        """Unregistered keys are rejected fail-closed, making them unsettable."""
+        from environments.shared.curriculum.gate_schema import _DIAGNOSTIC_KEYS
+
+        for key in (
+            "stance_probe_filter_hz",
+            "stance_probe_hold_constant",
+            "stance_probe_release_ablation",
+            "stance_probe_impulse_speeds",
+        ):
+            assert key in _DIAGNOSTIC_KEYS
+
+    def test_trex_stage_1_switches_all_four_on(self):
+        """The species this was built for must actually produce the artifacts."""
+        from environments.shared.config import load_stage_config
+
+        curriculum = load_stage_config("trex", 1)["curriculum_kwargs"]
+        assert curriculum.get("stance_probe_filter_hz")
+        assert curriculum.get("stance_probe_hold_constant") is True
+        assert curriculum.get("stance_probe_release_ablation") is True
+        assert curriculum.get("stance_probe_impulse_speeds")
+
+    def test_the_ablation_is_skipped_when_unconfigured(self, tmp_path, monkeypatch):
+        called = False
+
+        def _boom(*a, **k):
+            nonlocal called
+            called = True
+
+        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        self._artifacts()._write_constant_hold_ablation(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            measured=_minimal_stance_report(),
+        )
+        assert not called
+
+    def test_the_impulse_probe_is_skipped_when_unconfigured(self, tmp_path, monkeypatch):
+        called = False
+
+        def _boom(*a, **k):
+            nonlocal called
+            called = True
+
+        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        self._artifacts()._write_impulse_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            settle_steps=200,
+        )
+        assert not called
+
+    def test_unusable_impulse_speeds_are_dropped_not_fatal(self, tmp_path, monkeypatch):
+        called = False
+
+        def _boom(*a, **k):
+            nonlocal called
+            called = True
+
+        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        self._artifacts()._write_impulse_probe(
+            species="trex",
+            stage=1,
+            stage_config={"curriculum_kwargs": {"stance_probe_impulse_speeds": ["x", -1.0, 0.0]}},
+            stage_dir=tmp_path,
+            model_path="m.zip",
+            vecnorm_path="v.pkl",
+            settle_steps=200,
+        )
+        assert not called, "no usable speed means no sweep, not a crash"
+
+    def test_a_failing_probe_does_not_sink_the_gate_report(self, tmp_path):
+        """The gate report is what certifies the stage; a probe must never cost it."""
+        for name, kwargs in (
+            ("_write_constant_hold_ablation", {"measured": _minimal_stance_report()}),
+            ("_write_impulse_probe", {"settle_steps": 200}),
+        ):
+            getattr(self._artifacts(), name)(
+                species="trex",
+                stage=1,
+                stage_config={
+                    "curriculum_kwargs": {
+                        "stance_probe_release_ablation": True,
+                        "stance_probe_impulse_speeds": [1.0],
+                    }
+                },
+                stage_dir=tmp_path,
+                model_path="does-not-exist.zip",
+                vecnorm_path=None,
+                **kwargs,
+            )

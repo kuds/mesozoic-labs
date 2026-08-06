@@ -450,6 +450,42 @@ stance_probe_hold_constant = true        # After the gate report, re-score the S
                                          # DC -- and rolls 10 episodes per variant for the same reason the filter
                                          # sweep does. Scores a MODIFIED policy: own filenames, never
                                          # stance_panel_selected.csv, verdict is not a gate result.
+stance_probe_release_ablation = true     # Ablate the held pose one actuator group at a time and write
+                                         # stance_gate_probe_release.{txt,json}. Answers WHICH joints make the
+                                         # pose unholdable, where the hold probe only answers whether it is.
+                                         #
+                                         # Each group is tested twice: released (is it NECESSARY -- does removing
+                                         # it rescue the pose?) and held alone (is it SUFFICIENT -- does it break
+                                         # the statue by itself?). One side alone lets a conspicuous group
+                                         # masquerade as a cause, which is not hypothetical here: the tail is the
+                                         # most extreme entry in the DC table and holding it alone stands the full
+                                         # horizon at 3254.0, while holding only the six toes reproduces the whole
+                                         # failure (125.5 steps against the full pose's 128.6).
+                                         #
+                                         # 13 panels at 8 episodes -- the most expensive of the four probes, which
+                                         # is why it is per-stage opt-in rather than on by default.
+stance_probe_impulse_speeds = [0.5, 1.0, 2.0]  # Shove the animal mid-episode at each of these speeds (m/s of root
+                                         # velocity), in BOTH lateral directions, and write
+                                         # stance_gate_probe_impulse.{txt,json}. Unset to skip.
+                                         #
+                                         # The only measurement in the pipeline that tracks BALANCE rather than
+                                         # NOT FALLING OVER. This stage declares no in-episode disturbance, so
+                                         # every other criterion here -- duty, full-horizon share, the reward rail
+                                         # -- is satisfied by a zero-action statue, and nothing else can tell a
+                                         # policy that learned to RECOVER from one that learned to stand still.
+                                         #
+                                         # The statue is rolled over the same sweep as the control, which doubles
+                                         # the cost and is not optional: it commands a constant and cannot respond,
+                                         # so its survival is the plant's PASSIVE robustness and only the policy's
+                                         # margin above it is control. Reporting the policy alone would credit the
+                                         # plant's own stability to the policy.
+                                         #
+                                         # Both directions because policies here are asymmetric. Measured on
+                                         # 20260805_011234: full recovery at 0.50 m/s one way, 0/8 the other, and
+                                         # within noise of the statue at 1.0 m/s and above. Recovery envelope on
+                                         # the WEAKER side is the number to track; 0.00 m/s is the baseline.
+                                         #
+                                         # 14 panels at 8 episodes (7 sweep rows x policy + statue).
 collapse_peak_floor_fraction = 0.45    # RELATIVE floor (PLANT_VALIDATION §14 item 3). An absolute floor has now
                                          # failed to arm TWICE for the same reason: 2200 against run 20260731_132102
                                          # (peak 1934.1, watched a -59% collapse), then 2450 against run

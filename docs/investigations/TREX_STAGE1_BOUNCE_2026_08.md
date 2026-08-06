@@ -636,3 +636,138 @@ in m/s, on the weaker side, is a single number that goes up when the policy
 gets better at the thing the stage is named for.
 
 **A baseline now exists to beat: 0.50 m/s one way, 0.00 the other.**
+
+---
+
+## Addendum 5, 2026-08-06 — revised recommendations
+
+Appended. **Supersedes §9**, which was written before the four probes existed
+and before the plant audit.
+
+### First, an honest correction
+
+§9 and the recommendations that followed it steered toward *measurement* and
+*task design*, and quietly stopped targeting **the bounce itself**. That was a
+drift, not a decision. The reasoning behind it — §4 showed the bounce is 450
+points worse under the reward, so it is an optimisation failure and not a
+shaping one — is a statement about *what will not fix it*, and it got treated
+as a statement that it did not need fixing.
+
+It does. A policy that stands by dithering at 22.6 Hz, in a pose it cannot hold
+without continuous feedback, with 12 actuators pinned at their limits, **will
+not transfer to hardware.** Standing is the sim-to-real foundation, and none of
+the probe work changes that.
+
+### What the four probes established
+
+| probe | question | answer |
+|---|---|---|
+| `--filter-actions` | is the high-frequency content load-bearing? | yes, at every cutoff 5–35 Hz |
+| `--hold-constant` | does the pose need *feedback*, or only bandwidth? | **feedback** — every held variant falls |
+| `--hold-release-ablation` | which joints? | **toes**, sufficient alone; tail and head/neck inert |
+| `--impulse-probe` | does it actually correct? | **barely** — 0.50 m/s one way, 0.00 the other |
+
+Plus two measurement defects found on the way: `|action| = 1` means 8° on a tail
+joint and 37.5° on a toe (Addendum 3), and `action = 0` is not exactly home for
+four actuators.
+
+### The changes that target the bounce and the tremor
+
+**1. Train with an action low-pass or rate limit in the loop.** The strongest
+single recommendation, and the one §9 missed.
+
+The bounce sits at **16.7–20 Hz** and the tremor at **22.6 Hz**. Balance
+correction on this plant is **~1.1–1.4 Hz**. If the policy physically cannot
+command above, say, 8 Hz, then neither the bounce nor the tremor is available
+to it — while the band the task actually needs is untouched, with better than a
+5× margin.
+
+§5 already proved this cannot be retrofitted: the passing checkpoint collapses
+under a filter at every cutoff from 5 to 35 Hz. The conclusion drawn there was
+"so a filter is not an option". The correct conclusion is **"so it has to be
+present during training"**, which is a different sentence and the one that
+matters. It is also the single most sim-to-real-relevant change available: a
+policy requiring 22.6 Hz of command bandwidth and full actuator authority will
+not survive contact with a real actuator.
+
+*Risk:* it makes the task harder, and the policy may fail to learn at all.
+*Mitigation:* curriculum the cutoff — start generous (~30 Hz, which the current
+policy already half-survives at 351 steps) and lower it across training. That
+also produces a usable regression metric on the way down.
+
+**2. Drive the policy's exploration noise down faster.** Measured on the passing
+run: policy std starts at **1.00** and only reaches **0.42** at 10M — *with*
+`ent_coef` already decayed to zero at 7M.
+
+That matters because **PPO maximises the return of the noisy policy, not the
+deterministic one the gate scores.** At std 0.42 "hold the home pose" means
+"hold it ±18° of knee angle, resampled every 10 ms", which is a different
+policy with a different return. The deterministic optimum (the statue, 3271.8)
+and the stochastic optimum are not the same point, and the network *starts* at
+the statue — SB3 initialises the action head near zero — and walks away from it
+because under std 1.0 the sampled version falls over.
+
+The fingerprint: **correlation between policy std and the number of saturated
+actuators is −0.967.** Saturation appears exactly as noise decays, because only
+then can an extreme pose be *held* rather than smeared.
+
+#487 moved this lever once (`ent_coef_end` 0.001 → 0.0, decay 3M → 7M) and
+turned a bouncer into a passer. Going further is indicated: a direct schedule on
+`log_std`, or a lower initial std, so the two objectives converge before the
+policy has committed to a basin.
+
+**3. `frame_skip 10`.** §6's falsifiable test, unchanged and still valid: a
+bounce at 8–10 Hz means the cycle is locked to the control clock and halving the
+rate removes the failure class; a bounce at ~20 Hz again means it is a plant
+property. Expensive — it bumps `policy_interface_revision` — so batch it with
+the plant work below if it is done at all.
+
+### The plant work
+
+**4. One `policy_interface_revision` bump carrying two fixes**, prepared now and
+merged after the in-flight lineage finishes:
+
+- **Couple the toe digits.** Three independent actuators per foot let the policy
+  command adjacent digits **75° apart**, which no theropod foot can do — the
+  digital flexors and transverse ligaments couple them. And because the model
+  lumps each digit into one rigid hinge instead of a four-phalanx chain,
+  commanding digit III to its limit lifts the primary weight-bearing toe
+  **~11.6 cm** off the floor rather than curling it.
+- **Re-centre the four off-home `ctrlrange`s** so `action = 0` is the home
+  keyframe the residual mapping is named for.
+
+Stated honestly: **this does not fix the current policy's pose** — returning the
+toes to home still falls at 198.5 steps, because the pose is over-determined.
+What it does is remove a way of standing badly that the anatomy does not permit
+and that policies demonstrably find. That constrains every *future* policy,
+which is worth having before spending more 10M runs.
+
+### The task work
+
+**5. Promote the impulse to a training-time disturbance.** `_apply_root_impulse`
+is already the primitive and the environment has no other perturbation path.
+Behind a config key it becomes what `STAGE1_SPLIT_PLAN`'s **1b recovery** needs,
+and it is what makes "actively stand and correct" a trainable objective rather
+than an aspiration.
+
+**6. Adopt the recovery envelope as the acceptance metric.** The weaker
+direction is the capability. Current baseline: **0.50 m/s one way, 0.00 the
+other.** Every existing stage-1 criterion is satisfied by a statue; this one is
+not.
+
+### Still ruled out
+
+**Do not reweight the reward.** Three independent reasons now: the bounce
+already loses on every term (§4), the tremor is load-bearing so penalising it
+removes what holds the animal up (Addendum 1), and the toes are sufficient but
+not necessary so a toe term is not shown to help (Addendum 2).
+
+**Do not chase the statue.** It outscoring the trained policy is a defect in the
+reward, not a target. A statue recovers from nothing — measured, 0.00 m/s in
+both directions — which is strictly worse at what the stage is for.
+
+### Ordering
+
+1 and 2 are additive, cheap, and target the bouncing directly — **do them
+first.** 5 and 6 are additive and serve the stated goal. 4 invalidates every
+checkpoint, so it waits for a clean break. 3 only if 1 and 2 fail.

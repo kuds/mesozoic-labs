@@ -163,6 +163,8 @@ _DIAGNOSTIC_KEYS = frozenset(
         "baseline_warn_after_budget_fraction",
         "stance_probe_filter_hz",
         "stance_probe_hold_constant",
+        "stance_probe_release_ablation",
+        "stance_probe_impulse_speeds",
     }
 )
 
