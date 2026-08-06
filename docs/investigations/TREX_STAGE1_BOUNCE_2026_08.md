@@ -771,3 +771,152 @@ both directions — which is strictly worse at what the stage is for.
 1 and 2 are additive, cheap, and target the bouncing directly — **do them
 first.** 5 and 6 are additive and serve the stated goal. 4 invalidates every
 checkpoint, so it waits for a clean break. 3 only if 1 and 2 fail.
+
+---
+
+## Addendum 6, 2026-08-06 — seed 43 bounces; the toe splay reproduces
+
+Appended. **Supersedes the ordering in Addendum 5.**
+
+### Seed 43 locked at exactly 1/5
+
+Run `20260806_133233`, seed 43, identical config to the passing seed-42 run,
+**0 of 158 evaluations matching seed 42 bitwise** — genuinely independent.
+
+| step | duty | bilateral | single support | full-horiz | reward |
+|---|---|---|---|---|---|
+| 7.55M | 0.2000 | 0.8000 | 0.0000 | 1.000 | 2369.9 |
+| 7.70M | 0.2000 | 0.8000 | 0.0000 | 1.000 | 2403.4 |
+| 7.85M | 0.2000 | 0.8000 | 0.0000 | 1.000 | 2421.9 |
+| 7.90M | 0.2000 | 0.8000 | −0.0000 | 0.925 | 2317.8 |
+
+Over the last 10 evaluations: duty mean **0.2000**, std **0.00000**. Over the
+last 20: **20 of 20** within 0.0015 of exactly 1/5, single support **0.0002**
+against the rule's 0.005 ceiling, bilateral pinned at 0.8000 = 4/5.
+
+The early-abort criterion from Addendum 5 fired at full strength, not
+marginally. This is `20260805_132950`'s signature reproduced exactly.
+
+### The stage-1 record, at the current configuration
+
+| run | weight | seed | result |
+|---|---|---|---|
+| `20260804_143747` | 0.5 | 42 | FAIL — 1/6, pre-#487 |
+| `20260805_011234` | 0.5 | 42 | **PASS** |
+| `20260805_132950` | 1.5 | 42 | FAIL — 1/5 |
+| `20260805_221141` | 0.5 | 42 | **PASS** (bitwise replay of `011234`) |
+| `20260806_133233` | 0.5 | **43** | **FAIL — 1/5** |
+
+At the current configuration, across independent seeds: **one pass, one
+bounce.** §8's question — "is passing reliable or lucky?" — has its answer, and
+it is **a coin flip**. #487 helped; it did not make stage 1 reliable.
+
+### The toe splay reproduces — and it is the only thing that does
+
+Comparing final per-actuator pose between the two independent seeds:
+
+| joint | seed 42 | seed 43 | 42° | 43° | |
+|---|---|---|---|---|---|
+| `r_toe_d2` | +1.000 | −0.998 | +37.5 | −37.4 | both pinned |
+| `r_toe_d3` | −1.000 | +0.999 | −37.5 | +37.5 | both pinned |
+| `r_toe_d4` | +1.000 | +0.999 | +37.5 | +37.5 | **both, same sign** |
+| `l_toe_d2` | −0.193 | −0.999 | −7.2 | −37.5 | 43 only |
+| `l_toe_d3` | +1.000 | +0.998 | +37.5 | +37.4 | **both, same sign** |
+| `l_toe_d4` | −1.000 | −0.994 | −37.5 | −37.3 | **both, same sign** |
+| `tail_1_pitch` | +1.000 | −0.608 | +12.0 | −7.3 | 42 only |
+| `tail_2_pitch` | +1.000 | +0.135 | +12.0 | +1.6 | 42 only |
+| `r_hip_roll` | +1.000 | −0.540 | +25.0 | −13.5 | 42 only |
+| `l_hip_roll` | −1.000 | +0.591 | −25.0 | +14.8 | 42 only |
+| `neck_yaw` | −0.177 | +0.996 | −3.5 | +19.9 | 43 only |
+
+Toe |DC| mean: **0.865** (seed 42) → **0.998** (seed 43). Spread across one
+foot: **75.0°** and **74.9°**, on *both* feet, in *both* seeds.
+
+Everything else disagrees. The tail — all four joints pinned in seed 42 — is
+largely unpinned in seed 43, with `tail_1_yaw` at the *opposite* limit. Hip
+rolls flip sign. Neck yaw is unsaturated in one and pinned in the other.
+
+**The toes are the one thing two independent seeds agree on.** That moves the
+splay from "one policy's quirk" to "this plant reliably invites it" — the
+condition set in Addendum 5 for reordering the plan.
+
+Note it does **not** separate pass from fail: the passing policy splays too. It
+is a plant-correctness finding, not the bounce's cause.
+
+### The toes do no work, in either stage
+
+Stage 2, the seed-42 policy running at **3.33 m/s**:
+
+| | AC (movement) | \|DC\| | pinned |
+|---|---|---|---|
+| **toes** | **0.129** | 0.907 | 4 of 6 |
+| legs (hip / knee / ankle) | **0.670** | 0.114 | 0 of 6 |
+
+Five times less movement than the leg chain, four of six at their stops. In
+stage 1 every saturated toe has AC **exactly 0.000**. **Toe actuation is
+authority no policy in this project has ever used productively, and every
+policy abuses.**
+
+The `leg_joint` class already gives each toe `stiffness = 40`, and the toes
+carry `damping = 15` with `springref = 12.5`, so an unactuated toe already has
+a passive spring returning it to home and compliance under load.
+
+### Recommended plant change: passive toes
+
+Three ways to couple the digits:
+
+| | `action_dim` | verdict |
+|---|---|---|
+| **remove the six toe actuators** | 21 → **15** | **recommended** |
+| fixed tendon + one actuator per foot | 21 → 17 | fallback if toe-off is ever shown to matter |
+| joint equality constraints, keep 3 actuators | 21 | rejected |
+
+**Equality constraints are the worst option:** the action space keeps three
+redundant toe entries per foot that can be commanded to disagree while the
+solver fights them, MuJoCo joint equalities are soft and get violated under
+load — exactly when it matters — and it encodes a lie about the mechanism.
+
+**Passive is recommended over the tendon** because this failure was *caused by
+control authority the policy does not need*. Six independent toe actuators,
+unused across three stages and five runs, exploited by every policy that has
+touched them. A tendon repeats that in miniature: smaller unneeded authority,
+plus new unanchored modelling decisions (tendon coefficients, actuator gear and
+`ctrlrange`). The tendon can be added later, with evidence, for the same
+revision cost. Authority cannot be un-added once a policy leans on it.
+
+Passive also collapses two open questions to zero: the toe `ctrlrange` audit
+stops mattering, and the 75° opposition becomes *unreachable* rather than
+discouraged.
+
+**When to revisit:** if `action_ac_rms_per_actuator` on the toes ever rises
+toward the leg chain's level in a locomotion run, the toes are doing work and
+deserve a command. Today it is 0.129 against 0.670.
+
+### Revised ordering — plant first
+
+Addendum 5 put the plant work last, on the grounds that seed 42 and 43 were
+free controls that a revision bump would destroy. **That argument is dead.**
+With the bounce at one-in-two, `n = 2` is not a rate — it is two samples of a
+Bernoulli nobody can estimate from. Every experiment worth running now
+("does an action filter reduce the bounce rate?") needs **several seeds per
+arm**, and running those on a plant already known to be wrong wastes precisely
+the runs that matter most.
+
+1. **Land the plant revision** — passive toes, plus re-centring the four
+   off-home `ctrlrange`s (both ankles +5.5°, `head_pitch`/`neck_pitch` +5.0°).
+   One `policy_interface_revision` bump. Re-measure the statue with
+   `zero_action_baseline.py` and re-derive `min_avg_reward` and
+   `collapse_peak_floor_reference`.
+2. **Action filter in the training loop, multi-seed.** Still the candidate fix
+   for the bounce; the plant work does not address it. Curriculum the cutoff
+   down from ~30 Hz.
+3. **SAC as the discriminator, multi-seed** — bounces too → task/plant
+   property; doesn't → PPO's exploration schedule is the culprit.
+4. **Impulse as a training-time disturbance**, and the recovery envelope as
+   1b's acceptance metric. Baseline to beat: **0.00 m/s** on the weaker side.
+
+Cost, stated plainly: the seed-42 stage-1→2 chain becomes historical. With the
+bounce at one-in-two that chain was **luck rather than a reproducible
+foundation**, so it was a weaker asset than it looked before seed 43 landed.
+
+**Unchanged:** do not reweight the reward, and do not chase the statue.
