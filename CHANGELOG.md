@@ -77,6 +77,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   continuous feedback, so the tremor is stabilisation rather than waste and
   raising `smoothness`/`action_jerk` is contraindicated. Full analysis in the
   2026-08-06 addendum to `TREX_STAGE1_BOUNCE_2026_08.md`.
+- **An impulse recovery probe**, `--impulse-probe`, which answers the one
+  question no training artifact can: does a stage-1 policy actually *correct*,
+  or has it only learned to stand still? Stage 1 declares no in-episode
+  disturbance — the sole perturbation is joint-angle noise at reset — so the
+  gate, the reward and all three earlier probes are silent on it by
+  construction. This applies a step change to the root's linear velocity
+  mid-episode (a shove, fully specified by `delta_v`) and sweeps magnitude in
+  **both lateral directions**, with the **zero-action statue as the control**:
+  it commands a constant and cannot respond, so its survival is the plant's
+  passive robustness and only the policy's margin over it is active control.
+  Measured on the passing checkpoint: **recovery envelope 0.50 m/s one way,
+  0.00 the other.** It takes a 0.5 m/s shove to the horizon 8/8 pushed one
+  direction and falls 0/8 pushed the other (424 steps against the statue's
+  337); at 1.0 m/s and above it is within noise of the statue on both sides.
+  Narrow *and* asymmetric — which is what a pose with differently-splayed toes
+  predicts. So stage 1's gap is a **metric** gap: the capability partly exists
+  and the task cannot see it, which makes the envelope a ready-made acceptance
+  metric for `STAGE1_SPLIT_PLAN`'s 1b.
+  The read-out is keyed off that envelope rather than a mean step margin. The
+  first version averaged the margin across rows and reported +135, of which 82%
+  came from one row — a number equally produced by a policy that recovers
+  everywhere. That is the **third** pooled statistic in this investigation to
+  hide the structure it summarised, after `action_std` over actuators-and-time
+  and the saturation count over differing `ctrlrange`s. The pooled margin is
+  still printed, second, with its caveat attached.
 - **Per-actuator pose reported in degrees, and the table ordered by them.**
   `|action| = 1` is not one physical event: `_scale_action` maps `[-1, 1]` onto
   each actuator's own `ctrlrange`, and on the T-Rex those differ by 6× — a

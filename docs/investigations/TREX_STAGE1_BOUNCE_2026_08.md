@@ -554,3 +554,85 @@ statue still stands 40 of 40, so nothing measured here is invalidated. But
 named for, and both statue-derived constants and every DC interpretation in
 this document rest on it. It is inexact for those four, and the report now says
 so rather than leaving it to be rediscovered.
+
+---
+
+## Addendum 4, 2026-08-06 — does it actually correct? Barely, and only one way
+
+Appended. This answers the question the whole investigation was really about.
+
+### Why it needed a new probe
+
+Stage 1 has **no in-episode disturbance** — the only perturbation anywhere is
+joint-angle noise at reset. So nothing in any training artifact can distinguish
+a policy that learned to *recover* from one that learned to *stand still*: the
+task never asks. The gate, the reward, the statue baseline and all three
+earlier probes are silent on it by construction.
+
+`stance_gate_report.py --impulse-probe` asks directly. A step change in the
+root's linear velocity at step 200 — a shove to the torso, fully specified by
+`delta_v` — swept over magnitude and **both lateral directions**, with the
+zero-action statue as the control. The statue commands a constant and therefore
+cannot respond to anything, so whatever it survives is the plant's *passive*
+robustness; only the policy's margin above that is active control.
+
+### Result, passing checkpoint, 8 episodes per row
+
+| impulse | direction | policy len | policy fh | statue len | statue fh | margin |
+|---|---|---|---|---|---|---|
+| none | control | 1000.0 | 1.0000 | 1000.0 | 1.0000 | +0 |
+| 0.50 m/s | lateral +y | 423.9 | 0.0000 | 337.1 | 0.0000 | +87 |
+| **0.50 m/s** | **lateral −y** | **1000.0** | **1.0000** | 337.5 | 0.0000 | **+662** |
+| 1.00 m/s | lateral +y | 264.2 | 0.0000 | 272.5 | 0.0000 | −8 |
+| 1.00 m/s | lateral −y | 329.8 | 0.0000 | 272.4 | 0.0000 | +57 |
+| 2.00 m/s | lateral +y | 244.5 | 0.0000 | 240.8 | 0.0000 | +4 |
+| 2.00 m/s | lateral −y | 249.0 | 0.0000 | 240.2 | 0.0000 | +9 |
+
+**Recovery envelope: 0.50 m/s one way, nothing the other.** The statue never
+recovers from anything, so the single full-horizon row is unambiguous — the
+policy does something under load that a constant command cannot.
+
+So the answer is **yes, it corrects — barely, and only in one direction.**
+
+- At **0.5 m/s** it fully recovers pushed one way (8/8 episodes to the horizon)
+  and completely fails pushed the other (0/8, and only 87 steps better than a
+  statue).
+- At **1.0 m/s and above** it is within noise of the statue on both sides. The
+  envelope is not merely asymmetric, it is *narrow*.
+
+The asymmetry is worth taking seriously given §Addendum 2: this policy's toes
+are splayed **differently on the two feet**, so a left-right asymmetric recovery
+envelope is what that pose predicts. A single-direction sweep would have
+measured whichever side it happens to be good at and reported that as the
+capability.
+
+### Correction: a pooled margin nearly buried this
+
+The probe's first read-out averaged the step margin over all disturbed rows and
+reported **+135**, concluding "active correction exists" — true, but 82% of that
+average is the one +662 row, and the same number is produced by a policy that
+recovers everywhere at +135. It pooled a full recovery with a total failure and
+described neither.
+
+**This is the third time in this investigation a pooled statistic hid the
+structure it was summarising** — after `action_std` over actuators and time
+(§10), and the saturation count over actuators of different `ctrlrange`
+(Addendum 3). The read-out is now keyed off the **recovery envelope per
+direction**, with the pooled margin printed second and labelled with its own
+caveat. The rule that keeps being relearned: *report the quantity the decision
+depends on, not the average of it.*
+
+### What this means
+
+**Stage 1's gap is a metric gap, not a reward one.** Something in the policy
+does correct; the stage simply has no disturbance with which to see it, so it
+can neither reward the capability nor certify it. No reweighting of the current
+terms changes that — there is nothing for a term to pay for in an episode where
+nothing goes wrong.
+
+That makes `STAGE1_SPLIT_PLAN.md`'s **1b recovery** stage the indicated work,
+and this probe is a ready-made acceptance metric for it: the recovery envelope
+in m/s, on the weaker side, is a single number that goes up when the policy
+gets better at the thing the stage is named for.
+
+**A baseline now exists to beat: 0.50 m/s one way, 0.00 the other.**

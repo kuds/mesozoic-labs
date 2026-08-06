@@ -142,6 +142,16 @@ tolerance) remains the standing recommendation for the divergences above.
   optimum. Active balance recovery is **absent from the task**, not
   underweighted in the reward, and no reweighting substitutes for adding it —
   that is what `STAGE1_SPLIT_PLAN.md`'s 1a stance / 1b recovery split is for.
+  **Measured (2026-08-06):** `--impulse-probe` shows the passing policy *does*
+  correct, but only just — it fully recovers a **0.50 m/s** lateral shove in one
+  direction (8/8 to the horizon, against a statue that never recovers from
+  anything) and **fails the same shove in the other direction** (0/8, 424 steps
+  against the statue's 337). At **1.0 m/s and above it is within noise of the
+  statue on both sides.** Recovery envelope: **0.50 m/s one way, 0.00 the
+  other** — narrow *and* asymmetric, which is what the differently-splayed toes
+  predict. So the stage-1 gap is a **metric** gap: the capability partly exists
+  and the task cannot see it. The envelope on the weaker side is a ready-made
+  acceptance metric for 1b, and 0.00 m/s is the number to beat.
 
 <!-- The six items below come from the 2026-07-31 plant validation pass; full
      evidence in PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md. The reset and

@@ -1994,3 +1994,240 @@ class TestDeflectionInDegrees:
         report = _minimal_stance_report()
         report["action"] = self._stats([0.4, -0.7], [self._TAIL, self._TOE])
         assert constant_hold_actions(report) == pytest.approx((0.4, -0.7))
+
+
+def _impulse_report(speed, axis, *, length, full, reward=3000.0, step=200):
+    report = _minimal_stance_report()
+    report["episodes"] = 8
+    report["impulse"] = {
+        "kind": "root_impulse/v1",
+        "step": step,
+        "delta_v": [0.0, speed if axis.endswith("+y") else -speed, 0.0],
+        "speed": speed,
+        "axis_label": axis,
+    }
+    report["metrics"] = dict(
+        report["metrics"], episode_length_mean=length, full_horizon_fraction=full, reward_mean=reward
+    )
+    report["terminations"] = {"truncated": 8} if full >= 1.0 else {"fallen": 8}
+    return report
+
+
+class TestRootImpulse:
+    def test_the_impulse_translates_the_whole_animal(self):
+        """qvel[0:3] is the free joint's world velocity; children compose from it."""
+        from environments.shared.scripts.stance_gate_report import RootImpulse, _apply_root_impulse
+
+        class _Data:
+            qvel = np.zeros(10)
+
+        class _Model:
+            body_mass = np.array([1000.0, 500.0, 500.0])
+
+        class _Env:
+            unwrapped = type("U", (), {"data": _Data(), "model": _Model()})()
+
+        env = _Env()
+        momentum = _apply_root_impulse(env, RootImpulse(step=200, delta_v=(0.0, 1.5, 0.0)))
+        assert env.unwrapped.data.qvel[:3] == pytest.approx([0.0, 1.5, 0.0])
+        # Joint velocities are untouched: this is a shove, not a pose change.
+        assert env.unwrapped.data.qvel[3:] == pytest.approx(np.zeros(7))
+        assert momentum == pytest.approx(2000.0 * 1.5)
+
+    def test_it_adds_rather_than_overwriting(self):
+        """The animal is already moving; overwriting would erase its own state."""
+        from environments.shared.scripts.stance_gate_report import RootImpulse, _apply_root_impulse
+
+        class _Env:
+            unwrapped = type(
+                "U",
+                (),
+                {
+                    "data": type("D", (), {"qvel": np.array([0.1, -0.2, 0.3, 0.0])})(),
+                    "model": type("M", (), {"body_mass": np.array([1.0])})(),
+                },
+            )()
+
+        env = _Env()
+        _apply_root_impulse(env, RootImpulse(step=0, delta_v=(0.0, 1.0, 0.0)))
+        assert env.unwrapped.data.qvel[:3] == pytest.approx([0.1, 0.8, 0.3])
+
+    def test_the_speed_is_the_vector_magnitude(self):
+        from environments.shared.scripts.stance_gate_report import RootImpulse
+
+        assert RootImpulse(step=0, delta_v=(3.0, 4.0, 0.0)).speed == pytest.approx(5.0)
+
+    def test_both_directions_are_swept(self):
+        """The policy is asymmetric, so a one-sided sweep measures one side."""
+        from environments.shared.scripts.stance_gate_report import impulse_variants
+
+        labels = [v.axis_label for v in impulse_variants([1.0], step=200)]
+        assert labels.count("lateral +y") == 1
+        assert labels.count("lateral -y") == 1
+        assert "none (control)" in labels
+
+    def test_the_zero_control_is_always_present(self):
+        from environments.shared.scripts.stance_gate_report import impulse_variants
+
+        control = impulse_variants([2.0], step=200)[0]
+        assert control.speed == 0.0
+
+    def test_nonpositive_speeds_are_dropped_not_mirrored(self):
+        from environments.shared.scripts.stance_gate_report import impulse_variants
+
+        speeds = {v.speed for v in impulse_variants([1.0, 0.0, -1.0], step=200)}
+        assert speeds == {0.0, 1.0}
+
+
+class TestImpulseProbeIsNotAVerdict:
+    def test_it_writes_its_own_filenames(self, tmp_path):
+        report = _impulse_report(1.0, "lateral +y", length=400.0, full=0.0)
+        written = write_stance_gate_report(tmp_path, report)
+        assert (tmp_path / "stance_gate_probe_impulse.txt").exists()
+        assert not (tmp_path / "stance_gate_report.txt").exists()
+        assert "stance_panel_csv" not in written
+
+    def test_the_banner_says_the_TASK_was_modified_not_the_policy(self):
+        """Opposite direction from the other two probes, same consequence."""
+        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+
+        text = render_stance_gate_report(_impulse_report(1.0, "lateral +y", length=400.0, full=0.0))
+        assert "MODIFIED TASK" in text
+        assert "stage 1 has no disturbance" in text
+        assert text.index("PROBE") < text.index("GATE:")
+
+    def test_all_three_probes_have_distinct_stems(self):
+        from environments.shared.scripts.stance_gate_report import _PROBE_MARKERS
+
+        assert len(set(_PROBE_MARKERS.values())) == len(_PROBE_MARKERS) == 3
+
+
+class TestImpulseRecoveryReading:
+    @staticmethod
+    def _sweep(policy_lengths, statue_lengths):
+        """Build matched policy/statue sweeps from (length, full) pairs per row."""
+        keys = [(0.0, "none (control)"), (1.0, "lateral +y"), (1.0, "lateral -y")]
+        policy = [
+            _impulse_report(speed, axis, length=length, full=full)
+            for (speed, axis), (length, full) in zip(keys, policy_lengths)
+        ]
+        statue = [
+            _impulse_report(speed, axis, length=length, full=full)
+            for (speed, axis), (length, full) in zip(keys, statue_lengths)
+        ]
+        return policy, statue
+
+    def test_a_large_positive_margin_reads_as_active_correction(self):
+        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+
+        policy, statue = self._sweep(
+            [(1000.0, 1.0), (1000.0, 1.0), (1000.0, 1.0)],
+            [(1000.0, 1.0), (300.0, 0.0), (280.0, 0.0)],
+        )
+        text, payload = render_impulse_probe(policy, statue, probe_episodes=8)
+        assert "ACTIVE CORRECTION EXISTS" in text
+        assert "metric gap" in text
+        assert payload["rows"][1]["margin_steps"] == pytest.approx(700.0)
+        # Keyed off full recovery, not off a step margin.
+        assert payload["recovery_envelopes"]["lateral +y"]["policy"] == pytest.approx(1.0)
+        assert payload["recovery_envelopes"]["lateral +y"]["statue"] == 0.0
+
+    def test_no_margin_reads_as_the_task_gap(self):
+        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+
+        policy, statue = self._sweep(
+            [(1000.0, 1.0), (310.0, 0.0), (295.0, 0.0)],
+            [(1000.0, 1.0), (300.0, 0.0), (290.0, 0.0)],
+        )
+        text, _ = render_impulse_probe(policy, statue, probe_episodes=8)
+        assert "Nothing has learned to recover" in text
+        assert "STAGE1_SPLIT_PLAN" in text
+        assert "No reweighting fixes this" in text
+
+    def test_a_negative_margin_is_reported_as_such(self):
+        """Worse than standing still is a finding, not a rounding of 'no effect'."""
+        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+
+        policy, statue = self._sweep(
+            [(1000.0, 1.0), (120.0, 0.0), (110.0, 0.0)],
+            [(1000.0, 1.0), (400.0, 0.0), (390.0, 0.0)],
+        )
+        text, _ = render_impulse_probe(policy, statue, probe_episodes=8)
+        assert "WORSE" in text
+
+    def test_the_zero_impulse_control_is_excluded_from_the_margin(self):
+        """Both sides reach the horizon there, so including it dilutes the signal."""
+        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+
+        policy, statue = self._sweep(
+            [(1000.0, 1.0), (1000.0, 1.0), (1000.0, 1.0)],
+            [(1000.0, 1.0), (300.0, 0.0), (300.0, 0.0)],
+        )
+        _, payload = render_impulse_probe(policy, statue, probe_episodes=8)
+        disturbed = [row for row in payload["rows"] if row["speed"] > 0]
+        assert len(disturbed) == 2
+        assert all(row["margin_steps"] == pytest.approx(700.0) for row in disturbed)
+
+    def test_it_writes_no_certification_evidence(self, tmp_path):
+        from environments.shared.scripts.stance_gate_report import write_impulse_probe
+
+        policy, statue = self._sweep(
+            [(1000.0, 1.0), (900.0, 0.5), (880.0, 0.5)],
+            [(1000.0, 1.0), (300.0, 0.0), (290.0, 0.0)],
+        )
+        written = write_impulse_probe(tmp_path, policy, statue, probe_episodes=8)
+        assert set(written) == {"impulse_probe_txt", "impulse_probe_json"}
+        assert not (tmp_path / "stance_panel_selected.csv").exists()
+        assert not (tmp_path / "stance_gate_report.txt").exists()
+
+    def test_an_asymmetric_envelope_is_named_and_the_weak_side_governs(self):
+        """Measured on the T-Rex: full recovery at 0.5 m/s one way, none the other.
+
+        Pooled over directions that averages to a healthy-looking +135 steps
+        and describes neither row. The envelope has to be reported per side.
+        """
+        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+
+        policy, statue = self._sweep(
+            [(1000.0, 1.0), (424.0, 0.0), (1000.0, 1.0)],
+            [(1000.0, 1.0), (337.0, 0.0), (337.0, 0.0)],
+        )
+        text, payload = render_impulse_probe(policy, statue, probe_episodes=8)
+        assert "ASYMMETRIC" in text
+        assert "WEAKER side" in text
+        envelopes = payload["recovery_envelopes"]
+        assert envelopes["lateral +y"]["policy"] == 0.0
+        assert envelopes["lateral -y"]["policy"] == pytest.approx(1.0)
+
+    def test_the_pooled_margin_is_reported_second_with_its_caveat(self):
+        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+
+        policy, statue = self._sweep(
+            [(1000.0, 1.0), (424.0, 0.0), (1000.0, 1.0)],
+            [(1000.0, 1.0), (337.0, 0.0), (337.0, 0.0)],
+        )
+        text, _ = render_impulse_probe(policy, statue, probe_episodes=8)
+        assert "reported second" in text
+        assert text.index("recovery envelope") < text.index("Mean step margin")
+
+    def test_a_symmetric_full_recovery_is_not_flagged_asymmetric(self):
+        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+
+        policy, statue = self._sweep(
+            [(1000.0, 1.0), (1000.0, 1.0), (1000.0, 1.0)],
+            [(1000.0, 1.0), (300.0, 0.0), (300.0, 0.0)],
+        )
+        text, _ = render_impulse_probe(policy, statue, probe_episodes=8)
+        assert "ACTIVE CORRECTION EXISTS" in text
+        assert "ASYMMETRIC" not in text
+
+    def test_a_statue_that_recovers_too_does_not_count_as_active_control(self):
+        """Passive robustness is not correction; only the margin over it is."""
+        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+
+        policy, statue = self._sweep(
+            [(1000.0, 1.0), (1000.0, 1.0), (1000.0, 1.0)],
+            [(1000.0, 1.0), (1000.0, 1.0), (1000.0, 1.0)],
+        )
+        text, _ = render_impulse_probe(policy, statue, probe_episodes=8)
+        assert "ACTIVE CORRECTION EXISTS" not in text
