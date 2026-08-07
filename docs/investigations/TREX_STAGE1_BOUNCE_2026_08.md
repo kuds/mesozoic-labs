@@ -494,8 +494,9 @@ the answer means the ablation should not have been necessary to find its result.
 
 ### `|action| = 1` is not one physical event
 
-`_scale_action` maps `[-1, 1]` linearly onto each actuator's own `ctrlrange`.
-Those ranges differ by a factor of six across the T-Rex:
+`_scale_action` maps `[-1, 1]` piecewise-affine around the home keyframe's
+control target, retaining each actuator's `ctrlrange` as its two endpoints.
+Those physical spans differ by a factor of six across the T-Rex:
 
 | group | `action = +1` | `action = −1` | deflection from home | ablation verdict |
 |---|---|---|---|---|
@@ -528,32 +529,35 @@ wrong place from shaking". A pooled *normalised* offset cannot separate moving
 8° from moving 37.5°, and the fix is the same shape: report the physical
 quantity next to the normalised one.
 
-`stance_gate_report.py` now emits `dc_deg`, `ac_rms_deg`, `range_deg` and
-`zero_offset_deg` per actuator, and **orders the table by degrees**. On the
-passing checkpoint that puts the five saturated toes at the top at ±37.5° and
-drops `tail_1_yaw` (±8°) out of the printed twelve entirely — the ablation's
-conclusion, readable directly off the report.
+`stance_gate_report.py` now emits `dc_deg`, `ac_rms_deg`, `range_deg`,
+`zero_offset_deg`, and `home_preload_deg` per actuator, and **orders the table
+by degrees**. The degree moments come from the physical controls actually
+applied during rollout, not from rescaling the normalised mean and variance.
+The shared reporter emits them only for verified angular position servos, so a
+geared motor control cannot be mislabeled or ranked as a joint angle.
+On the passing checkpoint that puts the five saturated toes at the top at
+±37.5° and drops `tail_1_yaw` (±8°) out of the printed twelve entirely — the
+ablation's conclusion, readable directly off the report.
 
 **Lesson: a normalised summary is only as good as the assumption that its units
 mean the same thing everywhere.** Twice now that assumption has been false, and
 both times it hid the answer rather than merely blurring it.
 
-### And `action = 0` is not exactly the home keyframe
+### Action origin, home control, and home pose are different quantities
 
-`action = 0` is the `ctrlrange` **midpoint**, which equals home only where the
-range was authored centred on it. For four of 21 actuators it is not:
+The first version of the degree report duplicated the base environment's
+midpoint formula and compared that target with `key_qpos`. T-Rex does neither:
+its override maps the negative and positive halves independently around
+`key_ctrl[home]`, so **`action = 0` maps exactly to the named home control for
+all 21 actuators**.
 
-| actuator | `action = 0` minus home |
-|---|---|
-| `r_ankle`, `l_ankle` | **+5.5°** |
-| `head_pitch`, `neck_pitch` | **+5.0°** |
-
-Everything else is exact to floating point. The magnitude is small and the
-statue still stands 40 of 40, so nothing measured here is invalidated. But
-"`action = 0` **is** the home keyframe" is the phrasing the residual mapping is
-named for, and both statue-derived constants and every DC interpretation in
-this document rest on it. It is inexact for those four, and the report now says
-so rather than leaving it to be rediscovered.
+The two ankle home controls are 5.5° above their home joint poses. That is the
+intentional gravity preload documented beside the XML actuator ranges, not an
+action-mapping defect; head and neck have no such offset. Report schema v2 now
+keeps `action_zero_ctrl`, `home_ctrl`, and `home_qpos` separate, records applied
+control moments per sample, and reports the ankle difference neutrally as
+`home_preload_deg`. There is no basis here for re-centring any control range or
+bumping the policy interface.
 
 ---
 
@@ -667,9 +671,11 @@ the probe work changes that.
 | `--hold-release-ablation` | which joints? | **toes**, sufficient alone; tail and head/neck inert |
 | `--impulse-probe` | does it actually correct? | **barely** — 0.50 m/s one way, 0.00 the other |
 
-Plus two measurement defects found on the way: `|action| = 1` means 8° on a tail
-joint and 37.5° on a toe (Addendum 3), and `action = 0` is not exactly home for
-four actuators.
+Plus one measurement defect found on the way: `|action| = 1` means 8° on a tail
+joint and 37.5° on a toe (Addendum 3). The follow-up action-mapping audit also
+fixed the reporter itself: T-Rex action zero already mapped exactly to the
+named home control, while the ankle's control-vs-pose difference is intentional
+preload.
 
 ### The changes that target the bounce and the tremor
 
@@ -724,17 +730,16 @@ the plant work below if it is done at all.
 
 ### The plant work
 
-**4. One `policy_interface_revision` bump carrying two fixes**, prepared now and
-merged after the in-flight lineage finishes:
+**4. Couple the toe digits in the next plant revision**, prepared now and
+merged after the in-flight lineage finishes.
 
-- **Couple the toe digits.** Three independent actuators per foot let the policy
-  command adjacent digits **75° apart**, which no theropod foot can do — the
-  digital flexors and transverse ligaments couple them. And because the model
-  lumps each digit into one rigid hinge instead of a four-phalanx chain,
-  commanding digit III to its limit lifts the primary weight-bearing toe
-  **~11.6 cm** off the floor rather than curling it.
-- **Re-centre the four off-home `ctrlrange`s** so `action = 0` is the home
-  keyframe the residual mapping is named for.
+Three independent actuators per foot let the policy command adjacent digits
+**75° apart**, which no theropod foot can do — the digital flexors and
+transverse ligaments couple them. And because the model lumps each digit into
+one rigid hinge instead of a four-phalanx chain, commanding digit III to its
+limit lifts the primary weight-bearing toe **~11.6 cm** off the floor rather
+than curling it. The action-mapping audit found no second plant change to batch
+with this: action zero already is the named home control.
 
 Stated honestly: **this does not fix the current policy's pose** — returning the
 toes to home still falls at 198.5 steps, because the pose is over-determined.
@@ -902,11 +907,13 @@ Bernoulli nobody can estimate from. Every experiment worth running now
 arm**, and running those on a plant already known to be wrong wastes precisely
 the runs that matter most.
 
-1. **Land the plant revision** — passive toes, plus re-centring the four
-   off-home `ctrlrange`s (both ankles +5.5°, `head_pitch`/`neck_pitch` +5.0°).
-   One `policy_interface_revision` bump. Re-measure the statue with
-   `zero_action_baseline.py` and re-derive `min_avg_reward` and
-   `collapse_peak_floor_reference`.
+1. **Land the plant revision** — passive toes. This changes both physics and
+   the action dimension, so bump the relevant plant/interface revisions.
+   Re-measure the statue with `zero_action_baseline.py` and re-derive
+   `min_avg_reward` and `collapse_peak_floor_reference`. Do not alter the four
+   ranges previously called "off-home": the action-mapping audit showed action
+   zero already reaches every named home control, and the ankle difference is
+   intentional preload.
 2. **Action filter in the training loop, multi-seed.** Still the candidate fix
    for the bounce; the plant work does not address it. Curriculum the cutoff
    down from ~30 Hz.

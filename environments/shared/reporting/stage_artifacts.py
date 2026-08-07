@@ -525,9 +525,7 @@ def _write_constant_hold_ablation(
         )
 
         hold = constant_hold_actions(measured)
-        for variant in constant_hold_release_variants(
-            hold, measured, horizon=int(measured["horizon"])
-        ):
+        for variant in constant_hold_release_variants(hold, measured, horizon=int(measured["horizon"])):
             probe = build_stance_gate_report(
                 species,
                 stage,
@@ -539,8 +537,7 @@ def _write_constant_hold_ablation(
             )
             entries.append(probe)
             logger.info(
-                "Release ablation %s: episode length %.1f, full-horizon %.4f. "
-                "MODIFIED policy -- not a gate verdict.",
+                "Release ablation %s: episode length %.1f, full-horizon %.4f. MODIFIED policy -- not a gate verdict.",
                 variant.label,
                 probe["metrics"]["episode_length_mean"],
                 probe["metrics"]["full_horizon_fraction"],
@@ -551,9 +548,7 @@ def _write_constant_hold_ablation(
         try:
             from environments.shared.scripts.stance_gate_report import write_constant_hold_ablation
 
-            written = write_constant_hold_ablation(
-                stage_dir, entries, probe_episodes=_ABLATION_EPISODES
-            )
+            written = write_constant_hold_ablation(stage_dir, entries, probe_episodes=_ABLATION_EPISODES)
             logger.info("Release ablation -> %s", written["constant_hold_ablation_txt"])
         except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
             logger.warning("Could not write the release ablation", exc_info=True)
@@ -629,17 +624,14 @@ def _write_impulse_probe(
 
         policy_sweep = _sweep(zero_action=False)
         statue_sweep = _sweep(zero_action=True)
-        written = write_impulse_probe(
-            stage_dir, policy_sweep, statue_sweep, probe_episodes=_IMPULSE_EPISODES
-        )
+        written = write_impulse_probe(stage_dir, policy_sweep, statue_sweep, probe_episodes=_IMPULSE_EPISODES)
         envelopes = {
             row["impulse"]["axis_label"]: row["metrics"]["full_horizon_fraction"]
             for row in policy_sweep
             if row["impulse"]["speed"] > 0
         }
         logger.info(
-            "Impulse recovery probe -> %s (policy full-horizon by direction: %s). "
-            "MODIFIED task -- not a gate verdict.",
+            "Impulse recovery probe -> %s (policy full-horizon by direction: %s). MODIFIED task -- not a gate verdict.",
             written["impulse_probe_txt"],
             envelopes,
         )

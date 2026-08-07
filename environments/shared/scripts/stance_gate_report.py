@@ -209,7 +209,7 @@ def run_panel(
     # is invisible to it and unfixable by it (issue #489).
     action_stats = _new_action_stats()
     joint_names: list[str] = []
-    pose_mapping: list[dict[str, float]] = []
+    pose_mapping: list[dict[str, Any]] = []
 
     try:
         joint_names = _actuator_joint_names(env)
@@ -291,6 +291,14 @@ def _new_action_stats() -> dict[str, Any]:
         "sum": None,
         "sq_sum": None,
         "count": 0,
+        # Physical controls actually applied by the environment.  These stay
+        # separate from normalized actions because the species mapping can be
+        # piecewise about its home control; in that case E[f(a)] != f(E[a])
+        # and a normalized variance cannot be converted with one range-wide
+        # scale factor.
+        "ctrl_sum": None,
+        "ctrl_sq_sum": None,
+        "ctrl_count": 0,
         "delta": 0.0,
         "jerk": 0.0,
         # Counted separately: a difference needs two samples and a second
@@ -304,8 +312,12 @@ def _new_action_stats() -> dict[str, Any]:
     }
 
 
-def _accumulate_action(stats: dict[str, Any], action: np.ndarray) -> None:
-    """Accumulate one post-settle action into the per-actuator statistics."""
+def _accumulate_action(
+    stats: dict[str, Any],
+    action: np.ndarray,
+    applied_ctrl: "np.ndarray | None" = None,
+) -> None:
+    """Accumulate one post-settle action and its applied physical control."""
     if stats["sum"] is None or stats["sum"].shape != action.shape:
         stats["sum"] = np.zeros_like(action)
         stats["sq_sum"] = np.zeros_like(action)
@@ -324,6 +336,17 @@ def _accumulate_action(stats: dict[str, Any], action: np.ndarray) -> None:
             stats["jerk_count"] += 1
     stats["prev_prev"] = prev
     stats["prev"] = action
+
+    if applied_ctrl is not None:
+        ctrl = np.asarray(applied_ctrl, dtype=np.float64).ravel()
+        if ctrl.shape == action.shape:
+            if stats["ctrl_sum"] is None or stats["ctrl_sum"].shape != ctrl.shape:
+                stats["ctrl_sum"] = np.zeros_like(ctrl)
+                stats["ctrl_sq_sum"] = np.zeros_like(ctrl)
+                stats["ctrl_count"] = 0
+            stats["ctrl_sum"] += ctrl
+            stats["ctrl_sq_sum"] += ctrl * ctrl
+            stats["ctrl_count"] += 1
 
 
 def _actuator_joint_names(env: Any) -> list[str]:
@@ -349,31 +372,81 @@ def _actuator_joint_names(env: Any) -> list[str]:
         return []
 
 
-def _actuator_pose_mapping(env: Any) -> list[dict[str, float]]:
-    """Per actuator, what a commanded action means as a joint angle.
+def _is_angular_position_control(model: Any, index: int, joint_id: int) -> bool:
+    """Whether actuator control values are directly interpretable as radians.
 
-    Returns ``ctrl_min``/``ctrl_max`` (radians) and the ``home`` angle from the
-    keyframe the environment actually resets to, or ``[]`` when the model
-    cannot be reached.
+    A joint transmission alone is not enough: Velociraptor's claw actuators
+    are geared motors, where ``ctrl=1`` is a dimensionless motor command rather
+    than a one-radian target.  Restrict degree fields to the canonical direct,
+    unit-gear hinge position servo compiled by MuJoCo's ``<position>`` shortcut.
+    Anything else keeps normalized and native-control statistics only.
+    """
+    import mujoco
+
+    gain = float(model.actuator_gainprm[index, 0])
+    bias = np.asarray(model.actuator_biasprm[index], dtype=np.float64)
+    gear = np.asarray(model.actuator_gear[index], dtype=np.float64)
+    return bool(
+        int(model.actuator_trntype[index]) == int(mujoco.mjtTrn.mjTRN_JOINT)
+        and int(model.jnt_type[joint_id]) == int(mujoco.mjtJoint.mjJNT_HINGE)
+        and int(model.actuator_gaintype[index]) == int(mujoco.mjtGain.mjGAIN_FIXED)
+        and int(model.actuator_biastype[index]) == int(mujoco.mjtBias.mjBIAS_AFFINE)
+        and np.isfinite(gain)
+        and gain > 0.0
+        and np.isclose(bias[0], 0.0)
+        and np.isclose(bias[1], -gain)
+        and np.isclose(gear[0], 1.0)
+        and np.allclose(gear[1:], 0.0)
+    )
+
+
+def _actuator_pose_mapping(env: Any) -> list[dict[str, Any]]:
+    """Per actuator, separate action origin, home control, and home pose.
+
+    Returns the physical control at normalized actions -1, 0, and +1, the
+    named home keyframe's control target, and the joint pose in that keyframe.
+    These are deliberately distinct: T-Rex maps residuals piecewise around
+    ``key_ctrl['home']``, while its ankles use an intentional control preload
+    relative to ``key_qpos['home']``.
 
     This exists because ``|action| = 1`` is **not one physical event**.
-    ``_scale_action`` maps ``[-1, 1]`` linearly onto each actuator's own
-    ``ctrlrange``, and on the T-Rex those ranges differ by a factor of six: a
-    saturated tail joint is 8-12 degrees of deflection while a saturated toe is
-    50. Counting both as "saturated" pools them into one number, which is the
-    same mistake the DC/AC split was introduced to fix one level up -- a
-    normalized-unit summary hiding a physical distinction. Measured, it hid the
-    answer: the tail looked like the most extreme thing in the DC table and is
-    provably inert, while the toes carry the whole effect.
+    ``_scale_action`` maps ``[-1, 1]`` onto each actuator's own physical
+    control targets, and on the T-Rex those spans differ by a factor of six: a
+    saturated tail target is 8-12 degrees from its origin while a saturated toe
+    target is 37.5 degrees away. Counting both as "saturated" pools them into
+    one number, which is the same mistake the DC/AC split was introduced to fix
+    one level up -- a normalized-unit summary hiding a physical distinction.
+    Measured, it hid the answer: the tail looked like the most extreme thing in
+    the DC table and is provably inert, while the toes carry the whole effect.
     """
     try:
-        # No `mujoco` import needed, unlike the joint-name lookup: everything
-        # below is attribute access on a model the environment already holds.
-        model = env.unwrapped.model
-        keyframe = int(getattr(env.unwrapped, "_reset_keyframe_id", 0))
+        # Probe the environment's own mapping instead of duplicating a shared
+        # midpoint formula.  T-Rex overrides that formula with a piecewise
+        # home-control residual mapping, and future action interfaces may do
+        # the same.
+        unwrapped = env.unwrapped
+        model = unwrapped.model
+        action_shape = tuple(unwrapped.action_space.shape)
+        negative_ctrl = np.asarray(
+            unwrapped._scale_action(-np.ones(action_shape, dtype=np.float64)),
+            dtype=np.float64,
+        ).ravel()
+        action_zero_ctrl = np.asarray(
+            unwrapped._scale_action(np.zeros(action_shape, dtype=np.float64)),
+            dtype=np.float64,
+        ).ravel()
+        positive_ctrl = np.asarray(
+            unwrapped._scale_action(np.ones(action_shape, dtype=np.float64)),
+            dtype=np.float64,
+        ).ravel()
+        if any(values.shape != (model.nu,) for values in (negative_ctrl, action_zero_ctrl, positive_ctrl)):
+            return []
+
+        keyframe = int(getattr(unwrapped, "_reset_keyframe_id", 0))
         if not 0 <= keyframe < model.nkey:
             keyframe = 0
         home_qpos = model.key_qpos[keyframe] if model.nkey else None
+        home_ctrl = model.key_ctrl[keyframe] if model.nkey else action_zero_ctrl
         mapping = []
         for index in range(model.nu):
             joint_id = int(model.actuator_trnid[index, 0])
@@ -383,10 +456,17 @@ def _actuator_pose_mapping(env: Any) -> list[dict[str, float]]:
                 {
                     "ctrl_min": low,
                     "ctrl_max": high,
-                    # Falls back to the ctrlrange midpoint -- i.e. `action = 0`
-                    # -- when the model has no keyframe, which makes the
-                    # reported deflection zero rather than wrong.
-                    "home": float(home_qpos[address]) if home_qpos is not None else 0.5 * (low + high),
+                    "action_negative_ctrl": float(negative_ctrl[index]),
+                    "action_zero_ctrl": float(action_zero_ctrl[index]),
+                    "action_positive_ctrl": float(positive_ctrl[index]),
+                    "angular_position_ctrl": _is_angular_position_control(model, index, joint_id),
+                    # With no keyframe, use action zero for both anchors so the
+                    # optional offsets read as unavailable/zero rather than
+                    # inventing a nominal posture.
+                    "home_ctrl": float(home_ctrl[index]),
+                    "home_qpos": (
+                        float(home_qpos[address]) if home_qpos is not None else float(action_zero_ctrl[index])
+                    ),
                 }
             )
         return mapping
@@ -394,25 +474,39 @@ def _actuator_pose_mapping(env: Any) -> list[dict[str, float]]:
         return []
 
 
-def _commanded_angle(entry: dict[str, float], action: float) -> float:
-    """The joint angle an action commands, mirroring ``BaseDinoEnv._scale_action``."""
-    return entry["ctrl_min"] + (action + 1.0) * 0.5 * (entry["ctrl_max"] - entry["ctrl_min"])
+def _commanded_angle(entry: dict[str, Any], action: float) -> float:
+    """The control target for an action, using the probed piecewise mapping.
+
+    Real reports use the applied-control moments recorded during rollout.  The
+    helper remains useful for endpoint display, fixtures, and legacy reports,
+    but must still mirror ``home-keyframe-residual/v1`` on both sides of zero.
+    """
+    clipped = float(np.clip(action, -1.0, 1.0))
+    zero = float(
+        entry.get(
+            "action_zero_ctrl",
+            entry.get("home_ctrl", entry.get("home", 0.5 * (entry["ctrl_min"] + entry["ctrl_max"]))),
+        )
+    )
+    negative = float(entry.get("action_negative_ctrl", entry["ctrl_min"]))
+    positive = float(entry.get("action_positive_ctrl", entry["ctrl_max"]))
+    return zero + clipped * (zero - negative if clipped < 0.0 else positive - zero)
 
 
 def _reduce_action_stats(
     stats: dict[str, Any],
     names: list[str],
     control_dt: float,
-    pose_mapping: "list[dict[str, float]] | None" = None,
+    pose_mapping: "list[dict[str, Any]] | None" = None,
 ) -> dict[str, Any]:
     """Reduce the accumulators into the report's ``action`` block.
 
-    The DC/AC split is the point. ``mean(a)`` per actuator is the static pose
-    the policy commands -- under ``home-keyframe-residual/v1`` the distance
-    from the home keyframe, since ``action = 0`` *is* that keyframe -- and the
-    spread about it is what the policy does on top. They have different causes
-    and different fixes, and a single pooled number cannot tell them apart
-    (issue #489).
+    The DC/AC split is the point. ``mean(a)`` per actuator is the policy's
+    static normalized residual and the spread about it is what the policy does
+    on top. Applied-control moments are reduced independently, because the
+    residual-to-control mapping can have different slopes on either side of
+    zero. Static offset and variation have different causes and fixes, and a
+    single pooled number cannot tell them apart (issue #489).
     """
     count = stats["count"]
     if not count or stats["sum"] is None:
@@ -429,6 +523,19 @@ def _reduce_action_stats(
     if delta > 0.0:
         freq = math.asin(min(1.0, math.sqrt(jerk / delta) / 2.0)) / (math.pi * control_dt)
     mapping = pose_mapping or []
+    ctrl_count = int(stats.get("ctrl_count", 0))
+    ctrl_mean: "np.ndarray | None" = None
+    ctrl_ac: "np.ndarray | None" = None
+    if (
+        ctrl_count == count
+        and stats.get("ctrl_sum") is not None
+        and stats.get("ctrl_sq_sum") is not None
+        and stats["ctrl_sum"].shape == mean.shape
+        and stats["ctrl_sq_sum"].shape == mean.shape
+    ):
+        ctrl_mean = stats["ctrl_sum"] / ctrl_count
+        ctrl_var = np.maximum(stats["ctrl_sq_sum"] / ctrl_count - ctrl_mean * ctrl_mean, 0.0)
+        ctrl_ac = np.sqrt(ctrl_var)
     per_actuator = []
     for index in range(mean.size):
         entry: dict[str, Any] = {
@@ -439,17 +546,41 @@ def _reduce_action_stats(
         }
         if index < len(mapping):
             scale = mapping[index]
-            span = scale["ctrl_max"] - scale["ctrl_min"]
-            entry["dc_deg"] = math.degrees(_commanded_angle(scale, float(mean[index])) - scale["home"])
-            # A unit of action is HALF the range, so that is what the tremor
-            # scales by.
-            entry["ac_rms_deg"] = math.degrees(float(ac[index]) * 0.5 * span)
-            entry["range_deg"] = math.degrees(span)
-            # Where `action = 0` sits relative to home. Non-zero means
-            # "action = 0 IS the home keyframe" -- which the residual mapping's
-            # name asserts and several derived constants lean on -- is inexact
-            # for this actuator.
-            entry["zero_offset_deg"] = math.degrees(_commanded_angle(scale, 0.0) - scale["home"])
+            action_zero_ctrl = float(
+                scale.get(
+                    "action_zero_ctrl",
+                    scale.get("home_ctrl", scale.get("home", 0.5 * (scale["ctrl_min"] + scale["ctrl_max"]))),
+                )
+            )
+            home_ctrl = float(scale.get("home_ctrl", action_zero_ctrl))
+            home_qpos = float(scale.get("home_qpos", scale.get("home", home_ctrl)))
+            angular_position_ctrl = bool(scale.get("angular_position_ctrl", True))
+            # Preserve control anchors in native units so the report is
+            # auditable without reloading the exact plant model.  Control and
+            # qpos units are comparable only for the verified position-servo
+            # case below.
+            entry["angular_position_ctrl"] = angular_position_ctrl
+            entry["action_zero_ctrl"] = action_zero_ctrl
+            entry["home_ctrl"] = home_ctrl
+            # Applied-control moments are authoritative.  Mapping the action
+            # mean and variance after reduction is not equivalent when the
+            # negative and positive residual slopes differ, so omit physical
+            # DC/AC rather than fabricate them when controls were unavailable.
+            if ctrl_mean is not None and ctrl_ac is not None:
+                entry["ctrl_mean"] = float(ctrl_mean[index])
+                entry["ctrl_ac_rms"] = float(ctrl_ac[index])
+            if angular_position_ctrl:
+                entry["home_qpos"] = home_qpos
+                entry["range_deg"] = math.degrees(scale["ctrl_max"] - scale["ctrl_min"])
+                if ctrl_mean is not None and ctrl_ac is not None:
+                    entry["dc_deg"] = math.degrees(float(ctrl_mean[index]) - action_zero_ctrl)
+                    entry["ac_rms_deg"] = math.degrees(float(ctrl_ac[index]))
+                # A mapping-contract check, not a posture offset.  Under
+                # home-keyframe-residual/v1 this must be zero even when the
+                # home actuator target intentionally preloads a joint against
+                # gravity.
+                entry["zero_offset_deg"] = math.degrees(action_zero_ctrl - home_ctrl)
+                entry["home_preload_deg"] = math.degrees(home_ctrl - home_qpos)
         per_actuator.append(entry)
     reduced = {
         "dc_rms": float(np.sqrt(np.mean(mean * mean))),
@@ -463,7 +594,7 @@ def _reduce_action_stats(
     if degrees:
         # Reported alongside `dc_rms` rather than replacing it: the normalized
         # figure is what inverts through the action penalties, and the degrees
-        # are what says whether a saturated actuator moved anything.
+        # say how far the physical control targets moved.
         reduced["dc_rms_deg"] = float(np.sqrt(np.mean(np.square(degrees))))
         reduced["max_abs_dc_deg"] = float(np.max(np.abs(degrees)))
     return reduced
@@ -513,15 +644,24 @@ def _roll_episodes(
             action = np.asarray(predict(obs), dtype=np.float64).ravel()
             # Post-settle only, the same window the duty uses, so the reset
             # transient does not read as tremor.
-            if steps >= settle_steps:
-                _accumulate_action(action_stats, action)
+            measure_step = steps >= settle_steps
             obs, reward, terminated, truncated, info = env.step(action)
+            if measure_step:
+                # ``data.ctrl`` is the target the environment actually
+                # applied.  Reading it after ``step`` avoids a second call to
+                # a potentially species-specific mapping and also remains
+                # correct if plant-side action dynamics are added later.
+                try:
+                    applied_ctrl = np.asarray(env.unwrapped.data.ctrl, dtype=np.float64).copy()
+                except Exception:  # noqa: BLE001 - normalized stats remain useful without it
+                    applied_ctrl = None
+                _accumulate_action(action_stats, action, applied_ctrl)
             total += float(reward)
             for key, value in info.items():
                 if key.startswith("reward_") and key != "reward_total":
                     components[key] = components.get(key, 0.0) + float(value)
             stance = derive_stance_info(info)
-            if stance and steps >= settle_steps:
+            if stance and measure_step:
                 measured += 1
                 unsupported += int(stance["unsupported_duty"])
                 # The gate bounds unsupported duty only. Reporting the full
@@ -548,7 +688,7 @@ def _roll_episodes(
 
 
 #: Bumped when the JSON report's field meanings change.
-REPORT_SCHEMA = "mesozoic.stance-gate-report/v1"
+REPORT_SCHEMA = "mesozoic.stance-gate-report/v2"
 
 
 def thresholds_from_curriculum(curriculum: dict[str, Any]) -> StanceGateThresholds:
@@ -868,8 +1008,7 @@ def build_stance_gate_report(
             # broadcasts a mismatched length silently, which would score a
             # policy nobody asked for and report it as this one.
             raise ValueError(
-                f"hold_constant carries {len(hold_constant.actions)} actions but "
-                f"{species} has action_dim {expected}"
+                f"hold_constant carries {len(hold_constant.actions)} actions but {species} has action_dim {expected}"
             )
         predict = _hold_constant_predict(predict, hold_constant)
         description += (
@@ -1062,26 +1201,24 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
                 lines.append(f"  {key:28s} {components[key]:10.2f}")
     action = report.get("action") or {}
     if action:
-        summary = (
-            f"DC {action['dc_rms']:.3f} rms, AC {action['ac_rms']:.3f} rms, "
-            f"~{action['effective_freq_hz']:.1f} Hz"
-        )
+        summary = f"DC {action['dc_rms']:.3f} rms, AC {action['ac_rms']:.3f} rms, ~{action['effective_freq_hz']:.1f} Hz"
         if "dc_rms_deg" in action:
-            summary += f"; {action['dc_rms_deg']:.1f}deg rms of joint deflection"
+            summary += f"; {action['dc_rms_deg']:.1f}deg rms across angular position controls"
         lines += [
             "",
             f"commanded action, post-settle ({summary}):",
-            "  DC is the distance from the home keyframe; AC is what the policy does",
-            "  around it. Different causes, different fixes.",
+            "  Normalised DC is the mean policy action; degree DC is the applied control",
+            "  target relative to action zero. AC is variation around each mean.",
         ]
         per_actuator = action.get("per_actuator") or []
         has_degrees = any("dc_deg" in entry for entry in per_actuator)
         if has_degrees:
             lines += [
                 "  Ordered by DEGREES, not by normalised action: |action| = 1 maps onto each",
-                "  actuator's own ctrlrange, so a saturated joint can be 8deg or 50deg of",
-                "  deflection. Ranking by the normalised value pools those and hides which",
-                "  joints actually moved.",
+                "  actuator's own control span, so saturation can move a target 8deg or 37.5deg",
+                "  from its nominal target. Ranking by the normalised value pools those and",
+                "  hides which targets moved. Degree fields are emitted for verified angular",
+                "  position controls only; motors retain native control units in the JSON.",
             ]
         # Largest physical offset first when it can be computed. That ordering
         # is the point: sorted by |dc| this table put twelve joints at exactly
@@ -1098,19 +1235,25 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
             lines.append(line)
         if len(per_actuator) > 12:
             lines.append(f"  ... {len(per_actuator) - 12} more (full list in the JSON)")
-        # `action = 0` is the ctrlrange MIDPOINT, which equals the home keyframe
-        # only where the range was authored centred on it. Where it is not, the
-        # residual mapping's own name is inexact for that actuator and anything
-        # derived from "the statue commands home" carries the same small error.
-        offset = [
-            entry for entry in per_actuator if abs(entry.get("zero_offset_deg", 0.0)) > 0.05
-        ]
+        # Contract check: under the home-keyframe residual mapping action zero
+        # must be the named home CONTROL.  Keep that distinct from a deliberate
+        # control-vs-qpos preload, which is a plant property rather than policy
+        # displacement or an action-mapping error.
+        offset = [entry for entry in per_actuator if abs(entry.get("zero_offset_deg", 0.0)) > 0.05]
         if offset:
             worst = max(offset, key=lambda e: abs(e["zero_offset_deg"]))
             lines.append(
-                f"  NOTE: action = 0 is not exactly home for {len(offset)} of {len(per_actuator)} "
-                f"actuators (worst {worst['joint']} {worst['zero_offset_deg']:+.1f}deg); "
-                "ctrlrange is centred elsewhere."
+                f"  NOTE: action = 0 differs from the named home control for {len(offset)} of "
+                f"{len(per_actuator)} actuators (worst {worst['joint']} "
+                f"{worst['zero_offset_deg']:+.1f}deg); inspect the action-mapping contract."
+            )
+        preload = [entry for entry in per_actuator if abs(entry.get("home_preload_deg", 0.0)) > 0.05]
+        if preload:
+            worst = max(preload, key=lambda e: abs(e["home_preload_deg"]))
+            lines.append(
+                f"  Nominal control preload differs from reset joint pose for {len(preload)} of "
+                f"{len(per_actuator)} actuators (worst {worst['joint']} "
+                f"{worst['home_preload_deg']:+.1f}deg); this is not policy displacement."
             )
     lines += ["", f"GATE: {'PASS' if report['passed'] else 'FAIL'}"]
     lines += [f"  - {failure}" for failure in report["failures"]]
@@ -1282,9 +1425,7 @@ def write_action_filter_sweep(
     return {"action_filter_sweep_txt": text_path, "action_filter_sweep_json": json_path}
 
 
-def render_constant_hold_probe(
-    reports: list[dict[str, Any]], *, probe_episodes: int
-) -> tuple[str, dict[str, Any]]:
+def render_constant_hold_probe(reports: list[dict[str, Any]], *, probe_episodes: int) -> tuple[str, dict[str, Any]]:
     """Reduce the constant-hold variants to their comparison table and payload.
 
     Split from the writer so the CLI can print the table without depositing
@@ -1473,9 +1614,7 @@ def _ablation_verdicts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 _IMPULSE_SPEEDS = (0.5, 1.0, 2.0)
 
 
-def impulse_variants(
-    speeds: "tuple[float, ...] | list[float]", *, step: int
-) -> list[RootImpulse]:
+def impulse_variants(speeds: "tuple[float, ...] | list[float]", *, step: int) -> list[RootImpulse]:
     """One :class:`RootImpulse` per (speed, direction), plus the zero control."""
     variants = [RootImpulse(step=step, delta_v=(0.0, 0.0, 0.0), axis_label="none (control)")]
     for speed in sorted(set(float(value) for value in speeds if float(value) > 0)):
@@ -1599,6 +1738,7 @@ def render_impulse_probe(
     * policy *below* statue -> its pose or its tremor is actively worse than
       standing still under load, which would be a finding about the pose.
     """
+
     def _rows(reports: list[dict[str, Any]]) -> dict[tuple[float, str], dict[str, Any]]:
         return {
             (report["impulse"]["speed"], report["impulse"]["axis_label"]): {
@@ -1670,6 +1810,7 @@ def render_impulse_probe(
         f"  {'impulse':>9} {'direction':<16}{'policy len':>11}{'policy fh':>11}"
         f"{'statue len':>11}{'statue fh':>11}{'margin':>9}",
     ]
+
     def _length(cell: "dict[str, Any] | None") -> str:
         return "-" if cell is None else format(cell["episode_length_mean"], ".1f")
 
@@ -1723,9 +1864,7 @@ def write_impulse_probe(
     return {"impulse_probe_txt": text_path, "impulse_probe_json": json_path}
 
 
-def render_constant_hold_ablation(
-    reports: list[dict[str, Any]], *, probe_episodes: int
-) -> tuple[str, dict[str, Any]]:
+def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episodes: int) -> tuple[str, dict[str, Any]]:
     """Reduce the release ablation to its table, per-group verdicts, and payload.
 
     The ablation walks the path between two already-measured endpoints: the
@@ -2239,9 +2378,7 @@ def main() -> int:
         except StanceGateReportError as exc:
             raise SystemExit(str(exc)) from exc
         source_report = (
-            json.loads(Path(args.hold_from_report).read_text(encoding="utf-8"))
-            if args.hold_from_report
-            else report
+            json.loads(Path(args.hold_from_report).read_text(encoding="utf-8")) if args.hold_from_report else report
         )
         variants = (
             constant_hold_release_variants(

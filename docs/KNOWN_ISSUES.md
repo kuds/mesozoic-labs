@@ -124,16 +124,6 @@ tolerance) remains the standing recommendation for the divergences above.
   from home against a 75° range, and adjacent toes on the same foot are driven
   to opposite ends — the foot is splayed into a twist, asymmetrically between
   the two feet. The mechanism survives.
-- **LOW** — **`action = 0` is not exactly the home keyframe for 4 of 21
-  actuators.** It is the `ctrlrange` midpoint, which equals home only where the
-  range was authored centred on it: both ankles sit **+5.5°** off and
-  `head_pitch`/`neck_pitch` **+5.0°** off. Everything else is exact. Small
-  enough that the statue still reaches the horizon 40 of 40, so nothing measured
-  is invalidated — but "`action = 0` **is** the home keyframe" is the phrasing
-  `home-keyframe-residual/v1` is named for, and both statue-derived constants
-  and every DC interpretation rest on it. The stance report now prints the
-  offset. Fix by re-centring those four `ctrlrange`s, which bumps
-  `policy_interface_revision`.
 - **MEDIUM** — **stage 1 contains no in-episode disturbance, so it cannot ask
   for postural correction.** The only perturbation is joint-angle noise at
   reset (`reset_noise_scale 0.05`); nothing applies an external force during an
