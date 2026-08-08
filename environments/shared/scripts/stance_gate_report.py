@@ -1491,7 +1491,7 @@ def render_constant_hold_probe(reports: list[dict[str, Any]], *, probe_episodes:
     # control whose standing is already known and proves nothing about this
     # policy. Folding it in would make an all-falling result read as mixed.
     held = [row for row in rows if row["source"] == "measured"]
-    hold_actions = next(
+    hold_actions: "list[float] | tuple[float, ...]" = next(
         (report["hold_constant"]["actions"] for report in reports if report["hold_constant"]["source"] == "measured"),
         [],
     )
@@ -1768,7 +1768,7 @@ def render_impulse_probe(
     step = policy_reports[0]["impulse"]["step"]
     policy = str(policy_reports[0]["policy"]).split(" — ")[0]
     keys = sorted(set(policy_rows) | set(statue_rows))
-    rows = []
+    rows: list[dict[str, Any]] = []
     for key in keys:
         here, there = policy_rows.get(key), statue_rows.get(key)
         rows.append(
@@ -2432,7 +2432,9 @@ def main() -> int:
 
     if args.impulse_probe:
         step = report["settle_steps"] if args.impulse_step is None else args.impulse_step
-        variants = impulse_variants(impulse_speeds, step=step)
+        # Its own name: `variants` above holds ConstantHold entries, and
+        # reusing it for RootImpulse entries conflates the two probe types.
+        impulse_sweep = impulse_variants(impulse_speeds, step=step)
 
         def _sweep(zero_action: bool) -> list[dict[str, Any]]:
             return [
@@ -2448,7 +2450,7 @@ def main() -> int:
                     allow_legacy_plant=args.allow_legacy_plant,
                     impulse=variant,
                 )
-                for variant in variants
+                for variant in impulse_sweep
             ]
 
         # Rolled once and reused: each sweep is a few thousand simulated steps,
