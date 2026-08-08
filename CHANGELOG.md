@@ -404,6 +404,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   grandfathered as known-but-inert: `[jax.policy_kwargs]` is declared in
   every TOML but no JAX path reads it — the network factory is fixed —
   which is now documented at the known-key set instead of discovered.
+- **`warmup_ent_coef` never reached a gradient update: `EntCoefDecayCallback`
+  overwrote the stage-entry boost on the very next step.** Every PPO stage-2/3
+  config sets both mechanisms, and they fought: `StageWarmupCallback` set the
+  configured boost (0.02) exactly once at training start and logged "warm-up
+  active … ent_coef=0.020", while the decay callback reassigned
+  `model.ent_coef` from its own schedule on **every** step — from an initial
+  value captured before the warm-up ran — so the boost was gone long before
+  PPO's `train()` first read the attribute, and the warm-up's restore at the
+  end of the window was clobbered identically. Callback order could not save
+  it: a per-step overwrite beats a once-at-start set in either order. The
+  documented anti-catastrophic-forgetting boost therefore never happened on
+  any species' stage-2/3 transition, while the log claimed it was active.
+  The two now hand off through a marker on the model
+  (`ENT_COEF_WARMUP_MARKER`): the warm-up stamps it while it owns `ent_coef`
+  and clears it when it restores, and the decay callback stands aside while
+  it is set, capturing its decay base on the first step after release — so
+  the boost holds for the whole warm-up window and the configured decay
+  continues exactly as before from there. On the model rather than between
+  the callbacks because the two are constructed independently, in no
+  guaranteed order, in all three launch paths (CLI `train`,
+  `train_curriculum`, and the notebook) — which is also why the fix needs no
+  wiring change anywhere. Pinned by tests that drive the two real callbacks
+  together, in both construction orders. SAC is unaffected (no decay
+  callback is built for it, and its warm-up writes `log_ent_coef`);
+  stage-1 runs are unaffected (no warm-up).
+- **A stance-gated run that passed every gate still could not publish.**
   `result_bundle.evidence` refused any complete bundle whose stage declares
   `stance_quality/v1`, because `evaluation_selected.csv` records per-episode
   reward and length but no unsupported duty, and certifying on `min_avg_reward`
