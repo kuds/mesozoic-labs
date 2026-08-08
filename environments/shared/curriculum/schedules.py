@@ -78,15 +78,17 @@ class EntCoefDecayCallback(BaseCallback):  # type: ignore[misc]
         self._initial: float | None = None
         self._started = False
 
-    def _capture_initial(self, deferred: bool) -> None:
-        self._initial = float(self.model.ent_coef)
+    def _capture_initial(self, deferred: bool) -> float:
+        initial = float(self.model.ent_coef)
+        self._initial = initial
         logger.info(
             "EntCoefDecay: ent_coef %.4f → %.4f over %d timesteps%s",
-            self._initial,
+            initial,
             self.end_value,
             self.decay_timesteps,
             " (captured after the stage warm-up released ent_coef)" if deferred else "",
         )
+        return initial
 
     def _on_training_start(self) -> None:
         self._started = True
@@ -103,8 +105,9 @@ class EntCoefDecayCallback(BaseCallback):  # type: ignore[misc]
             return True
         if getattr(self.model, ENT_COEF_WARMUP_MARKER, False):
             return True
-        if self._initial is None:
-            self._capture_initial(deferred=True)
+        initial = self._initial
+        if initial is None:
+            initial = self._capture_initial(deferred=True)
         frac = min(1.0, self.num_timesteps / self.decay_timesteps)
-        self.model.ent_coef = self._initial + frac * (self.end_value - self._initial)
+        self.model.ent_coef = initial + frac * (self.end_value - initial)
         return True
