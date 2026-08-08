@@ -225,9 +225,9 @@ class TestFootContactSensors:
             # Guard the specific regression: the pad alone must not be
             # mistaken for the whole foot while the digits bear load.
             pad_only = float(env.data.sensordata[env._sensor_r_foot])
-            assert (
-                pad_only < truth["r"]
-            ), "digits carry no load at stance, so this test can no longer detect a pad-only foot-contact signal"
+            assert pad_only < truth["r"], (
+                "digits carry no load at stance, so this test can no longer detect a pad-only foot-contact signal"
+            )
         finally:
             env.close()
 
@@ -364,9 +364,9 @@ class TestHeightTargetTracksStance:
                 f"height reward is saturated while sagging ({rewards} at {sagged}) -- target_z is "
                 f"below the settled stance {settled:.4f}, so the term is a constant, not a gradient"
             )
-            assert (
-                rewards[0] > rewards[1] > rewards[2]
-            ), f"height reward must fall monotonically as the pelvis sags, got {rewards}"
+            assert rewards[0] > rewards[1] > rewards[2], (
+                f"height reward must fall monotonically as the pelvis sags, got {rewards}"
+            )
         finally:
             env.close()
 
