@@ -259,3 +259,81 @@ class TestStanceRailUnits:
         config = {"curriculum_kwargs": dict(self.STANCE, min_avg_reward=1950.0)}
         assert check_stage_gate(self._metrics(mean_reward=3.27, mean_episode_return=3271.8), config) is True
         assert check_stage_gate(self._metrics(mean_reward=3.27, mean_episode_return=900.0), config) is False
+
+
+class TestJaxKwargsPlumbing:
+    """[jax] keys must reach train_fn or fail loudly — never go silently inert.
+
+    ``ramp_attr`` and ``obs_rms_decay_on_resume`` were set in eight TOMLs and
+    honored only by the notebook: both library entry points dropped them with
+    no warning, while the config comments asserted they worked. These tests
+    run without JAX installed, like the rest of this file.
+    """
+
+    def test_every_shipped_jax_table_validates(self):
+        from environments.shared.config import load_stage_config
+        from environments.shared.jax_curriculum import validate_jax_kwargs
+
+        for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
+            for stage in (1, 2, 3):
+                cfg = load_stage_config(species, stage)
+                validate_jax_kwargs(cfg.get("jax_kwargs", {}), source=f"{species} stage {stage} [jax]")
+
+    def test_an_unknown_key_is_rejected_by_name(self):
+        from environments.shared.jax_curriculum import validate_jax_kwargs
+
+        with pytest.raises(ValueError, match="obs_rms_decay_on_resmue"):
+            validate_jax_kwargs({"obs_rms_decay_on_resmue": 0.01}, source="test [jax]")
+
+    def test_the_key_map_only_names_train_jax_parameters(self):
+        """A mapping to a parameter train_jax does not accept is a silent drop
+        one level down; inspect the real signature so the two cannot drift."""
+        import inspect
+
+        from environments.shared.jax_curriculum import _JAX_KEY_MAP
+        from environments.shared.jax_training import train_jax
+
+        accepted = set(inspect.signature(train_jax).parameters)
+        unmapped = {param for param in _JAX_KEY_MAP.values() if param not in accepted}
+        assert not unmapped, f"_JAX_KEY_MAP targets parameters train_jax lacks: {sorted(unmapped)}"
+
+    def test_run_curriculum_decays_carried_obs_stats_and_passes_ramp_attr(self, monkeypatch):
+        """The stage-2 resume must decay the carried normalization count with
+        the entered stage's configured factor, and the TOML ramp_attr must
+        reach train_fn instead of being dropped."""
+        import sys
+        import types
+
+        from environments.shared.config import load_stage_config
+        from environments.shared.jax_curriculum import run_curriculum
+
+        decay_calls: list = []
+        stub = types.ModuleType("environments.shared.jax_normalization")
+
+        def _stub_decay(stats, decay_factor):
+            decay_calls.append((stats, decay_factor))
+            return ("decayed", stats)
+
+        stub.decay_running_stats = _stub_decay
+        monkeypatch.setitem(sys.modules, "environments.shared.jax_normalization", stub)
+
+        stage1_gate = load_stage_config("velociraptor", 1)["curriculum_kwargs"]
+        passing_metrics = {
+            "mean_episode_return": float(stage1_gate["min_avg_reward"]) + 1.0,
+            "mean_episode_length": float(stage1_gate["min_avg_episode_length"]) + 1.0,
+        }
+
+        seen: dict[int, dict] = {}
+
+        def fake_train(species, stage, **kwargs):
+            seen[stage] = kwargs
+            return (f"params-s{stage}", dict(passing_metrics), f"stats-s{stage}")
+
+        run_curriculum("velociraptor", fake_train, stages=(1, 2))
+
+        assert "init_obs_stats" not in seen[1], "stage 1 starts from fresh stats"
+        stage2_jax = load_stage_config("velociraptor", 2)["jax_kwargs"]
+        assert decay_calls == [("stats-s1", float(stage2_jax["obs_rms_decay_on_resume"]))]
+        assert seen[2]["init_obs_stats"] == ("decayed", "stats-s1")
+        assert seen[2]["init_params"] == "params-s1"
+        assert seen[2]["ramp_attr"] == stage2_jax["ramp_attr"]

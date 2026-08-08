@@ -377,6 +377,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was sized for a 6M stage and never revisited when stage 1 became 10M.
 
 ### Fixed
+- **`obs_rms_decay_on_resume` and `ramp_attr` were silently dropped by both
+  JAX library entry points — and the `[jax]` table now rejects unknown keys.**
+  All eight stage-2/3 TOMLs set `obs_rms_decay_on_resume = 0.01` ("lets stats
+  adapt to Stage 2's velocity distribution within ~2 updates"), and only the
+  notebook honored it: `run_curriculum` carried the prior stage's observation
+  statistics into the next stage with their full sample count — millions —
+  so `update_running_stats` was nearly a no-op exactly when the obs
+  distribution shifts, which is the pathology the key exists to prevent.
+  `run_curriculum` now decays the carried count through
+  `decay_running_stats` with the entered stage's configured factor (same
+  0.01 default and `1.0` opt-out as the notebook's resume cell).
+  `ramp_attr` was likewise unread by `_JAX_KEY_MAP` and the CLI; it now
+  reaches `train_jax` → `JaxTrainer`, which honors the one value the MJX
+  path can ramp (`forward_vel_weight` is wired through `env.step` as a
+  runtime scale; other weights are baked into the jitted reward at trace
+  time) and **refuses anything else at construction** — the same contract
+  the notebook's `train()` path already enforced — instead of silently
+  ramping nothing.
+  The mechanism that let both keys rot is closed the way `[curriculum]`
+  closed it: `validate_jax_kwargs` rejects unknown `[jax]` keys fail-closed
+  on both library paths ("silently dropping a misspelled threshold disables
+  it"), `_JAX_KEY_MAP` is hoisted to module level as the single source of
+  truth, and a test pins every mapped name against `train_jax`'s real
+  signature so the map and the function cannot drift apart. One key is
+  grandfathered as known-but-inert: `[jax.policy_kwargs]` is declared in
+  every TOML but no JAX path reads it — the network factory is fixed —
+  which is now documented at the known-key set instead of discovered.
 - **`warmup_ent_coef` never reached a gradient update: `EntCoefDecayCallback`
   overwrote the stage-entry boost on the very next step.** Every PPO stage-2/3
   config sets both mechanisms, and they fought: `StageWarmupCallback` set the
