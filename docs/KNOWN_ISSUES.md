@@ -69,8 +69,9 @@ tolerance) remains the standing recommendation for the divergences above.
   Ten to twelve of 21 actuators are pinned at `|action| ≥ 0.99` — tail, neck,
   head, toes — in *both* passing and failing policies.
   **Read this count with care (2026-08-06):** `|action| = 1` is not one physical
-  event. Actions map linearly onto each actuator's own `ctrlrange`, and those
-  differ by 6× — a saturated tail joint is **8–12°** of deflection while a
+  event. Actions map piecewise-affine around each actuator's home control onto
+  its own `ctrlrange`, and those ranges differ by 6× — a saturated tail joint is
+  **8–12°** of deflection while a
   saturated toe is **37.5°**. The saturation count pools them, and the ablation
   showed the tail is mechanically inert while the toes carry the whole effect.
   The stance report now orders per-actuator DC by **degrees**; use that, not the

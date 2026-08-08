@@ -157,6 +157,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ankles' +5.5° `key_ctrl - key_qpos` is an intentional gravity preload, now
   reported separately instead of being mislabeled as policy displacement or a
   reason to re-centre the control range.
+  The same correction is now swept through the prose that taught the old
+  identity: docstrings in `eval_diagnostics.py` and the hold/ablation helpers,
+  the rendered ablation header, the CLI help, and the KNOWN_ISSUES saturation
+  entry all say "home control" where they said "home keyframe" for what
+  `action = 0` commands — the keyframe's *pose* keeps its name. The
+  constant-hold docstring also now states its one deliberate approximation:
+  the held command is `f(mean(action))`, not `mean(f(action))`, which differs
+  only on zero-crossing actuators with asymmetric spans (neck/head pitch on
+  this plant, bias ~0.01°).
 - **A release ablation on top of it**, `--hold-release-ablation`, which asks
   *which* joints make a held pose unholdable. Each actuator group gets two
   variants: `release_G` holds everything except G (is G **necessary** — does

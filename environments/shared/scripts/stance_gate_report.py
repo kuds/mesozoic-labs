@@ -894,9 +894,10 @@ def _hold_constant_predict(predict: Any, hold: ConstantHold) -> Any:
         if hold.ramp_steps > 0 and elapsed < hold.ramp_steps:
             # Blend from whatever was last commanded. At handoff that is the
             # policy's own last action; from reset there is none, and zero is
-            # the right start because `action = 0` IS the home keyframe the
-            # episode begins at -- so the ramp starts from the actual pose
-            # rather than jumping to one.
+            # the right start because `action = 0` commands the named home
+            # control -- the targets the episode's reset pose settles under --
+            # so the ramp starts from the actual stance rather than jumping
+            # to one.
             previous = state["last"]
             if previous is None or previous.shape != constant.shape:
                 previous = np.zeros_like(constant)
@@ -912,11 +913,21 @@ def constant_hold_actions(report: dict[str, Any]) -> tuple[float, ...]:
     """The per-actuator DC a report measured, as a constant command.
 
     DC is the time-mean of the commanded action over the post-settle window --
-    under ``home-keyframe-residual/v1`` the static pose the policy holds, since
-    ``action = 0`` is the home keyframe. Holding exactly that is what makes the
-    probe a fair test of the pose rather than of some nearby pose: the animal
+    under ``home-keyframe-residual/v1`` the static target the policy holds,
+    since ``action = 0`` is the named home control. Holding it is what makes
+    the probe a test of the pose rather than of some nearby pose: the animal
     is asked to stand where it was already standing, with the variation about
     it removed and nothing else changed.
+
+    One deliberate approximation, worth knowing when reading the results: the
+    held control is ``f(mean(action))``, not the ``mean(f(action))`` the
+    policy actually commanded -- the same distinction schema v2 draws for the
+    report's degree statistics. The two differ only for an actuator whose
+    action distribution crosses zero AND whose ctrlrange spans differ about
+    its home control; on the current trex plant that is neck/head pitch only,
+    where the measured crossings put the bias near 0.01 degrees. If a future
+    plant makes the gap material, derive the hold by inverting the recorded
+    per-actuator ``ctrl_mean`` through the probed mapping instead.
     """
     per_actuator = (report.get("action") or {}).get("per_actuator") or []
     if not per_actuator:
@@ -1900,7 +1911,7 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
         "falls_threshold": _ABLATION_FALLS,
         "note": (
             "Each row scored a MODIFIED policy: its commanded action frozen to a constant "
-            "with one actuator group returned to the home keyframe (released) or with only "
+            "with one actuator group returned to the home control (released) or with only "
             "that group held. No row is a gate verdict. release_G tests whether G is "
             "NECESSARY for the fall; only_G tests whether G is SUFFICIENT to cause it."
         ),
@@ -1915,7 +1926,7 @@ def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episod
         f"policy              {policy}",
         f"stage               {reports[0]['species']} stage {reports[0]['stage']}",
         f"panel               {probe_episodes} episodes per variant, horizon {horizon}",
-        "released            commanded 0, which IS the home keyframe under home-keyframe-residual/v1",
+        "released            commanded 0, the named home control under home-keyframe-residual/v1",
         "",
         f"  {'variant':<28}{'released':>9}{'ep length':>11}{'full-horiz':>12}{'reward':>10}   terminations",
     ]
@@ -2052,12 +2063,12 @@ def saturated_actuator_indices(report: dict[str, Any], threshold: float = 0.99) 
 
 
 def constant_hold_released(hold: tuple[float, ...], release: "tuple[int, ...] | set[int]") -> tuple[float, ...]:
-    """*hold* with the given actuators returned to the home keyframe.
+    """*hold* with the given actuators returned to the home control.
 
     "Released" means commanded ``0``, which under ``home-keyframe-residual/v1``
-    is exactly the home pose -- so releasing every actuator gives the statue,
-    and releasing none gives the policy's own pose. Every ablation below is a
-    point on the path between a pose that falls and one that stands.
+    is exactly the named home control -- so releasing every actuator gives the
+    statue, and releasing none gives the policy's own pose. Every ablation
+    below is a point on the path between a pose that falls and one that stands.
     """
     released = set(int(index) for index in release)
     return tuple(0.0 if index in released else value for index, value in enumerate(hold))
@@ -2280,7 +2291,7 @@ def main() -> int:
         "--hold-release-ablation",
         action="store_true",
         help="Instead of the standard hold variants, ablate the held pose one actuator group at a "
-        "time -- releasing each group back to the home keyframe, and holding each group alone. "
+        "time -- releasing each group back to the home control, and holding each group alone. "
         "Answers WHICH joints make the pose unholdable, by testing necessity and sufficiency "
         "separately. Implies --hold-constant.",
     )
