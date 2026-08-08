@@ -240,10 +240,10 @@ class TestTRexRewardWeightEffects:
         env.close()
 
     def test_actuator_count(self):
-        """21 actuators: 3 neck/head + 14 legs + 4 tail (no arms)."""
+        """15 actuators: 3 neck/head + 8 legs + 4 tail (no arms; toes passive)."""
         env = TRexEnv()
-        assert env.model.nu == 21, f"Expected 21 actuators, got {env.model.nu}"
-        assert env.action_space.shape == (21,)
+        assert env.model.nu == 15, f"Expected 15 actuators, got {env.model.nu}"
+        assert env.action_space.shape == (15,)
         env.close()
 
 

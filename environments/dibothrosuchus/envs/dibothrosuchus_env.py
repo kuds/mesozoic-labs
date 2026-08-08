@@ -242,6 +242,9 @@ class DibothrosuchusEnv(BaseDinoEnv):
         self.imu_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "imu")
         self.snout_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "snout_tip")
         self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
+        # Snout-height termination sampled at every physics substep by the
+        # base step loop; _is_terminated reads the substep MIN.
+        self._substep_height_checks = (("site", self.snout_tip_site_id),)
 
         # Foot site IDs
         self.foot_site_ids = {
@@ -569,10 +572,12 @@ class DibothrosuchusEnv(BaseDinoEnv):
             return True, info
 
         # Site-height termination: the snout tip must stay off the ground.
-        # Catches snout-propping that geom contact detection may miss.
+        # Catches snout-propping that geom contact detection may miss.  Reads
+        # the substep MIN so a dip that recovers between control-boundary
+        # samples still terminates; the info key keeps the boundary sample.
         snout_tip_z = self.data.site_xpos[self.snout_tip_site_id, 2]
         info["snout_tip_z"] = snout_tip_z
-        if snout_tip_z < 0.04:
+        if self._aggregated_min_height(0, snout_tip_z) < 0.04:
             info["termination_reason"] = "head_contact"
             return True, info
 

@@ -1269,7 +1269,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         from environments.shared.curriculum.gate_schema import validate_gate_config
 
         curriculum = load_stage_config("trex", 1)["curriculum_kwargs"]
-        assert curriculum["stance_probe_filter_hz"] == [5.0, 10.0, 20.0]
+        assert curriculum["stance_probe_filter_hz"] == [5.0, 10.0, 20.0, 30.0, 35.0]
         validate_gate_config(1, curriculum)
 
 
@@ -2098,7 +2098,7 @@ class TestControlTargetsInDegrees:
 
         result = run_panel(
             "trex",
-            predict=lambda obs: np.zeros(21, dtype=np.float32),
+            predict=lambda obs: np.zeros(15, dtype=np.float32),
             episodes=1,
             seed=3042,
             settle_steps=0,

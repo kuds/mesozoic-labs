@@ -8,6 +8,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Changed
+- **T-Rex toes made passive** (breaking — plant change, physics revision 6 → 7
+  **and** policy interface revision 9 → 10; all existing T-Rex checkpoints are
+  invalidated). The six per-digit `<position>` actuators (kp 60, forcerange
+  ±50 N·m, ctrlrange −0.4363..0.8727) are deleted; the digits keep their
+  hinges, and the `leg_joint` class already supplies the passive stance —
+  stiffness 40 with `springref` 12.5° holds the old commanded home pose,
+  damping 15 dissipates strike energy. Action dimension drops **21 → 15**
+  (3 neck/head + 8 legs + 4 tail); the home-keyframe ctrl vector shrinks with
+  it. The observation is **unchanged at 61** — toe joints stay in qpos/qvel,
+  and all 16 sensors (including the six per-digit touch sensors) keep their
+  indices. `visual_revision` deliberately stays 4: no geom, site, material,
+  camera or light moved, and the visual layer carries no actuator or keyframe
+  fields.
+  Motivation is the stage-1 bounce postmortem
+  (`docs/investigations/TREX_STAGE1_BOUNCE_2026_08.md`): the release ablation
+  showed holding **only the six toes** at their commanded DC reproduces the
+  whole constant-hold failure (125.5 steps vs the full pose's 128.6) while
+  tail, neck and head held alone all stand the full horizon — the policy's
+  learned 0.8727 rad claw curl splayed adjacent digits to opposite ends of a
+  75° range, changing the support polygon. A splayed digit is a pose the
+  passive spring cannot hold, so the failure mode is now structurally
+  impossible rather than merely unrewarded.
+  Statue re-measured on the new plant (`zero_action_baseline.py` seed 3042
+  and `stance_quality_baseline.py 0.05 40` agree): standing reward
+  **3270.3 ± 12.3**, 40/40 full horizon, unsupported duty 0.000 — within one
+  standard error of the r6 figure 3271.8, as expected with the springs
+  holding the same pose the servos did. `collapse_peak_floor_reference`
+  updates to the measured 3270.3; `min_avg_reward` stays 1950 (0.60 × the
+  statue, not re-rounded over a within-noise move). The settled pelvis height
+  is unchanged at 0.9260, so `target_z`, `natural_pitch` and the nosedive
+  threshold keep their pins.
+  Also folded in, completing the substep-aggregation lockstep: the SB3
+  site/body **height terminations** (T-Rex `head_tip_z` < 0.12 / `skull_z` <
+  0.45, dibothrosuchus `snout_tip_z` < 0.04) now consume the per-substep
+  MINIMUM height recorded by the step loop, so a head dip that recovers
+  between control-boundary samples terminates exactly as MJX's any-substep
+  height emulation does; the `head_tip_z`/`snout_tip_z` info keys keep
+  reporting the boundary sample.
+  The statue constants get the freshness guard their comments have begged
+  for since #491: the stage TOML now records
+  `statue_constants_physics_revision` = the plant revision the constants
+  were measured on, and `test_statue_constant_freshness.py` cross-checks it
+  against the manifest — so the NEXT plant bump cannot land without either
+  re-measuring the statue or consciously updating the pin where a reviewer
+  sees the constants did not move. And the action-filter probe sweep gains
+  the 30/35 Hz cutoffs (`stance_probe_filter_hz`), closing the survival
+  curve at the control Nyquist's edge instead of stopping at 20 Hz with the
+  measured 22.7 Hz tremor unsampled above it.
 - **Reverted T-Rex stage 1 `leg_home_pose_weight` to 0.5**, and the two statue-
   derived constants with it (`min_avg_reward` 2550 → 1950,
   `collapse_peak_floor_reference` 4250.4 → 3271.8). The 1.5 experiment **could

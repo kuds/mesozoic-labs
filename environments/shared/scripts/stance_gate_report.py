@@ -767,8 +767,9 @@ class ConstantHold:
     it. If the animal keeps standing, the smooth solution existed and the
     optimiser did not find it. If it falls, the pose genuinely requires
     feedback, and the question moves to why the policy chose a pose it then has
-    to fight -- which points at the 13 of 21 actuators no stage-1 term
-    constrains.
+    to fight -- which pointed at the actuators no stage-1 term constrains (13
+    of 21 on the physics-r6 plant that measurement was made on; the six toe
+    actuators are gone as of r7).
 
     Attributes:
         actions: The constant command, one entry per actuator.

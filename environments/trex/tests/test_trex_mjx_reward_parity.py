@@ -146,7 +146,7 @@ def test_mjx_zero_defaults_preserve_p5_p7_policy_dimensions():
     state = env.reset(jax.random.PRNGKey(9))
     weights = env.config.reward_weights
 
-    assert env.action_dim == 21
+    assert env.action_dim == 15
     assert state.obs.shape == (1, 61)
     assert weights["bilateral_support_weight"] == 0.0
     assert weights["foot_load_balance_weight"] == 0.0
@@ -171,7 +171,7 @@ def test_stage1_factory_enables_stance_terms_without_changing_dimensions():
     state = env.reset(jax.random.PRNGKey(10))
     weights = env.config.reward_weights
 
-    assert env.action_dim == 21
+    assert env.action_dim == 15
     assert state.obs.shape == (1, 61)
     assert weights["bilateral_support_weight"] == pytest.approx(0.6)
     assert weights["foot_contact_saturation_force"] == pytest.approx(350.0)

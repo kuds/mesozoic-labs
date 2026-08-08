@@ -428,18 +428,18 @@
     <position name="r_hip_roll_act" joint="r_hip_roll" kp="150" forcerange="-120 120" ctrlrange="-0.4363 0.4363"/>
     <position name="r_knee_act" joint="r_knee" kp="1500" forcerange="-2250 2250" ctrlrange="-1.30550 0.43982"/>
     <position name="r_ankle_act" joint="r_ankle" kp="900" forcerange="-1350 1350" ctrlrange="0.56549 2.31081"/>
-    <position name="r_toe_d2_act" joint="r_toe_d2_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
-    <position name="r_toe_d3_act" joint="r_toe_d3_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
-    <position name="r_toe_d4_act" joint="r_toe_d4_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
+    <!-- Toes are passive: leg_joint stiffness 40 with springref 12.5 holds
+         the digits at the old commanded home, and damping 15 dissipates
+         strike energy.  The removed position actuators let the policy splay
+         the digits into the 0.8727 rad claw-curl that seeded the stage-1
+         bounce; see docs/investigations/TREX_STAGE1_BOUNCE_2026_08.md. -->
+
 
     <!-- Left leg -->
     <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="1200" forcerange="-1800 1800" ctrlrange="-1.17984 1.08908"/>
     <position name="l_hip_roll_act" joint="l_hip_roll" kp="150" forcerange="-120 120" ctrlrange="-0.4363 0.4363"/>
     <position name="l_knee_act" joint="l_knee" kp="1500" forcerange="-2250 2250" ctrlrange="-1.30550 0.43982"/>
     <position name="l_ankle_act" joint="l_ankle" kp="900" forcerange="-1350 1350" ctrlrange="0.56549 2.31081"/>
-    <position name="l_toe_d2_act" joint="l_toe_d2_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
-    <position name="l_toe_d3_act" joint="l_toe_d3_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
-    <position name="l_toe_d4_act" joint="l_toe_d4_joint" kp="60" forcerange="-50 50" ctrlrange="-0.4363 0.8727"/>
 
     <!-- Tail actuators for active balance control (counterbalance to massive skull) -->
     <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="100" forcerange="-80 80" ctrlrange="-0.2094 0.2094"/>
@@ -461,10 +461,11 @@
 
     <!-- Foot contact forces.  These two see the plantar pad ONLY: a touch
          sensor sums contacts on geoms belonging to its site's own body, and
-         the digits are child bodies (they carry actuated hinges, so they
-         cannot be merged into the metatarsus).  The per-digit sensors at the
-         end of this block carry the rest; the envs sum pad + 3 digits into
-         one contact value per foot.  See sensor_foot_aux_indices. -->
+         the digits are child bodies (they articulate on their own passive
+         hinges, so they cannot be merged into the metatarsus).  The
+         per-digit sensors at the end of this block carry the rest; the envs
+         sum pad + 3 digits into one contact value per foot.  See
+         sensor_foot_aux_indices. -->
     <touch name="r_foot_touch" site="r_foot"/>
     <touch name="l_foot_touch" site="l_foot"/>
 
@@ -563,8 +564,8 @@
                -0.045379 0 -0.432842 1.342158 0.218166 0.218166 0.218166
                -0.045379 0 -0.432842 1.342158 0.218166 0.218166 0.218166"
          ctrl="0 0 0
-               -0.04538 0 -0.43284 1.43815 0.2182 0.2182 0.2182
-               -0.04538 0 -0.43284 1.43815 0.2182 0.2182 0.2182
+               -0.04538 0 -0.43284 1.43815
+               -0.04538 0 -0.43284 1.43815
                0 0 0 0"/>
   </keyframe>
 

@@ -41,7 +41,7 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         for species_id, entry in species.items()
     } == {
         "velociraptor": (67, 22, 31, 30, 22, 13.5),
-        "trex": (61, 21, 28, 27, 21, 85.72),
+        "trex": (61, 15, 28, 27, 15, 85.72),
         "brachiosaurus": (83, 30, 38, 37, 30, 175.3),
         "dibothrosuchus": (77, 27, 35, 34, 27, 8.65),
     }
@@ -98,8 +98,8 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # appended, pad + meta summed per leg on both backends; the physics layer
     # fingerprints nsite/nsensor, so new sites move it even though dynamics
     # are unchanged).
-    expected_policy_revisions = {"velociraptor": 8, "trex": 9, "brachiosaurus": 6, "dibothrosuchus": 5}
-    expected_physics_revisions = {"velociraptor": 2, "trex": 6, "brachiosaurus": 4, "dibothrosuchus": 1}
+    expected_policy_revisions = {"velociraptor": 8, "trex": 10, "brachiosaurus": 6, "dibothrosuchus": 5}
+    expected_physics_revisions = {"velociraptor": 2, "trex": 7, "brachiosaurus": 4, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
@@ -153,9 +153,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # Stage-1 reward gates are COLLAPSE RAILS: 0.60 x each species' zero-action
     # statue standing reward at the 1a operating point (reset noise 0.05),
     # measured over 40 episodes with
-    # environments/shared/scripts/stance_quality_baseline.py -- trex 3271.8,
-    # velociraptor 1745.8, brachiosaurus 1739.1 (on the plant repaired by
-    # plant_versions notes 7-8), dibothrosuchus 2598.3.
+    # environments/shared/scripts/stance_quality_baseline.py -- trex 3270.3
+    # (passive-toes plant, physics r7; 3271.8 on r6, within one standard
+    # error), velociraptor 1745.8, brachiosaurus 1739.1 (on the plant repaired
+    # by plant_versions notes 7-8), dibothrosuchus 2598.3.
     #
     # A rail sits BELOW its statue deliberately. Section 9 showed the statue
     # is the reward optimum -- it collects 97.0% of the theoretical maximum
@@ -175,6 +176,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # 0.60 x the statue's standing reward at leg_home_pose_weight 0.5.
         # Was briefly 2550 while that weight was 1.5 (statue 4250.4), reverted
         # with it in issue #491. The FRACTION is the invariant, not the reward.
+        # Unchanged by the passive-toes plant (r7): the statue re-measured
+        # within one standard error of the r6 figure.
         "trex": 1950.0,
         "velociraptor": 1050.0,
         "brachiosaurus": 1040.0,

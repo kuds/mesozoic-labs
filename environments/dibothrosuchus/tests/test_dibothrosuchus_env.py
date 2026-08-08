@@ -179,6 +179,26 @@ class TestSnoutTerminations:
         assert not terminated
         assert info["snout_tip_z"] > 0.04
 
+    def test_between_sample_snout_dip_terminates_while_boundary_reads_healthy(self, env):
+        """The snout gate consumes the substep MIN recorded by the base step
+        loop, so a dip that recovers before the control boundary still
+        terminates; the info key keeps the boundary sample."""
+        env.reset(seed=0)
+        env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+        boundary_snout = float(env.data.site_xpos[env.snout_tip_site_id, 2])
+        assert boundary_snout > 0.04
+
+        env._substep_min_heights = np.array([0.03])
+        env._substep_contact_step = env._step_count
+        terminated, info = env._is_terminated()
+        assert terminated
+        assert info["termination_reason"] == "head_contact"
+        assert info["snout_tip_z"] == pytest.approx(boundary_snout)
+
+        env.reset(seed=1)
+        terminated, info = env._is_terminated()
+        assert not terminated, f"stale height aggregate survived reset: {info}"
+
     def test_snap_target_clears_the_snout_prop_gate(self, env):
         """A successful snap must never be reported as snout-propping.
 
