@@ -13,6 +13,7 @@ across all dinosaur species. Subclasses override species-specific methods:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from typing import Any
 
 import gymnasium as gym
@@ -63,17 +64,35 @@ _GROUND_PROBE_DISTANCE = 10.0
 class BaseDinoEnv(gym.Env, ABC):
     """Abstract base class for dinosaur locomotion environments.
 
-    Optional species hook, documented here because it has no base
-    implementation and its shape is easy to get wrong:
+    Species hook with a base implementation driven by ``_foot_sensor_groups``:
 
     ``_foot_contact_forces() -> tuple[float, ...]``
-        Total floor-contact force under each foot, in a stable per-species
-        order, summing every sensor that sees that foot (T-Rex: plantar pad +
-        three digits; brachiosaurus: pad + meta).  **The arity is the number
-        of feet** -- 2 on the bipeds, 4 on the quadrupeds -- so callers must
-        either sum it or check ``len`` before unpacking.  Species that expose
-        no foot sensors simply do not define it, which is why consumers guard
-        with ``hasattr`` rather than calling a base stub."""
+        INSTANTANEOUS total floor-contact force under each foot from the
+        current ``data.sensordata``, in a stable per-species order, summing
+        every sensor that sees that foot (T-Rex: plantar pad + three digits;
+        brachiosaurus: pad + meta).  **The arity is the number of feet** -- 2
+        on the bipeds, 4 on the quadrupeds -- so callers must either sum it
+        or check ``len`` before unpacking.  Species declare their sensor
+        groups via ``_foot_sensor_groups`` in ``_cache_ids``; a species with
+        no groups gets an empty tuple, which is why consumers check the
+        arity.  Kept an overridable METHOD (tests monkeypatch it to steer
+        the contact-shaped rewards), and it stays the per-substep primitive:
+        :meth:`step` calls it once per physics substep to build the
+        aggregated value below.
+
+    ``_aggregated_foot_contact_forces() -> tuple[float, ...]``
+        The per-foot MIN across the ``frame_skip`` physics substeps of the
+        current control step -- what the contact-shaped rewards, the
+        ``*_foot_contact`` info keys, and therefore the stance-duty gate
+        consume.  Physics runs at 1/``model.opt.timestep`` Hz while control
+        runs ``frame_skip`` times slower; reading only the final substep let
+        a control-clock-locked hop unload between samples and read as
+        continuous support (the seed-43 stage-1 bounce measured exactly one
+        unloaded sample per 5).  MIN over per-substep per-foot SUMS -- never
+        a sum of per-sensor minima, which under-reports when load shifts
+        between pad and digits within a control step.  Falls back to the
+        instantaneous read when no step has run (reset, direct calls, the
+        SB3/MJX single-state parity tests)."""
 
     # Ground-settling caches, all derived from the model and so fixed for the
     # lifetime of the instance.  Declared here rather than assigned via getattr
@@ -81,6 +100,34 @@ class BaseDinoEnv(gym.Env, ABC):
     _root_subtree_geom_ids: "np.ndarray | None" = None
     _static_floor_geom_ids: "np.ndarray | None" = None
     _home_ground_clearance_m: float | None = None
+
+    # Per-foot touch-sensor groups (sensordata indices), declared per species
+    # in _cache_ids; () means "no foot sensors".  Mirrors the MJX registry's
+    # sensor_foot_indices + sensor_foot_aux_indices so both backends aggregate
+    # the same sensors.
+    _foot_sensor_groups: "tuple[tuple[int, ...], ...]" = ()
+
+    # Substep aggregation state, populated by step()'s frame-skip loop.
+    # Tagged with the _step_count it was measured at rather than cleared in
+    # reset(): reset() zeroes _step_count anyway, which invalidates the tag,
+    # and reset()'s SOURCE is fingerprinted by the plant contract's
+    # home_reset interface -- touching it would bump every species' policy
+    # interface for a bookkeeping detail.  None / a stale tag both mean "no
+    # aggregate for the current step", and consumers fall back to the
+    # instantaneous read (__init__ and reset call _get_obs() before any step
+    # has run, and several tests score hand-posed states directly).
+    _substep_min_foot_forces: "np.ndarray | None" = None
+    _substep_floor_hit_geom: "int | None" = None
+    _substep_contact_step: int = -1
+    _ground_geom_array: "np.ndarray | None" = None
+
+    # Optional zero-argument callable invoked after EVERY physics substep in
+    # step().  Exists so stance_duty_validation.py and the aggregation
+    # regression tests can record per-substep kinematic ground truth through
+    # the REAL step path instead of replicating the loop on a shadow env
+    # that can silently drift from it.  None (the default) costs one
+    # comparison per substep.
+    _substep_probe_hook: "Callable[[], None] | None" = None
 
     metadata = {
         "render_modes": ["human", "rgb_array"],
@@ -720,10 +767,57 @@ class BaseDinoEnv(gym.Env, ABC):
         """
         return _check_height_tilt_pure(body_z, tilt_angle, self.healthy_z_range, self.max_tilt_angle)
 
+    def _foot_contact_forces(self) -> "tuple[float, ...]":
+        """Instantaneous per-foot touch-force sums from the current sensordata.
+
+        See the class docstring for the contract.  This is the per-substep
+        primitive; the contact-shaped rewards and info keys consume
+        :meth:`_aggregated_foot_contact_forces` instead.
+        """
+        sensordata = self.data.sensordata
+        return tuple(float(sum(sensordata[index] for index in group)) for group in self._foot_sensor_groups)
+
+    def _aggregated_foot_contact_forces(self) -> "tuple[float, ...]":
+        """Per-foot MIN force across the current control step's substeps.
+
+        Falls back to the instantaneous read when no aggregate exists for the
+        CURRENT step count (before any step, or after reset zeroes the count)
+        so those callers keep today's semantics on both backends.  The tag
+        cannot see EXTERNAL state mutation: hand-posing ``self.data`` after a
+        completed step and scoring directly reads that step's minima, not the
+        posed state -- call :meth:`_invalidate_substep_aggregates` after
+        out-of-band mutation.
+        """
+        if self._substep_min_foot_forces is None or self._substep_contact_step != self._step_count:
+            return self._foot_contact_forces()
+        return tuple(float(value) for value in self._substep_min_foot_forces)
+
+    def _invalidate_substep_aggregates(self) -> None:
+        """Drop the last step's contact aggregates and strike latch.
+
+        The step-count tag cannot detect EXTERNAL state mutation: a caller
+        that hand-poses ``self.data`` after a completed step (keyframe reset,
+        qpos surgery + ``mj_forward``) and then scores the state directly
+        would otherwise read the pre-mutation step's minima and latch.  Call
+        this after mutating the state out-of-band; ordinary ``step``/``reset``
+        flows never need it (reset zeroes ``_step_count``, which the tag
+        already fails against).
+        """
+        self._substep_min_foot_forces = None
+        self._substep_floor_hit_geom = None
+        self._substep_contact_step = -1
+
     def _check_floor_contact(
         self, body_ground_geoms: set, floor_geom_id: int, geom_categories: "dict[str, set] | None" = None
     ) -> "tuple[bool, str | None]":
         """Check if any body geom contacts the floor.
+
+        Consults the step loop's ANY-substep latch first: contacts are
+        recomputed by every physics substep, so a strike during substeps
+        1..N-1 is invisible to a scan of the final substep's ``data.contact``
+        -- a tail slap that resolves within 8 ms used to go unterminated.
+        The live scan remains as the fallback for callers outside step()
+        (tests, hand-posed states).
 
         Args:
             body_ground_geoms: Set of geom IDs that should terminate on floor contact.
@@ -735,6 +829,13 @@ class BaseDinoEnv(gym.Env, ABC):
         Returns:
             (terminated, reason) where reason is None if not terminated.
         """
+        latched = self._substep_floor_hit_geom if self._substep_contact_step == self._step_count else None
+        if latched is not None and latched in body_ground_geoms:
+            if geom_categories:
+                for category_name, category_geoms in geom_categories.items():
+                    if latched in category_geoms:
+                        return True, f"{category_name}_contact"
+            return True, "body_contact"
         for i in range(self.data.ncon):
             contact = self.data.contact[i]
             geom1, geom2 = contact.geom1, contact.geom2
@@ -822,11 +923,54 @@ class BaseDinoEnv(gym.Env, ABC):
         ctrl = self._scale_action(action)
         self.data.ctrl[:] = ctrl
 
-        # Step physics
+        # Step physics, aggregating contact across the substeps: each mj_step
+        # recomputes sensordata and data.contact, so after the loop only the
+        # final substep survives -- and a control-clock-locked hop can unload
+        # (or a tail can strike the floor) entirely between control-boundary
+        # samples.  MIN per-foot force feeds the contact-shaped rewards and
+        # the stance-duty gate; the first floor strike is latched for
+        # _check_floor_contact.  The MJX step_fn carries the same aggregates
+        # through its fori_loop -- keep the two in lockstep.
+        min_forces: "np.ndarray | None" = None
+        self._substep_floor_hit_geom = None
+        track_feet = bool(self._foot_sensor_groups)
+        track_strikes = getattr(self, "_body_ground_geoms", None)
+        floor_geom_id = getattr(self, "floor_geom_id", None)
+        ground_geoms: "np.ndarray | None" = None
+        if track_strikes and floor_geom_id is not None:
+            if self._ground_geom_array is None:
+                # Cached sorted array of the terminating geoms for the
+                # vectorized per-substep scan below -- a Python loop over
+                # data.contact costs ~50 us per substep on the training hot
+                # path.
+                self._ground_geom_array = np.fromiter(sorted(track_strikes), dtype=np.int64)
+            ground_geoms = self._ground_geom_array
         for _ in range(self.frame_skip):
             mujoco.mj_step(self.model, self.data)
-
+            if self._substep_probe_hook is not None:
+                self._substep_probe_hook()
+            if track_feet:
+                forces = np.asarray(self._foot_contact_forces(), dtype=np.float64)
+                min_forces = forces if min_forces is None else np.minimum(min_forces, forces)
+            if ground_geoms is not None and self._substep_floor_hit_geom is None:
+                pairs = self.data.contact.geom
+                if len(pairs):
+                    g1, g2 = pairs[:, 0], pairs[:, 1]
+                    hits = ((g2 == floor_geom_id) & np.isin(g1, ground_geoms)) | (
+                        (g1 == floor_geom_id) & np.isin(g2, ground_geoms)
+                    )
+                    hit_indices = np.flatnonzero(hits)
+                    if hit_indices.size:
+                        # First matching contact, matching the live scan's
+                        # iteration order for categorization ties.
+                        first = int(hit_indices[0])
+                        struck = g1[first] if g2[first] == floor_geom_id else g2[first]
+                        self._substep_floor_hit_geom = int(struck)
         self._step_count += 1
+        # Tag the aggregates with the step they were measured at; the tag is
+        # what invalidates them across reset (which zeroes _step_count).
+        self._substep_min_foot_forces = min_forces
+        self._substep_contact_step = self._step_count
 
         # Update cumulative distance traveled (XY path length)
         current_pos_2d = self.data.qpos[0:2].copy()

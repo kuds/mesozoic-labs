@@ -225,6 +225,9 @@ class RaptorEnv(BaseDinoEnv):
         # are inherited from BaseDinoEnv (0, 3, 6 respectively).
         self._sensor_r_foot = 10
         self._sensor_l_foot = 11
+        # Per-foot groups for the base class's substep MIN aggregation --
+        # mirrors mjx_config's sensor_foot_indices (no aux sensors here).
+        self._foot_sensor_groups = ((self._sensor_r_foot,), (self._sensor_l_foot,))
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
         """Map normalized residual actions around the XML home controls.
@@ -435,9 +438,11 @@ class RaptorEnv(BaseDinoEnv):
         info["spin_instability"] = spin_instability
         info["reward_spin"] = reward_spin
 
-        # 9. Gait symmetry (reward alternating foot contacts, shared helper)
-        r_contact = self.data.sensordata[self._sensor_r_foot]
-        l_contact = self.data.sensordata[self._sensor_l_foot]
+        # 9. Gait symmetry (reward alternating foot contacts, shared helper).
+        # Substep-MIN aggregated: the info keys feed the stance diagnostics,
+        # and a touchdown that unloads between control-boundary samples must
+        # not read as continuous support.
+        r_contact, l_contact = self._aggregated_foot_contact_forces()
         info["r_foot_contact"] = float(r_contact)
         info["l_foot_contact"] = float(l_contact)
 

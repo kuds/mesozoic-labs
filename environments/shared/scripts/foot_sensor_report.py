@@ -61,7 +61,13 @@ def _foot_sensor_sum(env) -> float | None:
     import mujoco  # noqa: F401  (imported for parity with the env module)
 
     if hasattr(env, "_foot_contact_forces"):
-        return float(np.sum(env._foot_contact_forces()))
+        forces = env._foot_contact_forces()
+        # The base class now defines this method for every species, returning
+        # () when no _foot_sensor_groups are declared -- an empty tuple means
+        # "no sensors", not "0.0 N of contact", so fall through instead of
+        # reporting a spurious sensor-vs-force disagreement.
+        if forces:
+            return float(np.sum(forces))
     for group in _FOOT_SENSOR_ATTRS:
         if all(hasattr(env, attr) for attr in group):
             return float(sum(env.data.sensordata[getattr(env, attr)] for attr in group))

@@ -621,7 +621,11 @@ def make_reward_fns(ctx: SpeciesContext):
 
     def compute_reward_detailed(data, action, reward_cfg, **step_kwargs):
         # compute_reward_components takes a subset of the per-step kwargs.
-        allowed = {k: v for k, v in step_kwargs.items() if k in ("prev_action", "forward_ref_2d", "initial_pos_2d")}
+        allowed = {
+            k: v
+            for k, v in step_kwargs.items()
+            if k in ("prev_action", "forward_ref_2d", "initial_pos_2d", "aggregated_foot_forces")
+        }
         detail_kw = {
             k: v
             for k, v in reward_kw.items()

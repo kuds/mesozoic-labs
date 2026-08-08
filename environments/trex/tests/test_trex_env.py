@@ -451,3 +451,184 @@ class TestStage1ResetStaysInsideTheHealthyEnvelope:
             assert not terminated, "seed 3077 must survive one zero-action step"
         finally:
             env.close()
+
+
+class TestSubstepContactAggregation:
+    """The duty signal must see every physics substep, not one in frame_skip.
+
+    Physics runs at 500 Hz, control at 100 Hz.  Before the substep-MIN
+    aggregation, every contact consumer read only the final substep, so a
+    control-clock-locked hop could unload for 4 of every 5 substeps and
+    still read as continuous support -- the seed-43 stage-1 bounce measured
+    exactly one unloaded sample per 5 and the gate certified a sampled duty,
+    not airborne time.
+    """
+
+    def test_info_carries_the_min_across_substeps_and_catches_hidden_unloading(self):
+        """Two pins in one rollout: info == min(per-substep sums) exactly, and
+        the aggregate catches unloading the boundary sample misses."""
+        env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        try:
+            env.reset(seed=0)
+            substep_forces: list[tuple[float, float]] = []
+            env._substep_probe_hook = lambda: substep_forces.append(env._foot_contact_forces())
+
+            # Settle, then drive a control-clock-locked hop (period 5 control
+            # steps = 20 Hz): the cycle is commensurate with frame_skip=5, the
+            # regime where boundary sampling aliases.
+            for _ in range(200):
+                _, _, terminated, _, _ = env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+                if terminated:
+                    pytest.fail("statue fell during settle")
+
+            # Amplitude tuned empirically (mujoco 3.10, seed 0): 0.3 survives
+            # ~157 steps and yields 9 caught events; 0.9 dies at step 36 with
+            # a single-event margin that any solver drift could delete.
+            caught = 0
+            for t in range(400):
+                action = np.full(env.action_space.shape, 0.3 * np.sin(2 * np.pi * t / 5.0), dtype=np.float32)
+                substep_forces.clear()
+                _, _, terminated, _, info = env.step(action)
+
+                assert len(substep_forces) == env.frame_skip
+                r_min = min(f[0] for f in substep_forces)
+                l_min = min(f[1] for f in substep_forces)
+                assert info["r_foot_contact"] == pytest.approx(r_min, abs=1e-9)
+                assert info["l_foot_contact"] == pytest.approx(l_min, abs=1e-9)
+
+                # Boundary sample = the final substep's instantaneous read --
+                # what the pre-aggregation metric consumed.
+                r_last, l_last = substep_forces[-1]
+                boundary_supported = r_last > 0.1 and l_last > 0.1
+                aggregated_unsupported = info["r_foot_contact"] <= 0.1 and info["l_foot_contact"] <= 0.1
+                if boundary_supported and aggregated_unsupported:
+                    caught += 1
+                if terminated:
+                    break
+
+            # Structurally zero before the aggregation existed: info equalled
+            # the boundary sample, so no step could diverge.  Measured 9 at
+            # the tuned drive; >= 3 leaves solver-drift headroom while still
+            # proving the mechanism fires repeatedly, not by fluke.
+            assert caught >= 3, (
+                f"only {caught} control steps unloaded between boundary samples in "
+                "this rollout -- the aggregation regression has lost its witness; "
+                "retune the drive before trusting the duty metric"
+            )
+        finally:
+            env._substep_probe_hook = None
+            env.close()
+
+    def test_statue_duty_is_unchanged_by_aggregation(self):
+        """The statue stands continuously: MIN across substeps must not move
+        its duty, and its per-foot drift from the boundary sample stays small."""
+        from environments.shared.stance_diagnostics import derive_stance_info
+
+        env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        try:
+            env.reset(seed=0)
+            zeros = np.zeros(env.action_space.shape, dtype=np.float32)
+            for _ in range(200):
+                _, _, terminated, _, _ = env.step(zeros)
+                assert not terminated
+            for _ in range(200):
+                _, _, terminated, _, info = env.step(zeros)
+                assert not terminated
+                stance = derive_stance_info(info)
+                assert stance["unsupported_duty"] == 0.0
+                assert stance["bilateral_support_duty"] == 1.0
+                # The MIN property itself, not a ripple bound: a future plant
+                # (e.g. passive toes) may legitimately oscillate within the
+                # control step while both feet stay far above the duty
+                # threshold, and the claim under test is the duty invariants.
+                r_last, l_last = env._foot_contact_forces()
+                assert info["r_foot_contact"] <= r_last + 1e-9
+                assert info["l_foot_contact"] <= l_last + 1e-9
+        finally:
+            env.close()
+
+    def test_aggregate_is_invalidated_by_reset(self):
+        """The first observation of an episode must not inherit the previous
+        episode's minima.  Invalidation rides the step-count tag rather than
+        code in reset(): reset()'s source is fingerprinted by the plant
+        contract's home_reset interface, and it already zeroes _step_count."""
+        env = TRexEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+            assert env._substep_min_foot_forces is not None
+            assert env._substep_contact_step == env._step_count
+            # Arm the strike latch as a striking episode would have left it --
+            # a zero-action statue never strikes, so without this the latch
+            # half of the pin would be vacuous.
+            env._substep_floor_hit_geom = next(iter(env._body_ground_geoms))
+            env._substep_contact_step = env._step_count
+            env.reset(seed=1)
+            # The stale aggregate's tag no longer matches the zeroed count,
+            # so the accessor falls back to the instantaneous read.
+            assert env._substep_contact_step != env._step_count
+            assert env._aggregated_foot_contact_forces() == env._foot_contact_forces()
+            # The stale strike latch must not terminate the fresh episode.
+            terminated, _ = env._is_terminated()
+            assert not terminated
+        finally:
+            env.close()
+
+
+class TestFootSensorGroupLockstep:
+    """Each species' SB3 _foot_sensor_groups must mirror its MJX registration.
+
+    The substep-MIN aggregation runs on both backends from these two
+    declarations; if they drift, the backends silently aggregate different
+    sensors and every cross-backend duty/reward comparison goes quietly
+    wrong.  Built from the registered MJX config, so a new species or an
+    index edit on either side fails here."""
+
+    @pytest.mark.parametrize(
+        "species, env_factory",
+        [
+            ("trex", lambda: TRexEnv(reset_noise_scale=0.0)),
+            (
+                "velociraptor",
+                lambda: __import__("environments.velociraptor.envs.raptor_env", fromlist=["RaptorEnv"]).RaptorEnv(
+                    reset_noise_scale=0.0
+                ),
+            ),
+            (
+                "brachiosaurus",
+                lambda: __import__("environments.brachiosaurus.envs.brachio_env", fromlist=["BrachioEnv"]).BrachioEnv(
+                    reset_noise_scale=0.0
+                ),
+            ),
+            (
+                "dibothrosuchus",
+                lambda: __import__(
+                    "environments.dibothrosuchus.envs.dibothrosuchus_env", fromlist=["DibothrosuchusEnv"]
+                ).DibothrosuchusEnv(reset_noise_scale=0.0),
+            ),
+        ],
+    )
+    def test_sb3_groups_match_mjx_registration(self, species, env_factory):
+        import importlib
+
+        from environments.shared.mjx_env import _SPECIES_CONFIGS
+
+        # Registration happens at mjx_config import time; the SB3 env class
+        # never imports it, so pull it in explicitly (idempotent).
+        importlib.import_module(f"environments.{species}.mjx_config")
+        config = _SPECIES_CONFIGS[species]
+
+        foot_indices = config["sensor_foot_indices"]
+        aux_groups = config.get("sensor_foot_aux_indices", ()) or ()
+        expected = tuple(
+            (foot_idx, *(aux_groups[i] if i < len(aux_groups) else ())) for i, foot_idx in enumerate(foot_indices)
+        )
+
+        def norm(groups):
+            return tuple(tuple(int(i) for i in group) for group in groups)
+
+        env = env_factory()
+        try:
+            assert norm(env._foot_sensor_groups) == norm(expected)
+        finally:
+            env.close()

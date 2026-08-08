@@ -377,6 +377,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was sized for a 6M stage and never revisited when stage 1 became 10M.
 
 ### Fixed
+- **Contact is now measured at every physics substep, not one in five — the
+  stance-duty gate certifies airborne time instead of a sampled duty.**
+  Physics runs at 500 Hz and control at 100 Hz (`frame_skip = 5`), and every
+  contact-derived quantity — the `r/l_foot_contact` info keys the
+  `stance_quality/v1` gate certifies from, the bilateral-support /
+  foot-load-balance / support-conditioned-alive rewards, gait-symmetry
+  touchdown detection, and floor-strike termination — read only the **last**
+  substep's state. The seed-43 stage-1 run exposed the consequence
+  mechanically: a 20 Hz control-clock-locked hop put exactly one unloaded
+  sample in every five (`bilateral_support_duty` exactly 0.8000 in all 40
+  panel episodes, every duty a multiple of 1/800), so the gated 0.1958 was a
+  sample-phase statistic, not airborne time — and the false-PASS direction
+  was open: a policy sharpening its unloading to fall *between* the 10 ms
+  samples would have read duty 0.000 and passed the 0.02 ceiling while
+  unloading every cycle. Reward, obs, and gate all shared the stroboscope,
+  and the run proved policies phase-lock to it.
+  Both backends now aggregate inside the substep loop, in lockstep: per-foot
+  **MIN** touch force across the substeps (min of per-substep per-foot
+  *sums* — never per-sensor minima, which under-report when load shifts
+  between pad and digits) feeds the rewards and info keys, and the first
+  floor strike is latched (SB3: contact-pair latch in `BaseDinoEnv.step`;
+  MJX: the height-emulation checks OR-ed per substep through the `fori_loop`
+  carry). One residual asymmetry is deliberate and documented rather than
+  closed: SB3's explicit site/body **height** terminations (T-Rex
+  `head_tip_z`/`skull_z`, dibothrosuchus `snout_tip_z`) remain
+  boundary-sampled — SB3's any-substep coverage is the *contact* latch,
+  MJX's is the *height* emulation, so a transient head dip that touches
+  nothing can terminate on MJX/eval while surviving SB3. The divergence
+  direction is MJX-stricter (conservative for training); folding SB3's
+  height checks into the substep loop is left for the plant-revision PR.
+  `evaluate_policy_cpu` aggregates identically and passes the
+  substep-MIN through a new `aggregated_foot_forces` override on the reward
+  composers, so stage-gate evaluation scores the same quantity training
+  optimizes; the override defaults to single-state semantics, which is what
+  the SB3-vs-JAX parity test pins. **Observations deliberately stay on the
+  boundary sample**: the obs builders are source-fingerprinted by the plant
+  contract, so aggregating them would bump every species' policy interface —
+  and the defect lives in what the gate and reward *price*, not in what the
+  policy senses.
+  `stance_duty_validation.py` gains the regime that certifies this: a
+  control-clock-locked 20 Hz hop (period 5 = the aliasing regime its 2.5 Hz
+  driver could never express), with per-substep kinematic ground truth
+  recorded through a new step-loop probe hook and a within-control-step
+  aliasing column. A regression test drives the same hop and pins both that
+  `info` equals the min of the per-substep sums exactly and that steps exist
+  where the boundary sample read supported while a substep was airborne —
+  structurally impossible to catch before this change. The statue is
+  measurably unaffected (settled-stance substep ripple is below the
+  1e-6-relative equality tests' tolerance; a statue-duty test pins
+  unsupported 0.0 / bilateral 1.0), but **duty histories are pre/post
+  apples-to-oranges for hopping policies** — the chatterer's 0.319 and the
+  seed runs' 0.1958 were boundary-sampled and would measure higher now; the
+  statue-derived constants are re-derived with the passive-toes plant
+  revision that follows.
 - **`obs_rms_decay_on_resume` and `ramp_attr` were silently dropped by both
   JAX library entry points — and the `[jax]` table now rejects unknown keys.**
   All eight stage-2/3 TOMLs set `obs_rms_decay_on_resume = 0.01` ("lets stats

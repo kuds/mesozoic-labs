@@ -338,8 +338,37 @@ def evaluate_policy_cpu(
 
             ctrl = np.array(scale_action_fn(action))
             mj_data.ctrl[:] = ctrl
+            # Substep-aggregated contact, in lockstep with both training
+            # backends (BaseDinoEnv.step and the MJX step_fn carry): per-foot
+            # MIN touch force across the frame_skip substeps, and an
+            # any-substep OR of the body/site floor-strike checks.  The
+            # boundary sample alone let a control-clock-locked hop unload
+            # between samples and still read as continuous support -- eval
+            # must score the same quantity training optimizes.
+            min_foot_forces: "list[float] | None" = None
+            substep_struck = False
             for _ in range(config.frame_skip):
                 mujoco.mj_step(mj_model, mj_data)
+                substep_forces = []
+                for i, idx in enumerate(foot_sensor_indices):
+                    if len(mj_data.sensordata) <= idx:
+                        continue
+                    force = float(mj_data.sensordata[idx])
+                    if i < len(foot_aux_indices):
+                        force += sum(
+                            float(mj_data.sensordata[aux])
+                            for aux in foot_aux_indices[i]
+                            if len(mj_data.sensordata) > aux
+                        )
+                    substep_forces.append(force)
+                if min_foot_forces is None:
+                    min_foot_forces = substep_forces
+                else:
+                    min_foot_forces = [min(prev, cur) for prev, cur in zip(min_foot_forces, substep_forces)]
+                if not substep_struck:
+                    substep_struck = any(mj_data.xpos[bid, 2] < zt for bid, zt in _body_checks) or any(
+                        mj_data.site_xpos[sid, 2] < zt for sid, zt in _site_checks
+                    )
 
             # Per-step diagnostics
             fwd_vel = float(mj_data.qvel[0])
@@ -356,23 +385,19 @@ def evaluate_policy_cpu(
             results.diag_tilt.append(tilt)
             results.diag_pelvis_h.append(body_z)
             results.diag_energy.append(energy)
-            body_height_terminated = any(mj_data.xpos[bid, 2] < zt for bid, zt in _body_checks)
-            site_height_terminated = any(mj_data.site_xpos[sid, 2] < zt for sid, zt in _site_checks)
+            # Any-substep strike, from the aggregation loop above -- the
+            # boundary-only checks missed strikes resolving mid-control-step.
+            strike_terminated = substep_struck
 
-            # Foot contacts — sensor order alternates right/left (bipeds:
-            # R, L; quadrupeds: R, L, RR, RL), so split by parity rather
-            # than lumping every non-first foot into the left series.
-            for i, idx in enumerate(foot_sensor_indices):
-                if len(mj_data.sensordata) > idx:
-                    force = float(mj_data.sensordata[idx])
-                    if i < len(foot_aux_indices):
-                        force += sum(
-                            float(mj_data.sensordata[aux])
-                            for aux in foot_aux_indices[i]
-                            if len(mj_data.sensordata) > aux
-                        )
-                    target_list = results.diag_r_foot if i % 2 == 0 else results.diag_l_foot
-                    target_list.append(force)
+            # Foot contacts — substep-MIN per foot, from the aggregation loop.
+            # Sensor order alternates right/left (bipeds: R, L; quadrupeds:
+            # R, L, RR, RL), so split by parity rather than lumping every
+            # non-first foot into the left series.  These series feed the
+            # stance-duty reconstruction, so they must carry the same
+            # aggregated quantity the gate certifies.
+            for i, force in enumerate(min_foot_forces or []):
+                target_list = results.diag_r_foot if i % 2 == 0 else results.diag_l_foot
+                target_list.append(force)
 
             # Reward decomposition — all active components
             fwd_norm = float(np.clip(fwd_vel / config.forward_vel_max, -1.0, 1.0))
@@ -456,9 +481,16 @@ def evaluate_policy_cpu(
                 "initial_pos_2d": jnp.asarray(start_pos),
                 # Pelvis/tilt/nosedive termination is handled inside the
                 # canonical scalar reward.  Supply only the extra body/site
-                # checks so its fall penalty is applied exactly once.
-                "additional_terminated": jnp.asarray(body_height_terminated or site_height_terminated),
+                # checks (any-substep) so its fall penalty is applied exactly once.
+                "additional_terminated": jnp.asarray(strike_terminated),
             }
+            if min_foot_forces:
+                # Score the substep-MIN forces, not the boundary snapshot's --
+                # eval must price the same quantity the training loop does.
+                # Truthiness, not `is not None`: with no foot sensors declared
+                # the list is empty, and a shape-(0,) override would replace
+                # the composer's own foot-force derivation with nothing.
+                step_kwargs["aggregated_foot_forces"] = jnp.asarray(min_foot_forces, dtype=jnp.float32)
             if _target_body_id >= 0:
                 target_pos_np = np.array(mj_data.xpos[_target_body_id])
                 pelvis_np = np.array(mj_data.xpos[config.root_body_id])
@@ -527,12 +559,8 @@ def evaluate_policy_cpu(
             if forward_z < config.natural_forward_z - config.nosedive_threshold:
                 break
 
-            # Body-height floor contact termination
-            if body_height_terminated:
-                break
-
-            # Site-height termination (extremities like snout tip)
-            if site_height_terminated:
+            # Body/site-height floor-strike termination, any-substep
+            if strike_terminated:
                 break
 
             # Stage 3 success: proximity-based contact detection

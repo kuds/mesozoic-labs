@@ -626,3 +626,100 @@ class TestIsTerminated:
             natural_forward_z=0.0,
         )
         assert bool(terminated)
+
+
+class TestAggregatedFootForcesOverride:
+    """The composers must price the substep-MIN forces when a stepped caller
+    supplies them, and keep single-state semantics when it does not.
+
+    The training backends aggregate touch force across the frame_skip physics
+    substeps; ``evaluate_policy_cpu`` passes the aggregate through this
+    override so eval scores the same quantity training optimizes.  The
+    single-state default is what the SB3-vs-JAX parity test scores.
+    """
+
+    _COMMON = dict(
+        root_body_id=1,
+        healthy_z_min=0.5,
+        healthy_z_max=1.5,
+        max_tilt_angle=1.0,
+        natural_forward_z=0.0,
+        n_actuators=5,
+        foot_sensor_groups=((10,), (11,)),
+    )
+
+    @staticmethod
+    def _stance_cfg():
+        return {
+            "forward_vel_weight": 0.0,
+            "alive_bonus": 0.0,
+            "energy_penalty_weight": 0.0,
+            "posture_weight": 0.0,
+            "bilateral_support_weight": 1.0,
+            "foot_contact_saturation_force": 100.0,
+        }
+
+    def _snapshot_data(self):
+        sensordata = np.zeros(20)
+        sensordata[6:10] = (1.0, 0.0, 0.0, 0.0)
+        # The boundary snapshot reads both feet fully loaded...
+        sensordata[10:12] = (100.0, 100.0)
+        return _make_mock_data(pelvis_z=0.9, sensordata=sensordata)
+
+    def test_the_override_replaces_the_snapshot_forces(self):
+        import jax.numpy as jnp
+
+        from environments.shared.jax_reward_termination import compute_reward_components
+
+        data = self._snapshot_data()
+        snapshot = compute_reward_components(data, np.zeros(5), self._stance_cfg(), **self._COMMON)
+        # ...but the substep MIN saw the right foot unload mid-control-step.
+        aggregated = compute_reward_components(
+            data,
+            np.zeros(5),
+            self._stance_cfg(),
+            aggregated_foot_forces=jnp.asarray([0.0, 100.0]),
+            **self._COMMON,
+        )
+        assert float(snapshot["bilateral_support"]) == pytest.approx(1.0)
+        assert float(aggregated["bilateral_support"]) == pytest.approx(0.0)
+
+    def test_default_none_keeps_single_state_semantics(self):
+        from environments.shared.jax_reward_termination import compute_total_reward
+
+        data = self._snapshot_data()
+        without = compute_total_reward(data, np.zeros(5), self._stance_cfg(), **self._COMMON)
+        explicit = compute_total_reward(
+            data, np.zeros(5), self._stance_cfg(), aggregated_foot_forces=None, **self._COMMON
+        )
+        assert float(without) == pytest.approx(float(explicit))
+
+    def test_the_override_moves_the_total_reward_and_survives_the_setup_filter(self):
+        """Two pins the components test cannot give: the SCALAR eval reward
+        consumes the override, and jax_setup's kwarg whitelist forwards it --
+        dropping either silently reverts eval to boundary-snapshot forces."""
+        import inspect
+
+        import jax.numpy as jnp
+
+        from environments.shared import jax_setup
+        from environments.shared.jax_reward_termination import compute_total_reward
+
+        data = self._snapshot_data()
+        snapshot_total = compute_total_reward(data, np.zeros(5), self._stance_cfg(), **self._COMMON)
+        aggregated_total = compute_total_reward(
+            data,
+            np.zeros(5),
+            self._stance_cfg(),
+            aggregated_foot_forces=jnp.asarray([0.0, 100.0]),
+            **self._COMMON,
+        )
+        # bilateral_support_weight 1.0 drops from quality 1.0 to 0.0.
+        assert float(snapshot_total) - float(aggregated_total) == pytest.approx(1.0)
+
+        source = inspect.getsource(jax_setup)
+        assert '"aggregated_foot_forces"' in source, (
+            "jax_setup's compute_reward_detailed kwarg whitelist no longer forwards "
+            "aggregated_foot_forces -- evaluate_policy_cpu's reward decomposition would "
+            "silently revert to boundary-snapshot forces"
+        )

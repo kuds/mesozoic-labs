@@ -256,6 +256,14 @@ class BrachioEnv(BaseDinoEnv):
         self._sensor_fl_meta = 27
         self._sensor_rr_meta = 28
         self._sensor_rl_meta = 29
+        # Per-foot groups for the base class's substep MIN aggregation --
+        # mirrors mjx_config's sensor_foot_indices + sensor_foot_aux_indices.
+        self._foot_sensor_groups = (
+            (self._sensor_fr_foot, self._sensor_fr_meta),
+            (self._sensor_fl_foot, self._sensor_fl_meta),
+            (self._sensor_rr_foot, self._sensor_rr_meta),
+            (self._sensor_rl_foot, self._sensor_rl_meta),
+        )
 
     def _foot_contact_forces(self) -> tuple[float, float, float, float]:
         """Total floor contact force under each leg: foot pad plus meta."""
@@ -405,8 +413,9 @@ class BrachioEnv(BaseDinoEnv):
         reward_height = self.height_weight * height_frac
         info["reward_height"] = reward_height
 
-        # 9. Gait symmetry (reward alternating diagonal pair contacts)
-        fr_contact, fl_contact, rr_contact, rl_contact = self._foot_contact_forces()
+        # 9. Gait symmetry (reward alternating diagonal pair contacts).
+        # Substep-MIN aggregated -- see BaseDinoEnv._aggregated_foot_contact_forces.
+        fr_contact, fl_contact, rr_contact, rl_contact = self._aggregated_foot_contact_forces()
         info["r_foot_contact"] = float(fr_contact)
         info["l_foot_contact"] = float(fl_contact)
         info["rr_foot_contact"] = float(rr_contact)
