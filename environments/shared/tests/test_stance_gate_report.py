@@ -2419,24 +2419,125 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
 
         return stage_artifacts
 
-    def test_the_gate_report_calls_every_probe(self):
-        """AST-checked over the real call site, not a mock, so it cannot drift."""
-        import ast
-        import inspect
+    @staticmethod
+    def _probe_models_dir(tmp_path):
+        models = tmp_path / "models"
+        models.mkdir()
+        (models / "robust_best_model.zip").write_bytes(b"x")
+        (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
+        return models
 
-        source = inspect.getsource(self._artifacts()._write_stance_gate_report)
-        called = {
-            node.func.id
-            for node in ast.walk(ast.parse(source.lstrip()))
-            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    @staticmethod
+    def _probe_stage_config() -> dict:
+        return {
+            "curriculum_kwargs": {"gate_kind": "stance_quality/v1", "min_eval_episodes": 40},
+            "env_kwargs": {"max_episode_steps": 1000},
         }
-        for probe in (
+
+    def _record_probes(self, monkeypatch) -> list:
+        """Replace the four probe helpers with recorders; return the record."""
+        calls: list = []
+        for name in (
             "_write_filtered_action_probe",
             "_write_constant_hold_probe",
             "_write_constant_hold_ablation",
             "_write_impulse_probe",
         ):
-            assert probe in called, f"{probe} is never called from _write_stance_gate_report"
+            monkeypatch.setattr(
+                self._artifacts(),
+                name,
+                lambda _name=name, **kwargs: calls.append((_name, kwargs)),
+            )
+        return calls
+
+    def test_the_probe_runner_calls_every_probe(self, tmp_path, monkeypatch):
+        """A behaviour test through the real call sites, so kwarg drift fails it."""
+        calls = self._record_probes(monkeypatch)
+        report = _minimal_stance_report()
+
+        self._artifacts()._run_stance_probes(
+            species="trex",
+            stage=1,
+            stage_config=self._probe_stage_config(),
+            stage_dir=tmp_path,
+            model_dir=self._probe_models_dir(tmp_path),
+            report=report,
+        )
+
+        assert [name for name, _ in calls] == [
+            "_write_filtered_action_probe",
+            "_write_constant_hold_probe",
+            "_write_constant_hold_ablation",
+            "_write_impulse_probe",
+        ]
+        by_name = dict(calls)
+        # The load-bearing arguments: the probes must annotate THIS report and
+        # score THIS checkpoint, at the panel size the report was rolled at.
+        assert by_name["_write_constant_hold_probe"]["measured"] is report
+        assert by_name["_write_constant_hold_ablation"]["measured"] is report
+        assert by_name["_write_impulse_probe"]["settle_steps"] == 200
+        assert by_name["_write_filtered_action_probe"]["episodes"] == 40
+        for name, kwargs in calls:
+            assert kwargs["model_path"].endswith("robust_best_model.zip"), name
+            assert kwargs["vecnorm_path"].endswith("robust_best_model_vecnorm.pkl"), name
+
+    def test_the_probe_runner_skips_without_a_measured_report(self, tmp_path, monkeypatch):
+        """No panel means nothing to probe -- and no checkpoint loads at all."""
+        calls = self._record_probes(monkeypatch)
+
+        self._artifacts()._run_stance_probes(
+            species="trex",
+            stage=1,
+            stage_config=self._probe_stage_config(),
+            stage_dir=tmp_path,
+            model_dir=tmp_path / "models",
+            report=None,
+        )
+
+        assert calls == []
+
+    def test_a_probe_wiring_failure_costs_that_probe_alone(self, tmp_path, monkeypatch, caplog):
+        """Caller-side failures too: the helpers' internal handlers cannot see a
+        TypeError raised at their own call site, which is exactly how a signature
+        drift presents. The runner's per-probe handler must contain it."""
+        calls = self._record_probes(monkeypatch)
+
+        def _drifted_signature(**kwargs):
+            raise TypeError("unexpected keyword argument")
+
+        monkeypatch.setattr(self._artifacts(), "_write_constant_hold_probe", _drifted_signature)
+
+        with caplog.at_level("WARNING"):
+            self._artifacts()._run_stance_probes(
+                species="trex",
+                stage=1,
+                stage_config=self._probe_stage_config(),
+                stage_dir=tmp_path,
+                model_dir=self._probe_models_dir(tmp_path),
+                report=_minimal_stance_report(),
+            )
+
+        assert [name for name, _ in calls] == [
+            "_write_filtered_action_probe",
+            "_write_constant_hold_ablation",
+            "_write_impulse_probe",
+        ]
+        assert "Stance probe (constant hold) failed" in caplog.text
+
+    def test_the_verdict_is_recorded_before_any_probe_runs(self):
+        """Probes are pure diagnostics and run dead last: the recorded verdict,
+        the summary, and the replays must never sit behind ~300 probe episodes,
+        and a probe failure must have nothing left to sink."""
+        import inspect
+
+        source = inspect.getsource(self._artifacts().generate_stage_artifacts)
+        for call in ("_write_stance_gate_report(", "_apply_stage_gate(", "_run_stance_probes("):
+            assert call in source, f"generate_stage_artifacts no longer calls {call.rstrip('(')}"
+        assert (
+            source.index("_apply_stage_gate(")
+            < source.index("write_stage_summary(")
+            < source.index("_run_stance_probes(")
+        ), "probes must run after the verdict is recorded and the summary written"
 
     def test_every_probe_config_key_is_reachable_from_a_toml(self):
         """Unregistered keys are rejected fail-closed, making them unsettable."""

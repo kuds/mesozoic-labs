@@ -262,47 +262,117 @@ def _write_stance_gate_report(
             report["metrics"]["bilateral_support_duty"],
             written["stance_gate_report_txt"],
         )
-        _write_filtered_action_probe(
-            species=species,
-            stage=stage,
-            stage_config=stage_config,
-            stage_dir=stage_dir,
-            model_path=f"{selected_path}.zip",
-            vecnorm_path=selected_vecnorm,
-            episodes=report_episodes,
-        )
-        _write_constant_hold_probe(
-            species=species,
-            stage=stage,
-            stage_config=stage_config,
-            stage_dir=stage_dir,
-            model_path=f"{selected_path}.zip",
-            vecnorm_path=selected_vecnorm,
-            episodes=report_episodes,
-            measured=report,
-        )
-        _write_constant_hold_ablation(
-            species=species,
-            stage=stage,
-            stage_config=stage_config,
-            stage_dir=stage_dir,
-            model_path=f"{selected_path}.zip",
-            vecnorm_path=selected_vecnorm,
-            measured=report,
-        )
-        _write_impulse_probe(
-            species=species,
-            stage=stage,
-            stage_config=stage_config,
-            stage_dir=stage_dir,
-            model_path=f"{selected_path}.zip",
-            vecnorm_path=selected_vecnorm,
-            settle_steps=int(report["settle_steps"]),
-        )
         return report
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Stance gate report failed for stage %d", stage, exc_info=True)
     return None
+
+
+def _run_stance_probes(
+    *,
+    species: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_dir: Path,
+    report: dict[str, Any] | None,
+) -> None:
+    """Run the stance probe battery against the selected checkpoint.
+
+    Pure diagnostics, so they run LAST in :func:`generate_stage_artifacts` --
+    after the gate verdict is recorded and the summary, graphs and replays are
+    written. They used to run inside :func:`_write_stance_gate_report`'s
+    ``try``, between "report written" and "verdict recorded", which put ~300
+    probe episodes of exposure in front of everything a finished run cannot
+    afford to lose -- and meant a probe-wiring exception (one the helpers'
+    internal handlers cannot see, e.g. a signature drift at a call site) was
+    caught by the report's handler and turned an already-written PASS into a
+    recorded FAIL.
+
+    *report* is the certification report the probes annotate; ``None`` (no
+    panel was measured) means there is nothing to probe. Each probe call
+    carries its own handler so a failure costs that probe alone -- including
+    caller-side failures, which is what makes the CHANGELOG's "individually
+    non-fatal" claim true at this level too.
+    """
+    if report is None:
+        return
+
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    declared_episodes = int(curriculum.get("min_eval_episodes", 40))
+    report_episodes = curriculum.get("stance_report_episodes")
+    report_episodes = declared_episodes if report_episodes is None else int(report_episodes)
+
+    # The same selector the report itself used; re-resolved here so the probes
+    # keep describing the one policy every other artifact describes.
+    from environments.shared.train_base import _select_handoff_checkpoint
+
+    handoff = _select_handoff_checkpoint(model_dir)
+    if handoff is None:
+        logger.warning(
+            "Stance probes skipped for stage %d: no checkpoint in %s has its matched _vecnorm.pkl",
+            stage,
+            model_dir,
+        )
+        return
+    _selected_name, selected_path, selected_vecnorm = handoff
+
+    probe_calls = (
+        (
+            "filtered action",
+            lambda: _write_filtered_action_probe(
+                species=species,
+                stage=stage,
+                stage_config=stage_config,
+                stage_dir=stage_dir,
+                model_path=f"{selected_path}.zip",
+                vecnorm_path=selected_vecnorm,
+                episodes=report_episodes,
+            ),
+        ),
+        (
+            "constant hold",
+            lambda: _write_constant_hold_probe(
+                species=species,
+                stage=stage,
+                stage_config=stage_config,
+                stage_dir=stage_dir,
+                model_path=f"{selected_path}.zip",
+                vecnorm_path=selected_vecnorm,
+                episodes=report_episodes,
+                measured=report,
+            ),
+        ),
+        (
+            "release ablation",
+            lambda: _write_constant_hold_ablation(
+                species=species,
+                stage=stage,
+                stage_config=stage_config,
+                stage_dir=stage_dir,
+                model_path=f"{selected_path}.zip",
+                vecnorm_path=selected_vecnorm,
+                measured=report,
+            ),
+        ),
+        (
+            "impulse",
+            lambda: _write_impulse_probe(
+                species=species,
+                stage=stage,
+                stage_config=stage_config,
+                stage_dir=stage_dir,
+                model_path=f"{selected_path}.zip",
+                vecnorm_path=selected_vecnorm,
+                settle_steps=int(report["settle_steps"]),
+            ),
+        ),
+    )
+    for label, run_probe in probe_calls:
+        try:
+            run_probe()
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+            logger.warning("Stance probe (%s) failed for stage %d", label, stage, exc_info=True)
 
 
 def _probe_cutoffs(raw: Any) -> list[float]:
@@ -818,21 +888,35 @@ def generate_stage_artifacts(
             except Exception:
                 logger.warning("Graph generation failed.", exc_info=True)
 
-        if not record_videos:
-            return stage_results
+        if record_videos:
+            stage_results = _record_stage_replays(
+                species_cfg=species_cfg,
+                stage_config=stage_config,
+                stage=stage,
+                algorithm=algorithm,
+                stage_dir=stage_dir,
+                replays_out=replays_out,
+                model_dir=model_dir,
+                seed=seed,
+                stage_results=stage_results,
+                allow_legacy_plant=allow_legacy_plant,
+            )
 
-        return _record_stage_replays(
-            species_cfg=species_cfg,
-            stage_config=stage_config,
-            stage=stage,
-            algorithm=algorithm,
-            stage_dir=stage_dir,
-            replays_out=replays_out,
-            model_dir=model_dir,
-            seed=seed,
-            stage_results=stage_results,
-            allow_legacy_plant=allow_legacy_plant,
-        )
+    # Probes run dead last, outside the staging context: they are the most
+    # expensive artifact step (~300 episodes at the trex stage-1 settings) and
+    # nothing downstream reads them, so a runtime lost mid-probe costs the
+    # probes alone -- never the recorded verdict, summary, graphs or replays
+    # above. Ordering is pinned by the wiring tests.
+    _run_stance_probes(
+        species=species,
+        stage=stage,
+        stage_config=stage_config,
+        stage_dir=stage_dir,
+        model_dir=model_dir,
+        report=stance_report,
+    )
+
+    return stage_results
 
 
 def _record_stage_replays(
