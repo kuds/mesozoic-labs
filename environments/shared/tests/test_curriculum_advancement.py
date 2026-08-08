@@ -164,6 +164,9 @@ class TestStageWarmupCallbackMocked:
         # clip_range should be replaced with _ConstantSchedule(0.02)
         assert mock_model.clip_range(0.5) == pytest.approx(0.02)
         assert mock_model.ent_coef == 0.02
+        # The marker keeps EntCoefDecayCallback from clobbering the boost on
+        # its next per-step assignment.
+        assert mock_model._ent_coef_warmup_active is True
 
     def test_warmup_restores_original_values(self):
         """After warmup_timesteps, original clip_range and ent_coef should be restored (PPO)."""
@@ -187,6 +190,8 @@ class TestStageWarmupCallbackMocked:
         assert cb._warmup_done is True
         assert mock_model.clip_range == original_clip
         assert mock_model.ent_coef == original_ent
+        # ent_coef is released back to EntCoefDecayCallback.
+        assert mock_model._ent_coef_warmup_active is False
 
     def test_warmup_applies_reduced_lr_for_sac(self):
         """Warmup should reduce LR and seed log_ent_coef for SAC models.
