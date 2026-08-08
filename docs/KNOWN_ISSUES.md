@@ -67,7 +67,15 @@ tolerance) remains the standing recommendation for the divergences above.
   distinguishes "solved" from "lucky".
 - **MEDIUM** — **half the actuators sit saturated and nothing opposes it.**
   Ten to twelve of 21 actuators are pinned at `|action| ≥ 0.99` — tail, neck,
-  head, toes — in *both* passing and failing policies. `energy` charges
+  head, toes — in *both* passing and failing policies.
+  **Read this count with care (2026-08-06):** `|action| = 1` is not one physical
+  event. Actions map piecewise-affine around each actuator's home control onto
+  its own `ctrlrange`, and those ranges differ by 6× — a saturated tail joint is
+  **8–12°** of deflection while a
+  saturated toe is **37.5°**. The saturation count pools them, and the ablation
+  showed the tail is mechanically inert while the toes carry the whole effect.
+  The stance report now orders per-actuator DC by **degrees**; use that, not the
+  saturation count, to decide which joints moved. `energy` charges
   ~48/episode against an alive bonus paying ~1000, and `leg_home_pose` governs
   only 8 joints carrying 1.2% of the commanded offset. A saturated actuator has
   no headroom in one direction, so the recovery envelope on those axes is
@@ -81,6 +89,60 @@ tolerance) remains the standing recommendation for the divergences above.
   if one is wanted for sim-to-real it has to be present during training. The
   probe conflates bandwidth-dependence with delay-sensitivity; a zero-phase
   offline filter would separate them. Tracked in #491.
+- **HIGH** — **the passing policy stands in a pose it cannot hold without
+  continuous feedback.** Freezing its commanded action to the constant it
+  averages collapses it from every handoff point — 348.9 steps of a 1000-step
+  horizon from settle, 330.2 when ramped in over 50 steps, 133.3 from reset —
+  while both controls reach the horizon (unmodified policy 1000, zero-action
+  statue 1000 at reward 3271.0). The ramped variant falling too rules out a
+  handoff transient. The statue holds the *home* pose on a constant forever;
+  the policy stands 0.765 rms away from home with 12 of 21 actuators pinned at
+  ±1.000, and **that** pose needs active stabilisation. So the tremor is the
+  price of where the policy chose to stand, not a property of the task, and
+  **raising `smoothness`/`action_jerk` is contraindicated** — they would
+  suppress the only thing holding the animal up. The open question is why the
+  policy leaves a pose that is free to hold for one costing 267 reward points
+  plus continuous stabilisation; the candidate answer is that no stage-1 term
+  constrains 13 of the 21 actuators (`leg_home_pose` covers 8 carrying 1.2% of
+  the offset). Measured by `stance_gate_report.py --hold-constant`; see the
+  2026-08-06 addendum in the bounce investigation.
+- **HIGH** — **the toes alone account for the unholdable pose; the tail is a
+  bystander.** Ablating the held pose one actuator group at a time
+  (`--hold-release-ablation`, necessity *and* sufficiency per group): holding
+  only the **six toe joints** at their commanded DC with everything else at
+  home reproduces the whole failure — **125.5 steps against the full pose's
+  128.6, `tail_contact` 8 of 8 in both**. Holding only the **four tail joints**
+  at `±1.000` stands the full horizon at reward **3254.0**, within 0.6% of the
+  statue; head and neck likewise at **3286.1**. No group is *necessary* —
+  releasing all twelve saturated actuators still falls (224.6 steps) — so the
+  pose is over-determined and several subsets break it independently. **This
+  refutes the saturation hypothesis** recorded above it: saturation is
+  conspicuous, not causal. Toes are the ground contact and five of six sit at
+  their stops, which changes the support polygon — a plant effect, not a
+  reward-shaping one. **Not yet a reason to add a toe reward term**: sufficiency
+  says the toe pose breaks a *statue*, not that constraining it would make the
+  policy stand. **Prerequisite now measured:** `±1.000` on a toe is **±37.5°**
+  from home against a 75° range, and adjacent toes on the same foot are driven
+  to opposite ends — the foot is splayed into a twist, asymmetrically between
+  the two feet. The mechanism survives.
+- **MEDIUM** — **stage 1 contains no in-episode disturbance, so it cannot ask
+  for postural correction.** The only perturbation is joint-angle noise at
+  reset (`reset_noise_scale 0.05`); nothing applies an external force during an
+  episode. A policy that learns active correction therefore earns nothing over
+  one that stands still, which is why the zero-action statue is the objective's
+  optimum. Active balance recovery is **absent from the task**, not
+  underweighted in the reward, and no reweighting substitutes for adding it —
+  that is what `STAGE1_SPLIT_PLAN.md`'s 1a stance / 1b recovery split is for.
+  **Measured (2026-08-06):** `--impulse-probe` shows the passing policy *does*
+  correct, but only just — it fully recovers a **0.50 m/s** lateral shove in one
+  direction (8/8 to the horizon, against a statue that never recovers from
+  anything) and **fails the same shove in the other direction** (0/8, 424 steps
+  against the statue's 337). At **1.0 m/s and above it is within noise of the
+  statue on both sides.** Recovery envelope: **0.50 m/s one way, 0.00 the
+  other** — narrow *and* asymmetric, which is what the differently-splayed toes
+  predict. So the stage-1 gap is a **metric** gap: the capability partly exists
+  and the task cannot see it. The envelope on the weaker side is a ready-made
+  acceptance metric for 1b, and 0.00 m/s is the number to beat.
 
 <!-- The six items below come from the 2026-07-31 plant validation pass; full
      evidence in PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md. The reset and

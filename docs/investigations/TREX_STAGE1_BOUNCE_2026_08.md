@@ -266,3 +266,664 @@ The frequency estimate is `jerk/delta = (2 sin πfΔt)²`, which is blind to any
 constant offset — the DC/AC split is the point, because a pooled standard
 deviation over actuators and time cannot separate "sitting in the wrong place"
 from "shaking", and those have different causes and different fixes.
+
+---
+
+## Addendum, 2026-08-06 — the tremor is feedback, not bandwidth
+
+Appended, not rewritten. This settles the question §5 left open.
+
+### What §5 could not answer
+
+The low-pass probe proved the tremor is load-bearing, but a low-passed policy
+**still responds to what it sees** — just slowly. So a fall under the filter
+shows the policy needs *bandwidth*; it cannot show whether it needs *feedback*
+at all. Two readings survived, with opposite fixes:
+
+- the pose the policy holds needs continuous active stabilisation, or
+- the pose is holdable by a constant, and the tremor is waste the action
+  penalties failed to suppress.
+
+### The experiment
+
+Replace the commanded action with the constant the policy commands **on
+average** — its own post-settle per-actuator DC — and keep everything else
+identical. Feedback is cut outright rather than attenuated. Two controls
+bracket the measurement.
+
+`stance_gate_report.py --hold-constant`, on the **passing** checkpoint
+(`20260805_011234`), 10 episodes per variant:
+
+| variant | handoff | ramp | ep length | full-horizon | reward | terminations |
+|---|---|---|---|---|---|---|
+| policy (control) | never | — | **1000.0** | 1.0000 | 3006.9 | truncated 10 |
+| `hold_after_settle` | 200 | 0 | 348.9 | 0.0000 | 908.8 | tail_contact 9, fallen 1 |
+| `hold_after_settle_ramped` | 200 | 50 | 330.2 | 0.0000 | 795.0 | fallen 8, tail_contact 2 |
+| `hold_from_reset` | 0 | 50 | 133.3 | 0.0000 | 284.8 | tail_contact 10 |
+| `hold_zero` (statue control) | 0 | 0 | **1000.0** | 1.0000 | 3271.0 | truncated 10 |
+
+Both controls behave exactly as required — the unmodified policy reaches the
+horizon, and the statue reproduces its known 3271.8 within panel noise — so the
+harness is measuring the pose and not itself.
+
+### Result
+
+**The pose the policy holds requires continuous feedback.** Every held variant
+collapses, and the ramped variant collapses too, which removes the obvious
+objection: it is not a step transient at the handoff. Ramping in over 50 steps
+made it *slightly worse* and shifted the termination reason from `tail_contact`
+to `fallen`, which is what a slow topple looks like rather than a jolt.
+
+### Why this matters more than it first appears
+
+The statue stands at the home keyframe for the full horizon on a constant
+command. The policy stands 0.765 rms **away** from home — 12 of 21 actuators
+pinned at exactly ±1.000 with AC 0.000 — and *that* pose cannot be held by a
+constant. So the tremor is not a property of the task. It is the cost of
+standing where the policy chose to stand.
+
+That reframes the whole question. It is not "why does the policy shake?" but
+**"why did it walk off a pose that is free to hold, onto one that costs 267
+reward points *and* requires continuous stabilisation?"** The answer is not in
+the action penalties, and raising them is now positively contraindicated —
+§4 already showed they are firing and losing, and this shows the thing they
+would suppress is the only thing holding the animal up.
+
+The candidate answer is that **nothing in stage 1 constrains where 13 of the 21
+actuators sit.** `leg_home_pose` covers 8 joints carrying 1.2% of the offset
+(§3). The tail, neck, head and toes are unconstrained, they saturate, and the
+sagittal chain — hip pitch, knee, ankle, the joints with headroom left — pays
+for it at 22.6 Hz.
+
+### It does not, by itself, argue for a reward change
+
+Two things must not be read into this:
+
+1. **It says nothing about the bounce.** The bounce is still 450 points worse
+   under the same reward (§4), still an optimisation failure, and still not
+   addressable by reweighting.
+2. **It does not show the reward is wrong, only that it is silent.** A term
+   constraining the unconstrained joints is a *hypothesis*, and the last time a
+   pose term was reweighted on a plausible mechanism (#490) it did exactly what
+   it was asked to do and the stage failed anyway. Measure the mechanism before
+   shaping for it.
+
+The measurement that would test it is cheap and does not need a training run:
+hold the constant pose but **release only the saturated joints back to home**,
+and see whether the rest becomes holdable. If it does, the saturated pose is
+what creates the stabilisation load.
+
+> **Run, same day — and the answer is no.** See §Addendum 2 below. Releasing
+> all twelve saturated actuators does *not* rescue the pose, and the tail, the
+> single most conspicuous thing in the DC table, turns out to be a bystander.
+> The candidate answer above is **refuted**; the conspicuousness of saturation
+> is exactly why it needed testing rather than adopting.
+
+### And a separate point about the task
+
+Stage 1 has **no in-episode disturbance** — the only perturbation is joint-angle
+noise at reset (`reset_noise_scale 0.05`); there is no external force anywhere
+in the environment. So a policy that learns active postural correction earns
+nothing over one that stands still, and "actively stand and correct posture"
+is not underweighted in this reward, it is absent from the task. That is the
+gap `STAGE1_SPLIT_PLAN.md` proposes 1a/1b for, and no reweighting substitutes
+for it.
+
+---
+
+## Addendum 2, 2026-08-06 — which joints make the pose unholdable
+
+Appended, not rewritten. This **refutes** the candidate answer in Addendum 1.
+
+### The experiment
+
+Addendum 1 established that the policy's pose cannot be held by a constant, and
+proposed that the twelve saturated actuators were why. Testing that needs two
+questions per group, not one, because either alone misleads:
+
+- `release_G` — hold everything **except** G. Is G **necessary**? Does removing
+  it rescue a pose that otherwise falls?
+- `only_G` — hold **only** G. Is G **sufficient**? Does it alone break the
+  statue, which is known to stand?
+
+All variants are commanded **from reset**, so the endpoints are the two known
+measurements: releasing everything is the statue (stands 1000), releasing
+nothing is Addendum 1's `hold_from_reset` (falls at ~133).
+
+`stance_gate_report.py --hold-release-ablation`, passing checkpoint, 8 episodes:
+
+| variant | released | ep length | full-horizon | reward | terminations |
+|---|---|---|---|---|---|
+| policy (control) | — | **1000.0** | 1.0000 | 3010.1 | truncated 8 |
+| `hold_all` | 0 | 128.6 | 0.0000 | 268.8 | tail_contact 8 |
+| `release_saturated` | 12 | 224.6 | 0.0000 | 460.1 | fallen 5, tail_contact 3 |
+| `only_saturated` | 9 | 140.5 | 0.0000 | 330.6 | tail_contact 8 |
+| `release_tail` | 4 | 116.6 | 0.0000 | 250.1 | tail_contact 8 |
+| **`only_tail`** | 17 | **1000.0** | **1.0000** | **3254.0** | truncated 8 |
+| `release_toes` | 6 | 198.5 | 0.0000 | 397.3 | fallen 6, tail_contact 2 |
+| **`only_toes`** | 15 | **125.5** | 0.0000 | 289.2 | tail_contact 8 |
+| `release_head_neck` | 3 | 123.2 | 0.0000 | 256.4 | tail_contact 8 |
+| **`only_head_neck`** | 18 | **1000.0** | **1.0000** | **3286.1** | truncated 8 |
+| `release_hip_rolls` | 2 | 129.4 | 0.0000 | 270.4 | tail_contact 8 |
+| `only_hip_rolls` | 19 | 989.8 | 0.8750 | 3190.5 | truncated 7, fallen 1 |
+| `hold_zero` (statue control) | 21 | **1000.0** | 1.0000 | 3274.4 | truncated 8 |
+
+Controls behave, and `hold_all` at 128.6 reproduces Addendum 1's 133.3 — the
+same experiment reached twice by different routes.
+
+### Result
+
+**The toes are sufficient on their own.** Holding the six toe joints at their
+commanded DC with every other actuator returned to home reproduces the full
+failure almost exactly — **125.5 steps against `hold_all`'s 128.6, with
+`tail_contact` 8 of 8 in both.** Six of 21 actuators account for essentially the
+whole effect.
+
+**The tail is a bystander.** All four tail joints held at `+1.000`, everything
+else at home, stands the **full horizon at reward 3254.0** — within 0.6% of the
+statue's 3274.4. Head and neck likewise: 1000 steps, **3286.1**, which is
+*above* the statue. The two groups whose DC looks most alarming do nothing.
+
+**No group is necessary.** `release_saturated` improves matters (128.6 → 224.6)
+but still falls; so does `release_toes` (198.5). The pose is **over-determined**
+— more than one subset breaks it independently, so removing any single group
+leaves another still able to. "Which joint is the cause" is the wrong question.
+"Where is the effect concentrated" has an answer, and it is the toes.
+
+### What this refutes
+
+Addendum 1 proposed that **saturation** creates the stabilisation load, on the
+reasoning that twelve actuators pinned at `±1.000` with no headroom must be
+doing something. Measured: releasing all twelve does not rescue the pose, and
+the largest saturated group — the tail — is provably inert. `only_saturated`
+falls (140.5), but it contains five of the six toes, so its sufficiency is
+plausibly the toes' and nothing else's.
+
+Saturation is *conspicuous*, not *causal*. It was worth testing precisely
+because it looked obvious, and the same instinct that made #490 attractive
+would have made a tail- or saturation-targeted reward term attractive here.
+
+### Why the toes are a plausible mechanism
+
+They are the ground contact. Five of six sit at `±1.000` — driven to their
+stops — which changes the foot's contact geometry and therefore the support
+polygon the whole body balances on. Unlike the tail, whose effect on a standing
+animal is a static moment the position servos absorb, a toe at its limit
+changes *where and how the animal touches the floor*. That is a mechanical
+effect on the plant, not a reward-shaping one, and it is the strongest evidence
+so far for the "something is off with the mechanics" reading.
+
+The termination reason agrees: `only_toes` and `hold_all` both end in
+`tail_contact` 8 of 8, while the partial rescues (`release_saturated`,
+`release_toes`) shift toward `fallen` — a different failure, reached later.
+
+### What this does NOT establish
+
+- **Not a reason to add a toe reward term.** Sufficiency says the toe pose
+  breaks a *statue*; it does not say the trained policy would stand if the toes
+  were constrained, because the rest of the pose falls on its own too
+  (`release_toes` = 198.5).
+- **Nothing about the bounce.** §4 is untouched: still 450 points worse, still
+  an optimisation failure.
+- **Nothing about `ctrlrange`.** Whether `±1.000` on a toe is a large joint
+  angle or a small one has not been measured. Read the actual ranges out of
+  `trex.xml` before concluding the toes are over-driven rather than merely
+  commanded to their limits.
+
+### Method note: the control caught a broken experiment
+
+The first run of this ablation handed off at `settle_steps` rather than from
+reset, so each variant snapped a subset of joints from `±1.000` to `0` in one
+step midway through the episode. The transient dominated: all thirteen variants
+landed within **311–349 steps** of each other, indistinguishable from
+`hold_all`. The tell was the `hold_zero` row — supposedly the statue — falling
+at **323 steps** when it is known to stand for 1000.
+
+Both endpoints on the same side of the answer means the path has no signal, and
+without the statue control the flat table would have read as "no group matters",
+which is a conclusion and a wrong one. The control cost 8 episodes and saved a
+false negative. `TestReleaseAblationVariants` now pins the from-reset
+requirement.
+
+---
+
+## Addendum 3, 2026-08-06 — why the ablation was needed at all
+
+Appended. This answers the prerequisite Addendum 2 flagged as unmeasured, and
+the answer means the ablation should not have been necessary to find its result.
+
+### `|action| = 1` is not one physical event
+
+`_scale_action` maps `[-1, 1]` piecewise-affine around the home keyframe's
+control target, retaining each actuator's `ctrlrange` as its two endpoints.
+Those physical spans differ by a factor of six across the T-Rex:
+
+| group | `action = +1` | `action = −1` | deflection from home | ablation verdict |
+|---|---|---|---|---|
+| **toes** | **+50°** | **−25°** | **±37.5°** | **sufficient** |
+| hip_roll | +25° | −25° | ±25° | inconclusive (0.875) |
+| head / neck | +20…40° | −20…30° | ~±25° | bystander |
+| **tail** | **+12° pitch, +8° yaw** | **−12° / −8°** | **±8–12°** | **bystander** |
+
+The ablation's result falls straight out of that column. The tail is inert
+because saturating a tail joint moves it **eight to twelve degrees**. The toes
+carry the effect because saturating a toe moves it **37.5°**, and adjacent toes
+on the same foot are driven to opposite ends — on the right foot d2 and d4 at
++50° while d3 sits at −25°, a **75° spread across one foot**. The foot is
+splayed into a twist, asymmetrically between the two feet.
+
+So the answer to Addendum 2's open question is **yes, very large** — and the
+"toes are the ground contact" mechanism survives.
+
+### The metric was the problem
+
+"Ten to twelve of 21 actuators pinned at `|action| ≥ 0.99`" — quoted in §7, in
+KNOWN_ISSUES and throughout this investigation — pools an 8° tail deflection
+with a 37.5° toe deflection and counts them as the same event. Sorted by `|dc|`,
+the per-actuator table put twelve joints at exactly `±1.000` at the top with no
+way to tell them apart, and the most conspicuous of them was the inert one.
+
+**This is the same error the DC/AC split was introduced to fix, one level
+down.** §10 says a pooled standard deviation "cannot separate sitting in the
+wrong place from shaking". A pooled *normalised* offset cannot separate moving
+8° from moving 37.5°, and the fix is the same shape: report the physical
+quantity next to the normalised one.
+
+`stance_gate_report.py` now emits `dc_deg`, `ac_rms_deg`, `range_deg`,
+`zero_offset_deg`, and `home_preload_deg` per actuator, and **orders the table
+by degrees**. The degree moments come from the physical controls actually
+applied during rollout, not from rescaling the normalised mean and variance.
+The shared reporter emits them only for verified angular position servos, so a
+geared motor control cannot be mislabeled or ranked as a joint angle.
+On the passing checkpoint that puts the five saturated toes at the top at
+±37.5° and drops `tail_1_yaw` (±8°) out of the printed twelve entirely — the
+ablation's conclusion, readable directly off the report.
+
+**Lesson: a normalised summary is only as good as the assumption that its units
+mean the same thing everywhere.** Twice now that assumption has been false, and
+both times it hid the answer rather than merely blurring it.
+
+### Action origin, home control, and home pose are different quantities
+
+The first version of the degree report duplicated the base environment's
+midpoint formula and compared that target with `key_qpos`. T-Rex does neither:
+its override maps the negative and positive halves independently around
+`key_ctrl[home]`, so **`action = 0` maps exactly to the named home control for
+all 21 actuators**.
+
+The two ankle home controls are 5.5° above their home joint poses. That is the
+intentional gravity preload documented beside the XML actuator ranges, not an
+action-mapping defect; head and neck have no such offset. Report schema v2 now
+keeps `action_zero_ctrl`, `home_ctrl`, and `home_qpos` separate, records applied
+control moments per sample, and reports the ankle difference neutrally as
+`home_preload_deg`. There is no basis here for re-centring any control range or
+bumping the policy interface.
+
+---
+
+## Addendum 4, 2026-08-06 — does it actually correct? Barely, and only one way
+
+Appended. This answers the question the whole investigation was really about.
+
+### Why it needed a new probe
+
+Stage 1 has **no in-episode disturbance** — the only perturbation anywhere is
+joint-angle noise at reset. So nothing in any training artifact can distinguish
+a policy that learned to *recover* from one that learned to *stand still*: the
+task never asks. The gate, the reward, the statue baseline and all three
+earlier probes are silent on it by construction.
+
+`stance_gate_report.py --impulse-probe` asks directly. A step change in the
+root's linear velocity at step 200 — a shove to the torso, fully specified by
+`delta_v` — swept over magnitude and **both lateral directions**, with the
+zero-action statue as the control. The statue commands a constant and therefore
+cannot respond to anything, so whatever it survives is the plant's *passive*
+robustness; only the policy's margin above that is active control.
+
+### Result, passing checkpoint, 8 episodes per row
+
+| impulse | direction | policy len | policy fh | statue len | statue fh | margin |
+|---|---|---|---|---|---|---|
+| none | control | 1000.0 | 1.0000 | 1000.0 | 1.0000 | +0 |
+| 0.50 m/s | lateral +y | 423.9 | 0.0000 | 337.1 | 0.0000 | +87 |
+| **0.50 m/s** | **lateral −y** | **1000.0** | **1.0000** | 337.5 | 0.0000 | **+662** |
+| 1.00 m/s | lateral +y | 264.2 | 0.0000 | 272.5 | 0.0000 | −8 |
+| 1.00 m/s | lateral −y | 329.8 | 0.0000 | 272.4 | 0.0000 | +57 |
+| 2.00 m/s | lateral +y | 244.5 | 0.0000 | 240.8 | 0.0000 | +4 |
+| 2.00 m/s | lateral −y | 249.0 | 0.0000 | 240.2 | 0.0000 | +9 |
+
+**Recovery envelope: 0.50 m/s one way, nothing the other.** The statue never
+recovers from anything, so the single full-horizon row is unambiguous — the
+policy does something under load that a constant command cannot.
+
+So the answer is **yes, it corrects — barely, and only in one direction.**
+
+- At **0.5 m/s** it fully recovers pushed one way (8/8 episodes to the horizon)
+  and completely fails pushed the other (0/8, and only 87 steps better than a
+  statue).
+- At **1.0 m/s and above** it is within noise of the statue on both sides. The
+  envelope is not merely asymmetric, it is *narrow*.
+
+The asymmetry is worth taking seriously given §Addendum 2: this policy's toes
+are splayed **differently on the two feet**, so a left-right asymmetric recovery
+envelope is what that pose predicts. A single-direction sweep would have
+measured whichever side it happens to be good at and reported that as the
+capability.
+
+### Correction: a pooled margin nearly buried this
+
+The probe's first read-out averaged the step margin over all disturbed rows and
+reported **+135**, concluding "active correction exists" — true, but 82% of that
+average is the one +662 row, and the same number is produced by a policy that
+recovers everywhere at +135. It pooled a full recovery with a total failure and
+described neither.
+
+**This is the third time in this investigation a pooled statistic hid the
+structure it was summarising** — after `action_std` over actuators and time
+(§10), and the saturation count over actuators of different `ctrlrange`
+(Addendum 3). The read-out is now keyed off the **recovery envelope per
+direction**, with the pooled margin printed second and labelled with its own
+caveat. The rule that keeps being relearned: *report the quantity the decision
+depends on, not the average of it.*
+
+### What this means
+
+**Stage 1's gap is a metric gap, not a reward one.** Something in the policy
+does correct; the stage simply has no disturbance with which to see it, so it
+can neither reward the capability nor certify it. No reweighting of the current
+terms changes that — there is nothing for a term to pay for in an episode where
+nothing goes wrong.
+
+That makes `STAGE1_SPLIT_PLAN.md`'s **1b recovery** stage the indicated work,
+and this probe is a ready-made acceptance metric for it: the recovery envelope
+in m/s, on the weaker side, is a single number that goes up when the policy
+gets better at the thing the stage is named for.
+
+**A baseline now exists to beat: 0.50 m/s one way, 0.00 the other.**
+
+---
+
+## Addendum 5, 2026-08-06 — revised recommendations
+
+Appended. **Supersedes §9**, which was written before the four probes existed
+and before the plant audit.
+
+### First, an honest correction
+
+§9 and the recommendations that followed it steered toward *measurement* and
+*task design*, and quietly stopped targeting **the bounce itself**. That was a
+drift, not a decision. The reasoning behind it — §4 showed the bounce is 450
+points worse under the reward, so it is an optimisation failure and not a
+shaping one — is a statement about *what will not fix it*, and it got treated
+as a statement that it did not need fixing.
+
+It does. A policy that stands by dithering at 22.6 Hz, in a pose it cannot hold
+without continuous feedback, with 12 actuators pinned at their limits, **will
+not transfer to hardware.** Standing is the sim-to-real foundation, and none of
+the probe work changes that.
+
+### What the four probes established
+
+| probe | question | answer |
+|---|---|---|
+| `--filter-actions` | is the high-frequency content load-bearing? | yes, at every cutoff 5–35 Hz |
+| `--hold-constant` | does the pose need *feedback*, or only bandwidth? | **feedback** — every held variant falls |
+| `--hold-release-ablation` | which joints? | **toes**, sufficient alone; tail and head/neck inert |
+| `--impulse-probe` | does it actually correct? | **barely** — 0.50 m/s one way, 0.00 the other |
+
+Plus one measurement defect found on the way: `|action| = 1` means 8° on a tail
+joint and 37.5° on a toe (Addendum 3). The follow-up action-mapping audit also
+fixed the reporter itself: T-Rex action zero already mapped exactly to the
+named home control, while the ankle's control-vs-pose difference is intentional
+preload.
+
+### The changes that target the bounce and the tremor
+
+**1. Train with an action low-pass or rate limit in the loop.** The strongest
+single recommendation, and the one §9 missed.
+
+The bounce sits at **16.7–20 Hz** and the tremor at **22.6 Hz**. Balance
+correction on this plant is **~1.1–1.4 Hz**. If the policy physically cannot
+command above, say, 8 Hz, then neither the bounce nor the tremor is available
+to it — while the band the task actually needs is untouched, with better than a
+5× margin.
+
+§5 already proved this cannot be retrofitted: the passing checkpoint collapses
+under a filter at every cutoff from 5 to 35 Hz. The conclusion drawn there was
+"so a filter is not an option". The correct conclusion is **"so it has to be
+present during training"**, which is a different sentence and the one that
+matters. It is also the single most sim-to-real-relevant change available: a
+policy requiring 22.6 Hz of command bandwidth and full actuator authority will
+not survive contact with a real actuator.
+
+*Risk:* it makes the task harder, and the policy may fail to learn at all.
+*Mitigation:* curriculum the cutoff — start generous (~30 Hz, which the current
+policy already half-survives at 351 steps) and lower it across training. That
+also produces a usable regression metric on the way down.
+
+**2. Drive the policy's exploration noise down faster.** Measured on the passing
+run: policy std starts at **1.00** and only reaches **0.42** at 10M — *with*
+`ent_coef` already decayed to zero at 7M.
+
+That matters because **PPO maximises the return of the noisy policy, not the
+deterministic one the gate scores.** At std 0.42 "hold the home pose" means
+"hold it ±18° of knee angle, resampled every 10 ms", which is a different
+policy with a different return. The deterministic optimum (the statue, 3271.8)
+and the stochastic optimum are not the same point, and the network *starts* at
+the statue — SB3 initialises the action head near zero — and walks away from it
+because under std 1.0 the sampled version falls over.
+
+The fingerprint: **correlation between policy std and the number of saturated
+actuators is −0.967.** Saturation appears exactly as noise decays, because only
+then can an extreme pose be *held* rather than smeared.
+
+#487 moved this lever once (`ent_coef_end` 0.001 → 0.0, decay 3M → 7M) and
+turned a bouncer into a passer. Going further is indicated: a direct schedule on
+`log_std`, or a lower initial std, so the two objectives converge before the
+policy has committed to a basin.
+
+**3. `frame_skip 10`.** §6's falsifiable test, unchanged and still valid: a
+bounce at 8–10 Hz means the cycle is locked to the control clock and halving the
+rate removes the failure class; a bounce at ~20 Hz again means it is a plant
+property. Expensive — it bumps `policy_interface_revision` — so batch it with
+the plant work below if it is done at all.
+
+### The plant work
+
+**4. Couple the toe digits in the next plant revision**, prepared now and
+merged after the in-flight lineage finishes.
+
+Three independent actuators per foot let the policy command adjacent digits
+**75° apart**, which no theropod foot can do — the digital flexors and
+transverse ligaments couple them. And because the model lumps each digit into
+one rigid hinge instead of a four-phalanx chain, commanding digit III to its
+limit lifts the primary weight-bearing toe **~11.6 cm** off the floor rather
+than curling it. The action-mapping audit found no second plant change to batch
+with this: action zero already is the named home control.
+
+Stated honestly: **this does not fix the current policy's pose** — returning the
+toes to home still falls at 198.5 steps, because the pose is over-determined.
+What it does is remove a way of standing badly that the anatomy does not permit
+and that policies demonstrably find. That constrains every *future* policy,
+which is worth having before spending more 10M runs.
+
+### The task work
+
+**5. Promote the impulse to a training-time disturbance.** `_apply_root_impulse`
+is already the primitive and the environment has no other perturbation path.
+Behind a config key it becomes what `STAGE1_SPLIT_PLAN`'s **1b recovery** needs,
+and it is what makes "actively stand and correct" a trainable objective rather
+than an aspiration.
+
+**6. Adopt the recovery envelope as the acceptance metric.** The weaker
+direction is the capability. Current baseline: **0.50 m/s one way, 0.00 the
+other.** Every existing stage-1 criterion is satisfied by a statue; this one is
+not.
+
+### Still ruled out
+
+**Do not reweight the reward.** Three independent reasons now: the bounce
+already loses on every term (§4), the tremor is load-bearing so penalising it
+removes what holds the animal up (Addendum 1), and the toes are sufficient but
+not necessary so a toe term is not shown to help (Addendum 2).
+
+**Do not chase the statue.** It outscoring the trained policy is a defect in the
+reward, not a target. A statue recovers from nothing — measured, 0.00 m/s in
+both directions — which is strictly worse at what the stage is for.
+
+### Ordering
+
+1 and 2 are additive, cheap, and target the bouncing directly — **do them
+first.** 5 and 6 are additive and serve the stated goal. 4 invalidates every
+checkpoint, so it waits for a clean break. 3 only if 1 and 2 fail.
+
+---
+
+## Addendum 6, 2026-08-06 — seed 43 bounces; the toe splay reproduces
+
+Appended. **Supersedes the ordering in Addendum 5.**
+
+### Seed 43 locked at exactly 1/5
+
+Run `20260806_133233`, seed 43, identical config to the passing seed-42 run,
+**0 of 158 evaluations matching seed 42 bitwise** — genuinely independent.
+
+| step | duty | bilateral | single support | full-horiz | reward |
+|---|---|---|---|---|---|
+| 7.55M | 0.2000 | 0.8000 | 0.0000 | 1.000 | 2369.9 |
+| 7.70M | 0.2000 | 0.8000 | 0.0000 | 1.000 | 2403.4 |
+| 7.85M | 0.2000 | 0.8000 | 0.0000 | 1.000 | 2421.9 |
+| 7.90M | 0.2000 | 0.8000 | −0.0000 | 0.925 | 2317.8 |
+
+Over the last 10 evaluations: duty mean **0.2000**, std **0.00000**. Over the
+last 20: **20 of 20** within 0.0015 of exactly 1/5, single support **0.0002**
+against the rule's 0.005 ceiling, bilateral pinned at 0.8000 = 4/5.
+
+The early-abort criterion from Addendum 5 fired at full strength, not
+marginally. This is `20260805_132950`'s signature reproduced exactly.
+
+### The stage-1 record, at the current configuration
+
+| run | weight | seed | result |
+|---|---|---|---|
+| `20260804_143747` | 0.5 | 42 | FAIL — 1/6, pre-#487 |
+| `20260805_011234` | 0.5 | 42 | **PASS** |
+| `20260805_132950` | 1.5 | 42 | FAIL — 1/5 |
+| `20260805_221141` | 0.5 | 42 | **PASS** (bitwise replay of `011234`) |
+| `20260806_133233` | 0.5 | **43** | **FAIL — 1/5** |
+
+At the current configuration, across independent seeds: **one pass, one
+bounce.** §8's question — "is passing reliable or lucky?" — has its answer, and
+it is **a coin flip**. #487 helped; it did not make stage 1 reliable.
+
+### The toe splay reproduces — and it is the only thing that does
+
+Comparing final per-actuator pose between the two independent seeds:
+
+| joint | seed 42 | seed 43 | 42° | 43° | |
+|---|---|---|---|---|---|
+| `r_toe_d2` | +1.000 | −0.998 | +37.5 | −37.4 | both pinned |
+| `r_toe_d3` | −1.000 | +0.999 | −37.5 | +37.5 | both pinned |
+| `r_toe_d4` | +1.000 | +0.999 | +37.5 | +37.5 | **both, same sign** |
+| `l_toe_d2` | −0.193 | −0.999 | −7.2 | −37.5 | 43 only |
+| `l_toe_d3` | +1.000 | +0.998 | +37.5 | +37.4 | **both, same sign** |
+| `l_toe_d4` | −1.000 | −0.994 | −37.5 | −37.3 | **both, same sign** |
+| `tail_1_pitch` | +1.000 | −0.608 | +12.0 | −7.3 | 42 only |
+| `tail_2_pitch` | +1.000 | +0.135 | +12.0 | +1.6 | 42 only |
+| `r_hip_roll` | +1.000 | −0.540 | +25.0 | −13.5 | 42 only |
+| `l_hip_roll` | −1.000 | +0.591 | −25.0 | +14.8 | 42 only |
+| `neck_yaw` | −0.177 | +0.996 | −3.5 | +19.9 | 43 only |
+
+Toe |DC| mean: **0.865** (seed 42) → **0.998** (seed 43). Spread across one
+foot: **75.0°** and **74.9°**, on *both* feet, in *both* seeds.
+
+Everything else disagrees. The tail — all four joints pinned in seed 42 — is
+largely unpinned in seed 43, with `tail_1_yaw` at the *opposite* limit. Hip
+rolls flip sign. Neck yaw is unsaturated in one and pinned in the other.
+
+**The toes are the one thing two independent seeds agree on.** That moves the
+splay from "one policy's quirk" to "this plant reliably invites it" — the
+condition set in Addendum 5 for reordering the plan.
+
+Note it does **not** separate pass from fail: the passing policy splays too. It
+is a plant-correctness finding, not the bounce's cause.
+
+### The toes do no work, in either stage
+
+Stage 2, the seed-42 policy running at **3.33 m/s**:
+
+| | AC (movement) | \|DC\| | pinned |
+|---|---|---|---|
+| **toes** | **0.129** | 0.907 | 4 of 6 |
+| legs (hip / knee / ankle) | **0.670** | 0.114 | 0 of 6 |
+
+Five times less movement than the leg chain, four of six at their stops. In
+stage 1 every saturated toe has AC **exactly 0.000**. **Toe actuation is
+authority no policy in this project has ever used productively, and every
+policy abuses.**
+
+The `leg_joint` class already gives each toe `stiffness = 40`, and the toes
+carry `damping = 15` with `springref = 12.5`, so an unactuated toe already has
+a passive spring returning it to home and compliance under load.
+
+### Recommended plant change: passive toes
+
+Three ways to couple the digits:
+
+| | `action_dim` | verdict |
+|---|---|---|
+| **remove the six toe actuators** | 21 → **15** | **recommended** |
+| fixed tendon + one actuator per foot | 21 → 17 | fallback if toe-off is ever shown to matter |
+| joint equality constraints, keep 3 actuators | 21 | rejected |
+
+**Equality constraints are the worst option:** the action space keeps three
+redundant toe entries per foot that can be commanded to disagree while the
+solver fights them, MuJoCo joint equalities are soft and get violated under
+load — exactly when it matters — and it encodes a lie about the mechanism.
+
+**Passive is recommended over the tendon** because this failure was *caused by
+control authority the policy does not need*. Six independent toe actuators,
+unused across three stages and five runs, exploited by every policy that has
+touched them. A tendon repeats that in miniature: smaller unneeded authority,
+plus new unanchored modelling decisions (tendon coefficients, actuator gear and
+`ctrlrange`). The tendon can be added later, with evidence, for the same
+revision cost. Authority cannot be un-added once a policy leans on it.
+
+Passive also collapses two open questions to zero: the toe `ctrlrange` audit
+stops mattering, and the 75° opposition becomes *unreachable* rather than
+discouraged.
+
+**When to revisit:** if `action_ac_rms_per_actuator` on the toes ever rises
+toward the leg chain's level in a locomotion run, the toes are doing work and
+deserve a command. Today it is 0.129 against 0.670.
+
+### Revised ordering — plant first
+
+Addendum 5 put the plant work last, on the grounds that seed 42 and 43 were
+free controls that a revision bump would destroy. **That argument is dead.**
+With the bounce at one-in-two, `n = 2` is not a rate — it is two samples of a
+Bernoulli nobody can estimate from. Every experiment worth running now
+("does an action filter reduce the bounce rate?") needs **several seeds per
+arm**, and running those on a plant already known to be wrong wastes precisely
+the runs that matter most.
+
+1. **Land the plant revision** — passive toes. This changes both physics and
+   the action dimension, so bump the relevant plant/interface revisions.
+   Re-measure the statue with `zero_action_baseline.py` and re-derive
+   `min_avg_reward` and `collapse_peak_floor_reference`. Do not alter the four
+   ranges previously called "off-home": the action-mapping audit showed action
+   zero already reaches every named home control, and the ankle difference is
+   intentional preload.
+2. **Action filter in the training loop, multi-seed.** Still the candidate fix
+   for the bounce; the plant work does not address it. Curriculum the cutoff
+   down from ~30 Hz.
+3. **SAC as the discriminator, multi-seed** — bounces too → task/plant
+   property; doesn't → PPO's exploration schedule is the culprit.
+4. **Impulse as a training-time disturbance**, and the recovery envelope as
+   1b's acceptance metric. Baseline to beat: **0.00 m/s** on the weaker side.
+
+Cost, stated plainly: the seed-42 stage-1→2 chain becomes historical. With the
+bounce at one-in-two that chain was **luck rather than a reproducible
+foundation**, so it was a weaker asset than it looked before seed 43 landed.
+
+**Unchanged:** do not reweight the reward, and do not chase the statue.

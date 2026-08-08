@@ -27,6 +27,12 @@ Usage::
     # the do-nothing reference, for the same panel and seeds
     python environments/shared/scripts/stance_gate_report.py trex --zero-action
 
+    # probe: does the pose this policy holds need feedback, or only a constant?
+    python environments/shared/scripts/stance_gate_report.py trex \\
+        --model path/to/robust_best_model.zip \\
+        --vecnorm path/to/robust_best_model_vecnorm.pkl \\
+        --hold-constant
+
 Thresholds come from the stage TOML, so the report re-anchors automatically
 when the gate is retuned.  ``--episodes`` defaults to the stage's own
 ``min_eval_episodes``, because that is the panel size the bound's power is
@@ -41,6 +47,7 @@ import csv
 import json
 import math
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -164,6 +171,7 @@ def run_panel(
     env_kwargs: dict[str, Any],
     plant_identity: Any = None,
     control_dt: float = 0.01,
+    impulse: "RootImpulse | None" = None,
 ) -> dict[str, Any]:
     """Roll ``episodes`` deterministic episodes and reduce them for the gate.
 
@@ -201,9 +209,11 @@ def run_panel(
     # is invisible to it and unfixable by it (issue #489).
     action_stats = _new_action_stats()
     joint_names: list[str] = []
+    pose_mapping: list[dict[str, Any]] = []
 
     try:
         joint_names = _actuator_joint_names(env)
+        pose_mapping = _actuator_pose_mapping(env)
         _roll_episodes(
             env,
             predict=predict,
@@ -218,6 +228,7 @@ def run_panel(
             terminations=terminations,
             components=components,
             action_stats=action_stats,
+            impulse=impulse,
         )
     finally:
         env.close()
@@ -252,7 +263,7 @@ def run_panel(
         "components": {key: value / episodes for key, value in components.items()},
         "bilateral_duty": _full_horizon_mean(bilateral_duties),
         "single_duty": _full_horizon_mean(single_duties),
-        "action": _reduce_action_stats(action_stats, joint_names, control_dt),
+        "action": _reduce_action_stats(action_stats, joint_names, control_dt, pose_mapping),
         # The measurements the panel was reduced from. Kept rather than
         # discarded so the report can serialize the evidence, not only its
         # summary: an aggregate cannot be re-checked, and duty is the one
@@ -280,6 +291,14 @@ def _new_action_stats() -> dict[str, Any]:
         "sum": None,
         "sq_sum": None,
         "count": 0,
+        # Physical controls actually applied by the environment.  These stay
+        # separate from normalized actions because the species mapping can be
+        # piecewise about its home control; in that case E[f(a)] != f(E[a])
+        # and a normalized variance cannot be converted with one range-wide
+        # scale factor.
+        "ctrl_sum": None,
+        "ctrl_sq_sum": None,
+        "ctrl_count": 0,
         "delta": 0.0,
         "jerk": 0.0,
         # Counted separately: a difference needs two samples and a second
@@ -293,8 +312,12 @@ def _new_action_stats() -> dict[str, Any]:
     }
 
 
-def _accumulate_action(stats: dict[str, Any], action: np.ndarray) -> None:
-    """Accumulate one post-settle action into the per-actuator statistics."""
+def _accumulate_action(
+    stats: dict[str, Any],
+    action: np.ndarray,
+    applied_ctrl: "np.ndarray | None" = None,
+) -> None:
+    """Accumulate one post-settle action and its applied physical control."""
     if stats["sum"] is None or stats["sum"].shape != action.shape:
         stats["sum"] = np.zeros_like(action)
         stats["sq_sum"] = np.zeros_like(action)
@@ -313,6 +336,17 @@ def _accumulate_action(stats: dict[str, Any], action: np.ndarray) -> None:
             stats["jerk_count"] += 1
     stats["prev_prev"] = prev
     stats["prev"] = action
+
+    if applied_ctrl is not None:
+        ctrl = np.asarray(applied_ctrl, dtype=np.float64).ravel()
+        if ctrl.shape == action.shape:
+            if stats["ctrl_sum"] is None or stats["ctrl_sum"].shape != ctrl.shape:
+                stats["ctrl_sum"] = np.zeros_like(ctrl)
+                stats["ctrl_sq_sum"] = np.zeros_like(ctrl)
+                stats["ctrl_count"] = 0
+            stats["ctrl_sum"] += ctrl
+            stats["ctrl_sq_sum"] += ctrl * ctrl
+            stats["ctrl_count"] += 1
 
 
 def _actuator_joint_names(env: Any) -> list[str]:
@@ -338,15 +372,141 @@ def _actuator_joint_names(env: Any) -> list[str]:
         return []
 
 
-def _reduce_action_stats(stats: dict[str, Any], names: list[str], control_dt: float) -> dict[str, Any]:
+def _is_angular_position_control(model: Any, index: int, joint_id: int) -> bool:
+    """Whether actuator control values are directly interpretable as radians.
+
+    A joint transmission alone is not enough: Velociraptor's claw actuators
+    are geared motors, where ``ctrl=1`` is a dimensionless motor command rather
+    than a one-radian target.  Restrict degree fields to the canonical direct,
+    unit-gear hinge position servo compiled by MuJoCo's ``<position>`` shortcut.
+    Anything else keeps normalized and native-control statistics only.
+    """
+    import mujoco
+
+    gain = float(model.actuator_gainprm[index, 0])
+    bias = np.asarray(model.actuator_biasprm[index], dtype=np.float64)
+    gear = np.asarray(model.actuator_gear[index], dtype=np.float64)
+    return bool(
+        int(model.actuator_trntype[index]) == int(mujoco.mjtTrn.mjTRN_JOINT)
+        and int(model.jnt_type[joint_id]) == int(mujoco.mjtJoint.mjJNT_HINGE)
+        and int(model.actuator_gaintype[index]) == int(mujoco.mjtGain.mjGAIN_FIXED)
+        and int(model.actuator_biastype[index]) == int(mujoco.mjtBias.mjBIAS_AFFINE)
+        and np.isfinite(gain)
+        and gain > 0.0
+        and np.isclose(bias[0], 0.0)
+        and np.isclose(bias[1], -gain)
+        and np.isclose(gear[0], 1.0)
+        and np.allclose(gear[1:], 0.0)
+    )
+
+
+def _actuator_pose_mapping(env: Any) -> list[dict[str, Any]]:
+    """Per actuator, separate action origin, home control, and home pose.
+
+    Returns the physical control at normalized actions -1, 0, and +1, the
+    named home keyframe's control target, and the joint pose in that keyframe.
+    These are deliberately distinct: T-Rex maps residuals piecewise around
+    ``key_ctrl['home']``, while its ankles use an intentional control preload
+    relative to ``key_qpos['home']``.
+
+    This exists because ``|action| = 1`` is **not one physical event**.
+    ``_scale_action`` maps ``[-1, 1]`` onto each actuator's own physical
+    control targets, and on the T-Rex those spans differ by a factor of six: a
+    saturated tail target is 8-12 degrees from its origin while a saturated toe
+    target is 37.5 degrees away. Counting both as "saturated" pools them into
+    one number, which is the same mistake the DC/AC split was introduced to fix
+    one level up -- a normalized-unit summary hiding a physical distinction.
+    Measured, it hid the answer: the tail looked like the most extreme thing in
+    the DC table and is provably inert, while the toes carry the whole effect.
+    """
+    try:
+        # Probe the environment's own mapping instead of duplicating a shared
+        # midpoint formula.  T-Rex overrides that formula with a piecewise
+        # home-control residual mapping, and future action interfaces may do
+        # the same.
+        unwrapped = env.unwrapped
+        model = unwrapped.model
+        action_shape = tuple(unwrapped.action_space.shape)
+        negative_ctrl = np.asarray(
+            unwrapped._scale_action(-np.ones(action_shape, dtype=np.float64)),
+            dtype=np.float64,
+        ).ravel()
+        action_zero_ctrl = np.asarray(
+            unwrapped._scale_action(np.zeros(action_shape, dtype=np.float64)),
+            dtype=np.float64,
+        ).ravel()
+        positive_ctrl = np.asarray(
+            unwrapped._scale_action(np.ones(action_shape, dtype=np.float64)),
+            dtype=np.float64,
+        ).ravel()
+        if any(values.shape != (model.nu,) for values in (negative_ctrl, action_zero_ctrl, positive_ctrl)):
+            return []
+
+        keyframe = int(getattr(unwrapped, "_reset_keyframe_id", 0))
+        if not 0 <= keyframe < model.nkey:
+            keyframe = 0
+        home_qpos = model.key_qpos[keyframe] if model.nkey else None
+        home_ctrl = model.key_ctrl[keyframe] if model.nkey else action_zero_ctrl
+        mapping = []
+        for index in range(model.nu):
+            joint_id = int(model.actuator_trnid[index, 0])
+            address = int(model.jnt_qposadr[joint_id])
+            low, high = (float(value) for value in model.actuator_ctrlrange[index])
+            mapping.append(
+                {
+                    "ctrl_min": low,
+                    "ctrl_max": high,
+                    "action_negative_ctrl": float(negative_ctrl[index]),
+                    "action_zero_ctrl": float(action_zero_ctrl[index]),
+                    "action_positive_ctrl": float(positive_ctrl[index]),
+                    "angular_position_ctrl": _is_angular_position_control(model, index, joint_id),
+                    # With no keyframe, use action zero for both anchors so the
+                    # optional offsets read as unavailable/zero rather than
+                    # inventing a nominal posture.
+                    "home_ctrl": float(home_ctrl[index]),
+                    "home_qpos": (
+                        float(home_qpos[address]) if home_qpos is not None else float(action_zero_ctrl[index])
+                    ),
+                }
+            )
+        return mapping
+    except Exception:  # noqa: BLE001 - the angles are a convenience, not the measurement
+        return []
+
+
+def _commanded_angle(entry: dict[str, Any], action: float) -> float:
+    """The control target for an action, using the probed piecewise mapping.
+
+    Real reports use the applied-control moments recorded during rollout.  The
+    helper remains useful for endpoint display, fixtures, and legacy reports,
+    but must still mirror ``home-keyframe-residual/v1`` on both sides of zero.
+    """
+    clipped = float(np.clip(action, -1.0, 1.0))
+    zero = float(
+        entry.get(
+            "action_zero_ctrl",
+            entry.get("home_ctrl", entry.get("home", 0.5 * (entry["ctrl_min"] + entry["ctrl_max"]))),
+        )
+    )
+    negative = float(entry.get("action_negative_ctrl", entry["ctrl_min"]))
+    positive = float(entry.get("action_positive_ctrl", entry["ctrl_max"]))
+    return zero + clipped * (zero - negative if clipped < 0.0 else positive - zero)
+
+
+def _reduce_action_stats(
+    stats: dict[str, Any],
+    names: list[str],
+    control_dt: float,
+    pose_mapping: "list[dict[str, Any]] | None" = None,
+) -> dict[str, Any]:
     """Reduce the accumulators into the report's ``action`` block.
 
-    The DC/AC split is the point. ``mean(a)`` per actuator is the static pose
-    the policy commands -- under ``home-keyframe-residual/v1`` the distance
-    from the home keyframe, since ``action = 0`` *is* that keyframe -- and the
-    spread about it is what the policy does on top. They have different causes
-    and different fixes, and a single pooled number cannot tell them apart
-    (issue #489).
+    The DC/AC split is the point. ``mean(a)`` per actuator is the policy's
+    static normalized residual and the spread about it is what the policy does
+    on top. Applied-control moments are reduced independently, because the
+    residual-to-control mapping can have different slopes on either side of
+    zero. Static offset and variation have different causes and fixes, and a
+    single pooled number cannot tell them apart (issue #489).
     """
     count = stats["count"]
     if not count or stats["sum"] is None:
@@ -362,22 +522,82 @@ def _reduce_action_stats(stats: dict[str, Any], names: list[str], control_dt: fl
     freq = float("nan")
     if delta > 0.0:
         freq = math.asin(min(1.0, math.sqrt(jerk / delta) / 2.0)) / (math.pi * control_dt)
-    return {
+    mapping = pose_mapping or []
+    ctrl_count = int(stats.get("ctrl_count", 0))
+    ctrl_mean: "np.ndarray | None" = None
+    ctrl_ac: "np.ndarray | None" = None
+    if (
+        ctrl_count == count
+        and stats.get("ctrl_sum") is not None
+        and stats.get("ctrl_sq_sum") is not None
+        and stats["ctrl_sum"].shape == mean.shape
+        and stats["ctrl_sq_sum"].shape == mean.shape
+    ):
+        ctrl_mean = stats["ctrl_sum"] / ctrl_count
+        ctrl_var = np.maximum(stats["ctrl_sq_sum"] / ctrl_count - ctrl_mean * ctrl_mean, 0.0)
+        ctrl_ac = np.sqrt(ctrl_var)
+    per_actuator = []
+    for index in range(mean.size):
+        entry: dict[str, Any] = {
+            "index": index,
+            "joint": names[index] if index < len(names) else f"actuator_{index}",
+            "dc": float(mean[index]),
+            "ac_rms": float(ac[index]),
+        }
+        if index < len(mapping):
+            scale = mapping[index]
+            action_zero_ctrl = float(
+                scale.get(
+                    "action_zero_ctrl",
+                    scale.get("home_ctrl", scale.get("home", 0.5 * (scale["ctrl_min"] + scale["ctrl_max"]))),
+                )
+            )
+            home_ctrl = float(scale.get("home_ctrl", action_zero_ctrl))
+            home_qpos = float(scale.get("home_qpos", scale.get("home", home_ctrl)))
+            angular_position_ctrl = bool(scale.get("angular_position_ctrl", True))
+            # Preserve control anchors in native units so the report is
+            # auditable without reloading the exact plant model.  Control and
+            # qpos units are comparable only for the verified position-servo
+            # case below.
+            entry["angular_position_ctrl"] = angular_position_ctrl
+            entry["action_zero_ctrl"] = action_zero_ctrl
+            entry["home_ctrl"] = home_ctrl
+            # Applied-control moments are authoritative.  Mapping the action
+            # mean and variance after reduction is not equivalent when the
+            # negative and positive residual slopes differ, so omit physical
+            # DC/AC rather than fabricate them when controls were unavailable.
+            if ctrl_mean is not None and ctrl_ac is not None:
+                entry["ctrl_mean"] = float(ctrl_mean[index])
+                entry["ctrl_ac_rms"] = float(ctrl_ac[index])
+            if angular_position_ctrl:
+                entry["home_qpos"] = home_qpos
+                entry["range_deg"] = math.degrees(scale["ctrl_max"] - scale["ctrl_min"])
+                if ctrl_mean is not None and ctrl_ac is not None:
+                    entry["dc_deg"] = math.degrees(float(ctrl_mean[index]) - action_zero_ctrl)
+                    entry["ac_rms_deg"] = math.degrees(float(ctrl_ac[index]))
+                # A mapping-contract check, not a posture offset.  Under
+                # home-keyframe-residual/v1 this must be zero even when the
+                # home actuator target intentionally preloads a joint against
+                # gravity.
+                entry["zero_offset_deg"] = math.degrees(action_zero_ctrl - home_ctrl)
+                entry["home_preload_deg"] = math.degrees(home_ctrl - home_qpos)
+        per_actuator.append(entry)
+    reduced = {
         "dc_rms": float(np.sqrt(np.mean(mean * mean))),
         "ac_rms": float(np.sqrt(np.mean(var))),
         "delta_per_step": float(delta),
         "jerk_per_step": float(jerk),
         "effective_freq_hz": freq,
-        "per_actuator": [
-            {
-                "index": index,
-                "joint": names[index] if index < len(names) else f"actuator_{index}",
-                "dc": float(mean[index]),
-                "ac_rms": float(ac[index]),
-            }
-            for index in range(mean.size)
-        ],
+        "per_actuator": per_actuator,
     }
+    degrees = [entry["dc_deg"] for entry in per_actuator if "dc_deg" in entry]
+    if degrees:
+        # Reported alongside `dc_rms` rather than replacing it: the normalized
+        # figure is what inverts through the action penalties, and the degrees
+        # say how far the physical control targets moved.
+        reduced["dc_rms_deg"] = float(np.sqrt(np.mean(np.square(degrees))))
+        reduced["max_abs_dc_deg"] = float(np.max(np.abs(degrees)))
+    return reduced
 
 
 def _roll_episodes(
@@ -395,6 +615,7 @@ def _roll_episodes(
     terminations: dict[str, int],
     components: dict[str, float],
     action_stats: dict[str, Any],
+    impulse: "RootImpulse | None" = None,
 ) -> None:
     """Roll the panel, appending per-episode measurements to the given lists.
 
@@ -415,18 +636,32 @@ def _roll_episodes(
         single = 0
         measured = 0
         while True:
+            # Before the action is commanded, so the policy's first response to
+            # the shove is the step that follows it rather than the one it was
+            # already committed to.
+            if impulse is not None and steps == impulse.step:
+                _apply_root_impulse(env, impulse)
             action = np.asarray(predict(obs), dtype=np.float64).ravel()
             # Post-settle only, the same window the duty uses, so the reset
             # transient does not read as tremor.
-            if steps >= settle_steps:
-                _accumulate_action(action_stats, action)
+            measure_step = steps >= settle_steps
             obs, reward, terminated, truncated, info = env.step(action)
+            if measure_step:
+                # ``data.ctrl`` is the target the environment actually
+                # applied.  Reading it after ``step`` avoids a second call to
+                # a potentially species-specific mapping and also remains
+                # correct if plant-side action dynamics are added later.
+                try:
+                    applied_ctrl = np.asarray(env.unwrapped.data.ctrl, dtype=np.float64).copy()
+                except Exception:  # noqa: BLE001 - normalized stats remain useful without it
+                    applied_ctrl = None
+                _accumulate_action(action_stats, action, applied_ctrl)
             total += float(reward)
             for key, value in info.items():
                 if key.startswith("reward_") and key != "reward_total":
                     components[key] = components.get(key, 0.0) + float(value)
             stance = derive_stance_info(info)
-            if stance and steps >= settle_steps:
+            if stance and measure_step:
                 measured += 1
                 unsupported += int(stance["unsupported_duty"])
                 # The gate bounds unsupported duty only. Reporting the full
@@ -453,7 +688,7 @@ def _roll_episodes(
 
 
 #: Bumped when the JSON report's field meanings change.
-REPORT_SCHEMA = "mesozoic.stance-gate-report/v1"
+REPORT_SCHEMA = "mesozoic.stance-gate-report/v2"
 
 
 def thresholds_from_curriculum(curriculum: dict[str, Any]) -> StanceGateThresholds:
@@ -515,6 +750,195 @@ def _low_pass_predict(predict: Any, cutoff_hz: float, control_dt: float) -> Any:
     return filtered
 
 
+@dataclass(frozen=True)
+class ConstantHold:
+    """A constant command to substitute for the policy, and when to substitute it.
+
+    The probe behind ``docs/investigations/TREX_STAGE1_BOUNCE_2026_08.md`` §5:
+    the passing T-Rex stage-1 policy stands with a 0.366 rms tremor at ~22.7 Hz,
+    and the low-pass probe shows that tremor is load-bearing. That leaves two
+    readings, which the filter probe cannot separate:
+
+    * the *pose* the policy holds needs continuous active stabilisation, or
+    * the pose is holdable by a constant and the tremor is waste the action
+      penalties failed to suppress.
+
+    Replacing the policy with the constant it commands **on average** decides
+    it. If the animal keeps standing, the smooth solution existed and the
+    optimiser did not find it. If it falls, the pose genuinely requires
+    feedback, and the question moves to why the policy chose a pose it then has
+    to fight -- which points at the 13 of 21 actuators no stage-1 term
+    constrains.
+
+    Attributes:
+        actions: The constant command, one entry per actuator.
+        handoff_steps: Steps of real policy before the substitution. ``0``
+            commands the constant from reset; a value at or above the horizon
+            never substitutes at all, which is how the probe rolls its own
+            unmodified control panel without producing a report that could be
+            mistaken for a gate verdict.
+        ramp_steps: Steps to blend from the last commanded action into
+            *actions*. ``0`` switches in one step. The ramp exists to answer
+            the obvious objection to a hard switch -- that the animal fell from
+            the step transient rather than from losing feedback -- with a
+            second measurement instead of an argument.
+        label: Short name for this variant in the probe artifact.
+        source: Where *actions* came from, recorded so a reader can tell a
+            measured hold from a hand-supplied one.
+    """
+
+    actions: tuple[float, ...]
+    handoff_steps: int
+    ramp_steps: int = 0
+    label: str = "hold"
+    source: str = "measured"
+    #: Set for the control variant that never substitutes, so the renderer can
+    #: say "this row is the unmodified policy" rather than implying a hold.
+    holds: bool = field(default=True)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "label": self.label,
+            "source": self.source,
+            "holds": self.holds,
+            "handoff_steps": self.handoff_steps,
+            "ramp_steps": self.ramp_steps,
+            "actions": list(self.actions),
+        }
+
+
+@dataclass(frozen=True)
+class RootImpulse:
+    """A shove applied to the animal partway through an episode.
+
+    Stage 1 contains **no in-episode disturbance** -- the only perturbation
+    anywhere is joint-angle noise at reset -- so a policy that learns active
+    postural correction earns nothing over one that stands still, and the
+    zero-action statue is the objective's optimum. That makes "does this policy
+    actively correct?" unanswerable from any training artifact: the task never
+    asks.
+
+    This asks. The impulse is a step change in the root's linear velocity,
+    which is exactly a shove to the torso and needs no force/duration
+    bookkeeping to reproduce -- ``delta_v`` fully specifies it, and the
+    equivalent momentum is ``total_mass * delta_v``.
+
+    The **statue is the control**, and it is what makes the measurement mean
+    something. It commands a constant, so it cannot respond to anything;
+    whatever horizon it survives is the plant's *passive* robustness. Only the
+    margin above that line is active correction. A policy that matches the
+    statue has learned to stand, not to recover.
+
+    Attributes:
+        step: Step at which the impulse lands, normally the settle window so
+            the policy has established its own state first.
+        delta_v: Velocity change in m/s, world frame, applied to the root.
+        axis_label: Human name for the direction, for the artifact.
+    """
+
+    step: int
+    delta_v: tuple[float, float, float]
+    axis_label: str = "lateral"
+
+    @property
+    def speed(self) -> float:
+        return float(np.linalg.norm(np.asarray(self.delta_v, dtype=float)))
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "kind": "root_impulse/v1",
+            "step": self.step,
+            "delta_v": list(self.delta_v),
+            "speed": self.speed,
+            "axis_label": self.axis_label,
+        }
+
+
+def _apply_root_impulse(env: Any, impulse: RootImpulse) -> float:
+    """Add the impulse to the root's linear velocity. Returns the momentum in N*s.
+
+    ``qvel[0:3]`` is the free joint's world-frame linear velocity, and every
+    child body's velocity composes from it, so this translates the whole animal
+    rather than only the root body -- a shove, not a tug on one link.
+    """
+    data = env.unwrapped.data
+    model = env.unwrapped.model
+    data.qvel[0:3] += np.asarray(impulse.delta_v, dtype=data.qvel.dtype)
+    return float(np.sum(model.body_mass)) * impulse.speed
+
+
+def _hold_constant_predict(predict: Any, hold: ConstantHold) -> Any:
+    """Wrap *predict* so the plant receives a constant command after handoff.
+
+    Feedback is cut, not attenuated: past ``handoff_steps`` the returned action
+    no longer depends on the observation at all. That is the point -- a
+    low-pass still lets the policy respond slowly, so it cannot distinguish
+    "needs bandwidth" from "needs feedback", and this can.
+
+    The step counter is per episode and reset by the caller through
+    :func:`reset`, exactly like the low-pass probe: without it the second
+    episode would start already past handoff and the panel would measure
+    something different from the first.
+    """
+    constant = np.asarray(hold.actions, dtype=np.float64)
+    state: dict[str, Any] = {"step": 0, "last": None}
+
+    def held(obs: np.ndarray) -> np.ndarray:
+        step = state["step"]
+        state["step"] = step + 1
+        if step < hold.handoff_steps:
+            action = np.asarray(predict(obs), dtype=np.float64).ravel()
+            state["last"] = action
+            return np.asarray(action, dtype=np.float32)
+        elapsed = step - hold.handoff_steps
+        if hold.ramp_steps > 0 and elapsed < hold.ramp_steps:
+            # Blend from whatever was last commanded. At handoff that is the
+            # policy's own last action; from reset there is none, and zero is
+            # the right start because `action = 0` commands the named home
+            # control -- the targets the episode's reset pose settles under --
+            # so the ramp starts from the actual stance rather than jumping
+            # to one.
+            previous = state["last"]
+            if previous is None or previous.shape != constant.shape:
+                previous = np.zeros_like(constant)
+            weight = (elapsed + 1) / hold.ramp_steps
+            return np.asarray((1.0 - weight) * previous + weight * constant, dtype=np.float32)
+        return np.asarray(constant, dtype=np.float32)
+
+    held.reset = lambda: state.update(step=0, last=None)  # type: ignore[attr-defined]
+    return held
+
+
+def constant_hold_actions(report: dict[str, Any]) -> tuple[float, ...]:
+    """The per-actuator DC a report measured, as a constant command.
+
+    DC is the time-mean of the commanded action over the post-settle window --
+    under ``home-keyframe-residual/v1`` the static target the policy holds,
+    since ``action = 0`` is the named home control. Holding it is what makes
+    the probe a test of the pose rather than of some nearby pose: the animal
+    is asked to stand where it was already standing, with the variation about
+    it removed and nothing else changed.
+
+    One deliberate approximation, worth knowing when reading the results: the
+    held control is ``f(mean(action))``, not the ``mean(f(action))`` the
+    policy actually commanded -- the same distinction schema v2 draws for the
+    report's degree statistics. The two differ only for an actuator whose
+    action distribution crosses zero AND whose ctrlrange spans differ about
+    its home control; on the current trex plant that is neck/head pitch only,
+    where the measured crossings put the bias near 0.01 degrees. If a future
+    plant makes the gap material, derive the hold by inverting the recorded
+    per-actuator ``ctrl_mean`` through the probed mapping instead.
+    """
+    per_actuator = (report.get("action") or {}).get("per_actuator") or []
+    if not per_actuator:
+        raise StanceGateReportError(
+            "the report carries no per-actuator action statistics, so there is no "
+            "measured pose to hold. It was produced before that block existed, or "
+            "from a panel in which no episode survived the settling window."
+        )
+    return tuple(float(entry["dc"]) for entry in sorted(per_actuator, key=lambda e: e["index"]))
+
+
 def build_stance_gate_report(
     species: str,
     stage: int,
@@ -527,6 +951,8 @@ def build_stance_gate_report(
     seed: int = 3042,
     allow_legacy_plant: bool = False,
     filter_actions_hz: float | None = None,
+    hold_constant: ConstantHold | None = None,
+    impulse: RootImpulse | None = None,
 ) -> dict[str, Any]:
     """Roll a policy and return its gate verdict as a serializable dict.
 
@@ -586,6 +1012,22 @@ def build_stance_gate_report(
         predict = _low_pass_predict(predict, filter_actions_hz, control_dt)
         description += f" — actions low-passed at {filter_actions_hz:g} Hz"
 
+    if hold_constant is not None:
+        expected = int(plant_identity.action_dim)
+        if len(hold_constant.actions) != expected:
+            # Checked before the rollout rather than at the first step: numpy
+            # broadcasts a mismatched length silently, which would score a
+            # policy nobody asked for and report it as this one.
+            raise ValueError(
+                f"hold_constant carries {len(hold_constant.actions)} actions but {species} has action_dim {expected}"
+            )
+        predict = _hold_constant_predict(predict, hold_constant)
+        description += (
+            f" — {hold_constant.label}"
+            if not hold_constant.holds
+            else f" — commanded action held constant from step {hold_constant.handoff_steps}"
+        )
+
     result = run_panel(
         species,
         predict=predict,
@@ -596,6 +1038,7 @@ def build_stance_gate_report(
         env_kwargs=env_kwargs,
         plant_identity=plant_identity,
         control_dt=control_dt,
+        impulse=impulse,
     )
     panel = result["panel"]
     passed, failures = evaluate_stance_gate(panel, thresholds)
@@ -645,6 +1088,15 @@ def build_stance_gate_report(
         # a stored report. `render_stance_gate_report` prints it for the same
         # reason.
         "filter_actions_hz": filter_actions_hz,
+        # `None` for an ordinary run. Same contract as `filter_actions_hz`: a
+        # held rollout scored a policy whose feedback was cut, so it is a probe
+        # and never a verdict, and `_PROBE_MARKERS` keys the filenames off this.
+        "hold_constant": None if hold_constant is None else hold_constant.as_dict(),
+        # `None` for an ordinary run. A perturbed rollout scores the UNMODIFIED
+        # policy on a MODIFIED task, which is the opposite direction from the
+        # other two probes but has the same consequence: the gate is defined
+        # without a disturbance, so this verdict is not that verdict.
+        "impulse": None if impulse is None else impulse.as_dict(),
         # Where the commanded pose sits and what the policy does around it,
         # per actuator. `{}` when no post-settle step was measured.
         "action": result.get("action", {}),
@@ -659,6 +1111,62 @@ def build_stance_gate_report(
     }
 
 
+#: Report keys that mark a rollout as a PROBE rather than a verdict, mapped to
+#: the filename stem that probe writes under. Each names a modification applied
+#: between the policy and the plant, so a report carrying any of them scored
+#: something other than the checkpoint -- and must never land on the real
+#: report's filenames or supply the evidence a bundle is certified from.
+#:
+#: A registry rather than a chain of ``if``s because the failure mode is
+#: forgetting to extend the check: the filter probe's guard was written as a
+#: single ``is not None`` test, and a second probe added beside it would have
+#: silently inherited the certification filenames.
+_PROBE_MARKERS: dict[str, str] = {
+    "filter_actions_hz": "stance_gate_probe_filtered",
+    "hold_constant": "stance_gate_probe_constant",
+    "impulse": "stance_gate_probe_impulse",
+}
+
+
+def probe_stem(report: dict[str, Any]) -> str | None:
+    """The filename stem a probe report writes under, or ``None`` if it is a verdict."""
+    for key, stem in _PROBE_MARKERS.items():
+        if report.get(key) is not None:
+            return stem
+    return None
+
+
+def _probe_banner(report: dict[str, Any]) -> list[str]:
+    """The warning a probe report must carry above its verdict line."""
+    if report.get("filter_actions_hz") is not None:
+        what = f"actions low-passed at {report['filter_actions_hz']:g} Hz before reaching the plant."
+    elif report.get("hold_constant") is not None:
+        hold = report["hold_constant"]
+        what = (
+            "the policy ran the whole episode; this row is the unmodified control."
+            if not hold.get("holds", True)
+            else (
+                f"the commanded action was frozen to a constant from step {hold['handoff_steps']}"
+                + (f", ramped in over {hold['ramp_steps']} steps." if hold.get("ramp_steps") else ".")
+            )
+        )
+    elif report.get("impulse") is not None:
+        shove = report["impulse"]
+        return [
+            f"PROBE: a {shove['speed']:.2f} m/s {shove['axis_label']} impulse at step {shove['step']}.",
+            "This scores the unmodified policy on a MODIFIED TASK -- stage 1 has no disturbance,",
+            "so the gate below was never defined with one. It is not a gate result.",
+            "",
+        ]
+    else:
+        return []
+    return [
+        f"PROBE: {what}",
+        "This scores a MODIFIED policy. The verdict below is not a gate result for this checkpoint.",
+        "",
+    ]
+
+
 def render_stance_gate_report(report: dict[str, Any]) -> str:
     """Render a report dict as the human-readable text form."""
     thresholds = report["thresholds"]
@@ -671,15 +1179,10 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
             "below are reported but are not what this stage advances on."
         )
         lines.append("")
-    # Before the verdict, not after: a filtered rollout scores a MODIFIED
-    # policy, so its PASS/FAIL is not a statement about the checkpoint and a
-    # reader must not reach the verdict line without knowing that.
-    if report.get("filter_actions_hz") is not None:
-        lines += [
-            f"PROBE: actions low-passed at {report['filter_actions_hz']:g} Hz before reaching the plant.",
-            "This scores a MODIFIED policy. The verdict below is not a gate result for this checkpoint.",
-            "",
-        ]
+    # Before the verdict, not after: a probe rollout scores a MODIFIED policy,
+    # so its PASS/FAIL is not a statement about the checkpoint and a reader must
+    # not reach the verdict line without knowing that.
+    lines += _probe_banner(report)
     measured = report["horizon"] - report["settle_steps"]
     lines += [
         f"policy              {report['policy']}",
@@ -709,21 +1212,60 @@ def render_stance_gate_report(report: dict[str, Any]) -> str:
                 lines.append(f"  {key:28s} {components[key]:10.2f}")
     action = report.get("action") or {}
     if action:
+        summary = f"DC {action['dc_rms']:.3f} rms, AC {action['ac_rms']:.3f} rms, ~{action['effective_freq_hz']:.1f} Hz"
+        if "dc_rms_deg" in action:
+            summary += f"; {action['dc_rms_deg']:.1f}deg rms across angular position controls"
         lines += [
             "",
-            "commanded action, post-settle "
-            f"(DC {action['dc_rms']:.3f} rms, AC {action['ac_rms']:.3f} rms, "
-            f"~{action['effective_freq_hz']:.1f} Hz):",
-            "  DC is the distance from the home keyframe (action = 0 IS that pose);",
-            "  AC is what the policy does around it. Different causes, different fixes.",
+            f"commanded action, post-settle ({summary}):",
+            "  Normalised DC is the mean policy action; degree DC is the applied control",
+            "  target relative to action zero. AC is variation around each mean.",
         ]
         per_actuator = action.get("per_actuator") or []
-        # Largest offset first: the question this answers is WHICH joints are
-        # displaced, because a leg-pose weight can only reach the leg ones.
-        for entry in sorted(per_actuator, key=lambda e: -abs(e["dc"]))[:12]:
-            lines.append(f"  {entry['joint']:28s} DC {entry['dc']:+7.3f}   AC {entry['ac_rms']:6.3f}")
+        has_degrees = any("dc_deg" in entry for entry in per_actuator)
+        if has_degrees:
+            lines += [
+                "  Ordered by DEGREES, not by normalised action: |action| = 1 maps onto each",
+                "  actuator's own control span, so saturation can move a target 8deg or 37.5deg",
+                "  from its nominal target. Ranking by the normalised value pools those and",
+                "  hides which targets moved. Degree fields are emitted for verified angular",
+                "  position controls only; motors retain native control units in the JSON.",
+            ]
+        # Largest physical offset first when it can be computed. That ordering
+        # is the point: sorted by |dc| this table put twelve joints at exactly
+        # +/-1.000 at the top, of which the most extreme-looking (the tail, at
+        # 12deg of travel) was later measured to be mechanically inert.
+        key = (lambda e: -abs(e.get("dc_deg", 0.0))) if has_degrees else (lambda e: -abs(e["dc"]))
+        for entry in sorted(per_actuator, key=key)[:12]:
+            line = f"  {entry['joint']:22s} DC {entry['dc']:+7.3f}   AC {entry['ac_rms']:6.3f}"
+            if "dc_deg" in entry:
+                line += (
+                    f"   {entry['dc_deg']:+7.1f}deg   +/-{entry['ac_rms_deg']:5.1f}deg"
+                    f"   of {entry['range_deg']:5.1f}deg"
+                )
+            lines.append(line)
         if len(per_actuator) > 12:
             lines.append(f"  ... {len(per_actuator) - 12} more (full list in the JSON)")
+        # Contract check: under the home-keyframe residual mapping action zero
+        # must be the named home CONTROL.  Keep that distinct from a deliberate
+        # control-vs-qpos preload, which is a plant property rather than policy
+        # displacement or an action-mapping error.
+        offset = [entry for entry in per_actuator if abs(entry.get("zero_offset_deg", 0.0)) > 0.05]
+        if offset:
+            worst = max(offset, key=lambda e: abs(e["zero_offset_deg"]))
+            lines.append(
+                f"  NOTE: action = 0 differs from the named home control for {len(offset)} of "
+                f"{len(per_actuator)} actuators (worst {worst['joint']} "
+                f"{worst['zero_offset_deg']:+.1f}deg); inspect the action-mapping contract."
+            )
+        preload = [entry for entry in per_actuator if abs(entry.get("home_preload_deg", 0.0)) > 0.05]
+        if preload:
+            worst = max(preload, key=lambda e: abs(e["home_preload_deg"]))
+            lines.append(
+                f"  Nominal control preload differs from reset joint pose for {len(preload)} of "
+                f"{len(per_actuator)} actuators (worst {worst['joint']} "
+                f"{worst['home_preload_deg']:+.1f}deg); this is not policy displacement."
+            )
     lines += ["", f"GATE: {'PASS' if report['passed'] else 'FAIL'}"]
     lines += [f"  - {failure}" for failure in report["failures"]]
     return "\n".join(lines)
@@ -787,8 +1329,9 @@ def write_stance_gate_report(stage_dir: "str | Path", report: dict[str, Any]) ->
     # because that file is the per-episode evidence `result_bundle.evidence`
     # certifies a stance-gated stage from. Writing a filtered panel there would
     # certify a policy that was never run.
-    probe = report.get("filter_actions_hz") is not None
-    stem = "stance_gate_probe_filtered" if probe else "stance_gate_report"
+    stem = probe_stem(report)
+    probe = stem is not None
+    stem = stem or "stance_gate_report"
     text_path = directory / f"{stem}.txt"
     json_path = directory / f"{stem}.json"
     text_path.write_text(render_stance_gate_report(report) + "\n", encoding="utf-8")
@@ -893,6 +1436,748 @@ def write_action_filter_sweep(
     return {"action_filter_sweep_txt": text_path, "action_filter_sweep_json": json_path}
 
 
+def render_constant_hold_probe(reports: list[dict[str, Any]], *, probe_episodes: int) -> tuple[str, dict[str, Any]]:
+    """Reduce the constant-hold variants to their comparison table and payload.
+
+    Split from the writer so the CLI can print the table without depositing
+    files in whatever directory it was run from.
+
+    The rows are only meaningful against each other, which is why they share a
+    file. Two of them are controls that bracket the measurement:
+
+    * the **unmodified policy**, which must reach the horizon or the probe is
+      measuring a broken harness rather than a property of the pose, and
+    * the **zero hold**, the statue -- a constant that is already known to
+      stand all 1000 steps in 40 of 40 episodes.
+
+    Between them sit the held variants. Read them as a single yes/no:
+
+    * held rollouts reach the horizon -> the pose is holdable by a constant.
+      The tremor is not stabilisation; the action penalties simply failed to
+      find the smooth solution, and this is an optimisation problem.
+    * held rollouts fall while both controls stand -> the pose the policy chose
+      genuinely requires feedback. The question then moves to *why* it chose a
+      pose it has to fight, which points at the actuators no stage-1 term
+      constrains rather than at the action penalties.
+
+    The ramped variant exists to close the obvious objection to the hard
+    switch -- that a step transient, not the loss of feedback, is what knocked
+    the animal over -- with a measurement instead of an argument. If the hard
+    switch falls and the ramped one stands, the transient was the cause and
+    neither row says anything about the pose.
+
+    Deliberately does not write ``stance_panel_selected.csv``: no row here
+    scored the policy that would be certified.
+    """
+    rows = [
+        {
+            "label": report["hold_constant"]["label"],
+            "holds": report["hold_constant"]["holds"],
+            "source": report["hold_constant"]["source"],
+            "handoff_steps": report["hold_constant"]["handoff_steps"],
+            "ramp_steps": report["hold_constant"]["ramp_steps"],
+            "episode_length_mean": report["metrics"]["episode_length_mean"],
+            "full_horizon_fraction": report["metrics"]["full_horizon_fraction"],
+            "reward_mean": report["metrics"]["reward_mean"],
+            "mean_unsupported_duty": report["metrics"]["mean_unsupported_duty"],
+            "terminations": report["terminations"],
+        }
+        for report in reports
+    ]
+    horizon = reports[0]["horizon"]
+    policy = str(reports[0]["policy"]).split(" — commanded action held constant")[0].split(" — ")[0]
+    # The rows that hold the POLICY'S measured pose. Deliberately not "every
+    # row that holds something": `hold_zero` holds a constant too, and it is a
+    # control whose standing is already known and proves nothing about this
+    # policy. Folding it in would make an all-falling result read as mixed.
+    held = [row for row in rows if row["source"] == "measured"]
+    hold_actions = next(
+        (report["hold_constant"]["actions"] for report in reports if report["hold_constant"]["source"] == "measured"),
+        [],
+    )
+    payload = {
+        "schema": "mesozoic.constant-hold-probe/v1",
+        "species": reports[0]["species"],
+        "stage": reports[0]["stage"],
+        "policy": policy,
+        "horizon": horizon,
+        "episodes_per_variant": probe_episodes,
+        "hold_actions": hold_actions,
+        "note": (
+            "Each row scored a MODIFIED policy (its commanded action replaced by a "
+            "constant partway through the episode). No row is a gate verdict. The "
+            "question is whether the held rows reach the horizon: if they do, the "
+            "pose is holdable without feedback and the tremor is waste; if they "
+            "fall while both controls stand, the pose requires active stabilisation."
+        ),
+        "variants": rows,
+        "reports": reports,
+    }
+    lines = [
+        "PROBE: the policy's commanded action replaced by a constant partway through the episode.",
+        "Every held row scores a MODIFIED policy. None of them is a gate verdict.",
+        "",
+        f"policy              {policy}",
+        f"stage               {reports[0]['species']} stage {reports[0]['stage']}",
+        f"panel               {probe_episodes} episodes per variant, horizon {horizon}",
+        f"hold                the policy's own post-settle mean action, {len(hold_actions)} actuators",
+        "",
+        f"  {'variant':<26}{'handoff':>8}{'ramp':>6}{'ep length':>11}{'full-horiz':>12}{'reward':>10}   terminations",
+    ]
+    for row in rows:
+        handoff = "never" if not row["holds"] else str(row["handoff_steps"])
+        lines.append(
+            f"  {row['label']:<26}{handoff:>8}{row['ramp_steps']:>6}"
+            f"{row['episode_length_mean']:>11.1f}{row['full_horizon_fraction']:>12.4f}"
+            f"{row['reward_mean']:>10.1f}   {row['terminations']}"
+        )
+    lines += ["", "How to read it:"]
+    if held and all(row["full_horizon_fraction"] >= 0.95 for row in held):
+        lines += [
+            "  Every held variant reached the horizon. The pose the policy holds does NOT",
+            "  need feedback to stand -- a constant command suffices. The tremor is therefore",
+            "  not closed-loop stabilisation, and the gap to the statue is an optimisation",
+            "  failure rather than a missing reward term.",
+        ]
+    elif held and all(row["full_horizon_fraction"] <= 0.0 for row in held):
+        lines += [
+            "  No held variant reached the horizon. The pose the policy holds REQUIRES",
+            "  continuous feedback. The tremor is stabilisation, not waste, and penalising",
+            "  it harder would remove the only thing keeping the animal up. The question",
+            "  becomes why the policy settled on a pose it has to fight -- look at the",
+            "  actuators no stage-1 reward term constrains.",
+        ]
+    else:
+        lines += [
+            "  Mixed. Compare the ramped variant against the hard switch: if only the hard",
+            "  switch falls, the step transient caused it and neither row is evidence about",
+            "  the pose. Re-run with more episodes before drawing a conclusion.",
+        ]
+    lines += [
+        "",
+        "  The two controls bracket the measurement. 'policy' is the unmodified checkpoint",
+        "  and must reach the horizon; 'hold_zero' is the statue, a constant already known",
+        "  to stand. If either misbehaves, the harness is at fault, not the pose.",
+    ]
+    return "\n".join(lines) + "\n", payload
+
+
+#: A variant is treated as standing when it clears this share of full-horizon
+#: episodes, and as falling at or below :data:`_ABLATION_FALLS`. Two thresholds
+#: with a gap between them on purpose: an ablation that lands in the gap is
+#: reported as inconclusive rather than rounded to whichever side is nearer,
+#: because the conclusions on the two sides are opposite.
+_ABLATION_STANDS = 0.95
+_ABLATION_FALLS = 0.05
+
+
+def _ablation_verdicts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Classify each ablated group by necessity and sufficiency.
+
+    Necessity and sufficiency are asked separately because either alone
+    misleads. A group that is merely *correlated* with the fall -- the
+    saturated set is the obvious candidate, since saturation is visible and
+    dramatic -- shows up as necessary-and-not-sufficient or as neither, and
+    only the pair distinguishes that from a cause.
+    """
+    by_label = {row["label"]: row for row in rows}
+    stands = lambda row: row is not None and row["full_horizon_fraction"] >= _ABLATION_STANDS  # noqa: E731
+    falls = lambda row: row is not None and row["full_horizon_fraction"] <= _ABLATION_FALLS  # noqa: E731
+    verdicts = []
+    for label in by_label:
+        if not label.startswith("release_"):
+            continue
+        group = label[len("release_") :]
+        release, only = by_label.get(label), by_label.get(f"only_{group}")
+        necessary = stands(release)
+        sufficient = falls(only)
+        if release is None or only is None:
+            verdict = "incomplete (a variant did not run)"
+        elif not (stands(release) or falls(release)) or not (stands(only) or falls(only)):
+            verdict = "inconclusive (a variant landed between the thresholds)"
+        elif necessary and sufficient:
+            verdict = "CAUSE — necessary and sufficient"
+        elif necessary:
+            verdict = "contributes — necessary, not sufficient alone"
+        elif sufficient:
+            verdict = "sufficient alone, but not necessary"
+        else:
+            verdict = "bystander — neither"
+        verdicts.append(
+            {
+                "group": group,
+                "necessary": necessary,
+                "sufficient": sufficient,
+                "verdict": verdict,
+                "release_full_horizon": None if release is None else release["full_horizon_fraction"],
+                "only_full_horizon": None if only is None else only["full_horizon_fraction"],
+            }
+        )
+    return verdicts
+
+
+#: Lateral impulses, in m/s of root velocity, swept by the recovery probe.
+#: Lateral because that is the axis a biped is least able to catch itself on --
+#: a fore/aft shove can be absorbed by pitching, a sideways one cannot without
+#: moving a foot. Both signs are run, because this policy is asymmetric: its
+#: toes are splayed differently on the two feet, so a one-sided sweep would
+#: measure the easy direction or the hard one and report it as the answer.
+_IMPULSE_SPEEDS = (0.5, 1.0, 2.0)
+
+
+def impulse_variants(speeds: "tuple[float, ...] | list[float]", *, step: int) -> list[RootImpulse]:
+    """One :class:`RootImpulse` per (speed, direction), plus the zero control."""
+    variants = [RootImpulse(step=step, delta_v=(0.0, 0.0, 0.0), axis_label="none (control)")]
+    for speed in sorted(set(float(value) for value in speeds if float(value) > 0)):
+        variants.append(RootImpulse(step=step, delta_v=(0.0, speed, 0.0), axis_label="lateral +y"))
+        variants.append(RootImpulse(step=step, delta_v=(0.0, -speed, 0.0), axis_label="lateral -y"))
+    return variants
+
+
+#: A row counts as a recovery when this share of episodes reach the horizon.
+#: Matches the gate's own `min_full_horizon_fraction`, so "recovered" means the
+#: same thing here as "stood" does there.
+_RECOVERY_SHARE = 0.95
+
+
+def _recovery_envelopes(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
+    """Largest impulse each side fully recovers from, per direction.
+
+    This, not a mean margin, is the number the probe exists to produce. Mean
+    margin over directions pools a full recovery with a total failure: on the
+    T-Rex checkpoint the policy reaches the horizon at 0.5 m/s in one direction
+    and falls at 0.5 m/s in the other, which averages to a healthy-looking
+    +135 steps and describes neither.
+    """
+    envelopes: dict[str, dict[str, float]] = {}
+    for row in rows:
+        if row["speed"] <= 0:
+            continue
+        entry = envelopes.setdefault(row["axis_label"], {"policy": 0.0, "statue": 0.0})
+        for who in ("policy", "statue"):
+            cell = row[who]
+            if cell is not None and cell["full_horizon_fraction"] >= _RECOVERY_SHARE:
+                entry[who] = max(entry[who], row["speed"])
+    return envelopes
+
+
+def _recovery_reading(
+    rows: list[dict[str, Any]],
+    envelopes: dict[str, dict[str, float]],
+    disturbed: list[dict[str, Any]],
+    horizon: int,
+) -> list[str]:
+    """The prose verdict, keyed off the envelopes rather than a pooled margin."""
+    lines: list[str] = []
+    policy_best = max((entry["policy"] for entry in envelopes.values()), default=0.0)
+    statue_best = max((entry["statue"] for entry in envelopes.values()), default=0.0)
+    mean_margin = sum(row["margin_steps"] for row in disturbed) / len(disturbed)
+
+    for direction, entry in sorted(envelopes.items()):
+        policy_text = "none" if entry["policy"] == 0 else f"{entry['policy']:.2f} m/s"
+        statue_text = "none" if entry["statue"] == 0 else f"{entry['statue']:.2f} m/s"
+        lines.append(f"  recovery envelope, {direction:<16} policy {policy_text:>9}   statue {statue_text:>9}")
+    lines.append("")
+
+    if policy_best > statue_best:
+        lines += [
+            f"  ACTIVE CORRECTION EXISTS: the policy fully recovers from {policy_best:.2f} m/s where a",
+            "  constant command never recovers from anything. Stage 1 never measured this,",
+            "  because the task has no disturbance to measure it with -- a metric gap, not a",
+            "  reward one.",
+        ]
+        sides = sorted(entry["policy"] for entry in envelopes.values())
+        if len(sides) > 1 and sides[0] < sides[-1]:
+            worst = "none" if sides[0] == 0 else f"{sides[0]:.2f} m/s"
+            lines += [
+                "",
+                f"  But it is ASYMMETRIC: {policy_best:.2f} m/s one way, {worst} the other, at the same",
+                "  magnitude. The envelope is the WEAKER side -- a disturbance does not ask which",
+                "  direction the policy prefers. Treat the smaller number as the capability.",
+            ]
+        beyond = [row["speed"] for row in disturbed if row["speed"] > policy_best]
+        if beyond:
+            lines += [
+                "",
+                f"  Above {policy_best:.2f} m/s it stops mattering: at {min(beyond):.2f} m/s and up the policy and",
+                "  the statue are within noise of each other, so the recovery envelope is narrow",
+                "  rather than merely asymmetric.",
+            ]
+    elif mean_margin < -0.1 * horizon:
+        lines += [
+            f"  The policy does WORSE than the statue by {mean_margin:.0f} steps on average.",
+            "  Standing still beats what this policy does under load, which is a finding about",
+            "  the pose and the tremor rather than about the task.",
+        ]
+    else:
+        lines += [
+            "  Neither side recovers from anything, and the policy's survival is within noise",
+            f"  of the statue's ({mean_margin:+.0f} steps on average). Nothing has learned to recover --",
+            "  exactly what the task structure predicts, since no reward term can pay for a",
+            "  correction that is never needed. No reweighting fixes this; the disturbance has",
+            "  to enter the TASK. See STAGE1_SPLIT_PLAN's 1a stance / 1b recovery split.",
+        ]
+    lines += [
+        "",
+        f"  (Mean step margin over disturbed rows is {mean_margin:+.0f}, reported second because it",
+        "  pools a full recovery with a total failure and can describe neither.)",
+    ]
+    return lines
+
+
+def render_impulse_probe(
+    policy_reports: list[dict[str, Any]],
+    statue_reports: list[dict[str, Any]],
+    *,
+    probe_episodes: int,
+) -> tuple[str, dict[str, Any]]:
+    """Reduce the recovery sweep to a policy-against-statue table.
+
+    The statue is not decoration here, it is the entire measurement. It
+    commands a constant and therefore cannot respond to anything, so whatever
+    horizon it survives is the plant's **passive** robustness -- how much of a
+    shove this body shrugs off with no control at all. The policy's margin
+    above that line is the only part attributable to active correction.
+
+    Three readings, and they lead to different work:
+
+    * policy well above statue -> active correction exists and stage 1 simply
+      never measured it. The gap is a *metric* gap, not a reward one.
+    * policy indistinguishable from statue -> nothing has learned to recover,
+      which is what the task structure predicts, and no reweighting fixes it.
+      Adding a disturbance to the task is the change (1a/1b).
+    * policy *below* statue -> its pose or its tremor is actively worse than
+      standing still under load, which would be a finding about the pose.
+    """
+
+    def _rows(reports: list[dict[str, Any]]) -> dict[tuple[float, str], dict[str, Any]]:
+        return {
+            (report["impulse"]["speed"], report["impulse"]["axis_label"]): {
+                "speed": report["impulse"]["speed"],
+                "axis_label": report["impulse"]["axis_label"],
+                "episode_length_mean": report["metrics"]["episode_length_mean"],
+                "full_horizon_fraction": report["metrics"]["full_horizon_fraction"],
+                "reward_mean": report["metrics"]["reward_mean"],
+                "terminations": report["terminations"],
+            }
+            for report in reports
+        }
+
+    policy_rows, statue_rows = _rows(policy_reports), _rows(statue_reports)
+    horizon = policy_reports[0]["horizon"]
+    step = policy_reports[0]["impulse"]["step"]
+    policy = str(policy_reports[0]["policy"]).split(" — ")[0]
+    keys = sorted(set(policy_rows) | set(statue_rows))
+    rows = []
+    for key in keys:
+        here, there = policy_rows.get(key), statue_rows.get(key)
+        rows.append(
+            {
+                "speed": key[0],
+                "axis_label": key[1],
+                "policy": here,
+                "statue": there,
+                "margin_full_horizon": (
+                    None
+                    if here is None or there is None
+                    else here["full_horizon_fraction"] - there["full_horizon_fraction"]
+                ),
+                "margin_steps": (
+                    None
+                    if here is None or there is None
+                    else here["episode_length_mean"] - there["episode_length_mean"]
+                ),
+            }
+        )
+    disturbed = [row for row in rows if row["speed"] > 0 and row["margin_steps"] is not None]
+    payload = {
+        "schema": "mesozoic.impulse-recovery-probe/v1",
+        "species": policy_reports[0]["species"],
+        "stage": policy_reports[0]["stage"],
+        "policy": policy,
+        "horizon": horizon,
+        "impulse_step": step,
+        "episodes_per_variant": probe_episodes,
+        "note": (
+            "Each row applies a root-velocity impulse mid-episode and scores the UNMODIFIED "
+            "policy on a MODIFIED task. Stage 1 declares no disturbance, so no row is a gate "
+            "verdict. The statue columns are the control: it commands a constant and cannot "
+            "respond, so its survival is the plant's passive robustness and only the policy's "
+            "margin above it is active correction."
+        ),
+        "rows": rows,
+        "policy_reports": policy_reports,
+        "statue_reports": statue_reports,
+    }
+    lines = [
+        "PROBE: a lateral impulse applied to the root partway through each episode.",
+        "Scores the unmodified policy on a MODIFIED TASK. No row is a gate verdict.",
+        "",
+        f"policy              {policy}",
+        f"stage               {policy_reports[0]['species']} stage {policy_reports[0]['stage']}",
+        f"panel               {probe_episodes} episodes per row, horizon {horizon}, impulse at step {step}",
+        "control             the zero-action statue, which commands a constant and CANNOT respond",
+        "",
+        f"  {'impulse':>9} {'direction':<16}{'policy len':>11}{'policy fh':>11}"
+        f"{'statue len':>11}{'statue fh':>11}{'margin':>9}",
+    ]
+
+    def _length(cell: "dict[str, Any] | None") -> str:
+        return "-" if cell is None else format(cell["episode_length_mean"], ".1f")
+
+    def _share(cell: "dict[str, Any] | None") -> str:
+        return "-" if cell is None else format(cell["full_horizon_fraction"], ".4f")
+
+    for row in rows:
+        here, there = row["policy"], row["statue"]
+        speed = "none" if row["speed"] == 0 else f"{row['speed']:.2f} m/s"
+        margin = "-" if row["margin_steps"] is None else format(row["margin_steps"], "+.0f")
+        lines.append(
+            f"  {speed:>9} {row['axis_label']:<16}"
+            f"{_length(here):>11}{_share(here):>11}"
+            f"{_length(there):>11}{_share(there):>11}{margin:>9}"
+        )
+    envelopes = _recovery_envelopes(rows)
+    payload["recovery_envelopes"] = envelopes
+    lines += ["", "How to read it:"]
+    if not disturbed:
+        lines.append("  No disturbed row completed; nothing to conclude.")
+    else:
+        lines += _recovery_reading(rows, envelopes, disturbed, horizon)
+    lines += [
+        "",
+        "  Both signs are run because this policy is asymmetric -- its toes are splayed",
+        "  differently on the two feet -- so a one-sided sweep would measure whichever",
+        "  direction it happens to be good at and report that as the answer.",
+        "  The zero-impulse row is the harness check: both columns must reach the horizon.",
+    ]
+    return "\n".join(lines) + "\n", payload
+
+
+def write_impulse_probe(
+    stage_dir: "str | Path",
+    policy_reports: list[dict[str, Any]],
+    statue_reports: list[dict[str, Any]],
+    *,
+    probe_episodes: int,
+) -> dict[str, Path]:
+    """Write the recovery sweep beside the stage's other artifacts."""
+    directory = Path(stage_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    text, payload = render_impulse_probe(policy_reports, statue_reports, probe_episodes=probe_episodes)
+    text_path = directory / "stance_gate_probe_impulse.txt"
+    json_path = directory / "stance_gate_probe_impulse.json"
+    text_path.write_text(text, encoding="utf-8")
+    json_path.write_text(
+        json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    return {"impulse_probe_txt": text_path, "impulse_probe_json": json_path}
+
+
+def render_constant_hold_ablation(reports: list[dict[str, Any]], *, probe_episodes: int) -> tuple[str, dict[str, Any]]:
+    """Reduce the release ablation to its table, per-group verdicts, and payload.
+
+    The ablation walks the path between two already-measured endpoints: the
+    policy's full held pose, which falls, and the statue, which stands. Each
+    row moves one actuator group between them, so the table asks which
+    coordinate carries the effect rather than merely restating that the pose
+    is unholdable.
+    """
+    rows = [
+        {
+            "label": report["hold_constant"]["label"],
+            "holds": report["hold_constant"]["holds"],
+            "source": report["hold_constant"]["source"],
+            "episode_length_mean": report["metrics"]["episode_length_mean"],
+            "full_horizon_fraction": report["metrics"]["full_horizon_fraction"],
+            "reward_mean": report["metrics"]["reward_mean"],
+            "terminations": report["terminations"],
+            "n_released": sum(1 for value in report["hold_constant"]["actions"] if value == 0.0),
+        }
+        for report in reports
+    ]
+    verdicts = _ablation_verdicts(rows)
+    horizon = reports[0]["horizon"]
+    policy = str(reports[0]["policy"]).split(" — ")[0]
+    payload = {
+        "schema": "mesozoic.constant-hold-ablation/v1",
+        "species": reports[0]["species"],
+        "stage": reports[0]["stage"],
+        "policy": policy,
+        "horizon": horizon,
+        "episodes_per_variant": probe_episodes,
+        "stands_threshold": _ABLATION_STANDS,
+        "falls_threshold": _ABLATION_FALLS,
+        "note": (
+            "Each row scored a MODIFIED policy: its commanded action frozen to a constant "
+            "with one actuator group returned to the home control (released) or with only "
+            "that group held. No row is a gate verdict. release_G tests whether G is "
+            "NECESSARY for the fall; only_G tests whether G is SUFFICIENT to cause it."
+        ),
+        "variants": rows,
+        "verdicts": verdicts,
+        "reports": reports,
+    }
+    lines = [
+        "PROBE: a held constant pose, ablated one actuator group at a time.",
+        "Every row scores a MODIFIED policy. None of them is a gate verdict.",
+        "",
+        f"policy              {policy}",
+        f"stage               {reports[0]['species']} stage {reports[0]['stage']}",
+        f"panel               {probe_episodes} episodes per variant, horizon {horizon}",
+        "released            commanded 0, the named home control under home-keyframe-residual/v1",
+        "",
+        f"  {'variant':<28}{'released':>9}{'ep length':>11}{'full-horiz':>12}{'reward':>10}   terminations",
+    ]
+    for row in rows:
+        released = "-" if not row["holds"] else str(row["n_released"])
+        lines.append(
+            f"  {row['label']:<28}{released:>9}{row['episode_length_mean']:>11.1f}"
+            f"{row['full_horizon_fraction']:>12.4f}{row['reward_mean']:>10.1f}   {row['terminations']}"
+        )
+    if verdicts:
+        lines += [
+            "",
+            "Per group — release_G asks if G is NECESSARY (does removing it rescue the pose?),",
+            "only_G asks if G is SUFFICIENT (does it alone break the statue?):",
+            "",
+            f"  {'group':<14}{'release stands':>16}{'only falls':>12}   verdict",
+        ]
+        for entry in verdicts:
+            release_text = "-" if entry["release_full_horizon"] is None else f"{entry['release_full_horizon']:.4f}"
+            only_text = "-" if entry["only_full_horizon"] is None else f"{entry['only_full_horizon']:.4f}"
+            lines.append(f"  {entry['group']:<14}{release_text:>16}{only_text:>12}   {entry['verdict']}")
+    if verdicts and not any(entry["necessary"] for entry in verdicts):
+        sufficient = [entry["group"] for entry in verdicts if entry["sufficient"]]
+        lines += ["", "Overall:"]
+        if sufficient:
+            lines += [
+                f"  No group is necessary, but {', '.join(sufficient)} " + ("is" if len(sufficient) == 1 else "are"),
+                "  sufficient. The pose is OVER-DETERMINED: more than one subset of it breaks",
+                "  the animal independently, so removing any single group leaves another still",
+                "  able to. 'Which joint is the cause' is therefore the wrong question -- but the",
+                "  sufficient groups are where the effect is concentrated, and a group that holds",
+                "  the full horizon on its own is exonerated no matter how extreme its DC looks.",
+            ]
+        else:
+            lines += [
+                "  No group is necessary and none is sufficient. Whatever makes the pose",
+                "  unholdable is not separated by these groupings -- it may be a combination",
+                "  that crosses them, or a joint outside every group. Regroup before concluding.",
+            ]
+    lines += [
+        "",
+        "Read the pair, never one side. A group can look implicated because it is",
+        "conspicuous -- twelve actuators pinned at exactly +/-1.000 are hard to ignore --",
+        "and still be a bystander. Only necessary AND sufficient identifies a cause;",
+        "necessary alone means it contributes with others, and neither means the",
+        "stabilisation load lives somewhere this ablation did not separate.",
+        "",
+        "The endpoints bound the path: 'hold_all' is the full pose and must fall,",
+        "'hold_zero' is the statue and must stand. If either misbehaves the harness is",
+        "at fault and no row below it means anything.",
+    ]
+    return "\n".join(lines) + "\n", payload
+
+
+def write_constant_hold_ablation(
+    stage_dir: "str | Path", reports: list[dict[str, Any]], *, probe_episodes: int
+) -> dict[str, Path]:
+    """Write the release ablation beside the stage's other artifacts.
+
+    Its own filenames, and never ``stance_panel_selected.csv`` -- same
+    discipline as the other two probes, for the same reason.
+    """
+    directory = Path(stage_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    text, payload = render_constant_hold_ablation(reports, probe_episodes=probe_episodes)
+    text_path = directory / "stance_gate_probe_release.txt"
+    json_path = directory / "stance_gate_probe_release.json"
+    text_path.write_text(text, encoding="utf-8")
+    json_path.write_text(
+        json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    return {"constant_hold_ablation_txt": text_path, "constant_hold_ablation_json": json_path}
+
+
+def write_constant_hold_probe(
+    stage_dir: "str | Path", reports: list[dict[str, Any]], *, probe_episodes: int
+) -> dict[str, Path]:
+    """Write the constant-hold probe beside the stage's other artifacts.
+
+    Its own filenames, and never ``stance_panel_selected.csv`` -- the same
+    discipline the filtered probe follows, for the same reason: no row here
+    scored the policy a bundle would be certified from.
+    """
+    directory = Path(stage_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    text, payload = render_constant_hold_probe(reports, probe_episodes=probe_episodes)
+    text_path = directory / "stance_gate_probe_constant.txt"
+    json_path = directory / "stance_gate_probe_constant.json"
+    text_path.write_text(text, encoding="utf-8")
+    json_path.write_text(
+        json.dumps(_json_safe(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
+        encoding="utf-8",
+    )
+    return {"constant_hold_probe_txt": text_path, "constant_hold_probe_json": json_path}
+
+
+#: Anatomical actuator groups, as substrings matched against joint names. Used
+#: to ablate a held pose one region at a time. Substrings rather than indices so
+#: the same groups resolve on any species whose joints follow the naming
+#: convention, and so adding a joint does not silently fall out of its group.
+_ACTUATOR_GROUPS: dict[str, tuple[str, ...]] = {
+    "tail": ("tail",),
+    "toes": ("toe",),
+    "head_neck": ("head", "neck"),
+    "hip_rolls": ("hip_roll",),
+}
+
+
+def actuator_indices_matching(report: dict[str, Any], patterns: "tuple[str, ...] | list[str]") -> tuple[int, ...]:
+    """Indices whose joint name contains any of *patterns*."""
+    per_actuator = (report.get("action") or {}).get("per_actuator") or []
+    return tuple(
+        int(entry["index"])
+        for entry in sorted(per_actuator, key=lambda e: e["index"])
+        if any(pattern in str(entry["joint"]) for pattern in patterns)
+    )
+
+
+def saturated_actuator_indices(report: dict[str, Any], threshold: float = 0.99) -> tuple[int, ...]:
+    """Indices whose commanded pose sits at or beyond *threshold* of the action range.
+
+    A saturated actuator has no headroom in one direction, so it cannot
+    contribute correction on that axis -- and on the T-Rex stage-1 checkpoint
+    the saturated set is also exactly the set with zero AC, i.e. the joints the
+    policy pins and then never moves.
+    """
+    per_actuator = (report.get("action") or {}).get("per_actuator") or []
+    return tuple(
+        int(entry["index"])
+        for entry in sorted(per_actuator, key=lambda e: e["index"])
+        if abs(float(entry["dc"])) >= threshold
+    )
+
+
+def constant_hold_released(hold: tuple[float, ...], release: "tuple[int, ...] | set[int]") -> tuple[float, ...]:
+    """*hold* with the given actuators returned to the home control.
+
+    "Released" means commanded ``0``, which under ``home-keyframe-residual/v1``
+    is exactly the named home control -- so releasing every actuator gives the
+    statue, and releasing none gives the policy's own pose. Every ablation
+    below is a point on the path between a pose that falls and one that stands.
+    """
+    released = set(int(index) for index in release)
+    return tuple(0.0 if index in released else value for index, value in enumerate(hold))
+
+
+def constant_hold_release_variants(
+    hold: tuple[float, ...],
+    report: dict[str, Any],
+    *,
+    horizon: int,
+    ramp_steps: int = 50,
+) -> list[ConstantHold]:
+    """Ablate the held pose one actuator group at a time, both ways round.
+
+    Every ablated variant is commanded **from reset**, not from a handoff
+    partway through. That is load-bearing and was got wrong the first time:
+    handing off at ``settle_steps`` means the policy first establishes its own
+    displaced pose and velocities, and the ablation then snaps some subset of
+    joints from ``±1.000`` to ``0`` in one step. The transient dominates, every
+    variant lands within noise of every other (311-349 steps across all
+    thirteen), and -- decisively -- the all-released endpoint falls too, at 323
+    steps, when the statue it is supposed to be stands for 1000. Both endpoints
+    on the same side of the answer means the path has no signal to locate.
+
+    From reset the endpoints are the two known measurements: releasing every
+    actuator commands ``0`` throughout, which *is* the statue and stands the
+    full horizon, and releasing none reproduces the probe's own
+    ``hold_from_reset`` at 133 steps. The path then genuinely runs from falling
+    to standing, and an ablation on it locates which coordinate carries the
+    effect.
+
+    Each group gets two variants, because "which joints cause the fall" needs
+    two different questions answered and one of them alone is not evidence:
+
+    * ``release_G`` holds everything *except* G, testing **necessity** -- does
+      taking G away rescue a pose that otherwise falls?
+    * ``only_G`` holds *only* G, testing **sufficiency** -- does adding G alone
+      break the statue, which is known to stand?
+
+    A group that is both necessary and sufficient is the cause. A group that is
+    necessary but not sufficient contributes with others. A group that is
+    neither is a bystander, whatever its DC looks like -- and the saturated
+    joints look dramatic (twelve pinned at exactly +/-1.000) precisely because
+    saturation is visible, not because it was shown to matter.
+
+    The two endpoints of the path are included as controls: ``hold_all`` is the
+    full pose, already measured to fall, and ``hold_zero`` is the statue,
+    already measured to stand. Every ablation sits between them.
+    """
+    zero = tuple(0.0 for _ in hold)
+    groups: dict[str, tuple[int, ...]] = {"saturated": saturated_actuator_indices(report)}
+    for name, patterns in _ACTUATOR_GROUPS.items():
+        indices = actuator_indices_matching(report, patterns)
+        if indices:
+            groups[name] = indices
+    everything = tuple(range(len(hold)))
+
+    variants = [
+        ConstantHold(hold, handoff_steps=horizon, label="policy (control)", source="unmodified", holds=False),
+        ConstantHold(hold, handoff_steps=0, ramp_steps=ramp_steps, label="hold_all"),
+    ]
+    for name, indices in groups.items():
+        if not indices or len(indices) == len(hold):
+            # Releasing everything is the statue and releasing nothing is
+            # `hold_all`; neither is an ablation, and both are already rows.
+            continue
+        complement = tuple(index for index in everything if index not in set(indices))
+        variants.append(
+            ConstantHold(
+                constant_hold_released(hold, indices),
+                handoff_steps=0,
+                ramp_steps=ramp_steps,
+                label=f"release_{name}",
+            )
+        )
+        variants.append(
+            ConstantHold(
+                constant_hold_released(hold, complement),
+                handoff_steps=0,
+                ramp_steps=ramp_steps,
+                label=f"only_{name}",
+            )
+        )
+    variants.append(
+        ConstantHold(zero, handoff_steps=0, ramp_steps=ramp_steps, label="hold_zero (statue control)", source="zeros")
+    )
+    return variants
+
+
+def constant_hold_variants(
+    hold: tuple[float, ...], *, settle_steps: int, horizon: int, ramp_steps: int = 50
+) -> list[ConstantHold]:
+    """The standard variant set: two controls bracketing three held rollouts.
+
+    ``handoff_steps = horizon`` is how the unmodified control is expressed. It
+    rolls the real policy for the whole episode yet still carries the
+    ``hold_constant`` marker, so it can never be written to the certification
+    filenames by a caller who forgets which report is which.
+    """
+    zero = tuple(0.0 for _ in hold)
+    return [
+        ConstantHold(hold, handoff_steps=horizon, label="policy (control)", source="unmodified", holds=False),
+        ConstantHold(hold, handoff_steps=settle_steps, ramp_steps=0, label="hold_after_settle"),
+        ConstantHold(hold, handoff_steps=settle_steps, ramp_steps=ramp_steps, label="hold_after_settle_ramped"),
+        ConstantHold(hold, handoff_steps=0, ramp_steps=ramp_steps, label="hold_from_reset"),
+        ConstantHold(zero, handoff_steps=0, ramp_steps=0, label="hold_zero (statue control)", source="zeros"),
+    ]
+
+
 #: Column order of ``stance_panel_selected.csv``.  ``unsupported_duty`` is
 #: empty for an episode whose duty could not be measured (one shorter than the
 #: settling window); the auditor treats empty as unmeasured rather than zero,
@@ -975,10 +2260,92 @@ def main() -> int:
         "still stands, the tremor was waste and belongs on the action path; if it falls, the "
         "tremor is closed-loop stabilisation and the fix belongs elsewhere (issue #489).",
     )
+    parser.add_argument(
+        "--hold-constant",
+        action="store_true",
+        help="Replace the policy's action with the constant it commands ON AVERAGE partway through "
+        "each episode, and score THAT, over a standard variant set with two controls. Separates "
+        "'the pose needs feedback' from 'the tremor is waste the action penalties missed' -- the "
+        "one question the low-pass probe cannot answer, because a filtered policy still responds.",
+    )
+    parser.add_argument(
+        "--hold-from-report",
+        metavar="JSON",
+        help="Take the constant from an existing stance_gate_report.json instead of measuring it. "
+        "Skips the measurement panel when you already have one for this checkpoint.",
+    )
+    parser.add_argument(
+        "--hold-episodes",
+        type=int,
+        default=10,
+        help="Episodes per hold variant (default 10). The probe certifies nothing and the effect "
+        "it measures is a fall or a full horizon, so it does not need the gate's panel size.",
+    )
+    parser.add_argument(
+        "--hold-ramp-steps",
+        type=int,
+        default=50,
+        help="Steps to blend into the constant in the ramped variants (default 50).",
+    )
+    parser.add_argument(
+        "--hold-release-ablation",
+        action="store_true",
+        help="Instead of the standard hold variants, ablate the held pose one actuator group at a "
+        "time -- releasing each group back to the home control, and holding each group alone. "
+        "Answers WHICH joints make the pose unholdable, by testing necessity and sufficiency "
+        "separately. Implies --hold-constant.",
+    )
+    parser.add_argument(
+        "--impulse-probe",
+        action="store_true",
+        help="Shove the animal mid-episode and see whether it recovers, against the zero-action "
+        "statue as the control. Stage 1 declares no disturbance, so nothing in a training "
+        "artifact can say whether a policy learned to CORRECT or only to stand still; this can. "
+        "The statue cannot respond at all, so only the policy's margin over it is active control.",
+    )
+    parser.add_argument(
+        "--impulse-speeds",
+        default=",".join(str(speed) for speed in _IMPULSE_SPEEDS),
+        help=f"Comma-separated impulse magnitudes in m/s (default {','.join(str(s) for s in _IMPULSE_SPEEDS)}). "
+        "Each is run in both lateral directions.",
+    )
+    parser.add_argument(
+        "--impulse-step",
+        type=int,
+        default=None,
+        help="Step at which the impulse lands (default: the stage's settle_steps, so the policy "
+        "has established its own state first).",
+    )
+    parser.add_argument(
+        "--impulse-episodes",
+        type=int,
+        default=8,
+        help="Episodes per impulse row (default 8).",
+    )
     args = parser.parse_args()
+    args.hold_constant = args.hold_constant or args.hold_release_ablation
 
     if not args.zero_action and not args.model:
         parser.error("pass --model, or --zero-action for the do-nothing reference")
+    if args.hold_constant and args.filter_actions is not None:
+        parser.error("--hold-constant and --filter-actions are different probes; run them separately")
+    if args.hold_episodes < 1:
+        parser.error(f"--hold-episodes must be at least 1, got {args.hold_episodes}")
+    if args.impulse_episodes < 1:
+        parser.error(f"--impulse-episodes must be at least 1, got {args.impulse_episodes}")
+    if args.impulse_probe and args.zero_action:
+        # The statue is this probe's CONTROL and is rolled automatically; making
+        # it the subject too would compare it against itself and report a margin
+        # of zero as if it meant something.
+        parser.error("--impulse-probe rolls the statue as its own control; pass --model, not --zero-action")
+    try:
+        impulse_speeds = [float(part) for part in args.impulse_speeds.split(",") if part.strip()]
+    except ValueError:
+        parser.error(f"--impulse-speeds must be comma-separated numbers, got {args.impulse_speeds!r}")
+    if args.impulse_probe and not any(speed > 0 for speed in impulse_speeds):
+        parser.error("--impulse-speeds needs at least one positive magnitude")
+    if args.hold_ramp_steps < 0:
+        parser.error(f"--hold-ramp-steps cannot be negative, got {args.hold_ramp_steps}")
     if args.filter_actions is not None and args.filter_actions <= 0:
         parser.error(f"--filter-actions must be positive, got {args.filter_actions}")
     # `--episodes 0` used to fall through `episodes or min_eval_episodes` to the
@@ -1011,6 +2378,93 @@ def main() -> int:
     if args.out_dir:
         for path in write_stance_gate_report(args.out_dir, report).values():
             print(f"written: {path}")
+
+    if args.hold_constant:
+        try:
+            hold = (
+                constant_hold_actions(json.loads(Path(args.hold_from_report).read_text(encoding="utf-8")))
+                if args.hold_from_report
+                else constant_hold_actions(report)
+            )
+        except StanceGateReportError as exc:
+            raise SystemExit(str(exc)) from exc
+        source_report = (
+            json.loads(Path(args.hold_from_report).read_text(encoding="utf-8")) if args.hold_from_report else report
+        )
+        variants = (
+            constant_hold_release_variants(
+                hold,
+                source_report,
+                horizon=report["horizon"],
+                ramp_steps=args.hold_ramp_steps,
+            )
+            if args.hold_release_ablation
+            else constant_hold_variants(
+                hold,
+                settle_steps=report["settle_steps"],
+                horizon=report["horizon"],
+                ramp_steps=args.hold_ramp_steps,
+            )
+        )
+        probes = [
+            build_stance_gate_report(
+                args.species,
+                args.stage,
+                stage_config=stage_config,
+                model_path=args.model,
+                vecnorm_path=args.vecnorm,
+                zero_action=args.zero_action,
+                episodes=args.hold_episodes,
+                seed=args.seed,
+                allow_legacy_plant=args.allow_legacy_plant,
+                hold_constant=variant,
+            )
+            for variant in variants
+        ]
+        render = render_constant_hold_ablation if args.hold_release_ablation else render_constant_hold_probe
+        write = write_constant_hold_ablation if args.hold_release_ablation else write_constant_hold_probe
+        text, _ = render(probes, probe_episodes=args.hold_episodes)
+        print()
+        print(text, end="")
+        if args.out_dir:
+            for path in write(args.out_dir, probes, probe_episodes=args.hold_episodes).values():
+                print(f"written: {path}")
+
+    if args.impulse_probe:
+        step = report["settle_steps"] if args.impulse_step is None else args.impulse_step
+        variants = impulse_variants(impulse_speeds, step=step)
+
+        def _sweep(zero_action: bool) -> list[dict[str, Any]]:
+            return [
+                build_stance_gate_report(
+                    args.species,
+                    args.stage,
+                    stage_config=stage_config,
+                    model_path=None if zero_action else args.model,
+                    vecnorm_path=None if zero_action else args.vecnorm,
+                    zero_action=zero_action,
+                    episodes=args.impulse_episodes,
+                    seed=args.seed,
+                    allow_legacy_plant=args.allow_legacy_plant,
+                    impulse=variant,
+                )
+                for variant in variants
+            ]
+
+        # Rolled once and reused: each sweep is a few thousand simulated steps,
+        # and calling the helper twice per output would silently double the cost
+        # of the probe for nothing.
+        policy_sweep = _sweep(zero_action=False)
+        statue_sweep = _sweep(zero_action=True)
+        text, _ = render_impulse_probe(policy_sweep, statue_sweep, probe_episodes=args.impulse_episodes)
+        print()
+        print(text, end="")
+        if args.out_dir:
+            written = write_impulse_probe(
+                args.out_dir, policy_sweep, statue_sweep, probe_episodes=args.impulse_episodes
+            )
+            for path in written.values():
+                print(f"written: {path}")
 
     declared = report["thresholds"]["min_eval_episodes"]
     if args.episodes is not None and args.episodes != declared:

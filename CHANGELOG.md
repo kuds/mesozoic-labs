@@ -52,6 +52,147 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **A constant-hold probe, which separates "needs bandwidth" from "needs
+  feedback".** `stance_gate_report.py --hold-constant` replaces the policy's
+  commanded action with the constant it commands *on average* — its own
+  post-settle per-actuator DC — partway through each episode, and scores that.
+  Runs automatically after the gate report when a stage sets
+  `stance_probe_hold_constant`, writing
+  `stance_gate_probe_constant.{txt,json}`.
+  The existing low-pass probe could not answer this. A filtered policy still
+  responds to what it sees, just slowly, so a fall under the filter shows the
+  policy needs *bandwidth* without showing whether it needs *feedback* at all —
+  and the two have opposite fixes. Cutting the loop outright decides it.
+  Five variants bracketed by two controls: the unmodified policy (expressed as
+  a handoff at the horizon, so it still carries the probe marker and can never
+  land on the certification filenames) and the zero hold, which is the statue.
+  Between them the measured pose is held from settle, hard and ramped, and from
+  reset. The ramped variant exists to answer the obvious objection to a hard
+  switch — that a step transient rather than the loss of feedback knocked the
+  animal over — with a measurement instead of an argument.
+  Measured on the passing `20260805_011234` checkpoint: **both controls reach
+  the 1000-step horizon** (policy 3006.9, statue 3271.0) and **every held
+  variant collapses** — 348.9 steps from settle, 330.2 ramped, 133.3 from
+  reset, all at full-horizon 0.0000. The pose that policy holds requires
+  continuous feedback, so the tremor is stabilisation rather than waste and
+  raising `smoothness`/`action_jerk` is contraindicated. Full analysis in the
+  2026-08-06 addendum to `TREX_STAGE1_BOUNCE_2026_08.md`.
+- **All four stance probes now run automatically on every SB3 run.** The
+  notebook calls `generate_stage_artifacts` and nothing else, so a probe
+  reachable only from the CLI produces nothing on a real run — and a diagnostic
+  nobody runs is a diagnostic that does not exist. `_run_stance_probes`
+  dispatches to all four, each gated by its own `[curriculum]` key:
+  `stance_probe_filter_hz`, `stance_probe_hold_constant`,
+  `stance_probe_release_ablation`, `stance_probe_impulse_speeds`. All four are
+  on for trex stage 1; every other stage and species is unaffected.
+  The probes run **dead last** in `generate_stage_artifacts` — after the gate
+  verdict is recorded, the summary written, and the graphs and replays saved —
+  because they are the most expensive artifact step and nothing downstream
+  reads them: a runtime lost mid-probe costs the probes alone, and a
+  probe-wiring failure has nothing left to sink. (They briefly ran inside the
+  gate report's own `try`, where a caller-side exception would have been
+  caught by the report's handler and recorded a FAIL for a stage whose
+  on-disk report says PASS — the founding defect of `_apply_stage_gate`, one
+  layer up.) Pinned by behaviour tests through the real call sites — kwarg
+  drift fails them, not just a deleted call — plus a source-order check that
+  the verdict precedes the probes, so a fifth probe added beside them cannot
+  quietly go unwired the way these two nearly did. Each is individually
+  non-fatal at both levels: the helpers guard their own rollouts, and the
+  runner guards each call site.
+  Cost, per stage, at the trex settings: 3 filter panels at 10 episodes, 5 hold
+  panels at 10, 13 ablation panels at 8, and 14 impulse panels at 8 — the
+  impulse sweep doubled because the statue control is rolled over the same
+  magnitudes and is not optional.
+- **An impulse recovery probe**, `--impulse-probe`, which answers the one
+  question no training artifact can: does a stage-1 policy actually *correct*,
+  or has it only learned to stand still? Stage 1 declares no in-episode
+  disturbance — the sole perturbation is joint-angle noise at reset — so the
+  gate, the reward and all three earlier probes are silent on it by
+  construction. This applies a step change to the root's linear velocity
+  mid-episode (a shove, fully specified by `delta_v`) and sweeps magnitude in
+  **both lateral directions**, with the **zero-action statue as the control**:
+  it commands a constant and cannot respond, so its survival is the plant's
+  passive robustness and only the policy's margin over it is active control.
+  Measured on the passing checkpoint: **recovery envelope 0.50 m/s one way,
+  0.00 the other.** It takes a 0.5 m/s shove to the horizon 8/8 pushed one
+  direction and falls 0/8 pushed the other (424 steps against the statue's
+  337); at 1.0 m/s and above it is within noise of the statue on both sides.
+  Narrow *and* asymmetric — which is what a pose with differently-splayed toes
+  predicts. So stage 1's gap is a **metric** gap: the capability partly exists
+  and the task cannot see it, which makes the envelope a ready-made acceptance
+  metric for `STAGE1_SPLIT_PLAN`'s 1b.
+  The read-out is keyed off that envelope rather than a mean step margin. The
+  first version averaged the margin across rows and reported +135, of which 82%
+  came from one row — a number equally produced by a policy that recovers
+  everywhere. That is the **third** pooled statistic in this investigation to
+  hide the structure it summarised, after `action_std` over actuators-and-time
+  and the saturation count over differing `ctrlrange`s. The pooled margin is
+  still printed, second, with its caveat attached.
+- **Per-actuator pose reported in degrees, and the table ordered by them.**
+  `|action| = 1` is not one physical event: `_scale_action` maps `[-1, 1]` onto
+  each actuator's own control span, and on the T-Rex those differ by 6× — a
+  saturated tail joint is **8–12°** of deflection while a saturated toe is
+  **37.5°**. Sorted by normalised `|dc|`, the per-actuator table put twelve
+  joints at exactly `±1.000` at the top with no way to tell them apart, and the
+  most conspicuous of them (the tail) was the one later measured to be
+  mechanically inert.
+  This is the same error the DC/AC split was introduced to fix, one level down:
+  a pooled *normalised* offset cannot separate moving 8° from moving 37.5° any
+  more than a pooled standard deviation can separate "sitting in the wrong
+  place" from "shaking". Report schema v2 now records applied `ctrl_mean` and
+  `ctrl_ac_rms` in native units, preserves the separate `action_zero_ctrl` and
+  `home_ctrl` anchors, and marks which actuators are direct angular position
+  controls. Only those receive `dc_deg`, `ac_rms_deg`, `range_deg`,
+  `zero_offset_deg`, `home_qpos`, and `home_preload_deg`; geared motors are not
+  mislabeled as radians. It adds `dc_rms_deg` across the compatible controls
+  and **orders the table by degrees** — which puts the five
+  saturated toes on top at ±37.5° and drops `tail_1_yaw` (±8°) out of the
+  printed twelve. The normalised `dc` is kept alongside, because that is what
+  inverts through the action penalties; the degree fields are reduced from the
+  controls actually applied during rollout.
+  This distinction matters for `home-keyframe-residual/v1`: T-Rex maps the two
+  halves piecewise around `key_ctrl[home]`, so neither the mean nor RMS physical
+  target can be reconstructed from normalised moments with one full-range
+  scale. Action zero maps exactly to the home control for all 21 actuators. The
+  ankles' +5.5° `key_ctrl - key_qpos` is an intentional gravity preload, now
+  reported separately instead of being mislabeled as policy displacement or a
+  reason to re-centre the control range.
+  The same correction is now swept through the prose that taught the old
+  identity: docstrings in `eval_diagnostics.py` and the hold/ablation helpers,
+  the rendered ablation header, the CLI help, and the KNOWN_ISSUES saturation
+  entry all say "home control" where they said "home keyframe" for what
+  `action = 0` commands — the keyframe's *pose* keeps its name. The
+  constant-hold docstring also now states its one deliberate approximation:
+  the held command is `f(mean(action))`, not `mean(f(action))`, which differs
+  only on zero-crossing actuators with asymmetric spans (neck/head pitch on
+  this plant, bias ~0.01°).
+- **A release ablation on top of it**, `--hold-release-ablation`, which asks
+  *which* joints make a held pose unholdable. Each actuator group gets two
+  variants: `release_G` holds everything except G (is G **necessary** — does
+  removing it rescue the pose?) and `only_G` holds G alone (is G
+  **sufficient** — does it break the statue by itself?). One side alone
+  misleads, and a group can look implicated purely because it is conspicuous.
+  Measured on the passing checkpoint: **holding only the six toe joints
+  reproduces the entire failure** (125.5 steps against the full pose's 128.6,
+  `tail_contact` 8 of 8 in both), while **holding only the four tail joints at
+  ±1.000 stands the full horizon** at reward 3254.0 — within 0.6% of the statue
+  — and head/neck likewise at 3286.1. No group is necessary (releasing all
+  twelve saturated actuators still falls at 224.6), so the pose is
+  over-determined, which the artifact now says in as many words.
+  **This refutes the saturation hypothesis** recorded the same day: saturation
+  is conspicuous, not causal, and the largest saturated group is provably inert.
+  Every ablated variant is commanded **from reset**, which is load-bearing and
+  was wrong in the first run: handing off at `settle_steps` snapped joints from
+  ±1.000 to 0 mid-episode, the transient dominated, all thirteen variants landed
+  within 311–349 steps of each other, and the `hold_zero` row — the statue,
+  known to stand 1000 — fell at 323. The control caught it; without it the flat
+  table would have read as "no group matters", which is a conclusion and a wrong
+  one. `TestReleaseAblationVariants` now pins the from-reset requirement.
+  Probe branding is now a registry (`_PROBE_MARKERS`) rather than a chain of
+  `is not None` tests. The filter probe's guard was a single such test, and a
+  second probe added beside it would have silently inherited the certification
+  filenames and the `stance_panel_selected.csv` evidence a bundle is certified
+  from.
 - **The deterministic policy's action, measured instead of inferred.** Every
   action number on disk came from *training* rollouts, so all of it carried
   exploration noise; diagnosing issue #489 meant recovering the commanded pose

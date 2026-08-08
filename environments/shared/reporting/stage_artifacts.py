@@ -26,6 +26,13 @@ logger = logging.getLogger(__name__)
 #: multi-cutoff sweep cost about what the old single 40-episode probe did.
 _PROBE_EPISODES = 10
 
+#: Episodes per row in the two sweep probes. Smaller than ``_PROBE_EPISODES``
+#: because both roll far more rows -- 13 for the ablation, 14 for the impulse
+#: sweep once the statue control doubles it -- and both measure effects that are
+#: a fall or a full horizon rather than a shift in a mean.
+_ABLATION_EPISODES = 8
+_IMPULSE_EPISODES = 8
+
 
 def build_stage_results_from_eval_data(
     stage_dir: "str | Path",
@@ -255,19 +262,117 @@ def _write_stance_gate_report(
             report["metrics"]["bilateral_support_duty"],
             written["stance_gate_report_txt"],
         )
-        _write_filtered_action_probe(
-            species=species,
-            stage=stage,
-            stage_config=stage_config,
-            stage_dir=stage_dir,
-            model_path=f"{selected_path}.zip",
-            vecnorm_path=selected_vecnorm,
-            episodes=report_episodes,
-        )
         return report
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Stance gate report failed for stage %d", stage, exc_info=True)
     return None
+
+
+def _run_stance_probes(
+    *,
+    species: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_dir: Path,
+    report: dict[str, Any] | None,
+) -> None:
+    """Run the stance probe battery against the selected checkpoint.
+
+    Pure diagnostics, so they run LAST in :func:`generate_stage_artifacts` --
+    after the gate verdict is recorded and the summary, graphs and replays are
+    written. They used to run inside :func:`_write_stance_gate_report`'s
+    ``try``, between "report written" and "verdict recorded", which put ~300
+    probe episodes of exposure in front of everything a finished run cannot
+    afford to lose -- and meant a probe-wiring exception (one the helpers'
+    internal handlers cannot see, e.g. a signature drift at a call site) was
+    caught by the report's handler and turned an already-written PASS into a
+    recorded FAIL.
+
+    *report* is the certification report the probes annotate; ``None`` (no
+    panel was measured) means there is nothing to probe. Each probe call
+    carries its own handler so a failure costs that probe alone -- including
+    caller-side failures, which is what makes the CHANGELOG's "individually
+    non-fatal" claim true at this level too.
+    """
+    if report is None:
+        return
+
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    declared_episodes = int(curriculum.get("min_eval_episodes", 40))
+    report_episodes = curriculum.get("stance_report_episodes")
+    report_episodes = declared_episodes if report_episodes is None else int(report_episodes)
+
+    # The same selector the report itself used; re-resolved here so the probes
+    # keep describing the one policy every other artifact describes.
+    from environments.shared.train_base import _select_handoff_checkpoint
+
+    handoff = _select_handoff_checkpoint(model_dir)
+    if handoff is None:
+        logger.warning(
+            "Stance probes skipped for stage %d: no checkpoint in %s has its matched _vecnorm.pkl",
+            stage,
+            model_dir,
+        )
+        return
+    _selected_name, selected_path, selected_vecnorm = handoff
+
+    probe_calls = (
+        (
+            "filtered action",
+            lambda: _write_filtered_action_probe(
+                species=species,
+                stage=stage,
+                stage_config=stage_config,
+                stage_dir=stage_dir,
+                model_path=f"{selected_path}.zip",
+                vecnorm_path=selected_vecnorm,
+                episodes=report_episodes,
+            ),
+        ),
+        (
+            "constant hold",
+            lambda: _write_constant_hold_probe(
+                species=species,
+                stage=stage,
+                stage_config=stage_config,
+                stage_dir=stage_dir,
+                model_path=f"{selected_path}.zip",
+                vecnorm_path=selected_vecnorm,
+                episodes=report_episodes,
+                measured=report,
+            ),
+        ),
+        (
+            "release ablation",
+            lambda: _write_constant_hold_ablation(
+                species=species,
+                stage=stage,
+                stage_config=stage_config,
+                stage_dir=stage_dir,
+                model_path=f"{selected_path}.zip",
+                vecnorm_path=selected_vecnorm,
+                measured=report,
+            ),
+        ),
+        (
+            "impulse",
+            lambda: _write_impulse_probe(
+                species=species,
+                stage=stage,
+                stage_config=stage_config,
+                stage_dir=stage_dir,
+                model_path=f"{selected_path}.zip",
+                vecnorm_path=selected_vecnorm,
+                settle_steps=int(report["settle_steps"]),
+            ),
+        ),
+    )
+    for label, run_probe in probe_calls:
+        try:
+            run_probe()
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+            logger.warning("Stance probe (%s) failed for stage %d", label, stage, exc_info=True)
 
 
 def _probe_cutoffs(raw: Any) -> list[float]:
@@ -372,6 +477,236 @@ def _write_filtered_action_probe(
             logger.info("Filtered action probe sweep -> %s", written["action_filter_sweep_txt"])
         except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
             logger.warning("Could not write the filtered action probe sweep", exc_info=True)
+
+
+def _write_constant_hold_probe(
+    *,
+    species: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_path: str,
+    vecnorm_path: str | None,
+    episodes: int,
+    measured: dict[str, Any],
+) -> None:
+    """Re-score the checkpoint with its action frozen to the constant it averages.
+
+    The question the filtered probe leaves open. Low-passing a policy still
+    lets it respond, just slowly, so a fall under the filter proves the policy
+    needs *bandwidth* without saying whether it needs *feedback*. Cutting the
+    feedback outright and commanding the policy's own post-settle mean
+    separates the two, and the two have opposite fixes: a pose that stands
+    under a constant means the tremor is waste the action penalties failed to
+    suppress, while a pose that falls means the tremor is the only thing
+    holding the animal up and penalising it harder would be actively wrong.
+
+    Off unless ``stance_probe_hold_constant`` is set. Reuses the gate report's
+    already-measured per-actuator DC rather than rolling a measurement panel of
+    its own, so the whole probe costs the variant panels and nothing else.
+
+    Writes ``stance_gate_probe_constant.{txt,json}`` and deliberately NOT
+    ``stance_panel_selected.csv``.
+    """
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    if not curriculum.get("stance_probe_hold_constant"):
+        return
+    probe_episodes = max(1, min(episodes, _PROBE_EPISODES))
+    entries: list[dict[str, Any]] = []
+    try:
+        from environments.shared.scripts.stance_gate_report import (
+            build_stance_gate_report,
+            constant_hold_actions,
+            constant_hold_variants,
+        )
+
+        hold = constant_hold_actions(measured)
+        variants = constant_hold_variants(
+            hold,
+            settle_steps=int(measured["settle_steps"]),
+            horizon=int(measured["horizon"]),
+        )
+        for variant in variants:
+            probe = build_stance_gate_report(
+                species,
+                stage,
+                stage_config=stage_config,
+                model_path=model_path,
+                vecnorm_path=vecnorm_path,
+                episodes=probe_episodes,
+                hold_constant=variant,
+            )
+            entries.append(probe)
+            logger.info(
+                "Constant-hold probe %s: episode length %.1f, full-horizon %.4f, reward %.1f. "
+                "MODIFIED policy -- not a gate verdict.",
+                variant.label,
+                probe["metrics"]["episode_length_mean"],
+                probe["metrics"]["full_horizon_fraction"],
+                probe["metrics"]["reward_mean"],
+            )
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+        logger.warning("Constant-hold probe failed for stage %d", stage, exc_info=True)
+    # Written even if a later variant raised, for the same reason the filter
+    # sweep is: the variants that succeeded are still a measurement, and the
+    # controls are what make the others readable.
+    if entries:
+        try:
+            from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+
+            written = write_constant_hold_probe(stage_dir, entries, probe_episodes=probe_episodes)
+            logger.info("Constant-hold probe -> %s", written["constant_hold_probe_txt"])
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+            logger.warning("Could not write the constant-hold probe", exc_info=True)
+
+
+def _write_constant_hold_ablation(
+    *,
+    species: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_path: str,
+    vecnorm_path: str | None,
+    measured: dict[str, Any],
+) -> None:
+    """Ablate the held pose one actuator group at a time, into the run dir.
+
+    Answers *which* joints make the pose unholdable, where the constant-hold
+    probe only answers *whether* it is. Each group is tested twice -- released
+    (is it necessary?) and held alone (is it sufficient?) -- because either
+    side alone lets a conspicuous group masquerade as a cause. On the T-Rex
+    that is not hypothetical: the tail is the most extreme thing in the DC
+    table and is provably inert, while the toes carry the whole effect.
+
+    Off unless ``stance_probe_release_ablation`` is set. Costs 2 panels per
+    actuator group plus 3 fixed rows -- 13 on the T-Rex -- so it is the most
+    expensive of the three probes and is opt-in per stage.
+    """
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    if not curriculum.get("stance_probe_release_ablation"):
+        return
+    entries: list[dict[str, Any]] = []
+    try:
+        from environments.shared.scripts.stance_gate_report import (
+            build_stance_gate_report,
+            constant_hold_actions,
+            constant_hold_release_variants,
+        )
+
+        hold = constant_hold_actions(measured)
+        for variant in constant_hold_release_variants(hold, measured, horizon=int(measured["horizon"])):
+            probe = build_stance_gate_report(
+                species,
+                stage,
+                stage_config=stage_config,
+                model_path=model_path,
+                vecnorm_path=vecnorm_path,
+                episodes=_ABLATION_EPISODES,
+                hold_constant=variant,
+            )
+            entries.append(probe)
+            logger.info(
+                "Release ablation %s: episode length %.1f, full-horizon %.4f. MODIFIED policy -- not a gate verdict.",
+                variant.label,
+                probe["metrics"]["episode_length_mean"],
+                probe["metrics"]["full_horizon_fraction"],
+            )
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+        logger.warning("Release ablation failed for stage %d", stage, exc_info=True)
+    if entries:
+        try:
+            from environments.shared.scripts.stance_gate_report import write_constant_hold_ablation
+
+            written = write_constant_hold_ablation(stage_dir, entries, probe_episodes=_ABLATION_EPISODES)
+            logger.info("Release ablation -> %s", written["constant_hold_ablation_txt"])
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+            logger.warning("Could not write the release ablation", exc_info=True)
+
+
+def _write_impulse_probe(
+    *,
+    species: str,
+    stage: int,
+    stage_config: dict[str, Any],
+    stage_dir: Path,
+    model_path: str,
+    vecnorm_path: str | None,
+    settle_steps: int,
+) -> None:
+    """Shove the animal mid-episode and record whether it recovers.
+
+    The only measurement in the pipeline that tracks *balance* rather than
+    *not falling over*. Stage 1 declares no in-episode disturbance, so every
+    other criterion -- duty, full-horizon share, reward -- is satisfied by a
+    statue, and nothing else can tell a policy that learned to recover from one
+    that learned to stand still.
+
+    Rolls the zero-action statue over the same sweep as the control. That is
+    not optional: the statue cannot respond to anything, so its survival is the
+    plant's *passive* robustness and only the policy's margin above it is
+    attributable to control. Reporting the policy's numbers alone would credit
+    the plant's own stability to the policy.
+
+    Off unless ``stance_probe_impulse_speeds`` is set. Costs 2 panels per
+    (speed, direction) plus the two zero controls -- 14 on the default sweep --
+    because the statue side doubles it.
+    """
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    raw = curriculum.get("stance_probe_impulse_speeds")
+    if not raw:
+        return
+    values = raw if isinstance(raw, (list, tuple)) else [raw]
+    speeds: list[float] = []
+    for value in values:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            logger.warning("stance_probe_impulse_speeds entry is not a number: %r; ignoring it", value)
+            continue
+        if number > 0:
+            speeds.append(number)
+    if not speeds:
+        return
+    try:
+        from environments.shared.scripts.stance_gate_report import (
+            build_stance_gate_report,
+            impulse_variants,
+            write_impulse_probe,
+        )
+
+        variants = impulse_variants(speeds, step=settle_steps)
+
+        def _sweep(zero_action: bool) -> list[dict[str, Any]]:
+            return [
+                build_stance_gate_report(
+                    species,
+                    stage,
+                    stage_config=stage_config,
+                    model_path=None if zero_action else model_path,
+                    vecnorm_path=None if zero_action else vecnorm_path,
+                    zero_action=zero_action,
+                    episodes=_IMPULSE_EPISODES,
+                    impulse=variant,
+                )
+                for variant in variants
+            ]
+
+        policy_sweep = _sweep(zero_action=False)
+        statue_sweep = _sweep(zero_action=True)
+        written = write_impulse_probe(stage_dir, policy_sweep, statue_sweep, probe_episodes=_IMPULSE_EPISODES)
+        envelopes = {
+            row["impulse"]["axis_label"]: row["metrics"]["full_horizon_fraction"]
+            for row in policy_sweep
+            if row["impulse"]["speed"] > 0
+        }
+        logger.info(
+            "Impulse recovery probe -> %s (policy full-horizon by direction: %s). MODIFIED task -- not a gate verdict.",
+            written["impulse_probe_txt"],
+            envelopes,
+        )
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
+        logger.warning("Impulse recovery probe failed for stage %d", stage, exc_info=True)
 
 
 def _apply_stage_gate(
@@ -553,21 +888,35 @@ def generate_stage_artifacts(
             except Exception:
                 logger.warning("Graph generation failed.", exc_info=True)
 
-        if not record_videos:
-            return stage_results
+        if record_videos:
+            stage_results = _record_stage_replays(
+                species_cfg=species_cfg,
+                stage_config=stage_config,
+                stage=stage,
+                algorithm=algorithm,
+                stage_dir=stage_dir,
+                replays_out=replays_out,
+                model_dir=model_dir,
+                seed=seed,
+                stage_results=stage_results,
+                allow_legacy_plant=allow_legacy_plant,
+            )
 
-        return _record_stage_replays(
-            species_cfg=species_cfg,
-            stage_config=stage_config,
-            stage=stage,
-            algorithm=algorithm,
-            stage_dir=stage_dir,
-            replays_out=replays_out,
-            model_dir=model_dir,
-            seed=seed,
-            stage_results=stage_results,
-            allow_legacy_plant=allow_legacy_plant,
-        )
+    # Probes run dead last, outside the staging context: they are the most
+    # expensive artifact step (~300 episodes at the trex stage-1 settings) and
+    # nothing downstream reads them, so a runtime lost mid-probe costs the
+    # probes alone -- never the recorded verdict, summary, graphs or replays
+    # above. Ordering is pinned by the wiring tests.
+    _run_stance_probes(
+        species=species,
+        stage=stage,
+        stage_config=stage_config,
+        stage_dir=stage_dir,
+        model_dir=model_dir,
+        report=stance_report,
+    )
+
+    return stage_results
 
 
 def _record_stage_replays(
