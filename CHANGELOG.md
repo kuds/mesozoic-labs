@@ -80,15 +80,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **All four stance probes now run automatically on every SB3 run.** The
   notebook calls `generate_stage_artifacts` and nothing else, so a probe
   reachable only from the CLI produces nothing on a real run — and a diagnostic
-  nobody runs is a diagnostic that does not exist. `_write_stance_gate_report`
-  now dispatches to all four, each gated by its own `[curriculum]` key:
+  nobody runs is a diagnostic that does not exist. `_run_stance_probes`
+  dispatches to all four, each gated by its own `[curriculum]` key:
   `stance_probe_filter_hz`, `stance_probe_hold_constant`,
   `stance_probe_release_ablation`, `stance_probe_impulse_speeds`. All four are
   on for trex stage 1; every other stage and species is unaffected.
-  Pinned by an AST check over the real call site rather than a mock, so a fifth
-  probe added beside them cannot quietly go unwired the way these two nearly
-  did. Each is individually non-fatal: a probe that raises loses itself and
-  nothing else, because the gate report is what certifies the stage.
+  The probes run **dead last** in `generate_stage_artifacts` — after the gate
+  verdict is recorded, the summary written, and the graphs and replays saved —
+  because they are the most expensive artifact step and nothing downstream
+  reads them: a runtime lost mid-probe costs the probes alone, and a
+  probe-wiring failure has nothing left to sink. (They briefly ran inside the
+  gate report's own `try`, where a caller-side exception would have been
+  caught by the report's handler and recorded a FAIL for a stage whose
+  on-disk report says PASS — the founding defect of `_apply_stage_gate`, one
+  layer up.) Pinned by behaviour tests through the real call sites — kwarg
+  drift fails them, not just a deleted call — plus a source-order check that
+  the verdict precedes the probes, so a fifth probe added beside them cannot
+  quietly go unwired the way these two nearly did. Each is individually
+  non-fatal at both levels: the helpers guard their own rollouts, and the
+  runner guards each call site.
   Cost, per stage, at the trex settings: 3 filter panels at 10 episodes, 5 hold
   panels at 10, 13 ablation panels at 8, and 14 impulse panels at 8 — the
   impulse sweep doubled because the statue control is rolled over the same
