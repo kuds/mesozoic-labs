@@ -56,6 +56,7 @@ def train_jax(
     warmup_ent_coef: float = 0.02,
     ramp_updates: int = 0,
     ramp_start_fraction: float = 0.1,
+    ramp_attr: str = "forward_vel_weight",
 ) -> tuple[Any, dict[str, float], Any]:
     """Train a species with JAX/MJX PPO.
 
@@ -98,6 +99,9 @@ def train_jax(
         ramp_updates: Ramp forward_vel_weight scale over the first N
             updates (TOML ``ramp_updates``).  0 disables.
         ramp_start_fraction: Starting fraction of forward_vel_weight.
+        ramp_attr: Reward attribute the ramp applies to (TOML ``ramp_attr``).
+            Only ``"forward_vel_weight"`` is supported on the MJX path;
+            anything else raises rather than silently ramping nothing.
 
     Returns:
         ``(params, eval_metrics, obs_stats)`` tuple.  *obs_stats* is the
@@ -183,6 +187,7 @@ def train_jax(
         warmup_ent_coef=warmup_ent_coef,
         ramp_updates=ramp_updates,
         ramp_start_fraction=ramp_start_fraction,
+        ramp_attr=ramp_attr,
     )
 
     params, eval_metrics, _state = trainer.train(
@@ -277,6 +282,10 @@ def main():
         jax_kwargs = stage_config.get("jax_kwargs", {})
         env_kwargs = stage_config.get("env_kwargs", {})
 
+        from .jax_curriculum import validate_jax_kwargs
+
+        validate_jax_kwargs(jax_kwargs, source=f"{args.species} stage {args.stage} [jax]")
+
         # Override fall_penalty / reset noise from [jax] section if specified.
         # Use direct assignment — setdefault is a no-op when [env] already
         # defines the key, which silently ignores the JAX-specific override.
@@ -314,6 +323,7 @@ def main():
             warmup_ent_coef=jax_kwargs.get("warmup_ent_coef", 0.02),
             ramp_updates=jax_kwargs.get("ramp_updates", 0),
             ramp_start_fraction=jax_kwargs.get("ramp_start_fraction", 0.1),
+            ramp_attr=jax_kwargs.get("ramp_attr", "forward_vel_weight"),
             env_kwargs=env_kwargs,
         )
 

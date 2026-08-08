@@ -936,6 +936,13 @@ class JaxTrainer:
             ``ramp_start_fraction`` to 1.0 over the first N updates
             (TOML ``ramp_updates``).  0 disables.
         ramp_start_fraction: Starting fraction of forward_vel_weight.
+        ramp_attr: Reward attribute the ramp applies to (TOML ``ramp_attr``).
+            Only ``"forward_vel_weight"`` is supported on the MJX path — it is
+            the one weight wired through ``env.step`` as a runtime scale;
+            everything else is baked into the jitted reward at trace time.
+            Accepted (and refused loudly for other values) so the TOML key
+            behaves identically here and in the notebook's :func:`train` path,
+            instead of being silently dropped.
     """
 
     def __init__(
@@ -953,7 +960,17 @@ class JaxTrainer:
         warmup_ent_coef: float = 0.02,
         ramp_updates: int = 0,
         ramp_start_fraction: float = 0.1,
+        ramp_attr: str = "forward_vel_weight",
     ):
+        if ramp_updates > 0 and ramp_attr != "forward_vel_weight":
+            # Same contract as the module-level train(): the MJX env captures
+            # most weights as Python constants at trace time, so they cannot
+            # be ramped without recompilation.  Fail loud rather than
+            # silently ramping the wrong attribute (or nothing).
+            raise ValueError(
+                f"Reward ramp on attr={ramp_attr!r} is not supported by the MJX path; "
+                "only 'forward_vel_weight' is dynamic at runtime."
+            )
         self.env = env
         self.network = network
         self.optimizer = optimizer
@@ -966,6 +983,7 @@ class JaxTrainer:
         self.warmup_ent_coef = warmup_ent_coef
         self.ramp_updates = ramp_updates
         self.ramp_start_fraction = ramp_start_fraction
+        self.ramp_attr = ramp_attr
 
         self._collect_rollout: Callable | None = None
         self._scan_ppo_update: Callable | None = None
@@ -1189,7 +1207,8 @@ class JaxTrainer:
             )
         if self.ramp_updates > 0:
             _logger.info(
-                "Ramp: forward_vel scale %s -> 1.0 over %d updates",
+                "Ramp: %s scale %s -> 1.0 over %d updates",
+                self.ramp_attr,
                 self.ramp_start_fraction,
                 self.ramp_updates,
             )

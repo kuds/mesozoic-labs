@@ -23,6 +23,77 @@ from .curriculum.stance_gate import (
 
 _logger = logging.getLogger(__name__)
 
+#: TOML ``[jax]`` keys mapped to :func:`~environments.shared.jax_training.train_jax`
+#: parameter names.  Module-level so the mapping loop in :func:`run_curriculum`
+#: and :func:`validate_jax_kwargs`'s known-key set cannot drift apart — a key
+#: added to one without the other now fails a test instead of going silently
+#: inert (``ramp_attr`` and ``obs_rms_decay_on_resume`` were both dropped this
+#: way while eight TOML comments asserted they worked).
+_JAX_KEY_MAP = {
+    "num_envs": "num_envs",
+    "rollout_len": "rollout_len",
+    "num_updates": "num_updates",
+    "learning_rate": "learning_rate",
+    "learning_rate_end": "learning_rate_end",
+    "max_grad_norm": "max_grad_norm",
+    "gamma": "gamma",
+    "gae_lambda": "gae_lambda",
+    "clip_range": "clip_range",
+    "vf_clip_range": "vf_clip_range",
+    "ent_coef": "ent_coef",
+    "vf_coef": "vf_coef",
+    "ppo_epochs": "n_epochs",
+    "target_kl": "target_kl",
+    "minibatch_size": "minibatch_size",
+    "warmup_updates": "warmup_updates",
+    "warmup_clip_range": "warmup_clip_range",
+    "warmup_ent_coef": "warmup_ent_coef",
+    "ramp_updates": "ramp_updates",
+    "ramp_start_fraction": "ramp_start_fraction",
+    "ramp_attr": "ramp_attr",
+}
+
+#: ``[jax]`` keys applied as ``[env]`` overrides rather than train kwargs.
+_JAX_ENV_OVERRIDE_KEYS = ("fall_penalty", "reset_noise_scale", "init_qpos_noise", "init_yaw_noise")
+
+#: Every ``[jax]`` key some consumer actually reads.  ``[curriculum]`` keys get
+#: this discipline from ``gate_schema`` ("silently dropping a misspelled
+#: threshold disables it") and ``[env]`` keys fail loudly at env construction;
+#: the ``[jax]`` table had neither, and the configs' own history shows the trap
+#: is real ("species default was leaking into stage 1 via key mismatch bug").
+#: ``policy_kwargs`` is declared in every TOML but consumed by no JAX path
+#: today — the network factory is fixed — kept known so shipped configs
+#: validate; wiring it into ``make_actor_critic`` is its own change.
+KNOWN_JAX_KEYS = (
+    frozenset(_JAX_KEY_MAP)
+    | frozenset(_JAX_ENV_OVERRIDE_KEYS)
+    | frozenset({"obs_rms_decay_on_resume", "policy_kwargs"})
+)
+
+
+def validate_jax_kwargs(jax_kwargs: dict[str, Any], *, source: str) -> None:
+    """Reject unknown ``[jax]`` keys, fail-closed.
+
+    Args:
+        jax_kwargs: The stage config's ``jax_kwargs`` table.
+        source: Human-readable origin for the error message, e.g.
+            ``"trex stage 2 [jax]"``.
+
+    Raises:
+        ValueError: If the table carries a key no consumer reads.  Silently
+            dropping a misspelled or unwired key disables it — the failure
+            mode this module shipped twice (``ramp_attr``,
+            ``obs_rms_decay_on_resume``).
+    """
+    unknown = sorted(set(jax_kwargs) - KNOWN_JAX_KEYS)
+    if unknown:
+        raise ValueError(
+            f"{source} declares keys nothing consumes: {unknown}. "
+            "A [jax] key that no training path reads is silently inert — fix the "
+            "spelling, or add it to _JAX_KEY_MAP / KNOWN_JAX_KEYS in jax_curriculum.py "
+            "alongside the code that consumes it."
+        )
+
 
 def episode_return_for_gate(eval_metrics: dict[str, float], *, threshold: float) -> float:
     """The EPISODE-level mean return the TOML reward thresholds are stated in.
@@ -227,6 +298,9 @@ def run_curriculum(
     obs_stats = None
     for stage in stages:
         stage_config = load_stage_config(species, stage)
+        jax_kwargs = stage_config.get("jax_kwargs", {})
+        env_kwargs = stage_config.get("env_kwargs", {})
+        validate_jax_kwargs(jax_kwargs, source=f"{species} stage {stage} [jax]")
 
         # Pass previous stage's params AND observation-normalization stats to
         # the next stage — carrying only the weights would feed the policy
@@ -235,37 +309,26 @@ def run_curriculum(
         if params is not None:
             train_kwargs["init_params"] = params
         if obs_stats is not None:
+            # Decay the carried normalization count so the entered stage's
+            # shifted obs distribution (near-zero velocity in balance →
+            # sustained velocity in locomotion) re-anchors the stats within a
+            # few updates — with the prior stage's count of millions,
+            # update_running_stats is nearly a no-op exactly when the
+            # distribution moves.  Same default (0.01) and per-stage override
+            # (obs_rms_decay_on_resume, 1.0 disables) as the notebook's
+            # resume cell, which honored this key while both library paths
+            # silently dropped it.
+            decay = float(jax_kwargs.get("obs_rms_decay_on_resume", 0.01))
+            if decay != 1.0:
+                from .jax_normalization import decay_running_stats
+
+                obs_stats = decay_running_stats(obs_stats, decay_factor=decay)
+                _logger.info("Stage %d resume: obs normalization count decayed by %.4g", stage, decay)
             train_kwargs["init_obs_stats"] = obs_stats
 
         # Merge TOML [jax] and [env] sections into train_kwargs so that
         # stage-specific hyperparameters and reward weights reach train_jax.
         stage_train_kwargs = dict(train_kwargs)
-        jax_kwargs = stage_config.get("jax_kwargs", {})
-        env_kwargs = stage_config.get("env_kwargs", {})
-
-        # Map TOML [jax] keys to train_jax parameter names
-        _JAX_KEY_MAP = {
-            "num_envs": "num_envs",
-            "rollout_len": "rollout_len",
-            "num_updates": "num_updates",
-            "learning_rate": "learning_rate",
-            "learning_rate_end": "learning_rate_end",
-            "max_grad_norm": "max_grad_norm",
-            "gamma": "gamma",
-            "gae_lambda": "gae_lambda",
-            "clip_range": "clip_range",
-            "vf_clip_range": "vf_clip_range",
-            "ent_coef": "ent_coef",
-            "vf_coef": "vf_coef",
-            "ppo_epochs": "n_epochs",
-            "target_kl": "target_kl",
-            "minibatch_size": "minibatch_size",
-            "warmup_updates": "warmup_updates",
-            "warmup_clip_range": "warmup_clip_range",
-            "warmup_ent_coef": "warmup_ent_coef",
-            "ramp_updates": "ramp_updates",
-            "ramp_start_fraction": "ramp_start_fraction",
-        }
         for toml_key, param_name in _JAX_KEY_MAP.items():
             if toml_key in jax_kwargs:
                 stage_train_kwargs[param_name] = jax_kwargs[toml_key]

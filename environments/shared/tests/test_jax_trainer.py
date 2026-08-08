@@ -499,3 +499,27 @@ class TestJaxTrainerObsStatsRawOnly:
             f"{float(jnp.max(jnp.abs(obs_mean))):.4f}); stats may be "
             "updated from normalized obs"
         )
+
+
+class TestRampAttrGuard:
+    """The TOML ramp_attr key is honored with the same contract everywhere:
+    'forward_vel_weight' works, anything else fails at construction — the MJX
+    env bakes other weights into the jitted reward at trace time, so a
+    different attr cannot ramp and must not pretend to."""
+
+    def test_an_unsupported_ramp_attr_is_refused_at_construction(self):
+        with pytest.raises(ValueError, match="forward_vel_weight"):
+            JaxTrainer(
+                env=None,
+                network=None,
+                optimizer=None,
+                ppo_config=None,
+                ramp_updates=5,
+                ramp_attr="tail_stability_weight",
+            )
+
+    def test_the_supported_attr_and_a_disabled_ramp_construct_fine(self):
+        trainer = JaxTrainer(env=None, network=None, optimizer=None, ppo_config=None, ramp_updates=5)
+        assert trainer.ramp_attr == "forward_vel_weight"
+        # With the ramp disabled the attr is inert, so any value is tolerated.
+        JaxTrainer(env=None, network=None, optimizer=None, ppo_config=None, ramp_updates=0, ramp_attr="whatever")
