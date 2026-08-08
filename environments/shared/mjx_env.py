@@ -847,11 +847,43 @@ class MJXDinoEnv:
                 ctrl = scale_action_around_nominal_jax(action, ctrl_range, nominal_ctrl)
             data = state.data.replace(ctrl=ctrl)
 
-            # Physics step with frame skip
-            def body_fn(_, d):
-                return mjx.step(model, d)
+            # Physics step with frame skip, aggregating contact across the
+            # substeps in lockstep with BaseDinoEnv.step: physics runs
+            # frame_skip times per control step, and reading only the final
+            # substep let a control-clock-locked hop unload between samples
+            # (the seed-43 stage-1 bounce measured exactly one unloaded
+            # sample in 5).  The carry accumulates the per-foot MIN touch
+            # force and an any-substep OR of the height-emulated floor-strike
+            # checks; both backends read sensors at the same per-substep
+            # phase, so the five snapshots match the SB3 loop's.
+            def _foot_force_totals(d):
+                totals = []
+                for sensor_group in foot_sensor_groups:
+                    total = jnp.float32(0.0)
+                    for sensor_idx in sensor_group:
+                        total = total + d.sensordata[sensor_idx]
+                    totals.append(total)
+                return jnp.stack(totals)
 
-            data = jax.lax.fori_loop(0, frame_skip, body_fn, data)
+            def _height_strike(d):
+                struck = jnp.bool_(False)
+                for body_id, z_thresh in body_height_checks:
+                    struck = struck | (d.xpos[body_id, 2] < z_thresh)
+                for site_id, z_thresh in site_height_checks:
+                    struck = struck | (d.site_xpos[site_id, 2] < z_thresh)
+                return struck
+
+            def body_fn(_, carry):
+                d, carry_min, carry_struck = carry
+                d = mjx.step(model, d)
+                return (d, jnp.minimum(carry_min, _foot_force_totals(d)), carry_struck | _height_strike(d))
+
+            data, min_foot_forces, substep_struck = jax.lax.fori_loop(
+                0,
+                frame_skip,
+                body_fn,
+                (data, jnp.full((len(foot_sensor_groups),), jnp.inf, dtype=jnp.float32), jnp.bool_(False)),
+            )
 
             # Build observation
             pelvis_id = config.body_ids.get("pelvis", config.body_ids.get("torso", 0))
@@ -873,18 +905,15 @@ class MJXDinoEnv:
             r_forward, fwd_vel = reward_forward_velocity(
                 vel_2d, forward_ref, config.forward_vel_max, forward_vel_weight
             )
-            # Foot contact: read touch sensors.  Each foot's reading is the
-            # pad sensor plus any per-toe sensors declared for it, because a
-            # touch sensor cannot see geoms on child bodies -- without the
-            # aux terms a T-Rex standing on its digits reads as airborne.
+            # Foot contact: the substep-MIN aggregate from the physics loop's
+            # carry.  Each foot's per-substep reading is the pad sensor plus
+            # any per-toe sensors declared for it, because a touch sensor
+            # cannot see geoms on child bodies -- without the aux terms a
+            # T-Rex standing on its digits reads as airborne.  MIN over
+            # per-substep per-foot SUMS, matching
+            # BaseDinoEnv._aggregated_foot_contact_forces exactly.
             foot_contact_threshold = 0.1  # Newtons
-            foot_force_values = []
-            for sensor_group in foot_sensor_groups:
-                foot_force = jnp.float32(0.0)
-                for sensor_idx in sensor_group:
-                    foot_force = foot_force + data.sensordata[sensor_idx]
-                foot_force_values.append(foot_force)
-            foot_forces = jnp.stack(foot_force_values)
+            foot_forces = min_foot_forces
             has_foot_contact = jnp.any(foot_forces > foot_contact_threshold)
             r_bilateral_support, bilateral_support_quality = reward_bilateral_support(
                 foot_forces,
@@ -1097,13 +1126,13 @@ class MJXDinoEnv:
             )
             terminated = terminated | nosedive_terminated
 
-            # Body-height floor contact termination
-            for body_id, z_thresh in body_height_checks:
-                terminated = terminated | (data.xpos[body_id, 2] < z_thresh)
-
-            # Site-height floor contact termination (more precise for extremities)
-            for site_id, z_thresh in site_height_checks:
-                terminated = terminated | (data.site_xpos[site_id, 2] < z_thresh)
+            # Body/site-height floor-strike termination, evaluated at EVERY
+            # physics substep via the fori_loop carry (substep_struck already
+            # includes the final substep's state).  A strike that resolves
+            # within one control step -- a tail slap that bounces back up --
+            # used to be invisible to the boundary sample; the SB3 backend
+            # latches the analogous any-substep contact in its step loop.
+            terminated = terminated | substep_struck
 
             # Stage 3 success: proximity-based contact detection
             success = jnp.bool_(False)

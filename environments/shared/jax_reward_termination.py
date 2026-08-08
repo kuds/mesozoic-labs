@@ -102,6 +102,7 @@ def compute_total_reward(
     success_threshold: float = 0.3,
     success_bonus: float = 0.0,
     additional_terminated: Array | None = None,
+    aggregated_foot_forces: Array | None = None,
 ) -> Array:
     """Compute total scalar reward matching ``mjx_env.py`` step logic.
 
@@ -129,7 +130,15 @@ def compute_total_reward(
         reward_cfg.get("forward_vel_weight", 0.0),
     )
 
-    foot_forces = _per_foot_forces(data, foot_indices, foot_sensor_groups)
+    # Substep-MIN override: the training backends aggregate touch force
+    # across the frame_skip physics substeps (see mjx_env step_fn and
+    # BaseDinoEnv.step); a caller scoring a stepped trajectory passes the
+    # aggregate so eval prices the same quantity training optimizes.
+    # Default None keeps single-state semantics for the parity tests.
+    if aggregated_foot_forces is not None:
+        foot_forces = aggregated_foot_forces
+    else:
+        foot_forces = _per_foot_forces(data, foot_indices, foot_sensor_groups)
     has_foot_contact = jnp.any(foot_forces > 0.1)
     r_bilateral_support, bilateral_support_quality = reward_bilateral_support(
         foot_forces,
@@ -356,6 +365,7 @@ def compute_reward_components(
     initial_pos_2d: Array | None = None,
     sensor_tail_gyro_start: int | None = None,
     forward_ref_2d: Array | None = None,
+    aggregated_foot_forces: Array | None = None,
 ) -> dict[str, Array]:
     """Compute per-component reward breakdown for diagnostics.
 
@@ -376,7 +386,15 @@ def compute_reward_components(
         reward_cfg.get("forward_vel_weight", 0.0),
     )
 
-    foot_forces = _per_foot_forces(data, foot_indices, foot_sensor_groups)
+    # Substep-MIN override: the training backends aggregate touch force
+    # across the frame_skip physics substeps (see mjx_env step_fn and
+    # BaseDinoEnv.step); a caller scoring a stepped trajectory passes the
+    # aggregate so eval prices the same quantity training optimizes.
+    # Default None keeps single-state semantics for the parity tests.
+    if aggregated_foot_forces is not None:
+        foot_forces = aggregated_foot_forces
+    else:
+        foot_forces = _per_foot_forces(data, foot_indices, foot_sensor_groups)
     has_foot_contact = jnp.any(foot_forces > 0.1)
     r_bilateral_support, bilateral_support_quality = reward_bilateral_support(
         foot_forces,
@@ -559,7 +577,15 @@ def is_terminated(
     site_height_checks: tuple[tuple[int, float], ...] = (),
     sensor_quat_start: int = 6,
 ) -> Array:
-    """Composite termination check matching ``mjx_env.py`` step logic."""
+    """Composite termination check over ONE data snapshot.
+
+    Scores the state it is handed -- a boundary sample.  The training step in
+    ``mjx_env.py`` additionally evaluates the body/site height checks at
+    EVERY physics substep through its ``fori_loop`` carry, so a strike that
+    resolves between control boundaries terminates training but is invisible
+    to this single-snapshot checker; auditing a training termination from
+    post-step data alone can therefore disagree with the trainer.
+    """
     root_quat = data.sensordata[sensor_quat_start : sensor_quat_start + 4]
     body_z = data.xpos[root_body_id, 2]
     tilt = quat_to_tilt(root_quat)

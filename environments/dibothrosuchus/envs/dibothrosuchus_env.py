@@ -263,6 +263,14 @@ class DibothrosuchusEnv(BaseDinoEnv):
         self._sensor_fl_foot = 11
         self._sensor_rr_foot = 12
         self._sensor_rl_foot = 13
+        # Per-foot groups for the base class's substep MIN aggregation --
+        # mirrors mjx_config's sensor_foot_indices (no aux sensors here).
+        self._foot_sensor_groups = (
+            (self._sensor_fr_foot,),
+            (self._sensor_fl_foot,),
+            (self._sensor_rr_foot,),
+            (self._sensor_rl_foot,),
+        )
 
     def _scale_action(self, action: np.ndarray) -> np.ndarray:
         """Map normalized residual actions around the XML home controls.
@@ -445,11 +453,9 @@ class DibothrosuchusEnv(BaseDinoEnv):
         reward_height = self.height_weight * height_frac
         info["reward_height"] = reward_height
 
-        # 11. Gait symmetry (reward alternating diagonal pair touchdowns)
-        fr_contact = self.data.sensordata[self._sensor_fr_foot]
-        fl_contact = self.data.sensordata[self._sensor_fl_foot]
-        rr_contact = self.data.sensordata[self._sensor_rr_foot]
-        rl_contact = self.data.sensordata[self._sensor_rl_foot]
+        # 11. Gait symmetry (reward alternating diagonal pair touchdowns).
+        # Substep-MIN aggregated -- see BaseDinoEnv._aggregated_foot_contact_forces.
+        fr_contact, fl_contact, rr_contact, rl_contact = self._aggregated_foot_contact_forces()
         info["r_foot_contact"] = float(fr_contact)
         info["l_foot_contact"] = float(fl_contact)
         info["rr_foot_contact"] = float(rr_contact)

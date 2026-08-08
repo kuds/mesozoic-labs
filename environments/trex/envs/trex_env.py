@@ -332,6 +332,13 @@ class TRexEnv(BaseDinoEnv):
         # a measured 500.4 N of floor contact.
         self._sensor_r_foot_digits = (24, 25, 26)
         self._sensor_l_foot_digits = (27, 28, 29)
+        # Per-foot groups for the base class's substep MIN aggregation --
+        # mirrors mjx_config's sensor_foot_indices + sensor_foot_aux_indices
+        # so both backends aggregate the same sensors.
+        self._foot_sensor_groups = (
+            (self._sensor_r_foot, *self._sensor_r_foot_digits),
+            (self._sensor_l_foot, *self._sensor_l_foot_digits),
+        )
 
         # Stage-1 pose targets come from the named home keyframe instead of
         # duplicating angles in Python.  This keeps the reward centred on the
@@ -519,7 +526,12 @@ class TRexEnv(BaseDinoEnv):
         # full plantar-plus-digit load for each foot.  Saturation prevents
         # impact spikes from being more valuable than quiet support, while the
         # minimum requires both feet to carry load.
-        r_contact, l_contact = self._foot_contact_forces()
+        # AGGREGATED across the control step's physics substeps (per-foot MIN):
+        # the last-substep read let the seed-43 bounce unload for 4 of every 5
+        # substeps and still collect full support reward, and the same sample
+        # feeds the r/l_foot_contact info keys the stance-duty gate certifies
+        # from.  Falls back to the instantaneous read on un-stepped states.
+        r_contact, l_contact = self._aggregated_foot_contact_forces()
         info["r_foot_contact"] = r_contact
         info["l_foot_contact"] = l_contact
 
