@@ -150,9 +150,30 @@ observation_schema = "bipedal-target/v1"
 #    the new pose and the home control vector -- which is what action zero
 #    commands under home-keyframe-residual/v1 -- moved with them.  Every
 #    existing T-Rex checkpoint is invalidated.
+#
+# 9. T-Rex toes made passive.  The six per-digit position actuators (kp 60,
+#    forcerange +/-50, ctrlrange -0.4363..0.8727) are deleted; the digits keep
+#    their hinges, and the leg_joint class already gives them the passive
+#    stance: stiffness 40 with springref 12.5 deg holds the old commanded home
+#    pose, damping 15 dissipates strike energy.  Motivation is the stage-1
+#    bounce postmortem (docs/investigations/TREX_STAGE1_BOUNCE_2026_08.md):
+#    release-ablation showed holding only the six toes at home reproduces the
+#    whole constant-hold failure, i.e. the policy's learned 0.8727 rad claw
+#    curl -- not the leg servos -- seeded the bounce, and a splayed digit is a
+#    pose the passive spring simply cannot hold.  PHYSICS moves (nu 21 -> 15,
+#    actuator arrays, key ctrl shrinks to 15 entries; qpos/qvel widths and all
+#    16 sensors unchanged).  The POLICY INTERFACE moves (action_dim 21 -> 15
+#    and the home-keyframe-residual origin ctrl vector shrinks with it); the
+#    observation is unchanged at 61 -- toe joints stay in qpos/qvel.  VISUAL is
+#    untouched (no geom, site, material, camera or light moved).  Every
+#    existing T-Rex checkpoint is invalidated, and the statue-derived
+#    constants (min_avg_reward, collapse_peak_floor_reference) must be
+#    re-measured with zero_action_baseline.py / stance_quality_baseline.py on
+#    this plant -- the statue's toes now settle on springs instead of servos,
+#    so the old 3271.8 standing reward may not carry.
 [plants.trex]
-physics_revision = 6
-policy_interface_revision = 9
+physics_revision = 7
+policy_interface_revision = 10
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
 

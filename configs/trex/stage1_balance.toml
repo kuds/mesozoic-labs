@@ -67,9 +67,11 @@ leg_home_pose_weight = 0.5                     # Softly retain the authored p5 t
                                                # REVERTED from 1.5 (issue #491): the 1.5 experiment could not have
                                                # worked, and measurement says why. This term governs 8 joints --
                                                # r/l hip_pitch, hip_roll, knee, ankle -- and those 8 carry only
-                                               # 1.2% of the policy's commanded pose offset. 98.8% sits in the
+                                               # 1.2% of the policy's commanded pose offset. 98.8% sat in the
                                                # tail, neck, head and toes, which no term here touches, and 10-12
-                                               # of 21 actuators are pinned at |action| = 1.000. The governed
+                                               # of 21 actuators were pinned at |action| = 1.000 (measured on the
+                                               # physics-r6 plant; the six toe actuators are gone as of r7, note
+                                               # 9 in plant_versions.toml). The governed
                                                # joints were ALREADY near home (|DC| 0.035-0.263), so tripling the
                                                # weight had nothing to pull on: measured DC moved 0.766 -> 0.738,
                                                # 3.7%, while the run took ~2M extra steps to escape its early
@@ -313,6 +315,13 @@ min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # re-measure with zero_action_baseline.py and re-derive both. The FRACTION
                                         # is what carries across a rescale; the absolute number does not.
                                         #
+                                        # Re-measured on the passive-toes plant (physics r7, plant_versions
+                                        # note 9): the statue's toes now settle on their springs instead of
+                                        # servos and score 3270.3 +/- 12.3 (zero_action_baseline.py seed 3042
+                                        # and stance_quality_baseline.py agree) -- within one standard error of
+                                        # the r6 figure, so the rail stays at 1950 rather than chasing noise to
+                                        # 0.60 x 3270.3 = 1962.
+                                        #
                                         # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
                                         # full-horizon 93% -> 7%) bottomed at 888 = 0.27 x statue, so 0.60 clears
                                         # it by better than 2x. Meanwhile 0.89 = 2900 sat within ~2.4% of a
@@ -388,12 +397,14 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # post-150k rolling median in that run is 580.5, well under 1472.3. A
                                          # larger warm-up buys nothing and costs coverage: 1.0M leaves 88% of a 10M
                                          # budget protected, 2.5M only 72%.
-collapse_peak_floor_reference = 3271.8   # The zero-action statue's standing reward at noise 0.05, 40 episodes.
-                                         # Briefly 4250.4 while leg_home_pose_weight was 1.5; reverted with it
-                                         # (issue #491). Re-measure this whenever a reward weight changes: the
-                                         # statue commands action = 0 at any weight, so its trajectory never
-                                         # changes and only the affected term rescales -- which makes the new
-                                         # value exact and cheap to obtain, and makes forgetting it silent.
+collapse_peak_floor_reference = 3270.3   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
+                                         # measured on the passive-toes plant (physics r7; was 3271.8 on r6,
+                                         # within one standard error -- the toes settle on springs at the same
+                                         # pose the servos held). Briefly 4250.4 while leg_home_pose_weight was
+                                         # 1.5; reverted with it (issue #491). Re-measure this whenever a reward
+                                         # weight OR the plant changes: a weight change rescales the statue's
+                                         # terms exactly and cheaply; a plant change moves its trajectory, so
+                                         # only a re-run is evidence. Forgetting either is silent.
 stance_probe_filter_hz = [5.0, 10.0, 20.0]  # After the gate report, re-score the SAME checkpoint with its actions
                                          # low-passed at EACH of these cutoffs and write
                                          # stance_gate_probe_filtered.{txt,json} as one curve. Unset to skip.
@@ -459,8 +470,10 @@ stance_probe_release_ablation = true     # Ablate the held pose one actuator gro
                                          # the statue by itself?). One side alone lets a conspicuous group
                                          # masquerade as a cause, which is not hypothetical here: the tail is the
                                          # most extreme entry in the DC table and holding it alone stands the full
-                                         # horizon at 3254.0, while holding only the six toes reproduces the whole
-                                         # failure (125.5 steps against the full pose's 128.6).
+                                         # horizon at 3254.0, while holding only the six toes reproduced the whole
+                                         # failure (125.5 steps against the full pose's 128.6) -- the finding that
+                                         # motivated deleting the toe actuators in physics r7. The 'toes' group
+                                         # matches no actuators on that plant and is skipped gracefully.
                                          #
                                          # 13 panels at 8 episodes -- the most expensive of the four probes, which
                                          # is why it is per-stage opt-in rather than on by default.

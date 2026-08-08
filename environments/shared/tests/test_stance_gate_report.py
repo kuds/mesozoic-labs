@@ -2098,7 +2098,7 @@ class TestControlTargetsInDegrees:
 
         result = run_panel(
             "trex",
-            predict=lambda obs: np.zeros(21, dtype=np.float32),
+            predict=lambda obs: np.zeros(15, dtype=np.float32),
             episodes=1,
             seed=3042,
             settle_steps=0,

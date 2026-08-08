@@ -24,7 +24,7 @@ _NATURAL_PITCH = 0.027
 _SENSOR_R_FOOT = 10
 _SENSOR_L_FOOT = 11
 # The two sensors above cover the plantar pad only.  Each digit is its own
-# body (it carries an actuated hinge), and a touch sensor cannot see geoms on
+# body (it articulates on a passive hinge), and a touch sensor cannot see geoms on
 # child bodies, so the digits carry their own sensors -- appended after the
 # tail block so every index above keeps its position.  Summed per foot, they
 # restore the reading to the force the foot actually transmits.

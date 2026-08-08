@@ -109,10 +109,10 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Generated specification | Value |
 |---|---|
 | Observation dimension | 61 |
-| Action dimension / actuators | 21 |
+| Action dimension / actuators | 15 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
 | Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r9; physics r6; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r10; physics r7; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/trex/assets/trex.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |

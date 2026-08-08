@@ -35,7 +35,7 @@ class TestMJXDinoEnv:
         from environments.shared.mjx_env import MJXDinoEnv
 
         env = MJXDinoEnv("trex", stage=1, num_envs=4)
-        assert env.action_dim == 21
+        assert env.action_dim == 15
         assert env.num_envs == 4
         assert env.config.posture_target_forward_z is None
         assert env.config.action_mapping == "home-keyframe-residual/v1"

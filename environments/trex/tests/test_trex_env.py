@@ -575,6 +575,86 @@ class TestSubstepContactAggregation:
             env.close()
 
 
+class TestSubstepHeightTermination:
+    """Height terminations must see every physics substep, like contact does.
+
+    MJX's height-emulation termination went any-substep with the contact
+    aggregation; these pin the SB3 side of that lockstep: the step loop
+    records each declared entity's MIN z, and _is_terminated consumes it by
+    declaration index while the info keys keep the boundary sample.
+    """
+
+    def test_min_heights_track_the_probe_and_the_declaration_order(self):
+        """env._substep_min_heights == per-substep elementwise min of
+        (head_tip_z, skull_z), in the declared order."""
+        env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+        try:
+            env.reset(seed=0)
+            substep_heights: list[tuple[float, float]] = []
+            env._substep_probe_hook = lambda: substep_heights.append(
+                (
+                    float(env.data.site_xpos[env.head_tip_site_id, 2]),
+                    float(env.data.xpos[env.skull_body_id, 2]),
+                )
+            )
+            for t in range(20):
+                action = np.full(env.action_space.shape, 0.3 * np.sin(2 * np.pi * t / 5.0), dtype=np.float32)
+                substep_heights.clear()
+                env.step(action)
+                assert len(substep_heights) == env.frame_skip
+                assert env._substep_min_heights is not None
+                assert env._substep_min_heights[0] == pytest.approx(min(h[0] for h in substep_heights), abs=1e-12)
+                assert env._substep_min_heights[1] == pytest.approx(min(h[1] for h in substep_heights), abs=1e-12)
+        finally:
+            env._substep_probe_hook = None
+            env.close()
+
+    def test_between_sample_dip_terminates_while_boundary_reads_healthy(self):
+        """A substep-only dip must terminate with the per-check reason even
+        when the boundary sample is healthy -- the direction the boundary
+        scan could never see.  The aggregate is armed by hand because a
+        statue never dips; the witness that real rollouts populate it is the
+        probe test above."""
+        env = TRexEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+
+            boundary_head = float(env.data.site_xpos[env.head_tip_site_id, 2])
+            boundary_skull = float(env.data.xpos[env.skull_body_id, 2])
+            assert boundary_head > 0.12 and boundary_skull > 0.45
+
+            # Index 0 = head_tip site check.
+            env._substep_min_heights = np.array([0.11, boundary_skull])
+            env._substep_contact_step = env._step_count
+            terminated, info = env._is_terminated()
+            assert terminated
+            assert info["termination_reason"] == "head_contact"
+            assert info["head_tip_z"] == pytest.approx(boundary_head)
+
+            # Index 1 = skull body check.
+            env._substep_min_heights = np.array([boundary_head, 0.44])
+            env._substep_contact_step = env._step_count
+            terminated, info = env._is_terminated()
+            assert terminated
+            assert info["termination_reason"] == "skull_low"
+        finally:
+            env.close()
+
+    def test_reset_invalidates_the_height_aggregate(self):
+        env = TRexEnv(reset_noise_scale=0.0)
+        try:
+            env.reset(seed=0)
+            env.step(np.zeros(env.action_space.shape, dtype=np.float32))
+            env._substep_min_heights = np.array([0.0, 0.0])
+            env._substep_contact_step = env._step_count
+            env.reset(seed=1)
+            terminated, info = env._is_terminated()
+            assert not terminated, f"stale height aggregate terminated a fresh episode: {info}"
+        finally:
+            env.close()
+
+
 class TestFootSensorGroupLockstep:
     """Each species' SB3 _foot_sensor_groups must mirror its MJX registration.
 

@@ -18,9 +18,12 @@ Observation space (total dimension is generated in the public species catalog):
 
 Action space (total dimension is generated in the public species catalog):
     - Neck/head: neck pitch, neck yaw, head pitch (3)
-    - Right leg: hip pitch/roll, knee, ankle, toe d2/d3/d4 (7)
-    - Left leg: hip pitch/roll, knee, ankle, toe d2/d3/d4 (7)
+    - Right leg: hip pitch/roll, knee, ankle (4)
+    - Left leg: hip pitch/roll, knee, ankle (4)
     - Tail: pitch 1, yaw 1, pitch 2, pitch 3 (4)
+
+The six toe hinges are passive (spring-loaded at the home pose); they stay
+in qpos/qvel so the observation still senses toe posture.
 
 Reward components:
     - Forward velocity (toward prey)
@@ -313,6 +316,14 @@ class TRexEnv(BaseDinoEnv):
         self.l_foot_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "l_foot")
         self.tail_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "tail_tip")
         self.head_tip_site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, "head_tip")
+        # Height terminations sampled at every physics substep by the base
+        # step loop; _is_terminated reads the per-check MIN so a between-
+        # samples head dip terminates like the MJX height emulation does.
+        # Order is consumed by index there.
+        self._substep_height_checks = (
+            ("site", self.head_tip_site_id),
+            ("body", self.skull_body_id),
+        )
 
         # Prey mocap body
         self.prey_mocap_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "prey")
@@ -326,7 +337,7 @@ class TRexEnv(BaseDinoEnv):
         self._sensor_l_foot = 11
         # The pad sensors above see the plantar box only: a touch sensor sums
         # contacts on geoms of its site's own body, and the three digits are
-        # child bodies (they carry actuated hinges).  Their own sensors are
+        # child bodies on their own passive hinges.  Their own sensors are
         # appended after the tail block, so pad + digits is the force the foot
         # actually transmits -- at the home keyframe 388.4 N + 112.0 N against
         # a measured 500.4 N of floor contact.
@@ -809,16 +820,20 @@ class TRexEnv(BaseDinoEnv):
             return True, info
 
         # Site-height termination: snout tip must stay above threshold
-        # This catches nose-balancing that geom contact detection may miss
+        # This catches nose-balancing that geom contact detection may miss.
+        # The check reads the substep MIN (indices match the
+        # _substep_height_checks declaration) so a dip that recovers between
+        # control-boundary samples still terminates; the info key keeps the
+        # boundary sample.
         head_tip_z = self.data.site_xpos[self.head_tip_site_id, 2]
         info["head_tip_z"] = head_tip_z
-        if head_tip_z < 0.12:
+        if self._aggregated_min_height(0, head_tip_z) < 0.12:
             info["termination_reason"] = "head_contact"
             return True, info
 
         # Body-height termination: skull origin must stay above threshold
         skull_z = self.data.xpos[self.skull_body_id, 2]
-        if skull_z < 0.45:
+        if self._aggregated_min_height(1, skull_z) < 0.45:
             info["termination_reason"] = "skull_low"
             return True, info
 

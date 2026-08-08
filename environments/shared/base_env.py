@@ -121,6 +121,16 @@ class BaseDinoEnv(gym.Env, ABC):
     _substep_contact_step: int = -1
     _ground_geom_array: "np.ndarray | None" = None
 
+    # Site/body height checks aggregated per substep, declared per species in
+    # _cache_ids as ("site" | "body", entity_id) pairs; () means "none".  The
+    # step loop records each entity's MINIMUM z across the substeps so the
+    # species' height terminations (trex head_tip/skull, dibothrosuchus
+    # snout_tip) fire on a between-samples dip exactly like the MJX
+    # height-emulation checks, which became any-substep with the contact
+    # aggregation.  Info keys keep reporting the boundary sample.
+    _substep_height_checks: "tuple[tuple[str, int], ...]" = ()
+    _substep_min_heights: "np.ndarray | None" = None
+
     # Optional zero-argument callable invoked after EVERY physics substep in
     # step().  Exists so stance_duty_validation.py and the aggregation
     # regression tests can record per-substep kinematic ground truth through
@@ -792,6 +802,19 @@ class BaseDinoEnv(gym.Env, ABC):
             return self._foot_contact_forces()
         return tuple(float(value) for value in self._substep_min_foot_forces)
 
+    def _aggregated_min_height(self, check_index: int, instantaneous: float) -> float:
+        """MIN z of a ``_substep_height_checks`` entry across the last step.
+
+        Returns ``min(aggregate, instantaneous)`` when a fresh aggregate
+        exists so a hand-posed-lower state can still terminate, and the bare
+        instantaneous value otherwise (before any step, after reset, or for a
+        species that declares no checks).  Termination reads this; info keys
+        keep the boundary sample.
+        """
+        if self._substep_min_heights is None or self._substep_contact_step != self._step_count:
+            return instantaneous
+        return float(min(self._substep_min_heights[check_index], instantaneous))
+
     def _invalidate_substep_aggregates(self) -> None:
         """Drop the last step's contact aggregates and strike latch.
 
@@ -805,6 +828,7 @@ class BaseDinoEnv(gym.Env, ABC):
         """
         self._substep_min_foot_forces = None
         self._substep_floor_hit_geom = None
+        self._substep_min_heights = None
         self._substep_contact_step = -1
 
     def _check_floor_contact(
@@ -932,8 +956,10 @@ class BaseDinoEnv(gym.Env, ABC):
         # _check_floor_contact.  The MJX step_fn carries the same aggregates
         # through its fori_loop -- keep the two in lockstep.
         min_forces: "np.ndarray | None" = None
+        min_heights: "np.ndarray | None" = None
         self._substep_floor_hit_geom = None
         track_feet = bool(self._foot_sensor_groups)
+        height_checks = self._substep_height_checks
         track_strikes = getattr(self, "_body_ground_geoms", None)
         floor_geom_id = getattr(self, "floor_geom_id", None)
         ground_geoms: "np.ndarray | None" = None
@@ -952,6 +978,16 @@ class BaseDinoEnv(gym.Env, ABC):
             if track_feet:
                 forces = np.asarray(self._foot_contact_forces(), dtype=np.float64)
                 min_forces = forces if min_forces is None else np.minimum(min_forces, forces)
+            if height_checks:
+                heights = np.fromiter(
+                    (
+                        self.data.site_xpos[entity_id, 2] if kind == "site" else self.data.xpos[entity_id, 2]
+                        for kind, entity_id in height_checks
+                    ),
+                    dtype=np.float64,
+                    count=len(height_checks),
+                )
+                min_heights = heights if min_heights is None else np.minimum(min_heights, heights)
             if ground_geoms is not None and self._substep_floor_hit_geom is None:
                 pairs = self.data.contact.geom
                 if len(pairs):
@@ -970,6 +1006,7 @@ class BaseDinoEnv(gym.Env, ABC):
         # Tag the aggregates with the step they were measured at; the tag is
         # what invalidates them across reset (which zeroes _step_count).
         self._substep_min_foot_forces = min_forces
+        self._substep_min_heights = min_heights
         self._substep_contact_step = self._step_count
 
         # Update cumulative distance traveled (XY path length)
