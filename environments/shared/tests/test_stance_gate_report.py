@@ -1269,7 +1269,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         from environments.shared.curriculum.gate_schema import validate_gate_config
 
         curriculum = load_stage_config("trex", 1)["curriculum_kwargs"]
-        assert curriculum["stance_probe_filter_hz"] == [5.0, 10.0, 20.0]
+        assert curriculum["stance_probe_filter_hz"] == [5.0, 10.0, 20.0, 30.0, 35.0]
         validate_gate_config(1, curriculum)
 
 

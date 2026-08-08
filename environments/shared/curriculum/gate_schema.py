@@ -174,6 +174,15 @@ _DIAGNOSTIC_KEYS = frozenset(
 #: the only place it is meant to be set.
 _RETENTION_KEYS = frozenset({"max_checkpoints"})
 
+#: Keys that record measurement provenance rather than configure anything.
+#: ``statue_constants_physics_revision`` pins the plant revision the stage's
+#: statue-derived constants (``min_avg_reward``,
+#: ``collapse_peak_floor_reference``) were measured on;
+#: test_statue_constant_freshness.py cross-checks it against the plant
+#: manifest so a plant bump that forgets the re-measurement fails CI.  No
+#: trainer reads it.
+_PROVENANCE_KEYS = frozenset({"statue_constants_physics_revision"})
+
 #: The schema's own declaration keys.
 _SCHEMA_KEYS = frozenset({"gate_schema_version", "gate_kind"})
 
@@ -247,7 +256,15 @@ def validate_gate_config(
             that its declared kind does not consume, or omits the gate
             declaration entirely while advancement is enabled.
     """
-    known = _SCHEMA_KEYS | _SCHEDULE_KEYS | _COLLAPSE_KEYS | _RETENTION_KEYS | _DIAGNOSTIC_KEYS | _ALL_THRESHOLD_KEYS
+    known = (
+        _SCHEMA_KEYS
+        | _SCHEDULE_KEYS
+        | _COLLAPSE_KEYS
+        | _RETENTION_KEYS
+        | _DIAGNOSTIC_KEYS
+        | _PROVENANCE_KEYS
+        | _ALL_THRESHOLD_KEYS
+    )
     unknown = sorted(set(curriculum_kwargs) - known)
     if unknown:
         raise GateSchemaError(

@@ -405,7 +405,14 @@ collapse_peak_floor_reference = 3270.3   # The zero-action statue's standing rew
                                          # weight OR the plant changes: a weight change rescales the statue's
                                          # terms exactly and cheaply; a plant change moves its trajectory, so
                                          # only a re-run is evidence. Forgetting either is silent.
-stance_probe_filter_hz = [5.0, 10.0, 20.0]  # After the gate report, re-score the SAME checkpoint with its actions
+statue_constants_physics_revision = 7    # The trex physics revision the statue-derived constants above
+                                         # (min_avg_reward, collapse_peak_floor_reference) were measured on.
+                                         # test_statue_constant_freshness.py cross-checks this against the
+                                         # plant manifest, so a plant revision bump that forgets to re-measure
+                                         # the statue fails CI instead of silently training against a rail and
+                                         # collapse floor calibrated on a plant that no longer exists. Update
+                                         # it WITH the re-measurement, never alone.
+stance_probe_filter_hz = [5.0, 10.0, 20.0, 30.0, 35.0]  # After the gate report, re-score the SAME checkpoint with its actions
                                          # low-passed at EACH of these cutoffs and write
                                          # stance_gate_probe_filtered.{txt,json} as one curve. Unset to skip.
                                          #
@@ -423,6 +430,12 @@ stance_probe_filter_hz = [5.0, 10.0, 20.0]  # After the gate report, re-score th
                                          # untouched (gain 0.963 at 1.4 Hz even at 5 Hz), while the measured
                                          # 22.7 Hz tremor is cut 13.3 dB at 5 Hz and 3.6 dB at 20. So a short
                                          # episode means dependence on content well above what the task needs.
+                                         #
+                                         # 30/35 added with the passive-toes revision: the r6 sweep's manual
+                                         # probes showed the policy still falling at 35 Hz, but the recorded
+                                         # curve stopped at 20, leaving the top octave -- where a 22.7 Hz
+                                         # tremor passes nearly clean -- unsampled. Five points close the curve
+                                         # at the control Nyquist's edge instead of extrapolating it.
                                          #
                                          # Each cutoff costs a panel, but the probe rolls 10 episodes rather than
                                          # the gate's 40: it certifies nothing, and the effect is enormous

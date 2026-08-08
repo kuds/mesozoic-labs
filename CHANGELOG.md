@@ -46,6 +46,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   between control-boundary samples terminates exactly as MJX's any-substep
   height emulation does; the `head_tip_z`/`snout_tip_z` info keys keep
   reporting the boundary sample.
+  The statue constants get the freshness guard their comments have begged
+  for since #491: the stage TOML now records
+  `statue_constants_physics_revision` = the plant revision the constants
+  were measured on, and `test_statue_constant_freshness.py` cross-checks it
+  against the manifest — so the NEXT plant bump cannot land without either
+  re-measuring the statue or consciously updating the pin where a reviewer
+  sees the constants did not move. And the action-filter probe sweep gains
+  the 30/35 Hz cutoffs (`stance_probe_filter_hz`), closing the survival
+  curve at the control Nyquist's edge instead of stopping at 20 Hz with the
+  measured 22.7 Hz tremor unsampled above it.
 - **Reverted T-Rex stage 1 `leg_home_pose_weight` to 0.5**, and the two statue-
   derived constants with it (`min_avg_reward` 2550 → 1950,
   `collapse_peak_floor_reference` 4250.4 → 3271.8). The 1.5 experiment **could
