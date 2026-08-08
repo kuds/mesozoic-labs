@@ -13,6 +13,19 @@ from .sb3_compat import BaseCallback
 
 logger = logging.getLogger(__name__)
 
+#: Attribute set on the *model* by ``StageWarmupCallback`` while its PPO
+#: warm-up owns ``ent_coef``, and read by ``EntCoefDecayCallback`` to stand
+#: aside. On the model rather than between the callbacks because the two are
+#: constructed independently in three launch paths (``train``,
+#: ``train_curriculum``, and the notebook) and in no guaranteed order — the
+#: model is the one object both are guaranteed to share. Cleared when the
+#: warm-up restores ``ent_coef``. A checkpoint saved inside a warm-up window
+#: pickles the flag as ``True``; every stage>1 ``--load`` path re-adds the
+#: warm-up callback, which re-stamps it, so a stale flag only matters for a
+#: run that loads a mid-warm-up checkpoint *without* a warm-up — and the
+#: decay callback logs whenever it defers, so that state is visible.
+ENT_COEF_WARMUP_MARKER = "_ent_coef_warmup_active"
+
 
 class _ConstantSchedule:
     """Picklable callable that returns a constant value.
@@ -40,6 +53,15 @@ class EntCoefDecayCallback(BaseCallback):  # type: ignore[misc]
 
     PPO only — SAC's auto-tuned entropy already adapts on its own.
 
+    Defers to ``StageWarmupCallback`` whenever :data:`ENT_COEF_WARMUP_MARKER`
+    is set on the model. Without that guard the per-step assignment here
+    silently overwrote the configured stage-entry entropy boost on the first
+    step after the warm-up set it — every PPO stage-2/3 transition logged
+    "warm-up active … ent_coef=0.020" and then trained at the decaying base
+    value, with the warm-up's restore clobbered the same way. The base value
+    for the decay is captured on the first step after the warm-up releases
+    ``ent_coef``, so the schedule continues exactly as configured from there.
+
     Args:
         end_value: Final entropy coefficient.
         decay_timesteps: Timesteps over which to decay (typically the
@@ -54,19 +76,35 @@ class EntCoefDecayCallback(BaseCallback):  # type: ignore[misc]
         self.end_value = end_value
         self.decay_timesteps = max(1, decay_timesteps)
         self._initial: float | None = None
+        self._started = False
 
-    def _on_training_start(self) -> None:
+    def _capture_initial(self, deferred: bool) -> None:
         self._initial = float(self.model.ent_coef)
         logger.info(
-            "EntCoefDecay: ent_coef %.4f → %.4f over %d timesteps",
+            "EntCoefDecay: ent_coef %.4f → %.4f over %d timesteps%s",
             self._initial,
             self.end_value,
             self.decay_timesteps,
+            " (captured after the stage warm-up released ent_coef)" if deferred else "",
         )
 
+    def _on_training_start(self) -> None:
+        self._started = True
+        if getattr(self.model, ENT_COEF_WARMUP_MARKER, False):
+            # StageWarmupCallback owns ent_coef; the value on the model right
+            # now is (or is about to be) the warm-up boost, not the base this
+            # schedule should decay from.
+            logger.info("EntCoefDecay: deferring to the stage warm-up before capturing the base ent_coef")
+            return
+        self._capture_initial(deferred=False)
+
     def _on_step(self) -> bool:
-        if self._initial is None:
+        if not self._started:
             return True
+        if getattr(self.model, ENT_COEF_WARMUP_MARKER, False):
+            return True
+        if self._initial is None:
+            self._capture_initial(deferred=True)
         frac = min(1.0, self.num_timesteps / self.decay_timesteps)
         self.model.ent_coef = self._initial + frac * (self.end_value - self._initial)
         return True

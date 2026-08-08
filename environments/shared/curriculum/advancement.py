@@ -18,7 +18,7 @@ from environments.shared.wandb_integration import log_eval_metrics
 from . import sb3_compat
 from .manager import CurriculumManager
 from .sb3_compat import BaseCallback
-from .schedules import _ConstantSchedule
+from .schedules import ENT_COEF_WARMUP_MARKER, _ConstantSchedule
 from .stance_gate import STANCE_GATE_KIND, StancePanel, stance_panel_from_episode_duties
 
 logger = logging.getLogger(__name__)
@@ -516,11 +516,19 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
                 self.warmup_ent_coef,
             )
         elif hasattr(self.model, "clip_range"):
-            # PPO warmup: reduce clip_range and set entropy coefficient
+            # PPO warmup: reduce clip_range and set entropy coefficient.
+            # The marker tells EntCoefDecayCallback to stand aside while the
+            # warm-up owns ent_coef — without it, the decay's per-step
+            # assignment overwrote this boost on the very next step and the
+            # restore below the same way, so the configured boost never
+            # actually reached a gradient update (it is set on the model, not
+            # the callback, because the two callbacks are constructed
+            # independently in every launch path).
             self._original_clip_range = self.model.clip_range
             self._original_ent_coef = self.model.ent_coef
             self.model.clip_range = _ConstantSchedule(self.warmup_clip_range)
             self.model.ent_coef = self.warmup_ent_coef
+            setattr(self.model, ENT_COEF_WARMUP_MARKER, True)
             logger.info(
                 "StageWarmupCallback [PPO]: warm-up active for %d timesteps (clip_range=%.3f, ent_coef=%.3f)",
                 self.warmup_timesteps,
@@ -541,6 +549,10 @@ class StageWarmupCallback(BaseCallback):  # type: ignore[misc]
             else:
                 self.model.clip_range = self._original_clip_range
                 self.model.ent_coef = self._original_ent_coef
+                # Release ent_coef back to EntCoefDecayCallback, which
+                # captures its base value on the next step and continues the
+                # configured schedule from there.
+                setattr(self.model, ENT_COEF_WARMUP_MARKER, False)
             self._warmup_done = True
             logger.info(
                 "StageWarmupCallback: warm-up complete at step %d. Restored original parameters.",
