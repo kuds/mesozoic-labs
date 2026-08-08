@@ -268,7 +268,7 @@ class TestTrainingPipelineHook:
             seen["model_path"] = model_path
             seen["vecnorm_path"] = vecnorm_path
             return {
-                "schema": "mesozoic.stance-gate-report/v1",
+                "schema": "mesozoic.stance-gate-report/v2",
                 "species": species,
                 "stage": stage,
                 "gate_kind": "stance_quality/v1",
@@ -357,7 +357,7 @@ class TestJsonIsParseable:
         }
         metrics.update(metric_overrides)
         return {
-            "schema": "mesozoic.stance-gate-report/v1",
+            "schema": "mesozoic.stance-gate-report/v2",
             "species": "trex",
             "stage": 1,
             "gate_kind": "stance_quality/v1",
@@ -732,7 +732,7 @@ class TestPlantValidation:
         # The flag travels with the number rather than being reconstructable
         # only from whoever happened to read the console.
         report = {
-            "schema": "mesozoic.stance-gate-report/v1",
+            "schema": "mesozoic.stance-gate-report/v2",
             "species": "trex",
             "stage": 1,
             "gate_kind": "stance_quality/v1",
@@ -829,6 +829,7 @@ class TestCheckpointPlantProvenance:
 
     def test_zero_action_records_none_because_there_is_no_checkpoint(self, monkeypatch):
         report = self._report(monkeypatch, zero_action=True)
+        assert report["schema"] == "mesozoic.stance-gate-report/v2"
         assert report["checkpoint_plant_validated"] is None
 
     def test_zero_action_with_allow_legacy_still_records_none(self, monkeypatch):
@@ -850,7 +851,7 @@ class TestStancePanelEvidenceFile:
     @staticmethod
     def _report(episodes):
         return {
-            "schema": "mesozoic.stance-gate-report/v1",
+            "schema": "mesozoic.stance-gate-report/v2",
             "species": "trex",
             "stage": 1,
             "gate_kind": "stance_quality/v1",
@@ -956,7 +957,7 @@ class TestStancePanelEvidenceFile:
 def _minimal_stance_report() -> dict:
     """A report dict complete enough for the renderer."""
     return {
-        "schema": "mesozoic.stance-gate-report/v1",
+        "schema": "mesozoic.stance-gate-report/v2",
         "species": "trex",
         "stage": 1,
         "gate_kind": "stance_quality/v1",
@@ -1668,8 +1669,7 @@ def _report_with_actuators(entries):
         "jerk_per_step": 4.6,
         "effective_freq_hz": 22.6,
         "per_actuator": [
-            {"index": index, "joint": joint, "dc": dc, "ac_rms": 0.0}
-            for index, (joint, dc) in enumerate(entries)
+            {"index": index, "joint": joint, "dc": dc, "ac_rms": 0.0} for index, (joint, dc) in enumerate(entries)
         ],
     }
     return report
@@ -1799,7 +1799,9 @@ class TestReleaseAblationVariants:
 
 
 def _ablation_row(label, full, *, holds=True, length=None, released=0):
-    report = _held_report(label, holds=holds, full=full, length=length if length is not None else (1000.0 if full else 300.0))
+    report = _held_report(
+        label, holds=holds, full=full, length=length if length is not None else (1000.0 if full else 300.0)
+    )
     report["hold_constant"]["actions"] = [0.0] * released + [0.5] * (21 - released)
     return report
 
@@ -1835,7 +1837,9 @@ class TestAblationVerdicts:
         verdict = next(v for v in payload["verdicts"] if v["group"] == "saturated")
         assert not verdict["necessary"] and not verdict["sufficient"]
 
-    def test_a_middling_result_refuses_to_round(self, ):
+    def test_a_middling_result_refuses_to_round(
+        self,
+    ):
         """The two conclusions are opposite, so the gap must not be split."""
         text, payload = self._render({"tail": (0.5, 0.0)})
         assert "inconclusive" in text
@@ -1882,11 +1886,12 @@ class TestAblationVerdicts:
         assert "OVER-DETERMINED" not in text
 
 
-class TestDeflectionInDegrees:
+class TestControlTargetsInDegrees:
     """`|action| = 1` is not one physical event, and the report must not imply it is.
 
-    On the T-Rex a saturated tail joint is 12deg of travel and a saturated toe
-    is 50deg. Ranking the per-actuator table by normalised action put twelve
+    On the T-Rex a saturated tail target moves 12deg from its origin and a toe
+    target moves 37.5deg (to an absolute +50deg endpoint). Ranking the
+    per-actuator table by normalised action put twelve
     joints at exactly +/-1.000 at the top and gave no way to tell them apart --
     and the most extreme-looking of them, the tail, was later measured to be
     mechanically inert while the toes carried the whole effect.
@@ -1894,18 +1899,43 @@ class TestDeflectionInDegrees:
 
     @staticmethod
     def _stats(means, mapping, names=None):
-        from environments.shared.scripts.stance_gate_report import _new_action_stats, _reduce_action_stats
+        from environments.shared.scripts.stance_gate_report import (
+            _commanded_angle,
+            _new_action_stats,
+            _reduce_action_stats,
+        )
 
         stats = _new_action_stats()
         stats["sum"] = np.asarray(means, dtype=float)
         stats["sq_sum"] = np.asarray(means, dtype=float) ** 2
         stats["count"] = 1
+        if len(mapping) == len(means):
+            controls = np.asarray([_commanded_angle(entry, float(action)) for entry, action in zip(mapping, means)])
+            stats["ctrl_sum"] = controls
+            stats["ctrl_sq_sum"] = controls**2
+            stats["ctrl_count"] = 1
         return _reduce_action_stats(stats, names or [f"j{i}" for i in range(len(means))], 0.01, mapping)
 
-    #: tail_1_pitch (+/-12deg, home-centred) and r_toe_d2 (-25..+50deg, home +12.5deg),
-    #: the two real T-Rex actuators the ablation separated.
-    _TAIL = {"ctrl_min": -0.2094, "ctrl_max": 0.2094, "home": 0.0}
-    _TOE = {"ctrl_min": -0.4363, "ctrl_max": 0.8727, "home": 0.2182}
+    #: tail_1_pitch (+/-12deg, home-centred) and r_toe_d2 (-25..+50deg,
+    #: home +12.5deg), the two real T-Rex actuators the ablation separated.
+    _TAIL = {
+        "ctrl_min": -0.2094,
+        "ctrl_max": 0.2094,
+        "action_negative_ctrl": -0.2094,
+        "action_zero_ctrl": 0.0,
+        "action_positive_ctrl": 0.2094,
+        "home_ctrl": 0.0,
+        "home_qpos": 0.0,
+    }
+    _TOE = {
+        "ctrl_min": -0.4363,
+        "ctrl_max": 0.8727,
+        "action_negative_ctrl": -0.4363,
+        "action_zero_ctrl": 0.2182,
+        "action_positive_ctrl": 0.8727,
+        "home_ctrl": 0.2182,
+        "home_qpos": 0.2182,
+    }
 
     def test_the_same_saturated_action_is_a_different_angle_per_joint(self):
         action = self._stats([1.0, 1.0], [self._TAIL, self._TOE], names=["tail_1_pitch", "r_toe_d2_joint"])
@@ -1920,51 +1950,193 @@ class TestDeflectionInDegrees:
         from environments.shared.scripts.stance_gate_report import render_stance_gate_report
 
         report = _minimal_stance_report()
-        report["action"] = self._stats(
-            [1.0, 0.6], [self._TAIL, self._TOE], names=["tail_1_pitch", "r_toe_d2_joint"]
-        )
+        report["action"] = self._stats([1.0, 0.6], [self._TAIL, self._TOE], names=["tail_1_pitch", "r_toe_d2_joint"])
         text = render_stance_gate_report(report)
         # The tail saturates and the toe does not, yet the toe moves further.
         assert text.index("r_toe_d2_joint") < text.index("tail_1_pitch")
         assert "Ordered by DEGREES" in text
 
-    def test_the_tremor_scales_by_half_the_range(self):
-        """A unit of action spans half the ctrlrange in each direction."""
-        from environments.shared.scripts.stance_gate_report import _new_action_stats, _reduce_action_stats
+    def test_a_centred_mapping_reports_applied_control_rms(self):
+        """The physical AC field comes from controls, even in the easy symmetric case."""
+        from environments.shared.scripts.stance_gate_report import (
+            _accumulate_action,
+            _new_action_stats,
+            _reduce_action_stats,
+        )
 
         stats = _new_action_stats()
-        stats["sum"] = np.zeros(1)
-        stats["sq_sum"] = np.full(1, 0.25)  # mean 0, var 0.25 -> ac_rms 0.5
-        stats["count"] = 1
+        half_span = 0.5 * (self._TOE["ctrl_max"] - self._TOE["action_zero_ctrl"])
+        for action, control in (
+            (-0.5, self._TOE["action_zero_ctrl"] - half_span),
+            (0.5, self._TOE["action_zero_ctrl"] + half_span),
+        ):
+            _accumulate_action(stats, np.asarray([action]), np.asarray([control]))
         action = _reduce_action_stats(stats, ["r_toe_d2_joint"], 0.01, [self._TOE])
         assert action["per_actuator"][0]["ac_rms"] == pytest.approx(0.5)
         # 0.5 x half of 75deg = 18.75deg
         assert action["per_actuator"][0]["ac_rms_deg"] == pytest.approx(18.75, abs=0.05)
 
-    def test_an_offset_ctrlrange_is_flagged_because_action_zero_is_not_home(self):
-        """`home-keyframe-residual/v1` asserts action 0 IS home; for some it is not.
+    def test_asymmetric_mapping_uses_actual_control_moments(self):
+        """E[f(a)] and rms(f(a)) cannot be recovered by scaling action moments."""
+        from environments.shared.scripts.stance_gate_report import (
+            _accumulate_action,
+            _new_action_stats,
+            _reduce_action_stats,
+        )
 
-        On the T-Rex the ankles sit 5.5deg off and head/neck pitch 5.0deg off.
-        Small, but the phrasing is load-bearing -- statue-derived constants and
-        the DC interpretation both rest on it.
-        """
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+        mapping = {
+            "ctrl_min": -1.0,
+            "ctrl_max": 3.0,
+            "action_negative_ctrl": -1.0,
+            "action_zero_ctrl": 0.0,
+            "action_positive_ctrl": 3.0,
+            "home_ctrl": 0.0,
+            "home_qpos": 0.0,
+        }
+        stats = _new_action_stats()
+        for action, control in ((-0.5, -0.5), (0.25, 0.75)):
+            _accumulate_action(stats, np.asarray([action]), np.asarray([control]))
 
-        ankle = {"ctrl_min": 0.5655, "ctrl_max": 2.3108, "home": 1.3422}
+        entry = _reduce_action_stats(stats, ["joint"], 0.01, [mapping])["per_actuator"][0]
+        assert entry["dc"] == pytest.approx(-0.125)
+        assert entry["ac_rms"] == pytest.approx(0.375)
+        assert entry["dc_deg"] == pytest.approx(math.degrees(0.125))
+        assert entry["ac_rms_deg"] == pytest.approx(math.degrees(0.625))
+
+    def test_missing_applied_controls_does_not_guess_physical_moments(self):
+        from environments.shared.scripts.stance_gate_report import _new_action_stats, _reduce_action_stats
+
+        stats = _new_action_stats()
+        stats["sum"] = np.asarray([0.25])
+        stats["sq_sum"] = np.asarray([0.25])
+        stats["count"] = 1
+        entry = _reduce_action_stats(stats, ["joint"], 0.01, [self._TOE])["per_actuator"][0]
+        assert "dc_deg" not in entry
+        assert "ac_rms_deg" not in entry
+        assert entry["action_zero_ctrl"] == pytest.approx(self._TOE["action_zero_ctrl"])
+
+    def test_trex_mapping_uses_home_control_and_keeps_preload_separate(self):
+        """Action zero is home control; ankle control-vs-pose preload is intentional."""
+        from environments.shared.scripts.stance_gate_report import (
+            _actuator_joint_names,
+            _actuator_pose_mapping,
+            render_stance_gate_report,
+        )
+        from environments.trex.envs.trex_env import TRexEnv
+
+        env = TRexEnv()
+        try:
+            mapping = _actuator_pose_mapping(env)
+            names = _actuator_joint_names(env)
+        finally:
+            env.close()
+
         report = _minimal_stance_report()
-        report["action"] = self._stats([0.0], [ankle], names=["r_ankle"])
-        assert report["action"]["per_actuator"][0]["zero_offset_deg"] == pytest.approx(5.5, abs=0.1)
+        report["action"] = self._stats(np.zeros(len(mapping)), mapping, names=names)
+        by_joint = {entry["joint"]: entry for entry in report["action"]["per_actuator"]}
+        assert all(entry["zero_offset_deg"] == pytest.approx(0.0, abs=1e-9) for entry in by_joint.values())
+        assert by_joint["r_ankle"]["home_preload_deg"] == pytest.approx(5.5, abs=0.1)
+        assert by_joint["l_ankle"]["home_preload_deg"] == pytest.approx(5.5, abs=0.1)
+        assert by_joint["r_ankle"]["action_zero_ctrl"] == pytest.approx(by_joint["r_ankle"]["home_ctrl"])
+        assert by_joint["r_ankle"]["home_ctrl"] != pytest.approx(by_joint["r_ankle"]["home_qpos"])
+        assert by_joint["neck_pitch"]["home_preload_deg"] == pytest.approx(0.0, abs=0.01)
+        assert by_joint["head_pitch"]["home_preload_deg"] == pytest.approx(0.0, abs=0.01)
+
         text = render_stance_gate_report(report)
-        assert "action = 0 is not exactly home" in text
-        assert "r_ankle" in text
+        assert "differs from the named home control" not in text
+        assert "Nominal control preload" in text
+        assert "this is not policy displacement" in text
 
-    def test_a_home_centred_range_is_not_flagged(self):
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+    def test_trex_asymmetric_piecewise_mapping_matches_the_environment(self):
+        from environments.shared.scripts.stance_gate_report import (
+            _actuator_joint_names,
+            _actuator_pose_mapping,
+            _commanded_angle,
+        )
+        from environments.trex.envs.trex_env import TRexEnv
 
-        report = _minimal_stance_report()
-        report["action"] = self._stats([0.5], [self._TAIL], names=["tail_1_pitch"])
-        assert report["action"]["per_actuator"][0]["zero_offset_deg"] == pytest.approx(0.0, abs=1e-9)
-        assert "action = 0 is not exactly home" not in render_stance_gate_report(report)
+        env = TRexEnv()
+        try:
+            by_joint = dict(zip(_actuator_joint_names(env), _actuator_pose_mapping(env)))
+            neck = by_joint["neck_pitch"]
+            for action, expected_deg in ((-1.0, -30.0), (-0.5, -15.0), (0.0, 0.0), (0.5, 20.0), (1.0, 40.0)):
+                assert math.degrees(_commanded_angle(neck, action)) == pytest.approx(expected_deg, abs=0.01)
+        finally:
+            env.close()
+
+    def test_trex_cross_zero_controls_are_reduced_after_scaling(self):
+        from environments.shared.scripts.stance_gate_report import (
+            _accumulate_action,
+            _actuator_joint_names,
+            _actuator_pose_mapping,
+            _new_action_stats,
+            _reduce_action_stats,
+        )
+        from environments.trex.envs.trex_env import TRexEnv
+
+        env = TRexEnv()
+        try:
+            names = _actuator_joint_names(env)
+            mapping = _actuator_pose_mapping(env)
+            stats = _new_action_stats()
+            for value in (-0.5, 0.5):
+                action = np.full(env.action_space.shape, value, dtype=np.float64)
+                _accumulate_action(stats, action, env._scale_action(action))
+            by_joint = {
+                entry["joint"]: entry for entry in _reduce_action_stats(stats, names, 0.01, mapping)["per_actuator"]
+            }
+        finally:
+            env.close()
+
+        assert by_joint["neck_pitch"]["dc"] == pytest.approx(0.0)
+        assert by_joint["neck_pitch"]["ac_rms"] == pytest.approx(0.5)
+        assert by_joint["neck_pitch"]["dc_deg"] == pytest.approx(2.5, abs=0.01)
+        assert by_joint["neck_pitch"]["ac_rms_deg"] == pytest.approx(17.5, abs=0.01)
+
+    def test_real_panel_records_the_controls_applied_by_trex(self):
+        from environments.shared.scripts.stance_gate_report import run_panel
+
+        result = run_panel(
+            "trex",
+            predict=lambda obs: np.zeros(21, dtype=np.float32),
+            episodes=1,
+            seed=3042,
+            settle_steps=0,
+            horizon=2,
+            env_kwargs={"max_episode_steps": 2},
+            control_dt=0.01,
+        )
+        by_joint = {entry["joint"]: entry for entry in result["action"]["per_actuator"]}
+        assert by_joint["neck_pitch"]["dc_deg"] == pytest.approx(0.0, abs=1e-12)
+        assert by_joint["r_ankle"]["dc_deg"] == pytest.approx(0.0, abs=1e-12)
+        assert by_joint["r_ankle"]["home_preload_deg"] == pytest.approx(5.5, abs=0.1)
+
+    def test_motor_controls_are_not_mislabeled_as_degrees(self):
+        from environments.shared.scripts.stance_gate_report import run_panel
+
+        action = np.zeros(22, dtype=np.float32)
+        action[[6, 13]] = 1.0  # r/l claw motors, each with gear=50
+        result = run_panel(
+            "velociraptor",
+            predict=lambda obs: action,
+            episodes=1,
+            seed=3042,
+            settle_steps=0,
+            horizon=2,
+            env_kwargs={"max_episode_steps": 2},
+            control_dt=0.01,
+        )
+        by_joint = {entry["joint"]: entry for entry in result["action"]["per_actuator"]}
+        for joint in ("r_claw", "l_claw"):
+            entry = by_joint[joint]
+            assert entry["dc"] == pytest.approx(1.0)
+            assert entry["ctrl_mean"] == pytest.approx(1.0)
+            assert entry["ctrl_ac_rms"] == pytest.approx(0.0)
+            assert not entry["angular_position_ctrl"]
+            assert not {"dc_deg", "ac_rms_deg", "range_deg", "home_qpos", "home_preload_deg"} & entry.keys()
+
+        assert by_joint["r_hip_pitch"]["angular_position_ctrl"]
+        assert "dc_deg" in by_joint["r_hip_pitch"]
 
     def test_degrees_are_added_not_substituted(self):
         """`dc` still inverts through the action penalties; the degrees do not."""

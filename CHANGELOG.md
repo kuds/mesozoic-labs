@@ -130,7 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still printed, second, with its caveat attached.
 - **Per-actuator pose reported in degrees, and the table ordered by them.**
   `|action| = 1` is not one physical event: `_scale_action` maps `[-1, 1]` onto
-  each actuator's own `ctrlrange`, and on the T-Rex those differ by 6× — a
+  each actuator's own control span, and on the T-Rex those differ by 6× — a
   saturated tail joint is **8–12°** of deflection while a saturated toe is
   **37.5°**. Sorted by normalised `|dc|`, the per-actuator table put twelve
   joints at exactly `±1.000` at the top with no way to tell them apart, and the
@@ -139,18 +139,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This is the same error the DC/AC split was introduced to fix, one level down:
   a pooled *normalised* offset cannot separate moving 8° from moving 37.5° any
   more than a pooled standard deviation can separate "sitting in the wrong
-  place" from "shaking". The report now carries `dc_deg`, `ac_rms_deg`,
-  `range_deg` and `zero_offset_deg` per actuator plus `dc_rms_deg` overall, and
-  **orders the table by degrees** — which puts the five saturated toes on top at
-  ±37.5° and drops `tail_1_yaw` (±8°) out of the printed twelve. The normalised
-  `dc` is kept alongside, because that is what inverts through the action
-  penalties; the degrees are what say whether a joint moved.
-  It also surfaces that **`action = 0` is not exactly the home keyframe**: it is
-  the `ctrlrange` midpoint, and for four of 21 actuators the two differ — both
-  ankles by +5.5°, `head_pitch`/`neck_pitch` by +5.0°. Small enough that nothing
-  measured is invalidated, but `home-keyframe-residual/v1` is named for that
-  identity and both statue-derived constants lean on it, so the report now
-  prints the offset rather than leaving it to be rediscovered.
+  place" from "shaking". Report schema v2 now records applied `ctrl_mean` and
+  `ctrl_ac_rms` in native units, preserves the separate `action_zero_ctrl` and
+  `home_ctrl` anchors, and marks which actuators are direct angular position
+  controls. Only those receive `dc_deg`, `ac_rms_deg`, `range_deg`,
+  `zero_offset_deg`, `home_qpos`, and `home_preload_deg`; geared motors are not
+  mislabeled as radians. It adds `dc_rms_deg` across the compatible controls
+  and **orders the table by degrees** — which puts the five
+  saturated toes on top at ±37.5° and drops `tail_1_yaw` (±8°) out of the
+  printed twelve. The normalised `dc` is kept alongside, because that is what
+  inverts through the action penalties; the degree fields are reduced from the
+  controls actually applied during rollout.
+  This distinction matters for `home-keyframe-residual/v1`: T-Rex maps the two
+  halves piecewise around `key_ctrl[home]`, so neither the mean nor RMS physical
+  target can be reconstructed from normalised moments with one full-range
+  scale. Action zero maps exactly to the home control for all 21 actuators. The
+  ankles' +5.5° `key_ctrl - key_qpos` is an intentional gravity preload, now
+  reported separately instead of being mislabeled as policy displacement or a
+  reason to re-centre the control range.
+  The same correction is now swept through the prose that taught the old
+  identity: docstrings in `eval_diagnostics.py` and the hold/ablation helpers,
+  the rendered ablation header, the CLI help, and the KNOWN_ISSUES saturation
+  entry all say "home control" where they said "home keyframe" for what
+  `action = 0` commands — the keyframe's *pose* keeps its name. The
+  constant-hold docstring also now states its one deliberate approximation:
+  the held command is `f(mean(action))`, not `mean(f(action))`, which differs
+  only on zero-crossing actuators with asymmetric spans (neck/head pitch on
+  this plant, bias ~0.01°).
 - **A release ablation on top of it**, `--hold-release-ablation`, which asks
   *which* joints make a held pose unholdable. Each actuator group gets two
   variants: `release_G` holds everything except G (is G **necessary** — does

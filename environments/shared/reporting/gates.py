@@ -236,7 +236,7 @@ def evaluate_stage_gate(
             checkpoint's metrics (``best_model_*``, falling back to
             ``best_eval_*`` and then the live-eval means).
         stage: Stage identifier, used only in failure messages.
-        stance_report: The ``mesozoic.stance-gate-report/v1`` dict produced for
+        stance_report: The ``mesozoic.stance-gate-report/v2`` dict produced for
             this stage, required by ``stance_quality/v1`` and ignored by every
             other kind.
 

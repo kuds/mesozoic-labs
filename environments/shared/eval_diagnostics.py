@@ -105,8 +105,8 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         # Action statistics for the DETERMINISTIC policy, which is what the
         # gate scores. `diagnostics.npz` records actions from training
         # rollouts, so every number in it carries exploration noise; the
-        # quantities that matter here -- how far the commanded pose sits from
-        # the home keyframe, and how much the policy shakes about it -- are
+        # quantities that matter here -- how far the commanded target sits from
+        # the home control (action = 0), and how much the policy shakes about it -- are
         # properties of the mean action and are unrecoverable from a noisy
         # sample. Issue #489 had to invert them out of per-episode reward
         # totals under a narrowband assumption. These measure them.
@@ -280,8 +280,10 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         """Reduce one evaluation's accumulators into the published series.
 
         The DC/AC split is the whole point. ``mean(a)`` per actuator is the
-        static pose the policy commands -- the distance from the home keyframe,
-        which under ``home-keyframe-residual/v1`` is exactly ``action = 0``.
+        static target the policy commands -- the distance from the home
+        control, which under ``home-keyframe-residual/v1`` is exactly
+        ``action = 0`` (the home keyframe's control targets, not necessarily
+        its joint pose: the trex ankles carry an authored preload).
         ``sqrt(mean(a^2) - mean(a)^2)`` is what it does *around* that pose. The
         two answer different questions and a pooled standard deviation over
         actuators and time (which is what ``diagnostics.action_std`` computes)
@@ -722,7 +724,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     def _action_statistics(self, index: int) -> dict[str, float]:
         """Scalar summaries of the deterministic policy's action.
 
-        ``action_dc_rms`` is the distance from the home keyframe and
+        ``action_dc_rms`` is the distance from the home control (``action = 0``) and
         ``action_ac_rms`` is the tremor about it; keeping them apart is the
         point, because they have different causes and different fixes
         (issue #489). The per-actuator vectors go to `gate_progress.npz`
