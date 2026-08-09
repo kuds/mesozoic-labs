@@ -1620,9 +1620,11 @@ def _ablation_verdicts(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 #: Lateral impulses, in m/s of root velocity, swept by the recovery probe.
 #: Lateral because that is the axis a biped is least able to catch itself on --
 #: a fore/aft shove can be absorbed by pitching, a sideways one cannot without
-#: moving a foot. Both signs are run, because this policy is asymmetric: its
-#: toes are splayed differently on the two feet, so a one-sided sweep would
-#: measure the easy direction or the hard one and report it as the answer.
+#: moving a foot. Both signs are run, because a learned stance is generally
+#: asymmetric -- the r6 checkpoints splayed their toes differently per foot,
+#: and the r7 passive-toes checkpoint tremors far harder on one leg -- so a
+#: one-sided sweep would measure the easy direction or the hard one and
+#: report it as the answer.
 _IMPULSE_SPEEDS = (0.5, 1.0, 2.0)
 
 
@@ -1847,9 +1849,10 @@ def render_impulse_probe(
         lines += _recovery_reading(rows, envelopes, disturbed, horizon)
     lines += [
         "",
-        "  Both signs are run because this policy is asymmetric -- its toes are splayed",
-        "  differently on the two feet -- so a one-sided sweep would measure whichever",
-        "  direction it happens to be good at and report that as the answer.",
+        "  Both signs are run because a learned stance is generally asymmetric --",
+        "  commanded pose and tremor differ between the left and right legs -- so a",
+        "  one-sided sweep would measure whichever direction it happens to be good at",
+        "  and report that as the answer.",
         "  The zero-impulse row is the harness check: both columns must reach the horizon.",
     ]
     return "\n".join(lines) + "\n", payload
@@ -2034,6 +2037,16 @@ _ACTUATOR_GROUPS: dict[str, tuple[str, ...]] = {
     "toes": ("toe",),
     "head_neck": ("head", "neck"),
     "hip_rolls": ("hip_roll",),
+    # Added for the passive-toes plant (physics r7): the 10M checkpoint's
+    # ablation returned "no group necessary, none sufficient" over the groups
+    # above while its degree table concentrated the tremor in the knees,
+    # ankles and hip rolls -- the distal chain the old grouping never tested
+    # as a unit. Per-side groups because that checkpoint's tremor is strongly
+    # asymmetric (l_ankle +/-39.2deg vs r_ankle far less), so a symmetric
+    # grouping can hide a one-legged mechanism.
+    "knees_ankles": ("knee", "ankle"),
+    "left_leg": ("l_hip", "l_knee", "l_ankle"),
+    "right_leg": ("r_hip", "r_knee", "r_ankle"),
 }
 
 
