@@ -108,8 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   foot chatter the boundary-sampled metric could have passed. The run
   falsifies the entropy hypothesis (ent_coef reached exactly zero at 7M with
   no break in tremor or duty), and the regrouped release ablation localizes
-  the unholdable pose to the **left knee and ankle**, parked just inside
-  `leg_home_pose_tolerance`'s penalty-free band. The release ablation gains
+  the unholdable pose to the **left knee and ankle**, priced at ~29 of the
+  home-pose term's 500 points while the chatter stabilising it forfeits
+  ~1030 in support terms. The release ablation gains
   `knees_ankles` and per-side groups, and the impulse probe's prose no longer
   attributes asymmetry to toe splay the r7 plant cannot produce.
 - **A constant-hold probe, which separates "needs bandwidth" from "needs

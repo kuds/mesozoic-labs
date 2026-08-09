@@ -41,8 +41,8 @@ Three hypotheses from the previous investigation cycle got definitive answers:
    noise — not noise the policy was forced to carry.
 3. **The stabilisation load is localizable after all** — but only with the
    right ablation groups. It lives in the **left knee and left ankle**
-   (section 5), in a pose parked just inside `leg_home_pose_tolerance`'s
-   penalty-free band (section 6).
+   (section 5), in a pose the home-pose term prices at ~29 points while the
+   chatter it necessitates forfeits ~1030 (section 6).
 
 ---
 
@@ -162,33 +162,41 @@ about saturation being visible rather than causal, repeated on a new plant.
 
 ---
 
-## 6. The tolerance dead zone
+## 6. The home-pose pricing is too flat where the pose hides
 
-`leg_home_pose_tolerance = 0.2` defines a penalty-free band around the home
-pose for the eight governed leg joints. The checkpoint's statue-breaking
-offsets sit at or just inside it: l_knee DC 0.185 normalised (0.16 rad =
-9.2°), l_ankle 0.081, hip rolls ≈ 0.18. The policy parked its pose precisely
-where the pose penalty cannot see it — `leg_home_pose` still pays +379 of its
-+500 ceiling — and then pays the chatter tax forever to stabilise a pose the
-passive plant cannot hold.
+`leg_home_pose` is not a dead band: it is a per-joint Gaussian bonus,
+``quality = mean_j exp(-(qpos_err_j / tolerance)²)`` with ``tolerance = 0.2``
+rad over the eight governed leg joints (`reward_soft_home_pose`, shared
+verbatim by both backends). The problem is its flatness at this width. The
+left knee's ~0.16 rad offset scores ``exp(-0.64) ≈ 0.53`` — but on **one
+joint of eight**, so the mean quality falls only ~6%, ≈ **29 points of the
+500-point ceiling** (the checkpoint measures +379, consistent with this plus
+the tremor's spread on the other joints). The pose that breaks the statue is
+priced at 29 points while the chatter required to stabilise it forfeits
+~1030 in the support-linked terms. The term sees the pose; it just does not
+care enough for the optimiser to.
 
-This is the same *shape* of finding as the r6 toes (a statue-breaking pose
-living where no term prices it), one level up: the toes were ungoverned by
-construction; the left knee/ankle are governed but hiding inside the
-tolerance. The band was sized to keep reset-noise settling penalty-free, not
-to admit standing 9° off home on one knee.
+This is the same *shape* of finding as the r6 toes — a statue-breaking pose
+living where the reward barely prices it — one level up: the toes were
+ungoverned by construction; the left knee/ankle are governed by a Gaussian
+whose width was sized for balancing corrections ("broad enough for balancing
+corrections without joint locking", per the config comment), not for making
+a 9°-off-home stance uneconomical.
 
 ---
 
 ## 7. Recommendations, ranked
 
-1. **Tighten or reshape `leg_home_pose`'s dead zone.** Mechanism-backed by
-   sections 5–6, one config line, and statue-invariant: the statue sits at
-   zero offset, so `min_avg_reward`/`collapse_peak_floor_reference` need no
-   re-derivation (the freshness pin from #500 stays honest). Candidate:
-   tolerance 0.2 → 0.05–0.10, or a quadratic-from-zero penalty with no band.
-   Verify reset-noise settling still lives inside whatever band remains
-   (reset noise is 0.05 rad ≈ 2.9°).
+1. **Narrow the `leg_home_pose` Gaussian.** Mechanism-backed by sections
+   5–6 and one config line: shrinking `leg_home_pose_tolerance` steepens the
+   pricing of exactly the offsets the ablation convicted (halving the width
+   quadruples the exponent: the 0.16-rad knee goes from quality 0.53 to
+   0.08). The statue is NOT automatically invariant — its settled joints
+   carry small residual offsets, and a narrow-enough Gaussian prices those
+   too — so the width must be chosen from measurement: the statue's
+   post-settle error distribution sets the floor, the checkpoint's convicted
+   offsets set the ceiling, and the statue baseline must be re-run to
+   confirm the constants pinned by #500's freshness check still hold.
 2. **Training-time action low-pass (~10–12 Hz).** The structural complement:
    this checkpoint already tolerates 20 Hz filtering at −180 reward, and a
    10 Hz in-loop filter makes the 18.7 Hz chatter inexpressible — the same
