@@ -153,10 +153,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # Stage-1 reward gates are COLLAPSE RAILS: 0.60 x each species' zero-action
     # statue standing reward at the 1a operating point (reset noise 0.05),
     # measured over 40 episodes with
-    # environments/shared/scripts/stance_quality_baseline.py -- trex 3270.3
-    # (passive-toes plant, physics r7; 3271.8 on r6, within one standard
-    # error), velociraptor 1745.8, brachiosaurus 1739.1 (on the plant repaired
-    # by plant_versions notes 7-8), dibothrosuchus 2598.3.
+    # environments/shared/scripts/stance_quality_baseline.py -- trex 3241.3
+    # (physics r7 at leg_home_pose_tolerance 0.10; 3270.3 at tolerance 0.20,
+    # 3271.8 on the r6 plant), velociraptor 1745.8, brachiosaurus 1739.1 (on
+    # the plant repaired by plant_versions notes 7-8), dibothrosuchus 2598.3.
     #
     # A rail sits BELOW its statue deliberately. Section 9 showed the statue
     # is the reward optimum -- it collects 97.0% of the theoretical maximum
@@ -176,9 +176,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # 0.60 x the statue's standing reward at leg_home_pose_weight 0.5.
         # Was briefly 2550 while that weight was 1.5 (statue 4250.4), reverted
         # with it in issue #491. The FRACTION is the invariant, not the reward.
-        # Unchanged by the passive-toes plant (r7): the statue re-measured
-        # within one standard error of the r6 figure.
-        "trex": 1950.0,
+        # Re-derived when leg_home_pose_tolerance narrowed to 0.10: the
+        # sharper Gaussian prices the statue's own settle sag, statue
+        # 3270.3 -> 3241.3, x0.60 = 1944.8 -> 1940 nearest-10.
+        "trex": 1940.0,
         "velociraptor": 1050.0,
         "brachiosaurus": 1040.0,
         "dibothrosuchus": 1560.0,
