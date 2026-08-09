@@ -43,7 +43,7 @@ def _stance_only_env():
         foot_load_balance_weight=0.3,
         support_conditioned_alive_fraction=0.5,
         leg_home_pose_weight=0.5,
-        leg_home_pose_tolerance=0.20,
+        leg_home_pose_tolerance=0.10,
         head_clearance_weight=0.35,
         head_clearance_target=0.90,
         head_clearance_tolerance=0.15,

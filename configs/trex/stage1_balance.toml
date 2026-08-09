@@ -76,7 +76,16 @@ leg_home_pose_weight = 0.5                     # Softly retain the authored p5 t
                                                # weight had nothing to pull on: measured DC moved 0.766 -> 0.738,
                                                # 3.7%, while the run took ~2M extra steps to escape its early
                                                # collapse. The list, not the weight, is the problem (#491).
-leg_home_pose_tolerance = 0.20                 # rad; broad enough for balancing corrections without joint locking
+leg_home_pose_tolerance = 0.10                 # rad; Gaussian width of the home-pose bonus, narrowed from 0.20
+                                               # after the 20260808 run (postmortem: TREX_STAGE1_PASSIVE_TOES_RUN_
+                                               # 2026_08.md section 6). At 0.20 the statue-breaking left-knee/ankle
+                                               # offsets the release ablation convicted (0.21/0.17 rad measured)
+                                               # cost only ~29 of this term's 500 points; measured pricing at 0.10
+                                               # doubles the statue-vs-chatterer differential (109 -> 180 points)
+                                               # while staying 2x above the statue's own p99 settle error
+                                               # (~0.05 rad, hip-pitch gravity sag). 0.075/0.05 are past the knee:
+                                               # +23/+33 more differential for -26/-83 more statue reward. The
+                                               # statue-derived constants below are re-measured at this width.
 head_clearance_weight = 0.35                   # Prevent the learned head-droop posture
 head_clearance_target = 0.90                   # m; settled home head tip is ~0.94 m
 head_clearance_tolerance = 0.15                # Smooth transition from zero credit at 0.75 m
@@ -301,7 +310,7 @@ settle_steps = 200                       # [inferred], NOT measured. Duty is sco
 min_eval_episodes = 40                   # The panel size every figure above is specified at. n_eval_episodes must
                                          # match: at n=30 the bound's power and the 28%-rejection analysis no longer
                                          # describe this gate.
-min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
+min_avg_reward = 1940.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
                                         # can separate a competent policy from a statue, because the statue is the
                                         # reward optimum. Sized to the one job a rail CAN do — rejecting a policy
                                         # that discarded most of the available return — at 0.60 x the statue's
@@ -321,6 +330,12 @@ min_avg_reward = 1950.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # and stance_quality_baseline.py agree) -- within one standard error of
                                         # the r6 figure, so the rail stays at 1950 rather than chasing noise to
                                         # 0.60 x 3270.3 = 1962.
+                                        #
+                                        # Re-derived again when leg_home_pose_tolerance narrowed 0.20 -> 0.10
+                                        # (the statue's own hip-pitch gravity sag of ~0.048 rad now costs it
+                                        # ~29 points): statue 3241.3 +/- 14.6, zero_action_baseline.py seed
+                                        # 3042, 40 episodes. 0.60 x 3241.3 = 1944.8, rounded to 1940 per the
+                                        # nearest-10 convention the species table uses.
                                         #
                                         # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
                                         # full-horizon 93% -> 7%) bottomed at 888 = 0.27 x statue, so 0.60 clears
@@ -397,10 +412,12 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # post-150k rolling median in that run is 580.5, well under 1472.3. A
                                          # larger warm-up buys nothing and costs coverage: 1.0M leaves 88% of a 10M
                                          # budget protected, 2.5M only 72%.
-collapse_peak_floor_reference = 3270.3   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
-                                         # measured on the passive-toes plant (physics r7; was 3271.8 on r6,
-                                         # within one standard error -- the toes settle on springs at the same
-                                         # pose the servos held). Briefly 4250.4 while leg_home_pose_weight was
+collapse_peak_floor_reference = 3241.3   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
+                                         # measured on the passive-toes plant (physics r7) at
+                                         # leg_home_pose_tolerance 0.10. History: 3271.8 on the r6 plant,
+                                         # 3270.3 on r7 at tolerance 0.20; the -29 from narrowing the
+                                         # tolerance is the statue's own hip-pitch settle sag being priced by
+                                         # the sharper Gaussian, measured, not assumed. Briefly 4250.4 while leg_home_pose_weight was
                                          # 1.5; reverted with it (issue #491). Re-measure this whenever a reward
                                          # weight OR the plant changes: a weight change rescales the statue's
                                          # terms exactly and cheaply; a plant change moves its trajectory, so

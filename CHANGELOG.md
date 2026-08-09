@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Changed
+- **T-Rex stage 1 `leg_home_pose_tolerance` narrowed 0.20 → 0.10 rad**, and the
+  two statue-derived constants re-derived with it (`min_avg_reward`
+  1950 → 1940, `collapse_peak_floor_reference` 3270.3 → 3241.3, both from a
+  fresh 40-episode zero-action baseline at seed 3042). Motivated by the
+  passive-toes run postmortem: the 10M checkpoint stands on a pose the
+  release ablation convicts (left knee 0.21 rad, left ankle 0.17 rad off
+  home) that the 0.20-wide Gaussian priced at only ~29 of the term's 500
+  points, while the chatter stabilising that pose forfeits ~1030 in the
+  support-linked terms. The width was chosen from measurement, not taste:
+  0.10 doubles the statue-vs-chatterer pricing differential (109 → 180
+  points) while staying 2× above the statue's own p99 settle error
+  (~0.05 rad hip-pitch gravity sag); 0.075 and 0.05 sit past the knee of
+  the curve, paying −26/−83 more statue reward for +23/+33 differential.
+  The statue remains the reward optimum with a wider margin over the
+  measured chatterer (~1128 vs ~1057 points).
 - **T-Rex toes made passive** (breaking — plant change, physics revision 6 → 7
   **and** policy interface revision 9 → 10; all existing T-Rex checkpoints are
   invalidated). The six per-digit `<position>` actuators (kp 60, forcerange
