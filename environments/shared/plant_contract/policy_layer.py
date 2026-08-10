@@ -226,6 +226,13 @@ def _jax_policy_interface_payload(
             f"SB3 and MJX action mappings diverge for {version.species}: "
             f"sb3={sb3_action_mapping!r}, mjx={registered_action_mapping!r}"
         )
+    registered_filter_cutoff = float(raw_config.get("action_filter_cutoff_hz", 0.0))
+    sb3_filter_cutoff = float(getattr(env, "action_filter_cutoff_hz", 0.0))
+    if registered_filter_cutoff != sb3_filter_cutoff:
+        raise PlantContractError(
+            f"SB3 and MJX action filter cutoffs diverge for {version.species}: "
+            f"sb3={sb3_filter_cutoff!r}, mjx={registered_filter_cutoff!r}"
+        )
 
     probe_data = _deterministic_probe_data(model)
     target_pos = probe_data.mocap_pos[0] if model.nmocap else np.array([1.25, -0.45, 0.8])
@@ -275,6 +282,10 @@ def _jax_policy_interface_payload(
     }
     if registered_action_mapping != _ACTION_MAPPING_MIDPOINT:
         payload["action_mapping"] = registered_action_mapping
+    if registered_filter_cutoff > 0.0:
+        # Conditional so filter-free species keep their payload (and thus
+        # their policy fingerprint) byte-identical.
+        payload["action_filter_cutoff_hz"] = _canonical_float(registered_filter_cutoff)
     return payload
 
 
@@ -362,6 +373,19 @@ def _policy_interface_payload(
             "jax": _module_function_semantics(
                 "environments.shared.mjx_utils",
                 ("reset_mujoco_data_to_home",),
+            ),
+        }
+    action_filter_cutoff = float(getattr(env, "action_filter_cutoff_hz", 0.0))
+    if action_filter_cutoff > 0.0:
+        # Conditional: species without the filter keep their fingerprint.
+        # For species with it, the cutoff and the filter arithmetic are part
+        # of what a checkpoint's action means — edits to action_filter.py
+        # move this fingerprint and force a policy revision bump.
+        interface_implementations["action_low_pass_filter"] = {
+            "cutoff_hz": _canonical_float(action_filter_cutoff),
+            "implementation": _module_function_semantics(
+                "environments.shared.action_filter",
+                ("low_pass_alpha", "apply_low_pass"),
             ),
         }
     return {

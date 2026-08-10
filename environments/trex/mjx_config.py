@@ -36,6 +36,11 @@ _SENSOR_TAIL_GYRO_START = 21
 register_species_mjx(
     species="trex",
     action_mapping="home-keyframe-residual/v1",
+    # 10 Hz command low-pass (plant interface r11); must equal
+    # TRexEnv.action_filter_cutoff_hz — the plant contract asserts backend
+    # agreement.  Rationale in environments/shared/action_filter.py and the
+    # 2026-08 stage-1 postmortems.
+    action_filter_cutoff_hz=10.0,
     frame_skip=5,
     max_episode_steps=1000,
     healthy_z_range=(0.70, 1.55),

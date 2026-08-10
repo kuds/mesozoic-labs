@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Changed
+- **T-Rex commands are low-passed at 10 Hz during training and evaluation**
+  (breaking — plant change, policy interface revision 10 → 11; all existing
+  T-Rex checkpoints are invalidated; physics revision stays 7 and the
+  statue-derived constants carry, since the statue's zero action filters to
+  zero). Both backends now run the commanded action through a first-order
+  low-pass (`environments/shared/action_filter.py`, the same discretization
+  as the stance-gate probe filter), seeded with the first post-reset action;
+  the dynamics **and** the action-derived reward terms (energy, smoothness,
+  jerk) consume the filtered command. The cutoff is plant-level by
+  construction — an SB3 class attribute and a `register_species_mjx` field
+  guarded by `_PLANT_INTERFACE_CONFIG_FIELDS` — so stage TOMLs cannot tune
+  it, and the plant contract records the cutoff plus the filter fingerprint
+  and asserts backend agreement. Motivation
+  (`docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md`): both
+  2026-08 stage-1 runs converged on statically unstable poses stabilised by
+  16.8–18.7 Hz command chatter — the narrow-tolerance run locked both knees
+  against their stops and pumped the ankles ±28–33°, and its constant-hold
+  probe fell backward onto the tail in 9/10 episodes within ~3 s — while
+  the filter probe puts the balance task's real bandwidth at ~1.1–1.4 Hz.
+  Amplitude penalties cannot price the strategy out (a saturated command is
+  perfectly smooth); removing the bandwidth makes such poses unreachable
+  attractors instead of cheap ones. Other species keep the exact legacy
+  step arithmetic (cutoff 0.0, byte-identical policy fingerprints).
 - **T-Rex stage 1 `leg_home_pose_tolerance` narrowed 0.20 → 0.10 rad**, and the
   two statue-derived constants re-derived with it (`min_avg_reward`
   1950 → 1940, `collapse_peak_floor_reference` 3270.3 → 3241.3, both from a

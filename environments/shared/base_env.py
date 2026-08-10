@@ -20,6 +20,8 @@ import gymnasium as gym
 import mujoco
 import numpy as np
 
+from .action_filter import apply_low_pass as _apply_low_pass
+from .action_filter import low_pass_alpha as _low_pass_alpha
 from .constants import SENSOR_ACCEL_START, SENSOR_GYRO_START, SENSOR_QUAT_START, TAIL_ANGULAR_VEL_MAX
 from .reward_functions import check_height_tilt_termination as _check_height_tilt_pure
 from .reward_functions import quat_to_forward_2d as _quat_to_forward_2d_pure
@@ -131,6 +133,14 @@ class BaseDinoEnv(gym.Env, ABC):
     _substep_height_checks: "tuple[tuple[str, int], ...]" = ()
     _substep_min_heights: "np.ndarray | None" = None
 
+    # First-order low-pass on the commanded action, in Hz; 0.0 disables it
+    # and preserves the exact legacy step arithmetic.  Part of the PLANT
+    # INTERFACE, not the curriculum: a class attribute rather than an
+    # __init__ kwarg precisely so stage TOMLs cannot tune it, and the plant
+    # contract records the value and the filter implementation when a
+    # species enables it (see environments/shared/action_filter.py).
+    action_filter_cutoff_hz: float = 0.0
+
     # Optional zero-argument callable invoked after EVERY physics substep in
     # step().  Exists so stance_duty_validation.py and the aggregation
     # regression tests can record per-substep kinematic ground truth through
@@ -176,6 +186,15 @@ class BaseDinoEnv(gym.Env, ABC):
         self.dt = self.model.opt.timestep * frame_skip
         self.max_episode_steps = max_episode_steps
         self._step_count = 0
+
+        # Command low-pass state (see the action_filter_cutoff_hz class
+        # attribute).  The alpha is fixed by the control cadence; the state
+        # is invalidated across reset through _step_count, like the substep
+        # aggregates, so the fingerprinted reset() stays untouched.
+        self._action_filter_alpha = (
+            _low_pass_alpha(self.action_filter_cutoff_hz, self.dt) if self.action_filter_cutoff_hz > 0.0 else 0.0
+        )
+        self._action_filter_state: np.ndarray | None = None
 
         # Distance tracking (cumulative XY path length)
         self._prev_pos_2d: np.ndarray = np.zeros(2)
@@ -941,8 +960,33 @@ class BaseDinoEnv(gym.Env, ABC):
             raise AttributeError(f"{type(self).__name__} has no attribute '{name}'")
         setattr(self, name, value)
 
+    def _filter_action(self, action: np.ndarray) -> np.ndarray:
+        """Low-pass the commanded action (action_filter_cutoff_hz > 0 only).
+
+        Seeded with the first post-reset action so episodes do not open
+        with a transient toward zero; the episode boundary is detected
+        through ``_step_count`` (reset() zeroes it) so the fingerprinted
+        ``reset()`` stays untouched.  Clips first: the filter state must
+        live in the same [-1, 1] box the scaler clips to, or an
+        out-of-range burst would decay through several steps instead of
+        being cut at the boundary.  The MJX step_fn applies the identical
+        update through its ``filtered_action`` carry — keep in lockstep.
+        """
+        clipped = np.clip(np.asarray(action, dtype=np.float64), -1.0, 1.0)
+        if self._step_count == 0 or self._action_filter_state is None:
+            self._action_filter_state = clipped
+        else:
+            self._action_filter_state = _apply_low_pass(self._action_filter_state, clipped, self._action_filter_alpha)
+        return self._action_filter_state.copy()
+
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         """Execute one environment step."""
+        if self.action_filter_cutoff_hz > 0.0:
+            # Both the dynamics and the action-derived reward terms below
+            # consume the filtered command: raw policy content above the
+            # cutoff never reaches the plant, so pricing it would penalise
+            # a signal with no physical consequence.
+            action = self._filter_action(action)
         # Scale action from [-1, 1] to actuator control ranges
         ctrl = self._scale_action(action)
         self.data.ctrl[:] = ctrl

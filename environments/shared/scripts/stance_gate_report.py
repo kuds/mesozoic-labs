@@ -57,6 +57,7 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
+from environments.shared.action_filter import low_pass_alpha  # noqa: E402
 from environments.shared.config import load_stage_config  # noqa: E402
 from environments.shared.curriculum.stance_gate import (  # noqa: E402
     STANCE_GATE_KIND,
@@ -730,9 +731,13 @@ def _low_pass_predict(predict: Any, cutoff_hz: float, control_dt: float) -> Any:
 
     The state is per-call-sequence and reset by the caller between episodes
     via :func:`reset`, so one episode's tail cannot leak into the next.
+
+    The discretization is shared with the training-time plant filter
+    (environments/shared/action_filter.py) so probe cutoffs and plant
+    cutoffs are directly comparable.  When probing a plant that itself
+    filters (action_filter_cutoff_hz > 0), the two filters stack.
     """
-    rc = 1.0 / (2.0 * math.pi * cutoff_hz)
-    alpha = control_dt / (rc + control_dt)
+    alpha = low_pass_alpha(cutoff_hz, control_dt)
     state: dict[str, Any] = {"y": None}
 
     def filtered(obs: np.ndarray) -> np.ndarray:

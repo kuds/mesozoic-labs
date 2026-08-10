@@ -98,7 +98,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # appended, pad + meta summed per leg on both backends; the physics layer
     # fingerprints nsite/nsensor, so new sites move it even though dynamics
     # are unchanged).
-    expected_policy_revisions = {"velociraptor": 8, "trex": 10, "brachiosaurus": 6, "dibothrosuchus": 5}
+    expected_policy_revisions = {"velociraptor": 8, "trex": 11, "brachiosaurus": 6, "dibothrosuchus": 5}
     expected_physics_revisions = {"velociraptor": 2, "trex": 7, "brachiosaurus": 4, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
