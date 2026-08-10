@@ -414,6 +414,8 @@ def reward_soft_home_pose(
     home_positions: Array,
     tolerance: float,
     weight: float,
+    broad_fraction: float = 0.0,
+    broad_scale: float = 6.0,
 ) -> tuple[Array, Array, Array]:
     """Reward a soft joint-space neighbourhood around an XML home pose.
 
@@ -422,6 +424,17 @@ def reward_soft_home_pose(
     shaping on every other joint while the RMS remains an intuitive raw
     diagnostic.
 
+    ``broad_fraction`` > 0 mixes in a second Gaussian ``broad_scale`` times
+    wider: ``(1-f) * exp(-(e/tol)^2) + f * exp(-(e/(s*tol))^2)``.  A single
+    narrow Gaussian's gradient is zero to machine precision a few tolerance
+    widths out, so it can pay a basin it cannot attract anything toward —
+    the 2026-08 narrow-tolerance run drifted from 0.20 to 0.545 rad of home
+    error without ever feeling a restoring force.  The broad component
+    keeps a pull alive at those distances while the narrow one still prices
+    precision near home; at home both components are 1, so the maximum is
+    unchanged.  The default (0.0) preserves the historical single-Gaussian
+    behaviour exactly.
+
     Returns:
         ``(reward, rms_error, mean_pose_quality)``.
     """
@@ -429,8 +442,41 @@ def reward_soft_home_pose(
     safe_tolerance = xp.maximum(tolerance, 1e-8)
     error = joint_positions - home_positions
     rms_error = xp.sqrt(xp.mean(xp.square(error)))
-    pose_quality = xp.mean(xp.exp(-xp.square(error / safe_tolerance)))
+    narrow = xp.exp(-xp.square(error / safe_tolerance))
+    if broad_fraction > 0.0:
+        broad = xp.exp(-xp.square(error / (broad_scale * safe_tolerance)))
+        per_joint = (1.0 - broad_fraction) * narrow + broad_fraction * broad
+    else:
+        per_joint = narrow
+    pose_quality = xp.mean(per_joint)
     return weight * pose_quality, rms_error, pose_quality
+
+
+def reward_action_saturation(
+    action: Array,
+    weight: float,
+    threshold: float = 0.9,
+) -> tuple[Array, Array]:
+    """Penalise commands parked against their range limits.
+
+    Per actuator, the cost ramps linearly from 0 at ``|action| = threshold``
+    to 1 at full saturation, and the term is the mean across actuators.  A
+    saturated command is invisible to the smoothness and jerk penalties —
+    it cannot oscillate — which made "pin the joint at its stop" the
+    cheapest way to be smooth: the 2026-08 narrow-tolerance run parked six
+    of fifteen actuators at hard stops.  This prices that exploit directly.
+    Transient saturation during a genuine correction stays cheap (one
+    actuator briefly saturated costs ``weight/n`` per step); only a parked
+    channel pays the full rate.
+
+    Returns:
+        ``(reward, saturation_fraction)``.
+    """
+    xp = _array_mod(action)
+    span = max(1.0 - threshold, 1e-8)
+    excess = xp.clip((xp.abs(action) - threshold) / span, 0.0, 1.0)
+    saturation_fraction = xp.mean(excess)
+    return -weight * saturation_fraction, saturation_fraction
 
 
 def reward_head_clearance(

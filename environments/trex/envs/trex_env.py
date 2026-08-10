@@ -61,6 +61,9 @@ import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.reward_functions import (
+    reward_action_saturation as _reward_action_saturation_pure,
+)
+from environments.shared.reward_functions import (
     reward_bilateral_support as _reward_bilateral_support_pure,
 )
 from environments.shared.reward_functions import (
@@ -81,6 +84,10 @@ class TRexEnv(BaseDinoEnv):
     """Tyrannosaurus Rex bipedal locomotion and bite-attack environment."""
 
     action_mapping = "home-keyframe-residual/v1"
+    # Settled tail pose for the tail_home_pose term, in tail_home_joint_names
+    # order (tail_1_pitch, tail_1_yaw, tail_2_pitch, tail_3_pitch); see the
+    # provenance comment in _cache_ids.
+    _TAIL_SETTLED_QPOS = (-0.2107, 0.0, -0.2029, -0.0926)
     _camera_distance = 3.0
     _camera_azimuth = 135
     _camera_elevation = -20
@@ -133,6 +140,12 @@ class TRexEnv(BaseDinoEnv):
         head_clearance_tolerance: float = 0.48,
         neck_posture_weight: float = 0.0,
         neck_posture_tolerance: float = 0.35,
+        tail_home_pose_weight: float = 0.0,
+        tail_home_pose_tolerance: float = 0.10,
+        action_saturation_weight: float = 0.0,
+        action_saturation_threshold: float = 0.9,
+        leg_home_pose_broad_fraction: float = 0.0,
+        leg_home_pose_broad_scale: float = 6.0,
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
@@ -202,6 +215,12 @@ class TRexEnv(BaseDinoEnv):
         self.head_clearance_tolerance = head_clearance_tolerance
         self.neck_posture_weight = neck_posture_weight
         self.neck_posture_tolerance = neck_posture_tolerance
+        self.tail_home_pose_weight = tail_home_pose_weight
+        self.tail_home_pose_tolerance = tail_home_pose_tolerance
+        self.action_saturation_weight = action_saturation_weight
+        self.action_saturation_threshold = action_saturation_threshold
+        self.leg_home_pose_broad_fraction = leg_home_pose_broad_fraction
+        self.leg_home_pose_broad_scale = leg_home_pose_broad_scale
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
         if self.height_target_tolerance < 0.0:
@@ -216,6 +235,14 @@ class TRexEnv(BaseDinoEnv):
             raise ValueError("head_clearance_tolerance must be positive")
         if self.neck_posture_tolerance <= 0.0:
             raise ValueError("neck_posture_tolerance must be positive")
+        if self.tail_home_pose_tolerance <= 0.0:
+            raise ValueError("tail_home_pose_tolerance must be positive")
+        if not 0.0 <= self.action_saturation_threshold < 1.0:
+            raise ValueError("action_saturation_threshold must be in [0, 1)")
+        if not 0.0 <= self.leg_home_pose_broad_fraction <= 1.0:
+            raise ValueError("leg_home_pose_broad_fraction must be in [0, 1]")
+        if self.leg_home_pose_broad_scale <= 1.0:
+            raise ValueError("leg_home_pose_broad_scale must exceed 1 (it widens the narrow Gaussian)")
 
         # Natural forward pitch (~1.55°), measured: the pelvis frame at the home
         # keyframe is level, and under the home controller the plant settles at
@@ -365,11 +392,29 @@ class TRexEnv(BaseDinoEnv):
             "l_ankle",
         )
         neck_home_joint_names = ("neck_pitch", "neck_yaw", "head_pitch")
+        # The tail term prices JOINT positions.  The pre-existing tail
+        # stability term reads only tail-tip angular velocity, which a tail
+        # parked motionless against a hard stop satisfies perfectly -- the
+        # 2026-08 narrow-tolerance run parked all three of tail_1_yaw,
+        # tail_2_pitch and tail_3_pitch that way.
+        tail_home_joint_names = ("tail_1_pitch", "tail_1_yaw", "tail_2_pitch", "tail_3_pitch")
         self._leg_home_qpos_indices = self._joint_qpos_indices(leg_home_joint_names)
         self._neck_home_qpos_indices = self._joint_qpos_indices(neck_home_joint_names)
+        self._tail_home_qpos_indices = self._joint_qpos_indices(tail_home_joint_names)
         home_qpos = self.model.key_qpos[self.home_keyframe_id]
         self._leg_home_qpos = home_qpos[self._leg_home_qpos_indices].copy()
         self._neck_home_qpos = home_qpos[self._neck_home_qpos_indices].copy()
+        # Statue-derived, NOT the keyframe: the passive tail cannot hold the
+        # authored zeros against gravity -- under the home controller it
+        # settles onto its ventral stops (tail_1/tail_2 pitch at
+        # -0.2107/-0.2029 rad against the -0.2094 stop, tail_3 at -0.0926)
+        # with sub-milliradian spread across 40 seeds at reset noise 0.05.
+        # Pricing the keyframe would cap the ideal statue at ~0.25 quality,
+        # so the term targets the settled droop instead (the
+        # target_standing_z = 0.9260 precedent).  Must match the MJX
+        # registry's tail_home_pose_targets (environments/trex/mjx_config.py);
+        # re-measure whenever tail masses, springs, or gains change.
+        self._tail_home_qpos = np.array(self._TAIL_SETTLED_QPOS)
 
     def _joint_qpos_indices(self, joint_names: tuple[str, ...]) -> np.ndarray:
         """Resolve scalar hinge-joint qpos addresses, failing on model drift."""
@@ -422,6 +467,8 @@ class TRexEnv(BaseDinoEnv):
         qpos_indices: np.ndarray,
         target_qpos: np.ndarray,
         tolerance: float,
+        broad_fraction: float = 0.0,
+        broad_scale: float = 6.0,
     ) -> tuple[float, float]:
         """Return RMS joint error and a smooth bounded home-pose quality."""
         _, rms_error, quality = _reward_soft_home_pose_pure(
@@ -429,6 +476,8 @@ class TRexEnv(BaseDinoEnv):
             target_qpos,
             tolerance,
             1.0,
+            broad_fraction,
+            broad_scale,
         )
         return float(rms_error), float(quality)
 
@@ -642,6 +691,19 @@ class TRexEnv(BaseDinoEnv):
         info["neck_posture_quality"] = neck_posture_quality
         info["reward_neck_posture"] = reward_neck_posture
 
+        # 6b. Tail home pose.  The tail stability term (6) reads only the
+        # tail-tip gyro, so a tail frozen against a hard stop is optimal for
+        # it; this prices the joint positions themselves.
+        tail_home_pose_error, tail_home_pose_quality = self._home_pose_quality(
+            self._tail_home_qpos_indices,
+            self._tail_home_qpos,
+            self.tail_home_pose_tolerance,
+        )
+        reward_tail_home_pose = self.tail_home_pose_weight * tail_home_pose_quality
+        info["tail_home_pose_error"] = tail_home_pose_error
+        info["tail_home_pose_quality"] = tail_home_pose_quality
+        info["reward_tail_home_pose"] = reward_tail_home_pose
+
         # 7. Continuous posture reward
         pelvis_quat = self.data.sensordata[self._sensor_quat_start : self._sensor_quat_start + 4]
         reward_posture, tilt_angle = self._compute_posture_reward(pelvis_quat, self.posture_weight)
@@ -699,6 +761,8 @@ class TRexEnv(BaseDinoEnv):
             self._leg_home_qpos_indices,
             self._leg_home_qpos,
             self.leg_home_pose_tolerance,
+            self.leg_home_pose_broad_fraction,
+            self.leg_home_pose_broad_scale,
         )
         reward_leg_home_pose = self.leg_home_pose_weight * leg_home_pose_quality
         info["leg_home_pose_error"] = leg_home_pose_error
@@ -724,6 +788,16 @@ class TRexEnv(BaseDinoEnv):
         reward_smoothness, action_delta = self._reward_action_smoothness(action)
         info["action_delta"] = action_delta
         info["reward_smoothness"] = reward_smoothness
+
+        # 10b. Saturation cost.  A command pinned at a range limit is
+        # invisible to the smoothness/jerk penalties above -- it cannot
+        # oscillate -- so parking joints at stops was the cheapest way to
+        # be smooth.  Price the parked fraction directly.
+        reward_action_saturation, action_saturation = _reward_action_saturation_pure(
+            action, self.action_saturation_weight, self.action_saturation_threshold
+        )
+        info["action_saturation"] = float(action_saturation)
+        info["reward_action_saturation"] = float(reward_action_saturation)
 
         # 11. Heading alignment
         body_forward_2d = self._quat_to_forward_2d(pelvis_quat)
@@ -776,6 +850,7 @@ class TRexEnv(BaseDinoEnv):
             + reward_head_proximity
             + reward_head_clearance
             + reward_neck_posture
+            + reward_tail_home_pose
             + reward_posture
             + reward_nosedive
             + reward_height
@@ -785,6 +860,7 @@ class TRexEnv(BaseDinoEnv):
             + reward_gait
             + reward_smoothness
             + reward_action_jerk
+            + reward_action_saturation
             + reward_heading
             + reward_lateral
             + reward_spin

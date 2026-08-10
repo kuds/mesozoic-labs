@@ -49,6 +49,12 @@ def _stance_only_env():
         head_clearance_tolerance=0.15,
         neck_posture_weight=0.20,
         neck_posture_tolerance=0.35,
+        tail_home_pose_weight=0.25,
+        tail_home_pose_tolerance=0.06,
+        action_saturation_weight=0.5,
+        action_saturation_threshold=0.9,
+        leg_home_pose_broad_fraction=0.25,
+        leg_home_pose_broad_scale=6.0,
     )
 
 
@@ -79,6 +85,12 @@ def test_jax_reward_composer_matches_gymnasium_stance_components():
             "head_clearance_tolerance": env.head_clearance_tolerance,
             "neck_posture_weight": env.neck_posture_weight,
             "neck_posture_tolerance": env.neck_posture_tolerance,
+            "tail_home_pose_weight": env.tail_home_pose_weight,
+            "tail_home_pose_tolerance": env.tail_home_pose_tolerance,
+            "action_saturation_weight": env.action_saturation_weight,
+            "action_saturation_threshold": env.action_saturation_threshold,
+            "leg_home_pose_broad_fraction": env.leg_home_pose_broad_fraction,
+            "leg_home_pose_broad_scale": env.leg_home_pose_broad_scale,
             "height_weight": env.height_weight,
             "height_target_tolerance": env.height_target_tolerance,
         }
@@ -101,6 +113,8 @@ def test_jax_reward_composer_matches_gymnasium_stance_components():
             leg_home_pose_targets=jnp.asarray(env._leg_home_qpos),
             neck_posture_qpos_indices=tuple(int(index) for index in env._neck_home_qpos_indices),
             neck_posture_targets=jnp.asarray(env._neck_home_qpos),
+            tail_home_pose_qpos_indices=tuple(int(index) for index in env._tail_home_qpos_indices),
+            tail_home_pose_targets=jnp.asarray(env._tail_home_qpos),
             head_clearance_site_id=env.head_tip_site_id,
         )
 
@@ -111,6 +125,8 @@ def test_jax_reward_composer_matches_gymnasium_stance_components():
             "reward_leg_home_pose": "leg_home_pose",
             "reward_head_clearance": "head_clearance",
             "reward_neck_posture": "neck_posture",
+            "reward_tail_home_pose": "tail_home_pose",
+            "reward_action_saturation": "action_saturation",
             "reward_height": "height",
         }
         diagnostic_pairs = {
@@ -125,6 +141,9 @@ def test_jax_reward_composer_matches_gymnasium_stance_components():
             "head_clearance_quality": "_head_clearance_quality",
             "neck_posture_error": "_neck_posture_error",
             "neck_posture_quality": "_neck_posture_quality",
+            "tail_home_pose_error": "_tail_home_pose_error",
+            "tail_home_pose_quality": "_tail_home_pose_quality",
+            "action_saturation": "_action_saturation_fraction",
             "height_error": "_height_error",
             "height_quality": "_height_quality",
         }
@@ -154,6 +173,9 @@ def test_mjx_zero_defaults_preserve_p5_p7_policy_dimensions():
     assert weights["leg_home_pose_weight"] == 0.0
     assert weights["head_clearance_weight"] == 0.0
     assert weights["neck_posture_weight"] == 0.0
+    assert weights["tail_home_pose_weight"] == 0.0
+    assert weights["action_saturation_weight"] == 0.0
+    assert weights["leg_home_pose_broad_fraction"] == 0.0
     assert weights["height_target_tolerance"] == 0.0
 
 
@@ -180,9 +202,18 @@ def test_stage1_factory_enables_stance_terms_without_changing_dimensions():
     assert weights["leg_home_pose_weight"] == pytest.approx(0.5)
     assert weights["head_clearance_weight"] == pytest.approx(0.35)
     assert weights["neck_posture_weight"] == pytest.approx(0.20)
+    assert weights["tail_home_pose_weight"] > 0.0
+    assert weights["action_saturation_weight"] > 0.0
+    assert weights["leg_home_pose_broad_fraction"] > 0.0
     assert weights["height_target_tolerance"] == pytest.approx(0.06)
     assert len(env._leg_home_pose_qpos_indices) == 8
     assert len(env._neck_posture_qpos_indices) == 3
+    assert len(env._tail_home_pose_qpos_indices) == 4
+    # The settled-droop targets are duplicated constants (SB3 class attr,
+    # MJX registry); this is the pin that keeps them from drifting apart.
+    from environments.trex.envs.trex_env import TRexEnv
+
+    assert tuple(float(v) for v in env._tail_home_pose_targets) == pytest.approx(TRexEnv._TAIL_SETTLED_QPOS)
     assert env._head_clearance_site_id is not None
 
 

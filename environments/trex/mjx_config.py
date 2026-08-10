@@ -77,6 +77,15 @@ register_species_mjx(
         "l_ankle",
     ),
     neck_posture_joint_names=("neck_pitch", "neck_yaw", "head_pitch"),
+    # Joint-position targets for the tail home-pose term; the tail stability
+    # term reads only the tail-tip gyro, which a tail parked at a stop
+    # satisfies perfectly (2026-08 narrow-tolerance run).
+    tail_home_pose_joint_names=("tail_1_pitch", "tail_1_yaw", "tail_2_pitch", "tail_3_pitch"),
+    # Statue-derived settled droop, NOT the keyframe zeros: the passive tail
+    # rests on its ventral stops under gravity (sub-milliradian spread, 40
+    # seeds, noise 0.05).  Must match TRexEnv._TAIL_SETTLED_QPOS; the stage-1
+    # factory test pins the agreement.
+    tail_home_pose_targets=(-0.2107, 0.0, -0.2029, -0.0926),
     head_clearance_site="head_tip",
     termination_body_heights={
         "skull": 0.45,  # raised from 0.15: skull body origin must stay above ~half standing height
@@ -130,6 +139,12 @@ register_species_mjx(
         "head_clearance_tolerance": 0.48,
         "neck_posture_weight": 0.0,
         "neck_posture_tolerance": 0.35,
+        "tail_home_pose_weight": 0.0,
+        "tail_home_pose_tolerance": 0.10,
+        "action_saturation_weight": 0.0,
+        "action_saturation_threshold": 0.9,
+        "leg_home_pose_broad_fraction": 0.0,
+        "leg_home_pose_broad_scale": 6.0,
         "height_target_tolerance": 0.0,
     },
 )

@@ -551,6 +551,14 @@ def make_reward_fns(ctx: SpeciesContext):
         ctx.mj_model,
         tuple(geometry_value("neck_posture_joint_names", ())),
     )
+    tail_home_pose_qpos_indices, tail_home_pose_targets = _resolve_home_pose_joints(
+        ctx.mj_model,
+        tuple(geometry_value("tail_home_pose_joint_names", ())),
+    )
+    explicit_tail_targets = tuple(geometry_value("tail_home_pose_targets", ()))
+    if explicit_tail_targets:
+        # Statue-derived settled pose overrides the keyframe (see MJXEnvConfig).
+        tail_home_pose_targets = tuple(float(v) for v in explicit_tail_targets)
     head_clearance_site_id = None
     head_clearance_site = geometry_value("head_clearance_site")
     if head_clearance_site is not None:
@@ -594,6 +602,8 @@ def make_reward_fns(ctx: SpeciesContext):
         leg_home_pose_targets=jnp.asarray(leg_home_pose_targets) if leg_home_pose_targets else None,
         neck_posture_qpos_indices=neck_posture_qpos_indices,
         neck_posture_targets=jnp.asarray(neck_posture_targets) if neck_posture_targets else None,
+        tail_home_pose_qpos_indices=tail_home_pose_qpos_indices,
+        tail_home_pose_targets=jnp.asarray(tail_home_pose_targets) if tail_home_pose_targets else None,
         head_clearance_site_id=head_clearance_site_id,
         sensor_tail_gyro_start=ctx.sensor_tail_gyro_start,
         forward_vel_max=ctx.forward_vel_max,

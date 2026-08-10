@@ -8,6 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Changed
+- **T-Rex stage-1 reward shaping pack** — three measured responses to the
+  knee-lock run (`docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md`),
+  each opt-in with zero defaults in both backends:
+  - **`action_saturation` penalty** (weight 0.5, threshold 0.9): prices
+    commands parked past 90% of their range. A saturated command cannot
+    oscillate, so it was invisible to smoothness/jerk — the run parked six
+    of fifteen actuators at hard stops. The parked stance now pays
+    ~−200/episode; the statue commands zero and pays nothing.
+  - **`tail_home_pose` term** (weight 0.25, tolerance 0.05 rad): prices tail
+    *joint positions*; the existing tail term reads only tail-tip angular
+    velocity, which a tail frozen against a stop satisfies perfectly.
+    Targets are the measured **settled droop**, not the keyframe — the
+    passive tail rests on its ventral stops under gravity
+    (−0.2107/−0.2029/−0.0926 rad with sub-milliradian spread, 40 seeds),
+    so the authored zeros are unreachable and would cap the ideal statue at
+    ~0.25 quality (`TRexEnv._TAIL_SETTLED_QPOS` = MJX registry
+    `tail_home_pose_targets`, pinned equal by the stage-1 factory test).
+  - **Long-range gradient for `leg_home_pose`** (`broad_fraction` 0.25,
+    `broad_scale` 6): mixes a 6×-wider Gaussian into the term so distant
+    poses still feel a pull. The narrow Gaussian's gradient is zero a few
+    widths out, which the run demonstrated by drifting monotonically from
+    0.20 to 0.545 rad of home error without ever being pulled back; at the
+    measured crouch distance the mixture still pays 0.44 quality with live
+    gradient. At home both components are 1, so the maximum is unchanged.
+  Statue rails re-derived with the pack (zero_action_baseline.py seed 3042,
+  40 episodes, noise 0.05; stance_quality_baseline.py agrees): statue
+  3241.3 → **3495.2 ± 13.9** (+250 tail term at its settled targets, ~+4
+  broad-leg at the statue's own sag, +0 saturation), `min_avg_reward`
+  1940 → **2100** (0.60×, nearest 10), `collapse_peak_floor_reference`
+  3241.3 → **3495.2**. Physics stays r7; `statue_constants_physics_revision`
+  unchanged.
 - **T-Rex stage 1 `leg_home_pose_tolerance` narrowed 0.20 → 0.10 rad**, and the
   two statue-derived constants re-derived with it (`min_avg_reward`
   1950 → 1940, `collapse_peak_floor_reference` 3270.3 → 3241.3, both from a

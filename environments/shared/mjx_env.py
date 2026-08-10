@@ -100,6 +100,12 @@ _KNOWN_REWARD_KEYS: frozenset = frozenset(
         "head_clearance_tolerance",
         "neck_posture_weight",
         "neck_posture_tolerance",
+        "tail_home_pose_weight",
+        "tail_home_pose_tolerance",
+        "action_saturation_weight",
+        "action_saturation_threshold",
+        "leg_home_pose_broad_fraction",
+        "leg_home_pose_broad_scale",
         "height_target_tolerance",
     }
 )
@@ -222,6 +228,12 @@ class MJXEnvConfig:
     # weights does not change the checkpoint-facing plant interface.
     leg_home_pose_joint_names: tuple[str, ...] = ()
     neck_posture_joint_names: tuple[str, ...] = ()
+    tail_home_pose_joint_names: tuple[str, ...] = ()
+    # Optional explicit targets for tail_home_pose_joint_names, in the same
+    # order.  Empty falls back to the home keyframe.  Exists because a
+    # passive tail's reachable rest pose is the settled droop, not the
+    # authored keyframe (statue-derived, like target_standing_z).
+    tail_home_pose_targets: tuple[float, ...] = ()
     head_clearance_site: str | None = None
     # Reset noise parameters
     reset_noise_scale: float = 0.0  # Joint angle perturbation range
@@ -674,8 +686,17 @@ class MJXDinoEnv:
             self._neck_posture_qpos_indices,
             neck_posture_targets,
         ) = _resolve_home_pose_joints(self.mj_model, self.config.neck_posture_joint_names)
+        (
+            self._tail_home_pose_qpos_indices,
+            tail_home_pose_targets,
+        ) = _resolve_home_pose_joints(self.mj_model, self.config.tail_home_pose_joint_names)
+        if self.config.tail_home_pose_targets:
+            if len(self.config.tail_home_pose_targets) != len(self.config.tail_home_pose_joint_names):
+                raise ValueError("tail_home_pose_targets must match tail_home_pose_joint_names in length")
+            tail_home_pose_targets = tuple(float(v) for v in self.config.tail_home_pose_targets)
         self._leg_home_pose_targets = jnp.asarray(leg_home_pose_targets)
         self._neck_posture_targets = jnp.asarray(neck_posture_targets)
+        self._tail_home_pose_targets = jnp.asarray(tail_home_pose_targets)
         self._head_clearance_site_id: int | None = None
         if self.config.head_clearance_site is not None:
             head_clearance_site_id = mujoco.mj_name2id(
@@ -692,6 +713,8 @@ class MJXDinoEnv:
             raise ValueError("leg_home_pose_weight requires configured leg_home_pose_joint_names")
         if reward_weights.get("neck_posture_weight", 0.0) > 0 and not self._neck_posture_qpos_indices:
             raise ValueError("neck_posture_weight requires configured neck_posture_joint_names")
+        if reward_weights.get("tail_home_pose_weight", 0.0) > 0 and not self._tail_home_pose_qpos_indices:
+            raise ValueError("tail_home_pose_weight requires configured tail_home_pose_joint_names")
         if reward_weights.get("head_clearance_weight", 0.0) > 0 and self._head_clearance_site_id is None:
             raise ValueError("head_clearance_weight requires a configured head_clearance_site")
         if (
@@ -708,6 +731,7 @@ class MJXDinoEnv:
             ("leg_home_pose_weight", "leg_home_pose_tolerance"),
             ("head_clearance_weight", "head_clearance_tolerance"),
             ("neck_posture_weight", "neck_posture_tolerance"),
+            ("tail_home_pose_weight", "tail_home_pose_tolerance"),
         ):
             if reward_weights.get(weight_key, 0.0) > 0 and reward_weights.get(tolerance_key, 0.0) <= 0:
                 raise ValueError(f"{tolerance_key} must be positive when {weight_key} is enabled")
@@ -784,6 +808,7 @@ class MJXDinoEnv:
             quat_to_forward_2d,
             quat_to_forward_z,
             reward_action_jerk,
+            reward_action_saturation,
             reward_action_smoothness,
             reward_alive,
             reward_angular_velocity_penalty,
@@ -831,6 +856,8 @@ class MJXDinoEnv:
         leg_home_pose_targets = self._leg_home_pose_targets
         neck_posture_qpos_indices = self._neck_posture_qpos_indices
         neck_posture_targets = self._neck_posture_targets
+        tail_home_pose_qpos_indices = self._tail_home_pose_qpos_indices
+        tail_home_pose_targets = self._tail_home_pose_targets
         head_clearance_site_id = self._head_clearance_site_id
 
         def step_fn(state: EnvState, action, rng, forward_vel_scale):
@@ -1055,8 +1082,30 @@ class MJXDinoEnv:
                     leg_home_pose_targets,
                     weights.get("leg_home_pose_tolerance", 0.35),
                     leg_home_pose_w,
+                    weights.get("leg_home_pose_broad_fraction", 0.0),
+                    weights.get("leg_home_pose_broad_scale", 6.0),
                 )
                 total_reward = total_reward + r_leg_home_pose
+
+            tail_home_pose_w = weights.get("tail_home_pose_weight", 0.0)
+            if tail_home_pose_w > 0:
+                tail_joint_positions = jnp.take(data.qpos, jnp.asarray(tail_home_pose_qpos_indices))
+                r_tail_home_pose, _, _ = reward_soft_home_pose(
+                    tail_joint_positions,
+                    tail_home_pose_targets,
+                    weights.get("tail_home_pose_tolerance", 0.10),
+                    tail_home_pose_w,
+                )
+                total_reward = total_reward + r_tail_home_pose
+
+            action_saturation_w = weights.get("action_saturation_weight", 0.0)
+            if action_saturation_w > 0:
+                r_action_saturation, _ = reward_action_saturation(
+                    action,
+                    action_saturation_w,
+                    weights.get("action_saturation_threshold", 0.9),
+                )
+                total_reward = total_reward + r_action_saturation
 
             head_clearance_w = weights.get("head_clearance_weight", 0.0)
             if head_clearance_w > 0 and head_clearance_site_id is not None:

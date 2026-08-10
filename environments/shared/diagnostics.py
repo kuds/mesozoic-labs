@@ -123,6 +123,8 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_leg_home_pose",
         "reward_head_clearance",
         "reward_neck_posture",
+        "reward_tail_home_pose",
+        "reward_action_saturation",
         "reward_total",
     ]
     INFO_KEYS = [
@@ -163,6 +165,9 @@ class DiagnosticsCallback(_BaseCallback):
         "head_food_distance",  # Brachiosaurus
         "torso_height",  # Brachiosaurus
         "jaw_distance",  # T-Rex
+        # Fraction of actuators parked past the saturation threshold — the
+        # raw signal behind reward_action_saturation.
+        "action_saturation",
         *STANCE_INFO_KEYS,
     ]
 
