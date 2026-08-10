@@ -228,6 +228,8 @@ def plot_diagnostics_graphs(
         "reward_leg_home_pose": ("leg_home_pose_weight",),
         "reward_head_clearance": ("head_clearance_weight",),
         "reward_neck_posture": ("neck_posture_weight",),
+        "reward_tail_home_pose": ("tail_home_pose_weight",),
+        "reward_action_saturation": ("action_saturation_weight",),
         "reward_smoothness": ("smoothness_weight",),
         "reward_heading": ("heading_weight",),
         "reward_lateral": ("lateral_penalty_weight",),

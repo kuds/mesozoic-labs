@@ -153,9 +153,11 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # Stage-1 reward gates are COLLAPSE RAILS: 0.60 x each species' zero-action
     # statue standing reward at the 1a operating point (reset noise 0.05),
     # measured over 40 episodes with
-    # environments/shared/scripts/stance_quality_baseline.py -- trex 3241.3
-    # (physics r7 at leg_home_pose_tolerance 0.10; 3270.3 at tolerance 0.20,
-    # 3271.8 on the r6 plant), velociraptor 1745.8, brachiosaurus 1739.1 (on
+    # environments/shared/scripts/stance_quality_baseline.py -- trex 3495.2
+    # (physics r7 with the 20260810 shaping pack: tail_home_pose 0.25 at the
+    # settled-droop targets, action_saturation 0.5, leg broad fraction 0.25;
+    # 3241.3 before the pack, 3270.3 at tolerance 0.20, 3271.8 on the r6
+    # plant), velociraptor 1745.8, brachiosaurus 1739.1 (on
     # the plant repaired by plant_versions notes 7-8), dibothrosuchus 2598.3.
     #
     # A rail sits BELOW its statue deliberately. Section 9 showed the statue
@@ -176,10 +178,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # 0.60 x the statue's standing reward at leg_home_pose_weight 0.5.
         # Was briefly 2550 while that weight was 1.5 (statue 4250.4), reverted
         # with it in issue #491. The FRACTION is the invariant, not the reward.
-        # Re-derived when leg_home_pose_tolerance narrowed to 0.10: the
-        # sharper Gaussian prices the statue's own settle sag, statue
-        # 3270.3 -> 3241.3, x0.60 = 1944.8 -> 1940 nearest-10.
-        "trex": 1940.0,
+        # Re-derived at tolerance 0.10 (statue 3241.3 -> rail 1940), then
+        # again for the 20260810 shaping pack: statue 3495.2, x0.60 = 2097.1
+        # -> 2100 nearest-10.
+        "trex": 2100.0,
         "velociraptor": 1050.0,
         "brachiosaurus": 1040.0,
         "dibothrosuchus": 1560.0,

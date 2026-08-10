@@ -86,6 +86,37 @@ leg_home_pose_tolerance = 0.10                 # rad; Gaussian width of the home
                                                # (~0.05 rad, hip-pitch gravity sag). 0.075/0.05 are past the knee:
                                                # +23/+33 more differential for -26/-83 more statue reward. The
                                                # statue-derived constants below are re-measured at this width.
+leg_home_pose_broad_fraction = 0.25            # Mixes a second Gaussian 6x wider into the leg term:
+                                               # 0.75*exp(-(e/0.10)^2) + 0.25*exp(-(e/0.60)^2). The 20260809 run
+                                               # falsified the narrow Gaussian as a capture mechanism: home error
+                                               # rose monotonically 0.20 -> 0.545 rad because the gradient is zero
+                                               # a few widths out (narrow-tolerance postmortem section 5). The
+                                               # broad component keeps a pull alive at the crouch's measured
+                                               # distances (0.44 quality at 0.545 rad vs numerically zero) while
+                                               # the narrow one still prices precision; at home both are 1, so the
+                                               # maximum and the statue's near-home pricing are unchanged.
+leg_home_pose_broad_scale = 6.0                # Width multiplier of the broad component. 6x0.10 = 0.60 rad
+                                               # reaches the measured knee-lock offsets (~0.87 rad commanded)
+                                               # with usable gradient; 4x dies by 0.6 rad.
+tail_home_pose_weight = 0.25                   # Prices tail JOINT positions. tail_stability reads only the
+                                               # tail-tip gyro, so a tail parked motionless against a hard stop is
+                                               # optimal for it -- the 20260809 run parked tail_1_yaw, tail_2_pitch
+                                               # and tail_3_pitch exactly that way (all three at stops by 10M).
+tail_home_pose_tolerance = 0.05                # rad; around the SETTLED droop, not the keyframe: the passive tail
+                                               # rests on its ventral stops (tail_1/2 pitch -0.2107/-0.2029, tail_3
+                                               # -0.0926; sub-milliradian spread over 40 seeds at noise 0.05), so
+                                               # the keyframe zeros are unreachable and would cap the statue at
+                                               # ~0.25 quality. Targets live plant-side (TRexEnv._TAIL_SETTLED_QPOS
+                                               # = MJX registry tail_home_pose_targets). At 0.05 the statue scores
+                                               # ~1.0 and every parked-tail pose from the 20260809 run scores ~0.
+action_saturation_weight = 0.5                 # Prices commands parked past |action| = threshold (linear ramp to
+                                               # full range). A saturated command cannot oscillate, so it is
+                                               # invisible to smoothness/jerk -- parking at stops was the cheapest
+                                               # way to be smooth, and the 20260809 run parked 6 of 15 actuators
+                                               # (both knees, head_pitch, the tail chain). At 0.5 that stance pays
+                                               # ~-200/episode; transient corrective saturation of one actuator
+                                               # costs 0.5/15 per step. The statue commands zero and pays nothing.
+action_saturation_threshold = 0.9              # Ramp start; below this saturation is free.
 head_clearance_weight = 0.35                   # Prevent the learned head-droop posture
 head_clearance_target = 0.90                   # m; settled home head tip is ~0.94 m
 head_clearance_tolerance = 0.15                # Smooth transition from zero credit at 0.75 m
@@ -310,7 +341,7 @@ settle_steps = 200                       # [inferred], NOT measured. Duty is sco
 min_eval_episodes = 40                   # The panel size every figure above is specified at. n_eval_episodes must
                                          # match: at n=30 the bound's power and the 28%-rejection analysis no longer
                                          # describe this gate.
-min_avg_reward = 1940.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
+min_avg_reward = 2100.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
                                         # can separate a competent policy from a statue, because the statue is the
                                         # reward optimum. Sized to the one job a rail CAN do — rejecting a policy
                                         # that discarded most of the available return — at 0.60 x the statue's
@@ -336,6 +367,15 @@ min_avg_reward = 1940.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # ~29 points): statue 3241.3 +/- 14.6, zero_action_baseline.py seed
                                         # 3042, 40 episodes. 0.60 x 3241.3 = 1944.8, rounded to 1940 per the
                                         # nearest-10 convention the species table uses.
+                                        #
+                                        # Re-derived for the 20260810 shaping pack (tail_home_pose 0.25 with
+                                        # settled-droop targets, action_saturation 0.5, leg broad fraction
+                                        # 0.25): statue 3495.2 +/- 13.9, zero_action_baseline.py seed 3042,
+                                        # 40 episodes (stance_quality_baseline.py agrees). The +254 over
+                                        # 3241.3 decomposes as ~+250 tail term (statue tail quality ~1.0 at
+                                        # the settled targets) + ~+4 broad-leg component at the statue's own
+                                        # sag; saturation adds 0 (the statue commands zero). 0.60 x 3495.2 =
+                                        # 2097.1, rounded to 2100 per the nearest-10 convention.
                                         #
                                         # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
                                         # full-horizon 93% -> 7%) bottomed at 888 = 0.27 x statue, so 0.60 clears
@@ -412,12 +452,13 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # post-150k rolling median in that run is 580.5, well under 1472.3. A
                                          # larger warm-up buys nothing and costs coverage: 1.0M leaves 88% of a 10M
                                          # budget protected, 2.5M only 72%.
-collapse_peak_floor_reference = 3241.3   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
-                                         # measured on the passive-toes plant (physics r7) at
-                                         # leg_home_pose_tolerance 0.10. History: 3271.8 on the r6 plant,
-                                         # 3270.3 on r7 at tolerance 0.20; the -29 from narrowing the
-                                         # tolerance is the statue's own hip-pitch settle sag being priced by
-                                         # the sharper Gaussian, measured, not assumed. Briefly 4250.4 while leg_home_pose_weight was
+collapse_peak_floor_reference = 3495.2   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
+                                         # measured on the passive-toes plant (physics r7) with the 20260810
+                                         # shaping pack. History: 3271.8 on the r6 plant, 3270.3 on r7 at
+                                         # tolerance 0.20, 3241.3 at tolerance 0.10; now +254 from the tail
+                                         # home-pose term paying ~1.0 at its settled-droop targets plus the
+                                         # broad-leg component at the statue's own sag, measured, not
+                                         # assumed. Briefly 4250.4 while leg_home_pose_weight was
                                          # 1.5; reverted with it (issue #491). Re-measure this whenever a reward
                                          # weight OR the plant changes: a weight change rescales the statue's
                                          # terms exactly and cheaply; a plant change moves its trajectory, so

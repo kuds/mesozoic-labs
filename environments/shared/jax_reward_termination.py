@@ -20,6 +20,7 @@ from .reward_functions import (
     quat_to_forward_2d,
     quat_to_forward_z,
     quat_to_tilt,
+    reward_action_saturation,
     reward_action_smoothness,
     reward_alive,
     reward_angular_velocity_penalty,
@@ -88,6 +89,8 @@ def compute_total_reward(
     leg_home_pose_targets: Array | None = None,
     neck_posture_qpos_indices: tuple[int, ...] = (),
     neck_posture_targets: Array | None = None,
+    tail_home_pose_qpos_indices: tuple[int, ...] = (),
+    tail_home_pose_targets: Array | None = None,
     head_clearance_site_id: int | None = None,
     prev_action: Array | None = None,
     initial_pos_2d: Array | None = None,
@@ -223,6 +226,8 @@ def compute_total_reward(
             leg_home_pose_targets,
             reward_cfg.get("leg_home_pose_tolerance", 0.35),
             leg_home_pose_w,
+            reward_cfg.get("leg_home_pose_broad_fraction", 0.0),
+            reward_cfg.get("leg_home_pose_broad_scale", 6.0),
         )
         total = total + r_leg_home_pose
 
@@ -246,6 +251,26 @@ def compute_total_reward(
             neck_posture_w,
         )
         total = total + r_neck_posture
+
+    tail_home_pose_w = reward_cfg.get("tail_home_pose_weight", 0.0)
+    if tail_home_pose_w > 0 and tail_home_pose_targets is not None:
+        tail_joint_positions = jnp.take(data.qpos, jnp.asarray(tail_home_pose_qpos_indices))
+        r_tail_home_pose, _, _ = reward_soft_home_pose(
+            tail_joint_positions,
+            tail_home_pose_targets,
+            reward_cfg.get("tail_home_pose_tolerance", 0.10),
+            tail_home_pose_w,
+        )
+        total = total + r_tail_home_pose
+
+    action_saturation_w = reward_cfg.get("action_saturation_weight", 0.0)
+    if action_saturation_w > 0:
+        r_action_saturation, _ = reward_action_saturation(
+            action,
+            action_saturation_w,
+            reward_cfg.get("action_saturation_threshold", 0.9),
+        )
+        total = total + r_action_saturation
 
     nosedive_w = reward_cfg.get("nosedive_weight", 0.0)
     if nosedive_w > 0:
@@ -360,6 +385,8 @@ def compute_reward_components(
     leg_home_pose_targets: Array | None = None,
     neck_posture_qpos_indices: tuple[int, ...] = (),
     neck_posture_targets: Array | None = None,
+    tail_home_pose_qpos_indices: tuple[int, ...] = (),
+    tail_home_pose_targets: Array | None = None,
     head_clearance_site_id: int | None = None,
     prev_action: Array | None = None,
     initial_pos_2d: Array | None = None,
@@ -470,6 +497,8 @@ def compute_reward_components(
             leg_home_pose_targets,
             reward_cfg.get("leg_home_pose_tolerance", 0.35),
             reward_cfg.get("leg_home_pose_weight", 0.0),
+            reward_cfg.get("leg_home_pose_broad_fraction", 0.0),
+            reward_cfg.get("leg_home_pose_broad_scale", 6.0),
         )
         components["leg_home_pose"] = r_leg_home_pose
         components["_leg_home_pose_error"] = leg_home_pose_error
@@ -499,6 +528,28 @@ def compute_reward_components(
         components["neck_posture"] = r_neck_posture
         components["_neck_posture_error"] = neck_posture_error
         components["_neck_posture_quality"] = neck_posture_quality
+
+    if tail_home_pose_targets is not None:
+        tail_joint_positions = jnp.take(data.qpos, jnp.asarray(tail_home_pose_qpos_indices))
+        r_tail_home_pose, tail_home_pose_error, tail_home_pose_quality = reward_soft_home_pose(
+            tail_joint_positions,
+            tail_home_pose_targets,
+            reward_cfg.get("tail_home_pose_tolerance", 0.10),
+            reward_cfg.get("tail_home_pose_weight", 0.0),
+        )
+        components["tail_home_pose"] = r_tail_home_pose
+        components["_tail_home_pose_error"] = tail_home_pose_error
+        components["_tail_home_pose_quality"] = tail_home_pose_quality
+
+    action_saturation_w = reward_cfg.get("action_saturation_weight", 0.0)
+    if action_saturation_w > 0:
+        r_action_saturation, action_saturation = reward_action_saturation(
+            action,
+            action_saturation_w,
+            reward_cfg.get("action_saturation_threshold", 0.9),
+        )
+        components["action_saturation"] = r_action_saturation
+        components["_action_saturation_fraction"] = action_saturation
 
     nosedive_w = reward_cfg.get("nosedive_weight", 0.0)
     if nosedive_w > 0:

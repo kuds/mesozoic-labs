@@ -15,6 +15,7 @@ from environments.shared.reward_functions import (
     quat_to_forward_z,
     quat_to_tilt,
     reward_action_jerk,
+    reward_action_saturation,
     reward_action_smoothness,
     reward_alive,
     reward_approach_shaping,
@@ -584,3 +585,75 @@ class TestActionJerkIsFrequencyAware:
         buzz = [np.full(self.N, (-1.0) ** t) for t in (0, 1, 2)]
         reward, _ = reward_action_jerk(buzz[2], buzz[1], buzz[0], self.N, 0.0)
         assert float(reward) == pytest.approx(0.0)
+
+
+class TestActionSaturation:
+    def test_zero_below_threshold(self):
+        reward, fraction = reward_action_saturation(np.array([0.0, 0.5, -0.89, 0.9]), 1.0, 0.9)
+        assert float(reward) == pytest.approx(0.0)
+        assert float(fraction) == pytest.approx(0.0)
+
+    def test_full_pin_pays_full_rate(self):
+        reward, fraction = reward_action_saturation(np.array([1.0, -1.0]), 0.5, 0.9)
+        assert float(fraction) == pytest.approx(1.0)
+        assert float(reward) == pytest.approx(-0.5)
+
+    def test_linear_ramp_and_mean_across_actuators(self):
+        # One actuator halfway up the ramp (|a|=0.95 with threshold 0.9),
+        # three quiet: fraction = 0.5/4.
+        action = np.array([0.95, 0.0, 0.0, 0.0])
+        _, fraction = reward_action_saturation(action, 1.0, 0.9)
+        assert float(fraction) == pytest.approx(0.125)
+
+    def test_clip_beyond_range(self):
+        # Raw policy outputs can exceed [-1, 1]; the ramp saturates at 1.
+        _, fraction = reward_action_saturation(np.array([3.0]), 1.0, 0.9)
+        assert float(fraction) == pytest.approx(1.0)
+
+
+class TestSoftHomePoseBroadTail:
+    def test_default_preserves_single_gaussian(self):
+        positions = np.array([0.3, -0.1])
+        home = np.zeros(2)
+        legacy = np.mean(np.exp(-np.square(positions / 0.1)))
+        reward, _, quality = reward_soft_home_pose(positions, home, 0.1, 0.5)
+        assert float(quality) == pytest.approx(legacy)
+        assert float(reward) == pytest.approx(0.5 * legacy)
+
+    def test_maximum_unchanged_at_home(self):
+        home = np.array([0.2, -0.4])
+        _, _, quality = reward_soft_home_pose(home, home, 0.1, 1.0, 0.25, 6.0)
+        assert float(quality) == pytest.approx(1.0)
+
+    def test_broad_tail_keeps_gradient_at_long_range(self):
+        # At 5 tolerance widths the narrow Gaussian is numerically dead;
+        # the mixture must still strictly prefer the closer pose.
+        home = np.zeros(3)
+        far = np.full(3, 0.50)
+        nearer = np.full(3, 0.45)
+        _, _, q_far = reward_soft_home_pose(far, home, 0.1, 1.0, 0.25, 6.0)
+        _, _, q_nearer = reward_soft_home_pose(nearer, home, 0.1, 1.0, 0.25, 6.0)
+        assert float(q_nearer) > float(q_far) + 1e-4
+        # And without the tail, the same comparison is flat to 1e-6.
+        _, _, q_far_n = reward_soft_home_pose(far, home, 0.1, 1.0)
+        _, _, q_nearer_n = reward_soft_home_pose(nearer, home, 0.1, 1.0)
+        assert abs(float(q_nearer_n) - float(q_far_n)) < 1e-6
+
+
+@pytest.mark.skipif(not _has_jax, reason="JAX not installed")
+class TestNewTermsNumpyJaxParity:
+    def test_action_saturation_parity(self):
+        action = np.array([0.97, -1.0, 0.2, -0.85])
+        r_np, f_np = reward_action_saturation(action, 0.5, 0.9)
+        r_jax, f_jax = reward_action_saturation(jnp.array(action), 0.5, 0.9)
+        assert float(r_np) == pytest.approx(float(r_jax), abs=1e-6)
+        assert float(f_np) == pytest.approx(float(f_jax), abs=1e-6)
+
+    def test_soft_home_pose_broad_tail_parity(self):
+        positions = np.array([0.31, -0.52, 0.07, 0.44])
+        home = np.array([-0.045, 0.0, -0.433, 1.342])
+        r_np, e_np, q_np = reward_soft_home_pose(positions, home, 0.1, 0.5, 0.25, 6.0)
+        r_jax, e_jax, q_jax = reward_soft_home_pose(jnp.array(positions), jnp.array(home), 0.1, 0.5, 0.25, 6.0)
+        assert float(r_np) == pytest.approx(float(r_jax), abs=1e-6)
+        assert float(e_np) == pytest.approx(float(e_jax), abs=1e-6)
+        assert float(q_np) == pytest.approx(float(q_jax), abs=1e-6)
