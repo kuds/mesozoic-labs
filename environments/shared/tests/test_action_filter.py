@@ -64,15 +64,15 @@ class TestSB3ActionFilter:
         # filtered command equals the first (clipped) action exactly.
         env = TRexEnv()
         env.reset(seed=0)
-        action = np.full(env.action_space.shape, 0.5, dtype=np.float32)
+        action = np.full(env.model.nu, 0.5, dtype=np.float32)
         env.step(action)
-        expected = env._scale_action(np.full(env.action_space.shape, 0.5))
+        expected = env._scale_action(np.full(env.model.nu, 0.5))
         assert env.data.ctrl == pytest.approx(expected)
 
     def test_blend_and_reseed_across_reset(self) -> None:
         env = TRexEnv()
         env.reset(seed=0)
-        up = np.ones(env.action_space.shape, dtype=np.float32)
+        up = np.ones(env.model.nu, dtype=np.float32)
         down = -up
         env.step(up)
         env.step(down)
@@ -92,7 +92,7 @@ class TestSB3ActionFilter:
         env.reset(seed=0)
         rng = np.random.default_rng(3)
         for _ in range(3):
-            action = rng.uniform(-1.0, 1.0, env.action_space.shape).astype(np.float32)
+            action = rng.uniform(-1.0, 1.0, env.model.nu).astype(np.float32)
             env.step(action)
             # ctrl reflects the raw action every step -- no carried state.
             assert env.data.ctrl == pytest.approx(env._scale_action(action))
@@ -104,7 +104,7 @@ class TestSB3ActionFilter:
         # the plant, and pricing it would penalise a phantom.
         env = TRexEnv()
         env.reset(seed=0)
-        up = np.ones(env.action_space.shape, dtype=np.float32)
+        up = np.ones(env.model.nu, dtype=np.float32)
         env.step(up)
         env.step(-up)
         assert env._prev_action == pytest.approx(env._action_filter_state)
