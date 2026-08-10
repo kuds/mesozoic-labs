@@ -171,9 +171,28 @@ observation_schema = "bipedal-target/v1"
 #    re-measured with zero_action_baseline.py / stance_quality_baseline.py on
 #    this plant -- the statue's toes now settle on springs instead of servos,
 #    so the old 3271.8 standing reward may not carry.
+# 10. T-Rex commands are low-passed at 10 Hz.  Both 2026-08 stage-1 runs
+#     converged on statically unstable poses held up by 16.8-18.7 Hz command
+#     chatter (the narrow-tolerance run locked both knees against their
+#     stops and pumped the ankles +-28-33 deg; its constant-hold probe fell
+#     backward onto the tail in 9/10 episodes within ~3 s), while the
+#     balance task itself needs ~1.1-1.4 Hz.  The plant now applies a
+#     first-order low-pass (environments/shared/action_filter.py) to the
+#     commanded action in BOTH backends, seeded with the first post-reset
+#     action.  PHYSICS unchanged (no MJCF edit; the statue's zero action
+#     filters to zero, so the statue-derived constants carry).  The POLICY
+#     INTERFACE moves without any tensor changing shape: an action now means
+#     "pre-filter command", so checkpoints trained unfiltered are
+#     incompatible (the "action meaning" rule in docs/PLANT_CONTRACT.md).
+#     The cutoff is plant-level by construction -- an SB3 class attribute
+#     and a register_species_mjx field guarded by
+#     _PLANT_INTERFACE_CONFIG_FIELDS -- so stage TOMLs cannot tune it, and
+#     the contract records cutoff + filter fingerprint and asserts backend
+#     agreement.  See
+#     docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md.
 [plants.trex]
 physics_revision = 7
-policy_interface_revision = 10
+policy_interface_revision = 11
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
 

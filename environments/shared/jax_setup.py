@@ -731,6 +731,8 @@ def run_stage_evaluation(
         sensor_quat_start=ctx.sensor_layout.quat_start,
         sensor_gyro_start=ctx.sensor_layout.gyro_start,
         action_mapping=ctx.action_mapping,
+        # Drive the same filtered plant the training kernel does.
+        action_filter_cutoff_hz=float(getattr(env.config, "action_filter_cutoff_hz", 0.0)),
         # Evaluate on the same joint-angle reset distribution used by the
         # instantiated training environment.  This includes the effective
         # [jax] override after registry/[env]/[jax] merging.

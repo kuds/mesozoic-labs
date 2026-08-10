@@ -180,6 +180,12 @@ class MJXEnvConfig:
     sensor_accel_start: int = 3
     sensor_quat_start: int = 6
     action_mapping: str = ACTION_MAPPING_MIDPOINT
+    # First-order low-pass on the commanded action, in Hz; 0.0 disables it.
+    # Plant-interface field (not curriculum-tunable): an enabled cutoff
+    # changes what a checkpoint's action means.  Must equal the SB3 env's
+    # class attribute — the plant contract asserts backend agreement.
+    # See environments/shared/action_filter.py.
+    action_filter_cutoff_hz: float = 0.0
     natural_forward_z: float = 0.0
     # Reward-only target.  ``None`` preserves the vertical posture reward;
     # Velociraptor supplies its natural forward lean.  Absolute-tilt and
@@ -254,6 +260,10 @@ class EnvState:
     prev_action: Any  # jnp.ndarray
     # Second lag, for the frequency-aware jerk term (see reward_action_jerk).
     prev_prev_action: Any  # jnp.ndarray
+    # Command low-pass carry (action_filter_cutoff_hz > 0); seeded with the
+    # first post-reset action via a step_count==0 select, mirroring the SB3
+    # env's _filter_action.  Carried untouched when the filter is off.
+    filtered_action: Any  # jnp.ndarray
     prev_target_distance: Any  # jnp.float32
     target_pos: Any  # jnp.ndarray (3,)
     initial_pos_2d: Any  # jnp.ndarray (2,) — spawn XY for drift penalty
@@ -272,6 +282,7 @@ try:
             "step_count",
             "prev_action",
             "prev_prev_action",
+            "filtered_action",
             "prev_target_distance",
             "target_pos",
             "initial_pos_2d",
@@ -300,6 +311,7 @@ _PLANT_INTERFACE_CONFIG_FIELDS = frozenset(
         "sensor_accel_start",
         "sensor_quat_start",
         "action_mapping",
+        "action_filter_cutoff_hz",
     }
 )
 
@@ -802,6 +814,7 @@ class MJXDinoEnv:
         import jax.numpy as jnp
         import mujoco.mjx as mjx
 
+        from .action_filter import apply_low_pass, low_pass_alpha
         from .mjx_utils import scale_action_around_nominal_jax, scale_action_jax
         from .reward_functions import (
             check_nosedive_termination,
@@ -837,6 +850,10 @@ class MJXDinoEnv:
         nominal_ctrl = self.nominal_ctrl
         frame_skip = config.frame_skip
         dt = float(self.mj_model.opt.timestep) * frame_skip
+        # Trace-time gate: None bakes the legacy unfiltered kernel.
+        action_filter_alpha = (
+            low_pass_alpha(config.action_filter_cutoff_hz, dt) if config.action_filter_cutoff_hz > 0.0 else None
+        )
         # Pre-resolved body-height termination pairs (body_id, z_threshold)
         body_height_checks = tuple(self._termination_body_checks)
         # Pre-resolved site-height termination pairs (site_id, z_threshold)
@@ -867,6 +884,17 @@ class MJXDinoEnv:
             ``forward_vel_weight`` reward at runtime so the trainer can
             ramp it without retracing this kernel.
             """
+            if action_filter_alpha is not None:
+                # Command low-pass, in lockstep with BaseDinoEnv._filter_action:
+                # clip into the scaler's box, seed with the first post-reset
+                # action, then blend.  Dynamics AND the action-derived reward
+                # terms below consume the filtered command.
+                clipped = jnp.clip(action, -1.0, 1.0)
+                action = jnp.where(
+                    state.step_count == 0,
+                    clipped,
+                    apply_low_pass(state.filtered_action, clipped, action_filter_alpha),
+                )
             # Scale action
             if nominal_ctrl is None:
                 ctrl = scale_action_jax(action, ctrl_range)
@@ -1204,6 +1232,7 @@ class MJXDinoEnv:
                 step_count=step_count,
                 prev_action=action,
                 prev_prev_action=state.prev_action,
+                filtered_action=(action if action_filter_alpha is not None else state.filtered_action),
                 prev_target_distance=target_dist,
                 target_pos=target_pos,
                 initial_pos_2d=initial_pos_2d,
@@ -1325,6 +1354,8 @@ class MJXDinoEnv:
                 step_count=jnp.int32(0),
                 prev_action=jnp.zeros(action_dim),
                 prev_prev_action=jnp.zeros(action_dim),
+                # Placeholder until the first step seeds it (step_count==0).
+                filtered_action=jnp.zeros(action_dim),
                 prev_target_distance=target_dist,
                 target_pos=target_pos,
                 initial_pos_2d=pelvis_xpos[:2],
