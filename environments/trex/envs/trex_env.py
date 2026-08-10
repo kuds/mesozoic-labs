@@ -81,6 +81,16 @@ class TRexEnv(BaseDinoEnv):
     """Tyrannosaurus Rex bipedal locomotion and bite-attack environment."""
 
     action_mapping = "home-keyframe-residual/v1"
+    # 10 Hz command low-pass (plant interface r11).  Stage-1 balance needs
+    # ~1.1-1.4 Hz of closed-loop bandwidth (stance-gate filter probe), but
+    # both 2026-08 stage-1 runs converged on statically unstable poses kept
+    # up by 16.8-18.7 Hz command chatter that amplitude penalties cannot
+    # price out.  The cutoff removes that bandwidth during training, with
+    # nearly a decade of margin above the task's needs.  Must match the MJX
+    # registration in environments/trex/mjx_config.py (the plant contract
+    # asserts it).  See
+    # docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md.
+    action_filter_cutoff_hz = 10.0
     _camera_distance = 3.0
     _camera_azimuth = 135
     _camera_elevation = -20

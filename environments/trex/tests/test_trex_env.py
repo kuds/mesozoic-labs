@@ -467,7 +467,16 @@ class TestSubstepContactAggregation:
     def test_info_carries_the_min_across_substeps_and_catches_hidden_unloading(self):
         """Two pins in one rollout: info == min(per-substep sums) exactly, and
         the aggregate catches unloading the boundary sample misses."""
-        env = TRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
+
+        class UnfilteredTRexEnv(TRexEnv):
+            # The witness drive below is a 20 Hz control-clock-locked hop
+            # tuned on the unfiltered plant; the r11 command low-pass would
+            # attenuate it ~2.2x and hide the very unloading this regression
+            # guards.  The aggregation machinery under test is independent
+            # of the filter, so probe it with the filter off.
+            action_filter_cutoff_hz = 0.0
+
+        env = UnfilteredTRexEnv(reset_noise_scale=0.0, nosedive_termination_threshold=0.35)
         try:
             env.reset(seed=0)
             substep_forces: list[tuple[float, float]] = []

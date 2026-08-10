@@ -23,6 +23,7 @@ from typing import Any
 
 import numpy as np
 
+from .action_filter import apply_low_pass, low_pass_alpha
 from .reward_functions import reward_lean_aware_posture, reward_posture
 
 
@@ -47,6 +48,10 @@ class EvalConfig:
     sensor_gyro_start: int = 0
     sensor_quat_start: int = 6
     action_mapping: str = "midpoint/v1"
+    # Command low-pass cutoff of the plant interface (0.0 = off).  Eval must
+    # drive the same filtered plant the training kernel does, and feed the
+    # filtered command to the action-derived reward terms.
+    action_filter_cutoff_hz: float = 0.0
     reset_noise_scale: float = 0.01
     init_qpos_noise: float = 0.0
     init_yaw_noise: float = 0.0
@@ -299,6 +304,14 @@ def evaluate_policy_cpu(
     if config.target_body is not None:
         _target_body_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, config.target_body)
 
+    # Command low-pass of the plant interface (see action_filter.py).
+    _filter_alpha: float | None = None
+    if config.action_filter_cutoff_hz > 0.0:
+        _filter_alpha = low_pass_alpha(
+            config.action_filter_cutoff_hz,
+            float(mj_model.opt.timestep) * config.frame_skip,
+        )
+
     for ep in range(config.n_episodes):
         if config.action_mapping == ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
             reset_mujoco_data_to_home(mj_model, mj_data)
@@ -322,6 +335,9 @@ def evaluate_policy_cpu(
         ep_success = False
         start_pos = mj_data.xpos[config.root_body_id, :2].copy()
         prev_action = None
+        # Per-episode command low-pass carry (None = seed with first action),
+        # mirroring the training backends' filter state.
+        filtered_action = None
         # Track the target for reward parity with the training env (approach
         # shaping compares against the previous step's distance).
         prev_target_dist: float | None = None
@@ -335,6 +351,13 @@ def evaluate_policy_cpu(
 
             mean, _log_std, _value = network.apply(params, obs)
             action = jnp.clip(mean, -1.0, 1.0)
+            if _filter_alpha is not None:
+                # Same seeding and blend as the training kernels; the
+                # filtered command feeds ctrl, the reward call, and the
+                # prev_action carry below.
+                if filtered_action is not None:
+                    action = apply_low_pass(filtered_action, action, _filter_alpha)
+                filtered_action = action
 
             ctrl = np.array(scale_action_fn(action))
             mj_data.ctrl[:] = ctrl
