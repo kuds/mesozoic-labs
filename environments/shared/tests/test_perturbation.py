@@ -264,3 +264,77 @@ class TestEnvIntegration:
         cls = getattr(importlib.import_module(module_name), class_name)
         env = cls(perturbation_capture_velocity_multiple=0.0)
         assert env.perturbation_manifest() is None
+
+
+class TestMjxIntegration:
+    """MJX-path integration: same semantics as the SB3 path, traced."""
+
+    @staticmethod
+    def _mjx_env(**env_kwargs):
+        pytest.importorskip("jax")
+        pytest.importorskip("mujoco.mjx")
+        import environments.trex.mjx_config  # noqa: F401  (registers trex)
+        from environments.shared.mjx_env import MJXDinoEnv
+
+        return MJXDinoEnv("trex", stage=1, num_envs=1, env_kwargs=env_kwargs or None)
+
+    # Short schedule so the roll stays cheap: first push lands near step 30
+    # instead of 200.  validate_push_config still holds (30 - 2*5 > 10).
+    _SHORT = {
+        "perturbation_capture_velocity_multiple": 1.5,
+        "perturbation_interval": 0.3,
+        "perturbation_jitter": 0.05,
+        "perturbation_duration": 0.1,
+    }
+
+    def test_off_keeps_empty_schedule_and_zero_xfrc(self):
+        import jax
+        import jax.numpy as jnp
+
+        env = self._mjx_env()
+        assert env.perturbation_manifest() is None
+        state = env.reset(jax.random.PRNGKey(0))
+        assert state.push_start_steps.shape == (1, 0)
+        actions = jnp.zeros((1, env.action_dim))
+        for i in range(3):
+            state, *_ = env.step(state, actions, jax.random.PRNGKey(i))
+            assert not bool(jnp.any(state.data.xfrc_applied))
+
+    def test_push_windows_write_forces_on_schedule(self):
+        import jax
+        import jax.numpy as jnp
+        import numpy as np
+
+        env = self._mjx_env(**self._SHORT)
+        constants = env._push_constants
+        state = env.reset(jax.random.PRNGKey(42))
+        start = int(state.push_start_steps[0, 0])
+        direction = np.asarray(state.push_directions[0, 0])
+        actions = jnp.zeros((1, env.action_dim))
+        for i in range(start):
+            state, *_ = env.step(state, actions, jax.random.PRNGKey(i))
+            assert not bool(jnp.any(state.data.xfrc_applied))
+        state, *_ = env.step(state, actions, jax.random.PRNGKey(999))
+        applied = np.asarray(state.data.xfrc_applied[0, constants["root_body_id"]])
+        np.testing.assert_allclose(applied[:3], [*(direction * constants["force_n"]), 0.0], rtol=1e-5)
+        for i in range(constants["duration_steps"]):
+            state, *_ = env.step(state, actions, jax.random.PRNGKey(1000 + i))
+        assert not bool(jnp.any(state.data.xfrc_applied))  # self-cleared
+
+    def test_schedule_determinism_and_cross_backend_derivation(self):
+        import jax
+        import numpy as np
+
+        env = self._mjx_env(**self._SHORT)
+        a = env.reset(jax.random.PRNGKey(7))
+        b = env.reset(jax.random.PRNGKey(7))
+        np.testing.assert_array_equal(np.asarray(a.push_start_steps), np.asarray(b.push_start_steps))
+        c = env.reset(jax.random.PRNGKey(8))
+        assert not np.array_equal(np.asarray(a.push_start_steps), np.asarray(c.push_start_steps))
+        # Both backends derive from the same host model: identical constants.
+        from environments.trex.envs.trex_env import TRexEnv
+
+        sb3 = TRexEnv(reset_noise_scale=0.0, **self._SHORT)
+        assert sb3.perturbation_manifest()["force_n"] == pytest.approx(
+            env.perturbation_manifest()["force_n"], rel=1e-12
+        )
