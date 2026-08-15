@@ -169,6 +169,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **Stage 1b implementation plan**
+  (`docs/STAGE1B_IMPLEMENTATION_PLAN.md`): maps the unbuilt recovery half of
+  `docs/STAGE1_SPLIT_PLAN.md` onto the tree as it stands after the first
+  certified stance-gate pass. Records the stage-1 closeout review's verdict —
+  no blocker to starting the 1b build, with a verified cleanup list (a
+  `diagnostics/action_saturation` logger-key collision, a filter-probe sweep
+  that predates the plant's own 10 Hz filter, untested release-ablation
+  groups, unpinned pack weights in the parity factory test, and four stale
+  KNOWN_ISSUES entries falsified by the r11/gate-pass commits) — then lays
+  out the build as six workstreams (perturbation engine, task fingerprint and
+  load modes, stage identity, `recovery_quality/v1` gate, gate resolver,
+  diagnostic tool modes), a run plan starting with the seed replicate the
+  postmortems keep asking for, and seven decisions that need review before
+  their workstreams start.
 - **The passive-toes run postmortem**
   (`docs/investigations/TREX_STAGE1_PASSIVE_TOES_RUN_2026_08.md`): the first
   10M stage-1 run on the r7 plant under substep-honest metrics. Best survival
