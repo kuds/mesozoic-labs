@@ -278,6 +278,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **The seed-43 replicate postmortem**
+  (`docs/investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md`): the first
+  replicate of the certified gate-pass configuration, and a gate **FAIL** —
+  duty 0.0597 / UCB 0.0747, full-horizon 0.925, 0 of 200 panels passing,
+  behind a deceptively healthy 3093 panel reward. The run reproduces the
+  gate-pass trajectory's three acts and converges on the **same stance**
+  (zero saturated actuators, head lowered ~−20°, tail in its settled droop,
+  hip-roll balance), but the act-3 re-descent stalls at a broadband
+  command-noise floor (AC 0.329 at the estimator's white-noise saturation,
+  concentrated on the hip rolls) instead of quieting to seed 42's 0.135.
+  Statue controls read 3493.8/3497.1 against the configured 3495.2, so the
+  rails are fresh and the deficit is real. **n = 2 on the identical config:
+  1 pass / 1 fail — seed-sensitive**, which resolves the "solved or lucky"
+  question ("neither") and strengthens the stage-1b rationale: robustness by
+  lucky seed is now measured. The config's ~4M prediction failed on the duty
+  axis (0.345 vs < 0.28 predicted); the `algo_std` half remains checkable in
+  the run's `diagnostics.npz`.
 - **Stage 1b implementation plan**
   (`docs/STAGE1B_IMPLEMENTATION_PLAN.md`): maps the unbuilt recovery half of
   `docs/STAGE1_SPLIT_PLAN.md` onto the tree as it stands after the first

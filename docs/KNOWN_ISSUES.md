@@ -78,6 +78,15 @@ tolerance) remains the standing recommendation for the divergences above.
   [investigations/TREX_STAGE1_GATE_PASS_RUN_2026_08.md](investigations/TREX_STAGE1_GATE_PASS_RUN_2026_08.md)).
   The ask stands unchanged with the target moved: seed replicates of the
   **r11 gate-pass configuration**, which is n = 1.
+  **Update 2 (2026-08-15, evening):** the first replicate is in — seed 43,
+  run `20260815_014118`, identical configuration: gate **FAIL** at duty
+  0.0597 / UCB 0.0747, full-horizon 0.925, 0 of 200 panels passing, despite
+  a healthy 3093 panel reward. Same three-act trajectory and the **same
+  stance** (unsaturated, near-home, tail-live) — the act-3 re-descent
+  stalled at a broadband-noise floor (AC 0.329 vs seed 42's 0.135) instead
+  of quieting. **n = 2: 1 pass / 1 fail — the configuration is
+  seed-sensitive.** A third seed is queued; full record in
+  [investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md](investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md).
 - **MEDIUM** — **stage 1 contains no in-episode disturbance, so it cannot ask
   for postural correction.** The only perturbation is joint-angle noise at
   reset (`reset_noise_scale 0.05`); nothing applies an external force during an

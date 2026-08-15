@@ -315,6 +315,21 @@ compute-parallel with everything.
 
 ## 6. Open decisions (for review before the corresponding workstream starts)
 
+**Decided 2026-08-15** (review with the project owner): (1) **semantic stage
+manifest** — recovery is a real fourth stage, curriculum order
+stance → recovery → locomotion → behavior, with legacy aliases preserving
+historical artifact meaning; (2) **full gate resolver before the first 1b
+training run** (not the minimal core); (3) the seed replicate ran — seed 43,
+gate FAIL at duty 0.0597, so the "passes or bounces" question is answered
+seed-sensitive at n = 2 (see
+`investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md`); a third seed is
+queued; (6) **SB3 first** for all 1b evidence. Standing constraint from the
+same review: the perturbation engine must be **species-generic from the
+first commit** — shared code only, per-species magnitudes derived from each
+plant, config keys available to every species, off by default. Decisions 4,
+5, and 7 below remain open and are settled inside W1/W4 design or by P3
+measurement.
+
 1. **Stage identity scope (W3)**: full semantic manifest now, or minimal
    T-Rex-only `1b` insertion with the manifest deferred? The manifest is the
    designed end state and avoids paying the migration twice; the insertion is
