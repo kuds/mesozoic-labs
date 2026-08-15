@@ -196,7 +196,7 @@ class DiagnosticsCallback(_BaseCallback):
                 "plateau detection now uses deterministic stage-gate evaluations."
             )
         # |action| at/above this (in the normalized [-1, 1] control space) counts
-        # as "saturated" for the diagnostics/action_saturation metric.
+        # as "saturated" for the diagnostics/raw_action_saturation metric.
         self.action_saturation_threshold = action_saturation_threshold
         self._log_dir = Path(log_dir) if log_dir is not None else None
         self._step_infos = {k: [] for k in self.REWARD_KEYS + self.INFO_KEYS}
@@ -312,8 +312,16 @@ class DiagnosticsCallback(_BaseCallback):
             # which look identical in algo_std alone and mean opposite things.
             abs_mean = float(_np.mean(_np.abs(acts)))
             self.logger.record("diagnostics/action_abs_mean", _sanitize(abs_mean))
+            # "raw_" because diagnostics/action_saturation is taken: the env's
+            # INFO_KEYS entry of that name (the ramp fraction behind
+            # reward_action_saturation, measured on the command the plant
+            # integrates) is recorded at the top of this method, and recording
+            # this one under the same key silently overwrote it every rollout.
+            # This one reads self.locals["actions"] — SB3's pre-clip, pre-filter
+            # Gaussian sample — at the hard 0.99 threshold, so the two disagree
+            # by construction.
             saturation = float(_np.mean(_np.abs(acts) >= self.action_saturation_threshold))
-            self.logger.record("diagnostics/action_saturation", _sanitize(saturation))
+            self.logger.record("diagnostics/raw_action_saturation", _sanitize(saturation))
             # Persisted alongside the rollout series so post-hoc analysis sees
             # it without TensorBoard. Aligned to _history_timesteps, which is
             # appended in the same rollout-end pass.

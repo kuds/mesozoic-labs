@@ -29,8 +29,10 @@ misread:
 
 This script reports the pre-clip family at the same 0.99 threshold
 ``DiagnosticsCallback`` uses, so its output is directly comparable to the
-``diagnostics/action_saturation`` scalar already in tensorboard -- but offline,
-per-actuator, and without waiting for a run to finish.
+``diagnostics/raw_action_saturation`` scalar already in tensorboard -- but
+offline, per-actuator, and without waiting for a run to finish. (The env's
+``diagnostics/action_saturation`` is a different quantity: the post-filter
+ramp fraction behind ``reward_action_saturation``.)
 
 Two modes:
 
@@ -42,9 +44,9 @@ Two modes:
 
   It would, immediately.  SB3's default ``log_std_init = 0`` gives std 1.0, and
   this script at ``--std 1.0`` measures **32.0% of components outside the
-  bound** -- matching the 0.3218 that run ``20260727_130726`` logged to
-  ``diagnostics/action_saturation`` at step 8,192, its very first diagnostic
-  write.  Nothing has to be learned for the condition to appear: it follows
+  bound** -- matching the 0.3218 that run ``20260727_130726`` logged to the
+  same scalar (named ``diagnostics/action_saturation`` at the time) at step
+  8,192, its very first diagnostic write.  Nothing has to be learned for the condition to appear: it follows
   from pairing an unbounded Gaussian with a ``Box(-1, 1)`` action space, so a
   startup probe is enough to catch it.
 
@@ -91,7 +93,7 @@ STAGE_STEMS = {
 # zero_action_baseline.py and joint_excursion_report.py.
 JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
 # Matches DiagnosticsCallback.action_saturation_threshold, so the figures here
-# are directly comparable to diagnostics/action_saturation.
+# are directly comparable to diagnostics/raw_action_saturation.
 SATURATION_THRESHOLD = 0.99
 
 
@@ -199,7 +201,7 @@ def main(argv: list[str]) -> None:
     print(f"  |a| > 1             {np.mean(np.abs(flat) > 1.0) * 100:.1f}% of components")
     print(
         f"  |a| >= {SATURATION_THRESHOLD}          {np.mean(np.abs(flat) >= SATURATION_THRESHOLD) * 100:.1f}%"
-        "       (diagnostics/action_saturation)\n"
+        "       (diagnostics/raw_action_saturation)\n"
     )
 
     per_actuator = np.mean(np.abs(acts) >= SATURATION_THRESHOLD, axis=0) * 100.0

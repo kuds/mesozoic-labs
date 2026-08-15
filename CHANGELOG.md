@@ -8,6 +8,115 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Changed
+- **Stage-1 review cleanup, final batch (§2.3)** — the cosmetic and
+  small-code items closing out the 2026-08-15 review's cleanup list:
+  - **Evaluation CSVs: `success` column renamed `task_success`** (gate-pass
+    postmortem, follow-up 1). The column records the stage's TASK event
+    (bite/strike/food-reached), which a stance-gated stage can never emit —
+    it reads False in every stage-1 row by construction and was repeatedly
+    misread as the gate verdict, which lives only in
+    `stance_gate_report.{txt,json}` and `stage_summary.txt`. The bundle
+    reader accepts the legacy `success` header so pre-rename bundles still
+    audit (pinned by a test); the writer emits only the new name.
+  - **The biped-empty "diagonal pair" contact panel is fixed**
+    (narrow-tolerance postmortem, item 6). `plot_foot_contacts` keyed its
+    quadruped layout off key *presence* in `diagnostics.npz` — but
+    `DiagnosticsCallback` saves every info key for every species, so a
+    biped's file contains `rr/rl_foot_contact` as all-NaN series: the figure
+    grew an empty diagonal panel and routed the two real feet through the
+    four-foot branch under FR/FL labels. Detection now requires finite data;
+    a regression test pins the all-NaN-keys biped case the existing
+    omitted-keys fixture could never catch.
+  - **`stage1_balance.toml` comment corrections**: the release-ablation cost
+    justification updated from the r6-era "13 panels" to the current 17
+    (3 controls + 2 × 7 matched groups; toes skips); the self-contradictory
+    `posture_weight` ("Increased from 1.5") and `nosedive_weight`
+    ("Increased from 3.0", a decrease) provenance claims replaced with
+    honest notes — both date from the file's first commit and compare
+    against unrecoverable pre-repo values; the `[sac]` block gains a
+    staleness warning and corrected cross-references (its "match PPO"
+    lr/gamma/budget comparisons were written against a [ppo] block that has
+    since moved to 3e-5 / 0.98 / 10M — the block itself has never been run);
+    `ent_coef_end`'s entropy-floor analysis is era-marked as the r6
+    21-actuator measurement, with a note that the figures still hold on r7.
+  - **`_actuator_pose_mapping`'s docstring** now describes the deleted toe
+    actuators in the past tense with the r6/r7 framing
+    (plant_versions.toml note 9) instead of presenting an impossible
+    example as current.
+- **KNOWN_ISSUES pruned against the r7/r11 campaign** — the §2.2 batch of the
+  2026-08-15 review (`docs/STAGE1B_IMPLEMENTATION_PLAN.md`), applying the
+  file's own policy ("when an item here gets fixed, delete it"). Three
+  T-Rex stage-1 entries deleted, each fixed or falsified by commits already
+  on `main`; their evidence lives on where cited:
+  - **"A passing policy cannot stand if its actions are filtered"** — the r6
+    measurement behind "an action filter cannot be retrofitted." The r11
+    10 Hz command low-pass (#503) did what the entry prescribed — filter
+    present during training, unfiltered checkpoints invalidated — and the
+    certified policy survives every probed cutoff down to 5 Hz at 96% of
+    reward (`TREX_STAGE1_GATE_PASS_RUN_2026_08.md` §4; original analysis
+    archived in `TREX_STAGE1_BOUNCE_2026_08.md` §5).
+  - **"The passing policy stands in a pose it cannot hold without continuous
+    feedback"** (HIGH) — its stated closure condition (re-run the
+    hold-constant probe on an r7-trained policy) was met: 3/10 episodes to
+    the full horizon, mean 611 steps, gentle nosedives — near-statically
+    stable, measured on one seed (gate-pass postmortem §4). The entry's
+    bolded advice that raising `smoothness`/`action_jerk` is contraindicated
+    described the deleted r6 pose and was empirically falsified by the
+    0.1→2.0 smoothness escalation the certified run trained under.
+  - **"Half the actuators sit saturated and nothing opposes it"** — the #504
+    `action_saturation` penalty (0.5 / 0.9) now opposes it, and the r7
+    counts were re-measured: 5 of 15 parked in the narrow-tolerance run,
+    **0 of 15** in the gate-pass run (max |DC| 0.890, parked under the
+    ramp). One-sided-headroom residue stays tracked in #491.
+  - The surviving **"passes or bounces"** entry gained a dated update: its
+    numbers are r6-era, and the seed-replicate ask now targets the r11
+    gate-pass configuration (n = 1).
+  - The **latent raw-vs-clipped reward trap** paragraph was rewritten with
+    function-level anchors (its `base_env.py` line numbers had rotted by
+    ~250 lines) and scoped to filter-free species — r11's `_filter_action`
+    clips before the reward terms read the action, closing it for the T-Rex.
+  - Same-family staleness in `docs/hardware/SIM_TO_REAL_PLAN.md` §3.3 fixed:
+    two rotted `base_env.py` line anchors re-pointed at
+    `BaseDinoEnv._scale_action` / `__init__`, and "no action filtering
+    anywhere in the step loop" corrected — the T-Rex has filtered in-loop
+    since r11; the other species still do not.
+- **Stage-1 closeout cleanup** — the four pre-training-run items from the
+  2026-08-15 review (`docs/STAGE1B_IMPLEMENTATION_PLAN.md` §2.1):
+  - **`DiagnosticsCallback`'s raw saturation metric renamed
+    `diagnostics/raw_action_saturation`** (was `diagnostics/action_saturation`).
+    The #504 pack gave the env an `action_saturation` info key — the
+    post-filter ramp fraction behind `reward_action_saturation` — which the
+    callback recorded at rollout end and then **overwrote in the same pass**
+    with its pre-clip |a| ≥ 0.99 fraction under the identical TB key. The two
+    disagree by construction (pre-clip raw sample vs filtered command; 0.99
+    hard threshold vs 0.9 ramp). `diagnostics/action_saturation` is now
+    unambiguously the env's; dashboards tracking the raw quantity should
+    follow the rename (TB traces from runs between #504 and this fix carry
+    the env value only until the first rollout end, then the raw overwrite).
+    `action_bound_report.py`'s cross-references updated to match.
+  - **T-Rex filter-probe sweep re-derived for the r11 plant**:
+    `stance_probe_filter_hz` `[5, 10, 20, 30, 35]` → `[1.0, 2.5, 5.0, 8.0,
+    10.0]`. The old sweep predates the plant's own 10 Hz command low-pass —
+    probe cutoffs above 10 Hz stack a wider filter onto a narrower one and
+    measured approximately the unprobed checkpoint (30/35 Hz were
+    near-duplicate rows of the gate panel at 10 episodes each). The gate-pass
+    checkpoint also survives every old cutoff, so the informative region
+    moved **below** the plant cutoff; the new sweep locates the degradation
+    knee there, keeping 10.0 as the cross-run continuity point and
+    stack-sanity row. Same five-panel cost.
+  - **Release-ablation group test extended to the r7 groups**:
+    `test_every_group_gets_both_directions` now covers `knees_ankles`,
+    `left_leg`, and `right_leg` — the #501 groups the passive-toes run's
+    knee-localization conclusion rests on, which had no coverage — and the
+    `_TREX_ACTUATORS` fixture gains `l_knee`/`l_ankle` so the per-side
+    groups resolve more than a hip roll.
+  - **Shaping-pack constants pinned exactly in the stage-1 factory test**:
+    `tail_home_pose_weight` 0.25 / `tolerance` 0.05, `action_saturation_weight`
+    0.5 / `threshold` 0.9, `leg_home_pose_broad_fraction` 0.25 /
+    `broad_scale` 6.0 (was `> 0.0` for three of them, while every neighboring
+    assertion pinned exact values). The statue rails (2100 / 3495.2) were
+    measured at exactly these constants, so a silent TOML drift on any of
+    them invalidated the rails without failing a test.
 - **T-Rex stage-1 reward shaping pack** — three measured responses to the
   knee-lock run (`docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md`),
   each opt-in with zero defaults in both backends:
@@ -169,6 +278,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **Stage 1b implementation plan**
+  (`docs/STAGE1B_IMPLEMENTATION_PLAN.md`): maps the unbuilt recovery half of
+  `docs/STAGE1_SPLIT_PLAN.md` onto the tree as it stands after the first
+  certified stance-gate pass. Records the stage-1 closeout review's verdict —
+  no blocker to starting the 1b build, with a verified cleanup list (a
+  `diagnostics/action_saturation` logger-key collision, a filter-probe sweep
+  that predates the plant's own 10 Hz filter, untested release-ablation
+  groups, unpinned pack weights in the parity factory test, and four stale
+  KNOWN_ISSUES entries falsified by the r11/gate-pass commits) — then lays
+  out the build as six workstreams (perturbation engine, task fingerprint and
+  load modes, stage identity, `recovery_quality/v1` gate, gate resolver,
+  diagnostic tool modes), a run plan starting with the seed replicate the
+  postmortems keep asking for, and seven decisions that need review before
+  their workstreams start.
 - **The passive-toes run postmortem**
   (`docs/investigations/TREX_STAGE1_PASSIVE_TOES_RUN_2026_08.md`): the first
   10M stage-1 run on the r7 plant under substep-honest metrics. Best survival

@@ -217,6 +217,50 @@ class TestPlotFootContacts:
         # Bipedal: single axes (no diagonal pair subplot)
         assert len(fig.axes) == 1
 
+    def test_biped_with_nan_quadruped_keys_gets_no_diagonal_panel(self, tmp_path):
+        """The real biped npz CONTAINS rr/rl keys, as all-NaN series.
+
+        DiagnosticsCallback saves every info key for every species, so key
+        presence is not evidence of quadrupedal data. Keying the layout off
+        ``key in diag`` rendered an empty "diagonal pair" panel for bipeds and
+        routed their two lines through the four-foot branch under FR/FL
+        labels (narrow-tolerance postmortem, item 6). The fixture above omits
+        the keys entirely, which is why it never caught this.
+        """
+        matplotlib.use("Agg")
+
+        from environments.shared.visualization import plot_foot_contacts
+
+        ts = np.array([50000, 100000, 150000])
+        nan_series = np.full(3, np.nan)
+        np.savez(
+            str(tmp_path / "diagnostics.npz"),
+            timesteps=ts,
+            r_foot_contact=np.array([0.5, 0.8, 0.3]),
+            l_foot_contact=np.array([0.3, 0.6, 0.7]),
+            rr_foot_contact=nan_series,
+            rl_foot_contact=nan_series,
+        )
+
+        stage_configs = {1: {"name": "Balance"}}
+        save_path = tmp_path / "foot_contacts.png"
+
+        fig = plot_foot_contacts(
+            [(1, tmp_path)],
+            stage_configs,
+            species="trex",
+            algorithm="ppo",
+            save_path=save_path,
+            show=False,
+        )
+
+        assert save_path.exists()
+        assert len(fig.axes) == 1
+        # And the two real feet are plotted under biped labels, not FR/FL.
+        labels = [line.get_label() for line in fig.axes[0].get_lines()]
+        assert any("Right" in label for label in labels)
+        assert not any("FR" in label for label in labels)
+
     def test_quadrupedal_saves_png_with_diagonal_pairs(self, tmp_path):
         matplotlib.use("Agg")
 

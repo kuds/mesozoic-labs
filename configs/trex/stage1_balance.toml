@@ -124,8 +124,14 @@ neck_posture_weight = 0.20                     # Softly retain the authored neck
 neck_posture_tolerance = 0.35                  # rad; accommodates the passive settled offset from the XML keyframe
 energy_penalty_weight = 0.075                  # Setting 4 sweep: 0.075 forces efficient posture. Led to best downstream S2/S3 results (03-16, 03-17).
 tail_stability_weight = 0.15
-posture_weight = 1.5                           # Increased from 1.5: with lower alive_bonus, stronger tilt penalty drives upright stance
-nosedive_weight = 1.5                          # Increased from 3.0: complement posture weight to prevent forward pitch exploit
+posture_weight = 1.5                           # Tilt penalty: with the reduced alive_bonus it, not survival, drives the
+                                               # upright stance. (Provenance note 2026-08-15: this line's original
+                                               # "Increased from 1.5" contradicted itself from the file's first commit;
+                                               # the pre-repo value it compared against is not recoverable.)
+nosedive_weight = 1.5                          # Complements posture_weight against the forward-pitch exploit.
+                                               # (Provenance note 2026-08-15: the original "Increased from 3.0"
+                                               # described a decrease; same unrecoverable pre-repo history as
+                                               # posture_weight above.)
 nosedive_termination_threshold = 0.493         # Terminates at forward_z < -0.520 (~31.3° nose-down), unchanged from the
                                                # 0.35 that preceded the natural_pitch 0.17 -> 0.05 correction. natural_pitch
                                                # describes the measured neutral pose, so the threshold absorbs every shift in
@@ -197,10 +203,14 @@ gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
 ent_coef_end = 0.0                      # Decay entropy to ZERO, not to a 0.001 floor. The floor is what kept run
-                                        # 20260804_143747 from ever standing still: ent_coef hit 0.001 at 3M and held
-                                        # there for the remaining 7M, and across 21 action dims that bonus holds the
-                                        # policy std at equilibrium ~0.375 indefinitely (`algo_std` 0.47 at 5.9M,
-                                        # 0.375 at 8.4M, still falling ~0.01/M -- it was never going to converge).
+                                        # 20260804_143747 (physics r6, 21 action dims) from ever standing still:
+                                        # ent_coef hit 0.001 at 3M and held there for the remaining 7M, and across
+                                        # those 21 dims that bonus holds the policy std at equilibrium ~0.375
+                                        # indefinitely (`algo_std` 0.47 at 5.9M, 0.375 at 8.4M, still falling
+                                        # ~0.01/M -- it was never going to converge). The equilibrium mechanism is
+                                        # dimension-independent, and the per-joint degree figures below still hold
+                                        # on r7: it deleted only the toe actuators and left the leg ctrlranges
+                                        # untouched (plant_versions.toml note 9).
                                         #
                                         # In joint terms that std is enormous. Through `_scale_action`'s residual
                                         # mapping and this model's ctrlranges, std 0.375 is a 1-sigma command noise of
@@ -245,13 +255,22 @@ target_kl = 0.03                        # Cap destabilising late PPO updates (ea
 net_arch = [512, 256]
 
 [sac]
-learning_rate = 3e-4              # Match PPO starting LR — SAC tolerates higher LR due to replay buffer stability
+# STALENESS WARNING (2026-08-15): this block has never been run (T-Rex SAC is
+# RL_TRAINING_PLAN Trial 1, still pending) and its comments were written
+# against a [ppo] block that has since moved (lr 3e-4 -> 3e-5, gamma
+# 0.998 -> 0.98, budget 6M -> 10M). The cross-references below are corrected
+# to the current values, but re-derive this whole block before actually
+# launching SAC — nothing here has been validated against the r7/r11 plant.
+learning_rate = 3e-4              # 10x the current PPO start (3e-5) — the original "match PPO" rationale is
+                                  # dead; kept at SAC's conventional 3e-4 pending an actual SAC run
 batch_size = 256                  # Larger than PPO's 128 for T-Rex — SAC benefits from bigger batches with replay buffer
-gamma = 0.99                     # Lower than PPO's 0.998 — off-policy replay staleness at high gamma causes value overestimation;
-                                 # 0.99 is sufficient for balance (PPO needed 0.998 due to on-policy variance, not task structure)
+gamma = 0.99                     # Written as "lower than PPO's 0.998" — PPO has since moved to 0.98, so this
+                                 # is now the HIGHER of the two; the original off-policy-staleness argument
+                                 # against very high gamma still stands
 tau = 0.005
 ent_coef = "auto"                # Auto-tuned entropy — replaces PPO's manual ent_coef=0.005
-buffer_size = 300_000            # Sufficient for 6M-step Stage 1; smaller buffer keeps transitions recent
+buffer_size = 300_000            # Sized when stage 1 ran 6M steps; the budget is now 10M, so this holds the
+                                 # most recent 3% of a run rather than 5% — re-derive with the block
 learning_starts = 10_000         # Collect 10K random transitions before gradient updates begin
 train_freq = 16                  # Collect 16 env steps before training — matches proven raptor SAC config
 gradient_steps = 8               # 2:1 data-to-update ratio — matches raptor; reduces overfitting risk on small buffer
@@ -470,36 +489,40 @@ statue_constants_physics_revision = 7    # The trex physics revision the statue-
                                          # the statue fails CI instead of silently training against a rail and
                                          # collapse floor calibrated on a plant that no longer exists. Update
                                          # it WITH the re-measurement, never alone.
-stance_probe_filter_hz = [5.0, 10.0, 20.0, 30.0, 35.0]  # After the gate report, re-score the SAME checkpoint with its actions
+stance_probe_filter_hz = [1.0, 2.5, 5.0, 8.0, 10.0]  # After the gate report, re-score the SAME checkpoint with its actions
                                          # low-passed at EACH of these cutoffs and write
                                          # stance_gate_probe_filtered.{txt,json} as one curve. Unset to skip.
                                          #
-                                         # A curve, not a point, because the yes/no is already answered and the
-                                         # answer is "no": the checkpoint that PASSED the gate falls at every
-                                         # cutoff from 5 to 35 Hz against a 100 Hz control rate, so a single
-                                         # cutoff's PASS/FAIL carries no information (issue #491). What can move
-                                         # is how long the filtered policy survives -- 96 steps at 5 Hz, 189 at
-                                         # 10, 289 at 20, against a 1000-step horizon -- and reading that against
-                                         # cutoff measures HOW MUCH high-frequency content the policy needs
-                                         # rather than merely that it needs some.
+                                         # Re-derived 2026-08-15 for the r11 plant, which low-passes every
+                                         # command at 10 Hz INSIDE the plant (policy interface r11, #503). The
+                                         # old sweep [5, 10, 20, 30, 35] was derived for the unfiltered plant:
+                                         # a probe cutoff ABOVE 10 Hz now stacks a wider filter onto the
+                                         # plant's narrower one and measures approximately the unprobed
+                                         # checkpoint -- 30/35 were near-duplicate rows of the gate panel at
+                                         # 10 episodes each. (A first-order pole is not a wall: 22.7 Hz content
+                                         # still passes the plant filter at ~0.40 gain. But the r6-era
+                                         # rationale for 30/35 -- a top octave "where a 22.7 Hz tremor passes
+                                         # nearly clean" -- is structurally impossible on r11.)
                                          #
-                                         # 5/10/20 spans the useful range. Balance correction on this plant is a
-                                         # ~1.1-1.4 Hz phenomenon and every cutoff here passes it essentially
-                                         # untouched (gain 0.963 at 1.4 Hz even at 5 Hz), while the measured
-                                         # 22.7 Hz tremor is cut 13.3 dB at 5 Hz and 3.6 dB at 20. So a short
-                                         # episode means dependence on content well above what the task needs.
+                                         # The question also inverted. On r6 the passing checkpoint FELL at
+                                         # every cutoff 5-35 Hz (issue #491) and the curve measured how much
+                                         # forbidden bandwidth the policy needed. The r11 gate-pass checkpoint
+                                         # SURVIVES every old cutoff including 5 Hz at 96% of reward
+                                         # (TREX_STAGE1_GATE_PASS_RUN_2026_08.md section 4), so the informative
+                                         # region is now BELOW the plant cutoff, where the stacked filter
+                                         # genuinely narrows bandwidth: the curve should locate the knee where
+                                         # survival or reward starts to degrade. Balance correction is a
+                                         # ~1.1-1.4 Hz phenomenon, so 1.0 Hz bites into the task band itself
+                                         # (gain 0.58 at 1.4 Hz), 2.5/5/8 span task-band-clean down to
+                                         # plant-cutoff-adjacent, and 10.0 is kept as the continuity point --
+                                         # it appeared in every earlier sweep (r6: died at 189 steps; r11
+                                         # gate-pass: survived at 3314 reward) and doubles as a stack-sanity
+                                         # row that should approximately reproduce the unprobed panel.
                                          #
-                                         # 30/35 added with the passive-toes revision: the r6 sweep's manual
-                                         # probes showed the policy still falling at 35 Hz, but the recorded
-                                         # curve stopped at 20, leaving the top octave -- where a 22.7 Hz
-                                         # tremor passes nearly clean -- unsampled. Five points close the curve
-                                         # at the control Nyquist's edge instead of extrapolating it.
-                                         #
-                                         # Each cutoff costs a panel, but the probe rolls 10 episodes rather than
-                                         # the gate's 40: it certifies nothing, and the effect is enormous
-                                         # (96 steps against 1000), so it does not need the sample size the
-                                         # bound's power is specified at. The sweep costs about what the old
-                                         # single 40-episode probe did.
+                                         # Each cutoff costs a panel, but the probe rolls 10 episodes rather
+                                         # than the gate's 40: it certifies nothing, and the effects it exists
+                                         # to catch are large, so it does not need the sample size the bound's
+                                         # power is specified at. Five points, same cost as the old sweep.
                                          #
                                          # The probe scores a MODIFIED policy: its own filenames, never
                                          # stance_panel_selected.csv, and its verdict is not a gate result.
@@ -546,8 +569,10 @@ stance_probe_release_ablation = true     # Ablate the held pose one actuator gro
                                          # motivated deleting the toe actuators in physics r7. The 'toes' group
                                          # matches no actuators on that plant and is skipped gracefully.
                                          #
-                                         # 13 panels at 8 episodes -- the most expensive of the four probes, which
-                                         # is why it is per-stage opt-in rather than on by default.
+                                         # 3 control panels + 2 per matched group at 8 episodes each -- 17 on the
+                                         # current r7 plant (saturated, tail, head_neck, hip_rolls, knees_ankles,
+                                         # left_leg, right_leg; toes skips empty). The most expensive of the four
+                                         # probes, which is why it is per-stage opt-in rather than on by default.
 stance_probe_impulse_speeds = [0.5, 1.0, 2.0]  # Shove the animal mid-episode at each of these speeds (m/s of root
                                          # velocity), in BOTH lateral directions, and write
                                          # stance_gate_probe_impulse.{txt,json}. Unset to skip.

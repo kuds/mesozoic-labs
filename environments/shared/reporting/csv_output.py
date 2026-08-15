@@ -410,7 +410,14 @@ def save_evaluation_episodes(
                 "length": parsed_length,
                 "mean_forward_velocity": numeric_values["forward velocity"],
                 "distance_traveled": numeric_values["distance"],
-                "success": parsed_success,
+                # "task_success", not "success": this is the stage's TASK event
+                # (bite/strike/food-reached), which a stance-gated stage can
+                # never emit, so it reads False in every stage-1 row by
+                # construction. Under the bare name it was repeatedly misread
+                # as the gate verdict — that lives in stance_gate_report.{txt,
+                # json} and stage_summary.txt, never here (gate-pass
+                # postmortem, follow-up 1).
+                "task_success": parsed_success,
             }
         )
     fieldnames = [
@@ -421,7 +428,7 @@ def save_evaluation_episodes(
         "length",
         "mean_forward_velocity",
         "distance_traveled",
-        "success",
+        "task_success",
     ]
     with output.open("w", newline="", encoding="utf-8") as destination:
         writer = _csv.DictWriter(destination, fieldnames=fieldnames)

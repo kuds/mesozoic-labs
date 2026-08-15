@@ -159,7 +159,6 @@ def _evaluation_evidence_aggregates(
         "length",
         "mean_forward_velocity",
         "distance_traveled",
-        "success",
     }
     if not evidence_path.is_file():
         raise ResultBundleError(f"missing {checkpoint_label} evaluation evidence: {evidence_path}")
@@ -167,7 +166,14 @@ def _evaluation_evidence_aggregates(
         reader = csv.DictReader(source)
         fieldnames = set(reader.fieldnames or [])
         rows = list(reader)
+    # The task-event column was renamed "success" -> "task_success" on
+    # 2026-08-15 (the bare name was misread as the stage-gate verdict in
+    # stance-gated stages). Accept the legacy header so bundles written
+    # before the rename still audit; both names carry the same quantity.
+    success_column = next((name for name in ("task_success", "success") if name in fieldnames), None)
     missing_columns = sorted(required_columns - fieldnames)
+    if success_column is None:
+        missing_columns = sorted([*missing_columns, "task_success"])
     if missing_columns:
         raise ResultBundleError(
             f"{checkpoint_label} evaluation evidence for stage {stage} is missing columns: {missing_columns}"
@@ -214,7 +220,7 @@ def _evaluation_evidence_aggregates(
         reward = _optional_csv_number(row.get("reward"))
         forward_velocity = _optional_csv_number(row.get("mean_forward_velocity"))
         distance = _optional_csv_number(row.get("distance_traveled"))
-        success = _optional_csv_bool(row.get("success"))
+        success = _optional_csv_bool(row.get(success_column))
         if reward is None or forward_velocity is None or distance is None or success is None:
             raise ResultBundleError(f"{checkpoint_label} evaluation evidence for stage {stage} contains blank values")
         rewards.append(reward)
