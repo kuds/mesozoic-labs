@@ -103,6 +103,11 @@ class RaptorEnv(BaseDinoEnv):
         prey_lateral_range: tuple[float, float] = (-2.0, 2.0),
         healthy_z_range: tuple[float, float] = (0.3, 1.0),
         reset_noise_scale: float = 0.01,
+        perturbation_capture_velocity_multiple: float = 0.0,
+        perturbation_interval: float = 2.0,
+        perturbation_jitter: float = 0.5,
+        perturbation_duration: float = 0.20,
+        perturbation_direction: str = "uniform_horizontal",
     ):
         model_path = str(Path(__file__).parent.parent / "assets" / "raptor.xml")
 
@@ -165,6 +170,11 @@ class RaptorEnv(BaseDinoEnv):
             fall_penalty=fall_penalty,
             healthy_z_range=healthy_z_range,
             reset_noise_scale=reset_noise_scale,
+            perturbation_capture_velocity_multiple=perturbation_capture_velocity_multiple,
+            perturbation_interval=perturbation_interval,
+            perturbation_jitter=perturbation_jitter,
+            perturbation_duration=perturbation_duration,
+            perturbation_direction=perturbation_direction,
         )
 
     def _cache_ids(self):

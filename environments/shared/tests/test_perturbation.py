@@ -166,3 +166,101 @@ class TestDerivation:
         model = mujoco.MjModel.from_xml_path("environments/trex/assets/trex.xml")
         with pytest.raises(ValueError, match="positive"):
             derive_push_parameters(model, capture_velocity_multiple=0.0, duration_s=0.2)
+
+
+class TestEnvIntegration:
+    """SB3-path integration: off is inert, on pushes exactly on schedule."""
+
+    @staticmethod
+    def _trex(**kwargs):
+        from environments.trex.envs.trex_env import TRexEnv
+
+        return TRexEnv(reset_noise_scale=0.0, **kwargs)
+
+    def test_off_is_inert_and_deterministic(self):
+        a = self._trex()
+        b = self._trex()
+        a.reset(seed=7)
+        b.reset(seed=7)
+        action = np.zeros(a.action_space.shape, dtype=np.float32)
+        for _ in range(30):
+            a.step(action)
+            b.step(action)
+            assert not np.any(a.data.xfrc_applied)
+        np.testing.assert_array_equal(a.data.qpos, b.data.qpos)
+        assert a.perturbation_manifest() is None
+
+    def test_on_diverges_only_after_the_first_push(self):
+        off = self._trex()
+        on = self._trex(perturbation_capture_velocity_multiple=1.5)
+        off.reset(seed=11)
+        on.reset(seed=11)
+        first_push = int(on._push_schedule_starts[0])
+        action = np.zeros(off.action_space.shape, dtype=np.float32)
+        for _ in range(first_push):
+            off.step(action)
+            on.step(action)
+        # Identical up to the step BEFORE the push window opens: the only
+        # difference between the two tasks is the scheduled force.
+        np.testing.assert_array_equal(off.data.qpos, on.data.qpos)
+        for _ in range(20):
+            off.step(action)
+            on.step(action)
+        assert not np.array_equal(off.data.qpos, on.data.qpos)
+
+    def test_push_window_writes_the_derived_force_at_the_root(self):
+        env = self._trex(perturbation_capture_velocity_multiple=1.5)
+        env.reset(seed=3)
+        start = int(env._push_schedule_starts[0])
+        direction = np.asarray(env._push_schedule_directions[0])
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        for _ in range(start):
+            env.step(action)
+        env.step(action)  # first step inside the window
+        applied = env.data.xfrc_applied[env._push_root_body]
+        np.testing.assert_allclose(applied[:2], direction * env._push_force_n, rtol=1e-5)
+        assert applied[2] == 0.0 and not np.any(env.data.xfrc_applied[: env._push_root_body])
+        for _ in range(env._push_duration_steps):
+            env.step(action)
+        assert not np.any(env.data.xfrc_applied)  # self-cleared after the window
+
+    def test_reset_clears_forces_and_pairs_schedules(self):
+        env = self._trex(perturbation_capture_velocity_multiple=1.5)
+        env.reset(seed=5)
+        start = int(env._push_schedule_starts[0])
+        action = np.zeros(env.action_space.shape, dtype=np.float32)
+        for _ in range(start + 2):
+            env.step(action)
+        assert np.any(env.data.xfrc_applied)
+        env.reset(seed=123)
+        assert not np.any(env.data.xfrc_applied)
+        first = np.array(env._push_schedule_starts)
+        env.reset(seed=123)
+        np.testing.assert_array_equal(first, env._push_schedule_starts)
+        env.reset(seed=124)
+        assert not np.array_equal(first, env._push_schedule_starts)
+
+    def test_manifest_carries_the_derived_parameters(self):
+        env = self._trex(perturbation_capture_velocity_multiple=1.5)
+        manifest = env.perturbation_manifest()
+        assert manifest is not None
+        assert manifest["force_n"] == pytest.approx(165.5, abs=2.0)
+        assert manifest["direction"] == "uniform_horizontal"
+
+    @pytest.mark.parametrize(
+        "species_env",
+        [
+            "environments.trex.envs.trex_env:TRexEnv",
+            "environments.velociraptor.envs.raptor_env:RaptorEnv",
+            "environments.brachiosaurus.envs.brachio_env:BrachioEnv",
+            "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv",
+        ],
+    )
+    def test_every_species_accepts_the_parameters(self, species_env):
+        """Species-generic is a constructor contract, not a T-Rex feature."""
+        import importlib
+
+        module_name, class_name = species_env.split(":")
+        cls = getattr(importlib.import_module(module_name), class_name)
+        env = cls(perturbation_capture_velocity_multiple=0.0)
+        assert env.perturbation_manifest() is None

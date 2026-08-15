@@ -278,6 +278,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **Species-generic scheduled pushes, SB3 path (stage 1b, W1)**: every
+  species' environment now accepts five `perturbation_*` parameters,
+  default **off** — with the multiple at 0.0 no schedule exists, no RNG is
+  drawn, and trajectories are byte-identical to the pre-perturbation code
+  (pinned by test). When enabled, `BaseDinoEnv` derives the push force from
+  the plant itself (`environments/shared/perturbation.py`: root-subtree
+  mass, home-keyframe CoM height, floor-contact support hull → capture-point
+  velocity; on the r7 trex, multiple 1.5 over 0.20 s derives to 165.5 N,
+  reproducing STAGE1_SPLIT_PLAN §3.3's ~150 N from first principles),
+  generates a deterministic per-episode schedule from a `lowbias32` hash
+  (bit-identical on NumPy and JAX, so paired policy-vs-null evaluation gets
+  identical pushes from identical seeds), and writes the self-clearing
+  force to `xfrc_applied` at the root each control step. Reward and
+  observation are untouched — the push changes the task, not the interface.
+  `perturbation_manifest()` exposes the derived per-species constants for
+  run provenance. The MJX/JAX training path does not consume the keys yet
+  (next W1 commit); the schedule kernel is already backend-parity-tested.
 - **The seed-43 replicate postmortem**
   (`docs/investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md`): the first
   replicate of the certified gate-pass configuration, and a gate **FAIL** —
