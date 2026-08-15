@@ -111,7 +111,7 @@ prune; §2.3 is cosmetic. Each item was verified against the current tree.
    reward terms read the action, `base_env.py:963-989`) while remaining real
    for filter-free species. Re-anchor at function level and scope the claim.
 
-### 2.3 Cosmetic / opportunistic
+### 2.3 Cosmetic / opportunistic — **landed 2026-08-15 on this branch** (item 12 as a rename with a legacy-reader fallback; item 13 as a real fix — the panel bug was NaN-key detection, not a missing skip)
 
 9. `configs/trex/stage1_balance.toml:549`: the release-ablation cost comment
    says "13 panels"; the current plant's group set gives 17.

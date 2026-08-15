@@ -50,7 +50,7 @@ def test_save_evaluation_episodes_preserves_per_episode_evidence(tmp_path: Path)
             "length": "100",
             "mean_forward_velocity": "0.1",
             "distance_traveled": "1.0",
-            "success": "False",
+            "task_success": "False",
         },
         {
             "episode": "2",
@@ -60,9 +60,31 @@ def test_save_evaluation_episodes_preserves_per_episode_evidence(tmp_path: Path)
             "length": "200",
             "mean_forward_velocity": "0.2",
             "distance_traveled": "2.0",
-            "success": "True",
+            "task_success": "True",
         },
     ]
+
+
+def test_legacy_success_header_still_audits(tmp_path: Path, stable_provenance: None) -> None:
+    """Bundles written before the 2026-08-15 column rename must keep auditing.
+
+    The per-episode task-event column was renamed ``success`` ->
+    ``task_success`` (the bare name was misread as the stage-gate verdict in
+    stance-gated stages). The reader accepts either header; this pins the
+    legacy side so the fallback cannot be dropped while pre-rename bundles
+    exist.
+    """
+    run_dir = tmp_path / "run"
+    _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
+    evidence_path = run_dir / "stage1" / "evaluation_selected.csv"
+    header, rest = evidence_path.read_text(encoding="utf-8").split("\n", 1)
+    assert "task_success" in header
+    evidence_path.write_text(header.replace("task_success", "success") + "\n" + rest, encoding="utf-8")
+    write_artifact_manifest(run_dir, status="complete")
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid"
+    assert not report["errors"]
 
 
 def test_save_evaluation_episodes_rejects_incomplete_rows(tmp_path: Path) -> None:

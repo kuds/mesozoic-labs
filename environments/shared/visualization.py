@@ -532,13 +532,25 @@ def plot_foot_contacts(
 
     species_title = species.title()
 
+    def _has_finite(diag, key: str) -> bool:
+        # Presence is not evidence: DiagnosticsCallback saves EVERY info key
+        # for every species, so a biped's diagnostics.npz contains
+        # rr/rl_foot_contact as all-NaN series. Keying the quadruped layout
+        # off `key in diag` rendered an empty "diagonal pair" panel for
+        # bipeds (narrow-tolerance postmortem, item 6) and routed their R/L
+        # lines through the four-foot branch under FR/FL labels.
+        if key not in diag:
+            return False
+        arr = np.asarray(diag[key], dtype=float)
+        return arr.size > 0 and bool(np.isfinite(arr).any())
+
     # Detect whether any stage has quadrupedal data
     is_quadruped = False
     for _, stage_dir in stage_dirs:
         diag_log = Path(stage_dir) / "diagnostics.npz"
         if diag_log.exists():
             diag = np.load(diag_log)
-            if "rr_foot_contact" in diag or "rl_foot_contact" in diag:
+            if _has_finite(diag, "rr_foot_contact") or _has_finite(diag, "rl_foot_contact"):
                 is_quadruped = True
                 break
 
@@ -562,10 +574,10 @@ def plot_foot_contacts(
 
         label_base = f"Stage {stage_num}: {stage_configs[stage_num]['name']}"
 
-        has_r = "r_foot_contact" in diag
-        has_l = "l_foot_contact" in diag
-        has_rr = "rr_foot_contact" in diag
-        has_rl = "rl_foot_contact" in diag
+        has_r = _has_finite(diag, "r_foot_contact")
+        has_l = _has_finite(diag, "l_foot_contact")
+        has_rr = _has_finite(diag, "rr_foot_contact")
+        has_rl = _has_finite(diag, "rl_foot_contact")
 
         if has_r and has_l and has_rr and has_rl:
             # Quadrupedal: 4 individual feet

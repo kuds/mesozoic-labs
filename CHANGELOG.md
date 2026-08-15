@@ -8,6 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Changed
+- **Stage-1 review cleanup, final batch (§2.3)** — the cosmetic and
+  small-code items closing out the 2026-08-15 review's cleanup list:
+  - **Evaluation CSVs: `success` column renamed `task_success`** (gate-pass
+    postmortem, follow-up 1). The column records the stage's TASK event
+    (bite/strike/food-reached), which a stance-gated stage can never emit —
+    it reads False in every stage-1 row by construction and was repeatedly
+    misread as the gate verdict, which lives only in
+    `stance_gate_report.{txt,json}` and `stage_summary.txt`. The bundle
+    reader accepts the legacy `success` header so pre-rename bundles still
+    audit (pinned by a test); the writer emits only the new name.
+  - **The biped-empty "diagonal pair" contact panel is fixed**
+    (narrow-tolerance postmortem, item 6). `plot_foot_contacts` keyed its
+    quadruped layout off key *presence* in `diagnostics.npz` — but
+    `DiagnosticsCallback` saves every info key for every species, so a
+    biped's file contains `rr/rl_foot_contact` as all-NaN series: the figure
+    grew an empty diagonal panel and routed the two real feet through the
+    four-foot branch under FR/FL labels. Detection now requires finite data;
+    a regression test pins the all-NaN-keys biped case the existing
+    omitted-keys fixture could never catch.
+  - **`stage1_balance.toml` comment corrections**: the release-ablation cost
+    justification updated from the r6-era "13 panels" to the current 17
+    (3 controls + 2 × 7 matched groups; toes skips); the self-contradictory
+    `posture_weight` ("Increased from 1.5") and `nosedive_weight`
+    ("Increased from 3.0", a decrease) provenance claims replaced with
+    honest notes — both date from the file's first commit and compare
+    against unrecoverable pre-repo values; the `[sac]` block gains a
+    staleness warning and corrected cross-references (its "match PPO"
+    lr/gamma/budget comparisons were written against a [ppo] block that has
+    since moved to 3e-5 / 0.98 / 10M — the block itself has never been run);
+    `ent_coef_end`'s entropy-floor analysis is era-marked as the r6
+    21-actuator measurement, with a note that the figures still hold on r7.
+  - **`_actuator_pose_mapping`'s docstring** now describes the deleted toe
+    actuators in the past tense with the r6/r7 framing
+    (plant_versions.toml note 9) instead of presenting an impossible
+    example as current.
 - **KNOWN_ISSUES pruned against the r7/r11 campaign** — the §2.2 batch of the
   2026-08-15 review (`docs/STAGE1B_IMPLEMENTATION_PLAN.md`), applying the
   file's own policy ("when an item here gets fixed, delete it"). Three

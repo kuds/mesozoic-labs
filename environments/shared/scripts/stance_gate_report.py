@@ -412,13 +412,15 @@ def _actuator_pose_mapping(env: Any) -> list[dict[str, Any]]:
 
     This exists because ``|action| = 1`` is **not one physical event**.
     ``_scale_action`` maps ``[-1, 1]`` onto each actuator's own physical
-    control targets, and on the T-Rex those spans differ by a factor of six: a
-    saturated tail target is 8-12 degrees from its origin while a saturated toe
-    target is 37.5 degrees away. Counting both as "saturated" pools them into
-    one number, which is the same mistake the DC/AC split was introduced to fix
-    one level up -- a normalized-unit summary hiding a physical distinction.
-    Measured, it hid the answer: the tail looked like the most extreme thing in
-    the DC table and is provably inert, while the toes carry the whole effect.
+    control targets, and those spans differ per actuator -- on the physics-r6
+    T-Rex by a factor of six: a saturated tail target was 8-12 degrees from
+    its origin while a saturated toe target was 37.5 degrees away (the toe
+    actuators were deleted in r7; plant_versions.toml note 9). Counting both
+    as "saturated" pools them into one number, which is the same mistake the
+    DC/AC split was introduced to fix one level up -- a normalized-unit
+    summary hiding a physical distinction. Measured on r6, it hid the answer:
+    the tail looked like the most extreme thing in the DC table and was
+    provably inert, while the toes carried the whole effect.
     """
     try:
         # Probe the environment's own mapping instead of duplicating a shared
