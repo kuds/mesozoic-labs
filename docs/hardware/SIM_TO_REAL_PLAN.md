@@ -165,15 +165,21 @@ Key idealizations that don't map to hardware:
 
 ### 3.3 Control loop & action interface
 
-- **100 Hz zero-order-hold control** (timestep 0.002 s × frame_skip 5;
-  `base_env.py:78-79`). Modest and embeddable.
+- **100 Hz zero-order-hold control** (`timestep="0.002"` in each species'
+  MJCF × the `frame_skip = 5` default in `BaseDinoEnv.__init__`). Modest and
+  embeddable.
 - **Actions are normalized `[-1,1]` position targets** mapped to per-actuator
-  `ctrlrange` in radians (`base_env.py:783-797`), except the raptor's two
-  torque-driven sickle claws — a mixed position+torque interface.
+  `ctrlrange` in radians (`BaseDinoEnv._scale_action`), except the raptor's
+  two torque-driven sickle claws — a mixed position+torque interface.
 - The servo "D" term is **passive joint damping**, not a servo velocity loop, so
   reproducing sim closed-loop stiffness on hardware requires matching *both* the
   sim `kp` **and** replicating joint damping as an explicit `kd`.
-- **No action filtering, latency, or delay modeling** anywhere in the step loop.
+- **No latency or delay modeling** anywhere in the step loop. Action
+  filtering: the T-Rex low-passes commands at 10 Hz in-loop since policy
+  interface r11 (first-order, `BaseDinoEnv._filter_action`, present during
+  training in both backends — the sim-to-real prerequisite #491 asked for);
+  every other species still has no action filtering
+  (`action_filter_cutoff_hz = 0`).
 
 ### 3.4 Robustness / domain randomization
 

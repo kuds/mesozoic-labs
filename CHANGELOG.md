@@ -8,6 +8,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Changed
+- **KNOWN_ISSUES pruned against the r7/r11 campaign** — the §2.2 batch of the
+  2026-08-15 review (`docs/STAGE1B_IMPLEMENTATION_PLAN.md`), applying the
+  file's own policy ("when an item here gets fixed, delete it"). Three
+  T-Rex stage-1 entries deleted, each fixed or falsified by commits already
+  on `main`; their evidence lives on where cited:
+  - **"A passing policy cannot stand if its actions are filtered"** — the r6
+    measurement behind "an action filter cannot be retrofitted." The r11
+    10 Hz command low-pass (#503) did what the entry prescribed — filter
+    present during training, unfiltered checkpoints invalidated — and the
+    certified policy survives every probed cutoff down to 5 Hz at 96% of
+    reward (`TREX_STAGE1_GATE_PASS_RUN_2026_08.md` §4; original analysis
+    archived in `TREX_STAGE1_BOUNCE_2026_08.md` §5).
+  - **"The passing policy stands in a pose it cannot hold without continuous
+    feedback"** (HIGH) — its stated closure condition (re-run the
+    hold-constant probe on an r7-trained policy) was met: 3/10 episodes to
+    the full horizon, mean 611 steps, gentle nosedives — near-statically
+    stable, measured on one seed (gate-pass postmortem §4). The entry's
+    bolded advice that raising `smoothness`/`action_jerk` is contraindicated
+    described the deleted r6 pose and was empirically falsified by the
+    0.1→2.0 smoothness escalation the certified run trained under.
+  - **"Half the actuators sit saturated and nothing opposes it"** — the #504
+    `action_saturation` penalty (0.5 / 0.9) now opposes it, and the r7
+    counts were re-measured: 5 of 15 parked in the narrow-tolerance run,
+    **0 of 15** in the gate-pass run (max |DC| 0.890, parked under the
+    ramp). One-sided-headroom residue stays tracked in #491.
+  - The surviving **"passes or bounces"** entry gained a dated update: its
+    numbers are r6-era, and the seed-replicate ask now targets the r11
+    gate-pass configuration (n = 1).
+  - The **latent raw-vs-clipped reward trap** paragraph was rewritten with
+    function-level anchors (its `base_env.py` line numbers had rotted by
+    ~250 lines) and scoped to filter-free species — r11's `_filter_action`
+    clips before the reward terms read the action, closing it for the T-Rex.
+  - Same-family staleness in `docs/hardware/SIM_TO_REAL_PLAN.md` §3.3 fixed:
+    two rotted `base_env.py` line anchors re-pointed at
+    `BaseDinoEnv._scale_action` / `__init__`, and "no action filtering
+    anywhere in the step loop" corrected — the T-Rex has filtered in-loop
+    since r11; the other species still do not.
 - **Stage-1 closeout cleanup** — the four pre-training-run items from the
   2026-08-15 review (`docs/STAGE1B_IMPLEMENTATION_PLAN.md` §2.1):
   - **`DiagnosticsCallback`'s raw saturation metric renamed

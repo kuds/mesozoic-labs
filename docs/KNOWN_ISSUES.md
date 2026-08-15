@@ -48,9 +48,13 @@ tolerance) remains the standing recommendation for the divergences above.
 
 ## Training / RL
 
-<!-- The three items below come from the 2026-08-05 stage-1 bounce
-     investigation; full evidence in
-     investigations/TREX_STAGE1_BOUNCE_2026_08.md. -->
+<!-- The two items below come from the 2026-08-05 stage-1 bounce
+     investigation and its addenda; full evidence in
+     investigations/TREX_STAGE1_BOUNCE_2026_08.md. Three sibling items
+     (actuator saturation unopposed; a filter cannot be retrofitted; the pose
+     needs continuous feedback) were deleted 2026-08-15 after the r7/r11
+     campaign fixed or falsified each — see the CHANGELOG entry of that date
+     for where their evidence now lives. -->
 
 - **HIGH** — **T-Rex stage 1 passes or bounces depending on the run, and we
   cannot yet say which is typical.** Three 10M runs, all seed 42: one passed
@@ -65,47 +69,15 @@ tolerance) remains the standing recommendation for the divergences above.
   reward changes are not indicated. **The next experiment should be seed
   replicates of the passing configuration**, which is the only thing that
   distinguishes "solved" from "lucky".
-- **MEDIUM** — **half the actuators sit saturated and nothing opposes it.**
-  Ten to twelve of 21 actuators were pinned at `|action| ≥ 0.99` — tail, neck,
-  head, toes — in *both* passing and failing policies, measured on the
-  physics-r6 plant. **The passive-toes revision (physics r7) deleted the six
-  toe actuators**, the group whose 37.5° saturated deflection the release
-  ablation blamed for the unholdable pose (archived in the bounce
-  investigation); the remaining tail/neck/head saturation is 8–12° of
-  deflection and mechanically inert in that ablation. Saturation counts on
-  the 15-actuator plant have not been re-measured. `energy` charges
-  ~48/episode against an alive bonus paying ~1000, and `leg_home_pose` governs
-  only 8 joints carrying 1.2% of the commanded offset. A saturated actuator has
-  no headroom in one direction, so the recovery envelope on those axes is
-  one-sided. Not a stage-1 blocker (the passing policy saturates too) —
-  tracked as sim-to-real in #491.
-- **MEDIUM** — **a passing policy cannot stand if its actions are filtered, at
-  any cutoff.** Low-passing the checkpoint that passed the gate collapses it at
-  every cutoff from 5 to 35 Hz against a 100 Hz control rate (96 → 351 steps of
-  a 1000-step horizon). The high-frequency content is load-bearing closed-loop
-  stabilisation, so an action filter or rate limit **cannot be retrofitted** —
-  if one is wanted for sim-to-real it has to be present during training. The
-  probe conflates bandwidth-dependence with delay-sensitivity; a zero-phase
-  offline filter would separate them. Tracked in #491.
-- **HIGH** — **the passing policy stands in a pose it cannot hold without
-  continuous feedback.** Freezing its commanded action to the constant it
-  averages collapses it from every handoff point — 348.9 steps of a 1000-step
-  horizon from settle, 330.2 when ramped in over 50 steps, 133.3 from reset —
-  while both controls reach the horizon (unmodified policy 1000, zero-action
-  statue 1000 at reward 3271.0). The ramped variant falling too rules out a
-  handoff transient. The statue holds the *home* pose on a constant forever;
-  the policy stood 0.765 rms away from home, and **that** pose needs active
-  stabilisation. So the tremor is the price of where the policy chose to
-  stand, not a property of the task, and **raising
-  `smoothness`/`action_jerk` is contraindicated** — they would suppress the
-  only thing holding the animal up. **Measured on the physics-r6 plant, and
-  the release ablation attributed the whole failure to the six toe actuators
-  the passive-toes revision (r7) has since deleted** — the splayed-claw pose
-  is now structurally impossible, every r6 checkpoint is invalidated, and the
-  hold-constant probe must be re-run on a policy trained on the 15-actuator
-  plant before this item can be called fixed. Measured by
-  `stance_gate_report.py --hold-constant`; see the 2026-08-06 addendum in the
-  bounce investigation.
+  **Update (2026-08-15):** every number above is r6-era; the plant, interface,
+  and reward have all moved since (r7 passive toes, r11 10 Hz command filter,
+  the #504 shaping pack), and the campaign ran three more 10M runs — two gate
+  FAILs by different mechanisms (18.7 Hz foot chatter at duty 0.41; a
+  knee-locked crouch at 0.40) and then the first certified PASS (duty 0.0048,
+  UCB 0.0080;
+  [investigations/TREX_STAGE1_GATE_PASS_RUN_2026_08.md](investigations/TREX_STAGE1_GATE_PASS_RUN_2026_08.md)).
+  The ask stands unchanged with the target moved: seed replicates of the
+  **r11 gate-pass configuration**, which is n = 1.
 - **MEDIUM** — **stage 1 contains no in-episode disturbance, so it cannot ask
   for postural correction.** The only perturbation is joint-angle noise at
   reset (`reset_noise_scale 0.05`); nothing applies an external force during an
@@ -328,12 +300,18 @@ tolerance) remains the standing recommendation for the divergences above.
   21 actuators). Worth watching `raw_action_saturation` as a first-class health
   metric rather than as evidence about the reward.
 
-  **Latent trap.** `base_env.py:783` passes the raw `action` to
-  `_get_reward_info` while `ctrl` is clipped separately at line 765. Harmless
-  under SB3 and the JAX trainer today, but any direct caller — a notebook, a
-  custom rollout loop, a diagnostic script — is silently charged energy and
-  smoothness penalties for magnitude the plant never sees. Clipping at line
-  783 would make the two paths agree and moves no fingerprint.
+  **Latent trap — now scoped to filter-free species.** `BaseDinoEnv.step`
+  passes the raw `action` to `_get_reward_info` while `_scale_action` clips
+  separately on the way to `ctrl` (anchor on the function names; the line
+  numbers this paragraph used to carry rotted by ~250 lines in the August
+  rewrites). Harmless under SB3 and the JAX trainer today, but any direct
+  caller — a notebook, a custom rollout loop, a diagnostic script — is
+  silently charged energy and smoothness penalties for magnitude the plant
+  never sees. Since r11 this applies only to species with
+  `action_filter_cutoff_hz = 0` — today, every species except the T-Rex:
+  `_filter_action` clips before the reward terms read the action, so the
+  T-Rex's two paths already agree. Clipping once at the top of `step` for the
+  filter-free species would close it everywhere and moves no fingerprint.
 
   **Explicitly retracted.** An earlier version of this entry claimed the energy
   term was inflated ~3.8× (~209/episode, ~7.9% of return) and that the

@@ -86,7 +86,7 @@ prune; §2.3 is cosmetic. Each item was verified against the current tree.
    0.25 / 0.5 / 0.25 — a silent TOML drift invalidates the rails without
    failing the test. Pin exact values (and `tail_home_pose_tolerance = 0.05`).
 
-### 2.2 KNOWN_ISSUES pruning (the file's own policy: "when an item here gets fixed, delete it")
+### 2.2 KNOWN_ISSUES pruning — **landed 2026-08-15 on this branch** (the file's own policy: "when an item here gets fixed, delete it")
 
 5. **"An action filter cannot be retrofitted" (`docs/KNOWN_ISSUES.md:82`)** —
    the entry prescribed training with the filter present; r11 did exactly
