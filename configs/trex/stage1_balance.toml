@@ -470,36 +470,40 @@ statue_constants_physics_revision = 7    # The trex physics revision the statue-
                                          # the statue fails CI instead of silently training against a rail and
                                          # collapse floor calibrated on a plant that no longer exists. Update
                                          # it WITH the re-measurement, never alone.
-stance_probe_filter_hz = [5.0, 10.0, 20.0, 30.0, 35.0]  # After the gate report, re-score the SAME checkpoint with its actions
+stance_probe_filter_hz = [1.0, 2.5, 5.0, 8.0, 10.0]  # After the gate report, re-score the SAME checkpoint with its actions
                                          # low-passed at EACH of these cutoffs and write
                                          # stance_gate_probe_filtered.{txt,json} as one curve. Unset to skip.
                                          #
-                                         # A curve, not a point, because the yes/no is already answered and the
-                                         # answer is "no": the checkpoint that PASSED the gate falls at every
-                                         # cutoff from 5 to 35 Hz against a 100 Hz control rate, so a single
-                                         # cutoff's PASS/FAIL carries no information (issue #491). What can move
-                                         # is how long the filtered policy survives -- 96 steps at 5 Hz, 189 at
-                                         # 10, 289 at 20, against a 1000-step horizon -- and reading that against
-                                         # cutoff measures HOW MUCH high-frequency content the policy needs
-                                         # rather than merely that it needs some.
+                                         # Re-derived 2026-08-15 for the r11 plant, which low-passes every
+                                         # command at 10 Hz INSIDE the plant (policy interface r11, #503). The
+                                         # old sweep [5, 10, 20, 30, 35] was derived for the unfiltered plant:
+                                         # a probe cutoff ABOVE 10 Hz now stacks a wider filter onto the
+                                         # plant's narrower one and measures approximately the unprobed
+                                         # checkpoint -- 30/35 were near-duplicate rows of the gate panel at
+                                         # 10 episodes each. (A first-order pole is not a wall: 22.7 Hz content
+                                         # still passes the plant filter at ~0.40 gain. But the r6-era
+                                         # rationale for 30/35 -- a top octave "where a 22.7 Hz tremor passes
+                                         # nearly clean" -- is structurally impossible on r11.)
                                          #
-                                         # 5/10/20 spans the useful range. Balance correction on this plant is a
-                                         # ~1.1-1.4 Hz phenomenon and every cutoff here passes it essentially
-                                         # untouched (gain 0.963 at 1.4 Hz even at 5 Hz), while the measured
-                                         # 22.7 Hz tremor is cut 13.3 dB at 5 Hz and 3.6 dB at 20. So a short
-                                         # episode means dependence on content well above what the task needs.
+                                         # The question also inverted. On r6 the passing checkpoint FELL at
+                                         # every cutoff 5-35 Hz (issue #491) and the curve measured how much
+                                         # forbidden bandwidth the policy needed. The r11 gate-pass checkpoint
+                                         # SURVIVES every old cutoff including 5 Hz at 96% of reward
+                                         # (TREX_STAGE1_GATE_PASS_RUN_2026_08.md section 4), so the informative
+                                         # region is now BELOW the plant cutoff, where the stacked filter
+                                         # genuinely narrows bandwidth: the curve should locate the knee where
+                                         # survival or reward starts to degrade. Balance correction is a
+                                         # ~1.1-1.4 Hz phenomenon, so 1.0 Hz bites into the task band itself
+                                         # (gain 0.58 at 1.4 Hz), 2.5/5/8 span task-band-clean down to
+                                         # plant-cutoff-adjacent, and 10.0 is kept as the continuity point --
+                                         # it appeared in every earlier sweep (r6: died at 189 steps; r11
+                                         # gate-pass: survived at 3314 reward) and doubles as a stack-sanity
+                                         # row that should approximately reproduce the unprobed panel.
                                          #
-                                         # 30/35 added with the passive-toes revision: the r6 sweep's manual
-                                         # probes showed the policy still falling at 35 Hz, but the recorded
-                                         # curve stopped at 20, leaving the top octave -- where a 22.7 Hz
-                                         # tremor passes nearly clean -- unsampled. Five points close the curve
-                                         # at the control Nyquist's edge instead of extrapolating it.
-                                         #
-                                         # Each cutoff costs a panel, but the probe rolls 10 episodes rather than
-                                         # the gate's 40: it certifies nothing, and the effect is enormous
-                                         # (96 steps against 1000), so it does not need the sample size the
-                                         # bound's power is specified at. The sweep costs about what the old
-                                         # single 40-episode probe did.
+                                         # Each cutoff costs a panel, but the probe rolls 10 episodes rather
+                                         # than the gate's 40: it certifies nothing, and the effects it exists
+                                         # to catch are large, so it does not need the sample size the bound's
+                                         # power is specified at. Five points, same cost as the old sweep.
                                          #
                                          # The probe scores a MODIFIED policy: its own filenames, never
                                          # stance_panel_selected.csv, and its verdict is not a gate result.

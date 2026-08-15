@@ -202,9 +202,16 @@ def test_stage1_factory_enables_stance_terms_without_changing_dimensions():
     assert weights["leg_home_pose_weight"] == pytest.approx(0.5)
     assert weights["head_clearance_weight"] == pytest.approx(0.35)
     assert weights["neck_posture_weight"] == pytest.approx(0.20)
-    assert weights["tail_home_pose_weight"] > 0.0
-    assert weights["action_saturation_weight"] > 0.0
-    assert weights["leg_home_pose_broad_fraction"] > 0.0
+    # Pinned exactly, not merely > 0: the statue rails (min_avg_reward 2100,
+    # collapse_peak_floor_reference 3495.2) were measured at exactly these
+    # values, so a silent TOML drift on any of them invalidates the rails
+    # without any other test noticing.
+    assert weights["tail_home_pose_weight"] == pytest.approx(0.25)
+    assert weights["tail_home_pose_tolerance"] == pytest.approx(0.05)
+    assert weights["action_saturation_weight"] == pytest.approx(0.5)
+    assert weights["action_saturation_threshold"] == pytest.approx(0.9)
+    assert weights["leg_home_pose_broad_fraction"] == pytest.approx(0.25)
+    assert weights["leg_home_pose_broad_scale"] == pytest.approx(6.0)
     assert weights["height_target_tolerance"] == pytest.approx(0.06)
     assert len(env._leg_home_pose_qpos_indices) == 8
     assert len(env._neck_posture_qpos_indices) == 3

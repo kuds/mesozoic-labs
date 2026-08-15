@@ -1269,7 +1269,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         from environments.shared.curriculum.gate_schema import validate_gate_config
 
         curriculum = load_stage_config("trex", 1)["curriculum_kwargs"]
-        assert curriculum["stance_probe_filter_hz"] == [5.0, 10.0, 20.0, 30.0, 35.0]
+        assert curriculum["stance_probe_filter_hz"] == [1.0, 2.5, 5.0, 8.0, 10.0]
         validate_gate_config(1, curriculum)
 
 
@@ -1686,6 +1686,11 @@ _TREX_ACTUATORS = [
     ("r_toe_d2_joint", 1.0),
     ("l_hip_roll", -1.0),
     ("tail_1_yaw", 1.0),
+    # Appended (not inserted) so the index assertions above stay valid: the
+    # per-side groups must resolve a left knee/ankle, not just l_hip_roll,
+    # or `left_leg` degenerates into a synonym for the left hip.
+    ("l_knee", 0.31),
+    ("l_ankle", -0.24),
 ]
 
 
@@ -1743,9 +1748,24 @@ class TestReleaseAblationVariants:
         return {v.label: v for v in constant_hold_release_variants(hold, report, horizon=1000)}
 
     def test_every_group_gets_both_directions(self):
-        """One side alone is not evidence: necessity and sufficiency differ."""
+        """One side alone is not evidence: necessity and sufficiency differ.
+
+        The tuple must track `_ACTUATOR_GROUPS` in stance_gate_report.py: the
+        r7 additions (knees_ankles and the per-side legs) are the groups the
+        passive-toes run's knee-localization conclusion rests on, and they
+        went untested for a week because this list wasn't extended with them.
+        """
         variants = self._variants()
-        for group in ("saturated", "tail", "toes", "head_neck", "hip_rolls"):
+        for group in (
+            "saturated",
+            "tail",
+            "toes",
+            "head_neck",
+            "hip_rolls",
+            "knees_ankles",
+            "left_leg",
+            "right_leg",
+        ):
             assert f"release_{group}" in variants
             assert f"only_{group}" in variants
 

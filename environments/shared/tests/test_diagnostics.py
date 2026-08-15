@@ -353,7 +353,7 @@ class TestActionStats:
         callback.locals = {"infos": [], "actions": np.array([[1.0, 0.5], [-0.995, 0.0]])}
         callback._on_step()
         callback._on_rollout_end()
-        callback.logger.record.assert_any_call("diagnostics/action_saturation", pytest.approx(0.5))
+        callback.logger.record.assert_any_call("diagnostics/raw_action_saturation", pytest.approx(0.5))
         callback.logger.record.assert_any_call("diagnostics/action_abs_max", pytest.approx(1.0))
         callback.logger.record.assert_any_call(
             "diagnostics/action_mean", pytest.approx(float(np.mean([1.0, 0.5, -0.995, 0.0])))
@@ -373,7 +373,7 @@ class TestActionStats:
         callback._on_step()
         callback._on_rollout_end()
         recorded = {c.args[0] for c in callback.logger.record.call_args_list}
-        assert "diagnostics/action_saturation" not in recorded
+        assert "diagnostics/raw_action_saturation" not in recorded
 
     def test_custom_saturation_threshold(self):
         cb = DiagnosticsCallback(action_saturation_threshold=0.5)

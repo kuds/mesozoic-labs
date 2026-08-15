@@ -299,14 +299,25 @@ tolerance) remains the standing recommendation for the divergences above.
   - `base_env.py:_scale_action` says so directly: "SB3 already clips before
     stepping, but direct callers… would otherwise command out-of-range ctrl."
 
-  **The metric hazard.** `action_mean`, `action_std`, `action_abs_max` and
-  `action_saturation` come from `diagnostics.py:210`, which reads
-  `self.locals["actions"]` — SB3's **pre-clip** Gaussian sample. `action_delta`
-  arrives by a different route: it is returned by `reward_action_smoothness`
-  from *inside* the env, so it is computed on the **post-clip** action. Four
-  scalars in one namespace describe the policy's raw output; the fifth
-  describes what the plant received. Reading the group as one space is an easy
-  and consequential mistake.
+  **The metric hazard.** `action_mean`, `action_std`, `action_abs_max`,
+  `action_abs_mean` and `raw_action_saturation` come from
+  `DiagnosticsCallback._on_step`'s read of `self.locals["actions"]` — SB3's
+  **pre-clip** Gaussian sample. `action_delta` arrives by a different route:
+  it is returned by `reward_action_smoothness` from *inside* the env, so it is
+  computed on the **post-clip** action. Five scalars in one namespace describe
+  the policy's raw output; the sixth describes what the plant received.
+  Reading the group as one space is an easy and consequential mistake.
+  It was briefly sharper than that: the 2026-08-10 shaping pack gave the env
+  an `action_saturation` info key (the ramp fraction behind
+  `reward_action_saturation`, measured on the filtered command the plant
+  integrates), and the callback recorded its pre-clip 0.99-threshold fraction
+  under the **same** `diagnostics/action_saturation` key later in the same
+  rollout-end pass, silently overwriting the env's value every rollout. Fixed
+  2026-08-15 by renaming the callback's metric to
+  `diagnostics/raw_action_saturation`; `diagnostics/action_saturation` is now
+  unambiguously the env's. The table above predates the rename — its
+  `action_saturation` row is the pre-clip quantity now named
+  `raw_action_saturation`.
 
   **What is real.** PPO stores the raw action and its `log_prob`, while the
   environment responds to the clipped one. With 68% of components saturated,
@@ -314,7 +325,7 @@ tolerance) remains the standing recommendation for the divergences above.
   changes the plant not at all — the standard bias from sampling an unbounded
   Gaussian into a bounded action space, and a plausible contributor to the
   bang-bang envelope measured on the same run (`used` = 100% of range on 20 of
-  21 actuators). Worth watching `action_saturation` as a first-class health
+  21 actuators). Worth watching `raw_action_saturation` as a first-class health
   metric rather than as evidence about the reward.
 
   **Latent trap.** `base_env.py:783` passes the raw `action` to

@@ -8,6 +8,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
 
 ### Changed
+- **Stage-1 closeout cleanup** — the four pre-training-run items from the
+  2026-08-15 review (`docs/STAGE1B_IMPLEMENTATION_PLAN.md` §2.1):
+  - **`DiagnosticsCallback`'s raw saturation metric renamed
+    `diagnostics/raw_action_saturation`** (was `diagnostics/action_saturation`).
+    The #504 pack gave the env an `action_saturation` info key — the
+    post-filter ramp fraction behind `reward_action_saturation` — which the
+    callback recorded at rollout end and then **overwrote in the same pass**
+    with its pre-clip |a| ≥ 0.99 fraction under the identical TB key. The two
+    disagree by construction (pre-clip raw sample vs filtered command; 0.99
+    hard threshold vs 0.9 ramp). `diagnostics/action_saturation` is now
+    unambiguously the env's; dashboards tracking the raw quantity should
+    follow the rename (TB traces from runs between #504 and this fix carry
+    the env value only until the first rollout end, then the raw overwrite).
+    `action_bound_report.py`'s cross-references updated to match.
+  - **T-Rex filter-probe sweep re-derived for the r11 plant**:
+    `stance_probe_filter_hz` `[5, 10, 20, 30, 35]` → `[1.0, 2.5, 5.0, 8.0,
+    10.0]`. The old sweep predates the plant's own 10 Hz command low-pass —
+    probe cutoffs above 10 Hz stack a wider filter onto a narrower one and
+    measured approximately the unprobed checkpoint (30/35 Hz were
+    near-duplicate rows of the gate panel at 10 episodes each). The gate-pass
+    checkpoint also survives every old cutoff, so the informative region
+    moved **below** the plant cutoff; the new sweep locates the degradation
+    knee there, keeping 10.0 as the cross-run continuity point and
+    stack-sanity row. Same five-panel cost.
+  - **Release-ablation group test extended to the r7 groups**:
+    `test_every_group_gets_both_directions` now covers `knees_ankles`,
+    `left_leg`, and `right_leg` — the #501 groups the passive-toes run's
+    knee-localization conclusion rests on, which had no coverage — and the
+    `_TREX_ACTUATORS` fixture gains `l_knee`/`l_ankle` so the per-side
+    groups resolve more than a hip roll.
+  - **Shaping-pack constants pinned exactly in the stage-1 factory test**:
+    `tail_home_pose_weight` 0.25 / `tolerance` 0.05, `action_saturation_weight`
+    0.5 / `threshold` 0.9, `leg_home_pose_broad_fraction` 0.25 /
+    `broad_scale` 6.0 (was `> 0.0` for three of them, while every neighboring
+    assertion pinned exact values). The statue rails (2100 / 3495.2) were
+    measured at exactly these constants, so a silent TOML drift on any of
+    them invalidated the rails without failing a test.
 - **T-Rex stage-1 reward shaping pack** — three measured responses to the
   knee-lock run (`docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md`),
   each opt-in with zero defaults in both backends:

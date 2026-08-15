@@ -48,7 +48,7 @@ should land before the next *training run* because they would pollute or
 mislead its evidence; §2.2 is documentation the repo's own policy says to
 prune; §2.3 is cosmetic. Each item was verified against the current tree.
 
-### 2.1 Before the next training run
+### 2.1 Before the next training run — **landed 2026-08-15 on this branch**
 
 1. **`diagnostics/action_saturation` logger-key collision.** The #504 pack
    added `action_saturation` to `INFO_KEYS`
