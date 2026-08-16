@@ -1,0 +1,109 @@
+# T-Rex recovery stage (stage 1b): hold the certified stance against
+# scheduled external pushes. STAGE1_SPLIT_PLAN §3; plan doc W-streams;
+# decisions of 2026-08-15 (semantic manifest, SB3 first, full resolver
+# before the first training run).
+#
+# DERIVATION BY REFERENCE: the [env] block below is stage1_balance.toml's
+# [env] verbatim — every value's derivation record lives THERE — plus
+# exactly one delta: the five perturbation_* keys, at the adopted §3.3
+# values. On the r7 plant the multiple derives to 165.5 N over 0.20 s
+# (capture-point argument; pinned in test_perturbation.py). The same
+# reward, observations, and terminations are deliberate: the push changes
+# the task, not the interface, and the recovery gate (W4) measures
+# per-shove recovery rather than reward. test_stage_manifest.py pins the
+# [env] mirror so stage-1 shaping changes cannot silently strand this
+# file.
+#
+# NOT YET RUNNABLE AS A GATED STAGE: gate_kind none/v1 below refuses to
+# advance, fail-closed, until recovery_quality/v1 (W4) and the frozen
+# null baselines (W5) exist. The first training run also waits on the
+# §8.1 transfer pilot.
+
+[stage]
+name = "recovery"
+description = "Hold the stance against scheduled external pushes and recover from each"
+
+[env]
+forward_vel_weight = 0.0
+backward_vel_penalty_weight = 0.0
+drift_penalty_weight = 0.3
+spin_penalty_weight = 0.1
+speed_penalty_weight = 0.3
+speed_penalty_threshold = 0.1
+alive_bonus = 1.0
+foot_contact_gate = 0.0
+foot_contact_weight = 0.0
+bilateral_support_weight = 0.6
+foot_contact_saturation_force = 350.0
+foot_load_balance_weight = 0.3
+foot_load_balance_min_support_force = 42.0
+foot_load_balance_airborne_penalty = 0.3
+action_jerk_weight = 3.0
+support_conditioned_alive_fraction = 0.5
+leg_home_pose_weight = 0.5
+leg_home_pose_tolerance = 0.1
+leg_home_pose_broad_fraction = 0.25
+leg_home_pose_broad_scale = 6.0
+tail_home_pose_weight = 0.25
+tail_home_pose_tolerance = 0.05
+action_saturation_weight = 0.5
+action_saturation_threshold = 0.9
+head_clearance_weight = 0.35
+head_clearance_target = 0.9
+head_clearance_tolerance = 0.15
+neck_posture_weight = 0.2
+neck_posture_tolerance = 0.35
+energy_penalty_weight = 0.075
+tail_stability_weight = 0.15
+posture_weight = 1.5
+nosedive_weight = 1.5
+nosedive_termination_threshold = 0.493
+smoothness_weight = 2.0
+heading_weight = 0.1
+gait_symmetry_weight = 0.0
+height_weight = 0.6
+height_target_tolerance = 0.06
+fall_penalty = -100.0
+bite_bonus = 0.0
+bite_approach_weight = 0.0
+prey_distance_range = [10.0, 15.0]
+max_episode_steps = 1000
+reset_noise_scale = 0.05
+
+# The one delta vs stance: the declared disturbance (adopted §3.3 values).
+perturbation_capture_velocity_multiple = 1.5
+perturbation_interval = 2.0
+perturbation_jitter = 0.5
+perturbation_duration = 0.2
+perturbation_direction = "uniform_horizontal"
+
+# Mirrors stage1_balance.toml's [ppo] as the warm-start default; the
+# entropy/LR schedule for a 3M warm-started budget is pilot-dependent
+# and will be re-derived with the first calibration run.
+[ppo]
+learning_rate = 3e-05
+learning_rate_end = 1e-05
+n_steps = 2048
+batch_size = 128
+n_epochs = 10
+gamma = 0.98
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.005
+ent_coef_end = 0.0
+ent_coef_decay_timesteps = 7000000
+target_kl = 0.03
+
+[ppo.policy_kwargs]
+net_arch = [512, 256]
+
+[curriculum]
+gate_schema_version = 1
+gate_kind = "none/v1"                   # Fail-closed placeholder: refuses to advance. W4 replaces this
+                                        # with recovery_quality/v1 (per-shove recovery + paired null
+                                        # superiority); W5's resolver freezes its baselines. Declaring the
+                                        # real gate before it exists would be exactly the
+                                        # we-could-not-check-reads-as-pass trap the schema forbids.
+timesteps = 3_000_000                   # Provisional (§2.4): warm-started from the certified stance
+                                        # checkpoint via initialize_next_stage, not trained from scratch.
+                                        # Re-derive against the first pilot.

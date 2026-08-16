@@ -1,0 +1,33 @@
+# T-Rex stage manifest (mesozoic.stage-manifest/v1; STAGE1_SPLIT_PLAN §4,
+# adopted 2026-08-15). The curriculum has FOUR stages ordered by position;
+# a stage's identity is its semantic id, not its number. legacy_number is
+# the integer the stage was known as before this manifest existed — old
+# artifacts and integer stage references resolve through it, which is why
+# locomotion stays "stage 2" to history even though its position here is 3.
+# recovery has no legacy_number: it never had a numeric identity, and is
+# addressed by id ("recovery") everywhere.
+#
+# Files keep their historical names deliberately: renaming
+# stage2_locomotion.toml to match its new position would churn every
+# reference for zero information. New stages get semantic file names.
+
+schema = "mesozoic.stage-manifest/v1"
+
+[[stages]]
+id = "stance"
+config = "stage1_balance.toml"
+legacy_number = 1
+
+[[stages]]
+id = "recovery"
+config = "recovery.toml"
+
+[[stages]]
+id = "locomotion"
+config = "stage2_locomotion.toml"
+legacy_number = 2
+
+[[stages]]
+id = "behavior"
+config = "stage3_bite.toml"
+legacy_number = 3

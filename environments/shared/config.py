@@ -171,14 +171,19 @@ def _find_stage_file(species: str, stage: int) -> Path:
 
 def load_stage_config(
     species: str,
-    stage: int,
+    stage: "int | str",
     config_path: str | None = None,
 ) -> dict[str, Any]:
     """Load a curriculum stage configuration from TOML.
 
     Args:
         species: Species name (e.g. "velociraptor", "brachiosaurus", "trex").
-        stage: Curriculum stage number (1, 2, or 3).
+        stage: Either a legacy stage number (1, 2, or 3 — resolved through
+            the historical ``stage{N}_*`` file prefix, so existing callers
+            and artifacts keep their meaning) or a semantic stage ID
+            (``"stance"``/``"recovery"``/``"locomotion"``/``"behavior"``,
+            resolved through the species' stage manifest).  Stages without
+            a legacy number — recovery — are reachable only by ID.
         config_path: Optional explicit path to a TOML file. Overrides
             automatic discovery when provided.
 
@@ -191,6 +196,11 @@ def load_stage_config(
     """
     if config_path is not None:
         path = Path(config_path)
+    elif isinstance(stage, str):
+        from .stage_manifest import load_stage_manifest
+
+        entry = load_stage_manifest(species).by_id(stage)
+        path = _CONFIGS_DIR / species / entry.config_file
     else:
         path = _find_stage_file(species, stage)
 

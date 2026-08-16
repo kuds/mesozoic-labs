@@ -278,6 +278,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **Semantic stage manifest and the recovery stage config (stage 1b, W3
+  part 1)** (`environments/shared/stage_manifest.py`,
+  `configs/trex/stages.toml`, `configs/trex/recovery.toml`): the T-Rex
+  curriculum is now FOUR stages — stance → recovery → locomotion →
+  behavior — identified by stable semantic IDs, not numbers
+  (STAGE1_SPLIT_PLAN §4). The no-silent-renumbering guarantee is
+  load-bearing and test-pinned: **an integer stage reference means the
+  legacy number forever** (`resolve(2)` is locomotion even though
+  locomotion's position is now 3), recovery — having no numeric history —
+  is reachable only by ID, and a manifest that tries to reassign or
+  reorder legacy numbers is rejected at load. Manifest-less species
+  synthesize their legacy three-stage manifest, which is how
+  "recovery for the T-Rex only" is expressed. `load_stage_config` accepts
+  semantic IDs (`load_stage_config("trex", "recovery")`); integer loading
+  is byte-for-byte untouched. The recovery config is stage 1's `[env]`
+  verbatim plus exactly the five `perturbation_*` keys at the adopted
+  §3.3 values (165.5 N derived on r7), with a freshness test pinning the
+  mirror so stage-1 shaping changes cannot silently strand it; its gate
+  is `none/v1` — the schema's own non-advancing-pilot rule refuses to
+  advance through it, fail-closed, until `recovery_quality/v1` (W4) and
+  the frozen null baselines (W5) exist. Not yet migrated (W3 part 2):
+  the curriculum loop, CLIs, and sweep still iterate legacy integers;
+  artifacts do not yet carry stage IDs.
 - **Task/evaluation fingerprint and checkpoint load modes (stage 1b, W2)**
   (`environments/shared/task_fingerprint.py`): closes the provenance gap
   STAGE1_SPLIT_PLAN §3.2 names — a `step()`-level task change like the
