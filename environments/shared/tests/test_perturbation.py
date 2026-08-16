@@ -288,6 +288,7 @@ class TestMjxIntegration:
     }
 
     def test_off_keeps_empty_schedule_and_zero_xfrc(self):
+        pytest.importorskip("jax")
         import jax
         import jax.numpy as jnp
 
@@ -301,6 +302,7 @@ class TestMjxIntegration:
             assert not bool(jnp.any(state.data.xfrc_applied))
 
     def test_push_windows_write_forces_on_schedule(self):
+        pytest.importorskip("jax")
         import jax
         import jax.numpy as jnp
         import numpy as np
@@ -322,6 +324,7 @@ class TestMjxIntegration:
         assert not bool(jnp.any(state.data.xfrc_applied))  # self-cleared
 
     def test_schedule_determinism_and_cross_backend_derivation(self):
+        pytest.importorskip("jax")
         import jax
         import numpy as np
 
