@@ -278,6 +278,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **Task/evaluation fingerprint and checkpoint load modes (stage 1b, W2)**
+  (`environments/shared/task_fingerprint.py`): closes the provenance gap
+  STAGE1_SPLIT_PLAN §3.2 names — a `step()`-level task change like the
+  scheduled pushes moves no `policy_interface_revision`, so checkpoints
+  stay mechanically loadable while being unvalidated for the new task. The
+  fingerprint hashes the task-defining configuration (species, stage,
+  backend, plant physics/interface hashes, the full `[env]` kwargs, and
+  the perturbation block with its per-species **derived** newtons plus the
+  schedule-PRF implementation name). Every SB3 stage now writes
+  `task_fingerprint.json` beside `plant_identity.json`, embeds it in
+  `stage_config.json`, uploads it to GCS, and attaches it to the model so
+  SB3 persists it in the checkpoint ZIP. On load there are exactly two
+  modes: `resume_same_stage` (exact match or a fatal error naming the
+  differing sections — a changed task can never be resumed silently) and
+  `initialize_next_stage` (the curriculum handoff: a boundary crossing is
+  expected once and recorded as a parent/child lineage that travels on
+  the new checkpoint). `train()`'s user `--load` is same-stage; the
+  curriculum loop's only loads are handoffs. Fail-closed core with one
+  dated transition valve: checkpoints minted before 2026-08-15 carry no
+  fingerprint, so the train paths pass `allow_unfingerprinted=True`
+  (warn, not fail) until fingerprinted checkpoints are the norm —
+  tightening lands with the gate resolver (W5). The JAX training path
+  does not attach fingerprints yet; `derive_stage_task_fingerprint` is
+  backend-tagged and env-free, so wiring it there is mechanical.
 - **Species-generic scheduled pushes, SB3 path (stage 1b, W1)**: every
   species' environment now accepts five `perturbation_*` parameters,
   default **off** — with the multiple at 0.0 no schedule exists, no RNG is

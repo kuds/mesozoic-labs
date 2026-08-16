@@ -350,15 +350,27 @@ def _create_or_load_model(
     *,
     plant_identity: PlantIdentity | None = None,
     allow_legacy_plant: bool = False,
+    task_fingerprint: "dict[str, Any] | None" = None,
+    task_load_mode: str = "resume_same_stage",
 ) -> Any:
     """Create a new model or load from checkpoint.
 
     Pops ``policy_kwargs`` from *alg_kwargs* (mutating it) so that network
     architecture is only applied to new models, not loaded ones.
+
+    ``task_fingerprint``/``task_load_mode`` validate the TASK the checkpoint
+    was trained on (STAGE1_SPLIT_PLAN §3.2) — a layer above the plant
+    contract, which cannot see a ``step()``-level task change like the
+    scheduled pushes.  ``resume_same_stage`` requires an exact match;
+    ``initialize_next_stage`` records the boundary as lineage on the new
+    checkpoint instead of forbidding it.
     """
+    from .task_fingerprint import attach_task_fingerprint, attach_task_lineage, validate_model_task
+
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
     policy_kwargs = alg_kwargs.pop("policy_kwargs", None)
 
+    task_lineage = None
     if load_path:
         logger.info("Loading model from: %s", load_path)
         model = alg_cls.load(load_path, env=train_env, **alg_kwargs)
@@ -369,6 +381,19 @@ def _create_or_load_model(
                 artifact=str(load_path),
                 allow_legacy=allow_legacy_plant,
             )
+        if task_fingerprint is not None:
+            # allow_unfingerprinted: transition valve — no checkpoint minted
+            # before 2026-08-15 carries a task fingerprint, so a missing one
+            # warns instead of failing.  Tighten to fail-closed once
+            # fingerprinted checkpoints are the norm (planned with the gate
+            # resolver, plan §W5).
+            task_lineage = validate_model_task(
+                model,
+                task_fingerprint,
+                mode=task_load_mode,
+                artifact=str(load_path),
+                allow_unfingerprinted=True,
+            )
     else:
         logger.info("Creating new %s model...", algorithm.upper())
         model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
@@ -377,6 +402,11 @@ def _create_or_load_model(
         # Attach after validation so an explicit legacy migration is tagged on
         # its next save, while an incompatible checkpoint is never relabelled.
         attach_plant_identity(model, plant_identity)
+    if task_fingerprint is not None:
+        # Same ordering contract as the plant identity above.
+        attach_task_fingerprint(model, task_fingerprint)
+        if task_lineage is not None:
+            attach_task_lineage(model, task_lineage)
 
     return model
 
@@ -627,6 +657,7 @@ def train(
         RewardRampCallback,
         StageWarmupCallback,
     )
+    from .task_fingerprint import derive_stage_task_fingerprint
     from .wandb_integration import init_wandb
 
     sb3 = _ensure_sb3()
@@ -634,6 +665,13 @@ def train(
     config = stage_configs[stage]
     species = species_cfg.species
     plant_identity = current_plant_identity(species)
+    task_fingerprint = derive_stage_task_fingerprint(
+        species=species,
+        stage=stage,
+        backend="stable-baselines3",
+        env_kwargs=config.get("env_kwargs", {}),
+        plant_identity=plant_identity.to_dict(),
+    )
 
     logger.info("=" * 60)
     logger.info("Training Stage %d: %s", stage, config["name"])
@@ -666,6 +704,7 @@ def train(
         env_class=species_cfg.env_class,
         species=species_cfg.species,
         plant_identity=plant_identity,
+        task_fingerprint=task_fingerprint,
     )
 
     # Create environments
@@ -731,6 +770,11 @@ def train(
         load_path,
         plant_identity=plant_identity,
         allow_legacy_plant=allow_legacy_plant,
+        task_fingerprint=task_fingerprint,
+        # A user-supplied --load into train() continues the SAME stage/task;
+        # a changed task must go through the curriculum's stage handoff,
+        # which loads under initialize_next_stage.
+        task_load_mode="resume_same_stage",
     )
 
     logger.info("Model architecture:")
@@ -1110,6 +1154,7 @@ def train_curriculum(
         StageWarmupCallback,
         thresholds_from_configs,
     )
+    from .task_fingerprint import derive_stage_task_fingerprint
     from .wandb_integration import init_wandb
 
     sb3 = _ensure_sb3()
@@ -1157,6 +1202,13 @@ def train_curriculum(
         logger.info("Timesteps: %s", f"{total_timesteps:,}")
         logger.info("=" * 60)
 
+        task_fingerprint = derive_stage_task_fingerprint(
+            species=species_cfg.species,
+            stage=stage,
+            backend="stable-baselines3",
+            env_kwargs=config.get("env_kwargs", {}),
+            plant_identity=plant_identity.to_dict(),
+        )
         save_stage_config(
             stage_dir,
             stage,
@@ -1166,6 +1218,7 @@ def train_curriculum(
             env_class=species_cfg.env_class,
             species=species_cfg.species,
             plant_identity=plant_identity,
+            task_fingerprint=task_fingerprint,
         )
 
         effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
@@ -1220,6 +1273,12 @@ def train_curriculum(
             train_env,
             load_path,
             plant_identity=plant_identity,
+            task_fingerprint=task_fingerprint,
+            # Inside the curriculum loop, load_path is only ever the previous
+            # stage's promoted checkpoint (it starts None and is assigned
+            # exclusively by the stage handoff), so every load here crosses a
+            # stage/task boundary deliberately and is recorded as lineage.
+            task_load_mode="initialize_next_stage",
         )
 
         callbacks, eval_callback, _ = _build_core_callbacks(

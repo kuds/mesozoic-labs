@@ -241,6 +241,7 @@ def save_stage_config(
     env_class: type | None = None,
     species: str | None = None,
     plant_identity: PlantIdentity | None = None,
+    task_fingerprint: dict[str, Any] | None = None,
 ) -> Path:
     """Save the reward weights and model hyperparameters for a stage to JSON.
 
@@ -315,6 +316,8 @@ def save_stage_config(
         data["run"] = extra
     if plant_identity is not None:
         data["plant_identity"] = plant_identity.to_dict()
+    if task_fingerprint is not None:
+        data["task_fingerprint"] = dict(task_fingerprint)
 
     gpu_info = _detect_gpu_info()
     if gpu_info:
@@ -326,6 +329,10 @@ def save_stage_config(
         from .plant_contract import write_plant_identity
 
         write_plant_identity(stage_dir / "plant_identity.json", plant_identity)
+    if task_fingerprint is not None:
+        from .task_fingerprint import write_task_fingerprint
+
+        write_task_fingerprint(stage_dir / "task_fingerprint.json", task_fingerprint)
     return out_path
 
 
@@ -468,6 +475,7 @@ def upload_curriculum_artifacts(
             "stage_summary.txt",
             "stage_config.json",
             "plant_identity.json",
+            "task_fingerprint.json",
             "metrics.json",
             "evaluations.npz",
             "diagnostics.npz",
