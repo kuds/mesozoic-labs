@@ -87,6 +87,14 @@ tolerance) remains the standing recommendation for the divergences above.
   of quieting. **n = 2: 1 pass / 1 fail — the configuration is
   seed-sensitive.** A third seed is queued; full record in
   [investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md](investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md).
+  **Update 3 (2026-08-16):** seed 44 (run `20260815_205206`) — **PASS**,
+  the strongest yet: full-horizon 40/40, duty 0.0069 / UCB 0.0117, reward
+  3408.3 ± 88.5 (97.5% of the statue), AC 0.132, same unsaturated stance.
+  **n = 3: 2 pass / 1 fail**, and the split tracks the post-anneal noise
+  floor exactly — both passes quieted to AC ≈ 0.13, the one fail stalled
+  at 0.33. The open question is no longer whether the configuration can
+  pass (it usually does) but what decides the anneal's endpoint; the
+  seed-43 postmortem's candidate responses stand.
 - **MEDIUM** — **stage 1 contains no in-episode disturbance, so it cannot ask
   for postural correction.** The only perturbation is joint-angle noise at
   reset (`reset_noise_scale 0.05`); nothing applies an external force during an

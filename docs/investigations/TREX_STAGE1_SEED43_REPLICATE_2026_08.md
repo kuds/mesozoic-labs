@@ -183,3 +183,17 @@ execution is loud, and 3 of 40 episodes tip into nosedives.
   "passes or bounces" entry from 1/2 to x/3 and revisit whether the
   post-anneal noise floor correlates with anything observable at 4M (the
   config's prediction checkpoint).
+
+---
+
+**Addendum (2026-08-16).** The third seed is in: seed 44, run
+`20260815_205206`, **PASS** — and the strongest certification yet
+(full-horizon 40/40, duty 0.0069 / UCB 0.0117, panel reward 3408.3 ± 88.5 =
+97.5% of the statue, zero non-truncated terminations). Its action signature
+is the decisive datum for §5's noise-floor hypothesis: **AC 0.132 rms** —
+the same quiet endpoint as seed 42 (0.135), nowhere near this run's stalled
+0.329 — on the same unsaturated, head-lowered, tail-droop stance (head
+−20.3°, neck −21.0°, max |DC| 0.830). Replication stands at **2/3**, split
+exactly along the post-anneal noise floor: both passes quieted, the one
+fail did not. "What decides the anneal's endpoint" is now the sharpest open
+question stage 1 has, and §6's candidate responses are unchanged.
