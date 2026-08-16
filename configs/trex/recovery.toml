@@ -112,3 +112,31 @@ gate_kind = "none/v1"                   # Fail-closed placeholder: refuses to ad
 timesteps = 3_000_000                   # Provisional (§2.4): warm-started from the certified stance
                                         # checkpoint via initialize_next_stage, not trained from scratch.
                                         # Re-derive against the first pilot.
+
+# Collapse backstop (PLANT_VALIDATION §14 item 3): the relative floor pair,
+# mirrored from stage1_balance.toml because the REWARD FUNCTION is that
+# file's verbatim — the fraction re-anchors if stance shaping ever changes,
+# and test_curriculum_early_stopping refuses any committed stage that
+# resolves no finite floor (a backstop that never arms fails silently).
+#
+# The reference is deliberately the UN-PUSHED statue (3495.2): the pushed
+# task's own zero-action baseline does not exist yet — it is exactly what
+# the P3 calibration panels measure, since the gate resolver's frozen null
+# manifest IS that statue rolled on the pushed panel. Until then the
+# un-pushed number errs in the arming direction: pushes only subtract
+# transient reward from a policy standing between them, so a warm-started
+# policy's peak clears 0.45 x 3495.2 = 1572.8 with the same margin logic
+# as stance, and the floor arms earlier, never later. P3 re-derives both
+# halves of the pair together with the safe-set thresholds.
+collapse_peak_floor_reference = 3495.2  # Statue standing reward, noise 0.05, 40 episodes (stage1_balance.toml
+                                        # carries the full derivation record and re-measure procedure).
+collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
+statue_constants_physics_revision = 7   # The trex PHYSICS revision the 3495.2 reference was measured on —
+                                        # still current: the perturbation engine (plant_versions note 11)
+                                        # bumped only the POLICY interface, and with perturbation off the
+                                        # dynamics are bit-identical, so the statue's number carries. The
+                                        # freshness test holds this pin against the manifest so any real
+                                        # physics move forces a re-measure or a conscious update here.
+collapse_peak_warmup_timesteps = 1000000 # Same arming delay as stance; 1/3 of this stage's 3M budget, so the
+                                        # companion budget test holds and a warm-started policy (which evals
+                                        # near its final level immediately) loses no protection that matters.

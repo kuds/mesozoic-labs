@@ -376,15 +376,30 @@ class TestThresholdsFromConfigs:
         backends evaluate, rather than pinning the specific kind each stage
         uses — pinning the literal made adopting stance_quality/v1 for T-Rex
         stage 1a look like a regression instead of the intended change.
+
+        The advancing chain and semantic-only stages are validated
+        separately, mirroring how they run: advancement walks the legacy
+        integer chain (thresholds_from_configs filters to int keys), so
+        those stages must carry advancing-valid gates; a semantic-only
+        stage (today: trex "recovery") is reachable only by ID as an
+        explicit pilot, and its fail-closed "none/v1" placeholder is the
+        DESIGNED state until P5 lands measured recovery_quality/v1
+        thresholds — gate_schema's own tests pin that it refuses to
+        advance.
         """
         from environments.shared.config import load_all_stages
 
         for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
-            kinds = validate_gate_configs(load_all_stages(species))
+            stages = load_all_stages(species)
+            chain = {stage: cfg for stage, cfg in stages.items() if isinstance(stage, int)}
+            kinds = validate_gate_configs(chain)
             assert set(kinds.values()) <= set(GATE_KINDS), species
-            # "none/v1" refuses to advance, so a shipped curriculum stage must
-            # never declare it.
+            # "none/v1" refuses to advance, so a stage on the advancing
+            # chain must never declare it.
             assert "none/v1" not in set(kinds.values()), species
+            pilots = {stage: cfg for stage, cfg in stages.items() if isinstance(stage, str)}
+            pilot_kinds = validate_gate_configs(pilots, advancement_enabled=False)
+            assert set(pilot_kinds.values()) <= set(GATE_KINDS), species
 
     def test_trex_stage1_gates_on_stance_quality(self):
         """T-Rex 1a must not be gated on return: a statue is the reward optimum."""

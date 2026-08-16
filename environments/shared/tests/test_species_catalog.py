@@ -98,7 +98,13 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # appended, pad + meta summed per leg on both backends; the physics layer
     # fingerprints nsite/nsensor, so new sites move it even though dynamics
     # are unchanged).
-    expected_policy_revisions = {"velociraptor": 8, "trex": 11, "brachiosaurus": 6, "dibothrosuchus": 5}
+    # The perturbation engine (note 11) bumped every policy revision once
+    # more: reset/step learned to derive and apply push schedules, and the
+    # interface hash covers reset's source through home_reset on all four
+    # species. Physics and visual are untouched — no MJCF edit, and with
+    # perturbation off (every stage but recovery) the episode is
+    # bit-identical to the previous plant.
+    expected_policy_revisions = {"velociraptor": 9, "trex": 12, "brachiosaurus": 7, "dibothrosuchus": 6}
     expected_physics_revisions = {"velociraptor": 2, "trex": 7, "brachiosaurus": 4, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")

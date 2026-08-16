@@ -365,10 +365,10 @@ def validate_gate_config(
 
 
 def validate_gate_configs(
-    configs: Mapping[int, Mapping[str, Any]],
+    configs: "Mapping[int | str, Mapping[str, Any]]",
     *,
     advancement_enabled: bool = True,
-) -> dict[int, str]:
+) -> "dict[int | str, str]":
     """Validate every stage config, returning each stage's gate kind."""
     return {
         stage: validate_gate_config(

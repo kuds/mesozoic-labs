@@ -278,6 +278,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Fixed
+- **The plant contract now records the perturbation engine** (CI caught
+  what the pre-merge review missed). Every policy-interface fingerprint
+  moved when `BaseDinoEnv.reset`/`step` learned to derive and apply push
+  schedules — the interface hash covers `reset`'s source through
+  `home_reset`, which all four species carry — but the manifest was never
+  regenerated, so `plant-contract`, `test-sb3`, `test-shared`, and
+  `test-jax-cpu` all failed on the same staleness error. Recorded as
+  `plant_versions.toml` note 11 with a policy-interface revision bump for
+  all four species (velociraptor 8→9, trex 11→12, brachiosaurus 6→7,
+  dibothrosuchus 5→6; physics and visual untouched — no MJCF edit), then
+  regenerated the manifest and species catalog. The note pins the
+  compatibility facts: with perturbation off the new code is inert end to
+  end (no extra RNG draw, no force written), so a perturbation-free
+  episode is bit-identical to the previous plant and existing checkpoints
+  remain valid on their own stages. This also retires the "7 pre-existing
+  container failures" claim from the review round: those local
+  `test_stage_layout`/`test_sweep_reporting` failures were this branch's
+  own staleness (a stash bisect could not catch it — the perturbation
+  changes were already committed), and all pass after regeneration.
+- **The recovery stage arms its collapse backstop.** `recovery.toml`
+  configured no collapse floor, so the backstop could resolve only to
+  `inf` and never arm — exactly the silent failure
+  `test_curriculum_early_stopping` exists to prevent, and it correctly
+  refused the new stage. Recovery now mirrors stance's relative pair
+  (`collapse_peak_floor_fraction = 0.45` ×
+  `collapse_peak_floor_reference = 3495.2`) plus the 1M-step arming
+  delay, with a comment recording why the **un-pushed** statue is the
+  right reference for now (it errs in the arming direction; the pushed
+  task's own zero-action baseline is what the P3 null panels measure, and
+  P3 re-derives the pair).
 - **Ten findings from the pre-merge review of the 1b branch**, the four
   severe ones first: (1) `recovery_quality/v1` was **fail-open** through
   the shared `evaluate_stage_gate` dispatch — it fell through to the

@@ -122,9 +122,32 @@ canonical_mujoco_version = "3.10.0"
 #    landings.  A noise-free home-residual MJX reset is bit-identical to the
 #    pre-settle behaviour; only jittered and midpoint spawns move.
 
+# 11. The perturbation engine: scheduled external pushes for the recovery
+#     stage (STAGE1_SPLIT_PLAN, stage 1b).  BaseDinoEnv.reset can now derive
+#     a per-episode push schedule and BaseDinoEnv.step can apply the
+#     scheduled push to the root body through xfrc_applied for its window
+#     (environments/shared/perturbation.py; the MJX path mirrors both).
+#     Push force is derived from the plant itself -- capture-point velocity
+#     over the support hull and the root subtree mass -- so any species gets
+#     a correctly scaled shove with no per-species constants (T-Rex r7:
+#     165.5 N for 0.20 s at capture multiple 1.5).
+#
+#     Perturbation is OFF by default and only the recovery stage enables it.
+#     While off, the new code is inert end to end: reset consumes no extra
+#     RNG draw and step writes no force, so a perturbation-free episode is
+#     bit-identical to the previous plant, RNG stream included, and every
+#     existing checkpoint remains valid on its own stage.  While ON, the
+#     schedule seed is drawn AFTER every pre-existing reset draw, so spawn
+#     distributions are unchanged even under pushes, and reset(seed=S)
+#     yields the same schedule for the policy and for every null controller
+#     on either backend -- the pairing the recovery gate's null comparison
+#     rests on.  The POLICY INTERFACE moves for every species because reset
+#     placement is fingerprinted through home_reset and all four species
+#     carry it; PHYSICS and VISUAL are untouched (no MJCF edit).
+
 [plants.velociraptor]
 physics_revision = 2
-policy_interface_revision = 8
+policy_interface_revision = 9
 visual_revision = 3
 observation_schema = "bipedal-target/v1"
 
@@ -192,7 +215,7 @@ observation_schema = "bipedal-target/v1"
 #     docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md.
 [plants.trex]
 physics_revision = 7
-policy_interface_revision = 11
+policy_interface_revision = 12
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
 
@@ -275,12 +298,12 @@ observation_schema = "bipedal-target/v1"
 #    section 3) remains open and is NOT part of this entry.
 [plants.brachiosaurus]
 physics_revision = 4
-policy_interface_revision = 6
+policy_interface_revision = 7
 visual_revision = 2
 observation_schema = "quadrupedal-target/v1"
 
 [plants.dibothrosuchus]
 physics_revision = 1
-policy_interface_revision = 5
+policy_interface_revision = 6
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"
