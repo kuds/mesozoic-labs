@@ -942,6 +942,7 @@ def _record_stage_replays(
 
     # ── Record replay videos for the selected and final checkpoints ──────
     from ..plant_contract import PlantCompatibilityError, current_plant_identity, validate_model_plant
+    from ..stage_manifest import stage_label
 
     try:
         from environments.shared.evaluation import TREX_STAGE1_CAMERA_VIEWS, record_stage_video
@@ -952,7 +953,7 @@ def _record_stage_replays(
         alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
         plant_identity = current_plant_identity(species)
 
-        final_path = model_dir / f"stage{stage}_final"
+        final_path = model_dir / f"{stage_label(stage)}_final"
         final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
         replay_diagnostics = species.lower() == "trex" and stage == 1
         replay_camera_views = TREX_STAGE1_CAMERA_VIEWS if replay_diagnostics else None

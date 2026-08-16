@@ -278,6 +278,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **Recovery stage in the notebook, docs, and website**: the training
+  notebook gains an opt-in "5b. Recovery Stage" cell pair —
+  `RUN_RECOVERY_STAGE = False` by default — that warm-starts
+  `train_stage("recovery", ...)` from the Stage 1 checkpoint, generates
+  stage artifacts, and **records** the `none/v1` pilot verdict instead of
+  enforcing a gate (contrast the numbered stage cells, which raise); the
+  run is deliberately excluded from the result bundle until the
+  integer-stage bundle schema migrates. `train_stage` itself is
+  manifest-aware: artifact directories via `stage_label` (semantic runs
+  land in `recovery/`, integers keep `stage{N}/`) and warm-up keyed off
+  manifest position. Two library sites gained label-safe naming so
+  recovery artifacts read `trex_ppo_recovery_*` / `recovery_final` rather
+  than a fabricated number (`evaluation.record_stage_video`,
+  `_record_stage_replays`; integer naming byte-identical). Docs: the
+  README explains the stage manifest and the T-Rex four-stage curriculum
+  with the `--stage recovery` invocation; the trex environment README
+  gains the recovery example; the website's T-Rex page gains a Curriculum
+  section (stance → recovery → locomotion → behavior, what each certifies,
+  and why integers keep their historical meaning) and notes the toes are
+  passive since r7; quick-start wording is species-neutral. The catalog
+  tables / generated species data stay numbered-curriculum until the
+  manifest migration's final part (recorded in the plan's status block).
 - **The pushed-panel harness and the gate resolver (stage 1b, W4 part 2 +
   W5)** (`environments/shared/recovery_evaluation.py`,
   `environments/shared/curriculum/gate_resolver.py`): the evaluation

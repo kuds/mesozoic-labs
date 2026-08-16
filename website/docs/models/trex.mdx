@@ -12,13 +12,36 @@ A dinosaur-inspired bipedal simulation model with an oversized head and vestigia
 
 <SpeciesCatalog species={TREX} />
 
+## Curriculum
+
+The T-Rex is the first species with a **four-stage curriculum**, identified
+by a per-species stage manifest rather than bare numbers:
+
+1. **Stance** (historical stage 1) — settle from a randomized spawn and hold
+   a stable upright pose; gated on physical stance quality
+   (`stance_quality/v1`), not reward, because a zero-action "statue" is the
+   reward optimum of the undisturbed task.
+2. **Recovery** (stage 1b, new) — the same task plus scheduled external
+   pushes (165.5 N for 0.20 s on the current plant, derived from the plant's
+   own mass and stance geometry), warm-started from the certified stance
+   checkpoint. Only a disturbance can certify *active* balance control; the
+   `recovery_quality/v1` gate judges per-shove recovery against frozen null
+   baselines and is enabled once its thresholds are calibrated.
+3. **Locomotion** (historical stage 2) — forward walking/running.
+4. **Behavior** (historical stage 3) — the head-contact "bite" proxy task.
+
+Integer stage references keep their historical meaning everywhere (stage 2
+remains locomotion); the recovery stage is addressed by its semantic id.
+The catalog tables and stage videos below cover the numbered curriculum;
+recovery results join them once the stage's gate is calibrated.
+
 ## Anatomy
 
 The T-Rex model includes:
 - **Torso** - Forward-leaning body (~30 deg from horizontal) with ribcage and belly
 - **Neck + Skull** - Short neck assembly with an elongated skull shape and brow-ridge geoms
 - **Head** - Fixed contact geom used as a bite proxy; there is no articulated jaw
-- **Legs** - Digitigrade-style hind limbs (hip pitch/roll, knee, ankle, 3 toe digits per leg)
+- **Legs** - Digitigrade-style hind limbs (hip pitch/roll, knee, ankle; 3 passive toe digits per leg since physics r7)
 - **Arms** - Tiny vestigial forelimbs with 2-fingered hands (passive, not actuated)
 - **Tail** - 5-segment heavy counterbalance to skull (4 actuated segments)
 

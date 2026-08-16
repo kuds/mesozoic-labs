@@ -166,6 +166,18 @@ onset, and the 3M warm-started budget.
 
 ## 4. Build map
 
+**Status (2026-08-16): W1–W5 are ALL LANDED** — the perturbation engine on
+both backends, the task fingerprint and load modes, the four-stage semantic
+manifest with `--stage recovery` end-to-end (CLI, notebook opt-in cell,
+label-safe artifacts), the `recovery_quality/v1` statistic, the pushed-panel
+harness, and the gate resolver. What remains is **measurement, not
+machinery**: P3 null/safe-set calibration, the §8.1 transfer pilot, and P5
+freezing the gate. Deferred consumer work, tracked not forgotten: the
+species catalog / README generated tables / website generated data and the
+result-bundle schema remain integer-stage until the manifest migration's
+final part; the recovery stage is deliberately excluded from bundles and
+generated tables until then.
+
 Ordering follows the split plan's steps 8–14 with two updates: step 9's core
 (the stance-gate statistic) already shipped, and everything below is rebased
 onto the r7/r11 tree. Each workstream lands independently and default-off.

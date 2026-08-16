@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import Any, Mapping
 
-if TYPE_CHECKING:
-    from .plant_contract import PlantIdentity
+from .plant_contract import PlantIdentity
+from .stage_manifest import stage_label
 
 logger = logging.getLogger(__name__)
 
@@ -322,7 +322,7 @@ def record_stage_video(
     suffix = f"_{label}" if label else ""
     destination = Path(output_dir) if output_dir is not None else Path(stage_dir)
     destination.mkdir(parents=True, exist_ok=True)
-    video_path = str(destination / f"{species}_{algorithm.lower()}_stage{stage}{suffix}.mp4")
+    video_path = str(destination / f"{species}_{algorithm.lower()}_{stage_label(stage)}{suffix}.mp4")
     mediapy.write_video(video_path, frames, fps=50)
     video_stem = Path(video_path).with_suffix("")
     for view_name, view_frames in named_frames.items():

@@ -198,10 +198,24 @@ pip install -e ".[train]"
 # View the velociraptor model
 python environments/velociraptor/scripts/view_model.py
 
-# Full 3-stage curriculum — one command, all stages handled automatically
+# Full numbered curriculum — one command, all stages handled automatically
 # (each stage loads its own hyperparameters from the TOML config)
 cd environments/velociraptor
 python scripts/train_sb3.py curriculum --algorithm ppo
+```
+
+Stages are identified by a per-species **stage manifest**
+(`configs/<species>/stages.toml`, synthesized for species without one).
+Integer stage references always mean their historical stage, so existing
+artifacts and commands keep their meaning; stages without a numeric history
+are addressed by semantic id. The T-Rex curriculum has four stages —
+stance → **recovery** → locomotion → behavior — where the recovery stage
+(stage 1b) holds the certified stance against scheduled external pushes:
+
+```bash
+# Run the T-Rex recovery stage as a warm-started, non-advancing pilot
+cd environments/trex
+python scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip
 ```
 
 ## Docker

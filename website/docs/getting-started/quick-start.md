@@ -28,7 +28,7 @@ docker run --rm mesozoic-labs:latest \
   environments/velociraptor/scripts/train_sb3.py \
   train --stage 1 --algorithm ppo --timesteps 1000 --n-envs 1
 
-# Full curriculum (all 3 stages) with GPU
+# Full numbered curriculum (all stages) with GPU
 docker run --rm --gpus all \
   -v "$(pwd)/outputs:/app/outputs" \
   mesozoic-labs:latest \
