@@ -178,3 +178,57 @@ class TestRecoveryStageConfig:
         # schema's own non-advancing-pilot rule doing exactly its job.
         with pytest.raises(GateSchemaError, match="non-advancing"):
             validate_gate_config("recovery", curriculum)
+
+
+class TestStageLabels:
+    def test_legacy_integers_keep_their_historical_form(self):
+        from environments.shared.stage_manifest import stage_label
+
+        assert stage_label(1) == "stage1"
+        assert stage_label(3) == "stage3"
+
+    def test_semantic_ids_are_their_own_label(self):
+        from environments.shared.stage_manifest import stage_label
+
+        assert stage_label("recovery") == "recovery"
+
+    def test_unknown_references_are_fatal(self):
+        from environments.shared.stage_manifest import stage_label
+
+        with pytest.raises(StageManifestError, match="unknown stage id"):
+            stage_label("sprint")
+        with pytest.raises(StageManifestError, match="invalid stage reference"):
+            stage_label(True)
+
+
+class TestLoadAllStages:
+    def test_trex_gains_recovery_without_moving_the_integers(self):
+        from environments.shared.config import load_all_stages
+
+        configs = load_all_stages("trex")
+        assert list(configs) == [1, "recovery", 2, 3]  # manifest order
+        assert configs[2]["name"] == "locomotion"
+        assert configs["recovery"]["env_kwargs"]["perturbation_capture_velocity_multiple"] == 1.5
+
+    def test_manifestless_species_are_untouched(self):
+        from environments.shared.config import load_all_stages
+
+        assert list(load_all_stages("velociraptor")) == [1, 2, 3]
+
+    def test_the_legacy_curriculum_ignores_semantic_only_stages(self):
+        """thresholds_from_configs must not validate recovery's none/v1
+        placeholder under advancement — that would refuse the whole
+        legacy 1→2→3 curriculum the moment a species gains a manifest."""
+        from environments.shared.config import load_all_stages
+        from environments.shared.curriculum.manager import thresholds_from_configs
+
+        thresholds = thresholds_from_configs(load_all_stages("trex"))
+        assert sorted(thresholds) == [1, 2, 3]
+
+
+class TestCliStageParsing:
+    def test_digits_are_legacy_numbers_and_words_are_ids(self):
+        from environments.shared.cli import _parse_stage_ref
+
+        assert _parse_stage_ref("2") == 2
+        assert _parse_stage_ref("recovery") == "recovery"

@@ -197,3 +197,20 @@ def load_stage_manifest(species: str, configs_dir: "Path | str | None" = None) -
             "(new stages may be inserted between them, never reorder them)"
         )
     return StageManifest(species=species, stages=tuple(entries), synthesized=False)
+
+
+def stage_label(ref: "int | str") -> str:
+    """Canonical artifact/directory label for a stage reference.
+
+    Legacy integers keep their historical ``stage{N}`` form so every
+    existing path, artifact, and consumer stays valid; semantic IDs are
+    their own label (a recovery run writes ``recovery_final.zip`` under a
+    ``recovery_*`` directory, never a fabricated number).
+    """
+    if isinstance(ref, bool) or not isinstance(ref, (int, str)):
+        raise StageManifestError(f"invalid stage reference {ref!r}")
+    if isinstance(ref, int):
+        return f"stage{ref}"
+    if ref not in KNOWN_STAGE_IDS:
+        raise StageManifestError(f"unknown stage id {ref!r}; known: {KNOWN_STAGE_IDS}")
+    return ref

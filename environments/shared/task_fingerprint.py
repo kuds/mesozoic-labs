@@ -81,7 +81,7 @@ def _canonical(value: Any) -> Any:
 def compute_task_fingerprint(
     *,
     species: str,
-    stage: int,
+    stage: "int | str",
     backend: str,
     env_kwargs: Mapping[str, Any],
     plant_identity: Mapping[str, Any] | None,
@@ -109,7 +109,7 @@ def compute_task_fingerprint(
     payload: dict[str, Any] = {
         "schema": TASK_FINGERPRINT_SCHEMA,
         "species": species,
-        "stage": int(stage),
+        "stage": stage if isinstance(stage, str) else int(stage),
         "backend": backend,
         "plant": plant,
         "env": _canonical(dict(env_kwargs)),
@@ -228,7 +228,7 @@ def validate_model_task(
 def derive_stage_task_fingerprint(
     *,
     species: str,
-    stage: int,
+    stage: "int | str",
     backend: str,
     env_kwargs: Mapping[str, Any],
     plant_identity: Mapping[str, Any] | None,

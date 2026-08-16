@@ -40,6 +40,7 @@ from .plant_contract import (
     validate_environment_plant,
     validate_model_plant,
 )
+from .stage_manifest import stage_label
 from .tb_sync import _is_gcs_path, _make_local_tb_dir, _sync_tb_to_gcs  # noqa: F401  (re-exported for backward compat)
 
 logger = logging.getLogger(__name__)
@@ -168,8 +169,8 @@ def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
 
 def make_env(
     species_cfg: SpeciesConfig,
-    stage_configs: dict[int, dict[str, Any]],
-    stage: int,
+    stage_configs: "dict[int | str, dict[str, Any]]",
+    stage: "int | str",
     rank: int,
     seed: int = 0,
     plant_identity: PlantIdentity | None = None,
@@ -196,8 +197,8 @@ def make_env(
 
 def create_vec_env(
     species_cfg: SpeciesConfig,
-    stage_configs: dict[int, dict[str, Any]],
-    stage: int,
+    stage_configs: "dict[int | str, dict[str, Any]]",
+    stage: "int | str",
     n_envs: int,
     seed: int = 0,
     use_subproc: bool = False,
@@ -416,7 +417,7 @@ def _build_core_callbacks(
     eval_env,
     model_dir: Path,
     log_path: Path,
-    stage: int,
+    stage: "int | str",
     n_envs: int,
     eval_freq: int,
     save_freq: int,
@@ -458,7 +459,7 @@ def _build_core_callbacks(
     # publish atomically to the stage dir after each eval.
     import tempfile as _tempfile
 
-    local_eval_dir = _tempfile.mkdtemp(prefix=f"eval_stage{stage}_")
+    local_eval_dir = _tempfile.mkdtemp(prefix=f"eval_{stage_label(stage)}_")
     eval_callback, plateau_callback = build_stage_evaluation_callbacks(
         eval_env,
         stage=stage,
@@ -488,7 +489,7 @@ def _build_core_callbacks(
     checkpoint_callback = sb3["CheckpointCallback"](
         save_freq=checkpoint_stride,
         save_path=str(model_dir),
-        name_prefix=f"stage{stage}",
+        name_prefix=stage_label(stage),
         save_vecnormalize=True,
     )
     callbacks.append(checkpoint_callback)
@@ -502,7 +503,7 @@ def _build_core_callbacks(
     callbacks.append(
         CheckpointRetentionCallback(
             model_dir=model_dir,
-            name_prefix=f"stage{stage}",
+            name_prefix=stage_label(stage),
             save_freq=checkpoint_stride,
             max_checkpoints=int(
                 stage_config.get("curriculum_kwargs", {}).get("max_checkpoints", DEFAULT_MAX_CHECKPOINTS)
@@ -608,7 +609,7 @@ def _save_final_and_sync_tb(
     model,
     train_env,
     model_dir: Path,
-    stage: int,
+    stage: "int | str",
     local_tb_dir: Path | None,
     gcs_tb_path: Path,
 ) -> Path:
@@ -616,7 +617,7 @@ def _save_final_and_sync_tb(
 
     Returns the final model path (without ``.zip`` extension).
     """
-    final_path = model_dir / f"stage{stage}_final"
+    final_path = model_dir / f"{stage_label(stage)}_final"
     model.save(str(final_path))
     train_env.save(str(final_path) + "_vecnorm.pkl")
 
@@ -634,8 +635,8 @@ def _save_final_and_sync_tb(
 
 def train(
     species_cfg: SpeciesConfig,
-    stage_configs: dict[int, dict[str, Any]],
-    stage: int,
+    stage_configs: "dict[int | str, dict[str, Any]]",
+    stage: "int | str",
     total_timesteps: int,
     n_envs: int = 4,
     seed: int = 42,
@@ -674,7 +675,7 @@ def train(
     )
 
     logger.info("=" * 60)
-    logger.info("Training Stage %d: %s", stage, config["name"])
+    logger.info("Training stage %s: %s", stage, config["name"])
     logger.info("Description: %s", config["description"])
     logger.info("=" * 60)
 
@@ -684,7 +685,7 @@ def train(
     if output_dir is not None:
         log_path = Path(output_dir)
     elif log_dir is None:
-        log_path = Path(__file__).parent.parent / species / "logs" / species / f"stage{stage}_{timestamp}"
+        log_path = Path(__file__).parent.parent / species / "logs" / species / f"{stage_label(stage)}_{timestamp}"
     else:
         log_path = Path(log_dir)
 
@@ -803,7 +804,15 @@ def train(
     if ent_decay_cb is not None:
         callbacks.append(ent_decay_cb)
 
-    if stage > 1 and load_path:
+    # Stage-entry warm-up applies when a checkpoint enters any non-first
+    # curriculum stage.  Position comes from the stage manifest, so a
+    # semantic reference ("recovery", position 2) gets the same warm-up an
+    # integer one does; for legacy integers this is behaviourally identical
+    # to the old `stage > 1` (legacy 1 is position 1).
+    from .stage_manifest import load_stage_manifest
+
+    stage_position = load_stage_manifest(species).resolve(stage).position
+    if stage_position > 1 and load_path:
         cur_kwargs = config.get("curriculum_kwargs", {})
         callbacks.append(
             StageWarmupCallback(
@@ -904,7 +913,7 @@ def _report_hpt_metrics(
     eval_callback,
     log_path: Path,
     model_dir: Path,
-    stage: int,
+    stage: "int | str",
     total_timesteps: int,
     algorithm: str,
     training_duration_seconds: float = 0.0,
@@ -1127,7 +1136,7 @@ def _report_hpt_metrics(
 
 def train_curriculum(
     species_cfg: SpeciesConfig,
-    stage_configs: dict[int, dict[str, Any]],
+    stage_configs: "dict[int | str, dict[str, Any]]",
     n_envs: int = 4,
     seed: int = 42,
     eval_freq: int = 50000,

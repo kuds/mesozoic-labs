@@ -278,6 +278,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **Stage identity through the consumers (stage 1b, W3 part 2)**: the
+  single-stage SB3 train path now accepts semantic stage references
+  end-to-end — `--stage recovery` parses at the CLI (digits stay legacy
+  numbers), `load_all_stages` walks the manifest (trex gains a
+  `"recovery"` key in curriculum order; the integer keys and every other
+  species are untouched, test-pinned), artifacts and directories label
+  semantic runs by ID via `stage_label` (`recovery_final.zip` under a
+  `recovery_*` dir — never a fabricated number; legacy integers keep
+  their historical `stage{N}` form everywhere), the task fingerprint
+  records the semantic ID as its stage, and stage-entry warm-up now keys
+  off manifest *position* (identical behavior for integers; correct for
+  `recovery` at position 2). The legacy numeric curriculum deliberately
+  ignores semantic-only stages (`thresholds_from_configs` filters to
+  integer keys) — including recovery there would validate its `none/v1`
+  placeholder under advancement and correctly-but-prematurely refuse the
+  whole run; the manifest-walking curriculum lands with the W4 gate.
+- **The seed-44 run recorded — replication now 2/3** (addendum in
+  `docs/investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md`, KNOWN_ISSUES
+  update 3): run `20260815_205206`, gate **PASS**, the strongest yet —
+  full-horizon 40/40, duty 0.0069 / UCB 0.0117, panel reward 3408.3 ± 88.5
+  (97.5% of the statue), zero non-truncated terminations, same unsaturated
+  stance. The decisive datum: **AC 0.132** — the same quiet post-anneal
+  endpoint as seed 42 (0.135), nowhere near seed 43's stalled 0.329. The
+  2/3 split tracks the noise floor exactly; "what decides the anneal's
+  endpoint" is now stage 1's sharpest open question.
 - **Semantic stage manifest and the recovery stage config (stage 1b, W3
   part 1)** (`environments/shared/stage_manifest.py`,
   `configs/trex/stages.toml`, `configs/trex/recovery.toml`): the T-Rex

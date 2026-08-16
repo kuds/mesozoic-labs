@@ -67,6 +67,13 @@ def _apply_overrides(configs: dict, overrides: list | None) -> None:
             logger.info("Override applied: %s.%s = %r", section, param, value)
 
 
+def _parse_stage_ref(value: str) -> "int | str":
+    """argparse type for --stage: digits mean a legacy stage number (their
+    historical meaning, per the stage manifest), anything else a semantic
+    stage ID such as "recovery"."""
+    return int(value) if value.isdigit() else value
+
+
 def main(species_cfg):
     """Parse arguments and dispatch to train/curriculum/evaluate."""
     from .config import load_all_stages
@@ -88,10 +95,12 @@ def main(species_cfg):
     train_parser = subparsers.add_parser("train", help="Train a policy")
     train_parser.add_argument(
         "--stage",
-        type=int,
-        choices=[1, 2, 3],
+        type=_parse_stage_ref,
         default=1,
-        help=f"Curriculum stage ({species_cfg.stage_descriptions})",
+        help=(
+            f"Curriculum stage: a legacy number ({species_cfg.stage_descriptions}) "
+            "or a semantic stage id from the species' manifest (e.g. 'recovery')"
+        ),
     )
     train_parser.add_argument(
         "--timesteps",
@@ -210,6 +219,8 @@ def main(species_cfg):
                 f"{args.timesteps:,}",
             )
 
+        if args.stage not in stage_configs:
+            parser.error(f"unknown stage {args.stage!r} for this species; available: {sorted(map(str, stage_configs))}")
         train(
             species_cfg=species_cfg,
             stage_configs=stage_configs,

@@ -233,18 +233,28 @@ def load_stage_config(
     }
 
 
-def load_all_stages(species: str) -> dict[int, dict[str, Any]]:
-    """Load all curriculum stage configs for a species.
+def load_all_stages(species: str) -> "dict[int | str, dict[str, Any]]":
+    """Load every stage config the species' manifest declares.
 
     Returns:
-        Dictionary mapping stage number (1, 2, 3) to stage config dicts.
+        Dictionary keyed the way each stage is referenced: legacy stages by
+        their historical number (1, 2, 3 — unchanged for every existing
+        consumer), stages without a numeric history (recovery) by their
+        semantic ID.  Iteration order is the manifest's curriculum order.
     """
-    return {stage: load_stage_config(species, stage) for stage in (1, 2, 3)}
+    from .stage_manifest import load_stage_manifest
+
+    manifest = load_stage_manifest(species)
+    configs: "dict[int | str, dict[str, Any]]" = {}
+    for entry in manifest.stages:
+        key: "int | str" = entry.legacy_number if entry.legacy_number is not None else entry.id
+        configs[key] = load_stage_config(species, key)
+    return configs
 
 
 def save_stage_config(
     stage_dir: str | Path,
-    stage: int,
+    stage: "int | str",
     stage_config: dict[str, Any],
     algorithm: str,
     extra: dict[str, Any] | None = None,
