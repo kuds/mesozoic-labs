@@ -215,7 +215,7 @@ stance → **recovery** → locomotion → behavior — where the recovery stage
 ```bash
 # Run the T-Rex recovery stage as a warm-started, non-advancing pilot
 cd environments/trex
-python scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip
+python scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
 ```
 
 ## Docker

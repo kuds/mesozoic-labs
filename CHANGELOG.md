@@ -277,6 +277,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   specified at. The whole sweep costs about what the old single 40-episode
   probe did.
 
+### Fixed
+- **Ten findings from the pre-merge review of the 1b branch**, the four
+  severe ones first: (1) `recovery_quality/v1` was **fail-open** through
+  the shared `evaluate_stage_gate` dispatch — it fell through to the
+  reward-and-length gate, certifying a pushed stage on return alone; it now
+  fails closed with a pointer at the resolver, the only supported verdict
+  path. (2) Horizon-adjacent pushes whose recovery window could not fit
+  were counted as failed shoves, structurally capping panel success below
+  any threshold for every controller; the harness now judges only pushes
+  that were **delivered** (window opened before episode end — undelivered
+  phantom shoves are no longer recorded either) **and judgeable** (push +
+  dwell fits the horizon). (3) The documented recovery warm-start
+  (`--load` a stance checkpoint) would have hard-failed under
+  `resume_same_stage` once checkpoints carry fingerprints; `train()` and
+  the CLI gain `--load-mode initialize_next_stage`, and the notebook
+  chooses the mode from manifest position. (4) The stage-entry warm-up
+  injected a `forward_vel_weight` ramp (0.1 → 0.0) into the recovery task,
+  whose config zeroes that weight; the ramp is now skipped when the
+  stage's target weight is 0. Also: the notebook now actually computes,
+  persists, attaches, and mode-validates task fingerprints (its recovery
+  cell's lineage claim was previously unbacked); `require_gate_resolution`
+  now verifies the resolution's own integrity hash, so a hand-edited
+  frozen record is detected instead of trusted; twenty `Stage %d` log
+  formats widened to `%s` (string stages raised inside logging on the
+  recovery path); the safe-set docstring now describes the reference the
+  code implements (panel-start height, P3 recalibrates); `--stage
+  locomotion`-style semantic ids for legacy stages resolve through the
+  manifest instead of erroring; and the no-subcommand CLI default path
+  tolerates the absent `--load-mode`.
+
 ### Added
 - **Recovery stage in the notebook, docs, and website**: the training
   notebook gains an opt-in "5b. Recovery Stage" cell pair —

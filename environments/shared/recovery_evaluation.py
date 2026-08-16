@@ -110,10 +110,13 @@ def constant_action_controller(action: Sequence[float]) -> Callable[[Any], np.nd
 def _safe_step(env: Any, safe_set: dict[str, float]) -> bool:
     """The per-step safe predicate, from physical state.
 
-    Height is judged against the plant's measured settled pelvis height when
-    the species records one (``target_standing_z`` convention lives in the
-    TOMLs; the env carries it as ``height_target``) — falling back to the
-    reset height captured at panel start.
+    Height is judged against the panel-start root height stamped by
+    ``roll_recovery_panel`` immediately after reset.  Provisional: the P3
+    calibration replaces this reference with the plant's measured settled
+    pelvis height (the reset height differs from the settled stance by the
+    settle transient plus reset noise), together with the numeric
+    thresholds — recorded per evidence file so no row outlives its
+    definition.
     """
     data = env.data
     height_target = getattr(env, "_recovery_height_reference", None)
@@ -173,9 +176,18 @@ def roll_recovery_panel(
                 break
         full_horizon = bool(truncated and steps >= horizon)
 
-        in_horizon = [k for k, start in enumerate(starts) if int(start) < horizon]
+        # A push is JUDGED only when (a) it was actually delivered — its
+        # window opened before the episode ended — and (b) a full recovery
+        # window (push + dwell) fits inside the horizon.  A horizon-adjacent
+        # push that cannot be recovered by construction is excluded, not
+        # counted as a failure (it would cap achievable success below any
+        # threshold for every controller); an undelivered push is a phantom
+        # and pollutes per-shove analysis if recorded.
+        judged = [
+            k for k, start in enumerate(starts) if int(start) < steps and int(start) + duration + dwell_steps <= horizon
+        ]
         recovered_flags: list[bool] = []
-        for k in in_horizon:
+        for k in judged:
             start = int(starts[k])
             end = start + duration
             recovered, recovery_step = per_push_recovery(
@@ -207,7 +219,7 @@ def roll_recovery_panel(
                 panel_seed=panel_seed,
                 length=steps,
                 full_horizon=full_horizon,
-                n_pushes=len(in_horizon),
+                n_pushes=len(judged),
                 n_recovered=sum(recovered_flags),
                 success=episode_recovery_success(full_horizon, recovered_flags),
                 reward=total_reward,

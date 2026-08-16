@@ -272,6 +272,17 @@ def evaluate_stage_gate(
             f'stage {stage} declares gate_kind "none/v1", a non-advancing pilot; it refuses '
             "to advance rather than passing by default"
         ]
+    if gate_kind == "recovery_quality/v1":
+        # The recovery verdict comes ONLY from the gate resolver
+        # (evaluate_recovery_gate_from_resolution): frozen thresholds, frozen
+        # null pairings. This reporting path has no resolver wiring yet, and
+        # falling through to the reward gate would certify a pushed stage on
+        # return alone — fail closed instead.
+        return False, [
+            f"stage {stage} declares recovery_quality/v1, which this reporting path cannot "
+            "evaluate; recovery verdicts come only from the gate resolver "
+            "(curriculum.gate_resolver.evaluate_recovery_gate_from_resolution)"
+        ]
     if gate_kind == STANCE_GATE_KIND:
         return _stance_stage_gate(gate_kind, stance_report, stage)
     return _reward_and_length_stage_gate(curriculum, stage_results)

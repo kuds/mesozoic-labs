@@ -228,7 +228,7 @@ def record_stage_video(
     try:
         import mediapy
     except ImportError:
-        logger.warning("Skipping video for stage %d (mediapy not installed).", stage)
+        logger.warning("Skipping video for stage %s (mediapy not installed).", stage)
         return
 
     from .plant_contract import current_plant_identity, validate_environment_plant, validate_model_plant
@@ -337,7 +337,7 @@ def record_stage_video(
         stance_path = video_stem.with_name(f"{video_stem.name}_stance").with_suffix(".csv")
         if write_stance_diagnostics_csv(stance_path, stance_rows) is not None:
             logger.info("  Saved stance diagnostics to: %s", stance_path)
-    logger.info("Stage %d video: reward=%.2f | %d frames", stage, episode_reward, len(frames))
+    logger.info("Stage %s video: reward=%.2f | %d frames", stage, episode_reward, len(frames))
     logger.info("  Saved to: %s", video_path)
     return video_path, frames
 
@@ -369,7 +369,7 @@ def evaluate(
             if f"stage{s}" in model_path:
                 stage = s
                 break
-        logger.info("Auto-detected stage %d from filename", stage)
+        logger.info("Auto-detected stage %s from filename", stage)
 
     env_kwargs = stage_configs[stage]["env_kwargs"].copy()
 
@@ -426,7 +426,7 @@ def evaluate(
         raise
 
     logger.info(
-        "Evaluating for %d episodes (stage %d: %s)...",
+        "Evaluating for %d episodes (stage %s: %s)...",
         n_episodes,
         stage,
         stage_configs[stage]["name"],

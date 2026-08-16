@@ -651,8 +651,16 @@ def train(
     output_dir: str | None = None,
     use_tensorboard: bool = True,
     allow_legacy_plant: bool = False,
+    task_load_mode: str = "resume_same_stage",
 ):
-    """Train a single stage of the curriculum."""
+    """Train a single stage of the curriculum.
+
+    ``task_load_mode`` governs how a ``load_path`` checkpoint's recorded
+    task fingerprint is validated: ``resume_same_stage`` (default)
+    requires an exact task match; ``initialize_next_stage`` records the
+    crossing as lineage — the mode for warm-starting a NEW stage from a
+    previous stage's checkpoint, e.g. recovery from a stance checkpoint.
+    """
     from .config import save_stage_config
     from .curriculum import (
         RewardRampCallback,
@@ -772,10 +780,10 @@ def train(
         plant_identity=plant_identity,
         allow_legacy_plant=allow_legacy_plant,
         task_fingerprint=task_fingerprint,
-        # A user-supplied --load into train() continues the SAME stage/task;
-        # a changed task must go through the curriculum's stage handoff,
-        # which loads under initialize_next_stage.
-        task_load_mode="resume_same_stage",
+        # Default resume_same_stage: a user --load continues the same task.
+        # The CLI's --load-mode initialize_next_stage is the deliberate
+        # boundary-crossing path (e.g. recovery warm-started from stance).
+        task_load_mode=task_load_mode,
     )
 
     logger.info("Model architecture:")
@@ -823,14 +831,18 @@ def train(
             )
         )
         target_fwd_weight = config["env_kwargs"].get("forward_vel_weight", 1.0)
-        callbacks.append(
-            RewardRampCallback(
-                attr_name="forward_vel_weight",
-                start_value=cur_kwargs.get("ramp_start_value", 0.1),
-                end_value=target_fwd_weight,
-                ramp_timesteps=cur_kwargs.get("ramp_timesteps", 500_000),
+        # Ramping forward_vel_weight only makes sense when the stage USES it:
+        # recovery mirrors stance and sets it to 0.0, and ramping 0.1 -> 0.0
+        # would inject a walk incentive the task fingerprint says is absent.
+        if config["env_kwargs"].get("forward_vel_weight", 1.0) > 0.0:
+            callbacks.append(
+                RewardRampCallback(
+                    attr_name="forward_vel_weight",
+                    start_value=cur_kwargs.get("ramp_start_value", 0.1),
+                    end_value=target_fwd_weight,
+                    ramp_timesteps=cur_kwargs.get("ramp_timesteps", 500_000),
+                )
             )
-        )
 
     callback_list = sb3["CallbackList"](callbacks)
 

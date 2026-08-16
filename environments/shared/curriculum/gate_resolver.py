@@ -127,6 +127,20 @@ def require_gate_resolution(stage_dir: "str | Path", *, current_task_sha256: str
         raise GateResolutionError(
             f"{path} declares schema {resolution.get('schema')!r}; expected {GATE_RESOLUTION_SCHEMA!r}"
         )
+    recorded_digest = resolution.get("resolution_sha256")
+    payload = {key: value for key, value in resolution.items() if key != "resolution_sha256"}
+    expected_digest = (
+        "sha256:"
+        + hashlib.sha256(
+            json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+        ).hexdigest()
+    )
+    if recorded_digest != expected_digest:
+        raise GateResolutionError(
+            f"{path} fails its own integrity hash (recorded {recorded_digest}, recomputed "
+            f"{expected_digest}): the frozen record was edited after resolution. Re-resolve "
+            "instead of trusting it."
+        )
     recorded_sha = resolution.get("task_sha256")
     if recorded_sha != current_task_sha256:
         raise GateResolutionError(
