@@ -278,6 +278,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **The recovery gate statistic: `recovery_quality/v1` (stage 1b, W4
+  part 1)** (`environments/shared/curriculum/recovery_gate.py`, registered
+  fail-closed in the gate schema): certifies **per-shove recovery** —
+  after each scheduled push the body must re-enter the safe set within
+  `recovery_t_recover_steps` and dwell there for `recovery_dwell_steps`
+  (touching the safe set mid-fall is not recovery); an episode succeeds by
+  reaching the horizon AND recovering every push. The gate bounds episode
+  success with an **exact Clopper-Pearson LCB** (scipy-free bisection on
+  the binomial tail — the right shape for a binary event, where the
+  stance gate's Student-t is not), reproducing the split plan's own
+  pinned arithmetic to the digit as regression tests: LCB95(34/40) =
+  0.72526, one-sided 95% upper bound of 0/40 = 7.216%. The paired
+  null-superiority statistic (same seeds, same schedules, t-bounded mean
+  difference — the pairing the schedule PRF exists for) ships as an
+  optional criterion that **fails closed when declared without its null
+  panel** rather than skipping; it becomes authoritative once the
+  resolver (W5) freezes the baselines. All thresholds provisional until
+  P3/P5 calibration; `recovery.toml` keeps `none/v1` until then, its
+  comment now pointing at the waiting kind. Not yet built (W4 part 2,
+  with W5): the evaluation harness that rolls pushed panels, computes the
+  per-step safe mask, runs the null suite, and writes per-shove evidence
+  rows.
 - **Stage identity through the consumers (stage 1b, W3 part 2)**: the
   single-stage SB3 train path now accepts semantic stage references
   end-to-end — `--stage recovery` parses at the CLI (digits stay legacy

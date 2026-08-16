@@ -99,11 +99,16 @@ net_arch = [512, 256]
 
 [curriculum]
 gate_schema_version = 1
-gate_kind = "none/v1"                   # Fail-closed placeholder: refuses to advance. W4 replaces this
-                                        # with recovery_quality/v1 (per-shove recovery + paired null
-                                        # superiority); W5's resolver freezes its baselines. Declaring the
-                                        # real gate before it exists would be exactly the
-                                        # we-could-not-check-reads-as-pass trap the schema forbids.
+gate_kind = "none/v1"                   # Fail-closed placeholder: refuses to advance. The real gate kind,
+                                        # recovery_quality/v1, EXISTS as of 2026-08-16
+                                        # (environments/shared/curriculum/recovery_gate.py: exact binomial
+                                        # LCB on survive-and-recover-every-push, plus the paired
+                                        # null-superiority statistic) — but its thresholds are provisional
+                                        # until the calibration runs measure the finalized pushed task, and
+                                        # its paired criterion needs the resolver's (W5) frozen null
+                                        # panels. Declaring it with guessed thresholds would be exactly the
+                                        # we-could-not-check-reads-as-pass trap the schema forbids; P5
+                                        # flips this key with measured values.
 timesteps = 3_000_000                   # Provisional (§2.4): warm-started from the certified stance
                                         # checkpoint via initialize_next_stage, not trained from scratch.
                                         # Re-derive against the first pilot.
