@@ -278,6 +278,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Added
+- **The pushed-panel harness and the gate resolver (stage 1b, W4 part 2 +
+  W5)** (`environments/shared/recovery_evaluation.py`,
+  `environments/shared/curriculum/gate_resolver.py`): the evaluation
+  machinery that puts real evidence behind `recovery_quality/v1`.
+  `roll_recovery_panel` rolls any controller over the seeded pushed panel,
+  measures the per-step safe set from **physical state** (pelvis height vs
+  the panel-start reference, tilt, planar speed, bilateral foot load —
+  provisional thresholds recorded in every evidence file), reads the push
+  schedule from the environment itself, and writes one row per episode AND
+  one per shove (controller, seed, push vector/timing, recovery step) —
+  the split plan's pair-identity-is-part-of-the-estimand requirement.
+  Pairing is structural and test-pinned: identical seeds produce identical
+  push schedules across controllers with no coordination. Null controllers
+  (zero-action statue, constant brace) ship as plain callables; a
+  push-free environment is refused. The resolver freezes capability spec +
+  null manifest (per-seed outcomes, exact-UCB headline) + decision
+  procedure into an atomic, hashed `gate_resolution.json`; a **missing
+  resolution blocks advancement**, a **stale one** (task-fingerprint
+  mismatch) demands recalibration by name, and
+  `evaluate_recovery_gate_from_resolution` is the only supported path to
+  an advancing recovery verdict — thresholds from the frozen spec, paired
+  differences from the frozen null panel, never a fresh roll. What
+  remains before the first gated recovery run is measurement, not
+  machinery: the P3 calibration panels (real null baselines, safe-set and
+  threshold calibration) and the §8.1 transfer pilot.
 - **The recovery gate statistic: `recovery_quality/v1` (stage 1b, W4
   part 1)** (`environments/shared/curriculum/recovery_gate.py`, registered
   fail-closed in the gate schema): certifies **per-shove recovery** —
