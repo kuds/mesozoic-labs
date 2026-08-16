@@ -67,6 +67,13 @@ def _apply_overrides(configs: dict, overrides: list | None) -> None:
             logger.info("Override applied: %s.%s = %r", section, param, value)
 
 
+def _parse_stage_ref(value: str) -> "int | str":
+    """argparse type for --stage: digits mean a legacy stage number (their
+    historical meaning, per the stage manifest), anything else a semantic
+    stage ID such as "recovery"."""
+    return int(value) if value.isdigit() else value
+
+
 def main(species_cfg):
     """Parse arguments and dispatch to train/curriculum/evaluate."""
     from .config import load_all_stages
@@ -88,10 +95,12 @@ def main(species_cfg):
     train_parser = subparsers.add_parser("train", help="Train a policy")
     train_parser.add_argument(
         "--stage",
-        type=int,
-        choices=[1, 2, 3],
+        type=_parse_stage_ref,
         default=1,
-        help=f"Curriculum stage ({species_cfg.stage_descriptions})",
+        help=(
+            f"Curriculum stage: a legacy number ({species_cfg.stage_descriptions}) "
+            "or a semantic stage id from the species' manifest (e.g. 'recovery')"
+        ),
     )
     train_parser.add_argument(
         "--timesteps",
@@ -101,6 +110,17 @@ def main(species_cfg):
     )
     train_parser.add_argument("--n-envs", type=int, default=4, help="Number of parallel environments")
     train_parser.add_argument("--load", type=str, default=None, help="Path to model to continue from")
+    train_parser.add_argument(
+        "--load-mode",
+        choices=["resume_same_stage", "initialize_next_stage"],
+        default="resume_same_stage",
+        help=(
+            "How the loaded checkpoint's task fingerprint is validated: resume_same_stage "
+            "requires an exact task match; initialize_next_stage records the boundary as "
+            "lineage (use it to warm-start a new stage, e.g. --stage recovery from a "
+            "stance checkpoint)"
+        ),
+    )
     train_parser.add_argument(
         "--allow-legacy-plant",
         action="store_true",
@@ -210,14 +230,29 @@ def main(species_cfg):
                 f"{args.timesteps:,}",
             )
 
+        stage_ref = args.stage
+        if stage_ref not in stage_configs and isinstance(stage_ref, str):
+            # A semantic id naming a LEGACY stage resolves to its historical
+            # number, so --stage locomotion works wherever --stage 2 does.
+            from .stage_manifest import StageManifestError, load_stage_manifest
+
+            try:
+                entry = load_stage_manifest(species_cfg.species).by_id(stage_ref)
+            except StageManifestError:
+                entry = None
+            if entry is not None and entry.legacy_number is not None:
+                stage_ref = entry.legacy_number
+        if stage_ref not in stage_configs:
+            parser.error(f"unknown stage {args.stage!r} for this species; available: {sorted(map(str, stage_configs))}")
         train(
             species_cfg=species_cfg,
             stage_configs=stage_configs,
-            stage=args.stage,
+            stage=stage_ref,
             total_timesteps=args.timesteps,
             n_envs=args.n_envs,
             seed=args.seed,
             load_path=args.load,
+            task_load_mode=getattr(args, "load_mode", "resume_same_stage"),
             eval_freq=args.eval_freq,
             save_freq=args.save_freq,
             log_dir=args.log_dir,

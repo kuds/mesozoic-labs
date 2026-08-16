@@ -1,0 +1,142 @@
+# T-Rex recovery stage (stage 1b): hold the certified stance against
+# scheduled external pushes. STAGE1_SPLIT_PLAN §3; plan doc W-streams;
+# decisions of 2026-08-15 (semantic manifest, SB3 first, full resolver
+# before the first training run).
+#
+# DERIVATION BY REFERENCE: the [env] block below is stage1_balance.toml's
+# [env] verbatim — every value's derivation record lives THERE — plus
+# exactly one delta: the five perturbation_* keys, at the adopted §3.3
+# values. On the r7 plant the multiple derives to 165.5 N over 0.20 s
+# (capture-point argument; pinned in test_perturbation.py). The same
+# reward, observations, and terminations are deliberate: the push changes
+# the task, not the interface, and the recovery gate (W4) measures
+# per-shove recovery rather than reward. test_stage_manifest.py pins the
+# [env] mirror so stage-1 shaping changes cannot silently strand this
+# file.
+#
+# NOT YET RUNNABLE AS A GATED STAGE: gate_kind none/v1 below refuses to
+# advance, fail-closed, until recovery_quality/v1 (W4) and the frozen
+# null baselines (W5) exist. The first training run also waits on the
+# §8.1 transfer pilot.
+
+[stage]
+name = "recovery"
+description = "Hold the stance against scheduled external pushes and recover from each"
+
+[env]
+forward_vel_weight = 0.0
+backward_vel_penalty_weight = 0.0
+drift_penalty_weight = 0.3
+spin_penalty_weight = 0.1
+speed_penalty_weight = 0.3
+speed_penalty_threshold = 0.1
+alive_bonus = 1.0
+foot_contact_gate = 0.0
+foot_contact_weight = 0.0
+bilateral_support_weight = 0.6
+foot_contact_saturation_force = 350.0
+foot_load_balance_weight = 0.3
+foot_load_balance_min_support_force = 42.0
+foot_load_balance_airborne_penalty = 0.3
+action_jerk_weight = 3.0
+support_conditioned_alive_fraction = 0.5
+leg_home_pose_weight = 0.5
+leg_home_pose_tolerance = 0.1
+leg_home_pose_broad_fraction = 0.25
+leg_home_pose_broad_scale = 6.0
+tail_home_pose_weight = 0.25
+tail_home_pose_tolerance = 0.05
+action_saturation_weight = 0.5
+action_saturation_threshold = 0.9
+head_clearance_weight = 0.35
+head_clearance_target = 0.9
+head_clearance_tolerance = 0.15
+neck_posture_weight = 0.2
+neck_posture_tolerance = 0.35
+energy_penalty_weight = 0.075
+tail_stability_weight = 0.15
+posture_weight = 1.5
+nosedive_weight = 1.5
+nosedive_termination_threshold = 0.493
+smoothness_weight = 2.0
+heading_weight = 0.1
+gait_symmetry_weight = 0.0
+height_weight = 0.6
+height_target_tolerance = 0.06
+fall_penalty = -100.0
+bite_bonus = 0.0
+bite_approach_weight = 0.0
+prey_distance_range = [10.0, 15.0]
+max_episode_steps = 1000
+reset_noise_scale = 0.05
+
+# The one delta vs stance: the declared disturbance (adopted §3.3 values).
+perturbation_capture_velocity_multiple = 1.5
+perturbation_interval = 2.0
+perturbation_jitter = 0.5
+perturbation_duration = 0.2
+perturbation_direction = "uniform_horizontal"
+
+# Mirrors stage1_balance.toml's [ppo] as the warm-start default; the
+# entropy/LR schedule for a 3M warm-started budget is pilot-dependent
+# and will be re-derived with the first calibration run.
+[ppo]
+learning_rate = 3e-05
+learning_rate_end = 1e-05
+n_steps = 2048
+batch_size = 128
+n_epochs = 10
+gamma = 0.98
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.005
+ent_coef_end = 0.0
+ent_coef_decay_timesteps = 7000000
+target_kl = 0.03
+
+[ppo.policy_kwargs]
+net_arch = [512, 256]
+
+[curriculum]
+gate_schema_version = 1
+gate_kind = "none/v1"                   # Fail-closed placeholder: refuses to advance. The real gate kind,
+                                        # recovery_quality/v1, EXISTS as of 2026-08-16
+                                        # (environments/shared/curriculum/recovery_gate.py: exact binomial
+                                        # LCB on survive-and-recover-every-push, plus the paired
+                                        # null-superiority statistic) — but its thresholds are provisional
+                                        # until the calibration runs measure the finalized pushed task, and
+                                        # its paired criterion needs the resolver's (W5) frozen null
+                                        # panels. Declaring it with guessed thresholds would be exactly the
+                                        # we-could-not-check-reads-as-pass trap the schema forbids; P5
+                                        # flips this key with measured values.
+timesteps = 3_000_000                   # Provisional (§2.4): warm-started from the certified stance
+                                        # checkpoint via initialize_next_stage, not trained from scratch.
+                                        # Re-derive against the first pilot.
+
+# Collapse backstop (PLANT_VALIDATION §14 item 3): the relative floor pair,
+# mirrored from stage1_balance.toml because the REWARD FUNCTION is that
+# file's verbatim — the fraction re-anchors if stance shaping ever changes,
+# and test_curriculum_early_stopping refuses any committed stage that
+# resolves no finite floor (a backstop that never arms fails silently).
+#
+# The reference is deliberately the UN-PUSHED statue (3495.2): the pushed
+# task's own zero-action baseline does not exist yet — it is exactly what
+# the P3 calibration panels measure, since the gate resolver's frozen null
+# manifest IS that statue rolled on the pushed panel. Until then the
+# un-pushed number errs in the arming direction: pushes only subtract
+# transient reward from a policy standing between them, so a warm-started
+# policy's peak clears 0.45 x 3495.2 = 1572.8 with the same margin logic
+# as stance, and the floor arms earlier, never later. P3 re-derives both
+# halves of the pair together with the safe-set thresholds.
+collapse_peak_floor_reference = 3495.2  # Statue standing reward, noise 0.05, 40 episodes (stage1_balance.toml
+                                        # carries the full derivation record and re-measure procedure).
+collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
+statue_constants_physics_revision = 7   # The trex PHYSICS revision the 3495.2 reference was measured on —
+                                        # still current: the perturbation engine (plant_versions note 11)
+                                        # bumped only the POLICY interface, and with perturbation off the
+                                        # dynamics are bit-identical, so the statue's number carries. The
+                                        # freshness test holds this pin against the manifest so any real
+                                        # physics move forces a re-measure or a conscious update here.
+collapse_peak_warmup_timesteps = 1000000 # Same arming delay as stance; 1/3 of this stage's 3M budget, so the
+                                        # companion budget test holds and a warm-started policy (which evals
+                                        # near its final level immediately) loses no protection that matters.

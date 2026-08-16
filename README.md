@@ -85,7 +85,7 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 | Action dimension / actuators | 22 |
 | Generalized coordinates / velocities | nq=31, nv=30 |
 | Compiled dynamic model mass | 13.5 kg |
-| Plant contract revisions | policy r8; physics r2; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r9; physics r2; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/velociraptor/assets/raptor.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -112,12 +112,12 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Action dimension / actuators | 15 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
 | Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r11; physics r7; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r12; physics r7; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/trex/assets/trex.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Learn to stand and balance without falling | 10M | reward ≥ 2100; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Learn to stand and balance without falling | 11M | reward ≥ 2100; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Bite | Sprint to prey and make contact with the head bite proxy | 8M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
@@ -137,7 +137,7 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 | Action dimension / actuators | 30 |
 | Generalized coordinates / velocities | nq=38, nv=37 |
 | Compiled dynamic model mass | 175.3 kg |
-| Plant contract revisions | policy r6; physics r4; visual r2 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r7; physics r4; visual r2 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -161,7 +161,7 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 | Action dimension / actuators | 27 |
 | Generalized coordinates / velocities | nq=35, nv=34 |
 | Compiled dynamic model mass | 8.7 kg |
-| Plant contract revisions | policy r5; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r6; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/dibothrosuchus/assets/dibothrosuchus.xml` |
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
@@ -198,10 +198,24 @@ pip install -e ".[train]"
 # View the velociraptor model
 python environments/velociraptor/scripts/view_model.py
 
-# Full 3-stage curriculum — one command, all stages handled automatically
+# Full numbered curriculum — one command, all stages handled automatically
 # (each stage loads its own hyperparameters from the TOML config)
 cd environments/velociraptor
 python scripts/train_sb3.py curriculum --algorithm ppo
+```
+
+Stages are identified by a per-species **stage manifest**
+(`configs/<species>/stages.toml`, synthesized for species without one).
+Integer stage references always mean their historical stage, so existing
+artifacts and commands keep their meaning; stages without a numeric history
+are addressed by semantic id. The T-Rex curriculum has four stages —
+stance → **recovery** → locomotion → behavior — where the recovery stage
+(stage 1b) holds the certified stance against scheduled external pushes:
+
+```bash
+# Run the T-Rex recovery stage as a warm-started, non-advancing pilot
+cd environments/trex
+python scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
 ```
 
 ## Docker

@@ -57,7 +57,7 @@ def is_available() -> bool:
 
 def init_wandb(
     species: str,
-    stage: int,
+    stage: "int | str",
     config: dict[str, Any],
     project: str = "mesozoic-labs",
     tags: list | None = None,
@@ -345,7 +345,7 @@ def log_eval_metrics(
     wandb.log(metrics, step=step)
 
 
-def setup_wandb_metrics(stage: int) -> None:
+def setup_wandb_metrics(stage: "int | str") -> None:
     """Configure W&B metric display properties.
 
     Defines metric groupings and x-axis relationships so W&B
@@ -387,7 +387,7 @@ def setup_wandb_metrics(stage: int) -> None:
 
 
 def create_wandb_dashboard(
-    stage: int,
+    stage: "int | str",
     entity: str | None = None,
     project: str = "mesozoic-labs",
 ) -> None:
@@ -553,7 +553,7 @@ def create_wandb_dashboard(
         _save_dashboard_config_fallback(stage)
 
 
-def _save_dashboard_config_fallback(stage: int) -> None:
+def _save_dashboard_config_fallback(stage: "int | str") -> None:
     """Store dashboard panel config as run metadata (fallback)."""
     panel_config = {
         "master": [

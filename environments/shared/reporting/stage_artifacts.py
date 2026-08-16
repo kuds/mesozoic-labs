@@ -205,14 +205,14 @@ def _write_stance_gate_report(
     report_episodes = declared_episodes if report_episodes is None else int(report_episodes)
     if report_episodes < 1:
         logger.info(
-            "Stance gate report skipped for stage %d: stance_report_episodes = %d",
+            "Stance gate report skipped for stage %s: stance_report_episodes = %d",
             stage,
             report_episodes,
         )
         return None
     if report_episodes != declared_episodes:
         logger.warning(
-            "Stance gate report for stage %d rolls %d episodes, not the stage's min_eval_episodes "
+            "Stance gate report for stage %s rolls %d episodes, not the stage's min_eval_episodes "
             "%d. The bound's power is specified at the latter; this panel does not certify what "
             "the gate claims.",
             stage,
@@ -230,7 +230,7 @@ def _write_stance_gate_report(
     handoff = _select_handoff_checkpoint(model_dir)
     if handoff is None:
         logger.warning(
-            "Stance gate report skipped for stage %d: no checkpoint in %s has its "
+            "Stance gate report skipped for stage %s: no checkpoint in %s has its "
             "matched _vecnorm.pkl, and scoring without the observation statistics "
             "would report a verdict for a different policy.",
             stage,
@@ -245,7 +245,7 @@ def _write_stance_gate_report(
             write_stance_gate_report,
         )
 
-        logger.info("Stance gate report scoring stage %d checkpoint: %s", stage, selected_name)
+        logger.info("Stance gate report scoring stage %s checkpoint: %s", stage, selected_name)
         report = build_stance_gate_report(
             species,
             stage,
@@ -264,7 +264,7 @@ def _write_stance_gate_report(
         )
         return report
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
-        logger.warning("Stance gate report failed for stage %d", stage, exc_info=True)
+        logger.warning("Stance gate report failed for stage %s", stage, exc_info=True)
     return None
 
 
@@ -310,7 +310,7 @@ def _run_stance_probes(
     handoff = _select_handoff_checkpoint(model_dir)
     if handoff is None:
         logger.warning(
-            "Stance probes skipped for stage %d: no checkpoint in %s has its matched _vecnorm.pkl",
+            "Stance probes skipped for stage %s: no checkpoint in %s has its matched _vecnorm.pkl",
             stage,
             model_dir,
         )
@@ -372,7 +372,7 @@ def _run_stance_probes(
         try:
             run_probe()
         except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
-            logger.warning("Stance probe (%s) failed for stage %d", label, stage, exc_info=True)
+            logger.warning("Stance probe (%s) failed for stage %s", label, stage, exc_info=True)
 
 
 def _probe_cutoffs(raw: Any) -> list[float]:
@@ -465,7 +465,7 @@ def _write_filtered_action_probe(
                 probe["metrics"]["reward_mean"],
             )
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
-        logger.warning("Filtered action probe failed for stage %d", stage, exc_info=True)
+        logger.warning("Filtered action probe failed for stage %s", stage, exc_info=True)
     # Written even if a later cutoff raised: a partial curve is still a curve,
     # and discarding the cutoffs that succeeded would lose the measurement to
     # a failure in one of them.
@@ -546,7 +546,7 @@ def _write_constant_hold_probe(
                 probe["metrics"]["reward_mean"],
             )
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
-        logger.warning("Constant-hold probe failed for stage %d", stage, exc_info=True)
+        logger.warning("Constant-hold probe failed for stage %s", stage, exc_info=True)
     # Written even if a later variant raised, for the same reason the filter
     # sweep is: the variants that succeeded are still a measurement, and the
     # controls are what make the others readable.
@@ -613,7 +613,7 @@ def _write_constant_hold_ablation(
                 probe["metrics"]["full_horizon_fraction"],
             )
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
-        logger.warning("Release ablation failed for stage %d", stage, exc_info=True)
+        logger.warning("Release ablation failed for stage %s", stage, exc_info=True)
     if entries:
         try:
             from environments.shared.scripts.stance_gate_report import write_constant_hold_ablation
@@ -706,7 +706,7 @@ def _write_impulse_probe(
             envelopes,
         )
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
-        logger.warning("Impulse recovery probe failed for stage %d", stage, exc_info=True)
+        logger.warning("Impulse recovery probe failed for stage %s", stage, exc_info=True)
 
 
 def _apply_stage_gate(
@@ -747,15 +747,15 @@ def _apply_stage_gate(
         # would cost a completed multi-hour run the artifacts written around
         # this call; recording it as a failure keeps the fail-closed reading
         # AND the artifacts.
-        logger.warning("Stage %d curriculum gate could not be evaluated", stage, exc_info=True)
+        logger.warning("Stage %s curriculum gate could not be evaluated", stage, exc_info=True)
         passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
     stage_results["gate_passed"] = passed
     stage_results["publication_gate_passed"] = passed
     stage_results["gate_failures"] = failures
     if passed:
-        logger.info("Stage %d curriculum gate: PASS", stage)
+        logger.info("Stage %s curriculum gate: PASS", stage)
     else:
-        logger.warning("Stage %d curriculum gate: FAIL — %s", stage, "; ".join(failures))
+        logger.warning("Stage %s curriculum gate: FAIL — %s", stage, "; ".join(failures))
 
 
 def generate_stage_artifacts(
@@ -942,6 +942,7 @@ def _record_stage_replays(
 
     # ── Record replay videos for the selected and final checkpoints ──────
     from ..plant_contract import PlantCompatibilityError, current_plant_identity, validate_model_plant
+    from ..stage_manifest import stage_label
 
     try:
         from environments.shared.evaluation import TREX_STAGE1_CAMERA_VIEWS, record_stage_video
@@ -952,7 +953,7 @@ def _record_stage_replays(
         alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
         plant_identity = current_plant_identity(species)
 
-        final_path = model_dir / f"stage{stage}_final"
+        final_path = model_dir / f"{stage_label(stage)}_final"
         final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
         replay_diagnostics = species.lower() == "trex" and stage == 1
         replay_camera_views = TREX_STAGE1_CAMERA_VIEWS if replay_diagnostics else None
@@ -975,7 +976,7 @@ def _record_stage_replays(
         handoff = _select_handoff_checkpoint(model_dir)
         if handoff is None:
             logger.warning(
-                "Stage %d selected-checkpoint replay skipped: neither robust_best_model nor "
+                "Stage %s selected-checkpoint replay skipped: neither robust_best_model nor "
                 "best_model in %s has its matched _vecnorm.pkl, and replaying without the "
                 "observation statistics would show a different policy.",
                 stage,
@@ -983,7 +984,7 @@ def _record_stage_replays(
             )
         else:
             selected_name, selected_path, selected_vecnorm = handoff
-            logger.info("Stage %d selected checkpoint for replay: %s", stage, selected_name)
+            logger.info("Stage %s selected checkpoint for replay: %s", stage, selected_name)
             selected_model = alg_cls.load(selected_path)
             validate_model_plant(
                 selected_model,

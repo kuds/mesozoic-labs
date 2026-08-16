@@ -500,7 +500,7 @@ def DriveProgressLogCallback(*args: Any, **kwargs: Any):
 
 
 def apply_sampled_config(
-    stage_configs: dict[int, dict[str, Any]],
+    stage_configs: "dict[int | str, dict[str, Any]]",
     stage: int,
     hpt_config: dict[str, Any],
     algorithm: str,

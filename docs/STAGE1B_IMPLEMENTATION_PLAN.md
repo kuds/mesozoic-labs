@@ -166,6 +166,18 @@ onset, and the 3M warm-started budget.
 
 ## 4. Build map
 
+**Status (2026-08-16): W1–W5 are ALL LANDED** — the perturbation engine on
+both backends, the task fingerprint and load modes, the four-stage semantic
+manifest with `--stage recovery` end-to-end (CLI, notebook opt-in cell,
+label-safe artifacts), the `recovery_quality/v1` statistic, the pushed-panel
+harness, and the gate resolver. What remains is **measurement, not
+machinery**: P3 null/safe-set calibration, the §8.1 transfer pilot, and P5
+freezing the gate. Deferred consumer work, tracked not forgotten: the
+species catalog / README generated tables / website generated data and the
+result-bundle schema remain integer-stage until the manifest migration's
+final part; the recovery stage is deliberately excluded from bundles and
+generated tables until then.
+
 Ordering follows the split plan's steps 8–14 with two updates: step 9's core
 (the stance-gate statistic) already shipped, and everything below is rebased
 onto the r7/r11 tree. Each workstream lands independently and default-off.
@@ -314,6 +326,21 @@ Cleanup §2.1 lands before P1/P4 so their evidence is clean. P1/P2 are
 compute-parallel with everything.
 
 ## 6. Open decisions (for review before the corresponding workstream starts)
+
+**Decided 2026-08-15** (review with the project owner): (1) **semantic stage
+manifest** — recovery is a real fourth stage, curriculum order
+stance → recovery → locomotion → behavior, with legacy aliases preserving
+historical artifact meaning; (2) **full gate resolver before the first 1b
+training run** (not the minimal core); (3) the seed replicate ran — seed 43,
+gate FAIL at duty 0.0597, so the "passes or bounces" question is answered
+seed-sensitive at n = 2 (see
+`investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md`); a third seed is
+queued; (6) **SB3 first** for all 1b evidence. Standing constraint from the
+same review: the perturbation engine must be **species-generic from the
+first commit** — shared code only, per-species magnitudes derived from each
+plant, config keys available to every species, off by default. Decisions 4,
+5, and 7 below remain open and are settled inside W1/W4 design or by P3
+measurement.
 
 1. **Stage identity scope (W3)**: full semantic manifest now, or minimal
    T-Rex-only `1b` insertion with the manifest deferred? The manifest is the

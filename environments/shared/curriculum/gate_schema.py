@@ -82,6 +82,24 @@ GATE_KINDS: dict[str, frozenset[str]] = {
             "required_consecutive",
         }
     ),
+    # The recovery stage's gate (stage 1b): certifies per-shove recovery
+    # under the scheduled pushes via an exact binomial LCB on episode
+    # success, with an optional paired null-superiority criterion that
+    # becomes authoritative once the resolver freezes the null panels.
+    # Thresholds are provisional until the calibration runs (plan P3/P5);
+    # configs declare none/v1 until then.  See
+    # :mod:`environments.shared.curriculum.recovery_gate` for the statistic.
+    "recovery_quality/v1": frozenset(
+        {
+            "min_recovery_success_lcb",
+            "recovery_t_recover_steps",
+            "recovery_dwell_steps",
+            "min_paired_success_delta_lcb",
+            "min_avg_reward",
+            "min_eval_episodes",
+            "required_consecutive",
+        }
+    ),
     # An explicit, recorded non-advancing mode for pilots and diagnostics.
     # Declaring it is the ONLY supported way to run a stage with no gate, and
     # it refuses to advance rather than passing by default.
@@ -107,6 +125,18 @@ _REQUIRED_THRESHOLD_KEYS: dict[str, frozenset[str]] = {
             "min_full_horizon_fraction",
             "max_unsupported_duty",
             "max_unsupported_duty_ucb",
+        }
+    ),
+    # The LCB and both event-definition constants are load-bearing: without
+    # t_recover/dwell the success event is undefined, and without the LCB
+    # the gate would rest on a raw fraction.  min_paired_success_delta_lcb
+    # is optional — it activates the paired-null criterion, which needs the
+    # resolver's frozen baselines; min_avg_reward stays an optional rail.
+    "recovery_quality/v1": frozenset(
+        {
+            "min_recovery_success_lcb",
+            "recovery_t_recover_steps",
+            "recovery_dwell_steps",
         }
     ),
     "none/v1": frozenset(),
@@ -335,10 +365,10 @@ def validate_gate_config(
 
 
 def validate_gate_configs(
-    configs: Mapping[int, Mapping[str, Any]],
+    configs: "Mapping[int | str, Mapping[str, Any]]",
     *,
     advancement_enabled: bool = True,
-) -> dict[int, str]:
+) -> "dict[int | str, str]":
     """Validate every stage config, returning each stage's gate kind."""
     return {
         stage: validate_gate_config(

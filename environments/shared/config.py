@@ -171,14 +171,19 @@ def _find_stage_file(species: str, stage: int) -> Path:
 
 def load_stage_config(
     species: str,
-    stage: int,
+    stage: "int | str",
     config_path: str | None = None,
 ) -> dict[str, Any]:
     """Load a curriculum stage configuration from TOML.
 
     Args:
         species: Species name (e.g. "velociraptor", "brachiosaurus", "trex").
-        stage: Curriculum stage number (1, 2, or 3).
+        stage: Either a legacy stage number (1, 2, or 3 — resolved through
+            the historical ``stage{N}_*`` file prefix, so existing callers
+            and artifacts keep their meaning) or a semantic stage ID
+            (``"stance"``/``"recovery"``/``"locomotion"``/``"behavior"``,
+            resolved through the species' stage manifest).  Stages without
+            a legacy number — recovery — are reachable only by ID.
         config_path: Optional explicit path to a TOML file. Overrides
             automatic discovery when provided.
 
@@ -191,6 +196,11 @@ def load_stage_config(
     """
     if config_path is not None:
         path = Path(config_path)
+    elif isinstance(stage, str):
+        from .stage_manifest import load_stage_manifest
+
+        entry = load_stage_manifest(species).by_id(stage)
+        path = _CONFIGS_DIR / species / entry.config_file
     else:
         path = _find_stage_file(species, stage)
 
@@ -223,24 +233,35 @@ def load_stage_config(
     }
 
 
-def load_all_stages(species: str) -> dict[int, dict[str, Any]]:
-    """Load all curriculum stage configs for a species.
+def load_all_stages(species: str) -> "dict[int | str, dict[str, Any]]":
+    """Load every stage config the species' manifest declares.
 
     Returns:
-        Dictionary mapping stage number (1, 2, 3) to stage config dicts.
+        Dictionary keyed the way each stage is referenced: legacy stages by
+        their historical number (1, 2, 3 — unchanged for every existing
+        consumer), stages without a numeric history (recovery) by their
+        semantic ID.  Iteration order is the manifest's curriculum order.
     """
-    return {stage: load_stage_config(species, stage) for stage in (1, 2, 3)}
+    from .stage_manifest import load_stage_manifest
+
+    manifest = load_stage_manifest(species)
+    configs: "dict[int | str, dict[str, Any]]" = {}
+    for entry in manifest.stages:
+        key: "int | str" = entry.legacy_number if entry.legacy_number is not None else entry.id
+        configs[key] = load_stage_config(species, key)
+    return configs
 
 
 def save_stage_config(
     stage_dir: str | Path,
-    stage: int,
+    stage: "int | str",
     stage_config: dict[str, Any],
     algorithm: str,
     extra: dict[str, Any] | None = None,
     env_class: type | None = None,
     species: str | None = None,
     plant_identity: PlantIdentity | None = None,
+    task_fingerprint: dict[str, Any] | None = None,
 ) -> Path:
     """Save the reward weights and model hyperparameters for a stage to JSON.
 
@@ -315,6 +336,8 @@ def save_stage_config(
         data["run"] = extra
     if plant_identity is not None:
         data["plant_identity"] = plant_identity.to_dict()
+    if task_fingerprint is not None:
+        data["task_fingerprint"] = dict(task_fingerprint)
 
     gpu_info = _detect_gpu_info()
     if gpu_info:
@@ -326,6 +349,10 @@ def save_stage_config(
         from .plant_contract import write_plant_identity
 
         write_plant_identity(stage_dir / "plant_identity.json", plant_identity)
+    if task_fingerprint is not None:
+        from .task_fingerprint import write_task_fingerprint
+
+        write_task_fingerprint(stage_dir / "task_fingerprint.json", task_fingerprint)
     return out_path
 
 
@@ -468,6 +495,7 @@ def upload_curriculum_artifacts(
             "stage_summary.txt",
             "stage_config.json",
             "plant_identity.json",
+            "task_fingerprint.json",
             "metrics.json",
             "evaluations.npz",
             "diagnostics.npz",

@@ -174,6 +174,11 @@ class BaseDinoEnv(gym.Env, ABC):
         max_tilt_angle: float = 1.047,
         reset_noise_scale: float = 0.01,
         reset_height_noise_scale: float | None = None,
+        perturbation_capture_velocity_multiple: float = 0.0,
+        perturbation_interval: float = 2.0,
+        perturbation_jitter: float = 0.5,
+        perturbation_duration: float = 0.20,
+        perturbation_direction: str = "uniform_horizontal",
     ):
         super().__init__()
 
@@ -221,6 +226,51 @@ class BaseDinoEnv(gym.Env, ABC):
 
         # Cache body/geom/site IDs (species-specific)
         self._cache_ids()
+
+        # Scheduled external pushes (stage recovery / 1b; STAGE1_SPLIT_PLAN
+        # §3.3).  Species-generic and OFF by default: with the multiple at
+        # 0.0 nothing below runs, no RNG is drawn, and trajectories are
+        # byte-identical to the pre-perturbation environment.  Placed after
+        # _cache_ids so the species' _reset_keyframe_id selects the pose the
+        # force derivation measures.
+        self.perturbation_capture_velocity_multiple = perturbation_capture_velocity_multiple
+        self.perturbation_interval = perturbation_interval
+        self.perturbation_jitter = perturbation_jitter
+        self.perturbation_duration = perturbation_duration
+        self.perturbation_direction = perturbation_direction
+        self._push_schedule_starts: np.ndarray | None = None
+        self._push_schedule_directions: np.ndarray | None = None
+        if perturbation_capture_velocity_multiple > 0.0:
+            from environments.shared.perturbation import (
+                derive_push_parameters,
+                max_pushes_for,
+                validate_push_config,
+            )
+
+            schedule_steps = validate_push_config(
+                capture_velocity_multiple=perturbation_capture_velocity_multiple,
+                interval_s=perturbation_interval,
+                jitter_s=perturbation_jitter,
+                duration_s=perturbation_duration,
+                direction=perturbation_direction,
+                control_dt=self.dt,
+            )
+            self._push_interval_steps = schedule_steps["interval_steps"]
+            self._push_jitter_steps = schedule_steps["jitter_steps"]
+            self._push_duration_steps = schedule_steps["duration_steps"]
+            self._push_max = max_pushes_for(
+                max_episode_steps,
+                self._push_interval_steps,
+                self._push_jitter_steps,
+            )
+            self._push_params = derive_push_parameters(
+                self.model,
+                capture_velocity_multiple=perturbation_capture_velocity_multiple,
+                duration_s=perturbation_duration,
+                keyframe_id=int(getattr(self, "_reset_keyframe_id", 0)),
+            )
+            self._push_root_body = int(self._push_params["root_body_id"])
+            self._push_force_n = float(self._push_params["force_n"])
 
         # Define action space (normalized to [-1, 1])
         self.action_space = gym.spaces.Box(
@@ -960,6 +1010,22 @@ class BaseDinoEnv(gym.Env, ABC):
             raise AttributeError(f"{type(self).__name__} has no attribute '{name}'")
         setattr(self, name, value)
 
+    def perturbation_manifest(self) -> "dict[str, float | str] | None":
+        """Per-species derived push parameters, for run provenance.
+
+        ``None`` while perturbation is off.  The same dimensionless multiple
+        produces different absolute newtons on different plants, so the
+        derived force/impulse and their inputs must be persisted with every
+        pushed run (STAGE1_SPLIT_PLAN §3.3).
+        """
+        if self.perturbation_capture_velocity_multiple <= 0.0:
+            return None
+        manifest: dict[str, float | str] = dict(self._push_params)
+        manifest["interval_s"] = self.perturbation_interval
+        manifest["jitter_s"] = self.perturbation_jitter
+        manifest["direction"] = self.perturbation_direction
+        return manifest
+
     def _filter_action(self, action: np.ndarray) -> np.ndarray:
         """Low-pass the commanded action (action_filter_cutoff_hz > 0 only).
 
@@ -987,6 +1053,22 @@ class BaseDinoEnv(gym.Env, ABC):
             # cutoff never reaches the plant, so pricing it would penalise
             # a signal with no physical consequence.
             action = self._filter_action(action)
+        if self._push_schedule_starts is not None:
+            # Scheduled external push (stage recovery).  Written every
+            # control step while enabled: external_push_force returns the
+            # zero vector outside every window, so the force self-clears
+            # and can never persist past its schedule.  The reward and the
+            # observation are deliberately untouched — the push changes the
+            # task, not the interface.
+            from environments.shared.perturbation import external_push_force
+
+            self.data.xfrc_applied[self._push_root_body, 0:3] = external_push_force(
+                self._step_count,
+                self._push_schedule_starts,
+                self._push_schedule_directions,
+                duration_steps=self._push_duration_steps,
+                force_newtons=self._push_force_n,
+            )
         # Scale action from [-1, 1] to actuator control ranges
         ctrl = self._scale_action(action)
         self.data.ctrl[:] = ctrl
@@ -1352,6 +1434,26 @@ class BaseDinoEnv(gym.Env, ABC):
         self._step_count = 0
         self._prev_pos_2d = self.data.qpos[0:2].copy()
         self._distance_traveled = 0.0
+
+        if self.perturbation_capture_velocity_multiple > 0.0:
+            # New episode, new push schedule.  The seed draw is APPENDED to
+            # the reset's existing draw sequence, so the joint/height/target
+            # draws above are bit-identical to a perturbation-free reset of
+            # the same seed; and mj_resetData above already zeroed
+            # xfrc_applied, so no pulse survives a reset — cleared again
+            # explicitly to keep the invariant local.  Pairing rests on
+            # this line: reset(seed=S) yields the same schedule for the
+            # policy and for every null controller, on either backend.
+            from environments.shared.perturbation import push_schedule
+
+            self.data.xfrc_applied[:] = 0.0
+            schedule_seed = np.uint32(self.np_random.integers(0, 2**32, dtype=np.uint64))
+            self._push_schedule_starts, self._push_schedule_directions = push_schedule(
+                schedule_seed,
+                max_pushes=self._push_max,
+                interval_steps=self._push_interval_steps,
+                jitter_steps=self._push_jitter_steps,
+            )
 
         obs = self._get_obs()
         info = {"step": 0}

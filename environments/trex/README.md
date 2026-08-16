@@ -39,6 +39,13 @@ python -m pytest environments/trex/tests/ -v
 # Train stage 1 using its current TOML-configured budget
 python environments/trex/scripts/train_sb3.py train --stage 1
 
+# Train the recovery stage (stage 1b): the stance task plus scheduled
+# 165.5 N / 0.20 s external pushes derived from the plant itself
+# (configs/trex/recovery.toml). Warm-start from a certified stance
+# checkpoint; runs as a non-advancing pilot until the recovery gate's
+# thresholds are calibrated and frozen by the gate resolver.
+python environments/trex/scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
+
 # View the model (requires display)
 python environments/trex/scripts/view_model.py
 ```

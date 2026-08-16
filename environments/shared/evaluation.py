@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import Any, Mapping
 
-if TYPE_CHECKING:
-    from .plant_contract import PlantIdentity
+from .plant_contract import PlantIdentity
+from .stage_manifest import stage_label
 
 logger = logging.getLogger(__name__)
 
@@ -228,7 +228,7 @@ def record_stage_video(
     try:
         import mediapy
     except ImportError:
-        logger.warning("Skipping video for stage %d (mediapy not installed).", stage)
+        logger.warning("Skipping video for stage %s (mediapy not installed).", stage)
         return
 
     from .plant_contract import current_plant_identity, validate_environment_plant, validate_model_plant
@@ -322,7 +322,7 @@ def record_stage_video(
     suffix = f"_{label}" if label else ""
     destination = Path(output_dir) if output_dir is not None else Path(stage_dir)
     destination.mkdir(parents=True, exist_ok=True)
-    video_path = str(destination / f"{species}_{algorithm.lower()}_stage{stage}{suffix}.mp4")
+    video_path = str(destination / f"{species}_{algorithm.lower()}_{stage_label(stage)}{suffix}.mp4")
     mediapy.write_video(video_path, frames, fps=50)
     video_stem = Path(video_path).with_suffix("")
     for view_name, view_frames in named_frames.items():
@@ -337,7 +337,7 @@ def record_stage_video(
         stance_path = video_stem.with_name(f"{video_stem.name}_stance").with_suffix(".csv")
         if write_stance_diagnostics_csv(stance_path, stance_rows) is not None:
             logger.info("  Saved stance diagnostics to: %s", stance_path)
-    logger.info("Stage %d video: reward=%.2f | %d frames", stage, episode_reward, len(frames))
+    logger.info("Stage %s video: reward=%.2f | %d frames", stage, episode_reward, len(frames))
     logger.info("  Saved to: %s", video_path)
     return video_path, frames
 
@@ -369,7 +369,7 @@ def evaluate(
             if f"stage{s}" in model_path:
                 stage = s
                 break
-        logger.info("Auto-detected stage %d from filename", stage)
+        logger.info("Auto-detected stage %s from filename", stage)
 
     env_kwargs = stage_configs[stage]["env_kwargs"].copy()
 
@@ -426,7 +426,7 @@ def evaluate(
         raise
 
     logger.info(
-        "Evaluating for %d episodes (stage %d: %s)...",
+        "Evaluating for %d episodes (stage %s: %s)...",
         n_episodes,
         stage,
         stage_configs[stage]["name"],

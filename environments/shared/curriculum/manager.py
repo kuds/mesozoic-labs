@@ -372,7 +372,7 @@ class CurriculumManager:
 
 
 def thresholds_from_configs(
-    configs: dict[int, dict[str, Any]],
+    configs: "dict[int | str, dict[str, Any]]",
     *,
     advancement_enabled: bool = True,
 ) -> dict[int, dict[str, Any]]:
@@ -395,7 +395,15 @@ def thresholds_from_configs(
             or malformed.
     """
     thresholds: dict[int, dict[str, Any]] = {}
+    # The numeric curriculum advances through legacy-numbered stages only.
+    # Semantic-only stages (recovery, which load_all_stages keys by ID) are
+    # deliberately excluded until the manifest-walking curriculum lands with
+    # the recovery gate (plan W4): including one here would validate its
+    # none/v1 placeholder under advancement and correctly-but-prematurely
+    # refuse the whole run.
     for stage, cfg in configs.items():
+        if not isinstance(stage, int):
+            continue
         cur = cfg.get("curriculum_kwargs", {})
         # Fail closed. Silently dropping an unrecognised key here is what let a
         # composite-only gate config produce no thresholds at all, after which

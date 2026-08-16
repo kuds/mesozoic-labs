@@ -187,9 +187,14 @@ class TestLoadAllStages:
     """Test loading all stages for a species."""
 
     @pytest.mark.parametrize("species", SPECIES)
-    def test_returns_three_stages(self, species):
+    def test_returns_every_manifest_stage(self, species):
         stages = load_all_stages(species)
-        assert set(stages.keys()) == {1, 2, 3}
+        # The legacy numbers are present for every species; a species whose
+        # manifest declares semantic-only stages (trex: recovery) carries
+        # them under their IDs without moving the integers.
+        assert {1, 2, 3} <= set(stages.keys())
+        extra = set(stages.keys()) - {1, 2, 3}
+        assert extra == ({"recovery"} if species == "trex" else set())
 
     @pytest.mark.parametrize("species", SPECIES)
     def test_stage1_is_balance(self, species):

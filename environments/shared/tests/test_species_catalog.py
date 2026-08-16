@@ -47,10 +47,11 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     }
 
     assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [6_000_000, 8_000_000, 12_000_000]
-    # Stage 1 is 10M, not the 6M every other species uses: trex 1a is the
+    # Stage 1 is 11M, not the 6M every other species uses: trex 1a is the
     # stance-gated stage, and its 6M budget ran out mid-improvement -- run
-    # 20260802_203215's best evaluation was its last, at 6.0M of 6M.
-    assert [stage["timesteps"] for stage in species["trex"]["stages"]] == [10_000_000, 8_000_000, 8_000_000]
+    # 20260802_203215's best evaluation was its last, at 6.0M of 6M. Raised
+    # 10M -> 11M on main (08a66b3) for the seeded replicate campaign.
+    assert [stage["timesteps"] for stage in species["trex"]["stages"]] == [11_000_000, 8_000_000, 8_000_000]
     assert [stage["timesteps"] for stage in species["brachiosaurus"]["stages"]] == [
         6_000_000,
         16_000_000,
@@ -98,7 +99,13 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # appended, pad + meta summed per leg on both backends; the physics layer
     # fingerprints nsite/nsensor, so new sites move it even though dynamics
     # are unchanged).
-    expected_policy_revisions = {"velociraptor": 8, "trex": 11, "brachiosaurus": 6, "dibothrosuchus": 5}
+    # The perturbation engine (note 11) bumped every policy revision once
+    # more: reset/step learned to derive and apply push schedules, and the
+    # interface hash covers reset's source through home_reset on all four
+    # species. Physics and visual are untouched — no MJCF edit, and with
+    # perturbation off (every stage but recovery) the episode is
+    # bit-identical to the previous plant.
+    expected_policy_revisions = {"velociraptor": 9, "trex": 12, "brachiosaurus": 7, "dibothrosuchus": 6}
     expected_physics_revisions = {"velociraptor": 2, "trex": 7, "brachiosaurus": 4, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")

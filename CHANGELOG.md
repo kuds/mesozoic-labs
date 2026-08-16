@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.6)
+## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.7)
 
 ### Changed
 - **Stage-1 review cleanup, final batch (§2.3)** — the cosmetic and
@@ -277,7 +277,257 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   specified at. The whole sweep costs about what the old single 40-episode
   probe did.
 
+### Fixed
+- **The plant contract now records the perturbation engine** (CI caught
+  what the pre-merge review missed). Every policy-interface fingerprint
+  moved when `BaseDinoEnv.reset`/`step` learned to derive and apply push
+  schedules — the interface hash covers `reset`'s source through
+  `home_reset`, which all four species carry — but the manifest was never
+  regenerated, so `plant-contract`, `test-sb3`, `test-shared`, and
+  `test-jax-cpu` all failed on the same staleness error. Recorded as
+  `plant_versions.toml` note 11 with a policy-interface revision bump for
+  all four species (velociraptor 8→9, trex 11→12, brachiosaurus 6→7,
+  dibothrosuchus 5→6; physics and visual untouched — no MJCF edit), then
+  regenerated the manifest and species catalog. The note pins the
+  compatibility facts: with perturbation off the new code is inert end to
+  end (no extra RNG draw, no force written), so a perturbation-free
+  episode is bit-identical to the previous plant and existing checkpoints
+  remain valid on their own stages. This also retires the "7 pre-existing
+  container failures" claim from the review round: those local
+  `test_stage_layout`/`test_sweep_reporting` failures were this branch's
+  own staleness (a stash bisect could not catch it — the perturbation
+  changes were already committed), and all pass after regeneration.
+- **The recovery stage arms its collapse backstop.** `recovery.toml`
+  configured no collapse floor, so the backstop could resolve only to
+  `inf` and never arm — exactly the silent failure
+  `test_curriculum_early_stopping` exists to prevent, and it correctly
+  refused the new stage. Recovery now mirrors stance's relative pair
+  (`collapse_peak_floor_fraction = 0.45` ×
+  `collapse_peak_floor_reference = 3495.2`) plus the 1M-step arming
+  delay, with a comment recording why the **un-pushed** statue is the
+  right reference for now (it errs in the arming direction; the pushed
+  task's own zero-action baseline is what the P3 null panels measure, and
+  P3 re-derives the pair).
+- **Ten findings from the pre-merge review of the 1b branch**, the four
+  severe ones first: (1) `recovery_quality/v1` was **fail-open** through
+  the shared `evaluate_stage_gate` dispatch — it fell through to the
+  reward-and-length gate, certifying a pushed stage on return alone; it now
+  fails closed with a pointer at the resolver, the only supported verdict
+  path. (2) Horizon-adjacent pushes whose recovery window could not fit
+  were counted as failed shoves, structurally capping panel success below
+  any threshold for every controller; the harness now judges only pushes
+  that were **delivered** (window opened before episode end — undelivered
+  phantom shoves are no longer recorded either) **and judgeable** (push +
+  dwell fits the horizon). (3) The documented recovery warm-start
+  (`--load` a stance checkpoint) would have hard-failed under
+  `resume_same_stage` once checkpoints carry fingerprints; `train()` and
+  the CLI gain `--load-mode initialize_next_stage`, and the notebook
+  chooses the mode from manifest position. (4) The stage-entry warm-up
+  injected a `forward_vel_weight` ramp (0.1 → 0.0) into the recovery task,
+  whose config zeroes that weight; the ramp is now skipped when the
+  stage's target weight is 0. Also: the notebook now actually computes,
+  persists, attaches, and mode-validates task fingerprints (its recovery
+  cell's lineage claim was previously unbacked); `require_gate_resolution`
+  now verifies the resolution's own integrity hash, so a hand-edited
+  frozen record is detected instead of trusted; twenty `Stage %d` log
+  formats widened to `%s` (string stages raised inside logging on the
+  recovery path); the safe-set docstring now describes the reference the
+  code implements (panel-start height, P3 recalibrates); `--stage
+  locomotion`-style semantic ids for legacy stages resolve through the
+  manifest instead of erroring; and the no-subcommand CLI default path
+  tolerates the absent `--load-mode`.
+
 ### Added
+- **Recovery stage in the notebook, docs, and website**: the training
+  notebook gains an opt-in "5b. Recovery Stage" cell pair —
+  `RUN_RECOVERY_STAGE = False` by default — that warm-starts
+  `train_stage("recovery", ...)` from the Stage 1 checkpoint, generates
+  stage artifacts, and **records** the `none/v1` pilot verdict instead of
+  enforcing a gate (contrast the numbered stage cells, which raise); the
+  run is deliberately excluded from the result bundle until the
+  integer-stage bundle schema migrates. `train_stage` itself is
+  manifest-aware: artifact directories via `stage_label` (semantic runs
+  land in `recovery/`, integers keep `stage{N}/`) and warm-up keyed off
+  manifest position. Two library sites gained label-safe naming so
+  recovery artifacts read `trex_ppo_recovery_*` / `recovery_final` rather
+  than a fabricated number (`evaluation.record_stage_video`,
+  `_record_stage_replays`; integer naming byte-identical). Docs: the
+  README explains the stage manifest and the T-Rex four-stage curriculum
+  with the `--stage recovery` invocation; the trex environment README
+  gains the recovery example; the website's T-Rex page gains a Curriculum
+  section (stance → recovery → locomotion → behavior, what each certifies,
+  and why integers keep their historical meaning) and notes the toes are
+  passive since r7; quick-start wording is species-neutral. The catalog
+  tables / generated species data stay numbered-curriculum until the
+  manifest migration's final part (recorded in the plan's status block).
+- **The pushed-panel harness and the gate resolver (stage 1b, W4 part 2 +
+  W5)** (`environments/shared/recovery_evaluation.py`,
+  `environments/shared/curriculum/gate_resolver.py`): the evaluation
+  machinery that puts real evidence behind `recovery_quality/v1`.
+  `roll_recovery_panel` rolls any controller over the seeded pushed panel,
+  measures the per-step safe set from **physical state** (pelvis height vs
+  the panel-start reference, tilt, planar speed, bilateral foot load —
+  provisional thresholds recorded in every evidence file), reads the push
+  schedule from the environment itself, and writes one row per episode AND
+  one per shove (controller, seed, push vector/timing, recovery step) —
+  the split plan's pair-identity-is-part-of-the-estimand requirement.
+  Pairing is structural and test-pinned: identical seeds produce identical
+  push schedules across controllers with no coordination. Null controllers
+  (zero-action statue, constant brace) ship as plain callables; a
+  push-free environment is refused. The resolver freezes capability spec +
+  null manifest (per-seed outcomes, exact-UCB headline) + decision
+  procedure into an atomic, hashed `gate_resolution.json`; a **missing
+  resolution blocks advancement**, a **stale one** (task-fingerprint
+  mismatch) demands recalibration by name, and
+  `evaluate_recovery_gate_from_resolution` is the only supported path to
+  an advancing recovery verdict — thresholds from the frozen spec, paired
+  differences from the frozen null panel, never a fresh roll. What
+  remains before the first gated recovery run is measurement, not
+  machinery: the P3 calibration panels (real null baselines, safe-set and
+  threshold calibration) and the §8.1 transfer pilot.
+- **The recovery gate statistic: `recovery_quality/v1` (stage 1b, W4
+  part 1)** (`environments/shared/curriculum/recovery_gate.py`, registered
+  fail-closed in the gate schema): certifies **per-shove recovery** —
+  after each scheduled push the body must re-enter the safe set within
+  `recovery_t_recover_steps` and dwell there for `recovery_dwell_steps`
+  (touching the safe set mid-fall is not recovery); an episode succeeds by
+  reaching the horizon AND recovering every push. The gate bounds episode
+  success with an **exact Clopper-Pearson LCB** (scipy-free bisection on
+  the binomial tail — the right shape for a binary event, where the
+  stance gate's Student-t is not), reproducing the split plan's own
+  pinned arithmetic to the digit as regression tests: LCB95(34/40) =
+  0.72526, one-sided 95% upper bound of 0/40 = 7.216%. The paired
+  null-superiority statistic (same seeds, same schedules, t-bounded mean
+  difference — the pairing the schedule PRF exists for) ships as an
+  optional criterion that **fails closed when declared without its null
+  panel** rather than skipping; it becomes authoritative once the
+  resolver (W5) freezes the baselines. All thresholds provisional until
+  P3/P5 calibration; `recovery.toml` keeps `none/v1` until then, its
+  comment now pointing at the waiting kind. Not yet built (W4 part 2,
+  with W5): the evaluation harness that rolls pushed panels, computes the
+  per-step safe mask, runs the null suite, and writes per-shove evidence
+  rows.
+- **Stage identity through the consumers (stage 1b, W3 part 2)**: the
+  single-stage SB3 train path now accepts semantic stage references
+  end-to-end — `--stage recovery` parses at the CLI (digits stay legacy
+  numbers), `load_all_stages` walks the manifest (trex gains a
+  `"recovery"` key in curriculum order; the integer keys and every other
+  species are untouched, test-pinned), artifacts and directories label
+  semantic runs by ID via `stage_label` (`recovery_final.zip` under a
+  `recovery_*` dir — never a fabricated number; legacy integers keep
+  their historical `stage{N}` form everywhere), the task fingerprint
+  records the semantic ID as its stage, and stage-entry warm-up now keys
+  off manifest *position* (identical behavior for integers; correct for
+  `recovery` at position 2). The legacy numeric curriculum deliberately
+  ignores semantic-only stages (`thresholds_from_configs` filters to
+  integer keys) — including recovery there would validate its `none/v1`
+  placeholder under advancement and correctly-but-prematurely refuse the
+  whole run; the manifest-walking curriculum lands with the W4 gate.
+- **The seed-44 run recorded — replication now 2/3** (addendum in
+  `docs/investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md`, KNOWN_ISSUES
+  update 3): run `20260815_205206`, gate **PASS**, the strongest yet —
+  full-horizon 40/40, duty 0.0069 / UCB 0.0117, panel reward 3408.3 ± 88.5
+  (97.5% of the statue), zero non-truncated terminations, same unsaturated
+  stance. The decisive datum: **AC 0.132** — the same quiet post-anneal
+  endpoint as seed 42 (0.135), nowhere near seed 43's stalled 0.329. The
+  2/3 split tracks the noise floor exactly; "what decides the anneal's
+  endpoint" is now stage 1's sharpest open question.
+- **Semantic stage manifest and the recovery stage config (stage 1b, W3
+  part 1)** (`environments/shared/stage_manifest.py`,
+  `configs/trex/stages.toml`, `configs/trex/recovery.toml`): the T-Rex
+  curriculum is now FOUR stages — stance → recovery → locomotion →
+  behavior — identified by stable semantic IDs, not numbers
+  (STAGE1_SPLIT_PLAN §4). The no-silent-renumbering guarantee is
+  load-bearing and test-pinned: **an integer stage reference means the
+  legacy number forever** (`resolve(2)` is locomotion even though
+  locomotion's position is now 3), recovery — having no numeric history —
+  is reachable only by ID, and a manifest that tries to reassign or
+  reorder legacy numbers is rejected at load. Manifest-less species
+  synthesize their legacy three-stage manifest, which is how
+  "recovery for the T-Rex only" is expressed. `load_stage_config` accepts
+  semantic IDs (`load_stage_config("trex", "recovery")`); integer loading
+  is byte-for-byte untouched. The recovery config is stage 1's `[env]`
+  verbatim plus exactly the five `perturbation_*` keys at the adopted
+  §3.3 values (165.5 N derived on r7), with a freshness test pinning the
+  mirror so stage-1 shaping changes cannot silently strand it; its gate
+  is `none/v1` — the schema's own non-advancing-pilot rule refuses to
+  advance through it, fail-closed, until `recovery_quality/v1` (W4) and
+  the frozen null baselines (W5) exist. Not yet migrated (W3 part 2):
+  the curriculum loop, CLIs, and sweep still iterate legacy integers;
+  artifacts do not yet carry stage IDs.
+- **Task/evaluation fingerprint and checkpoint load modes (stage 1b, W2)**
+  (`environments/shared/task_fingerprint.py`): closes the provenance gap
+  STAGE1_SPLIT_PLAN §3.2 names — a `step()`-level task change like the
+  scheduled pushes moves no `policy_interface_revision`, so checkpoints
+  stay mechanically loadable while being unvalidated for the new task. The
+  fingerprint hashes the task-defining configuration (species, stage,
+  backend, plant physics/interface hashes, the full `[env]` kwargs, and
+  the perturbation block with its per-species **derived** newtons plus the
+  schedule-PRF implementation name). Every SB3 stage now writes
+  `task_fingerprint.json` beside `plant_identity.json`, embeds it in
+  `stage_config.json`, uploads it to GCS, and attaches it to the model so
+  SB3 persists it in the checkpoint ZIP. On load there are exactly two
+  modes: `resume_same_stage` (exact match or a fatal error naming the
+  differing sections — a changed task can never be resumed silently) and
+  `initialize_next_stage` (the curriculum handoff: a boundary crossing is
+  expected once and recorded as a parent/child lineage that travels on
+  the new checkpoint). `train()`'s user `--load` is same-stage; the
+  curriculum loop's only loads are handoffs. Fail-closed core with one
+  dated transition valve: checkpoints minted before 2026-08-15 carry no
+  fingerprint, so the train paths pass `allow_unfingerprinted=True`
+  (warn, not fail) until fingerprinted checkpoints are the norm —
+  tightening lands with the gate resolver (W5). The JAX training path
+  does not attach fingerprints yet; `derive_stage_task_fingerprint` is
+  backend-tagged and env-free, so wiring it there is mechanical.
+- **Species-generic scheduled pushes, SB3 path (stage 1b, W1)**: every
+  species' environment now accepts five `perturbation_*` parameters,
+  default **off** — with the multiple at 0.0 no schedule exists, no RNG is
+  drawn, and trajectories are byte-identical to the pre-perturbation code
+  (pinned by test). When enabled, `BaseDinoEnv` derives the push force from
+  the plant itself (`environments/shared/perturbation.py`: root-subtree
+  mass, home-keyframe CoM height, floor-contact support hull → capture-point
+  velocity; on the r7 trex, multiple 1.5 over 0.20 s derives to 165.5 N,
+  reproducing STAGE1_SPLIT_PLAN §3.3's ~150 N from first principles),
+  generates a deterministic per-episode schedule from a `lowbias32` hash
+  (bit-identical on NumPy and JAX, so paired policy-vs-null evaluation gets
+  identical pushes from identical seeds), and writes the self-clearing
+  force to `xfrc_applied` at the root each control step. Reward and
+  observation are untouched — the push changes the task, not the interface.
+  `perturbation_manifest()` exposes the derived per-species constants for
+  run provenance.
+- **Scheduled pushes, MJX/JAX path (stage 1b, W1 completion)**: the five
+  `perturbation_*` keys are `MJXEnvConfig` fields (so shared TOMLs flow to
+  both backends), deliberately outside the versioned plant interface — a
+  push changes the task, not what a checkpoint's actions mean; the coming
+  task fingerprint (W2), not the policy interface, distinguishes pushed
+  runs. The step kernel gates at trace time exactly like the r11 action
+  filter: multiple 0.0 bakes the push-free trace with an empty `(0,)`
+  schedule carry, so existing training is untouched. When enabled, the
+  per-episode schedule is carried through `EnvState` (regenerated by the
+  fused auto-reset from a `fold_in` of the reset key, leaving the existing
+  draw sequence intact), and the self-clearing force is written into
+  `xfrc_applied` at the root before the substep loop. Both backends derive
+  from the same host model, so the per-species constants are identical to
+  machine precision (pinned by a cross-backend test); schedule *content*
+  differs across backends only through the seed draw, never through the
+  PRF, which is bit-identical by construction.
+- **The seed-43 replicate postmortem**
+  (`docs/investigations/TREX_STAGE1_SEED43_REPLICATE_2026_08.md`): the first
+  replicate of the certified gate-pass configuration, and a gate **FAIL** —
+  duty 0.0597 / UCB 0.0747, full-horizon 0.925, 0 of 200 panels passing,
+  behind a deceptively healthy 3093 panel reward. The run reproduces the
+  gate-pass trajectory's three acts and converges on the **same stance**
+  (zero saturated actuators, head lowered ~−20°, tail in its settled droop,
+  hip-roll balance), but the act-3 re-descent stalls at a broadband
+  command-noise floor (AC 0.329 at the estimator's white-noise saturation,
+  concentrated on the hip rolls) instead of quieting to seed 42's 0.135.
+  Statue controls read 3493.8/3497.1 against the configured 3495.2, so the
+  rails are fresh and the deficit is real. **n = 2 on the identical config:
+  1 pass / 1 fail — seed-sensitive**, which resolves the "solved or lucky"
+  question ("neither") and strengthens the stage-1b rationale: robustness by
+  lucky seed is now measured. The config's ~4M prediction failed on the duty
+  axis (0.345 vs < 0.28 predicted); the `algo_std` half remains checkable in
+  the run's `diagnostics.npz`.
 - **Stage 1b implementation plan**
   (`docs/STAGE1B_IMPLEMENTATION_PLAN.md`): maps the unbuilt recovery half of
   `docs/STAGE1_SPLIT_PLAN.md` onto the tree as it stands after the first
