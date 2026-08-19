@@ -53,6 +53,13 @@ MODEL_TASK_ATTRIBUTE = "mesozoic_task_fingerprint"
 #: Warm-start lineage record, persisted the same way on the CHILD checkpoint.
 MODEL_TASK_LINEAGE_ATTRIBUTE = "mesozoic_task_lineage"
 
+#: Plant identities record model_path REPO-RELATIVE (the identity must not
+#: depend on where a checkout lives), so resolving it against the process
+#: cwd only works when that happens to be the repository root — true in the
+#: test suite, false in Colab, whose notebook adds the clone to sys.path
+#: without chdir-ing into it.
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+
 LOAD_MODES = ("resume_same_stage", "initialize_next_stage")
 
 _MISSING = object()
@@ -254,7 +261,16 @@ def derive_stage_task_fingerprint(
 
         from .perturbation import derive_push_parameters
 
-        model = mujoco.MjModel.from_xml_path(str(plant_identity["model_path"]))
+        model_path = Path(str(plant_identity["model_path"]))
+        if not model_path.is_absolute():
+            model_path = _REPOSITORY_ROOT / model_path
+        if not model_path.exists():
+            raise TaskFingerprintError(
+                f"pushed task fingerprint cannot find the plant model at {model_path} "
+                f"(identity records {plant_identity['model_path']!r}); the recorded path "
+                "must be repository-relative or absolute"
+            )
+        model = mujoco.MjModel.from_xml_path(str(model_path))
         params = derive_push_parameters(
             model,
             capture_velocity_multiple=multiple,
