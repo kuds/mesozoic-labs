@@ -278,6 +278,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Fixed
+- **The recovery stage can now start from Colab** (found by three field
+  runs, each dying silently at the stance/recovery boundary). Plant
+  identities record `model_path` repository-relative, and
+  `derive_stage_task_fingerprint` passed it straight to
+  `mujoco.MjModel.from_xml_path`, which resolves against the process cwd —
+  correct in the test suite (cwd = repo root), fatal in Colab, whose
+  notebook adds the clone to `sys.path` without chdir-ing into it. The
+  first pushed-stage fingerprint therefore raised `ParseXML` before the
+  stage directory existed, halting run-all with nothing in Drive to show
+  why; push-free stages never load the model, which is exactly why three
+  full stance runs sailed through the same code. The path now resolves
+  against the repository root (absolute paths pass through), a missing
+  model raises a `TaskFingerprintError` that names both paths, and a
+  regression test pins that the fingerprint is cwd-independent.
 - **The plant contract now records the perturbation engine** (CI caught
   what the pre-merge review missed). Every policy-interface fingerprint
   moved when `BaseDinoEnv.reset`/`step` learned to derive and apply push

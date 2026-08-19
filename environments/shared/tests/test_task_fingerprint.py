@@ -188,6 +188,38 @@ class TestDeriveStageFingerprint:
                 plant_identity={"physics_sha256": "sha256:aaaa"},
             )
 
+    def test_pushed_stage_resolves_model_path_from_any_cwd(self, tmp_path, monkeypatch):
+        """The identity's repo-relative model_path must not depend on cwd.
+
+        Regression: Colab adds the clone to sys.path without chdir-ing into
+        it, so the first pushed-stage fingerprint (the notebook's recovery
+        cell) crashed on ParseXML before the stage directory existed —
+        run-all halted at the stance/recovery boundary with no artifact to
+        show why, twice.
+        """
+        pytest.importorskip("mujoco")
+        kwargs = dict(
+            species="trex",
+            stage="recovery",
+            backend="stable-baselines3",
+            env_kwargs={**_ENV, "perturbation_capture_velocity_multiple": 1.5},
+            plant_identity=_PLANT,
+        )
+        at_root = derive_stage_task_fingerprint(**kwargs)
+        monkeypatch.chdir(tmp_path)
+        elsewhere = derive_stage_task_fingerprint(**kwargs)
+        assert elsewhere["task_sha256"] == at_root["task_sha256"]
+
+    def test_pushed_stage_names_a_missing_model_clearly(self):
+        with pytest.raises(TaskFingerprintError, match="cannot find the plant model"):
+            derive_stage_task_fingerprint(
+                species="trex",
+                stage="recovery",
+                backend="stable-baselines3",
+                env_kwargs={"perturbation_capture_velocity_multiple": 1.5},
+                plant_identity={"model_path": "environments/trex/assets/no_such_model.xml"},
+            )
+
 
 class TestStageConfigWiring:
     def test_save_stage_config_writes_the_sidecar(self, tmp_path):
