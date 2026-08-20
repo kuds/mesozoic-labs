@@ -186,6 +186,30 @@ class TestEvalPolicyQuality:
         assert "eval_mean_r_foot_load_share" not in result
 
 
+class TestReplaySeed:
+    """The replay-env seed must work for integer AND semantic stage refs."""
+
+    def test_integer_stages_keep_the_historical_arithmetic(self):
+        from environments.shared.evaluation import replay_seed
+
+        # Bit-for-bit the old seed + 2000 + stage, so every recorded
+        # integer-stage replay stays reproducible.
+        assert replay_seed(42, 1) == 2043
+        assert replay_seed(42, 3) == 2045
+
+    def test_semantic_stages_get_a_stable_offset(self):
+        """Regression: seed + 2000 + "recovery" raised TypeError inside the
+        best-effort replay recorder, silently costing the recovery stage
+        both its replays in the field."""
+        from environments.shared.evaluation import replay_seed
+
+        first = replay_seed(42, "recovery")
+        assert isinstance(first, int)
+        assert first == replay_seed(42, "recovery")  # deterministic
+        assert first >= 2042  # decorrelated band, like the integer stages
+        assert replay_seed(42, "recovery") != replay_seed(42, "some_other_stage")
+
+
 class TestRecordStageVideo:
     """Test record_stage_video with mocked dependencies."""
 

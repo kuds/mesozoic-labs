@@ -955,7 +955,10 @@ def _record_stage_replays(
 
         final_path = model_dir / f"{stage_label(stage)}_final"
         final_vecnorm_path = str(final_path) + "_vecnorm.pkl"
-        replay_diagnostics = species.lower() == "trex" and stage == 1
+        # Recovery is stance plus scheduled pushes, so its replays carry the
+        # same side/front camera views and per-frame stance CSV — the side
+        # view is where a shove and the response are actually visible.
+        replay_diagnostics = species.lower() == "trex" and stage in (1, "recovery")
         replay_camera_views = TREX_STAGE1_CAMERA_VIEWS if replay_diagnostics else None
 
         # The SELECTED checkpoint, via the same selector that decides the

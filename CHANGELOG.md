@@ -278,6 +278,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Fixed
+- **The recovery stage records its replay videos.** `record_stage_video`
+  seeded the replay environment with `seed + 2000 + stage` — integer
+  arithmetic that raises `TypeError` for a semantic stage id, inside the
+  replay recorder's best-effort try/except, so the first field recovery run
+  produced figures but silently no `replays/`. Replay seeding now goes
+  through `replay_seed()`: integer stages keep the historical arithmetic
+  bit-for-bit, semantic ids map to a stable crc32 offset (not `hash()`,
+  which varies per process), and tests pin both. Recovery replays also
+  carry the stance side/front camera views and per-frame stance CSV — the
+  same task plus pushes, and the side view is where a shove is visible.
 - **The recovery stage can now start from Colab** (found by three field
   runs, each dying silently at the stance/recovery boundary). Plant
   identities record `model_path` repository-relative, and

@@ -7,11 +7,29 @@ evaluation loop, video recorder, and human-readable result logger.
 from __future__ import annotations
 
 import logging
+import zlib
 from pathlib import Path
 from typing import Any, Mapping
 
 from .plant_contract import PlantIdentity
 from .stage_manifest import stage_label
+
+
+def replay_seed(seed: int, stage: "int | str") -> int:
+    """Deterministic replay-env seed, decorrelated from training/eval seeds.
+
+    Integer stages keep the historical ``seed + 2000 + stage`` arithmetic so
+    every existing replay stays reproducible. A semantic stage id maps to a
+    stable small offset via crc32 — NOT ``hash()``, which varies per process
+    — so the same stage replays the same episode on every run. Regression:
+    the ``int + str`` form raised ``TypeError`` inside the best-effort
+    replay recorder, which silently cost the recovery stage both its
+    replays in the field.
+    """
+    if isinstance(stage, int):
+        return seed + 2000 + stage
+    return seed + 2000 + (zlib.crc32(stage.encode("utf-8")) % 1000)
+
 
 logger = logging.getLogger(__name__)
 
@@ -275,7 +293,7 @@ def record_stage_video(
         vec_normalize.training = False
         vec_normalize.norm_reward = False
 
-    obs, _ = render_env.reset(seed=seed + 2000 + stage)
+    obs, _ = render_env.reset(seed=replay_seed(seed, stage))
     frames = []
     named_frames: dict[str, list[Any]] = {name: [] for name in (camera_views or {})}
     stance_rows: list[dict[str, float]] = []
