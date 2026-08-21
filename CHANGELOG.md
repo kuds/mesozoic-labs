@@ -277,6 +277,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   specified at. The whole sweep costs about what the old single 40-episode
   probe did.
 
+### Fixed
+- **Six readers the NN_id layout would have broken, found by the pre-PR
+  adversarial review and each reproduced by execution before fixing.**
+  The worst: the complete-bundle audit hardcoded its nine required
+  `stage{N}/...` paths, so a full curriculum run in the new layout passed
+  every save-side check, wrote a `status="complete"` manifest, then
+  failed its own final validation as canonical-conflict — permanently
+  wedged, since retries die in preflight against the complete status.
+  Required paths now resolve to the run's actual directory names. Also:
+  `sweep collect-results` discovered stages only by the `stage` name
+  prefix (new runs collected zero rows — the legacy number now comes from
+  the id suffix, never the position digits); `evaluate()`'s stage
+  auto-detect silently fell back to stage 1 for NN_id paths (extracted as
+  `detect_stage_from_path`, id-aware, recovery passes through as itself);
+  `save_jax_stage_artifacts` accepted NN_id directory names its own
+  prior-stage `stage*/` globs could not see; the Drive-summary notebook's
+  collector walked only `stage{N}` dirs; and the GCS sync iterated stages
+  1–3 by number, which would have silently never uploaded recovery's
+  replays — it now mirrors every stage directory the run actually wrote,
+  in any generation. Regression tests pin each fix.
+
 ### Changed
 - **Run directories now name their stages `NN_id`** — `01_stance`,
   `02_recovery`, `03_locomotion`, `04_behavior` — so a run's folders sort

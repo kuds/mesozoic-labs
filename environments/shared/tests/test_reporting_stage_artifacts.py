@@ -612,3 +612,17 @@ class TestStageSummaryRecordsTheVerdict:
 
         source = inspect.getsource(stage_artifacts.generate_stage_artifacts)
         assert source.index("_apply_stage_gate(") < source.index("write_stage_summary(")
+
+
+class TestStageResultDiscoveryAcrossLayouts:
+    """The prior-stage scans must see the same names the save accepts."""
+
+    def test_iter_finds_records_in_both_generations(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _iter_stage_result_paths
+
+        (tmp_path / "stage1").mkdir()
+        (tmp_path / "stage1" / "stage_result.json").write_text("{}")
+        (tmp_path / "02_locomotion").mkdir()
+        (tmp_path / "02_locomotion" / "stage_result.json").write_text("{}")
+        found = sorted(path.parent.name for path in _iter_stage_result_paths(tmp_path))
+        assert found == ["02_locomotion", "stage1"]

@@ -1046,6 +1046,21 @@ def _record_stage_replays(
     return stage_results
 
 
+def _iter_stage_result_paths(run_dir):
+    """Prior-stage records in either directory generation, sorted stably.
+
+    ``stage{N}`` historically, ``NN_id`` from 2026-08-20 — the widened
+    naming acceptance in :func:`save_jax_stage_artifacts` is only real if
+    the prior-stage scans see the same names it accepts.
+    """
+    seen = set()
+    for pattern in ("stage*/stage_result.json", "[0-9][0-9]_*/stage_result.json"):
+        for path in run_dir.glob(pattern):
+            if path not in seen:
+                seen.add(path)
+                yield path
+
+
 def save_jax_stage_artifacts(
     species: str,
     stage: int,
@@ -1156,13 +1171,21 @@ def save_jax_stage_artifacts(
             raise ResultBundleError("completed result bundle is immutable; use a new run_id to rewrite a stage")
 
     existing_stages: set[int] = set()
-    for existing_result_path in sorted(run_dir.glob("stage*/stage_result.json")):
+    for existing_result_path in sorted(_iter_stage_result_paths(run_dir)):
         try:
             saved_result = _json.loads(existing_result_path.read_text(encoding="utf-8"))
             saved_stage = int(saved_result["stage"])
         except (OSError, _json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
             raise ResultBundleError(f"cannot read prior JAX stage record {existing_result_path}") from exc
-        if existing_result_path.parent.name != f"stage{saved_stage}" or saved_stage not in {1, 2, 3}:
+        parent_name = existing_result_path.parent.name
+        _saved_id = LEGACY_STAGE_IDS.get(saved_stage, "")
+        parent_matches = parent_name == f"stage{saved_stage}" or (
+            len(parent_name) > 3
+            and parent_name[:2].isdigit()
+            and parent_name[2] == "_"
+            and parent_name[3:] == _saved_id
+        )
+        if not parent_matches or saved_stage not in {1, 2, 3}:
             raise ResultBundleError(f"mislabeled prior JAX stage record: {existing_result_path}")
         if saved_stage in existing_stages:
             raise ResultBundleError(f"duplicate prior JAX stage record for stage {saved_stage}")
@@ -1405,7 +1428,7 @@ def save_jax_stage_artifacts(
 
     accumulated_results: list[dict[str, Any]] = []
     accumulated_configs: dict[int, dict[str, Any]] = {}
-    for existing_result_path in sorted(run_dir.glob("stage*/stage_result.json")):
+    for existing_result_path in sorted(_iter_stage_result_paths(run_dir)):
         saved_result = _json.loads(existing_result_path.read_text())
         saved_stage = int(saved_result["stage"])
         accumulated_results.append(saved_result)

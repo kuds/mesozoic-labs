@@ -619,3 +619,34 @@ class TestCollectResultsFromDiskGCS:
 
         assert len(created_tmpdirs) == 1
         assert not Path(created_tmpdirs[0]).exists()
+
+
+class TestPositionPrefixedStageDirs:
+    """collect-results must see NN_id stage dirs (run layout of 2026-08-20)."""
+
+    def test_curriculum_layout_collects_from_nn_id_dirs(self, tmp_path):
+        import json
+
+        from environments.shared.scripts.sweep.results import collect_results_from_disk
+
+        for name, stage in (("01_stance", 1), ("03_locomotion", 2)):
+            stage_dir = tmp_path / name
+            stage_dir.mkdir()
+            (stage_dir / "metrics.json").write_text(json.dumps({"mean_reward": 10.0 * stage}))
+            (stage_dir / "stage_config.json").write_text(json.dumps({"curriculum": {"timesteps": 1000}}))
+        rows = collect_results_from_disk(tmp_path)
+        # The legacy number comes from the id suffix, never the digits:
+        # 03_locomotion is legacy stage 2 at manifest position 3.
+        assert sorted(row["stage"] for row in rows) == [1, 2]
+
+    def test_stage_filter_applies_to_nn_id_dirs(self, tmp_path):
+        import json
+
+        from environments.shared.scripts.sweep.results import collect_results_from_disk
+
+        for name in ("01_stance", "03_locomotion"):
+            stage_dir = tmp_path / name
+            stage_dir.mkdir()
+            (stage_dir / "metrics.json").write_text(json.dumps({"mean_reward": 1.0}))
+        rows = collect_results_from_disk(tmp_path, stages=[2])
+        assert [row["stage"] for row in rows] == [2]

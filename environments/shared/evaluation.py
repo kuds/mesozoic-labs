@@ -360,13 +360,35 @@ def record_stage_video(
     return video_path, frames
 
 
+def detect_stage_from_path(model_path: str) -> "int | str":
+    """Infer the stage a checkpoint belongs to from its path, any layout.
+
+    Historical run layouts carry a ``stage{N}`` token; the NN_id layout
+    (2026-08-20) names directories by manifest position + id, so the id
+    decides — mapped to its legacy number when it has one, passed through
+    as the semantic id (``"recovery"``) when it does not. Falls back to
+    stage 1, matching the historical default.
+    """
+    from .stage_manifest import KNOWN_STAGE_IDS, LEGACY_STAGE_IDS
+
+    for s in (1, 2, 3):
+        if f"stage{s}" in model_path:
+            return s
+    id_to_legacy = {stage_id: number for number, stage_id in LEGACY_STAGE_IDS.items()}
+    for part in Path(model_path).parts:
+        candidate = part[3:] if len(part) > 3 and part[:2].isdigit() and part[2] == "_" else part
+        if candidate in KNOWN_STAGE_IDS:
+            return id_to_legacy.get(candidate, candidate)
+    return 1
+
+
 def evaluate(
     species_cfg,
-    stage_configs: dict[int, dict[str, Any]],
+    stage_configs: "dict[int | str, dict[str, Any]]",
     model_path: str,
     n_episodes: int = 30,
     render: bool = True,
-    stage: int | None = None,
+    stage: "int | str | None" = None,
     algorithm: str = "ppo",
     allow_legacy_plant: bool = False,
 ):
@@ -382,11 +404,7 @@ def evaluate(
     logger.info("Loading model from: %s", model_path)
 
     if stage is None:
-        stage = 1
-        for s in [1, 2, 3]:
-            if f"stage{s}" in model_path:
-                stage = s
-                break
+        stage = detect_stage_from_path(model_path)
         logger.info("Auto-detected stage %s from filename", stage)
 
     env_kwargs = stage_configs[stage]["env_kwargs"].copy()

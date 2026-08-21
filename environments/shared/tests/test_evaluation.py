@@ -466,3 +466,31 @@ class TestEvaluateFunction:
 
         legacy_vecnorm.close.assert_called_once()
         mock_sb3["PPO"].load.assert_not_called()
+
+
+class TestDetectStageFromPath:
+    """Stage inference must understand both run-directory generations."""
+
+    def test_legacy_stage_token_wins(self):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        assert detect_stage_from_path("/runs/20260817/stage2/models/best_model.zip") == 2
+
+    def test_nn_id_layout_maps_ids_to_legacy_numbers(self):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        # 03_locomotion is legacy stage 2 at manifest position 3 — the id
+        # decides, never the digits. Regression: this silently fell back
+        # to stage 1 and evaluated against the wrong env.
+        assert detect_stage_from_path("/runs/x/03_locomotion/models/best_model.zip") == 2
+        assert detect_stage_from_path("/runs/x/01_stance/models/best_model.zip") == 1
+
+    def test_semantic_only_stage_passes_through_as_id(self):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        assert detect_stage_from_path("/runs/x/02_recovery/models/recovery_final.zip") == "recovery"
+
+    def test_unrecognized_paths_keep_the_historical_default(self):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        assert detect_stage_from_path("/tmp/some_model.zip") == 1

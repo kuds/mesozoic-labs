@@ -469,14 +469,23 @@ def upload_curriculum_artifacts(
         if run_file.exists():
             _upload_to_gcs(run_file, bucket, f"{gcs_run_prefix}/{name}", project=project, client=client)
 
-    # 2. Upload per-stage artifacts
-    for stage in range(1, 4):
-        from .stage_manifest import find_stage_dir
+    # 2. Upload per-stage artifacts — every stage directory the run wrote,
+    # in either naming generation (stage{N}, bare ids like "recovery", or
+    # the NN_id form new runs use). Iterating the disk instead of a fixed
+    # 1..3 range keeps semantic-only stages (recovery) from silently never
+    # syncing.
+    from .stage_manifest import KNOWN_STAGE_IDS
 
-        stage_dir = find_stage_dir(base_dir, stage)
-        if not stage_dir.is_dir():
+    stage_dir_list = []
+    for child in sorted(base_dir.iterdir()):
+        if not child.is_dir():
             continue
-
+        name = child.name
+        is_legacy = name.startswith("stage") and name[5:].isdigit()
+        is_prefixed = len(name) > 3 and name[:2].isdigit() and name[2] == "_" and name[3:] in KNOWN_STAGE_IDS
+        if is_legacy or is_prefixed or name in KNOWN_STAGE_IDS:
+            stage_dir_list.append(child)
+    for stage_dir in stage_dir_list:
         # Mirror whatever the run actually named the directory.
         gcs_stage_prefix = f"{gcs_run_prefix}/{stage_dir.name}"
 
@@ -523,13 +532,15 @@ def upload_curriculum_artifacts(
         gcs_model_prefix = f"{gcs_stage_prefix}/models"
 
         # best_model.zip + matched vecnorm (from EvalCallback +
-        # SaveVecNormalizeCallback), stage<N>_final.zip + vecnorm.
-        for name in (
-            "best_model.zip",
-            "best_model_vecnorm.pkl",
-            f"stage{stage}_final.zip",
-            f"stage{stage}_final_vecnorm.pkl",
-        ):
-            model_file = stage_model_dir / name
+        # SaveVecNormalizeCallback), plus the stage's final checkpoint pair.
+        # The final files are stage_label-prefixed (stage1_final.zip,
+        # recovery_final.zip, ...), so glob rather than reconstruct the
+        # prefix — it depends on how the stage was invoked.
+        model_files = [stage_model_dir / "best_model.zip", stage_model_dir / "best_model_vecnorm.pkl"]
+        model_files.extend(sorted(stage_model_dir.glob("*_final.zip")))
+        model_files.extend(sorted(stage_model_dir.glob("*_final_vecnorm.pkl")))
+        for model_file in model_files:
             if model_file.exists():
-                _upload_to_gcs(model_file, bucket, f"{gcs_model_prefix}/{name}", project=project, client=client)
+                _upload_to_gcs(
+                    model_file, bucket, f"{gcs_model_prefix}/{model_file.name}", project=project, client=client
+                )
