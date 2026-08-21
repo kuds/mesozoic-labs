@@ -214,3 +214,86 @@ def stage_label(ref: "int | str") -> str:
     if ref not in KNOWN_STAGE_IDS:
         raise StageManifestError(f"unknown stage id {ref!r}; known: {KNOWN_STAGE_IDS}")
     return ref
+
+
+def stage_dirname(species: str, ref: "int | str") -> str:
+    """Stage DIRECTORY name for new run artifacts: ``{position:02d}_{id}``.
+
+    Adopted 2026-08-20 (project decision): stage directories inside a run
+    are named ``01_stance``, ``02_recovery``, ``03_locomotion``,
+    ``04_behavior`` so a run's folders sort in curriculum order and say
+    what they trained. Two rules keep this safe against the
+    no-silent-renumbering invariant:
+
+    * The **id suffix is the key**. Anything that aggregates across runs
+      joins on the id — the numeric prefix is display and provenance,
+      never identity, because a stage's position may move when a future
+      stage is inserted while its id never does.
+    * The prefix records the stage's position **when the run happened** (a
+      run directory is a snapshot); old runs keep their recorded layouts,
+      and readers accept every generation (see
+      ``stage_dir_candidates``). Deliberately NOT ``stage{position}``:
+      ``stage2`` already means locomotion to every pre-manifest artifact,
+      and a ``stage2_recovery`` directory would reintroduce through the
+      filesystem exactly the renumbering hazard the manifest exists to
+      prevent.
+
+    File-level prefixes (checkpoint names, ``*_final`` artifacts, videos)
+    deliberately stay on :func:`stage_label` — they live inside the stage
+    directory, where the position would be redundant.
+    """
+    entry = load_stage_manifest(species).resolve(ref)
+    return f"{entry.position:02d}_{entry.id}"
+
+
+def stage_dir_candidates(species: str, ref: "int | str") -> "tuple[str, ...]":
+    """Every directory name this stage has ever been written under.
+
+    Newest first: the position-prefixed form for runs from 2026-08-20 on,
+    then the :func:`stage_label` form every earlier run used
+    (``stage{N}`` for legacy integers, the bare id for semantic stages).
+    Readers that locate a stage inside an existing run directory should
+    take the first candidate that exists.
+    """
+    entry = load_stage_manifest(species).resolve(ref)
+    labels = [f"{entry.position:02d}_{entry.id}"]
+    if entry.legacy_number is not None:
+        labels.append(f"stage{entry.legacy_number}")
+    labels.append(entry.id)
+    seen: list[str] = []
+    for label in labels:
+        if label not in seen:
+            seen.append(label)
+    return tuple(seen)
+
+
+def find_stage_dir(run_path: "Path | str", stage: "int | str") -> "Path":
+    """Locate a stage's directory inside an existing run, any generation.
+
+    Species-free on purpose — bundle readers often hold only a run path
+    and a stage reference. Tries the layouts in age order: the historical
+    exact name (``stage{N}`` for legacy integers, the bare id for semantic
+    stages), then the position-prefixed ``NN_{id}`` form new runs write
+    (matched by glob, because the position prefix depends on the species'
+    manifest at run time). Returns the first directory that exists; when
+    none does, returns the historical name so callers' missing-file errors
+    keep reading the way they always have.
+    """
+    root = Path(run_path)
+    if isinstance(stage, int) and not isinstance(stage, bool):
+        legacy_name = f"stage{stage}"
+        stage_id = LEGACY_STAGE_IDS.get(stage)
+    elif isinstance(stage, str):
+        legacy_name = stage
+        stage_id = stage
+    else:
+        raise StageManifestError(f"invalid stage reference {stage!r}")
+    exact = root / legacy_name
+    if exact.is_dir():
+        return exact
+    if stage_id is not None:
+        matches = sorted(root.glob(f"[0-9][0-9]_{stage_id}"))
+        for match in matches:
+            if match.is_dir():
+                return match
+    return exact

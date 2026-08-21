@@ -186,6 +186,30 @@ class TestEvalPolicyQuality:
         assert "eval_mean_r_foot_load_share" not in result
 
 
+class TestReplaySeed:
+    """The replay-env seed must work for integer AND semantic stage refs."""
+
+    def test_integer_stages_keep_the_historical_arithmetic(self):
+        from environments.shared.evaluation import replay_seed
+
+        # Bit-for-bit the old seed + 2000 + stage, so every recorded
+        # integer-stage replay stays reproducible.
+        assert replay_seed(42, 1) == 2043
+        assert replay_seed(42, 3) == 2045
+
+    def test_semantic_stages_get_a_stable_offset(self):
+        """Regression: seed + 2000 + "recovery" raised TypeError inside the
+        best-effort replay recorder, silently costing the recovery stage
+        both its replays in the field."""
+        from environments.shared.evaluation import replay_seed
+
+        first = replay_seed(42, "recovery")
+        assert isinstance(first, int)
+        assert first == replay_seed(42, "recovery")  # deterministic
+        assert first >= 2042  # decorrelated band, like the integer stages
+        assert replay_seed(42, "recovery") != replay_seed(42, "some_other_stage")
+
+
 class TestRecordStageVideo:
     """Test record_stage_video with mocked dependencies."""
 
@@ -442,3 +466,31 @@ class TestEvaluateFunction:
 
         legacy_vecnorm.close.assert_called_once()
         mock_sb3["PPO"].load.assert_not_called()
+
+
+class TestDetectStageFromPath:
+    """Stage inference must understand both run-directory generations."""
+
+    def test_legacy_stage_token_wins(self):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        assert detect_stage_from_path("/runs/20260817/stage2/models/best_model.zip") == 2
+
+    def test_nn_id_layout_maps_ids_to_legacy_numbers(self):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        # 03_locomotion is legacy stage 2 at manifest position 3 — the id
+        # decides, never the digits. Regression: this silently fell back
+        # to stage 1 and evaluated against the wrong env.
+        assert detect_stage_from_path("/runs/x/03_locomotion/models/best_model.zip") == 2
+        assert detect_stage_from_path("/runs/x/01_stance/models/best_model.zip") == 1
+
+    def test_semantic_only_stage_passes_through_as_id(self):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        assert detect_stage_from_path("/runs/x/02_recovery/models/recovery_final.zip") == "recovery"
+
+    def test_unrecognized_paths_keep_the_historical_default(self):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        assert detect_stage_from_path("/tmp/some_model.zip") == 1

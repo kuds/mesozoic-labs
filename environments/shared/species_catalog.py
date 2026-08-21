@@ -278,12 +278,13 @@ def _public_plant_contract(
 
 
 def _stage_config_path(species_id: str, stage_number: int) -> Path:
-    matches = sorted((REPOSITORY_ROOT / "configs" / species_id).glob(f"stage{stage_number}_*.toml"))
-    if len(matches) != 1:
-        raise CatalogError(
-            f"expected one stage {stage_number} config for {species_id}, found {[path.name for path in matches]}"
-        )
-    return matches[0]
+    from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
+
+    try:
+        entry = load_stage_manifest(species_id).resolve(stage_number)
+    except StageManifestError as exc:
+        raise CatalogError(f"cannot resolve stage {stage_number} config for {species_id}: {exc}") from exc
+    return REPOSITORY_ROOT / "configs" / species_id / entry.config_file
 
 
 def _public_video_path(relative_path: str) -> str:

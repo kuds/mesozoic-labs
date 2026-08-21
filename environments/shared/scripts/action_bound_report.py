@@ -79,16 +79,6 @@ SPECIES_ENVS = {
     "brachiosaurus": ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv"),
     "dibothrosuchus": ("environments.dibothrosuchus.envs.dibothrosuchus_env", "DibothrosuchusEnv"),
 }
-STAGE_STEMS = {
-    1: "stage1_balance",
-    2: "stage2_locomotion",
-    3: {
-        "trex": "stage3_bite",
-        "velociraptor": "stage3_strike",
-        "brachiosaurus": "stage3_food_reach",
-        "dibothrosuchus": "stage3_snap",
-    },
-}
 # Keys the TOML [env] block carries for the MJX path only, as in
 # zero_action_baseline.py and joint_excursion_report.py.
 JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
@@ -98,10 +88,10 @@ SATURATION_THRESHOLD = 0.99
 
 
 def stage_env_section(species: str, stage: int) -> dict:
-    stem = STAGE_STEMS[stage]
-    if isinstance(stem, dict):
-        stem = stem[species]
-    config_path = Path(_repo_root) / "configs" / species / f"{stem}.toml"
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    entry = load_stage_manifest(species).resolve(stage)
+    config_path = Path(_repo_root) / "configs" / species / entry.config_file
     # Annotated local: tomllib returns Any, and mypy will not carry the
     # declared return type back through a bare return of it.
     section: dict = tomllib.loads(config_path.read_text()).get("env", {})

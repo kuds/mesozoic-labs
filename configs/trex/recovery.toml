@@ -3,7 +3,7 @@
 # decisions of 2026-08-15 (semantic manifest, SB3 first, full resolver
 # before the first training run).
 #
-# DERIVATION BY REFERENCE: the [env] block below is stage1_balance.toml's
+# DERIVATION BY REFERENCE: the [env] block below is stance.toml's
 # [env] verbatim — every value's derivation record lives THERE — plus
 # exactly one delta: the five perturbation_* keys, at the adopted §3.3
 # values. On the r7 plant the multiple derives to 165.5 N over 0.20 s
@@ -77,7 +77,7 @@ perturbation_jitter = 0.5
 perturbation_duration = 0.2
 perturbation_direction = "uniform_horizontal"
 
-# Mirrors stage1_balance.toml's [ppo] as the warm-start default; the
+# Mirrors stance.toml's [ppo] as the warm-start default; the
 # entropy/LR schedule for a 3M warm-started budget is pilot-dependent
 # and will be re-derived with the first calibration run.
 [ppo]
@@ -114,7 +114,7 @@ timesteps = 5_000_000                   # Provisional (§2.4): warm-started from
                                         # Re-derive against the first pilot.
 
 # Collapse backstop (PLANT_VALIDATION §14 item 3): the relative floor pair,
-# mirrored from stage1_balance.toml because the REWARD FUNCTION is that
+# mirrored from stance.toml because the REWARD FUNCTION is that
 # file's verbatim — the fraction re-anchors if stance shaping ever changes,
 # and test_curriculum_early_stopping refuses any committed stage that
 # resolves no finite floor (a backstop that never arms fails silently).
@@ -128,7 +128,7 @@ timesteps = 5_000_000                   # Provisional (§2.4): warm-started from
 # policy's peak clears 0.45 x 3495.2 = 1572.8 with the same margin logic
 # as stance, and the floor arms earlier, never later. P3 re-derives both
 # halves of the pair together with the safe-set thresholds.
-collapse_peak_floor_reference = 3495.2  # Statue standing reward, noise 0.05, 40 episodes (stage1_balance.toml
+collapse_peak_floor_reference = 3495.2  # Statue standing reward, noise 0.05, 40 episodes (stance.toml
                                         # carries the full derivation record and re-measure procedure).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
 statue_constants_physics_revision = 7   # The trex PHYSICS revision the 3495.2 reference was measured on —

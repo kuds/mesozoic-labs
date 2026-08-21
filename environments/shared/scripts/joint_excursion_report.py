@@ -44,16 +44,6 @@ SPECIES_ENVS = {
     "brachiosaurus": ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv"),
     "dibothrosuchus": ("environments.dibothrosuchus.envs.dibothrosuchus_env", "DibothrosuchusEnv"),
 }
-STAGE_STEMS = {
-    1: "stage1_balance",
-    2: "stage2_locomotion",
-    3: {
-        "trex": "stage3_bite",
-        "velociraptor": "stage3_strike",
-        "brachiosaurus": "stage3_food_reach",
-        "dibothrosuchus": "stage3_snap",
-    },
-}
 # Keys the TOML [env] block carries for the MJX path only, as in
 # zero_action_baseline.py.
 JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
@@ -62,10 +52,10 @@ JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
 def build_env(species: str, stage: int):
     module_name, class_name = SPECIES_ENVS[species]
     env_class = getattr(importlib.import_module(module_name), class_name)
-    stem = STAGE_STEMS[stage]
-    if isinstance(stem, dict):
-        stem = stem[species]
-    config_path = Path(_repo_root) / "configs" / species / f"{stem}.toml"
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    entry = load_stage_manifest(species).resolve(stage)
+    config_path = Path(_repo_root) / "configs" / species / entry.config_file
     env_section = tomllib.loads(config_path.read_text()).get("env", {})
     kwargs = {
         key: (tuple(value) if isinstance(value, list) else value)

@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from ..stage_manifest import find_stage_dir
 from . import evidence, hashing
 from .constants import (
     ARTIFACT_MANIFEST_SCHEMA_VERSION,
@@ -175,21 +176,20 @@ def audit_result_bundle(
         if manifest is not None:
             required_paths = {DEFAULT_PROVENANCE_NAME, "collected_results.csv"}
             if manifest_status == "complete":
-                required_paths.update(
-                    {
-                        "summary.json",
-                        "plant_identity.json",
-                        "stage1/stage_config.json",
-                        "stage1/evaluation_final.csv",
-                        "stage1/evaluation_selected.csv",
-                        "stage2/stage_config.json",
-                        "stage2/evaluation_final.csv",
-                        "stage2/evaluation_selected.csv",
-                        "stage3/stage_config.json",
-                        "stage3/evaluation_final.csv",
-                        "stage3/evaluation_selected.csv",
-                    }
-                )
+                required_paths.update({"summary.json", "plant_identity.json"})
+                # Per-stage requirements resolve to whatever the run actually
+                # named its stage directories (stage{N} historically, NN_id
+                # from 2026-08-20 on) — a complete bundle in either layout
+                # must audit, never wedge as canonical-conflict.
+                for stage in (1, 2, 3):
+                    stage_dir_name = find_stage_dir(run_path, stage).name
+                    required_paths.update(
+                        {
+                            f"{stage_dir_name}/stage_config.json",
+                            f"{stage_dir_name}/evaluation_final.csv",
+                            f"{stage_dir_name}/evaluation_selected.csv",
+                        }
+                    )
             missing_declared = sorted(required_paths - declared_paths)
             if missing_declared:
                 errors.append(f"manifest is missing required bundle artifacts: {missing_declared}")
@@ -211,7 +211,7 @@ def audit_result_bundle(
             if not plant_path.is_file():
                 errors.append("complete bundle is missing plant_identity.json")
 
-            config_paths = [run_path / f"stage{stage}" / "stage_config.json" for stage in (1, 2, 3)]
+            config_paths = [find_stage_dir(run_path, stage) / "stage_config.json" for stage in (1, 2, 3)]
             if all(path.is_file() for path in config_paths):
                 actual_config_hash = hashing.aggregate_file_hash(config_paths, root=run_path)
                 if actual_config_hash != provenance.get("config_hash"):

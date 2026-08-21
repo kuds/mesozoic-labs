@@ -110,7 +110,10 @@ def report(species: str, settle_steps: int = 200) -> dict:
     module_name, class_name = SPECIES_ENVS[species]
     env_cls = getattr(importlib.import_module(module_name), class_name)
 
-    config_path = Path(_repo_root) / "configs" / species / "stage1_balance.toml"
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    stance_file = load_stage_manifest(species).resolve(1).config_file
+    config_path = Path(_repo_root) / "configs" / species / stance_file
     env_kwargs = {k: v for k, v in tomllib.loads(config_path.read_text())["env"].items() if k not in JAX_ONLY_ENV_KEYS}
     env_kwargs["reset_noise_scale"] = 0.0
 

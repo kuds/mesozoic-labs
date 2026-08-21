@@ -718,17 +718,30 @@ def _collect_results_local(
         logger.error("Output directory does not exist: %s", output_dir)
         return []
 
-    # Discover stage directories
+    # Discover stage directories — both generations: the historical
+    # stage{N} form and the NN_id form new runs write (2026-08-20). The
+    # NN prefix is the stage's POSITION, not its number, so the legacy
+    # number comes from the id suffix, never from the digits.
+    from environments.shared.stage_manifest import LEGACY_STAGE_IDS
+
+    id_to_legacy = {stage_id: number for number, stage_id in LEGACY_STAGE_IDS.items()}
     stage_dirs: list[tuple[int, Path]] = []
     for child in sorted(output_dir.iterdir()):
-        if child.is_dir() and child.name.startswith("stage"):
+        if not child.is_dir():
+            continue
+        stage_num: int | None = None
+        if child.name.startswith("stage"):
             try:
                 stage_num = int(child.name.replace("stage", "").split("_")[0])
             except ValueError:
-                continue
-            if stages and stage_num not in stages:
-                continue
-            stage_dirs.append((stage_num, child))
+                stage_num = None
+        elif len(child.name) > 3 and child.name[:2].isdigit() and child.name[2] == "_":
+            stage_num = id_to_legacy.get(child.name[3:])
+        if stage_num is None:
+            continue
+        if stages and stage_num not in stages:
+            continue
+        stage_dirs.append((stage_num, child))
 
     if not stage_dirs:
         logger.warning("No stage directories found under %s", output_dir)

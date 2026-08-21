@@ -49,7 +49,10 @@ def foot_forces(info: dict[str, Any]) -> list[float]:
 
 def measure(env_cls: type, species: str, noise: float, seeds: range) -> dict[str, float]:
     """Run the zero-action policy and summarise its stance rather than its return."""
-    with open(CONFIG_ROOT / species / "stage1_balance.toml", "rb") as handle:
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    stance_file = load_stage_manifest(species).resolve(1).config_file
+    with open(CONFIG_ROOT / species / stance_file, "rb") as handle:
         config = dict(tomllib.load(handle)["env"])
     config["reset_noise_scale"] = noise
     env = env_cls(**config)

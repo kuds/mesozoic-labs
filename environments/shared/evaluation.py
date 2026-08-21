@@ -7,11 +7,29 @@ evaluation loop, video recorder, and human-readable result logger.
 from __future__ import annotations
 
 import logging
+import zlib
 from pathlib import Path
 from typing import Any, Mapping
 
 from .plant_contract import PlantIdentity
 from .stage_manifest import stage_label
+
+
+def replay_seed(seed: int, stage: "int | str") -> int:
+    """Deterministic replay-env seed, decorrelated from training/eval seeds.
+
+    Integer stages keep the historical ``seed + 2000 + stage`` arithmetic so
+    every existing replay stays reproducible. A semantic stage id maps to a
+    stable small offset via crc32 — NOT ``hash()``, which varies per process
+    — so the same stage replays the same episode on every run. Regression:
+    the ``int + str`` form raised ``TypeError`` inside the best-effort
+    replay recorder, which silently cost the recovery stage both its
+    replays in the field.
+    """
+    if isinstance(stage, int):
+        return seed + 2000 + stage
+    return seed + 2000 + (zlib.crc32(stage.encode("utf-8")) % 1000)
+
 
 logger = logging.getLogger(__name__)
 
@@ -275,7 +293,7 @@ def record_stage_video(
         vec_normalize.training = False
         vec_normalize.norm_reward = False
 
-    obs, _ = render_env.reset(seed=seed + 2000 + stage)
+    obs, _ = render_env.reset(seed=replay_seed(seed, stage))
     frames = []
     named_frames: dict[str, list[Any]] = {name: [] for name in (camera_views or {})}
     stance_rows: list[dict[str, float]] = []
@@ -342,13 +360,35 @@ def record_stage_video(
     return video_path, frames
 
 
+def detect_stage_from_path(model_path: str) -> "int | str":
+    """Infer the stage a checkpoint belongs to from its path, any layout.
+
+    Historical run layouts carry a ``stage{N}`` token; the NN_id layout
+    (2026-08-20) names directories by manifest position + id, so the id
+    decides — mapped to its legacy number when it has one, passed through
+    as the semantic id (``"recovery"``) when it does not. Falls back to
+    stage 1, matching the historical default.
+    """
+    from .stage_manifest import KNOWN_STAGE_IDS, LEGACY_STAGE_IDS
+
+    for s in (1, 2, 3):
+        if f"stage{s}" in model_path:
+            return s
+    id_to_legacy = {stage_id: number for number, stage_id in LEGACY_STAGE_IDS.items()}
+    for part in Path(model_path).parts:
+        candidate = part[3:] if len(part) > 3 and part[:2].isdigit() and part[2] == "_" else part
+        if candidate in KNOWN_STAGE_IDS:
+            return id_to_legacy.get(candidate, candidate)
+    return 1
+
+
 def evaluate(
     species_cfg,
-    stage_configs: dict[int, dict[str, Any]],
+    stage_configs: "dict[int | str, dict[str, Any]]",
     model_path: str,
     n_episodes: int = 30,
     render: bool = True,
-    stage: int | None = None,
+    stage: "int | str | None" = None,
     algorithm: str = "ppo",
     allow_legacy_plant: bool = False,
 ):
@@ -364,11 +404,7 @@ def evaluate(
     logger.info("Loading model from: %s", model_path)
 
     if stage is None:
-        stage = 1
-        for s in [1, 2, 3]:
-            if f"stage{s}" in model_path:
-                stage = s
-                break
+        stage = detect_stage_from_path(model_path)
         logger.info("Auto-detected stage %s from filename", stage)
 
     env_kwargs = stage_configs[stage]["env_kwargs"].copy()

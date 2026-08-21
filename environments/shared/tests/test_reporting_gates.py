@@ -92,7 +92,7 @@ class TestEvaluateStageGate:
     checklist knew only about reward and length.
     """
 
-    # As shipped in configs/trex/stage1_balance.toml: note there is no
+    # As shipped in configs/trex/stance.toml: note there is no
     # min_avg_episode_length, so a reward-only reading of this block has
     # exactly one criterion, which the statue clears by 68%.
     STANCE_CURRICULUM = {

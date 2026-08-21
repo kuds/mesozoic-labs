@@ -278,6 +278,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Fixed
+- **Six readers the NN_id layout would have broken, found by the pre-PR
+  adversarial review and each reproduced by execution before fixing.**
+  The worst: the complete-bundle audit hardcoded its nine required
+  `stage{N}/...` paths, so a full curriculum run in the new layout passed
+  every save-side check, wrote a `status="complete"` manifest, then
+  failed its own final validation as canonical-conflict — permanently
+  wedged, since retries die in preflight against the complete status.
+  Required paths now resolve to the run's actual directory names. Also:
+  `sweep collect-results` discovered stages only by the `stage` name
+  prefix (new runs collected zero rows — the legacy number now comes from
+  the id suffix, never the position digits); `evaluate()`'s stage
+  auto-detect silently fell back to stage 1 for NN_id paths (extracted as
+  `detect_stage_from_path`, id-aware, recovery passes through as itself);
+  `save_jax_stage_artifacts` accepted NN_id directory names its own
+  prior-stage `stage*/` globs could not see; the Drive-summary notebook's
+  collector walked only `stage{N}` dirs; and the GCS sync iterated stages
+  1–3 by number, which would have silently never uploaded recovery's
+  replays — it now mirrors every stage directory the run actually wrote,
+  in any generation. Regression tests pin each fix.
+
+### Changed
+- **Run directories now name their stages `NN_id`** — `01_stance`,
+  `02_recovery`, `03_locomotion`, `04_behavior` — so a run's folders sort
+  in curriculum order and say what they trained (project decision,
+  2026-08-20). The id suffix is the key and the numeric prefix is
+  provenance: it records the stage's manifest position when the run
+  happened, and it is deliberately NOT `stage{position}` — `stage2`
+  already means locomotion to every pre-manifest artifact, and a
+  `stage2_recovery` folder would smuggle the renumbering hazard back in
+  through the filesystem. `stage_dirname()` is the writer-side authority;
+  readers (bundle validation/evidence/audit, GCS sync) go through
+  `find_stage_dir()`, which accepts every generation — `stage{N}`, bare
+  ids, and the new form — so existing runs keep collecting. File-level
+  prefixes (checkpoints, `*_final`, videos) stay on `stage_label()`.
+- **Trex stage configs are named by stage id**: `stance.toml`,
+  `locomotion.toml`, `behavior.toml` (recovery already was), reversing the
+  earlier keep-historical-names choice — the manifest's `config` fields
+  are the single source of truth, and every resolution path (integer refs
+  included) now goes through the manifest instead of the `stage{N}_*`
+  glob, which survives only inside the synthesizer for manifest-less
+  species. Diagnostic scripts that carried their own filename maps
+  (zero-action/stance-quality baselines, foot-sensor, action-bound,
+  joint-excursion, observation-ablation reports) resolve through the
+  manifest too, so they keep working for every species regardless of
+  naming era. Catalog and historical investigation documents keep their
+  recorded names — history is not rewritten.
+
+### Fixed
+- **The recovery stage records its replay videos.** `record_stage_video`
+  seeded the replay environment with `seed + 2000 + stage` — integer
+  arithmetic that raises `TypeError` for a semantic stage id, inside the
+  replay recorder's best-effort try/except, so the first field recovery run
+  produced figures but silently no `replays/`. Replay seeding now goes
+  through `replay_seed()`: integer stages keep the historical arithmetic
+  bit-for-bit, semantic ids map to a stable crc32 offset (not `hash()`,
+  which varies per process), and tests pin both. Recovery replays also
+  carry the stance side/front camera views and per-frame stance CSV — the
+  same task plus pushes, and the side view is where a shove is visible.
 - **The recovery stage can now start from Colab** (found by three field
   runs, each dying silently at the stance/recovery boundary). Plant
   identities record `model_path` repository-relative, and

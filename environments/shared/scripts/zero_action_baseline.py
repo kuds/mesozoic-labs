@@ -44,16 +44,8 @@ SPECIES_ENVS = {
     "dibothrosuchus": ("environments.dibothrosuchus.envs.dibothrosuchus_env", "DibothrosuchusEnv"),
 }
 
-STAGE_CONFIGS = {
-    1: "stage1_balance",
-    2: "stage2_locomotion",
-    3: {
-        "trex": "stage3_bite",
-        "velociraptor": "stage3_strike",
-        "brachiosaurus": "stage3_food_reach",
-        "dibothrosuchus": "stage3_snap",
-    },
-}
+#: Legacy stage numbers this script accepts; files resolve via the manifest.
+KNOWN_STAGES = frozenset({1, 2, 3})
 
 # Keys the TOML [env] block carries for the MJX path only; the Gymnasium envs
 # do not accept them.  Mirrors the JAX-only note in the stage-1 configs.
@@ -66,10 +58,10 @@ def build_env(species: str, stage: int):
     """Instantiate a species env from its committed stage TOML."""
     module_name, class_name = SPECIES_ENVS[species]
     env_class = getattr(importlib.import_module(module_name), class_name)
-    stem = STAGE_CONFIGS[stage]
-    if isinstance(stem, dict):
-        stem = stem[species]
-    config_path = Path(_repo_root) / "configs" / species / f"{stem}.toml"
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    entry = load_stage_manifest(species).resolve(stage)
+    config_path = Path(_repo_root) / "configs" / species / entry.config_file
     env_section = tomllib.loads(config_path.read_text()).get("env", {})
     kwargs = {
         key: (tuple(value) if isinstance(value, list) else value)
@@ -204,8 +196,8 @@ def main(argv: list[str]) -> None:
         if species not in SPECIES_ENVS:
             raise SystemExit(f"unknown species {species!r}; choose from {sorted(SPECIES_ENVS)}")
         stage = int(stage_text) if stage_text else 1
-        if stage not in STAGE_CONFIGS:
-            raise SystemExit(f"unknown stage {stage}; choose from {sorted(STAGE_CONFIGS)}")
+        if stage not in KNOWN_STAGES:
+            raise SystemExit(f"unknown stage {stage}; choose from {sorted(KNOWN_STAGES)}")
         report(species, stage, args.episodes, args.seed, args.sweep_noise)
 
 

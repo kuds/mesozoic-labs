@@ -100,9 +100,17 @@ def _stage_config(stage: int, algorithm: str) -> dict[str, Any]:
     }
 
 
-def _write_stage_configs(run_dir: Path, stage_configs: dict[int, dict[str, Any]]) -> None:
+def _legacy_stage_dirname(stage: int) -> str:
+    return f"stage{stage}"
+
+
+def _write_stage_configs(
+    run_dir: Path,
+    stage_configs: dict[int, dict[str, Any]],
+    dirname=_legacy_stage_dirname,
+) -> None:
     for stage, config in stage_configs.items():
-        stage_dir = run_dir / f"stage{stage}"
+        stage_dir = run_dir / dirname(stage)
         stage_dir.mkdir(parents=True, exist_ok=True)
         if "jax_kwargs" in config:
             algorithm = "JAX_PPO"
@@ -145,15 +153,16 @@ def _complete_bundle_inputs(
     run_dir: Path,
     *,
     algorithm: str,
+    dirname=_legacy_stage_dirname,
 ) -> tuple[list[dict[str, Any]], dict[int, dict[str, Any]]]:
     stage_configs = {stage: _stage_config(stage, algorithm) for stage in (1, 2, 3)}
-    _write_stage_configs(run_dir, stage_configs)
+    _write_stage_configs(run_dir, stage_configs, dirname=dirname)
     stage_results = []
     for stage in (1, 2, 3):
-        selected_model = run_dir / f"stage{stage}" / "models" / "best_model.pkl"
+        selected_model = run_dir / dirname(stage) / "models" / "best_model.pkl"
         selected_model.parent.mkdir(parents=True, exist_ok=True)
         selected_model.write_bytes(f"selected model stage {stage}".encode())
-        selected_vecnorm = run_dir / f"stage{stage}" / "models" / "best_model_vecnorm.pkl"
+        selected_vecnorm = run_dir / dirname(stage) / "models" / "best_model_vecnorm.pkl"
         selected_vecnorm.write_bytes(f"selected normalization stage {stage}".encode())
         stage_result = _stage_result(stage, model_path=selected_model)
         stage_result["vecnorm_path"] = str(selected_vecnorm)
@@ -163,7 +172,7 @@ def _complete_bundle_inputs(
         final_forward_velocity = 0.25 * stage
         final_distance = 1.5 * stage
         save_evaluation_episodes(
-            run_dir / f"stage{stage}",
+            run_dir / dirname(stage),
             rewards=[
                 final_reward - 2.449489743,
                 final_reward,
@@ -181,7 +190,7 @@ def _complete_bundle_inputs(
             checkpoint_label="final",
         )
         save_evaluation_episodes(
-            run_dir / f"stage{stage}",
+            run_dir / dirname(stage),
             rewards=[float(stage), float(stage + 1), float(stage + 2)],
             lengths=[100, 110, 120],
             forward_velocities=[0.1, 0.2, 0.3],
@@ -198,8 +207,9 @@ def _complete_bundle(
     *,
     algorithm: str,
     backend: str,
+    dirname=_legacy_stage_dirname,
 ) -> tuple[dict[str, Path], list[dict[str, Any]], dict[int, dict[str, Any]]]:
-    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm=algorithm)
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm=algorithm, dirname=dirname)
     paths = save_result_bundle(
         stage_results,
         stage_configs,

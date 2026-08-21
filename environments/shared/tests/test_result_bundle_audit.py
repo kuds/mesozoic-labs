@@ -456,3 +456,26 @@ def test_legacy_drive_directory_is_audited_without_mutation(tmp_path: Path) -> N
     assert any("legacy run has no captured provenance" in warning for warning in report["warnings"])
     after = {path.relative_to(run_dir): path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
     assert after == before
+
+
+def test_complete_bundle_in_position_prefixed_layout_audits_clean(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Runs from 2026-08-20 name stage dirs NN_id, not stage{N}.
+
+    Regression: the complete-manifest required-path set hardcoded
+    stage{N}/... nine ways, so a new-layout bundle passed every save-side
+    check, wrote a status="complete" manifest, then failed its own final
+    validate as canonical-conflict — permanently wedged, since retries
+    die in preflight against the "complete" status. The required paths
+    must resolve to whatever the run actually named its directories.
+    """
+    layout = {1: "01_stance", 2: "02_locomotion", 3: "03_behavior"}
+    run_dir = tmp_path / "sb3" / "ppo"
+    paths, _, _ = _complete_bundle(run_dir, algorithm="PPO", backend="sb3", dirname=lambda stage: layout[stage])
+    # The save's own final validate already passed, or paths would not
+    # exist; auditing again must also be clean, and re-validation must not
+    # report canonical-conflict.
+    assert paths["summary"].is_file()
+    result_bundle.validate_result_bundle(run_dir, require_complete=True)

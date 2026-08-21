@@ -139,7 +139,7 @@ When Vertex AI launches each HPT trial worker, this is what happens end-to-end:
 
 1. **Vertex AI injects hyperparameters** as CLI args (e.g. `--ppo_learning_rate 0.0003 --env_alive_bonus 2.5`).
 2. **`trial.py` converts** HPT-style args to `--override` format (`ppo.learning_rate=0.0003`, `env.alive_bonus=2.5`).
-3. **Stage config is loaded** from `configs/<species>/stage1_balance.toml` with overrides applied.
+3. **Stage config is loaded** from the species' stage manifest — `configs/trex/stance.toml` for trex, the historical `stage1_*.toml` names for species without a declared manifest — with overrides applied.
 4. **Training runs** for the configured timesteps. Every `--eval-freq` steps (default: 10,000), the agent is evaluated and `best_mean_reward` is tracked.
 5. **`cloudml-hypertune` reports** `best_mean_reward` back to Vertex AI when training finishes.
 6. **Vertex AI updates** its Bayesian model and selects hyperparameters for the next trial.
