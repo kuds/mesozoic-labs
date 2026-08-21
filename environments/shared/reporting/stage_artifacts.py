@@ -1132,8 +1132,16 @@ def save_jax_stage_artifacts(
         raise ValueError("stage must be 1, 2, or 3")
     if stage_dir.parent.resolve() != run_dir.resolve():
         raise ValueError("stage_dir must be run_dir/stage<N> for a portable result bundle")
-    if stage_dir.name != f"stage{stage}":
-        raise ValueError(f"stage_dir must be named stage{stage}")
+    from environments.shared.stage_manifest import LEGACY_STAGE_IDS
+
+    _stage_id = LEGACY_STAGE_IDS.get(stage, "")
+    if stage_dir.name != f"stage{stage}" and not (
+        len(stage_dir.name) > 3
+        and stage_dir.name[:2].isdigit()
+        and stage_dir.name[2] == "_"
+        and stage_dir.name[3:] == _stage_id
+    ):
+        raise ValueError(f"stage_dir must be named stage{stage} or NN_{_stage_id}")
     if plant_identity is None:
         plant_identity = current_plant_identity(species)
 

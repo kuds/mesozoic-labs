@@ -146,7 +146,10 @@ class TestRecoveryStageConfig:
     def test_env_mirrors_stance_plus_exactly_the_perturbation_block(self):
         import tomllib
 
-        stance = tomllib.load(open("configs/trex/stage1_balance.toml", "rb"))
+        from environments.shared.stage_manifest import load_stage_manifest
+
+        stance_file = load_stage_manifest("trex").resolve("stance").config_file
+        stance = tomllib.load(open(f"configs/trex/{stance_file}", "rb"))
         recovery = tomllib.load(open("configs/trex/recovery.toml", "rb"))
         perturbation_keys = {key for key in recovery["env"] if key.startswith("perturbation_")}
         assert perturbation_keys == {
@@ -232,3 +235,43 @@ class TestCliStageParsing:
 
         assert _parse_stage_ref("2") == 2
         assert _parse_stage_ref("recovery") == "recovery"
+
+
+class TestStageDirnames:
+    """Run-directory naming (2026-08-20): 01_stance style, readers accept all."""
+
+    def test_dirnames_sort_in_curriculum_order_and_carry_the_id(self):
+        from environments.shared.stage_manifest import stage_dirname
+
+        names = [stage_dirname("trex", ref) for ref in ("stance", "recovery", "locomotion", "behavior")]
+        assert names == ["01_stance", "02_recovery", "03_locomotion", "04_behavior"]
+        assert names == sorted(names)
+
+    def test_integer_refs_keep_their_legacy_meaning(self):
+        from environments.shared.stage_manifest import stage_dirname
+
+        # stage 2 is locomotion FOREVER — at position 3 in the manifest.
+        assert stage_dirname("trex", 2) == "03_locomotion"
+        assert stage_dirname("velociraptor", 2) == "02_locomotion"
+
+    def test_candidates_cover_every_generation_newest_first(self):
+        from environments.shared.stage_manifest import stage_dir_candidates
+
+        assert stage_dir_candidates("trex", 1) == ("01_stance", "stage1", "stance")
+        assert stage_dir_candidates("trex", "recovery") == ("02_recovery", "recovery")
+
+    def test_find_stage_dir_prefers_whatever_exists(self, tmp_path):
+        from environments.shared.stage_manifest import find_stage_dir
+
+        legacy = tmp_path / "legacy_run"
+        (legacy / "stage1").mkdir(parents=True)
+        assert find_stage_dir(legacy, 1).name == "stage1"
+
+        modern = tmp_path / "modern_run"
+        (modern / "01_stance").mkdir(parents=True)
+        (modern / "02_recovery").mkdir()
+        assert find_stage_dir(modern, 1).name == "01_stance"
+        assert find_stage_dir(modern, "recovery").name == "02_recovery"
+
+        # Missing stays legible: the historical name comes back for errors.
+        assert find_stage_dir(modern, 3).name == "stage3"

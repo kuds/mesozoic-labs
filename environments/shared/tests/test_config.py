@@ -10,7 +10,6 @@ import pytest
 from environments.shared.config import (
     _detect_gpu_info,
     _detect_gpu_info_nvidia_smi,
-    _find_stage_file,
     _upload_to_gcs,
     append_stage_result_csv,
     get_git_commit,
@@ -155,7 +154,9 @@ class TestLoadStageConfig:
         )
 
     def test_missing_species_raises(self):
-        with pytest.raises(FileNotFoundError):
+        from environments.shared.stage_manifest import StageManifestError
+
+        with pytest.raises(StageManifestError, match="config directory not found"):
             load_stage_config("stegosaurus", 1)
 
     def test_explicit_config_path(self, tmp_path):
@@ -571,24 +572,27 @@ class TestAppendStageResultCsv:
         assert rows[1]["velocity"] == "1.5"
 
 
-class TestFindStageFile:
-    """Test edge cases in _find_stage_file."""
+class TestStageFileResolution:
+    """Integer stages resolve through the manifest; its synthesizer keeps
+    the old edge-case guarantees for manifest-less species."""
 
-    def test_no_matching_file_raises(self, tmp_path):
+    def test_no_config_files_raises(self, tmp_path):
+        from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
+
         species_dir = tmp_path / "configs" / "unknown_species"
         species_dir.mkdir(parents=True)
-        with patch("environments.shared.config._CONFIGS_DIR", tmp_path / "configs"):
-            with pytest.raises(FileNotFoundError, match="No config file matching"):
-                _find_stage_file("unknown_species", 1)
+        with pytest.raises(StageManifestError, match="no stage config files"):
+            load_stage_manifest("unknown_species", configs_dir=tmp_path / "configs")
 
     def test_multiple_matching_files_raises(self, tmp_path):
+        from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
+
         species_dir = tmp_path / "configs" / "multi"
         species_dir.mkdir(parents=True)
         (species_dir / "stage1_a.toml").write_text("")
         (species_dir / "stage1_b.toml").write_text("")
-        with patch("environments.shared.config._CONFIGS_DIR", tmp_path / "configs"):
-            with pytest.raises(ValueError, match="Multiple config files"):
-                _find_stage_file("multi", 1)
+        with pytest.raises(StageManifestError, match="multiple stage-1 config files"):
+            load_stage_manifest("multi", configs_dir=tmp_path / "configs")
 
 
 class TestUploadToGcs:

@@ -113,7 +113,9 @@ def init_wandb(
     for key, value in config.get("sac_kwargs", {}).items():
         flat_config[f"sac/{key}"] = value
 
-    all_tags = [species, f"stage{stage}"]
+    from .stage_manifest import stage_label
+
+    all_tags = [species, stage_label(stage)]
     if tags:
         all_tags.extend(tags)
 
@@ -560,7 +562,7 @@ def _save_dashboard_config_fallback(stage: "int | str") -> None:
             {"title": "Termination Reasons", "metrics": ["eval/termination/*"], "type": "stacked_area"},
             {"title": "Cost of Transport", "metrics": ["eval/mean_cost_of_transport"], "type": "line"},
         ],
-        "stage1_balance": [
+        "stance": [
             {"title": "Pelvis Height", "metrics": ["reward/pelvis_height"], "type": "line"},
             {
                 "title": "Reward Decomposition",
@@ -568,7 +570,7 @@ def _save_dashboard_config_fallback(stage: "int | str") -> None:
                 "type": "stacked_area",
             },
         ],
-        "stage2_locomotion": [
+        "locomotion": [
             {
                 "title": "Gait Symmetry + Stride Frequency",
                 "metrics": ["eval/mean_gait_symmetry", "eval/mean_stride_frequency"],
@@ -595,4 +597,4 @@ def _save_dashboard_config_fallback(stage: "int | str") -> None:
         ],
     }
     wandb.config.update({"dashboard_panels": panel_config}, allow_val_change=True)
-    logger.info("W&B dashboard panel config saved as run metadata for stage %d", stage)
+    logger.info("W&B dashboard panel config saved as run metadata for stage %s", stage)

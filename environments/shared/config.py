@@ -1,10 +1,10 @@
 """
 Load curriculum stage configurations from TOML files.
 
-Each species has a configs/<species>/ directory with one TOML file per stage:
-    stage1_balance.toml
-    stage2_locomotion.toml
-    stage3_<behavior>.toml
+Each species has a configs/<species>/ directory with one TOML file per stage,
+named as the species' stage manifest declares (trex: stance.toml,
+recovery.toml, locomotion.toml, behavior.toml; manifest-less species keep
+their historical stage{N}_* names, which their synthesized manifest records).
 
 Each TOML file has four tables: [stage], [env], [ppo]/[sac], and [curriculum].
 The [curriculum] table contains per-stage training and advancement settings:
@@ -150,23 +150,9 @@ def _detect_gpu_info_nvidia_smi() -> dict[str, Any]:
 
 _CONFIGS_DIR = _REPO_ROOT / "configs"
 
-# Map stage number -> filename pattern per species (discovered automatically)
-_STAGE_FILE_PREFIX = {1: "stage1_", 2: "stage2_", 3: "stage3_"}
-
-
-def _find_stage_file(species: str, stage: int) -> Path:
-    """Find the TOML config file for a given species and stage."""
-    species_dir = _CONFIGS_DIR / species
-    if not species_dir.is_dir():
-        raise FileNotFoundError(f"Config directory not found: {species_dir}")
-
-    prefix = _STAGE_FILE_PREFIX[stage]
-    matches = list(species_dir.glob(f"{prefix}*.toml"))
-    if not matches:
-        raise FileNotFoundError(f"No config file matching '{prefix}*.toml' in {species_dir}")
-    if len(matches) > 1:
-        raise ValueError(f"Multiple config files matching '{prefix}*.toml' in {species_dir}: {matches}")
-    return matches[0]
+# Integer stage refs resolve through the stage manifest (declared or
+# synthesized) — the old stage{N}_* glob lives on only inside the manifest
+# synthesizer for manifest-less species.
 
 
 def load_stage_config(
@@ -179,7 +165,7 @@ def load_stage_config(
     Args:
         species: Species name (e.g. "velociraptor", "brachiosaurus", "trex").
         stage: Either a legacy stage number (1, 2, or 3 — resolved through
-            the historical ``stage{N}_*`` file prefix, so existing callers
+            the stage manifest's legacy_number mapping, so existing callers
             and artifacts keep their meaning) or a semantic stage ID
             (``"stance"``/``"recovery"``/``"locomotion"``/``"behavior"``,
             resolved through the species' stage manifest).  Stages without
@@ -196,13 +182,16 @@ def load_stage_config(
     """
     if config_path is not None:
         path = Path(config_path)
-    elif isinstance(stage, str):
+    else:
+        # Every stage reference resolves through the manifest: declared
+        # manifests name their config files explicitly (trex's are id-named
+        # as of 2026-08-20 — stance.toml, not stage1_balance.toml), and
+        # synthesized manifests record the historical stage{N}_* filename
+        # they were built from, so manifest-less species are unchanged.
         from .stage_manifest import load_stage_manifest
 
-        entry = load_stage_manifest(species).by_id(stage)
+        entry = load_stage_manifest(species).resolve(stage)
         path = _CONFIGS_DIR / species / entry.config_file
-    else:
-        path = _find_stage_file(species, stage)
 
     with open(path, "rb") as f:
         raw = tomllib.load(f)
@@ -482,11 +471,14 @@ def upload_curriculum_artifacts(
 
     # 2. Upload per-stage artifacts
     for stage in range(1, 4):
-        stage_dir = base_dir / f"stage{stage}"
+        from .stage_manifest import find_stage_dir
+
+        stage_dir = find_stage_dir(base_dir, stage)
         if not stage_dir.is_dir():
             continue
 
-        gcs_stage_prefix = f"{gcs_run_prefix}/stage{stage}"
+        # Mirror whatever the run actually named the directory.
+        gcs_stage_prefix = f"{gcs_run_prefix}/{stage_dir.name}"
 
         # Summaries and analysis sidecars.  metrics.json / stage_config.json
         # are what `sweep collect-results` consumes, so uploading them makes

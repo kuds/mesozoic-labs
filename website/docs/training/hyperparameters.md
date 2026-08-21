@@ -13,16 +13,16 @@ All hyperparameters are defined in TOML config files under `configs/<species>/`.
 ```
 configs/
 ├── velociraptor/
-│   ├── stage1_balance.toml
-│   ├── stage2_locomotion.toml
+│   ├── stance.toml
+│   ├── locomotion.toml
 │   └── stage3_strike.toml
 ├── trex/
-│   ├── stage1_balance.toml
-│   ├── stage2_locomotion.toml
-│   └── stage3_bite.toml
+│   ├── stance.toml
+│   ├── locomotion.toml
+│   └── behavior.toml
 └── brachiosaurus/
-    ├── stage1_balance.toml
-    ├── stage2_locomotion.toml
+    ├── stance.toml
+    ├── locomotion.toml
     └── stage3_food_reach.toml
 ```
 

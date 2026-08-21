@@ -277,6 +277,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   specified at. The whole sweep costs about what the old single 40-episode
   probe did.
 
+### Changed
+- **Run directories now name their stages `NN_id`** — `01_stance`,
+  `02_recovery`, `03_locomotion`, `04_behavior` — so a run's folders sort
+  in curriculum order and say what they trained (project decision,
+  2026-08-20). The id suffix is the key and the numeric prefix is
+  provenance: it records the stage's manifest position when the run
+  happened, and it is deliberately NOT `stage{position}` — `stage2`
+  already means locomotion to every pre-manifest artifact, and a
+  `stage2_recovery` folder would smuggle the renumbering hazard back in
+  through the filesystem. `stage_dirname()` is the writer-side authority;
+  readers (bundle validation/evidence/audit, GCS sync) go through
+  `find_stage_dir()`, which accepts every generation — `stage{N}`, bare
+  ids, and the new form — so existing runs keep collecting. File-level
+  prefixes (checkpoints, `*_final`, videos) stay on `stage_label()`.
+- **Trex stage configs are named by stage id**: `stance.toml`,
+  `locomotion.toml`, `behavior.toml` (recovery already was), reversing the
+  earlier keep-historical-names choice — the manifest's `config` fields
+  are the single source of truth, and every resolution path (integer refs
+  included) now goes through the manifest instead of the `stage{N}_*`
+  glob, which survives only inside the synthesizer for manifest-less
+  species. Diagnostic scripts that carried their own filename maps
+  (zero-action/stance-quality baselines, foot-sensor, action-bound,
+  joint-excursion, observation-ablation reports) resolve through the
+  manifest too, so they keep working for every species regardless of
+  naming era. Catalog and historical investigation documents keep their
+  recorded names — history is not rewritten.
+
 ### Fixed
 - **The recovery stage records its replay videos.** `record_stage_video`
   seeded the replay environment with `seed + 2000 + stage` — integer

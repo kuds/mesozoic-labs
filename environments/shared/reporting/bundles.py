@@ -10,6 +10,7 @@ import json as _json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..stage_manifest import find_stage_dir
 from . import csv_output, summaries
 from .formatting import parse_optional_bool
 
@@ -139,7 +140,7 @@ def save_result_bundle(
     if promotion_ready and not detected_backend_version:
         raise ResultBundleError("complete bundle requires a recorded backend version")
 
-    config_paths = [run_path / f"stage{stage}" / "stage_config.json" for stage in sorted(stage_numbers)]
+    config_paths = [find_stage_dir(run_path, stage) / "stage_config.json" for stage in sorted(stage_numbers)]
     missing_configs = [path for path in config_paths if not path.is_file()]
     if missing_configs:
         raise ResultBundleError(f"result bundle is missing resolved stage configs: {missing_configs}")
@@ -246,7 +247,7 @@ def save_result_bundle(
     if promotion_ready:
         for stage in (1, 2, 3):
             for checkpoint_label in ("selected", "final"):
-                evidence_path = run_path / f"stage{stage}" / f"evaluation_{checkpoint_label}.csv"
+                evidence_path = find_stage_dir(run_path, stage) / f"evaluation_{checkpoint_label}.csv"
                 if not evidence_path.is_file() or evidence_path.stat().st_size == 0:
                     raise ResultBundleError(
                         f"complete bundle is missing {checkpoint_label} evaluation evidence: {evidence_path}"

@@ -693,7 +693,11 @@ def train(
     if output_dir is not None:
         log_path = Path(output_dir)
     elif log_dir is None:
-        log_path = Path(__file__).parent.parent / species / "logs" / species / f"{stage_label(stage)}_{timestamp}"
+        from .stage_manifest import stage_dirname
+
+        log_path = (
+            Path(__file__).parent.parent / species / "logs" / species / f"{stage_dirname(species, stage)}_{timestamp}"
+        )
     else:
         log_path = Path(log_dir)
 
@@ -1212,7 +1216,9 @@ def train_curriculum(
         cur_kwargs = config.get("curriculum_kwargs", {})
         total_timesteps = cur_kwargs.get("timesteps", 500000)
 
-        stage_dir = base_dir / f"stage{stage}"
+        from .stage_manifest import stage_dirname
+
+        stage_dir = base_dir / stage_dirname(species, stage)
         stage_dir.mkdir(exist_ok=True)
         model_dir = stage_dir / "models"
         model_dir.mkdir(exist_ok=True)

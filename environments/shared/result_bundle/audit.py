@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from ..stage_manifest import find_stage_dir
 from . import evidence, hashing
 from .constants import (
     ARTIFACT_MANIFEST_SCHEMA_VERSION,
@@ -211,7 +212,7 @@ def audit_result_bundle(
             if not plant_path.is_file():
                 errors.append("complete bundle is missing plant_identity.json")
 
-            config_paths = [run_path / f"stage{stage}" / "stage_config.json" for stage in (1, 2, 3)]
+            config_paths = [find_stage_dir(run_path, stage) / "stage_config.json" for stage in (1, 2, 3)]
             if all(path.is_file() for path in config_paths):
                 actual_config_hash = hashing.aggregate_file_hash(config_paths, root=run_path)
                 if actual_config_hash != provenance.get("config_hash"):

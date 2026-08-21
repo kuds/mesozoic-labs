@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from ..curriculum.stance_gate import STANCE_GATE_KIND
+from ..stage_manifest import find_stage_dir
 from .errors import ResultBundleError
 
 
@@ -443,7 +444,7 @@ def validate_evaluation_evidence(
         if not isinstance(stage_summary, Mapping):
             raise ResultBundleError(f"summary is missing stage {stage}")
         selected_aggregates = _evaluation_evidence_aggregates(
-            run_path / f"stage{stage}" / "evaluation_selected.csv",
+            find_stage_dir(run_path, stage) / "evaluation_selected.csv",
             checkpoint_label="selected",
             expected_episodes=expected_episodes,
             evaluation_seeds=evaluation_seeds,
@@ -458,7 +459,7 @@ def validate_evaluation_evidence(
             label="selected",
             metric_map=selected_metric_map,
         )
-        config_path = run_path / f"stage{stage}" / "stage_config.json"
+        config_path = find_stage_dir(run_path, stage) / "stage_config.json"
         try:
             config_value = json.loads(config_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
@@ -497,7 +498,7 @@ def validate_evaluation_evidence(
             # same panel. Only this block is stance-specific -- the
             # final-checkpoint evidence below is validated for every stage.
             _validate_stance_panel_evidence(
-                run_path / f"stage{stage}" / "stance_panel_selected.csv",
+                find_stage_dir(run_path, stage) / "stance_panel_selected.csv",
                 curriculum,
                 # `save_stage_config` names the env block `reward_weights`;
                 # `env_kwargs` is the in-memory name the same dict carries.
@@ -531,7 +532,7 @@ def validate_evaluation_evidence(
                         f"evidence={actual:.6g} threshold={threshold:.6g}"
                     )
         final_aggregates = _evaluation_evidence_aggregates(
-            run_path / f"stage{stage}" / "evaluation_final.csv",
+            find_stage_dir(run_path, stage) / "evaluation_final.csv",
             checkpoint_label="final",
             expected_episodes=expected_episodes,
             evaluation_seeds=evaluation_seeds,
