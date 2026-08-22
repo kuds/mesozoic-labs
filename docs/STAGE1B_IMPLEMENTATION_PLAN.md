@@ -178,6 +178,18 @@ result-bundle schema remain integer-stage until the manifest migration's
 final part; the recovery stage is deliberately excluded from bundles and
 generated tables until then.
 
+**Update (2026-08-22): the measurement half has started.** Two recovery
+training runs, the §8.1 transfer pilot, all four certification panels, and
+the P3 safe-set calibration are recorded in
+`docs/investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md`. Headline:
+both nulls score 0/40, the trained policy reaches 21/40 (LCB95 38.5%) under
+the calibrated safe set with a paired +0.30 (LCB +0.15) over its warm-start
+parent, and P3 found that the per-step support criterion fails the
+certification target itself and must be dropped or windowed. P5 remains
+open, and its blocking experiment is the off-distribution schedule test
+(that document, §6.1) — whether the policy learned disturbance rejection or
+the push schedule's timing.
+
 Ordering follows the split plan's steps 8–14 with two updates: step 9's core
 (the stance-gate statistic) already shipped, and everything below is rebased
 onto the r7/r11 tree. Each workstream lands independently and default-off.

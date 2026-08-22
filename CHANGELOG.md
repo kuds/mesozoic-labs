@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.7)
 
+### Added
+- **Recovery stage first-runs and P3 calibration record**
+  (`docs/investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md`). Covers
+  the two recovery training runs (3M and 5M), the three earlier attempts
+  that died at the stance→recovery boundary and why, all four certification
+  panels (statue / brace / stance warm-start / trained policy), the §8.1
+  transfer pilot, and the P3 safe-set derivation. Load-bearing findings:
+  both nulls score 0/40 while the trained policy reaches 21/40 (LCB95
+  38.5%) under the calibrated safe set, paired +0.30 (LCB +0.15) over its
+  own warm-start parent; the brace null dies *faster* than the statue, so
+  the policy's stance is held by feedback rather than by a stable pose; and
+  the provisional per-step support criterion **fails the certification
+  target itself** (quiet certified stance transiently reads 0.0 N on a
+  foot), so it must be dropped or windowed before it can gate. Also records
+  that both training runs peaked at roughly a third of their budget, making
+  the warm-started entropy/LR schedule — not the step budget — the binding
+  constraint, and names the off-distribution schedule test as the
+  experiment that blocks P5.
+
 ### Changed
 - **Stage-1 review cleanup, final batch (§2.3)** — the cosmetic and
   small-code items closing out the 2026-08-15 review's cleanup list:
