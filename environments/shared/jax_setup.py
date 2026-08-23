@@ -349,7 +349,7 @@ def _get_registered_body_ids(species: str) -> dict[str, int]:
 
 def setup_output_dirs(
     species: str,
-    stage: int,
+    stage: int | str,
     storage_root: str | Path = "logs",
     timestamp: str | None = None,
 ) -> dict[str, Path]:
@@ -357,19 +357,26 @@ def setup_output_dirs(
 
     Args:
         species: Species name.
-        stage: Curriculum stage.
+        stage: Curriculum stage reference — legacy integer or semantic id.
         storage_root: Root directory for all logs.
         timestamp: Optional timestamp string (defaults to now).
 
     Returns:
         Dict with keys ``run_dir``, ``stage_dir``, ``model_dir``.
     """
+    from .stage_manifest import stage_dirname
+
     if timestamp is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     root = Path(storage_root)
     run_dir = root / species / "jax" / timestamp
-    stage_dir = run_dir / f"stage{stage}"
+    # NN_id generation (stage_manifest.stage_dirname, adopted 2026-08-20).
+    # A literal f"stage{stage}" here would reintroduce the renumbering
+    # hazard for legacy integers and mint "stagerecovery" for semantic
+    # ids; readers accept both generations (stage_dir_candidates), so
+    # only the writer decides which one new runs get.
+    stage_dir = run_dir / stage_dirname(species, stage)
     model_dir = stage_dir / "models"
     model_dir.mkdir(parents=True, exist_ok=True)
 

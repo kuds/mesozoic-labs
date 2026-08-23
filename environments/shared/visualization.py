@@ -13,14 +13,39 @@ called headless (no display).  The notebook can continue to call
 from __future__ import annotations
 
 import logging
+import zlib
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Type alias for the (stage_num, stage_dir) tuples used throughout.
-StageDirs = Sequence[tuple[int, str | Path]]
+# Type alias for the (stage_ref, stage_dir) tuples used throughout: a stage
+# reference is a legacy number (1-3) or a semantic stage id ("recovery").
+StageDirs = Sequence[tuple[int | str, str | Path]]
+
+
+def _stage_style_index(stage_ref: "int | str", species: "str | None" = None) -> int:
+    """Stable small int for a stage reference, driving color/linestyle picks.
+
+    Integer stages pass through unchanged so stages 1-3 keep their exact
+    historical colors and linestyles.  A semantic id uses its manifest
+    position when the species' manifest resolves it; otherwise a crc32
+    fallback — NOT ``hash()``, which varies per process — keeps the style
+    deterministic across runs.  Regression (F9): ``"recovery" % 10`` raised
+    TypeError inside stage_artifacts' broad try/except, silently costing
+    recovery runs every diagnostics figure.
+    """
+    if isinstance(stage_ref, int):
+        return stage_ref
+    if species is not None:
+        from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
+
+        try:
+            return load_stage_manifest(species).by_id(stage_ref).position
+        except StageManifestError:
+            pass
+    return zlib.crc32(str(stage_ref).encode("utf-8")) % 1000
 
 
 def _safe_legend(ax, **kwargs) -> None:
@@ -55,7 +80,7 @@ def _smooth(values, window: int = 50):
 
 def plot_training_curves(
     stage_dirs: StageDirs,
-    stage_configs: dict[int, dict[str, Any]],
+    stage_configs: dict[int | str, dict[str, Any]],
     species: str,
     algorithm: str,
     save_path: "str | Path | None" = None,
@@ -77,7 +102,7 @@ def plot_training_curves(
         stage_dir = Path(stage_dir)
         eval_log = stage_dir / "evaluations.npz"
         if not eval_log.exists():
-            logger.info("No evaluation log found for stage %d.", stage_num)
+            logger.info("No evaluation log found for stage %s.", stage_num)
             continue
 
         data = np.load(eval_log)
@@ -181,7 +206,7 @@ def plot_training_curves(
 
 def plot_diagnostics_graphs(
     stage_dirs: StageDirs,
-    stage_configs: dict[int, dict[str, Any]],
+    stage_configs: dict[int | str, dict[str, Any]],
     species: str,
     algorithm: str,
     save_dir: "str | Path | None" = None,
@@ -243,7 +268,7 @@ def plot_diagnostics_graphs(
         "reward_idle": ("idle_penalty_weight",),
     }
 
-    def _signal_active(reward_key: str, stage_num: int) -> bool:
+    def _signal_active(reward_key: str, stage_num: "int | str") -> bool:
         """Return True if *reward_key* has a non-zero weight in this stage's config."""
         env_kw = stage_configs.get(stage_num, {}).get("env_kwargs", {})
         weight_keys = _REWARD_KEY_TO_CONFIG_WEIGHTS.get(reward_key, ())
@@ -276,7 +301,8 @@ def plot_diagnostics_graphs(
         ts = diag["timesteps"] if "timesteps" in diag else None
         if ts is None or len(ts) == 0:
             continue
-        color = _reward_colors[stage_num % 10]
+        style_idx = _stage_style_index(stage_num, species)
+        color = _reward_colors[style_idx % 10]
 
         # [0,0] Collect termination breakdown per stage
         _term_keys = [k for k in diag.files if k.startswith("term_") and k != "term_timesteps"]
@@ -301,7 +327,7 @@ def plot_diagnostics_graphs(
                     _smooth(diag[_rkey]),
                     label=f"S{stage_num} {_rkey.replace('reward_', '')}",
                     color=_reward_colors[_ci % len(_reward_colors)],
-                    linestyle=["-", "--", "-."][stage_num % 3],
+                    linestyle=["-", "--", "-."][style_idx % 3],
                 )
 
     # Render termination breakdown as grouped bar chart
@@ -395,7 +421,7 @@ def plot_diagnostics_graphs(
         ts = diag["timesteps"] if "timesteps" in diag else None
         if ts is None or len(ts) == 0:
             continue
-        color = plt.cm.tab10(stage_num % 10)
+        color = plt.cm.tab10(_stage_style_index(stage_num, species) % 10)
 
         # [0,0] Gait Symmetry + Stride Frequency proxy
         if "l_foot_contact" in diag and "r_foot_contact" in diag:
@@ -503,7 +529,7 @@ def plot_diagnostics_graphs(
 
 def plot_foot_contacts(
     stage_dirs: StageDirs,
-    stage_configs: dict[int, dict[str, Any]],
+    stage_configs: dict[int | str, dict[str, Any]],
     species: str,
     algorithm: str,
     save_path: "str | Path | None" = None,
@@ -517,8 +543,8 @@ def plot_foot_contacts(
     signals (Diag-A = FR+RL, Diag-B = FL+RR).
 
     Args:
-        stage_dirs: Sequence of ``(stage_num, stage_dir)`` tuples.
-        stage_configs: Mapping of stage number to config dict.
+        stage_dirs: Sequence of ``(stage_ref, stage_dir)`` tuples.
+        stage_configs: Mapping of stage reference to config dict.
         species: Species name for the figure title.
         algorithm: Algorithm name for the figure title.
         save_path: If provided, save the figure to this path.
@@ -652,7 +678,7 @@ def plot_foot_contacts(
 
 def plot_stance_diagnostics(
     stage_dirs: StageDirs,
-    stage_configs: dict[int, dict[str, Any]],
+    stage_configs: dict[int | str, dict[str, Any]],
     species: str,
     algorithm: str,
     save_path: "str | Path | None" = None,

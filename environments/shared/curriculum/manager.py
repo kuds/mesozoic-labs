@@ -246,8 +246,25 @@ class CurriculumManager:
             passes = False
         elif threshold.gate_kind == STANCE_GATE_KIND:
             passes = self._stance_gate_passes(latest)
-        else:
+        elif threshold.gate_kind == "reward_and_length/v1":
             passes = self._reward_and_length_gate_passes(latest, threshold)
+        else:
+            # A kind with no evaluator here — recovery_quality/v1 is
+            # schema-valid, but its verdict comes only from the gate resolver
+            # (gate_resolver.evaluate_recovery_gate_from_resolution): frozen
+            # thresholds, frozen null pairings. This used to be the
+            # reward_and_length fall-through, so such a stage advanced on
+            # return alone under StageThreshold's permissive defaults
+            # (min_avg_reward = -inf) — the exact fall-through
+            # reporting/gates.py refuses. Fail closed instead.
+            logger.error(
+                "Stage %d declares gate_kind %r, which the in-training curriculum cannot "
+                "evaluate; refusing to advance. Falling through to the reward gate would "
+                "advance the stage on evidence nobody checked.",
+                self._current_stage,
+                threshold.gate_kind,
+            )
+            passes = False
 
         if passes:
             self._consecutive_passes[self._current_stage] += 1

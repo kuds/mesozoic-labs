@@ -164,7 +164,17 @@ class TestRecoveryStageConfig:
         # fails here, with the fix being to re-mirror (and re-derive the
         # recovery rails once the W4 gate exists).
         assert mirrored == stance["env"]
-        assert recovery["ppo"] == stance["ppo"]
+        # [ppo] mirrors stance with exactly one measured delta:
+        # ent_coef_decay_timesteps is anchored to recovery's own 3M budget
+        # (2M, ~2/3 — the same ratio as stance's 7M-of-11M) rather than
+        # mirrored, because the 20260821_142144 pilot trained its whole
+        # budget at ent_coef >= 0.0014 when the mirrored 7M horizon never
+        # completed (2026-08 review §3.4).
+        assert (
+            recovery["ppo"] | {"ent_coef_decay_timesteps": stance["ppo"]["ent_coef_decay_timesteps"]}
+            == stance["ppo"]
+        )
+        assert recovery["ppo"]["ent_coef_decay_timesteps"] == 2_000_000
 
     def test_gate_is_fail_closed_until_w4(self):
         import tomllib

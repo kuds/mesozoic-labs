@@ -69,7 +69,8 @@ def init_wandb(
 
     Args:
         species: Species name (e.g. "velociraptor").
-        stage: Curriculum stage number.
+        stage: Curriculum stage reference — a legacy number, or a semantic
+            stage id ("recovery") for stages without a numeric history.
         config: Full stage config dict (from ``load_stage_config``).
         project: W&B project name.
         tags: Optional list of tags.
@@ -93,7 +94,12 @@ def init_wandb(
         logger.warning("wandb not installed. Skipping W&B initialization.")
         return None
 
-    run_name = f"{species}-stage{stage}"
+    from .stage_manifest import stage_label
+
+    # stage_label keeps integer stages on their historical run name
+    # ("trex-stage1") and names semantic stages by id ("trex-recovery")
+    # instead of minting "trex-stagerecovery" (F13).
+    run_name = f"{species}-{stage_label(stage)}"
 
     # Collect git info
     git_hash = _get_git_hash()
@@ -112,8 +118,6 @@ def init_wandb(
         flat_config[f"ppo/{key}"] = value
     for key, value in config.get("sac_kwargs", {}).items():
         flat_config[f"sac/{key}"] = value
-
-    from .stage_manifest import stage_label
 
     all_tags = [species, stage_label(stage)]
     if tags:
@@ -549,7 +553,7 @@ def create_wandb_dashboard(
             sections=sections,
         )
         workspace.save()
-        logger.info("W&B workspace dashboard created for stage %d", stage)
+        logger.info("W&B workspace dashboard created for stage %s", stage)
     except Exception as e:
         logger.warning("Failed to create W&B workspace: %s. Saving config as fallback.", e)
         _save_dashboard_config_fallback(stage)

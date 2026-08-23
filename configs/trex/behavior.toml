@@ -93,6 +93,16 @@ min_avg_reward = 100.0
 collapse_peak_floor = 100.0    # Explicit: this used to fall back to min_avg_reward, coupling an
                                         # early-stop backstop to an unrelated advancement threshold. Set to
                                         # the value that fallback produced, so behaviour is unchanged.
+min_avg_forward_vel = 2.0               # The sprint/capability target, relocated from the locomotion gate
+                                        # (2026-08 review §5.3 decision (b)). On this plant 2.0 m/s is
+                                        # Froude 0.46-0.57 — the walk-run boundary — which run
+                                        # 20260821_142144's measured velocity curve puts at 7.1M+ steps:
+                                        # defensible as a capability target, unreachable as locomotion's
+                                        # 8M-budget gate (which now gates a 1.0 m/s walk). It gates HERE
+                                        # because the bite task needs closing speed on prey anyway, so the
+                                        # requirement and the stage that trains it coincide. Consumed by
+                                        # reward_and_length/v1 (gate_schema.py lists the key; locomotion's
+                                        # gate used it first).
 min_success_rate = 0.5                # At least 50% bite success — confirms hunting behavior emerged
 required_consecutive = 3
 warmup_timesteps = 100000               # Timesteps to constrain policy updates while critic adapts (PPO only)

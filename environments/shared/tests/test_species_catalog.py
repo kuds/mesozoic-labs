@@ -242,7 +242,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "required_consecutive": 3,
             **stance_null,
         }
-        assert stage_three == {
+        assert stage_three | {"min_avg_forward_velocity": None} == {
             "min_avg_reward": 100.0,
             "min_avg_episode_length": None,
             "min_avg_forward_velocity": None,
@@ -252,9 +252,17 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             **stance_null,
         }
 
+    # Trex stage 2 gates a 1.0 m/s walk, re-derived from the plant (Froude
+    # 0.14-0.16; the copied raptor 2.0 was this plant's walk-run boundary and
+    # passed 0/109 evals on run 20260821_142144 — 2026-08 review §5.3).
     assert species["velociraptor"]["stages"][1]["advancement_gate"]["min_avg_forward_velocity"] == 2.0
-    assert species["trex"]["stages"][1]["advancement_gate"]["min_avg_forward_velocity"] == 2.0
+    assert species["trex"]["stages"][1]["advancement_gate"]["min_avg_forward_velocity"] == 1.0
     assert species["brachiosaurus"]["stages"][1]["advancement_gate"]["min_avg_forward_velocity"] == 0.75
+    # The 2.0 m/s capability target relocated to trex's behavior-stage gate
+    # (review §5.3 decision (b)); no other species gates stage 3 on speed.
+    assert species["trex"]["stages"][2]["advancement_gate"]["min_avg_forward_velocity"] == 2.0
+    for other in ("velociraptor", "brachiosaurus", "dibothrosuchus"):
+        assert species[other]["stages"][2]["advancement_gate"]["min_avg_forward_velocity"] is None
 
 
 def test_catalog_scopes_success_semantics_to_training_backends() -> None:

@@ -23,6 +23,44 @@ from .curriculum.stance_gate import (
 
 _logger = logging.getLogger(__name__)
 
+#: The historical gate kind :func:`check_stage_gate`'s reward-and-length arm
+#: evaluates.  Named so the dispatch and the pre-flight check cannot drift.
+_REWARD_AND_LENGTH_GATE_KIND = "reward_and_length/v1"
+
+#: Gate kinds the in-training JAX path has an evaluator for.  Schema-valid is
+#: NOT sufficient: recovery_quality/v1 validates, but its verdict comes only
+#: from the frozen gate resolver
+#: (curriculum.gate_resolver.evaluate_recovery_gate_from_resolution), so
+#: dispatching it here would either crash on a missing threshold key after the
+#: stage's whole budget or advance the pushed stage on its optional reward
+#: rail alone.
+_EVALUATABLE_GATE_KINDS = frozenset({_REWARD_AND_LENGTH_GATE_KIND, STANCE_GATE_KIND})
+
+
+def _require_evaluable_gate_kind(stage: int | str, gate_kind: str) -> None:
+    """Reject a schema-valid gate kind this module cannot evaluate.
+
+    Args:
+        stage: Stage identifier, used only in the error message.
+        gate_kind: A kind already validated by
+            :func:`~environments.shared.curriculum.gate_schema.validate_gate_config`.
+
+    Raises:
+        GateSchemaError: If no arm of :func:`check_stage_gate` evaluates the
+            kind.  Falling through to the reward gate instead would advance
+            the stage on return alone — the fall-through
+            ``reporting/gates.py`` already refuses for exactly this reason.
+    """
+    if gate_kind not in _EVALUATABLE_GATE_KINDS:
+        raise GateSchemaError(
+            f"stage {stage} declares gate_kind {gate_kind!r}, which the in-training "
+            f"JAX curriculum cannot evaluate; kinds evaluated here: "
+            f"{sorted(_EVALUATABLE_GATE_KINDS)}. Recovery verdicts come only from "
+            "the gate resolver (curriculum.gate_resolver."
+            "evaluate_recovery_gate_from_resolution); falling through to the reward "
+            "gate would advance the stage on return alone."
+        )
+
 #: TOML ``[jax]`` keys mapped to :func:`~environments.shared.jax_training.train_jax`
 #: parameter names.  Module-level so the mapping loop in :func:`run_curriculum`
 #: and :func:`validate_jax_kwargs`'s known-key set cannot drift apart — a key
@@ -167,19 +205,27 @@ def check_stage_gate(
 
     Raises:
         GateSchemaError: If the stage's gate declaration is missing, unknown,
-            or malformed. This used to log a warning and return ``True``, so a
-            stage with no reward threshold advanced unconditionally — the same
+            or malformed — this used to log a warning and return ``True``, so a
+            stage with no reward threshold advanced unconditionally, the same
             fail-open behaviour the SB3 path had, reached by a different route.
+            Also raised for a schema-valid kind no arm below evaluates
+            (recovery_quality/v1 today): the reward arm used to be the
+            fall-through for every non-stance kind, so such a stage either
+            crashed on a missing threshold key after its whole budget or
+            advanced on its optional reward rail alone.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
-    gate_kind = validate_gate_config(stage_config.get("stage", "?"), curriculum, advancement_enabled=True)
+    stage = stage_config.get("stage", "?")
+    gate_kind = validate_gate_config(stage, curriculum, advancement_enabled=True)
+    _require_evaluable_gate_kind(stage, gate_kind)
 
     if gate_kind == STANCE_GATE_KIND:
         return _check_stance_gate(eval_metrics, curriculum)
 
-    # reward_and_length/v1 requires min_avg_reward, so a validated config of
-    # that kind always carries it; a KeyError here would mean the schema and
-    # this branch fell out of sync.
+    # Only reward_and_length/v1 reaches here — _require_evaluable_gate_kind
+    # refused every other non-stance kind. It requires min_avg_reward, so a
+    # validated config of this kind always carries it; a KeyError here would
+    # mean the schema and this branch fell out of sync.
     min_reward = float(curriculum["min_avg_reward"])
     episode_return = episode_return_for_gate(eval_metrics, threshold=min_reward)
     if not bool(episode_return >= min_reward):
@@ -291,7 +337,21 @@ def run_curriculum(
 
     Returns:
         Dict mapping stage number to final ``(params, eval_metrics)``.
+
+    Raises:
+        GateSchemaError: If a stage whose gate will be checked declares a
+            malformed gate or a kind :func:`check_stage_gate` cannot evaluate.
+            Raised before any training compute is spent — the gate check runs
+            only after a stage's full budget, which is the most expensive
+            possible time to learn its verdict was never computable.
     """
+    # Only gated stages are pre-checked: the final stage's gate is never
+    # evaluated here, and single-stage pilots legitimately run configs that
+    # would not validate under advancement.
+    for stage in stages[:-1]:
+        curriculum = load_stage_config(species, stage).get("curriculum_kwargs", {})
+        _require_evaluable_gate_kind(stage, validate_gate_config(stage, curriculum, advancement_enabled=True))
+
     results: dict[int, Any] = {}
 
     params = None

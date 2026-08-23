@@ -74,6 +74,32 @@ def _parse_stage_ref(value: str) -> "int | str":
     return int(value) if value.isdigit() else value
 
 
+def _resolve_stage_ref(stage_ref: "int | str", stage_configs: dict, species: str) -> "int | str | None":
+    """Map a --stage reference onto its ``stage_configs`` key.
+
+    A ref that is already a config key passes through: legacy numbers
+    (1-3) and semantic ids without a numeric history ("recovery").  A
+    semantic id naming a LEGACY stage resolves to its historical number,
+    so ``--stage locomotion`` works wherever ``--stage 2`` does.  Returns
+    ``None`` for a ref this species cannot satisfy — the caller owns the
+    friendly ``parser.error``.  Resolution must run before ANY
+    ``stage_configs[...]`` lookup: the default-timesteps lookup used to
+    run first and turned unknown refs into raw KeyErrors (F10).
+    """
+    if stage_ref in stage_configs:
+        return stage_ref
+    if isinstance(stage_ref, str):
+        from .stage_manifest import StageManifestError, load_stage_manifest
+
+        try:
+            entry = load_stage_manifest(species).by_id(stage_ref)
+        except StageManifestError:
+            return None
+        if entry.legacy_number is not None and entry.legacy_number in stage_configs:
+            return entry.legacy_number
+    return None
+
+
 def main(species_cfg):
     """Parse arguments and dispatch to train/curriculum/evaluate."""
     from .config import load_all_stages
@@ -176,10 +202,13 @@ def main(species_cfg):
     eval_parser.add_argument("model_path", type=str, help="Path to trained model")
     eval_parser.add_argument(
         "--stage",
-        type=int,
-        choices=[1, 2, 3],
+        type=_parse_stage_ref,
         default=None,
-        help="Curriculum stage (auto-detected if omitted)",
+        help=(
+            "Curriculum stage (auto-detected if omitted): a legacy number "
+            f"({species_cfg.stage_descriptions}) or a semantic stage id from "
+            "the species' manifest (e.g. 'recovery')"
+        ),
     )
     eval_parser.add_argument("--episodes", type=int, default=10, help="Number of episodes")
     eval_parser.add_argument("--no-render", action="store_true", help="Disable rendering")
@@ -221,29 +250,19 @@ def main(species_cfg):
 
         _apply_overrides(stage_configs, args.override)
 
+        stage_ref = _resolve_stage_ref(args.stage, stage_configs, species_cfg.species)
+        if stage_ref is None:
+            parser.error(f"unknown stage {args.stage!r} for this species; available: {sorted(map(str, stage_configs))}")
+
         # Resolve after overrides so --override curriculum.timesteps=... wins
         if args.timesteps is None:
-            args.timesteps = stage_configs[args.stage].get("curriculum_kwargs", {}).get("timesteps", 500_000)
+            args.timesteps = stage_configs[stage_ref].get("curriculum_kwargs", {}).get("timesteps", 500_000)
             logger.info(
-                "No --timesteps given: using stage %d config value (%s)",
+                "No --timesteps given: using stage %s config value (%s)",
                 args.stage,
                 f"{args.timesteps:,}",
             )
 
-        stage_ref = args.stage
-        if stage_ref not in stage_configs and isinstance(stage_ref, str):
-            # A semantic id naming a LEGACY stage resolves to its historical
-            # number, so --stage locomotion works wherever --stage 2 does.
-            from .stage_manifest import StageManifestError, load_stage_manifest
-
-            try:
-                entry = load_stage_manifest(species_cfg.species).by_id(stage_ref)
-            except StageManifestError:
-                entry = None
-            if entry is not None and entry.legacy_number is not None:
-                stage_ref = entry.legacy_number
-        if stage_ref not in stage_configs:
-            parser.error(f"unknown stage {args.stage!r} for this species; available: {sorted(map(str, stage_configs))}")
         train(
             species_cfg=species_cfg,
             stage_configs=stage_configs,
@@ -288,13 +307,23 @@ def main(species_cfg):
         )
 
     elif args.command == "eval":
+        # A misdetected checkpoint (a recovery model in an unrecognized
+        # layout) must be overridable, so eval --stage accepts the full
+        # manifest vocabulary — not int choices=[1, 2, 3] (F11).
+        eval_stage = args.stage
+        if eval_stage is not None:
+            eval_stage = _resolve_stage_ref(args.stage, stage_configs, species_cfg.species)
+            if eval_stage is None:
+                parser.error(
+                    f"unknown stage {args.stage!r} for this species; available: {sorted(map(str, stage_configs))}"
+                )
         evaluate(
             species_cfg=species_cfg,
             stage_configs=stage_configs,
             model_path=args.model_path,
             n_episodes=args.episodes,
             render=not args.no_render,
-            stage=args.stage,
+            stage=eval_stage,
             algorithm=args.algorithm,
             allow_legacy_plant=args.allow_legacy_plant,
         )
