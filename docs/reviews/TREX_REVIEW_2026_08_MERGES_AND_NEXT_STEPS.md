@@ -324,3 +324,104 @@ review's findings. "F#" = finding above.
     boundary and this run died at the ~24h cap mid-locomotion. With the
     resume fixes (item 4), a documented resume-from-latest-checkpoint
     cell turns the cap from a run-killer into a checkpoint boundary.
+
+---
+
+## 5. Step A execution record (2026-08-23)
+
+Run on the review container (CPU, mujoco 3.10.0, SB3 2.9.0, repo at
+`1a0c048` + this branch). Harness:
+`environments/shared/harnesses/recovery_offdist_panel.py` (hand-run;
+restates the P3 calibrated posture-only set and the 0.9267 m fixed height
+reference; superseded by `gate_resolution.json` when P5 freezes it).
+
+### 5.1 Panel judge validated against the frozen record
+
+The local statue panel at the training schedule reproduces the first-runs
+record exactly — same seeds (3042–3081), same judged-push filter, same
+event logic: **0/40** success, **26/50** per-shove under the provisional
+set, mean length **360.2** (record: 360), reward **974.7 ± 216.6**
+(sample std; record: §3 "975 ± 217", §6.5 "974.7 ± 216.6"), derived force
+165.501 N. The calibrated posture-only judge also reproduces the
+re-judged statue row (0/40). Everything below is measured with a judge
+that provably matches the committed panels.
+
+### 5.2 §6.1 off-distribution null panels (statue, 40 episodes each)
+
+| schedule | force | interval | success | UCB95 | full horizon | per-shove (prov.) | mean len | reward |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| training | 165.5 N | 2.0 ± 0.5 s | 0/40 | 7.2% | 0 | 26/50 | 360 | 975 ± 217 |
+| timing | 165.5 N | 3.5 ± 1.5 s | 0/40 | 7.2% | 0 | 30/43 | 498 | 1468 ± 349 |
+| **mag-low** | **120 N** | 2.0 ± 0.5 s | **3/40 prov. / 2/40 cal.** | **18.3% / 14.9%** | 3 | 64/81 | 521 | 1544 ± 674 |
+| mag-high | 210 N | 2.0 ± 0.5 s | 0/40 | 7.2% | 0 | 6/42 | 315 | 842 ± 113 |
+
+Load-bearing finding for the §6.1 design: **at 120 N the statue is no
+longer a zero null** — the plant passively survives whole episodes 2–3
+times in 40, so the low-magnitude arm's null UCB95 is 14.9% (calibrated),
+not 7.2%. The policy's margin at 120 N must be judged against that raised
+bar (or against a paired per-seed difference, which the harness computes).
+210 N and the 3.5 s timing variant remain clean zero nulls. These panels
+are frozen and seeds-matched: the moment the trained policy rolls the same
+schedules, the paired statistics come for free.
+
+### 5.3 A3 — locomotion gate and floor, re-derived
+
+**Zero-action locomotion baseline** (repo script, 40 episodes, noise
+0.05): reward **1091.51 ± 5.46**, all 40 episodes full-horizon. So on the
+current plant the locomotion stage's `min_avg_reward = 100` rail sits
+11× below do-nothing, and the run's early evals (min 1063) were *below*
+the statue — the trained policy only clears "learned more than standing"
+from ~2.5M onward, ending 1.32–1.37× statue at 5.3M.
+
+**Collapse floor**: replace the absolute `collapse_peak_floor = 100` with
+the same relative pair stance and recovery use:
+`collapse_peak_floor_reference = 1091.5` (this measured statue),
+`fraction = 0.45` → effective floor ≈ 491. The interrupted run's peak
+(1494) clears it; the pair re-anchors if locomotion shaping moves.
+
+**Speed gate**: extrapolating the measured velocity curve (post-ramp fits
+on the run's 109 evals): exponential-growth branch first touches 2.0 m/s
+at **7.1M**, quadratic at **10.5M**, linear tail at **13.5M** — and the
+gate then needs three consecutive ≥2.0 evals on top. Dimensionally, 2.0
+m/s for this plant is Froude 0.46–0.57 (CoM height 0.72–0.88 m) — the
+walk-to-run boundary — while the velociraptor the number was copied from
+runs its 2.0 gate at Froude ≈ 1.07 (home CoM 0.38 m); the
+dynamically-similar raptor-gate equivalent for the T-Rex is 2.7–3.0 m/s.
+So 2.0 m/s is defensible as the stage's *capability target* but not as an
+*8M-budget gate*. Recommendation, either:
+
+* **(a) keep 2.0 m/s, budget honestly**: raise the stage budget to
+  14–16M (the quadratic/linear range plus dwell), re-anchor
+  `ent_coef_decay_timesteps` to the new budget, and consider raising
+  `forward_vel_max` above 2.5 so the incentive gradient hasn't flattened
+  25% past the gate; or
+* **(b) split the milestone**: gate this stage at **1.0 m/s** (Froude
+  0.14–0.16, a firm walk; first-touch 6.4–8.0M on the same fits — inside
+  the current budget) and make 2.0 m/s the entry requirement of the
+  behavior stage, which needs sprint speed anyway.
+
+Either way the gate stops being a velociraptor constant, and the floor
+pair (above) lands with it.
+
+### 5.4 Blocked half: the trained-policy panels (A1-on-policy, A2)
+
+The checkpoints are owner-private in Drive; the connected Drive tool can
+neither link-share nor carry a 4 MB binary, and unauthenticated download
+returns the sign-in page. Two ways to unblock, either is enough:
+
+1. **Link-share six files** (Drive → Share → "Anyone with the link",
+   Viewer) and the panels run here in minutes:
+   run `20260821_142144/02_recovery/models/`: `robust_best_model.zip`,
+   `robust_best_model_vecnorm.pkl`, `recovery_final.zip`,
+   `recovery_final_vecnorm.pkl`; run `20260819_154702/recovery/models/`:
+   `robust_best_model.zip`, `robust_best_model_vecnorm.pkl` (the 21/40
+   policy — re-rolling it also cross-validates the local judge on a
+   trained controller).
+2. **Run the harness in Colab** where Drive is mounted — the §6.1/§6.2
+   matrix is:
+   `--controller policy --schedule {on,timing,mag120,mag210} --safe-set
+   calibrated` for each checkpoint, plus `--controller brace --schedule on`
+   for the mechanism claim.
+
+The statue halves of every schedule are already frozen above, so the
+policy rolls complete the paired comparison directly.
