@@ -425,3 +425,63 @@ returns the sign-in page. Two ways to unblock, either is enough:
 
 The statue halves of every schedule are already frozen above, so the
 policy rolls complete the paired comparison directly.
+
+---
+
+## 6. Execution record for parts B–D (2026-08-23)
+
+Landed on this branch in `856154f` (B, A3, C, D12/D14-16) and `53888ab`
+(D13), each change carrying tests; the full all-species suite ran green
+between them (2,587 passed / 4 skipped / 0 failed) and the affected
+battery plus `species_catalog --check` after.
+
+**B — all four items.** Resume path: sidecar resolution accepts SB3's
+periodic `<prefix>_vecnormalize_<steps>_steps.pkl` naming (also fixing a
+latent double-derivation that silently dropped `train_curriculum`'s
+cross-stage normalization handoff), and stage-entry shaping keys on
+`task_load_mode == "initialize_next_stage"` in `train()`, the notebook,
+and `train_curriculum` — a same-stage resume now trains exactly the task
+its fingerprint validated. The reward-ramp guard is in all four launch
+paths (CLI, curriculum, notebook, ray_tune sweep). Gate dispatch fails
+closed on non-evaluable kinds in both backends, with the JAX path
+refusing before any training compute. The recovery schedule is
+re-derived from the two pilots: budget back to 3M (reversing `0836043`
+on the first-runs record's evidence), entropy decay anchored at 2M
+inside it, and `test_schedule_budget_coherence.py` pins
+`ent_coef_decay_timesteps <= timesteps` repo-wide.
+
+**A3 — implemented as option (b).** Locomotion gates at 1.0 m/s with the
+measured derivation; the 2.0 m/s capability target moved to the behavior
+gate; the absolute collapse floor became the measured pair
+(1091.5 × 0.45). Recovery's floor re-anchored to the pushed statue
+(974.7 × 0.45). Catalog regenerated with all of it.
+
+**C — items 9–11.** Stale derivation records fixed in stance/recovery;
+recovery's instrumentation restored end to end (semantic-stage figures no
+longer crash, eval auto-detect handles NN_id/timestamped/bare-id dirs
+without the `stage1`-substring trap, `--stage locomotion` resolves before
+the budget lookup and `eval --stage recovery` is expressible, W&B names
+`trex-recovery`, the Drive summary scans semantic stages); the CI jax-cpu
+job now actually runs the MJX perturbation tests. P5 itself (item 8)
+remains blocked on §5.4's policy panels — the resolver freeze needs the
+off-distribution verdict.
+
+**D — items 12–16.** Fingerprints hash the effective env config
+(constructor defaults + TOML) as schema v2 behind a dated v1→v2 valve,
+so a retuned default can no longer cross a task boundary silently while
+the field runs' recorded fingerprints stay resumable. JAX writers emit
+NN_id dirs and `stage_label` artifacts. The stage-manifest migration's
+final part landed: result schema v3 accepts manifest-validated semantic
+stage keys (historical summaries validate unchanged; advancing-stage
+completeness rules keep their meaning; a `none/v1` stage claiming a pass
+is refused), recovery joins run bundles and `collected_results.csv`, and
+the generated trex tables show all four stages with the pilot gate
+rendered honestly. The warm-start lineage decision is recorded in the 1b
+plan (stance remains the source until a gated recovery PASS exists).
+The notebook gained the documented resume-from-interrupted-stage cell.
+
+**Still open after this pass**: the §5.4 policy panels (checkpoint
+access); P5 (blocked on them); the sweep *launch* CLI remains int-only
+(collection/plotting of recovery results works); behavior.toml keeps its
+absolute collapse floor pending its own measured statue; the website's
+recovery video card shows an honest no-video placeholder.
