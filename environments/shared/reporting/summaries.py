@@ -1,4 +1,4 @@
-"""Schema-v2 ``summary.json`` construction.
+"""``summary.json`` construction (result schema v3).
 
 Turns in-memory stage results into the backend-independent public result
 summary, including its provenance block."""
@@ -49,9 +49,28 @@ def _run_provenance(overrides: "Mapping[str, Any] | None" = None) -> dict[str, A
     return provenance
 
 
+def _stage_reference(value: Any) -> "int | str":
+    """Normalize a stage-result ``stage`` value to its canonical reference.
+
+    Integers and their decimal spellings are legacy stage numbers; any
+    other non-empty string is a semantic stage id (recovery).  Booleans and
+    everything else fail closed — a stage result whose stage cannot be
+    named must not be exported under a guessed one.
+    """
+    if isinstance(value, bool):
+        raise ValueError(f"invalid stage reference {value!r}")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    if isinstance(value, str) and value.strip():
+        return value
+    raise ValueError(f"invalid stage reference {value!r}")
+
+
 def _canonical_stage_summary(result: Mapping[str, Any]) -> dict[str, Any]:
-    """Normalize one in-memory stage result to the public schema-v2 shape."""
-    stage = int(result["stage"])
+    """Normalize one in-memory stage result to the public summary shape."""
+    stage = _stage_reference(result["stage"])
     duration = float(result.get("duration_seconds", 0.0))
     passed = parse_optional_bool(result.get("publication_gate_passed"))
     if passed is None:
@@ -112,24 +131,40 @@ def build_result_summary(
 ) -> dict[str, Any]:
     """Build one backend-independent result summary from normalized stage data."""
     from ..result_bundle import canonical_algorithm, canonical_backend
+    from ..result_schema import RESULT_SCHEMA_VERSION
+    from ..stage_manifest import load_stage_manifest
 
     if not stage_results_list:
         raise ValueError("at least one stage result is required")
-    stages: dict[str, dict[str, Any]] = {}
+    # Stage keys and their order come from the species' manifest: legacy
+    # stages keep their historical decimal keys, semantic stages (recovery)
+    # their ids, and the dict is built in manifest position order — never by
+    # int() on the key, which the manifest migration retired.
+    manifest = load_stage_manifest(species)
+    keyed_results: list[tuple[Any, Mapping[str, Any]]] = []
     for result in stage_results_list:
-        stage_key = str(int(result["stage"]))
-        if stage_key in stages:
-            raise ValueError(f"duplicate stage result: {stage_key}")
-        stages[stage_key] = _canonical_stage_summary(result)
+        entry = manifest.resolve(_stage_reference(result["stage"]))
+        keyed_results.append((entry, result))
+    keyed_results.sort(key=lambda pair: pair[0].position)
+    stages: dict[str, dict[str, Any]] = {}
+    for entry, result in keyed_results:
+        if entry.key in stages:
+            raise ValueError(f"duplicate stage result: {entry.key}")
+        stages[entry.key] = _canonical_stage_summary(result)
 
     total_duration = sum(float(stage["training_time_seconds"] or 0.0) for stage in stages.values())
     total_timesteps = sum(int(result["timesteps"]) for result in stage_results_list)
-    final_stage_key = max(stages, key=int)
+    # The headline reward is the terminal ADVANCING stage's; a trailing
+    # non-advancing pilot must not redefine it.  Falls back to the last
+    # stage present so a recovery-only partial summary stays writable.
+    advancing_keys = [entry.key for entry, _ in keyed_results if entry.legacy_number is not None]
+    final_stage_key = advancing_keys[-1] if advancing_keys else keyed_results[-1][0].key
+    complete = {entry.id for entry, _ in keyed_results} >= {entry.id for entry in manifest.advancing_stages}
     public_algorithm = canonical_algorithm(algorithm)
     public_backend = canonical_backend(algorithm, backend)
     summary: dict[str, Any] = {
-        "schema_version": 2,
-        "bundle_status": "complete" if set(stages) == {"1", "2", "3"} else "partial",
+        "schema_version": RESULT_SCHEMA_VERSION,
+        "bundle_status": "complete" if complete else "partial",
         "species": species,
         "algorithm": public_algorithm,
         "backend": public_backend,
@@ -176,7 +211,7 @@ def save_results_json(
     result_date: str | None = None,
     plant_identity: Mapping[str, Any] | None = None,
 ) -> Path:
-    """Save a schema-v2 ``summary.json`` to *results_dir*.
+    """Save a schema-v3 ``summary.json`` to *results_dir*.
 
     This compatibility wrapper can write partial summaries.  The canonical
     :func:`save_result_bundle` workflow only publishes ``summary.json`` after

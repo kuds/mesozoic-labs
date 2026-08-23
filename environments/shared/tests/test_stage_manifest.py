@@ -285,3 +285,54 @@ class TestStageDirnames:
 
         # Missing stays legible: the historical name comes back for errors.
         assert find_stage_dir(modern, 3).name == "stage3"
+
+
+class TestSerializedStageKeys:
+    """resolve_stage_key and the canonical reference/key spellings.
+
+    Added with the bundle/catalog migration (2026-08-23): JSON object keys
+    and CSV cells force every stage reference through a string, and this is
+    the one place that decides what those strings mean.
+    """
+
+    def test_decimal_strings_are_legacy_numbers_never_positions(self):
+        from environments.shared.stage_manifest import resolve_stage_key
+
+        # "2" means locomotion (legacy) even though recovery holds
+        # manifest position 2 — the no-silent-renumbering guarantee.
+        assert resolve_stage_key("trex", "2").id == "locomotion"
+        assert resolve_stage_key("trex", 2).id == "locomotion"
+        assert resolve_stage_key("trex", "recovery").id == "recovery"
+
+    def test_unknown_and_malformed_keys_fail_closed(self):
+        from environments.shared.stage_manifest import StageManifestError, resolve_stage_key
+
+        with pytest.raises(StageManifestError):
+            resolve_stage_key("trex", "warp")
+        with pytest.raises(StageManifestError):
+            resolve_stage_key("trex", "4")
+        with pytest.raises(StageManifestError):
+            resolve_stage_key("velociraptor", "recovery")
+        with pytest.raises(StageManifestError):
+            resolve_stage_key("trex", True)
+
+    def test_canonical_reference_and_key_spellings(self):
+        from environments.shared.stage_manifest import load_stage_manifest
+
+        manifest = load_stage_manifest("trex")
+        assert [entry.reference for entry in manifest.stages] == [1, "recovery", 2, 3]
+        assert [entry.key for entry in manifest.stages] == ["1", "recovery", "2", "3"]
+
+    def test_advancing_stages_are_the_numbered_trio(self):
+        from environments.shared.stage_manifest import load_stage_manifest
+
+        assert [entry.id for entry in load_stage_manifest("trex").advancing_stages] == [
+            "stance",
+            "locomotion",
+            "behavior",
+        ]
+        assert [entry.id for entry in load_stage_manifest("velociraptor").advancing_stages] == [
+            "stance",
+            "locomotion",
+            "behavior",
+        ]

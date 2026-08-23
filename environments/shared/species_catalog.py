@@ -22,6 +22,7 @@ import mujoco
 
 from environments.shared.config import load_all_stages
 from environments.shared.curriculum import StageThreshold
+from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
 from environments.shared.plant_contract import (
     GENERATED_MANIFEST_PATH,
     PHYSICS_SCHEMA,
@@ -36,6 +37,7 @@ from environments.shared.result_schema import (
     ALLOWED_VERIFICATION_STATUSES,
     PROVENANCE_IDENTIFIERS,
     ResultSchemaError,
+    ordered_stage_entries,
     validate_provenance,
     validate_result_summary,
 )
@@ -54,6 +56,16 @@ README_BLOCKS = {
 
 ALLOWED_CAPABILITY_STATUSES = {"implemented", "experimental", "in_progress", "planned", "not_started"}
 DEFAULT_STAGE_THRESHOLD = StageThreshold()
+
+#: The measured gate kind a ``none/v1`` pilot stage graduates to, keyed by
+#: semantic stage id.  ``none/v1`` is the recorded non-advancing placeholder
+#: (curriculum.gate_schema): the recovery stage's real gate —
+#: ``recovery_quality/v1`` — exists but its thresholds await the P5
+#: calibration, so the catalog names what is pending instead of rendering
+#: the pilot as though it had no gate at all.  Keyed by stage id, not
+#: species, so any species that gains a recovery stage inherits the honest
+#: description.
+_PENDING_GATE_KINDS = {"recovery": RECOVERY_GATE_KIND}
 
 
 class CatalogError(ValueError):
@@ -277,13 +289,13 @@ def _public_plant_contract(
     }
 
 
-def _stage_config_path(species_id: str, stage_number: int) -> Path:
+def _stage_config_path(species_id: str, stage_ref: "int | str") -> Path:
     from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
     try:
-        entry = load_stage_manifest(species_id).resolve(stage_number)
+        entry = load_stage_manifest(species_id).resolve(stage_ref)
     except StageManifestError as exc:
-        raise CatalogError(f"cannot resolve stage {stage_number} config for {species_id}: {exc}") from exc
+        raise CatalogError(f"cannot resolve stage {stage_ref} config for {species_id}: {exc}") from exc
     return REPOSITORY_ROOT / "configs" / species_id / entry.config_file
 
 
@@ -295,12 +307,21 @@ def _public_video_path(relative_path: str) -> str:
 
 
 def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    video_by_stage: dict[int, dict[str, Any]] = {}
+    from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
+
+    manifest = load_stage_manifest(species_id)
+    # Videos are keyed by stage id: the manifest resolves both spellings a
+    # manifest entry can carry (legacy number, semantic id) and fails closed
+    # on anything the species does not declare.
+    video_by_stage: dict[str, dict[str, Any]] = {}
     for raw_video in raw_videos:
-        stage_number = int(raw_video["stage"])
-        if stage_number not in {1, 2, 3}:
-            raise CatalogError(f"stage video for {species_id} must use stage 1, 2, or 3: {stage_number}")
-        if stage_number in video_by_stage:
+        raw_stage_ref = raw_video["stage"]
+        try:
+            video_entry = manifest.resolve(raw_stage_ref)
+        except StageManifestError as exc:
+            raise CatalogError(f"stage video for {species_id} names an unknown stage {raw_stage_ref!r}: {exc}") from exc
+        stage_number = video_entry.reference
+        if video_entry.id in video_by_stage:
             raise CatalogError(f"duplicate stage video for {species_id} stage {stage_number}")
         relative_path = str(raw_video["path"])
         video_path = _repo_path(relative_path, field=f"{species_id} stage {stage_number} video")
@@ -339,7 +360,7 @@ def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dic
                     f"current or verified stage video for {species_id} stage {stage_number} "
                     f"is missing identifiers: {missing}"
                 )
-        video_by_stage[stage_number] = {
+        video_by_stage[video_entry.id] = {
             "path": _public_video_path(relative_path),
             "algorithm": algorithm,
             "backend": str(backend),
@@ -351,20 +372,35 @@ def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dic
 
     configs = load_all_stages(species_id)
     stages: list[dict[str, Any]] = []
-    for stage_number in (1, 2, 3):
-        stage_config = configs[stage_number]
+    # Every stage the manifest declares, in manifest (curriculum) order —
+    # not the retired hardcoded (1, 2, 3), which silently dropped the
+    # recovery stage from the generated tables.
+    for entry in manifest.stages:
+        stage_config = configs[entry.reference]
         curriculum = stage_config["curriculum_kwargs"]
-        config_path = _stage_config_path(species_id, stage_number)
+        config_path = _stage_config_path(species_id, entry.reference)
         name = str(stage_config["name"])
         stages.append(
             {
-                "number": stage_number,
+                "id": entry.id,
+                "position": entry.position,
+                # The legacy number, or null for semantic-only stages
+                # (recovery).  Display goes through "label": rendering a
+                # position here would renumber history, and inventing "1b"
+                # would mint a number the manifest never declared.
+                "number": entry.legacy_number,
+                "label": entry.key,
                 "name": name,
                 "title": name.replace("_", " ").title(),
                 "description": str(stage_config["description"]),
                 "config_path": config_path.relative_to(REPOSITORY_ROOT).as_posix(),
                 "timesteps": int(curriculum["timesteps"]),
                 "advancement_gate": {
+                    # The declared gate KIND drives rendering: a none/v1
+                    # pilot must read as "non-advancing", never as an empty
+                    # criteria list that looks like a free pass.
+                    "gate_kind": curriculum.get("gate_kind"),
+                    "pending_gate_kind": _PENDING_GATE_KINDS.get(entry.id) if curriculum.get("gate_kind") == "none/v1" else None,
                     "min_avg_reward": curriculum.get("min_avg_reward"),
                     "min_avg_episode_length": curriculum.get("min_avg_episode_length"),
                     "min_avg_forward_velocity": curriculum.get("min_avg_forward_vel"),
@@ -383,7 +419,7 @@ def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dic
                         curriculum.get("required_consecutive", DEFAULT_STAGE_THRESHOLD.required_consecutive)
                     ),
                 },
-                "video": video_by_stage.get(stage_number),
+                "video": video_by_stage.get(entry.id),
             }
         )
     return stages
@@ -422,13 +458,25 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
     with result_path.open(encoding="utf-8") as result_file:
         summary = _validate_result_summary(json.load(result_file), species_id=species_id, relative_path=relative_path)
 
+    # Manifest order, manifest vocabulary: a recovery-bearing summary renders
+    # its stage between stance and locomotion, and sorting never calls int()
+    # on a key (the semantic id has no integer).  The summary was validated
+    # above, so resolution cannot fail here except through the same
+    # CatalogError channel.
+    try:
+        stage_entries = ordered_stage_entries(summary["stages"], species=species_id, field=f"stages in {relative_path}")
+    except ResultSchemaError as exc:
+        raise CatalogError(str(exc)) from exc
     stage_summaries: list[dict[str, Any]] = []
-    for stage_key in sorted(summary["stages"], key=int):
+    for stage_key, entry in stage_entries:
         raw_stage = summary["stages"][stage_key]
         stage_summaries.append(
             {
-                "number": int(stage_key),
-                "name": raw_stage.get("name", f"stage{stage_key}"),
+                "id": entry.id,
+                "position": entry.position,
+                "number": entry.legacy_number,
+                "label": entry.key,
+                "name": raw_stage.get("name", entry.id),
                 "description": raw_stage.get("description", ""),
                 "timesteps": raw_stage.get("timesteps"),
                 "best_eval_reward": raw_stage.get("best_eval_reward"),
@@ -624,7 +672,12 @@ def build_catalog(
         raise CatalogError(f"plant/species manifest coverage mismatch; missing={missing}, unknown={unknown}")
 
     return {
-        "schema_version": 2,
+        # v3 (2026-08-23): stage rows carry manifest identity (id / position /
+        # label, nullable legacy number) and gate kinds, and species with a
+        # semantic stage (trex recovery) list it in curriculum order.  The
+        # nullable "number" is shape-breaking for a consumer that assumed an
+        # integer, hence the bump.
+        "schema_version": 3,
         "manifest_path": manifest_path.relative_to(REPOSITORY_ROOT).as_posix(),
         "plant_manifest": {
             "path": plant_manifest_path.relative_to(REPOSITORY_ROOT).as_posix(),
@@ -687,6 +740,16 @@ def _success_metric_for_backend(species: dict[str, Any], backend: str) -> dict[s
 
 
 def _format_advancement_gate(gate: dict[str, Any]) -> str:
+    # A none/v1 stage is a recorded NON-ADVANCING pilot: it has no criteria
+    # to list, and rendering the episode/consecutive defaults below would
+    # dress the placeholder up as a permissive gate.  Say what it is, and —
+    # when the stage vocabulary knows its measured successor (recovery →
+    # recovery_quality/v1) — what it is waiting on.
+    if gate.get("gate_kind") == "none/v1":
+        text = "non-advancing pilot (gate_kind none/v1); never advances"
+        if gate.get("pending_gate_kind"):
+            text += f"; gate {gate['pending_gate_kind']} pending calibration (P5)"
+        return text
     criteria: list[str] = []
     if gate["min_avg_reward"] is not None:
         criteria.append(f"reward ≥ {gate['min_avg_reward']:g}")
@@ -742,8 +805,11 @@ def render_readme_species(catalog: dict[str, Any]) -> str:
             ]
         )
         for stage in species["stages"]:
+            # The row label is the stage's canonical reference: the legacy
+            # number where one exists, the semantic id (recovery) where none
+            # does — the manifest is the authority, and no "1b" is invented.
             lines.append(
-                f"| {stage['number']} — {stage['title']} | {stage['description']} | "
+                f"| {stage['label']} — {stage['title']} | {stage['description']} | "
                 f"{_format_millions(stage['timesteps'])} | "
                 f"{_format_advancement_gate(stage['advancement_gate'])} |"
             )
@@ -795,7 +861,7 @@ def render_readme_results(catalog: dict[str, Any]) -> str:
             )
             for stage in result["stages"]:
                 lines.append(
-                    f"| {stage['number']} — {str(stage['name']).replace('_', ' ').title()} | "
+                    f"| {stage['label']} — {str(stage['name']).replace('_', ' ').title()} | "
                     f"{_format_number(stage['best_eval_reward'])} | "
                     f"{_format_number(stage['avg_forward_vel'], suffix=' m/s')} | "
                     f"{_format_percent(stage['mean_success_rate'])} | "

@@ -191,7 +191,7 @@ def write_results_csv(
 
 def build_results_csv_rows(
     stage_results_list: Sequence[Mapping[str, Any]],
-    stage_configs: Mapping[int, Mapping[str, Any]],
+    stage_configs: "Mapping[int | str, Mapping[str, Any]]",
     species: str,
     algorithm: str,
     seed: int,
@@ -202,17 +202,23 @@ def build_results_csv_rows(
 ) -> list[dict[str, Any]]:
     """Build CSV rows from the same stage-result values used by JSON export."""
     from ..result_bundle import canonical_algorithm, canonical_backend
+    from ..result_schema import RESULT_SCHEMA_VERSION
+    from .summaries import _stage_reference
 
     public_algorithm = canonical_algorithm(algorithm)
     public_backend = canonical_backend(algorithm, backend)
     algorithm_key = public_algorithm.lower()
     rows: list[dict[str, Any]] = []
     for r in stage_results_list:
-        stage = int(r["stage"])
+        # A stage reference, not int(): legacy stages keep their historical
+        # numbers in the ``stage`` column and semantic stages (recovery)
+        # write their id, matching the load_all_stages keying the
+        # *stage_configs* mapping uses.
+        stage = _stage_reference(r["stage"])
         cfg = stage_configs[stage]
 
         row: dict[str, Any] = {
-            "schema_version": 2,
+            "schema_version": RESULT_SCHEMA_VERSION,
             "run_id": run_id or "",
             "species": species,
             "algorithm": public_algorithm,
@@ -301,7 +307,7 @@ def build_results_csv_rows(
 
 def save_results_csv(
     stage_results_list: list[dict[str, Any]],
-    stage_configs: dict[int, dict[str, Any]],
+    stage_configs: "dict[int | str, dict[str, Any]]",
     species: str,
     algorithm: str,
     seed: int,

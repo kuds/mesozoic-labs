@@ -361,11 +361,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     collect.add_argument(
         "--stages",
-        type=int,
+        # A stage REFERENCE, not an int: digits keep their legacy-number
+        # meaning and anything else is a semantic stage id ("recovery") —
+        # the same rule as the training CLI's --stage (cli._parse_stage_ref).
+        type=lambda value: int(value) if value.isdigit() else value,
         nargs="+",
         default=None,
-        metavar="N",
-        help="Only collect results for these stage numbers (default: all)",
+        metavar="STAGE",
+        help='Only collect results for these stage references (legacy numbers or ids such as "recovery"; default: all)',
     )
     collect.add_argument(
         "--plot",

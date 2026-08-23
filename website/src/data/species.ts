@@ -17,6 +17,10 @@ export interface SpeciesVideo {
 }
 
 export interface AdvancementGate {
+  /** Declared curriculum gate kind; none/v1 marks a non-advancing pilot. */
+  gateKind: string | null;
+  /** Measured gate kind a none/v1 pilot is waiting on (recovery_quality/v1). */
+  pendingGateKind: string | null;
   minAverageReward: number | null;
   minAverageEpisodeLength: number | null;
   minAverageForwardVelocity: number | null;
@@ -40,7 +44,14 @@ export interface PlantContract {
 }
 
 export interface SpeciesStage {
-  number: number;
+  /** Semantic stage id from the stage manifest (stance/recovery/...). */
+  id: string;
+  /** 1-based curriculum position; display only, never identity. */
+  position: number;
+  /** Historical stage number, or null for semantic-only stages (recovery). */
+  number: number | null;
+  /** Canonical display reference: the legacy number, or the id. */
+  label: string;
   name: string;
   title: string;
   description: string;
@@ -60,7 +71,10 @@ export interface ResultProvenance {
 }
 
 export interface ResultStage {
-  number: number;
+  id: string;
+  position: number;
+  number: number | null;
+  label: string;
   name: string;
   description: string;
   timesteps: number;
@@ -122,13 +136,18 @@ export interface Species {
 }
 
 interface RawStage {
-  number: number;
+  id: string;
+  position: number;
+  number: number | null;
+  label: string;
   name: string;
   title: string;
   description: string;
   config_path: string;
   timesteps: number;
   advancement_gate: {
+    gate_kind: string | null;
+    pending_gate_kind: string | null;
     min_avg_reward: number | null;
     min_avg_episode_length: number | null;
     min_avg_forward_velocity: number | null;
@@ -150,7 +169,10 @@ interface RawStage {
 }
 
 interface RawResultStage {
-  number: number;
+  id: string;
+  position: number;
+  number: number | null;
+  label: string;
   name: string;
   description: string;
   timesteps: number;
@@ -269,7 +291,10 @@ function adaptResult(result: RawResult): PublishedResult {
       configHash: result.provenance.config_hash,
     },
     stages: result.stages.map((stage) => ({
+      id: stage.id,
+      position: stage.position,
       number: stage.number,
+      label: stage.label,
       name: stage.name,
       description: stage.description,
       timesteps: stage.timesteps,
@@ -318,13 +343,18 @@ function adaptSpecies(raw: RawSpecies): Species {
     },
     successMetrics: raw.success_metrics,
     stages: raw.stages.map((stage) => ({
+      id: stage.id,
+      position: stage.position,
       number: stage.number,
+      label: stage.label,
       name: stage.name,
       title: stage.title,
       description: stage.description,
       configPath: stage.config_path,
       timesteps: stage.timesteps,
       advancementGate: {
+        gateKind: stage.advancement_gate.gate_kind,
+        pendingGateKind: stage.advancement_gate.pending_gate_kind,
         minAverageReward: stage.advancement_gate.min_avg_reward,
         minAverageEpisodeLength: stage.advancement_gate.min_avg_episode_length,
         minAverageForwardVelocity: stage.advancement_gate.min_avg_forward_velocity,

@@ -207,7 +207,12 @@ gate architecture exists to prevent. Also decided the same day, from the
 §6.1 null measurements (review doc §5.2): at 120 N the statue is **not** a
 zero null (2–3/40 passive successes, UCB95 14.9%), so the low-magnitude arm
 of the off-distribution test must be judged against paired per-seed
-differences, not the 0/40 null intuition.
+differences, not the 0/40 null intuition. Also landed 2026-08-23: the
+deferred consumer work above is done — result schema v3, the species
+catalog / README / website generated tables, `collected_results.csv`, and
+the bundle audit all carry semantic stage references, so recovery runs now
+join result bundles and the generated tables (review doc §4 item 13) while
+every committed integer-stage artifact still validates unchanged.
 
 Ordering follows the split plan's steps 8–14 with two updates: step 9's core
 (the stance-gate statistic) already shipped, and everything below is rebased

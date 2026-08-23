@@ -32,6 +32,13 @@ function provenanceLabel(result: PublishedResult): string {
 }
 
 function formatGate(gate: AdvancementGate): string {
+  // A none/v1 stage is a recorded non-advancing pilot; listing the episode
+  // defaults would dress the placeholder up as a permissive gate (same rule
+  // as the Python renderer in species_catalog.py).
+  if (gate.gateKind === 'none/v1') {
+    const pending = gate.pendingGateKind === null ? '' : `; gate ${gate.pendingGateKind} pending calibration (P5)`;
+    return `non-advancing pilot (gate_kind none/v1); never advances${pending}`;
+  }
   const criteria: string[] = [];
   if (gate.minAverageReward !== null) criteria.push(`reward ≥ ${gate.minAverageReward.toLocaleString()}`);
   if (gate.minAverageEpisodeLength !== null) {
@@ -91,8 +98,8 @@ export function SpeciesStages({species}: {species: Species}): React.JSX.Element 
         </thead>
         <tbody>
           {species.stages.map((stage) => (
-            <tr key={stage.number}>
-              <td>{stage.number} — {stage.title}</td>
+            <tr key={stage.id}>
+              <td>{stage.label} — {stage.title}</td>
               <td>{stage.description}</td>
               <td>{formatMillions(stage.timesteps)}</td>
               <td>{formatGate(stage.advancementGate)}</td>
@@ -135,8 +142,8 @@ export function PublishedResults({species}: {species: Species}): React.JSX.Eleme
             </thead>
             <tbody>
               {result.stages.map((stage) => (
-                <tr key={stage.number}>
-                  <td>{stage.number} — {stage.name.replace('_', ' ')}</td>
+                <tr key={stage.id}>
+                  <td>{stage.label} — {stage.name.replace('_', ' ')}</td>
                   <td>{formatMillions(stage.timesteps)}</td>
                   <td>{formatNumber(stage.bestEvalReward)}</td>
                   <td>{stage.averageForwardVelocity === null ? '—' : `${stage.averageForwardVelocity.toFixed(2)} m/s`}</td>
