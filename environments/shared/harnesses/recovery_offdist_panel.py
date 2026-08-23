@@ -174,9 +174,7 @@ def roll_panel(
         full_horizon = bool(truncated and steps >= horizon)
 
         judged = [
-            k
-            for k, start in enumerate(starts)
-            if int(start) < steps and int(start) + duration + DWELL_STEPS <= horizon
+            k for k, start in enumerate(starts) if int(start) < steps and int(start) + duration + DWELL_STEPS <= horizon
         ]
         recovered_flags = []
         for k in judged:

@@ -400,7 +400,9 @@ def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dic
                     # pilot must read as "non-advancing", never as an empty
                     # criteria list that looks like a free pass.
                     "gate_kind": curriculum.get("gate_kind"),
-                    "pending_gate_kind": _PENDING_GATE_KINDS.get(entry.id) if curriculum.get("gate_kind") == "none/v1" else None,
+                    "pending_gate_kind": _PENDING_GATE_KINDS.get(entry.id)
+                    if curriculum.get("gate_kind") == "none/v1"
+                    else None,
                     "min_avg_reward": curriculum.get("min_avg_reward"),
                     "min_avg_episode_length": curriculum.get("min_avg_episode_length"),
                     "min_avg_forward_velocity": curriculum.get("min_avg_forward_vel"),

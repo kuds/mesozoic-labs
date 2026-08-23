@@ -61,6 +61,7 @@ def _require_evaluable_gate_kind(stage: int | str, gate_kind: str) -> None:
             "gate would advance the stage on return alone."
         )
 
+
 #: TOML ``[jax]`` keys mapped to :func:`~environments.shared.jax_training.train_jax`
 #: parameter names.  Module-level so the mapping loop in :func:`run_curriculum`
 #: and :func:`validate_jax_kwargs`'s known-key set cannot drift apart — a key

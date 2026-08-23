@@ -61,7 +61,9 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         8_000_000,
         8_000_000,
     ]
-    assert [(stage["id"], stage["number"], stage["label"], stage["position"]) for stage in species["trex"]["stages"]] == [
+    assert [
+        (stage["id"], stage["number"], stage["label"], stage["position"]) for stage in species["trex"]["stages"]
+    ] == [
         ("stance", 1, "1", 1),
         ("recovery", None, "recovery", 2),
         ("locomotion", 2, "2", 3),
@@ -301,9 +303,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # a recovery row at position 2, and "stage 2" must keep meaning
     # locomotion (the no-silent-renumbering invariant).
     def _gate(species_id: str, number: int) -> dict:
-        return next(
-            stage["advancement_gate"] for stage in species[species_id]["stages"] if stage["number"] == number
-        )
+        return next(stage["advancement_gate"] for stage in species[species_id]["stages"] if stage["number"] == number)
 
     assert _gate("velociraptor", 2)["min_avg_forward_velocity"] == 2.0
     assert _gate("trex", 2)["min_avg_forward_velocity"] == 1.0

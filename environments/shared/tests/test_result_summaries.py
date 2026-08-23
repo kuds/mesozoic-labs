@@ -240,7 +240,7 @@ def test_summary_rejects_stage_references_outside_the_species_vocabulary() -> No
 
 
 def test_summary_rejects_two_spellings_of_one_stage() -> None:
-    """"2" and "locomotion" are the same trex stage; recording both would
+    """ "2" and "locomotion" are the same trex stage; recording both would
     double-count it in every aggregate."""
     summary = _trex_summary_with_recovery()
     summary["stages"]["locomotion"] = deepcopy(summary["stages"]["2"])

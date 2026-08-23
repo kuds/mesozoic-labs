@@ -98,9 +98,7 @@ def save_result_bundle(
         try:
             entry = stage_manifest.resolve(_stage_reference(result["stage"]))
         except (KeyError, TypeError, ValueError, StageManifestError) as exc:
-            raise ResultBundleError(
-                f"every stage result must name a stage the {species} manifest declares"
-            ) from exc
+            raise ResultBundleError(f"every stage result must name a stage the {species} manifest declares") from exc
         keyed_results.append((entry, result))
     keyed_results.sort(key=lambda pair: pair[0].position)
     present_ids = [entry.id for entry, _ in keyed_results]
@@ -137,9 +135,7 @@ def save_result_bundle(
     # verdict is recorded honestly in its row (today necessarily False —
     # gate_kind none/v1 refuses to pass) but a non-advancing pilot neither
     # completes nor fails the curriculum.
-    advancing_gate_values = [
-        gate_values[entry.key] for entry, _ in keyed_results if entry.legacy_number is not None
-    ]
+    advancing_gate_values = [gate_values[entry.key] for entry, _ in keyed_results if entry.legacy_number is not None]
     has_all_stages = {entry.id for entry in advancing_entries} <= present_id_set
     promotion_ready = has_all_stages and all(advancing_gate_values)
     status = "complete" if promotion_ready else ("failed" if not all(advancing_gate_values) else "partial")

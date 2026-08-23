@@ -171,8 +171,7 @@ def ordered_stage_entries(stage_keys: Any, *, species: str, field: str) -> "list
             raise ResultSchemaError(f"{field} contains an invalid stage reference {stage_key!r}: {exc}") from exc
         if entry.id in spelling_by_id:
             raise ResultSchemaError(
-                f"{field} references stage {entry.id!r} twice "
-                f"(as {spelling_by_id[entry.id]!r} and {stage_key!r})"
+                f"{field} references stage {entry.id!r} twice (as {spelling_by_id[entry.id]!r} and {stage_key!r})"
             )
         spelling_by_id[entry.id] = stage_key
         entries.append((stage_key, entry))
@@ -657,8 +656,7 @@ def validate_result_summary(
     summary = _require_mapping(summary, field=f"result summary {label}")
     if summary.get("schema_version") not in SUPPORTED_RESULT_SCHEMA_VERSIONS:
         raise ResultSchemaError(
-            f"result summary schema_version must be one of "
-            f"{sorted(SUPPORTED_RESULT_SCHEMA_VERSIONS)}: {label}"
+            f"result summary schema_version must be one of {sorted(SUPPORTED_RESULT_SCHEMA_VERSIONS)}: {label}"
         )
 
     species = _require_nonempty_string(summary.get("species"), field=f"species in {label}")

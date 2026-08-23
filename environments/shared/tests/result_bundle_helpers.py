@@ -200,9 +200,7 @@ def _complete_bundle_inputs(
             curriculum = {"gate_kind": "none/v1", "gate_schema_version": 1}
         else:
             curriculum = None
-        stage_configs[stage] = _stage_config(
-            stage, algorithm, curriculum=curriculum, magnitude=_magnitude(stage)
-        )
+        stage_configs[stage] = _stage_config(stage, algorithm, curriculum=curriculum, magnitude=_magnitude(stage))
     _write_stage_configs(run_dir, stage_configs, dirname=dirname, species=species)
     stage_results = []
     for stage in stage_refs:

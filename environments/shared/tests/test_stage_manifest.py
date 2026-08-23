@@ -171,8 +171,7 @@ class TestRecoveryStageConfig:
         # budget at ent_coef >= 0.0014 when the mirrored 7M horizon never
         # completed (2026-08 review §3.4).
         assert (
-            recovery["ppo"] | {"ent_coef_decay_timesteps": stance["ppo"]["ent_coef_decay_timesteps"]}
-            == stance["ppo"]
+            recovery["ppo"] | {"ent_coef_decay_timesteps": stance["ppo"]["ent_coef_decay_timesteps"]} == stance["ppo"]
         )
         assert recovery["ppo"]["ent_coef_decay_timesteps"] == 2_000_000
 
