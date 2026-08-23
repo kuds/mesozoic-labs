@@ -849,7 +849,7 @@ def generate_stage_artifacts(
                 )
 
                 stage_dirs = [(stage, stage_dir)]
-                stage_configs = {stage: stage_config}
+                stage_configs: dict[int | str, dict[str, Any]] = {stage: stage_config}
 
                 plot_training_curves(
                     stage_dirs,
@@ -1434,7 +1434,7 @@ def save_jax_stage_artifacts(
     paths["stage_result"] = stage_result_path
 
     accumulated_results: list[dict[str, Any]] = []
-    accumulated_configs: dict[int, dict[str, Any]] = {}
+    accumulated_configs: dict[int | str, dict[str, Any]] = {}
     for existing_result_path in sorted(_iter_stage_result_paths(run_dir)):
         saved_result = _json.loads(existing_result_path.read_text())
         saved_stage = int(saved_result["stage"])
