@@ -237,6 +237,15 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "dibothrosuchus": stance_null,
     }
 
+    # Only the trex recovery stage declares recovery_quality/v1 criteria;
+    # every numbered stage exports nulls for them.
+    recovery_null: dict[str, float | None] = {
+        "min_recovery_success_lcb": None,
+        "min_paired_success_delta_lcb": None,
+        "recovery_t_recover_steps": None,
+        "recovery_dwell_steps": None,
+    }
+
     stage_one_gate_kind = {
         "trex": "stance_quality/v1",
         "velociraptor": "reward_and_length/v1",
@@ -260,6 +269,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "min_eval_episodes": stage_one_eval_episodes[species_id],
             "required_consecutive": 3,
             **stage_one_stance[species_id],
+            **recovery_null,
         }
         # Stages 2 and 3 stay on reward_and_length/v1, so their stance fields
         # export as nulls.
@@ -273,6 +283,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "min_eval_episodes": 10,
             "required_consecutive": 3,
             **stance_null,
+            **recovery_null,
         }
         assert stage_three | {"min_avg_forward_velocity": None} == {
             "gate_kind": "reward_and_length/v1",
@@ -284,16 +295,33 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "min_eval_episodes": 10,
             "required_consecutive": 3,
             **stance_null,
+            **recovery_null,
         }
 
-    # The recovery pilot exports its declared none/v1 placeholder honestly:
-    # no criteria to list, a named pending gate, and no invented number.
+    # The recovery stage exports its frozen recovery_quality/v1 gate (P5,
+    # 2026-08-28): the certifying criteria the resolution was frozen at, no
+    # pending placeholder, and no invented number. Full-dict equality so a
+    # silently added or dropped export key fails here, as for the numbered
+    # stages above.
     trex_recovery = next(stage for stage in species["trex"]["stages"] if stage["id"] == "recovery")
     assert trex_recovery["number"] is None
     assert trex_recovery["label"] == "recovery"
     assert trex_recovery["timesteps"] == 3_000_000
-    assert trex_recovery["advancement_gate"]["gate_kind"] == "none/v1"
-    assert trex_recovery["advancement_gate"]["pending_gate_kind"] == "recovery_quality/v1"
+    assert trex_recovery["advancement_gate"] == {
+        "gate_kind": "recovery_quality/v1",
+        "pending_gate_kind": None,
+        "min_avg_reward": None,
+        "min_avg_episode_length": None,
+        "min_avg_forward_velocity": None,
+        "min_success_rate": None,
+        "min_eval_episodes": 40,
+        "required_consecutive": 3,
+        "min_recovery_success_lcb": 0.30,
+        "min_paired_success_delta_lcb": 0.20,
+        "recovery_t_recover_steps": 100,
+        "recovery_dwell_steps": 50,
+        **stance_null,
+    }
     assert trex_recovery["video"] is None
 
     # Trex stage 2 gates a 1.0 m/s walk, re-derived from the plant (Froude

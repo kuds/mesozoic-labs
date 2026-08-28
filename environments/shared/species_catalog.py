@@ -60,9 +60,11 @@ DEFAULT_STAGE_THRESHOLD = StageThreshold()
 #: The measured gate kind a ``none/v1`` pilot stage graduates to, keyed by
 #: semantic stage id.  ``none/v1`` is the recorded non-advancing placeholder
 #: (curriculum.gate_schema): the recovery stage's real gate —
-#: ``recovery_quality/v1`` — exists but its thresholds await the P5
-#: calibration, so the catalog names what is pending instead of rendering
-#: the pilot as though it had no gate at all.  Keyed by stage id, not
+#: ``recovery_quality/v1`` — was frozen by P5 on 2026-08-28, and the
+#: committed trex config now declares it, so this map is dormant for trex;
+#: it stays so that any stage run as a pilot (a future species' recovery,
+#: or a deliberate regression to none/v1) names what is pending instead of
+#: rendering the pilot as though it had no gate at all.  Keyed by stage id, not
 #: species, so any species that gains a recovery stage inherits the honest
 #: description.
 _PENDING_GATE_KINDS = {"recovery": RECOVERY_GATE_KIND}
@@ -414,6 +416,16 @@ def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dic
                     "min_full_horizon_fraction": curriculum.get("min_full_horizon_fraction"),
                     "max_unsupported_duty": curriculum.get("max_unsupported_duty"),
                     "max_unsupported_duty_ucb": curriculum.get("max_unsupported_duty_ucb"),
+                    # recovery_quality/v1. The certifying criteria are frozen
+                    # in the stage directory's gate_resolution.json
+                    # (curriculum/gate_resolver); the config declares the same
+                    # numbers and reporting/gates refuses when the two
+                    # disagree, so exporting the declared values publishes the
+                    # enforced gate rather than an episode-count shell.
+                    "min_recovery_success_lcb": curriculum.get("min_recovery_success_lcb"),
+                    "min_paired_success_delta_lcb": curriculum.get("min_paired_success_delta_lcb"),
+                    "recovery_t_recover_steps": curriculum.get("recovery_t_recover_steps"),
+                    "recovery_dwell_steps": curriculum.get("recovery_dwell_steps"),
                     "min_eval_episodes": int(
                         curriculum.get("min_eval_episodes", DEFAULT_STAGE_THRESHOLD.min_eval_episodes)
                     ),
@@ -752,6 +764,24 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
         if gate.get("pending_gate_kind"):
             text += f"; gate {gate['pending_gate_kind']} pending calibration (P5)"
         return text
+    # A recovery_quality/v1 verdict is produced once, post-stage, from the
+    # frozen gate_resolution.json (curriculum/gate_resolver) -- the
+    # in-training scheduler refuses the kind outright -- so the generic
+    # consecutive-passes tail below would publish hysteresis that never
+    # applies to it. Render the frozen criteria and say where the verdict
+    # comes from.
+    if gate.get("gate_kind") == "recovery_quality/v1":
+        recovery_criteria = [f"recovery success LCB95 ≥ {gate['min_recovery_success_lcb']:g}"]
+        if gate.get("min_paired_success_delta_lcb") is not None:
+            recovery_criteria.append(f"paired Δ vs zero-action null LCB95 ≥ {gate['min_paired_success_delta_lcb']:g}")
+        recovery_criteria.extend(
+            [
+                f"re-entry ≤ {gate['recovery_t_recover_steps']:g} steps + {gate['recovery_dwell_steps']:g}-step dwell",
+                f"≥ {gate['min_eval_episodes']} episodes/evaluation",
+                "verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale)",
+            ]
+        )
+        return "; ".join(recovery_criteria)
     criteria: list[str] = []
     if gate["min_avg_reward"] is not None:
         criteria.append(f"reward ≥ {gate['min_avg_reward']:g}")

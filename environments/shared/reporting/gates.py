@@ -23,11 +23,24 @@ So this function is the only implementation, it dispatches on the declared
 unknown kind, a missing stance panel and an unreadable verdict all return
 *False* with a reason, because "we could not check" must never read as "it
 passed".
+
+``recovery_quality/v1`` (stage 1b, plan P5) is dispatched here too, and it is
+the one kind whose verdict this module does not compute at all: it delegates
+to :func:`~environments.shared.curriculum.gate_resolver.evaluate_recovery_gate_from_resolution`,
+which reads the stage's frozen ``gate_resolution.json`` — capability spec,
+null manifest, and decision procedure, hashed together and pinned to a task
+fingerprint.  Every input that path needs but this one was not given (the
+stage directory, a recorded task fingerprint, the pushed panel's per-seed
+successes) is a *refusal* naming what is missing, never a fall-through to the
+reward gate: a pushed stage certified on return alone is precisely the
+advance-on-unmeasured-evidence failure the gate architecture exists to stop.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 
@@ -153,6 +166,219 @@ def _stance_stage_gate(
     return False, failures or [f"stage {stage} failed {gate_kind} without naming a criterion"]
 
 
+#: Stage-directory artifacts that record the task the stage actually ran
+#: under.  ``config.save_stage_config`` writes both whenever a fingerprint
+#: exists — the sidecar verbatim, the snapshot under ``task_fingerprint`` — so
+#: either answers "what is the current task?" without this module re-deriving
+#: it.  Re-deriving would answer a *different* question (the task as configured
+#: now, not the one this stage ran) and would need the plant model loaded.
+_TASK_FINGERPRINT_ARTIFACTS = ("task_fingerprint.json", "stage_config.json")
+
+#: ``curriculum_kwargs`` keys the frozen capability spec records under the same
+#: name.  The frozen record is authoritative for the verdict; these are checked
+#: for *agreement* so a config edited without re-resolving cannot leave the
+#: stage gated on a criterion nobody measured — the same "declared but not
+#: enforced" hole the gate schema exists to close.
+_RECOVERY_SPEC_KEYS = (
+    "min_recovery_success_lcb",
+    "recovery_t_recover_steps",
+    "recovery_dwell_steps",
+    "min_paired_success_delta_lcb",
+    "min_eval_episodes",
+)
+
+
+def _current_task_sha256(stage_dir: Path) -> str | None:
+    """The task fingerprint this stage ran under, from its own artifacts.
+
+    ``None`` when neither artifact records one.  The recovery arm reads that
+    as an unprovable staleness check and refuses: a frozen resolution whose
+    task cannot be compared against the current one is indistinguishable from
+    a stale one, and stale baselines block.
+    """
+    for name in _TASK_FINGERPRINT_ARTIFACTS:
+        path = stage_dir / name
+        if not path.is_file():
+            continue
+        try:
+            record: Any = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            # A truncated or hand-edited artifact proves nothing.  Try the
+            # next one; refusing is what happens if neither answers.
+            continue
+        if name == "stage_config.json" and isinstance(record, Mapping):
+            record = record.get("task_fingerprint")
+        if isinstance(record, Mapping):
+            recorded = record.get("task_sha256")
+            if isinstance(recorded, str) and recorded:
+                return recorded
+    return None
+
+
+def _same_threshold(declared: Any, frozen: Any) -> bool:
+    """Whether a declared threshold and a frozen one state the same criterion.
+
+    Anything that will not compare as a number counts as a disagreement: the
+    fail-closed reading of "these two records cannot be shown to agree".
+    """
+    if declared is None or frozen is None:
+        return declared is None and frozen is None
+    try:
+        return float(declared) == float(frozen)
+    except (TypeError, ValueError):
+        return False
+
+
+def _recovery_spec_disagreements(
+    curriculum: Mapping[str, Any],
+    resolution: Mapping[str, Any],
+    *,
+    stage: int | str,
+) -> list[str]:
+    """Every declared recovery threshold the frozen spec does not match."""
+    spec = resolution.get("capability_spec")
+    if not isinstance(spec, Mapping):
+        return [
+            f"stage {stage}'s gate_resolution.json carries no capability_spec, so the "
+            "criteria it would be judged against are unreadable; re-resolve the gate"
+        ]
+    failures: list[str] = []
+    for key in _RECOVERY_SPEC_KEYS:
+        if key not in curriculum:
+            continue
+        if not _same_threshold(curriculum[key], spec.get(key)):
+            failures.append(
+                f"stage {stage} declares {key} = {curriculum[key]!r} but its frozen gate "
+                f"resolution was resolved at {spec.get(key)!r}. The verdict comes from the "
+                "frozen record, so a config edited without re-resolving would gate on a "
+                "criterion nobody measured. Re-resolve the gate, or restore the declaration."
+            )
+    return failures
+
+
+def _recovery_reward_rail(
+    curriculum: Mapping[str, Any],
+    stage_results: Mapping[str, Any],
+    *,
+    stage: int | str,
+) -> list[str]:
+    """Enforce the optional reward RAIL a recovery config may declare.
+
+    ``recovery_quality/v1`` may carry ``min_avg_reward`` in the same role
+    ``stance_quality/v1`` gives it — a rail well below the null, not the gate
+    — but the frozen capability spec records no rail, so the resolver cannot
+    enforce one.  A declared criterion nobody evaluates is the half-enforced
+    gate this module exists to prevent, so it is checked here as an additional
+    *conjunct*: it can only refuse, never advance anything the frozen verdict
+    did not already pass.
+    """
+    target = curriculum.get("min_avg_reward")
+    if target is None:
+        return []
+    reward = _gate_metric(stage_results, "best_model_reward", "best_eval_reward", "mean_reward")
+    if reward is None:
+        return [
+            f"stage {stage} declares min_avg_reward {float(target):.2f} as a recovery rail, "
+            "but no reward measurement is available to check it"
+        ]
+    if reward < float(target):
+        return [f"stage {stage} best model reward {reward:.2f} < recovery rail {float(target):.2f}"]
+    return []
+
+
+def _recovery_stage_gate(
+    curriculum: Mapping[str, Any],
+    stage_results: Mapping[str, Any],
+    *,
+    stage: int | str,
+    stage_dir: "str | Path | None",
+    recovery_successes_by_seed: "Mapping[int, bool] | None",
+) -> tuple[bool, list[str]]:
+    """Judge ``recovery_quality/v1`` through the stage's FROZEN resolution.
+
+    The verdict itself is produced by
+    :func:`~environments.shared.curriculum.gate_resolver.evaluate_recovery_gate_from_resolution`
+    and by nothing here: thresholds come from the frozen capability spec, the
+    paired differences from the frozen null manifest (same seeds, same push
+    schedules), and absence, tampering, and staleness have already blocked
+    inside :func:`~environments.shared.curriculum.gate_resolver.require_gate_resolution`.
+    This function's whole job is to hand that path its three inputs — the
+    stage directory, the current task fingerprint, the pushed panel's per-seed
+    successes — or to say precisely which one it does not have.
+
+    ``GateResolutionError`` becomes a refusal with its message attached; it is
+    never allowed to read as a pass, and it is never swallowed silently.
+    """
+    # Deferred for the same import-cycle reason as the dispatch below.
+    from environments.shared.curriculum.gate_resolver import (
+        GateResolutionError,
+        evaluate_recovery_gate_from_resolution,
+        require_gate_resolution,
+    )
+
+    if stage_dir is None:
+        return False, [
+            f"stage {stage} declares recovery_quality/v1 but this call carried no stage_dir, "
+            "so its frozen gate_resolution.json cannot be read. A recovery verdict comes only "
+            "from curriculum.gate_resolver.evaluate_recovery_gate_from_resolution, and no "
+            "resolution means no advancement: missing baselines block, they are never skipped."
+        ]
+    if recovery_successes_by_seed is None:
+        return False, [
+            f"stage {stage} declares recovery_quality/v1 but no pushed-panel evidence was "
+            "supplied (recovery_successes_by_seed). The gate's estimand is per-seed episode "
+            "success on the registered panel seeds, paired against the frozen null manifest; "
+            "roll it with recovery_evaluation.roll_recovery_panel and pass "
+            "RecoveryPanelEvidence.successes_by_seed(). No evidence is a blocked gate, never "
+            "a pass."
+        ]
+    if not recovery_successes_by_seed:
+        return False, [
+            f"stage {stage} declares recovery_quality/v1 and its pushed panel carried no "
+            "episodes, so nothing was measured; an empty panel is a blocked gate, not a pass"
+        ]
+
+    resolved_dir = Path(stage_dir)
+    current_task_sha256 = _current_task_sha256(resolved_dir)
+    if current_task_sha256 is None:
+        return False, [
+            f"stage {stage} declares recovery_quality/v1 but {resolved_dir} records no task "
+            f"fingerprint ({' or '.join(_TASK_FINGERPRINT_ARTIFACTS)}), so the frozen "
+            "resolution's staleness check cannot run. A resolution that cannot be compared "
+            "against the current task is treated as stale: recalibrate rather than proceeding."
+        ]
+
+    try:
+        # Loaded once for the config-vs-frozen agreement check below; the
+        # VERDICT still comes from the resolver's own entry point, which
+        # re-reads and re-validates the same record.
+        resolution = require_gate_resolution(resolved_dir, current_task_sha256=current_task_sha256)
+        disagreements = _recovery_spec_disagreements(curriculum, resolution, stage=stage)
+        if disagreements:
+            return False, disagreements
+        result = evaluate_recovery_gate_from_resolution(
+            resolved_dir,
+            current_task_sha256=current_task_sha256,
+            policy_successes_by_seed=recovery_successes_by_seed,
+        )
+    except GateResolutionError as exc:
+        return False, [f"stage {stage} recovery gate could not be resolved: {exc}"]
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        # A truncated, non-JSON, or structurally incomplete resolution is
+        # unreadable rather than absent, so it arrives as JSONDecodeError /
+        # OSError / KeyError instead of GateResolutionError.  "We could not
+        # read the frozen record" is a refusal like any other; raising would
+        # leave the verdict to whatever each caller does with an exception.
+        return False, [
+            f"stage {stage}'s frozen gate resolution could not be read "
+            f"({type(exc).__name__}: {exc}); re-resolve the gate rather than trusting it"
+        ]
+
+    rail_failures = _recovery_reward_rail(curriculum, stage_results, stage=stage)
+    failures = [*result.failures, *rail_failures]
+    return bool(result.passed and not rail_failures), failures
+
+
 def _reward_and_length_stage_gate(
     curriculum: Mapping[str, Any],
     stage_results: Mapping[str, Any],
@@ -227,6 +453,8 @@ def evaluate_stage_gate(
     *,
     stage: int | str,
     stance_report: Mapping[str, Any] | None = None,
+    stage_dir: "str | Path | None" = None,
+    recovery_successes_by_seed: "Mapping[int, bool] | None" = None,
 ) -> tuple[bool, list[str]]:
     """Decide whether a completed stage passes its declared curriculum gate.
 
@@ -239,6 +467,16 @@ def evaluate_stage_gate(
         stance_report: The ``mesozoic.stance-gate-report/v2`` dict produced for
             this stage, required by ``stance_quality/v1`` and ignored by every
             other kind.
+        stage_dir: The stage's own directory, required by
+            ``recovery_quality/v1`` and ignored by every other kind: it holds
+            the frozen ``gate_resolution.json`` and the task fingerprint that
+            resolution is checked against.  Omitting it does not soften the
+            recovery gate — it refuses.
+        recovery_successes_by_seed: The pushed panel's per-episode successes
+            keyed by panel seed (``RecoveryPanelEvidence.successes_by_seed()``),
+            required by ``recovery_quality/v1`` and ignored by every other
+            kind.  The seeds must be the ones the frozen null manifest was
+            measured on; the resolver refuses any other pairing.
 
     Returns:
         ``(passed, failures)``.  *failures* names every criterion that did not
@@ -257,6 +495,7 @@ def evaluate_stage_gate(
     # callbacks raise at construction rather than at import; the whole test
     # suite passes with stable-baselines3 absent because of that, not this.
     from environments.shared.curriculum.gate_schema import GATE_KINDS
+    from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
 
     gate_kind = curriculum.get("gate_kind")
@@ -272,17 +511,19 @@ def evaluate_stage_gate(
             f'stage {stage} declares gate_kind "none/v1", a non-advancing pilot; it refuses '
             "to advance rather than passing by default"
         ]
-    if gate_kind == "recovery_quality/v1":
+    if gate_kind == RECOVERY_GATE_KIND:
         # The recovery verdict comes ONLY from the gate resolver
         # (evaluate_recovery_gate_from_resolution): frozen thresholds, frozen
-        # null pairings. This reporting path has no resolver wiring yet, and
-        # falling through to the reward gate would certify a pushed stage on
-        # return alone — fail closed instead.
-        return False, [
-            f"stage {stage} declares recovery_quality/v1, which this reporting path cannot "
-            "evaluate; recovery verdicts come only from the gate resolver "
-            "(curriculum.gate_resolver.evaluate_recovery_gate_from_resolution)"
-        ]
+        # null pairings.  Falling through to the reward gate would certify a
+        # pushed stage on return alone, so every input the resolver needs and
+        # this call did not get is a refusal inside _recovery_stage_gate.
+        return _recovery_stage_gate(
+            curriculum,
+            stage_results,
+            stage=stage,
+            stage_dir=stage_dir,
+            recovery_successes_by_seed=recovery_successes_by_seed,
+        )
     if gate_kind == STANCE_GATE_KIND:
         return _stance_stage_gate(gate_kind, stance_report, stage)
     return _reward_and_length_stage_gate(curriculum, stage_results)

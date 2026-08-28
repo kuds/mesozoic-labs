@@ -14,9 +14,16 @@ A determinism test pins that property end to end.
 
 The safe set is measured from PHYSICAL state (pelvis height vs the plant's
 settled height, tilt, planar speed, bilateral foot load), not from reward
-terms — the same measurement-over-proxy principle as the stance gate.  Its
-thresholds are provisional (plan P3 calibrates them) and are recorded in
-the evidence so no row can outlive the definition that produced it.
+terms — the same measurement-over-proxy principle as the stance gate.  Two
+sets live here: :data:`DEFAULT_SAFE_SET`, the provisional guesses the first
+panels used, and :data:`CALIBRATED_POSTURE_ONLY` with
+:data:`CALIBRATED_HEIGHT_REFERENCE_M`, the P3 calibration measured from
+quiet certified stance (first-runs record §4.1/§4.3) and frozen by P5 as
+the judge every §9 panel and the gate resolution use.  This module is the
+CANONICAL definition of both — the harnesses and the freeze producer
+import it rather than restating the numbers — and whichever set a panel
+was judged under is recorded in its evidence, so no row can outlive the
+definition that produced it.
 """
 
 from __future__ import annotations
@@ -39,6 +46,46 @@ DEFAULT_SAFE_SET = {
     "planar_speed_max_mps": 0.30,
     "min_foot_force_n": 0.1,
 }
+
+#: The P3-calibrated **posture-only** safe set — the judge P5 freezes.
+#:
+#: Derivation record, first-runs record §4.1: each threshold is quiet
+#: certified stance's p99.9 × 1.5, measured over 16,000 post-settle steps
+#: of the CERTIFIED STANCE policy and never from the recovery policy (the
+#: exam is not fitted to the student).  §4.3 records the panels this set
+#: produces and §9 the off-distribution panels rolled under it; the gate
+#: resolution written by ``harnesses/freeze_recovery_gate.py`` carries it
+#: verbatim.  Certified stance is far tighter than the provisional guesses
+#: above: its measured p99.9 height error (0.0112 m) is 9× inside the
+#: provisional 0.10 m bound and its tilt (0.055 rad) 6× inside 0.35 rad,
+#: while speed was essentially right already.
+#:
+#: The per-step support term is deliberately ABSENT (§4.2): quiet certified
+#: stance itself transiently reads 0.0 N on a foot during weight shifts
+#: (its p0.1 of min foot force is exactly 0.0), so a per-step support
+#: criterion fails the very thing it certifies — it denied 22 of the
+#: recovery policy's shoves where height and tilt denied none.
+#: ``min_foot_force_n = 0.0`` is how "posture-only" is expressed WITHOUT
+#: changing the predicate's shape: :func:`_safe_step` still evaluates its
+#: support clause, but the clause is vacuous, because foot forces are
+#: non-negative and a biped's ``_foot_contact_forces`` always returns both
+#: feet.  Any future support term must be windowed (e.g. dwell-averaged)
+#: and re-derived from certified stance before it may gate.
+CALIBRATED_POSTURE_ONLY = {
+    "height_error_max_m": 0.0168,
+    "tilt_max_rad": 0.0825,
+    "planar_speed_max_mps": 0.3203,
+    "min_foot_force_n": 0.0,
+}
+
+#: §4.1: the measured settled MEDIAN pelvis height of quiet certified
+#: stance.  The calibrated judge scores height against this fixed
+#: reference — passed to :func:`roll_recovery_panel` as ``height_reference``
+#: — rather than against the per-episode reset stamp the provisional set
+#: uses, because the reset height differs from settled stance by the settle
+#: transient plus reset noise, which is comparable to the calibrated
+#: 0.0168 m tolerance itself.
+CALIBRATED_HEIGHT_REFERENCE_M = 0.9267
 
 
 @dataclass(frozen=True)
@@ -110,12 +157,15 @@ def constant_action_controller(action: Sequence[float]) -> Callable[[Any], np.nd
 def _safe_step(env: Any, safe_set: dict[str, float]) -> bool:
     """The per-step safe predicate, from physical state.
 
-    Height is judged against the panel-start root height stamped by
-    ``roll_recovery_panel`` immediately after reset.  Provisional: the P3
-    calibration replaces this reference with the plant's measured settled
-    pelvis height (the reset height differs from the settled stance by the
-    settle transient plus reset noise), together with the numeric
-    thresholds — recorded per evidence file so no row outlives its
+    Height is judged against whichever reference ``roll_recovery_panel``
+    stamped on the env immediately after reset: the panel-start root height
+    under the provisional set, or — since the P3 calibration, first-runs
+    record §4.1 — the plant's measured settled pelvis height
+    (:data:`CALIBRATED_HEIGHT_REFERENCE_M`, passed as ``height_reference``),
+    which is the reference every §9 panel and the frozen gate resolution
+    use.  The support clause is evaluated unconditionally but is vacuous
+    under the calibrated set by construction (``min_foot_force_n = 0.0``,
+    §4.2).  The thresholds travel with the evidence, so no row outlives its
     definition.
     """
     data = env.data
@@ -140,11 +190,25 @@ def roll_recovery_panel(
     t_recover_steps: int,
     dwell_steps: int,
     safe_set: "dict[str, float] | None" = None,
+    height_reference: "float | None" = None,
 ) -> RecoveryPanelEvidence:
     """Roll one controller over the seeded pushed panel and judge every shove.
 
     The environment must have perturbation enabled — a push-free env would
     produce a panel that vacuously recovers nothing, so it is refused.
+
+    ``height_reference`` selects which reference the height criterion of
+    :func:`_safe_step` scores against, and it is the whole difference
+    between the provisional and the calibrated judge:
+
+    * ``None`` (default) stamps the per-episode reset height — the
+      provisional behaviour, unchanged, so every pre-P5 caller and panel
+      reproduces exactly.
+    * a float stamps that fixed reference for every episode.  The P3
+      calibration measured it (:data:`CALIBRATED_HEIGHT_REFERENCE_M`,
+      first-runs record §4.1) and P5 froze it: pass it together with
+      :data:`CALIBRATED_POSTURE_ONLY`, never one without the other, since
+      a 0.0168 m tolerance is meaningless against a drifting reference.
     """
     if getattr(env, "_push_schedule_starts", None) is None and env.perturbation_capture_velocity_multiple <= 0.0:
         raise ValueError("roll_recovery_panel requires a perturbation-enabled environment")
@@ -156,7 +220,7 @@ def roll_recovery_panel(
     for index in range(episodes):
         panel_seed = seed + index
         obs, _ = env.reset(seed=panel_seed)
-        env._recovery_height_reference = float(env.data.qpos[2])
+        env._recovery_height_reference = float(env.data.qpos[2] if height_reference is None else height_reference)
         starts = np.asarray(env._push_schedule_starts, dtype=int)
         directions = np.asarray(env._push_schedule_directions, dtype=float)
         duration = int(env._push_duration_steps)

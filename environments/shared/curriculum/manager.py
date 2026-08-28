@@ -15,6 +15,7 @@ import numpy as np
 from environments.shared.config import load_all_stages
 
 from .gate_schema import validate_gate_config
+from .recovery_gate import RECOVERY_GATE_KIND
 from .stance_gate import (
     STANCE_GATE_KIND,
     StanceGateThresholds,
@@ -224,7 +225,10 @@ class CurriculumManager:
 
         Returns:
             True if the current stage thresholds have been met for the
-            required number of consecutive evaluations.
+            required number of consecutive evaluations.  Always False for
+            ``recovery_quality/v1``: that verdict comes only from the frozen
+            gate resolution, whose inputs this path structurally cannot
+            supply — see :meth:`_recovery_gate_refuses`.
         """
         if rewards is not None and episode_lengths is not None:
             self.record_eval(rewards, episode_lengths, forward_velocities, success_rates, stance_panel)
@@ -248,6 +252,8 @@ class CurriculumManager:
             passes = self._stance_gate_passes(latest)
         elif threshold.gate_kind == "reward_and_length/v1":
             passes = self._reward_and_length_gate_passes(latest, threshold)
+        elif threshold.gate_kind == RECOVERY_GATE_KIND:
+            passes = self._recovery_gate_refuses()
         else:
             # A kind with no evaluator here — recovery_quality/v1 is
             # schema-valid, but its verdict comes only from the gate resolver
@@ -301,6 +307,49 @@ class CurriculumManager:
             passes = passes and mean_success >= threshold.min_success_rate
 
         return passes
+
+    def _recovery_gate_refuses(self) -> bool:
+        """Refuse ``recovery_quality/v1`` here, naming what this path lacks.
+
+        P5 wired the frozen resolver
+        (:func:`~environments.shared.curriculum.gate_resolver.evaluate_recovery_gate_from_resolution`)
+        into the judging paths that can reach its evidence.  The in-training
+        curriculum is not one of them, and the reason is structural rather
+        than unfinished plumbing — it cannot supply any of the three inputs:
+
+        * **the stage directory**, which holds the frozen
+          ``gate_resolution.json``: the manager knows a species and a stage
+          number, never where the run is writing;
+        * **the current task fingerprint**, which the resolution's staleness
+          check compares against: it is written beside the stage config at
+          stage start, not carried into the eval loop;
+        * **a pairable pushed panel**: the gate's estimand is per-episode
+          success on the REGISTERED panel seeds (3042–3081, first-runs record
+          §3 and §9), aligned seed-by-seed against the frozen null manifest.
+          ``EvalCallback`` rolls its own evaluation seeds, so its episodes
+          cannot be paired against those nulls no matter how many there are.
+
+        So the verdict is produced once, after the stage, by
+        :func:`~environments.shared.reporting.gates.evaluate_stage_gate` with
+        the stage directory and the panel's per-seed successes.  Returning
+        ``False`` here is not a partial check: it never counts toward the
+        consecutive-pass streak, and it never falls through to the reward
+        gate, which ``StageThreshold``'s permissive defaults would pass on
+        any evaluation whatsoever.
+        """
+        logger.error(
+            "Stage %d declares gate_kind %r, which the in-training curriculum cannot "
+            "evaluate: the frozen verdict needs the stage directory's gate_resolution.json, "
+            "the stage's current task_sha256, and per-seed episode successes on the "
+            "registered panel seeds (3042-3081) paired against the frozen null manifest — an "
+            "in-training evaluation has none of the three, and its own eval seeds cannot be "
+            "paired against those nulls. Refusing to advance; the verdict comes after the "
+            "stage from reporting.gates.evaluate_stage_gate, through "
+            "gate_resolver.evaluate_recovery_gate_from_resolution.",
+            self._current_stage,
+            RECOVERY_GATE_KIND,
+        )
+        return False
 
     def _stance_gate_passes(self, latest: dict[str, float]) -> bool:
         """Evaluate ``stance_quality/v1`` against one evaluation.
@@ -431,6 +480,15 @@ def thresholds_from_configs(
         # the same criteria the schema validated, rather than inferring the
         # gate from which fields happen to be present — inference is how a
         # dropped field used to become a disabled criterion.
+        #
+        # The recovery_quality/v1 threshold keys (min_recovery_success_lcb,
+        # recovery_t_recover_steps, recovery_dwell_steps,
+        # min_paired_success_delta_lcb) are deliberately NOT copied below:
+        # carrying them onto StageThreshold would imply this manager judges
+        # them, and it cannot — those criteria are read from the stage's
+        # frozen gate_resolution.json, never from the config, so that a
+        # config edited after the freeze cannot change a verdict the frozen
+        # record already fixed.  should_advance refuses the kind outright.
         threshold_fields: dict[str, Any] = {"gate_kind": gate_kind}
         for key in (
             "min_avg_reward",

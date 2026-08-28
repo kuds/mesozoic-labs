@@ -27,6 +27,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   experiment that blocks P5.
 
 ### Changed
+- **The T-Rex recovery gate is frozen: `recovery.toml` declares
+  `recovery_quality/v1`** (plan P5, `docs/STAGE1B_IMPLEMENTATION_PLAN.md` §4;
+  measurements in `TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md` §4 and §9). The
+  `none/v1` placeholder is gone and the stage's `[curriculum]` block carries
+  measured thresholds: the P3 calibrated **posture-only** safe set (height
+  error ≤ 0.0168 m against the *fixed* measured settled reference 0.9267 m
+  rather than the per-episode reset stamp, tilt ≤ 0.0825 rad, planar speed
+  ≤ 0.3203 m/s, and **no per-step support term** — quiet certified stance
+  itself transiently reads 0.0 N on a foot, so that criterion failed the very
+  thing it certifies and had masked 13 of the trained policy's 21 real
+  recoveries), `recovery_t_recover_steps` 100 and `recovery_dwell_steps` 50
+  (validated rather than retained: measured re-entry p90 = 84 steps), the
+  registered 40-episode panel from seed 3042, `min_recovery_success_lcb`
+  **0.30**, and `min_paired_success_delta_lcb` **0.20**. Both thresholds are
+  **attainable, not aspirational** — measured episode-success LCB95 0.361 (3M)
+  / 0.338 (5M) against a statue null whose UCB95 is 0.072, and paired
+  policy-minus-statue LCB95 +0.365 / +0.340 — so the plan's aspirational 0.725
+  (the LCB of 34/40) is deliberately not frozen, and what the stage cannot yet
+  do is recorded instead: the capability ceiling sits between 165.5 N and
+  210 N, where the paired margin collapses to LCB95 −0.009 / +0.019. Flipping
+  the kind moves no verdict into the config — advancement still requires a
+  `gate_resolution.json` in the stage directory (produced by the
+  `freeze_recovery_gate` harness, enforced by `curriculum/gate_resolver.py`,
+  cross-checked against the TOML declaration), and its absence, staleness, or
+  tampering still refuses, fail-closed. The config's header stops claiming the
+  stage is not runnable and records the envelope instead. New
+  `environments/shared/tests/test_recovery_gate_config.py` pins the frozen
+  declaration, recomputes every threshold's bound from the §9 panel counts so
+  a silently edited number has to disagree with the measurement, and holds the
+  no-resolution-no-pass guard.
 - **Stage-1 review cleanup, final batch (§2.3)** — the cosmetic and
   small-code items closing out the 2026-08-15 review's cleanup list:
   - **Evaluation CSVs: `success` column renamed `task_success`** (gate-pass

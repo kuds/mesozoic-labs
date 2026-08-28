@@ -118,7 +118,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
 | 1 — Balance | Learn to stand and balance without falling | 11M | reward ≥ 2100; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
-| recovery — Recovery | Hold the stance against scheduled external pushes and recover from each | 3M | non-advancing pilot (gate_kind none/v1); never advances; gate recovery_quality/v1 pending calibration (P5) |
+| recovery — Recovery | Hold the stance against scheduled external pushes and recover from each | 3M | recovery success LCB95 ≥ 0.3; paired Δ vs zero-action null LCB95 ≥ 0.2; re-entry ≤ 100 steps + 50-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
 | 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 1 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Bite | Sprint to prey and make contact with the head bite proxy | 8M | reward ≥ 100; avg. velocity ≥ 2 m/s; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
@@ -214,7 +214,9 @@ stance → **recovery** → locomotion → behavior — where the recovery stage
 (stage 1b) holds the certified stance against scheduled external pushes:
 
 ```bash
-# Run the T-Rex recovery stage as a warm-started, non-advancing pilot
+# Run the T-Rex recovery stage, warm-started from a certified stance checkpoint.
+# Its gate (recovery_quality/v1, frozen 2026-08-28) is judged post-stage against
+# the stage directory's gate_resolution.json; see docs/STAGE1B_IMPLEMENTATION_PLAN.md.
 cd environments/trex
 python scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
 ```

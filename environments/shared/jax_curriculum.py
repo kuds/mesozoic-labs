@@ -14,6 +14,7 @@ from typing import Any
 
 from .config import load_stage_config
 from .curriculum.gate_schema import GateSchemaError, validate_gate_config
+from .curriculum.recovery_gate import RECOVERY_GATE_KIND
 from .curriculum.stance_gate import (
     STANCE_GATE_KIND,
     StanceGateThresholds,
@@ -33,12 +34,33 @@ _REWARD_AND_LENGTH_GATE_KIND = "reward_and_length/v1"
 #: (curriculum.gate_resolver.evaluate_recovery_gate_from_resolution), so
 #: dispatching it here would either crash on a missing threshold key after the
 #: stage's whole budget or advance the pushed stage on its optional reward
-#: rail alone.
+#: rail alone.  P5 re-audited this and left it out deliberately — see
+#: :func:`_require_evaluable_gate_kind` for the three inputs this path cannot
+#: obtain.
 _EVALUATABLE_GATE_KINDS = frozenset({_REWARD_AND_LENGTH_GATE_KIND, STANCE_GATE_KIND})
 
 
 def _require_evaluable_gate_kind(stage: int | str, gate_kind: str) -> None:
     """Reject a schema-valid gate kind this module cannot evaluate.
+
+    ``recovery_quality/v1`` is the audited case (plan P5).  Its verdict is a
+    function of three things this path does not have and cannot derive from
+    what it is given:
+
+    * the **stage directory** holding the frozen ``gate_resolution.json`` —
+      :func:`check_stage_gate` receives a loaded TOML config and a metrics
+      dict, neither of which knows where the run writes;
+    * the stage's **current task fingerprint**, which the resolution's
+      staleness check compares against;
+    * a **pairable pushed panel** — per-episode successes on the registered
+      panel seeds, aligned seed-by-seed against the frozen null manifest.
+      ``eval_metrics`` carries reduced aggregates, never per-seed outcomes,
+      and no MJX pushed-panel roller exists: every recovery panel to date is
+      SB3 (first-runs record §8), which is also the plan's decision (§6,
+      "SB3 first for all 1b evidence").
+
+    So the refusal stands, and it is raised rather than logged because
+    :func:`run_curriculum` pre-flights it *before* spending a stage's budget.
 
     Args:
         stage: Stage identifier, used only in the error message.
@@ -49,16 +71,27 @@ def _require_evaluable_gate_kind(stage: int | str, gate_kind: str) -> None:
         GateSchemaError: If no arm of :func:`check_stage_gate` evaluates the
             kind.  Falling through to the reward gate instead would advance
             the stage on return alone — the fall-through
-            ``reporting/gates.py`` already refuses for exactly this reason.
+            ``reporting/gates.py`` refused for exactly this reason before it
+            gained its resolver wiring.
     """
     if gate_kind not in _EVALUATABLE_GATE_KINDS:
+        detail = ""
+        if gate_kind == RECOVERY_GATE_KIND:
+            detail = (
+                " A recovery verdict needs the stage directory's frozen gate_resolution.json, "
+                "the stage's current task_sha256, and per-seed episode successes on the "
+                "registered panel seeds paired against the frozen null manifest; this path "
+                "receives a TOML config and reduced eval metrics, so it has none of them, and "
+                "no MJX pushed-panel roller exists (every recovery panel is SB3). The verdict "
+                "is produced after the stage by reporting.gates.evaluate_stage_gate."
+            )
         raise GateSchemaError(
             f"stage {stage} declares gate_kind {gate_kind!r}, which the in-training "
             f"JAX curriculum cannot evaluate; kinds evaluated here: "
             f"{sorted(_EVALUATABLE_GATE_KINDS)}. Recovery verdicts come only from "
             "the gate resolver (curriculum.gate_resolver."
             "evaluate_recovery_gate_from_resolution); falling through to the reward "
-            "gate would advance the stage on return alone."
+            f"gate would advance the stage on return alone.{detail}"
         )
 
 
@@ -213,7 +246,11 @@ def check_stage_gate(
             (recovery_quality/v1 today): the reward arm used to be the
             fall-through for every non-stance kind, so such a stage either
             crashed on a missing threshold key after its whole budget or
-            advanced on its optional reward rail alone.
+            advanced on its optional reward rail alone.  P5 wired the frozen
+            resolver into the path that CAN reach its evidence
+            (:func:`~environments.shared.reporting.gates.evaluate_stage_gate`,
+            given the stage directory and the pushed panel) and deliberately
+            left this one refusing — see :func:`_require_evaluable_gate_kind`.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
     stage = stage_config.get("stage", "?")

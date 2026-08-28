@@ -175,21 +175,21 @@ class TestRecoveryStageConfig:
         )
         assert recovery["ppo"]["ent_coef_decay_timesteps"] == 2_000_000
 
-    def test_gate_is_fail_closed_until_w4(self):
+    def test_gate_declares_the_frozen_recovery_kind(self):
         import tomllib
 
-        from environments.shared.curriculum.gate_schema import GateSchemaError, validate_gate_config
+        from environments.shared.curriculum.gate_schema import validate_gate_config
 
         recovery = tomllib.load(open("configs/trex/recovery.toml", "rb"))
         curriculum = recovery["curriculum"]
-        assert curriculum["gate_kind"] == "none/v1"
-        # A standalone pilot run of the recovery stage is legal...
-        assert validate_gate_config("recovery", curriculum, advancement_enabled=False) == "none/v1"
-        # ...but an advancing curriculum through it is refused until the
-        # recovery_quality/v1 gate (W4) replaces the placeholder — the
-        # schema's own non-advancing-pilot rule doing exactly its job.
-        with pytest.raises(GateSchemaError, match="non-advancing"):
-            validate_gate_config("recovery", curriculum)
+        # Frozen 2026-08-28 (plan P5): the none/v1 placeholder is gone and the
+        # declared kind validates whether or not the run advances. Advancement
+        # is still not implied by the config — the verdict comes only from the
+        # stage directory's frozen gate_resolution.json, which
+        # test_recovery_gate_config.py pins along with the thresholds.
+        assert curriculum["gate_kind"] == "recovery_quality/v1"
+        assert validate_gate_config("recovery", curriculum) == "recovery_quality/v1"
+        assert validate_gate_config("recovery", curriculum, advancement_enabled=False) == "recovery_quality/v1"
 
 
 class TestStageLabels:
@@ -228,9 +228,10 @@ class TestLoadAllStages:
         assert list(load_all_stages("velociraptor")) == [1, 2, 3]
 
     def test_the_legacy_curriculum_ignores_semantic_only_stages(self):
-        """thresholds_from_configs must not validate recovery's none/v1
-        placeholder under advancement — that would refuse the whole
-        legacy 1→2→3 curriculum the moment a species gains a manifest."""
+        """thresholds_from_configs must not validate recovery's gate under
+        advancement — that would refuse the whole legacy 1→2→3 curriculum the
+        moment a species gains a manifest, since the in-training curriculum
+        cannot evaluate recovery_quality/v1 and correctly refuses it."""
         from environments.shared.config import load_all_stages
         from environments.shared.curriculum.manager import thresholds_from_configs
 

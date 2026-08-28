@@ -14,10 +14,33 @@
 # [env] mirror so stage-1 shaping changes cannot silently strand this
 # file.
 #
-# NOT YET RUNNABLE AS A GATED STAGE: gate_kind none/v1 below refuses to
-# advance, fail-closed, until recovery_quality/v1 (W4) and the frozen
-# null baselines (W5) exist. The first training run also waits on the
-# §8.1 transfer pilot.
+# RUNNABLE AS A GATED STAGE since 2026-08-28 (plan P5): gate_kind below is
+# recovery_quality/v1 at measured thresholds, replacing the none/v1
+# placeholder. W4, W5, the §8.1 transfer pilot (first-runs record §3.3: the
+# certified stance policy survives the real 165.5 N schedule unramped), the
+# P3 calibration (§4) and the off-distribution/checkpoint panels (§9) are
+# all done.
+#
+# Advancement is NOT implied by this file. The verdict comes only from the
+# stage directory's frozen gate_resolution.json — written by
+# environments/shared/harnesses/freeze_recovery_gate.py, enforced by
+# environments/shared/curriculum/gate_resolver.py — and its absence,
+# staleness, or tampering REFUSES, fail-closed. The thresholds below must
+# AGREE with that record; they never substitute for it.
+#
+# Measured capability envelope (first-runs record §9), the honest statement
+# of what a PASS here means:
+#   - Certified at the declared 165.5 N. On the training schedule per-shove
+#     recovery is 83.7% (3M) / 83.0% (5M) against the statue's 36.0%, and
+#     every null — statue and brace alike — scores 0/40 episodes.
+#   - The policy's ceiling lies between 165.5 N and 210 N (§9.2): at 210 N
+#     the paired margin over the statue collapses to LCB95 −0.009 (3M) /
+#     +0.019 (5M). Magnitude, not the push clock, is the limit.
+#   - Rejection GENERALIZES across push timing (§9.1): per-shove recovery is
+#     HIGHER at the never-trained 3.5 ± 1.5 s cadence (86.9% / 89.5%) than
+#     at the trained 2.0 ± 0.5 s one. The stage measures disturbance
+#     rejection, not schedule familiarity, so the per-episode randomization
+#     of the push clock held in reserve by §6.1 is not required.
 
 [stage]
 name = "recovery"
@@ -112,16 +135,15 @@ net_arch = [512, 256]
 
 [curriculum]
 gate_schema_version = 1
-gate_kind = "none/v1"                   # Fail-closed placeholder: refuses to advance. The real gate kind,
-                                        # recovery_quality/v1, EXISTS as of 2026-08-16
-                                        # (environments/shared/curriculum/recovery_gate.py: exact binomial
-                                        # LCB on survive-and-recover-every-push, plus the paired
-                                        # null-superiority statistic) — but its thresholds are provisional
-                                        # until the calibration runs measure the finalized pushed task, and
-                                        # its paired criterion needs the resolver's (W5) frozen null
-                                        # panels. Declaring it with guessed thresholds would be exactly the
-                                        # we-could-not-check-reads-as-pass trap the schema forbids; P5
-                                        # flips this key with measured values.
+gate_kind = "recovery_quality/v1"       # environments/shared/curriculum/gate_schema.py. Frozen 2026-08-28
+                                        # (plan P5) with MEASURED thresholds, replacing the none/v1
+                                        # placeholder this file launched with: the gate statistic shipped
+                                        # 2026-08-16 (curriculum/recovery_gate.py), the P3 calibration
+                                        # measured the safe set it judges against (first-runs record §4),
+                                        # and the resolver's frozen null panels (W5) supply the paired
+                                        # criterion. Declaring it earlier, with guessed thresholds, would
+                                        # have been the we-could-not-check-reads-as-pass trap the schema
+                                        # forbids.
 timesteps = 3_000_000                   # Measured, no longer provisional: both field pilots — the 3M run
                                         # 20260819_154702 and the 5M run 20260821_142144 — peaked at ~1.6M
                                         # (5M run: best eval 3055.63 ± 208.86) and declined ~5% to stage
@@ -130,6 +152,92 @@ timesteps = 3_000_000                   # Measured, no longer provisional: both 
                                         # binding constraint is the warm-started entropy/LR schedule, not
                                         # steps. Warm-started from the certified stance checkpoint via
                                         # initialize_next_stage, not trained from scratch.
+
+# ---------------------------------------------------------------------------
+# The 1b gate: per-shove recovery. FROZEN 2026-08-28 (plan P5), on the
+# measurements in docs/investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md
+# §4 (P3 calibration) and §9 (off-distribution and checkpoint panels).
+#
+# What it certifies (environments/shared/curriculum/recovery_gate.py): an
+# episode succeeds when it reaches the full horizon AND every scheduled push
+# in it was recovered — the body re-enters the calibrated safe set within
+# recovery_t_recover_steps of pulse end and DWELLS there recovery_dwell_steps,
+# because a body that touches the safe set mid-fall and leaves again has not
+# recovered. The gate is an exact one-sided 95% Clopper-Pearson lower bound on
+# that episode-success probability, plus the paired same-seed same-schedule
+# superiority test against the frozen statue null. Pairing is structural: the
+# schedule derives from the reset seed through a PRF, so the null saw exactly
+# the same shoves and the difference isolates control.
+#
+# The SAFE SET is deliberately not declared here. It lives with the judge
+# (environments/shared/recovery_evaluation.py: CALIBRATED_POSTURE_ONLY and
+# CALIBRATED_HEIGHT_REFERENCE_M) and is frozen into gate_resolution.json —
+# height error ≤ 0.0168 m against the FIXED measured settled reference
+# 0.9267 m (not the per-episode reset stamp), tilt ≤ 0.0825 rad, planar speed
+# ≤ 0.3203 m/s, and NO per-step support term. §4.2 is why there is no support
+# term: quiet CERTIFIED stance itself transiently reads 0.0 N on a foot (p0.1
+# of min foot force is exactly 0.0), so the per-step criterion fails the very
+# thing it certifies — it denied 22 of the trained policy's shoves and masked
+# 13 of its 21 real recoveries, against 0 denials from height or tilt. Any
+# future support term must be windowed and re-derived from certified stance
+# before it can gate.
+#
+# Every value below must AGREE with the stage's frozen gate_resolution.json:
+# reporting/gates.py::_recovery_spec_disagreements refuses on any mismatch, so
+# editing this block without re-freezing does not move the gate, it BLOCKS it.
+# Re-freeze with environments/shared/harnesses/freeze_recovery_gate.py, whose
+# module constants carry the same derivation records as the values here.
+# ---------------------------------------------------------------------------
+min_recovery_success_lcb = 0.30         # PROJECT-OWNER DECISION, 2026-08-28, on the §9.1/§9.5 measurements.
+                                        # The certifying criterion: LCB95 of P(full horizon AND every shove
+                                        # recovered). ATTAINABLE, not aspirational — the measured LCB at the
+                                        # training schedule is 0.361 for the 3M checkpoint (20/40) and 0.338
+                                        # for the 5M (19/40), against a statue null whose one-sided UCB95 is
+                                        # 0.072. 0.30 sits below both policies and >4x clear of the null
+                                        # ceiling, so it certifies what the stage can actually do today. The
+                                        # plan's aspirational 0.725 (the LCB of 34/40) needs a materially
+                                        # stronger policy; freezing it now would declare a criterion nothing
+                                        # in the project can pass, and the honest envelope — a capability
+                                        # ceiling between 165.5 N and 210 N (§9.2) — is recorded in the
+                                        # header rather than hidden inside a number.
+recovery_t_recover_steps = 100          # 2.0 s at the 50 Hz control rate. VALIDATED by measurement, not
+                                        # merely retained from the provisional design: measured re-entry
+                                        # times have p90 = 84 steps (§4.1), comfortably inside this window,
+                                        # so the clock is not what fails a shove.
+recovery_dwell_steps = 50               # 1.0 s of continuous safe-set occupancy after re-entry — what makes
+                                        # re-entry mean recovery rather than a touch-and-go
+                                        # (recovery_gate.per_push_recovery). The window every §4.3 and §9
+                                        # panel was judged under; changing it invalidates all of them.
+min_paired_success_delta_lcb = 0.20     # PROJECT-OWNER DECISION, 2026-08-28, on the §9.1 measurements. The
+                                        # AUTHORITATIVE criterion per split plan §6: a one-sided 95% lower
+                                        # bound on the mean per-seed policy-minus-statue success difference,
+                                        # measured at +0.365 (3M) and +0.340 (5M) on the training schedule.
+                                        # 0.20 sits below both and far above zero, so a pass is a real
+                                        # superiority claim rather than a not-worse-than-nothing one. It
+                                        # consumes the resolver's FROZEN null panel, never a fresh roll, so
+                                        # the baseline cannot drift between evaluations; declared without a
+                                        # frozen panel to pair against, it fails closed.
+min_eval_episodes = 40                  # The registered panel: 40 episodes, seeds 3042-3081, the block every
+                                        # measured panel in §3, §4.3 and §9 used. Frozen AT the panel size
+                                        # because nothing else notices a claim certified on a DIFFERENT
+                                        # panel: at 30 episodes the same 50% success rate still clears both
+                                        # bounds above (LCB 0.339), so only this criterion refuses it.
+                                        # n_eval_episodes must match.
+required_consecutive = 3                # Scheduler hysteresis ONLY, and inert for this kind: the in-training
+                                        # curriculum refuses recovery_quality/v1 outright (manager.py) and the
+                                        # verdict is produced once, after the stage, by
+                                        # reporting.gates.evaluate_stage_gate from the frozen resolution.
+                                        # Declared at the repo-wide value anyway so the number the species
+                                        # catalog publishes is one this file states rather than a default it
+                                        # inherited silently.
+
+# NOT declared: min_avg_reward. The kind allows an optional reward RAIL, but
+# no rail has been derived for the pushed task and inventing one would gate on
+# an unmeasured number. The failure mode a rail catches — a policy that threw
+# away most of the available return — is already covered here by the collapse
+# backstop below, which is anchored to the pushed statue (974.7). The frozen
+# capability spec records no rail either, so a declared one could only ever be
+# an extra refusal conjunct (reporting/gates.py::_recovery_reward_rail).
 
 # Collapse backstop (PLANT_VALIDATION §14 item 3): the relative floor pair,
 # same mechanism as stance.toml — the fraction re-anchors if the shared
