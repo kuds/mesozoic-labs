@@ -159,7 +159,7 @@ def test_partial_bundle_requires_complete_capture_time_provenance(
     stable_provenance: None,
 ) -> None:
     run_dir = tmp_path / "run"
-    configs = {1: _stage_config(1, "PPO")}
+    configs: dict[int | str, dict[str, Any]] = {1: _stage_config(1, "PPO")}
     _write_stage_configs(run_dir, configs)
     paths = save_result_bundle(
         [_stage_result(1)],

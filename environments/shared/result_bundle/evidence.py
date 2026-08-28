@@ -149,7 +149,7 @@ def _evaluation_evidence_aggregates(
     checkpoint_label: str,
     expected_episodes: int,
     evaluation_seeds: Sequence[int],
-    stage: int,
+    stage: "int | str",
 ) -> dict[str, float]:
     """Parse one fixed-seed episode file and return publication aggregates."""
     required_columns = {
@@ -255,7 +255,7 @@ def _compare_evaluation_aggregates(
     stage_summary: Mapping[str, Any],
     aggregates: Mapping[str, float],
     *,
-    stage: int,
+    stage: "int | str",
     label: str,
     metric_map: Mapping[str, tuple[str, float]],
 ) -> None:
@@ -280,7 +280,7 @@ def _validate_stance_panel_evidence(
     curriculum: Mapping[str, Any],
     *,
     env_kwargs: Mapping[str, Any],
-    stage: int,
+    stage: "int | str",
 ) -> None:
     """Re-derive the stance verdict from the panel's per-episode measurements.
 
@@ -418,6 +418,22 @@ def validate_evaluation_evidence(
     stages = summary.get("stages")
     if not isinstance(stages, Mapping):
         raise ResultBundleError("summary stages must be an object")
+    # Every stage the summary claims — the optional recovery stage included —
+    # must be backed by evidence, so the stage set comes from the summary
+    # itself, resolved and ordered through the species' manifest rather than
+    # the historical hardcoded (1, 2, 3).
+    from ..result_schema import ResultSchemaError, ordered_stage_entries
+
+    try:
+        stage_entries = ordered_stage_entries(
+            stages,
+            species=str(summary.get("species")),
+            field="summary stages",
+        )
+    except ResultSchemaError as exc:
+        raise ResultBundleError(str(exc)) from exc
+    if not stage_entries:
+        raise ResultBundleError("summary records no stages to validate evidence for")
 
     selected_metric_map = {
         "selected_model_reward": ("reward", 0.0051),
@@ -439,8 +455,11 @@ def validate_evaluation_evidence(
         "mean_distance_traveled": ("distance", 0.0051),
         "mean_success_rate": ("success_rate", 0.0051),
     }
-    for stage in (1, 2, 3):
-        stage_summary = stages.get(str(stage))
+    for stage_key, stage_entry in stage_entries:
+        # `stage` is the manifest reference (legacy int, or the semantic id
+        # for recovery): what find_stage_dir resolves and messages print.
+        stage = stage_entry.reference
+        stage_summary = stages.get(stage_key)
         if not isinstance(stage_summary, Mapping):
             raise ResultBundleError(f"summary is missing stage {stage}")
         selected_aggregates = _evaluation_evidence_aggregates(
@@ -490,6 +509,16 @@ def validate_evaluation_evidence(
         # collected_results.csv and artifact_manifest.json stop at stage 2
         # while stage 3's own artifacts were written in full.
         gate_kind = curriculum.get("gate_kind")
+        # A none/v1 stage (the recovery pilot) has no criteria to re-derive,
+        # but its verdict is still bound: the placeholder gate REFUSES to
+        # pass, so a summary claiming stage_passed=True beside it is a
+        # laundered pass — exactly the recorded-verdict-contradicts-evidence
+        # shape this validator exists to reject.
+        if gate_kind == "none/v1" and stage_summary.get("stage_passed") is True:
+            raise ResultBundleError(
+                f"stage {stage} declares gate_kind none/v1, a non-advancing pilot that never "
+                "passes, but the summary records stage_passed=true"
+            )
         if gate_kind == STANCE_GATE_KIND:
             # The stance criteria REPLACE the legacy threshold loop below
             # rather than joining it: applying `min_avg_reward` here as if it

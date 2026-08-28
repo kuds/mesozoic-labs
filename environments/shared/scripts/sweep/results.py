@@ -367,8 +367,35 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
         except (TypeError, ValueError):
             return None
 
-    stages = sorted({int(r["stage"]) for r in rows if r.get("stage")})
-    stage_colors = {1: "#1f77b4", 2: "#ff7f0e", 3: "#2ca02c"}
+    # Stage cells are references, not necessarily integers: legacy numbers
+    # arrive as "1"/"2"/"3" and the semantic recovery stage as "recovery".
+    # Grouping normalizes each cell and ORDERS by the species' manifest
+    # position — int() on the cell both crashed on the id and would have
+    # been the wrong order anyway once recovery sat between 1 and 2.
+    from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
+
+    def _stage_cell_ref(value):
+        text = str(value).strip()
+        return int(text) if text.isdigit() else text
+
+    stage_refs = {_stage_cell_ref(r["stage"]) for r in rows if r.get("stage")}
+    try:
+        manifest = load_stage_manifest(species)
+    except StageManifestError:
+        # The collect CLI derives `species` from the directory name, which
+        # for an ad-hoc layout may not be a real species.  Plot order then
+        # degrades to legacy numbers first, semantic ids after — cosmetic
+        # only, and better than refusing to plot data that was collectable.
+        logger.warning("no stage manifest for %r; plotting stages in reference order", species)
+        manifest = None
+    if manifest is not None:
+        try:
+            stages = sorted(stage_refs, key=lambda ref: manifest.resolve(ref).position)
+        except StageManifestError as exc:
+            raise SweepStageError(f"sweep CSV contains a stage {species!r} does not declare: {exc}") from exc
+    else:
+        stages = sorted(stage_refs, key=lambda ref: (isinstance(ref, str), str(ref).rjust(8)))
+    stage_colors = {1: "#1f77b4", 2: "#ff7f0e", 3: "#2ca02c", "recovery": "#9467bd"}
 
     # ── Figure 1: Trial Metrics (2x2) ────────────────────────────────────────
     fig1, axes1 = plt.subplots(2, 2, figsize=(14, 10))
@@ -384,7 +411,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
     all_ep_colors: list[str] = []
 
     for stage in stages:
-        stage_rows = [r for r in rows if int(r["stage"]) == stage]
+        stage_rows = [r for r in rows if _stage_cell_ref(r["stage"]) == stage]
         trial_ids = [r["trial_id"] for r in stage_rows]
         label = f"Stage {stage}"
         color = stage_colors.get(stage, "#333333")
@@ -468,7 +495,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
     fail_counts = []
     stage_labels = []
     for stage in stages:
-        stage_rows = [r for r in rows if int(r["stage"]) == stage]
+        stage_rows = [r for r in rows if _stage_cell_ref(r["stage"]) == stage]
         passed = sum(1 for r in stage_rows if str(r.get("stage_passed", "")).lower() == "true")
         failed = len(stage_rows) - passed
         pass_counts.append(passed)
@@ -512,7 +539,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
         for idx, hparam in enumerate(numeric_hparams):
             ax = axes2[idx, 0]
             for stage in stages:
-                stage_rows = [r for r in rows if int(r["stage"]) == stage]
+                stage_rows = [r for r in rows if _stage_cell_ref(r["stage"]) == stage]
                 xs = [_float(r.get(hparam)) for r in stage_rows]
                 ys = [_float(r.get("best_mean_reward")) for r in stage_rows]
                 valid_hp = [(x, y) for x, y in zip(xs, ys) if x is not None and y is not None]
@@ -609,7 +636,7 @@ def _download_gcs_results(gcs_uri: str, local_dir: Path) -> Path:
 def collect_results_from_disk(
     output_dir: str | Path,
     species: str | None = None,
-    stages: list[int] | None = None,
+    stages: "list[int | str] | None" = None,
 ) -> list[dict]:
     """Scan trial directories on disk and collect results into row dicts.
 
@@ -638,8 +665,9 @@ def collect_results_from_disk(
         output_dir: Root directory containing stage sub-directories, or a
             ``gs://bucket/prefix`` URI.
         species: Species name (for logging only; optional).
-        stages: Restrict collection to these stage numbers.  Defaults to
-            all ``stage*`` sub-directories found.
+        stages: Restrict collection to these stage references (legacy
+            numbers, or semantic ids such as ``"recovery"``).  Defaults to
+            all stage sub-directories found.
 
     Returns:
         List of result dicts compatible with :func:`write_results_csv`.
@@ -707,7 +735,7 @@ def _extract_hyperparameters(config: dict) -> dict[str, Any]:
 def _collect_results_local(
     output_dir: Path,
     species: str | None = None,
-    stages: list[int] | None = None,
+    stages: "list[int | str] | None" = None,
 ) -> list[dict]:
     """Collect results from a local directory tree.
 
@@ -718,25 +746,36 @@ def _collect_results_local(
         logger.error("Output directory does not exist: %s", output_dir)
         return []
 
-    # Discover stage directories — both generations: the historical
-    # stage{N} form and the NN_id form new runs write (2026-08-20). The
-    # NN prefix is the stage's POSITION, not its number, so the legacy
-    # number comes from the id suffix, never from the digits.
-    from environments.shared.stage_manifest import LEGACY_STAGE_IDS
+    # Discover stage directories — all three generations: the historical
+    # stage{N} form, the bare semantic id a stage without a legacy number
+    # wrote before 2026-08-20 ("recovery"), and the NN_id form new runs
+    # write. The NN prefix is the stage's POSITION, not its number, so the
+    # stage reference comes from the id suffix, never from the digits — a
+    # legacy number where the id has one, the id itself (recovery) where
+    # it does not.
+    from environments.shared.stage_manifest import KNOWN_STAGE_IDS, LEGACY_STAGE_IDS
 
     id_to_legacy = {stage_id: number for number, stage_id in LEGACY_STAGE_IDS.items()}
-    stage_dirs: list[tuple[int, Path]] = []
+
+    def _ref_for_stage_id(stage_id: str) -> "int | str | None":
+        if stage_id not in KNOWN_STAGE_IDS:
+            return None
+        return id_to_legacy.get(stage_id, stage_id)
+
+    stage_dirs: list[tuple["int | str", Path]] = []
     for child in sorted(output_dir.iterdir()):
         if not child.is_dir():
             continue
-        stage_num: int | None = None
+        stage_num: "int | str | None" = None
         if child.name.startswith("stage"):
             try:
                 stage_num = int(child.name.replace("stage", "").split("_")[0])
             except ValueError:
                 stage_num = None
         elif len(child.name) > 3 and child.name[:2].isdigit() and child.name[2] == "_":
-            stage_num = id_to_legacy.get(child.name[3:])
+            stage_num = _ref_for_stage_id(child.name[3:])
+        elif child.name in KNOWN_STAGE_IDS:
+            stage_num = _ref_for_stage_id(child.name)
         if stage_num is None:
             continue
         if stages and stage_num not in stages:

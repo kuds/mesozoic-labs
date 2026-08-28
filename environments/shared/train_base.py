@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import re
 import sys
 import time
 from datetime import datetime
@@ -311,6 +312,46 @@ def _prepare_alg_kwargs(
     return alg_kwargs, local_tb_dir, gcs_tb_path
 
 
+#: SB3's ``CheckpointCallback`` names its periodic checkpoints
+#: ``{prefix}_{steps}_steps.zip`` (``CheckpointCallback._checkpoint_path``;
+#: mirrored by ``curriculum.checkpoints._CHECKPOINT_KINDS``).
+_PERIODIC_CHECKPOINT_RE = re.compile(r"(.+)_(\d+)_steps$")
+
+
+def _resolve_vecnorm_sidecar(load_path: str) -> str:
+    """Resolve the VecNormalize sidecar path for a checkpoint being loaded.
+
+    Two sidecar naming conventions coexist: this repository's curated
+    checkpoints (``best_model``, ``robust_best_model``, ``stage<N>_final``)
+    save ``<base>_vecnorm.pkl``, while SB3's
+    ``CheckpointCallback(save_vecnormalize=True)`` writes
+    ``<prefix>_vecnormalize_<steps>_steps.pkl`` for its periodic
+    ``<prefix>_<steps>_steps.zip``.  Probing only the curated name made a
+    ``--load stage2_5000000_steps.zip`` resume warn and then train the loaded
+    policy under fresh normalization statistics — silently (review F3).
+
+    A ``load_path`` that already names a ``.pkl`` file is returned unchanged:
+    ``train_curriculum`` hands the sidecar path itself, and appending
+    ``_vecnorm.pkl`` to it would probe a file that cannot exist.
+
+    Returns the first existing candidate; when none exists, the curated
+    ``<base>_vecnorm.pkl`` name, so the caller's warning names the primary
+    probe.
+    """
+    if load_path.endswith(".pkl"):
+        return load_path
+    base = load_path[:-4] if load_path.endswith(".zip") else load_path
+    curated = base + "_vecnorm.pkl"
+    if Path(curated).exists():
+        return curated
+    match = _PERIODIC_CHECKPOINT_RE.match(Path(base).name)
+    if match:
+        periodic = Path(base).parent / f"{match.group(1)}_vecnormalize_{match.group(2)}_steps.pkl"
+        if periodic.exists():
+            return str(periodic)
+    return curated
+
+
 def _load_vecnorm_into_envs(
     load_path: str | None,
     train_env,
@@ -323,8 +364,7 @@ def _load_vecnorm_into_envs(
     from .curriculum import load_vecnorm_stats
 
     if load_path:
-        _base = load_path[:-4] if load_path.endswith(".zip") else load_path
-        _vecnorm_path = _base + "_vecnorm.pkl"
+        _vecnorm_path = _resolve_vecnorm_sidecar(load_path)
         load_kwargs: dict[str, Any]
         if plant_identity is not None:
             load_kwargs = {
@@ -605,6 +645,61 @@ def _maybe_ent_coef_decay_callback(config: dict, algorithm: str, total_timesteps
     )
 
 
+def _stage_entry_shaping_callbacks(
+    stage_config: dict[str, Any],
+    *,
+    task_load_mode: str,
+    stage_position: int,
+    load_path: str | None,
+) -> list:
+    """Stage-entry shaping (warm-up + reward ramp) for a boundary-crossing load.
+
+    Applies only when a loaded checkpoint ENTERS a new non-first stage —
+    ``task_load_mode == "initialize_next_stage"``, the mode
+    ``_create_or_load_model`` records as lineage.  A same-stage resume
+    (``resume_same_stage``) just passed an exact task-fingerprint identity
+    check and must resume the exact task: warm-up clamps and a
+    forward-velocity ramp would train it for ~500k steps on a task the
+    fingerprint claims is unchanged (review F4).
+
+    ``stage_position`` comes from the stage manifest, so a semantic reference
+    ("recovery", position 2) gets the same warm-up an integer one does; for
+    legacy integers this is behaviourally identical to the old ``stage > 1``.
+
+    Both launch paths (:func:`train` and :func:`train_curriculum`) MUST build
+    their shaping here rather than inline — the notebook's inline copy is how
+    the ramp guard below was lost once already (the 20260821 recovery pilot).
+    """
+    if task_load_mode != "initialize_next_stage" or stage_position <= 1 or not load_path:
+        return []
+
+    from .curriculum import RewardRampCallback, StageWarmupCallback
+
+    cur_kwargs = stage_config.get("curriculum_kwargs", {})
+    shaping: list = [
+        StageWarmupCallback(
+            warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
+            warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
+            warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
+            warmup_lr_scale=cur_kwargs.get("warmup_lr_scale", 0.1),
+        )
+    ]
+    target_fwd_weight = stage_config["env_kwargs"].get("forward_vel_weight", 1.0)
+    # Ramping forward_vel_weight only makes sense when the stage USES it:
+    # recovery mirrors stance and sets it to 0.0, and ramping 0.1 -> 0.0
+    # would inject a walk incentive the task fingerprint says is absent.
+    if target_fwd_weight > 0.0:
+        shaping.append(
+            RewardRampCallback(
+                attr_name="forward_vel_weight",
+                start_value=cur_kwargs.get("ramp_start_value", 0.1),
+                end_value=target_fwd_weight,
+                ramp_timesteps=cur_kwargs.get("ramp_timesteps", 500_000),
+            )
+        )
+    return shaping
+
+
 def _save_final_and_sync_tb(
     model,
     train_env,
@@ -662,10 +757,6 @@ def train(
     previous stage's checkpoint, e.g. recovery from a stance checkpoint.
     """
     from .config import save_stage_config
-    from .curriculum import (
-        RewardRampCallback,
-        StageWarmupCallback,
-    )
     from .task_fingerprint import derive_stage_task_fingerprint
     from .wandb_integration import init_wandb
 
@@ -816,37 +907,20 @@ def train(
     if ent_decay_cb is not None:
         callbacks.append(ent_decay_cb)
 
-    # Stage-entry warm-up applies when a checkpoint enters any non-first
-    # curriculum stage.  Position comes from the stage manifest, so a
-    # semantic reference ("recovery", position 2) gets the same warm-up an
-    # integer one does; for legacy integers this is behaviourally identical
-    # to the old `stage > 1` (legacy 1 is position 1).
+    # Stage-entry shaping is keyed on the load MODE, not on stage position
+    # alone: a resume_same_stage --load of a non-first stage passes the exact
+    # task-fingerprint check above and must resume un-warmed and un-ramped.
     from .stage_manifest import load_stage_manifest
 
     stage_position = load_stage_manifest(species).resolve(stage).position
-    if stage_position > 1 and load_path:
-        cur_kwargs = config.get("curriculum_kwargs", {})
-        callbacks.append(
-            StageWarmupCallback(
-                warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
-                warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
-                warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
-                warmup_lr_scale=cur_kwargs.get("warmup_lr_scale", 0.1),
-            )
+    callbacks.extend(
+        _stage_entry_shaping_callbacks(
+            config,
+            task_load_mode=task_load_mode,
+            stage_position=stage_position,
+            load_path=load_path,
         )
-        target_fwd_weight = config["env_kwargs"].get("forward_vel_weight", 1.0)
-        # Ramping forward_vel_weight only makes sense when the stage USES it:
-        # recovery mirrors stance and sets it to 0.0, and ramping 0.1 -> 0.0
-        # would inject a walk incentive the task fingerprint says is absent.
-        if config["env_kwargs"].get("forward_vel_weight", 1.0) > 0.0:
-            callbacks.append(
-                RewardRampCallback(
-                    attr_name="forward_vel_weight",
-                    start_value=cur_kwargs.get("ramp_start_value", 0.1),
-                    end_value=target_fwd_weight,
-                    ramp_timesteps=cur_kwargs.get("ramp_timesteps", 500_000),
-                )
-            )
+    )
 
     callback_list = sb3["CallbackList"](callbacks)
 
@@ -1175,8 +1249,6 @@ def train_curriculum(
     from .curriculum import (
         CurriculumCallback,
         CurriculumManager,
-        RewardRampCallback,
-        StageWarmupCallback,
         thresholds_from_configs,
     )
     from .task_fingerprint import derive_stage_task_fingerprint
@@ -1339,25 +1411,19 @@ def train_curriculum(
         )
         callbacks.append(curriculum_cb)
 
-        if stage > 1:
-            callbacks.append(
-                StageWarmupCallback(
-                    warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
-                    warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
-                    warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
-                    warmup_lr_scale=cur_kwargs.get("warmup_lr_scale", 0.1),
-                )
+        # Every stage after the first enters on the previous stage's promoted
+        # checkpoint — the same initialize_next_stage boundary recorded above.
+        # The shared helper also applies train()'s forward_vel_weight > 0 ramp
+        # guard: a stage that sets the weight to 0.0 (recovery mirrors stance)
+        # must not have a walk incentive ramped through it.
+        callbacks.extend(
+            _stage_entry_shaping_callbacks(
+                config,
+                task_load_mode="initialize_next_stage",
+                stage_position=stage,
+                load_path=load_path,
             )
-        if stage > 1:
-            target_fwd_weight = config["env_kwargs"].get("forward_vel_weight", 1.0)
-            callbacks.append(
-                RewardRampCallback(
-                    attr_name="forward_vel_weight",
-                    start_value=cur_kwargs.get("ramp_start_value", 0.1),
-                    end_value=target_fwd_weight,
-                    ramp_timesteps=cur_kwargs.get("ramp_timesteps", 500_000),
-                )
-            )
+        )
 
         interrupted = False
         stage_start = time.monotonic()

@@ -7,6 +7,7 @@ evaluation loop, video recorder, and human-readable result logger.
 from __future__ import annotations
 
 import logging
+import re
 import zlib
 from pathlib import Path
 from typing import Any, Mapping
@@ -360,25 +361,41 @@ def record_stage_video(
     return video_path, frames
 
 
+#: train()'s default single-stage directory is ``{stage_dirname}_{timestamp}``
+#: ("02_recovery_20260821_142144") — the timestamp must come off before the
+#: component can be recognized as an id-based stage directory.
+_RUN_TIMESTAMP_SUFFIX = re.compile(r"_\d{8}_\d{6}$")
+#: ``stage{N}`` must match as a whole token: a raw substring scan reads
+#: "stage1" inside "stage1b"/"stage10" and misclassifies the checkpoint.
+_PATH_TOKEN_SPLIT = re.compile(r"[^A-Za-z0-9]+")
+
+
 def detect_stage_from_path(model_path: str) -> "int | str":
     """Infer the stage a checkpoint belongs to from its path, any layout.
 
-    Historical run layouts carry a ``stage{N}`` token; the NN_id layout
-    (2026-08-20) names directories by manifest position + id, so the id
-    decides — mapped to its legacy number when it has one, passed through
-    as the semantic id (``"recovery"``) when it does not. Falls back to
-    stage 1, matching the historical default.
+    Walks path components deepest-first, so the stage directory next to the
+    checkpoint always beats an outer folder that merely mentions a stage.
+    Each component is checked for the id-based layouts — ``NN_{id}``
+    (2026-08-20), the same with train()'s run timestamp appended, and the
+    bare id the 20260819 runs used — with the id mapped to its legacy
+    number when it has one and passed through as the semantic id
+    (``"recovery"``) when it does not.  Historical ``stage{N}`` references
+    match as whole tokens only.  Falls back to stage 1, matching the
+    historical default.
     """
     from .stage_manifest import KNOWN_STAGE_IDS, LEGACY_STAGE_IDS
 
-    for s in (1, 2, 3):
-        if f"stage{s}" in model_path:
-            return s
     id_to_legacy = {stage_id: number for number, stage_id in LEGACY_STAGE_IDS.items()}
-    for part in Path(model_path).parts:
-        candidate = part[3:] if len(part) > 3 and part[:2].isdigit() and part[2] == "_" else part
+    legacy_tokens = {f"stage{number}": number for number in LEGACY_STAGE_IDS}
+    for part in reversed(Path(model_path).parts):
+        candidate = _RUN_TIMESTAMP_SUFFIX.sub("", part)
+        if len(candidate) > 3 and candidate[:2].isdigit() and candidate[2] == "_":
+            candidate = candidate[3:]
         if candidate in KNOWN_STAGE_IDS:
             return id_to_legacy.get(candidate, candidate)
+        for token in _PATH_TOKEN_SPLIT.split(part):
+            if token in legacy_tokens:
+                return legacy_tokens[token]
     return 1
 
 

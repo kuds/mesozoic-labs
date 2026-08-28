@@ -849,7 +849,7 @@ def generate_stage_artifacts(
                 )
 
                 stage_dirs = [(stage, stage_dir)]
-                stage_configs = {stage: stage_config}
+                stage_configs: dict[int | str, dict[str, Any]] = {stage: stage_config}
 
                 plot_training_curves(
                     stage_dirs,
@@ -1376,7 +1376,14 @@ def save_jax_stage_artifacts(
     )
     paths["best_model"] = best_model_path
 
-    final_model_path = model_dir / f"stage{stage}_final.pkl"
+    # stage_label, not a literal f"stage{stage}": legacy integers keep
+    # their historical stage{N}_final.pkl name, while a semantic stage
+    # must save {id}_final.pkl — the literal would mint
+    # "stagerecovery_final.pkl" the moment this path gains semantic
+    # stages (review 2026-08 F16).
+    from ..stage_manifest import stage_label
+
+    final_model_path = model_dir / f"{stage_label(stage)}_final.pkl"
     save_checkpoint(final_model_path, params, obs_rms=obs_rms, plant_identity=plant_identity)
     paths["final_model"] = final_model_path
     logger.info("Models saved: %s, %s", best_model_path, final_model_path)
@@ -1427,7 +1434,7 @@ def save_jax_stage_artifacts(
     paths["stage_result"] = stage_result_path
 
     accumulated_results: list[dict[str, Any]] = []
-    accumulated_configs: dict[int, dict[str, Any]] = {}
+    accumulated_configs: dict[int | str, dict[str, Any]] = {}
     for existing_result_path in sorted(_iter_stage_result_paths(run_dir)):
         saved_result = _json.loads(existing_result_path.read_text())
         saved_stage = int(saved_result["stage"])

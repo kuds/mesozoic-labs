@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "manifest_path": "configs/species_manifest.toml",
   "plant_manifest": {
     "path": "configs/plant_manifest.generated.json",
@@ -124,13 +124,18 @@
       ],
       "stages": [
         {
+          "id": "stance",
+          "position": 1,
           "number": 1,
+          "label": "1",
           "name": "balance",
           "title": "Balance",
           "description": "Learn to stand and balance without falling",
           "config_path": "configs/velociraptor/stage1_balance.toml",
           "timesteps": 6000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 1050.0,
             "min_avg_episode_length": 950,
             "min_avg_forward_velocity": null,
@@ -154,13 +159,18 @@
           }
         },
         {
+          "id": "locomotion",
+          "position": 2,
           "number": 2,
+          "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
           "description": "Learn forward walking/running",
           "config_path": "configs/velociraptor/stage2_locomotion.toml",
           "timesteps": 8000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 100.0,
             "min_avg_episode_length": 750,
             "min_avg_forward_velocity": 2.0,
@@ -184,13 +194,18 @@
           }
         },
         {
+          "id": "behavior",
+          "position": 3,
           "number": 3,
+          "label": "3",
           "name": "strike",
           "title": "Strike",
           "description": "Sprint and strike prey with sickle claw",
           "config_path": "configs/velociraptor/stage3_strike.toml",
           "timesteps": 12000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 100.0,
             "min_avg_episode_length": null,
             "min_avg_forward_velocity": null,
@@ -239,7 +254,10 @@
           },
           "stages": [
             {
+              "id": "stance",
+              "position": 1,
               "number": 1,
+              "label": "1",
               "name": "balance",
               "description": "Learn to stand and balance without falling",
               "timesteps": 6000000,
@@ -252,7 +270,10 @@
               "stage_passed": true
             },
             {
+              "id": "locomotion",
+              "position": 2,
               "number": 2,
+              "label": "2",
               "name": "locomotion",
               "description": "Learn forward walking/running",
               "timesteps": 8000000,
@@ -265,7 +286,10 @@
               "stage_passed": true
             },
             {
+              "id": "behavior",
+              "position": 3,
               "number": 3,
+              "label": "3",
               "name": "strike",
               "description": "Sprint and strike prey with sickle claw",
               "timesteps": 8000000,
@@ -303,7 +327,10 @@
           },
           "stages": [
             {
+              "id": "stance",
+              "position": 1,
               "number": 1,
+              "label": "1",
               "name": "balance",
               "description": "Learn to stand and balance without falling",
               "timesteps": 6000000,
@@ -316,7 +343,10 @@
               "stage_passed": true
             },
             {
+              "id": "locomotion",
+              "position": 2,
               "number": 2,
+              "label": "2",
               "name": "locomotion",
               "description": "Learn forward walking/running",
               "timesteps": 8000000,
@@ -329,7 +359,10 @@
               "stage_passed": true
             },
             {
+              "id": "behavior",
+              "position": 3,
               "number": 3,
+              "label": "3",
               "name": "strike",
               "description": "Sprint and strike prey with sickle claw",
               "timesteps": 8000000,
@@ -410,13 +443,18 @@
       ],
       "stages": [
         {
+          "id": "stance",
+          "position": 1,
           "number": 1,
+          "label": "1",
           "name": "balance",
           "title": "Balance",
           "description": "Learn to stand and balance without falling",
           "config_path": "configs/trex/stance.toml",
           "timesteps": 11000000,
           "advancement_gate": {
+            "gate_kind": "stance_quality/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 2100.0,
             "min_avg_episode_length": null,
             "min_avg_forward_velocity": null,
@@ -440,16 +478,46 @@
           }
         },
         {
+          "id": "recovery",
+          "position": 2,
+          "number": null,
+          "label": "recovery",
+          "name": "recovery",
+          "title": "Recovery",
+          "description": "Hold the stance against scheduled external pushes and recover from each",
+          "config_path": "configs/trex/recovery.toml",
+          "timesteps": 3000000,
+          "advancement_gate": {
+            "gate_kind": "none/v1",
+            "pending_gate_kind": "recovery_quality/v1",
+            "min_avg_reward": null,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
+            "min_success_rate": null,
+            "min_full_horizon_fraction": null,
+            "max_unsupported_duty": null,
+            "max_unsupported_duty_ucb": null,
+            "min_eval_episodes": 10,
+            "required_consecutive": 3
+          },
+          "video": null
+        },
+        {
+          "id": "locomotion",
+          "position": 3,
           "number": 2,
+          "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
           "description": "Learn forward walking/running",
           "config_path": "configs/trex/locomotion.toml",
           "timesteps": 8000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 100.0,
             "min_avg_episode_length": 750,
-            "min_avg_forward_velocity": 2.0,
+            "min_avg_forward_velocity": 1.0,
             "min_success_rate": null,
             "min_full_horizon_fraction": null,
             "max_unsupported_duty": null,
@@ -470,16 +538,21 @@
           }
         },
         {
+          "id": "behavior",
+          "position": 4,
           "number": 3,
+          "label": "3",
           "name": "bite",
           "title": "Bite",
           "description": "Sprint to prey and make contact with the head bite proxy",
           "config_path": "configs/trex/behavior.toml",
           "timesteps": 8000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 100.0,
             "min_avg_episode_length": null,
-            "min_avg_forward_velocity": null,
+            "min_avg_forward_velocity": 2.0,
             "min_success_rate": 0.5,
             "min_full_horizon_fraction": null,
             "max_unsupported_duty": null,
@@ -525,7 +598,10 @@
           },
           "stages": [
             {
+              "id": "stance",
+              "position": 1,
               "number": 1,
+              "label": "1",
               "name": "balance",
               "description": "Learn to stand and balance without falling",
               "timesteps": 6000000,
@@ -538,7 +614,10 @@
               "stage_passed": true
             },
             {
+              "id": "locomotion",
+              "position": 3,
               "number": 2,
+              "label": "2",
               "name": "locomotion",
               "description": "Learn forward walking/running",
               "timesteps": 8000000,
@@ -551,7 +630,10 @@
               "stage_passed": true
             },
             {
+              "id": "behavior",
+              "position": 4,
               "number": 3,
+              "label": "3",
               "name": "bite",
               "description": "Sprint to prey and make contact with the head bite proxy",
               "timesteps": 8000000,
@@ -625,13 +707,18 @@
       ],
       "stages": [
         {
+          "id": "stance",
+          "position": 1,
           "number": 1,
+          "label": "1",
           "name": "balance",
           "title": "Balance",
           "description": "Learn to stand on four legs without falling",
           "config_path": "configs/brachiosaurus/stage1_balance.toml",
           "timesteps": 6000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 1040.0,
             "min_avg_episode_length": 950,
             "min_avg_forward_velocity": null,
@@ -655,13 +742,18 @@
           }
         },
         {
+          "id": "locomotion",
+          "position": 2,
           "number": 2,
+          "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
           "description": "Learn coordinated quadrupedal walking",
           "config_path": "configs/brachiosaurus/stage2_locomotion.toml",
           "timesteps": 16000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 100.0,
             "min_avg_episode_length": 750,
             "min_avg_forward_velocity": 0.75,
@@ -685,13 +777,18 @@
           }
         },
         {
+          "id": "behavior",
+          "position": 3,
           "number": 3,
+          "label": "3",
           "name": "food_reach",
           "title": "Food Reach",
           "description": "Move the head tip within the configured distance threshold of food",
           "config_path": "configs/brachiosaurus/stage3_food_reach.toml",
           "timesteps": 12000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 100.0,
             "min_avg_episode_length": null,
             "min_avg_forward_velocity": null,
@@ -730,7 +827,10 @@
           },
           "stages": [
             {
+              "id": "stance",
+              "position": 1,
               "number": 1,
+              "label": "1",
               "name": "balance",
               "description": "Learn to stand and balance on four legs",
               "timesteps": 6004736,
@@ -743,7 +843,10 @@
               "stage_passed": true
             },
             {
+              "id": "locomotion",
+              "position": 2,
               "number": 2,
+              "label": "2",
               "name": "locomotion",
               "description": "Learn coordinated quadrupedal walking",
               "timesteps": 16007168,
@@ -756,7 +859,10 @@
               "stage_passed": true
             },
             {
+              "id": "behavior",
+              "position": 3,
               "number": 3,
+              "label": "3",
               "name": "food_reach",
               "description": "Move the head tip within the configured distance threshold of food",
               "timesteps": 12009472,
@@ -837,13 +943,18 @@
       ],
       "stages": [
         {
+          "id": "stance",
+          "position": 1,
           "number": 1,
+          "label": "1",
           "name": "balance",
           "title": "Balance",
           "description": "Hold the erect quadrupedal stance without collapsing into a sprawl",
           "config_path": "configs/dibothrosuchus/stage1_balance.toml",
           "timesteps": 6000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 1560.0,
             "min_avg_episode_length": 950,
             "min_avg_forward_velocity": null,
@@ -857,13 +968,18 @@
           "video": null
         },
         {
+          "id": "locomotion",
+          "position": 2,
           "number": 2,
+          "label": "2",
           "name": "locomotion",
           "title": "Locomotion",
           "description": "Learn a coordinated erect-limbed diagonal-pair walk",
           "config_path": "configs/dibothrosuchus/stage2_locomotion.toml",
           "timesteps": 12000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 100.0,
             "min_avg_episode_length": 750,
             "min_avg_forward_velocity": 0.9,
@@ -877,13 +993,18 @@
           "video": null
         },
         {
+          "id": "behavior",
+          "position": 3,
           "number": 3,
+          "label": "3",
           "name": "snap",
           "title": "Snap",
           "description": "Close on small prey and touch it with the snout snap proxy",
           "config_path": "configs/dibothrosuchus/stage3_snap.toml",
           "timesteps": 8000000,
           "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
             "min_avg_reward": 100.0,
             "min_avg_episode_length": null,
             "min_avg_forward_velocity": null,

@@ -34,6 +34,7 @@ def audit_result_bundle(
     """Classify a canonical or legacy Drive result directory without mutating it."""
     from ..result_schema import (
         ResultSchemaError,
+        ordered_stage_entries,
         validate_captured_provenance,
         validate_result_summary,
     )
@@ -105,6 +106,26 @@ def audit_result_bundle(
             errors.append(str(exc))
     elif summary is None and csv_path.exists():
         warnings.append("CSV-only run cannot be promoted without a canonical summary")
+
+    # The stages a complete bundle must prove are the stages its summary
+    # RECORDS — historically the hardcoded trio (1, 2, 3), now resolved
+    # through the species' manifest so a recorded recovery stage is audited
+    # too (configs, evidence, hashes) rather than treated as foreign.  When
+    # the summary is absent or its stage keys do not resolve, the audit
+    # falls back to the advancing trio; the summary validation above has
+    # already recorded that failure as an error of its own.
+    ordered_stage_refs: "list[int | str]" = [1, 2, 3]
+    if summary is not None and isinstance(summary.get("stages"), Mapping):
+        try:
+            summary_stage_entries = ordered_stage_entries(
+                summary["stages"],
+                species=str(summary.get("species")),
+                field="summary stages",
+            )
+        except ResultSchemaError:
+            summary_stage_entries = []
+        if summary_stage_entries:
+            ordered_stage_refs = [entry.reference for _, entry in summary_stage_entries]
 
     manifest_status = manifest.get("status") if manifest else None
     declared_paths = (
@@ -179,9 +200,10 @@ def audit_result_bundle(
                 required_paths.update({"summary.json", "plant_identity.json"})
                 # Per-stage requirements resolve to whatever the run actually
                 # named its stage directories (stage{N} historically, NN_id
-                # from 2026-08-20 on) — a complete bundle in either layout
-                # must audit, never wedge as canonical-conflict.
-                for stage in (1, 2, 3):
+                # from 2026-08-20 on, the bare id in between for semantic
+                # stages) — a complete bundle in any layout must audit,
+                # never wedge as canonical-conflict.
+                for stage in ordered_stage_refs:
                     stage_dir_name = find_stage_dir(run_path, stage).name
                     required_paths.update(
                         {
@@ -211,7 +233,10 @@ def audit_result_bundle(
             if not plant_path.is_file():
                 errors.append("complete bundle is missing plant_identity.json")
 
-            config_paths = [find_stage_dir(run_path, stage) / "stage_config.json" for stage in (1, 2, 3)]
+            # Manifest position order — the same order save_result_bundle
+            # hashed the configs in (identical to sorted-by-number for
+            # integer-only runs, so historical hashes still verify).
+            config_paths = [find_stage_dir(run_path, stage) / "stage_config.json" for stage in ordered_stage_refs]
             if all(path.is_file() for path in config_paths):
                 actual_config_hash = hashing.aggregate_file_hash(config_paths, root=run_path)
                 if actual_config_hash != provenance.get("config_hash"):
@@ -219,7 +244,7 @@ def audit_result_bundle(
                         "resolved stage config hash does not match provenance: "
                         f"{actual_config_hash!r} != {provenance.get('config_hash')!r}"
                     )
-                for stage, config_path in enumerate(config_paths, start=1):
+                for stage, config_path in zip(ordered_stage_refs, config_paths, strict=True):
                     try:
                         config_value = json.loads(config_path.read_text(encoding="utf-8"))
                         if not isinstance(config_value, Mapping):

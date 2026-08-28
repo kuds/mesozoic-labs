@@ -32,7 +32,7 @@ def _resolve_model_artifact(model_path: Any, *, run_dir: Path) -> Path | None:
 
 def save_result_bundle(
     stage_results_list: list[dict[str, Any]],
-    stage_configs: dict[int, dict[str, Any]],
+    stage_configs: "dict[int | str, dict[str, Any]]",
     species: str,
     algorithm: str,
     seed: int,
@@ -52,9 +52,11 @@ def save_result_bundle(
     """Write one idempotent, Drive-portable result bundle.
 
     Partial curricula receive provenance, CSV, and a ``partial``/``failed``
-    manifest.  A public schema-v2 ``summary.json`` is emitted only when all
-    three stages are present and the selected checkpoint, resolved configs,
-    backend version, and plant identity are available.
+    manifest.  A public schema-v3 ``summary.json`` is emitted only when every
+    advancing stage is present and the selected checkpoint, resolved configs,
+    backend version, and plant identity are available.  Non-advancing
+    semantic stages (recovery) join the bundle — CSV row, summary stage,
+    selected checkpoint, evaluation evidence — without gating its status.
     """
     from ..result_bundle import (
         ResultBundleError,
@@ -73,6 +75,8 @@ def save_result_bundle(
         write_artifact_manifest,
     )
     from ..result_schema import validate_result_summary
+    from ..stage_manifest import StageManifestError, load_stage_manifest
+    from .summaries import _stage_reference
 
     run_path = Path(run_dir)
     run_path.mkdir(parents=True, exist_ok=True)
@@ -81,30 +85,60 @@ def save_result_bundle(
     # Preflight every expected failure before invalidating an existing
     # completion marker. This is especially important on Drive, where a
     # disconnected runtime may not get another chance to rebuild the bundle.
+    #
+    # Stage references resolve through the species' manifest and everything
+    # downstream orders by manifest POSITION — never by int() on the
+    # reference, which the semantic recovery stage has none of.
     try:
-        ordered_stage_numbers = [int(result["stage"]) for result in stage_results_list]
-    except (KeyError, TypeError, ValueError) as exc:
-        raise ResultBundleError("every stage result must contain an integer stage") from exc
-    stage_numbers = set(ordered_stage_numbers)
-    if len(stage_numbers) != len(stage_results_list):
-        raise ResultBundleError("stage_results_list contains duplicate stages")
-    if not stage_numbers or not stage_numbers <= {1, 2, 3}:
-        raise ResultBundleError("stage_results_list must contain stages 1, 2, or 3")
-    expected_prefix = set(range(1, max(stage_numbers) + 1))
-    if stage_numbers != expected_prefix:
-        raise ResultBundleError(
-            f"stage_results_list must be a contiguous curriculum prefix; found {sorted(stage_numbers)}"
-        )
-    gate_values: dict[int, bool] = {}
+        stage_manifest = load_stage_manifest(species)
+    except StageManifestError as exc:
+        raise ResultBundleError(f"cannot load the stage manifest for {species!r}: {exc}") from exc
+    keyed_results: list[tuple[Any, dict[str, Any]]] = []
     for result in stage_results_list:
-        stage = int(result["stage"])
+        try:
+            entry = stage_manifest.resolve(_stage_reference(result["stage"]))
+        except (KeyError, TypeError, ValueError, StageManifestError) as exc:
+            raise ResultBundleError(f"every stage result must name a stage the {species} manifest declares") from exc
+        keyed_results.append((entry, result))
+    keyed_results.sort(key=lambda pair: pair[0].position)
+    present_ids = [entry.id for entry, _ in keyed_results]
+    if len(set(present_ids)) != len(present_ids):
+        raise ResultBundleError("stage_results_list contains duplicate stages")
+    if not keyed_results:
+        raise ResultBundleError("stage_results_list must contain at least one stage")
+    # The historical "contiguous prefix" rule, restated over the manifest: a
+    # stage's record is only coherent if every ADVANCING stage before it was
+    # trained.  A non-advancing stage (recovery) may be absent anywhere —
+    # skipping the opt-in pilot is the normal case, not a gap.
+    present_id_set = set(present_ids)
+    advancing_entries = stage_manifest.advancing_stages
+    for entry, _ in keyed_results:
+        missing_before = [
+            prior.reference
+            for prior in advancing_entries
+            if prior.position < entry.position and prior.id not in present_id_set
+        ]
+        if missing_before:
+            raise ResultBundleError(
+                f"stage_results_list must be a contiguous curriculum prefix; stage {entry.reference} "
+                f"is recorded without earlier advancing stages {missing_before}"
+            )
+    gate_values: dict[str, bool] = {}
+    for entry, result in keyed_results:
         gate_value = parse_optional_bool(result.get("publication_gate_passed"))
         if gate_value is None:
-            raise ResultBundleError(f"stage {stage} is missing an explicit boolean publication_gate_passed value")
-        gate_values[stage] = gate_value
-    has_all_stages = stage_numbers == {1, 2, 3}
-    promotion_ready = has_all_stages and all(gate_values.values())
-    status = "complete" if promotion_ready else ("failed" if not all(gate_values.values()) else "partial")
+            raise ResultBundleError(
+                f"stage {entry.reference} is missing an explicit boolean publication_gate_passed value"
+            )
+        gate_values[entry.key] = gate_value
+    # Bundle status is decided by the ADVANCING stages alone: recovery's
+    # verdict is recorded honestly in its row (today necessarily False —
+    # gate_kind none/v1 refuses to pass) but a non-advancing pilot neither
+    # completes nor fails the curriculum.
+    advancing_gate_values = [gate_values[entry.key] for entry, _ in keyed_results if entry.legacy_number is not None]
+    has_all_stages = {entry.id for entry in advancing_entries} <= present_id_set
+    promotion_ready = has_all_stages and all(advancing_gate_values)
+    status = "complete" if promotion_ready else ("failed" if not all(advancing_gate_values) else "partial")
 
     summary_path = run_path / "summary.json"
     if not promotion_ready and summary_path.exists():
@@ -115,22 +149,22 @@ def save_result_bundle(
         raise ResultBundleError("result bundle requires a positive parallel_envs value")
 
     effective_plant = plant_identity
-    if effective_plant is None and stage_results_list:
-        final_stage_result = max(stage_results_list, key=lambda item: int(item["stage"]))
-        candidate = final_stage_result.get("plant_identity")
+    if effective_plant is None and keyed_results:
+        # keyed_results is in manifest position order, so [-1] is the run's
+        # latest curriculum stage (the historical max-by-int, generalized).
+        candidate = keyed_results[-1][1].get("plant_identity")
         if isinstance(candidate, Mapping):
             effective_plant = candidate
     normalized_plant = _normalize_plant_identity(effective_plant, species=species)
     if normalized_plant is None:
         raise ResultBundleError("result bundle is missing plant identity")
-    for result in stage_results_list:
-        stage = int(result["stage"])
+    for entry, result in keyed_results:
         stage_plant_value = result.get("plant_identity")
         if not isinstance(stage_plant_value, Mapping):
-            raise ResultBundleError(f"stage {stage} is missing plant identity")
+            raise ResultBundleError(f"stage {entry.reference} is missing plant identity")
         stage_plant = _normalize_plant_identity(stage_plant_value, species=species)
         if stage_plant != normalized_plant:
-            raise ResultBundleError(f"stage {stage} plant identity does not match the run identity")
+            raise ResultBundleError(f"stage {entry.reference} plant identity does not match the run identity")
 
     public_algorithm = canonical_algorithm(algorithm)
     public_backend = canonical_backend(algorithm, backend)
@@ -140,20 +174,32 @@ def save_result_bundle(
     if promotion_ready and not detected_backend_version:
         raise ResultBundleError("complete bundle requires a recorded backend version")
 
-    config_paths = [find_stage_dir(run_path, stage) / "stage_config.json" for stage in sorted(stage_numbers)]
+    # Position order, matching the audit's recomputation: the aggregate
+    # config hash is order-sensitive, and for integer-only runs position
+    # order IS the historical sorted-by-number order, so old hashes hold.
+    ordered_refs = [entry.reference for entry, _ in keyed_results]
+    config_paths = [find_stage_dir(run_path, ref) / "stage_config.json" for ref in ordered_refs]
     missing_configs = [path for path in config_paths if not path.is_file()]
     if missing_configs:
         raise ResultBundleError(f"result bundle is missing resolved stage configs: {missing_configs}")
-    resolved_stage_configs: dict[int, dict[str, Any]] = {}
-    for stage, config_path in zip(sorted(stage_numbers), config_paths, strict=True):
+    resolved_stage_configs: dict[Any, dict[str, Any]] = {}
+    for (entry, _), config_path in zip(keyed_results, config_paths, strict=True):
+        stage = entry.reference
         try:
             saved_config = _json.loads(config_path.read_text(encoding="utf-8"))
         except (OSError, _json.JSONDecodeError) as exc:
             raise ResultBundleError(f"cannot read resolved stage config {config_path}: {exc}") from exc
         if not isinstance(saved_config, Mapping):
             raise ResultBundleError(f"resolved stage config must contain an object: {config_path}")
-        if saved_config.get("stage") is not None and int(saved_config["stage"]) != stage:
-            raise ResultBundleError(f"resolved stage config is mislabeled for stage {stage}: {config_path}")
+        if saved_config.get("stage") is not None:
+            try:
+                saved_stage = _stage_reference(saved_config["stage"])
+            except ValueError as exc:
+                raise ResultBundleError(
+                    f"resolved stage config is mislabeled for stage {stage}: {config_path}"
+                ) from exc
+            if saved_stage != stage:
+                raise ResultBundleError(f"resolved stage config is mislabeled for stage {stage}: {config_path}")
         if saved_config.get("species") not in {None, "", species}:
             raise ResultBundleError(f"resolved stage config species mismatch: {config_path}")
         if saved_config.get("algorithm"):
@@ -203,8 +249,8 @@ def save_result_bundle(
     config_hash = aggregate_file_hash(config_paths, root=run_path)
 
     selected_checkpoints: dict[str, dict[str, Any]] = {}
-    for result in stage_results_list:
-        stage = int(result["stage"])
+    for entry, result in keyed_results:
+        stage = entry.reference
         model_artifact = _resolve_model_artifact(result.get("model_path"), run_dir=run_path)
         if promotion_ready and model_artifact is None:
             raise ResultBundleError(f"complete bundle is missing its selected Stage {stage} checkpoint")
@@ -233,21 +279,27 @@ def save_result_bundle(
                         f"selected VecNormalize artifact lies outside run directory: {normalization_artifact}"
                     ) from exc
                 normalization_hash = sha256_file(normalization_artifact)
-        selected_checkpoints[str(stage)] = {
+        selected_checkpoints[entry.key] = {
             "model_path": selected_path,
             "model_hash": sha256_file(model_artifact),
             "normalization_path": normalization_path,
             "normalization_hash": normalization_hash,
         }
 
-    stage3_checkpoint = selected_checkpoints.get("3", {})
-    selected_model_path = stage3_checkpoint.get("model_path")
-    model_hash = stage3_checkpoint.get("model_hash")
+    # The published model stays the terminal ADVANCING stage's checkpoint
+    # ("3", behavior); a non-advancing pilot's checkpoint is carried in
+    # selected_checkpoints but never promoted.
+    terminal_checkpoint = selected_checkpoints.get(advancing_entries[-1].key, {}) if advancing_entries else {}
+    selected_model_path = terminal_checkpoint.get("model_path")
+    model_hash = terminal_checkpoint.get("model_hash")
 
     if promotion_ready:
-        for stage in (1, 2, 3):
+        # Every RECORDED stage — the optional recovery pilot included — must
+        # carry its evaluation evidence; a stage in the bundle without
+        # evidence would publish unverifiable numbers.
+        for ref in ordered_refs:
             for checkpoint_label in ("selected", "final"):
-                evidence_path = find_stage_dir(run_path, stage) / f"evaluation_{checkpoint_label}.csv"
+                evidence_path = find_stage_dir(run_path, ref) / f"evaluation_{checkpoint_label}.csv"
                 if not evidence_path.is_file() or evidence_path.stat().st_size == 0:
                     raise ResultBundleError(
                         f"complete bundle is missing {checkpoint_label} evaluation evidence: {evidence_path}"
@@ -263,6 +315,11 @@ def save_result_bundle(
             raise ResultBundleError(f"cannot read existing artifact manifest: {exc}") from exc
         if previous_manifest_status == "complete":
             validate_result_bundle(run_path, require_complete=True)
+
+    # From here on, stage results travel in manifest position order so the
+    # CSV rows (and any other order-sensitive artifact) come out identical
+    # no matter how the caller ordered its list.
+    ordered_stage_results = [result for _, result in keyed_results]
 
     provenance_path = initialize_result_bundle(
         run_path,
@@ -293,7 +350,7 @@ def save_result_bundle(
     prospective_summary: dict[str, Any] | None = None
     if promotion_ready:
         prospective_summary = summaries.build_result_summary(
-            stage_results_list,
+            ordered_stage_results,
             species,
             algorithm,
             seed,
@@ -327,7 +384,7 @@ def save_result_bundle(
 
     # Exercise CSV construction before removing the previous completion marker.
     csv_output.build_results_csv_rows(
-        stage_results_list,
+        ordered_stage_results,
         resolved_stage_configs,
         species,
         algorithm,
@@ -346,7 +403,7 @@ def save_result_bundle(
     hashing._write_json(run_path / "plant_identity.json", normalized_plant)
 
     csv_path = csv_output.save_results_csv(
-        stage_results_list,
+        ordered_stage_results,
         resolved_stage_configs,
         species,
         algorithm,

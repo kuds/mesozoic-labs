@@ -48,7 +48,10 @@ ent_coef_end = 0.001                    # Decay entropy over the stage (EntCoefD
                                         # (with fall_penalty -150 and forward_vel_max 2.5) is what carried
                                         # velociraptor stage 2 to 2706 +/- 8 @ 2.75 m/s on the 1.5x-kp plant.
                                         # See docs/investigations/STAGE2_RECOMMENDATIONS.md §5.
-ent_coef_decay_timesteps = 4000000      # Anchor the decay to half the 8M budget, matching stage 1's 3M-of-6M.
+ent_coef_decay_timesteps = 4000000      # Anchor the decay to half the 8M budget. (Record fixed 2026-08-23:
+                                        # originally "matching stage 1's 3M-of-6M" — that anchor is retired,
+                                        # stance now decays over 7M of 11M; the half-budget choice here
+                                        # stands on the measurement below, not on the mirror.)
                                         # Without it decay_timesteps defaults to the full stage budget
                                         # (train_base._maybe_ent_coef_decay_callback:502) and ent_coef coasts high.
                                         # Measured on run 20260725_194916, this was the only T-Rex stage without the
@@ -111,11 +114,47 @@ gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
 timesteps = 8000000                     # Increase from 5M: your best T-Rex stage2 was only at 2M steps and still improving
 min_avg_reward = 100.0
-collapse_peak_floor = 100.0    # Explicit: this used to fall back to min_avg_reward, coupling an
-                                        # early-stop backstop to an unrelated advancement threshold. Set to
-                                        # the value that fallback produced, so behaviour is unchanged.
+# Collapse backstop: the relative floor pair stance and recovery use
+# (PLANT_VALIDATION §14 item 3), replacing the absolute
+# collapse_peak_floor = 100.0 — which sat 11x BELOW the measured do-nothing
+# reward, so it armed on the first qualifying eval of any run, healthy or
+# not, and encoded nothing about this stage. The absolute key is REMOVED,
+# not shadowed: collapse_settings_from_config (curriculum/early_stopping.py)
+# lets an explicit collapse_peak_floor win over the pair, so leaving it in
+# place would silently keep the old floor.
+collapse_peak_floor_reference = 1091.5  # The zero-action locomotion statue's reward at noise 0.05:
+                                        # 1091.51 ± 5.46 over 40 episodes, 40/40 full horizon, measured
+                                        # 2026-08-23 with environments/shared/scripts/
+                                        # zero_action_baseline.py trex:2 (2026-08 review §5.3). Re-measure
+                                        # with the same script whenever a reward weight OR the plant
+                                        # changes: a weight change rescales the statue's terms exactly and
+                                        # cheaply; a plant change moves its trajectory, so only a re-run is
+                                        # evidence. Forgetting either is silent.
+collapse_peak_floor_fraction = 0.45     # Same fraction as stance and recovery; floor = 0.45 x 1091.5 =
+                                        # 491.2. The interrupted run 20260821_142144's best eval (1494.47
+                                        # at 5.3M) clears it, and even its ~1100 ramp-window plateau does,
+                                        # so the backstop arms as soon as collapse_min_evals is met and
+                                        # watches the rest of the run. The ratio, not the product, is what
+                                        # carries across a reward change.
+statue_constants_physics_revision = 7   # The trex PHYSICS revision the 1091.5 reference was measured on
+                                        # (2026-08-23). test_statue_constant_freshness.py holds this pin
+                                        # against the plant manifest, so a plant bump that forgets the
+                                        # re-measure fails CI instead of silently training against a
+                                        # backstop calibrated on a plant that no longer exists.
 min_avg_episode_length = 750            # Reduce from 800: T-Rex best run reached 682, 800 is too strict
-min_avg_forward_vel = 2.0               # Gate on sustained running (matches raptor stage 2 gate)
+min_avg_forward_vel = 1.0               # A firm walk, re-derived from this plant (2026-08 review §5.3
+                                        # decision (b)). The previous 2.0 was a velociraptor copy: on this
+                                        # plant 2.0 m/s is Froude 0.46-0.57 (CoM height 0.72-0.88 m) — the
+                                        # walk-run boundary — while the raptor runs its own 2.0 gate at
+                                        # Froude ~1.07; the dynamically-similar raptor-gate equivalent here
+                                        # is 2.7-3.0 m/s. Measured against run 20260821_142144: its
+                                        # velocity curve first-touches 2.0 m/s at 7.1M/10.5M/13.5M steps
+                                        # (exponential/quadratic/linear post-ramp fits) on an 8M budget,
+                                        # with 0/109 in-training evals passing; 1.0 m/s (Froude 0.14-0.16)
+                                        # first-touches at 6.4-8.0M on the same fits — inside the budget.
+                                        # The 2.0 m/s capability target moves to the behavior stage's gate
+                                        # (behavior.toml), which needs closing speed anyway. Re-derive by
+                                        # refitting the post-ramp velocity curve of the next full run.
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.

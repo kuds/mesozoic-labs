@@ -40,7 +40,7 @@ def test_partial_bundle_is_valid_but_not_publishable(
     stable_provenance: None,
 ) -> None:
     run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260718_120000"
-    configs = {1: _stage_config(1, "PPO")}
+    configs: dict[int | str, dict[str, Any]] = {1: _stage_config(1, "PPO")}
     _write_stage_configs(run_dir, configs)
 
     paths = save_result_bundle(

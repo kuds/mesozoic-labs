@@ -11,7 +11,7 @@ function VideoCard({ species, stage }: { species: string; stage: SpeciesStage })
   return (
     <div className={styles.card}>
       <div className={styles.cardBorder} aria-hidden="true" />
-      <div className={styles.stageLabel}>STAGE {stage.number}</div>
+      <div className={styles.stageLabel}>STAGE {stage.label.toUpperCase()}</div>
       <h3 className={styles.stageTitle}>{stage.title}</h3>
       <p className={styles.stageDescription}>{stage.description}</p>
       {stage.video && (
@@ -31,7 +31,7 @@ function VideoCard({ species, stage }: { species: string; stage: SpeciesStage })
             preload="none"
             poster={posterFor(stage.video.path)}
             className={styles.videoPlayer}
-            aria-label={`${species} stage ${stage.number}: ${stage.title}`}
+            aria-label={`${species} stage ${stage.label}: ${stage.title}`}
           />
         ) : (
           <p className={styles.videoUnavailable}>No published video is available for this stage.</p>
@@ -52,7 +52,7 @@ export default function SpeciesVideoSection({
       </p>
       <div className={styles.grid}>
         {stages.map((stage) => (
-          <VideoCard key={stage.number} species={species} stage={stage} />
+          <VideoCard key={stage.id} species={species} stage={stage} />
         ))}
       </div>
     </div>

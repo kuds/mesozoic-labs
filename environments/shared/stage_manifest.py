@@ -66,6 +66,28 @@ class StageEntry:
     #: stages (recovery) that never had a numeric identity.
     legacy_number: int | None
 
+    @property
+    def reference(self) -> "int | str":
+        """The canonical in-memory reference for this stage.
+
+        The one spelling writers use (load_all_stages keys, stage-result
+        dicts, CSV cells): the legacy number where one exists — so every
+        pre-manifest artifact and consumer keeps its meaning — and the
+        semantic id otherwise (recovery).
+        """
+        return self.legacy_number if self.legacy_number is not None else self.id
+
+    @property
+    def key(self) -> str:
+        """The canonical serialized key: :attr:`reference` forced to a string.
+
+        JSON object keys and CSV cells cannot hold integers, so ``2``
+        serializes as ``"2"`` and ``"recovery"`` as itself.  Readers accept
+        the wider vocabulary via :func:`resolve_stage_key`; writers emit
+        only this spelling so two artifacts cannot name one stage two ways.
+        """
+        return str(self.reference)
+
 
 @dataclass(frozen=True)
 class StageManifest:
@@ -109,6 +131,23 @@ class StageManifest:
         if isinstance(ref, int):
             return self.by_legacy_number(ref)
         raise StageManifestError(f"invalid stage reference type {type(ref).__name__}")
+
+    @property
+    def advancing_stages(self) -> "tuple[StageEntry, ...]":
+        """The stages whose gates advance the curriculum, in manifest order.
+
+        Defined as the stages carrying a legacy number.  That equivalence is
+        deliberate, not incidental (bundle/catalog migration, 2026-08-23):
+        the historical "exactly stages 1, 2, and 3" completeness rules meant
+        "a complete curriculum recorded a handoff per advancing stage", and
+        the only stage without a legacy number — recovery — is non-advancing
+        by design (gate_kind none/v1 until P5; its checkpoint feeds nothing
+        forward until a frozen recovery_quality/v1 gate certifies one).  A
+        future stage that is numbered-but-non-advancing or
+        semantic-but-advancing must revisit this property, not work around
+        it.
+        """
+        return tuple(entry for entry in self.stages if entry.legacy_number is not None)
 
 
 def _synthesize_legacy_manifest(species: str, species_dir: Path) -> StageManifest:
@@ -214,6 +253,23 @@ def stage_label(ref: "int | str") -> str:
     if ref not in KNOWN_STAGE_IDS:
         raise StageManifestError(f"unknown stage id {ref!r}; known: {KNOWN_STAGE_IDS}")
     return ref
+
+
+def resolve_stage_key(species: str, key: "int | str") -> StageEntry:
+    """Resolve a stage reference as serialized artifacts spell it.
+
+    JSON object keys and CSV cells force every reference through a string,
+    so the decimal spelling of a legacy number (``"2"``) means the same
+    stage the integer ``2`` always has — the legacy number, never the
+    position (module docstring).  Semantic ids and in-memory references
+    pass through :meth:`StageManifest.resolve`.  Everything else —
+    booleans, empty strings, non-decimal non-id strings — fails closed
+    with :class:`StageManifestError`.
+    """
+    manifest = load_stage_manifest(species)
+    if isinstance(key, str) and key.isdigit():
+        return manifest.by_legacy_number(int(key))
+    return manifest.resolve(key)
 
 
 def stage_dirname(species: str, ref: "int | str") -> str:

@@ -18,7 +18,7 @@ from that layout:
   evaluation evidence
 * :mod:`~environments.shared.reporting.text_summaries` — human-readable
   ``stage_summary.txt`` / ``training_summary.txt``
-* :mod:`~environments.shared.reporting.summaries` — schema-v2
+* :mod:`~environments.shared.reporting.summaries` — schema-v3
   ``summary.json`` construction and its provenance block
 * :mod:`~environments.shared.reporting.bundles` — idempotent, Drive-portable
   result bundle publication

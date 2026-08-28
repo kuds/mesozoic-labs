@@ -190,6 +190,30 @@ open, and its blocking experiment is the off-distribution schedule test
 (that document, §6.1) — whether the policy learned disturbance rejection or
 the push schedule's timing.
 
+**Update (2026-08-23): warm-start lineage decision.** Locomotion continues
+to warm-start from the certified **stance** checkpoint (the notebook's
+`path_1`; `_select_handoff_checkpoint` promotes stance's
+`robust_best_model`), and the recovery pilot's output stays a dead-end side
+branch, **until** a recovery checkpoint passes a frozen
+`recovery_quality/v1` gate. The moment P5 lands and a gated recovery PASS
+exists, the promotion source for locomotion switches to that certified
+recovery checkpoint — the manifest ordered recovery at position 2 precisely
+so robustness feeds forward — recorded as a lineage-visible change (the
+task fingerprint's `initialize_next_stage` boundary makes the parent
+explicit), never as a silent notebook edit. Until then, feeding an
+ungated recovery policy forward would launder uncertified robustness into
+the curriculum, which is the advance-on-unmeasured-evidence failure this
+gate architecture exists to prevent. Also decided the same day, from the
+§6.1 null measurements (review doc §5.2): at 120 N the statue is **not** a
+zero null (2–3/40 passive successes, UCB95 14.9%), so the low-magnitude arm
+of the off-distribution test must be judged against paired per-seed
+differences, not the 0/40 null intuition. Also landed 2026-08-23: the
+deferred consumer work above is done — result schema v3, the species
+catalog / README / website generated tables, `collected_results.csv`, and
+the bundle audit all carry semantic stage references, so recovery runs now
+join result bundles and the generated tables (review doc §4 item 13) while
+every committed integer-stage artifact still validates unchanged.
+
 Ordering follows the split plan's steps 8–14 with two updates: step 9's core
 (the stance-gate statistic) already shipped, and everything below is rebased
 onto the r7/r11 tree. Each workstream lands independently and default-off.

@@ -650,3 +650,40 @@ class TestPositionPrefixedStageDirs:
             (stage_dir / "metrics.json").write_text(json.dumps({"mean_reward": 1.0}))
         rows = collect_results_from_disk(tmp_path, stages=[2])
         assert [row["stage"] for row in rows] == [2]
+
+    def test_semantic_stage_dirs_collect_under_their_id(self, tmp_path):
+        """The recovery stage has no legacy number, so its rows carry the id.
+
+        Both on-disk generations a semantic stage has written must collect:
+        the bare id ("recovery", pre-2026-08-20 stage_label layout) and the
+        position-prefixed NN_id form — and the reference is always the id,
+        never a number minted from the NN position digits.
+        """
+        import json
+
+        from environments.shared.scripts.sweep.results import collect_results_from_disk
+
+        for name in ("01_stance", "02_recovery"):
+            stage_dir = tmp_path / "nn_layout" / name
+            stage_dir.mkdir(parents=True)
+            (stage_dir / "metrics.json").write_text(json.dumps({"mean_reward": 1.0}))
+        rows = collect_results_from_disk(tmp_path / "nn_layout")
+        assert sorted(str(row["stage"]) for row in rows) == ["1", "recovery"]
+
+        bare_dir = tmp_path / "bare_layout" / "recovery"
+        bare_dir.mkdir(parents=True)
+        (bare_dir / "metrics.json").write_text(json.dumps({"mean_reward": 2.0}))
+        rows = collect_results_from_disk(tmp_path / "bare_layout")
+        assert [row["stage"] for row in rows] == ["recovery"]
+
+    def test_stage_filter_accepts_semantic_references(self, tmp_path):
+        import json
+
+        from environments.shared.scripts.sweep.results import collect_results_from_disk
+
+        for name in ("01_stance", "02_recovery"):
+            stage_dir = tmp_path / name
+            stage_dir.mkdir()
+            (stage_dir / "metrics.json").write_text(json.dumps({"mean_reward": 1.0}))
+        rows = collect_results_from_disk(tmp_path, stages=["recovery"])
+        assert [row["stage"] for row in rows] == ["recovery"]

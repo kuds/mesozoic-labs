@@ -164,7 +164,16 @@ class TestRecoveryStageConfig:
         # fails here, with the fix being to re-mirror (and re-derive the
         # recovery rails once the W4 gate exists).
         assert mirrored == stance["env"]
-        assert recovery["ppo"] == stance["ppo"]
+        # [ppo] mirrors stance with exactly one measured delta:
+        # ent_coef_decay_timesteps is anchored to recovery's own 3M budget
+        # (2M, ~2/3 — the same ratio as stance's 7M-of-11M) rather than
+        # mirrored, because the 20260821_142144 pilot trained its whole
+        # budget at ent_coef >= 0.0014 when the mirrored 7M horizon never
+        # completed (2026-08 review §3.4).
+        assert (
+            recovery["ppo"] | {"ent_coef_decay_timesteps": stance["ppo"]["ent_coef_decay_timesteps"]} == stance["ppo"]
+        )
+        assert recovery["ppo"]["ent_coef_decay_timesteps"] == 2_000_000
 
     def test_gate_is_fail_closed_until_w4(self):
         import tomllib
@@ -275,3 +284,54 @@ class TestStageDirnames:
 
         # Missing stays legible: the historical name comes back for errors.
         assert find_stage_dir(modern, 3).name == "stage3"
+
+
+class TestSerializedStageKeys:
+    """resolve_stage_key and the canonical reference/key spellings.
+
+    Added with the bundle/catalog migration (2026-08-23): JSON object keys
+    and CSV cells force every stage reference through a string, and this is
+    the one place that decides what those strings mean.
+    """
+
+    def test_decimal_strings_are_legacy_numbers_never_positions(self):
+        from environments.shared.stage_manifest import resolve_stage_key
+
+        # "2" means locomotion (legacy) even though recovery holds
+        # manifest position 2 — the no-silent-renumbering guarantee.
+        assert resolve_stage_key("trex", "2").id == "locomotion"
+        assert resolve_stage_key("trex", 2).id == "locomotion"
+        assert resolve_stage_key("trex", "recovery").id == "recovery"
+
+    def test_unknown_and_malformed_keys_fail_closed(self):
+        from environments.shared.stage_manifest import StageManifestError, resolve_stage_key
+
+        with pytest.raises(StageManifestError):
+            resolve_stage_key("trex", "warp")
+        with pytest.raises(StageManifestError):
+            resolve_stage_key("trex", "4")
+        with pytest.raises(StageManifestError):
+            resolve_stage_key("velociraptor", "recovery")
+        with pytest.raises(StageManifestError):
+            resolve_stage_key("trex", True)
+
+    def test_canonical_reference_and_key_spellings(self):
+        from environments.shared.stage_manifest import load_stage_manifest
+
+        manifest = load_stage_manifest("trex")
+        assert [entry.reference for entry in manifest.stages] == [1, "recovery", 2, 3]
+        assert [entry.key for entry in manifest.stages] == ["1", "recovery", "2", "3"]
+
+    def test_advancing_stages_are_the_numbered_trio(self):
+        from environments.shared.stage_manifest import load_stage_manifest
+
+        assert [entry.id for entry in load_stage_manifest("trex").advancing_stages] == [
+            "stance",
+            "locomotion",
+            "behavior",
+        ]
+        assert [entry.id for entry in load_stage_manifest("velociraptor").advancing_stages] == [
+            "stance",
+            "locomotion",
+            "behavior",
+        ]

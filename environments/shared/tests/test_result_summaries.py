@@ -158,7 +158,7 @@ def test_partial_summary_accepts_a_nonempty_stage_subset() -> None:
         relative_path="results/velociraptor/ppo/summary.json",
         require_complete=False,
     )
-    with pytest.raises(ResultSchemaError, match="must contain exactly 1, 2, and 3"):
+    with pytest.raises(ResultSchemaError, match="must contain every advancing stage"):
         validate_result_summary(
             summary,
             expected_species="velociraptor",
@@ -171,13 +171,108 @@ def test_partial_summary_rejects_empty_or_unknown_stages() -> None:
     summary = deepcopy(_published_summary())
     summary["stages"] = {}
     summary["total_timesteps"] = 1
-    with pytest.raises(ResultSchemaError, match="non-empty subset"):
+    with pytest.raises(ResultSchemaError, match="at least one stage"):
         validate_result_summary(summary, require_complete=False)
 
     summary = deepcopy(_published_summary())
     summary["stages"]["4"] = summary["stages"].pop("3")
-    with pytest.raises(ResultSchemaError, match="non-empty subset"):
+    with pytest.raises(ResultSchemaError, match="invalid stage reference '4'"):
         validate_result_summary(summary, require_complete=False)
+
+
+def _trex_summary_with_recovery() -> dict[str, Any]:
+    """The committed trex summary plus a synthetic recovery stage (schema v3)."""
+    summary = _load_summary(REPOSITORY_ROOT / "results" / "trex" / "ppo" / "summary.json")
+    summary = deepcopy(summary)
+    summary["schema_version"] = 3
+    recovery_stage = deepcopy(summary["stages"]["1"])
+    recovery_stage["name"] = "recovery"
+    recovery_stage["description"] = "Hold the stance against scheduled pushes"
+    recovery_stage["timesteps"] = 3_000_000
+    # The pilot's honest verdict: gate_kind none/v1 refuses to pass.
+    recovery_stage["stage_passed"] = False
+    summary["stages"]["recovery"] = recovery_stage
+    summary["total_timesteps"] += 3_000_000
+    return summary
+
+
+def test_complete_summary_accepts_the_semantic_recovery_stage() -> None:
+    """Recovery joins the summary without weakening the advancing-stage rule.
+
+    The v2 ``exactly {1, 2, 3}`` equality enforced "a complete curriculum
+    recorded every advancing stage".  v3 keeps that rule bit-for-bit for the
+    advancing trio while the non-advancing recovery stage rides along — and
+    its recorded verdict may be False, because a non-advancing pilot's
+    failure must not be laundered into (or block) the curriculum's own
+    completeness.
+    """
+    summary = _trex_summary_with_recovery()
+    validate_result_summary(
+        summary,
+        expected_species="trex",
+        relative_path="results/trex/ppo/summary.json",
+        require_complete=True,
+    )
+
+    # Still fail-closed on the advancing trio: recovery cannot substitute
+    # for a missing numbered stage.
+    summary = _trex_summary_with_recovery()
+    summary["total_timesteps"] -= summary["stages"]["2"]["timesteps"]
+    del summary["stages"]["2"]
+    with pytest.raises(ResultSchemaError, match=r"must contain every advancing stage; missing \['2'\]"):
+        validate_result_summary(summary, expected_species="trex", require_complete=True)
+
+
+def test_summary_rejects_stage_references_outside_the_species_vocabulary() -> None:
+    # An id no manifest declares fails closed.
+    summary = _trex_summary_with_recovery()
+    summary["stages"]["warp"] = deepcopy(summary["stages"]["recovery"])
+    summary["total_timesteps"] += 3_000_000
+    with pytest.raises(ResultSchemaError, match="invalid stage reference 'warp'"):
+        validate_result_summary(summary, expected_species="trex", require_complete=True)
+
+    # A valid id the SPECIES does not declare fails closed too: only trex
+    # carries a recovery stage today.
+    summary = deepcopy(_published_summary())
+    summary["stages"]["recovery"] = deepcopy(summary["stages"]["1"])
+    with pytest.raises(ResultSchemaError, match="invalid stage reference 'recovery'"):
+        validate_result_summary(summary, expected_species="velociraptor", require_complete=True)
+
+
+def test_summary_rejects_two_spellings_of_one_stage() -> None:
+    """ "2" and "locomotion" are the same trex stage; recording both would
+    double-count it in every aggregate."""
+    summary = _trex_summary_with_recovery()
+    summary["stages"]["locomotion"] = deepcopy(summary["stages"]["2"])
+    summary["total_timesteps"] += summary["stages"]["2"]["timesteps"]
+    with pytest.raises(ResultSchemaError, match="references stage 'locomotion' twice"):
+        validate_result_summary(summary, expected_species="trex", require_complete=True)
+
+
+def test_summary_accepts_both_supported_schema_versions() -> None:
+    summary = deepcopy(_published_summary())
+    for version in (2, 3):
+        summary["schema_version"] = version
+        validate_result_summary(summary, expected_species="velociraptor", require_complete=True)
+    summary["schema_version"] = 1
+    with pytest.raises(ResultSchemaError, match=r"schema_version must be one of \[2, 3\]"):
+        validate_result_summary(summary, expected_species="velociraptor", require_complete=True)
+
+
+def test_canonical_selected_checkpoints_require_every_advancing_stage() -> None:
+    summary = _canonical_summary()
+    del summary["provenance"]["selected_checkpoints"]["2"]
+    with pytest.raises(ResultSchemaError, match=r"checkpoint for every advancing stage; missing \['2'\]"):
+        validate_result_summary(summary, canonical_provenance=True)
+
+    # And the keys stay inside the species' vocabulary: velociraptor
+    # declares no recovery stage, so the key fails closed.
+    summary = _canonical_summary()
+    summary["provenance"]["selected_checkpoints"]["recovery"] = deepcopy(
+        summary["provenance"]["selected_checkpoints"]["1"]
+    )
+    with pytest.raises(ResultSchemaError, match="invalid stage reference 'recovery'"):
+        validate_result_summary(summary, canonical_provenance=True)
 
 
 def test_canonical_provenance_requires_complete_well_formed_identity() -> None:

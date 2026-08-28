@@ -26,7 +26,7 @@ from environments.shared.species_catalog import (
 
 def test_catalog_derives_current_model_and_stage_facts() -> None:
     catalog = build_catalog()
-    assert catalog["schema_version"] == 2
+    assert catalog["schema_version"] == 3
     species = {entry["id"]: entry for entry in catalog["species"]}
 
     assert {
@@ -51,7 +51,24 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     # stance-gated stage, and its 6M budget ran out mid-improvement -- run
     # 20260802_203215's best evaluation was its last, at 6.0M of 6M. Raised
     # 10M -> 11M on main (08a66b3) for the seeded replicate campaign.
-    assert [stage["timesteps"] for stage in species["trex"]["stages"]] == [11_000_000, 8_000_000, 8_000_000]
+    #
+    # Four rows in MANIFEST order: the recovery stage (3M, recovery.toml)
+    # sits between stance and locomotion, labelled by its semantic id — it
+    # has no legacy number and none is invented for it.
+    assert [stage["timesteps"] for stage in species["trex"]["stages"]] == [
+        11_000_000,
+        3_000_000,
+        8_000_000,
+        8_000_000,
+    ]
+    assert [
+        (stage["id"], stage["number"], stage["label"], stage["position"]) for stage in species["trex"]["stages"]
+    ] == [
+        ("stance", 1, "1", 1),
+        ("recovery", None, "recovery", 2),
+        ("locomotion", 2, "2", 3),
+        ("behavior", 3, "3", 4),
+    ]
     assert [stage["timesteps"] for stage in species["brachiosaurus"]["stages"]] == [
         6_000_000,
         16_000_000,
@@ -220,9 +237,22 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "dibothrosuchus": stance_null,
     }
 
+    stage_one_gate_kind = {
+        "trex": "stance_quality/v1",
+        "velociraptor": "reward_and_length/v1",
+        "brachiosaurus": "reward_and_length/v1",
+        "dibothrosuchus": "reward_and_length/v1",
+    }
+
     for species_id, entry in species.items():
-        stage_one, stage_two, stage_three = [stage["advancement_gate"] for stage in entry["stages"]]
+        # Gates are addressed by LEGACY number, not by list position: the
+        # trex list has four rows because the recovery stage sits at
+        # position 2, and the numbered stages must be unaffected by it.
+        gates_by_number = {stage["number"]: stage["advancement_gate"] for stage in entry["stages"]}
+        stage_one, stage_two, stage_three = (gates_by_number[number] for number in (1, 2, 3))
         assert stage_one == {
+            "gate_kind": stage_one_gate_kind[species_id],
+            "pending_gate_kind": None,
             "min_avg_reward": stage_one_min_avg_reward[species_id],
             "min_avg_episode_length": stage_one_length[species_id],
             "min_avg_forward_velocity": None,
@@ -234,6 +264,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # Stages 2 and 3 stay on reward_and_length/v1, so their stance fields
         # export as nulls.
         assert stage_two | {"min_avg_forward_velocity": None} == {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": None,
             "min_avg_reward": 100.0,
             "min_avg_episode_length": 750,
             "min_avg_forward_velocity": None,
@@ -242,7 +274,9 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "required_consecutive": 3,
             **stance_null,
         }
-        assert stage_three == {
+        assert stage_three | {"min_avg_forward_velocity": None} == {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": None,
             "min_avg_reward": 100.0,
             "min_avg_episode_length": None,
             "min_avg_forward_velocity": None,
@@ -252,9 +286,33 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             **stance_null,
         }
 
-    assert species["velociraptor"]["stages"][1]["advancement_gate"]["min_avg_forward_velocity"] == 2.0
-    assert species["trex"]["stages"][1]["advancement_gate"]["min_avg_forward_velocity"] == 2.0
-    assert species["brachiosaurus"]["stages"][1]["advancement_gate"]["min_avg_forward_velocity"] == 0.75
+    # The recovery pilot exports its declared none/v1 placeholder honestly:
+    # no criteria to list, a named pending gate, and no invented number.
+    trex_recovery = next(stage for stage in species["trex"]["stages"] if stage["id"] == "recovery")
+    assert trex_recovery["number"] is None
+    assert trex_recovery["label"] == "recovery"
+    assert trex_recovery["timesteps"] == 3_000_000
+    assert trex_recovery["advancement_gate"]["gate_kind"] == "none/v1"
+    assert trex_recovery["advancement_gate"]["pending_gate_kind"] == "recovery_quality/v1"
+    assert trex_recovery["video"] is None
+
+    # Trex stage 2 gates a 1.0 m/s walk, re-derived from the plant (Froude
+    # 0.14-0.16; the copied raptor 2.0 was this plant's walk-run boundary and
+    # passed 0/109 evals on run 20260821_142144 — 2026-08 review §5.3).
+    # Stages addressed by legacy NUMBER, not list index: trex's list gained
+    # a recovery row at position 2, and "stage 2" must keep meaning
+    # locomotion (the no-silent-renumbering invariant).
+    def _gate(species_id: str, number: int) -> dict:
+        return next(stage["advancement_gate"] for stage in species[species_id]["stages"] if stage["number"] == number)
+
+    assert _gate("velociraptor", 2)["min_avg_forward_velocity"] == 2.0
+    assert _gate("trex", 2)["min_avg_forward_velocity"] == 1.0
+    assert _gate("brachiosaurus", 2)["min_avg_forward_velocity"] == 0.75
+    # The 2.0 m/s capability target relocated to trex's behavior-stage gate
+    # (review §5.3 decision (b)); no other species gates stage 3 on speed.
+    assert _gate("trex", 3)["min_avg_forward_velocity"] == 2.0
+    for other in ("velociraptor", "brachiosaurus", "dibothrosuchus"):
+        assert _gate(other, 3)["min_avg_forward_velocity"] is None
 
 
 def test_catalog_scopes_success_semantics_to_training_backends() -> None:
@@ -521,10 +579,18 @@ def test_sb3_notebook_enforces_the_gate_it_no_longer_evaluates() -> None:
 def test_sb3_notebook_finalizes_complete_bundle_once() -> None:
     notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
     code_cells = ["".join(cell.get("source", [])) for cell in notebook["cells"] if cell.get("cell_type") == "code"]
-    stage_three_results = "[results_1, results_2, results_3]"
+    # Every summary/bundle call routes through curriculum_results(...), which
+    # splices the opt-in recovery pilot's results in once that stage ran —
+    # a later save with a bare [results_*] list would silently DROP the
+    # pilot's collected_results.csv row and summary stage on rewrite.
+    stage_three_results = "curriculum_results(results_1, results_2, results_3)"
 
     assert sum(f"write_training_summary(RUN_DIR, {stage_three_results})" in cell for cell in code_cells) == 1
     assert sum(f"save_run_bundle({stage_three_results}, species=SPECIES)" in cell for cell in code_cells) == 1
+    for stale_list in ("save_run_bundle([results_1, results_2]", "save_run_bundle([results_1, results_2, results_3]"):
+        assert not any(stale_list in cell for cell in code_cells), (
+            f"{stale_list}...) bypasses curriculum_results and would drop the recovery pilot from the bundle"
+        )
 
     completion_cells = [cell for cell in code_cells if 'print("Training complete!")' in cell]
     assert len(completion_cells) == 1

@@ -77,9 +77,13 @@ perturbation_jitter = 0.5
 perturbation_duration = 0.2
 perturbation_direction = "uniform_horizontal"
 
-# Mirrors stance.toml's [ppo] as the warm-start default; the
-# entropy/LR schedule for a 3M warm-started budget is pilot-dependent
-# and will be re-derived with the first calibration run.
+# Stance.toml's [ppo] as the warm-start default, with exactly one delta:
+# ent_coef_decay_timesteps is anchored to THIS stage's 3M budget (record
+# below) after both field pilots (3M run 20260819_154702, 5M run
+# 20260821_142144) measured the mirrored stance horizon never completing
+# (first-runs record §6.3; 2026-08 review §3.4). The LR schedule is still
+# stance's, unvalidated on a warm start — the P4 gated rerun re-derives
+# it. test_stage_manifest.py pins the mirror-except-this-delta shape.
 [ppo]
 learning_rate = 3e-05
 learning_rate_end = 1e-05
@@ -91,7 +95,16 @@ gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
 ent_coef_end = 0.0
-ent_coef_decay_timesteps = 7000000
+ent_coef_decay_timesteps = 2000000      # 2/3 of the 3M budget — the same ~64% anchor stance uses (7M of
+                                        # 11M) — so the decay to ent_coef_end = 0.0 COMPLETES before stage
+                                        # end. The previous 7000000 was stance's 11M-budget value mirrored
+                                        # verbatim: the 5M pilot (20260821_142144) never finished it, so the
+                                        # entire run trained at ent_coef >= 0.0014, above the 0.001 floor
+                                        # stance's ent_coef_end record calls stand-still-unlearnable — on
+                                        # the stage whose success event is quiet stance between pushes
+                                        # (2026-08 review §3.4). Still pilot-dependent: the P4 gated rerun
+                                        # re-derives it. test_schedule_budget_coherence.py pins
+                                        # decay <= budget for every committed stage.
 target_kl = 0.03
 
 [ppo.policy_kwargs]
@@ -109,34 +122,49 @@ gate_kind = "none/v1"                   # Fail-closed placeholder: refuses to ad
                                         # panels. Declaring it with guessed thresholds would be exactly the
                                         # we-could-not-check-reads-as-pass trap the schema forbids; P5
                                         # flips this key with measured values.
-timesteps = 5_000_000                   # Provisional (§2.4): warm-started from the certified stance
-                                        # checkpoint via initialize_next_stage, not trained from scratch.
-                                        # Re-derive against the first pilot.
+timesteps = 3_000_000                   # Measured, no longer provisional: both field pilots — the 3M run
+                                        # 20260819_154702 and the 5M run 20260821_142144 — peaked at ~1.6M
+                                        # (5M run: best eval 3055.63 ± 208.86) and declined ~5% to stage
+                                        # end, so the 3M -> 5M bump (commit 0836043) did not pay and is
+                                        # REVERSED on that evidence (first-runs record §2.3/§6.3). The
+                                        # binding constraint is the warm-started entropy/LR schedule, not
+                                        # steps. Warm-started from the certified stance checkpoint via
+                                        # initialize_next_stage, not trained from scratch.
 
 # Collapse backstop (PLANT_VALIDATION §14 item 3): the relative floor pair,
-# mirrored from stance.toml because the REWARD FUNCTION is that
-# file's verbatim — the fraction re-anchors if stance shaping ever changes,
-# and test_curriculum_early_stopping refuses any committed stage that
-# resolves no finite floor (a backstop that never arms fails silently).
+# same mechanism as stance.toml — the fraction re-anchors if the shared
+# shaping ever changes, and test_curriculum_early_stopping refuses any
+# committed stage that resolves no finite floor (a backstop that never arms
+# fails silently).
 #
-# The reference is deliberately the UN-PUSHED statue (3495.2): the pushed
-# task's own zero-action baseline does not exist yet — it is exactly what
-# the P3 calibration panels measure, since the gate resolver's frozen null
-# manifest IS that statue rolled on the pushed panel. Until then the
-# un-pushed number errs in the arming direction: pushes only subtract
-# transient reward from a policy standing between them, so a warm-started
-# policy's peak clears 0.45 x 3495.2 = 1572.8 with the same margin logic
-# as stance, and the floor arms earlier, never later. P3 re-derives both
-# halves of the pair together with the safe-set thresholds.
-collapse_peak_floor_reference = 3495.2  # Statue standing reward, noise 0.05, 40 episodes (stance.toml
-                                        # carries the full derivation record and re-measure procedure).
+# The reference is the PUSHED task's own zero-action statue, replacing the
+# un-pushed 3495.2 placeholder this file launched with (first-runs record
+# §6.5 prescribes exactly this re-anchor; 2026-08 review §5.1/§5.2).
+# Measured 2026-08-23 on physics r7 by the panel judge that reproduces the
+# committed panels exactly (0/40 success, 26/50 per-shove, mean length
+# 360.2 — review §5.1): 40 episodes, seeds 3042-3081, 974.7 ± 216.6, which
+# is the first-runs record §3 statue row. Floor = 0.45 x 974.7 = 438.6; the
+# 5M pilot's post-warmup minimum (1910.45) clears it ~4.4x, so the backstop
+# arms at the first qualifying eval and still sits far below anything a
+# warm-started policy passes through. Re-measure by re-rolling the statue
+# panel (roll_recovery_panel, environments/shared/recovery_evaluation.py,
+# same seeds and episode count) whenever a reward weight, the
+# perturbation_* block, or the plant changes.
+collapse_peak_floor_reference = 974.7   # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
+                                        # 3042-3081 (first-runs record §3/§6.5; reproduced exactly
+                                        # 2026-08-23, review §5.1).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
-statue_constants_physics_revision = 7   # The trex PHYSICS revision the 3495.2 reference was measured on —
-                                        # still current: the perturbation engine (plant_versions note 11)
-                                        # bumped only the POLICY interface, and with perturbation off the
-                                        # dynamics are bit-identical, so the statue's number carries. The
-                                        # freshness test holds this pin against the manifest so any real
-                                        # physics move forces a re-measure or a conscious update here.
-collapse_peak_warmup_timesteps = 1000000 # Same arming delay as stance; 1/3 of this stage's 3M budget, so the
-                                        # companion budget test holds and a warm-started policy (which evals
-                                        # near its final level immediately) loses no protection that matters.
+statue_constants_physics_revision = 7   # The trex PHYSICS revision the 974.7 reference was measured on
+                                        # (the 2026-08-23 panel, review §5.1 — the same r7 plant as the
+                                        # frozen first-runs panels; the perturbation engine, plant_versions
+                                        # note 11, bumped only the POLICY interface, so the pushed dynamics
+                                        # are r7's). The freshness test holds this pin against the manifest
+                                        # so any real physics move forces a re-measure or a conscious
+                                        # update here.
+collapse_peak_warmup_timesteps = 1000000 # Same arming delay as stance; 1/3 of this stage's 3M budget —
+                                        # stale while the budget was 5M (commit 0836043), true again since
+                                        # the reversal above — and inside the companion budget test's
+                                        # warmup <= 0.5 x budget bound (test_curriculum_early_stopping.py::
+                                        # test_every_committed_stage_can_still_arm_within_its_budget). A
+                                        # warm-started policy evals near its final level immediately, so it
+                                        # loses no protection that matters.

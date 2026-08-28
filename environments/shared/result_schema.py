@@ -1,8 +1,20 @@
 """Shared validation for curated and in-progress training result summaries.
 
-The public species catalog and the training exporters both consume result
-summary schema version 2.  Keeping the contract here prevents the writer and
+The public species catalog and the training exporters both consume this
+result-summary schema.  Keeping the contract here prevents the writer and
 reader from silently drifting apart.
+
+Schema v3 (2026-08-23, stage-manifest migration's final part): stage keys in
+``stages`` and ``provenance.selected_checkpoints`` are stage REFERENCES
+resolved through the species' stage manifest — the decimal string of a legacy
+number (``"1"``/``"2"``/``"3"``, their historical meaning) or a semantic
+stage id (``"recovery"``), so the recovery stage joins result bundles.  The
+v2 completeness rule "exactly stages 1, 2, and 3" meant "a complete
+curriculum recorded every advancing stage"; v3 preserves that meaning
+exactly — every advancing stage is still required — while non-advancing
+semantic stages are optional.  v2 summaries are a strict subset of v3, so
+every committed historical artifact validates unchanged and both versions
+are accepted here; writers emit :data:`RESULT_SCHEMA_VERSION`.
 """
 
 from __future__ import annotations
@@ -13,7 +25,11 @@ from datetime import date, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
-RESULT_SCHEMA_VERSION = 2
+RESULT_SCHEMA_VERSION = 3
+#: Versions this reader accepts.  v2 is the integer-stage schema every
+#: committed summary under results/ carries; v3 widened the stage-key
+#: vocabulary (module docstring) without changing any v2-valid artifact.
+SUPPORTED_RESULT_SCHEMA_VERSIONS = frozenset({2, RESULT_SCHEMA_VERSION})
 ALLOWED_MODEL_REVISION_STATUSES = frozenset({"current", "historical"})
 ALLOWED_VERIFICATION_STATUSES = frozenset({"verified", "unverified"})
 ALLOWED_TRAINING_BACKENDS = frozenset({"stable-baselines3", "jax-mjx"})
@@ -123,6 +139,54 @@ def _algorithm_slug(algorithm: str) -> str:
     return slug
 
 
+def ordered_stage_entries(stage_keys: Any, *, species: str, field: str) -> "list[tuple[str, Any]]":
+    """Resolve serialized stage keys against the species' manifest, in order.
+
+    Returns ``(key, StageEntry)`` pairs sorted by manifest position — never
+    by ``int()`` on the key, which would crash on semantic ids and, worse,
+    silently read positions into legacy numbers.  Fail-closed: an unknown
+    reference, a non-string key, and two spellings of the same stage
+    (``"2"`` beside ``"locomotion"``) are all fatal, as is a species whose
+    manifest cannot be loaded — "we could not resolve it" must never read
+    as "it is a stage".
+    """
+    from .stage_manifest import StageManifestError, load_stage_manifest
+
+    try:
+        manifest = load_stage_manifest(species)
+    except StageManifestError as exc:
+        raise ResultSchemaError(f"{field}: cannot load the stage manifest for species {species!r}: {exc}") from exc
+
+    entries: list[tuple[str, Any]] = []
+    spelling_by_id: dict[str, str] = {}
+    for stage_key in stage_keys:
+        if not isinstance(stage_key, str) or not stage_key.strip():
+            raise ResultSchemaError(f"{field} keys must be non-empty strings: {stage_key!r}")
+        try:
+            # The serialized-key rule of stage_manifest.resolve_stage_key,
+            # against the manifest loaded once above: decimal spellings are
+            # legacy numbers, everything else is a semantic id.
+            entry = manifest.by_legacy_number(int(stage_key)) if stage_key.isdigit() else manifest.by_id(stage_key)
+        except StageManifestError as exc:
+            raise ResultSchemaError(f"{field} contains an invalid stage reference {stage_key!r}: {exc}") from exc
+        if entry.id in spelling_by_id:
+            raise ResultSchemaError(
+                f"{field} references stage {entry.id!r} twice (as {spelling_by_id[entry.id]!r} and {stage_key!r})"
+            )
+        spelling_by_id[entry.id] = stage_key
+        entries.append((stage_key, entry))
+    entries.sort(key=lambda pair: pair[1].position)
+    return entries
+
+
+def _missing_advancing_stages(present_entries: "list[tuple[str, Any]]", *, species: str) -> "list[Any]":
+    """Advancing stages the species declares that *present_entries* omit."""
+    from .stage_manifest import load_stage_manifest
+
+    present_ids = {entry.id for _, entry in present_entries}
+    return [entry for entry in load_stage_manifest(species).advancing_stages if entry.id not in present_ids]
+
+
 def expected_result_directory(algorithm: str, backend: str) -> str:
     """Return the backend-aware directory name for a curated result."""
 
@@ -164,7 +228,7 @@ def validate_provenance(
     result_path: str = "result summary",
     canonical: bool = False,
 ) -> dict[str, Any]:
-    """Validate schema-v2 provenance.
+    """Validate result-summary provenance (schema v2/v3).
 
     Historical summaries may retain unknown identifiers as ``null``.  Canonical
     mode is for newly exported bundles and requires complete, well-formed
@@ -360,12 +424,28 @@ def validate_provenance(
             provenance["selected_checkpoints"],
             field=f"provenance.selected_checkpoints in {result_path}",
         )
-        if set(selected_checkpoints_value) != {"1", "2", "3"}:
+        # v2 required exactly {"1", "2", "3"}, which enforced "a complete
+        # curriculum recorded a handoff per advancing stage".  Preserved
+        # exactly: every advancing stage is still required; non-advancing
+        # semantic stages (recovery) may add a checkpoint but never replace
+        # one, and any key outside the species' vocabulary fails closed.
+        checkpoint_entries = ordered_stage_entries(
+            selected_checkpoints_value,
+            species=species,
+            field=f"provenance.selected_checkpoints in {result_path}",
+        )
+        missing_advancing = _missing_advancing_stages(checkpoint_entries, species=species)
+        if missing_advancing:
             raise ResultSchemaError(
-                f"provenance.selected_checkpoints in {result_path} must contain exactly stages 1, 2, and 3"
+                f"provenance.selected_checkpoints in {result_path} must record a checkpoint for every "
+                f"advancing stage; missing {[entry.key for entry in missing_advancing]}"
+            )
+        if not any(entry.legacy_number is not None for _, entry in checkpoint_entries):
+            raise ResultSchemaError(
+                f"provenance.selected_checkpoints in {result_path} records no advancing-stage checkpoint"
             )
         selected_checkpoints: dict[str, dict[str, Any]] = {}
-        for stage_key in ("1", "2", "3"):
+        for stage_key, _checkpoint_entry in checkpoint_entries:
             checkpoint = _require_mapping(
                 selected_checkpoints_value[stage_key],
                 field=f"provenance.selected_checkpoints.{stage_key} in {result_path}",
@@ -419,13 +499,19 @@ def validate_provenance(
                 "normalization_path": normalization_path,
                 "normalization_hash": normalization_hash,
             }
-        if selected_checkpoints["3"]["model_path"] != selected_model_path:
+        # The published model is the terminal ADVANCING stage's checkpoint —
+        # "3" (behavior) for every current species.  Recovery, at an earlier
+        # manifest position and non-advancing, can never be terminal here.
+        terminal_key = next(key for key, entry in reversed(checkpoint_entries) if entry.legacy_number is not None)
+        if selected_checkpoints[terminal_key]["model_path"] != selected_model_path:
             raise ResultSchemaError(
-                f"provenance.selected_model_path in {result_path} must match the Stage 3 selected checkpoint"
+                f"provenance.selected_model_path in {result_path} must match the terminal advancing "
+                f"stage {terminal_key} selected checkpoint"
             )
-        if selected_checkpoints["3"]["model_hash"] != identifiers["model_hash"]:
+        if selected_checkpoints[terminal_key]["model_hash"] != identifiers["model_hash"]:
             raise ResultSchemaError(
-                f"provenance.model_hash in {result_path} must match the Stage 3 selected checkpoint"
+                f"provenance.model_hash in {result_path} must match the terminal advancing "
+                f"stage {terminal_key} selected checkpoint"
             )
 
         python_version = _require_nonempty_string(
@@ -554,11 +640,13 @@ def validate_result_summary(
     canonical_provenance: bool = False,
     require_canonical_provenance: bool | None = None,
 ) -> dict[str, Any]:
-    """Validate a schema-v2 result summary.
+    """Validate a schema v2/v3 result summary.
 
-    Complete public summaries contain exactly stages 1, 2, and 3.  Partial
-    validation accepts any non-empty subset of those stages so a Colab run can
-    be checked after each stage without being eligible for publication yet.
+    Complete public summaries contain every advancing stage the species
+    declares (1, 2, and 3 — non-advancing semantic stages such as recovery
+    are optional).  Partial validation accepts any non-empty valid stage
+    subset so a Colab run can be checked after each stage without being
+    eligible for publication yet.
     """
 
     if require_canonical_provenance is not None:
@@ -566,8 +654,10 @@ def validate_result_summary(
     label_source = result_path if result_path is not None else relative_path
     label = str(label_source) if label_source is not None else "result summary"
     summary = _require_mapping(summary, field=f"result summary {label}")
-    if summary.get("schema_version") != RESULT_SCHEMA_VERSION:
-        raise ResultSchemaError(f"result summary schema_version must be {RESULT_SCHEMA_VERSION}: {label}")
+    if summary.get("schema_version") not in SUPPORTED_RESULT_SCHEMA_VERSIONS:
+        raise ResultSchemaError(
+            f"result summary schema_version must be one of {sorted(SUPPORTED_RESULT_SCHEMA_VERSIONS)}: {label}"
+        )
 
     species = _require_nonempty_string(summary.get("species"), field=f"species in {label}")
     if expected_species is not None and species != expected_species:
@@ -601,15 +691,23 @@ def validate_result_summary(
         _require_positive_int(parallel_envs, field=f"parallel_envs in {label}")
 
     raw_stages = _require_mapping(summary.get("stages"), field=f"stages in {label}")
-    stage_keys = set(raw_stages)
-    valid_stage_keys = {"1", "2", "3"}
-    if require_complete and stage_keys != valid_stage_keys:
-        raise ResultSchemaError(f"stages in {label} must contain exactly 1, 2, and 3")
-    if not require_complete and (not stage_keys or not stage_keys <= valid_stage_keys):
-        raise ResultSchemaError(f"partial stages in {label} must be a non-empty subset of 1, 2, and 3")
+    # Stage keys are references into the species' manifest — legacy decimal
+    # spellings and semantic ids — validated and ORDERED there (never by
+    # int() on the key, which the recovery id would crash and a position
+    # would silently corrupt).
+    stage_entries = ordered_stage_entries(raw_stages, species=species, field=f"stages in {label}")
+    if not stage_entries:
+        raise ResultSchemaError(f"stages in {label} must record at least one stage")
+    if require_complete:
+        missing_advancing = _missing_advancing_stages(stage_entries, species=species)
+        if missing_advancing:
+            raise ResultSchemaError(
+                f"stages in {label} must contain every advancing stage; "
+                f"missing {[entry.key for entry in missing_advancing]}"
+            )
 
     stage_timesteps = 0
-    for stage_key in sorted(stage_keys, key=int):
+    for stage_key, stage_entry in stage_entries:
         raw_stage = _require_mapping(raw_stages[stage_key], field=f"stage {stage_key} in {label}")
         prefix = f"stage {stage_key} in {label}"
         _require_nonempty_string(raw_stage.get("name"), field=f"name for {prefix}")
@@ -676,7 +774,12 @@ def validate_result_summary(
             raise ResultSchemaError(f"publication_gate_passed for canonical {prefix} must be a boolean")
         if canonical_provenance and raw_stage.get("publication_gate_passed") != raw_stage.get("stage_passed"):
             raise ResultSchemaError(f"publication_gate_passed for canonical {prefix} must match stage_passed")
-        if canonical_provenance and raw_stage["stage_passed"] is not True:
+        # Only ADVANCING stages must have passed for a canonical bundle: that
+        # is what publication certifies.  A non-advancing pilot (recovery)
+        # records its verdict honestly — today necessarily False, since its
+        # placeholder gate_kind none/v1 refuses to pass — without blocking
+        # the curriculum's publication or being laundered into a pass.
+        if canonical_provenance and stage_entry.legacy_number is not None and raw_stage["stage_passed"] is not True:
             raise ResultSchemaError(f"stage_passed for canonical {prefix} must be true")
 
     total_timesteps = _require_positive_int(summary.get("total_timesteps"), field=f"total_timesteps in {label}")
@@ -744,11 +847,23 @@ def validate_result_summary(
         )
         if summary_plant != provenance["plant_identity"]:
             raise ResultSchemaError(f"plant_identity in {label} does not match provenance.plant_identity")
-        final_stage_reward = raw_stages["3"].get("final_eval_reward")
+        # The run's headline reward is the terminal ADVANCING stage's ("3",
+        # behavior, for every current species) — same rule as the selected
+        # model above; a trailing non-advancing stage must not redefine it.
+        final_stage_key = next(
+            (key for key, entry in reversed(stage_entries) if entry.legacy_number is not None),
+            None,
+        )
+        if final_stage_key is None:
+            raise ResultSchemaError(f"canonical result {label} records no advancing stage")
+        final_stage_reward = raw_stages[final_stage_key].get("final_eval_reward")
         if summary.get("final_avg_reward") != final_stage_reward:
-            raise ResultSchemaError(f"final_avg_reward in {label} does not match stage 3 final_eval_reward")
+            raise ResultSchemaError(
+                f"final_avg_reward in {label} does not match stage {final_stage_key} final_eval_reward"
+            )
+        # Every recorded stage — recovery included — trained on the clock.
         stage_duration_total = round(
-            sum(float(raw_stages[key].get("training_time_seconds") or 0.0) for key in valid_stage_keys),
+            sum(float(raw_stages[key].get("training_time_seconds") or 0.0) for key, _ in stage_entries),
             1,
         )
         if summary.get("total_training_time_seconds") != stage_duration_total:
