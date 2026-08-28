@@ -403,28 +403,26 @@ So 2.0 m/s is defensible as the stage's *capability target* but not as an
 Either way the gate stops being a velociraptor constant, and the floor
 pair (above) lands with it.
 
-### 5.4 Blocked half: the trained-policy panels (A1-on-policy, A2)
+### 5.4 Trained-policy panels — completed 2026-08-28
 
-The checkpoints are owner-private in Drive; the connected Drive tool can
-neither link-share nor carry a 4 MB binary, and unauthenticated download
-returns the sign-in page. Two ways to unblock, either is enough:
+Run in Colab against both recovery checkpoints (the `PPO.load` segfault on
+Colab's torch 2.11 image was bypassed with a NumPy reimplementation of the
+SB3 deterministic forward, verified to 6.5e-9). Full numbers and paired
+statistics are in `docs/investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md`
+§9. Headlines:
 
-1. **Link-share six files** (Drive → Share → "Anyone with the link",
-   Viewer) and the panels run here in minutes:
-   run `20260821_142144/02_recovery/models/`: `robust_best_model.zip`,
-   `robust_best_model_vecnorm.pkl`, `recovery_final.zip`,
-   `recovery_final_vecnorm.pkl`; run `20260819_154702/recovery/models/`:
-   `robust_best_model.zip`, `robust_best_model_vecnorm.pkl` (the 21/40
-   policy — re-rolling it also cross-validates the local judge on a
-   trained controller).
-2. **Run the harness in Colab** where Drive is mounted — the §6.1/§6.2
-   matrix is:
-   `--controller policy --schedule {on,timing,mag120,mag210} --safe-set
-   calibrated` for each checkpoint, plus `--controller brace --schedule on`
-   for the mechanism claim.
-
-The statue halves of every schedule are already frozen above, so the
-policy rolls complete the paired comparison directly.
+* **§6.1 answered — the push schedule was not memorized.** Per-shove
+  recovery is *higher* at the never-trained 3.5 ± 1.5 s cadence (86.9% /
+  89.5%) than at the trained 2.0 ± 0.5 s (83.7% / 83.0%); episode success
+  likewise (28/40, 31/40 vs 20/40, 19/40). Success orders by disturbance
+  severity, not by familiarity.
+* **The ceiling is magnitude.** At 210 N the paired margin over the frozen
+  statue collapses to LCB −0.009 (3M) / +0.019 (5M). The capability limit
+  sits between 165.5 N and 210 N.
+* **§6.2 answered — 5M bought nothing.** Paired 5M − 3M differences straddle
+  zero on all four schedules, confirming the 3M budget reversion.
+* **P5 is unblocked**, with `min_recovery_success_lcb` now a measured
+  choice: attainable LCB 0.361 against a null UCB of 0.072.
 
 ---
 

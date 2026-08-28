@@ -315,9 +315,100 @@ Once §6.1 and §6.2 land, write `gate_resolution.json` with:
 
 ## 8. Not done
 
-* The 5M recovery checkpoint has not been panel-tested (§6.2).
-* No off-distribution schedule has been rolled (§6.1).
+* ~~The 5M recovery checkpoint has not been panel-tested (§6.2).~~ Done 2026-08-28 — see §9.
+* ~~No off-distribution schedule has been rolled (§6.1).~~ Done 2026-08-28 — see §9.
 * `diagnostics.npz` per-step series were not re-analyzed for either run.
 * No MJX/JAX recovery run exists; every number here is SB3.
 * Recovery runs are excluded from result bundles by design — the bundle
   schema remains integer-stage until that migration.
+
+---
+
+## 9. §6.1 off-distribution result and §6.2 comparison — 2026-08-28
+
+**Method.** Ten panels, 40 episodes each, seeds 3042–3081, calibrated
+posture-only safe set (height ref 0.9267 m fixed, height error ≤ 0.0168,
+tilt ≤ 0.0825, speed ≤ 0.3203), `t_recover` 100, dwell 50 — the same judge
+that reproduced the frozen statue panel exactly (2026-08 review §5.1).
+Controllers are each run's `robust_best_model`. Nulls are the frozen statue
+panels of 2026-08-23 (review §5.2), paired per seed.
+
+*Instrumentation note:* `PPO.load` segfaults on Colab's current image
+(Python 3.13 / torch 2.11), while `torch.load` of the checkpoint's tensors
+succeeds. The panels therefore ran through a NumPy reimplementation of the
+SB3 deterministic forward (two tanh layers → linear head → clip to the
+action space), verified against `predict(deterministic=True)` to a maximum
+absolute difference of 6.5e-9 over 200 observations. The numbers are
+SB3-identical; only the inference path differs.
+
+### 9.1 The schedule was NOT memorized — §6.1 is answered
+
+Per-shove recovery, which controls for the differing number of pushes each
+schedule delivers:
+
+| schedule | statue | 3M policy | 5M policy |
+|---|---:|---:|---:|
+| training (165.5 N, 2.0 ± 0.5 s) | 18/50 — 36.0% | 123/147 — **83.7%** | 127/153 — **83.0%** |
+| timing (165.5 N, 3.5 ± 1.5 s) | 14/43 — 32.6% | 73/84 — **86.9%** | 77/86 — **89.5%** |
+| 120 N | 42/81 — 51.9% | 155/158 — 98.1% | 155/160 — 96.9% |
+| 210 N | 4/42 — 9.5% | 46/99 — 46.5% | 64/114 — 56.1% |
+
+**The trained cadence is not the policy's best.** Per-shove recovery is
+*higher* at the never-trained 3.5 ± 1.5 s cadence than at the trained
+2.0 ± 0.5 s, for both checkpoints, and episode success follows (28/40 and
+31/40 vs 20/40 and 19/40). A policy that had learned the training rhythm
+would degrade when the rhythm changed; this one improves. The memorization
+hypothesis is refuted, and success instead orders by disturbance severity —
+what genuine disturbance rejection predicts.
+
+Episode-level success and paired margins over the frozen statue:
+
+| schedule | 3M | 5M | statue | 3M − statue (LCB95) | 5M − statue (LCB95) |
+|---|---:|---:|---:|---:|---:|
+| training | 20/40 | 19/40 | 0/40 | +0.500 (+0.365) | +0.475 (+0.340) |
+| timing | 28/40 | 31/40 | 0/40 | +0.700 (+0.576) | +0.775 (+0.662) |
+| 120 N | 37/40 | 36/40 | 2/40 | +0.875 (+0.786) | +0.850 (+0.754) |
+| 210 N | 2/40 | 4/40 | 0/40 | +0.050 (−0.009) | +0.100 (+0.019) |
+
+### 9.2 The limit is magnitude, not timing
+
+At 210 N (≈1.9× capture velocity) the episode-level margin over the statue
+collapses: the 3M policy's paired LCB is **−0.009 — not significant**, the
+5M policy's +0.019 only marginally so. Control has not vanished (per-shove
+46–56% vs the statue's 9.5%; mean length 606/686 steps vs 315), but the
+episode-level conjunction — full horizon *and* every shove recovered —
+becomes unattainable. **The capability ceiling sits between 165.5 N and
+210 N**, and that, not the push clock, is what limits the stage.
+
+### 9.3 §6.2 — the 5M budget bought nothing
+
+Paired per-seed differences, 5M − 3M: training −0.025 (LCB −0.190), timing
++0.075 (−0.089), 120 N −0.025 (−0.120), 210 N +0.050 (−0.054). All four
+straddle zero: the two checkpoints are statistically indistinguishable on
+every schedule. This confirms the 5M → 3M budget reversion adopted
+2026-08-23 and closes §6.2.
+
+### 9.4 The brace null reproduces
+
+Both brace controllers score 0/40 (UCB95 7.2%) with mean lengths 326 and
+308 steps — again dying *faster* than the statue's 360. §3.1's mechanism
+claim (the policy's stance is held by feedback, not by a stable pose)
+reproduces independently on the calibrated judge.
+
+### 9.5 Consequences for P5
+
+* **The blocking experiment is done.** Rejection generalizes in timing and
+  degrades gracefully in magnitude, so the stage measures control, not
+  schedule familiarity. Per-episode randomization of the push clock is
+  *not* required.
+* **`min_recovery_success_lcb` is now a measured choice.** The attainable
+  training-schedule LCB is 0.361 (3M) / 0.338 (5M) against a null UCB of
+  0.072. The plan's aspirational 0.725 needs a materially stronger policy;
+  freezing a first threshold near 0.30 would certify what the stage can
+  actually do today, with the 210 N ceiling recorded as the known envelope.
+* **Use 20/40, not 21/40**, for the 3M policy at the training schedule: the
+  live judge here measures 20/40 where §4.3's offline re-judge recorded
+  21/40. One episode at the margin; §4's exact-reproduction claim covers the
+  provisional panels only.
+* Per-episode randomization of *magnitude* remains worth considering — not
+  to fix memorization, which does not exist, but to push the 210 N ceiling.
