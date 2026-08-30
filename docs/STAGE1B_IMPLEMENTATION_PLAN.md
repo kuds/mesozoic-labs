@@ -214,6 +214,65 @@ the bundle audit all carry semantic stage references, so recovery runs now
 join result bundles and the generated tables (review doc §4 item 13) while
 every committed integer-stage artifact still validates unchanged.
 
+**Update (2026-08-28): P5 has landed — the gate is frozen.** The blocking
+experiment came back first. The off-distribution schedule test (first-runs
+record §9.1) refutes memorization outright: per-shove recovery is *higher* at
+the never-trained 3.5 ± 1.5 s cadence (86.9% / 89.5%) than at the trained
+2.0 ± 0.5 s one, and success orders by disturbance severity — what genuine
+rejection predicts and a learned rhythm does not. So the stage measures
+control, and the per-episode randomization of the push clock held in reserve
+as the fix is not needed. §6.2 closed alongside it: the 5M checkpoint is
+statistically indistinguishable from the 3M one on all four schedules, which
+confirms the 5M → 3M budget reversion rather than reopening it.
+
+`configs/trex/recovery.toml` therefore declares `recovery_quality/v1` in
+place of the `none/v1` placeholder, frozen at: the P3 calibrated
+**posture-only** safe set — height error ≤ 0.0168 m against the *fixed*
+measured settled reference 0.9267 m rather than the per-episode reset stamp,
+tilt ≤ 0.0825 rad, planar speed ≤ 0.3203 m/s, and **no per-step support
+term**, because §4.2 found that criterion fails the very thing it certifies
+(quiet certified stance transiently reads 0.0 N on a foot) — with
+`recovery_t_recover_steps` 100 and `recovery_dwell_steps` 50, the registered
+40-episode panel from seed 3042, `min_recovery_success_lcb` **0.30**, and
+`min_paired_success_delta_lcb` **0.20**. The safe set itself lives with the
+judge (`environments/shared/recovery_evaluation.py`) and in each stage's
+`gate_resolution.json`, not in the TOML, so a panel can never outlive the
+definition that produced it.
+
+Both thresholds are **attainable, not aspirational**, which is the open
+decision §6.4 left to the project owner and this is the answer. The measured
+episode-success LCB95 at the training schedule is 0.361 (3M, 20/40) and 0.338
+(5M, 19/40) against a statue null whose one-sided UCB95 is 0.072; the measured
+paired policy-minus-statue LCB95 is +0.365 and +0.340. 0.30 and 0.20 sit under
+every one of those and far above the null, so a PASS is a real superiority
+claim about a policy this project has actually trained. The plan's
+aspirational 0.725 (the LCB of 34/40) is deliberately *not* frozen: it needs a
+materially stronger policy, and freezing a criterion nothing can pass would
+certify nothing while looking strict. What the stage cannot yet do is recorded
+instead of hidden — the capability ceiling sits between 165.5 N and 210 N
+(§9.2), where the paired margin collapses to LCB95 −0.009 (3M) / +0.019 (5M),
+and that envelope is written into the config's header.
+
+Freezing the kind moves no verdict into the config. Advancement still requires
+a `gate_resolution.json` in the stage directory — written by
+`environments/shared/harnesses/freeze_recovery_gate.py`, enforced by
+`environments/shared/curriculum/gate_resolver.py`, and cross-checked against
+the TOML's declaration — and its absence, staleness, or tampering refuses.
+That is the same fail-closed answer `none/v1` gave, now for the right reason:
+missing baselines block, they are never skipped.
+
+**What remains in 1b is the gated re-run at the 3M budget** — P4's successor,
+now with a gate to pass: warm-start from the certified stance checkpoint,
+train the 3M budget with the entropy horizon re-anchored to it
+(`ent_coef_decay_timesteps` 2M) and the warm-started LR schedule that run is
+meant to re-derive (§6.3), roll the registered panel, freeze the resolution
+into the stage directory, and let `reporting.gates` produce the project's
+first real recovery verdict. Until a recovery checkpoint passes it,
+the 2026-08-23 lineage decision stands unchanged: locomotion keeps
+warm-starting from the certified *stance* checkpoint. P5's step-14 scope also
+stands — the recovery stage is enabled for T-Rex only, and other species wait
+on their own plant preflights.
+
 Ordering follows the split plan's steps 8–14 with two updates: step 9's core
 (the stance-gate statistic) already shipped, and everything below is rebased
 onto the r7/r11 tree. Each workstream lands independently and default-off.

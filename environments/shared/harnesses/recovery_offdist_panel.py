@@ -8,9 +8,12 @@ never trained on, judged under either the provisional safe set or the P3
 calibrated posture-only set.
 
 Like everything in harnesses/, this is hand-run instrumentation, not part
-of the gated pipeline: the calibrated safe set and the fixed height
-reference below restate the P3 record and are superseded the moment a
-frozen gate_resolution.json exists.
+of the gated pipeline: it re-rolls panels on demand, while the frozen
+gate_resolution.json — written once by ``freeze_recovery_gate.py`` — is
+what any gate actually consumes.  The calibrated safe set and the fixed
+height reference are IMPORTED from ``recovery_evaluation`` rather than
+restated here, so a hand roll and the frozen record can never disagree
+about what "calibrated" means.
 
 Examples (repo root, trex):
 
@@ -34,30 +37,35 @@ from typing import Any, Callable
 import numpy as np
 
 from environments.shared.config import load_stage_config
-from environments.shared.curriculum.recovery_gate import (
-    binomial_lcb,
-    binomial_ucb,
-    episode_recovery_success,
-    per_push_recovery,
-)
-from environments.shared.recovery_evaluation import DEFAULT_SAFE_SET, zero_action_controller
+from environments.shared.curriculum.recovery_gate import binomial_lcb, binomial_ucb
 
-# P3-calibrated posture-only safe set (first-runs record §4.1/§4.3).  The
-# support term is deliberately absent: quiet certified stance itself reads
-# 0.0 N on a foot during weight shifts, so per-step support fails the
-# certification target (§4.2).  min_foot_force_n = 0.0 keeps the stock
-# predicate shape while making the support clause vacuous for the two-foot
-# trex plant (its _foot_contact_forces always returns both feet).
-CALIBRATED_POSTURE_ONLY = {
-    "height_error_max_m": 0.0168,
-    "tilt_max_rad": 0.0825,
-    "planar_speed_max_mps": 0.3203,
-    "min_foot_force_n": 0.0,
-}
-#: §4.1: the measured settled median pelvis height of certified stance —
-#: the calibrated set judges height against this fixed reference, not the
-#: per-episode reset stamp the provisional set uses.
-CALIBRATED_HEIGHT_REFERENCE_M = 0.9267
+# The panel geometry, the recovery clock, and the checkpoint forward pass
+# are the P5-frozen ones, taken from the freeze producer under this
+# harness's historical names: a hand panel that used a different dwell,
+# seed block, or inference path would not be comparable with the frozen
+# record it exists to probe — §9's panels ran the producer's NumPy
+# fallback, which is why the loader lives there and is shared.  (The
+# producer imports this module's brace_controller lazily, so the
+# dependency stays one-way.)
+from environments.shared.harnesses.freeze_recovery_gate import (
+    DWELL_STEPS,
+    T_RECOVER_STEPS,
+    policy_controller,
+)
+from environments.shared.harnesses.freeze_recovery_gate import MIN_EVAL_EPISODES as PANEL_EPISODES
+from environments.shared.harnesses.freeze_recovery_gate import PANEL_SEED_START as PANEL_SEED
+
+# The P3-calibrated posture-only judge (first-runs record §4.1/§4.3),
+# re-exported under the names this harness has always used.  Its
+# derivation record — including why there is no per-step support term —
+# lives with the definition in recovery_evaluation.
+from environments.shared.recovery_evaluation import (
+    CALIBRATED_HEIGHT_REFERENCE_M,
+    CALIBRATED_POSTURE_ONLY,
+    DEFAULT_SAFE_SET,
+    roll_recovery_panel,
+    zero_action_controller,
+)
 
 #: §6.1 schedules.  "on" is the training distribution (recovery.toml);
 #: the off-distribution rows change exactly one thing each.  The magnitude
@@ -71,10 +79,6 @@ SCHEDULES = {
     "mag210": {"perturbation_capture_velocity_multiple": 1.5 * 210.0 / 165.501},
 }
 
-PANEL_SEED = 3042
-PANEL_EPISODES = 40
-T_RECOVER_STEPS = 100
-DWELL_STEPS = 50
 BRACE_SETTLE_SEEDS = (5042, 5043, 5044, 5045, 5046)
 BRACE_SETTLE_STEPS = 200
 
@@ -86,31 +90,6 @@ def build_env(schedule: str) -> Any:
     env_kwargs = dict(config["env_kwargs"])
     env_kwargs.update(SCHEDULES[schedule])
     return TRexEnv(**env_kwargs)
-
-
-def policy_controller(policy_zip: str, vecnorm_pkl: str) -> Callable[[Any], np.ndarray]:
-    """Deterministic SB3 policy with the checkpoint's frozen obs normalization."""
-    import pickle
-
-    from stable_baselines3 import PPO
-
-    model = PPO.load(policy_zip, device="cpu")
-    with open(vecnorm_pkl, "rb") as fh:
-        vecnorm = pickle.load(fh)
-    obs_rms = vecnorm.obs_rms
-    clip_obs = float(getattr(vecnorm, "clip_obs", 10.0))
-    epsilon = float(getattr(vecnorm, "epsilon", 1e-8))
-
-    def predict(obs: Any) -> np.ndarray:
-        normalized = np.clip(
-            (np.asarray(obs) - obs_rms.mean) / np.sqrt(obs_rms.var + epsilon),
-            -clip_obs,
-            clip_obs,
-        )
-        action, _ = model.predict(normalized.astype(np.float32), deterministic=True)
-        return np.asarray(action, dtype=np.float64)
-
-    return predict
 
 
 def brace_controller(env: Any, predict: Callable[[Any], np.ndarray]) -> Callable[[Any], np.ndarray]:
@@ -140,64 +119,39 @@ def roll_panel(
 ) -> dict[str, Any]:
     """Roll the seeded panel; a fixed height_reference selects the calibrated judge.
 
-    Mirrors recovery_evaluation.roll_recovery_panel (structural pairing via
-    the seed-derived schedule, identical judged-push filter) with the one
-    P3 change the stock roller cannot express: judging height against the
-    plant's measured settled reference instead of the reset stamp.
+    Delegates the rolling and the judging to
+    ``recovery_evaluation.roll_recovery_panel`` — since P5 the stock roller
+    takes the ``height_reference`` this harness used to need its own loop
+    for — and adds only the summary statistics a hand run wants to read
+    (the bounds, the per-shove totals, the schedule the panel actually
+    ran).  One roller means a hand panel and the frozen record cannot drift
+    apart in their event logic.
     """
-    from environments.shared.recovery_evaluation import _safe_step
-
-    horizon = int(env.max_episode_steps)
-    episodes: list[dict[str, Any]] = []
-    shove_total = 0
-    shove_recovered = 0
-    for index in range(PANEL_EPISODES):
-        panel_seed = PANEL_SEED + index
-        obs, _ = env.reset(seed=panel_seed)
-        env._recovery_height_reference = (
-            float(env.data.qpos[2]) if height_reference is None else float(height_reference)
-        )
-        starts = np.asarray(env._push_schedule_starts, dtype=int)
-        duration = int(env._push_duration_steps)
-
-        safe_mask: list[bool] = []
-        total_reward = 0.0
-        steps = 0
-        truncated = False
-        while True:
-            obs, reward, terminated, truncated, _info = env.step(predict(obs))
-            total_reward += float(reward)
-            safe_mask.append(_safe_step(env, safe_set))
-            steps += 1
-            if terminated or truncated:
-                break
-        full_horizon = bool(truncated and steps >= horizon)
-
-        judged = [
-            k for k, start in enumerate(starts) if int(start) < steps and int(start) + duration + DWELL_STEPS <= horizon
-        ]
-        recovered_flags = []
-        for k in judged:
-            recovered, _recovery_step = per_push_recovery(
-                safe_mask,
-                push_end_step=int(starts[k]) + duration,
-                t_recover_steps=T_RECOVER_STEPS,
-                dwell_steps=DWELL_STEPS,
-            )
-            recovered_flags.append(recovered)
-        shove_total += len(judged)
-        shove_recovered += sum(recovered_flags)
-        episodes.append(
-            {
-                "seed": panel_seed,
-                "length": steps,
-                "full_horizon": full_horizon,
-                "n_pushes": len(judged),
-                "n_recovered": sum(recovered_flags),
-                "success": episode_recovery_success(full_horizon, recovered_flags),
-                "reward": total_reward,
-            }
-        )
+    evidence = roll_recovery_panel(
+        env,
+        predict,
+        controller_id=controller_id,
+        episodes=PANEL_EPISODES,
+        seed=PANEL_SEED,
+        t_recover_steps=T_RECOVER_STEPS,
+        dwell_steps=DWELL_STEPS,
+        safe_set=safe_set,
+        height_reference=height_reference,
+    )
+    episodes: list[dict[str, Any]] = [
+        {
+            "seed": record.panel_seed,
+            "length": record.length,
+            "full_horizon": record.full_horizon,
+            "n_pushes": record.n_pushes,
+            "n_recovered": record.n_recovered,
+            "success": record.success,
+            "reward": record.reward,
+        }
+        for record in evidence.episodes
+    ]
+    shove_total = len(evidence.shoves)
+    shove_recovered = sum(1 for shove in evidence.shoves if shove.recovered)
 
     successes = sum(1 for e in episodes if e["success"])
     rewards = np.array([e["reward"] for e in episodes])
@@ -230,6 +184,12 @@ def main() -> None:
     parser.add_argument("--safe-set", choices=["provisional", "calibrated"], default="provisional")
     parser.add_argument("--policy-zip", help="SB3 checkpoint (.zip); required for policy and brace")
     parser.add_argument("--vecnorm", help="matching VecNormalize stats (.pkl)")
+    parser.add_argument(
+        "--inference",
+        choices=("auto", "sb3", "numpy"),
+        default="auto",
+        help="forward pass for the checkpoint; 'numpy' skips PPO.load entirely (the §9 path)",
+    )
     parser.add_argument("--out", help="write the full result (per-episode rows included) as JSON")
     args = parser.parse_args()
 
@@ -239,7 +199,9 @@ def main() -> None:
     else:
         if not (args.policy_zip and args.vecnorm):
             parser.error("--policy-zip and --vecnorm are required for policy/brace controllers")
-        predict = policy_controller(args.policy_zip, args.vecnorm)
+        predict = policy_controller(
+            args.policy_zip, args.vecnorm, action_space=env.action_space, inference=args.inference
+        )
         if args.controller == "brace":
             predict = brace_controller(env, predict)
 
