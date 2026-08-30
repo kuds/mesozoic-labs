@@ -318,6 +318,42 @@ def _prepare_alg_kwargs(
 _PERIODIC_CHECKPOINT_RE = re.compile(r"(.+)_(\d+)_steps$")
 
 
+def _is_resume_continuation(
+    load_path: "str | None",
+    *,
+    task_load_mode: str,
+    stage_lbl: str,
+    algorithm: str,
+) -> bool:
+    """Whether this load CONTINUES an interrupted run of the same stage.
+
+    Continuation semantics (``reset_num_timesteps=False``, cumulative
+    checkpoint numbering, seeded best trackers/eval history, the cumulative
+    entropy-decay anchor) apply only when all of these hold:
+
+    * the load mode is ``resume_same_stage`` — a boundary crossing is a new
+      stage, never a continuation;
+    * the checkpoint is one of SB3's periodic ``<prefix>_<steps>_steps.zip``
+      files whose prefix is THIS stage's label.  A curated checkpoint
+      (``best_model.zip``, ``stage<N>_final.zip``) carries no cumulative step
+      count and is how sweep warm-starts and exploratory loads arrive —
+      treating every bare ``--load`` under the default mode as a continuation
+      would silently change those launches (review follow-up);
+    * the algorithm is on-policy.  A SAC checkpoint restores its step counter
+      but nothing persists the replay buffer, so continuing the counter would
+      skip SB3's warmup and run gradient updates against a near-empty buffer;
+      SAC keeps the old fresh-counter semantics (with a warning at the call
+      site) until periodic checkpoints save and restore the buffer.
+    """
+    if not load_path or task_load_mode != "resume_same_stage" or algorithm != "ppo":
+        return False
+    stem = Path(load_path).name
+    if stem.endswith(".zip"):
+        stem = stem[: -len(".zip")]
+    match = _PERIODIC_CHECKPOINT_RE.match(stem)
+    return match is not None and match.group(1) == stage_lbl
+
+
 def _is_remote_mount_path(path: "Path | str") -> bool:
     """Whether *path* sits on a FUSE-mounted remote filesystem (GCS or Drive).
 
@@ -991,12 +1027,19 @@ def train(
     logger.info("  Learning rate: %s", model.learning_rate)
     logger.info("  Batch size: %s", alg_kwargs.get("batch_size", "N/A"))
 
-    # A same-stage resume continues the interrupted run: the loaded step
-    # counter is preserved (reset_num_timesteps=False below), so
-    # total_timesteps means "this many MORE steps" and every step-anchored
-    # mechanism (checkpoint numbering, retention, schedule progress, entropy
-    # decay, eval history timesteps) stays on the run's cumulative axis.
-    resuming = bool(load_path) and task_load_mode == "resume_same_stage"
+    # A same-stage resume of a periodic checkpoint continues the interrupted
+    # run: the loaded step counter is preserved (reset_num_timesteps=False
+    # below), so total_timesteps means "this many MORE steps" and every
+    # step-anchored mechanism (checkpoint numbering, retention, schedule
+    # progress, entropy decay, eval history timesteps) stays on the run's
+    # cumulative axis.  See _is_resume_continuation for what deliberately
+    # does NOT count as a continuation.
+    resuming = _is_resume_continuation(
+        load_path,
+        task_load_mode=task_load_mode,
+        stage_lbl=stage_label(stage),
+        algorithm=algorithm,
+    )
     loaded_steps = int(getattr(model, "num_timesteps", 0)) if resuming else 0
     target_timesteps = loaded_steps + total_timesteps
     if resuming and loaded_steps > 0:
@@ -1006,6 +1049,18 @@ def train(
             f"{total_timesteps:,}",
             f"{target_timesteps:,}",
         )
+    elif load_path and task_load_mode == "resume_same_stage":
+        if algorithm != "ppo":
+            logger.warning(
+                "SAC --load is NOT a continuation: the replay buffer is not persisted, so the "
+                "step counter restarts and SB3's warmup re-collects experience before updates. "
+                "Best-model artifacts in a reused stage directory are unprotected."
+            )
+        else:
+            logger.info(
+                "Loaded checkpoint has no cumulative step count in its name (curated checkpoint); "
+                "training runs with a fresh step counter rather than continuation semantics."
+            )
 
     callbacks, eval_callback, _ = _build_core_callbacks(
         sb3,
@@ -1028,10 +1083,27 @@ def train(
         from .curriculum import seed_resume_eval_state
 
         # Seed best-model trackers and the in-memory eval history from the
-        # stage directory's published record, so the first post-resume eval
-        # cannot overwrite a better pre-interruption best_model /
-        # robust_best_model, and evaluations.npz keeps the whole run.
-        seed_resume_eval_state(eval_callback, callbacks, Path(log_path) / "evaluations.npz")
+        # published record, so the first post-resume eval cannot overwrite a
+        # better pre-interruption best_model / robust_best_model, and
+        # evaluations.npz keeps the whole run.  The default CLI resume mints
+        # a FRESH stage directory, so when the current one has no record yet,
+        # fall back to the interrupted stage directory the checkpoint came
+        # from (<stage_dir>/models/<ckpt> — two levels up).
+        # `resuming` implies load_path is set; the assert narrows the type.
+        assert load_path is not None
+        seed_candidates = [
+            Path(log_path) / "evaluations.npz",
+            Path(load_path).resolve().parent.parent / "evaluations.npz",
+        ]
+        seed_path = next((p for p in seed_candidates if p.exists()), seed_candidates[0])
+        if seed_path == seed_candidates[1]:
+            logger.info(
+                "Seeding eval history from the interrupted stage directory: %s "
+                "(this run's directory %s had no record yet)",
+                seed_path,
+                log_path,
+            )
+        seed_resume_eval_state(eval_callback, callbacks, seed_path, max_timesteps=loaded_steps)
 
     # The decay anchor is an ABSOLUTE step count.  On a resume the default
     # (when the TOML sets no ent_coef_decay_timesteps) must be the cumulative
@@ -1381,6 +1453,7 @@ def train_curriculum(
     gcs_bucket: str | None = None,
     gcs_project: str | None = None,
     use_tensorboard: bool = True,
+    allow_fresh_vecnorm: bool = False,
 ):
     """Run the full 3-stage curriculum with automatic advancement."""
     from .config import (
@@ -1495,6 +1568,10 @@ def train_curriculum(
             # Stage boundary: obs_rms carries, ret_rms resets (the reward
             # distribution changes with the new stage's terms).
             task_load_mode="initialize_next_stage",
+            # Normally unreachable: _select_handoff_checkpoint only promotes
+            # complete pairs, so this fires only when the sidecar vanished
+            # afterwards (e.g. a lost mount write).
+            allow_fresh_vecnorm=allow_fresh_vecnorm,
         )
 
         alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(

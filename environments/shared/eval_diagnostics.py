@@ -276,6 +276,33 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         if self.success_applicable:
             super()._log_success_callback(locals_, globals_)
 
+    def seed_prior_history(self, n_evals: int) -> None:
+        """Pad the parallel per-eval capture series for *n_evals* seeded evals.
+
+        On a same-stage resume, ``curriculum.seed_resume_eval_state`` restores
+        SB3's ``evaluations_*`` lists from the stage's published
+        ``evaluations.npz`` — but the prior session's per-eval captures
+        (duties, velocities, action statistics, reward terms) are not in that
+        file.  ``StageGatePlateauCallback`` resolves these series by the
+        ABSOLUTE index into ``evaluations_results``; without padding, every
+        post-resume evaluation's index points past the end of each series,
+        the stance panel resolves to ``None``, and the gate telemetry
+        (``gate_progress.npz`` appends, ``diagnostics/eval_*`` scalars)
+        silently stops for the rest of the session.  The placeholders are the
+        exact values ``_on_step``/``_publish_action_statistics`` append for an
+        unmeasured evaluation, which every consumer already treats as
+        "no data for this eval".
+        """
+        for _ in range(n_evals):
+            self.evaluations_forward_velocities.append([])
+            self.evaluations_unsupported_duties.append([])
+            self.evaluations_bilateral_duties.append([])
+            self.evaluations_action_dc.append([])
+            self.evaluations_action_ac_rms.append([])
+            self.evaluations_action_delta.append(float("nan"))
+            self.evaluations_action_jerk.append(float("nan"))
+            self.evaluations_reward_terms.append({})
+
     def _publish_action_statistics(self) -> None:
         """Reduce one evaluation's accumulators into the published series.
 

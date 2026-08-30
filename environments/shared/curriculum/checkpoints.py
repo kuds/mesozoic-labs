@@ -96,6 +96,8 @@ def seed_resume_eval_state(
     eval_callback: Any,
     callbacks: "list[Any]",
     prior_npz_path: "str | Path",
+    *,
+    max_timesteps: "int | None" = None,
 ) -> int:
     """Seed eval history and best-model trackers from a prior session's record.
 
@@ -107,25 +109,43 @@ def seed_resume_eval_state(
     post-resume slice (review TC2).  This seeds, from the stage directory's
     published ``evaluations.npz``:
 
-    * ``eval_callback.best_mean_reward`` — the max per-evaluation mean, so
-      ``best_model.zip`` is only overwritten by a genuinely better policy;
+    * ``eval_callback.best_mean_reward`` and ``RobustBestModelCallback``'s
+      ``best_score`` — computed over the FULL prior record, so a best model
+      saved at any pre-crash point stays protected;
     * ``eval_callback.evaluations_*`` — the in-memory history SB3 re-saves
-      on every evaluation, so the npz keeps the whole run's record (the
-      resumed step counter continues, so timesteps stay monotonic);
-    * ``RobustBestModelCallback.best_score`` / ``_last_seen_n`` — same
-      protection for the risk-adjusted checkpoint, and the seen-count so the
-      seeded history is not mistaken for a fresh evaluation of the loaded
-      model.
+      on every evaluation, so the npz keeps the whole run's record.  Entries
+      newer than ``max_timesteps`` (the resumed checkpoint's step count) are
+      dropped from the HISTORY so the republished timesteps stay monotonic
+      when the crash — or a fallback to an older checkpoint — postdates the
+      last evaluation; the best trackers still cover them;
+    * the parallel per-eval capture series and eval cursors of the stage
+      diagnostics callbacks (``StageAwareEvalCallback.seed_prior_history``,
+      ``_last_seen_n_evals`` / ``_last_published_n`` counters), so consumers
+      that index those series by the absolute evaluation index stay aligned
+      and the seeded history is not reprocessed as new evaluations.
 
-    Returns the number of prior evaluations seeded (0 when no usable record
-    exists — a fresh stage directory resumes cleanly with empty state).
+    A prior record whose per-eval episode count differs from this session's
+    ``n_eval_episodes`` seeds only the scalar best trackers: mixing row
+    lengths would make SB3's next ``np.savez`` raise on the ragged array,
+    wedging every resume retry.
+
+    Returns the number of prior evaluations seeded into the HISTORY (0 when
+    no usable record exists — a fresh stage directory resumes cleanly with
+    empty state, with a prominent warning since the best-tracker protection
+    is then absent).
     """
     path = Path(prior_npz_path)
     if not path.exists():
+        logger.warning(
+            "Resume: no prior evaluation record at %s — best-model trackers and eval history "
+            "start fresh. If this resume continues an interrupted run, point the run at the "
+            "interrupted stage directory so its evaluations.npz seeds this session.",
+            path,
+        )
         return 0
     try:
         with np.load(path) as data:
-            timesteps = list(data["timesteps"])
+            timesteps = [int(value) for value in data["timesteps"]]
             results = [np.asarray(row) for row in data["results"]]
             ep_lengths = [np.asarray(row) for row in data["ep_lengths"]]
             successes = [np.asarray(row) for row in data["successes"]] if "successes" in data else None
@@ -135,30 +155,86 @@ def seed_resume_eval_state(
     if not results:
         return 0
 
+    # Best trackers cover the FULL record — a pre-crash best_model.zip must
+    # stay protected even when its evaluation postdates the resumed
+    # checkpoint and is therefore dropped from the history below.
+    best_mean = max(float(np.asarray(row, dtype=float).mean()) for row in results)
+    eval_callback.best_mean_reward = best_mean
+    for callback in callbacks:
+        if isinstance(callback, RobustBestModelCallback):
+            callback.best_score = max(
+                float(np.asarray(row, dtype=float).mean() - callback.risk_coef * np.asarray(row, dtype=float).std())
+                for row in results
+            )
+
+    if max_timesteps is not None:
+        keep = sum(1 for value in timesteps if value <= max_timesteps)
+        if keep < len(results):
+            logger.info(
+                "Resume: dropping %d prior evaluation(s) recorded after the resumed checkpoint "
+                "(step %s) so the republished history stays monotonic; the best trackers still "
+                "cover them.",
+                len(results) - keep,
+                f"{max_timesteps:,}",
+            )
+            timesteps = timesteps[:keep]
+            results = results[:keep]
+            ep_lengths = ep_lengths[:keep]
+            if successes is not None:
+                successes = successes[:keep]
+
+    expected_episodes = getattr(eval_callback, "n_eval_episodes", None)
+    if expected_episodes is not None and any(len(row) != expected_episodes for row in results):
+        logger.warning(
+            "Resume: prior evaluations at %s were recorded with a different episode count than "
+            "this session's n_eval_episodes=%s — seeding only the best-model trackers; the "
+            "republished evaluations.npz will hold this session's evaluations only.",
+            path,
+            expected_episodes,
+        )
+        for callback in callbacks:
+            if isinstance(callback, RobustBestModelCallback):
+                callback._last_seen_n = 0
+        return 0
+
+    seeded = len(results)
     eval_callback.evaluations_timesteps = timesteps
     eval_callback.evaluations_results = results
     eval_callback.evaluations_length = ep_lengths
-    if successes is not None:
+    if successes is not None and len(successes) == seeded:
+        # SB3 only writes the successes array when the CURRENT session's
+        # success buffer is non-empty; the seeded rows survive the next
+        # publish only while the resumed env still emits is_success.
         eval_callback.evaluations_successes = successes
-    per_eval_means = [float(np.asarray(row, dtype=float).mean()) for row in results]
-    eval_callback.best_mean_reward = max(per_eval_means)
+
+    # Stage diagnostics keep parallel per-eval series indexed by the absolute
+    # evaluation index; pad them so post-resume evaluations stay aligned.
+    seed_prior = getattr(eval_callback, "seed_prior_history", None)
+    if callable(seed_prior):
+        seed_prior(seeded)
 
     for callback in callbacks:
         if isinstance(callback, RobustBestModelCallback):
-            scores = [
-                float(np.asarray(row, dtype=float).mean() - callback.risk_coef * np.asarray(row, dtype=float).std())
-                for row in results
-            ]
-            callback.best_score = max(scores)
-            callback._last_seen_n = len(results)
+            # The seeded history must not read as a fresh evaluation of the
+            # loaded model.
+            callback._last_seen_n = seeded
+        # Eval-count cursors (StageGatePlateauCallback, the collapse
+        # backstop, the npz publisher): start past the seeded history so it
+        # is not reprocessed as new evaluations. The collapse backstop then
+        # re-arms from post-resume evaluations only — the same fresh-run
+        # behavior it had before seeding existed.
+        if hasattr(callback, "_last_seen_n_evals"):
+            callback._last_seen_n_evals = seeded
+        if hasattr(callback, "_last_published_n"):
+            callback._last_published_n = seeded
 
     logger.info(
         "Resume: seeded %d prior evaluations from %s (best mean %.1f)",
-        len(results),
+        seeded,
         path,
-        eval_callback.best_mean_reward,
+        best_mean,
     )
-    return len(results)
+    return seeded
 
 
 class PublishEvalArtifactsCallback(BaseCallback):  # type: ignore[misc]
@@ -258,7 +334,11 @@ class PublishCheckpointPairCallback(BaseCallback):  # type: ignore[misc]
     def _publish(self) -> None:
         from ..file_io import atomic_copy
 
-        for infix, extension in _CHECKPOINT_KINDS:
+        # Sidecars first, model zip LAST: each copy is atomic but the pair is
+        # not, and a reclaim between the two must only ever leave a harmless
+        # sidecar-without-zip — never a zip whose missing sidecar trips the
+        # resume paths' fail-closed guards.
+        for infix, extension in reversed(_CHECKPOINT_KINDS):
             for path in sorted(self.local_dir.glob(f"{self.name_prefix}_{infix}*_steps.{extension}")):
                 try:
                     atomic_copy(path, self.publish_dir / path.name)

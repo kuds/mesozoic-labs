@@ -235,6 +235,11 @@ def main(species_cfg):
     cur_parser.add_argument("--algorithm", type=str, choices=["ppo", "sac"], default="ppo")
     cur_parser.add_argument("--wandb", action="store_true")
     cur_parser.add_argument("--override", nargs="*", default=None, metavar="KEY=VALUE")
+    cur_parser.add_argument(
+        "--allow-fresh-vecnorm",
+        action="store_true",
+        help="Explicitly allow a stage handoff to proceed when its VecNormalize sidecar is missing",
+    )
     cur_parser.add_argument("--output-dir", type=str, default=None)
     cur_parser.add_argument("--gcs-bucket", type=str, default=None)
     cur_parser.add_argument("--gcs-project", type=str, default=None)
@@ -356,6 +361,7 @@ def main(species_cfg):
             stage_configs=stage_configs,
             n_envs=args.n_envs,
             seed=args.seed,
+            allow_fresh_vecnorm=getattr(args, "allow_fresh_vecnorm", False),
             eval_freq=args.eval_freq,
             save_freq=args.save_freq,
             log_dir=args.log_dir,
