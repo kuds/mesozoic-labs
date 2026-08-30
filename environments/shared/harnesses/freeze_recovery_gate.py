@@ -340,6 +340,55 @@ def _roll_null(
     )
 
 
+def roll_policy_panel(
+    stage_dir: "str | Path",
+    policy_zip: "str | Path",
+    vecnorm_pkl: "str | Path",
+    *,
+    species: str = "trex",
+    stage: "int | str" = "recovery",
+    inference: str = "auto",
+):
+    """Roll the trained policy over the panel the frozen gate judges against.
+
+    The counterpart of the freeze: reads the stage directory's
+    ``gate_resolution.json`` through :func:`require_gate_resolution` (so a
+    missing, tampered, or stale-task resolution refuses here, before any
+    episode is rolled), and rolls the policy with EXACTLY the frozen decision
+    procedure — the recorded panel seed, episode count, recovery window, and
+    the calibrated judge the null manifest was measured under.  The returned
+    evidence's ``successes_by_seed()`` is what
+    ``generate_stage_artifacts(recovery_successes_by_seed=...)`` needs to
+    make the frozen gate produce a verdict (gap review EE2).
+    """
+    fingerprint = stage_task_fingerprint(species, stage)
+    resolution = require_gate_resolution(stage_dir, current_task_sha256=fingerprint["task_sha256"])
+    spec = resolution["capability_spec"]
+    procedure = resolution["decision_procedure"]
+
+    env = build_env(species, stage)
+    try:
+        predict = policy_controller(
+            policy_zip,
+            vecnorm_pkl,
+            action_space=env.action_space,
+            inference=inference,
+        )
+        return roll_recovery_panel(
+            env,
+            predict,
+            controller_id="policy",
+            episodes=int(spec["min_eval_episodes"]),
+            seed=int(procedure["panel_seed_start"]),
+            t_recover_steps=int(spec["recovery_t_recover_steps"]),
+            dwell_steps=int(spec["recovery_dwell_steps"]),
+            safe_set=dict(CALIBRATED_POSTURE_ONLY),
+            height_reference=CALIBRATED_HEIGHT_REFERENCE_M,
+        )
+    finally:
+        env.close()
+
+
 def freeze_recovery_gate(
     stage_dir: "str | Path",
     *,

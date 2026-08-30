@@ -829,16 +829,25 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
 
     def _process_evaluation(self, index: int) -> None:
         panel = self._stance_panel(index)
+        # Record BEFORE the no-metrics early-out below: a stage whose gate
+        # declares none of the legacy scalar thresholds (the recovery stage's
+        # recovery_quality/v1 — judged post-stage from its frozen resolution)
+        # has no plateau metrics to follow, but its gate_progress.npz appends
+        # and diagnostics/eval_* scalars are exactly the mid-run visibility
+        # the stage needs.  Gating the recording on the plateau metrics made
+        # every recovery run train dark (gap review EE1).
+        self._record_stance_scalars(index, panel)
+
         metrics = self._metrics_for_evaluation(index, panel)
         if not metrics:
+            # Nothing to follow for plateau/gate-met tracking; the recording
+            # above already happened.
             return
 
         min_eval_episodes = int(self.curriculum_kwargs.get("min_eval_episodes", 10))
         reward_metric = next((metric for metric in metrics if metric.key == "mean_reward"), None)
         if reward_metric is not None:
             self.logger.record("diagnostics/eval_episode_count", reward_metric.sample_count)
-
-        self._record_stance_scalars(index, panel)
 
         # Follow the metrics this evaluation can actually support, rather than
         # abandoning the whole diagnostic when one of them is unmeasurable.

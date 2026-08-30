@@ -685,6 +685,42 @@ class TestStanceScalarsMatchTheGate:
         assert recorded["diagnostics/eval_full_horizon_fraction"] == [0.0]
 
 
+class TestRecoveryStageStillGetsEvalDiagnostics:
+    """A stage with no legacy scalar thresholds must not train dark.
+
+    The recovery stage's ``recovery_quality/v1`` gate is judged post-stage
+    from its frozen resolution, so its curriculum block declares none of the
+    plateau metrics.  The metrics early-out in ``_process_evaluation`` used
+    to fire before ``_record_stance_scalars``, so no ``diagnostics/eval_*``
+    scalar and no ``gate_progress.npz`` append ever happened for the entire
+    stage (gap review EE1) — the exact "gate criteria stayed invisible for
+    the whole run" failure the surrounding machinery exists to prevent.
+    """
+
+    RECOVERY_CURRICULUM = {
+        "gate_kind": "recovery_quality/v1",
+        "min_recovery_success_lcb": 0.30,
+        "recovery_t_recover_steps": 100,
+        "recovery_dwell_steps": 50,
+        "min_eval_episodes": 40,
+    }
+
+    def test_scalars_are_recorded_despite_no_plateau_metrics(self):
+        harness = TestStanceScalarsMatchTheGate()
+        callback, recorded = harness._callback(
+            lengths=[1000.0] * 40,
+            duties=[0.01] * 40,
+            curriculum=self.RECOVERY_CURRICULUM,
+        )
+        callback._process_evaluation(0)
+
+        # The metrics list is empty for this gate kind (nothing to follow
+        # for plateau tracking) — but the per-eval capture must publish.
+        assert "diagnostics/eval_unsupported_duty" in recorded
+        assert "diagnostics/eval_full_horizon_fraction" in recorded
+        assert "diagnostics/eval_duty_episodes" in recorded
+
+
 class TestPlateauSurvivesAnUnmeasurableMetric:
     """One unmeasurable metric must not switch the whole diagnostic off."""
 

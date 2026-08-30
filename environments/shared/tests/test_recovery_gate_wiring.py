@@ -202,6 +202,52 @@ def _judge(stage_dir: "Path | None", successes, curriculum=None, stage_results=N
     )
 
 
+class TestSharedEntryPointReachesTheFrozenGate:
+    """generate_stage_artifacts/_apply_stage_gate must forward both inputs.
+
+    Before Phase G, the one shared gate call site dropped ``stage_dir`` and
+    had no way to carry the pushed panel, so every recovery verdict was the
+    fail-closed no-stage_dir refusal regardless of any frozen resolution on
+    disk (gap review EE2).
+    """
+
+    def _apply(self, stage_dir, successes):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        stage_results: dict[str, Any] = {}
+        _apply_stage_gate(
+            stage="recovery",
+            stage_config={"curriculum_kwargs": dict(RECOVERY_CURRICULUM)},
+            stage_results=stage_results,
+            stance_report=None,
+            stage_dir=stage_dir,
+            recovery_successes_by_seed=successes,
+        )
+        return stage_results
+
+    def test_a_frozen_resolution_and_passing_panel_advance(self, tmp_path):
+        stage_dir = _stage_dir(tmp_path)
+        results = self._apply(stage_dir, _successes_by_seed())
+        assert results["gate_passed"] is True
+        assert results["publication_gate_passed"] is True
+        assert results["gate_failures"] == []
+
+    def test_a_failing_panel_records_the_criterion(self, tmp_path):
+        stage_dir = _stage_dir(tmp_path)
+        results = self._apply(stage_dir, _successes_by_seed([False] * len(POLICY_PANEL)))
+        assert results["gate_passed"] is False
+        assert any("lcb" in failure.lower() for failure in results["gate_failures"])
+
+    def test_no_panel_still_fails_closed(self, tmp_path):
+        stage_dir = _stage_dir(tmp_path)
+        results = self._apply(stage_dir, None)
+        assert results["gate_passed"] is False
+
+    def test_no_stage_dir_still_fails_closed(self):
+        results = self._apply(None, _successes_by_seed())
+        assert results["gate_passed"] is False
+
+
 class TestFrozenValuesAreTheMeasuredOnes:
     """The fixtures reproduce §9, so the wiring is tested on real numbers."""
 
