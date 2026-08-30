@@ -32,8 +32,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     zero gate diagnostics.
   - The training notebook's recovery flow now freezes the resolution
     (pre-registered nulls and thresholds), trains, rolls the frozen panel,
-    and records the verdict; its setup gains a `PPO.load` preflight and
-    pinned installs.
+    and records the verdict; its setup gains a `PPO.load` preflight (which
+    releases the Colab runtime before raising, like the gate-failure cells)
+    and pinned installs — the jax and ray notebooks' installs are pinned to
+    the same tested set.
+  - `roll_policy_panel` enforces, rather than asserts, the frozen
+    procedure: it refuses when a frozen null was measured under a different
+    safe set than the current calibrated judge (a recalibration is outside
+    task identity, so the resolver's staleness check alone cannot see it),
+    when the frozen nulls' panel size is below the frozen minimum (a
+    rehearsal freeze can never certify), and when the stage directory's
+    recorded task fingerprint disagrees with the one the committed config
+    derives.
 - **Stage-scoped `--override` accepts semantic stage ids**
   (`recovery.env.push_interval_steps=250`, or any manifest id via the
   species' manifest), and both an unknown stage and an unknown config

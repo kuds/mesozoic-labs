@@ -38,7 +38,8 @@ def _resolve_override_stage_token(token: str, configs: dict, species: "str | Non
 
     Digits mean a legacy stage number; a string token can be a semantic
     config key directly (``recovery``) or, when *species* is known, any
-    manifest stage id (``1b``, ``stance``) resolved through the manifest.
+    manifest stage id (``stance``, ``locomotion``) resolved through the
+    manifest.
     Returns ``None`` when the token does not name a stage — the override is
     then an all-stages ``section.key`` form.
     """
@@ -68,7 +69,8 @@ def _apply_overrides(configs: dict, overrides: list | None, species: "str | None
     - ``section.key=value``       -- applies to **all** stages
     - ``STAGE.section.key=value`` -- applies to one stage only, where STAGE
       is a legacy number (``2``), a semantic config key (``recovery``), or —
-      when *species* is given — any manifest stage id (``1b``)
+      when *species* is given — any manifest stage id (``stance``,
+      ``locomotion``)
 
     Unknown stages and unknown config sections raise instead of silently
     no-opping or crashing with a bare ``KeyError``: a typo'd override used to
@@ -84,10 +86,16 @@ def _apply_overrides(configs: dict, overrides: list | None, species: "str | None
         value = _cast_value(raw_value)
         parts = key.split(".")
         stage_key = _resolve_override_stage_token(parts[0], configs, species) if len(parts) == 3 else None
-        if len(parts) == 3 and parts[0].isdigit() and stage_key not in configs:
-            raise ValueError(
-                f"--override {key!r} names unknown stage {parts[0]!r}; available: {sorted(map(str, configs))}"
-            )
+        if len(parts) == 3 and (stage_key is None or stage_key not in configs):
+            # The token was meant as a stage whenever the MIDDLE token is a
+            # real config section: a typo'd semantic id ('recvery.env.x')
+            # must get the stage-flavored error with the available choices,
+            # not a misattributed unknown-section one.
+            middle_kwargs = "env_kwargs" if parts[1] == "env" else f"{parts[1]}_kwargs"
+            if parts[0].isdigit() or any(middle_kwargs in cfg for cfg in configs.values()):
+                raise ValueError(
+                    f"--override {key!r} names unknown stage {parts[0]!r}; available: {sorted(map(str, configs))}"
+                )
         if stage_key is not None and stage_key in configs:
             section, param = parts[1], parts[2]
             kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"

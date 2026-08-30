@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import logging
 import pickle
 import zipfile
@@ -55,6 +56,7 @@ import numpy as np
 
 from environments.shared.config import load_stage_config
 from environments.shared.curriculum.gate_resolver import (
+    GateResolutionError,
     build_gate_resolution,
     require_gate_resolution,
     write_gate_resolution,
@@ -366,6 +368,56 @@ def roll_policy_panel(
     spec = resolution["capability_spec"]
     procedure = resolution["decision_procedure"]
 
+    # The stage directory's RECORDED task fingerprint is what the gate in
+    # reporting/gates.py will judge against; when it exists and disagrees
+    # with the fingerprint derived from the committed config, rolling a
+    # panel would waste 40 episodes on a verdict the gate is going to
+    # refuse anyway — refuse now, with the same staleness framing.
+    recorded_fp = Path(stage_dir) / "task_fingerprint.json"
+    if recorded_fp.exists():
+        try:
+            recorded_sha = json.loads(recorded_fp.read_text(encoding="utf-8")).get("task_sha256")
+        except (OSError, ValueError):
+            recorded_sha = None
+        if recorded_sha is not None and recorded_sha != fingerprint["task_sha256"]:
+            raise GateResolutionError(
+                f"{recorded_fp} records task {recorded_sha}, but the committed config derives "
+                f"{fingerprint['task_sha256']}: the stage was trained on a different task than "
+                "the current config describes. Resolve the drift before rolling a panel."
+            )
+
+    # Enforce — not merely assert — that the judge about to roll IS the
+    # judge the frozen nulls were measured under: the safe set lives in
+    # recovery_evaluation.py, OUTSIDE task identity, so a future
+    # recalibration would not trip the resolver's task-staleness check, and
+    # pairing a new-judge policy panel against old-judge nulls would certify
+    # on incommensurable evidence. Mirrors the freeze-time check.
+    for controller_id, entry in sorted(resolution["null_manifest"].items()):
+        if entry.get("safe_set") != dict(CALIBRATED_POSTURE_ONLY):
+            raise GateResolutionError(
+                f"frozen null {controller_id!r} was measured under a different safe set than the "
+                "current calibrated judge; the panel cannot be paired against it. Re-freeze the "
+                "gate resolution under the current judge (a new calibration invalidates old nulls)."
+            )
+
+    # Pair against the panel the nulls actually rolled: their seed set is
+    # the pairing domain, so the policy panel must match its size exactly.
+    # A rehearsal freeze (--episodes below the frozen minimum) is refused
+    # here, before any episode is rolled, rather than by the gate afterwards.
+    null_episode_counts = {int(entry["n_episodes"]) for entry in resolution["null_manifest"].values()}
+    if len(null_episode_counts) != 1:
+        raise GateResolutionError(
+            f"frozen nulls disagree on panel size ({sorted(null_episode_counts)}); the resolution "
+            "cannot define a single pairing domain — re-freeze it."
+        )
+    (panel_episodes,) = null_episode_counts
+    if panel_episodes < int(spec["min_eval_episodes"]):
+        raise GateResolutionError(
+            f"the frozen nulls hold {panel_episodes} episodes but the frozen spec demands at least "
+            f"{spec['min_eval_episodes']}: this is a rehearsal freeze and can never certify. "
+            "Re-freeze at the full panel size before rolling the policy."
+        )
+
     env = build_env(species, stage)
     try:
         predict = policy_controller(
@@ -378,7 +430,7 @@ def roll_policy_panel(
             env,
             predict,
             controller_id="policy",
-            episodes=int(spec["min_eval_episodes"]),
+            episodes=panel_episodes,
             seed=int(procedure["panel_seed_start"]),
             t_recover_steps=int(spec["recovery_t_recover_steps"]),
             dwell_steps=int(spec["recovery_dwell_steps"]),

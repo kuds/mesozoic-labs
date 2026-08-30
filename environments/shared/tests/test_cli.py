@@ -235,6 +235,13 @@ class TestApplyOverridesStageScoping:
         with pytest.raises(ValueError, match="unknown stage '7'"):
             _apply_overrides(self._configs(), ["7.ppo.learning_rate=0.0001"])
 
+    def test_typoed_semantic_stage_gets_the_stage_error_with_choices(self):
+        # 'recvery.env.x' must not be misattributed to a config section named
+        # 'recvery' — the middle token IS a real section, so the head token
+        # was meant as a stage and the error must list the available stages.
+        with pytest.raises(ValueError, match="unknown stage 'recvery'.*available"):
+            _apply_overrides(self._configs(), ["recvery.env.alive_bonus=1.0"], "trex")
+
     def test_unknown_section_raises_instead_of_bare_keyerror(self):
         with pytest.raises(ValueError, match="unknown config section"):
             _apply_overrides(self._configs(), ["recovery.badsection.x=1"])
