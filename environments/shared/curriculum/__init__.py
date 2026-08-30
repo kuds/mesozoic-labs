@@ -59,11 +59,13 @@ from .baseline_watch import (
 from .checkpoints import (
     DEFAULT_MAX_CHECKPOINTS,
     CheckpointRetentionCallback,
+    PublishCheckpointPairCallback,
     PublishEvalArtifactsCallback,
     RobustBestModelCallback,
     SaveVecNormalizeCallback,
     load_vecnorm_stats,
     prune_periodic_checkpoints,
+    seed_resume_eval_state,
 )
 from .early_stopping import (
     EvalCollapseEarlyStopCallback,
@@ -90,6 +92,7 @@ __all__ = [
     "GateSchemaError",
     "CheckpointRetentionCallback",
     "DEFAULT_MAX_CHECKPOINTS",
+    "PublishCheckpointPairCallback",
     "PublishEvalArtifactsCallback",
     "RewardRampCallback",
     "RobustBestModelCallback",
@@ -102,6 +105,7 @@ __all__ = [
     "load_vecnorm_stats",
     "read_zero_action_baseline",
     "prune_periodic_checkpoints",
+    "seed_resume_eval_state",
     "sb3_compat",
     "thresholds_from_configs",
     "validate_gate_config",

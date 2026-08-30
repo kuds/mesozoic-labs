@@ -66,7 +66,11 @@ validator treats disagreements as conflicts.
 - deterministic evaluation protocols and episode counts;
 - Python, platform, and dependency versions;
 - hardware and parallel environment count;
-- plant identity; and
+- plant identity;
+- a `sessions` record — one entry per process that touched the run: the
+  creating session's `started_at`, then a `resumed_at` entry for every later
+  session, carrying an `environment_drift` map when that session's
+  environment differed from the original capture; and
 - every stage's selected checkpoint hash, matching SB3 VecNormalize path/hash,
   and resolved-config hashes when available.
 
@@ -92,11 +96,18 @@ publication evaluation and the frozen stage thresholds. Training-time
 `required_consecutive` settings describe chronological evaluation batches and
 are not inferred from episodes in the publication evaluation.
 
-Reusing a JAX run in a fresh Colab session also requires the exact captured Git
-state and dependency versions. If `main` has moved, inspect
-`provenance.json`, check out its `repository_commit`, and reinstall that
-revision before continuing. The initializer rejects a mismatched environment
-instead of combining stages from different experiments.
+Reusing a JAX run in a fresh Colab session revalidates the run's identity:
+species, algorithm, backend, seed roles, evaluation protocols and seeds,
+episode and parallel-environment counts, plant identity, and the run ID must
+match the captured provenance exactly, and the initializer refuses a mismatch
+instead of combining stages from different experiments. Environment fields —
+Python, platform, and dependency versions, the Git commit/dirty state and
+patch hash, and hardware — may drift between sessions: the resume is accepted,
+the top-level provenance keeps the values the first session captured, and the
+drift is recorded (with a logged warning) on that session's entry in the
+per-session `sessions` record. For faithful reproduction, still prefer
+checking out the captured `repository_commit` and reinstalling that revision
+before continuing.
 
 The Google Drive summary notebook audits canonical bundles first and uses its
 older CSV/text/NPZ reconstruction only as a historical fallback. Before

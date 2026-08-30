@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ from environments.shared.result_bundle import (
     ResultBundleError,
     audit_result_bundle,
     initialize_result_bundle,
+    validate_result_bundle,
     write_artifact_manifest,
 )
 from environments.shared.result_bundle import provenance as result_bundle_provenance
@@ -133,6 +135,234 @@ def test_initialize_result_bundle_rejects_changed_evaluation_identity(
         initialize_result_bundle(run_dir, **(kwargs | {field: changed_value}))
 
     assert provenance_path.read_bytes() == before
+
+
+def _resume_run_kwargs() -> dict[str, Any]:
+    """Initializer kwargs shared by the multi-session (resume) tests."""
+    return {
+        "species": "velociraptor",
+        "algorithm": "PPO",
+        "backend": "stable-baselines3",
+        "seed": 42,
+        "evaluation_seeds": [11, 12],
+        "evaluation_episodes": 2,
+        "parallel_envs": 4,
+        "hardware": "Google Colab",
+        "plant_identity": _plant_identity(),
+        "run_id": "resumed-run",
+        "captured_at": "2026-07-18T12:00:00+00:00",
+    }
+
+
+def test_fresh_session_resume_appends_a_session_record_without_drift(
+    tmp_path: Path,
+    stable_provenance: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / "run"
+    kwargs = _resume_run_kwargs()
+    first = initialize_result_bundle(run_dir, **kwargs)
+    original = json.loads(first.read_text(encoding="utf-8"))
+    assert original["sessions"] == [
+        {
+            "session_token": result_bundle_provenance._PROCESS_SESSION_TOKEN,
+            "started_at": "2026-07-18T12:00:00+00:00",
+        }
+    ]
+
+    monkeypatch.setattr(result_bundle_provenance, "_PROCESS_SESSION_TOKEN", "f" * 32)
+    second = initialize_result_bundle(run_dir, **(kwargs | {"captured_at": "2026-07-19T09:00:00+00:00"}))
+
+    assert second == first
+    resumed = json.loads(second.read_text(encoding="utf-8"))
+    assert resumed["sessions"] == [
+        original["sessions"][0],
+        {"session_token": "f" * 32, "resumed_at": "2026-07-19T09:00:00+00:00"},
+    ]
+    assert "environment_drift" not in resumed["sessions"][-1]
+    assert {key: value for key, value in resumed.items() if key != "sessions"} == {
+        key: value for key, value in original.items() if key != "sessions"
+    }
+
+
+def test_fresh_session_environment_drift_is_absorbed_and_recorded(
+    tmp_path: Path,
+    stable_provenance: None,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    run_dir = tmp_path / "run"
+    kwargs = _resume_run_kwargs()
+    first = initialize_result_bundle(run_dir, **kwargs)
+    original_dependencies = json.loads(first.read_text(encoding="utf-8"))["dependency_versions"]
+
+    drifted_dependencies = original_dependencies | {"numpy": "2.4.1"}
+    monkeypatch.setattr(result_bundle_provenance, "_dependency_versions", lambda: drifted_dependencies)
+    monkeypatch.setattr(result_bundle_provenance, "_PROCESS_SESSION_TOKEN", "f" * 32)
+    with caplog.at_level(logging.WARNING, logger=result_bundle_provenance.__name__):
+        second = initialize_result_bundle(run_dir, **(kwargs | {"captured_at": "2026-07-19T09:00:00+00:00"}))
+
+    resumed = json.loads(second.read_text(encoding="utf-8"))
+    # The top-level fields keep the original session's environment.
+    assert resumed["dependency_versions"] == original_dependencies
+    assert resumed["sessions"][-1] == {
+        "session_token": "f" * 32,
+        "resumed_at": "2026-07-19T09:00:00+00:00",
+        "environment_drift": {
+            "dependency_versions": {"was": original_dependencies, "now": drifted_dependencies},
+        },
+    }
+    warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+    assert any("dependency_versions" in record.getMessage() for record in warnings)
+
+
+def test_identity_mismatch_on_resume_still_refuses_and_records_no_session(
+    tmp_path: Path,
+    stable_provenance: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / "run"
+    kwargs = _resume_run_kwargs()
+    first = initialize_result_bundle(run_dir, **kwargs)
+    before = first.read_bytes()
+
+    monkeypatch.setattr(result_bundle_provenance, "_PROCESS_SESSION_TOKEN", "f" * 32)
+    with pytest.raises(ResultBundleError, match="different run"):
+        initialize_result_bundle(run_dir, **(kwargs | {"seed": 43}))
+
+    assert first.read_bytes() == before
+
+
+def test_old_style_provenance_without_sessions_still_audits_and_resumes(
+    tmp_path: Path,
+    stable_provenance: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / "run"
+    configs: dict[int | str, dict[str, Any]] = {1: _stage_config(1, "PPO")}
+    _write_stage_configs(run_dir, configs)
+    paths = save_result_bundle(
+        [_stage_result(1)],
+        configs,
+        "velociraptor",
+        "PPO",
+        42,
+        run_dir,
+        backend="stable-baselines3",
+        backend_version="2.7.0",
+        parallel_envs=4,
+        evaluation_episodes=3,
+        evaluation_seeds=[101],
+        plant_identity=_plant_identity(),
+        run_id="legacy-no-sessions",
+    )
+    legacy = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+    del legacy["sessions"]
+    paths["provenance"].write_text(json.dumps(legacy, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_artifact_manifest(run_dir, status="partial")
+
+    # An older bundle that never recorded sessions keeps validating.
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "partial"
+    assert report["errors"] == []
+
+    monkeypatch.setattr(result_bundle_provenance, "_PROCESS_SESSION_TOKEN", "f" * 32)
+    resumed_path = initialize_result_bundle(
+        run_dir,
+        species="velociraptor",
+        algorithm="PPO",
+        backend="stable-baselines3",
+        seed=42,
+        evaluation_seeds=[101],
+        evaluation_episodes=3,
+        parallel_envs=4,
+        hardware="Google Colab",
+        plant_identity=_plant_identity(),
+        run_id="legacy-no-sessions",
+        captured_at="2026-07-19T09:00:00+00:00",
+    )
+    resumed = json.loads(resumed_path.read_text(encoding="utf-8"))
+    assert resumed["sessions"] == [{"session_token": "f" * 32, "resumed_at": "2026-07-19T09:00:00+00:00"}]
+
+    write_artifact_manifest(run_dir, status="partial")
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "partial"
+    assert report["errors"] == []
+
+
+def test_complete_bundle_with_a_resumed_session_audits_canonical_valid(
+    tmp_path: Path,
+    stable_provenance: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / "run"
+    kwargs = _resume_run_kwargs() | {"evaluation_seeds": [101, 102, 103], "evaluation_episodes": 3}
+    initial_token = result_bundle_provenance._PROCESS_SESSION_TOKEN
+    initialize_result_bundle(run_dir, **kwargs)
+    monkeypatch.setattr(result_bundle_provenance, "_PROCESS_SESSION_TOKEN", "f" * 32)
+    initialize_result_bundle(run_dir, **(kwargs | {"captured_at": "2026-07-19T09:00:00+00:00"}))
+
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    paths = save_result_bundle(
+        stage_results,
+        stage_configs,
+        "velociraptor",
+        "PPO",
+        42,
+        run_dir,
+        backend="stable-baselines3",
+        backend_version="2.7.0",
+        parallel_envs=4,
+        evaluation_episodes=3,
+        evaluation_seeds=[101, 102, 103],
+        plant_identity=_plant_identity(),
+        run_id="resumed-run",
+    )
+
+    provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+    assert [entry["session_token"] for entry in provenance["sessions"]] == [initial_token, "f" * 32]
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    assert summary["provenance"]["sessions"] == provenance["sessions"]
+    assert validate_result_bundle(run_dir)["status"] == "canonical-valid"
+
+
+def test_fresh_process_reexport_of_a_complete_bundle_records_no_session(
+    tmp_path: Path,
+    stable_provenance: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A finished run is re-exported read-only, never "resumed".
+
+    Appending a session entry here would stale the complete manifest's
+    provenance hash and the summary's embedded copy, wedging the bundle as
+    canonical-conflict on every subsequent save (Phase R integration
+    finding).  The completion marker gates the append.
+    """
+    run_dir = tmp_path / "run"
+    kwargs = _resume_run_kwargs() | {"evaluation_seeds": [101, 102, 103], "evaluation_episodes": 3}
+    initialize_result_bundle(run_dir, **kwargs)
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    save_kwargs: dict[str, Any] = {
+        "backend": "stable-baselines3",
+        "backend_version": "2.7.0",
+        "parallel_envs": 4,
+        "evaluation_episodes": 3,
+        "evaluation_seeds": [101, 102, 103],
+        "plant_identity": _plant_identity(),
+        "run_id": "resumed-run",
+    }
+    paths = save_result_bundle(stage_results, stage_configs, "velociraptor", "PPO", 42, run_dir, **save_kwargs)
+    before = paths["provenance"].read_bytes()
+
+    # A fresh runtime re-runs the storage cell (and even a full re-export) on
+    # the already-complete run: identity validates, nothing is written.
+    monkeypatch.setattr(result_bundle_provenance, "_PROCESS_SESSION_TOKEN", "f" * 32)
+    second = initialize_result_bundle(run_dir, **(kwargs | {"captured_at": "2026-07-19T09:00:00+00:00"}))
+    assert second.read_bytes() == before
+
+    reexport = save_result_bundle(stage_results, stage_configs, "velociraptor", "PPO", 42, run_dir, **save_kwargs)
+    assert reexport["provenance"].read_bytes() == before
+    assert validate_result_bundle(run_dir)["status"] == "canonical-valid"
 
 
 @pytest.mark.parametrize(

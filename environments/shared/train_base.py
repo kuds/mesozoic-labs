@@ -318,6 +318,54 @@ def _prepare_alg_kwargs(
 _PERIODIC_CHECKPOINT_RE = re.compile(r"(.+)_(\d+)_steps$")
 
 
+def _is_resume_continuation(
+    load_path: "str | None",
+    *,
+    task_load_mode: str,
+    stage_lbl: str,
+    algorithm: str,
+) -> bool:
+    """Whether this load CONTINUES an interrupted run of the same stage.
+
+    Continuation semantics (``reset_num_timesteps=False``, cumulative
+    checkpoint numbering, seeded best trackers/eval history, the cumulative
+    entropy-decay anchor) apply only when all of these hold:
+
+    * the load mode is ``resume_same_stage`` — a boundary crossing is a new
+      stage, never a continuation;
+    * the checkpoint is one of SB3's periodic ``<prefix>_<steps>_steps.zip``
+      files whose prefix is THIS stage's label.  A curated checkpoint
+      (``best_model.zip``, ``stage<N>_final.zip``) carries no cumulative step
+      count and is how sweep warm-starts and exploratory loads arrive —
+      treating every bare ``--load`` under the default mode as a continuation
+      would silently change those launches (review follow-up);
+    * the algorithm is on-policy.  A SAC checkpoint restores its step counter
+      but nothing persists the replay buffer, so continuing the counter would
+      skip SB3's warmup and run gradient updates against a near-empty buffer;
+      SAC keeps the old fresh-counter semantics (with a warning at the call
+      site) until periodic checkpoints save and restore the buffer.
+    """
+    if not load_path or task_load_mode != "resume_same_stage" or algorithm != "ppo":
+        return False
+    stem = Path(load_path).name
+    if stem.endswith(".zip"):
+        stem = stem[: -len(".zip")]
+    match = _PERIODIC_CHECKPOINT_RE.match(stem)
+    return match is not None and match.group(1) == stage_lbl
+
+
+def _is_remote_mount_path(path: "Path | str") -> bool:
+    """Whether *path* sits on a FUSE-mounted remote filesystem (GCS or Drive).
+
+    Direct streaming writes to these mounts can be observed — or permanently
+    left — truncated when the runtime dies mid-write (see ``file_io``); paths
+    that match get the local-stage + atomic-publish treatment.  Colab mounts
+    Google Drive at ``/content/drive`` (older tooling used ``/gdrive``).
+    """
+    text = str(path)
+    return _is_gcs_path(text) or text.startswith(("/content/drive", "/gdrive"))
+
+
 def _resolve_vecnorm_sidecar(load_path: str) -> str:
     """Resolve the VecNormalize sidecar path for a checkpoint being loaded.
 
@@ -359,8 +407,23 @@ def _load_vecnorm_into_envs(
     *,
     plant_identity: PlantIdentity | None = None,
     allow_legacy_plant: bool = False,
+    task_load_mode: str,
+    allow_fresh_vecnorm: bool = False,
 ) -> None:
-    """Carry forward VecNormalize stats from a prior stage or reset eval env."""
+    """Carry forward VecNormalize stats from a prior stage or reset eval env.
+
+    A ``load_path`` whose VecNormalize sidecar is missing **fails closed**:
+    training the loaded policy under fresh mean-0/var-1 statistics feeds it
+    wildly mis-scaled observations and collapses it within the first updates
+    (review TC5 — the notebook resume cell already refused this; the CLI
+    warned and continued).  ``allow_fresh_vecnorm=True`` is the explicit
+    escape hatch, and its warning names both affected envs.
+
+    On a same-stage resume (``task_load_mode == "resume_same_stage"``) the
+    return-normalization statistics are carried forward too — the reward
+    distribution is unchanged, so resetting ``ret_rms`` only distorts the
+    first post-resume updates (review TC6).
+    """
     from .curriculum import load_vecnorm_stats
 
     if load_path:
@@ -373,8 +436,20 @@ def _load_vecnorm_into_envs(
             }
         else:
             load_kwargs = {"unsafe_skip_plant_validation": True}
+        if task_load_mode == "resume_same_stage":
+            load_kwargs["carry_ret_rms"] = True
         if not load_vecnorm_stats(_vecnorm_path, train_env, eval_env, **load_kwargs):
-            logger.warning("VecNormalize file not found: %s — eval env will use defaults", _vecnorm_path)
+            if not allow_fresh_vecnorm:
+                raise FileNotFoundError(
+                    f"VecNormalize sidecar not found for {load_path!r} (probed {_vecnorm_path!r}). "
+                    "Refusing to train the loaded policy under fresh normalization statistics — "
+                    "pass --allow-fresh-vecnorm (allow_fresh_vecnorm=True) to proceed deliberately."
+                )
+            logger.warning(
+                "VecNormalize file not found: %s — BOTH the train and eval envs will use fresh "
+                "normalization statistics for the loaded policy (allow_fresh_vecnorm)",
+                _vecnorm_path,
+            )
             eval_env.training = False
             eval_env.norm_reward = False
     else:
@@ -435,6 +510,22 @@ def _create_or_load_model(
                 artifact=str(load_path),
                 allow_unfingerprinted=True,
             )
+        if task_load_mode == "resume_same_stage":
+            # A checkpoint saved inside a stage-entry warm-up window pickles
+            # ENT_COEF_WARMUP_MARKER=True.  The resume path deliberately
+            # attaches no warm-up callback, so nothing would ever clear the
+            # restored marker and EntCoefDecayCallback would defer forever —
+            # the configured entropy decay silently never runs, and the stale
+            # marker re-pickles into every descendant checkpoint (review EE3).
+            from .curriculum.schedules import ENT_COEF_WARMUP_MARKER
+
+            if getattr(model, ENT_COEF_WARMUP_MARKER, False):
+                setattr(model, ENT_COEF_WARMUP_MARKER, False)
+                logger.warning(
+                    "Loaded checkpoint was saved inside a stage-entry warm-up window; "
+                    "cleared the warm-up marker so entropy decay resumes. The remainder "
+                    "of that warm-up is NOT re-applied on a same-stage resume."
+                )
     else:
         logger.info("Creating new %s model...", algorithm.upper())
         model = alg_cls("MlpPolicy", train_env, policy_kwargs=policy_kwargs, **alg_kwargs)
@@ -526,20 +617,50 @@ def _build_core_callbacks(
     callbacks.append(RobustBestModelCallback(eval_callback, model_dir=model_dir, verbose=verbose))
 
     checkpoint_stride = max(1, save_freq // n_envs)
+    # On a Drive/GCS FUSE mount, stream the periodic checkpoint pair to fast
+    # local scratch and publish it atomically (copy-to-temp + rename) — the
+    # same treatment evaluations.npz gets above, and for the same reason: an
+    # ungraceful runtime reclaim inside the direct-to-mount write (or the
+    # DriveFS sync window) can leave the newest pair — the sole artifact the
+    # resume path depends on — truncated or orphaned.
+    checkpoint_save_dir = model_dir
+    if _is_remote_mount_path(model_dir):
+        checkpoint_save_dir = Path(_tempfile.mkdtemp(prefix=f"ckpt_{stage_label(stage)}_"))
+        logger.info(
+            "Periodic checkpoints staged locally at %s and published atomically to %s",
+            checkpoint_save_dir,
+            model_dir,
+        )
     checkpoint_callback = sb3["CheckpointCallback"](
         save_freq=checkpoint_stride,
-        save_path=str(model_dir),
+        save_path=str(checkpoint_save_dir),
         name_prefix=stage_label(stage),
         save_vecnormalize=True,
     )
     callbacks.append(checkpoint_callback)
+    if checkpoint_save_dir != model_dir:
+        from .curriculum import PublishCheckpointPairCallback
+
+        # Immediately after the CheckpointCallback so the pair is published
+        # on the same step it was written.
+        callbacks.append(
+            PublishCheckpointPairCallback(
+                local_dir=checkpoint_save_dir,
+                publish_dir=model_dir,
+                name_prefix=stage_label(stage),
+                save_freq=checkpoint_stride,
+                verbose=verbose,
+            )
+        )
     # Immediately after, so a new checkpoint and the prune of the one it
     # displaced land on the same step. SB3's CheckpointCallback never deletes
-    # anything: at save_freq = 500k a 6M-step stage kept twelve 4.02 MB policy
-    # zips plus their VecNormalize sidecars (48 MB of the 60 MB `models/`
-    # measured on run 20260801_021545), on a Drive mount, for files nothing in
-    # this repository reads. Set `max_checkpoints = 0` in [curriculum] to keep
-    # every one.
+    # anything: at the former save_freq = 500k a 6M-step stage kept twelve
+    # 4.02 MB policy zips plus their VecNormalize sidecars (48 MB of the 60 MB
+    # `models/` measured on run 20260801_021545), on a Drive mount, for files
+    # nothing in this repository reads. Retention (keep 5) is what makes the
+    # denser 100k cadence — chosen so a Colab session cap discards at most
+    # ~30 min of training instead of ~2.2 h (review CO4) — storage-neutral.
+    # Set `max_checkpoints = 0` in [curriculum] to keep every one.
     callbacks.append(
         CheckpointRetentionCallback(
             model_dir=model_dir,
@@ -737,7 +858,7 @@ def train(
     seed: int = 42,
     load_path: str | None = None,
     eval_freq: int = 50000,
-    save_freq: int = 500000,
+    save_freq: int = 100000,
     log_dir: str | None = None,
     use_subproc: bool = False,
     verbose: int = 1,
@@ -747,6 +868,7 @@ def train(
     use_tensorboard: bool = True,
     allow_legacy_plant: bool = False,
     task_load_mode: str = "resume_same_stage",
+    allow_fresh_vecnorm: bool = False,
 ):
     """Train a single stage of the curriculum.
 
@@ -755,6 +877,23 @@ def train(
     requires an exact task match; ``initialize_next_stage`` records the
     crossing as lineage — the mode for warm-starting a NEW stage from a
     previous stage's checkpoint, e.g. recovery from a stance checkpoint.
+
+    A ``resume_same_stage`` load is treated as a **continuation** of the
+    interrupted run: the SB3 step counter keeps counting from the
+    checkpoint (``reset_num_timesteps=False``), so ``total_timesteps``
+    means "train this many MORE steps", periodic checkpoints keep their
+    cumulative numbering (retention would otherwise delete each fresh
+    checkpoint while keeping stale pre-crash ones — review TC1),
+    progress-anchored LR/clip schedules continue instead of snapping back
+    to their starts (review TC3), and the best-model trackers and
+    evaluation history are seeded from the stage directory's existing
+    ``evaluations.npz`` so a post-resume evaluation can only overwrite
+    ``best_model``/``robust_best_model`` by genuinely beating the
+    pre-interruption best (review TC2).
+
+    ``allow_fresh_vecnorm`` is the explicit escape hatch for resuming a
+    checkpoint whose VecNormalize sidecar is lost; by default that load
+    fails closed (review TC5).
     """
     from .config import save_stage_config
     from .task_fingerprint import derive_stage_task_fingerprint
@@ -852,6 +991,8 @@ def train(
         eval_env,
         plant_identity=plant_identity,
         allow_legacy_plant=allow_legacy_plant,
+        task_load_mode=task_load_mode,
+        allow_fresh_vecnorm=allow_fresh_vecnorm,
     )
 
     alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(
@@ -886,6 +1027,41 @@ def train(
     logger.info("  Learning rate: %s", model.learning_rate)
     logger.info("  Batch size: %s", alg_kwargs.get("batch_size", "N/A"))
 
+    # A same-stage resume of a periodic checkpoint continues the interrupted
+    # run: the loaded step counter is preserved (reset_num_timesteps=False
+    # below), so total_timesteps means "this many MORE steps" and every
+    # step-anchored mechanism (checkpoint numbering, retention, schedule
+    # progress, entropy decay, eval history timesteps) stays on the run's
+    # cumulative axis.  See _is_resume_continuation for what deliberately
+    # does NOT count as a continuation.
+    resuming = _is_resume_continuation(
+        load_path,
+        task_load_mode=task_load_mode,
+        stage_lbl=stage_label(stage),
+        algorithm=algorithm,
+    )
+    loaded_steps = int(getattr(model, "num_timesteps", 0)) if resuming else 0
+    target_timesteps = loaded_steps + total_timesteps
+    if resuming and loaded_steps > 0:
+        logger.info(
+            "Resuming at %s cumulative steps; training %s more (target %s).",
+            f"{loaded_steps:,}",
+            f"{total_timesteps:,}",
+            f"{target_timesteps:,}",
+        )
+    elif load_path and task_load_mode == "resume_same_stage":
+        if algorithm != "ppo":
+            logger.warning(
+                "SAC --load is NOT a continuation: the replay buffer is not persisted, so the "
+                "step counter restarts and SB3's warmup re-collects experience before updates. "
+                "Best-model artifacts in a reused stage directory are unprotected."
+            )
+        else:
+            logger.info(
+                "Loaded checkpoint has no cumulative step count in its name (curated checkpoint); "
+                "training runs with a fresh step counter rather than continuation semantics."
+            )
+
     callbacks, eval_callback, _ = _build_core_callbacks(
         sb3,
         eval_env,
@@ -903,7 +1079,37 @@ def train(
         species=species,
     )
 
-    ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, total_timesteps)
+    if resuming:
+        from .curriculum import seed_resume_eval_state
+
+        # Seed best-model trackers and the in-memory eval history from the
+        # published record, so the first post-resume eval cannot overwrite a
+        # better pre-interruption best_model / robust_best_model, and
+        # evaluations.npz keeps the whole run.  The default CLI resume mints
+        # a FRESH stage directory, so when the current one has no record yet,
+        # fall back to the interrupted stage directory the checkpoint came
+        # from (<stage_dir>/models/<ckpt> — two levels up).
+        # `resuming` implies load_path is set; the assert narrows the type.
+        assert load_path is not None
+        seed_candidates = [
+            Path(log_path) / "evaluations.npz",
+            Path(load_path).resolve().parent.parent / "evaluations.npz",
+        ]
+        seed_path = next((p for p in seed_candidates if p.exists()), seed_candidates[0])
+        if seed_path == seed_candidates[1]:
+            logger.info(
+                "Seeding eval history from the interrupted stage directory: %s "
+                "(this run's directory %s had no record yet)",
+                seed_path,
+                log_path,
+            )
+        seed_resume_eval_state(eval_callback, callbacks, seed_path, max_timesteps=loaded_steps)
+
+    # The decay anchor is an ABSOLUTE step count.  On a resume the default
+    # (when the TOML sets no ent_coef_decay_timesteps) must be the cumulative
+    # target, not this call's remaining budget — otherwise a late resume
+    # decays over a compressed horizon.
+    ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, target_timesteps)
     if ent_decay_cb is not None:
         callbacks.append(ent_decay_cb)
 
@@ -934,19 +1140,26 @@ def train(
             total_timesteps=total_timesteps,
             callback=callback_list,
             progress_bar=verbose >= 1,
+            # On resume, keep the checkpoint's cumulative counter: SB3 then
+            # trains total_timesteps MORE steps, checkpoint filenames stay
+            # cumulative (so retention keeps the newest, not the stale
+            # pre-crash set), and progress-based schedules continue from
+            # where the interrupted run left off.
+            reset_num_timesteps=not resuming,
         )
     except KeyboardInterrupt:
         logger.warning("Training interrupted by user.")
     training_duration = time.monotonic() - train_start
 
-    # Actual steps trained — differs from total_timesteps when a callback
-    # (e.g. EvalCollapseEarlyStopCallback) or Ctrl-C ended training early.
+    # Actual CUMULATIVE steps trained — differs from the target when a
+    # callback (e.g. EvalCollapseEarlyStopCallback) or Ctrl-C ended training
+    # early.  On a resume this includes the loaded checkpoint's steps.
     actual_timesteps = int(model.num_timesteps)
-    if actual_timesteps < total_timesteps:
+    if actual_timesteps < target_timesteps:
         logger.warning(
             "Training ended early at %s of %s timesteps.",
             f"{actual_timesteps:,}",
-            f"{total_timesteps:,}",
+            f"{target_timesteps:,}",
         )
 
     if wandb_run is not None:
@@ -1230,7 +1443,7 @@ def train_curriculum(
     n_envs: int = 4,
     seed: int = 42,
     eval_freq: int = 50000,
-    save_freq: int = 500000,
+    save_freq: int = 100000,
     log_dir: str | None = None,
     use_subproc: bool = False,
     verbose: int = 1,
@@ -1240,6 +1453,7 @@ def train_curriculum(
     gcs_bucket: str | None = None,
     gcs_project: str | None = None,
     use_tensorboard: bool = True,
+    allow_fresh_vecnorm: bool = False,
 ):
     """Run the full 3-stage curriculum with automatic advancement."""
     from .config import (
@@ -1351,6 +1565,13 @@ def train_curriculum(
             train_env,
             eval_env,
             plant_identity=plant_identity,
+            # Stage boundary: obs_rms carries, ret_rms resets (the reward
+            # distribution changes with the new stage's terms).
+            task_load_mode="initialize_next_stage",
+            # Normally unreachable: _select_handoff_checkpoint only promotes
+            # complete pairs, so this fires only when the sidecar vanished
+            # afterwards (e.g. a lost mount write).
+            allow_fresh_vecnorm=allow_fresh_vecnorm,
         )
 
         alg_kwargs, local_tb_dir, gcs_tb_path = _prepare_alg_kwargs(

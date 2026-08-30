@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import platform
 import subprocess
@@ -27,6 +28,14 @@ from .constants import (
 from .errors import ResultBundleError
 from .hashing import canonical_json_sha256
 from .naming import _normalize_plant_identity, canonical_algorithm, canonical_backend
+
+_logger = logging.getLogger(__name__)
+
+#: Identifies this Python process in the provenance ``sessions`` record. A
+#: repeated :func:`initialize_result_bundle` call from the same process is a
+#: retry, not a resume, so it must stay a byte-identical no-op; a call from a
+#: fresh process (a new Colab runtime resuming the run) appends a session entry.
+_PROCESS_SESSION_TOKEN = uuid.uuid4().hex
 
 
 def _git_command(repository_root: Path, *arguments: str) -> str | None:
@@ -137,9 +146,25 @@ def initialize_result_bundle(
 ) -> Path:
     """Capture immutable run identity before training starts.
 
-    Repeated calls are idempotent when the identifying inputs match.  A reused
-    run directory with a different species, algorithm, backend, or training
-    seed is rejected instead of silently mixing artifacts.
+    Repeated calls from the same process are byte-identical no-ops.  A reused
+    run directory is compared against the captured provenance in two tiers:
+
+    - **Identity** fields (species, algorithm, backend, training seed, seed
+      roles, evaluation protocols/seeds/episodes, parallel envs, plant
+      identity, and ``run_id`` when provided) must match exactly; a mismatch
+      is rejected instead of silently mixing artifacts.
+    - **Environment** fields (``python_version``, ``platform``,
+      ``dependency_versions``, ``repository_commit``, ``repository_dirty``,
+      ``repository_patch_sha256``, ``hardware``) may drift between sessions —
+      a resumed Colab runtime rebuilds them from an unpinned clone and
+      install.  The top-level fields keep the original session's values; the
+      drift is recorded in the appended ``sessions`` entry instead.
+
+    Every run records a ``sessions`` list: the creating process appends
+    ``{"session_token", "started_at"}``, and each later process that resumes
+    the run appends ``{"session_token", "resumed_at"}`` plus an
+    ``environment_drift`` mapping when its environment differs from the one
+    originally captured.
     """
     if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
         raise ResultBundleError("training seed must be a non-negative integer")
@@ -208,7 +233,7 @@ def initialize_result_bundle(
 
     if provenance_path.exists():
         existing = json.loads(provenance_path.read_text(encoding="utf-8"))
-        expected = {
+        expected_identity = {
             "species": species,
             "algorithm": public_algorithm,
             "backend": public_backend,
@@ -218,26 +243,82 @@ def initialize_result_bundle(
             "evaluation_seeds": evaluation_seed_list,
             "evaluation_episodes": evaluation_episodes,
             "parallel_envs": parallel_envs,
-            "hardware": hardware,
             "plant_identity": normalized_plant_identity,
+        }
+        if run_id is not None:
+            expected_identity["run_id"] = run_id
+        mismatches = {
+            key: (existing.get(key), value) for key, value in expected_identity.items() if existing.get(key) != value
+        }
+        if mismatches:
+            raise ResultBundleError(f"run directory already belongs to a different run: {mismatches}")
+
+        recorded_sessions = existing.get("sessions")
+        if not isinstance(recorded_sessions, list):
+            recorded_sessions = []
+        last_session = recorded_sessions[-1] if recorded_sessions else None
+        last_token = last_session.get("session_token") if isinstance(last_session, Mapping) else None
+        if last_token == _PROCESS_SESSION_TOKEN:
+            # A retry from the process already on record: keep the file
+            # byte-identical.
+            return provenance_path
+
+        manifest_path = run_path / constants.DEFAULT_MANIFEST_NAME
+        if manifest_path.exists():
+            try:
+                manifest_status = json.loads(manifest_path.read_text(encoding="utf-8")).get("status")
+            except (OSError, ValueError):
+                manifest_status = None
+            if manifest_status == "complete":
+                # The run is finished: a fresh process touching it is a
+                # read-only re-export, not a resumed session.  Mutating the
+                # provenance here would stale the complete manifest's hash and
+                # the summary's embedded copy, wedging the bundle as
+                # canonical-conflict.  Identity was already validated above.
+                _logger.info(
+                    "run %s is already complete; not recording a new session for this process",
+                    existing.get("run_id"),
+                )
+                return provenance_path
+
+        # A fresh process resuming the run.  Environment fields may legitimately
+        # differ (unpinned clone and reinstall in a new runtime); the top-level
+        # values keep the original capture, and the drift is recorded on this
+        # session's entry.
+        current_environment = {
             "python_version": current_python_version,
             "platform": current_platform,
             "dependency_versions": current_dependency_versions,
             "repository_commit": current_repository_state["repository_commit"],
             "repository_dirty": current_repository_state["repository_dirty"],
             "repository_patch_sha256": current_repository_state["repository_patch_sha256"],
+            "hardware": hardware,
         }
-        if run_id is not None:
-            expected["run_id"] = run_id
-        mismatches = {key: (existing.get(key), value) for key, value in expected.items() if existing.get(key) != value}
-        if mismatches:
-            raise ResultBundleError(f"run directory already belongs to a different run: {mismatches}")
-        return provenance_path
+        environment_drift = {
+            field: {"was": existing.get(field), "now": value}
+            for field, value in current_environment.items()
+            if existing.get(field) != value
+        }
+        session_entry: dict[str, Any] = {
+            "session_token": _PROCESS_SESSION_TOKEN,
+            "resumed_at": captured_timestamp,
+        }
+        if environment_drift:
+            session_entry["environment_drift"] = environment_drift
+            _logger.warning(
+                "resuming run %s with a drifted environment (%s); keeping the originally captured values "
+                "and recording the drift in the provenance sessions record",
+                existing.get("run_id"),
+                ", ".join(sorted(environment_drift)),
+            )
+        existing["sessions"] = [*recorded_sessions, session_entry]
+        return hashing._write_json(provenance_path, existing)
 
     provenance: dict[str, Any] = {
         "schema_version": PROVENANCE_SCHEMA_VERSION,
         "run_id": run_id or f"{species}-{public_backend}-{public_algorithm.lower()}-{uuid.uuid4().hex[:12]}",
         "captured_at": captured_timestamp,
+        "sessions": [{"session_token": _PROCESS_SESSION_TOKEN, "started_at": captured_timestamp}],
         "species": species,
         "algorithm": public_algorithm,
         "backend": public_backend,

@@ -96,12 +96,18 @@ class TestLoadVecnormIntoEnvsResolution:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs(str(tmp_path / "stage2_5000000_steps.zip"), train_env, eval_env)
+            _load_vecnorm_into_envs(
+                str(tmp_path / "stage2_5000000_steps.zip"),
+                train_env,
+                eval_env,
+                task_load_mode="resume_same_stage",
+            )
         mock_load.assert_called_once_with(
             str(tmp_path / "stage2_vecnormalize_5000000_steps.pkl"),
             train_env,
             eval_env,
             unsafe_skip_plant_validation=True,
+            carry_ret_rms=True,
         )
 
     @patch("environments.shared.train_base.logger")
@@ -113,7 +119,7 @@ class TestLoadVecnormIntoEnvsResolution:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs(str(sidecar), train_env, eval_env)
+            _load_vecnorm_into_envs(str(sidecar), train_env, eval_env, task_load_mode="initialize_next_stage")
         mock_load.assert_called_once_with(
             str(sidecar),
             train_env,
@@ -121,15 +127,21 @@ class TestLoadVecnormIntoEnvsResolution:
             unsafe_skip_plant_validation=True,
         )
 
-    @patch("environments.shared.train_base.logger")
-    def test_missing_sidecar_still_warns_and_resets_eval_env(self, mock_logger, tmp_path):
+    def test_missing_sidecar_fails_closed_on_resume(self, tmp_path):
+        # The notebook resume cell refused this from day one; the CLI used to
+        # warn once and train the loaded policy under fresh mean-0/var-1
+        # statistics (review TC5). Both paths now share the refusal, with
+        # allow_fresh_vecnorm as the deliberate escape hatch.
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=False):
-            _load_vecnorm_into_envs(str(tmp_path / "stage2_5000000_steps.zip"), train_env, eval_env)
-        assert eval_env.training is False
-        assert eval_env.norm_reward is False
-        mock_logger.warning.assert_called_once()
+            with pytest.raises(FileNotFoundError, match="fresh normalization statistics"):
+                _load_vecnorm_into_envs(
+                    str(tmp_path / "stage2_5000000_steps.zip"),
+                    train_env,
+                    eval_env,
+                    task_load_mode="resume_same_stage",
+                )
 
     def test_real_vecnormalize_stats_round_trip_via_periodic_naming(self, tmp_path):
         """End-to-end: stats saved under SB3's periodic name are carried forward."""
@@ -151,16 +163,25 @@ class TestLoadVecnormIntoEnvsResolution:
         source_env = VecNormalize(DummyVecEnv([TinyEnv]), norm_obs=True, norm_reward=True)
         source_env.obs_rms.mean = np.full(1, 0.42)
         source_env.obs_rms.var = np.full(1, 2.5)
+        source_env.ret_rms.var = np.full((), 7.5)
+        source_ret_var = source_env.ret_rms.var.copy()
         source_env.save(str(tmp_path / "stage2_vecnormalize_5000000_steps.pkl"))
         source_env.close()
 
         new_train = VecNormalize(DummyVecEnv([TinyEnv]), norm_obs=True, norm_reward=True)
         new_eval = VecNormalize(DummyVecEnv([TinyEnv]), norm_obs=True, norm_reward=True)
         try:
-            _load_vecnorm_into_envs(str(tmp_path / "stage2_5000000_steps.zip"), new_train, new_eval)
+            _load_vecnorm_into_envs(
+                str(tmp_path / "stage2_5000000_steps.zip"),
+                new_train,
+                new_eval,
+                task_load_mode="resume_same_stage",
+            )
             np.testing.assert_allclose(new_train.obs_rms.mean, [0.42])
             np.testing.assert_allclose(new_train.obs_rms.var, [2.5])
             np.testing.assert_allclose(new_eval.obs_rms.mean, [0.42])
+            # Same-stage resume: the return statistics carry too (TC6).
+            np.testing.assert_allclose(new_train.ret_rms.var, source_ret_var)
             assert new_eval.training is False
             assert new_eval.norm_reward is False
         finally:
