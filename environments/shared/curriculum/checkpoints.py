@@ -7,6 +7,7 @@ load statistics whose plant identity does not match the current plant."""
 from __future__ import annotations
 
 import logging
+import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -91,6 +92,75 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         return True
 
 
+def seed_resume_eval_state(
+    eval_callback: Any,
+    callbacks: "list[Any]",
+    prior_npz_path: "str | Path",
+) -> int:
+    """Seed eval history and best-model trackers from a prior session's record.
+
+    On a same-stage resume every best tracker restarts at ``-inf`` and SB3's
+    ``EvalCallback`` starts an empty ``evaluations.npz`` — so the first
+    post-resume evaluation unconditionally overwrote ``best_model.zip`` /
+    ``robust_best_model.zip`` even when it scored far below the pre-crash
+    best, and the published eval history was replaced with only the
+    post-resume slice (review TC2).  This seeds, from the stage directory's
+    published ``evaluations.npz``:
+
+    * ``eval_callback.best_mean_reward`` — the max per-evaluation mean, so
+      ``best_model.zip`` is only overwritten by a genuinely better policy;
+    * ``eval_callback.evaluations_*`` — the in-memory history SB3 re-saves
+      on every evaluation, so the npz keeps the whole run's record (the
+      resumed step counter continues, so timesteps stay monotonic);
+    * ``RobustBestModelCallback.best_score`` / ``_last_seen_n`` — same
+      protection for the risk-adjusted checkpoint, and the seen-count so the
+      seeded history is not mistaken for a fresh evaluation of the loaded
+      model.
+
+    Returns the number of prior evaluations seeded (0 when no usable record
+    exists — a fresh stage directory resumes cleanly with empty state).
+    """
+    path = Path(prior_npz_path)
+    if not path.exists():
+        return 0
+    try:
+        with np.load(path) as data:
+            timesteps = list(data["timesteps"])
+            results = [np.asarray(row) for row in data["results"]]
+            ep_lengths = [np.asarray(row) for row in data["ep_lengths"]]
+            successes = [np.asarray(row) for row in data["successes"]] if "successes" in data else None
+    except (OSError, KeyError, ValueError, zipfile.BadZipFile) as exc:
+        logger.warning("Could not seed resume eval state from %s: %s", path, exc)
+        return 0
+    if not results:
+        return 0
+
+    eval_callback.evaluations_timesteps = timesteps
+    eval_callback.evaluations_results = results
+    eval_callback.evaluations_length = ep_lengths
+    if successes is not None:
+        eval_callback.evaluations_successes = successes
+    per_eval_means = [float(np.asarray(row, dtype=float).mean()) for row in results]
+    eval_callback.best_mean_reward = max(per_eval_means)
+
+    for callback in callbacks:
+        if isinstance(callback, RobustBestModelCallback):
+            scores = [
+                float(np.asarray(row, dtype=float).mean() - callback.risk_coef * np.asarray(row, dtype=float).std())
+                for row in results
+            ]
+            callback.best_score = max(scores)
+            callback._last_seen_n = len(results)
+
+    logger.info(
+        "Resume: seeded %d prior evaluations from %s (best mean %.1f)",
+        len(results),
+        path,
+        eval_callback.best_mean_reward,
+    )
+    return len(results)
+
+
 class PublishEvalArtifactsCallback(BaseCallback):  # type: ignore[misc]
     """Atomically publish EvalCallback's ``evaluations.npz`` to the stage dir.
 
@@ -132,6 +202,76 @@ class PublishEvalArtifactsCallback(BaseCallback):  # type: ignore[misc]
         results = getattr(self.eval_callback, "evaluations_results", None) or []
         if len(results) > self._last_published_n:
             self._last_published_n = len(results)
+            self._publish()
+        return True
+
+    def _on_training_end(self) -> None:
+        self._publish()
+
+
+class PublishCheckpointPairCallback(BaseCallback):  # type: ignore[misc]
+    """Atomically publish periodic checkpoints written to local scratch.
+
+    SB3's ``CheckpointCallback`` streams the checkpoint zip and its
+    VecNormalize sidecar directly onto the destination filesystem.  On a
+    Drive/GCS FUSE mount an ungraceful runtime reclaim landing inside the
+    write (or DriveFS's post-write sync window) can leave the newest pair —
+    the sole artifact the resume path depends on — truncated or orphaned
+    (review CO2). ``evaluations.npz`` got the local-scratch + atomic-publish
+    treatment for exactly this hazard; this extends it to checkpoints.
+
+    Pair with a ``CheckpointCallback`` whose ``save_path`` is fast local
+    scratch, place this immediately after it in the callback list (same
+    ``save_freq`` cadence), and point ``publish_dir`` at the real model
+    directory.  Every ``{prefix}_*_steps.*`` file in the scratch dir is
+    copied via copy-to-temp + rename and removed locally on success, so the
+    published pair is never observed truncated and scratch stays small.
+
+    Args:
+        local_dir: The paired ``CheckpointCallback``'s ``save_path``.
+        publish_dir: The stage's real ``models/`` directory.
+        name_prefix: The paired callback's ``name_prefix``.
+        save_freq: The paired callback's cadence, already divided by
+            ``n_envs`` (see :class:`CheckpointRetentionCallback` for why the
+            cadence gate matters).
+        verbose: Verbosity level.
+    """
+
+    def __init__(
+        self,
+        local_dir: "str | Path",
+        publish_dir: "str | Path",
+        name_prefix: str,
+        save_freq: int,
+        verbose: int = 0,
+    ):
+        if not sb3_compat._SB3_AVAILABLE:
+            raise ImportError("stable-baselines3 is required for PublishCheckpointPairCallback.")
+        if save_freq < 1:
+            raise ValueError("save_freq must be at least 1")
+        super().__init__(verbose)
+        self.local_dir = Path(local_dir)
+        self.publish_dir = Path(publish_dir)
+        self.name_prefix = name_prefix
+        self.save_freq = int(save_freq)
+
+    def _publish(self) -> None:
+        from ..file_io import atomic_copy
+
+        for infix, extension in _CHECKPOINT_KINDS:
+            for path in sorted(self.local_dir.glob(f"{self.name_prefix}_{infix}*_steps.{extension}")):
+                try:
+                    atomic_copy(path, self.publish_dir / path.name)
+                except OSError:
+                    logger.warning("Could not publish checkpoint %s", path, exc_info=True)
+                    continue
+                try:
+                    path.unlink()
+                except OSError:
+                    logger.warning("Could not remove local staged checkpoint %s", path, exc_info=True)
+
+    def _on_step(self) -> bool:
+        if self.n_calls % self.save_freq == 0:
             self._publish()
         return True
 
@@ -186,15 +326,22 @@ def load_vecnorm_stats(
     current_plant: PlantIdentity | None = None,
     allow_legacy_plant: bool = False,
     unsafe_skip_plant_validation: bool = False,
+    carry_ret_rms: bool = False,
 ) -> bool:
     """Load VecNormalize running statistics from a previous stage into new envs.
 
-    Only observation normalization (``obs_rms``) is carried forward.  Return
-    normalization (``ret_rms``) is deliberately **reset** because the reward
-    distribution changes between curriculum stages (new reward components,
-    different weight magnitudes).  Carrying stale ``ret_rms`` produces badly
-    scaled normalized rewards that destabilise policy gradients during the
-    critical first updates of a new stage.
+    By default only observation normalization (``obs_rms``) is carried
+    forward.  Return normalization (``ret_rms``) is deliberately **reset**
+    across stage boundaries because the reward distribution changes between
+    curriculum stages (new reward components, different weight magnitudes).
+    Carrying stale ``ret_rms`` produces badly scaled normalized rewards that
+    destabilise policy gradients during the critical first updates of a new
+    stage.
+
+    A **same-stage resume** is the opposite situation: the reward
+    distribution is identical and the correct ``ret_rms`` sits in the loaded
+    ``.pkl`` — resetting it re-clips the first post-resume rollouts against
+    fresh unit variance (review TC6).  Pass ``carry_ret_rms=True`` there.
 
     Args:
         vecnorm_path: Path to a ``_vecnorm.pkl`` file saved by a previous stage.
@@ -261,13 +408,21 @@ def load_vecnorm_stats(
         )
 
     # Carry forward observation statistics — the observation space is identical
-    # across stages, so the running mean/var remain valid.  ret_rms is
-    # intentionally NOT copied: reward distribution changes between stages, so
-    # stale return statistics would produce incorrectly scaled normalised
-    # rewards for PPO.  train_env.training / norm_reward are left as configured
-    # by create_vec_env (algorithm-aware).
+    # across stages, so the running mean/var remain valid.  ret_rms is copied
+    # only for same-stage resumes (carry_ret_rms=True): across stage
+    # boundaries the reward distribution changes, so stale return statistics
+    # would produce incorrectly scaled normalised rewards for PPO.
+    # train_env.training / norm_reward are left as configured by
+    # create_vec_env (algorithm-aware).
     train_env.obs_rms = prev_norm.obs_rms
-    logger.info("obs_rms carried forward; ret_rms reset (reward distribution changed)")
+    if carry_ret_rms:
+        # Only the running statistics: the per-env `returns` accumulators were
+        # re-zeroed by VecNormalize.set_venv and correctly start at zero (the
+        # resumed envs begin from a reset).
+        train_env.ret_rms = prev_norm.ret_rms
+        logger.info("obs_rms and ret_rms carried forward (same-stage resume)")
+    else:
+        logger.info("obs_rms carried forward; ret_rms reset (reward distribution changed)")
 
     if eval_env is not None:
         eval_env.obs_rms = prev_norm.obs_rms.copy()

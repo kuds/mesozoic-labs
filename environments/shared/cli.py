@@ -7,6 +7,7 @@ with argument parsing and config-override helpers.
 
 import argparse
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,34 @@ def _parse_stage_ref(value: str) -> "int | str":
     historical meaning, per the stage manifest), anything else a semantic
     stage ID such as "recovery"."""
     return int(value) if value.isdigit() else value
+
+
+def _default_resume_timesteps(load_path: "str | None", load_mode: str, stage_budget: int) -> "int | None":
+    """Remaining-budget default for a same-stage resume of a periodic checkpoint.
+
+    With no explicit ``--timesteps``, a ``--load`` resume used to default to
+    the stage's FULL TOML budget on top of the checkpoint's steps — an
+    interrupted 11M stance stage resumed at 8M trained 11M more (review TC4).
+    When the loaded file is one of SB3's periodic
+    ``<prefix>_<steps>_steps.zip`` checkpoints and the mode is
+    ``resume_same_stage``, default to ``max(budget - steps, 0)`` instead —
+    the same arithmetic the notebook resume cell performs.
+
+    Returns ``None`` when the default should stay the full stage budget
+    (no load, a boundary-crossing load, or a curated checkpoint whose
+    cumulative step count is not in its filename).
+    """
+    if not load_path or load_mode != "resume_same_stage":
+        return None
+    from .train_base import _PERIODIC_CHECKPOINT_RE
+
+    stem = Path(load_path).name
+    if stem.endswith(".zip"):
+        stem = stem[: -len(".zip")]
+    match = _PERIODIC_CHECKPOINT_RE.match(stem)
+    if not match:
+        return None
+    return max(stage_budget - int(match.group(2)), 0)
 
 
 def _resolve_stage_ref(stage_ref: "int | str", stage_configs: dict, species: str) -> "int | str | None":
@@ -152,9 +181,22 @@ def main(species_cfg):
         action="store_true",
         help="Explicitly allow an untagged pre-contract model/VecNormalize artifact",
     )
+    train_parser.add_argument(
+        "--allow-fresh-vecnorm",
+        action="store_true",
+        help="Explicitly allow --load to proceed when its VecNormalize sidecar is missing "
+        "(the loaded policy then trains under fresh normalization statistics — normally a "
+        "fatal mistake, so this fails closed by default)",
+    )
     train_parser.add_argument("--seed", type=int, default=42, help="Random seed")
     train_parser.add_argument("--eval-freq", type=int, default=50000, help="Evaluation frequency")
-    train_parser.add_argument("--save-freq", type=int, default=500000, help="Checkpoint frequency")
+    train_parser.add_argument(
+        "--save-freq",
+        type=int,
+        default=100000,
+        help="Checkpoint frequency (default 100k: a lost Colab session then discards at most "
+        "~30 min of training; retention keeps the newest 5 step-points either way)",
+    )
     train_parser.add_argument("--log-dir", type=str, default=None, help="Custom log directory")
     train_parser.add_argument("--subproc", action="store_true", help="Use subprocess vectorization")
     train_parser.add_argument(
@@ -186,7 +228,7 @@ def main(species_cfg):
     cur_parser.add_argument("--n-envs", type=int, default=4)
     cur_parser.add_argument("--seed", type=int, default=42)
     cur_parser.add_argument("--eval-freq", type=int, default=50000)
-    cur_parser.add_argument("--save-freq", type=int, default=500000)
+    cur_parser.add_argument("--save-freq", type=int, default=100000)
     cur_parser.add_argument("--log-dir", type=str, default=None)
     cur_parser.add_argument("--subproc", action="store_true")
     cur_parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=1)
@@ -233,9 +275,10 @@ def main(species_cfg):
             args.n_envs = 4
             args.load = None
             args.allow_legacy_plant = False
+            args.allow_fresh_vecnorm = False
             args.seed = 42
             args.eval_freq = 50000
-            args.save_freq = 500000
+            args.save_freq = 100000
             args.log_dir = None
             args.subproc = False
             args.verbose = 1
@@ -256,12 +299,30 @@ def main(species_cfg):
 
         # Resolve after overrides so --override curriculum.timesteps=... wins
         if args.timesteps is None:
-            args.timesteps = stage_configs[stage_ref].get("curriculum_kwargs", {}).get("timesteps", 500_000)
-            logger.info(
-                "No --timesteps given: using stage %s config value (%s)",
-                args.stage,
-                f"{args.timesteps:,}",
+            stage_budget = stage_configs[stage_ref].get("curriculum_kwargs", {}).get("timesteps", 500_000)
+            remaining = _default_resume_timesteps(
+                args.load, getattr(args, "load_mode", "resume_same_stage"), stage_budget
             )
+            if remaining is not None:
+                args.timesteps = remaining
+                logger.info(
+                    "No --timesteps given: resuming a periodic checkpoint, so training the "
+                    "REMAINING stage budget (%s of %s). Pass --timesteps to override.",
+                    f"{remaining:,}",
+                    f"{stage_budget:,}",
+                )
+                if remaining == 0:
+                    logger.warning(
+                        "Stage budget already exhausted by the loaded checkpoint; no further "
+                        "training will run (artifacts and the post-training evaluation still will)."
+                    )
+            else:
+                args.timesteps = stage_budget
+                logger.info(
+                    "No --timesteps given: using stage %s config value (%s)",
+                    args.stage,
+                    f"{args.timesteps:,}",
+                )
 
         train(
             species_cfg=species_cfg,
@@ -281,6 +342,7 @@ def main(species_cfg):
             use_wandb=args.wandb,
             output_dir=args.output_dir,
             allow_legacy_plant=args.allow_legacy_plant,
+            allow_fresh_vecnorm=getattr(args, "allow_fresh_vecnorm", False),
         )
 
     elif args.command == "curriculum":

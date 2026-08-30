@@ -493,7 +493,7 @@ class TestLoadVecnormIntoEnvs:
     def test_no_load_path_disables_eval_training(self):
         train_env = MagicMock()
         eval_env = MagicMock()
-        _load_vecnorm_into_envs(None, train_env, eval_env)
+        _load_vecnorm_into_envs(None, train_env, eval_env, task_load_mode="resume_same_stage")
         assert eval_env.training is False
         assert eval_env.norm_reward is False
 
@@ -502,7 +502,7 @@ class TestLoadVecnormIntoEnvs:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs("/path/to/model.zip", train_env, eval_env)
+            _load_vecnorm_into_envs("/path/to/model.zip", train_env, eval_env, task_load_mode="initialize_next_stage")
         mock_load.assert_called_once_with(
             "/path/to/model_vecnorm.pkl",
             train_env,
@@ -515,7 +515,7 @@ class TestLoadVecnormIntoEnvs:
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
-            _load_vecnorm_into_envs("/path/model.zip", train_env, eval_env)
+            _load_vecnorm_into_envs("/path/model.zip", train_env, eval_env, task_load_mode="initialize_next_stage")
         mock_load.assert_called_once_with(
             "/path/model_vecnorm.pkl",
             train_env,
@@ -524,13 +524,48 @@ class TestLoadVecnormIntoEnvs:
         )
 
     @patch("environments.shared.train_base.logger")
-    def test_fallback_when_vecnorm_missing(self, mock_logger):
+    def test_same_stage_resume_carries_ret_rms(self, mock_logger):
+        # The reward distribution is unchanged on a same-stage resume, so the
+        # loaded ret_rms is the correct one (review TC6).
+        train_env = MagicMock()
+        eval_env = MagicMock()
+        with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=True) as mock_load:
+            _load_vecnorm_into_envs("/path/model.zip", train_env, eval_env, task_load_mode="resume_same_stage")
+        mock_load.assert_called_once_with(
+            "/path/model_vecnorm.pkl",
+            train_env,
+            eval_env,
+            unsafe_skip_plant_validation=True,
+            carry_ret_rms=True,
+        )
+
+    def test_missing_sidecar_fails_closed(self):
+        # Training a loaded policy under fresh normalization statistics
+        # collapses it within the first updates — refuse, don't warn (TC5).
         train_env = MagicMock()
         eval_env = MagicMock()
         with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=False):
-            _load_vecnorm_into_envs("/path/model", train_env, eval_env)
+            with pytest.raises(FileNotFoundError, match="allow-fresh-vecnorm"):
+                _load_vecnorm_into_envs("/path/model", train_env, eval_env, task_load_mode="resume_same_stage")
+
+    @patch("environments.shared.train_base.logger")
+    def test_missing_sidecar_escape_hatch_warns_and_resets_eval_env(self, mock_logger):
+        train_env = MagicMock()
+        eval_env = MagicMock()
+        with patch("environments.shared.curriculum.load_vecnorm_stats", return_value=False):
+            _load_vecnorm_into_envs(
+                "/path/model",
+                train_env,
+                eval_env,
+                task_load_mode="resume_same_stage",
+                allow_fresh_vecnorm=True,
+            )
         assert eval_env.training is False
         assert eval_env.norm_reward is False
+        mock_logger.warning.assert_called_once()
+        # The old message claimed only the EVAL env was affected; the train
+        # env trains under fresh statistics too, and the warning must say so.
+        assert "train" in mock_logger.warning.call_args.args[0].lower()
 
     def test_forwards_plant_contract_and_legacy_override(self):
         train_env = MagicMock()
@@ -543,6 +578,7 @@ class TestLoadVecnormIntoEnvs:
                 eval_env,
                 plant_identity=identity,
                 allow_legacy_plant=True,
+                task_load_mode="initialize_next_stage",
             )
 
         mock_load.assert_called_once_with(

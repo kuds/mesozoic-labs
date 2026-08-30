@@ -266,6 +266,29 @@ def validate_provenance(
             qualifier = "canonical" if canonical else "current or verified"
             raise ResultSchemaError(f"{qualifier} result {result_path} is missing identifiers: {missing_identifiers}")
 
+    # Optional, additive (no schema bump): one entry per process that touched
+    # the run — started_at for the creating session, resumed_at for resumes.
+    # Older bundles without the field remain valid.
+    sessions = provenance.get("sessions")
+    if sessions is not None:
+        if not isinstance(sessions, list):
+            raise ResultSchemaError(f"provenance.sessions in {result_path} must be a list when present")
+        for index, session_value in enumerate(sessions):
+            session = _require_mapping(session_value, field=f"provenance.sessions[{index}] in {result_path}")
+            _require_nonempty_string(
+                session.get("session_token"),
+                field=f"provenance.sessions[{index}].session_token in {result_path}",
+            )
+            timestamps = [key for key in ("started_at", "resumed_at") if key in session]
+            if len(timestamps) != 1:
+                raise ResultSchemaError(
+                    f"provenance.sessions[{index}] in {result_path} must record exactly one of started_at or resumed_at"
+                )
+            _require_nonempty_string(
+                session.get(timestamps[0]),
+                field=f"provenance.sessions[{index}].{timestamps[0]} in {result_path}",
+            )
+
     canonical_runtime: dict[str, Any] = {}
     if canonical:
         repository_commit = identifiers["repository_commit"]
