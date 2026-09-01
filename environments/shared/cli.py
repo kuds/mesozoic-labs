@@ -34,13 +34,51 @@ def _cast_value(v: str):
             return v
 
 
-def _apply_overrides(configs: dict, overrides: list | None) -> None:
+def _resolve_override_stage_token(token: str, configs: dict, species: "str | None") -> "int | str | None":
+    """Map an override's leading token onto its ``configs`` key, if it is one.
+
+    Digits mean a legacy stage number; a string token can be a semantic
+    config key directly (``recovery``) or, when *species* is known, any
+    manifest stage id (``stance``, ``locomotion``) resolved through the
+    manifest.
+    Returns ``None`` when the token does not name a stage — the override is
+    then an all-stages ``section.key`` form.
+    """
+    if token.isdigit():
+        return int(token)
+    if token in configs:
+        return token
+    if species is not None:
+        from .stage_manifest import StageManifestError, load_stage_manifest
+
+        try:
+            entry = load_stage_manifest(species).by_id(token)
+        except StageManifestError:
+            return None
+        if entry.id in configs:
+            return entry.id
+        if entry.legacy_number is not None and entry.legacy_number in configs:
+            return entry.legacy_number
+    return None
+
+
+def _apply_overrides(configs: dict, overrides: list | None, species: "str | None" = None) -> None:
     """Apply dot-notation ``key=value`` overrides to stage configs.
 
     Two formats are supported:
 
-    - ``section.key=value``   -- applies to **all** stages
-    - ``N.section.key=value`` -- applies to stage *N* only
+    - ``section.key=value``       -- applies to **all** stages
+    - ``STAGE.section.key=value`` -- applies to one stage only, where STAGE
+      is a legacy number (``2``), a semantic config key (``recovery``), or —
+      when *species* is given — any manifest stage id (``stance``,
+      ``locomotion``)
+
+    Unknown stages and unknown config sections raise instead of silently
+    no-opping or crashing with a bare ``KeyError``: a typo'd override used to
+    train the full multi-hour stage budget at unmodified hyperparameters
+    with nothing in the log but the absence of an "override" line, and the
+    semantic ``recovery`` stage — the active training focus — could not be
+    targeted at all (gap review TC10/CI6).
     """
     if not overrides:
         return
@@ -48,22 +86,36 @@ def _apply_overrides(configs: dict, overrides: list | None) -> None:
         key, _, raw_value = item.partition("=")
         value = _cast_value(raw_value)
         parts = key.split(".")
-        if len(parts) == 3 and parts[0].isdigit():
-            stage_num, section, param = int(parts[0]), parts[1], parts[2]
-            kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
-            if stage_num in configs:
-                configs[stage_num][kwargs_key][param] = value
-                logger.info(
-                    "Stage %d override: %s.%s = %r",
-                    stage_num,
-                    section,
-                    param,
-                    value,
+        stage_key = _resolve_override_stage_token(parts[0], configs, species) if len(parts) == 3 else None
+        if len(parts) == 3 and (stage_key is None or stage_key not in configs):
+            # The token was meant as a stage whenever the MIDDLE token is a
+            # real config section: a typo'd semantic id ('recvery.env.x')
+            # must get the stage-flavored error with the available choices,
+            # not a misattributed unknown-section one.
+            middle_kwargs = "env_kwargs" if parts[1] == "env" else f"{parts[1]}_kwargs"
+            if parts[0].isdigit() or any(middle_kwargs in cfg for cfg in configs.values()):
+                raise ValueError(
+                    f"--override {key!r} names unknown stage {parts[0]!r}; available: {sorted(map(str, configs))}"
                 )
+        if stage_key is not None and stage_key in configs:
+            section, param = parts[1], parts[2]
+            kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
+            if kwargs_key not in configs[stage_key]:
+                raise ValueError(f"--override {key!r} names unknown config section {section!r}")
+            configs[stage_key][kwargs_key][param] = value
+            logger.info(
+                "Stage %s override: %s.%s = %r",
+                stage_key,
+                section,
+                param,
+                value,
+            )
         else:
             section, _, param = key.partition(".")
             kwargs_key = "env_kwargs" if section == "env" else f"{section}_kwargs"
             for stage_config in configs.values():
+                if kwargs_key not in stage_config:
+                    raise ValueError(f"--override {key!r} names unknown config section {section!r}")
                 stage_config[kwargs_key][param] = value
             logger.info("Override applied: %s.%s = %r", section, param, value)
 
@@ -296,7 +348,7 @@ def main(species_cfg):
             args.n_envs = _SAC_DEFAULT_N_ENVS
             logger.info("SAC: defaulting to %d parallel envs (override with --n-envs)", _SAC_DEFAULT_N_ENVS)
 
-        _apply_overrides(stage_configs, args.override)
+        _apply_overrides(stage_configs, args.override, species_cfg.species)
 
         stage_ref = _resolve_stage_ref(args.stage, stage_configs, species_cfg.species)
         if stage_ref is None:
@@ -355,7 +407,7 @@ def main(species_cfg):
             args.n_envs = _SAC_DEFAULT_N_ENVS
             logger.info("SAC: defaulting to %d parallel envs (override with --n-envs)", _SAC_DEFAULT_N_ENVS)
 
-        _apply_overrides(stage_configs, args.override)
+        _apply_overrides(stage_configs, args.override, species_cfg.species)
         train_curriculum(
             species_cfg=species_cfg,
             stage_configs=stage_configs,

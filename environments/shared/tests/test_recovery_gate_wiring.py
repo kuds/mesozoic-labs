@@ -202,6 +202,163 @@ def _judge(stage_dir: "Path | None", successes, curriculum=None, stage_results=N
     )
 
 
+class TestRollPolicyPanel:
+    """The panel roller enforces — not merely asserts — the frozen procedure."""
+
+    def _wire(self, monkeypatch, tmp_path, *, null_successes=STATUE_PANEL, task_sha=TASK_SHA256):
+        from environments.shared.harnesses import freeze_recovery_gate as fz
+
+        stage_dir = _stage_dir(tmp_path, stage_task_sha256=task_sha)
+        monkeypatch.setattr(fz, "stage_task_fingerprint", lambda species, stage: {"task_sha256": TASK_SHA256})
+
+        class FakeEnv:
+            action_space = None
+            closed = False
+
+            def close(self):
+                FakeEnv.closed = True
+
+        FakeEnv.closed = False
+        monkeypatch.setattr(fz, "build_env", lambda species, stage: FakeEnv())
+        monkeypatch.setattr(fz, "policy_controller", lambda *a, **k: lambda obs: obs)
+        rolled: dict[str, Any] = {}
+
+        def fake_roll(env, predict, **kwargs):
+            rolled.update(kwargs)
+            return "EVIDENCE"
+
+        monkeypatch.setattr(fz, "roll_recovery_panel", fake_roll)
+        return fz, stage_dir, rolled, FakeEnv
+
+    def test_rolls_exactly_the_frozen_procedure(self, monkeypatch, tmp_path):
+        from environments.shared.recovery_evaluation import (
+            CALIBRATED_HEIGHT_REFERENCE_M,
+            CALIBRATED_POSTURE_ONLY,
+        )
+
+        fz, stage_dir, rolled, FakeEnv = self._wire(monkeypatch, tmp_path)
+        evidence = fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl")
+
+        assert evidence == "EVIDENCE"
+        # The pairing domain is the frozen nulls' panel, not a caller choice.
+        assert rolled["episodes"] == len(STATUE_PANEL)
+        assert rolled["seed"] == PANEL_SEED_START
+        assert rolled["t_recover_steps"] == T_RECOVER_STEPS
+        assert rolled["dwell_steps"] == DWELL_STEPS
+        assert rolled["safe_set"] == dict(CALIBRATED_POSTURE_ONLY)
+        assert rolled["height_reference"] == CALIBRATED_HEIGHT_REFERENCE_M
+        assert FakeEnv.closed is True
+
+    def test_a_null_frozen_under_a_different_judge_refuses(self, monkeypatch, tmp_path):
+        # The safe set lives OUTSIDE task identity, so a recalibration would
+        # not trip the resolver's staleness check — pairing a new-judge
+        # policy panel against old-judge nulls must refuse instead.
+        from environments.shared.curriculum.gate_resolver import GateResolutionError
+
+        fz, stage_dir, rolled, _ = self._wire(monkeypatch, tmp_path)
+        resolution = json.loads((stage_dir / "gate_resolution.json").read_text())
+        resolution["null_manifest"]["zero_action"]["safe_set"] = {"height": 1.0}
+        _reseal(stage_dir, resolution)
+
+        with pytest.raises(GateResolutionError, match="different safe set"):
+            fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl")
+        assert not rolled
+
+    def test_a_rehearsal_freeze_refuses_before_rolling(self, monkeypatch, tmp_path):
+        from environments.shared.curriculum.gate_resolver import GateResolutionError
+
+        fz, stage_dir, rolled, _ = self._wire(monkeypatch, tmp_path)
+        resolution = json.loads((stage_dir / "gate_resolution.json").read_text())
+        entry = resolution["null_manifest"]["zero_action"]
+        entry["n_episodes"] = 3
+        _reseal(stage_dir, resolution)
+
+        with pytest.raises(GateResolutionError, match="rehearsal"):
+            fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl")
+        assert not rolled
+
+    def test_a_stage_trained_on_a_different_task_refuses(self, monkeypatch, tmp_path):
+        # The stage dir's RECORDED fingerprint is what the gate will judge
+        # by; disagreeing with the derived one means the panel would be
+        # wasted on a verdict the gate refuses anyway.
+        from environments.shared.curriculum.gate_resolver import GateResolutionError
+
+        fz, stage_dir, rolled, _ = self._wire(monkeypatch, tmp_path, task_sha="f" * 64)
+
+        with pytest.raises(GateResolutionError, match="different task"):
+            fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl")
+        assert not rolled
+
+
+class TestNotebookRecoveryFlowPin:
+    """Cell-level pin: the notebook's recovery flow stays freeze->train->panel->verdict."""
+
+    def test_cell_order_and_gate_evidence_wiring(self):
+        repo_root = Path(__file__).resolve().parents[3]
+        notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
+        recovery_cells = [
+            "".join(cell["source"])
+            for cell in notebook["cells"]
+            if cell["cell_type"] == "code" and "===== RECOVERY STAGE" in "".join(cell["source"])
+        ]
+        assert len(recovery_cells) == 1, "sb3_training.ipynb lost its recovery stage cell"
+        src = recovery_cells[0]
+        freeze_at = src.index("freeze_recovery_gate(")
+        train_at = src.index("train_stage(")
+        panel_at = src.index("roll_policy_panel(")
+        gate_at = src.index("recovery_successes_by_seed=")
+        assert freeze_at < train_at < panel_at < gate_at, (
+            "the recovery cell must freeze BEFORE training (pre-registration), roll the panel "
+            "after training, and pass its successes into generate_stage_artifacts"
+        )
+
+
+class TestSharedEntryPointReachesTheFrozenGate:
+    """generate_stage_artifacts/_apply_stage_gate must forward both inputs.
+
+    Before Phase G, the one shared gate call site dropped ``stage_dir`` and
+    had no way to carry the pushed panel, so every recovery verdict was the
+    fail-closed no-stage_dir refusal regardless of any frozen resolution on
+    disk (gap review EE2).
+    """
+
+    def _apply(self, stage_dir, successes):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        stage_results: dict[str, Any] = {}
+        _apply_stage_gate(
+            stage="recovery",
+            stage_config={"curriculum_kwargs": dict(RECOVERY_CURRICULUM)},
+            stage_results=stage_results,
+            stance_report=None,
+            stage_dir=stage_dir,
+            recovery_successes_by_seed=successes,
+        )
+        return stage_results
+
+    def test_a_frozen_resolution_and_passing_panel_advance(self, tmp_path):
+        stage_dir = _stage_dir(tmp_path)
+        results = self._apply(stage_dir, _successes_by_seed())
+        assert results["gate_passed"] is True
+        assert results["publication_gate_passed"] is True
+        assert results["gate_failures"] == []
+
+    def test_a_failing_panel_records_the_criterion(self, tmp_path):
+        stage_dir = _stage_dir(tmp_path)
+        results = self._apply(stage_dir, _successes_by_seed([False] * len(POLICY_PANEL)))
+        assert results["gate_passed"] is False
+        assert any("lcb" in failure.lower() for failure in results["gate_failures"])
+
+    def test_no_panel_still_fails_closed(self, tmp_path):
+        stage_dir = _stage_dir(tmp_path)
+        results = self._apply(stage_dir, None)
+        assert results["gate_passed"] is False
+
+    def test_no_stage_dir_still_fails_closed(self):
+        results = self._apply(None, _successes_by_seed())
+        assert results["gate_passed"] is False
+
+
 class TestFrozenValuesAreTheMeasuredOnes:
     """The fixtures reproduce §9, so the wiring is tested on real numbers."""
 

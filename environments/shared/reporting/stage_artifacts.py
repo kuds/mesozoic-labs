@@ -715,6 +715,8 @@ def _apply_stage_gate(
     stage_config: dict[str, Any],
     stage_results: dict[str, Any],
     stance_report: dict[str, Any] | None,
+    stage_dir: "str | Path | None" = None,
+    recovery_successes_by_seed: "dict[int, bool] | None" = None,
 ) -> None:
     """Record this stage's gate verdict onto *stage_results*, in place.
 
@@ -738,6 +740,14 @@ def _apply_stage_gate(
             stage_results,
             stage=stage,
             stance_report=stance_report,
+            # recovery_quality/v1 judges solely through the stage directory's
+            # frozen gate_resolution.json plus the pushed panel's per-seed
+            # successes; forwarding both is what makes the frozen gate
+            # REACHABLE from this shared entry point (gap review EE2 — before
+            # this, every recovery verdict was the fail-closed no-stage_dir
+            # refusal, regardless of any frozen resolution on disk).
+            stage_dir=stage_dir,
+            recovery_successes_by_seed=recovery_successes_by_seed,
         )
     except Exception as exc:  # noqa: BLE001 - the docstring's promise, kept
         # "Never raises" has to be enforced, not asserted. `evaluate_stage_gate`
@@ -770,6 +780,7 @@ def generate_stage_artifacts(
     record_videos: bool = True,
     generate_graphs: bool = True,
     allow_legacy_plant: bool = False,
+    recovery_successes_by_seed: "dict[int, bool] | None" = None,
 ) -> dict[str, Any]:
     """Write stage summary, record replay videos, and generate training graphs.
 
@@ -785,6 +796,11 @@ def generate_stage_artifacts(
     When *generate_graphs* is ``True`` (the default), training curves and
     diagnostic graphs are saved to the stage directory.  Requires
     ``matplotlib``.
+
+    For a ``recovery_quality/v1`` stage, pass *recovery_successes_by_seed*
+    (``RecoveryPanelEvidence.successes_by_seed()`` from the post-training
+    pushed panel); the gate is judged against the stage directory's frozen
+    ``gate_resolution.json`` and refuses without both.
 
     Also evaluates the stage's declared curriculum gate and records the
     verdict onto *stage_results* as ``gate_passed`` /
@@ -821,6 +837,8 @@ def generate_stage_artifacts(
         stage_config=stage_config,
         stage_results=stage_results,
         stance_report=stance_report,
+        stage_dir=stage_dir,
+        recovery_successes_by_seed=recovery_successes_by_seed,
     )
 
     # After the gate, not before it: the summary now states the verdict and

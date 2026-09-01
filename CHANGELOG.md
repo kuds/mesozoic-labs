@@ -8,6 +8,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.7)
 
 ### Added
+- **The frozen recovery gate is reachable end to end** (gap review Phase G,
+  `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` findings EE1/EE2). Three
+  seams, each previously fail-closed with no path to a verdict:
+  - `generate_stage_artifacts` / `_apply_stage_gate` now forward the stage
+    directory and a new `recovery_successes_by_seed` argument into
+    `evaluate_stage_gate`, so a `recovery_quality/v1` stage with a frozen
+    `gate_resolution.json` and a rolled panel produces a real verdict from
+    the one shared entry point instead of the unconditional no-stage-dir
+    refusal (every missing input still refuses).
+  - New `freeze_recovery_gate.roll_policy_panel(stage_dir, policy_zip,
+    vecnorm)` rolls the trained policy over EXACTLY the frozen decision
+    procedure — the recorded panel seed, episode count, recovery window, and
+    the calibrated judge the null manifest was measured under — after
+    re-verifying the resolution against the stage's current task
+    fingerprint. Chain-verified: an untrained policy fails with the LCB
+    criterion named; a 20/40 panel (the measured grade of the existing 3M
+    checkpoint) passes the frozen thresholds.
+  - `StageGatePlateauCallback` records its per-evaluation capture
+    (`gate_progress.npz` appends, `diagnostics/eval_*` scalars) BEFORE the
+    plateau-metrics early-out, so a stage whose gate declares none of the
+    legacy scalar thresholds — the recovery stage — no longer trains with
+    zero gate diagnostics.
+  - The training notebook's recovery flow now freezes the resolution
+    (pre-registered nulls and thresholds), trains, rolls the frozen panel,
+    and records the verdict; its setup gains a `PPO.load` preflight (which
+    releases the Colab runtime before raising, like the gate-failure cells)
+    and pinned installs — the jax and ray notebooks' installs are pinned to
+    the same tested set.
+  - `roll_policy_panel` enforces, rather than asserts, the frozen
+    procedure: it refuses when a frozen null was measured under a different
+    safe set than the current calibrated judge (a recalibration is outside
+    task identity, so the resolver's staleness check alone cannot see it),
+    when the frozen nulls' panel size is below the frozen minimum (a
+    rehearsal freeze can never certify), and when the stage directory's
+    recorded task fingerprint disagrees with the one the committed config
+    derives.
+- **Stage-scoped `--override` accepts semantic stage ids**
+  (`recovery.env.push_interval_steps=250`, or any manifest id via the
+  species' manifest), and both an unknown stage and an unknown config
+  section now raise with the available choices instead of silently
+  no-opping (a typo'd override used to train the full stage budget at
+  unmodified hyperparameters) or crashing with a bare `KeyError` (gap
+  review TC10/CI6).
 - **Recovery stage first-runs and P3 calibration record**
   (`docs/investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md`). Covers
   the two recovery training runs (3M and 5M), the three earlier attempts

@@ -200,3 +200,57 @@ class TestMainDispatch:
             main(species_cfg)
 
         assert mock_eval.call_args.kwargs["allow_legacy_plant"] is True
+
+
+class TestApplyOverridesStageScoping:
+    """Semantic stage ids resolve; unknown stages/sections raise (TC10/CI6).
+
+    A typo'd override used to train the full multi-hour stage budget at
+    unmodified hyperparameters with nothing in the log, and the semantic
+    ``recovery`` stage — the active training focus — could not be targeted
+    by ``--override`` at all (bare KeyError at launch).
+    """
+
+    def _configs(self):
+        return {
+            1: {"env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {}},
+            "recovery": {"env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {}},
+            2: {"env_kwargs": {}, "ppo_kwargs": {}, "curriculum_kwargs": {}},
+        }
+
+    def test_semantic_config_key_scopes_to_that_stage_only(self):
+        configs = self._configs()
+        _apply_overrides(configs, ["recovery.env.push_interval_steps=250"])
+        assert configs["recovery"]["env_kwargs"] == {"push_interval_steps": 250}
+        assert configs[1]["env_kwargs"] == {}
+        assert configs[2]["env_kwargs"] == {}
+
+    def test_manifest_stage_id_resolves_through_the_species_manifest(self):
+        configs = self._configs()
+        _apply_overrides(configs, ["locomotion.ppo.learning_rate=0.0002"], "trex")
+        assert configs[2]["ppo_kwargs"] == {"learning_rate": 0.0002}
+        assert configs[1]["ppo_kwargs"] == {}
+
+    def test_unknown_numeric_stage_raises_instead_of_silently_no_opping(self):
+        with pytest.raises(ValueError, match="unknown stage '7'"):
+            _apply_overrides(self._configs(), ["7.ppo.learning_rate=0.0001"])
+
+    def test_typoed_semantic_stage_gets_the_stage_error_with_choices(self):
+        # 'recvery.env.x' must not be misattributed to a config section named
+        # 'recvery' — the middle token IS a real section, so the head token
+        # was meant as a stage and the error must list the available stages.
+        with pytest.raises(ValueError, match="unknown stage 'recvery'.*available"):
+            _apply_overrides(self._configs(), ["recvery.env.alive_bonus=1.0"], "trex")
+
+    def test_unknown_section_raises_instead_of_bare_keyerror(self):
+        with pytest.raises(ValueError, match="unknown config section"):
+            _apply_overrides(self._configs(), ["recovery.badsection.x=1"])
+
+    def test_unknown_all_stages_section_raises(self):
+        with pytest.raises(ValueError, match="unknown config section 'environmnt'"):
+            _apply_overrides(self._configs(), ["environmnt.x=1"])
+
+    def test_all_stages_form_still_applies_everywhere(self):
+        configs = self._configs()
+        _apply_overrides(configs, ["env.alive_bonus=0.5"])
+        assert all(configs[key]["env_kwargs"] == {"alive_bonus": 0.5} for key in configs)
