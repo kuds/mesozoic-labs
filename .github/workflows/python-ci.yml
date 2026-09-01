@@ -7,7 +7,9 @@ on:
       - "README.md"
       - "environments/**"
       - "configs/**"
-      - "docs/*.md"
+      # docs/** rather than docs/*.md: the investigations/reviews/hardware
+      # subdirectories were silently outside CI (gap review CI7).
+      - "docs/**"
       - "notebooks/**"
       - "results/**/summary.json"
       - "website/blog/**"
@@ -16,14 +18,20 @@ on:
       - "website/static/videos/**"
       - "website/static/img/posters/**"
       - "pyproject.toml"
-      - ".github/workflows/python-ci.yml"
+      # The sys.path bootstrap every CI pytest invocation imports before
+      # collecting tests: a conftest-only PR used to trigger no jobs while
+      # changing collection behavior for every later run (gap review CI7).
+      - "conftest.py"
+      - ".github/workflows/**"
   pull_request:
     branches: [main]
     paths:
       - "README.md"
       - "environments/**"
       - "configs/**"
-      - "docs/*.md"
+      # docs/** rather than docs/*.md: the investigations/reviews/hardware
+      # subdirectories were silently outside CI (gap review CI7).
+      - "docs/**"
       - "notebooks/**"
       - "results/**/summary.json"
       - "website/blog/**"
@@ -32,7 +40,11 @@ on:
       - "website/static/videos/**"
       - "website/static/img/posters/**"
       - "pyproject.toml"
-      - ".github/workflows/python-ci.yml"
+      # The sys.path bootstrap every CI pytest invocation imports before
+      # collecting tests: a conftest-only PR used to trigger no jobs while
+      # changing collection behavior for every later run (gap review CI7).
+      - "conftest.py"
+      - ".github/workflows/**"
   workflow_dispatch:
 
 jobs:
@@ -57,6 +69,39 @@ jobs:
 
       - name: mypy
         run: mypy environments/ --ignore-missing-imports
+
+      - name: Validate notebooks (parse every code cell)
+        # notebooks/** triggers this workflow but nothing parsed them: a
+        # symbol rename could break the Colab entry point with every job
+        # green, surfacing hours into the next paid session (gap review
+        # CI9). AST-parse is cheap and needs no execution; IPython magic
+        # and shell lines are stripped the way nbconvert would.
+        run: |
+          python - <<'PY'
+          import ast, json, sys
+          from pathlib import Path
+
+          failures = []
+          for path in sorted(Path("notebooks").glob("*.ipynb")):
+              nb = json.loads(path.read_text(encoding="utf-8"))
+              for index, cell in enumerate(nb["cells"]):
+                  if cell["cell_type"] != "code":
+                      continue
+                  source = "".join(cell["source"]) if isinstance(cell["source"], list) else cell["source"]
+                  lines = [
+                      line
+                      if not line.lstrip().startswith(("!", "%"))
+                      else line[: len(line) - len(line.lstrip())] + "pass"
+                      for line in source.splitlines()
+                  ]
+                  try:
+                      ast.parse("\n".join(lines))
+                  except SyntaxError as exc:
+                      failures.append(f"{path} cell {index}: {exc}")
+          if failures:
+              sys.exit("notebook validation failed:\n" + "\n".join(failures))
+          print("all notebook code cells parse")
+          PY
 
   plant-contract:
     runs-on: ubuntu-latest
@@ -126,13 +171,19 @@ jobs:
           assert load_stage_config("velociraptor", 1)["name"]
           PY
 
-  test-shared:
+  # One matrix over the five per-directory suites: the previous five jobs
+  # were byte-identical 37-line blocks differing only in the pytest path and
+  # coverage-file suffix (gap review ST1). NOTE for branch protection: the
+  # check names change from "test-shared (3.11)" to "test (shared, 3.11)" —
+  # required-status settings must be updated to match.
+  test:
     runs-on: ubuntu-latest
     needs: lint
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
+        suite: [shared, velociraptor, brachiosaurus, trex, dibothrosuchus]
     steps:
       - uses: actions/checkout@v4
 
@@ -150,163 +201,15 @@ jobs:
           pip install -e .[dev]
 
       - name: Run tests with coverage
-        run: pytest environments/shared/tests/ -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
+        run: pytest environments/${{ matrix.suite }}/tests/ -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           MUJOCO_GL: osmesa
-          COVERAGE_FILE: .coverage.shared-${{ matrix.python-version }}
+          COVERAGE_FILE: .coverage.${{ matrix.suite }}-${{ matrix.python-version }}
 
       - name: Upload coverage data
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-shared-${{ matrix.python-version }}
-          path: .coverage.*
-          include-hidden-files: true
-          retention-days: 1
-
-  test-velociraptor:
-    runs-on: ubuntu-latest
-    needs: lint
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install OSMesa
-        run: sudo apt-get update && sudo apt-get install -y libosmesa6-dev
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -e .[dev]
-
-      - name: Run tests with coverage
-        run: pytest environments/velociraptor/tests/ -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
-        env:
-          MUJOCO_GL: osmesa
-          COVERAGE_FILE: .coverage.velociraptor-${{ matrix.python-version }}
-
-      - name: Upload coverage data
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-velociraptor-${{ matrix.python-version }}
-          path: .coverage.*
-          include-hidden-files: true
-          retention-days: 1
-
-  test-brachiosaurus:
-    runs-on: ubuntu-latest
-    needs: lint
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install OSMesa
-        run: sudo apt-get update && sudo apt-get install -y libosmesa6-dev
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -e .[dev]
-
-      - name: Run tests with coverage
-        run: pytest environments/brachiosaurus/tests/ -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
-        env:
-          MUJOCO_GL: osmesa
-          COVERAGE_FILE: .coverage.brachiosaurus-${{ matrix.python-version }}
-
-      - name: Upload coverage data
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-brachiosaurus-${{ matrix.python-version }}
-          path: .coverage.*
-          include-hidden-files: true
-          retention-days: 1
-
-  test-trex:
-    runs-on: ubuntu-latest
-    needs: lint
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install OSMesa
-        run: sudo apt-get update && sudo apt-get install -y libosmesa6-dev
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -e .[dev]
-
-      - name: Run tests with coverage
-        run: pytest environments/trex/tests/ -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
-        env:
-          MUJOCO_GL: osmesa
-          COVERAGE_FILE: .coverage.trex-${{ matrix.python-version }}
-
-      - name: Upload coverage data
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-trex-${{ matrix.python-version }}
-          path: .coverage.*
-          include-hidden-files: true
-          retention-days: 1
-
-  test-dibothrosuchus:
-    runs-on: ubuntu-latest
-    needs: lint
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install OSMesa
-        run: sudo apt-get update && sudo apt-get install -y libosmesa6-dev
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -e .[dev]
-
-      - name: Run tests with coverage
-        run: pytest environments/dibothrosuchus/tests/ -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
-        env:
-          MUJOCO_GL: osmesa
-          COVERAGE_FILE: .coverage.dibothrosuchus-${{ matrix.python-version }}
-
-      - name: Upload coverage data
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-dibothrosuchus-${{ matrix.python-version }}
+          name: coverage-${{ matrix.suite }}-${{ matrix.python-version }}
           path: .coverage.*
           include-hidden-files: true
           retention-days: 1
@@ -426,9 +329,11 @@ jobs:
         run: |
           pytest \
             environments/shared/tests/test_jax_*.py \
-            environments/shared/tests/test_mjx_env.py \
+            environments/shared/tests/test_mjx_*.py \
+            environments/shared/tests/test_action_filter.py \
             environments/shared/tests/test_perturbation.py \
             environments/shared/tests/test_reward_functions.py \
+            environments/trex/tests/ \
             -v --tb=short --cov=environments --cov-report= --cov-fail-under=0
         env:
           JAX_PLATFORMS: cpu
@@ -451,11 +356,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - plant-contract
-      - test-shared
-      - test-velociraptor
-      - test-brachiosaurus
-      - test-trex
-      - test-dibothrosuchus
+      - test
       - test-sb3
       - test-jax-cpu
     steps:

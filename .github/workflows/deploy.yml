@@ -4,9 +4,22 @@ on:
   push:
     branches:
       - main
+    # Only site-affecting paths: a python-only push used to burn a full
+    # npm ci + docusaurus build and could deploy a stale generated catalog
+    # while python-ci's catalog check failed in parallel (gap review CI8).
+    # Making deploy WAIT on python-ci needs a required-checks setting in
+    # the repo configuration; this filter narrows the trigger.
+    paths:
+      - "website/**"
+      - "results/**/summary.json"
+      - ".github/workflows/deploy.yml"
   pull_request:
     branches:
       - main
+    paths:
+      - "website/**"
+      - "results/**/summary.json"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 permissions:
