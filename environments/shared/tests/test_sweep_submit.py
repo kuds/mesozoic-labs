@@ -324,3 +324,49 @@ class TestRestartJobOnWorkerRestart:
             ]
         )
         assert args.restart_job_on_worker_restart is False
+
+
+# ── --load-mode passthrough (task-boundary warm starts) ─────────────────────
+
+
+def _submitted_trial_args(kwargs):
+    """Submit with mocked Vertex objects and return the trial worker's argv."""
+    kwargs["aiplatform"].HyperparameterTuningJob.return_value = MagicMock()
+    kwargs["aiplatform"].CustomJob.return_value = MagicMock()
+    _submit_stage_sweep(**kwargs)
+    worker_specs = kwargs["aiplatform"].CustomJob.call_args[1]["worker_pool_specs"]
+    return worker_specs[0]["container_spec"]["args"]
+
+
+class TestLoadModePassthrough:
+    """The chaining site: --load of a previous stage's winner carries its --load-mode."""
+
+    def test_load_mode_follows_load(self):
+        args = _submitted_trial_args(
+            _make_submit_kwargs(
+                stage=2,
+                load_path="/gcs/b/sweeps/velociraptor/stage1/3/models/best_model.zip",
+                load_mode="initialize_next_stage",
+            )
+        )
+        assert args[args.index("--load") + 1] == "/gcs/b/sweeps/velociraptor/stage1/3/models/best_model.zip"
+        assert args[args.index("--load-mode") + 1] == "initialize_next_stage"
+
+    def test_no_load_mode_keeps_trial_default(self):
+        args = _submitted_trial_args(_make_submit_kwargs(stage=2, load_path="/gcs/b/stage1/best_model.zip"))
+        assert "--load" in args
+        assert "--load-mode" not in args
+
+    def test_load_mode_without_load_is_dropped(self):
+        args = _submitted_trial_args(_make_submit_kwargs(load_mode="initialize_next_stage"))
+        assert "--load" not in args
+        assert "--load-mode" not in args
+
+    def test_launch_cli_forwards_load_mode(self):
+        from environments.shared.scripts.sweep.__main__ import _build_parser
+
+        parser = _build_parser()
+        base = ["launch", "--species", "trex", "--project", "p", "--bucket", "b", "--image", "img"]
+        args = parser.parse_args([*base, "--load", "m.zip", "--load-mode", "initialize_next_stage"])
+        assert args.load_mode == "initialize_next_stage"
+        assert parser.parse_args(base).load_mode == "resume_same_stage"

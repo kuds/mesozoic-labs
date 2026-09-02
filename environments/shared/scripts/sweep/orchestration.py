@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import time
+from collections import Counter
 from pathlib import Path
 
 from .constants import SweepStageError, _SweepJobFailed
@@ -12,6 +13,7 @@ from .results import (
     _best_trial_model_path,
     _best_trial_model_path_any,
     _collect_trial_results,
+    _gate_status,
     plot_sweep_results,
     write_results_csv,
 )
@@ -622,6 +624,7 @@ def launch_sweep(args: argparse.Namespace) -> None:
                 accelerator_count=args.accelerator_count,
                 search_space=search_space,
                 load_path=args.load,
+                load_mode=getattr(args, "load_mode", None),
                 wandb=args.wandb,
                 eval_freq=getattr(args, "eval_freq", None),
                 save_freq=getattr(args, "save_freq", None),
@@ -693,11 +696,11 @@ def launch_sweep(args: argparse.Namespace) -> None:
 
         if best_row is not None:
             logger.info(
-                "Stage %d best trial: id=%s  reward=%.4f  passed=%s",
+                "Stage %d best trial: id=%s  reward=%.4f  gate=%s",
                 stage,
                 best_row["trial_id"],
                 best_row.get("best_mean_reward", 0),
-                best_row.get("stage_passed", False),
+                _gate_status(best_row),
             )
 
         # Save completed state
@@ -1060,6 +1063,13 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     accelerator_count=args.accelerator_count,
                     search_space=search_space,
                     load_path=load_path,
+                    # load_path here is always a previous stage's winner (set
+                    # by the chaining below, or restored from a completed
+                    # stage on resume), so every trial crosses a task
+                    # boundary; the trial default, resume_same_stage, rejects
+                    # that as a fingerprint mismatch.  Same mode as
+                    # train_curriculum's own stage-to-stage warm starts.
+                    load_mode="initialize_next_stage",
                     fixed_trial_args=fixed_trial_args,
                     wandb=args.wandb,
                     eval_freq=getattr(args, "eval_freq", None),
@@ -1129,28 +1139,33 @@ def launch_all_stages(args: argparse.Namespace) -> None:
 
             stage_elapsed = time.monotonic() - stage_start_time
             stage_mins = stage_elapsed / 60
+            tally = Counter(_gate_status(r) for r in stage_rows)
             logger.info(
-                "Stage %d finished in %.1f min (%.0f s). Trials: %d total, %d passed.",
+                "Stage %d finished in %.1f min (%.0f s). Trials: %d total, %d passed, %d failed, "
+                "%d gate not evaluable offline.",
                 stage,
                 stage_mins,
                 stage_elapsed,
                 len(stage_rows),
-                sum(1 for r in stage_rows if r.get("stage_passed")),
+                tally["passed"],
+                tally["failed"],
+                tally["not evaluable"],
             )
 
-            # Identify the best passing trial for this stage (used for
+            # Identify the best gate-passed trial for this stage (used for
             # chaining stages 1→2→3 and for reporting in the saved state).
             try:
                 best_model_path, best_row = _best_trial_model_path(stage_rows, args.bucket, args.species, stage)
-            except SweepStageError:
-                # No trials passed the curriculum gate.
+            except SweepStageError as exc:
+                # No trial is gate-passed: every trial failed, or the stage's
+                # gate is not evaluable offline.
                 if args.force_continue and stage < 3:
-                    # --force-continue: pick the best trial regardless of
-                    # gate status and chain it into the next stage.
+                    # --force-continue: chain the reward-ranked best trial.
                     logger.warning(
-                        "Stage %d: no trials passed curriculum gate. "
-                        "--force-continue is set — selecting best trial anyway.",
+                        "Stage %d: %s --force-continue is set — chaining the reward-ranked best trial "
+                        "(a reward ranking, not a gate verdict).",
                         stage,
+                        exc,
                     )
                     best_model_path, best_row = _best_trial_model_path_any(
                         stage_rows,
@@ -1164,10 +1179,14 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     if stage < 3:
                         raise  # stages 1-2 must pass to chain forward
 
+            selection = None
             if best_row is not None:
+                gate = _gate_status(best_row)
+                selection = "gate-passed" if gate == "passed" else f"reward-ranked (gate {gate})"
                 logger.info(
-                    "Stage %d best passing trial: id=%s  reward=%.4f",
+                    "Stage %d best trial, %s: id=%s  reward=%.4f",
                     stage,
+                    selection,
                     best_row["trial_id"],
                     best_row.get("best_mean_reward", 0),
                 )
@@ -1175,7 +1194,9 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             if stage < 3 and best_model_path is not None:
                 # Chain the best checkpoint into the next stage
                 load_path = best_model_path
-                logger.info("Stage %d complete. Best passing model: %s", stage, load_path)
+                logger.info(
+                    "Stage %d complete. Chaining the %s model into stage %d: %s", stage, selection, stage + 1, load_path
+                )
 
                 # Propagate the winning trial's net_arch to subsequent stages so
                 # every trial loads the checkpoint with a matching architecture.

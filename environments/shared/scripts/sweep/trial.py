@@ -87,7 +87,7 @@ def _log_hardware_info() -> None:
         logger.warning("  GPU diagnostics unavailable; continuing training: %s", exc)
 
 
-def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
+def run_trial(args: argparse.Namespace, extra_args: list[str], task_load_mode: str | None = None) -> None:
     """Run a single training trial.
 
     ``extra_args`` contains the hyperparameter values injected by Vertex AI
@@ -95,11 +95,21 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
     or ``['--ppo_learning_rate=0.0003', '--ppo_ent_coef=0.01']``).
     They are converted to ``--override`` format before calling ``train()``.
 
+    ``task_load_mode`` governs how ``train()`` validates the ``--load``
+    checkpoint's recorded task fingerprint (``task_fingerprint.LOAD_MODES``).
+    It defaults to ``args.load_mode`` (the trial CLI's ``--load-mode``) and
+    then to ``resume_same_stage``, which only admits a checkpoint of the same
+    stage; launch-all chains a previous stage's winner, so it sends
+    ``initialize_next_stage`` — the mode ``train_curriculum`` uses for its
+    own stage-to-stage warm starts.
+
     Each Vertex AI worker gets a unique ``CLOUD_ML_TRIAL_ID`` environment
     variable.  When ``--output-dir`` is set, this ID is appended as a
     subdirectory so that every trial's checkpoint is written to its own
     path — which is how ``launch-all`` identifies the best trial later.
     """
+    if task_load_mode is None:
+        task_load_mode = getattr(args, "load_mode", "resume_same_stage")
     # ── Log system info for debugging failed Vertex AI trials ──────────
     trial_id = os.environ.get("CLOUD_ML_TRIAL_ID", "local")
 
@@ -124,6 +134,8 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         trial_id,
     )
     logger.info("  timesteps=%s  n_envs=%d  seed=%d", f"{args.timesteps:,}", args.n_envs, args.seed)
+    if args.load:
+        logger.info("  warm-start=%s  task_load_mode=%s", args.load, task_load_mode)
     _log_hardware_info()
     logger.info("=" * 60)
 
@@ -214,6 +226,7 @@ def run_trial(args: argparse.Namespace, extra_args: list[str]) -> None:
         use_wandb=args.wandb,
         output_dir=output_dir,
         use_tensorboard=not args.no_tensorboard,
+        task_load_mode=task_load_mode,
     )
 
     # Generate stage summary and replay videos (same artifacts the notebook produces)

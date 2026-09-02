@@ -234,6 +234,7 @@ def _submit_stage_sweep(
     accelerator_count: int,
     search_space: dict,
     load_path: str | None = None,
+    load_mode: str | None = None,
     fixed_trial_args: list[str] | None = None,
     wandb: bool = False,
     eval_freq: int | None = None,
@@ -246,6 +247,12 @@ def _submit_stage_sweep(
     """Build and submit a single-stage HPT job. Returns the job object.
 
     Args:
+        load_path: Checkpoint every trial warm-starts from (``--load``).
+        load_mode: The trial's ``--load-mode`` for that checkpoint, one of
+            ``task_fingerprint.LOAD_MODES``.  ``None`` leaves the trial's
+            default (``resume_same_stage``), which only admits a checkpoint
+            of the *same* stage; a previous stage's winner needs
+            ``initialize_next_stage``.  Ignored without *load_path*.
         fixed_trial_args: Extra CLI args appended verbatim to every trial's
             command line.  Used to inject hyperparameters that are *not* part
             of the search space but must match a prior stage's winning trial
@@ -295,6 +302,8 @@ def _submit_stage_sweep(
         trial_args += ["--save-freq", str(save_freq)]
     if load_path:
         trial_args += ["--load", load_path]
+        if load_mode is not None:
+            trial_args += ["--load-mode", load_mode]
     if fixed_trial_args:
         trial_args += fixed_trial_args
     if wandb:
@@ -330,7 +339,7 @@ def _submit_stage_sweep(
     for k, v in search_space.items():
         logger.info("    %-30s %s", k, v)
     if load_path:
-        logger.info("  Warm-start model: %s", load_path)
+        logger.info("  Warm-start model: %s (load mode: %s)", load_path, load_mode or "trial default")
     if restart_job_on_worker_restart:
         logger.info("  restart_job_on_worker_restart: enabled")
 

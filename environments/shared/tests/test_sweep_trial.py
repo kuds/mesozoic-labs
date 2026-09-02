@@ -3,6 +3,8 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from environments.shared.scripts.sweep import (
     _hpt_arg_to_override,
     _parse_hpt_extra_args,
@@ -161,3 +163,82 @@ class TestParseHptExtraArgs:
         extra = ["stray_token", "--ppo_learning_rate=0.0001"]
         result = _parse_hpt_extra_args(extra)
         assert result == ["ppo.learning_rate=0.0001"]
+
+
+# ── run_trial task-load-mode passthrough ─────────────────────────────────────
+
+
+class TestRunTrialLoadMode:
+    """A warm-started trial forwards its task load mode to train().
+
+    Without it every trial launch-all chains from a previous stage's winner
+    validated under train()'s default resume_same_stage and raised
+    TaskFingerprintError at startup.
+    """
+
+    @staticmethod
+    def _args(**overrides):
+        base = dict(
+            species="trex",
+            stage=1,
+            algorithm="ppo",
+            timesteps=1000,
+            n_envs=1,
+            seed=42,
+            eval_freq=100,
+            save_freq=100,
+            load=None,
+            output_dir=None,
+            wandb=False,
+            no_tensorboard=True,
+        )
+        base.update(overrides)
+        return SimpleNamespace(**base)
+
+    @staticmethod
+    def _train_kwargs(args, task_load_mode=None):
+        from environments.shared.scripts.sweep.trial import run_trial
+
+        train = MagicMock()
+        species_module = SimpleNamespace(SPECIES_CONFIG=object())
+        stage_configs = {1: {"ppo_kwargs": {}, "curriculum_kwargs": {}}}
+        with (
+            patch.dict("sys.modules", {"environments.trex.scripts.train_sb3": species_module}),
+            patch("environments.shared.config.load_all_stages", return_value=stage_configs),
+            patch("environments.shared.train_base.train", train),
+            patch("environments.shared.scripts.sweep.trial._log_hardware_info"),
+        ):
+            run_trial(args, [], task_load_mode=task_load_mode)
+        train.assert_called_once()
+        return train.call_args.kwargs
+
+    def test_cli_load_mode_reaches_train(self):
+        kwargs = self._train_kwargs(
+            self._args(load="/gcs/b/sweeps/trex/stage1/7/models/best_model.zip", load_mode="initialize_next_stage")
+        )
+        assert kwargs["load_path"] == "/gcs/b/sweeps/trex/stage1/7/models/best_model.zip"
+        assert kwargs["task_load_mode"] == "initialize_next_stage"
+
+    def test_explicit_parameter_wins_over_args(self):
+        kwargs = self._train_kwargs(self._args(load_mode="resume_same_stage"), task_load_mode="initialize_next_stage")
+        assert kwargs["task_load_mode"] == "initialize_next_stage"
+
+    def test_default_is_resume_same_stage(self):
+        """No flag and no parameter keeps today's behaviour."""
+        kwargs = self._train_kwargs(self._args())
+        assert kwargs["task_load_mode"] == "resume_same_stage"
+
+    def test_trial_cli_parses_load_mode(self):
+        from environments.shared.scripts.sweep.__main__ import _build_parser
+        from environments.shared.task_fingerprint import LOAD_MODES
+
+        parser = _build_parser()
+        args, _ = parser.parse_known_args(["trial", "--species", "trex", "--load-mode", "initialize_next_stage"])
+        assert args.load_mode == "initialize_next_stage"
+        args, _ = parser.parse_known_args(["trial", "--species", "trex"])
+        assert args.load_mode == "resume_same_stage"
+        assert set(
+            parser._subparsers._group_actions[0].choices["trial"]._option_string_actions["--load-mode"].choices
+        ) == set(LOAD_MODES)
+        with pytest.raises(SystemExit):
+            parser.parse_args(["trial", "--species", "trex", "--load-mode", "bogus"])
