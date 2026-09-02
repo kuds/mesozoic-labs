@@ -1,6 +1,7 @@
 """Tests for shared training infrastructure (train_base.py)."""
 
 import dataclasses
+import logging
 import math
 from pathlib import Path
 from types import SimpleNamespace
@@ -894,3 +895,124 @@ class TestCheckpointRetentionIsWired:
         checkpoint = next(cb for cb in callbacks if isinstance(cb, _CC))
         assert checkpoint.save_freq >= 1
         assert self._retention(callbacks).save_freq >= 1
+
+
+class TestPrepareAlgKwargsWarnsOnAnEmptyTable:
+    """Review CF4: the first point that knows the backend says when its table is empty."""
+
+    def test_an_empty_ppo_table_warns(self, tmp_path, caplog):
+        from environments.shared.train_base import _prepare_alg_kwargs
+
+        with caplog.at_level(logging.WARNING):
+            _prepare_alg_kwargs({"ppo_kwargs": {}, "sac_kwargs": {"learning_rate": 1e-3}}, "ppo", 0, tmp_path, False)
+        assert any("no [ppo] table" in record.message for record in caplog.records)
+
+    def test_a_populated_table_is_quiet(self, tmp_path, caplog):
+        from environments.shared.train_base import _prepare_alg_kwargs
+
+        with caplog.at_level(logging.WARNING):
+            _prepare_alg_kwargs({"ppo_kwargs": {"learning_rate": 1e-3}, "sac_kwargs": {}}, "ppo", 0, tmp_path, False)
+        assert not any("table" in record.message for record in caplog.records)
+
+
+class TestTrainCurriculumWalksTheManifest:
+    """Review TC7/OP6: the curriculum iterates the manifest, not ``range(1, 4)``.
+
+    Indexed into ``load_all_stages``' ``[1, "recovery", 2, 3]`` the range
+    skipped trex's recovery stage without a log line.  Every heavyweight
+    collaborator is replaced so the loop's ORDER, its skip, and its handoff
+    are the only things exercised.
+    """
+
+    def _run(self, species, tmp_path, monkeypatch, caplog):
+        from environments.shared import config as config_module
+        from environments.shared import curriculum as curriculum_module
+        from environments.shared import plant_contract, task_fingerprint, train_base
+        from environments.shared.config import load_all_stages
+        from environments.shared.stage_manifest import stage_label
+
+        record: dict = {"saved": [], "loads": [], "positions": []}
+        model = MagicMock()
+        model.num_timesteps = 10
+
+        def create_or_load(sb3, algorithm, alg_kwargs, train_env, load_path, **kwargs):
+            record["loads"].append(load_path)
+            return model
+
+        def save_config(stage_dir, stage, config, algorithm, **kwargs):
+            record["saved"].append((stage, kwargs.get("load_path"), kwargs.get("load_mode")))
+
+        def shaping(config, **kwargs):
+            record["positions"].append(kwargs["stage_position"])
+            return []
+
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"CallbackList": list})
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(train_base, "create_vec_env", lambda *args, **kwargs: MagicMock())
+        monkeypatch.setattr(train_base, "_load_vecnorm_into_envs", lambda *args, **kwargs: None)
+        monkeypatch.setattr(train_base, "_create_or_load_model", create_or_load)
+        monkeypatch.setattr(
+            train_base, "_build_core_callbacks", lambda *args, **kwargs: ([], MagicMock(best_mean_reward=1.0), None)
+        )
+        monkeypatch.setattr(train_base, "_maybe_ent_coef_decay_callback", lambda *args, **kwargs: None)
+        monkeypatch.setattr(train_base, "_stage_entry_shaping_callbacks", shaping)
+        monkeypatch.setattr(
+            train_base,
+            "_save_final_and_sync_tb",
+            lambda model, train_env, model_dir, stage, *rest: model_dir / f"{stage_label(stage)}_final",
+        )
+        monkeypatch.setattr(train_base, "_select_handoff_checkpoint", lambda model_dir: None)
+        monkeypatch.setattr(train_base, "_record_stage_result", lambda *args, **kwargs: None)
+        monkeypatch.setattr(config_module, "save_stage_config", save_config)
+        monkeypatch.setattr(config_module, "upload_curriculum_artifacts", lambda *args, **kwargs: None)
+        monkeypatch.setattr(curriculum_module, "CurriculumCallback", lambda **kwargs: MagicMock(ready_to_advance=True))
+        monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
+        monkeypatch.setattr(plant_contract, "write_plant_identity", lambda path, identity: None)
+
+        species_cfg = SimpleNamespace(species=species, env_class=object)
+        with caplog.at_level(logging.INFO):
+            train_base.train_curriculum(
+                species_cfg,
+                load_all_stages(species),
+                n_envs=1,
+                seed=1,
+                verbose=0,
+                use_tensorboard=False,
+                output_dir=str(tmp_path),
+            )
+        return record
+
+    def test_trex_visits_the_advancing_stages_in_manifest_order_and_logs_the_skip(self, tmp_path, monkeypatch, caplog):
+        from environments.shared.stage_manifest import load_stage_manifest
+
+        record = self._run("trex", tmp_path, monkeypatch, caplog)
+
+        manifest = load_stage_manifest("trex")
+        assert [stage for stage, _, _ in record["saved"]] == [entry.reference for entry in manifest.advancing_stages]
+        assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
+        skips = [r for r in caplog.records if "Skipping non-advancing stage 'recovery'" in r.message]
+        assert len(skips) == 1 and skips[0].levelno == logging.WARNING
+        assert "train --stage recovery" in skips[0].message
+        # Shaping is keyed on the manifest POSITION, so locomotion (legacy 2)
+        # enters as position 3 and behavior as position 4.
+        assert record["positions"] == [1, 3, 4]
+
+    def test_the_handoff_skips_over_the_non_advancing_stage(self, tmp_path, monkeypatch, caplog):
+        record = self._run("trex", tmp_path, monkeypatch, caplog)
+
+        stance_final = str(tmp_path / "01_stance" / "models" / "stage1_final")
+        locomotion_final = str(tmp_path / "03_locomotion" / "models" / "stage2_final")
+        assert record["loads"] == [None, stance_final, locomotion_final]
+        # And the lineage the next stage's config records is that same handoff.
+        assert record["saved"] == [
+            (1, None, None),
+            (2, stance_final, "initialize_next_stage"),
+            (3, locomotion_final, "initialize_next_stage"),
+        ]
+
+    def test_a_manifest_less_species_is_unchanged(self, tmp_path, monkeypatch, caplog):
+        record = self._run("velociraptor", tmp_path, monkeypatch, caplog)
+
+        assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
+        assert record["positions"] == [1, 2, 3]
+        assert not [r for r in caplog.records if "Skipping non-advancing stage" in r.message]

@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..file_io import atomic_write_text
 from .formatting import _optional_metric, format_duration_hms, parse_optional_bool
 
 
@@ -98,6 +99,14 @@ def _canonical_stage_summary(result: Mapping[str, Any]) -> dict[str, Any]:
         "stage_passed": passed,
         "publication_gate_passed": passed,
     }
+    # Provenance for the verdict above: which gate it was earned under
+    # (review SS5), as recorded by _apply_stage_gate / save_jax_stage_artifacts
+    # from the stage's curriculum config.  Omitted — not nulled — for a
+    # producer that predates the key, so a reader can tell "unrecorded" from
+    # "declared none".
+    for key in ("gate_kind", "gate_schema_version"):
+        if key in result:
+            stage_summary[key] = result[key]
     selected_metrics = {
         "selected_model_reward": ("best_model_reward", 2),
         "selected_model_reward_std": ("best_model_std_reward", 2),
@@ -234,5 +243,6 @@ def save_results_json(
         plant_identity=plant_identity,
     )
     summary_path = results_path / "summary.json"
-    summary_path.write_text(_json.dumps(summary, indent=2, sort_keys=True) + "\n")
+    # Atomic on Drive/GCS mounts, like the bundle writers (review ER5).
+    atomic_write_text(summary_path, _json.dumps(summary, indent=2, sort_keys=True) + "\n")
     return summary_path

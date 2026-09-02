@@ -284,7 +284,12 @@ def main(species_cfg):
     )
 
     # -- curriculum ----------------------------------------------------
-    cur_parser = subparsers.add_parser("curriculum", help="Run automated end-to-end curriculum (stages 1-3)")
+    cur_parser = subparsers.add_parser(
+        "curriculum",
+        help="Run the automated end-to-end curriculum over the species' advancing stages in manifest "
+        "order (a non-advancing pilot stage such as trex 'recovery' is skipped with a log line; "
+        "train it on its own with `train --stage recovery`)",
+    )
     cur_parser.add_argument("--n-envs", type=int, default=4)
     cur_parser.add_argument("--seed", type=int, default=42)
     cur_parser.add_argument("--eval-freq", type=int, default=50000)

@@ -134,3 +134,32 @@ def _build(stage_dir, stage_config, local_tb_dir, gcs_tb_path, *, species=None, 
     finally:
         eval_env.close()
     return callbacks
+
+
+def test_the_notebook_anchors_the_advisories_on_the_session_target():
+    """TC9, notebook side: the call passes the resume-aware target it already computes."""
+    repo_root = Path(__file__).resolve().parents[3]
+    notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
+    cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
+    calls = [c for c in cells if "_build_core_callbacks(" in c]
+    assert len(calls) == 1, "expected exactly one _build_core_callbacks call"
+    cell = calls[0]
+    call_start = cell.index("_build_core_callbacks(")
+    assert "total_timesteps=target_timesteps," in cell[call_start:]
+    assert cell.index("target_timesteps = loaded_steps + timesteps") < call_start
+
+
+def test_the_notebook_binds_every_evidence_csv_to_its_checkpoint():
+    """RP3, notebook side: each evaluation CSV records the hash of the checkpoint it rolled."""
+    repo_root = Path(__file__).resolve().parents[3]
+    notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
+    cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
+    writers = [c for c in cells if "_lib_save_evaluation_episodes(" in c]
+    assert len(writers) == 1, "expected the evidence writers in exactly one cell"
+    cell = writers[0]
+    calls = cell.split("_lib_save_evaluation_episodes(")[1:]
+    assert len(calls) == 3, "expected final, selected and selected-fallback evidence writes"
+    bound = [call.split(")", 1)[0] for call in calls]
+    assert all("checkpoint_path=" in call for call in bound)
+    assert sum('checkpoint_path=f"{final_path}.zip"' in call for call in bound) == 2
+    assert sum("checkpoint_path=best_model_zip" in call for call in bound) == 1

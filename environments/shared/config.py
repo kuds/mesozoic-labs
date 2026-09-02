@@ -154,6 +154,17 @@ _CONFIGS_DIR = _REPO_ROOT / "configs"
 # synthesized) — the old stage{N}_* glob lives on only inside the manifest
 # synthesizer for manifest-less species.
 
+#: Every top-level table a stage TOML may declare.  This is the complete set
+#: the loader below reads — the scripts that open a stage TOML themselves
+#: (``stance_quality_baseline``, ``zero_action_baseline``, the report
+#: scripts) read only ``[env]``, the JAX and sweep paths go through
+#: :func:`load_stage_config`, and ``stages.toml`` has its own reader in
+#: ``stage_manifest``.  Anything else is rejected rather than ignored: a
+#: misspelled ``[environment]`` used to load as an empty ``[env]`` and the
+#: stage silently trained on constructor defaults (review CF4).
+_STAGE_CONFIG_TABLES = frozenset({"stage", "env", "ppo", "sac", "jax", "curriculum"})
+_ALGORITHM_TABLES = ("ppo", "sac", "jax")
+
 
 def load_stage_config(
     species: str,
@@ -195,6 +206,26 @@ def load_stage_config(
 
     with open(path, "rb") as f:
         raw = tomllib.load(f)
+
+    unknown_tables = sorted(set(raw) - _STAGE_CONFIG_TABLES)
+    if unknown_tables:
+        raise ValueError(
+            f"{path}: unknown top-level table(s) {unknown_tables}; a stage config may declare only "
+            f"{sorted(_STAGE_CONFIG_TABLES)}. A misspelled table would otherwise load as empty and the "
+            "stage would train on class / library defaults — a different experiment, with no warning."
+        )
+    if not raw.get("env"):
+        _logger.warning(
+            "%s declares no [env] table (or an empty one): the stage will train on the environment "
+            "constructor's defaults for every reward, termination and horizon parameter.",
+            path,
+        )
+    if not any(raw.get(table) for table in _ALGORITHM_TABLES):
+        _logger.warning(
+            "%s declares no algorithm table (%s): every backend will train on library-default hyperparameters.",
+            path,
+            ", ".join(f"[{table}]" for table in _ALGORITHM_TABLES),
+        )
 
     stage_meta = raw.get("stage", {})
     env_raw = raw.get("env", {})
@@ -241,6 +272,69 @@ def load_all_stages(species: str) -> "dict[int | str, dict[str, Any]]":
     return configs
 
 
+def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:
+    """The task-fingerprint digest an SB3 checkpoint ZIP recorded, or ``None``.
+
+    Read straight from the archive's ``data`` member (SB3 stores every
+    JSON-serialisable model attribute there verbatim, the fingerprint dict
+    included) so the lineage can be written before — and independently of —
+    the model load.  ``None`` for a checkpoint minted before fingerprints
+    existed and for a non-SB3 file (a JAX ``.pkl``); both are honest
+    "unknown parent task", never a guess.
+    """
+    import zipfile
+
+    from .task_fingerprint import MODEL_TASK_ATTRIBUTE
+
+    if not zipfile.is_zipfile(checkpoint):
+        return None
+    try:
+        with zipfile.ZipFile(checkpoint) as archive:
+            data = json.loads(archive.read("data"))
+    except (KeyError, ValueError, zipfile.BadZipFile):
+        return None
+    recorded = data.get(MODEL_TASK_ATTRIBUTE) if isinstance(data, dict) else None
+    digest = recorded.get("task_sha256") if isinstance(recorded, dict) else None
+    return digest if isinstance(digest, str) and digest else None
+
+
+#: Run-block keys recording where a stage's initial weights came from.  Read
+#: back by the result-bundle audit under exactly these names (review RP4),
+#: which audits each key when present and skips it when absent — so a
+#: from-scratch stage writes none of them, and an unfingerprinted parent
+#: leaves ``parent_task_sha256`` out rather than recording a null.
+LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256")
+
+
+def _checkpoint_lineage(load_path: str | None, load_mode: str | None) -> dict[str, Any]:
+    """The load-lineage keys for a stage's ``run`` block; empty from scratch.
+
+    A loaded checkpoint records the path as given, the load mode, the ZIP's
+    own sha256 and the task digest it carries — the load was validated
+    against the current task at ``--load`` time but persisted nowhere
+    readable.
+    """
+    if not load_path:
+        return {}
+    from .result_bundle import sha256_file
+
+    checkpoint = Path(load_path)
+    if not checkpoint.is_file() and not load_path.endswith(".zip"):
+        # SB3 accepts the stem and appends .zip itself; hash the file it loads.
+        checkpoint = Path(load_path + ".zip")
+    if not checkpoint.is_file():
+        raise FileNotFoundError(f"cannot record load lineage: checkpoint not found at {load_path!r}")
+    lineage: dict[str, Any] = {
+        "load_path": load_path,
+        "load_mode": load_mode,
+        "parent_checkpoint_sha256": sha256_file(checkpoint),
+    }
+    parent_task_sha256 = _recorded_checkpoint_task_sha256(checkpoint)
+    if parent_task_sha256 is not None:
+        lineage["parent_task_sha256"] = parent_task_sha256
+    return lineage
+
+
 def save_stage_config(
     stage_dir: str | Path,
     stage: "int | str",
@@ -251,6 +345,9 @@ def save_stage_config(
     species: str | None = None,
     plant_identity: PlantIdentity | None = None,
     task_fingerprint: dict[str, Any] | None = None,
+    *,
+    load_path: str | None = None,
+    load_mode: str | None = None,
 ) -> Path:
     """Save the reward weights and model hyperparameters for a stage to JSON.
 
@@ -275,6 +372,14 @@ def save_stage_config(
         species: Optional species name (e.g. ``"velociraptor"``, ``"trex"``).
         plant_identity: Optional current plant identity.  When supplied it is
             embedded in the config and written as ``plant_identity.json``.
+        load_path: The checkpoint this stage's weights were loaded from, as
+            given to the trainer, or ``None`` for a from-scratch stage.
+        load_mode: The task load mode the checkpoint was loaded under
+            (``resume_same_stage`` / ``initialize_next_stage``).
+
+    When a checkpoint was loaded the ``run`` block carries the
+    :data:`LOAD_LINEAGE_KEYS` alongside *extra*; a from-scratch stage
+    carries none of them (the audit reads absence as "no parent").
 
     Returns:
         Path to the written JSON file.
@@ -321,8 +426,9 @@ def save_stage_config(
         "hyperparameters": stage_config.get(algo_key, {}),
         "curriculum": stage_config.get("curriculum_kwargs", {}),
     }
-    if extra:
-        data["run"] = extra
+    run_block = {**(extra or {}), **_checkpoint_lineage(load_path, load_mode)}
+    if run_block:
+        data["run"] = run_block
     if plant_identity is not None:
         data["plant_identity"] = plant_identity.to_dict()
     if task_fingerprint is not None:

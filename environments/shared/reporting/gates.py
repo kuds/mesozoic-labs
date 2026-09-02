@@ -104,7 +104,11 @@ def _gate_metric(stage_results: Mapping[str, Any], *keys: str) -> float | None:
     """First finite float among *keys*, or ``None`` when none is present.
 
     The trainers write ``""`` rather than ``None`` for a metric they could not
-    measure, so both sentinels have to fall through to the next candidate.
+    measure, so both sentinels have to fall through to the next candidate — as
+    does an absent key: ``build_stage_results_from_eval_data`` leaves the
+    velocity/success keys out entirely when the post-training panel did not
+    run, and every caller reports the resulting ``None`` as an unmeasured
+    criterion by name (review ER4).
 
     Non-finite values fall through too, and that is load-bearing rather than
     tidiness: ``nan < threshold`` is ``False``, so an unfiltered NaN reward

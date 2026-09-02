@@ -39,6 +39,29 @@ def atomic_copy(src: "str | Path", dst: "str | Path") -> None:
         raise
 
 
+def atomic_write_text(path: "str | Path", text: str, *, encoding: str = "utf-8") -> None:
+    """Write *text* to *path* without exposing a partially-written file.
+
+    Staged to a temp file in *path*'s directory and published with
+    ``os.replace``, so a runtime killed mid-write leaves the previous file
+    (or no file) rather than a truncated one -- a half-written JSON record
+    on a FUSE mount otherwise wedges every later reader with a decode error.
+    """
+    dst = Path(path)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{dst.name}.", suffix=".tmp", dir=str(dst.parent))
+    try:
+        with os.fdopen(fd, "w", encoding=encoding) as handle:
+            handle.write(text)
+        os.replace(tmp, str(dst))
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def atomic_savez(path: "str | Path", **arrays) -> None:
     """``np.savez`` to *path* atomically.
 

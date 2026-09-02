@@ -11,6 +11,7 @@ disabled entropy decay forever (EE3), and the CLI retrained the full budget
 (TC4). These tests pin the fixes at their seams.
 """
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -492,9 +493,24 @@ class TestTrainResumeIntegration:
         session1_steps = sorted(int(p.name.split("_")[1]) for p in models.glob("stage1_*_steps.zip"))
         ev1 = np.load(out / "evaluations.npz")
         assert session1_steps, "session 1 wrote no periodic checkpoints"
+        # RP4: a from-scratch stage records no load lineage at all.
+        from environments.shared.config import LOAD_LINEAGE_KEYS
+        from environments.shared.result_bundle import sha256_file
+
+        scratch_run = json.loads((out / "stage_config.json").read_text())["run"]
+        assert not set(LOAD_LINEAGE_KEYS) & set(scratch_run)
 
         newest = models / f"stage1_{session1_steps[-1]}_steps.zip"
         train_base.train(total_timesteps=1024, load_path=str(newest), **common)
+
+        # RP4: the resumed stage records the checkpoint it entered on — path
+        # as given, mode, the ZIP's hash, and the task digest it carried.
+        resumed_run = json.loads((out / "stage_config.json").read_text())["run"]
+        assert resumed_run["load_path"] == str(newest)
+        assert resumed_run["load_mode"] == "resume_same_stage"
+        assert resumed_run["parent_checkpoint_sha256"] == sha256_file(newest)
+        current_task = json.loads((out / "task_fingerprint.json").read_text())["task_sha256"]
+        assert resumed_run["parent_task_sha256"] == current_task
 
         session2_steps = sorted(int(p.name.split("_")[1]) for p in models.glob("stage1_*_steps.zip"))
         # TC1: the counter continued — every new checkpoint is numbered past

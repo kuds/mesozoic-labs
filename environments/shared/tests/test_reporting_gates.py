@@ -357,3 +357,39 @@ class TestFiniteGateMetricCannotRaise:
         # matters is that it is an answer rather than an exception.
         assert finite_gate_metric(np.array([1.0, 2.0])) is None
         assert finite_gate_metric(np.array([])) is None
+
+
+class TestUnmeasuredPanelMetricsFailByName:
+    """Review ER4: an absent or null panel metric is unmeasured, never zero.
+
+    ``build_stage_results_from_eval_data`` now leaves the velocity/success
+    keys out when no post-training panel ran; the gate must name the missing
+    measurement rather than compare a fabricated 0.0 against the floor.
+    """
+
+    CURRICULUM = {
+        "gate_kind": "reward_and_length/v1",
+        "gate_schema_version": 1,
+        "min_avg_reward": -1.0,
+        "min_avg_forward_vel": 1.0,
+        "min_success_rate": 0.5,
+    }
+
+    @pytest.mark.parametrize(
+        "results",
+        [
+            {"mean_reward": 10.0},
+            {"mean_reward": 10.0, "mean_forward_vel": None, "mean_success_rate": None},
+        ],
+        ids=["absent", "null"],
+    )
+    def test_names_each_unmeasured_criterion(self, results):
+        passed, failures = evaluate_stage_gate(self.CURRICULUM, results, stage=2)
+        assert passed is False
+        assert any("no forward-velocity measurement" in failure for failure in failures)
+        assert any("no success-rate measurement" in failure for failure in failures)
+        assert not any("0.00" in failure for failure in failures)
+
+    def test_measured_metrics_still_judge_normally(self):
+        results = {"mean_reward": 10.0, "mean_forward_vel": 1.5, "mean_success_rate": 0.9}
+        assert evaluate_stage_gate(self.CURRICULUM, results, stage=2) == (True, [])

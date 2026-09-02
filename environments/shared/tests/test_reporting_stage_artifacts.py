@@ -2,6 +2,8 @@
 
 import csv
 import json
+import os
+from pathlib import Path
 
 import pytest
 
@@ -52,8 +54,10 @@ class TestBuildStageResultsFromEvalData:
         assert result["best_eval_timestep"] == 100000
         # Last eval used as final metrics (mean 16.0)
         assert result["mean_reward"] == 16.0
-        # Forward vel defaults to 0 (requires live eval)
-        assert result["mean_forward_vel"] == 0.0
+        # No post-training panel ran: the velocity keys are absent, never a
+        # fabricated 0.0 the gate would then compare against (review ER4).
+        assert "mean_forward_vel" not in result
+        assert "mean_success_rate" not in result
 
     def test_reads_duration_from_metrics_json(self, tmp_path):
         model_dir = tmp_path / "models"
@@ -114,6 +118,99 @@ class TestBuildStageResultsFromEvalData:
         assert result["mean_reward"] == 0.0
         assert result["best_eval_reward"] == ""
         assert result["duration_seconds"] == 0.0
+
+    # Review ER4: the sweep workers pass no stage_results, so the velocity and
+    # success numbers the gate judges come from here — and they were
+    # hardcoded to 0.0 although metrics.json (already opened for the
+    # duration) carries the real panel.
+
+    _LOCO = {"name": "Loco", "description": "Walk", "env_kwargs": {}}
+
+    def test_reads_the_velocity_panel_from_metrics_json(self, tmp_path):
+        (tmp_path / "models").mkdir()
+        (tmp_path / "metrics.json").write_text(
+            json.dumps(
+                {
+                    "mean_forward_vel": 1.75,
+                    "std_forward_vel": 0.2,
+                    "mean_distance_traveled": 17.5,
+                    "mean_success_rate": 0.9,
+                }
+            )
+        )
+
+        result = build_stage_results_from_eval_data(tmp_path, stage=2, stage_config=self._LOCO, timesteps=10)
+
+        assert result["mean_forward_vel"] == 1.75
+        assert result["std_forward_vel"] == 0.2
+        assert result["mean_distance_traveled"] == 17.5
+        assert result["mean_success_rate"] == 0.9
+
+    def test_a_skipped_panel_leaves_the_metrics_unmeasured(self, tmp_path):
+        (tmp_path / "models").mkdir()
+        (tmp_path / "metrics.json").write_text(
+            json.dumps(
+                {
+                    "post_eval_skipped": True,
+                    "quality_eval_checkpoint": None,
+                    "mean_forward_vel": None,
+                    "mean_success_rate": None,
+                }
+            )
+        )
+
+        result = build_stage_results_from_eval_data(tmp_path, stage=2, stage_config=self._LOCO, timesteps=10)
+
+        for key in ("mean_forward_vel", "std_forward_vel", "mean_distance_traveled", "mean_success_rate"):
+            assert key not in result
+
+    def _velocity_gated(self):
+        return {
+            **self._LOCO,
+            "curriculum_kwargs": {
+                "gate_kind": "reward_and_length/v1",
+                "gate_schema_version": 1,
+                "min_avg_reward": -1.0,
+                "min_avg_forward_vel": 1.0,
+            },
+        }
+
+    def test_an_unmeasured_velocity_fails_the_gate_by_name_not_at_zero(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        (tmp_path / "models").mkdir()
+        (tmp_path / "metrics.json").write_text(json.dumps({"training_duration_seconds": 1.0}))
+        config = self._velocity_gated()
+        results = build_stage_results_from_eval_data(tmp_path, stage=2, stage_config=config, timesteps=10)
+
+        _apply_stage_gate(stage=2, stage_config=config, stage_results=results, stance_report=None)
+
+        assert results["gate_passed"] is False
+        assert any("no forward-velocity measurement" in failure for failure in results["gate_failures"])
+        assert not any("0.00 m/s" in failure for failure in results["gate_failures"])
+
+    def test_a_measured_velocity_reaches_the_gate(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        (tmp_path / "models").mkdir()
+        (tmp_path / "metrics.json").write_text(json.dumps({"mean_forward_vel": 1.5, "std_forward_vel": 0.1}))
+        config = self._velocity_gated()
+        results = build_stage_results_from_eval_data(tmp_path, stage=2, stage_config=config, timesteps=10)
+
+        _apply_stage_gate(stage=2, stage_config=config, stage_results=results, stance_report=None)
+
+        assert (results["gate_passed"], results["gate_failures"]) == (True, [])
+
+    def test_the_stage_summary_says_not_measured_instead_of_zero(self, tmp_path):
+        from environments.shared.reporting import write_stage_summary
+
+        (tmp_path / "models").mkdir()
+        results = build_stage_results_from_eval_data(tmp_path, stage=2, stage_config=self._LOCO, timesteps=10)
+
+        text = write_stage_summary(tmp_path, results, "velociraptor", "PPO").read_text()
+
+        assert "Avg fwd vel:    not measured" in text
+        assert "0.00 +/- 0.00 m/s" not in text
 
 
 class _FakeEvalResults:
@@ -391,7 +488,9 @@ class TestSaveJaxStageArtifacts:
             algorithm="JAX_PPO",
             backend="jax-mjx",
             seed=42,
-            evaluation_seeds=[42],
+            # The writer's default publication seed; it must differ from the
+            # training seed or the provenance validator refuses the bundle.
+            evaluation_seeds=[3042],
             evaluation_episodes=3,
             parallel_envs=2048,
             hardware="Google Colab (NVIDIA A100-SXM4-40GB)",
@@ -450,6 +549,99 @@ class TestSaveJaxStageArtifacts:
 
         after = {path.relative_to(run_dir): path.read_bytes() for path in run_dir.rglob("*") if path.is_file()}
         assert after == before
+
+    def test_default_publication_seed_differs_from_the_training_default(self, tmp_path):
+        """Review ER6: the validator refuses a publication seed shared with training."""
+        paths, _, _ = self._call(tmp_path)
+        seed_roles = json.loads(paths["provenance"].read_text())["seed_roles"]
+        assert seed_roles["training"] == 42
+        assert seed_roles["publication_evaluation"] == 3042
+
+    def test_evaluation_csvs_bind_to_the_checkpoint_they_were_rolled_from(self, tmp_path):
+        """Review RP3: every evidence row names the checkpoint by sha256."""
+        from environments.shared.result_bundle import sha256_file
+
+        paths, _, _ = self._call(tmp_path)
+        for csv_key, model_key in (("evaluation_episodes", "best_model"), ("final_evaluation_episodes", "final_model")):
+            with open(paths[csv_key]) as f:
+                rows = list(csv.DictReader(f))
+            assert rows, csv_key
+            assert {row["checkpoint_sha256"] for row in rows} == {sha256_file(paths[model_key])}
+
+    @staticmethod
+    def _gated_config(stage):
+        return {
+            "name": f"Stage {stage}",
+            "description": f"Curriculum stage {stage}",
+            "env_kwargs": {"forward_vel_weight": float(stage)},
+            "jax_kwargs": {"learning_rate": 3e-4},
+            "curriculum_kwargs": {
+                "gate_kind": "reward_and_length/v1",
+                "gate_schema_version": 1,
+                "min_avg_reward": 50.0,
+            },
+        }
+
+    def test_persists_gate_kind_beside_the_verdict(self, tmp_path):
+        """Review SS5: the stage record says which gate its verdict was earned under."""
+        paths, _, _ = self._call(tmp_path, stage_config=self._gated_config(1))
+        record = json.loads(paths["stage_result"].read_text())
+        assert record["gate_kind"] == "reward_and_length/v1"
+        assert record["gate_schema_version"] == 1
+
+    def test_summary_carries_gate_kind_for_every_stage_and_still_validates(self, tmp_path):
+        from environments.shared.result_schema import validate_result_summary
+
+        for stage in (1, 2, 3):
+            self._call(tmp_path, stage=stage, backend_version="0.11.0", stage_config=self._gated_config(stage))
+
+        summary = json.loads((tmp_path / "run" / "summary.json").read_text())
+        assert {stage["gate_kind"] for stage in summary["stages"].values()} == {"reward_and_length/v1"}
+        assert {stage["gate_schema_version"] for stage in summary["stages"].values()} == {1}
+        validate_result_summary(
+            summary, expected_species="velociraptor", require_complete=True, canonical_provenance=True
+        )
+
+    def _crash_publishing(self, monkeypatch, filename):
+        """Fail the atomic publish of one artifact, as a lost mount would."""
+        real_replace = os.replace
+
+        def replace_unless_target(src, dst):
+            if Path(dst).name == filename:
+                raise OSError("mount went away")
+            return real_replace(src, dst)
+
+        monkeypatch.setattr(os, "replace", replace_unless_target)
+        return real_replace
+
+    def test_a_crash_publishing_stage_result_keeps_the_previous_record(self, tmp_path, monkeypatch):
+        """Review ER5: a truncated stage_result.json wedged every later save for the run."""
+        paths, stage_dir, _ = self._call(tmp_path)
+        before = paths["stage_result"].read_bytes()
+
+        real_replace = self._crash_publishing(monkeypatch, "stage_result.json")
+        with pytest.raises(OSError, match="mount went away"):
+            self._call(tmp_path)
+
+        assert paths["stage_result"].read_bytes() == before
+        assert not list(stage_dir.glob(".stage_result.json.*"))
+        # The record was never truncated, so the next save still goes through.
+        monkeypatch.setattr(os, "replace", real_replace)
+        self._call(tmp_path)
+
+    def test_a_crash_publishing_diagnostics_keeps_the_previous_archive(self, tmp_path, monkeypatch):
+        import numpy as np
+
+        paths, stage_dir, _ = self._call(tmp_path)
+        before = paths["diagnostics"].read_bytes()
+
+        self._crash_publishing(monkeypatch, "diagnostics.npz")
+        with pytest.raises(OSError, match="mount went away"):
+            self._call(tmp_path)
+
+        assert paths["diagnostics"].read_bytes() == before
+        assert np.load(str(paths["diagnostics"]))["tilt_angle"].shape == (3,)
+        assert not list(stage_dir.glob(".diagnostics.npz.*"))
 
 
 class TestApplyStageGate:
@@ -533,6 +725,17 @@ class TestApplyStageGate:
         results = self._apply(self.STANCE_CONFIG, {"best_model_reward": 2297.0}, report)
         assert results["publication_gate_passed"] is False
         assert results["gate_failures"]
+
+    def test_records_the_gate_kind_beside_the_verdict(self):
+        """Review SS5: a verdict without its gate kind is re-served as a bare boolean."""
+        results = self._apply(self.STANCE_CONFIG, {"best_model_reward": 2297.0}, None)
+        assert results["gate_kind"] == "stance_quality/v1"
+        assert results["gate_schema_version"] == 1
+
+    def test_an_undeclared_gate_kind_is_recorded_as_null(self):
+        results = self._apply({"name": "Run", "description": "Go", "curriculum_kwargs": {}}, {}, None)
+        assert results["gate_kind"] is None
+        assert results["gate_schema_version"] is None
 
 
 class TestStageSummaryRecordsTheVerdict:

@@ -2,12 +2,17 @@
 
 import csv
 import json
+import logging
+import zipfile
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from environments.shared.config import (
+    _CONFIGS_DIR,
+    LOAD_LINEAGE_KEYS,
     _detect_gpu_info,
     _detect_gpu_info_nvidia_smi,
     _upload_to_gcs,
@@ -21,6 +26,8 @@ from environments.shared.config import (
 from environments.shared.plant_contract import PlantIdentity
 
 SPECIES = ["velociraptor", "brachiosaurus", "trex"]
+#: Every species with committed stage configs, manifest-less ones included.
+COMMITTED_SPECIES = sorted(path.name for path in _CONFIGS_DIR.iterdir() if path.is_dir())
 
 
 def _plant_identity():
@@ -661,3 +668,149 @@ class TestUploadCurriculumArtifacts:
         assert f"training/velociraptor/{run}/stage1/plant_identity.json" in uploaded_paths
         assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_best.mp4" in uploaded_paths
         assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_final.mp4" in uploaded_paths
+
+
+class TestLoadStageConfigTableValidation:
+    """Review CF4: a misspelled top-level table must fail, never load as empty.
+
+    ``[environment]`` for ``[env]`` used to yield ``env_kwargs == {}`` with no
+    warning, and the stage trained on constructor defaults — a different
+    experiment — while ``save_stage_config`` back-filled those defaults into
+    ``stage_config.json`` and hid the omission.
+    """
+
+    @staticmethod
+    def _write(tmp_path, body):
+        path = tmp_path / "stage.toml"
+        path.write_text(body)
+        return path
+
+    def test_misspelled_env_table_is_rejected_by_name(self, tmp_path):
+        path = self._write(
+            tmp_path,
+            '[stage]\nname = "x"\n\n[environment]\nalive_bonus = 1.0\n\n[ppo]\nlearning_rate = 1e-4\n',
+        )
+        with pytest.raises(ValueError) as excinfo:
+            load_stage_config("ignored", 1, config_path=str(path))
+        message = str(excinfo.value)
+        assert str(path) in message
+        assert "['environment']" in message
+        assert "'env'" in message and "'curriculum'" in message
+
+    def test_misspelled_algorithm_table_is_rejected(self, tmp_path):
+        path = self._write(
+            tmp_path,
+            '[stage]\nname = "x"\n\n[env]\nalive_bonus = 1.0\n\n[ppo_config]\nlearning_rate = 1e-4\n',
+        )
+        with pytest.raises(ValueError, match=r"\['ppo_config'\]"):
+            load_stage_config("ignored", 1, config_path=str(path))
+
+    def test_empty_env_table_warns(self, tmp_path, caplog):
+        path = self._write(tmp_path, '[stage]\nname = "x"\n\n[ppo]\nlearning_rate = 1e-4\n')
+        with caplog.at_level(logging.WARNING, logger="environments.shared.config"):
+            config = load_stage_config("ignored", 1, config_path=str(path))
+        assert config["env_kwargs"] == {}
+        assert any("no [env] table" in record.message for record in caplog.records)
+
+    def test_missing_algorithm_tables_warn(self, tmp_path, caplog):
+        path = self._write(tmp_path, '[stage]\nname = "x"\n\n[env]\nalive_bonus = 1.0\n')
+        with caplog.at_level(logging.WARNING, logger="environments.shared.config"):
+            load_stage_config("ignored", 1, config_path=str(path))
+        assert any("no algorithm table" in record.message for record in caplog.records)
+
+    @pytest.mark.parametrize("species", COMMITTED_SPECIES)
+    def test_every_committed_stage_config_still_loads_quietly(self, species, caplog):
+        from environments.shared.stage_manifest import load_stage_manifest
+
+        with caplog.at_level(logging.WARNING, logger="environments.shared.config"):
+            for entry in load_stage_manifest(species).stages:
+                config = load_stage_config(species, entry.reference)
+                assert config["env_kwargs"], f"{species}/{entry.config_file} loaded an empty [env]"
+        assert not [r for r in caplog.records if "no [env] table" in r.message or "no algorithm table" in r.message]
+
+
+def _sb3_style_zip(path, data):
+    """An SB3 checkpoint archive's shape: a JSON ``data`` member beside the weights."""
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("data", json.dumps(data))
+        archive.writestr("policy.pth", b"weights")
+    return path
+
+
+class TestSaveStageConfigLoadLineage:
+    """Review RP4: the run block records where a stage's weights came from.
+
+    The audit reads exactly ``load_path`` / ``load_mode`` /
+    ``parent_checkpoint_sha256`` / ``parent_task_sha256`` and audits each key
+    when present, so a from-scratch stage writes none of them and an
+    unfingerprinted parent leaves the task digest out rather than null.
+    """
+
+    STAGE_CONFIG = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
+
+    def _run_block(self, tmp_path, **kwargs):
+        out = save_stage_config(tmp_path / "run", 1, self.STAGE_CONFIG, "PPO", extra={"seed": 1}, **kwargs)
+        return json.loads(out.read_text())["run"]
+
+    def test_from_scratch_records_no_lineage_keys(self, tmp_path):
+        run = self._run_block(tmp_path)
+        assert run == {"seed": 1}
+        assert not set(LOAD_LINEAGE_KEYS) & set(run)
+
+    def test_from_scratch_without_extra_writes_no_run_block(self, tmp_path):
+        out = save_stage_config(tmp_path / "run", 1, self.STAGE_CONFIG, "PPO")
+        assert "run" not in json.loads(out.read_text())
+
+    def test_loaded_checkpoint_records_all_four_keys(self, tmp_path):
+        from environments.shared.result_bundle import sha256_file
+        from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
+
+        digest = "sha256:" + "a" * 64
+        parent = _sb3_style_zip(tmp_path / "best_model.zip", {MODEL_TASK_ATTRIBUTE: {"task_sha256": digest}})
+        run = self._run_block(tmp_path, load_path=str(parent), load_mode="initialize_next_stage")
+        assert run["seed"] == 1
+        assert run["load_path"] == str(parent)
+        assert run["load_mode"] == "initialize_next_stage"
+        assert run["parent_checkpoint_sha256"] == sha256_file(parent)
+        assert run["parent_task_sha256"] == digest
+
+    def test_stem_load_path_is_recorded_as_given_and_hashes_the_zip(self, tmp_path):
+        from environments.shared.result_bundle import sha256_file
+
+        parent = _sb3_style_zip(tmp_path / "stage1_final.zip", {})
+        run = self._run_block(tmp_path, load_path=str(tmp_path / "stage1_final"), load_mode="resume_same_stage")
+        assert run["load_path"] == str(tmp_path / "stage1_final")
+        assert run["parent_checkpoint_sha256"] == sha256_file(parent)
+
+    def test_unfingerprinted_parent_omits_the_task_digest(self, tmp_path):
+        parent = _sb3_style_zip(tmp_path / "old.zip", {"n_steps": 2048})
+        run = self._run_block(tmp_path, load_path=str(parent), load_mode="resume_same_stage")
+        assert "parent_task_sha256" not in run
+        assert run["parent_checkpoint_sha256"].startswith("sha256:")
+
+    def test_non_sb3_parent_records_the_file_hash_only(self, tmp_path):
+        from environments.shared.result_bundle import sha256_file
+
+        parent = tmp_path / "best_model.pkl"
+        parent.write_bytes(b"not a zip")
+        run = self._run_block(tmp_path, load_path=str(parent), load_mode="initialize_next_stage")
+        assert run["parent_checkpoint_sha256"] == sha256_file(parent)
+        assert "parent_task_sha256" not in run
+
+    def test_missing_checkpoint_fails_closed(self, tmp_path):
+        with pytest.raises(FileNotFoundError, match="checkpoint not found"):
+            self._run_block(tmp_path, load_path=str(tmp_path / "nope.zip"), load_mode="resume_same_stage")
+
+    def test_the_notebook_records_lineage_from_a_resolved_load_mode(self):
+        """The notebook saves its config itself; it must pass the same keys."""
+        repo_root = Path(__file__).resolve().parents[3]
+        notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
+        cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
+        cell = next(c for c in cells if "def train_stage(" in c)
+        save_call = cell.index("cfg_path = save_stage_config(")
+        call_text = cell[save_call : cell.index(")", save_call)]
+        assert "load_path=load_path" in call_text
+        assert "load_mode=task_load_mode if load_path else None" in call_text
+        # Inferred AFTER the save, the recorded mode would be null for every
+        # per-stage cell (they leave task_load_mode=None to be inferred).
+        assert cell.index("if task_load_mode is None:") < save_call

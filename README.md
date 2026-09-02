@@ -257,9 +257,9 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 | Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
 |---|---:|---:|---:|---:|---:|
-| 1 — Balance | 1964.43 | 0.11 m/s | — | 6M | Yes |
-| 2 — Locomotion | 2678.68 | 3.47 m/s | — | 8M | Yes |
-| 3 — Strike | 1366.19 | 2.02 m/s | 93.3% | 8M | Yes |
+| 1 — Balance | 1964.43 | 0.11 m/s | — | 6M | passed retired gate (reward gate) |
+| 2 — Locomotion | 2678.68 | 3.47 m/s | — | 8M | passed retired gate (reward gate) |
+| 3 — Strike | 1366.19 | 2.02 m/s | 93.3% | 8M | passed retired gate (reward gate) |
 
 **Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
@@ -269,9 +269,9 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 | Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
 |---|---:|---:|---:|---:|---:|
-| 1 — Balance | 970.19 | -0.64 m/s | — | 6M | Yes |
-| 2 — Locomotion | 2078.62 | 2.91 m/s | — | 8M | Yes |
-| 3 — Strike | 1195.43 | 1.63 m/s | 90.0% | 8M | Yes |
+| 1 — Balance | 970.19 | -0.64 m/s | — | 6M | passed retired gate (reward gate) |
+| 2 — Locomotion | 2078.62 | 2.91 m/s | — | 8M | passed retired gate (reward gate) |
+| 3 — Strike | 1195.43 | 1.63 m/s | 90.0% | 8M | passed retired gate (reward gate) |
 
 **Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
@@ -281,9 +281,9 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 | Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
 |---|---:|---:|---:|---:|---:|
-| 1 — Balance | 3008.66 | 0.02 m/s | — | 6M | Yes |
-| 2 — Locomotion | 1936.01 | 3.47 m/s | — | 8M | Yes |
-| 3 — Bite | 1294.28 | 1.68 m/s | 96.7% | 8M | Yes |
+| 1 — Balance | 3008.66 | 0.02 m/s | — | 6M | passed retired gate (reward gate) |
+| 2 — Locomotion | 1936.01 | 3.47 m/s | — | 8M | passed retired gate (reward gate) |
+| 3 — Bite | 1294.28 | 1.68 m/s | 96.7% | 8M | passed retired gate (reward gate) |
 
 **Current Stable-Baselines3 catalog definition for this task label:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
 
@@ -293,9 +293,9 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 | Stage | Best eval reward | Avg. forward velocity | Task success | Trained steps | Passed |
 |---|---:|---:|---:|---:|---:|
-| 1 — Balance | 1740.53 | 0.01 m/s | — | 6.00474M | Yes |
-| 2 — Locomotion | 6634.60 | 1.42 m/s | 3.3% | 16.0072M | Yes |
-| 3 — Food Reach | 1368.13 | 0.71 m/s | 100.0% | 12.0095M | Yes |
+| 1 — Balance | 1740.53 | 0.01 m/s | — | 6.00474M | passed retired gate (reward gate) |
+| 2 — Locomotion | 6634.60 | 1.42 m/s | 3.3% | 16.0072M | passed retired gate (reward gate) |
+| 3 — Food Reach | 1368.13 | 0.71 m/s | 100.0% | 12.0095M | passed retired gate (reward gate) |
 
 **Current Stable-Baselines3 catalog definition for this task label:** The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled.
 <!-- END GENERATED: RESULTS -->

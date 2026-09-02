@@ -17,10 +17,13 @@ from environments.shared.species_catalog import (
     DEFAULT_README_PATH,
     REPOSITORY_ROOT,
     CatalogError,
+    _format_verdict,
     _max_reported_velocity,
     _validate_result_summary,
     build_catalog,
     check_catalog,
+    current_gate_kinds,
+    render_readme_results,
 )
 
 
@@ -682,3 +685,77 @@ def test_default_paths_are_inside_repository() -> None:
     assert DEFAULT_PLANT_MANIFEST_PATH.is_relative_to(REPOSITORY_ROOT)
     assert DEFAULT_OUTPUT_PATH.is_relative_to(REPOSITORY_ROOT)
     assert DEFAULT_README_PATH.is_relative_to(REPOSITORY_ROOT)
+
+
+# Review SS5: a published stage_passed is rendered with the gate it was earned
+# under.  The committed summaries predate gate provenance and were certified
+# by the retired reward gate, while trex's stance stage now declares
+# stance_quality/v1 — a bare "Yes" beneath that description misstates what
+# was measured.
+
+
+def test_current_gate_kinds_follow_the_manifest() -> None:
+    assert current_gate_kinds("trex") == {
+        "stance": "stance_quality/v1",
+        "recovery": "recovery_quality/v1",
+        "locomotion": "reward_and_length/v1",
+        "behavior": "reward_and_length/v1",
+    }
+    assert current_gate_kinds("velociraptor") == {
+        "stance": "reward_and_length/v1",
+        "locomotion": "reward_and_length/v1",
+        "behavior": "reward_and_length/v1",
+    }
+
+
+def test_published_verdicts_carry_gate_provenance() -> None:
+    catalog = build_catalog()
+    trex = next(entry for entry in catalog["species"] if entry["id"] == "trex")
+    stance = next(stage for stage in trex["historical_results"][0]["stages"] if stage["id"] == "stance")
+    assert stance["stage_passed"] is True
+    assert stance["gate_kind"] is None
+    assert stance["current_gate_kind"] == "stance_quality/v1"
+    assert stance["gate_retired"] is True
+
+    rendered = render_readme_results(catalog)
+    assert "| 1 — Balance | 3008.66 | 0.02 m/s | — | 6M | passed retired gate (reward gate) |" in rendered
+    assert "| Yes |" not in rendered
+
+
+def test_a_verdict_under_the_current_gate_renders_as_a_bare_pass(tmp_path: Path, monkeypatch: Any) -> None:
+    from environments.shared import species_catalog
+
+    summary = deepcopy(json.loads((REPOSITORY_ROOT / "results/trex/ppo/summary.json").read_text(encoding="utf-8")))
+    summary["stages"]["1"]["gate_kind"] = "stance_quality/v1"
+    summary_path = tmp_path / "summary.json"
+    summary_path.write_text(json.dumps(summary), encoding="utf-8")
+    monkeypatch.setattr(species_catalog, "_repo_path", lambda relative_path, *, field: summary_path)
+
+    result = species_catalog._build_result("trex", "results/trex/ppo/summary.json")
+
+    stages = {stage["id"]: stage for stage in result["stages"]}
+    assert stages["stance"]["gate_retired"] is False
+    assert _format_verdict(stages["stance"]) == "Yes"
+    assert stages["locomotion"]["gate_retired"] is True
+    assert _format_verdict(stages["locomotion"]) == "passed retired gate (reward gate)"
+
+
+@pytest.mark.parametrize(
+    ("stage", "expected"),
+    [
+        ({"stage_passed": None, "gate_kind": None, "gate_retired": True}, "—"),
+        ({"stage_passed": True, "gate_kind": "stance_quality/v1", "gate_retired": False}, "Yes"),
+        ({"stage_passed": False, "gate_kind": "stance_quality/v1", "gate_retired": False}, "No"),
+        ({"stage_passed": True, "gate_kind": None, "gate_retired": True}, "passed retired gate (reward gate)"),
+        (
+            {"stage_passed": True, "gate_kind": "stance_quality/v0", "gate_retired": True},
+            "passed retired gate (stance_quality/v0)",
+        ),
+        (
+            {"stage_passed": False, "gate_kind": "reward_and_length/v1", "gate_retired": True},
+            "failed retired gate (reward_and_length/v1)",
+        ),
+    ],
+)
+def test_format_verdict_labels_retired_gates(stage: dict[str, Any], expected: str) -> None:
+    assert _format_verdict(stage) == expected

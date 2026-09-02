@@ -463,10 +463,10 @@ def thresholds_from_configs(
     thresholds: dict[int, dict[str, Any]] = {}
     # The numeric curriculum advances through legacy-numbered stages only.
     # Semantic-only stages (recovery, which load_all_stages keys by ID) are
-    # deliberately excluded until the manifest-walking curriculum lands with
-    # the recovery gate (plan W4): including one here would validate its
-    # none/v1 placeholder under advancement and correctly-but-prematurely
-    # refuse the whole run.
+    # deliberately excluded: train_curriculum walks the manifest and skips
+    # every non-advancing stage with a log line, and this manager judges
+    # none of their gate kinds — including one here would validate it under
+    # advancement and correctly-but-prematurely refuse the whole run.
     for stage, cfg in configs.items():
         if not isinstance(stage, int):
             continue

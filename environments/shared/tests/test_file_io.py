@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from environments.shared.file_io import atomic_copy, atomic_savez
+from environments.shared.file_io import atomic_copy, atomic_savez, atomic_write_text
 
 
 class TestAtomicCopy:
@@ -71,3 +71,29 @@ class TestAtomicSavez:
         atomic_savez(dst, a=np.array([1]))
 
         assert [p.name for p in tmp_path.iterdir()] == ["arrays.npz"]
+
+
+class TestAtomicWriteText:
+    def test_writes_text_and_creates_parents(self, tmp_path):
+        dst = tmp_path / "out" / "record.json"
+
+        atomic_write_text(dst, '{"a": 1}\n')
+
+        assert dst.read_text(encoding="utf-8") == '{"a": 1}\n'
+        assert [p.name for p in dst.parent.iterdir()] == ["record.json"]
+
+    def test_a_crash_mid_publish_keeps_the_previous_file(self, tmp_path, monkeypatch):
+        import os
+
+        dst = tmp_path / "record.json"
+        dst.write_text("old", encoding="utf-8")
+
+        def lost_mount(src, target):
+            raise OSError("mount went away")
+
+        monkeypatch.setattr(os, "replace", lost_mount)
+        with pytest.raises(OSError, match="mount went away"):
+            atomic_write_text(dst, "new")
+
+        assert dst.read_text(encoding="utf-8") == "old"
+        assert [p.name for p in tmp_path.iterdir()] == ["record.json"]

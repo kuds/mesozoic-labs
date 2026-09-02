@@ -272,7 +272,17 @@ def _prepare_alg_kwargs(
     stream its event files straight to the mount, held open all stage, so a
     hard runtime reclaim lost the un-uploaded tail (review CO5).
     """
-    alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
+    alg_table = "sac" if algorithm == "sac" else "ppo"
+    alg_kwargs = config[f"{alg_table}_kwargs"].copy()
+    if not alg_kwargs:
+        # The loader cannot know which backend a config is for; this is the
+        # first point that does (review CF4).
+        logger.warning(
+            "Stage config declares no [%s] table (or an empty one): %s will train on "
+            "stable-baselines3's default hyperparameters.",
+            alg_table,
+            algorithm.upper(),
+        )
     alg_kwargs["verbose"] = verbose
 
     # TensorBoard buffering
@@ -973,6 +983,11 @@ def train(
         species=species_cfg.species,
         plant_identity=plant_identity,
         task_fingerprint=task_fingerprint,
+        # Load lineage into the run block (review RP4): the checkpoint is
+        # validated against the task at load time below, and this is where
+        # that provenance becomes readable (no keys at all from scratch).
+        load_path=load_path,
+        load_mode=task_load_mode if load_path else None,
     )
 
     # Create environments
@@ -1540,7 +1555,19 @@ def train_curriculum(
     use_tensorboard: bool = True,
     allow_fresh_vecnorm: bool = False,
 ):
-    """Run the full 3-stage curriculum with automatic advancement."""
+    """Run the curriculum's advancing stages, in manifest order, with automatic advancement.
+
+    Walks ``load_stage_manifest(species).stages`` rather than a hardcoded
+    ``range(1, 4)``: indexed into ``load_all_stages``' ``[1, "recovery", 2,
+    3]``, the range trained stance -> locomotion -> behavior and skipped the
+    T-Rex recovery stage without a log line (review TC7/OP6).  Stages the
+    manifest marks non-advancing (no legacy number — recovery, whose gate the
+    in-training manager cannot judge) are skipped with an explicit log line
+    and do not break the handoff: the next advancing stage still enters on
+    the previous advancing stage's promoted checkpoint under
+    ``initialize_next_stage``.  Run a skipped stage on its own with
+    ``train --stage <id>``.
+    """
     from .config import (
         save_stage_config,
         upload_curriculum_artifacts,
@@ -1550,6 +1577,7 @@ def train_curriculum(
         CurriculumManager,
         thresholds_from_configs,
     )
+    from .stage_manifest import load_stage_manifest, stage_dirname
     from .task_fingerprint import derive_stage_task_fingerprint
     from .wandb_integration import init_wandb
 
@@ -1557,8 +1585,10 @@ def train_curriculum(
     species = species_cfg.species
     plant_identity = current_plant_identity(species)
 
+    manifest = load_stage_manifest(species)
+    advancing = manifest.advancing_stages
     thresholds = thresholds_from_configs(stage_configs)
-    manager = CurriculumManager(species=species, stage_thresholds=thresholds)
+    manager = CurriculumManager(species=species, stage_thresholds=thresholds, total_stages=len(advancing))
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if output_dir is not None:
@@ -1574,7 +1604,10 @@ def train_curriculum(
     write_plant_identity(base_dir / "plant_identity.json", plant_identity)
 
     logger.info("=" * 60)
-    logger.info("Starting automated curriculum training (stages 1-3)")
+    logger.info(
+        "Starting automated curriculum training (advancing stages, manifest order): %s",
+        " -> ".join(entry.id for entry in advancing),
+    )
     logger.info("Base directory: %s", base_dir)
     logger.info("=" * 60)
 
@@ -1582,12 +1615,25 @@ def train_curriculum(
     load_path = None
     prev_vecnorm_path = None
 
-    for stage in range(1, 4):
+    for entry in manifest.stages:
+        if entry not in advancing:
+            gate_kind = stage_configs.get(entry.reference, {}).get("curriculum_kwargs", {}).get("gate_kind")
+            logger.warning(
+                "Skipping non-advancing stage %r (position %d/%d, gate_kind %s): the automated "
+                "curriculum trains only the manifest's advancing stages, and the next stage "
+                "enters on the previous ADVANCING stage's checkpoint. Train it on its own with "
+                "`train --stage %s`.",
+                entry.id,
+                entry.position,
+                len(manifest.stages),
+                gate_kind,
+                entry.id,
+            )
+            continue
+        stage = entry.reference
         config = stage_configs[stage]
         cur_kwargs = config.get("curriculum_kwargs", {})
         total_timesteps = cur_kwargs.get("timesteps", 500000)
-
-        from .stage_manifest import stage_dirname
 
         stage_dir = base_dir / stage_dirname(species, stage)
         stage_dir.mkdir(exist_ok=True)
@@ -1595,7 +1641,14 @@ def train_curriculum(
         model_dir.mkdir(exist_ok=True)
 
         logger.info("=" * 60)
-        logger.info("Curriculum Stage %d/%d: %s", stage, 3, config["name"])
+        logger.info(
+            "Curriculum stage %s (%s, position %d/%d): %s",
+            stage,
+            entry.id,
+            entry.position,
+            len(manifest.stages),
+            config["name"],
+        )
         logger.info("Description: %s", config["description"])
         logger.info("Timesteps: %s", f"{total_timesteps:,}")
         logger.info("=" * 60)
@@ -1617,6 +1670,10 @@ def train_curriculum(
             species=species_cfg.species,
             plant_identity=plant_identity,
             task_fingerprint=task_fingerprint,
+            # The handoff checkpoint this stage enters on (review RP4); the
+            # first stage, loading nothing, records no lineage keys.
+            load_path=load_path,
+            load_mode="initialize_next_stage" if load_path else None,
         )
 
         effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
@@ -1727,7 +1784,7 @@ def train_curriculum(
             _stage_entry_shaping_callbacks(
                 config,
                 task_load_mode="initialize_next_stage",
-                stage_position=stage,
+                stage_position=entry.position,
                 load_path=load_path,
             )
         )
@@ -1751,7 +1808,7 @@ def train_curriculum(
         actual_timesteps = int(model.num_timesteps)
         if actual_timesteps < total_timesteps:
             logger.warning(
-                "Stage %d ended early at %s of %s timesteps.",
+                "Stage %s ended early at %s of %s timesteps.",
                 stage,
                 f"{actual_timesteps:,}",
                 f"{total_timesteps:,}",
@@ -1814,9 +1871,9 @@ def train_curriculum(
         if curriculum_cb and curriculum_cb.ready_to_advance and not manager.is_final_stage:
             manager.advance()
             logger.info("Auto-advanced to stage %d", manager.current_stage)
-        elif stage < 3:
+        elif entry != advancing[-1]:
             logger.warning(
-                "Stage %d timestep budget exhausted without meeting advancement "
+                "Stage %s timestep budget exhausted without meeting advancement "
                 "thresholds. Stopping curriculum — advancing with a weak policy "
                 "causes catastrophic forgetting.",
                 stage,
