@@ -21,8 +21,11 @@ Usage::
     python environments/shared/scripts/joint_excursion_report.py \\
         trex 1 /path/to/run/stage1/models/robust_best_model.zip
 
-    # VecNormalize sidecar is found automatically when it sits next to the
-    # model as ``*_vecnorm.pkl``; pass --vecnorm to override.
+    # The VecNormalize sidecar is found automatically under either naming
+    # convention (curated ``<stem>_vecnorm.pkl`` or SB3's periodic
+    # ``<prefix>_vecnormalize_<steps>_steps.pkl``); pass --vecnorm to
+    # override.  A checkpoint with no sidecar is fatal unless
+    # --allow-unnormalized is given.
 """
 
 import argparse
@@ -47,6 +50,34 @@ SPECIES_ENVS = {
 # Keys the TOML [env] block carries for the MJX path only, as in
 # zero_action_baseline.py.
 JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
+UNNORMALIZED_BANNER = "UNNORMALIZED EVAL — results are not comparable to training-time metrics"
+
+
+def resolve_vecnorm_path(model_path: str, vecnorm_arg: str | None, allow_unnormalized: bool) -> str | None:
+    """The VecNormalize sidecar to evaluate with, or ``None`` for a deliberately unnormalised run.
+
+    An explicit ``--vecnorm`` wins.  Otherwise the trainer's own resolver
+    probes both sidecar conventions -- the ``<stem>_vecnorm.pkl`` guess this
+    script used to make can never match SB3's periodic
+    ``<prefix>_vecnormalize_<steps>_steps.pkl``, so every periodic checkpoint
+    was silently scored on raw observations.  No sidecar is fatal unless
+    ``--allow-unnormalized``: a policy evaluated unnormalised is a different
+    policy, and the report would blame the joints for a loading mistake.
+    """
+    if vecnorm_arg is not None:
+        return vecnorm_arg
+    from environments.shared.train_base import _resolve_vecnorm_sidecar
+
+    candidate = _resolve_vecnorm_sidecar(model_path)
+    if Path(candidate).exists():
+        return candidate
+    if allow_unnormalized:
+        return None
+    raise SystemExit(
+        f"no VecNormalize sidecar found for {model_path} (probed {candidate}). A policy evaluated on "
+        "unnormalised observations is a different policy; pass --vecnorm, or --allow-unnormalized "
+        "to proceed deliberately."
+    )
 
 
 def build_env(species: str, stage: int):
@@ -71,6 +102,11 @@ def main(argv: list[str]) -> None:
     parser.add_argument("stage", type=int, choices=(1, 2, 3))
     parser.add_argument("model", help="path to the SB3 .zip policy")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
+    parser.add_argument(
+        "--allow-unnormalized",
+        action="store_true",
+        help="proceed without a VecNormalize sidecar (the report then scores a different policy)",
+    )
     parser.add_argument("--episodes", type=int, default=10)
     parser.add_argument("--seed", type=int, default=3042)
     args = parser.parse_args(argv)
@@ -81,10 +117,7 @@ def main(argv: list[str]) -> None:
     env = build_env(args.species, args.stage)
     model = PPO.load(args.model, device="cpu")
 
-    vecnorm_path = args.vecnorm
-    if vecnorm_path is None:
-        guess = Path(args.model).with_name(Path(args.model).stem + "_vecnorm.pkl")
-        vecnorm_path = str(guess) if guess.exists() else None
+    vecnorm_path = resolve_vecnorm_path(args.model, args.vecnorm, args.allow_unnormalized)
     normalizer = None
     if vecnorm_path:
         normalizer = VecNormalize.load(vecnorm_path, DummyVecEnv([lambda: build_env(args.species, args.stage)]))
@@ -109,6 +142,8 @@ def main(argv: list[str]) -> None:
     ctrl = np.asarray(ctrl_log)
     qpos = np.asarray(qpos_log)
     print(f"\n{args.species} stage {args.stage}: {len(ctrl)} steps over {args.episodes} episodes")
+    if normalizer is None:
+        print(f"  {UNNORMALIZED_BANNER}")
     print(
         f"  {'joint':<18}{'cmd p5-p95':>14}{'cmd full':>11}{'achieved':>11}"
         f"{'ctrl span':>11}{'used':>7}{'delta/step':>12}"

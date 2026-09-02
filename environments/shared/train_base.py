@@ -265,7 +265,12 @@ def _prepare_alg_kwargs(
     """Build algorithm kwargs with LR schedule, clip annealing, and TB setup.
 
     Returns ``(alg_kwargs, local_tb_dir, gcs_tb_path)`` where *local_tb_dir*
-    is ``None`` when the output is not on a GCS FUSE mount.
+    is ``None`` when the output is not on a remote FUSE mount (GCS or Drive;
+    see :func:`_is_remote_mount_path`).  On a mount, TensorBoard events are
+    buffered locally and synced to *gcs_tb_path* on the checkpoint cadence
+    (``PeriodicTbSyncCallback``) and at stage end — a Drive path used to
+    stream its event files straight to the mount, held open all stage, so a
+    hard runtime reclaim lost the un-uploaded tail (review CO5).
     """
     alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
     alg_kwargs["verbose"] = verbose
@@ -274,12 +279,13 @@ def _prepare_alg_kwargs(
     local_tb_dir = None
     gcs_tb_path = log_path / "tensorboard"
     if use_tensorboard:
-        if _is_gcs_path(log_path):
+        if _is_remote_mount_path(log_path):
             local_tb_dir = _make_local_tb_dir(gcs_tb_path)
             alg_kwargs["tensorboard_log"] = str(local_tb_dir)
             logger.info(
-                "TensorBoard buffering locally at %s (will sync to GCS after training)",
+                "TensorBoard buffering locally at %s (synced to %s periodically and after training)",
                 local_tb_dir,
+                gcs_tb_path,
             )
         else:
             alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
@@ -558,11 +564,20 @@ def _build_core_callbacks(
     local_tb_dir: Path | None = None,
     gcs_tb_path: Path | None = None,
     species: str | None = None,
+    total_timesteps: int | None = None,
 ) -> tuple[list, Any, Any]:
     """Build the standard callback set shared by train() and train_curriculum().
 
     Returns ``(callbacks, eval_callback, save_vecnorm_cb)`` so callers can
     append additional stage-specific callbacks.
+
+    ``total_timesteps`` is the cumulative step count this session actually
+    trains to (train()'s resume-aware ``target_timesteps``).  The
+    budget-anchored advisories — the never-beaten-baseline warning and the
+    collapse warm-up sanity log — read it instead of re-reading the TOML
+    budget, which a ``--timesteps`` override or a shortened resume budget
+    silently mis-timed (review TC9).  ``None`` keeps the TOML fallback for
+    callers that predate the parameter.
     """
     from .curriculum import (
         DEFAULT_MAX_CHECKPOINTS,
@@ -691,6 +706,7 @@ def _build_core_callbacks(
             eval_callback,
             collapse_cfg,
             verbose=verbose,
+            total_timesteps=total_timesteps,
         )
     )
 
@@ -709,6 +725,7 @@ def _build_core_callbacks(
             run_dir=Path(log_path).parent if log_path is not None else None,
             species=species,
             stage_config=stage_config,
+            total_timesteps=total_timesteps,
             verbose=verbose,
         )
         if species
@@ -720,8 +737,9 @@ def _build_core_callbacks(
     if use_wandb:
         callbacks.append(WandbCallback())
 
-    # Flush buffered TensorBoard events to GCS on the checkpoint cadence so
-    # a preempted worker (spot VMs) doesn't lose the whole stage's logs.
+    # Flush buffered TensorBoard events to the remote mount (GCS or Drive)
+    # on the checkpoint cadence so a preempted worker (spot VMs) or a
+    # reclaimed Colab runtime doesn't lose the whole stage's logs.
     if local_tb_dir is not None and gcs_tb_path is not None:
         callbacks.append(PeriodicTbSyncCallback(local_tb_dir, gcs_tb_path, sync_freq=save_freq, verbose=verbose))
 
@@ -869,8 +887,15 @@ def train(
     allow_legacy_plant: bool = False,
     task_load_mode: str = "resume_same_stage",
     allow_fresh_vecnorm: bool = False,
+    post_eval_episodes: int | None = None,
 ):
     """Train a single stage of the curriculum.
+
+    ``post_eval_episodes`` sizes the post-training evaluation panels
+    written to ``metrics.json`` (see :func:`_report_hpt_metrics`): ``None``
+    keeps the 50-episode quality / 30-episode velocity panels, ``0`` skips
+    both — the knob smoke, debug and CI runs need, where the panels
+    otherwise cost about half the wall time (review EE4).
 
     ``task_load_mode`` governs how a ``load_path`` checkpoint's recorded
     task fingerprint is validated: ``resume_same_stage`` (default)
@@ -1077,6 +1102,9 @@ def train(
         local_tb_dir=local_tb_dir,
         gcs_tb_path=gcs_tb_path,
         species=species,
+        # The cumulative target this session trains to, not the TOML budget:
+        # the budget-anchored advisories must follow --timesteps and resumes.
+        total_timesteps=target_timesteps,
     )
 
     if resuming:
@@ -1192,6 +1220,7 @@ def train(
         stage_config=config,
         seed=seed,
         plant_identity=plant_identity,
+        post_eval_episodes=post_eval_episodes,
     )
 
     train_env.close()
@@ -1223,6 +1252,7 @@ def _report_hpt_metrics(
     stage_config: dict[str, Any] | None = None,
     seed: int | None = None,
     plant_identity: PlantIdentity | None = None,
+    post_eval_episodes: int | None = None,
 ):
     """Report metrics to Vertex AI Hypertune and write a local JSON sidecar.
 
@@ -1235,12 +1265,18 @@ def _report_hpt_metrics(
     checkpoint is loaded with its matched VecNormalize stats so the
     reported metrics reflect the checkpoint that will be handed off to
     the next stage — not the final model which may have regressed.
+
+    ``post_eval_episodes`` sizes both post-training panels: ``None`` keeps
+    the historical 50-episode quality / 30-episode velocity panels, a
+    positive value is used for both, and ``0`` skips them entirely —
+    ``metrics.json`` is still written, with ``post_eval_skipped: true`` and
+    a null ``quality_eval_checkpoint`` in place of fabricated numbers
+    (review EE4: the panels were unskippable and cost smoke/CI runs about
+    half their wall time).
     """
     import json as _json
 
     import numpy as _np
-
-    sb3 = _ensure_sb3()
 
     from .config import get_library_version
 
@@ -1305,106 +1341,31 @@ def _report_hpt_metrics(
             last_mean_ep_length,
         )
 
-    # ── Post-training quality evaluation (all stages) ──────────────────
+    # ── Post-training evaluation panels (all stages) ───────────────────
     # Run evaluation rollouts with LocomotionMetrics to collect spinning
     # detection signals, heading stability, and reward component breakdown.
     # These metrics enable model selection beyond raw reward.
-    from .curriculum import load_vecnorm_stats
-
-    best_model_zip = model_dir / "best_model.zip"
-    alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
-
-    # Evaluate the same checkpoint the curriculum hands to the next stage
-    # (robust_best_model before mean-reward best_model, via
-    # _select_handoff_checkpoint), so metrics.json describes the promoted
-    # policy rather than a possibly-degenerate lucky-peak mean-best one
-    # (run 20260720_203454's best_model was the 50k checkpoint whose eval
-    # was 261.79 ± 261.72). The chosen name is recorded in the sidecar as
-    # quality_eval_checkpoint.
-    handoff = _select_handoff_checkpoint(model_dir)
-    if handoff is not None:
-        ckpt_name, ckpt_path, ckpt_vecnorm = handoff
-        eval_model = alg_cls.load(ckpt_path, env=eval_env)
-        if plant_identity is not None:
-            validate_model_plant(eval_model, plant_identity, artifact=ckpt_path + ".zip")
-        load_kwargs: dict[str, Any]
-        if plant_identity is not None:
-            load_kwargs = {"current_plant": plant_identity}
-        else:
-            load_kwargs = {"unsafe_skip_plant_validation": True}
-        load_vecnorm_stats(ckpt_vecnorm, eval_env, **load_kwargs)
-        eval_env.training = False
-        eval_env.norm_reward = False
-        aux_metrics["quality_eval_checkpoint"] = ckpt_name
-        logger.info("HPT eval: using %s + matched VecNormalize", ckpt_name)
-    elif best_model_zip.exists():
-        # Legacy fallback: a best_model saved without matched VecNormalize
-        # stats. Evaluate it rather than nothing, but flag the mismatch.
-        eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
-        if plant_identity is not None:
-            validate_model_plant(eval_model, plant_identity, artifact=str(best_model_zip))
-        eval_env.training = False
-        eval_env.norm_reward = False
-        aux_metrics["quality_eval_checkpoint"] = "best_model"
-        logger.warning(
-            "HPT eval: best_model has no matched VecNormalize stats — quality eval "
-            "normalization may not match the policy weights"
-        )
+    if post_eval_episodes == 0:
+        # Recorded as skipped, not as zeros: a downstream reader must be able
+        # to tell "not measured" from "measured badly".
+        aux_metrics["post_eval_skipped"] = True
+        aux_metrics["quality_eval_checkpoint"] = None
+        logger.info("Post-training evaluation panels skipped (post_eval_episodes=0).")
     else:
-        eval_model = model
-        eval_env.training = False
-        eval_env.norm_reward = False
-        aux_metrics["quality_eval_checkpoint"] = "final_model"
-        logger.warning("HPT eval: no saved checkpoint found, falling back to final model")
-
-    # Quality evaluation with full LocomotionMetrics (spinning detection,
-    # heading alignment, reward breakdown, etc.)
-    from .evaluation import eval_policy_quality
-
-    try:
-        quality_metrics = eval_policy_quality(eval_model, eval_env, species_cfg.success_keys, n_episodes=50)
-        aux_metrics.update(quality_metrics)
-        logger.info(
-            "Quality eval complete: %d metrics collected (angular_vel=%.3f, heading_align=%.3f)",
-            len(quality_metrics),
-            quality_metrics.get("eval_mean_pelvis_angular_velocity", float("nan")),
-            quality_metrics.get("eval_mean_heading_alignment", float("nan")),
+        quality_episodes = 50 if post_eval_episodes is None else post_eval_episodes
+        velocity_episodes = 30 if post_eval_episodes is None else post_eval_episodes
+        aux_metrics.update(
+            _post_training_eval_panels(
+                species_cfg,
+                model,
+                eval_env,
+                model_dir,
+                algorithm,
+                plant_identity,
+                quality_episodes=quality_episodes,
+                velocity_episodes=velocity_episodes,
+            )
         )
-    except Exception:
-        logger.warning("Quality evaluation failed — skipping quality metrics.", exc_info=True)
-
-    # Forward velocity, distance, and success rate evaluation.
-    # Run for all stages so mean_distance_traveled is always captured.
-    # Guarded so a mid-eval failure still writes the metrics.json sidecar
-    # with whatever was collected above.
-    try:
-        _, _, fwd_vels, success_flags, distances = eval_policy(
-            eval_model,
-            eval_env,
-            species_cfg.success_keys,
-            n_episodes=30,
-        )
-    except Exception:
-        logger.warning("Post-training eval_policy failed — skipping velocity/success metrics.", exc_info=True)
-        fwd_vels, success_flags, distances = [], [], []
-    if fwd_vels:
-        mean_fwd = float(_np.mean(fwd_vels))
-        std_fwd = float(_np.std(fwd_vels))
-        aux_metrics["mean_forward_vel"] = mean_fwd
-        aux_metrics["std_forward_vel"] = std_fwd
-        # Keep backward-compat alias used by existing sweep analysis.
-        aux_metrics["best_mean_forward_vel"] = mean_fwd
-        logger.info("HPT metric reported: mean_forward_vel=%.4f (std=%.4f)", mean_fwd, std_fwd)
-    if distances:
-        mean_dist = float(_np.mean(distances))
-        aux_metrics["mean_distance_traveled"] = mean_dist
-        logger.info("HPT metric reported: mean_distance_traveled=%.4f", mean_dist)
-    if success_flags:
-        mean_success = float(_np.mean(success_flags))
-        aux_metrics["mean_success_rate"] = mean_success
-        # Keep backward-compat alias used by existing sweep analysis.
-        aux_metrics["best_mean_success_rate"] = mean_success
-        logger.info("HPT metric reported: mean_success_rate=%.4f", mean_success)
 
     # Include key hyperparameters in the sidecar so offline result
     # collection works even when stage_config.json is missing.
@@ -1432,6 +1393,130 @@ def _report_hpt_metrics(
     with open(metrics_path, "w") as f:
         _json.dump(aux_metrics, f, indent=2)
     logger.info("Metrics sidecar written to: %s", metrics_path)
+
+
+def _post_training_eval_panels(
+    species_cfg: SpeciesConfig,
+    model,
+    eval_env,
+    model_dir: Path,
+    algorithm: str,
+    plant_identity: PlantIdentity | None,
+    *,
+    quality_episodes: int,
+    velocity_episodes: int,
+) -> dict[str, Any]:
+    """Run the post-training quality and velocity/success panels.
+
+    Returns the ``metrics.json`` entries they produce, including
+    ``quality_eval_checkpoint`` — the checkpoint the panels describe.  Each
+    panel is guarded so a mid-eval failure still yields whatever the other
+    collected.
+    """
+    import numpy as _np
+
+    from .curriculum import load_vecnorm_stats
+
+    sb3 = _ensure_sb3()
+    panel: dict[str, Any] = {}
+
+    best_model_zip = model_dir / "best_model.zip"
+    alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
+
+    # Evaluate the same checkpoint the curriculum hands to the next stage
+    # (robust_best_model before mean-reward best_model, via
+    # _select_handoff_checkpoint), so metrics.json describes the promoted
+    # policy rather than a possibly-degenerate lucky-peak mean-best one
+    # (run 20260720_203454's best_model was the 50k checkpoint whose eval
+    # was 261.79 ± 261.72). The chosen name is recorded in the sidecar as
+    # quality_eval_checkpoint.
+    handoff = _select_handoff_checkpoint(model_dir)
+    if handoff is not None:
+        ckpt_name, ckpt_path, ckpt_vecnorm = handoff
+        eval_model = alg_cls.load(ckpt_path, env=eval_env)
+        if plant_identity is not None:
+            validate_model_plant(eval_model, plant_identity, artifact=ckpt_path + ".zip")
+        load_kwargs: dict[str, Any]
+        if plant_identity is not None:
+            load_kwargs = {"current_plant": plant_identity}
+        else:
+            load_kwargs = {"unsafe_skip_plant_validation": True}
+        load_vecnorm_stats(ckpt_vecnorm, eval_env, **load_kwargs)
+        eval_env.training = False
+        eval_env.norm_reward = False
+        panel["quality_eval_checkpoint"] = ckpt_name
+        logger.info("HPT eval: using %s + matched VecNormalize", ckpt_name)
+    elif best_model_zip.exists():
+        # Legacy fallback: a best_model saved without matched VecNormalize
+        # stats. Evaluate it rather than nothing, but flag the mismatch.
+        eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
+        if plant_identity is not None:
+            validate_model_plant(eval_model, plant_identity, artifact=str(best_model_zip))
+        eval_env.training = False
+        eval_env.norm_reward = False
+        panel["quality_eval_checkpoint"] = "best_model"
+        logger.warning(
+            "HPT eval: best_model has no matched VecNormalize stats — quality eval "
+            "normalization may not match the policy weights"
+        )
+    else:
+        eval_model = model
+        eval_env.training = False
+        eval_env.norm_reward = False
+        panel["quality_eval_checkpoint"] = "final_model"
+        logger.warning("HPT eval: no saved checkpoint found, falling back to final model")
+
+    # Quality evaluation with full LocomotionMetrics (spinning detection,
+    # heading alignment, reward breakdown, etc.)
+    from .evaluation import eval_policy_quality
+
+    try:
+        quality_metrics = eval_policy_quality(
+            eval_model, eval_env, species_cfg.success_keys, n_episodes=quality_episodes
+        )
+        panel.update(quality_metrics)
+        logger.info(
+            "Quality eval complete: %d metrics collected (angular_vel=%.3f, heading_align=%.3f)",
+            len(quality_metrics),
+            quality_metrics.get("eval_mean_pelvis_angular_velocity", float("nan")),
+            quality_metrics.get("eval_mean_heading_alignment", float("nan")),
+        )
+    except Exception:
+        logger.warning("Quality evaluation failed — skipping quality metrics.", exc_info=True)
+
+    # Forward velocity, distance, and success rate evaluation.
+    # Run for all stages so mean_distance_traveled is always captured.
+    # Guarded so a mid-eval failure still writes the metrics.json sidecar
+    # with whatever was collected above.
+    try:
+        _, _, fwd_vels, success_flags, distances = eval_policy(
+            eval_model,
+            eval_env,
+            species_cfg.success_keys,
+            n_episodes=velocity_episodes,
+        )
+    except Exception:
+        logger.warning("Post-training eval_policy failed — skipping velocity/success metrics.", exc_info=True)
+        fwd_vels, success_flags, distances = [], [], []
+    if fwd_vels:
+        mean_fwd = float(_np.mean(fwd_vels))
+        std_fwd = float(_np.std(fwd_vels))
+        panel["mean_forward_vel"] = mean_fwd
+        panel["std_forward_vel"] = std_fwd
+        # Keep backward-compat alias used by existing sweep analysis.
+        panel["best_mean_forward_vel"] = mean_fwd
+        logger.info("HPT metric reported: mean_forward_vel=%.4f (std=%.4f)", mean_fwd, std_fwd)
+    if distances:
+        mean_dist = float(_np.mean(distances))
+        panel["mean_distance_traveled"] = mean_dist
+        logger.info("HPT metric reported: mean_distance_traveled=%.4f", mean_dist)
+    if success_flags:
+        mean_success = float(_np.mean(success_flags))
+        panel["mean_success_rate"] = mean_success
+        # Keep backward-compat alias used by existing sweep analysis.
+        panel["best_mean_success_rate"] = mean_success
+        logger.info("HPT metric reported: mean_success_rate=%.4f", mean_success)
+    return panel
 
 
 # ── Curriculum training ──────────────────────────────────────────────────
@@ -1616,6 +1701,7 @@ def train_curriculum(
             local_tb_dir=local_tb_dir,
             gcs_tb_path=gcs_tb_path,
             species=species,
+            total_timesteps=total_timesteps,
         )
 
         ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, total_timesteps)

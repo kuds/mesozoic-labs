@@ -85,6 +85,34 @@ JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
 # Matches DiagnosticsCallback.action_saturation_threshold, so the figures here
 # are directly comparable to diagnostics/raw_action_saturation.
 SATURATION_THRESHOLD = 0.99
+UNNORMALIZED_BANNER = "UNNORMALIZED EVAL — results are not comparable to training-time metrics"
+
+
+def resolve_vecnorm_path(model_path: str, vecnorm_arg: str | None, allow_unnormalized: bool) -> str | None:
+    """The VecNormalize sidecar to evaluate with, or ``None`` for a deliberately unnormalised run.
+
+    An explicit ``--vecnorm`` wins.  Otherwise the trainer's own resolver
+    probes both sidecar conventions -- the ``<stem>_vecnorm.pkl`` guess this
+    script used to make can never match SB3's periodic
+    ``<prefix>_vecnormalize_<steps>_steps.pkl``, so every periodic checkpoint
+    was silently scored on raw observations.  No sidecar is fatal unless
+    ``--allow-unnormalized``: a policy evaluated unnormalised is a different
+    policy, and its saturation figures describe nothing that trained.
+    """
+    if vecnorm_arg is not None:
+        return vecnorm_arg
+    from environments.shared.train_base import _resolve_vecnorm_sidecar
+
+    candidate = _resolve_vecnorm_sidecar(model_path)
+    if Path(candidate).exists():
+        return candidate
+    if allow_unnormalized:
+        return None
+    raise SystemExit(
+        f"no VecNormalize sidecar found for {model_path} (probed {candidate}). A policy evaluated on "
+        "unnormalised observations is a different policy; pass --vecnorm, or --allow-unnormalized "
+        "to proceed deliberately."
+    )
 
 
 def stage_env_section(species: str, stage: int) -> dict:
@@ -123,6 +151,11 @@ def main(argv: list[str]) -> None:
     parser.add_argument("stage", type=int, choices=(1, 2, 3))
     parser.add_argument("--model", default=None, help="SB3 .zip policy; omit to probe an untrained Gaussian")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
+    parser.add_argument(
+        "--allow-unnormalized",
+        action="store_true",
+        help="proceed without a VecNormalize sidecar (the report then scores a different policy)",
+    )
     parser.add_argument("--std", type=float, default=1.0, help="Gaussian std when --model is omitted")
     parser.add_argument("--episodes", type=int, default=10)
     parser.add_argument("--seed", type=int, default=3042)
@@ -139,10 +172,7 @@ def main(argv: list[str]) -> None:
         from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
         model = PPO.load(args.model, device="cpu")
-        vecnorm_path = args.vecnorm
-        if vecnorm_path is None:
-            guess = Path(args.model).with_name(Path(args.model).stem + "_vecnorm.pkl")
-            vecnorm_path = str(guess) if guess.exists() else None
+        vecnorm_path = resolve_vecnorm_path(args.model, args.vecnorm, args.allow_unnormalized)
         if vecnorm_path:
             normalizer = VecNormalize.load(vecnorm_path, DummyVecEnv([lambda: build_env(args.species, args.stage)]))
             normalizer.training = False
@@ -180,6 +210,8 @@ def main(argv: list[str]) -> None:
     source = f"policy {Path(args.model).name}" if args.model else f"untrained Gaussian, std={args.std}"
 
     print(f"\n{args.species} stage {args.stage}: {source}")
+    if model is not None and normalizer is None:
+        print(UNNORMALIZED_BANNER)
     print(f"{len(all_actions)} steps over {args.episodes} episodes, {n_actuators} actuators")
     print(f"mean return {np.mean(returns):.2f} +/- {np.std(returns):.2f}\n")
 

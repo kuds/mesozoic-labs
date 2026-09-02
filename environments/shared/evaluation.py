@@ -34,6 +34,15 @@ def replay_seed(seed: int, stage: "int | str") -> int:
 
 logger = logging.getLogger(__name__)
 
+#: Seed for :func:`evaluate`'s environment.  Deliberately a fixed constant
+#: rather than anything derived from a training seed: every CLI evaluation
+#: — of two checkpoints from one run, or of the same checkpoint on
+#: different days — then draws the same reset-noise sequence, so the panels
+#: are paired and their differences are the policy's, not the resets'.
+#: Before this the env was unseeded (``reset_noise_scale`` drew from OS
+#: entropy) and no two ``eval`` invocations were comparable (review ER3).
+DEFAULT_EVAL_SEED = 2000
+
 TREX_STAGE1_CAMERA_VIEWS: dict[str, dict[str, float]] = {
     # Fixed view angles make stance comparisons repeatable while preserving
     # the existing pelvis-tracking camera.
@@ -408,12 +417,27 @@ def evaluate(
     stage: "int | str | None" = None,
     algorithm: str = "ppo",
     allow_legacy_plant: bool = False,
+    allow_unnormalized: bool = False,
+    seed: int = DEFAULT_EVAL_SEED,
 ):
-    """Evaluate a trained model with full locomotion metrics."""
+    """Evaluate a trained model with full locomotion metrics.
+
+    The VecNormalize sidecar is resolved with the trainer's own
+    :func:`~environments.shared.train_base._resolve_vecnorm_sidecar`, so a
+    periodic ``<prefix>_<steps>_steps.zip`` checkpoint finds its
+    ``<prefix>_vecnormalize_<steps>_steps.pkl`` (review ER1).  A checkpoint
+    with no sidecar under either convention **fails closed**: scoring it on
+    raw observations evaluates a different policy.  ``allow_unnormalized``
+    downgrades that to a loud warning.
+
+    *seed* is applied to the environment once, at construction, so every
+    episode is drawn from one deterministic stream (see
+    :data:`DEFAULT_EVAL_SEED`).
+    """
     from .metrics import LocomotionMetrics
     from .metrics import env_dt as _env_dt
     from .plant_contract import current_plant_identity, validate_environment_plant, validate_model_plant
-    from .train_base import _ensure_sb3
+    from .train_base import _ensure_sb3, _resolve_vecnorm_sidecar
 
     sb3 = _ensure_sb3()
     plant_identity = current_plant_identity(species_cfg.species)
@@ -426,9 +450,7 @@ def evaluate(
 
     env_kwargs = stage_configs[stage]["env_kwargs"].copy()
 
-    vecnorm_path = model_path.replace(".zip", "_vecnorm.pkl")
-    if not vecnorm_path.endswith("_vecnorm.pkl"):
-        vecnorm_path = model_path + "_vecnorm.pkl"
+    vecnorm_path = _resolve_vecnorm_sidecar(model_path)
 
     render_mode = "human" if render else None
 
@@ -446,6 +468,9 @@ def evaluate(
         return sb3["Monitor"](env)
 
     vec_env = sb3["DummyVecEnv"]([_make_eval_env])
+    # Once, at construction: the seed reaches the env on the first reset and
+    # every later episode continues that RNG stream.
+    vec_env.seed(seed)
 
     if Path(vecnorm_path).exists():
         logger.info("Loading normalization stats from: %s", vecnorm_path)
@@ -462,8 +487,19 @@ def evaluate(
             raise
         vec_env.training = False
         vec_env.norm_reward = False
+    elif not allow_unnormalized:
+        vec_env.close()
+        raise FileNotFoundError(
+            f"VecNormalize sidecar not found for {model_path!r} (probed {vecnorm_path!r}). "
+            "Evaluating on unnormalized observations scores a different policy — pass "
+            "--allow-unnormalized (allow_unnormalized=True) to proceed deliberately."
+        )
     else:
-        logger.warning("No VecNormalize stats found. Results may differ from training.")
+        logger.warning(
+            "No VecNormalize stats found (probed %s). UNNORMALIZED EVAL — results are not "
+            "comparable to training-time metrics.",
+            vecnorm_path,
+        )
 
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
     try:
@@ -479,10 +515,11 @@ def evaluate(
         raise
 
     logger.info(
-        "Evaluating for %d episodes (stage %s: %s)...",
+        "Evaluating for %d episodes (stage %s: %s, seed %d)...",
         n_episodes,
         stage,
         stage_configs[stage]["name"],
+        seed,
     )
 
     episode_reports = []

@@ -184,7 +184,7 @@ def _resolve_stage_ref(stage_ref: "int | str", stage_configs: dict, species: str
 def main(species_cfg):
     """Parse arguments and dispatch to train/curriculum/evaluate."""
     from .config import load_all_stages
-    from .evaluation import evaluate
+    from .evaluation import DEFAULT_EVAL_SEED, evaluate
     from .train_base import train, train_curriculum
 
     logging.basicConfig(
@@ -274,6 +274,14 @@ def main(species_cfg):
         help="Override config values, e.g. ppo.learning_rate=1e-4",
     )
     train_parser.add_argument("--output-dir", type=str, default=None, help="Base output directory")
+    train_parser.add_argument(
+        "--post-eval-episodes",
+        type=int,
+        default=None,
+        help="Episodes per post-training evaluation panel written to metrics.json (default: 50 for the "
+        "quality panel and 30 for the velocity/success panel; 0 skips both panels — for smoke and CI "
+        "runs, where they otherwise take roughly half the wall time)",
+    )
 
     # -- curriculum ----------------------------------------------------
     cur_parser = subparsers.add_parser("curriculum", help="Run automated end-to-end curriculum (stages 1-3)")
@@ -317,6 +325,20 @@ def main(species_cfg):
         action="store_true",
         help="Explicitly allow untagged pre-contract evaluation artifacts",
     )
+    eval_parser.add_argument(
+        "--allow-unnormalized",
+        action="store_true",
+        help="Explicitly allow evaluation to proceed when the model's VecNormalize sidecar is missing "
+        "(the policy is then scored on raw observations — a different policy — so this fails "
+        "closed by default)",
+    )
+    eval_parser.add_argument(
+        "--seed",
+        type=int,
+        default=DEFAULT_EVAL_SEED,
+        help="Evaluation environment seed (default: a fixed constant independent of any training "
+        "seed, so evaluations of different checkpoints are paired)",
+    )
 
     # -- dispatch ------------------------------------------------------
     args = parser.parse_args()
@@ -343,6 +365,7 @@ def main(species_cfg):
             args.wandb = False
             args.override = None
             args.output_dir = None
+            args.post_eval_episodes = None
 
         if args.algorithm == "sac" and args.n_envs == 4:
             args.n_envs = _SAC_DEFAULT_N_ENVS
@@ -400,6 +423,7 @@ def main(species_cfg):
             output_dir=args.output_dir,
             allow_legacy_plant=args.allow_legacy_plant,
             allow_fresh_vecnorm=getattr(args, "allow_fresh_vecnorm", False),
+            post_eval_episodes=args.post_eval_episodes,
         )
 
     elif args.command == "curriculum":
@@ -446,4 +470,6 @@ def main(species_cfg):
             stage=eval_stage,
             algorithm=args.algorithm,
             allow_legacy_plant=args.allow_legacy_plant,
+            allow_unnormalized=args.allow_unnormalized,
+            seed=args.seed,
         )

@@ -176,6 +176,7 @@ def build_baseline_progress_callback(
     run_dir: "str | Path | None",
     species: str,
     stage_config: dict[str, Any],
+    total_timesteps: int | None = None,
     verbose: int = 0,
 ) -> BaselineProgressCallback | None:
     """Build the watcher, or ``None`` when there is no baseline to compare to.
@@ -183,6 +184,13 @@ def build_baseline_progress_callback(
     Returning ``None`` rather than a no-op callback keeps the absence visible
     in the callback list, and means a run without a captured baseline pays
     nothing for a comparison it cannot make.
+
+    ``total_timesteps`` is the cumulative step count the session actually
+    trains to.  The warning is anchored on it, not on the TOML budget: with
+    a ``--timesteps`` override or a shortened resume budget the two differ,
+    and anchoring on the TOML mis-timed or suppressed the warning entirely
+    (review TC9).  ``None`` falls back to the TOML budget for callers that
+    predate the parameter.
     """
     if run_dir is None:
         return None
@@ -196,10 +204,11 @@ def build_baseline_progress_callback(
         return None
     curriculum = stage_config.get("curriculum_kwargs", {})
     duty_ceiling = curriculum.get("max_unsupported_duty")
+    budget = int(curriculum.get("timesteps", 0)) if total_timesteps is None else int(total_timesteps)
     return BaselineProgressCallback(
         eval_callback,
         baseline,
-        total_timesteps=int(curriculum.get("timesteps", 0)),
+        total_timesteps=budget,
         warn_after_budget_fraction=float(
             curriculum.get("baseline_warn_after_budget_fraction", DEFAULT_WARN_AFTER_BUDGET_FRACTION)
         ),

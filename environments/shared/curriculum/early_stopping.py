@@ -336,11 +336,17 @@ def build_eval_collapse_early_stop_callback(
     curriculum_kwargs: dict[str, Any],
     *,
     verbose: int = 0,
+    total_timesteps: int | None = None,
 ) -> EvalCollapseEarlyStopCallback:
     """Build the shared eval-collapse backstop from curriculum settings.
 
     See :func:`collapse_settings_from_config` for how the settings resolve, in
     particular why ``collapse_peak_floor`` does not inherit ``min_avg_reward``.
+
+    ``total_timesteps`` is the cumulative step count the session actually
+    trains to; the warm-up sanity log below compares against it rather than
+    the TOML budget, which a ``--timesteps`` override or a shortened resume
+    makes wrong (review TC9).  ``None`` falls back to the TOML value.
     """
     settings = collapse_settings_from_config(curriculum_kwargs)
 
@@ -367,7 +373,7 @@ def build_eval_collapse_early_stop_callback(
     # nothing says why. It is a plausible typo (an extra zero) on a key whose
     # value is a step count in the millions, so say so rather than leave the
     # protection quietly switched off.
-    budget = curriculum_kwargs.get("timesteps")
+    budget = curriculum_kwargs.get("timesteps") if total_timesteps is None else total_timesteps
     if warmup > 0.0 and budget is not None and warmup >= float(budget):
         logger.warning(
             "EvalCollapseEarlyStop: collapse_peak_warmup_timesteps=%.0f is at or beyond this "

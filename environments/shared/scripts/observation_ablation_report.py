@@ -42,8 +42,11 @@ Usage::
     python environments/shared/scripts/observation_ablation_report.py trex 1 \\
         --model /path/to/run/stage1/models/robust_best_model.zip
 
-    # VecNormalize sidecar is found automatically when it sits next to the
-    # model as ``*_vecnorm.pkl``; pass --vecnorm to override.
+    # The VecNormalize sidecar is found automatically under either naming
+    # convention (curated ``<stem>_vecnorm.pkl`` or SB3's periodic
+    # ``<prefix>_vecnormalize_<steps>_steps.pkl``); pass --vecnorm to
+    # override.  A checkpoint with no sidecar is fatal unless
+    # --allow-unnormalized is given.
 """
 
 import argparse
@@ -82,6 +85,34 @@ SLICES: dict[str, dict[str, tuple[int, int, int | None]]] = {
 # Slices the simulator can supply but a physical robot could not, per species.
 # "privileged" ablates all of them at once.
 PRIVILEGED_SLICES = {"trex": ("root_linvel", "target_dir", "target_dist")}
+UNNORMALIZED_BANNER = "UNNORMALIZED EVAL — results are not comparable to training-time metrics"
+
+
+def resolve_vecnorm_path(model_path: str, vecnorm_arg: str | None, allow_unnormalized: bool) -> str | None:
+    """The VecNormalize sidecar to evaluate with, or ``None`` for a deliberately unnormalised run.
+
+    An explicit ``--vecnorm`` wins.  Otherwise the trainer's own resolver
+    probes both sidecar conventions -- the ``<stem>_vecnorm.pkl`` guess this
+    script used to make can never match SB3's periodic
+    ``<prefix>_vecnormalize_<steps>_steps.pkl``, so every periodic checkpoint
+    was silently scored on raw observations.  No sidecar is fatal unless
+    ``--allow-unnormalized``: the ``mean`` intervention is defined in
+    normalised space, so without statistics every delta below is meaningless.
+    """
+    if vecnorm_arg is not None:
+        return vecnorm_arg
+    from environments.shared.train_base import _resolve_vecnorm_sidecar
+
+    candidate = _resolve_vecnorm_sidecar(model_path)
+    if Path(candidate).exists():
+        return candidate
+    if allow_unnormalized:
+        return None
+    raise SystemExit(
+        f"no VecNormalize sidecar found for {model_path} (probed {candidate}). A policy evaluated on "
+        "unnormalised observations is a different policy; pass --vecnorm, or --allow-unnormalized "
+        "to proceed deliberately."
+    )
 
 
 def stage_env_section(species: str, stage: int) -> dict:
@@ -197,6 +228,11 @@ def main(argv: list[str]) -> None:
     parser.add_argument("stage", type=int, choices=(1, 2, 3))
     parser.add_argument("--model", required=True, help="SB3 .zip policy")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
+    parser.add_argument(
+        "--allow-unnormalized",
+        action="store_true",
+        help="proceed without a VecNormalize sidecar (the report then scores a different policy)",
+    )
     parser.add_argument("--episodes", type=int, default=30)
     parser.add_argument("--seed", type=int, default=3042, help="first evaluation seed (publication protocol)")
     parser.add_argument(
@@ -216,10 +252,7 @@ def main(argv: list[str]) -> None:
     env = build_env(args.species, args.stage)
     model = PPO.load(args.model, device="cpu")
 
-    vecnorm_path = args.vecnorm
-    if vecnorm_path is None:
-        guess = Path(args.model).with_name(Path(args.model).stem + "_vecnorm.pkl")
-        vecnorm_path = str(guess) if guess.exists() else None
+    vecnorm_path = resolve_vecnorm_path(args.model, args.vecnorm, args.allow_unnormalized)
     normalizer = None
     if vecnorm_path:
         normalizer = VecNormalize.load(vecnorm_path, DummyVecEnv([lambda: build_env(args.species, args.stage)]))
@@ -228,7 +261,7 @@ def main(argv: list[str]) -> None:
 
     print(f"\n{args.species} stage {args.stage}: {Path(args.model).name}")
     print(f"{args.episodes} episodes, seeds {args.seed}..{args.seed + args.episodes - 1}, deterministic")
-    print(f"VecNormalize: {'loaded' if normalizer is not None else 'NONE — results are meaningless'}\n")
+    print(f"VecNormalize: {'loaded' if normalizer is not None else 'NONE — ' + UNNORMALIZED_BANNER}\n")
 
     results = []
     for condition in build_conditions(args.species, args.slices):
