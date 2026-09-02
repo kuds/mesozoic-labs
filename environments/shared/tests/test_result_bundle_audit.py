@@ -30,6 +30,7 @@ from .result_bundle_helpers import (
     _complete_bundle,
     _complete_bundle_inputs,
     _plant_identity,
+    _rewrite_csv_column,
     _snapshot_files,
     _stage_config,
     _stage_result,
@@ -535,56 +536,239 @@ def test_inconsistent_load_lineage_fails_before_a_complete_manifest_is_written(
     assert not (run_dir / "artifact_manifest.json").exists()
 
 
-def test_failed_final_validation_writes_no_complete_manifest(
+@pytest.mark.parametrize(
+    "recorded_as", ["stage1/models/best_model", "stage1/models/best_model.zip"], ids=["stem", "zip"]
+)
+def test_a_stem_recorded_parent_is_bound_to_the_zip_the_manifest_hashes(
     tmp_path: Path,
     stable_provenance: None,
+    recorded_as: str,
 ) -> None:
-    """The completion marker is written only after the bundle has passed.
+    """train_curriculum and the notebook hand SB3 a stem; SB3 loads ``<stem>.zip``.
 
-    A dot-file is unlisted by the writer and rejected by verification, so it
-    fails the save's final validation the way any post-hash surprise would.
-    The marker used to be on disk by then, wedging every retry at the
-    re-entry gate; now nothing is marked complete and the retry publishes.
+    The manifest only ever hashes the ``.zip``, so a stem-recorded parent used
+    to resolve to no manifest key and the parent-hash cross-check never fired
+    for any real SB3 producer.  Both spellings must bind to the ``.zip``, and
+    a disagreeing hash must fail the save.
     """
     run_dir = tmp_path / "run"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
-    stray = run_dir / ".DS_Store"
-    stray.write_bytes(b"\x00")
+    parent = run_dir / "stage1" / "models" / "best_model.zip"
+    parent.write_bytes(b"the checkpoint SB3 actually loaded")
+    lineage = {"load_path": recorded_as, "load_mode": "initialize_next_stage"}
+    _write_run_block(run_dir, 2, {"seed": 42, "n_envs": 4, **lineage, "parent_checkpoint_sha256": "sha256:" + "f" * 64})
 
-    with pytest.raises(ResultBundleError, match=r"undeclared bundle artifacts: \['\.DS_Store'\]"):
+    with pytest.raises(
+        ResultBundleError,
+        match=r"stage 2 records parent_checkpoint_sha256 sha256:f{64} for stage1/models/best_model\.zip, "
+        r"but the manifest hashes that artifact as",
+    ):
         _save_bundle(run_dir, stage_results, stage_configs)
     assert not (run_dir / "artifact_manifest.json").exists()
 
+    _write_run_block(run_dir, 2, {"seed": 42, "n_envs": 4, **lineage, "parent_checkpoint_sha256": sha256_file(parent)})
+    _save_bundle(run_dir, stage_results, stage_configs)
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid"
+    assert report["errors"] == []
+    assert report["lineage"]["2"]["load_path"] == recorded_as
+
+
+def test_failed_final_validation_writes_no_complete_manifest(
+    tmp_path: Path,
+    stable_provenance: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The completion marker is written only after the bundle has passed.
+
+    A file landing between the manifest walk and the final validation — a
+    zombie session's late write, injected here by wrapping the walk — fails
+    the save's final validation the way any post-hash surprise would.  The
+    marker used to be on disk by then, wedging every retry at the re-entry
+    gate; now nothing is marked complete and the retry publishes.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    stray = run_dir / "stage3" / "models" / "late_write.pkl"
+    real_build = result_bundle.build_artifact_manifest
+
+    def build_then_land_a_late_write(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        manifest = real_build(*args, **kwargs)
+        stray.write_bytes(b"landed after the manifest walk")
+        return manifest
+
+    monkeypatch.setattr(result_bundle, "build_artifact_manifest", build_then_land_a_late_write)
+    with pytest.raises(ResultBundleError, match=r"undeclared bundle artifacts: \['stage3/models/late_write\.pkl'\]"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+    assert not (run_dir / "artifact_manifest.json").exists()
+
+    monkeypatch.setattr(result_bundle, "build_artifact_manifest", real_build)
     stray.unlink()
     paths = _save_bundle(run_dir, stage_results, stage_configs)
     assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "complete"
     assert validate_result_bundle(run_dir)["status"] == "canonical-valid"
 
 
-def test_a_wedged_complete_bundle_is_downgraded_and_rebuilt(
+def test_a_wedged_complete_bundle_is_rebuilt_over_its_stale_marker(
     tmp_path: Path,
     stable_provenance: None,
     caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A complete marker that no longer verifies is healed, not fatal.
+    """A complete marker that no longer verifies on a REGENERATED artifact is healed.
 
-    Older saves wrote the marker before their final validation; a hashed file
-    changing afterwards left the run permanently unpromotable except by
-    manual deletion of artifact_manifest.json.  Re-entry now downgrades the
-    marker with a logged reason and takes the rebuild path.
+    Older saves wrote the marker before their final validation; a derived
+    file damaged afterwards left the run permanently unpromotable except by
+    manual deletion of artifact_manifest.json.  Re-entry rebuilds with a
+    logged reason.  The stale marker is neither downgraded nor unlinked on
+    the way: it is still the untouched original when the rewrite begins, and
+    only the validated replacement overwrites it.
     """
     run_dir = tmp_path / "run"
     paths, stage_results, stage_configs = _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
     pristine = _snapshot_files(run_dir)
+    stale_marker = paths["artifact_manifest"].read_bytes()
     paths["collected_results_csv"].write_bytes(b"corrupted after completion\n")
     assert audit_result_bundle(run_dir)["status"] == "canonical-conflict"
 
+    markers_at_first_write: list[bytes] = []
+    real_update_provenance = result_bundle.update_provenance
+
+    def update_provenance_recording_the_marker(*args: Any, **kwargs: Any) -> Path:
+        markers_at_first_write.append(paths["artifact_manifest"].read_bytes())
+        return real_update_provenance(*args, **kwargs)
+
+    monkeypatch.setattr(result_bundle, "update_provenance", update_provenance_recording_the_marker)
     with caplog.at_level(logging.WARNING, logger="environments.shared.reporting.bundles"):
         rebuilt = _save_bundle(run_dir, stage_results, stage_configs)
 
-    assert any("downgrading it to partial and rebuilding" in record.getMessage() for record in caplog.records)
+    assert any(
+        "only regenerated artifacts disagree with it (['collected_results.csv'])" in record.getMessage()
+        for record in caplog.records
+    )
+    assert markers_at_first_write == [stale_marker]
     assert json.loads(rebuilt["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "complete"
     assert validate_result_bundle(run_dir)["status"] == "canonical-valid"
+    assert _snapshot_files(run_dir) == pristine
+
+
+def _edited(run_dir: Path, artifact: str) -> bytes:
+    """Replacement bytes for *artifact* that keep the save's own parsing happy."""
+    path = run_dir / artifact
+    if artifact.endswith(".json") and path.exists():
+        value = json.loads(path.read_text(encoding="utf-8"))
+        value["description"] = "edited after publication"
+        return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    return b"rewritten after publication"
+
+
+@pytest.mark.parametrize(
+    ("artifact", "pre_column_evidence"),
+    [
+        pytest.param("stage3/models/best_model_vecnorm.pkl", False, id="zombie-sidecar"),
+        pytest.param("stage3/models/best_model.pkl", True, id="zombie-model-pre-column-evidence"),
+        pytest.param("stage1/models/stage1_200000_steps.zip", False, id="checkpoint-added-after-publication"),
+        pytest.param("stage2/evaluation_selected.csv", False, id="evidence"),
+        pytest.param("stage2/stage_config.json", False, id="stage-config"),
+    ],
+)
+def test_a_certified_artifact_changed_after_publication_is_never_recertified(
+    tmp_path: Path,
+    stable_provenance: None,
+    artifact: str,
+    pre_column_evidence: bool,
+) -> None:
+    """Re-entry rebuilds over a stale marker only when nothing certified changed.
+
+    A zombie session rewriting the selected VecNormalize sidecar — or, for a
+    bundle whose evidence predates the checkpoint_sha256 column, the model
+    itself — used to be downgraded, rebuilt from the bytes now on disk and
+    silently re-certified complete under new hashes.  The original
+    verification error is raised instead, naming the changed file, and the
+    bundle (its complete marker included) is left exactly as found.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    if pre_column_evidence:
+        for stage in (1, 2, 3):
+            for label in ("selected", "final"):
+                for column in ("checkpoint_sha256", "normalization_sha256"):
+                    _rewrite_csv_column(run_dir / f"stage{stage}" / f"evaluation_{label}.csv", field=column, value=None)
+    _save_bundle(run_dir, stage_results, stage_configs)
+    pristine = _snapshot_files(run_dir)
+    replacement = _edited(run_dir, artifact)
+    (run_dir / artifact).write_bytes(replacement)
+
+    with pytest.raises(ResultBundleError) as excinfo:
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+    assert f"certified artifact(s) changed after publication: ['{artifact}']" in str(excinfo.value)
+    assert "mismatch" in str(excinfo.value) or "undeclared" in str(excinfo.value)
+    assert _snapshot_files(run_dir) == {**pristine, Path(artifact): replacement}
+    assert json.loads((run_dir / "artifact_manifest.json").read_text(encoding="utf-8"))["status"] == "complete"
+
+
+def _write_stage_curriculum_budget(run_dir: Path, stage: int, timesteps: int) -> None:
+    config_path = run_dir / f"stage{stage}" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["curriculum_kwargs"]["timesteps"] = timesteps
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _certify_a_stale_checkpoint(run_dir: Path) -> str:
+    (run_dir / "stage1" / "models" / "stage1_500000_steps.zip").write_bytes(b"from a longer prior session")
+    return "beyond its curriculum budget of 100,000"
+
+
+def _certify_an_inconsistent_lineage(run_dir: Path) -> str:
+    _write_run_block(
+        run_dir,
+        2,
+        {
+            "seed": 42,
+            "n_envs": 4,
+            "load_path": "stage1/models/best_model.pkl",
+            "load_mode": "initialize_next_stage",
+            "parent_checkpoint_sha256": "sha256:" + "f" * 64,
+        },
+    )
+    return "but the manifest hashes that artifact as"
+
+
+@pytest.mark.parametrize(
+    "certify_under_the_old_rules",
+    [_certify_a_stale_checkpoint, _certify_an_inconsistent_lineage],
+    ids=["over-budget-checkpoint", "inconsistent-lineage"],
+)
+def test_a_complete_bundle_the_new_audit_rejects_is_left_byte_identical(
+    tmp_path: Path,
+    stable_provenance: None,
+    certify_under_the_old_rules: Any,
+) -> None:
+    """Preflight everything before touching a bundle that was complete under an older auditor.
+
+    The old marker verified its files; only a rule the auditor has since
+    grown rejects the bundle.  Re-entry used to write status=partial to disk
+    and append a session to provenance BEFORE the preflight found the new
+    rule violated, leaving the bundle permanently worse than it found it —
+    partial, and drifting from its own manifest and summary.  Now the failed
+    re-entry raises the rule's error and leaves every byte as it was.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _write_stage_curriculum_budget(run_dir, 1, 100_000)
+    _save_bundle(run_dir, stage_results, stage_configs)
+    expected_error = certify_under_the_old_rules(run_dir)
+    write_artifact_manifest(run_dir, status="complete")
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-conflict"
+    assert any(expected_error in error for error in report["errors"])
+    pristine = _snapshot_files(run_dir)
+
+    with pytest.raises(ResultBundleError, match=expected_error):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
     assert _snapshot_files(run_dir) == pristine
 
 

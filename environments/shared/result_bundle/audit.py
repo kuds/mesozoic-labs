@@ -31,6 +31,29 @@ from .provenance import load_provenance
 _LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_task_sha256", "parent_checkpoint_sha256")
 
 
+def _lineage_parent_keys(load_path: str, run_path: Path) -> list[str]:
+    """Manifest keys a recorded parent may live under, in lookup order.
+
+    The path as recorded first, then the ``.zip`` SB3 appends to a stem: the
+    manifest only ever hashes the ``.zip``, so a producer that recorded the
+    stem it handed SB3 (rather than the file it hashed) must still bind to it.
+    Empty for a parent outside the bundle — a Drive path from a previous run
+    is not checkable here.
+    """
+    run_root = run_path.resolve()
+    candidates = [load_path] if load_path.endswith(".zip") else [load_path, load_path + ".zip"]
+    keys: list[str] = []
+    for candidate in candidates:
+        path = Path(candidate)
+        if not path.is_absolute():
+            path = run_root / path
+        try:
+            keys.append(path.resolve().relative_to(run_root).as_posix())
+        except ValueError:
+            continue
+    return keys
+
+
 def _audit_load_lineage(
     run_block: Mapping[str, Any],
     *,
@@ -59,14 +82,8 @@ def _audit_load_lineage(
         # A parent that lives in this bundle is hashed by the manifest; the
         # recorded lineage must agree with it.  A parent elsewhere (a Drive
         # path from a previous run) is not checkable here.
-        candidate = Path(load_path)
-        if not candidate.is_absolute():
-            candidate = run_path / candidate
-        try:
-            parent_key = candidate.resolve().relative_to(run_path).as_posix()
-        except ValueError:
-            parent_key = None
-        if parent_key is not None and parent_key in declared_hashes and declared_hashes[parent_key] != parent_hash:
+        parent_key = next((key for key in _lineage_parent_keys(load_path, run_path) if key in declared_hashes), None)
+        if parent_key is not None and declared_hashes[parent_key] != parent_hash:
             problems.append(
                 f"stage {stage} records parent_checkpoint_sha256 {parent_hash} for {parent_key}, "
                 f"but the manifest hashes that artifact as {declared_hashes[parent_key]}"

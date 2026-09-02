@@ -3,6 +3,7 @@
 import csv
 import json
 import logging
+import re
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -774,13 +775,31 @@ class TestSaveStageConfigLoadLineage:
         assert run["parent_checkpoint_sha256"] == sha256_file(parent)
         assert run["parent_task_sha256"] == digest
 
-    def test_stem_load_path_is_recorded_as_given_and_hashes_the_zip(self, tmp_path):
+    def test_stem_load_path_is_recorded_as_the_zip_it_hashes(self, tmp_path):
+        """SB3 loads ``<stem>.zip``; the manifest hashes the ``.zip``.
+
+        A stem recorded as given never matched a manifest key, so the audit's
+        parent-hash cross-check never fired for any real SB3 producer
+        (train_curriculum and the notebook both hand SB3 a stem).
+        """
         from environments.shared.result_bundle import sha256_file
 
         parent = _sb3_style_zip(tmp_path / "stage1_final.zip", {})
         run = self._run_block(tmp_path, load_path=str(tmp_path / "stage1_final"), load_mode="resume_same_stage")
-        assert run["load_path"] == str(tmp_path / "stage1_final")
+        assert run["load_path"] == str(parent)
         assert run["parent_checkpoint_sha256"] == sha256_file(parent)
+
+    def test_a_relative_stem_stays_relative(self, tmp_path, monkeypatch):
+        (tmp_path / "stage1" / "models").mkdir(parents=True)
+        _sb3_style_zip(tmp_path / "stage1" / "models" / "best_model.zip", {})
+        monkeypatch.chdir(tmp_path)
+        run = self._run_block(tmp_path, load_path="stage1/models/best_model", load_mode="initialize_next_stage")
+        assert run["load_path"] == "stage1/models/best_model.zip"
+
+    def test_an_explicit_zip_path_is_recorded_verbatim(self, tmp_path):
+        parent = _sb3_style_zip(tmp_path / "best_model.zip", {})
+        run = self._run_block(tmp_path, load_path=str(parent), load_mode="resume_same_stage")
+        assert run["load_path"] == str(parent)
 
     def test_unfingerprinted_parent_omits_the_task_digest(self, tmp_path):
         parent = _sb3_style_zip(tmp_path / "old.zip", {"n_steps": 2048})
@@ -814,3 +833,32 @@ class TestSaveStageConfigLoadLineage:
         # Inferred AFTER the save, the recorded mode would be null for every
         # per-stage cell (they leave task_load_mode=None to be inferred).
         assert cell.index("if task_load_mode is None:") < save_call
+
+    def test_the_notebook_binds_evidence_to_the_vecnormalize_it_ran_under(self):
+        """Every evidence write names the sidecar ``_eval_forward_vel`` evaluated with.
+
+        The binding used to cover the model file only, so a sidecar write
+        landing between evaluation and bundle save was hashed into
+        provenance unbound: final and fallback evaluate under the final
+        model's statistics, the selected checkpoint under its matched ones.
+        """
+        repo_root = Path(__file__).resolve().parents[3]
+        notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
+        cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
+        cell = next(c for c in cells if "def train_stage(" in c)
+        bindings = []
+        for match in re.finditer(r"_lib_save_evaluation_episodes\(", cell):
+            call_text = cell[match.start() : cell.index(")", match.start())]
+            label = re.search(r'checkpoint_label="(\w+)"', call_text)
+            checkpoint = re.search(r"checkpoint_path=(.+),", call_text)
+            normalization = re.search(r"normalization_path=(\w+),", call_text)
+            assert label and checkpoint and normalization, call_text
+            bindings.append((label[1], checkpoint[1], normalization[1]))
+        assert bindings == [
+            ("final", 'f"{final_path}.zip"', "final_vecnorm_path"),
+            ("selected", "best_model_zip", "vecnorm_save_path"),
+            ("selected", 'f"{final_path}.zip"', "final_vecnorm_path"),
+        ]
+        # The sidecars named are the ones the rollouts were run with.
+        assert "_eval_forward_vel(\n        model,\n        stage,\n        final_vecnorm_path," in cell
+        assert "_eval_forward_vel(\n            model,\n            stage,\n            vecnorm_save_path," in cell

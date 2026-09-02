@@ -8,14 +8,29 @@ from __future__ import annotations
 
 import json as _json
 import logging
+import tempfile
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..result_bundle.constants import DEFAULT_PROVENANCE_NAME
 from ..stage_manifest import find_stage_dir
 from . import csv_output, summaries
 from .formatting import parse_optional_bool
 
 logger = logging.getLogger(__name__)
+
+#: The artifacts :func:`save_result_bundle` itself regenerates on every call —
+#: exactly the files its write phase produces.  On re-entry over a complete
+#: manifest that no longer verifies, these are the only files allowed to
+#: disagree with it: they are rebuilt from the in-memory results, so a
+#: disagreement there loses nothing certified.  A disagreement on anything
+#: else — checkpoints and sidecars under ``models/``, evaluation evidence,
+#: stage configs, diagnostics, gate files, task fingerprints, a file that
+#: appeared after publication — is a change to a certified artifact, and a
+#: rebuild would re-certify it under new hashes.
+_REGENERATED_ARTIFACTS = frozenset(
+    {DEFAULT_PROVENANCE_NAME, "plant_identity.json", "collected_results.csv", "summary.json"}
+)
 
 
 def _resolve_model_artifact(model_path: Any, *, run_dir: Path) -> Path | None:
@@ -72,11 +87,13 @@ def save_result_bundle(
         hashing,
         initialize_result_bundle,
         load_provenance,
+        manifest_disagreements,
         sha256_file,
         update_provenance,
         validate_evaluation_evidence,
         validate_result_bundle,
     )
+    from ..result_bundle.audit import _audit_load_lineage, _lineage_parent_keys
     from ..result_schema import validate_result_summary
     from ..stage_manifest import StageManifestError, load_stage_manifest
     from .summaries import _stage_reference
@@ -186,6 +203,7 @@ def save_result_bundle(
     if missing_configs:
         raise ResultBundleError(f"result bundle is missing resolved stage configs: {missing_configs}")
     resolved_stage_configs: dict[Any, dict[str, Any]] = {}
+    run_blocks: dict[Any, Any] = {}
     for (entry, _), config_path in zip(keyed_results, config_paths, strict=True):
         stage = entry.reference
         try:
@@ -242,6 +260,7 @@ def save_result_bundle(
             if public_backend == "jax-mjx"
             else ("sac_kwargs" if public_algorithm == "SAC" else "ppo_kwargs")
         )
+        run_blocks[stage] = saved_config.get("run")
         resolved_stage_configs[stage] = {
             "name": str(saved_config.get("name") or f"Stage {stage}"),
             "description": str(saved_config.get("description") or f"Curriculum stage {stage}"),
@@ -310,6 +329,12 @@ def save_result_bundle(
 
     previous_manifest_status: str | None = None
     previous_manifest_value: Any = None
+    # A complete marker that still verifies makes this call a read-only
+    # re-export (identical results return early below; different results
+    # are refused).  One that no longer verifies is neither downgraded nor
+    # unlinked here: nothing on disk changes until the rebuild has passed
+    # every check the final validation will apply.
+    previous_manifest_verified = False
     if previous_manifest.exists():
         try:
             previous_manifest_value = _json.loads(previous_manifest.read_text(encoding="utf-8"))
@@ -320,19 +345,33 @@ def save_result_bundle(
         if previous_manifest_status == "complete":
             try:
                 validate_result_bundle(run_path, require_complete=True)
+                previous_manifest_verified = True
             except ResultBundleError as exc:
-                # A complete marker that no longer verifies certifies nothing
-                # (older saves wrote it before their final validation, and a
-                # hashed file may have changed since).  Raising here would
-                # wedge the run forever; downgrade the marker and rebuild.
+                # A complete marker that no longer verifies may be rebuilt
+                # over ONLY when every file it disagrees with is one this
+                # function regenerates anyway (older saves wrote the marker
+                # before their final validation, and a derived artifact may
+                # have been damaged since; or the audit itself has grown a
+                # rule, which the preflight below re-applies).  A certified
+                # artifact that changed after publication is exactly what
+                # the marker exists to catch: rebuilding would re-certify it
+                # under new hashes, so that fails as loudly as the marker's
+                # own verification does.
+                disagreements = manifest_disagreements(run_path, previous_manifest_value)
+                changed = sorted(set(disagreements) - _REGENERATED_ARTIFACTS)
+                if changed:
+                    raise ResultBundleError(
+                        "completed result bundle is immutable, but certified artifact(s) changed after "
+                        f"publication: {changed}; {exc}"
+                    ) from exc
                 logger.warning(
-                    "existing complete artifact manifest in %s no longer verifies (%s); "
-                    "downgrading it to partial and rebuilding the bundle",
+                    "existing complete artifact manifest in %s no longer verifies (%s); only regenerated "
+                    "artifacts disagree with it (%s), so the bundle is rebuilt over it once the rebuild has "
+                    "passed every check",
                     run_path,
                     exc,
+                    disagreements or "none",
                 )
-                hashing._write_json(previous_manifest, {**previous_manifest_value, "status": "partial"})
-                previous_manifest_status = "partial"
 
     # From here on, stage results travel in manifest position order so the
     # CSV rows (and any other order-sensitive artifact) come out identical
@@ -389,7 +428,29 @@ def save_result_bundle(
             result_path=str(summary_path),
         )
         validate_evaluation_evidence(run_path, prospective_summary, finalized_provenance)
-        if previous_manifest_status == "complete":
+        # The audit's one remaining rule that nothing above has applied: a
+        # recorded load lineage must agree with the hash of the parent it
+        # names when that parent lives in this bundle.  Hashed from disk
+        # here, which is what the manifest below will declare.
+        for stage, run_block in run_blocks.items():
+            if not isinstance(run_block, Mapping):
+                continue
+            parent_hashes: dict[str, str] = {}
+            load_path = run_block.get("load_path")
+            if isinstance(load_path, str) and load_path.strip():
+                for parent_key in _lineage_parent_keys(load_path, run_path):
+                    parent = run_path / parent_key
+                    if parent.is_file():
+                        parent_hashes[parent_key] = sha256_file(parent)
+            _, lineage_problems = _audit_load_lineage(
+                run_block,
+                stage=stage,
+                run_path=run_path.resolve(),
+                declared_hashes=parent_hashes,
+            )
+            if lineage_problems:
+                raise ResultBundleError("; ".join(lineage_problems))
+        if previous_manifest_verified:
             existing_summary = _json.loads(summary_path.read_text(encoding="utf-8"))
             if existing_summary != prospective_summary:
                 raise ResultBundleError("completed result bundle is immutable; use a new run_id for different results")
@@ -400,22 +461,32 @@ def save_result_bundle(
                 "artifact_manifest": previous_manifest,
             }
 
-    # Exercise CSV construction before removing the previous completion marker.
-    csv_output.build_results_csv_rows(
-        ordered_stage_results,
-        resolved_stage_configs,
-        species,
-        algorithm,
-        seed,
-        backend=public_backend,
-        run_id=str(captured["run_id"]),
-        provenance=finalized_provenance,
-    )
+    # Exercise the CSV — and, for a publishable bundle, its agreement with the
+    # prospective summary — in scratch, so the run directory is untouched
+    # until every check the final validation applies has passed.
+    with tempfile.TemporaryDirectory(prefix="result-bundle-preflight-") as scratch:
+        prospective_csv = csv_output.save_results_csv(
+            ordered_stage_results,
+            resolved_stage_configs,
+            species,
+            algorithm,
+            seed,
+            scratch,
+            backend=public_backend,
+            run_id=str(captured["run_id"]),
+            provenance=finalized_provenance,
+        )
+        if prospective_summary is not None:
+            contradictions = compare_summary_to_csv(prospective_summary, prospective_csv)
+            if contradictions:
+                raise ResultBundleError("summary/CSV contradictions: " + "; ".join(contradictions))
 
-    # All semantic validation is complete. Remove the old marker immediately
-    # before changing derived artifacts, then write the new marker last.
-    if previous_manifest.exists():
-        previous_manifest.unlink()
+    # All semantic validation is complete.  The derived artifacts are
+    # rewritten in place; the previous marker — complete or not — is never
+    # unlinked, only overwritten atomically by the validated replacement at
+    # the end, so no reader ever finds the bundle marker-less, and a rewrite
+    # interrupted here leaves a marker that disagrees only on regenerated
+    # artifacts (which the next re-entry is allowed to rebuild over).
     update_provenance(run_path, **finalization)
     captured = load_provenance(run_path)
     hashing._write_json(run_path / "plant_identity.json", normalized_plant)
@@ -445,7 +516,8 @@ def save_result_bundle(
         paths["summary"] = summary_path
 
     # Validate against the manifest before it exists on disk: a completion
-    # marker is only ever written for a bundle that has already passed.
+    # marker is only ever written for a bundle that has already passed, and
+    # the previous marker is replaced only by one that has.
     manifest = build_artifact_manifest(run_path, status=status)
     validate_result_bundle(run_path, require_complete=promotion_ready, prospective_manifest=manifest)
     paths["artifact_manifest"] = hashing._write_json(previous_manifest, manifest)

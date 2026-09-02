@@ -21,6 +21,10 @@ from .errors import ResultBundleError
 _logger = logging.getLogger(__name__)
 
 _SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+#: Digest columns evaluation evidence may carry, each mapped to the noun its
+#: "mixes ..." error uses: the checkpoint the episodes were rolled out from,
+#: and (SB3 only) the VecNormalize statistics they ran under.
+_EVIDENCE_HASH_COLUMNS = {"checkpoint_sha256": "checkpoint hashes", "normalization_sha256": "normalization hashes"}
 #: SB3's periodic checkpoints and their sidecars:
 #: ``{prefix}_{steps}_steps.zip``, ``{prefix}_vecnormalize_{steps}_steps.pkl``,
 #: ``{prefix}_replay_buffer_{steps}_steps.pkl`` (``CheckpointCallback``;
@@ -166,9 +170,10 @@ def _evaluation_evidence_aggregates(
 ) -> dict[str, Any]:
     """Parse one fixed-seed episode file and return publication aggregates.
 
-    Every value is a float except ``checkpoint_sha256``: the digest of the
-    checkpoint the episodes were rolled out from, or ``None`` for evidence
-    written before the column existed.
+    Every value is a float except the :data:`_EVIDENCE_HASH_COLUMNS`: the
+    digest of the checkpoint the episodes were rolled out from and of the
+    VecNormalize statistics they ran under, each ``None`` for evidence written
+    without that column (before it existed, or by the sidecar-less JAX path).
     """
     required_columns = {
         "episode",
@@ -209,7 +214,7 @@ def _evaluation_evidence_aggregates(
     distances: list[float] = []
     successes: list[float] = []
     recorded_seed: int | None = None
-    recorded_checkpoint_hash: str | None = None
+    recorded_hashes: dict[str, str | None] = dict.fromkeys(_EVIDENCE_HASH_COLUMNS)
     for expected_episode, row in enumerate(rows, start=1):
         try:
             episode = int(row.get("episode", ""))
@@ -235,16 +240,16 @@ def _evaluation_evidence_aggregates(
             raise ResultBundleError(
                 f"{checkpoint_label} evaluation evidence for stage {stage} has the wrong checkpoint label"
             )
-        checkpoint_hash = (row.get("checkpoint_sha256") or "").strip() or None
-        if checkpoint_hash is not None and _SHA256_DIGEST.fullmatch(checkpoint_hash) is None:
-            raise ResultBundleError(
-                f"{checkpoint_label} evaluation evidence for stage {stage} records a malformed "
-                f"checkpoint_sha256: {checkpoint_hash!r}"
-            )
-        if expected_episode == 1:
-            recorded_checkpoint_hash = checkpoint_hash
-        elif checkpoint_hash != recorded_checkpoint_hash:
-            raise ResultBundleError(f"{checkpoint_label} evaluation evidence for stage {stage} mixes checkpoint hashes")
+        for column, plural in _EVIDENCE_HASH_COLUMNS.items():
+            digest = (row.get(column) or "").strip() or None
+            if digest is not None and _SHA256_DIGEST.fullmatch(digest) is None:
+                raise ResultBundleError(
+                    f"{checkpoint_label} evaluation evidence for stage {stage} records a malformed {column}: {digest!r}"
+                )
+            if expected_episode == 1:
+                recorded_hashes[column] = digest
+            elif digest != recorded_hashes[column]:
+                raise ResultBundleError(f"{checkpoint_label} evaluation evidence for stage {stage} mixes {plural}")
         if length <= 0:
             raise ResultBundleError(f"{checkpoint_label} evaluation episode length for stage {stage} must be positive")
         reward = _optional_csv_number(row.get("reward"))
@@ -269,7 +274,7 @@ def _evaluation_evidence_aggregates(
     assert recorded_seed is not None
     return {
         "evaluation_seed": float(recorded_seed),
-        "checkpoint_sha256": recorded_checkpoint_hash,
+        **recorded_hashes,
         "reward": _mean(rewards),
         "reward_std": _population_std(rewards),
         "episode_length": _mean(lengths),
@@ -303,9 +308,13 @@ def _check_stage_training_record(
     A resumed short-budget run is legitimate, so trailing the
     ``curriculum.timesteps`` budget (or the invocation's ``run.timesteps``)
     only warns — but it must be visible.  A periodic checkpoint numbered
-    beyond the stage's claimed timesteps is not legitimate: it is a stale
-    artifact from a longer run sitting inside a bundle that claims fewer
-    steps, so it fails.
+    beyond the stage's claimed timesteps but within its curriculum budget
+    also only warns: it may be a stale artifact of a longer prior session,
+    or the legitimate trace of a rollback-resume (the operator resumed from
+    an earlier checkpoint after a collapse and retention kept the highest
+    pre-rollback one), and the two are indistinguishable here.  A checkpoint
+    numbered beyond the curriculum budget cannot belong to this stage's
+    training at all, so it fails.
     """
     trained = stage_summary.get("timesteps")
     if isinstance(trained, bool) or not isinstance(trained, int):
@@ -325,16 +334,31 @@ def _check_stage_training_record(
     shortfalls = [f"{label} budget of {budget:,}" for label, budget in budgets.items() if trained < budget]
     if shortfalls:
         warnings.append(f"stage {stage} trained {trained:,} timesteps, short of its {' and '.join(shortfalls)}")
+    curriculum_budget = budgets.get("curriculum")
     for path in sorted(stage_dir.rglob("*_steps.*")):
         match = _PERIODIC_CHECKPOINT_NAME.fullmatch(path.name)
         if match is None or not path.is_file():
             continue
         steps = int(match["steps"])
-        if steps > trained:
+        if steps <= trained:
+            continue
+        name = path.relative_to(stage_dir).as_posix()
+        if curriculum_budget is not None and steps > curriculum_budget:
             raise ResultBundleError(
-                f"stage {stage} periodic checkpoint {path.relative_to(stage_dir).as_posix()} records "
-                f"{steps:,} steps, beyond the {trained:,} timesteps the summary claims for the stage"
+                f"stage {stage} periodic checkpoint {name} records {steps:,} steps, beyond the {trained:,} "
+                f"timesteps the summary claims for the stage and beyond its curriculum budget of "
+                f"{curriculum_budget:,}, so it cannot belong to this stage's training"
             )
+        bound = (
+            f"within its curriculum budget of {curriculum_budget:,}"
+            if curriculum_budget is not None
+            else "with no curriculum budget recorded to bound it"
+        )
+        warnings.append(
+            f"stage {stage} periodic checkpoint {name} records {steps:,} steps, beyond the {trained:,} timesteps "
+            f"the summary claims for the stage but {bound}: this may be a rollback-resume (retention keeps the "
+            "highest pre-rollback checkpoint) or a stale prior session"
+        )
 
 
 def _compare_evaluation_aggregates(
@@ -586,6 +610,25 @@ def validate_evaluation_evidence(
                 f"stage {stage} selected evaluation evidence was produced by checkpoint {recorded_hash}, "
                 f"not the certified selected checkpoint {certified_hash}"
             )
+        # The same binding for the VecNormalize statistics the rollout ran
+        # under: an SB3 checkpoint is the pair, and a sidecar rewritten
+        # between evaluation and save would otherwise be hashed into
+        # provenance unbound.  JAX certifies no sidecar, so there is nothing
+        # to bind and nothing to warn about.
+        certified_normalization = certified.get("normalization_hash") if isinstance(certified, Mapping) else None
+        recorded_normalization = selected_aggregates["normalization_sha256"]
+        if certified_normalization is not None:
+            if recorded_normalization is None:
+                sink.append(
+                    f"stage {stage} selected evaluation evidence records no normalization_sha256 (written before "
+                    "the column existed), so the VecNormalize statistics it ran under cannot be bound to the "
+                    "certified ones"
+                )
+            elif recorded_normalization != certified_normalization:
+                raise ResultBundleError(
+                    f"stage {stage} selected evaluation evidence ran under VecNormalize statistics "
+                    f"{recorded_normalization}, not the certified selected statistics {certified_normalization}"
+                )
         _compare_evaluation_aggregates(
             stage_summary,
             selected_aggregates,
@@ -694,6 +737,11 @@ def validate_evaluation_evidence(
         if final_aggregates["checkpoint_sha256"] is None:
             sink.append(
                 f"stage {stage} final evaluation evidence records no checkpoint_sha256 (written before "
+                "the column existed)"
+            )
+        if certified_normalization is not None and final_aggregates["normalization_sha256"] is None:
+            sink.append(
+                f"stage {stage} final evaluation evidence records no normalization_sha256 (written before "
                 "the column existed)"
             )
         _compare_evaluation_aggregates(

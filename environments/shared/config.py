@@ -303,29 +303,38 @@ def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:
 #: which audits each key when present and skips it when absent — so a
 #: from-scratch stage writes none of them, and an unfingerprinted parent
 #: leaves ``parent_task_sha256`` out rather than recording a null.
+#: ``load_path`` names the file whose sha256 is recorded — ``<stem>.zip`` when
+#: the trainer was handed an SB3 stem — so a parent inside the run directory
+#: resolves to the manifest entry the audit cross-checks the hash against.
 LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256")
 
 
 def _checkpoint_lineage(load_path: str | None, load_mode: str | None) -> dict[str, Any]:
     """The load-lineage keys for a stage's ``run`` block; empty from scratch.
 
-    A loaded checkpoint records the path as given, the load mode, the ZIP's
-    own sha256 and the task digest it carries — the load was validated
-    against the current task at ``--load`` time but persisted nowhere
-    readable.
+    A loaded checkpoint records the path of the file hashed, the load mode,
+    the ZIP's own sha256 and the task digest it carries — the load was
+    validated against the current task at ``--load`` time but persisted
+    nowhere readable.  A stem is recorded as the ``.zip`` SB3 appends to it
+    (``train_curriculum`` and the notebook both hand SB3 a stem): the manifest
+    hashes the ``.zip``, and a bare stem never matches a manifest key, so the
+    audit's parent-hash cross-check would never fire.  A relative path stays
+    relative; nothing else about the path is rewritten.
     """
     if not load_path:
         return {}
     from .result_bundle import sha256_file
 
+    recorded_path = load_path
     checkpoint = Path(load_path)
     if not checkpoint.is_file() and not load_path.endswith(".zip"):
         # SB3 accepts the stem and appends .zip itself; hash the file it loads.
-        checkpoint = Path(load_path + ".zip")
+        recorded_path = load_path + ".zip"
+        checkpoint = Path(recorded_path)
     if not checkpoint.is_file():
         raise FileNotFoundError(f"cannot record load lineage: checkpoint not found at {load_path!r}")
     lineage: dict[str, Any] = {
-        "load_path": load_path,
+        "load_path": recorded_path,
         "load_mode": load_mode,
         "parent_checkpoint_sha256": sha256_file(checkpoint),
     }

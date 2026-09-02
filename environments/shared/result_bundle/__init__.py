@@ -42,7 +42,12 @@ from .constants import (
 from .errors import ResultBundleError
 from .evidence import compare_summary_to_csv, validate_evaluation_evidence
 from .hashing import _write_json, aggregate_file_hash, canonical_json_sha256, sha256_file
-from .manifest import build_artifact_manifest, verify_artifact_manifest, write_artifact_manifest
+from .manifest import (
+    build_artifact_manifest,
+    manifest_disagreements,
+    verify_artifact_manifest,
+    write_artifact_manifest,
+)
 from .naming import _normalize_plant_identity, canonical_algorithm, canonical_backend
 from .provenance import initialize_result_bundle, load_provenance, update_provenance
 
@@ -63,6 +68,7 @@ __all__ = [
     "compare_summary_to_csv",
     "initialize_result_bundle",
     "load_provenance",
+    "manifest_disagreements",
     "sha256_file",
     "update_provenance",
     "validate_evaluation_evidence",

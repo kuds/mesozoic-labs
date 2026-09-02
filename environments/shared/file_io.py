@@ -17,6 +17,21 @@ import tempfile
 from pathlib import Path
 
 
+def _default_file_mode() -> int:
+    """The mode a plain ``open(..., "w")`` creates a file with under the current umask.
+
+    ``mkstemp`` creates its temporary 0600 regardless of the umask, so a file
+    published from one with ``os.replace`` would otherwise land owner-only
+    beside the 0644 files ``Path.write_text`` and ``result_bundle.hashing``
+    write next to it -- a bundle whose ``summary.json`` a second account or
+    a group share cannot read.  ``os.umask`` can only read the mask by
+    setting it, hence the set-and-restore.
+    """
+    mask = os.umask(0)
+    os.umask(mask)
+    return 0o666 & ~mask
+
+
 def atomic_copy(src: "str | Path", dst: "str | Path") -> None:
     """Copy *src* over *dst* without exposing a partially-written file.
 
@@ -30,6 +45,7 @@ def atomic_copy(src: "str | Path", dst: "str | Path") -> None:
     os.close(fd)
     try:
         shutil.copyfile(str(src), tmp)
+        os.chmod(tmp, _default_file_mode())
         os.replace(tmp, str(dst))
     except BaseException:
         try:
@@ -53,6 +69,7 @@ def atomic_write_text(path: "str | Path", text: str, *, encoding: str = "utf-8")
     try:
         with os.fdopen(fd, "w", encoding=encoding) as handle:
             handle.write(text)
+            os.fchmod(handle.fileno(), _default_file_mode())
         os.replace(tmp, str(dst))
     except BaseException:
         try:
