@@ -39,6 +39,35 @@ def _make_local_tb_dir(gcs_tb_path: str | Path) -> Path:
     return local_dir
 
 
+def _mirror_remote_run_dirs(local_tb_dir: Path, remote_tb_path: str | Path) -> list[str]:
+    """Recreate the remote TensorBoard run-directory NAMES inside the local buffer.
+
+    SB3 numbers each ``learn()``'s run directory from what it finds under
+    ``tensorboard_log`` (``get_latest_run_id``: the greatest
+    ``<tb_log_name>_<N>``), and a resume (``reset_num_timesteps=False``)
+    continues the latest one.  Buffering hides the mount from that scan: on
+    a fresh runtime the buffer is empty, so a resumed session landed in
+    ``PPO_0`` — and every later resume too — while the pre-crash session sat
+    in ``PPO_1``, merging sessions.  Empty directories are all the scan
+    needs, and :func:`_sync_tb_to_gcs` copies only files, so mirroring writes
+    nothing back to the mount; the new event file then syncs into the same
+    remote run directory the interrupted session used.
+
+    Returns the mirrored names (sorted); ``[]`` when the remote directory
+    does not exist yet.
+    """
+    remote = Path(remote_tb_path)
+    if not remote.is_dir():
+        return []
+    mirrored = []
+    for entry in remote.iterdir():
+        name, sep, run_id = entry.name.rpartition("_")
+        if sep and name and run_id.isdigit() and entry.is_dir():
+            (Path(local_tb_dir) / entry.name).mkdir(parents=True, exist_ok=True)
+            mirrored.append(entry.name)
+    return sorted(mirrored)
+
+
 def _sync_tb_to_gcs(local_tb_dir: Path, gcs_tb_path: str | Path, cleanup: bool = True) -> None:
     """Copy locally-buffered TensorBoard events to the GCS FUSE mount.
 

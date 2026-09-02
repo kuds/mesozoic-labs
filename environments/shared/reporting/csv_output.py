@@ -35,7 +35,10 @@ CSV_METRIC_COLUMNS: list[str] = [
     "ep_length_threshold",
     "forward_vel_threshold",
     "success_rate_threshold",
+    "gate_kind",
+    "gate_evaluable",
     "stage_passed",
+    "gate_reason",
     "quality_score",
     "quality_rank",
 ]
@@ -366,10 +369,35 @@ def save_evaluation_episodes(
     successes: Sequence[Any],
     evaluation_seed: int,
     checkpoint_label: str,
+    checkpoint_path: str | Path | None = None,
+    normalization_path: str | Path | None = None,
 ) -> Path:
-    """Persist per-episode evaluation evidence instead of only aggregates."""
+    """Persist per-episode evaluation evidence instead of only aggregates.
+
+    *checkpoint_path* is the checkpoint the episodes were rolled out from;
+    its digest is recorded in every row as ``checkpoint_sha256`` so the
+    audit can bind the evidence to the checkpoint the bundle certifies.
+    *normalization_path* is the VecNormalize statistics file the rollout ran
+    under, recorded the same way as ``normalization_sha256``: an SB3
+    checkpoint is the pair, and a sidecar rewritten between evaluation and
+    bundle save would otherwise be hashed into provenance unbound.  JAX has
+    no sidecar and leaves it out, so its evidence carries no such column.
+    """
     if not isinstance(evaluation_seed, int) or isinstance(evaluation_seed, bool) or evaluation_seed < 0:
         raise ValueError("evaluation_seed must be a non-negative integer")
+    evidence_hashes: dict[str, str] = {}
+    for column, artifact_path, description in (
+        ("checkpoint_sha256", checkpoint_path, "evaluated checkpoint"),
+        ("normalization_sha256", normalization_path, "evaluated VecNormalize statistics"),
+    ):
+        if artifact_path is None:
+            continue
+        from ..result_bundle import sha256_file
+
+        artifact = Path(artifact_path)
+        if not artifact.is_file():
+            raise ValueError(f"{description} does not exist: {artifact}")
+        evidence_hashes[column] = sha256_file(artifact)
     if not checkpoint_label or any(
         character not in "abcdefghijklmnopqrstuvwxyz0123456789_-" for character in checkpoint_label
     ):
@@ -436,6 +464,10 @@ def save_evaluation_episodes(
         "distance_traveled",
         "task_success",
     ]
+    for column, digest in evidence_hashes.items():
+        for row in rows:
+            row[column] = digest
+        fieldnames.append(column)
     with output.open("w", newline="", encoding="utf-8") as destination:
         writer = _csv.DictWriter(destination, fieldnames=fieldnames)
         writer.writeheader()

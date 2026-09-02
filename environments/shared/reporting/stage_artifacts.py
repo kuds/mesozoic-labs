@@ -52,9 +52,12 @@ def build_stage_results_from_eval_data(
     If *duration_seconds* is 0 and a ``metrics.json`` exists, the duration
     is read from ``training_duration_seconds`` in that file.
 
-    Fields that require a live policy evaluation (``mean_forward_vel``,
-    ``mean_success_rate``, ``best_model_*``) default to ``0.0`` / ``""``
-    and can be updated by the caller after running ``eval_policy``.
+    The post-training velocity/success panel's numbers (``mean_forward_vel``,
+    ``std_forward_vel``, ``mean_distance_traveled``, ``mean_success_rate``)
+    are read from ``metrics.json`` too.  When the panel was skipped or failed
+    the keys are OMITTED rather than zeroed, so the gate reads them as
+    unmeasured; ``best_model_*`` default to ``""`` and can be filled by the
+    caller after running ``eval_policy``.
     """
     import numpy as _np
 
@@ -101,6 +104,21 @@ def build_stage_results_from_eval_data(
         metrics = _json.loads(metrics_path.read_text())
         if duration_seconds == 0.0:
             duration_seconds = metrics.get("training_duration_seconds", 0.0)
+    # The velocity/success panel (train_base._post_training_eval_panels)
+    # writes these for the handoff checkpoint.  They used to be hardcoded to
+    # 0.0 here although this file was already open, so every stage-2/3 sweep
+    # trial failed its velocity gate at "0.00 m/s" whatever it had learned
+    # (review ER4).  A skipped (post_eval_skipped) or failed panel leaves a
+    # key absent or null; it is then left OUT so gates._gate_metric reads it
+    # as unmeasured rather than as a fabricated zero.  Deferred import: the
+    # curriculum package reaches back into reporting at import time.
+    from environments.shared.curriculum.gate_schema import finite_gate_metric
+
+    measured_panel = {
+        key: value
+        for key in ("mean_forward_vel", "std_forward_vel", "mean_distance_traveled", "mean_success_rate")
+        if (value := finite_gate_metric(metrics.get(key))) is not None
+    }
     plant_identity = metrics.get("plant_identity")
     if not isinstance(plant_identity, Mapping):
         saved_config_path = stage_dir / "stage_config.json"
@@ -140,9 +158,7 @@ def build_stage_results_from_eval_data(
         "std_reward": std_reward,
         "mean_episode_length": mean_length,
         "std_episode_length": std_length,
-        "mean_forward_vel": 0.0,
-        "std_forward_vel": 0.0,
-        "mean_success_rate": 0.0,
+        **measured_panel,
         "best_eval_reward": best_eval_reward,
         "best_eval_std": best_eval_std,
         "best_eval_length": best_eval_length,
@@ -759,6 +775,12 @@ def _apply_stage_gate(
         # AND the artifacts.
         logger.warning("Stage %s curriculum gate could not be evaluated", stage, exc_info=True)
         passed, failures = False, [f"stage {stage} gate evaluation raised {type(exc).__name__}: {exc}"]
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    # The verdict travels with the gate it was earned under, so a summary
+    # re-served after the gate changes can say so instead of re-serving a
+    # bare boolean beneath the current gate's description (review SS5).
+    stage_results["gate_kind"] = curriculum.get("gate_kind")
+    stage_results["gate_schema_version"] = curriculum.get("gate_schema_version")
     stage_results["gate_passed"] = passed
     stage_results["publication_gate_passed"] = passed
     stage_results["gate_failures"] = failures
@@ -1097,7 +1119,7 @@ def save_jax_stage_artifacts(
     best_params: Any | None = None,
     best_reward: float = 0.0,
     best_update: int = 0,
-    evaluation_seed: int = 42,
+    evaluation_seed: int = 3042,
     backend_version: str | None = None,
     plant_identity: PlantIdentity | None = None,
 ) -> dict[str, Path]:
@@ -1139,6 +1161,9 @@ def save_jax_stage_artifacts(
         best_reward: Best evaluation reward achieved during training.
         best_update: Update number at which *best_params* was recorded.
         evaluation_seed: Seed used for the fixed publication evaluation.
+            Defaults to a seed distinct from the training default because
+            the provenance validator refuses a publication seed shared with
+            training or any checkpoint-selection role (review ER6).
         backend_version: Optional explicit JAX version for portable tests or
             environments where package metadata cannot be detected.
         plant_identity: Optional precomputed plant identity.  The current
@@ -1150,6 +1175,7 @@ def save_jax_stage_artifacts(
     import numpy as _np
 
     from ..config import save_stage_config
+    from ..file_io import atomic_savez, atomic_write_text
     from ..jax_checkpoint import save_checkpoint
     from ..plant_contract import current_plant_identity, write_plant_identity
     from ..result_bundle import (
@@ -1258,6 +1284,11 @@ def save_jax_stage_artifacts(
             "best_model_success_rate": round(float(selected_successes.mean()), 4),
         }
     )
+    # Gate-kind provenance beside the verdict (review SS5), from the same
+    # config the verdict was judged against.
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    stage_results["gate_kind"] = curriculum.get("gate_kind")
+    stage_results["gate_schema_version"] = curriculum.get("gate_schema_version")
 
     try:
         captured_provenance = load_provenance(run_dir)
@@ -1313,7 +1344,33 @@ def save_jax_stage_artifacts(
     paths["stage_config"] = config_path
     logger.info("Stage config saved: %s", config_path)
 
-    # 3. Per-episode evidence for both the selected and terminal parameters.
+    # 3. Model checkpoints (best + final).  Written before the evidence CSVs
+    # so each CSV can record the sha256 of the checkpoint its episodes were
+    # rolled from; the audit warns per stage when that binding is absent.
+    effective_best = best_params if best_params is not None else params
+    best_model_path = model_dir / "best_model.pkl"
+    save_checkpoint(
+        best_model_path,
+        effective_best,
+        obs_rms=obs_rms,
+        extra={"best_reward": best_reward, "best_update": best_update},
+        plant_identity=plant_identity,
+    )
+    paths["best_model"] = best_model_path
+
+    # stage_label, not a literal f"stage{stage}": legacy integers keep
+    # their historical stage{N}_final.pkl name, while a semantic stage
+    # must save {id}_final.pkl — the literal would mint
+    # "stagerecovery_final.pkl" the moment this path gains semantic
+    # stages (review 2026-08 F16).
+    from ..stage_manifest import stage_label
+
+    final_model_path = model_dir / f"{stage_label(stage)}_final.pkl"
+    save_checkpoint(final_model_path, params, obs_rms=obs_rms, plant_identity=plant_identity)
+    paths["final_model"] = final_model_path
+    logger.info("Models saved: %s, %s", best_model_path, final_model_path)
+
+    # 4. Per-episode evidence for both the selected and terminal parameters.
     evaluation_path = csv_output.save_evaluation_episodes(
         stage_dir,
         rewards=eval_results.rewards,
@@ -1323,6 +1380,7 @@ def save_jax_stage_artifacts(
         successes=eval_results.successes,
         evaluation_seed=evaluation_seed,
         checkpoint_label="selected",
+        checkpoint_path=best_model_path,
     )
     paths["evaluation_episodes"] = evaluation_path
     final_evaluation_path = csv_output.save_evaluation_episodes(
@@ -1334,10 +1392,11 @@ def save_jax_stage_artifacts(
         successes=terminal_eval_results.successes,
         evaluation_seed=evaluation_seed,
         checkpoint_label="final",
+        checkpoint_path=final_model_path,
     )
     paths["final_evaluation_episodes"] = final_evaluation_path
 
-    # 4. Diagnostics NPZ from eval results
+    # 5. Diagnostics NPZ from eval results
     diag_data: dict[str, Any] = {
         # JAX diagnostics are a contiguous evaluation trace rather than
         # rollout snapshots. Expose a compatible step axis for dashboards.
@@ -1377,34 +1436,13 @@ def save_jax_stage_artifacts(
                     dtype=float,
                 )
 
+    # Atomic (file_io), like every SB3-side writer: np.savez rewrites the
+    # whole archive in place, and a runtime lost mid-write on a Drive/GCS
+    # mount otherwise leaves a truncated file behind (review ER5).
     diag_path = stage_dir / "diagnostics.npz"
-    _np.savez(diag_path, **diag_data)
+    atomic_savez(diag_path, **diag_data)
     paths["diagnostics"] = diag_path
     logger.info("Diagnostics saved: %s", diag_path)
-
-    # 5. Model checkpoints (best + final)
-    effective_best = best_params if best_params is not None else params
-    best_model_path = model_dir / "best_model.pkl"
-    save_checkpoint(
-        best_model_path,
-        effective_best,
-        obs_rms=obs_rms,
-        extra={"best_reward": best_reward, "best_update": best_update},
-        plant_identity=plant_identity,
-    )
-    paths["best_model"] = best_model_path
-
-    # stage_label, not a literal f"stage{stage}": legacy integers keep
-    # their historical stage{N}_final.pkl name, while a semantic stage
-    # must save {id}_final.pkl — the literal would mint
-    # "stagerecovery_final.pkl" the moment this path gains semantic
-    # stages (review 2026-08 F16).
-    from ..stage_manifest import stage_label
-
-    final_model_path = model_dir / f"{stage_label(stage)}_final.pkl"
-    save_checkpoint(final_model_path, params, obs_rms=obs_rms, plant_identity=plant_identity)
-    paths["final_model"] = final_model_path
-    logger.info("Models saved: %s, %s", best_model_path, final_model_path)
 
     # 6. Persist one idempotent stage record for cross-session curricula.
     stage_results["model_path"] = best_model_path.resolve().relative_to(run_dir.resolve()).as_posix()
@@ -1435,6 +1473,8 @@ def save_jax_stage_artifacts(
         # explanation forces a re-run to find out which criterion failed,
         # and for a stance gate the panel that produced it is gone.
         "gate_failures",
+        "gate_kind",
+        "gate_schema_version",
         "best_model_reward",
         "best_model_std_reward",
         "best_model_length",
@@ -1448,7 +1488,10 @@ def save_jax_stage_artifacts(
     )
     persisted_result = {key: stage_results[key] for key in persisted_keys if key in stage_results}
     stage_result_path = stage_dir / "stage_result.json"
-    stage_result_path.write_text(_json.dumps(persisted_result, indent=2, sort_keys=True) + "\n")
+    # Atomic: a truncated stage_result.json is read back by the prior-stage
+    # scan above and turns every later save for the run into a
+    # ResultBundleError before any artifact is written (review ER5).
+    atomic_write_text(stage_result_path, _json.dumps(persisted_result, indent=2, sort_keys=True) + "\n")
     paths["stage_result"] = stage_result_path
 
     accumulated_results: list[dict[str, Any]] = []

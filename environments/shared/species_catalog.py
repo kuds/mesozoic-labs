@@ -460,6 +460,23 @@ def _validate_result_summary(summary: Any, *, species_id: str, relative_path: st
         raise CatalogError(str(exc)) from exc
 
 
+def current_gate_kinds(species_id: str) -> dict[str, "str | None"]:
+    """The gate kind each of the species' stages declares TODAY, by stage id.
+
+    What a published verdict is compared against: a ``stage_passed`` earned
+    under a different (or unrecorded) gate is a pass of a retired gate, and
+    the catalog says so instead of re-serving the bare boolean beneath the
+    current gate's description (review SS5).
+    """
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    configs = load_all_stages(species_id)
+    return {
+        entry.id: configs[entry.reference]["curriculum_kwargs"].get("gate_kind")
+        for entry in load_stage_manifest(species_id).stages
+    }
+
+
 def _max_reported_velocity(stage_summaries: list[dict[str, Any]]) -> int | float | None:
     reported_velocities = [
         stage["avg_forward_vel"] for stage in stage_summaries if stage["avg_forward_vel"] is not None
@@ -481,9 +498,12 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
         stage_entries = ordered_stage_entries(summary["stages"], species=species_id, field=f"stages in {relative_path}")
     except ResultSchemaError as exc:
         raise CatalogError(str(exc)) from exc
+    declared_gates = current_gate_kinds(species_id)
     stage_summaries: list[dict[str, Any]] = []
     for stage_key, entry in stage_entries:
         raw_stage = summary["stages"][stage_key]
+        recorded_gate = raw_stage.get("gate_kind")
+        current_gate = declared_gates.get(entry.id)
         stage_summaries.append(
             {
                 "id": entry.id,
@@ -500,6 +520,12 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
                 "mean_success_rate": raw_stage.get("mean_success_rate"),
                 "training_time": raw_stage.get("training_time"),
                 "stage_passed": raw_stage.get("stage_passed"),
+                # Provenance for the verdict: the gate the summary recorded
+                # (None for a producer that predates the key), the gate the
+                # species declares now, and whether the two differ.
+                "gate_kind": recorded_gate,
+                "current_gate_kind": current_gate,
+                "gate_retired": recorded_gate is None or recorded_gate != current_gate,
             }
         )
 
@@ -729,10 +755,21 @@ def _format_percent(value: int | float | None) -> str:
     return f"{value * 100:.1f}%"
 
 
-def _format_passed(value: bool | None) -> str:
-    if value is None:
+def _format_verdict(stage: dict[str, Any]) -> str:
+    """Render a stage verdict with its gate provenance (mirrored in the site's TSX).
+
+    A verdict earned under a gate the species no longer declares — or under
+    no recorded gate at all, which every pre-provenance summary is — reads as
+    a pass/fail of that RETIRED gate, never as a bare "Yes" beneath the
+    current gate's description.
+    """
+    passed = stage["stage_passed"]
+    if passed is None:
         return "—"
-    return "Yes" if value else "No"
+    if not stage["gate_retired"]:
+        return "Yes" if passed else "No"
+    gate = stage["gate_kind"] or "reward gate"
+    return f"{'passed' if passed else 'failed'} retired gate ({gate})"
 
 
 def _format_evaluation_episodes(value: int | None) -> str:
@@ -897,7 +934,7 @@ def render_readme_results(catalog: dict[str, Any]) -> str:
                     f"{_format_number(stage['best_eval_reward'])} | "
                     f"{_format_number(stage['avg_forward_vel'], suffix=' m/s')} | "
                     f"{_format_percent(stage['mean_success_rate'])} | "
-                    f"{_format_millions(stage['timesteps'])} | {_format_passed(stage['stage_passed'])} |"
+                    f"{_format_millions(stage['timesteps'])} | {_format_verdict(stage)} |"
                 )
             lines.extend(
                 [

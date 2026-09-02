@@ -1,5 +1,6 @@
 """Tests for sweep results.py — trial result collection, CSV export, model path resolution."""
 
+import csv
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -9,10 +10,32 @@ import pytest
 from environments.shared.scripts.sweep import (
     SweepStageError,
     _best_trial_model_path,
+    _best_trial_model_path_any,
     _collect_trial_results,
+    _evaluate_curriculum_gate,
     collect_results_from_disk,
+    plot_sweep_results,
     write_results_csv,
 )
+from environments.shared.scripts.sweep.results import _gate_status
+
+# configs/trex/stance.toml's [curriculum] gate declaration: min_avg_reward is
+# a collapse RAIL the 3271.8 statue and the 2133.4 chatterer both clear.
+STANCE_CURRICULUM = {
+    "gate_schema_version": 1,
+    "gate_kind": "stance_quality/v1",
+    "min_avg_reward": 2100.0,
+    "min_full_horizon_fraction": 0.9,
+    "max_unsupported_duty": 0.05,
+    "max_unsupported_duty_ucb": 0.10,
+}
+RECOVERY_CURRICULUM = {
+    "gate_schema_version": 1,
+    "gate_kind": "recovery_quality/v1",
+    "min_recovery_success_lcb": 0.8,
+    "recovery_t_recover_steps": 100,
+    "recovery_dwell_steps": 50,
+}
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -100,7 +123,7 @@ class TestCollectTrialResults:
         )
         job = MagicMock()
         job.trials = [trial]
-        stage_config = {"curriculum_kwargs": {"min_avg_reward": 100.0}}
+        stage_config = {"curriculum_kwargs": {"gate_kind": "reward_and_length/v1", "min_avg_reward": 100.0}}
 
         rows = _collect_trial_results(job, 1, stage_config, output_base=str(tmp_path))
         assert len(rows) == 1
@@ -116,7 +139,7 @@ class TestCollectTrialResults:
         _write_trial_metrics(tmp_path, "2", {"best_mean_reward": 50.0})
         job = MagicMock()
         job.trials = [trial]
-        stage_config = {"curriculum_kwargs": {"min_avg_reward": 100.0}}
+        stage_config = {"curriculum_kwargs": {"gate_kind": "reward_and_length/v1", "min_avg_reward": 100.0}}
 
         rows = _collect_trial_results(job, 1, stage_config, output_base=str(tmp_path))
         assert rows[0]["stage_passed"] is False
@@ -125,13 +148,14 @@ class TestCollectTrialResults:
         trial = _make_mock_trial("3")
         job = MagicMock()
         job.trials = [trial]
-        stage_config = {"curriculum_kwargs": {}}
+        stage_config = {"curriculum_kwargs": {"gate_kind": "reward_and_length/v1"}}
 
         rows = _collect_trial_results(job, 1, stage_config, output_base=str(tmp_path))
         assert rows[0]["stage_passed"] is False
         assert rows[0]["best_mean_reward"] is None
 
-    def test_no_thresholds_passes_with_valid_reward(self, tmp_path):
+    def test_no_gate_declared_is_not_a_pass(self, tmp_path):
+        """An empty curriculum block used to pass any finite reward vacuously."""
         trial = _make_mock_trial("4", metrics={"best_mean_reward": 10.0})
         _write_trial_metrics(tmp_path, "4", {"best_mean_reward": 10.0})
         job = MagicMock()
@@ -139,7 +163,9 @@ class TestCollectTrialResults:
         stage_config = {"curriculum_kwargs": {}}
 
         rows = _collect_trial_results(job, 3, stage_config, output_base=str(tmp_path))
-        assert rows[0]["stage_passed"] is True
+        assert rows[0]["stage_passed"] is None
+        assert rows[0]["gate_evaluable"] is False
+        assert "declares no gate_kind" in rows[0]["gate_reason"]
 
     def test_ep_length_threshold_checked(self, tmp_path):
         trial = _make_mock_trial(
@@ -158,6 +184,7 @@ class TestCollectTrialResults:
         job.trials = [trial]
         stage_config = {
             "curriculum_kwargs": {
+                "gate_kind": "reward_and_length/v1",
                 "min_avg_reward": 100.0,
                 "min_avg_episode_length": 500.0,
             }
@@ -183,6 +210,7 @@ class TestCollectTrialResults:
         job.trials = [trial]
         stage_config = {
             "curriculum_kwargs": {
+                "gate_kind": "reward_and_length/v1",
                 "min_avg_reward": 100.0,
                 "min_avg_forward_vel": 1.0,
             }
@@ -190,6 +218,224 @@ class TestCollectTrialResults:
 
         rows = _collect_trial_results(job, 2, stage_config, output_base=str(tmp_path))
         assert rows[0]["stage_passed"] is False
+
+
+# ── _evaluate_curriculum_gate: non-finite rewards ──────────────────────────
+
+
+class TestEvaluateCurriculumGateNonFinite:
+    """NaN is not None and ``nan < threshold`` is False — it must not pass."""
+
+    @pytest.mark.parametrize("reward", [float("nan"), float("inf"), float("-inf"), None, ""])
+    def test_non_finite_reward_fails_with_reason(self, reward):
+        passed, reasons = _evaluate_curriculum_gate(reward, {}, 100.0, None, None, None)
+        assert passed is False
+        assert any("no finite reward" in reason for reason in reasons)
+
+    def test_nan_fails_even_without_thresholds(self):
+        passed, reasons = _evaluate_curriculum_gate(float("nan"), {}, None, None, None, None)
+        assert passed is False
+        assert any("no finite reward" in reason for reason in reasons)
+
+    def test_finite_reward_still_passes(self):
+        assert _evaluate_curriculum_gate(150.0, {}, 100.0, None, None, None) == (True, [])
+
+    def test_nan_ray_row_is_not_stage_passed(self):
+        """collect_ray_results: a trial that errored before its first tune.report."""
+        pd = pytest.importorskip("pandas")
+        from environments.shared.scripts.sweep import collect_ray_results
+
+        df = pd.DataFrame(
+            [
+                {"trial_id": "errored", "best_mean_reward": float("nan")},
+                {"trial_id": "ok", "best_mean_reward": 150.0},
+            ]
+        )
+        rows = collect_ray_results(
+            df, 1, {"curriculum_kwargs": {"gate_kind": "reward_and_length/v1", "min_avg_reward": 100.0}}
+        )
+        by_id = {r["trial_id"]: r for r in rows}
+        assert by_id["errored"]["stage_passed"] is False
+        assert "no finite reward" in by_id["errored"]["gate_reason"]
+        assert by_id["ok"]["stage_passed"] is True
+
+
+# ── gate_kind routing ────────────────────────────────────────────────────────
+
+
+class TestGateKindRouting:
+    """A stage's pass/fail follows its declared gate_kind, never the reward rail alone."""
+
+    @staticmethod
+    def _vertex_rows(tmp_path, curriculum, rewards):
+        job = MagicMock()
+        job.trials = []
+        for trial_id, reward in rewards.items():
+            job.trials.append(_make_mock_trial(trial_id, metrics={"best_mean_reward": reward}))
+            _write_trial_metrics(tmp_path, trial_id, {"best_mean_reward": reward, "best_mean_episode_length": 1000.0})
+        return _collect_trial_results(job, 1, {"curriculum_kwargs": curriculum}, output_base=str(tmp_path))
+
+    def test_stance_gate_is_not_evaluable_offline(self, tmp_path):
+        """The statue and the chatterer both clear the 2100 rail; neither is a pass."""
+        rows = self._vertex_rows(tmp_path, STANCE_CURRICULUM, {"statue": 3271.8, "chatterer": 2133.4})
+        assert len(rows) == 2
+        for row in rows:
+            assert row["stage_passed"] is None
+            assert row["gate_evaluable"] is False
+            assert row["gate_kind"] == "stance_quality/v1"
+            assert "stance_quality/v1" in row["gate_reason"]
+            # The rail is still reported as a threshold column, not as the gate.
+            assert row["reward_threshold"] == 2100.0
+
+    def test_recovery_gate_is_not_evaluable_offline(self, tmp_path):
+        rows = self._vertex_rows(tmp_path, RECOVERY_CURRICULUM, {"1": 500.0})
+        assert rows[0]["stage_passed"] is None
+        assert rows[0]["gate_evaluable"] is False
+        assert "recovery_quality/v1" in rows[0]["gate_reason"]
+
+    def test_reward_and_length_gate_still_evaluates(self, tmp_path):
+        curriculum = {"gate_schema_version": 1, "gate_kind": "reward_and_length/v1", "min_avg_reward": 100.0}
+        rows = self._vertex_rows(tmp_path, curriculum, {"hi": 150.0, "lo": 50.0})
+        by_id = {r["trial_id"]: r for r in rows}
+        assert by_id["hi"]["stage_passed"] is True
+        assert by_id["hi"]["gate_evaluable"] is True
+        assert by_id["hi"]["gate_reason"] == ""
+        assert by_id["lo"]["stage_passed"] is False
+        assert "threshold" in by_id["lo"]["gate_reason"]
+
+    def test_undeclared_gate_is_not_evaluable(self, tmp_path):
+        """Thresholds without a gate_kind are columns, never a verdict — the
+        judgement reporting.gates.evaluate_stage_gate gives the same input."""
+        rows = self._vertex_rows(tmp_path, {"min_avg_reward": 100.0}, {"hi": 150.0})
+        assert rows[0]["stage_passed"] is None
+        assert rows[0]["gate_kind"] is None
+        assert rows[0]["gate_evaluable"] is False
+        assert "declares no gate_kind" in rows[0]["gate_reason"]
+        assert rows[0]["reward_threshold"] == 100.0
+        with pytest.raises(SweepStageError, match="<undeclared>"):
+            _best_trial_model_path(rows, "b", "trex", 1)
+
+    def test_unreadable_stage_config_names_that_cause(self, tmp_path):
+        stage_dir = _setup_sweep_dir(tmp_path, 1, {"1": {"best_mean_reward": 150.0}})
+        (stage_dir / "stage_config.json").write_text("{not json", encoding="utf-8")
+        rows = collect_results_from_disk(tmp_path)
+        assert rows[0]["stage_passed"] is None
+        assert rows[0]["gate_evaluable"] is False
+        assert "stage config unreadable" in rows[0]["gate_reason"]
+        assert "stage_config.json" in rows[0]["gate_reason"]
+
+    def test_none_gate_never_passes(self, tmp_path):
+        rows = self._vertex_rows(tmp_path, {"gate_schema_version": 1, "gate_kind": "none/v1"}, {"hi": 150.0})
+        assert rows[0]["stage_passed"] is False
+        assert rows[0]["gate_evaluable"] is True
+        assert "none/v1" in rows[0]["gate_reason"]
+
+    def test_unknown_gate_kind_is_not_evaluable(self, tmp_path):
+        rows = self._vertex_rows(tmp_path, {"gate_kind": "made_up/v9"}, {"hi": 150.0})
+        assert rows[0]["stage_passed"] is None
+        assert "unknown gate_kind" in rows[0]["gate_reason"]
+
+    def test_disk_collector_reads_gate_kind_from_stage_config(self, tmp_path):
+        stage_dir = _setup_sweep_dir(tmp_path, 1, {"statue": {"best_mean_reward": 3271.8}})
+        (stage_dir / "stage_config.json").write_text(json.dumps({"curriculum": STANCE_CURRICULUM}))
+        rows = collect_results_from_disk(tmp_path)
+        assert rows[0]["stage_passed"] is None
+        assert rows[0]["gate_evaluable"] is False
+        assert rows[0]["reward_threshold"] == 2100.0
+
+    def test_disk_collector_reads_gate_kind_from_per_trial_config(self, tmp_path):
+        trial_dir = tmp_path / "stage1" / "statue"
+        trial_dir.mkdir(parents=True)
+        (trial_dir / "metrics.json").write_text(json.dumps({"best_mean_reward": 3271.8}))
+        (trial_dir / "stage_config.json").write_text(json.dumps({"curriculum": STANCE_CURRICULUM}))
+        rows = collect_results_from_disk(tmp_path)
+        assert rows[0]["stage_passed"] is None
+        assert rows[0]["gate_evaluable"] is False
+
+    def test_ray_collector_routes_through_gate_kind(self):
+        pd = pytest.importorskip("pandas")
+        from environments.shared.scripts.sweep import collect_ray_results
+
+        df = pd.DataFrame([{"trial_id": "statue", "best_mean_reward": 3271.8}])
+        rows = collect_ray_results(df, 1, {"curriculum_kwargs": STANCE_CURRICULUM})
+        assert rows[0]["stage_passed"] is None
+        assert rows[0]["gate_evaluable"] is False
+        assert rows[0]["reward_threshold"] == 2100.0
+
+
+# ── not-evaluable rows downstream: selection, CSV, plot, state ───────────────
+
+
+def _unevaluable_row(trial_id, reward, stage=1):
+    return {
+        "trial_id": trial_id,
+        "stage": stage,
+        "best_mean_reward": reward,
+        "reward_threshold": 2100.0,
+        "gate_kind": "stance_quality/v1",
+        "gate_evaluable": False,
+        "stage_passed": None,
+        "gate_reason": "gate_kind 'stance_quality/v1' is judged on evidence a sweep row does not carry",
+    }
+
+
+class TestNotEvaluableConsequences:
+    def test_gate_status_labels(self):
+        assert _gate_status({"stage_passed": True}) == "passed"
+        assert _gate_status({"stage_passed": False}) == "failed"
+        assert _gate_status({"stage_passed": None, "gate_evaluable": False}) == "not evaluable"
+        assert _gate_status({}) == "not evaluable"
+        # CSV cells arrive as strings.
+        assert _gate_status({"stage_passed": "True", "gate_evaluable": "True"}) == "passed"
+        assert _gate_status({"stage_passed": "False", "gate_evaluable": "True"}) == "failed"
+        assert _gate_status({"stage_passed": "", "gate_evaluable": "False"}) == "not evaluable"
+
+    def test_best_trial_model_path_refuses_not_evaluable_rows(self):
+        rows = [_unevaluable_row("statue", 3271.8), _unevaluable_row("chatterer", 2133.4)]
+        with pytest.raises(SweepStageError, match="cannot evaluate offline"):
+            _best_trial_model_path(rows, "b", "trex", 1)
+
+    def test_best_trial_model_path_ignores_not_evaluable_rows_beside_passed_ones(self):
+        rows = [_unevaluable_row("statue", 3271.8), {"trial_id": "ok", "stage_passed": True, "best_mean_reward": 10.0}]
+        _, best = _best_trial_model_path(rows, "b", "trex", 1)
+        assert best["trial_id"] == "ok"
+
+    def test_best_trial_model_path_any_is_reward_ranked(self):
+        rows = [_unevaluable_row("chatterer", 2133.4), _unevaluable_row("statue", 3271.8)]
+        _, best = _best_trial_model_path_any(rows, "b", "trex", 1)
+        assert best["trial_id"] == "statue"
+
+    def test_csv_round_trip_and_plot(self, tmp_path):
+        rows = [
+            _unevaluable_row("statue", 3271.8),
+            {
+                "trial_id": "ok",
+                "stage": 2,
+                "best_mean_reward": 150.0,
+                "reward_threshold": 100.0,
+                "gate_kind": "reward_and_length/v1",
+                "gate_evaluable": True,
+                "stage_passed": True,
+                "gate_reason": "",
+            },
+        ]
+        csv_path = tmp_path / "results.csv"
+        write_results_csv(rows, csv_path)
+        with open(csv_path, newline="") as f:
+            by_id = {r["trial_id"]: r for r in csv.DictReader(f)}
+        assert by_id["statue"]["stage_passed"] == ""
+        assert by_id["statue"]["gate_evaluable"] == "False"
+        assert _gate_status(by_id["statue"]) == "not evaluable"
+        assert _gate_status(by_id["ok"]) == "passed"
+
+        pytest.importorskip("matplotlib")
+        plot_sweep_results(csv_path, "trex", "ppo", save_dir=tmp_path)
+        assert (tmp_path / "sweep_trial_metrics.png").exists()
+
+    def test_state_json_round_trip(self):
+        restored = json.loads(json.dumps([_unevaluable_row("statue", 3271.8)]))
+        assert restored[0]["stage_passed"] is None
+        assert _gate_status(restored[0]) == "not evaluable"
 
 
 # ── _best_trial_model_path ───────────────────────────────────────────────
@@ -361,7 +607,7 @@ class TestCollectResultsFromDisk:
                 "1": {"best_mean_reward": 50.0},
             },
         )
-        cfg = {"curriculum": {"min_avg_reward": 100.0}}
+        cfg = {"curriculum": {"gate_kind": "reward_and_length/v1", "min_avg_reward": 100.0}}
         with open(stage_dir / "stage_config.json", "w") as f:
             json.dump(cfg, f)
         rows = collect_results_from_disk(tmp_path)
@@ -378,7 +624,7 @@ class TestCollectResultsFromDisk:
                 "1": {"best_mean_reward": 150.0},
             },
         )
-        cfg = {"curriculum": {"min_avg_reward": 100.0}}
+        cfg = {"curriculum": {"gate_kind": "reward_and_length/v1", "min_avg_reward": 100.0}}
         with open(stage_dir / "stage_config.json", "w") as f:
             json.dump(cfg, f)
         rows = collect_results_from_disk(tmp_path)
@@ -533,7 +779,7 @@ class TestCollectResultsFromDiskGCS:
         """gs:// URI triggers GCS download and produces correct rows."""
         metrics_1 = json.dumps({"best_mean_reward": 150.0}).encode()
         metrics_2 = json.dumps({"best_mean_reward": 200.0}).encode()
-        stage_cfg = json.dumps({"curriculum": {"min_avg_reward": 100.0}}).encode()
+        stage_cfg = json.dumps({"curriculum": {"gate_kind": "reward_and_length/v1", "min_avg_reward": 100.0}}).encode()
 
         file_map = {
             "sweeps/velociraptor/stage1/1/metrics.json": metrics_1,

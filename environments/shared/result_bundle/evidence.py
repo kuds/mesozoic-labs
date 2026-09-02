@@ -8,13 +8,30 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 import math
+import re
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from ..curriculum.stance_gate import STANCE_GATE_KIND
 from ..stage_manifest import find_stage_dir
 from .errors import ResultBundleError
+
+_logger = logging.getLogger(__name__)
+
+_SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+#: Digest columns evaluation evidence may carry, each mapped to the noun its
+#: "mixes ..." error uses: the checkpoint the episodes were rolled out from,
+#: and (SB3 only) the VecNormalize statistics they ran under.
+_EVIDENCE_HASH_COLUMNS = {"checkpoint_sha256": "checkpoint hashes", "normalization_sha256": "normalization hashes"}
+#: SB3's periodic checkpoints and their sidecars:
+#: ``{prefix}_{steps}_steps.zip``, ``{prefix}_vecnormalize_{steps}_steps.pkl``,
+#: ``{prefix}_replay_buffer_{steps}_steps.pkl`` (``CheckpointCallback``;
+#: mirrored by ``curriculum.checkpoints._CHECKPOINT_KINDS``).
+_PERIODIC_CHECKPOINT_NAME = re.compile(
+    r"(?P<prefix>.+?)_(?:vecnormalize_|replay_buffer_)?(?P<steps>\d+)_steps\.(?:zip|pkl)"
+)
 
 
 def _optional_csv_number(value: str | None) -> float | None:
@@ -150,8 +167,14 @@ def _evaluation_evidence_aggregates(
     expected_episodes: int,
     evaluation_seeds: Sequence[int],
     stage: "int | str",
-) -> dict[str, float]:
-    """Parse one fixed-seed episode file and return publication aggregates."""
+) -> dict[str, Any]:
+    """Parse one fixed-seed episode file and return publication aggregates.
+
+    Every value is a float except the :data:`_EVIDENCE_HASH_COLUMNS`: the
+    digest of the checkpoint the episodes were rolled out from and of the
+    VecNormalize statistics they ran under, each ``None`` for evidence written
+    without that column (before it existed, or by the sidecar-less JAX path).
+    """
     required_columns = {
         "episode",
         "evaluation_seed",
@@ -191,6 +214,7 @@ def _evaluation_evidence_aggregates(
     distances: list[float] = []
     successes: list[float] = []
     recorded_seed: int | None = None
+    recorded_hashes: dict[str, str | None] = dict.fromkeys(_EVIDENCE_HASH_COLUMNS)
     for expected_episode, row in enumerate(rows, start=1):
         try:
             episode = int(row.get("episode", ""))
@@ -216,6 +240,16 @@ def _evaluation_evidence_aggregates(
             raise ResultBundleError(
                 f"{checkpoint_label} evaluation evidence for stage {stage} has the wrong checkpoint label"
             )
+        for column, plural in _EVIDENCE_HASH_COLUMNS.items():
+            digest = (row.get(column) or "").strip() or None
+            if digest is not None and _SHA256_DIGEST.fullmatch(digest) is None:
+                raise ResultBundleError(
+                    f"{checkpoint_label} evaluation evidence for stage {stage} records a malformed {column}: {digest!r}"
+                )
+            if expected_episode == 1:
+                recorded_hashes[column] = digest
+            elif digest != recorded_hashes[column]:
+                raise ResultBundleError(f"{checkpoint_label} evaluation evidence for stage {stage} mixes {plural}")
         if length <= 0:
             raise ResultBundleError(f"{checkpoint_label} evaluation episode length for stage {stage} must be positive")
         reward = _optional_csv_number(row.get("reward"))
@@ -240,6 +274,7 @@ def _evaluation_evidence_aggregates(
     assert recorded_seed is not None
     return {
         "evaluation_seed": float(recorded_seed),
+        **recorded_hashes,
         "reward": _mean(rewards),
         "reward_std": _population_std(rewards),
         "episode_length": _mean(lengths),
@@ -249,6 +284,81 @@ def _evaluation_evidence_aggregates(
         "distance": _mean(distances),
         "success_rate": _mean(successes),
     }
+
+
+def _integral(value: Any) -> int | None:
+    """*value* as an int when it is an integer-valued number, else ``None``."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if isinstance(value, float) and not value.is_integer():
+        return None
+    return int(value)
+
+
+def _check_stage_training_record(
+    stage_dir: Path,
+    *,
+    stage: "int | str",
+    stage_summary: Mapping[str, Any],
+    config_value: Mapping[str, Any],
+    warnings: list[str],
+) -> None:
+    """Cross-check the claimed timesteps against the frozen budget and the checkpoints.
+
+    A resumed short-budget run is legitimate, so trailing the
+    ``curriculum.timesteps`` budget (or the invocation's ``run.timesteps``)
+    only warns — but it must be visible.  A periodic checkpoint numbered
+    beyond the stage's claimed timesteps but within its curriculum budget
+    also only warns: it may be a stale artifact of a longer prior session,
+    or the legitimate trace of a rollback-resume (the operator resumed from
+    an earlier checkpoint after a collapse and retention kept the highest
+    pre-rollback one), and the two are indistinguishable here.  A checkpoint
+    numbered beyond the curriculum budget cannot belong to this stage's
+    training at all, so it fails.
+    """
+    trained = stage_summary.get("timesteps")
+    if isinstance(trained, bool) or not isinstance(trained, int):
+        # The summary schema rejects this on its own; nothing to compare.
+        return
+    curriculum = config_value.get("curriculum", config_value.get("curriculum_kwargs", {}))
+    budgets: dict[str, int] = {}
+    for label, section in (("curriculum", curriculum), ("run", config_value.get("run"))):
+        if not isinstance(section, Mapping) or section.get("timesteps") is None:
+            continue
+        budget = _integral(section["timesteps"])
+        if budget is None or budget <= 0:
+            raise ResultBundleError(
+                f"stage {stage} config {label}.timesteps must be a positive integer, not {section['timesteps']!r}"
+            )
+        budgets[label] = budget
+    shortfalls = [f"{label} budget of {budget:,}" for label, budget in budgets.items() if trained < budget]
+    if shortfalls:
+        warnings.append(f"stage {stage} trained {trained:,} timesteps, short of its {' and '.join(shortfalls)}")
+    curriculum_budget = budgets.get("curriculum")
+    for path in sorted(stage_dir.rglob("*_steps.*")):
+        match = _PERIODIC_CHECKPOINT_NAME.fullmatch(path.name)
+        if match is None or not path.is_file():
+            continue
+        steps = int(match["steps"])
+        if steps <= trained:
+            continue
+        name = path.relative_to(stage_dir).as_posix()
+        if curriculum_budget is not None and steps > curriculum_budget:
+            raise ResultBundleError(
+                f"stage {stage} periodic checkpoint {name} records {steps:,} steps, beyond the {trained:,} "
+                f"timesteps the summary claims for the stage and beyond its curriculum budget of "
+                f"{curriculum_budget:,}, so it cannot belong to this stage's training"
+            )
+        bound = (
+            f"within its curriculum budget of {curriculum_budget:,}"
+            if curriculum_budget is not None
+            else "with no curriculum budget recorded to bound it"
+        )
+        warnings.append(
+            f"stage {stage} periodic checkpoint {name} records {steps:,} steps, beyond the {trained:,} timesteps "
+            f"the summary claims for the stage but {bound}: this may be a rollback-resume (retention keeps the "
+            "highest pre-rollback checkpoint) or a stale prior session"
+        )
 
 
 def _compare_evaluation_aggregates(
@@ -396,9 +506,21 @@ def validate_evaluation_evidence(
     run_dir: str | Path,
     summary: Mapping[str, Any],
     provenance: Mapping[str, Any],
+    *,
+    warnings: list[str] | None = None,
 ) -> None:
-    """Bind selected and terminal-policy episode rows to canonical claims."""
+    """Bind selected and terminal-policy episode rows to canonical claims.
+
+    Contradictions raise.  Conditions that are legitimate but must not pass
+    unseen — a training-budget shortfall, evidence written before it recorded
+    the evaluated checkpoint's hash — are appended to *warnings* when given
+    and logged otherwise.
+    """
+    sink = warnings if warnings is not None else []
     run_path = Path(run_dir).resolve()
+    selected_checkpoints = provenance.get("selected_checkpoints")
+    if not isinstance(selected_checkpoints, Mapping):
+        selected_checkpoints = {}
     expected_episodes = provenance.get("evaluation_episodes")
     evaluation_seeds = provenance.get("evaluation_seeds")
     if not isinstance(expected_episodes, int) or isinstance(expected_episodes, bool) or expected_episodes <= 0:
@@ -471,6 +593,42 @@ def validate_evaluation_evidence(
         )
         if int(selected_aggregates["evaluation_seed"]) != publication_evaluation_seed:
             raise ResultBundleError(f"stage {stage} selected evidence does not use the publication_evaluation seed")
+        # The evidence names the checkpoint it was rolled out from; the
+        # provenance names the checkpoint being certified.  They must be the
+        # same bytes, or the certified hash never produced the certified
+        # numbers (a write landing between evaluation and bundle save).
+        certified = selected_checkpoints.get(stage_key)
+        certified_hash = certified.get("model_hash") if isinstance(certified, Mapping) else None
+        recorded_hash = selected_aggregates["checkpoint_sha256"]
+        if recorded_hash is None:
+            sink.append(
+                f"stage {stage} selected evaluation evidence records no checkpoint_sha256 (written before "
+                "the column existed), so the evaluated checkpoint cannot be bound to the certified one"
+            )
+        elif certified_hash is not None and recorded_hash != certified_hash:
+            raise ResultBundleError(
+                f"stage {stage} selected evaluation evidence was produced by checkpoint {recorded_hash}, "
+                f"not the certified selected checkpoint {certified_hash}"
+            )
+        # The same binding for the VecNormalize statistics the rollout ran
+        # under: an SB3 checkpoint is the pair, and a sidecar rewritten
+        # between evaluation and save would otherwise be hashed into
+        # provenance unbound.  JAX certifies no sidecar, so there is nothing
+        # to bind and nothing to warn about.
+        certified_normalization = certified.get("normalization_hash") if isinstance(certified, Mapping) else None
+        recorded_normalization = selected_aggregates["normalization_sha256"]
+        if certified_normalization is not None:
+            if recorded_normalization is None:
+                sink.append(
+                    f"stage {stage} selected evaluation evidence records no normalization_sha256 (written before "
+                    "the column existed), so the VecNormalize statistics it ran under cannot be bound to the "
+                    "certified ones"
+                )
+            elif recorded_normalization != certified_normalization:
+                raise ResultBundleError(
+                    f"stage {stage} selected evaluation evidence ran under VecNormalize statistics "
+                    f"{recorded_normalization}, not the certified selected statistics {certified_normalization}"
+                )
         _compare_evaluation_aggregates(
             stage_summary,
             selected_aggregates,
@@ -488,6 +646,13 @@ def validate_evaluation_evidence(
         curriculum = config_value.get("curriculum", config_value.get("curriculum_kwargs", {}))
         if not isinstance(curriculum, Mapping):
             raise ResultBundleError(f"publication gate config for stage {stage} must contain a curriculum object")
+        _check_stage_training_record(
+            find_stage_dir(run_path, stage),
+            stage=stage,
+            stage_summary=stage_summary,
+            config_value=config_value,
+            warnings=sink,
+        )
         # A stage whose gate this evidence file cannot express must NOT be
         # certified on whichever thresholds happen to be checkable.
         #
@@ -569,6 +734,16 @@ def validate_evaluation_evidence(
         )
         if int(final_aggregates["evaluation_seed"]) != publication_evaluation_seed:
             raise ResultBundleError(f"stage {stage} final evidence does not use the publication_evaluation seed")
+        if final_aggregates["checkpoint_sha256"] is None:
+            sink.append(
+                f"stage {stage} final evaluation evidence records no checkpoint_sha256 (written before "
+                "the column existed)"
+            )
+        if certified_normalization is not None and final_aggregates["normalization_sha256"] is None:
+            sink.append(
+                f"stage {stage} final evaluation evidence records no normalization_sha256 (written before "
+                "the column existed)"
+            )
         _compare_evaluation_aggregates(
             stage_summary,
             final_aggregates,
@@ -576,3 +751,6 @@ def validate_evaluation_evidence(
             label="final",
             metric_map=final_metric_map,
         )
+    if warnings is None:
+        for message in sink:
+            _logger.warning(message)

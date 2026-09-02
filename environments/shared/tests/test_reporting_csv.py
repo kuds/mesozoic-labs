@@ -4,8 +4,9 @@ import csv
 
 import pytest
 
-from environments.shared.reporting import CSV_METRIC_COLUMNS, write_results_csv
+from environments.shared.reporting import CSV_METRIC_COLUMNS, save_evaluation_episodes, write_results_csv
 from environments.shared.reporting.csv_output import _compute_fieldnames
+from environments.shared.result_bundle import sha256_file
 
 
 class TestCsvMetricColumns:
@@ -154,3 +155,57 @@ class TestWriteResultsCsv:
         # _internal_flag is not a known column type, so it becomes a hparam
         path = write_results_csv(rows, tmp_path / "out.csv")
         assert path.exists()
+
+
+class TestSaveEvaluationEpisodesBindings:
+    """The evidence names the checkpoint AND the VecNormalize sidecar it ran under."""
+
+    @staticmethod
+    def _save(stage_dir, **bindings):
+        return save_evaluation_episodes(
+            stage_dir,
+            rewards=[1.0, 2.0],
+            lengths=[10, 12],
+            forward_velocities=[0.1, 0.2],
+            distances=[1.0, 2.0],
+            successes=[True, False],
+            evaluation_seed=7,
+            checkpoint_label="selected",
+            **bindings,
+        )
+
+    @staticmethod
+    def _rows(path):
+        with open(path, newline="", encoding="utf-8") as source:
+            reader = csv.DictReader(source)
+            return list(reader.fieldnames or []), list(reader)
+
+    def test_records_both_digests_when_both_artifacts_are_given(self, tmp_path):
+        checkpoint = tmp_path / "best_model.zip"
+        checkpoint.write_bytes(b"policy")
+        sidecar = tmp_path / "best_model_vecnorm.pkl"
+        sidecar.write_bytes(b"statistics")
+
+        fieldnames, rows = self._rows(self._save(tmp_path, checkpoint_path=checkpoint, normalization_path=sidecar))
+
+        assert fieldnames[-2:] == ["checkpoint_sha256", "normalization_sha256"]
+        assert {row["checkpoint_sha256"] for row in rows} == {sha256_file(checkpoint)}
+        assert {row["normalization_sha256"] for row in rows} == {sha256_file(sidecar)}
+
+    def test_omits_the_normalization_column_without_a_sidecar(self, tmp_path):
+        """The JAX path has no sidecar; its evidence must not grow an empty column."""
+        checkpoint = tmp_path / "best_model.pkl"
+        checkpoint.write_bytes(b"params")
+
+        fieldnames, _ = self._rows(self._save(tmp_path, checkpoint_path=checkpoint))
+
+        assert "checkpoint_sha256" in fieldnames
+        assert "normalization_sha256" not in fieldnames
+
+    def test_a_missing_sidecar_fails_closed(self, tmp_path):
+        checkpoint = tmp_path / "best_model.zip"
+        checkpoint.write_bytes(b"policy")
+
+        with pytest.raises(ValueError, match="evaluated VecNormalize statistics does not exist"):
+            self._save(tmp_path, checkpoint_path=checkpoint, normalization_path=tmp_path / "missing.pkl")
+        assert not (tmp_path / "evaluation_selected.csv").exists()

@@ -46,6 +46,16 @@ checkpoint, stage result, seed role, or other captured experiment setting.
 Repeating an identical export is a write-free no-op, so a transient Drive
 failure cannot remove the completion marker from an already valid bundle.
 
+A completion marker that no longer verifies is not the end of the run when
+only the artifacts the export itself regenerates (`summary.json`,
+`collected_results.csv`, `provenance.json`, `plant_identity.json`) disagree
+with it — an export interrupted mid-rewrite, say: the next export rebuilds
+them in place, and only after the rebuilt bundle has passed every check does
+it replace the marker. If a certified artifact — a checkpoint or its
+VecNormalize sidecar, evaluation evidence, a stage config — changed after
+publication, the export refuses and names the file; that bundle needs a new
+run ID.
+
 ## Source of truth
 
 `summary.json` is the canonical public result. `collected_results.csv` is

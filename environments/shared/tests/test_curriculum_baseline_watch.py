@@ -182,6 +182,56 @@ class TestBuilder:
         assert captured["duty_ceiling"] == 0.02
         assert captured["warn_after_budget_fraction"] == 0.5
 
+    def test_anchors_on_the_budget_actually_trained_not_the_toml(self, tmp_path, monkeypatch):
+        """A --timesteps override or a shortened resume budget must move the
+        warning with it; re-reading the TOML mis-timed or suppressed it (TC9)."""
+        captured = {}
+
+        def _capture(eval_callback, baseline_reward, **kwargs):
+            captured.update(kwargs)
+            return "callback"
+
+        monkeypatch.setattr(baseline_watch, "BaselineProgressCallback", _capture)
+        _write_baseline(tmp_path)
+        build_baseline_progress_callback(
+            MagicMock(),
+            run_dir=tmp_path,
+            species="trex",
+            stage_config={"curriculum_kwargs": {"timesteps": 10_000_000}},
+            total_timesteps=2_000_000,
+        )
+        assert captured["total_timesteps"] == 2_000_000
+
+
+def test_every_trainer_call_site_passes_the_actual_budget():
+    """`total_timesteps` is optional (TOML fallback), so a call site that omits
+    it silently re-inherits the TC9 mis-anchoring. train() must hand over its
+    resume-aware cumulative target, not this call's remaining budget."""
+    import ast
+
+    repo_root = Path(__file__).resolve().parents[3]
+    source = (repo_root / "environments" / "shared" / "train_base.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_build_core_callbacks"
+    ]
+    assert calls, "expected _build_core_callbacks to be called in train_base.py"
+    for call in calls:
+        assert any(kw.arg == "total_timesteps" for kw in call.keywords), (
+            f"_build_core_callbacks call at train_base.py:{call.lineno} omits total_timesteps=, "
+            "so the budget-anchored advisories fall back to the TOML budget on that path"
+        )
+    train_fn = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "train")
+    train_call = next(
+        node
+        for node in ast.walk(train_fn)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_build_core_callbacks"
+    )
+    passed = next(kw.value for kw in train_call.keywords if kw.arg == "total_timesteps")
+    assert isinstance(passed, ast.Name) and passed.id == "target_timesteps"
+
 
 def test_the_config_key_is_accepted_by_the_gate_schema():
     """An unregistered [curriculum] key is fatal, which would make it unusable."""

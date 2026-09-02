@@ -4,36 +4,51 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import Counter
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 from environments.shared.reporting import CSV_METRIC_COLUMNS
 from environments.shared.reporting import write_results_csv as _write_results_csv
+from environments.shared.reporting.formatting import parse_optional_bool
 
 from .constants import SweepStageError
 
 logger = logging.getLogger(__name__)
 
+#: Gate kinds whose verdict is a function of the scalar metrics a sweep row
+#: carries.  Every other declared kind needs evidence the sweep never collects
+#: (stance_quality/v1: an episode panel's duty statistics; recovery_quality/v1:
+#: a pushed panel paired against a frozen resolution), so for those the sweep
+#: refuses to compute ``stage_passed`` rather than substituting the reward
+#: rail — on trex stance the 3271.8 statue and the 2133.4 chatterer both
+#: clear the 2100 rail, which is the substitution this set exists to stop.
+_OFFLINE_EVALUABLE_GATE_KINDS = frozenset({"reward_and_length/v1"})
+
 
 def _evaluate_curriculum_gate(
     best_reward: float | None,
-    aux_metrics: dict[str, float],
+    aux_metrics: Mapping[str, Any],
     reward_threshold: float | None,
     ep_length_threshold: float | None,
     forward_vel_threshold: float | None,
     success_rate_threshold: float | None,
 ) -> tuple[bool, list[str]]:
-    """Evaluate whether a trial meets all curriculum advancement criteria.
+    """Evaluate whether a trial meets all legacy scalar-threshold criteria.
+
+    This is the ``reward_and_length/v1`` path only; :func:`_gate_row_fields`
+    decides whether a stage may use it (a stage that declares no gate may not).
 
     Returns:
         A tuple of ``(passed, fail_reasons)`` where *passed* is ``True``
         when all criteria are met and *fail_reasons* lists human-readable
         explanations of which criteria were not met.
     """
-    import math
+    from environments.shared.curriculum.gate_schema import finite_gate_metric
 
     def _get(*keys: str) -> float | None:
-        """First finite value among alias keys (NaN/None treated as missing).
+        """First finite value among alias keys (NaN/None/"" treated as missing).
 
         The Vertex ``metrics.json`` sidecar writes ``best_mean_*`` aliases,
         but the Ray results-DataFrame path reports plain ``mean_*`` keys —
@@ -41,17 +56,21 @@ def _evaluate_curriculum_gate(
         ASHA-pruned trials surface as NaN, which must not silently pass.
         """
         for key in keys:
-            value = aux_metrics.get(key)
-            if value is not None and not (isinstance(value, float) and math.isnan(value)):
+            value = finite_gate_metric(aux_metrics.get(key))
+            if value is not None:
                 return value
         return None
 
-    passed = best_reward is not None
+    # A NaN reward is not None and `nan < threshold` is False, so without
+    # this guard a Ray trial that errored before its first tune.report
+    # cleared every threshold below.
+    reward = finite_gate_metric(best_reward)
+    passed = reward is not None
     fail_reasons: list[str] = []
 
-    if best_reward is None:
-        fail_reasons.append("no reward reported (trial may have crashed)")
-    if reward_threshold is not None and (best_reward is None or best_reward < reward_threshold):
+    if reward is None:
+        fail_reasons.append(f"no finite reward reported (got {best_reward!r}; trial may have crashed or been pruned)")
+    if reward_threshold is not None and (reward is None or reward < reward_threshold):
         passed = False
         fail_reasons.append(f"reward {best_reward} < threshold {reward_threshold}")
     if ep_length_threshold is not None:
@@ -73,6 +92,27 @@ def _evaluate_curriculum_gate(
     return passed, fail_reasons
 
 
+def _curriculum_block(config: Mapping[str, Any]) -> Mapping[str, Any]:
+    """The stage's ``[curriculum]`` mapping — the block ``gate_kind`` lives in.
+
+    Supports both runtime TOML configs (key: ``curriculum_kwargs``) and
+    serialized ``stage_config.json`` configs (key: ``curriculum``).
+    """
+    return config.get("curriculum_kwargs") or config.get("curriculum") or {}
+
+
+def _thresholds_from_curriculum(
+    curriculum: Mapping[str, Any],
+) -> tuple[float | None, float | None, float | None, float | None]:
+    """``(reward, ep_length, forward_vel, success_rate)`` legacy thresholds."""
+    return (
+        curriculum.get("min_avg_reward"),
+        curriculum.get("min_avg_episode_length"),
+        curriculum.get("min_avg_forward_vel"),
+        curriculum.get("min_success_rate"),
+    )
+
+
 def _extract_thresholds(config: dict) -> tuple[float | None, float | None, float | None, float | None]:
     """Extract curriculum thresholds from a stage config dict.
 
@@ -82,13 +122,98 @@ def _extract_thresholds(config: dict) -> tuple[float | None, float | None, float
     Returns:
         A tuple of ``(reward, ep_length, forward_vel, success_rate)`` thresholds.
     """
-    cur = config.get("curriculum_kwargs") or config.get("curriculum") or {}
-    return (
-        cur.get("min_avg_reward"),
-        cur.get("min_avg_episode_length"),
-        cur.get("min_avg_forward_vel"),
-        cur.get("min_success_rate"),
-    )
+    return _thresholds_from_curriculum(_curriculum_block(config))
+
+
+#: Tail of every "nothing gate-passed to chain" refusal — the in-run one in
+#: :func:`_best_trial_model_path` and the ``launch-all --resume`` one in
+#: orchestration — so the operator reads the same escape hatch either way.
+_FORCE_CONTINUE_HINT = (
+    "Use --force-continue to chain the reward-ranked best trial; that is a reward ranking, not a gate pass."
+)
+
+
+def _gate_row_fields(
+    curriculum: Mapping[str, Any],
+    best_reward: float | None,
+    aux_metrics: Mapping[str, Any],
+    *,
+    config_error: str | None = None,
+) -> dict[str, Any]:
+    """Gate verdict fields for one trial row, dispatched on the declared ``gate_kind``.
+
+    Returns ``gate_kind``, ``gate_evaluable``, ``stage_passed`` and
+    ``gate_reason``.  Only a stage that declares the legacy scalar-threshold
+    gate (``reward_and_length/v1``) is judged by
+    :func:`_evaluate_curriculum_gate`.  A kind the sweep cannot evaluate
+    offline gets ``stage_passed=None`` with ``gate_evaluable=False`` and a
+    reason — never a reward-only substitute.  So does a stage that declares
+    no ``gate_kind`` at all: that is the verdict
+    ``reporting.gates.evaluate_stage_gate`` gives the same input ("declares
+    no gate_kind, so nothing certifies it"), and the thresholds a stage
+    happens to list are still reported as columns, never evaluated.
+
+    ``config_error`` (``"<path>: <error>"``) says the collector found a stage
+    config it could not read; an undeclared gate then names that cause rather
+    than a missing declaration, so the two are told apart in ``gate_reason``.
+    """
+    from environments.shared.curriculum.gate_schema import GATE_KINDS
+
+    gate_kind = curriculum.get("gate_kind")
+    fields: dict[str, Any] = {"gate_kind": gate_kind}
+    if gate_kind is None:
+        if config_error is not None:
+            reason = (
+                f"stage config unreadable: {config_error}; no gate_kind could be read, so nothing certifies this trial"
+            )
+        else:
+            reason = (
+                "stage declares no gate_kind, so nothing certifies it; a stage with no gate must say so "
+                'explicitly with gate_kind = "none/v1"'
+            )
+        fields.update(gate_evaluable=False, stage_passed=None, gate_reason=reason)
+    elif gate_kind in _OFFLINE_EVALUABLE_GATE_KINDS:
+        thresholds = _thresholds_from_curriculum(curriculum)
+        passed, reasons = _evaluate_curriculum_gate(best_reward, aux_metrics, *thresholds)
+        fields.update(gate_evaluable=True, stage_passed=passed, gate_reason="; ".join(reasons))
+    elif gate_kind == "none/v1":
+        # Same verdict as reporting.gates.evaluate_stage_gate: a declared
+        # non-advancing pilot refuses rather than passing by default.
+        fields.update(
+            gate_evaluable=True,
+            stage_passed=False,
+            gate_reason='gate_kind "none/v1" declares a non-advancing pilot; no trial passes',
+        )
+    elif gate_kind not in GATE_KINDS:
+        fields.update(
+            gate_evaluable=False,
+            stage_passed=None,
+            gate_reason=f"unknown gate_kind {gate_kind!r}; known kinds: {sorted(GATE_KINDS)}",
+        )
+    else:
+        fields.update(
+            gate_evaluable=False,
+            stage_passed=None,
+            gate_reason=(
+                f"gate_kind {gate_kind!r} is judged on evidence a sweep row does not carry "
+                "(an episode panel or a frozen gate resolution), so stage_passed is not "
+                "evaluable offline; the reward rail is not a substitute"
+            ),
+        )
+    return fields
+
+
+def _gate_status(row: Mapping[str, Any]) -> str:
+    """``"passed"``, ``"failed"`` or ``"not evaluable"`` for a collected row.
+
+    Accepts both in-memory rows (bools / ``None``) and CSV cells (strings).
+    """
+    if parse_optional_bool(row.get("gate_evaluable", True)) is False:
+        return "not evaluable"
+    passed = parse_optional_bool(row.get("stage_passed"))
+    if passed is None:
+        return "not evaluable"
+    return "passed" if passed else "failed"
 
 
 def _load_trial_metrics(output_base: str, trial_id: str) -> dict[str, float]:
@@ -179,10 +304,14 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
     * ``ep_length_threshold`` — ``min_avg_episode_length`` from config
     * ``forward_vel_threshold`` — ``min_avg_forward_vel`` from config
     * ``success_rate_threshold`` — ``min_success_rate`` from config
-    * ``stage_passed`` — ``True`` when all curriculum criteria are met
+    * ``gate_kind`` — the stage's declared gate kind (``None`` when undeclared)
+    * ``gate_evaluable`` — whether the sweep can judge that gate from these metrics
+    * ``stage_passed`` — ``True``/``False`` under an evaluable gate, ``None`` otherwise
+    * ``gate_reason`` — why the trial failed, or why the gate is not evaluable
     """
-    reward_threshold, ep_length_threshold, forward_vel_threshold, success_rate_threshold = _extract_thresholds(
-        stage_config
+    curriculum = _curriculum_block(stage_config)
+    reward_threshold, ep_length_threshold, forward_vel_threshold, success_rate_threshold = _thresholds_from_curriculum(
+        curriculum
     )
 
     rows: list[dict] = []
@@ -226,26 +355,14 @@ def _collect_trial_results(hpt_job: Any, stage: int, stage_config: dict, output_
         row["forward_vel_threshold"] = forward_vel_threshold
         row["success_rate_threshold"] = success_rate_threshold
 
-        passed, fail_reasons = _evaluate_curriculum_gate(
-            best_reward, aux, reward_threshold, ep_length_threshold, forward_vel_threshold, success_rate_threshold
-        )
-        row["stage_passed"] = passed
+        row.update(_gate_row_fields(curriculum, best_reward, aux))
 
         # Log per-trial diagnostic summary
-        if passed:
-            logger.info(
-                "  Trial %s stage %d: PASSED (reward=%.2f)",
-                trial.id,
-                stage,
-                best_reward,
-            )
+        status = _gate_status(row)
+        if status == "passed":
+            logger.info("  Trial %s stage %d: PASSED (reward=%.2f)", trial.id, stage, best_reward)
         else:
-            logger.warning(
-                "  Trial %s stage %d: FAILED — %s",
-                trial.id,
-                stage,
-                "; ".join(fail_reasons),
-            )
+            logger.warning("  Trial %s stage %d: %s — %s", trial.id, stage, status.upper(), row["gate_reason"])
 
         rows.append(row)
     return rows
@@ -285,7 +402,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
       - [0,0] Best Mean Reward per trial (grouped by stage)
       - [0,1] Best Mean Episode Length per trial (grouped by stage)
       - [1,0] Best vs Last Mean Reward (training stability)
-      - [1,1] Stage Pass/Fail summary (stacked bar)
+      - [1,1] Stage Pass/Fail summary (stacked bar: passed / failed / gate not evaluable offline)
 
     **sweep_hyperparameter_analysis.png** — Nx1 column:
       - One scatter plot per hyperparameter vs best_mean_reward (colour = stage)
@@ -493,18 +610,27 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
     ax_pf = axes1[1, 1]
     pass_counts = []
     fail_counts = []
+    unevaluable_counts = []
     stage_labels = []
     for stage in stages:
         stage_rows = [r for r in rows if _stage_cell_ref(r["stage"]) == stage]
-        passed = sum(1 for r in stage_rows if str(r.get("stage_passed", "")).lower() == "true")
-        failed = len(stage_rows) - passed
-        pass_counts.append(passed)
-        fail_counts.append(failed)
+        tally = Counter(_gate_status(r) for r in stage_rows)
+        pass_counts.append(tally["passed"])
+        fail_counts.append(tally["failed"])
+        unevaluable_counts.append(tally["not evaluable"])
         stage_labels.append(f"Stage {stage}")
 
     x_pf = np.arange(len(stages))
     ax_pf.bar(x_pf, pass_counts, color="#2ca02c", alpha=0.8, label="Passed")
     ax_pf.bar(x_pf, fail_counts, bottom=pass_counts, color="#d62728", alpha=0.8, label="Failed")
+    ax_pf.bar(
+        x_pf,
+        unevaluable_counts,
+        bottom=np.add(pass_counts, fail_counts),
+        color="#7f7f7f",
+        alpha=0.8,
+        label="Gate not evaluable offline",
+    )
     ax_pf.set_xticks(x_pf)
     ax_pf.set_xticklabels(stage_labels)
     ax_pf.set_ylabel("Number of Trials")
@@ -793,15 +919,20 @@ def _collect_results_local(
         # stage level first).
         stage_config_path = stage_path / "stage_config.json"
         stage_cfg: dict = {}
+        # Set when the file exists but cannot be read, so the gate verdict
+        # names that cause instead of "declares no gate_kind".
+        stage_cfg_error: str | None = None
         if stage_config_path.exists():
             try:
                 with open(stage_config_path) as f:
                     stage_cfg = json.load(f)
             except (json.JSONDecodeError, OSError) as exc:
                 logger.warning("Failed to read %s: %s", stage_config_path, exc)
+                stage_cfg_error = f"{stage_config_path}: {exc}"
 
-        reward_threshold, ep_length_threshold, forward_vel_threshold, success_rate_threshold = _extract_thresholds(
-            stage_cfg
+        stage_curriculum = _curriculum_block(stage_cfg)
+        reward_threshold, ep_length_threshold, forward_vel_threshold, success_rate_threshold = (
+            _thresholds_from_curriculum(stage_curriculum)
         )
         stage_hparams = _extract_hyperparameters(stage_cfg)
 
@@ -824,6 +955,8 @@ def _collect_results_local(
                 continue
 
             # Load per-trial stage_config.json if the stage-level one wasn't found.
+            trial_curriculum = stage_curriculum
+            trial_cfg_error = stage_cfg_error
             trial_reward_th = reward_threshold
             trial_ep_th = ep_length_threshold
             trial_fwd_th = forward_vel_threshold
@@ -835,10 +968,15 @@ def _collect_results_local(
                     try:
                         with open(per_trial_cfg_path) as f:
                             trial_cfg = json.load(f)
-                        trial_reward_th, trial_ep_th, trial_fwd_th, trial_sr_th = _extract_thresholds(trial_cfg)
+                        trial_cfg_error = None
+                        trial_curriculum = _curriculum_block(trial_cfg)
+                        trial_reward_th, trial_ep_th, trial_fwd_th, trial_sr_th = _thresholds_from_curriculum(
+                            trial_curriculum
+                        )
                         trial_hparams = _extract_hyperparameters(trial_cfg)
-                    except (json.JSONDecodeError, OSError):
-                        pass
+                    except (json.JSONDecodeError, OSError) as exc:
+                        logger.warning("Failed to read %s: %s", per_trial_cfg_path, exc)
+                        trial_cfg_error = f"{per_trial_cfg_path}: {exc}"
 
             best_reward = metrics.get("best_mean_reward")
             row: dict = {
@@ -873,10 +1011,7 @@ def _collect_results_local(
                 }
             )
 
-            passed, _ = _evaluate_curriculum_gate(
-                best_reward, metrics, trial_reward_th, trial_ep_th, trial_fwd_th, trial_sr_th
-            )
-            row["stage_passed"] = passed
+            row.update(_gate_row_fields(trial_curriculum, best_reward, metrics, config_error=trial_cfg_error))
 
             rows.append(row)
 
@@ -904,7 +1039,9 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
     This function inspects the completed trial rows, identifies the trial with
     the highest ``best_mean_reward`` among those that passed the stage, and
     returns the best model checkpoint path so the next stage's sweep can
-    warm-start from it.
+    warm-start from it.  Rows whose gate the sweep could not evaluate
+    (``stage_passed is None``) are never candidates: a high reward under a
+    stance/recovery gate is not a pass.
 
     Returns:
         A tuple of ``(model_path, best_row)`` where ``best_row`` is the full
@@ -915,19 +1052,29 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
     best_value = float("-inf")
 
     for row in stage_rows:
-        if row.get("stage_passed"):
+        if _gate_status(row) == "passed":
             best_reward = row.get("best_mean_reward")
             if best_reward is not None and best_reward > best_value:
                 best_value = best_reward
                 best_row = row
 
     if best_row is None:
+        unevaluable = [row for row in stage_rows if _gate_status(row) == "not evaluable"]
+        if unevaluable:
+            # A row from a stage with no declaration (or an unreadable
+            # config) carries gate_kind None; say so rather than "None".
+            kinds = sorted({row.get("gate_kind") or "<undeclared>" for row in unevaluable})
+            raise SweepStageError(
+                f"Stage {stage} declares gate_kind {kinds}, which the sweep cannot evaluate offline: "
+                f"{len(unevaluable)} of {len(stage_rows)} trials carry no gate verdict and none is gate-passed. "
+                + _FORCE_CONTINUE_HINT
+            )
         raise SweepStageError(
             f"No trials passed stage {stage} criteria. Re-run with adjusted thresholds or more trials."
         )
 
     best_trial_id = best_row["trial_id"]
-    logger.info("Best passing trial for stage %d: id=%s  best_mean_reward=%.4f", stage, best_trial_id, best_value)
+    logger.info("Best gate-passed trial for stage %d: id=%s  best_mean_reward=%.4f", stage, best_trial_id, best_value)
 
     # Use a pre-computed model_path if available (e.g. from a partial-resume
     # merge where trials come from different GCS output directories).
@@ -961,13 +1108,13 @@ def _best_trial_model_path_any(stage_rows: list[dict], bucket: str, species: str
         raise SweepStageError(f"No trials reported a valid reward for stage {stage}. All trials may have crashed.")
 
     best_trial_id = best_row["trial_id"]
-    passed_str = "PASSED" if best_row.get("stage_passed") else "FAILED gate"
     logger.info(
-        "Best trial for stage %d (force-continue): id=%s  best_mean_reward=%.4f (%s)",
+        "Reward-ranked best trial for stage %d (force-continue; a reward ranking, not a gate verdict): "
+        "id=%s  best_mean_reward=%.4f  gate=%s",
         stage,
         best_trial_id,
         best_value,
-        passed_str,
+        _gate_status(best_row),
     )
 
     if "model_path" in best_row:

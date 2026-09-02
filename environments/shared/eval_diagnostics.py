@@ -655,8 +655,10 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
 
     def _clear_plateau(self, reason: str) -> None:
         if self._plateau_active:
+            # %s, not %d: semantic stages ("recovery") reach here, and a %d
+            # would turn the diagnostic into a '--- Logging error ---'.
             logger.info(
-                "Stage %d evaluation plateau cleared at step %d: %s.",
+                "Stage %s evaluation plateau cleared at step %d: %s.",
                 self.stage,
                 self.num_timesteps,
                 reason,
@@ -956,7 +958,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             )
         elif not self._plateau_active:
             logger.warning(
-                "STAGE %d EVALUATION PLATEAU: %s stayed within a %s range (%s of its gate) "
+                "STAGE %s EVALUATION PLATEAU: %s stayed within a %s range (%s of its gate) "
                 "across the last %d evaluations; latest %s, required %s, step %d. %s%s "
                 "Training continues; this diagnostic is not the curriculum gate or collapse early-stop.",
                 self.stage,

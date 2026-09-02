@@ -85,6 +85,12 @@ export interface ResultStage {
   successRate: number | null;
   trainingTime: string | null;
   passed: boolean | null;
+  /** Gate kind the summary recorded the verdict under; null when unrecorded. */
+  gateKind: string | null;
+  /** Gate kind the species declares for this stage today. */
+  currentGateKind: string | null;
+  /** True when the verdict was earned under an unrecorded or no-longer-declared gate. */
+  gateRetired: boolean;
 }
 
 export interface PublishedResult {
@@ -183,6 +189,9 @@ interface RawResultStage {
   mean_success_rate: number | null;
   training_time: string | null;
   stage_passed: boolean | null;
+  gate_kind: string | null;
+  current_gate_kind: string | null;
+  gate_retired: boolean;
 }
 
 interface RawResult {
@@ -305,6 +314,9 @@ function adaptResult(result: RawResult): PublishedResult {
       successRate: stage.mean_success_rate,
       trainingTime: stage.training_time,
       passed: stage.stage_passed,
+      gateKind: stage.gate_kind,
+      currentGateKind: stage.current_gate_kind,
+      gateRetired: stage.gate_retired,
     })),
   };
 }

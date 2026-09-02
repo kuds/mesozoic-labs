@@ -42,7 +42,12 @@ from .plant_contract import (
     validate_model_plant,
 )
 from .stage_manifest import stage_label
-from .tb_sync import _is_gcs_path, _make_local_tb_dir, _sync_tb_to_gcs  # noqa: F401  (re-exported for backward compat)
+from .tb_sync import (  # noqa: F401  (re-exported for backward compat)
+    _is_gcs_path,
+    _make_local_tb_dir,
+    _mirror_remote_run_dirs,
+    _sync_tb_to_gcs,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +154,21 @@ def cosine_schedule(initial_lr: float, final_lr: float):
 
 #: Evaluation panel size when a stage's gate does not demand a specific one.
 _DEFAULT_EVAL_EPISODES = 30
+
+
+def _validate_post_eval_episodes(post_eval_episodes: int | None) -> None:
+    """Reject a negative post-training panel size before anything runs on it.
+
+    ``-1`` used to run both panels over empty ranges and write a
+    ``metrics.json`` with ``quality_eval_checkpoint`` set but no panel
+    numbers and no ``post_eval_skipped`` — indistinguishable from a panel
+    that crashed mid-way.  ``0`` is the explicit skip; below it is an error.
+    """
+    if post_eval_episodes is not None and post_eval_episodes < 0:
+        raise ValueError(
+            "--post-eval-episodes (post_eval_episodes) must be a non-negative integer — 0 skips "
+            f"the panels; got {post_eval_episodes}"
+        )
 
 
 def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
@@ -265,21 +285,48 @@ def _prepare_alg_kwargs(
     """Build algorithm kwargs with LR schedule, clip annealing, and TB setup.
 
     Returns ``(alg_kwargs, local_tb_dir, gcs_tb_path)`` where *local_tb_dir*
-    is ``None`` when the output is not on a GCS FUSE mount.
+    is ``None`` when the output is not on a remote FUSE mount (GCS or Drive;
+    see :func:`_is_remote_mount_path`).  On a mount, TensorBoard events are
+    buffered locally and synced to *gcs_tb_path* on the checkpoint cadence
+    (``PeriodicTbSyncCallback``) and at stage end — a Drive path used to
+    stream its event files straight to the mount, held open all stage, so a
+    hard runtime reclaim lost the un-uploaded tail (review CO5).
     """
-    alg_kwargs = config["sac_kwargs"].copy() if algorithm == "sac" else config["ppo_kwargs"].copy()
+    alg_table = "sac" if algorithm == "sac" else "ppo"
+    alg_kwargs = config[f"{alg_table}_kwargs"].copy()
+    if not alg_kwargs:
+        # The loader cannot know which backend a config is for; this is the
+        # first point that does (review CF4).
+        logger.warning(
+            "Stage config declares no [%s] table (or an empty one): %s will train on "
+            "stable-baselines3's default hyperparameters.",
+            alg_table,
+            algorithm.upper(),
+        )
     alg_kwargs["verbose"] = verbose
 
     # TensorBoard buffering
     local_tb_dir = None
     gcs_tb_path = log_path / "tensorboard"
     if use_tensorboard:
-        if _is_gcs_path(log_path):
+        if _is_remote_mount_path(log_path):
             local_tb_dir = _make_local_tb_dir(gcs_tb_path)
+            # SB3 numbers run dirs from the directory it logs to — now the
+            # buffer, not the mount — so a resume on a fresh runtime would
+            # otherwise restart at PPO_0 instead of continuing the mount's
+            # latest run (see _mirror_remote_run_dirs).
+            mirrored = _mirror_remote_run_dirs(local_tb_dir, gcs_tb_path)
+            if mirrored:
+                logger.info(
+                    "Mirrored existing TensorBoard run dir(s) %s from %s into the buffer so run numbering continues",
+                    mirrored,
+                    gcs_tb_path,
+                )
             alg_kwargs["tensorboard_log"] = str(local_tb_dir)
             logger.info(
-                "TensorBoard buffering locally at %s (will sync to GCS after training)",
+                "TensorBoard buffering locally at %s (synced to %s periodically and after training)",
                 local_tb_dir,
+                gcs_tb_path,
             )
         else:
             alg_kwargs["tensorboard_log"] = str(gcs_tb_path)
@@ -354,16 +401,30 @@ def _is_resume_continuation(
     return match is not None and match.group(1) == stage_lbl
 
 
+#: Filesystem roots of the FUSE-mounted remote stores a run may write to:
+#: Colab mounts Google Drive at ``/content/drive`` (older tooling used
+#: ``/gdrive``).  GCS FUSE (``/gcs/``) is :func:`_is_gcs_path`.
+_REMOTE_MOUNT_ROOTS: tuple[str, ...] = ("/content/drive", "/gdrive")
+
+
 def _is_remote_mount_path(path: "Path | str") -> bool:
     """Whether *path* sits on a FUSE-mounted remote filesystem (GCS or Drive).
 
     Direct streaming writes to these mounts can be observed — or permanently
     left — truncated when the runtime dies mid-write (see ``file_io``); paths
-    that match get the local-stage + atomic-publish treatment.  Colab mounts
-    Google Drive at ``/content/drive`` (older tooling used ``/gdrive``).
+    that match get the local-stage + atomic-publish treatment.
+
+    Filesystem paths are resolved first (``Path.resolve``): a relative
+    ``drive/MyDrive/...`` given from ``/content``, or a symlink into the
+    mount, lands on the mount all the same, and a prefix test on the
+    unresolved text let both stream straight to it.  URIs (``gs://``) have
+    nothing to resolve against and are tested as given.
     """
     text = str(path)
-    return _is_gcs_path(text) or text.startswith(("/content/drive", "/gdrive"))
+    if "://" in text:
+        return _is_gcs_path(text)
+    resolved = str(Path(text).resolve())
+    return _is_gcs_path(resolved) or resolved.startswith(_REMOTE_MOUNT_ROOTS)
 
 
 def _resolve_vecnorm_sidecar(load_path: str) -> str:
@@ -558,11 +619,20 @@ def _build_core_callbacks(
     local_tb_dir: Path | None = None,
     gcs_tb_path: Path | None = None,
     species: str | None = None,
+    total_timesteps: int | None = None,
 ) -> tuple[list, Any, Any]:
     """Build the standard callback set shared by train() and train_curriculum().
 
     Returns ``(callbacks, eval_callback, save_vecnorm_cb)`` so callers can
     append additional stage-specific callbacks.
+
+    ``total_timesteps`` is the cumulative step count this session actually
+    trains to (train()'s resume-aware ``target_timesteps``).  The
+    budget-anchored advisories — the never-beaten-baseline warning and the
+    collapse warm-up sanity log — read it instead of re-reading the TOML
+    budget, which a ``--timesteps`` override or a shortened resume budget
+    silently mis-timed (review TC9).  ``None`` keeps the TOML fallback for
+    callers that predate the parameter.
     """
     from .curriculum import (
         DEFAULT_MAX_CHECKPOINTS,
@@ -691,6 +761,7 @@ def _build_core_callbacks(
             eval_callback,
             collapse_cfg,
             verbose=verbose,
+            total_timesteps=total_timesteps,
         )
     )
 
@@ -709,6 +780,7 @@ def _build_core_callbacks(
             run_dir=Path(log_path).parent if log_path is not None else None,
             species=species,
             stage_config=stage_config,
+            total_timesteps=total_timesteps,
             verbose=verbose,
         )
         if species
@@ -720,8 +792,9 @@ def _build_core_callbacks(
     if use_wandb:
         callbacks.append(WandbCallback())
 
-    # Flush buffered TensorBoard events to GCS on the checkpoint cadence so
-    # a preempted worker (spot VMs) doesn't lose the whole stage's logs.
+    # Flush buffered TensorBoard events to the remote mount (GCS or Drive)
+    # on the checkpoint cadence so a preempted worker (spot VMs) or a
+    # reclaimed Colab runtime doesn't lose the whole stage's logs.
     if local_tb_dir is not None and gcs_tb_path is not None:
         callbacks.append(PeriodicTbSyncCallback(local_tb_dir, gcs_tb_path, sync_freq=save_freq, verbose=verbose))
 
@@ -869,8 +942,16 @@ def train(
     allow_legacy_plant: bool = False,
     task_load_mode: str = "resume_same_stage",
     allow_fresh_vecnorm: bool = False,
+    post_eval_episodes: int | None = None,
 ):
     """Train a single stage of the curriculum.
+
+    ``post_eval_episodes`` sizes the post-training evaluation panels
+    written to ``metrics.json`` (see :func:`_report_hpt_metrics`): ``None``
+    keeps the 50-episode quality / 30-episode velocity panels, ``0`` skips
+    both — the knob smoke, debug and CI runs need, where the panels
+    otherwise cost about half the wall time (review EE4).  A negative value
+    is rejected here, before any training runs on it.
 
     ``task_load_mode`` governs how a ``load_path`` checkpoint's recorded
     task fingerprint is validated: ``resume_same_stage`` (default)
@@ -895,6 +976,8 @@ def train(
     checkpoint whose VecNormalize sidecar is lost; by default that load
     fails closed (review TC5).
     """
+    _validate_post_eval_episodes(post_eval_episodes)
+
     from .config import save_stage_config
     from .task_fingerprint import derive_stage_task_fingerprint
     from .wandb_integration import init_wandb
@@ -948,6 +1031,11 @@ def train(
         species=species_cfg.species,
         plant_identity=plant_identity,
         task_fingerprint=task_fingerprint,
+        # Load lineage into the run block (review RP4): the checkpoint is
+        # validated against the task at load time below, and this is where
+        # that provenance becomes readable (no keys at all from scratch).
+        load_path=load_path,
+        load_mode=task_load_mode if load_path else None,
     )
 
     # Create environments
@@ -1077,6 +1165,9 @@ def train(
         local_tb_dir=local_tb_dir,
         gcs_tb_path=gcs_tb_path,
         species=species,
+        # The cumulative target this session trains to, not the TOML budget:
+        # the budget-anchored advisories must follow --timesteps and resumes.
+        total_timesteps=target_timesteps,
     )
 
     if resuming:
@@ -1192,6 +1283,7 @@ def train(
         stage_config=config,
         seed=seed,
         plant_identity=plant_identity,
+        post_eval_episodes=post_eval_episodes,
     )
 
     train_env.close()
@@ -1223,6 +1315,7 @@ def _report_hpt_metrics(
     stage_config: dict[str, Any] | None = None,
     seed: int | None = None,
     plant_identity: PlantIdentity | None = None,
+    post_eval_episodes: int | None = None,
 ):
     """Report metrics to Vertex AI Hypertune and write a local JSON sidecar.
 
@@ -1235,12 +1328,21 @@ def _report_hpt_metrics(
     checkpoint is loaded with its matched VecNormalize stats so the
     reported metrics reflect the checkpoint that will be handed off to
     the next stage — not the final model which may have regressed.
+
+    ``post_eval_episodes`` sizes both post-training panels: ``None`` keeps
+    the historical 50-episode quality / 30-episode velocity panels, a
+    positive value is used for both, and ``0`` skips them entirely —
+    ``metrics.json`` is still written, with ``post_eval_skipped: true`` and
+    a null ``quality_eval_checkpoint`` in place of fabricated numbers
+    (review EE4: the panels were unskippable and cost smoke/CI runs about
+    half their wall time).  A negative value is a ``ValueError``
+    (:func:`_validate_post_eval_episodes`).
     """
+    _validate_post_eval_episodes(post_eval_episodes)
+
     import json as _json
 
     import numpy as _np
-
-    sb3 = _ensure_sb3()
 
     from .config import get_library_version
 
@@ -1305,106 +1407,31 @@ def _report_hpt_metrics(
             last_mean_ep_length,
         )
 
-    # ── Post-training quality evaluation (all stages) ──────────────────
+    # ── Post-training evaluation panels (all stages) ───────────────────
     # Run evaluation rollouts with LocomotionMetrics to collect spinning
     # detection signals, heading stability, and reward component breakdown.
     # These metrics enable model selection beyond raw reward.
-    from .curriculum import load_vecnorm_stats
-
-    best_model_zip = model_dir / "best_model.zip"
-    alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
-
-    # Evaluate the same checkpoint the curriculum hands to the next stage
-    # (robust_best_model before mean-reward best_model, via
-    # _select_handoff_checkpoint), so metrics.json describes the promoted
-    # policy rather than a possibly-degenerate lucky-peak mean-best one
-    # (run 20260720_203454's best_model was the 50k checkpoint whose eval
-    # was 261.79 ± 261.72). The chosen name is recorded in the sidecar as
-    # quality_eval_checkpoint.
-    handoff = _select_handoff_checkpoint(model_dir)
-    if handoff is not None:
-        ckpt_name, ckpt_path, ckpt_vecnorm = handoff
-        eval_model = alg_cls.load(ckpt_path, env=eval_env)
-        if plant_identity is not None:
-            validate_model_plant(eval_model, plant_identity, artifact=ckpt_path + ".zip")
-        load_kwargs: dict[str, Any]
-        if plant_identity is not None:
-            load_kwargs = {"current_plant": plant_identity}
-        else:
-            load_kwargs = {"unsafe_skip_plant_validation": True}
-        load_vecnorm_stats(ckpt_vecnorm, eval_env, **load_kwargs)
-        eval_env.training = False
-        eval_env.norm_reward = False
-        aux_metrics["quality_eval_checkpoint"] = ckpt_name
-        logger.info("HPT eval: using %s + matched VecNormalize", ckpt_name)
-    elif best_model_zip.exists():
-        # Legacy fallback: a best_model saved without matched VecNormalize
-        # stats. Evaluate it rather than nothing, but flag the mismatch.
-        eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
-        if plant_identity is not None:
-            validate_model_plant(eval_model, plant_identity, artifact=str(best_model_zip))
-        eval_env.training = False
-        eval_env.norm_reward = False
-        aux_metrics["quality_eval_checkpoint"] = "best_model"
-        logger.warning(
-            "HPT eval: best_model has no matched VecNormalize stats — quality eval "
-            "normalization may not match the policy weights"
-        )
+    if post_eval_episodes == 0:
+        # Recorded as skipped, not as zeros: a downstream reader must be able
+        # to tell "not measured" from "measured badly".
+        aux_metrics["post_eval_skipped"] = True
+        aux_metrics["quality_eval_checkpoint"] = None
+        logger.info("Post-training evaluation panels skipped (post_eval_episodes=0).")
     else:
-        eval_model = model
-        eval_env.training = False
-        eval_env.norm_reward = False
-        aux_metrics["quality_eval_checkpoint"] = "final_model"
-        logger.warning("HPT eval: no saved checkpoint found, falling back to final model")
-
-    # Quality evaluation with full LocomotionMetrics (spinning detection,
-    # heading alignment, reward breakdown, etc.)
-    from .evaluation import eval_policy_quality
-
-    try:
-        quality_metrics = eval_policy_quality(eval_model, eval_env, species_cfg.success_keys, n_episodes=50)
-        aux_metrics.update(quality_metrics)
-        logger.info(
-            "Quality eval complete: %d metrics collected (angular_vel=%.3f, heading_align=%.3f)",
-            len(quality_metrics),
-            quality_metrics.get("eval_mean_pelvis_angular_velocity", float("nan")),
-            quality_metrics.get("eval_mean_heading_alignment", float("nan")),
+        quality_episodes = 50 if post_eval_episodes is None else post_eval_episodes
+        velocity_episodes = 30 if post_eval_episodes is None else post_eval_episodes
+        aux_metrics.update(
+            _post_training_eval_panels(
+                species_cfg,
+                model,
+                eval_env,
+                model_dir,
+                algorithm,
+                plant_identity,
+                quality_episodes=quality_episodes,
+                velocity_episodes=velocity_episodes,
+            )
         )
-    except Exception:
-        logger.warning("Quality evaluation failed — skipping quality metrics.", exc_info=True)
-
-    # Forward velocity, distance, and success rate evaluation.
-    # Run for all stages so mean_distance_traveled is always captured.
-    # Guarded so a mid-eval failure still writes the metrics.json sidecar
-    # with whatever was collected above.
-    try:
-        _, _, fwd_vels, success_flags, distances = eval_policy(
-            eval_model,
-            eval_env,
-            species_cfg.success_keys,
-            n_episodes=30,
-        )
-    except Exception:
-        logger.warning("Post-training eval_policy failed — skipping velocity/success metrics.", exc_info=True)
-        fwd_vels, success_flags, distances = [], [], []
-    if fwd_vels:
-        mean_fwd = float(_np.mean(fwd_vels))
-        std_fwd = float(_np.std(fwd_vels))
-        aux_metrics["mean_forward_vel"] = mean_fwd
-        aux_metrics["std_forward_vel"] = std_fwd
-        # Keep backward-compat alias used by existing sweep analysis.
-        aux_metrics["best_mean_forward_vel"] = mean_fwd
-        logger.info("HPT metric reported: mean_forward_vel=%.4f (std=%.4f)", mean_fwd, std_fwd)
-    if distances:
-        mean_dist = float(_np.mean(distances))
-        aux_metrics["mean_distance_traveled"] = mean_dist
-        logger.info("HPT metric reported: mean_distance_traveled=%.4f", mean_dist)
-    if success_flags:
-        mean_success = float(_np.mean(success_flags))
-        aux_metrics["mean_success_rate"] = mean_success
-        # Keep backward-compat alias used by existing sweep analysis.
-        aux_metrics["best_mean_success_rate"] = mean_success
-        logger.info("HPT metric reported: mean_success_rate=%.4f", mean_success)
 
     # Include key hyperparameters in the sidecar so offline result
     # collection works even when stage_config.json is missing.
@@ -1434,6 +1461,130 @@ def _report_hpt_metrics(
     logger.info("Metrics sidecar written to: %s", metrics_path)
 
 
+def _post_training_eval_panels(
+    species_cfg: SpeciesConfig,
+    model,
+    eval_env,
+    model_dir: Path,
+    algorithm: str,
+    plant_identity: PlantIdentity | None,
+    *,
+    quality_episodes: int,
+    velocity_episodes: int,
+) -> dict[str, Any]:
+    """Run the post-training quality and velocity/success panels.
+
+    Returns the ``metrics.json`` entries they produce, including
+    ``quality_eval_checkpoint`` — the checkpoint the panels describe.  Each
+    panel is guarded so a mid-eval failure still yields whatever the other
+    collected.
+    """
+    import numpy as _np
+
+    from .curriculum import load_vecnorm_stats
+
+    sb3 = _ensure_sb3()
+    panel: dict[str, Any] = {}
+
+    best_model_zip = model_dir / "best_model.zip"
+    alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
+
+    # Evaluate the same checkpoint the curriculum hands to the next stage
+    # (robust_best_model before mean-reward best_model, via
+    # _select_handoff_checkpoint), so metrics.json describes the promoted
+    # policy rather than a possibly-degenerate lucky-peak mean-best one
+    # (run 20260720_203454's best_model was the 50k checkpoint whose eval
+    # was 261.79 ± 261.72). The chosen name is recorded in the sidecar as
+    # quality_eval_checkpoint.
+    handoff = _select_handoff_checkpoint(model_dir)
+    if handoff is not None:
+        ckpt_name, ckpt_path, ckpt_vecnorm = handoff
+        eval_model = alg_cls.load(ckpt_path, env=eval_env)
+        if plant_identity is not None:
+            validate_model_plant(eval_model, plant_identity, artifact=ckpt_path + ".zip")
+        load_kwargs: dict[str, Any]
+        if plant_identity is not None:
+            load_kwargs = {"current_plant": plant_identity}
+        else:
+            load_kwargs = {"unsafe_skip_plant_validation": True}
+        load_vecnorm_stats(ckpt_vecnorm, eval_env, **load_kwargs)
+        eval_env.training = False
+        eval_env.norm_reward = False
+        panel["quality_eval_checkpoint"] = ckpt_name
+        logger.info("HPT eval: using %s + matched VecNormalize", ckpt_name)
+    elif best_model_zip.exists():
+        # Legacy fallback: a best_model saved without matched VecNormalize
+        # stats. Evaluate it rather than nothing, but flag the mismatch.
+        eval_model = alg_cls.load(str(model_dir / "best_model"), env=eval_env)
+        if plant_identity is not None:
+            validate_model_plant(eval_model, plant_identity, artifact=str(best_model_zip))
+        eval_env.training = False
+        eval_env.norm_reward = False
+        panel["quality_eval_checkpoint"] = "best_model"
+        logger.warning(
+            "HPT eval: best_model has no matched VecNormalize stats — quality eval "
+            "normalization may not match the policy weights"
+        )
+    else:
+        eval_model = model
+        eval_env.training = False
+        eval_env.norm_reward = False
+        panel["quality_eval_checkpoint"] = "final_model"
+        logger.warning("HPT eval: no saved checkpoint found, falling back to final model")
+
+    # Quality evaluation with full LocomotionMetrics (spinning detection,
+    # heading alignment, reward breakdown, etc.)
+    from .evaluation import eval_policy_quality
+
+    try:
+        quality_metrics = eval_policy_quality(
+            eval_model, eval_env, species_cfg.success_keys, n_episodes=quality_episodes
+        )
+        panel.update(quality_metrics)
+        logger.info(
+            "Quality eval complete: %d metrics collected (angular_vel=%.3f, heading_align=%.3f)",
+            len(quality_metrics),
+            quality_metrics.get("eval_mean_pelvis_angular_velocity", float("nan")),
+            quality_metrics.get("eval_mean_heading_alignment", float("nan")),
+        )
+    except Exception:
+        logger.warning("Quality evaluation failed — skipping quality metrics.", exc_info=True)
+
+    # Forward velocity, distance, and success rate evaluation.
+    # Run for all stages so mean_distance_traveled is always captured.
+    # Guarded so a mid-eval failure still writes the metrics.json sidecar
+    # with whatever was collected above.
+    try:
+        _, _, fwd_vels, success_flags, distances = eval_policy(
+            eval_model,
+            eval_env,
+            species_cfg.success_keys,
+            n_episodes=velocity_episodes,
+        )
+    except Exception:
+        logger.warning("Post-training eval_policy failed — skipping velocity/success metrics.", exc_info=True)
+        fwd_vels, success_flags, distances = [], [], []
+    if fwd_vels:
+        mean_fwd = float(_np.mean(fwd_vels))
+        std_fwd = float(_np.std(fwd_vels))
+        panel["mean_forward_vel"] = mean_fwd
+        panel["std_forward_vel"] = std_fwd
+        # Keep backward-compat alias used by existing sweep analysis.
+        panel["best_mean_forward_vel"] = mean_fwd
+        logger.info("HPT metric reported: mean_forward_vel=%.4f (std=%.4f)", mean_fwd, std_fwd)
+    if distances:
+        mean_dist = float(_np.mean(distances))
+        panel["mean_distance_traveled"] = mean_dist
+        logger.info("HPT metric reported: mean_distance_traveled=%.4f", mean_dist)
+    if success_flags:
+        mean_success = float(_np.mean(success_flags))
+        panel["mean_success_rate"] = mean_success
+        # Keep backward-compat alias used by existing sweep analysis.
+        panel["best_mean_success_rate"] = mean_success
+        logger.info("HPT metric reported: mean_success_rate=%.4f", mean_success)
+    return panel
+
+
 # ── Curriculum training ──────────────────────────────────────────────────
 
 
@@ -1455,7 +1606,19 @@ def train_curriculum(
     use_tensorboard: bool = True,
     allow_fresh_vecnorm: bool = False,
 ):
-    """Run the full 3-stage curriculum with automatic advancement."""
+    """Run the curriculum's advancing stages, in manifest order, with automatic advancement.
+
+    Walks ``load_stage_manifest(species).stages`` rather than a hardcoded
+    ``range(1, 4)``: indexed into ``load_all_stages``' ``[1, "recovery", 2,
+    3]``, the range trained stance -> locomotion -> behavior and skipped the
+    T-Rex recovery stage without a log line (review TC7/OP6).  Stages the
+    manifest marks non-advancing (no legacy number — recovery, whose gate the
+    in-training manager cannot judge) are skipped with an explicit log line
+    and do not break the handoff: the next advancing stage still enters on
+    the previous advancing stage's promoted checkpoint under
+    ``initialize_next_stage``.  Run a skipped stage on its own with
+    ``train --stage <id>``.
+    """
     from .config import (
         save_stage_config,
         upload_curriculum_artifacts,
@@ -1465,6 +1628,7 @@ def train_curriculum(
         CurriculumManager,
         thresholds_from_configs,
     )
+    from .stage_manifest import load_stage_manifest, stage_dirname
     from .task_fingerprint import derive_stage_task_fingerprint
     from .wandb_integration import init_wandb
 
@@ -1472,8 +1636,10 @@ def train_curriculum(
     species = species_cfg.species
     plant_identity = current_plant_identity(species)
 
+    manifest = load_stage_manifest(species)
+    advancing = manifest.advancing_stages
     thresholds = thresholds_from_configs(stage_configs)
-    manager = CurriculumManager(species=species, stage_thresholds=thresholds)
+    manager = CurriculumManager(species=species, stage_thresholds=thresholds, total_stages=len(advancing))
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if output_dir is not None:
@@ -1489,7 +1655,10 @@ def train_curriculum(
     write_plant_identity(base_dir / "plant_identity.json", plant_identity)
 
     logger.info("=" * 60)
-    logger.info("Starting automated curriculum training (stages 1-3)")
+    logger.info(
+        "Starting automated curriculum training (advancing stages, manifest order): %s",
+        " -> ".join(entry.id for entry in advancing),
+    )
     logger.info("Base directory: %s", base_dir)
     logger.info("=" * 60)
 
@@ -1497,12 +1666,25 @@ def train_curriculum(
     load_path = None
     prev_vecnorm_path = None
 
-    for stage in range(1, 4):
+    for entry in manifest.stages:
+        if entry not in advancing:
+            gate_kind = stage_configs.get(entry.reference, {}).get("curriculum_kwargs", {}).get("gate_kind")
+            logger.warning(
+                "Skipping non-advancing stage %r (position %d/%d, gate_kind %s): the automated "
+                "curriculum trains only the manifest's advancing stages, and the next stage "
+                "enters on the previous ADVANCING stage's checkpoint. Train it on its own with "
+                "`train --stage %s`.",
+                entry.id,
+                entry.position,
+                len(manifest.stages),
+                gate_kind,
+                entry.id,
+            )
+            continue
+        stage = entry.reference
         config = stage_configs[stage]
         cur_kwargs = config.get("curriculum_kwargs", {})
         total_timesteps = cur_kwargs.get("timesteps", 500000)
-
-        from .stage_manifest import stage_dirname
 
         stage_dir = base_dir / stage_dirname(species, stage)
         stage_dir.mkdir(exist_ok=True)
@@ -1510,7 +1692,14 @@ def train_curriculum(
         model_dir.mkdir(exist_ok=True)
 
         logger.info("=" * 60)
-        logger.info("Curriculum Stage %d/%d: %s", stage, 3, config["name"])
+        logger.info(
+            "Curriculum stage %s (%s, position %d/%d): %s",
+            stage,
+            entry.id,
+            entry.position,
+            len(manifest.stages),
+            config["name"],
+        )
         logger.info("Description: %s", config["description"])
         logger.info("Timesteps: %s", f"{total_timesteps:,}")
         logger.info("=" * 60)
@@ -1532,6 +1721,10 @@ def train_curriculum(
             species=species_cfg.species,
             plant_identity=plant_identity,
             task_fingerprint=task_fingerprint,
+            # The handoff checkpoint this stage enters on (review RP4); the
+            # first stage, loading nothing, records no lineage keys.
+            load_path=load_path,
+            load_mode="initialize_next_stage" if load_path else None,
         )
 
         effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
@@ -1616,6 +1809,7 @@ def train_curriculum(
             local_tb_dir=local_tb_dir,
             gcs_tb_path=gcs_tb_path,
             species=species,
+            total_timesteps=total_timesteps,
         )
 
         ent_decay_cb = _maybe_ent_coef_decay_callback(config, algorithm, total_timesteps)
@@ -1641,7 +1835,7 @@ def train_curriculum(
             _stage_entry_shaping_callbacks(
                 config,
                 task_load_mode="initialize_next_stage",
-                stage_position=stage,
+                stage_position=entry.position,
                 load_path=load_path,
             )
         )
@@ -1665,7 +1859,7 @@ def train_curriculum(
         actual_timesteps = int(model.num_timesteps)
         if actual_timesteps < total_timesteps:
             logger.warning(
-                "Stage %d ended early at %s of %s timesteps.",
+                "Stage %s ended early at %s of %s timesteps.",
                 stage,
                 f"{actual_timesteps:,}",
                 f"{total_timesteps:,}",
@@ -1728,9 +1922,9 @@ def train_curriculum(
         if curriculum_cb and curriculum_cb.ready_to_advance and not manager.is_final_stage:
             manager.advance()
             logger.info("Auto-advanced to stage %d", manager.current_stage)
-        elif stage < 3:
+        elif entry != advancing[-1]:
             logger.warning(
-                "Stage %d timestep budget exhausted without meeting advancement "
+                "Stage %s timestep budget exhausted without meeting advancement "
                 "thresholds. Stopping curriculum — advancing with a weak policy "
                 "causes catastrophic forgetting.",
                 stage,

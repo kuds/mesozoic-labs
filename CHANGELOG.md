@@ -370,6 +370,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Fixed
+- **Evaluation numbers now describe the policy they claim to** (gap review
+  Phase V, `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` — the
+  evaluation-validity findings). Every fix is mechanical; the two design
+  decisions the review raised (the behavior-stage gate and seed
+  multiplicity) are deliberately untouched pending sign-off.
+  - `evaluate()` and the three diagnostic report scripts guessed the
+    VecNormalize sidecar as `<stem>_vecnorm.pkl`, which never matches the
+    `<label>_vecnormalize_<steps>_steps.pkl` name `CheckpointCallback`
+    writes, so every periodic checkpoint was scored on raw observations
+    (silently, in two of the scripts). All four resolve the sidecar through
+    `_resolve_vecnorm_sidecar` and refuse to run without one unless
+    `--allow-unnormalized` is passed, which prints an `UNNORMALIZED EVAL`
+    banner instead (ER1/OP7). `evaluate()` also seeds its environment
+    (`--seed`, default `DEFAULT_EVAL_SEED`) so CLI numbers reproduce and
+    checkpoint comparisons are paired (ER3).
+  - The sweep judged stage pass/fail from the four retired scalar
+    thresholds regardless of the stage's declared `gate_kind`, so a trex
+    stance sweep passed the statue (3271.8) and the chatterer (2133.4) on
+    the 2100 collapse rail and chained the most statue-like trial forward.
+    Gate rows now carry `gate_kind` / `gate_evaluable` / `stage_passed`
+    (`None` when the kind cannot be judged offline) / `gate_reason`;
+    panel-based kinds never fall back to reward, `_best_trial_model_path`
+    refuses to chain a not-evaluable stage without `--force-continue`
+    (labeled reward-ranked, not gate-passed), and a NaN reward fails
+    instead of passing (OP2/OP8). Cross-stage chaining passes
+    `initialize_next_stage`, so warm-started trials no longer die on the
+    task fingerprint at startup (OP1, `--load-mode` on the trial CLI).
+  - `build_stage_results_from_eval_data` fabricated `mean_forward_vel=0.0`
+    (and friends) instead of reading the `metrics.json` it already opened,
+    so every stage-2/3 sweep trial recorded a velocity gate failure at
+    "0.00 m/s". Panel metrics come from `metrics.json`; absent ones are
+    omitted and the gate names the unmeasured metric (ER4).
+  - Result-bundle audit gaps a resumed or raced run could slip through:
+    seed roles may no longer collide (publication ≠ training ≠ selection,
+    enforced in both validators — `save_jax_stage_artifacts`'s default
+    evaluation seed moved off the training default it shared) (ER6);
+    dot-files are audited and stray `.*.tmp` leftovers are discarded before
+    hashing (ER7); summary timesteps are cross-checked against the stage
+    budget and periodic checkpoints past the recorded timesteps are errors
+    (RP1); evaluation CSVs record `checkpoint_sha256` at evidence time and
+    the audit binds it to the certified checkpoint (RP3, wired in the JAX
+    artifact writer and the SB3 notebook); `stage_config.json`'s run block
+    records `load_path` / `load_mode` / `parent_checkpoint_sha256` /
+    `parent_task_sha256` when a checkpoint was loaded, and the audit
+    validates and surfaces them (RP4); `save_result_bundle` validates a
+    prospective manifest before writing the `complete` marker and heals a
+    bundle wedged by a failed final validation instead of raising forever
+    (RP6).
+  - `train_curriculum` walked `range(1, 4)` and silently skipped the
+    recovery stage; it walks the manifest and logs the skip of any
+    non-advancing stage (TC7/OP6). `load_stage_config` rejects unknown
+    top-level tables and warns on an empty `[env]` or algorithm table, so a
+    misspelled `[environment]` no longer trains constructor defaults
+    unannounced (CF4). The JAX artifact writer and `save_results_json`
+    write atomically (ER5). Published summaries carry `gate_kind` beside
+    `stage_passed` and the catalog/website render passes earned under a
+    since-replaced gate as "passed retired gate" (SS5).
+  - Smaller: the recovery-stage plateau diagnostic no longer dies on a `%d`
+    format of a semantic stage id (ER2); `train()` gains
+    `post_eval_episodes` / `--post-eval-episodes` so smokes can skip the
+    unskippable 50/30-episode post-training panels (EE4); Drive-mounted
+    TensorBoard logs get the same local-buffer + periodic sync GCS paths
+    had (CO5); the baseline-watch and collapse warm-up advisories anchor on
+    the session's actual target timesteps rather than the TOML budget
+    (TC9).
 - **Six readers the NN_id layout would have broken, found by the pre-PR
   adversarial review and each reproduced by execution before fixing.**
   The worst: the complete-bundle audit hardcoded its nine required

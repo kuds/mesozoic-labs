@@ -3,6 +3,8 @@
 import csv
 import json
 
+import pytest
+
 from environments.shared.reporting import save_results_csv, save_results_json
 
 from .reporting_helpers import make_stage_result, plant_identity
@@ -168,3 +170,43 @@ class TestSaveResultsJson:
             row = next(csv.DictReader(source))
         assert row["plant_physics_sha256"] == identity["physics_sha256"]
         assert row["plant_policy_interface_sha256"] == identity["policy_interface_sha256"]
+
+
+class TestGateKindProvenance:
+    """Review SS5: a stage_passed travels with the gate kind it was earned under."""
+
+    def test_gate_kind_travels_with_the_verdict(self, tmp_path):
+        results = [make_stage_result(1, gate_kind="reward_and_length/v1", gate_schema_version=1)]
+        path = save_results_json(results, "velociraptor", "PPO", seed=42, results_dir=tmp_path)
+        stage = json.loads(path.read_text())["stages"]["1"]
+        assert stage["stage_passed"] is True
+        assert stage["gate_kind"] == "reward_and_length/v1"
+        assert stage["gate_schema_version"] == 1
+
+    def test_a_producer_without_the_key_omits_it(self, tmp_path):
+        """Absent, not null: "unrecorded" must stay distinguishable from "declared none"."""
+        path = save_results_json([make_stage_result(1)], "velociraptor", "PPO", seed=42, results_dir=tmp_path)
+        stage = json.loads(path.read_text())["stages"]["1"]
+        assert "gate_kind" not in stage
+        assert "gate_schema_version" not in stage
+
+
+class TestSaveResultsJsonIsAtomic:
+    def test_a_crash_mid_publish_keeps_the_previous_summary(self, tmp_path, monkeypatch):
+        """Review ER5: the same lost-mount treatment every bundle writer gets."""
+        import os
+
+        path = save_results_json([make_stage_result(1)], "velociraptor", "PPO", seed=42, results_dir=tmp_path)
+        before = path.read_bytes()
+
+        def lost_mount(src, dst):
+            raise OSError("mount went away")
+
+        monkeypatch.setattr(os, "replace", lost_mount)
+        with pytest.raises(OSError, match="mount went away"):
+            save_results_json(
+                [make_stage_result(1, mean_reward=999.0)], "velociraptor", "PPO", seed=42, results_dir=tmp_path
+            )
+
+        assert path.read_bytes() == before
+        assert [p.name for p in tmp_path.iterdir()] == ["summary.json"]

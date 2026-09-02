@@ -1,10 +1,11 @@
-"""Tests for sweep orchestration.py — credential refresh, dedup, dry-run."""
+"""Tests for sweep orchestration.py — credential refresh, dedup, stage chaining."""
 
+from copy import deepcopy
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from environments.shared.scripts.sweep import _eager_refresh
+from environments.shared.scripts.sweep import SweepStageError, _eager_refresh
 from environments.shared.scripts.sweep.orchestration import _dedup_trial_rows
 
 # ── _eager_refresh ───────────────────────────────────────────────────────────
@@ -141,3 +142,257 @@ class TestDedupTrialRows:
         assert by_id["1"]["best_mean_reward"] == 120.0
         assert by_id["2"]["best_mean_reward"] == 250.0
         assert by_id["3"]["best_mean_reward"] == 300.0
+
+
+# ── launch-all stage chaining ───────────────────────────────────────────────
+
+
+def _model_path(stage):
+    return f"/gcs/b/sweeps/trex/stage{stage}/t{stage}/models/best_model.zip"
+
+
+def _run_launch_all(rows_for_stage, extra_cli=()):
+    """Drive launch_all_stages with Vertex/GCS mocked; return the _submit_stage_sweep kwargs per stage."""
+    from environments.shared.scripts.sweep import orchestration as orch
+    from environments.shared.scripts.sweep.__main__ import _build_parser
+
+    args = _build_parser().parse_args(
+        [
+            "launch-all",
+            "--species",
+            "trex",
+            "--project",
+            "p",
+            "--bucket",
+            "b",
+            "--image",
+            "img",
+            "--no-resume",
+            "--search-space",
+            '{"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4}}',
+            *extra_cli,
+        ]
+    )
+    submitted = []
+
+    def fake_submit(**kwargs):
+        submitted.append(kwargs)
+        job = MagicMock()
+        job.resource_name = f"jobs/stage{kwargs['stage']}"
+        return job
+
+    def reraise(exc, *_args, **_kwargs):
+        # The real handler saves state and os._exit()s, which would kill pytest.
+        raise exc
+
+    gcloud = MagicMock()
+    modules = {
+        "google": MagicMock(),
+        "google.cloud": gcloud,
+        "google.cloud.aiplatform": gcloud.aiplatform,
+        "google.cloud.aiplatform.hyperparameter_tuning": gcloud.aiplatform.hyperparameter_tuning,
+    }
+    with (
+        patch.dict("sys.modules", modules),
+        patch.object(orch, "_resolve_credentials", return_value=(MagicMock(), "p")),
+        patch("environments.shared.config._detect_gpu_info", return_value={}),
+        patch.object(orch, "_submit_stage_sweep", side_effect=fake_submit),
+        patch.object(orch, "_wait_for_job", side_effect=lambda job, *a, **k: job),
+        patch.object(orch, "_collect_and_tag_rows", side_effect=lambda job, stage, *a, **k: rows_for_stage(stage)),
+        patch.object(orch, "_save_sweep_state"),
+        patch.object(orch, "_handle_stage_failure", side_effect=reraise),
+        patch.object(orch, "write_results_csv"),
+        patch.object(orch, "plot_sweep_results"),
+        patch.object(orch, "_upload_results_to_gcs"),
+    ):
+        orch.launch_all_stages(args)
+    return submitted
+
+
+def _run_launch_all_resume(prev_state, rows_for_stage, extra_cli=()):
+    """Like _run_launch_all but resuming from *prev_state*; returns (submitted, saved_states)."""
+    from environments.shared.scripts.sweep import orchestration as orch
+    from environments.shared.scripts.sweep.__main__ import _build_parser
+
+    args = _build_parser().parse_args(
+        [
+            "launch-all",
+            "--species",
+            "trex",
+            "--project",
+            "p",
+            "--bucket",
+            "b",
+            "--image",
+            "img",
+            "--resume",
+            "--search-space",
+            '{"ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4}}',
+            *extra_cli,
+        ]
+    )
+    submitted = []
+    saved = []
+
+    def fake_submit(**kwargs):
+        submitted.append(kwargs)
+        job = MagicMock()
+        job.resource_name = f"jobs/stage{kwargs['stage']}"
+        return job
+
+    def reraise(exc, *_args, **_kwargs):
+        raise exc
+
+    gcloud = MagicMock()
+    modules = {
+        "google": MagicMock(),
+        "google.cloud": gcloud,
+        "google.cloud.aiplatform": gcloud.aiplatform,
+        "google.cloud.aiplatform.hyperparameter_tuning": gcloud.aiplatform.hyperparameter_tuning,
+    }
+    with (
+        patch.dict("sys.modules", modules),
+        patch.object(orch, "_resolve_credentials", return_value=(MagicMock(), "p")),
+        patch("environments.shared.config._detect_gpu_info", return_value={}),
+        patch.object(orch, "_load_sweep_state", return_value=prev_state),
+        patch.object(orch, "_submit_stage_sweep", side_effect=fake_submit),
+        patch.object(orch, "_wait_for_job", side_effect=lambda job, *a, **k: job),
+        patch.object(orch, "_collect_and_tag_rows", side_effect=lambda job, stage, *a, **k: rows_for_stage(stage)),
+        patch.object(orch, "_save_sweep_state", side_effect=lambda state, *a, **k: saved.append(deepcopy(state))),
+        patch.object(orch, "_handle_stage_failure", side_effect=reraise),
+        patch.object(orch, "write_results_csv"),
+        patch.object(orch, "plot_sweep_results"),
+        patch.object(orch, "_upload_results_to_gcs"),
+    ):
+        orch.launch_all_stages(args)
+    return submitted, saved
+
+
+def _completed_stage_state(stage, row, **provenance):
+    return {
+        "status": "completed",
+        "job_resource_name": f"jobs/stage{stage}",
+        "best_trial_id": row["trial_id"],
+        "best_mean_reward": row["best_mean_reward"],
+        "best_model_path": row["model_path"],
+        "trial_rows": [row],
+        **provenance,
+    }
+
+
+def _passing_row(trial_id, stage, reward):
+    return {
+        "trial_id": trial_id,
+        "stage": stage,
+        "best_mean_reward": reward,
+        "stage_passed": True,
+        "gate_evaluable": True,
+        "gate_kind": "reward_and_length/v1",
+        "model_path": f"/gcs/b/sweeps/trex/stage{stage}/{trial_id}/models/best_model.zip",
+    }
+
+
+class TestResumeChainsOnlyGatePassedModels:
+    """The in-run refusal held only within one uninterrupted launch-all: the
+    single-stage launcher and a prior --force-continue run record a
+    reward-ranked best_model_path in the same state file, and --resume
+    restored it for chaining with no gate check."""
+
+    def _state(self, **provenance):
+        statue = _unevaluable_row("statue", 1, 3271.8)
+        return {"stages": {"1": _completed_stage_state(1, statue, **provenance)}}
+
+    def test_a_reward_ranked_record_refuses_to_chain_without_force_continue(self):
+        state = self._state(best_model_selection="reward-ranked", best_model_gate_kind="stance_quality/v1")
+        with pytest.raises(SweepStageError, match="reward-ranked .* not gate-passed"):
+            _run_launch_all_resume(state, lambda stage: [_passing_row(f"t{stage}", stage, 100.0)])
+
+    def test_a_record_without_gate_provenance_refuses_too(self):
+        with pytest.raises(SweepStageError, match="gate standing is unknown"):
+            _run_launch_all_resume(self._state(), lambda stage: [_passing_row(f"t{stage}", stage, 100.0)])
+
+    def test_force_continue_chains_the_restored_reward_ranked_model(self):
+        state = self._state(best_model_selection="reward-ranked", best_model_gate_kind="stance_quality/v1")
+        submitted, _ = _run_launch_all_resume(
+            state, lambda stage: [_passing_row(f"t{stage}", stage, 100.0)], extra_cli=("--force-continue",)
+        )
+        assert [s["stage"] for s in submitted] == [2, 3]
+        assert submitted[0]["load_path"] == _unevaluable_row("statue", 1, 3271.8)["model_path"]
+        assert submitted[0]["load_mode"] == "initialize_next_stage"
+
+    def test_a_gate_passed_record_resumes_without_the_flag(self):
+        winner = _passing_row("t1", 1, 100.0)
+        state = {
+            "stages": {
+                "1": _completed_stage_state(
+                    1, winner, best_model_selection="gate-passed", best_model_gate_kind="reward_and_length/v1"
+                )
+            }
+        }
+        submitted, saved = _run_launch_all_resume(state, lambda stage: [_passing_row(f"t{stage}", stage, 100.0)])
+        assert [s["stage"] for s in submitted] == [2, 3]
+        assert submitted[0]["load_path"] == winner["model_path"]
+
+    def test_completed_state_records_how_the_model_was_selected(self):
+        _, saved = _run_launch_all_resume({"stages": {}}, lambda stage: [_passing_row(f"t{stage}", stage, 100.0)])
+        stage_one = saved[-1]["stages"]["1"]
+        assert stage_one["best_model_selection"] == "gate-passed"
+        assert stage_one["best_model_gate_kind"] == "reward_and_length/v1"
+
+    def test_force_continue_records_the_selection_as_reward_ranked(self):
+        _, saved = _run_launch_all_resume(
+            {"stages": {}},
+            lambda stage: [_unevaluable_row("statue", stage, 3271.8)],
+            extra_cli=("--force-continue",),
+        )
+        assert saved[-1]["stages"]["1"]["best_model_selection"] == "reward-ranked"
+        assert saved[-1]["stages"]["1"]["best_model_gate_kind"] == "stance_quality/v1"
+
+
+def _unevaluable_row(trial_id, stage, reward):
+    return {
+        "trial_id": trial_id,
+        "stage": stage,
+        "best_mean_reward": reward,
+        "stage_passed": None,
+        "gate_evaluable": False,
+        "gate_kind": "stance_quality/v1",
+        "model_path": f"/gcs/b/sweeps/trex/stage{stage}/{trial_id}/models/best_model.zip",
+    }
+
+
+class TestLaunchAllChaining:
+    """Stage N's winner is warm-started into stage N+1 as a task-boundary crossing."""
+
+    def test_chained_load_is_initialize_next_stage(self):
+        def rows(stage):
+            return [
+                {
+                    "trial_id": f"t{stage}",
+                    "stage": stage,
+                    "best_mean_reward": 100.0 * stage,
+                    "stage_passed": True,
+                    "gate_evaluable": True,
+                    "model_path": _model_path(stage),
+                }
+            ]
+
+        submitted = _run_launch_all(rows)
+        assert [s["stage"] for s in submitted] == [1, 2, 3]
+        assert submitted[0]["load_path"] is None
+        assert submitted[1]["load_path"] == _model_path(1)
+        assert submitted[2]["load_path"] == _model_path(2)
+        assert [s["load_mode"] for s in submitted[1:]] == ["initialize_next_stage", "initialize_next_stage"]
+
+    def test_not_evaluable_gate_blocks_chaining_without_force_continue(self):
+        """A stance-gated stage has no gate-passed trial; the statue's reward must not chain it."""
+        with pytest.raises(SweepStageError, match="cannot evaluate offline"):
+            _run_launch_all(lambda stage: [_unevaluable_row("statue", stage, 3271.8)])
+
+    def test_force_continue_chains_reward_ranked_trial(self):
+        def rows(stage):
+            return [_unevaluable_row("chatterer", stage, 2133.4), _unevaluable_row("statue", stage, 3271.8)]
+
+        submitted = _run_launch_all(rows, extra_cli=("--force-continue",))
+        assert submitted[1]["load_path"] == _unevaluable_row("statue", 1, 3271.8)["model_path"]
+        assert submitted[1]["load_mode"] == "initialize_next_stage"

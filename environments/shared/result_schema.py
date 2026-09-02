@@ -23,7 +23,7 @@ import math
 import re
 from datetime import date, datetime
 from pathlib import Path, PurePosixPath
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 RESULT_SCHEMA_VERSION = 3
 #: Versions this reader accepts.  v2 is the integer-stage schema every
@@ -119,6 +119,29 @@ def _canonical_plant_identity(value: Any, *, species: str, field: str) -> dict[s
     if value != normalized:
         raise ResultSchemaError(f"{field} must use canonical v1 field types and values")
     return normalized
+
+
+def seed_role_collisions(seed_roles: Mapping[str, Any]) -> list[str]:
+    """Describe seed-role assignments that would bias the published numbers.
+
+    The publication evaluation must run on a seed that neither training nor
+    any checkpoint-*selection* role saw: evaluating on the training seed
+    replays the reset sequence the policy fitted, and reusing a selection
+    seed publishes the maximum of noisy draws — the winner's curse the
+    ``seed_roles`` record exists to rule out.  Returns one message per
+    collision, naming the colliding roles; empty when the roles are distinct
+    or no publication role is assigned.
+    """
+    publication_seed = seed_roles.get("publication_evaluation")
+    if publication_seed is None:
+        return []
+    collisions: list[str] = []
+    if seed_roles.get("training") == publication_seed:
+        collisions.append(f"publication_evaluation reuses the training seed {publication_seed}")
+    for role in sorted(seed_roles):
+        if "selection" in role and seed_roles[role] == publication_seed:
+            collisions.append(f"publication_evaluation reuses the {role} seed {publication_seed}")
+    return collisions
 
 
 def _algorithm_slug(algorithm: str) -> str:
@@ -378,6 +401,12 @@ def validate_provenance(
         if set(evaluation_seeds) != evaluation_role_seeds:
             raise ResultSchemaError(
                 f"provenance.evaluation_seeds in {result_path} must exactly match seeds assigned to evaluation roles"
+            )
+        collisions = seed_role_collisions(seed_roles)
+        if collisions:
+            raise ResultSchemaError(
+                f"provenance.seed_roles in {result_path} must keep the publication seed distinct: "
+                + "; ".join(collisions)
             )
         evaluation_protocols = _require_mapping(
             provenance["evaluation_protocols"],

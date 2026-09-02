@@ -4,6 +4,7 @@ import {
   successMetricForBackend,
   type AdvancementGate,
   type PublishedResult,
+  type ResultStage,
   type Species,
 } from '@site/src/data/species';
 
@@ -29,6 +30,17 @@ function provenanceLabel(result: PublishedResult): string {
     ? `${backendLabel(result.backend)} (version not recorded)`
     : `${backendLabel(result.backend)} ${result.backendVersion}`;
   return `${model} · ${verification} · ${episodes} · ${backend}`;
+}
+
+function formatVerdict(stage: ResultStage): string {
+  // A verdict earned under a gate the species no longer declares -- or under
+  // no recorded gate, which every pre-provenance summary is -- reads as a
+  // pass/fail of that RETIRED gate, never as a bare "Yes" beneath the current
+  // gate's description (same rule as _format_verdict in species_catalog.py).
+  if (stage.passed === null) return '—';
+  if (!stage.gateRetired) return stage.passed ? 'Yes' : 'No';
+  const gate = stage.gateKind ?? 'reward gate';
+  return `${stage.passed ? 'passed' : 'failed'} retired gate (${gate})`;
 }
 
 function formatGate(gate: AdvancementGate): string {
@@ -148,7 +160,7 @@ export function PublishedResults({species}: {species: Species}): React.JSX.Eleme
                   <td>{formatNumber(stage.bestEvalReward)}</td>
                   <td>{stage.averageForwardVelocity === null ? '—' : `${stage.averageForwardVelocity.toFixed(2)} m/s`}</td>
                   <td>{formatPercent(stage.successRate)}</td>
-                  <td>{stage.passed === null ? '—' : stage.passed ? 'Yes' : 'No'}</td>
+                  <td>{formatVerdict(stage)}</td>
                 </tr>
               ))}
             </tbody>

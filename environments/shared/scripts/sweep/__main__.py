@@ -10,6 +10,8 @@ _repo_root = str(Path(__file__).resolve().parents[4])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
+from environments.shared.task_fingerprint import LOAD_MODES
+
 from .orchestration import launch_all_stages, launch_sweep
 from .results import collect_results_from_disk, write_results_csv
 from .trial import run_trial
@@ -43,6 +45,16 @@ def _build_parser() -> argparse.ArgumentParser:
     trial.add_argument("--eval-freq", type=int, default=50000)
     trial.add_argument("--save-freq", type=int, default=500000)
     trial.add_argument("--load", type=str, default=None, help="Path to model checkpoint to warm-start from")
+    trial.add_argument(
+        "--load-mode",
+        choices=list(LOAD_MODES),
+        default="resume_same_stage",
+        help=(
+            "How the --load checkpoint's task fingerprint is validated: resume_same_stage "
+            "requires an exact task match; initialize_next_stage records the boundary as "
+            "lineage (what launch-all passes when chaining a previous stage's winner)"
+        ),
+    )
     trial.add_argument("--output-dir", type=str, default=None, help="Base output dir (GCS mount path on Vertex AI)")
     trial.add_argument("--wandb", action="store_true", help="Enable W&B logging")
     trial.add_argument(
@@ -132,6 +144,16 @@ def _build_parser() -> argparse.ArgumentParser:
             "Path to a model checkpoint to warm-start every trial from "
             "(e.g. best model from a prior stage). VecNormalize stats are "
             "loaded automatically from <load_path>_vecnorm.pkl if present."
+        ),
+    )
+    launch.add_argument(
+        "--load-mode",
+        choices=list(LOAD_MODES),
+        default="resume_same_stage",
+        help=(
+            "Forwarded to every trial's --load-mode: resume_same_stage requires --load to be "
+            "a checkpoint of this same stage; initialize_next_stage warm-starts from a prior "
+            "stage's checkpoint (the mode launch-all uses when chaining stages)"
         ),
     )
     launch.add_argument(

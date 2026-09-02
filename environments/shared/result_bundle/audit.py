@@ -24,14 +24,87 @@ from .manifest import verify_artifact_manifest
 from .naming import _normalize_plant_identity, _portable_relative_path
 from .provenance import load_provenance
 
+#: Load lineage a stage config's ``run`` block may carry once the trainer
+#: persists it (``--load`` today validates the lineage and then forgets it).
+#: Audited when present, skipped when absent, so bundles from either side of
+#: that change keep auditing.
+_LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_task_sha256", "parent_checkpoint_sha256")
+
+
+def _lineage_parent_keys(load_path: str, run_path: Path) -> list[str]:
+    """Manifest keys a recorded parent may live under, in lookup order.
+
+    The path as recorded first, then the ``.zip`` SB3 appends to a stem: the
+    manifest only ever hashes the ``.zip``, so a producer that recorded the
+    stem it handed SB3 (rather than the file it hashed) must still bind to it.
+    Empty for a parent outside the bundle — a Drive path from a previous run
+    is not checkable here.
+    """
+    run_root = run_path.resolve()
+    candidates = [load_path] if load_path.endswith(".zip") else [load_path, load_path + ".zip"]
+    keys: list[str] = []
+    for candidate in candidates:
+        path = Path(candidate)
+        if not path.is_absolute():
+            path = run_root / path
+        try:
+            keys.append(path.resolve().relative_to(run_root).as_posix())
+        except ValueError:
+            continue
+    return keys
+
+
+def _audit_load_lineage(
+    run_block: Mapping[str, Any],
+    *,
+    stage: "int | str",
+    run_path: Path,
+    declared_hashes: Mapping[str, Any],
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Return a stage's recorded load lineage and the problems it has, if any."""
+    from ..task_fingerprint import LOAD_MODES
+
+    lineage = {key: run_block[key] for key in _LOAD_LINEAGE_KEYS if key in run_block}
+    if not lineage:
+        return None, []
+    problems: list[str] = []
+    load_path = lineage.get("load_path")
+    if "load_path" in lineage and (not isinstance(load_path, str) or not load_path.strip()):
+        problems.append(f"stage {stage} config run.load_path must be a non-empty string")
+    if "load_mode" in lineage and lineage["load_mode"] not in LOAD_MODES:
+        problems.append(f"stage {stage} config run.load_mode {lineage['load_mode']!r} is not one of {LOAD_MODES}")
+    for key in ("parent_task_sha256", "parent_checkpoint_sha256"):
+        digest = lineage.get(key)
+        if key in lineage and (not isinstance(digest, str) or evidence._SHA256_DIGEST.fullmatch(digest) is None):
+            problems.append(f"stage {stage} config run.{key} must be sha256:<64 lowercase hex>")
+    parent_hash = lineage.get("parent_checkpoint_sha256")
+    if isinstance(load_path, str) and load_path.strip() and isinstance(parent_hash, str):
+        # A parent that lives in this bundle is hashed by the manifest; the
+        # recorded lineage must agree with it.  A parent elsewhere (a Drive
+        # path from a previous run) is not checkable here.
+        parent_key = next((key for key in _lineage_parent_keys(load_path, run_path) if key in declared_hashes), None)
+        if parent_key is not None and declared_hashes[parent_key] != parent_hash:
+            problems.append(
+                f"stage {stage} records parent_checkpoint_sha256 {parent_hash} for {parent_key}, "
+                f"but the manifest hashes that artifact as {declared_hashes[parent_key]}"
+            )
+    return lineage, problems
+
 
 def audit_result_bundle(
     run_dir: str | Path,
     *,
     verify_hashes: bool = True,
     reject_unlisted: bool = True,
+    prospective_manifest: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Classify a canonical or legacy Drive result directory without mutating it."""
+    """Classify a canonical or legacy Drive result directory without mutating it.
+
+    *prospective_manifest* is audited in place of the on-disk
+    ``artifact_manifest.json``: the bundle writer validates the manifest it is
+    about to write, so a failed validation never leaves a completion marker
+    behind.
+    """
     from ..result_schema import (
         ResultSchemaError,
         ordered_stage_entries,
@@ -45,9 +118,10 @@ def audit_result_bundle(
     provenance_path = run_path / DEFAULT_PROVENANCE_NAME
     manifest_path = run_path / DEFAULT_MANIFEST_NAME
     plant_path = run_path / "plant_identity.json"
-    canonical = provenance_path.exists() or manifest_path.exists()
+    canonical = provenance_path.exists() or manifest_path.exists() or prospective_manifest is not None
     warnings: list[str] = []
     errors: list[str] = []
+    lineage: dict[str, dict[str, Any]] = {}
     summary: dict[str, Any] | None = None
     provenance: dict[str, Any] | None = None
     manifest: dict[str, Any] | None = None
@@ -81,12 +155,20 @@ def audit_result_bundle(
         else:
             errors.append(f"canonical bundle is missing {DEFAULT_PROVENANCE_NAME}")
 
-    if manifest_path.exists():
+    if prospective_manifest is not None or manifest_path.exists():
         try:
             if verify_hashes:
-                manifest = verify_artifact_manifest(run_path, reject_unlisted=reject_unlisted)
+                manifest = verify_artifact_manifest(
+                    run_path,
+                    reject_unlisted=reject_unlisted,
+                    prospective_manifest=prospective_manifest,
+                )
             else:
-                loaded_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                loaded_manifest: Any = (
+                    dict(prospective_manifest)
+                    if prospective_manifest is not None
+                    else json.loads(manifest_path.read_text(encoding="utf-8"))
+                )
                 if not isinstance(loaded_manifest, dict):
                     raise ResultBundleError("artifact manifest must contain an object")
                 if loaded_manifest.get("schema_version") != ARTIFACT_MANIFEST_SCHEMA_VERSION:
@@ -128,15 +210,16 @@ def audit_result_bundle(
             ordered_stage_refs = [entry.reference for _, entry in summary_stage_entries]
 
     manifest_status = manifest.get("status") if manifest else None
-    declared_paths = (
+    declared_hashes: dict[str, Any] = (
         {
-            entry.get("path")
+            entry["path"]: entry.get("sha256")
             for entry in manifest.get("files", [])
             if isinstance(entry, Mapping) and isinstance(entry.get("path"), str)
         }
         if manifest
-        else set()
+        else {}
     )
+    declared_paths = set(declared_hashes)
 
     if canonical and provenance is not None:
         provenance_run_id = provenance.get("run_id")
@@ -227,7 +310,7 @@ def audit_result_bundle(
                 errors.append("complete bundle is missing summary.json")
             else:
                 try:
-                    evidence.validate_evaluation_evidence(run_path, summary, provenance)
+                    evidence.validate_evaluation_evidence(run_path, summary, provenance, warnings=warnings)
                 except (OSError, ResultBundleError) as exc:
                     errors.append(str(exc))
             if not plant_path.is_file():
@@ -259,6 +342,17 @@ def audit_result_bundle(
                             )
                             if normalized_config_plant != provenance_plant:
                                 errors.append(f"stage {stage} config plant_identity does not match provenance.json")
+                        run_block = config_value.get("run")
+                        if isinstance(run_block, Mapping):
+                            stage_lineage, lineage_problems = _audit_load_lineage(
+                                run_block,
+                                stage=stage,
+                                run_path=run_path,
+                                declared_hashes=declared_hashes,
+                            )
+                            errors.extend(lineage_problems)
+                            if stage_lineage is not None:
+                                lineage[str(stage)] = stage_lineage
                     except (OSError, json.JSONDecodeError, ResultBundleError) as exc:
                         errors.append(str(exc))
 
@@ -345,6 +439,7 @@ def audit_result_bundle(
         "manifest_status": manifest_status,
         "errors": errors,
         "warnings": warnings,
+        "lineage": lineage,
     }
 
 
@@ -353,9 +448,14 @@ def validate_result_bundle(
     *,
     require_complete: bool = True,
     reject_unlisted: bool = True,
+    prospective_manifest: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Validate a canonical Drive bundle and raise on conflicts."""
-    report = audit_result_bundle(run_dir, reject_unlisted=reject_unlisted)
+    report = audit_result_bundle(
+        run_dir,
+        reject_unlisted=reject_unlisted,
+        prospective_manifest=prospective_manifest,
+    )
     allowed = {"canonical-valid"} if require_complete else {"canonical-valid", "partial", "failed"}
     if report["status"] not in allowed:
         details = "; ".join([*report["errors"], *report["warnings"]])

@@ -1052,7 +1052,7 @@ def collect_ray_results(
 
     Returns a list of dicts compatible with ``write_results_csv()``.
     """
-    from .results import _evaluate_curriculum_gate
+    from .results import _gate_row_fields
 
     rows: list[dict[str, Any]] = []
     cur = stage_config.get("curriculum_kwargs", {})
@@ -1090,16 +1090,8 @@ def collect_ray_results(
         row["forward_vel_threshold"] = cur.get("min_avg_forward_vel")
         row["success_rate_threshold"] = cur.get("min_success_rate")
 
-        # Gate evaluation
-        passed, _ = _evaluate_curriculum_gate(
-            row["best_mean_reward"],
-            row,
-            row["reward_threshold"],
-            row["ep_length_threshold"],
-            row["forward_vel_threshold"],
-            row["success_rate_threshold"],
-        )
-        row["stage_passed"] = passed
+        # Gate evaluation, routed through the stage's declared gate_kind
+        row.update(_gate_row_fields(cur, row["best_mean_reward"], row))
         rows.append(row)
 
     return rows

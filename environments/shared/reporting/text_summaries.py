@@ -9,6 +9,21 @@ from typing import Any
 from .formatting import format_duration
 
 
+def _forward_velocity(results: dict[str, Any]) -> str:
+    """``mean +/- std m/s``, or ``not measured`` when the panel did not run.
+
+    The velocity keys are absent (never zero) when no post-training panel
+    measured them, and a summary that printed ``0.00 m/s`` for that case was
+    indistinguishable from a policy that stood still (review ER4).
+    """
+    mean_vel = results.get("mean_forward_vel")
+    if mean_vel is None or mean_vel == "":
+        return "not measured"
+    std_vel = results.get("std_forward_vel")
+    std_text = f" +/- {std_vel:.2f}" if isinstance(std_vel, (int, float)) else ""
+    return f"{mean_vel:.2f}{std_text} m/s"
+
+
 def write_stage_summary(
     stage_dir,
     results_dict: dict[str, Any],
@@ -26,8 +41,6 @@ def write_stage_summary(
     std_len = results_dict.get("std_episode_length", 0)
     sim_dt = results_dict.get("sim_dt", 0.01)
     avg_duration_s = mean_len * sim_dt
-    mean_vel = results_dict.get("mean_forward_vel", 0.0)
-    std_vel = results_dict.get("std_forward_vel", 0.0)
     lines = [
         f"Mesozoic Labs: Stage {results_dict['stage']} Summary",
         "=" * 50,
@@ -42,7 +55,7 @@ def write_stage_summary(
         f"Duration:       {format_duration(results_dict['duration_seconds'])}",
         f"Final eval:     {results_dict['mean_reward']:.2f} +/- {results_dict['std_reward']:.2f}",
         f"Avg ep length:  {mean_len:.1f} +/- {std_len:.1f} steps ({avg_duration_s:.2f}s sim time)",
-        f"Avg fwd vel:    {mean_vel:.2f} +/- {std_vel:.2f} m/s",
+        f"Avg fwd vel:    {_forward_velocity(results_dict)}",
     ]
     best_r = results_dict.get("best_eval_reward", "")
     if best_r != "":
@@ -140,8 +153,6 @@ def write_training_summary(
         mean_len = r.get("mean_episode_length", 0)
         std_len = r.get("std_episode_length", 0)
         sim_dt = r.get("sim_dt", 0.01)
-        mean_vel = r.get("mean_forward_vel", 0.0)
-        std_vel = r.get("std_forward_vel", 0.0)
         lines.extend(
             [
                 f"Stage {r['stage']}: {r['name']}",
@@ -150,7 +161,7 @@ def write_training_summary(
                 f"  Duration:       {format_duration(r['duration_seconds'])}",
                 f"  Final eval:     {r['mean_reward']:.2f} +/- {r['std_reward']:.2f}",
                 f"  Avg ep length:  {mean_len:.1f} +/- {std_len:.1f} steps ({mean_len * sim_dt:.2f}s sim time)",
-                f"  Avg fwd vel:    {mean_vel:.2f} +/- {std_vel:.2f} m/s",
+                f"  Avg fwd vel:    {_forward_velocity(r)}",
             ]
         )
         best_r = r.get("best_eval_reward", "")

@@ -194,7 +194,7 @@ class TestStageAwareEvalCallback:
 def _plateau_callback(
     curriculum_kwargs: dict,
     *,
-    stage: int,
+    stage: "int | str",
     plateau_window: int = 3,
     min_relative_variation: float = 0.05,
 ):
@@ -255,6 +255,30 @@ def _add_evaluation(
         eval_callback.evaluations_successes.append([success_rate] * count)
     callback.num_timesteps += 50_000
     assert callback._on_step() is True
+
+
+class TestPlateauMessagesRenderForSemanticStages:
+    """Regression: ``%d`` on a string stage raised inside ``getMessage()``.
+
+    The recovery stage reaches the plateau callback as ``"recovery"``, and
+    logging swallowed the TypeError into a '--- Logging error ---' traceback
+    on stderr — replacing the one diagnostic the run needed.
+    """
+
+    def test_plateau_warning_and_cleared_message_render_for_recovery(self, caplog):
+        callback, eval_callback = _plateau_callback({"min_avg_reward": 100.0}, stage="recovery")
+
+        with caplog.at_level(logging.INFO, logger="environments.shared.eval_diagnostics"):
+            for _ in range(3):
+                _add_evaluation(callback, eval_callback, reward=50.0, length=1000.0)
+            assert callback._plateau_active is True
+            _add_evaluation(callback, eval_callback, reward=90.0, length=1000.0)
+            assert callback._plateau_active is False
+
+        # getMessage() is exactly what raised; render every record through it.
+        messages = [record.getMessage() for record in caplog.records]
+        assert any("STAGE recovery EVALUATION PLATEAU" in message for message in messages)
+        assert any("Stage recovery evaluation plateau cleared" in message for message in messages)
 
 
 class TestStageGatePlateauCallback:

@@ -17,6 +17,21 @@ import tempfile
 from pathlib import Path
 
 
+def _default_file_mode() -> int:
+    """The mode a plain ``open(..., "w")`` creates a file with under the current umask.
+
+    ``mkstemp`` creates its temporary 0600 regardless of the umask, so a file
+    published from one with ``os.replace`` would otherwise land owner-only
+    beside the 0644 files ``Path.write_text`` and ``result_bundle.hashing``
+    write next to it -- a bundle whose ``summary.json`` a second account or
+    a group share cannot read.  ``os.umask`` can only read the mask by
+    setting it, hence the set-and-restore.
+    """
+    mask = os.umask(0)
+    os.umask(mask)
+    return 0o666 & ~mask
+
+
 def atomic_copy(src: "str | Path", dst: "str | Path") -> None:
     """Copy *src* over *dst* without exposing a partially-written file.
 
@@ -30,6 +45,31 @@ def atomic_copy(src: "str | Path", dst: "str | Path") -> None:
     os.close(fd)
     try:
         shutil.copyfile(str(src), tmp)
+        os.chmod(tmp, _default_file_mode())
+        os.replace(tmp, str(dst))
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def atomic_write_text(path: "str | Path", text: str, *, encoding: str = "utf-8") -> None:
+    """Write *text* to *path* without exposing a partially-written file.
+
+    Staged to a temp file in *path*'s directory and published with
+    ``os.replace``, so a runtime killed mid-write leaves the previous file
+    (or no file) rather than a truncated one -- a half-written JSON record
+    on a FUSE mount otherwise wedges every later reader with a decode error.
+    """
+    dst = Path(path)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=f".{dst.name}.", suffix=".tmp", dir=str(dst.parent))
+    try:
+        with os.fdopen(fd, "w", encoding=encoding) as handle:
+            handle.write(text)
+            os.fchmod(handle.fileno(), _default_file_mode())
         os.replace(tmp, str(dst))
     except BaseException:
         try:
