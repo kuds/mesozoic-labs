@@ -802,6 +802,7 @@ class TestPostEvalEpisodes:
         assert captured == {"quality_episodes": 3, "velocity_episodes": 3}
 
     def test_the_counts_reach_the_rollout_loops(self, tmp_path, monkeypatch):
+        pytest.importorskip("stable_baselines3")  # _post_training_eval_panels loads the checkpoint via SB3
         from environments.shared import evaluation, train_base
 
         seen = {}
