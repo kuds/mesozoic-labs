@@ -120,6 +120,21 @@ def _apply_overrides(configs: dict, overrides: list | None, species: "str | None
             logger.info("Override applied: %s.%s = %r", section, param, value)
 
 
+def _non_negative_int(value: str) -> int:
+    """argparse type for a count that may be zero but never negative.
+
+    ``--post-eval-episodes`` was a bare ``int``, so ``-1`` sailed through
+    to train() and ran both post-training panels over empty ranges.
+    """
+    try:
+        count = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a non-negative integer, got {value!r}") from None
+    if count < 0:
+        raise argparse.ArgumentTypeError(f"expected a non-negative integer, got {count}")
+    return count
+
+
 def _parse_stage_ref(value: str) -> "int | str":
     """argparse type for --stage: digits mean a legacy stage number (their
     historical meaning, per the stage manifest), anything else a semantic
@@ -276,7 +291,7 @@ def main(species_cfg):
     train_parser.add_argument("--output-dir", type=str, default=None, help="Base output directory")
     train_parser.add_argument(
         "--post-eval-episodes",
-        type=int,
+        type=_non_negative_int,
         default=None,
         help="Episodes per post-training evaluation panel written to metrics.json (default: 50 for the "
         "quality panel and 30 for the velocity/success panel; 0 skips both panels — for smoke and CI "

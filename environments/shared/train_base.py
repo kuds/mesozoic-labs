@@ -42,7 +42,12 @@ from .plant_contract import (
     validate_model_plant,
 )
 from .stage_manifest import stage_label
-from .tb_sync import _is_gcs_path, _make_local_tb_dir, _sync_tb_to_gcs  # noqa: F401  (re-exported for backward compat)
+from .tb_sync import (  # noqa: F401  (re-exported for backward compat)
+    _is_gcs_path,
+    _make_local_tb_dir,
+    _mirror_remote_run_dirs,
+    _sync_tb_to_gcs,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +154,21 @@ def cosine_schedule(initial_lr: float, final_lr: float):
 
 #: Evaluation panel size when a stage's gate does not demand a specific one.
 _DEFAULT_EVAL_EPISODES = 30
+
+
+def _validate_post_eval_episodes(post_eval_episodes: int | None) -> None:
+    """Reject a negative post-training panel size before anything runs on it.
+
+    ``-1`` used to run both panels over empty ranges and write a
+    ``metrics.json`` with ``quality_eval_checkpoint`` set but no panel
+    numbers and no ``post_eval_skipped`` — indistinguishable from a panel
+    that crashed mid-way.  ``0`` is the explicit skip; below it is an error.
+    """
+    if post_eval_episodes is not None and post_eval_episodes < 0:
+        raise ValueError(
+            "--post-eval-episodes (post_eval_episodes) must be a non-negative integer — 0 skips "
+            f"the panels; got {post_eval_episodes}"
+        )
 
 
 def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
@@ -291,6 +311,17 @@ def _prepare_alg_kwargs(
     if use_tensorboard:
         if _is_remote_mount_path(log_path):
             local_tb_dir = _make_local_tb_dir(gcs_tb_path)
+            # SB3 numbers run dirs from the directory it logs to — now the
+            # buffer, not the mount — so a resume on a fresh runtime would
+            # otherwise restart at PPO_0 instead of continuing the mount's
+            # latest run (see _mirror_remote_run_dirs).
+            mirrored = _mirror_remote_run_dirs(local_tb_dir, gcs_tb_path)
+            if mirrored:
+                logger.info(
+                    "Mirrored existing TensorBoard run dir(s) %s from %s into the buffer so run numbering continues",
+                    mirrored,
+                    gcs_tb_path,
+                )
             alg_kwargs["tensorboard_log"] = str(local_tb_dir)
             logger.info(
                 "TensorBoard buffering locally at %s (synced to %s periodically and after training)",
@@ -370,16 +401,30 @@ def _is_resume_continuation(
     return match is not None and match.group(1) == stage_lbl
 
 
+#: Filesystem roots of the FUSE-mounted remote stores a run may write to:
+#: Colab mounts Google Drive at ``/content/drive`` (older tooling used
+#: ``/gdrive``).  GCS FUSE (``/gcs/``) is :func:`_is_gcs_path`.
+_REMOTE_MOUNT_ROOTS: tuple[str, ...] = ("/content/drive", "/gdrive")
+
+
 def _is_remote_mount_path(path: "Path | str") -> bool:
     """Whether *path* sits on a FUSE-mounted remote filesystem (GCS or Drive).
 
     Direct streaming writes to these mounts can be observed — or permanently
     left — truncated when the runtime dies mid-write (see ``file_io``); paths
-    that match get the local-stage + atomic-publish treatment.  Colab mounts
-    Google Drive at ``/content/drive`` (older tooling used ``/gdrive``).
+    that match get the local-stage + atomic-publish treatment.
+
+    Filesystem paths are resolved first (``Path.resolve``): a relative
+    ``drive/MyDrive/...`` given from ``/content``, or a symlink into the
+    mount, lands on the mount all the same, and a prefix test on the
+    unresolved text let both stream straight to it.  URIs (``gs://``) have
+    nothing to resolve against and are tested as given.
     """
     text = str(path)
-    return _is_gcs_path(text) or text.startswith(("/content/drive", "/gdrive"))
+    if "://" in text:
+        return _is_gcs_path(text)
+    resolved = str(Path(text).resolve())
+    return _is_gcs_path(resolved) or resolved.startswith(_REMOTE_MOUNT_ROOTS)
 
 
 def _resolve_vecnorm_sidecar(load_path: str) -> str:
@@ -905,7 +950,8 @@ def train(
     written to ``metrics.json`` (see :func:`_report_hpt_metrics`): ``None``
     keeps the 50-episode quality / 30-episode velocity panels, ``0`` skips
     both — the knob smoke, debug and CI runs need, where the panels
-    otherwise cost about half the wall time (review EE4).
+    otherwise cost about half the wall time (review EE4).  A negative value
+    is rejected here, before any training runs on it.
 
     ``task_load_mode`` governs how a ``load_path`` checkpoint's recorded
     task fingerprint is validated: ``resume_same_stage`` (default)
@@ -930,6 +976,8 @@ def train(
     checkpoint whose VecNormalize sidecar is lost; by default that load
     fails closed (review TC5).
     """
+    _validate_post_eval_episodes(post_eval_episodes)
+
     from .config import save_stage_config
     from .task_fingerprint import derive_stage_task_fingerprint
     from .wandb_integration import init_wandb
@@ -1287,8 +1335,11 @@ def _report_hpt_metrics(
     ``metrics.json`` is still written, with ``post_eval_skipped: true`` and
     a null ``quality_eval_checkpoint`` in place of fabricated numbers
     (review EE4: the panels were unskippable and cost smoke/CI runs about
-    half their wall time).
+    half their wall time).  A negative value is a ``ValueError``
+    (:func:`_validate_post_eval_episodes`).
     """
+    _validate_post_eval_episodes(post_eval_episodes)
+
     import json as _json
 
     import numpy as _np

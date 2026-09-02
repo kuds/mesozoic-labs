@@ -53,6 +53,128 @@ class TestRemoteMountTensorBoardBuffering:
         assert sync.sync_freq == 100
 
 
+class TestRemoteMountPathResolution:
+    """The mount test resolves the path first: a relative path given from the
+    mount's parent, or a symlink into the mount, lands on the mount all the
+    same, and a prefix test on the unresolved text let both stream straight
+    to it (review follow-up on CO5)."""
+
+    @pytest.fixture
+    def mount(self, tmp_path, monkeypatch):
+        from environments.shared import train_base
+
+        root = tmp_path / "content" / "drive"
+        (root / "MyDrive").mkdir(parents=True)
+        monkeypatch.setattr(train_base, "_REMOTE_MOUNT_ROOTS", (str(root),))
+        return root
+
+    def test_a_relative_path_under_the_mount_is_remote(self, mount, monkeypatch):
+        from environments.shared.train_base import _is_remote_mount_path
+
+        monkeypatch.chdir(mount.parent)
+        assert _is_remote_mount_path("drive/MyDrive/runs/run1")
+        assert _is_remote_mount_path(Path("drive") / "MyDrive")
+
+    def test_a_symlink_into_the_mount_is_remote(self, mount, tmp_path):
+        from environments.shared.train_base import _is_remote_mount_path
+
+        link = tmp_path / "runs"
+        link.symlink_to(mount / "MyDrive", target_is_directory=True)
+        assert _is_remote_mount_path(link / "run1")
+
+    def test_a_local_path_and_a_uri_are_judged_as_before(self, mount, tmp_path):
+        from environments.shared.train_base import _is_remote_mount_path
+
+        assert not _is_remote_mount_path(tmp_path / "local" / "run1")
+        assert _is_remote_mount_path("/gcs/bucket/run1")
+        # A URI is not a filesystem write target: tested as given, never resolved.
+        assert not _is_remote_mount_path("gs://bucket/run1")
+
+
+class TestBufferedResumeContinuesTheRemoteRun:
+    """A resume on a fresh runtime must keep writing to the mount's latest
+    TensorBoard run directory, not start a PPO_0 beside the pre-crash PPO_1."""
+
+    def test_remote_run_dirs_are_mirrored_into_the_buffer(self, tmp_path):
+        from environments.shared.tb_sync import _mirror_remote_run_dirs
+
+        remote = tmp_path / "remote" / "tensorboard"
+        (remote / "PPO_1").mkdir(parents=True)
+        (remote / "PPO_1" / "events.out.tfevents.1").write_bytes(b"x")
+        (remote / "notes.txt").write_text("not a run dir")
+        local = tmp_path / "buffer"
+        local.mkdir()
+
+        assert _mirror_remote_run_dirs(local, remote) == ["PPO_1"]
+        assert (local / "PPO_1").is_dir()
+        assert not any((local / "PPO_1").iterdir()), "only the NAME is mirrored, never the event files"
+        assert _mirror_remote_run_dirs(local, tmp_path / "missing") == []
+
+    def test_sb3_numbering_continues_from_the_mirrored_names(self, tmp_path):
+        pytest.importorskip("stable_baselines3")
+        from stable_baselines3.common.utils import configure_logger
+
+        from environments.shared.tb_sync import _mirror_remote_run_dirs
+
+        remote = tmp_path / "remote" / "tensorboard"
+        (remote / "PPO_1").mkdir(parents=True)
+        empty = tmp_path / "empty-buffer"
+        empty.mkdir()
+        mirrored = tmp_path / "mirrored-buffer"
+        mirrored.mkdir()
+        _mirror_remote_run_dirs(mirrored, remote)
+
+        assert Path(configure_logger(0, str(empty), "PPO", reset_num_timesteps=False).dir).name == "PPO_0"
+        assert Path(configure_logger(0, str(mirrored), "PPO", reset_num_timesteps=False).dir).name == "PPO_1"
+
+    def test_prepare_alg_kwargs_mirrors_before_handing_the_buffer_to_sb3(self, tmp_path, monkeypatch):
+        from environments.shared import train_base
+
+        remote_root = tmp_path / "content" / "drive" / "MyDrive" / "run1"
+        (remote_root / "tensorboard" / "PPO_1").mkdir(parents=True)
+        monkeypatch.setattr(train_base, "_REMOTE_MOUNT_ROOTS", (str(tmp_path / "content" / "drive"),))
+
+        kwargs, local_tb, remote_tb = _prepare_alg_kwargs(_CONFIG, "ppo", 1, remote_root, True)
+        assert remote_tb == remote_root / "tensorboard"
+        assert (Path(kwargs["tensorboard_log"]) / "PPO_1").is_dir()
+        assert local_tb is not None and local_tb == Path(kwargs["tensorboard_log"])
+
+
+class TestPostEvalEpisodesRejectsNegatives:
+    def test_train_base_rejects_a_negative_count(self):
+        from environments.shared.train_base import _validate_post_eval_episodes
+
+        _validate_post_eval_episodes(None)
+        _validate_post_eval_episodes(0)
+        with pytest.raises(ValueError, match="non-negative"):
+            _validate_post_eval_episodes(-1)
+
+    def test_the_cli_type_rejects_a_negative_count(self):
+        import argparse
+
+        from environments.shared.cli import _non_negative_int
+
+        assert _non_negative_int("0") == 0
+        assert _non_negative_int("12") == 12
+        with pytest.raises(argparse.ArgumentTypeError):
+            _non_negative_int("-1")
+        with pytest.raises(argparse.ArgumentTypeError):
+            _non_negative_int("three")
+
+    def test_train_refuses_before_doing_any_work(self, tmp_path):
+        from environments.shared import train_base
+
+        with pytest.raises(ValueError, match="post_eval_episodes"):
+            train_base.train(
+                species_cfg=None,
+                stage_configs={},
+                stage=1,
+                total_timesteps=10,
+                output_dir=str(tmp_path),
+                post_eval_episodes=-1,
+            )
+
+
 class TestAdvisoriesAnchorOnTheActualBudget:
     def test_collapse_warmup_sanity_log_uses_the_passed_total(self, monkeypatch, caplog):
         monkeypatch.setattr(early_stopping, "EvalCollapseEarlyStopCallback", lambda **kwargs: "callback")

@@ -430,9 +430,10 @@ def evaluate(
     raw observations evaluates a different policy.  ``allow_unnormalized``
     downgrades that to a loud warning.
 
-    *seed* is applied to the environment once, at construction, so every
-    episode is drawn from one deterministic stream (see
-    :data:`DEFAULT_EVAL_SEED`).
+    *seed* is applied to the environment once — after the model is loaded,
+    since SB3's ``load()`` re-seeds the env with a checkpoint's saved
+    training seed, and before the first reset — so every episode is drawn
+    from one deterministic stream (see :data:`DEFAULT_EVAL_SEED`).
     """
     from .metrics import LocomotionMetrics
     from .metrics import env_dt as _env_dt
@@ -468,9 +469,6 @@ def evaluate(
         return sb3["Monitor"](env)
 
     vec_env = sb3["DummyVecEnv"]([_make_eval_env])
-    # Once, at construction: the seed reaches the env on the first reset and
-    # every later episode continues that RNG stream.
-    vec_env.seed(seed)
 
     if Path(vecnorm_path).exists():
         logger.info("Loading normalization stats from: %s", vecnorm_path)
@@ -513,6 +511,14 @@ def evaluate(
     except Exception:
         vec_env.close()
         raise
+
+    # Seed AFTER the model is loaded and before the first reset.  A VecEnv
+    # seed is only queued until the next reset, and SB3's ``load()`` runs
+    # ``_setup_model`` -> ``set_random_seed(self.seed)`` -> ``env.seed(<training
+    # seed>)`` for any checkpoint that carries a saved seed (``--override
+    # ppo.seed=N``, external zips) — seeding earlier let that replace the
+    # evaluation seed, and the panel was then paired on the TRAINING seed.
+    vec_env.seed(seed)
 
     logger.info(
         "Evaluating for %d episodes (stage %s: %s, seed %d)...",

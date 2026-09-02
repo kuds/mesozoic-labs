@@ -642,6 +642,46 @@ class TestEvaluateSeeding:
         reset_call = next(i for i, (name, _, _) in enumerate(vec_env.mock_calls) if name == "reset")
         assert seed_call < reset_call
 
+    def test_the_evaluation_seed_survives_the_checkpoints_saved_training_seed(self, tmp_path):
+        """SB3's load() re-seeds the env with a checkpoint's saved seed; ours must win.
+
+        ``load()`` runs ``_setup_model`` -> ``set_random_seed(self.seed)`` ->
+        ``env.seed(<training seed>)`` for any zip that carries a seed
+        (``--override ppo.seed=N``, external checkpoints).  A VecEnv seed is
+        only queued until the next reset, so seeding before the load let the
+        training seed replace the evaluation seed and the panel was paired on
+        the training seed instead.
+        """
+        mock_sb3 = _mock_sb3()
+        mock_vec_env = MagicMock()
+        _two_step_episode(mock_vec_env)
+        mock_sb3["DummyVecEnv"].return_value = mock_vec_env
+
+        def load_like_sb3(path, env=None):
+            env.seed(42)  # the checkpoint's saved training seed
+            return _tagged_model()
+
+        mock_sb3["PPO"].load.side_effect = load_like_sb3
+        with (
+            patch("environments.shared.train_base._ensure_sb3", return_value=mock_sb3),
+            patch("environments.shared.plant_contract.current_plant_identity", return_value=_plant_identity()),
+        ):
+            evaluate(
+                species_cfg=_species_cfg(),
+                stage_configs={1: {"name": "balance", "env_kwargs": {}}},
+                model_path=str(tmp_path / "stage1_model.zip"),
+                n_episodes=1,
+                render=False,
+                stage=1,
+                allow_unnormalized=True,
+                seed=7,
+            )
+        seeds = [args[0] for name, args, _ in mock_vec_env.mock_calls if name == "seed"]
+        assert seeds == [42, 7], seeds
+        last_seed = max(i for i, (name, _, _) in enumerate(mock_vec_env.mock_calls) if name == "seed")
+        first_reset = next(i for i, (name, _, _) in enumerate(mock_vec_env.mock_calls) if name == "reset")
+        assert last_seed < first_reset
+
     def test_same_seed_reproduces_the_panel_on_a_real_vec_env(self, tmp_path):
         """Two runs with one seed give identical numbers; a new seed does not."""
         gym = pytest.importorskip("gymnasium")

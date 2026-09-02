@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .constants import SweepStageError, _SweepJobFailed
 from .results import (
+    _FORCE_CONTINUE_HINT,
     _best_trial_model_path,
     _best_trial_model_path_any,
     _collect_trial_results,
@@ -428,6 +429,46 @@ def _dedup_trial_rows(rows: list[dict]) -> list[dict]:
     return deduped
 
 
+def _best_model_provenance(best_row: dict | None) -> dict:
+    """How a completed stage's ``best_model_path`` was chosen, for the saved state.
+
+    ``best_model_selection`` is ``"gate-passed"`` or ``"reward-ranked"`` (the
+    ``--force-continue`` / single-stage fallback: a reward ranking, not a
+    gate verdict) beside the row's ``gate_kind``.  ``launch-all --resume``
+    reads it before chaining a restored path forward; without it (state
+    written before gate provenance existed) the path is of unknown standing.
+    """
+    if best_row is None:
+        return {"best_model_selection": None, "best_model_gate_kind": None}
+    selection = "gate-passed" if _gate_status(best_row) == "passed" else "reward-ranked"
+    return {"best_model_selection": selection, "best_model_gate_kind": best_row.get("gate_kind")}
+
+
+def _require_chainable_restored_model(stage: int, stage_state: dict, force_continue: bool) -> None:
+    """Refuse to chain a restored ``best_model_path`` that is not gate-passed.
+
+    The in-run refusal (:func:`_best_trial_model_path`) only held within one
+    uninterrupted ``launch-all``: a single-stage ``launch`` falls back to the
+    reward-ranked trial and records it as the stage's ``best_model_path`` in
+    the same state file, as does a prior ``--force-continue`` run, and
+    ``--resume`` restored either for chaining with no gate check — the trex
+    stance statue warm-started stage 2 after all.
+    """
+    if stage >= 3 or force_continue:
+        return
+    selection = stage_state.get("best_model_selection")
+    if selection == "gate-passed":
+        return
+    if selection is None:
+        standing = "was recorded before the sweep state carried gate provenance, so its gate standing is unknown"
+    else:
+        standing = f"is {selection} (gate_kind {stage_state.get('best_model_gate_kind')!r}), not gate-passed"
+    raise SweepStageError(
+        f"--resume would chain stage {stage}'s recorded best model {stage_state.get('best_model_path')} into "
+        f"stage {stage + 1}, but it {standing}. " + _FORCE_CONTINUE_HINT
+    )
+
+
 def launch_sweep(args: argparse.Namespace) -> None:
     """Submit a Vertex AI Hyperparameter Tuning job for a single stage.
 
@@ -710,6 +751,7 @@ def launch_sweep(args: argparse.Namespace) -> None:
             "best_trial_id": best_row["trial_id"] if best_row else None,
             "best_mean_reward": best_row.get("best_mean_reward") if best_row else None,
             "best_model_path": best_model_path,
+            **_best_model_provenance(best_row),
             "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "trial_rows": stage_rows,
         }
@@ -908,6 +950,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
             sweep_state = prev_state
             sweep_state["cli_args"] = cli_args_snapshot  # always store current args
 
+            restored_from: tuple[int, dict] | None = None
             for stg_key, stg_data in prev_state["stages"].items():
                 stg_num = int(stg_key)
                 if stg_data.get("status") == "completed":
@@ -915,6 +958,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     # Restore load_path and fixed_trial_args from the last completed stage
                     if stg_data.get("best_model_path"):
                         load_path = stg_data["best_model_path"]
+                        restored_from = (stg_num, stg_data)
                     if stg_data.get("fixed_trial_args"):
                         fixed_trial_args = stg_data["fixed_trial_args"]
                     if stg_data.get("trial_rows"):
@@ -927,6 +971,9 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                     partial_stages[stg_num] = stg_data
                     if stg_data.get("fixed_trial_args"):
                         fixed_trial_args = stg_data["fixed_trial_args"]
+
+            if restored_from is not None:
+                _require_chainable_restored_model(restored_from[0], restored_from[1], args.force_continue)
             if completed_stages:
                 logger.info(
                     "Resuming sweep: stages %s already completed. load_path=%s",
@@ -1213,6 +1260,7 @@ def launch_all_stages(args: argparse.Namespace) -> None:
                 "best_trial_id": best_row["trial_id"] if best_row else None,
                 "best_mean_reward": best_row.get("best_mean_reward") if best_row else None,
                 "best_model_path": best_model_path,
+                **_best_model_provenance(best_row),
                 "fixed_trial_args": fixed_trial_args,
                 "completed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "trial_rows": stage_rows,

@@ -37,8 +37,8 @@ def _evaluate_curriculum_gate(
 ) -> tuple[bool, list[str]]:
     """Evaluate whether a trial meets all legacy scalar-threshold criteria.
 
-    This is the ``reward_and_length/v1`` (or undeclared-gate) path only;
-    :func:`_gate_row_fields` decides whether a stage may use it.
+    This is the ``reward_and_length/v1`` path only; :func:`_gate_row_fields`
+    decides whether a stage may use it (a stage that declares no gate may not).
 
     Returns:
         A tuple of ``(passed, fail_reasons)`` where *passed* is ``True``
@@ -125,25 +125,54 @@ def _extract_thresholds(config: dict) -> tuple[float | None, float | None, float
     return _thresholds_from_curriculum(_curriculum_block(config))
 
 
+#: Tail of every "nothing gate-passed to chain" refusal — the in-run one in
+#: :func:`_best_trial_model_path` and the ``launch-all --resume`` one in
+#: orchestration — so the operator reads the same escape hatch either way.
+_FORCE_CONTINUE_HINT = (
+    "Use --force-continue to chain the reward-ranked best trial; that is a reward ranking, not a gate pass."
+)
+
+
 def _gate_row_fields(
     curriculum: Mapping[str, Any],
     best_reward: float | None,
     aux_metrics: Mapping[str, Any],
+    *,
+    config_error: str | None = None,
 ) -> dict[str, Any]:
     """Gate verdict fields for one trial row, dispatched on the declared ``gate_kind``.
 
     Returns ``gate_kind``, ``gate_evaluable``, ``stage_passed`` and
-    ``gate_reason``.  Only a stage whose declared gate is the legacy scalar
-    thresholds (``reward_and_length/v1``, or no declaration at all) is judged
-    by :func:`_evaluate_curriculum_gate`.  A kind the sweep cannot evaluate
+    ``gate_reason``.  Only a stage that declares the legacy scalar-threshold
+    gate (``reward_and_length/v1``) is judged by
+    :func:`_evaluate_curriculum_gate`.  A kind the sweep cannot evaluate
     offline gets ``stage_passed=None`` with ``gate_evaluable=False`` and a
-    reason — never a reward-only substitute.
+    reason — never a reward-only substitute.  So does a stage that declares
+    no ``gate_kind`` at all: that is the verdict
+    ``reporting.gates.evaluate_stage_gate`` gives the same input ("declares
+    no gate_kind, so nothing certifies it"), and the thresholds a stage
+    happens to list are still reported as columns, never evaluated.
+
+    ``config_error`` (``"<path>: <error>"``) says the collector found a stage
+    config it could not read; an undeclared gate then names that cause rather
+    than a missing declaration, so the two are told apart in ``gate_reason``.
     """
     from environments.shared.curriculum.gate_schema import GATE_KINDS
 
     gate_kind = curriculum.get("gate_kind")
     fields: dict[str, Any] = {"gate_kind": gate_kind}
-    if gate_kind is None or gate_kind in _OFFLINE_EVALUABLE_GATE_KINDS:
+    if gate_kind is None:
+        if config_error is not None:
+            reason = (
+                f"stage config unreadable: {config_error}; no gate_kind could be read, so nothing certifies this trial"
+            )
+        else:
+            reason = (
+                "stage declares no gate_kind, so nothing certifies it; a stage with no gate must say so "
+                'explicitly with gate_kind = "none/v1"'
+            )
+        fields.update(gate_evaluable=False, stage_passed=None, gate_reason=reason)
+    elif gate_kind in _OFFLINE_EVALUABLE_GATE_KINDS:
         thresholds = _thresholds_from_curriculum(curriculum)
         passed, reasons = _evaluate_curriculum_gate(best_reward, aux_metrics, *thresholds)
         fields.update(gate_evaluable=True, stage_passed=passed, gate_reason="; ".join(reasons))
@@ -890,12 +919,16 @@ def _collect_results_local(
         # stage level first).
         stage_config_path = stage_path / "stage_config.json"
         stage_cfg: dict = {}
+        # Set when the file exists but cannot be read, so the gate verdict
+        # names that cause instead of "declares no gate_kind".
+        stage_cfg_error: str | None = None
         if stage_config_path.exists():
             try:
                 with open(stage_config_path) as f:
                     stage_cfg = json.load(f)
             except (json.JSONDecodeError, OSError) as exc:
                 logger.warning("Failed to read %s: %s", stage_config_path, exc)
+                stage_cfg_error = f"{stage_config_path}: {exc}"
 
         stage_curriculum = _curriculum_block(stage_cfg)
         reward_threshold, ep_length_threshold, forward_vel_threshold, success_rate_threshold = (
@@ -923,6 +956,7 @@ def _collect_results_local(
 
             # Load per-trial stage_config.json if the stage-level one wasn't found.
             trial_curriculum = stage_curriculum
+            trial_cfg_error = stage_cfg_error
             trial_reward_th = reward_threshold
             trial_ep_th = ep_length_threshold
             trial_fwd_th = forward_vel_threshold
@@ -934,13 +968,15 @@ def _collect_results_local(
                     try:
                         with open(per_trial_cfg_path) as f:
                             trial_cfg = json.load(f)
+                        trial_cfg_error = None
                         trial_curriculum = _curriculum_block(trial_cfg)
                         trial_reward_th, trial_ep_th, trial_fwd_th, trial_sr_th = _thresholds_from_curriculum(
                             trial_curriculum
                         )
                         trial_hparams = _extract_hyperparameters(trial_cfg)
-                    except (json.JSONDecodeError, OSError):
-                        pass
+                    except (json.JSONDecodeError, OSError) as exc:
+                        logger.warning("Failed to read %s: %s", per_trial_cfg_path, exc)
+                        trial_cfg_error = f"{per_trial_cfg_path}: {exc}"
 
             best_reward = metrics.get("best_mean_reward")
             row: dict = {
@@ -975,7 +1011,7 @@ def _collect_results_local(
                 }
             )
 
-            row.update(_gate_row_fields(trial_curriculum, best_reward, metrics))
+            row.update(_gate_row_fields(trial_curriculum, best_reward, metrics, config_error=trial_cfg_error))
 
             rows.append(row)
 
@@ -1025,12 +1061,13 @@ def _best_trial_model_path(stage_rows: list[dict], bucket: str, species: str, st
     if best_row is None:
         unevaluable = [row for row in stage_rows if _gate_status(row) == "not evaluable"]
         if unevaluable:
-            kinds = sorted({str(row.get("gate_kind")) for row in unevaluable})
+            # A row from a stage with no declaration (or an unreadable
+            # config) carries gate_kind None; say so rather than "None".
+            kinds = sorted({row.get("gate_kind") or "<undeclared>" for row in unevaluable})
             raise SweepStageError(
                 f"Stage {stage} declares gate_kind {kinds}, which the sweep cannot evaluate offline: "
                 f"{len(unevaluable)} of {len(stage_rows)} trials carry no gate verdict and none is gate-passed. "
-                "Use --force-continue to chain the reward-ranked best trial; that is a reward ranking, "
-                "not a gate pass."
+                + _FORCE_CONTINUE_HINT
             )
         raise SweepStageError(
             f"No trials passed stage {stage} criteria. Re-run with adjusted thresholds or more trials."
