@@ -101,6 +101,73 @@ def test_initialize_result_bundle_rejects_an_unlisted_evaluation_role_seed(
         )
 
 
+def test_initialize_result_bundle_rejects_a_publication_seed_shared_with_training(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Evaluating on the training seed replays the reset sequence the policy fitted."""
+    with pytest.raises(ResultBundleError, match=r"publication_evaluation reuses the training seed 42"):
+        initialize_result_bundle(
+            tmp_path / "run",
+            species="velociraptor",
+            algorithm="PPO",
+            seed=42,
+            evaluation_seeds=[42],
+        )
+    assert not (tmp_path / "run" / "provenance.json").exists()
+
+
+def test_initialize_result_bundle_rejects_a_publication_seed_shared_with_selection(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Publishing on the selection seed reports the maximum of noisy draws (winner's curse)."""
+    with pytest.raises(ResultBundleError, match=r"reuses the checkpoint_selection_evaluation seed 1042"):
+        initialize_result_bundle(
+            tmp_path / "run",
+            species="velociraptor",
+            algorithm="PPO",
+            seed=42,
+            evaluation_seeds=[1042],
+            seed_roles={
+                "training": 42,
+                "checkpoint_selection_evaluation": 1042,
+                "publication_evaluation": 1042,
+            },
+        )
+    assert not (tmp_path / "run" / "provenance.json").exists()
+
+
+def test_distinct_seed_roles_publish_canonical_valid(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """The notebook's layout — SEED, SEED+1000 for selection, a third for publication."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    seed_roles = {"training": 42, "checkpoint_selection_evaluation": 1042, "publication_evaluation": 101}
+
+    paths = save_result_bundle(
+        stage_results,
+        stage_configs,
+        "velociraptor",
+        "PPO",
+        42,
+        run_dir,
+        backend="stable-baselines3",
+        backend_version="2.7.0",
+        parallel_envs=4,
+        evaluation_episodes=3,
+        evaluation_seeds=[1042, 101],
+        seed_roles=seed_roles,
+        plant_identity=_plant_identity(),
+        run_id="distinct-roles",
+    )
+
+    assert json.loads(paths["provenance"].read_text(encoding="utf-8"))["seed_roles"] == seed_roles
+    assert validate_result_bundle(run_dir)["status"] == "canonical-valid"
+
+
 @pytest.mark.parametrize(
     ("field", "changed_value"),
     [

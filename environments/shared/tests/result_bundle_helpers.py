@@ -13,9 +13,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from environments.shared.reporting import save_evaluation_episodes, save_result_bundle
-
-_COMMIT = "a" * 40
-
+from environments.shared.stage_manifest import stage_label
 
 _COMMIT = "a" * 40
 
@@ -222,6 +220,9 @@ def _complete_bundle_inputs(
         final_reward = 50.0 + magnitude
         final_forward_velocity = 0.25 * magnitude
         final_distance = 1.5 * magnitude
+        model_dir = run_dir / dirname(stage) / "models"
+        final_model = model_dir / f"{stage_label(stage)}_final.pkl"
+        final_model.write_bytes(f"final model stage {stage}".encode())
         save_evaluation_episodes(
             run_dir / dirname(stage),
             rewards=[
@@ -239,6 +240,7 @@ def _complete_bundle_inputs(
             successes=[episode < magnitude for episode in range(3)],
             evaluation_seed=101,
             checkpoint_label="final",
+            checkpoint_path=final_model,
         )
         save_evaluation_episodes(
             run_dir / dirname(stage),
@@ -249,6 +251,7 @@ def _complete_bundle_inputs(
             successes=[False, True, True],
             evaluation_seed=101,
             checkpoint_label="selected",
+            checkpoint_path=model_dir / "best_model.pkl",
         )
     return stage_results, stage_configs
 

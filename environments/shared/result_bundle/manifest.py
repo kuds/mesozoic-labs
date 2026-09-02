@@ -6,8 +6,9 @@ re-hashing against it detects a truncated transfer or a later edit."""
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Mapping
 
 from . import hashing
 from .constants import (
@@ -20,19 +21,44 @@ from .errors import ResultBundleError
 # variable here, so `provenance.x()` would shadow it. Patch these at this module.
 from .provenance import load_provenance
 
+_logger = logging.getLogger(__name__)
 
-def write_artifact_manifest(
+
+def _discard_stale_temporaries(run_path: Path) -> list[Path]:
+    """Remove ``.<name>.tmp`` leftovers from interrupted :func:`hashing._write_json` calls.
+
+    A runtime that dies between the temporary write and the rename leaves the
+    ``.tmp`` beside the artifact it was replacing.  Verification rejects it as
+    an undeclared file, so it is cleared here — before hashing — rather than
+    failing every later audit of an otherwise sound bundle.
+    """
+    removed: list[Path] = []
+    for path in sorted(run_path.rglob(".*.tmp")):
+        if not path.is_file():
+            continue
+        path.unlink()
+        removed.append(path)
+        _logger.warning("discarded stale temporary file from an interrupted write: %s", path)
+    return removed
+
+
+def build_artifact_manifest(
     run_dir: str | Path,
     *,
     status: str,
     manifest_name: str = DEFAULT_MANIFEST_NAME,
-) -> Path:
-    """Hash every file in a run and write the completion marker last."""
+) -> dict[str, Any]:
+    """Hash every file in a run into a manifest mapping without writing it.
+
+    Dot-files are never listed; :func:`verify_artifact_manifest` still rejects
+    any that remain, so the writer clears its own stale temporaries first.
+    """
     if status not in {"partial", "failed", "complete"}:
         raise ResultBundleError(f"invalid bundle status: {status!r}")
     run_path = Path(run_dir).resolve()
     provenance = load_provenance(run_path)
     manifest_path = run_path / manifest_name
+    _discard_stale_temporaries(run_path)
     entries: list[dict[str, Any]] = []
     for path in sorted(run_path.rglob("*")):
         if not path.is_file() or path == manifest_path or path.name.startswith("."):
@@ -45,13 +71,23 @@ def write_artifact_manifest(
                 "sha256": hashing.sha256_file(path),
             }
         )
-    manifest = {
+    return {
         "schema_version": ARTIFACT_MANIFEST_SCHEMA_VERSION,
         "run_id": provenance.get("run_id"),
         "status": status,
         "files": entries,
     }
-    return hashing._write_json(manifest_path, manifest)
+
+
+def write_artifact_manifest(
+    run_dir: str | Path,
+    *,
+    status: str,
+    manifest_name: str = DEFAULT_MANIFEST_NAME,
+) -> Path:
+    """Hash every file in a run and write the completion marker last."""
+    manifest = build_artifact_manifest(run_dir, status=status, manifest_name=manifest_name)
+    return hashing._write_json(Path(run_dir).resolve() / manifest_name, manifest)
 
 
 def verify_artifact_manifest(
@@ -59,16 +95,26 @@ def verify_artifact_manifest(
     *,
     reject_unlisted: bool = True,
     manifest_name: str = DEFAULT_MANIFEST_NAME,
+    prospective_manifest: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Verify all declared artifacts and optionally reject undeclared files."""
+    """Verify all declared artifacts and optionally reject undeclared files.
+
+    *prospective_manifest* is verified in place of the on-disk file: the
+    bundle writer validates the manifest it is about to write, so a failed
+    validation never leaves a completion marker behind.
+    """
     run_path = Path(run_dir).resolve()
     manifest_path = run_path / manifest_name
-    if not manifest_path.exists():
-        raise ResultBundleError(f"missing {manifest_name}: {manifest_path}")
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ResultBundleError(f"cannot read artifact manifest {manifest_path}: {exc}") from exc
+    manifest: Any
+    if prospective_manifest is not None:
+        manifest = dict(prospective_manifest)
+    else:
+        if not manifest_path.exists():
+            raise ResultBundleError(f"missing {manifest_name}: {manifest_path}")
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ResultBundleError(f"cannot read artifact manifest {manifest_path}: {exc}") from exc
     if not isinstance(manifest, dict) or manifest.get("schema_version") != ARTIFACT_MANIFEST_SCHEMA_VERSION:
         raise ResultBundleError(f"unsupported artifact manifest schema: {manifest_path}")
     if not isinstance(manifest.get("run_id"), str) or not manifest["run_id"].strip():
@@ -103,10 +149,13 @@ def verify_artifact_manifest(
         declared.add(relative)
 
     if reject_unlisted:
+        # Dot-files are unlisted by construction, so a leftover such as a
+        # crashed write's `.summary.json.tmp` must surface here rather than
+        # ride along inside an "immutable" bundle.
         actual = {
             path.relative_to(run_path).as_posix()
             for path in run_path.rglob("*")
-            if path.is_file() and path != manifest_path and not path.name.startswith(".")
+            if path.is_file() and path != manifest_path
         }
         undeclared = sorted(actual - declared)
         if undeclared:

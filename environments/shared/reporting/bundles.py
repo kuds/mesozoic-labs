@@ -7,12 +7,15 @@ artifact manifest, and (only for a complete, passing curriculum) the public
 from __future__ import annotations
 
 import json as _json
+import logging
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from ..stage_manifest import find_stage_dir
 from . import csv_output, summaries
 from .formatting import parse_optional_bool
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_model_artifact(model_path: Any, *, run_dir: Path) -> Path | None:
@@ -62,6 +65,7 @@ def save_result_bundle(
         ResultBundleError,
         _normalize_plant_identity,
         aggregate_file_hash,
+        build_artifact_manifest,
         canonical_algorithm,
         canonical_backend,
         compare_summary_to_csv,
@@ -72,7 +76,6 @@ def save_result_bundle(
         update_provenance,
         validate_evaluation_evidence,
         validate_result_bundle,
-        write_artifact_manifest,
     )
     from ..result_schema import validate_result_summary
     from ..stage_manifest import StageManifestError, load_stage_manifest
@@ -306,6 +309,7 @@ def save_result_bundle(
                     )
 
     previous_manifest_status: str | None = None
+    previous_manifest_value: Any = None
     if previous_manifest.exists():
         try:
             previous_manifest_value = _json.loads(previous_manifest.read_text(encoding="utf-8"))
@@ -314,7 +318,21 @@ def save_result_bundle(
         except (OSError, _json.JSONDecodeError) as exc:
             raise ResultBundleError(f"cannot read existing artifact manifest: {exc}") from exc
         if previous_manifest_status == "complete":
-            validate_result_bundle(run_path, require_complete=True)
+            try:
+                validate_result_bundle(run_path, require_complete=True)
+            except ResultBundleError as exc:
+                # A complete marker that no longer verifies certifies nothing
+                # (older saves wrote it before their final validation, and a
+                # hashed file may have changed since).  Raising here would
+                # wedge the run forever; downgrade the marker and rebuild.
+                logger.warning(
+                    "existing complete artifact manifest in %s no longer verifies (%s); "
+                    "downgrading it to partial and rebuilding the bundle",
+                    run_path,
+                    exc,
+                )
+                hashing._write_json(previous_manifest, {**previous_manifest_value, "status": "partial"})
+                previous_manifest_status = "partial"
 
     # From here on, stage results travel in manifest position order so the
     # CSV rows (and any other order-sensitive artifact) come out identical
@@ -426,7 +444,9 @@ def save_result_bundle(
             raise ResultBundleError("summary/CSV contradictions: " + "; ".join(contradictions))
         paths["summary"] = summary_path
 
-    manifest_path = write_artifact_manifest(run_path, status=status)
-    paths["artifact_manifest"] = manifest_path
-    validate_result_bundle(run_path, require_complete=promotion_ready)
+    # Validate against the manifest before it exists on disk: a completion
+    # marker is only ever written for a bundle that has already passed.
+    manifest = build_artifact_manifest(run_path, status=status)
+    validate_result_bundle(run_path, require_complete=promotion_ready, prospective_manifest=manifest)
+    paths["artifact_manifest"] = hashing._write_json(previous_manifest, manifest)
     return paths

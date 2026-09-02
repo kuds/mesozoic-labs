@@ -438,6 +438,48 @@ def test_canonical_provenance_requires_consistent_seed_roles(
         validate_result_summary(summary, canonical_provenance=True)
 
 
+def test_canonical_provenance_rejects_a_publication_seed_shared_with_training() -> None:
+    summary = _canonical_summary()
+    training_seed = summary["seed"]
+    provenance = summary["provenance"]
+    provenance["seed_roles"] = {"training": training_seed, "publication_evaluation": training_seed}
+    provenance["evaluation_seeds"] = [training_seed]
+    provenance["evaluation_protocols"] = {
+        "publication_evaluation": {"seed": training_seed, "episodes": 30, "deterministic": True}
+    }
+
+    with pytest.raises(ResultSchemaError, match=rf"seed_roles.*reuses the training seed {training_seed}"):
+        validate_result_summary(summary, canonical_provenance=True)
+
+
+def test_canonical_provenance_rejects_a_publication_seed_shared_with_selection() -> None:
+    summary = _canonical_summary()
+    provenance = summary["provenance"]
+    provenance["seed_roles"]["checkpoint_selection_evaluation"] = 3042
+    provenance["evaluation_protocols"]["checkpoint_selection_evaluation"] = {
+        "seed": 3042,
+        "episodes": 30,
+        "deterministic": True,
+    }
+
+    with pytest.raises(ResultSchemaError, match=r"reuses the checkpoint_selection_evaluation seed 3042"):
+        validate_result_summary(summary, canonical_provenance=True)
+
+
+def test_canonical_provenance_accepts_distinct_seed_roles() -> None:
+    summary = _canonical_summary()
+    provenance = summary["provenance"]
+    provenance["seed_roles"]["checkpoint_selection_evaluation"] = 1042
+    provenance["evaluation_seeds"] = [3042, 1042]
+    provenance["evaluation_protocols"]["checkpoint_selection_evaluation"] = {
+        "seed": 1042,
+        "episodes": 30,
+        "deterministic": True,
+    }
+
+    validate_result_summary(summary, canonical_provenance=True)
+
+
 def test_canonical_summary_requires_every_curriculum_gate_to_pass() -> None:
     summary = _canonical_summary()
     summary["stages"]["2"]["stage_passed"] = False

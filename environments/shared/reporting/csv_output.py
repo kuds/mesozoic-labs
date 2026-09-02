@@ -35,7 +35,10 @@ CSV_METRIC_COLUMNS: list[str] = [
     "ep_length_threshold",
     "forward_vel_threshold",
     "success_rate_threshold",
+    "gate_kind",
+    "gate_evaluable",
     "stage_passed",
+    "gate_reason",
     "quality_score",
     "quality_rank",
 ]
@@ -366,10 +369,24 @@ def save_evaluation_episodes(
     successes: Sequence[Any],
     evaluation_seed: int,
     checkpoint_label: str,
+    checkpoint_path: str | Path | None = None,
 ) -> Path:
-    """Persist per-episode evaluation evidence instead of only aggregates."""
+    """Persist per-episode evaluation evidence instead of only aggregates.
+
+    *checkpoint_path* is the checkpoint the episodes were rolled out from;
+    its digest is recorded in every row as ``checkpoint_sha256`` so the
+    audit can bind the evidence to the checkpoint the bundle certifies.
+    """
     if not isinstance(evaluation_seed, int) or isinstance(evaluation_seed, bool) or evaluation_seed < 0:
         raise ValueError("evaluation_seed must be a non-negative integer")
+    checkpoint_sha256: str | None = None
+    if checkpoint_path is not None:
+        from ..result_bundle import sha256_file
+
+        checkpoint_file = Path(checkpoint_path)
+        if not checkpoint_file.is_file():
+            raise ValueError(f"evaluated checkpoint does not exist: {checkpoint_file}")
+        checkpoint_sha256 = sha256_file(checkpoint_file)
     if not checkpoint_label or any(
         character not in "abcdefghijklmnopqrstuvwxyz0123456789_-" for character in checkpoint_label
     ):
@@ -436,6 +453,10 @@ def save_evaluation_episodes(
         "distance_traveled",
         "task_success",
     ]
+    if checkpoint_sha256 is not None:
+        for row in rows:
+            row["checkpoint_sha256"] = checkpoint_sha256
+        fieldnames.append("checkpoint_sha256")
     with output.open("w", newline="", encoding="utf-8") as destination:
         writer = _csv.DictWriter(destination, fieldnames=fieldnames)
         writer.writeheader()

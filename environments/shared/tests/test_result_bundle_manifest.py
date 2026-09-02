@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -91,6 +92,46 @@ def test_canonical_bundle_rejects_unlisted_artifact(
     assert report["status"] == "canonical-conflict"
     with pytest.raises(ResultBundleError):
         validate_result_bundle(run_dir)
+
+
+def test_stale_atomic_write_temporary_is_rejected_as_undeclared(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Dot-files are never hashed, so they must not slip past the unlisted scan.
+
+    A crashed ``_write_json`` leaves ``.summary.json.tmp`` beside the file it
+    was replacing; an "immutable" bundle carrying it must not audit clean.
+    """
+    run_dir = tmp_path / "run"
+    _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
+    (run_dir / ".summary.json.tmp").write_bytes(b'{"partial": "write"}')
+
+    with pytest.raises(ResultBundleError, match=r"undeclared bundle artifacts: \['\.summary\.json\.tmp'\]"):
+        verify_artifact_manifest(run_dir)
+    assert audit_result_bundle(run_dir)["status"] == "canonical-conflict"
+
+
+def test_write_artifact_manifest_discards_stale_temporaries(
+    tmp_path: Path,
+    stable_provenance: None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The writer self-heals a crashed write instead of failing every later audit."""
+    run_dir = tmp_path / "run"
+    _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
+    stale = [run_dir / ".summary.json.tmp", run_dir / "stage1" / ".stage_config.json.tmp"]
+    for path in stale:
+        path.write_bytes(b"interrupted")
+
+    with caplog.at_level(logging.WARNING, logger="environments.shared.result_bundle.manifest"):
+        manifest_path = write_artifact_manifest(run_dir, status="complete")
+
+    assert not any(path.exists() for path in stale)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert not any(Path(entry["path"]).name.startswith(".") for entry in manifest["files"])
+    assert sum("stale temporary" in record.getMessage() for record in caplog.records) == 2
+    assert audit_result_bundle(run_dir)["status"] == "canonical-valid"
 
 
 def test_manifest_and_provenance_run_ids_must_match(

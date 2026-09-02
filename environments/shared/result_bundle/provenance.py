@@ -208,6 +208,11 @@ def initialize_result_bundle(
     evaluation_role_seeds = {role_seed for role, role_seed in normalized_seed_roles.items() if "evaluation" in role}
     if set(evaluation_seed_list) != evaluation_role_seeds:
         raise ResultBundleError("evaluation_seeds must exactly match the seeds assigned to evaluation roles")
+    from ..result_schema import seed_role_collisions
+
+    collisions = seed_role_collisions(normalized_seed_roles)
+    if collisions:
+        raise ResultBundleError("seed_roles must keep the publication seed distinct: " + "; ".join(collisions))
     evaluation_protocols = {
         role: {
             "seed": role_seed,

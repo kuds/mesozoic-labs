@@ -14,6 +14,7 @@ from environments.shared.result_bundle import (
     ResultBundleError,
     audit_result_bundle,
     compare_summary_to_csv,
+    sha256_file,
     validate_result_bundle,
     write_artifact_manifest,
 )
@@ -63,6 +64,39 @@ def test_save_evaluation_episodes_preserves_per_episode_evidence(tmp_path: Path)
             "task_success": "True",
         },
     ]
+
+
+def test_save_evaluation_episodes_records_the_evaluated_checkpoint_hash(tmp_path: Path) -> None:
+    checkpoint = tmp_path / "best_model.zip"
+    checkpoint.write_bytes(b"policy weights")
+    path = save_evaluation_episodes(
+        tmp_path / "stage1",
+        rewards=[1.0, 2.0],
+        lengths=[10, 20],
+        forward_velocities=[0.1, 0.2],
+        distances=[1.0, 2.0],
+        successes=[True, False],
+        evaluation_seed=1,
+        checkpoint_label="selected",
+        checkpoint_path=checkpoint,
+    )
+
+    with path.open(newline="", encoding="utf-8") as source:
+        rows = list(csv.DictReader(source))
+    assert [row["checkpoint_sha256"] for row in rows] == [sha256_file(checkpoint)] * 2
+
+    with pytest.raises(ValueError, match="does not exist"):
+        save_evaluation_episodes(
+            tmp_path / "stage1",
+            rewards=[1.0],
+            lengths=[10],
+            forward_velocities=[0.1],
+            distances=[1.0],
+            successes=[True],
+            evaluation_seed=1,
+            checkpoint_label="selected",
+            checkpoint_path=tmp_path / "missing.zip",
+        )
 
 
 def test_legacy_success_header_still_audits(tmp_path: Path, stable_provenance: None) -> None:
@@ -506,6 +540,171 @@ def test_the_recorded_verdict_is_re_derived_not_trusted(
 
     with pytest.raises(ResultBundleError, match=r"publication gate fails stance_quality/v1"):
         _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def _rewrite_csv_column(path: Path, *, field: str, value: str | None) -> None:
+    """Set *field* on every row, or drop the column entirely when *value* is None."""
+    with path.open(newline="", encoding="utf-8") as source:
+        reader = csv.DictReader(source)
+        rows = list(reader)
+        fieldnames = list(reader.fieldnames or [])
+    assert field in fieldnames
+    if value is None:
+        fieldnames.remove(field)
+        for row in rows:
+            del row[field]
+    else:
+        for row in rows:
+            row[field] = value
+    with path.open("w", newline="", encoding="utf-8") as destination:
+        writer = csv.DictWriter(destination, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def test_a_checkpoint_rewritten_after_evaluation_cannot_be_published(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """The certified hash must be the checkpoint that produced the certified numbers.
+
+    The bundle hashes the selected checkpoint at save time, hours after the
+    evidence was generated; a write landing in between used to yield a
+    canonical-valid bundle whose hash-certified checkpoint never produced its
+    metrics (arbitrary bytes in best_model passed audit).
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    (run_dir / "stage3" / "models" / "best_model.pkl").write_bytes(b"arbitrary bytes written after evaluation")
+
+    with pytest.raises(
+        ResultBundleError,
+        match=r"stage 3 selected evaluation evidence was produced by checkpoint sha256:[0-9a-f]{64}, "
+        r"not the certified selected checkpoint",
+    ):
+        _save_bundle(run_dir, stage_results, stage_configs)
+    assert not (run_dir / "artifact_manifest.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("recorded_hash", "expected_error"),
+    [
+        ("sha256:" + "f" * 64, "not the certified selected checkpoint"),
+        ("not-a-digest", "records a malformed checkpoint_sha256"),
+    ],
+)
+def test_selected_evidence_checkpoint_hash_is_bound_at_audit(
+    tmp_path: Path,
+    stable_provenance: None,
+    recorded_hash: str,
+    expected_error: str,
+) -> None:
+    run_dir = tmp_path / "run"
+    _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
+    _rewrite_csv_column(run_dir / "stage1" / "evaluation_selected.csv", field="checkpoint_sha256", value=recorded_hash)
+    write_artifact_manifest(run_dir, status="complete")
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-conflict"
+    assert any(expected_error in error for error in report["errors"])
+
+
+def test_evidence_without_a_checkpoint_hash_audits_with_a_warning(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Bundles written before the column existed stay valid — visibly unbound."""
+    run_dir = tmp_path / "run"
+    _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
+    for label in ("selected", "final"):
+        _rewrite_csv_column(run_dir / "stage1" / f"evaluation_{label}.csv", field="checkpoint_sha256", value=None)
+    write_artifact_manifest(run_dir, status="complete")
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid"
+    assert report["errors"] == []
+    assert any("stage 1 selected evaluation evidence records no checkpoint_sha256" in w for w in report["warnings"])
+    assert any("stage 1 final evaluation evidence records no checkpoint_sha256" in w for w in report["warnings"])
+    assert validate_result_bundle(run_dir)["status"] == "canonical-valid"
+
+
+def _write_stage_budget(run_dir: Path, stage: int, *, curriculum: int | None, run: int | None) -> None:
+    config_path = run_dir / f"stage{stage}" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    if curriculum is not None:
+        config["curriculum_kwargs"]["timesteps"] = curriculum
+    if run is not None:
+        config["run"] = {"seed": 42, "n_envs": 4, "timesteps": run}
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def test_short_budget_run_with_a_stale_checkpoint_no_longer_audits_clean(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """The probe: a resumed short-budget run over a longer run's leftovers.
+
+    stage_config.json records the 8M curriculum budget beside the 2.5M
+    invocation budget; the summary claims what stage 2 actually trained
+    (200k here); and a 5M-step periodic checkpoint from the longer run sits in
+    the manifest.  The shortfall is legitimate and must warn; the checkpoint
+    beyond the claimed timesteps is not and must fail.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _write_stage_budget(run_dir, 2, curriculum=8_000_000, run=2_500_000)
+    _save_bundle(run_dir, stage_results, stage_configs)
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid"
+    assert any(
+        "stage 2 trained 200,000 timesteps, short of its curriculum budget of 8,000,000 "
+        "and run budget of 2,500,000" in warning
+        for warning in report["warnings"]
+    )
+
+    model_dir = run_dir / "stage2" / "models"
+    (model_dir / "stage2_5000000_steps.zip").write_bytes(b"checkpoint from the longer run")
+    (model_dir / "stage2_vecnormalize_5000000_steps.pkl").write_bytes(b"its statistics")
+    write_artifact_manifest(run_dir, status="complete")
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-conflict"
+    assert any(
+        "stage 2 periodic checkpoint models/stage2_5000000_steps.zip records 5,000,000 steps, "
+        "beyond the 200,000 timesteps the summary claims" in error
+        for error in report["errors"]
+    )
+    with pytest.raises(ResultBundleError):
+        validate_result_bundle(run_dir)
+
+
+def test_save_refuses_a_periodic_checkpoint_beyond_the_claimed_timesteps(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    (run_dir / "stage1" / "models" / "stage1_500000_steps.zip").write_bytes(b"stale")
+
+    with pytest.raises(ResultBundleError, match=r"stage1_500000_steps\.zip records 500,000 steps, beyond the 100,000"):
+        _save_bundle(run_dir, stage_results, stage_configs)
+    assert not (run_dir / "artifact_manifest.json").exists()
+
+
+def test_a_full_budget_run_with_in_budget_checkpoints_warns_about_nothing(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _write_stage_budget(run_dir, 1, curriculum=100_000, run=100_000)
+    (run_dir / "stage1" / "models" / "stage1_100000_steps.zip").write_bytes(b"final periodic checkpoint")
+    _save_bundle(run_dir, stage_results, stage_configs)
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid"
+    assert report["warnings"] == []
 
 
 def test_final_evaluation_claims_are_bound_to_terminal_episode_evidence(
