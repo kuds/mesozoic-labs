@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.7)
 
 ### Added
+- **Behavior recipes plan** (`docs/BEHAVIOR_RECIPES_PLAN.md`): the adopted
+  design for turning the linear stage curriculum into a DAG of behavior
+  recipes — stand, walk, hunt and follow direction — each a separately
+  certified, separately published policy on one shared certified trunk.
+  Records what the tree already does (three of the four behaviors exist as
+  separate checkpoints; parentage is inferred from position; only the last
+  numbered stage publishes; the stage vocabulary is closed), the manifest-v2
+  design (`warm_start_from`, `deliverable`, derived recipes), per-deliverable
+  publication, per-deliverable capability gates (absorbing the gap review's
+  held decisions: CF2 by deleting the hunting gate's velocity term, SS2, CF3,
+  and SS1 as provenance), the
+  one batched policy-interface revision that reserves body-relative command
+  dims for follow-direction with a widening tool for the certified stance
+  checkpoint, the notebook's `BEHAVIOR` chain loop with certified-ancestor
+  reuse, the phase/PR sequence, the decisions taken and their veto points.
 - **The frozen recovery gate is reachable end to end** (gap review Phase G,
   `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` findings EE1/EE2). Three
   seams, each previously fail-closed with no path to a verdict:

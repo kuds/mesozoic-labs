@@ -37,6 +37,7 @@ past a couple of files get their own subdirectory with a short README index
 | [BALANCE_REWARD_METRICS.md](BALANCE_REWARD_METRICS.md) | 2026-03-16 | Proposed — composite ASHA metric for stage-1 sweeps |
 | [PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md](PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md) | 2026-07-31 | Active — **read before any stage-1 work.** Why every reset was geometrically invalid, why the stage-1 objective's optimum is the zero-action policy, and what replaces the reward gate |
 | [STAGE1_SPLIT_PLAN.md](STAGE1_SPLIT_PLAN.md) | 2026-07-31 | Active (rev 5) — design proposal splitting balance into 1a stance / 1b recovery |
+| [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) | 2026-09-05 | Active — adopted design turning the stage ladder into a DAG of behavior recipes (stand / walk / hunt / follow direction), each a separately certified, separately published policy; phases A–E sequenced |
 | [REFACTORING.md](REFACTORING.md) | 2026-03-19 | **Complete** — v0.3.0 consolidation plan |
 | [CODE_CONSOLIDATION.md](CODE_CONSOLIDATION.md) | 2026-03-19 | **Complete** — v0.3.0 implementation record |
 
