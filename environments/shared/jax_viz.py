@@ -520,6 +520,18 @@ def plot_reward_components(
     return fig
 
 
+def _accepts_lag_kwargs(fn: Any) -> bool:
+    """Whether *fn* can take ``prev_action`` / ``prev_prev_action`` keywords."""
+    import inspect
+
+    try:
+        params = inspect.signature(fn).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    names = {p.name for p in params if p.kind in (p.KEYWORD_ONLY, p.POSITIONAL_OR_KEYWORD)}
+    return any(p.kind is p.VAR_KEYWORD for p in params) or {"prev_action", "prev_prev_action"} <= names
+
+
 def record_training_video(
     mj_model: Any,
     params: Any,
@@ -665,6 +677,14 @@ def record_training_video(
     if action_filter_cutoff_hz is not None and action_filter_cutoff_hz > 0.0:
         _filter_alpha = low_pass_alpha(action_filter_cutoff_hz, float(mj_model.opt.timestep) * frame_skip)
     filtered_action = None
+    # The two previous (filtered) commands, carried the way evaluate_policy_cpu
+    # and the MJX kernel carry them, so the printed reward charges smoothness
+    # and jerk against the real lags rather than zeros.  Passed only to a
+    # reward_fn that takes them (the notebook's compute_reward forwards
+    # **step_kwargs; a bare three-argument scorer keeps working).
+    prev_action = None
+    prev_prev_action = None
+    _reward_takes_lags = reward_fn is not None and _accepts_lag_kwargs(reward_fn)
 
     frames = []
     episode_reward = 0.0
@@ -691,8 +711,16 @@ def record_training_video(
 
         if reward_fn is not None and reward_cfg is not None:
             cpu_data = mjx.put_data(mj_model, mj_data)
-            r = float(reward_fn(cpu_data, action, reward_cfg))
+            lag_kwargs: dict[str, Any] = {}
+            if _reward_takes_lags:
+                if prev_action is not None:
+                    lag_kwargs["prev_action"] = prev_action
+                if prev_prev_action is not None:
+                    lag_kwargs["prev_prev_action"] = prev_prev_action
+            r = float(reward_fn(cpu_data, action, reward_cfg, **lag_kwargs))
             episode_reward += r
+        prev_prev_action = prev_action
+        prev_action = action
 
         # Height termination
         body_z = mj_data.xpos[root_body_id, 2]

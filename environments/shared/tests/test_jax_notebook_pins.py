@@ -178,6 +178,24 @@ class TestSameStageResumeIsAContinuation:
         assert "at update {_resume_update}" in same_src
 
 
+class TestResumeGuardsAndScheduleSizing:
+    def test_a_resume_with_nothing_left_stops_before_training(self):
+        """A 0-update train() overwrote models/params.pkl with an empty history."""
+        train_src = _cell(TRAIN_CELL_MARKER)
+        guard = train_src.index("if _updates_this_session == 0:")
+        assert "raise RuntimeError(" in train_src[guard : guard + 400]
+        assert train_src.index("result = train(") > guard
+
+    def test_the_lr_schedule_is_sized_to_the_real_minibatch_count(self):
+        """PPOConfig's default n_minibatches=4 decayed the LR to its floor after ~8 of 500 updates."""
+        optimizer_src = _cell(OPTIMIZER_CELL_MARKER)
+        config_call = _call_segment(optimizer_src, "PPOConfig")
+        assert "n_minibatches=max(1, (NUM_ENVS * ROLLOUT_LEN) // MINIBATCH_SIZE)" in config_call
+        # The same formula train_jax uses, so both paths decay over the same steps.
+        training_src = (REPO_ROOT / "environments" / "shared" / "jax_training.py").read_text(encoding="utf-8")
+        assert "(num_envs * rollout_len) // int(minibatch_size)" in training_src
+
+
 class TestAutoResumeFindsTheGatedPreviousStage:
     """JX4: the previous stage comes from the manifest order and its on-disk name from stage_dir_candidates."""
 

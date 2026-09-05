@@ -462,6 +462,60 @@ class TestRecordTrainingVideoActionFilter:
         assert len(frames) == self._STEPS
         return np.stack(commanded), np.stack(rewarded)
 
+    def test_reward_fn_receives_the_two_previous_filtered_commands(self, monkeypatch):
+        """The printed reward charges smoothness/jerk against the real lags.
+
+        With the composer's zero-lag convention, a lag-less call scored jerk
+        as ``a_t`` on every step (22x the gate eval's charge on the same
+        trajectory); the video now carries the two previous filtered commands
+        exactly as evaluate_policy_cpu does.
+        """
+        from environments.shared.jax_viz import record_training_video
+
+        model, get_obs, network, scale_action = self._setup(monkeypatch)
+        commanded: list[np.ndarray] = []
+        seen: list[dict] = []
+
+        def capture_scale(action):
+            commanded.append(np.asarray(action, dtype=np.float64).copy())
+            return scale_action(action)
+
+        def reward_fn(_data, _action, _cfg, **step_kwargs):
+            seen.append({k: np.asarray(v, dtype=np.float64).copy() for k, v in step_kwargs.items()})
+            return 0.0
+
+        record_training_video(
+            model,
+            {},
+            network,
+            None,
+            get_obs_fn=get_obs,
+            normalize_obs_fn=lambda obs, _stats: obs,
+            scale_action_fn=capture_scale,
+            reward_fn=reward_fn,
+            reward_cfg={},
+            max_episode_steps=self._STEPS,
+            frame_skip=5,
+            root_body_id=2,
+            healthy_z_range=(0.0, 10.0),
+            max_tilt_angle=np.pi,
+            natural_forward_z=-1.0,
+            nosedive_threshold=10.0,
+            action_mapping="home-keyframe-residual/v1",
+            action_filter_cutoff_hz=10.0,
+            height=8,
+            width=8,
+            show=False,
+        )
+        assert len(seen) == self._STEPS
+        assert seen[0] == {}, "the first step has no previous command (the kernel's zero carry)"
+        assert set(seen[1]) == {"prev_action"}
+        np.testing.assert_allclose(seen[1]["prev_action"], commanded[0])
+        for t in range(2, self._STEPS):
+            assert set(seen[t]) == {"prev_action", "prev_prev_action"}
+            np.testing.assert_allclose(seen[t]["prev_action"], commanded[t - 1])
+            np.testing.assert_allclose(seen[t]["prev_prev_action"], commanded[t - 2])
+
     def _gate_eval_actions(self, model, get_obs, network, scale_action, cutoff):
         from environments.shared.jax_eval import evaluate_policy_cpu
 
