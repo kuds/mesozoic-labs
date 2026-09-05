@@ -146,6 +146,16 @@ prune; §2.3 is cosmetic. Each item was verified against the current tree.
   (`configs/trex/stage1_balance.toml:337`) — and 1b's push schedule interacts
   with it directly (§6, decision 4). Calibrate against stored rollouts before
   the 1b gate depends on it.
+- **Two task-fingerprint transition valves are still open** (tracked here
+  since the 2026-08 gap review, entry SM4): `allow_unfingerprinted` in
+  `train_base._create_or_load_model` admits checkpoints saved before the
+  fingerprint landed on 2026-08-15, and the schema-v1 valve in
+  `task_fingerprint.validate_recorded_task` admits records from before the
+  2026-08-23 v2 bump. Both must stay while a live lineage still resumes such a
+  checkpoint — the certified stance parent `20260810_145546` does, as do the
+  1b pilots `20260819_154702` / `20260821_142144`. Tighten both to fail-closed
+  together, once every lineage that matters has been re-saved under the
+  current schema; no date is scheduled.
 
 ## 3. What 1b is (adopted design, in brief)
 
