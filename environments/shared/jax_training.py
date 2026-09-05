@@ -99,12 +99,17 @@ def train_jax(
         init_opt_state: Optional optimizer state to continue from (forwarded
             to :meth:`JaxTrainer.train`; ignored unless *init_params* is
             also given).  Without it every start re-initialises Adam.
-        resume_from: Path to a checkpoint written by this path (or the
-            notebook) for a SAME-stage resume: params, optimizer state and
-            obs stats are loaded via
+        resume_from: Path to a periodic checkpoint written by this path
+            (``<prefix>_<N>.pkl``) for a SAME-stage resume: params, optimizer
+            state and obs stats are loaded via
             :func:`~environments.shared.jax_checkpoint.restore_train_state`
-            and continued as they were.  Mutually exclusive with the
-            ``init_*`` arguments.
+            and continued as they were, and the stage's REMAINING budget is
+            trained.  A file without optimizer state (``<prefix>_best.pkl``,
+            a params-only export) is refused: it would restart Adam and the
+            LR schedule.  A checkpoint already at the budget returns at once
+            with the restored state and ``eval_metrics["already_complete"]``
+            set, writing nothing.  Mutually exclusive with the ``init_*``
+            arguments.
         obs_rms_decay_on_resume: Count decay applied to the obs stats loaded
             by *resume_from*.  Defaults to ``1.0`` (no decay): a same-stage
             resume sees the same distribution, so decaying would only make
@@ -206,11 +211,14 @@ def train_jax(
     network = make_actor_critic(env.action_dim, hidden_dims=network_hidden_dims({"policy_kwargs": policy_kwargs or {}}))
     optimizer = make_optimizer(ppo_config)
 
+    prefix = _artifact_prefix(species, stage)
     if resume_from is not None:
         from .jax_checkpoint import restore_train_state
 
+        # require_opt_state: <prefix>_best.pkl and other params-only files
+        # would silently restart Adam and the LR schedule mid-stage.
         init_params, init_opt_state, init_obs_stats, resumed_update = restore_train_state(
-            resume_from, optimizer, current_plant=plant_identity
+            resume_from, optimizer, current_plant=plant_identity, require_opt_state=True
         )
         if init_obs_stats is not None and obs_rms_decay_on_resume != 1.0:
             from .jax_normalization import decay_running_stats
@@ -232,16 +240,28 @@ def train_jax(
         start_update = resumed_update
         updates_to_run = max(num_updates - resumed_update, 0)
         if updates_to_run == 0:
+            # Return before any hook exists: running the trainer for zero
+            # updates saved the restored params as <prefix>_1.pkl (evicting
+            # a genuine checkpoint by rotation) and truncated the training
+            # CSV to its header.
             _logger.warning(
                 "Checkpoint %s is already at update %d of the %d-update budget; nothing left to train",
                 resume_from,
                 resumed_update,
                 num_updates,
             )
-        else:
-            _logger.info(
-                "Continuing at update %d: %d of %d updates remain", resumed_update, updates_to_run, num_updates
-            )
+            eval_metrics: dict[str, float] = {
+                "already_complete": True,
+                "mean_reward": 0.0,
+                "mean_episode_return": 0.0,
+                "mean_episode_length": 0.0,
+                "total_steps": 0,
+                "elapsed": 0.0,
+                "t_rollout_cumulative": 0.0,
+                "t_ppo_cumulative": 0.0,
+            }
+            return init_params, eval_metrics, init_obs_stats
+        _logger.info("Continuing at update %d: %d of %d updates remain", resumed_update, updates_to_run, num_updates)
     else:
         start_update = 0
         updates_to_run = num_updates
@@ -252,7 +272,7 @@ def train_jax(
     hooks: list[Any] = [LoggingHook(interval=10, num_updates=num_updates)]
 
     best_hook: Any = None
-    prefix = _artifact_prefix(species, stage)
+    prior_best_return: float | None = None
     if checkpoint_dir:
         _ckpt_dir = Path(checkpoint_dir)
         write_plant_identity(_ckpt_dir / "plant_identity.json", plant_identity)
@@ -264,8 +284,21 @@ def train_jax(
                 plant_identity=plant_identity,
             )
         )
-        hooks.append(CSVLoggingHook(_ckpt_dir / f"{prefix}_training_log.csv"))
+        # Append on resume so the interrupted session's rows survive.
+        hooks.append(CSVLoggingHook(_ckpt_dir / f"{prefix}_training_log.csv", append=start_update > 0))
         best_hook = BestModelHook(metric_key="episode_return")
+        best_path = _ckpt_dir / f"{prefix}_best.pkl"
+        if start_update > 0 and best_path.exists():
+            # A same-directory resume continues the stage, so the best-model
+            # file is only replaced by a policy that beats the recorded best
+            # -- not by the best of the continuation segment alone.
+            from .jax_checkpoint import load_checkpoint
+
+            prior_best = load_checkpoint(best_path, current_plant=plant_identity).get("best_episode_return")
+            if prior_best is not None:
+                prior_best_return = float(prior_best)
+                best_hook.best_reward = prior_best_return
+                _logger.info("Best-model tracking resumes from %s (episode return %.4f)", best_path, prior_best_return)
         hooks.append(best_hook)
 
     # Create trainer and run
@@ -303,11 +336,16 @@ def train_jax(
             Path(checkpoint_dir) / f"{prefix}_best.pkl",
             params=best_hook.best_params,
             obs_rms=_state.obs_stats,
-            update=best_hook.best_update,
+            # Updates COMPLETED by these params (the hook records the update
+            # INDEX), the same convention as the periodic checkpoints.
+            update=best_hook.best_update + 1,
             extra={"best_episode_return": best_hook.best_reward},
             plant_identity=plant_identity,
         )
         eval_metrics["best_episode_return"] = best_hook.best_reward
+    elif prior_best_return is not None:
+        # The continuation never beat the recorded best; the file stands.
+        eval_metrics["best_episode_return"] = prior_best_return
 
     return params, eval_metrics, _state.obs_stats
 
@@ -362,9 +400,24 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse and cross-check the CLI arguments (``argv`` defaults to ``sys.argv[1:]``)."""
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    if args.curriculum and args.resume_from:
+        # run_curriculum never received the flag, so the run silently
+        # started stage 1 from scratch in the same directory.
+        parser.error(
+            "--resume-from applies to a single-stage run and cannot be combined with --curriculum "
+            "(the curriculum path hands each stage's policy to the next itself); "
+            "resume the interrupted stage with --stage <its stage> --resume-from <checkpoint>"
+        )
+    return args
+
+
 def main():
     """CLI entry point for JAX/MJX training."""
-    args = _build_parser().parse_args()
+    args = _parse_args()
 
     if args.curriculum:
         from .jax_curriculum import run_curriculum

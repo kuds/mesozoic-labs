@@ -24,6 +24,7 @@ Usage (library)::
 
 from __future__ import annotations
 
+import inspect
 import logging
 import time
 from collections.abc import Callable
@@ -138,7 +139,10 @@ class TrainResult:
     diagnostics_history: list[dict[str, Any]] = field(default_factory=list)
     reward_component_history: list[dict[str, Any]] = field(default_factory=list)
 
+    # Env steps for the WHOLE stage (a same-stage resume counts the
+    # checkpoint's prior updates); ``session_steps`` is this call's segment.
     total_steps: int = 0
+    session_steps: int = 0
     elapsed: float = 0.0
     actual_updates: int = 0
     csv_path: Path | None = None
@@ -160,6 +164,42 @@ def _finite_mean(values: "list[float]") -> float:
     """
     finite = [v for v in values if np.isfinite(v)]
     return float(np.mean(finite)) if finite else 0.0
+
+
+def _build_eval_metrics(state: TrainerState, elapsed: float) -> dict[str, float]:
+    """The ``eval_metrics`` :meth:`JaxTrainer.train` returns for *state*.
+
+    Windows are the last 10 updates.  Episode-level entries are NaN for
+    updates with no completed episode, and one NaN poisoned the whole
+    ``mean_episode_return`` (a spurious gate failure and a NaN headline
+    metric); both episode reductions use the same finite mean, collapsing
+    an all-NaN window to ``0.0`` -- the fail-closed reading for a gate.
+    """
+    return {
+        "mean_reward": float(np.mean([h["mean_reward"] for h in state.history[-10:]])) if state.history else 0.0,
+        # Episode-level return (comparable to SB3's mean episode reward
+        # and the TOML min_avg_reward gates); mean_reward above is the
+        # mean PER-STEP rollout reward, orders of magnitude smaller.
+        "mean_episode_return": _finite_mean(state.episode_return_history[-10:]),
+        # Episode length over the same window, so check_stage_gate can
+        # enforce min_avg_episode_length.
+        "mean_episode_length": _finite_mean(state.episode_length_history[-10:]),
+        "total_steps": state.total_steps,
+        "elapsed": elapsed,
+        "t_rollout_cumulative": state.t_rollout_cumulative,
+        "t_ppo_cumulative": state.t_ppo_cumulative,
+    }
+
+
+def _detail_fn_accepts_action_lags(fn: Callable) -> bool:
+    """Whether *fn* takes ``prev_action`` / ``prev_prev_action`` keywords."""
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return True
+    return "prev_action" in params and "prev_prev_action" in params
 
 
 def _bootstrap_truncations(rewards, gae_dones, full_dones, final_values, gamma: float):
@@ -414,7 +454,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
             """
 
             def step_fn(carry, _):
-                states, rng = carry
+                states, rng, _ = carry
                 rng, action_rng, step_rng = jax.random.split(rng, 3)
 
                 raw_obs = states.obs
@@ -424,6 +464,10 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
                     params, obs_normed, rngs
                 )
 
+                # The action lags the kernel scores THIS step against; its
+                # post-step state overwrites them, so keep the last step's
+                # for the reward-component panel.
+                pre_step_lags = (states.prev_action, states.prev_prev_action)
                 actions = jnp.clip(raw_actions, -1.0, 1.0)
                 new_states, rewards, terminated, truncated, final_obs = env.step(
                     states, actions, step_rng, return_final_obs=True, forward_vel_scale=forward_vel_scale
@@ -431,7 +475,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
                 full_done = terminated | truncated
                 gae_done = terminated
 
-                return (new_states, rng), (
+                return (new_states, rng, pre_step_lags), (
                     raw_obs,
                     raw_actions,
                     log_probs,
@@ -442,17 +486,40 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
                     final_obs,
                 )
 
-            (states, _), rollout = jax.lax.scan(step_fn, (states, rng), None, length=ROLLOUT_LEN)
-            return states, rollout
+            init_lags = (states.prev_action, states.prev_prev_action)
+            (states, _, last_step_lags), rollout = jax.lax.scan(
+                step_fn, (states, rng, init_lags), None, length=ROLLOUT_LEN
+            )
+            return states, rollout, last_step_lags
 
     # --- Reward component diagnostics ---
 
+    # Scores ``(states.data, action)`` per env with the action lags the
+    # kernel held for that step, so the panel's smoothness / action_jerk
+    # rows equal the terms the kernel charged instead of a zero-lag
+    # stand-in.  A detail fn without the keywords still gets the zero-lag
+    # rows, loudly.
     batched_reward_components = None
     if reward_detail_fn is not None:
+        if _detail_fn_accepts_action_lags(reward_detail_fn):
 
-        @jax.jit
-        def batched_reward_components(states, action_batch):
-            return jax.vmap(reward_detail_fn, in_axes=(0, 0))(states.data, action_batch)
+            def _detail_with_lags(data, action, prev_action, prev_prev_action):
+                return reward_detail_fn(data, action, prev_action=prev_action, prev_prev_action=prev_prev_action)
+
+            @jax.jit
+            def batched_reward_components(states, action_batch, prev_action, prev_prev_action):
+                return jax.vmap(_detail_with_lags)(states.data, action_batch, prev_action, prev_prev_action)
+
+        else:
+            _logger.warning(
+                "reward_detail_fn %r does not accept prev_action / prev_prev_action; the component panel's "
+                "smoothness and action_jerk rows are computed against zero lags (accept **step_kwargs to fix)",
+                getattr(reward_detail_fn, "__name__", reward_detail_fn),
+            )
+
+            @jax.jit
+            def batched_reward_components(states, action_batch, prev_action, prev_prev_action):
+                return jax.vmap(reward_detail_fn, in_axes=(0, 0))(states.data, action_batch)
 
     return {
         "batched_sample": batched_sample,
@@ -494,7 +561,11 @@ def train(
         reward_cfg: Reward configuration dict (may be mutated by reward ramp).
         rng: JAX PRNGKey.
         reward_detail_fn: Optional per-component reward function for diagnostics.
-            Signature: ``(mjx_data, action) -> dict[str, scalar]``.
+            Signature: ``(mjx_data, action, *, prev_action, prev_prev_action)
+            -> dict[str, scalar]`` -- the two action lags the kernel scored
+            the step against are forwarded when the function accepts them
+            (``**step_kwargs`` will do), so the panel's smoothness and jerk
+            rows equal the charged terms.
         optimizer: Optax optimizer (needed for gradient updates).
         callback: Optional ``(update, metrics_dict) -> None`` called each update.
 
@@ -605,17 +676,26 @@ def train(
         f"({ROLLOUT_LEN} steps x {NUM_ENVS} envs)"
     )
     print(f"Checkpoint frequency: every {CHECKPOINT_FREQ} updates (keep last {config.max_checkpoints})")
+    # Warmup and ramp are stage-absolute (updates 0..N-1 of the stage): a
+    # same-stage resume past them must not re-warm or restart the ramp.
     if _warmup_active:
-        print(
-            f"Warmup: updates 0..{config.warmup_updates - 1} "
-            f"(clip_range={config.warmup_clip_range}, ent_coef={config.warmup_ent_coef})"
-        )
+        if _start_update < config.warmup_updates:
+            print(
+                f"Warmup: updates {_start_update}..{config.warmup_updates - 1} "
+                f"(clip_range={config.warmup_clip_range}, ent_coef={config.warmup_ent_coef})"
+            )
+        else:
+            print(f"Warmup: updates 0..{config.warmup_updates - 1} already complete at update {_start_update}")
     if _ramp_active:
-        print(
-            f"Reward ramp: {config.ramp_attr} from "
-            f"{_ramp_target_value * config.ramp_start_fraction:.4f} to "
-            f"{_ramp_target_value:.4f} over updates 0..{config.ramp_updates - 1}"
-        )
+        if _start_update < config.ramp_updates:
+            print(
+                f"Reward ramp: {config.ramp_attr} from "
+                f"{_ramp_target_value * config.ramp_start_fraction:.4f} to "
+                f"{_ramp_target_value:.4f} over updates 0..{config.ramp_updates - 1}"
+                + (f" (resuming at {_start_update})" if _start_update else "")
+            )
+        else:
+            print(f"Reward ramp: updates 0..{config.ramp_updates - 1} already complete at update {_start_update}")
     print(f"CSV log: {csv_path}")
     print("=" * 70)
 
@@ -629,15 +709,16 @@ def train(
             relative_update = update - _start_update
 
             # ---------- Warmup ----------
-            if _warmup_active and relative_update < config.warmup_updates:
+            # Keyed off the ABSOLUTE update, like JaxTrainer: a same-stage
+            # resume continues past the warmup instead of re-running it (a
+            # cross-stage init starts at 0, so its warmup is unchanged).
+            if _warmup_active and update < config.warmup_updates:
                 _active_clip_range = config.warmup_clip_range
                 _active_ent_coef = config.warmup_ent_coef
-                if relative_update == 0 and _log_interval is not None:
-                    pass  # printed in banner
             else:
                 _active_clip_range = config.clip_range
                 _active_ent_coef = config.ent_coef
-                if _warmup_active and relative_update == config.warmup_updates and _log_interval is not None:
+                if _warmup_active and update == config.warmup_updates and _log_interval is not None:
                     print(
                         f"  >>> Warmup complete at update {update}: "
                         f"restoring clip_range={config.clip_range}, ent_coef={config.ent_coef}"
@@ -646,9 +727,9 @@ def train(
             # ---------- Reward ramp ----------
             # The ramp scales forward_vel_weight in [start_fraction, 1.0]
             # and is passed through to env.step at runtime so the JIT
-            # trace doesn't need to be invalidated.
-            if _ramp_active and relative_update < config.ramp_updates:
-                ramp_progress = relative_update / config.ramp_updates
+            # trace doesn't need to be invalidated.  Absolute, as above.
+            if _ramp_active and update < config.ramp_updates:
+                ramp_progress = update / config.ramp_updates
                 forward_vel_scale = config.ramp_start_fraction + (1.0 - config.ramp_start_fraction) * ramp_progress
                 # Mirror the effective weight into reward_cfg so callers
                 # inspecting it (e.g. diagnostics) see the current value.
@@ -666,7 +747,9 @@ def train(
             # see the same normalization, otherwise the importance ratio
             # is biased.  We update obs_rms only after consuming the batch.
             rollout_obs_rms = obs_rms
-            states, rollout = collect_rollout(states, rng_collect, params, rollout_obs_rms, forward_vel_scale_arr)
+            states, rollout, last_step_lags = collect_rollout(
+                states, rng_collect, params, rollout_obs_rms, forward_vel_scale_arr
+            )
             obs_t, act_t, lp_t, val_t, rew_t, gae_done_t, full_done_t, final_obs_t = rollout
 
             jax.block_until_ready(full_done_t)
@@ -737,10 +820,14 @@ def train(
             _t_ppo = time.time() - _t_phase
             _cum_t_ppo += _t_ppo
 
-            # Compute current learning rate for logging
+            # Compute current learning rate for logging, from the ABSOLUTE
+            # position on the stage schedule: on a same-stage resume
+            # config.num_updates is the remaining budget while the restored
+            # optax count continues, so relative progress would log the LR
+            # snapping back to learning_rate.
             if config.learning_rate_end is not None and config.learning_rate_end != config.learning_rate:
-                total_lr_steps = config.num_updates * config.ppo_epochs
-                lr_step = min(relative_update * config.ppo_epochs, total_lr_steps)
+                total_lr_steps = (_start_update + config.num_updates) * config.ppo_epochs
+                lr_step = min(update * config.ppo_epochs, total_lr_steps)
                 current_lr = (
                     config.learning_rate + (config.learning_rate_end - config.learning_rate) * lr_step / total_lr_steps
                 )
@@ -778,7 +865,11 @@ def train(
             # Per-component reward diagnostics
             if relative_update % config.reward_component_interval == 0 and batched_reward_components is not None:
                 try:
-                    _comp = batched_reward_components(states, act_t[-1])
+                    # Re-score the rollout's last step as the kernel did: the
+                    # command it scored is the post-step prev_action carry
+                    # (clipped, low-passed), against the lags it held BEFORE
+                    # that step.
+                    _comp = batched_reward_components(states, states.prev_action, *last_step_lags)
                     _comp_means = {k: float(jnp.mean(v)) for k, v in _comp.items()}
                     _comp_means["update"] = update
                     reward_component_history.append(_comp_means)
@@ -802,8 +893,11 @@ def train(
 
             # CSV log
             elapsed = time.time() - t_start
-            steps_done = (update - _start_update + 1) * ROLLOUT_LEN * NUM_ENVS
-            sps = steps_done / elapsed
+            session_steps_done = (update - _start_update + 1) * ROLLOUT_LEN * NUM_ENVS
+            sps = session_steps_done / elapsed
+            # Stage-cumulative, so a resumed session's rows continue the
+            # interrupted session's count.
+            steps_done = (update + 1) * ROLLOUT_LEN * NUM_ENVS
             _csv_logger.log(
                 {
                     "update": update,
@@ -876,9 +970,15 @@ def train(
     # ==================== Training Summary ====================
     elapsed = time.time() - t_start
     actual_updates = update - _start_update + 1
-    total_steps = actual_updates * ROLLOUT_LEN * NUM_ENVS
+    session_steps = actual_updates * ROLLOUT_LEN * NUM_ENVS
+    # The stage record counts the WHOLE stage: on a same-stage resume the
+    # checkpoint's prior updates are part of it.
+    total_steps = (update + 1) * ROLLOUT_LEN * NUM_ENVS
     print("=" * 70)
-    print(f"Done! {total_steps:,} steps in {format_duration(elapsed)} ({total_steps / elapsed:,.0f} SPS)")
+    print(
+        f"Done! {session_steps:,} steps in {format_duration(elapsed)} ({session_steps / elapsed:,.0f} SPS)"
+        + (f"; {total_steps:,} for the stage" if _start_update else "")
+    )
     print(f"Best metric: {best_reward:+.4f} at update {best_update}")
 
     _pct_rollout = 100 * _cum_t_rollout / elapsed if elapsed > 0 else 0
@@ -942,6 +1042,7 @@ def train(
         diagnostics_history=diagnostics_history,
         reward_component_history=reward_component_history,
         total_steps=total_steps,
+        session_steps=session_steps,
         elapsed=elapsed,
         actual_updates=actual_updates,
         csv_path=csv_path,
@@ -1458,27 +1559,4 @@ class JaxTrainer:
 
         self._dispatch("on_train_end", state)
 
-        eval_metrics = {
-            "mean_reward": float(jnp.mean(jnp.array([h["mean_reward"] for h in state.history[-10:]])))
-            if state.history
-            else 0.0,
-            # Episode-level return (comparable to SB3's mean episode reward
-            # and the TOML min_avg_reward gates); mean_reward above is the
-            # mean PER-STEP rollout reward, orders of magnitude smaller.
-            # Window entries are NaN for updates with no completed episode,
-            # and one NaN poisoned the whole mean (a spurious gate failure
-            # and a NaN headline metric) -- same finite reduction as the
-            # length below.
-            "mean_episode_return": _finite_mean(state.episode_return_history[-10:]),
-            # Episode length over the same window, so check_stage_gate can
-            # enforce min_avg_episode_length.  NaN windows (no episode
-            # completed yet) collapse to 0.0, which fails a length gate rather
-            # than passing it -- the fail-closed direction.
-            "mean_episode_length": _finite_mean(state.episode_length_history[-10:]),
-            "total_steps": state.total_steps,
-            "elapsed": elapsed,
-            "t_rollout_cumulative": state.t_rollout_cumulative,
-            "t_ppo_cumulative": state.t_ppo_cumulative,
-        }
-
-        return state.params, eval_metrics, state
+        return state.params, _build_eval_metrics(state, elapsed), state

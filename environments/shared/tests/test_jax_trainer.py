@@ -282,6 +282,73 @@ class TestCSVLoggingHook:
         hook = CSVLoggingHook(path=csv_path)
         assert hook.path == csv_path
 
+    def test_append_keeps_the_prior_session_rows(self, tmp_path):
+        """A same-stage resume into the interrupted session's directory must
+        not truncate its training log to the resumed rows."""
+        csv_path = tmp_path / "log.csv"
+        state = TrainerState(params=None, opt_state=None, obs_stats=None, env_states=None, rng=None)
+        first = CSVLoggingHook(path=csv_path)
+        for update in (0, 1):
+            first.on_update_end(state, {"update": update, "mean_reward": 1.0})
+        first.on_train_end(state)
+
+        resumed = CSVLoggingHook(path=csv_path, append=True)
+        resumed.on_update_end(state, {"update": 2, "mean_reward": 1.0})
+        resumed.on_train_end(state)
+
+        lines = csv_path.read_text().splitlines()
+        assert sum(line.startswith("update,") for line in lines) == 1
+        assert [line.split(",")[0] for line in lines[1:]] == ["0", "1", "2"]
+
+
+class TestCheckpointHook:
+    """The final save must not double-count the last periodic save, and a run
+    that completed no update must not checkpoint its untouched params."""
+
+    @staticmethod
+    def _replay(directory, num_updates, interval, max_keep, start_update=0):
+        from environments.shared.jax_hooks import CheckpointHook
+
+        hook = CheckpointHook(directory=str(directory), prefix="ck", interval=interval, max_keep=max_keep)
+        state = TrainerState(params={"w": 1.0}, opt_state=None, obs_stats=None, env_states=None, rng=None)
+        # Exactly JaxTrainer.train's dispatch: state.update = index per update,
+        # then on_train_end with the last index still set.
+        for update in range(start_update, start_update + num_updates):
+            state.update = update
+            hook.on_update_end(state, {"update": update})
+        hook.on_train_end(state)
+        return hook, sorted(int(p.stem[len("ck_") :]) for p in directory.glob("ck_*.pkl"))
+
+    def test_a_budget_aligned_with_the_interval_keeps_max_keep_distinct_files(self, tmp_path):
+        """train_jax's defaults (500 updates, interval 50, max_keep 5) ended
+        with ck_500 saved twice and ck_300 evicted for the duplicate."""
+        hook, files = self._replay(tmp_path, 500, 50, 5)
+        assert files == [300, 350, 400, 450, 500]
+        assert [p.name for p in hook.manager._recent] == [f"ck_{u}.pkl" for u in files]
+        assert hook.manager.latest == tmp_path / "ck_500.pkl"
+
+    def test_max_keep_one_never_unlinks_the_final_checkpoint(self, tmp_path):
+        hook, files = self._replay(tmp_path, 100, 50, 1)
+        assert files == [100]
+        assert hook.manager.latest is not None and hook.manager.latest.exists()
+
+    def test_an_unaligned_budget_and_a_resume_still_get_their_final_save(self, tmp_path):
+        _, files = self._replay(tmp_path / "fresh", 120, 50, 5)
+        assert files == [50, 100, 120]
+        _, files = self._replay(tmp_path / "resumed", 200, 50, 5, start_update=300)
+        assert files == [350, 400, 450, 500]
+
+    def test_no_completed_update_means_no_checkpoint(self, tmp_path):
+        """A zero-update run saved the restored params as ck_1.pkl (the
+        TrainerState default update 0 + 1), evicting a genuine checkpoint."""
+        import pickle
+
+        for u in (300, 350, 400, 450, 500):
+            with open(tmp_path / f"ck_{u}.pkl", "wb") as f:
+                pickle.dump({"params": {}, "update": u}, f)
+        _, files = self._replay(tmp_path, 0, 50, 5)
+        assert files == [300, 350, 400, 450, 500]
+
 
 # ---------------------------------------------------------------------------
 # End-to-end JaxTrainer tests — guard the bugs fixed in this review.
@@ -750,13 +817,26 @@ class TestTrainersWireTheTruncationBootstrap:
 
 
 class TestFiniteEpisodeReturn:
-    def test_finite_mean_skips_nan_entries_and_collapses_to_zero_when_none(self):
-        from environments.shared.jax_trainer import _finite_mean
+    def test_eval_metrics_return_skips_nan_window_entries_and_collapses_to_zero_when_none(self):
+        """``mean_episode_return`` over the trainer's 10-update window: a NaN
+        entry (an update with no completed episode) must not poison it, and
+        an all-NaN window reads 0.0 like the length beside it."""
+        from environments.shared.jax_trainer import _build_eval_metrics
 
         nan = float("nan")
-        assert _finite_mean([nan, 5.0, 7.0]) == pytest.approx(6.0)
-        assert _finite_mean([nan, nan]) == 0.0
-        assert _finite_mean([]) == 0.0
+        state = TrainerState(params=None, opt_state=None, obs_stats=None, env_states=None, rng=None, total_steps=8)
+        state.history = [{"mean_reward": 1.0}, {"mean_reward": 3.0}]
+        state.episode_return_history = [nan, 5.0, 7.0]
+        state.episode_length_history = [nan, nan, nan]
+
+        metrics = _build_eval_metrics(state, elapsed=2.0)
+        assert metrics["mean_episode_return"] == pytest.approx(6.0)
+        assert metrics["mean_episode_length"] == 0.0
+        assert metrics["mean_reward"] == pytest.approx(2.0)
+        assert metrics["total_steps"] == 8 and metrics["elapsed"] == 2.0
+
+        state.episode_return_history = [nan, nan]
+        assert _build_eval_metrics(state, elapsed=0.0)["mean_episode_return"] == 0.0
 
     @pytest.mark.skipif(not _has_jax, reason="JAX/MJX not installed")
     def test_eval_metrics_return_is_finite_when_no_episode_completed(self):
@@ -869,6 +949,114 @@ class TestTrainJaxResume:
 
         with pytest.raises(ValueError, match="resume_from"):
             self._run(tmp_path / "third", resume_from=str(ckpt), init_params={"w": 1.0})
+
+    def test_same_dir_resume_appends_the_csv_and_a_resume_at_the_budget_writes_nothing(self, tmp_path):
+        import csv
+        import math
+
+        run_dir = tmp_path / "run"
+        self._run(run_dir, num_updates=2)
+        csv_path = run_dir / "trex_s1_training_log.csv"
+        assert [r["update"] for r in csv.DictReader(csv_path.open())] == ["0", "1"]
+
+        # Into the interrupted session's own directory: its rows survive and
+        # the resumed rows continue the update numbering (the hook used to
+        # open the log in mode "w").
+        self._run(run_dir, resume_from=str(run_dir / "trex_s1_2.pkl"), num_updates=3)
+        lines = csv_path.read_text().splitlines()
+        assert sum(line.startswith("update,") for line in lines) == 1
+        assert [r["update"] for r in csv.DictReader(csv_path.open())] == ["0", "1", "2"]
+        assert sorted(p.name for p in run_dir.glob("*.pkl")) == ["trex_s1_2.pkl", "trex_s1_3.pkl"]
+
+        # Already at the budget: nothing to train, so nothing is written --
+        # a zero-update trainer run saved the restored params as trex_s1_1.pkl
+        # (evicting a genuine checkpoint) and truncated the CSV to its header.
+        before = {p.name: p.read_bytes() for p in run_dir.iterdir()}
+        params, metrics, obs_stats = self._run(run_dir, resume_from=str(run_dir / "trex_s1_3.pkl"), num_updates=3)
+        assert metrics["already_complete"] is True
+        assert all(math.isfinite(v) for k, v in metrics.items() if k != "already_complete")
+        assert {p.name: p.read_bytes() for p in run_dir.iterdir()} == before
+        assert params is not None and obs_stats is not None
+
+    def test_a_checkpoint_without_optimizer_state_is_refused_before_anything_is_written(self, tmp_path):
+        """<prefix>_best.pkl carries no opt_state; resuming from it restarted
+        Adam and left the LR schedule short of learning_rate_end."""
+        from environments.shared.jax_checkpoint import save_checkpoint
+        from environments.shared.plant_contract import current_plant_identity
+
+        best = tmp_path / "trex_s1_best.pkl"
+        save_checkpoint(best, params={"w": 1.0}, update=2, plant_identity=current_plant_identity("trex"))
+        with pytest.raises(ValueError, match="no optimizer state"):
+            self._run(tmp_path / "out", resume_from=str(best), num_updates=3)
+        assert not (tmp_path / "out").exists()
+
+    def test_the_best_file_records_a_completed_count_and_only_a_better_policy_replaces_it(self, tmp_path, monkeypatch):
+        """Drives the real hooks with scripted episode returns (JaxTrainer.train
+        faked, as above): the best file's ``update`` is a completed COUNT like
+        the periodic checkpoints, and a same-directory resume seeds the
+        tracker from it instead of overwriting it with the continuation's best."""
+        from types import SimpleNamespace
+
+        from environments.shared import jax_trainer
+        from environments.shared.jax_checkpoint import load_checkpoint
+        from environments.shared.plant_contract import current_plant_identity
+
+        returns: dict[int, float] = {}
+
+        def fake_train(self, *, num_updates, seed, init_params, init_opt_state, init_obs_stats, start_update):
+            params, state = init_params, None
+            for update in range(start_update, start_update + num_updates):
+                params = {"w": float(update)}
+                state = SimpleNamespace(params=params, opt_state="opt", obs_stats=None, update=update, total_steps=0)
+                metrics = {"update": update, "episode_return": returns.get(update, -1.0), "mean_reward": 0.0}
+                for hook in self.hooks:
+                    if hasattr(hook, "on_update_end"):
+                        hook.on_update_end(state, metrics)
+            for hook in self.hooks:
+                if hasattr(hook, "on_train_end"):
+                    hook.on_train_end(state)
+            return params, {"mean_episode_return": 0.0}, state
+
+        monkeypatch.setattr(jax_trainer.JaxTrainer, "train", fake_train)
+        plant = current_plant_identity("trex")
+        run_dir = tmp_path / "run"
+        best = run_dir / "trex_s1_best.pkl"
+
+        returns.update({1: 2500.0})
+        _, metrics, _ = self._run(run_dir, num_updates=3)
+        ckpt = load_checkpoint(best, current_plant=plant)
+        # Best at index 1 -> 2 updates completed, as trex_s1_3.pkl records 3.
+        assert (ckpt["update"], ckpt["params"], ckpt["best_episode_return"]) == (2, {"w": 1.0}, 2500.0)
+        assert metrics["best_episode_return"] == 2500.0
+
+        # A weaker continuation leaves the file alone and still reports the best.
+        returns.clear()
+        returns.update({4: 1900.0})
+        stamp = best.read_bytes()
+        _, metrics, _ = self._run(run_dir, resume_from=str(run_dir / "trex_s1_3.pkl"), num_updates=5)
+        assert best.read_bytes() == stamp
+        assert metrics["best_episode_return"] == 2500.0
+
+        # A genuinely better policy replaces it.
+        returns.clear()
+        returns.update({6: 9000.0})
+        _, metrics, _ = self._run(run_dir, resume_from=str(run_dir / "trex_s1_5.pkl"), num_updates=7)
+        ckpt = load_checkpoint(best, current_plant=plant)
+        assert (ckpt["update"], ckpt["params"], ckpt["best_episode_return"]) == (7, {"w": 6.0}, 9000.0)
+        assert metrics["best_episode_return"] == 9000.0
+
+
+class TestResumeFromCli:
+    def test_curriculum_and_resume_from_are_refused_together(self, capsys):
+        """The curriculum branch never forwarded --resume-from, so the run
+        silently restarted stage 1 from scratch in the same directory."""
+        from environments.shared.jax_training import _parse_args
+
+        assert _parse_args(["--species", "trex", "--stage", "1", "--resume-from", "ckpt.pkl"]).resume_from == "ckpt.pkl"
+        with pytest.raises(SystemExit) as exc:
+            _parse_args(["--species", "trex", "--curriculum", "--resume-from", "ckpt.pkl"])
+        assert exc.value.code == 2
+        assert "--resume-from" in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------------------
@@ -1060,3 +1248,181 @@ class TestStageEvaluationWiring:
         assert seen["prev_action"] == "lag1"
         assert seen["prev_prev_action"] == "lag2"
         assert "target_pos" not in seen
+
+
+# ---------------------------------------------------------------------------
+# The training-time reward-component panel scores the step as the kernel did
+# ---------------------------------------------------------------------------
+
+
+class TestRewardComponentPanelLags:
+    def test_lag_keywords_are_detected(self):
+        from environments.shared.jax_trainer import _detail_fn_accepts_action_lags
+
+        assert not _detail_fn_accepts_action_lags(lambda data, action: {})
+        assert _detail_fn_accepts_action_lags(lambda data, action, **step_kwargs: {})
+        assert _detail_fn_accepts_action_lags(lambda data, action, prev_action=None, prev_prev_action=None: {})
+
+    @pytest.mark.skipif(not _has_jax, reason="JAX/MJX not installed")
+    def test_the_panel_receives_the_command_and_the_lags_the_kernel_scored(self, caplog):
+        """The panel used to vmap ``reward_detail_fn(states.data, act_t[-1])``
+        only, so the notebook's action_jerk row was charged against zero
+        lags.  The rollout now keeps the last step's pre-step carries and the
+        panel scores the command the kernel scored against them."""
+        import logging
+
+        import jax
+        import jax.numpy as jnp
+        import optax
+
+        import environments.trex.mjx_config  # noqa: F401
+        from environments.shared.jax_normalization import RunningMeanStd
+        from environments.shared.jax_ppo import make_actor_critic
+        from environments.shared.jax_trainer import TrainConfig, _build_jit_fns
+        from environments.shared.mjx_env import MJXDinoEnv
+
+        num_envs, rollout_len = 2, 2
+        env = MJXDinoEnv("trex", stage=1, num_envs=num_envs)
+        rng = jax.random.PRNGKey(0)
+        rng, init_rng, reset_rng = jax.random.split(rng, 3)
+        states = env.reset(reset_rng)
+        obs_dim = int(states.obs.shape[-1])
+        network = make_actor_critic(env.action_dim, hidden_dims=(8,))
+        params = network.init(init_rng, states.obs[0])
+        cfg = TrainConfig(num_envs=num_envs, rollout_len=rollout_len, obs_dim=obs_dim, act_dim=env.action_dim)
+
+        def spy(data, action, **step_kwargs):
+            return {"action": action, **step_kwargs}
+
+        fns = _build_jit_fns(cfg, network, optax.adam(1e-3), spy, env=env)
+        states, _rollout, last_lags = fns["collect_rollout"](
+            states, rng, params, RunningMeanStd.create(obs_dim), jnp.float32(1.0)
+        )
+        # Two steps from reset: the kernel scored the last step against
+        # (a_0, 0) and its post-step carries are (a_1, a_0).
+        assert bool(jnp.any(states.prev_action != 0.0))
+        assert jnp.array_equal(last_lags[0], states.prev_prev_action)
+        assert jnp.array_equal(last_lags[1], jnp.zeros_like(states.prev_action))
+
+        seen = fns["batched_reward_components"](states, states.prev_action, *last_lags)
+        assert set(seen) == {"action", "prev_action", "prev_prev_action"}
+        assert jnp.array_equal(seen["action"], states.prev_action)
+        assert jnp.array_equal(seen["prev_action"], last_lags[0])
+        assert jnp.array_equal(seen["prev_prev_action"], last_lags[1])
+
+        # A detail fn without the keywords still works, on the zero-lag path, loudly.
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_trainer"):
+            legacy = _build_jit_fns(cfg, network, optax.adam(1e-3), lambda data, action: {"a": action}, env=env)
+        assert "zero lags" in caplog.text
+        out = legacy["batched_reward_components"](states, states.prev_action, *last_lags)
+        assert jnp.array_equal(out["a"], states.prev_action)
+
+
+# ---------------------------------------------------------------------------
+# The notebook's functional train(): a same-stage resume is a continuation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not _has_jax, reason="JAX/MJX not installed")
+class TestNotebookTrainResumeContinues:
+    def test_a_resume_past_warmup_and_ramp_keeps_the_stage_schedule(self, monkeypatch, tmp_path):
+        """start_update=400 of a 402-update stage with warmup 40 / ramp 200:
+        the first resumed update must use the post-warmup clip/ent and the
+        full ramp (both restarted, keyed off the relative update), log the LR
+        at its absolute position on the stage schedule (it snapped back to
+        learning_rate), and record whole-stage steps (it recorded the
+        continuation only)."""
+        import csv
+
+        import jax
+
+        import environments.trex.mjx_config  # noqa: F401
+        from environments.shared import jax_trainer
+        from environments.shared.jax_normalization import RunningMeanStd
+        from environments.shared.jax_ppo import PPOConfig, make_actor_critic, make_optimizer
+        from environments.shared.jax_trainer import TrainConfig, train
+        from environments.shared.mjx_env import MJXDinoEnv
+
+        num_envs, rollout_len, start, budget = 4, 4, 400, 402
+        lr, lr_end = 3e-4, 1e-5
+        env = MJXDinoEnv("trex", stage=1, num_envs=num_envs)
+        network = make_actor_critic(env.action_dim, hidden_dims=(8,))
+        optimizer = make_optimizer(
+            PPOConfig(learning_rate=lr, learning_rate_end=lr_end, n_epochs=1, n_minibatches=2, target_kl=None)
+        )
+        rng = jax.random.PRNGKey(0)
+        rng, init_rng, reset_rng = jax.random.split(rng, 3)
+        states = env.reset(reset_rng)
+        obs_dim = int(states.obs.shape[-1])
+        params = network.init(init_rng, states.obs[0])
+
+        seen: dict = {"ppo": [], "scale": [], "weight": []}
+        real_build = jax_trainer._build_jit_fns
+
+        def spy_build(*args, **kwargs):
+            fns = real_build(*args, **kwargs)
+            real_ppo, real_collect = fns["scan_ppo_epochs"], fns["collect_rollout"]
+
+            def ppo(params, opt_state, *rest):
+                seen["ppo"].extend((float(rest[-2]), float(rest[-1])))
+                return real_ppo(params, opt_state, *rest)
+
+            def collect(states, rng, params, obs_rms, scale):
+                seen["scale"].append(float(scale))
+                return real_collect(states, rng, params, obs_rms, scale)
+
+            fns["scan_ppo_epochs"], fns["collect_rollout"] = ppo, collect
+            return fns
+
+        monkeypatch.setattr(jax_trainer, "_build_jit_fns", spy_build)
+
+        reward_cfg = {"forward_vel_weight": 1.0}
+        cfg = TrainConfig(
+            num_envs=num_envs,
+            rollout_len=rollout_len,
+            num_updates=budget - start,
+            ppo_epochs=1,
+            minibatch_size=8,
+            learning_rate=lr,
+            learning_rate_end=lr_end,
+            clip_range=0.2,
+            ent_coef=0.01,
+            obs_dim=obs_dim,
+            act_dim=env.action_dim,
+            warmup_updates=40,
+            warmup_clip_range=0.02,
+            warmup_ent_coef=0.02,
+            ramp_updates=200,
+            ramp_start_fraction=0.2,
+            verbose=0,
+            output_dir=tmp_path,
+            model_dir=tmp_path,
+            checkpoint_freq=1000,
+            start_update=start,
+        )
+        result = train(
+            cfg,
+            env,
+            network,
+            params,
+            optimizer.init(params),
+            RunningMeanStd.create(obs_dim),
+            reward_cfg=reward_cfg,
+            rng=rng,
+            optimizer=optimizer,
+            callback=lambda update, metrics: seen["weight"].append(reward_cfg["forward_vel_weight"]),
+        )
+
+        assert seen["ppo"] == pytest.approx([0.2, 0.01, 0.2, 0.01])
+        assert seen["scale"] == [1.0, 1.0]
+        assert seen["weight"] == [1.0, 1.0]
+
+        expected_lr = [lr + (lr_end - lr) * update / budget for update in (400, 401)]
+        assert [d["learning_rate"] for d in result.diagnostics_history] == pytest.approx(expected_lr)
+
+        assert result.actual_updates == 2
+        assert result.session_steps == 2 * rollout_len * num_envs
+        assert result.total_steps == budget * rollout_len * num_envs
+        rows = list(csv.DictReader((tmp_path / "training_log.csv").open()))
+        assert [int(r["steps"]) for r in rows] == [401 * rollout_len * num_envs, 402 * rollout_len * num_envs]
+        assert [float(r["learning_rate"]) for r in rows] == pytest.approx(expected_lr, rel=1e-2)
