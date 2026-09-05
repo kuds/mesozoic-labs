@@ -580,9 +580,7 @@ def train_trial(config: dict[str, Any]) -> None:
 
     from environments.shared.config import load_all_stages, save_stage_config
     from environments.shared.curriculum import (
-        RewardRampCallback,
         SaveVecNormalizeCallback,
-        StageWarmupCallback,
         build_eval_collapse_early_stop_callback,
         load_vecnorm_stats,
     )
@@ -595,6 +593,7 @@ def train_trial(config: dict[str, Any]) -> None:
     )
     from environments.shared.species_registry import get_species_config
     from environments.shared.train_base import (
+        _stage_entry_shaping_callbacks,
         cosine_schedule,
         create_vec_env,
         linear_schedule,
@@ -815,30 +814,20 @@ def train_trial(config: dict[str, Any]) -> None:
 
         callbacks.append(DiagnosticsCallback(log_dir=str(trial_dir), verbose=0))
 
-        # Stage transition callbacks (stages 2+)
-        if stage > 1 and load_path:
-            callbacks.append(
-                StageWarmupCallback(
-                    warmup_timesteps=cur_kwargs.get("warmup_timesteps", 100_000),
-                    warmup_clip_range=cur_kwargs.get("warmup_clip_range", 0.02),
-                    warmup_ent_coef=cur_kwargs.get("warmup_ent_coef", 0.02),
-                    warmup_lr_scale=cur_kwargs.get("warmup_lr_scale", 0.1),
-                )
+        # Stage transition callbacks (stages 2+): a later-stage trial enters on
+        # the previous stage's handoff, the same initialize_next_stage boundary
+        # train_base's launch paths shape. The shared helper carries the
+        # forward_vel_weight > 0 ramp guard (recovery mirrors stance and sets
+        # it to 0.0; ramping 0.1 -> 0.0 would inject a walk incentive the
+        # task fingerprint says is absent).
+        callbacks.extend(
+            _stage_entry_shaping_callbacks(
+                stage_config,
+                task_load_mode="initialize_next_stage",
+                stage_position=stage,
+                load_path=load_path,
             )
-            target_fwd_weight = stage_config["env_kwargs"].get("forward_vel_weight", 1.0)
-            # Ramping forward_vel_weight only makes sense when the stage USES
-            # it: recovery mirrors stance and sets it to 0.0, and ramping
-            # 0.1 -> 0.0 would inject a walk incentive the task fingerprint
-            # says is absent (same guard as train_base.py's launch paths).
-            if target_fwd_weight > 0.0:
-                callbacks.append(
-                    RewardRampCallback(
-                        attr_name="forward_vel_weight",
-                        start_value=cur_kwargs.get("ramp_start_value", 0.1),
-                        end_value=target_fwd_weight,
-                        ramp_timesteps=cur_kwargs.get("ramp_timesteps", 500_000),
-                    )
-                )
+        )
 
         # Train
         model.learn(

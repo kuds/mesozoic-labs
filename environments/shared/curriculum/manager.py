@@ -58,6 +58,24 @@ class StageThreshold:
     min_eval_episodes: int = 10
     required_consecutive: int = 3
 
+    def stance_thresholds(self) -> StanceGateThresholds:
+        """The ``stance_quality/v1`` fields, as :func:`evaluate_stance_gate` reads them.
+
+        A field copy on purpose, never :meth:`StanceGateThresholds.from_curriculum`:
+        this dataclass defaults ``min_eval_episodes`` to 10 where the
+        curriculum-dict readers default to 40, so routing the manager through
+        the dict reader would change which panels it certifies.
+        """
+        return StanceGateThresholds(
+            min_full_horizon_fraction=self.min_full_horizon_fraction,
+            max_unsupported_duty=self.max_unsupported_duty,
+            max_unsupported_duty_ucb=self.max_unsupported_duty_ucb,
+            settle_steps=self.settle_steps,
+            min_eval_episodes=self.min_eval_episodes,
+            min_avg_reward=self.min_avg_reward,
+            required_consecutive=self.required_consecutive,
+        )
+
 
 class CurriculumManager:
     """Manages automated progression through curriculum stages.
@@ -385,18 +403,7 @@ class CurriculumManager:
             mean_unsupported_duty=latest["mean_unsupported_duty"],
             unsupported_duty_ucb=latest["unsupported_duty_ucb"],
         )
-        passed, failures = evaluate_stance_gate(
-            panel,
-            StanceGateThresholds(
-                min_full_horizon_fraction=threshold.min_full_horizon_fraction,
-                max_unsupported_duty=threshold.max_unsupported_duty,
-                max_unsupported_duty_ucb=threshold.max_unsupported_duty_ucb,
-                settle_steps=threshold.settle_steps,
-                min_eval_episodes=threshold.min_eval_episodes,
-                min_avg_reward=threshold.min_avg_reward,
-                required_consecutive=threshold.required_consecutive,
-            ),
-        )
+        passed, failures = evaluate_stance_gate(panel, threshold.stance_thresholds())
         if not passed:
             logger.info("Stage %d stance gate not met: %s", self._current_stage, "; ".join(failures))
         return passed

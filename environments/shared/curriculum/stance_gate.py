@@ -88,7 +88,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import numpy as np
 
@@ -134,6 +134,14 @@ _T95_BY_DOF: tuple[tuple[float, float], ...] = (
 _Z95 = 1.6449
 
 
+#: The panel size a stance-gated stage is judged on when its ``[curriculum]``
+#: omits ``min_eval_episodes``: the publication panel (seeds 3042-3081, section
+#: 2.3.1 above).  Every stance-path reader of the key resolves an omitted value
+#: to this one number; the SB3 :class:`~environments.shared.curriculum.manager.StageThreshold`
+#: keeps its own, different default.
+DEFAULT_MIN_EVAL_EPISODES_STANCE: int = 40
+
+
 @dataclass(frozen=True)
 class StanceGateThresholds:
     """The ``stance_quality/v1`` thresholds, as declared in ``[curriculum]``."""
@@ -142,9 +150,50 @@ class StanceGateThresholds:
     max_unsupported_duty: float
     max_unsupported_duty_ucb: float
     settle_steps: int = 0
-    min_eval_episodes: int = 40
+    min_eval_episodes: int = DEFAULT_MIN_EVAL_EPISODES_STANCE
     min_avg_reward: float = -math.inf
     required_consecutive: int = 3
+
+    @classmethod
+    def from_curriculum(
+        cls,
+        curriculum: Mapping[str, Any],
+        *,
+        require_criteria: bool = True,
+    ) -> StanceGateThresholds:
+        """Read the thresholds a stage's ``[curriculum]`` table declares.
+
+        The three criteria -- ``min_full_horizon_fraction``,
+        ``max_unsupported_duty`` and ``max_unsupported_duty_ucb`` -- are
+        required by default and a missing one raises ``KeyError``: the gate
+        schema demands all three of a stance-gated stage, and a consumer that
+        scores the gate must not invent them.
+
+        ``require_criteria=False`` is the stance gate *report's* convention:
+        ceilings default to ``+inf`` and floors to ``0.0`` so a stage that does
+        not gate on stance still produces a readable report rather than a
+        spuriously strict one -- ``0.0`` would be the tightest possible
+        ceiling, not "absent".
+
+        The remaining fields fall back to the dataclass defaults either way.
+        """
+        if require_criteria:
+            min_full_horizon_fraction = float(curriculum["min_full_horizon_fraction"])
+            max_unsupported_duty = float(curriculum["max_unsupported_duty"])
+            max_unsupported_duty_ucb = float(curriculum["max_unsupported_duty_ucb"])
+        else:
+            min_full_horizon_fraction = float(curriculum.get("min_full_horizon_fraction", 0.0))
+            max_unsupported_duty = float(curriculum.get("max_unsupported_duty", math.inf))
+            max_unsupported_duty_ucb = float(curriculum.get("max_unsupported_duty_ucb", math.inf))
+        return cls(
+            min_full_horizon_fraction=min_full_horizon_fraction,
+            max_unsupported_duty=max_unsupported_duty,
+            max_unsupported_duty_ucb=max_unsupported_duty_ucb,
+            settle_steps=int(curriculum.get("settle_steps", cls.settle_steps)),
+            min_eval_episodes=int(curriculum.get("min_eval_episodes", cls.min_eval_episodes)),
+            min_avg_reward=float(curriculum.get("min_avg_reward", cls.min_avg_reward)),
+            required_consecutive=int(curriculum.get("required_consecutive", cls.required_consecutive)),
+        )
 
 
 def one_sided_t95(dof: int) -> float:

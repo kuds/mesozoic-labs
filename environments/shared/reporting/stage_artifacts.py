@@ -11,6 +11,8 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
+from ..curriculum.checkpoints import select_handoff_checkpoint
+from ..curriculum.stance_gate import DEFAULT_MIN_EVAL_EPISODES_STANCE
 from . import bundles, csv_output, stage_layout, text_summaries
 
 if TYPE_CHECKING:
@@ -129,7 +131,7 @@ def build_stage_results_from_eval_data(
     # The SELECTED checkpoint, so the `model_path` this records is the one the
     # replay shows and the evidence CSV is evidence for. It used to hardcode
     # `best_model` while the replay, the stance gate report and the next-stage
-    # handoff all resolved through `_select_handoff_checkpoint`, which prefers
+    # handoff all resolved through `select_handoff_checkpoint`, which prefers
     # the risk-adjusted `robust_best_model`. This path feeds the sweep trial
     # worker, where nothing else re-derives it.
     #
@@ -137,9 +139,7 @@ def build_stage_results_from_eval_data(
     # complete: unlike the replay and the gate report, this function only
     # *describes* a run, and an empty model_path would lose information the
     # caller can still check for itself.
-    from environments.shared.train_base import _select_handoff_checkpoint
-
-    handoff = _select_handoff_checkpoint(model_dir)
+    handoff = select_handoff_checkpoint(model_dir)
     if handoff is None:
         best_model_path = model_dir / "best_model"
         vecnorm_path = str(model_dir / "best_model_vecnorm.pkl")
@@ -216,7 +216,7 @@ def _write_stance_gate_report(
     if curriculum.get("gate_kind") != STANCE_GATE_KIND:
         return None
 
-    declared_episodes = int(curriculum.get("min_eval_episodes", 40))
+    declared_episodes = int(curriculum.get("min_eval_episodes", DEFAULT_MIN_EVAL_EPISODES_STANCE))
     report_episodes = curriculum.get("stance_report_episodes")
     report_episodes = declared_episodes if report_episodes is None else int(report_episodes)
     if report_episodes < 1:
@@ -241,9 +241,7 @@ def _write_stance_gate_report(
     # copy of the preference order that also passed `vecnorm_path=None` when
     # the statistics were missing, silently scoring the policy on unnormalised
     # observations: a different policy, reported as this one's gate verdict.
-    from environments.shared.train_base import _select_handoff_checkpoint
-
-    handoff = _select_handoff_checkpoint(model_dir)
+    handoff = select_handoff_checkpoint(model_dir)
     if handoff is None:
         logger.warning(
             "Stance gate report skipped for stage %s: no checkpoint in %s has its "
@@ -315,15 +313,13 @@ def _run_stance_probes(
         return
 
     curriculum = stage_config.get("curriculum_kwargs", {})
-    declared_episodes = int(curriculum.get("min_eval_episodes", 40))
+    declared_episodes = int(curriculum.get("min_eval_episodes", DEFAULT_MIN_EVAL_EPISODES_STANCE))
     report_episodes = curriculum.get("stance_report_episodes")
     report_episodes = declared_episodes if report_episodes is None else int(report_episodes)
 
     # The same selector the report itself used; re-resolved here so the probes
     # keep describing the one policy every other artifact describes.
-    from environments.shared.train_base import _select_handoff_checkpoint
-
-    handoff = _select_handoff_checkpoint(model_dir)
+    handoff = select_handoff_checkpoint(model_dir)
     if handoff is None:
         logger.warning(
             "Stance probes skipped for stage %s: no checkpoint in %s has its matched _vecnorm.pkl",
@@ -986,7 +982,7 @@ def _record_stage_replays(
 
     try:
         from environments.shared.evaluation import TREX_STAGE1_CAMERA_VIEWS, record_stage_video
-        from environments.shared.train_base import _ensure_sb3, _select_handoff_checkpoint
+        from environments.shared.train_base import _ensure_sb3
 
         sb3 = _ensure_sb3()
         env_kwargs = stage_config["env_kwargs"].copy()
@@ -1016,7 +1012,7 @@ def _record_stage_replays(
         # unnormalised observations — a different policy again — so the
         # replay is skipped and says why, rather than producing footage
         # that misrepresents the checkpoint.
-        handoff = _select_handoff_checkpoint(model_dir)
+        handoff = select_handoff_checkpoint(model_dir)
         if handoff is None:
             logger.warning(
                 "Stage %s selected-checkpoint replay skipped: neither robust_best_model nor "

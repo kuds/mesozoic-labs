@@ -66,6 +66,7 @@ from .checkpoints import (
     load_vecnorm_stats,
     prune_periodic_checkpoints,
     seed_resume_eval_state,
+    select_handoff_checkpoint,
 )
 from .early_stopping import (
     EvalCollapseEarlyStopCallback,
@@ -106,6 +107,7 @@ __all__ = [
     "read_zero_action_baseline",
     "prune_periodic_checkpoints",
     "seed_resume_eval_state",
+    "select_handoff_checkpoint",
     "sb3_compat",
     "thresholds_from_configs",
     "validate_gate_config",

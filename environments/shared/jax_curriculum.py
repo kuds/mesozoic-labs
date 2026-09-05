@@ -482,23 +482,14 @@ def _check_stance_gate(eval_metrics: dict[str, float], curriculum: dict[str, Any
     # used to fall back to the per-step mean_reward silently — 3.3 against
     # trex stage 1's 1950 rail, which never advances and reads like a bad
     # policy rather than a missing metric.
-    min_avg_reward = float(curriculum.get("min_avg_reward", -math.inf))
+    thresholds = StanceGateThresholds.from_curriculum(curriculum)
     panel = StancePanel(
         n_episodes=int(eval_metrics["n_eval_episodes"]),
         full_horizon_fraction=float(eval_metrics["full_horizon_fraction"]),
-        mean_reward=episode_return_for_gate(eval_metrics, threshold=min_avg_reward),
+        mean_reward=episode_return_for_gate(eval_metrics, threshold=thresholds.min_avg_reward),
         n_duty_episodes=int(eval_metrics["n_duty_episodes"]),
         mean_unsupported_duty=float(eval_metrics["mean_unsupported_duty"]),
         unsupported_duty_ucb=float(eval_metrics["unsupported_duty_ucb"]),
-    )
-    thresholds = StanceGateThresholds(
-        min_full_horizon_fraction=float(curriculum["min_full_horizon_fraction"]),
-        max_unsupported_duty=float(curriculum["max_unsupported_duty"]),
-        max_unsupported_duty_ucb=float(curriculum["max_unsupported_duty_ucb"]),
-        settle_steps=int(curriculum.get("settle_steps", 0)),
-        min_eval_episodes=int(curriculum.get("min_eval_episodes", 40)),
-        min_avg_reward=min_avg_reward,
-        required_consecutive=int(curriculum.get("required_consecutive", 3)),
     )
     passed, failures = evaluate_stance_gate(panel, thresholds)
     if not passed:

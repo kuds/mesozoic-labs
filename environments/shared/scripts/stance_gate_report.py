@@ -59,6 +59,7 @@ if _repo_root not in sys.path:
 
 from environments.shared.action_filter import low_pass_alpha  # noqa: E402
 from environments.shared.config import load_stage_config  # noqa: E402
+from environments.shared.constants import PUBLICATION_SEED_START  # noqa: E402
 from environments.shared.curriculum.stance_gate import (  # noqa: E402
     STANCE_GATE_KIND,
     StanceGateThresholds,
@@ -694,24 +695,6 @@ def _roll_episodes(
 REPORT_SCHEMA = "mesozoic.stance-gate-report/v2"
 
 
-def thresholds_from_curriculum(curriculum: dict[str, Any]) -> StanceGateThresholds:
-    """Read the stance thresholds a stage declares.
-
-    Ceilings default to ``+inf`` and floors to ``0.0`` so a stage that does not
-    gate on stance still produces a readable report rather than a spuriously
-    strict one -- ``0.0`` would be the tightest possible ceiling, not "absent".
-    """
-    return StanceGateThresholds(
-        min_full_horizon_fraction=float(curriculum.get("min_full_horizon_fraction", 0.0)),
-        max_unsupported_duty=float(curriculum.get("max_unsupported_duty", float("inf"))),
-        max_unsupported_duty_ucb=float(curriculum.get("max_unsupported_duty_ucb", float("inf"))),
-        settle_steps=int(curriculum.get("settle_steps", 0)),
-        min_eval_episodes=int(curriculum.get("min_eval_episodes", 40)),
-        min_avg_reward=float(curriculum.get("min_avg_reward", -float("inf"))),
-        required_consecutive=int(curriculum.get("required_consecutive", 3)),
-    )
-
-
 def _low_pass_predict(predict: Any, cutoff_hz: float, control_dt: float) -> Any:
     """Wrap *predict* so its action is low-passed before reaching the plant.
 
@@ -956,7 +939,7 @@ def build_stance_gate_report(
     vecnorm_path: str | None = None,
     zero_action: bool = False,
     episodes: int | None = None,
-    seed: int = 3042,
+    seed: int = PUBLICATION_SEED_START,
     allow_legacy_plant: bool = False,
     filter_actions_hz: float | None = None,
     hold_constant: ConstantHold | None = None,
@@ -987,7 +970,9 @@ def build_stance_gate_report(
     env_kwargs = dict(stage_config["env_kwargs"])
     horizon = int(env_kwargs.get("max_episode_steps", 1000))
     control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
-    thresholds = thresholds_from_curriculum(curriculum)
+    # Lenient on purpose (require_criteria=False): a stage that does not gate
+    # on stance still gets a readable report rather than a spuriously strict one.
+    thresholds = StanceGateThresholds.from_curriculum(curriculum, require_criteria=False)
     panel_episodes = thresholds.min_eval_episodes if episodes is None else episodes
 
     from environments.shared.plant_contract import current_plant_identity
@@ -2269,7 +2254,12 @@ def main() -> int:
         help="Score a checkpoint that predates the plant contract. The verdict is then about a plant "
         "that may differ from the one in the tree, and the report records plant_validated=false.",
     )
-    parser.add_argument("--seed", type=int, default=3042, help="First evaluation seed (default: publication seed)")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=PUBLICATION_SEED_START,
+        help="First evaluation seed (default: publication seed)",
+    )
     parser.add_argument("--config", help="Explicit stage TOML path")
     parser.add_argument("--out-dir", help="Also write stance_gate_report.{txt,json} to this directory")
     parser.add_argument(

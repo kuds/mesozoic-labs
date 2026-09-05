@@ -92,6 +92,23 @@ class RobustBestModelCallback(BaseCallback):  # type: ignore[misc]
         return True
 
 
+def select_handoff_checkpoint(model_dir: Path) -> tuple[str, str, str] | None:
+    """The checkpoint the curriculum actually promotes to the next stage.
+
+    Preference order matches next-stage loading: the risk-adjusted
+    ``robust_best_model``, then SB3's mean-reward ``best_model`` — each
+    only when its matched VecNormalize stats exist, so obs normalization
+    matches the policy weights. Returns ``(name, model_path_without_ext,
+    vecnorm_path)`` or ``None`` when neither candidate is complete.
+    """
+    for candidate in ("robust_best_model", "best_model"):
+        cand_zip = model_dir / f"{candidate}.zip"
+        cand_vecnorm = model_dir / f"{candidate}_vecnorm.pkl"
+        if cand_zip.exists() and cand_vecnorm.exists():
+            return candidate, str(model_dir / candidate), str(cand_vecnorm)
+    return None
+
+
 def seed_resume_eval_state(
     eval_callback: Any,
     callbacks: "list[Any]",

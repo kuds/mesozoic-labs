@@ -19,8 +19,10 @@ maintainability:
   ``_make_local_tb_dir``, ``_sync_tb_to_gcs``
 
 Only a few names are still re-exported here for backward compatibility --
-``main``, ``_apply_overrides``, ``_cast_value``, ``eval_policy``, and the
-``tb_sync`` helpers -- so existing ``from environments.shared.train_base
+``main``, ``_apply_overrides``, ``_cast_value``, ``eval_policy``,
+``_select_handoff_checkpoint`` (now
+:func:`~environments.shared.curriculum.checkpoints.select_handoff_checkpoint`),
+and the ``tb_sync`` helpers -- so existing ``from environments.shared.train_base
 import ...`` statements naming them keep working.  Import everything else
 from its home module.
 """
@@ -37,6 +39,7 @@ from pathlib import Path
 from typing import Any
 
 from .constants import DEFAULT_CLIP_OBS, DEFAULT_CLIP_REWARD, DEFAULT_NORM_OBS, DEFAULT_NORM_REWARD
+from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
 from .plant_contract import (
     PlantIdentity,
     attach_plant_identity,
@@ -803,23 +806,6 @@ def _build_core_callbacks(
         callbacks.append(PeriodicTbSyncCallback(local_tb_dir, gcs_tb_path, sync_freq=save_freq, verbose=verbose))
 
     return callbacks, eval_callback, save_vecnorm_cb
-
-
-def _select_handoff_checkpoint(model_dir: Path) -> "tuple[str, str, str] | None":
-    """The checkpoint the curriculum actually promotes to the next stage.
-
-    Preference order matches next-stage loading: the risk-adjusted
-    ``robust_best_model``, then SB3's mean-reward ``best_model`` — each
-    only when its matched VecNormalize stats exist, so obs normalization
-    matches the policy weights. Returns ``(name, model_path_without_ext,
-    vecnorm_path)`` or ``None`` when neither candidate is complete.
-    """
-    for candidate in ("robust_best_model", "best_model"):
-        cand_zip = model_dir / f"{candidate}.zip"
-        cand_vecnorm = model_dir / f"{candidate}_vecnorm.pkl"
-        if cand_zip.exists() and cand_vecnorm.exists():
-            return candidate, str(model_dir / candidate), str(cand_vecnorm)
-    return None
 
 
 def _maybe_ent_coef_decay_callback(config: dict, algorithm: str, total_timesteps: int):

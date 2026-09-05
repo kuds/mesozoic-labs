@@ -154,13 +154,13 @@ def constant_action_controller(action: Sequence[float]) -> Callable[[Any], np.nd
     return predict
 
 
-def _safe_step(env: Any, safe_set: dict[str, float]) -> bool:
+def _safe_step(env: Any, safe_set: dict[str, float], height_target: float) -> bool:
     """The per-step safe predicate, from physical state.
 
-    Height is judged against whichever reference ``roll_recovery_panel``
-    stamped on the env immediately after reset: the panel-start root height
-    under the provisional set, or — since the P3 calibration, first-runs
-    record §4.1 — the plant's measured settled pelvis height
+    Height is judged against the reference ``roll_recovery_panel`` resolved
+    after reset and passes in as ``height_target``: the panel-start root
+    height under the provisional set, or — since the P3 calibration,
+    first-runs record §4.1 — the plant's measured settled pelvis height
     (:data:`CALIBRATED_HEIGHT_REFERENCE_M`, passed as ``height_reference``),
     which is the reference every §9 panel and the frozen gate resolution
     use.  The support clause is evaluated unconditionally but is vacuous
@@ -169,9 +169,6 @@ def _safe_step(env: Any, safe_set: dict[str, float]) -> bool:
     definition.
     """
     data = env.data
-    height_target = getattr(env, "_recovery_height_reference", None)
-    if height_target is None:
-        raise RuntimeError("roll_recovery_panel must stamp _recovery_height_reference before stepping")
     height_ok = abs(float(data.qpos[2]) - height_target) <= safe_set["height_error_max_m"]
     tilt_ok = float(env._quat_to_tilt(data.qpos[3:7])) <= safe_set["tilt_max_rad"]
     speed_ok = float(np.linalg.norm(data.qvel[0:2])) <= safe_set["planar_speed_max_mps"]
@@ -201,10 +198,10 @@ def roll_recovery_panel(
     :func:`_safe_step` scores against, and it is the whole difference
     between the provisional and the calibrated judge:
 
-    * ``None`` (default) stamps the per-episode reset height — the
+    * ``None`` (default) scores against the per-episode reset height — the
       provisional behaviour, unchanged, so every pre-P5 caller and panel
       reproduces exactly.
-    * a float stamps that fixed reference for every episode.  The P3
+    * a float scores against that fixed reference for every episode.  The P3
       calibration measured it (:data:`CALIBRATED_HEIGHT_REFERENCE_M`,
       first-runs record §4.1) and P5 froze it: pass it together with
       :data:`CALIBRATED_POSTURE_ONLY`, never one without the other, since
@@ -220,7 +217,7 @@ def roll_recovery_panel(
     for index in range(episodes):
         panel_seed = seed + index
         obs, _ = env.reset(seed=panel_seed)
-        env._recovery_height_reference = float(env.data.qpos[2] if height_reference is None else height_reference)
+        height_target = float(env.data.qpos[2] if height_reference is None else height_reference)
         starts = np.asarray(env._push_schedule_starts, dtype=int)
         directions = np.asarray(env._push_schedule_directions, dtype=float)
         duration = int(env._push_duration_steps)
@@ -234,7 +231,7 @@ def roll_recovery_panel(
             action = np.asarray(predict(obs), dtype=np.float64).ravel()
             obs, reward, terminated, truncated, _info = env.step(action)
             total_reward += float(reward)
-            safe_mask.append(_safe_step(env, active_safe_set))
+            safe_mask.append(_safe_step(env, active_safe_set, height_target))
             steps += 1
             if terminated or truncated:
                 break
