@@ -20,6 +20,7 @@ from .reward_functions import (
     quat_to_forward_2d,
     quat_to_forward_z,
     quat_to_tilt,
+    reward_action_jerk,
     reward_action_saturation,
     reward_action_smoothness,
     reward_alive,
@@ -93,6 +94,7 @@ def compute_total_reward(
     tail_home_pose_targets: Array | None = None,
     head_clearance_site_id: int | None = None,
     prev_action: Array | None = None,
+    prev_prev_action: Array | None = None,
     initial_pos_2d: Array | None = None,
     sensor_tail_gyro_start: int | None = None,
     forward_ref_2d: Array | None = None,
@@ -116,6 +118,10 @@ def compute_total_reward(
     heading-alignment rewards.  When tracking a target, pass the normalised
     agent-to-target direction so that both rewards are consistent with
     ``MJXDinoEnv.step()``.  Defaults to world +X ``[1, 0]``.
+
+    ``prev_action`` / ``prev_prev_action`` are the two action lags the
+    smoothness and jerk terms difference against.  ``None`` means zeros —
+    the MJX kernel's reset carries — not "no charge".
     """
     import jax.numpy as jnp
 
@@ -300,6 +306,20 @@ def compute_total_reward(
         r_sm, _ = reward_action_smoothness(action, smooth_ref, n_actuators, smoothness_w)
         total = total + r_sm
 
+    # Frequency-aware jerk (second difference), gated independently of the
+    # smoothness term exactly as the MJX step is.  Missing lags are zeros,
+    # not "no charge": the training kernel's prev/prev_prev carries reset
+    # to zeros, so its first two steps ARE charged and this composer must
+    # price them identically.  (SB3 leaves both lags None and skips those
+    # steps -- a pre-existing backend difference this composer does not
+    # arbitrate; it scores the MJX plant.)
+    jerk_w = reward_cfg.get("action_jerk_weight", 0.0)
+    if jerk_w > 0:
+        jerk_ref = prev_action if prev_action is not None else jnp.zeros_like(action)
+        jerk_ref_2 = prev_prev_action if prev_prev_action is not None else jnp.zeros_like(action)
+        r_jk, _ = reward_action_jerk(action, jerk_ref, jerk_ref_2, n_actuators, jerk_w)
+        total = total + r_jk
+
     # Tail stability: penalise tail tip angular velocity
     tail_w = reward_cfg.get("tail_stability_weight", 0.0)
     if tail_w > 0 and sensor_tail_gyro_start is not None:
@@ -389,6 +409,7 @@ def compute_reward_components(
     tail_home_pose_targets: Array | None = None,
     head_clearance_site_id: int | None = None,
     prev_action: Array | None = None,
+    prev_prev_action: Array | None = None,
     initial_pos_2d: Array | None = None,
     sensor_tail_gyro_start: int | None = None,
     forward_ref_2d: Array | None = None,
@@ -578,6 +599,15 @@ def compute_reward_components(
         smooth_ref = prev_action if prev_action is not None else jnp.zeros_like(action)
         r_sm, _ = reward_action_smoothness(action, smooth_ref, n_actuators, smoothness_w)
         components["smoothness"] = r_sm
+
+    # Same zero-lag convention as compute_total_reward (see the note there).
+    jerk_w = reward_cfg.get("action_jerk_weight", 0.0)
+    if jerk_w > 0:
+        jerk_ref = prev_action if prev_action is not None else jnp.zeros_like(action)
+        jerk_ref_2 = prev_prev_action if prev_prev_action is not None else jnp.zeros_like(action)
+        r_jk, action_jerk = reward_action_jerk(action, jerk_ref, jerk_ref_2, n_actuators, jerk_w)
+        components["action_jerk"] = r_jk
+        components["_action_jerk"] = action_jerk
 
     tail_w = reward_cfg.get("tail_stability_weight", 0.0)
     if tail_w > 0 and sensor_tail_gyro_start is not None:

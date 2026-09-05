@@ -23,6 +23,8 @@ from typing import Any
 
 import numpy as np
 
+from .action_filter import apply_low_pass, low_pass_alpha
+
 
 def _smooth(values: list | np.ndarray, window: int = 50) -> np.ndarray:
     """Rolling-mean smoothing filter."""
@@ -543,6 +545,7 @@ def record_training_video(
     target_body: str | None = None,
     sensor_quat_start: int = 6,
     action_mapping: str = "midpoint/v1",
+    action_filter_cutoff_hz: float | None = None,
     output_path: str | Path | None = None,
     fps: int = 50,
     height: int = 480,
@@ -581,6 +584,11 @@ def record_training_video(
         sensor_quat_start: Index into sensordata where root quaternion starts.
         action_mapping: Versioned action mapping used by the policy. Home-
             residual policies also start video rollouts from the home keyframe.
+        action_filter_cutoff_hz: Command low-pass cutoff of the plant
+            interface (pass ``env.config.action_filter_cutoff_hz``).  The
+            rollout then drives the SAME filtered plant training and the
+            CPU gate eval drive, and ``reward_fn`` scores the filtered
+            command.  ``None`` or ``0.0`` keeps the raw policy mean.
         output_path: If provided, save video to this path (requires mediapy).
         fps: Frames per second for the video.
         height: Render height in pixels.
@@ -647,6 +655,17 @@ def record_training_video(
     if target_body is not None:
         _target_body_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, target_body)
 
+    # Command low-pass of the plant interface: the SAME alpha, seeding
+    # (first post-reset action) and blend as evaluate_policy_cpu, the MJX
+    # step_fn and BaseDinoEnv._filter_action.  A raw-mean rollout is a
+    # different plant (measured ~0.19 m root-height divergence within 2 s
+    # on the trex), so the video and its printed reward would not be the
+    # policy training and gate eval saw.
+    _filter_alpha: float | None = None
+    if action_filter_cutoff_hz is not None and action_filter_cutoff_hz > 0.0:
+        _filter_alpha = low_pass_alpha(action_filter_cutoff_hz, float(mj_model.opt.timestep) * frame_skip)
+    filtered_action = None
+
     frames = []
     episode_reward = 0.0
 
@@ -657,6 +676,10 @@ def record_training_video(
 
         mean, _log_std, _value = network.apply(params, obs)
         action = jnp.clip(mean, -1.0, 1.0)
+        if _filter_alpha is not None:
+            if filtered_action is not None:
+                action = apply_low_pass(filtered_action, action, _filter_alpha)
+            filtered_action = action
 
         ctrl = np.array(scale_action_fn(action))
         mj_data.ctrl[:] = ctrl

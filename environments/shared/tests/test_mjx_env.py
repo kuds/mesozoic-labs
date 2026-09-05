@@ -673,3 +673,53 @@ class TestForwardVelScale:
         _, r_default, _, _ = env.step(states, actions, rng)
         _, r_one, _, _ = env.step(states, actions, rng, forward_vel_scale=1.0)
         assert jnp.allclose(r_default, r_one, atol=1e-6)
+
+
+@pytest.mark.skipif(not _has_jax, reason="JAX/MJX not installed")
+class TestPushDerivationKeyframe:
+    """EP3: MJX calibrates the push force from the keyframe its reset restores.
+
+    The SB3 path passes the species' ``_reset_keyframe_id`` to
+    ``derive_push_parameters``; the MJX call used to omit it and calibrate
+    from keyframe 0 -- latent while every asset's 'home' IS keyframe 0, but a
+    future asset would get push forces measured on the wrong pose.
+    """
+
+    def test_derive_call_receives_the_reset_keyframe_id(self, monkeypatch):
+        import mujoco
+
+        import environments.trex.mjx_config  # noqa: F401
+        from environments.shared import perturbation
+        from environments.shared.mjx_env import MJXDinoEnv
+
+        real_derive = perturbation.derive_push_parameters
+        captured: dict = {}
+
+        def capturing_derive(model, **kwargs):
+            captured.update(kwargs)
+            return real_derive(model, **kwargs)
+
+        monkeypatch.setattr(perturbation, "derive_push_parameters", capturing_derive)
+        env = MJXDinoEnv(
+            "trex",
+            stage=1,
+            num_envs=1,
+            env_kwargs={
+                "perturbation_capture_velocity_multiple": 1.5,
+                "perturbation_interval": 0.3,
+                "perturbation_jitter": 0.05,
+                "perturbation_duration": 0.1,
+            },
+        )
+        # The reset restores 'home' BY NAME (reset_mujoco_data_to_home), so
+        # the derivation must be told to measure that pose explicitly.
+        home_id = mujoco.mj_name2id(env.mj_model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        assert home_id >= 0
+        assert "keyframe_id" in captured, "derive_push_parameters was called without the reset keyframe"
+        assert captured["keyframe_id"] == home_id
+        manifest = env.perturbation_manifest()
+        assert manifest is not None
+        assert manifest["force_n"] == pytest.approx(
+            real_derive(env.mj_model, capture_velocity_multiple=1.5, duration_s=0.1, keyframe_id=home_id)["force_n"],
+            rel=1e-12,
+        )

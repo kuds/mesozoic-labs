@@ -6,8 +6,9 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+import pytest
 
-from environments.shared.jax_eval import EvalResults
+from environments.shared.jax_eval import EvalConfig, EvalResults
 from environments.shared.jax_viz import (
     _smooth,
     create_frame_collage,
@@ -356,3 +357,160 @@ class TestCreateFrameCollage:
         import matplotlib.pyplot as plt
 
         plt.close(fig)
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+class TestRecordTrainingVideoActionFilter:
+    """JX7: the video rollout drives the plant-level command low-pass.
+
+    Before this pin ``record_training_video`` rolled the raw policy mean
+    while the MJX training kernel, the CPU gate eval and the SB3 plant all
+    filtered (trex: 10 Hz), so evaluation.mp4 and its printed reward came
+    from a different plant (~0.19 m root-height divergence within 2 s).
+    The pin is parity with ``evaluate_policy_cpu``'s filtered path -- the
+    same seed-with-first-action carry -- and that ``None`` is byte-for-byte
+    the legacy raw rollout.
+    """
+
+    _STEPS = 12
+
+    @staticmethod
+    def _setup(monkeypatch):
+        pytest.importorskip("jax")
+        pytest.importorskip("mujoco.mjx")
+        import jax.numpy as jnp
+        import mujoco
+
+        from environments.shared.mjx_env import _get_model_path
+        from environments.shared.mjx_utils import scale_action_around_nominal_jax
+
+        class _HeadlessRenderer:
+            """Stand-in for mujoco.Renderer: the test runner has no GL context."""
+
+            def __init__(self, _model, height=480, width=640):
+                self._shape = (height, width, 3)
+
+            def update_scene(self, _data, _camera=None):
+                pass
+
+            def render(self):
+                return np.zeros(self._shape, dtype=np.uint8)
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr(mujoco, "Renderer", _HeadlessRenderer)
+        model = mujoco.MjModel.from_xml_path(_get_model_path("trex"))
+        home_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        nominal = jnp.asarray(model.key_ctrl[home_id])
+        ctrl_range = jnp.asarray(model.actuator_ctrlrange)
+        obs_dim = (model.nq - 7) + model.nv
+        weights = jnp.asarray(np.random.default_rng(0).normal(size=(model.nu, obs_dim)))
+
+        def get_obs(data):
+            return jnp.concatenate([data.qpos[7:], data.qvel])
+
+        class ObsNetwork:
+            """Deterministic, state-dependent: a divergent plant yields divergent actions."""
+
+            def apply(self, _params, obs):
+                mean = jnp.tanh(3.0 * weights @ obs)
+                return mean, jnp.zeros_like(mean), jnp.float32(0.0)
+
+        def scale_action(action):
+            return scale_action_around_nominal_jax(action, ctrl_range, nominal)
+
+        return model, get_obs, ObsNetwork(), scale_action
+
+    def _video_actions(self, model, get_obs, network, scale_action, cutoff):
+        from environments.shared.jax_viz import record_training_video
+
+        commanded: list[np.ndarray] = []
+        rewarded: list[np.ndarray] = []
+
+        def capture_scale(action):
+            commanded.append(np.asarray(action, dtype=np.float64).copy())
+            return scale_action(action)
+
+        def reward_fn(_data, action, _cfg):
+            rewarded.append(np.asarray(action, dtype=np.float64).copy())
+            return 0.0
+
+        frames, _reward = record_training_video(
+            model,
+            {},
+            network,
+            None,
+            get_obs_fn=get_obs,
+            normalize_obs_fn=lambda obs, _stats: obs,
+            scale_action_fn=capture_scale,
+            reward_fn=reward_fn,
+            reward_cfg={},
+            max_episode_steps=self._STEPS,
+            frame_skip=5,
+            root_body_id=2,
+            healthy_z_range=(0.0, 10.0),
+            max_tilt_angle=np.pi,
+            natural_forward_z=-1.0,
+            nosedive_threshold=10.0,
+            action_mapping="home-keyframe-residual/v1",
+            action_filter_cutoff_hz=cutoff,
+            height=8,
+            width=8,
+            show=False,
+        )
+        assert len(frames) == self._STEPS
+        return np.stack(commanded), np.stack(rewarded)
+
+    def _gate_eval_actions(self, model, get_obs, network, scale_action, cutoff):
+        from environments.shared.jax_eval import evaluate_policy_cpu
+
+        commanded: list[np.ndarray] = []
+
+        def capture_scale(action):
+            commanded.append(np.asarray(action, dtype=np.float64).copy())
+            return scale_action(action)
+
+        evaluate_policy_cpu(
+            model,
+            {},
+            network,
+            None,
+            get_obs_fn=get_obs,
+            normalize_obs_fn=lambda obs, _stats: obs,
+            scale_action_fn=capture_scale,
+            reward_fn=lambda *_args, **_kwargs: 0.0,
+            reward_cfg={},
+            config=EvalConfig(
+                n_episodes=1,
+                max_episode_steps=self._STEPS,
+                frame_skip=5,
+                healthy_z_range=(0.0, 10.0),
+                max_tilt_angle=np.pi,
+                natural_forward_z=-1.0,
+                nosedive_threshold=10.0,
+                root_body_id=2,
+                action_mapping="home-keyframe-residual/v1",
+                action_filter_cutoff_hz=cutoff,
+                reset_noise_scale=0.0,
+            ),
+        )
+        return np.stack(commanded)
+
+    def test_filtered_video_actions_match_the_gate_eval_filter(self, monkeypatch):
+        model, get_obs, network, scale_action = self._setup(monkeypatch)
+        video, rewarded = self._video_actions(model, get_obs, network, scale_action, cutoff=10.0)
+        gate = self._gate_eval_actions(model, get_obs, network, scale_action, cutoff=10.0)
+        np.testing.assert_allclose(video, gate, rtol=0, atol=1e-6)
+        # reward_fn scores the filtered command, as the training kernel does.
+        np.testing.assert_array_equal(rewarded, video)
+
+    def test_none_keeps_the_raw_policy_mean(self, monkeypatch):
+        model, get_obs, network, scale_action = self._setup(monkeypatch)
+        raw_video, _ = self._video_actions(model, get_obs, network, scale_action, cutoff=None)
+        raw_gate = self._gate_eval_actions(model, get_obs, network, scale_action, cutoff=0.0)
+        np.testing.assert_allclose(raw_video, raw_gate, rtol=0, atol=1e-6)
+        filtered, _ = self._video_actions(model, get_obs, network, scale_action, cutoff=10.0)
+        # Seeded with the first action, then a genuinely different plant.
+        np.testing.assert_allclose(filtered[0], raw_video[0], rtol=0, atol=1e-6)
+        assert not np.allclose(filtered[1:], raw_video[1:], atol=1e-4), "the cutoff had no effect on the rollout"

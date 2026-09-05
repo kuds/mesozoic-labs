@@ -773,3 +773,128 @@ def test_the_legacy_jax_gate_is_not_reachable_from_production_code():
                     continue
                 offenders.append(f"{path.relative_to(repo)}:{number}")
     assert not offenders, f"legacy four-threshold gate called from: {offenders}"
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+class TestEvaluationPushes:
+    """JX3(e): CPU eval rolls the recovery stage's scheduled pushes.
+
+    Before this pin ``evaluate_policy_cpu`` never wrote ``xfrc_applied``, so
+    a recovery-stage evaluation certified push-free episodes while
+    ``MJXDinoEnv`` trained against the derived 165.5 N shoves.  Schedule,
+    force and body come from the shared perturbation module (the same
+    ``push_schedule`` / ``external_push_force`` the MJX step traces), the
+    seed draw is appended to the reset draws so a push-free eval of the same
+    seed is unchanged, and a config that declares no pushes never touches
+    ``xfrc_applied``.
+    """
+
+    # configs/trex/recovery.toml [env] perturbation block, verbatim (control
+    # dt 0.01 s: interval 200 +/- 50 steps, duration 20 steps).
+    _RECOVERY = {
+        "perturbation_capture_velocity_multiple": 1.5,
+        "perturbation_interval": 2.0,
+        "perturbation_jitter": 0.5,
+        "perturbation_duration": 0.2,
+    }
+    # Cheap schedule for the RNG-discipline checks: first push near step 30.
+    _SHORT = {
+        "perturbation_capture_velocity_multiple": 1.5,
+        "perturbation_interval": 0.3,
+        "perturbation_jitter": 0.05,
+        "perturbation_duration": 0.1,
+    }
+
+    @staticmethod
+    def _roll(max_steps, **perturbation):
+        pytest.importorskip("jax")
+        pytest.importorskip("mujoco.mjx")
+        import jax.numpy as jnp
+        import mujoco
+
+        from environments.shared.jax_eval import evaluate_policy_cpu
+        from environments.shared.mjx_env import _get_model_path
+
+        model = mujoco.MjModel.from_xml_path(_get_model_path("trex"))
+        root_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
+        home_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        first_qpos: list[np.ndarray] = []
+        xfrc: list[np.ndarray] = []
+
+        def get_obs(data):
+            if not first_qpos:
+                first_qpos.append(np.asarray(data.qpos).copy())
+            return jnp.zeros(1)
+
+        class ZeroNetwork:
+            def apply(self, _params, _obs):
+                return jnp.zeros(model.nu), jnp.zeros(model.nu), jnp.float32(0.0)
+
+        def reward_fn(data, _action, _cfg, **_kwargs):
+            # Post-step data carries the force written for this control step.
+            xfrc.append(np.asarray(data.xfrc_applied[root_body_id, :3]).copy())
+            return jnp.float32(0.0)
+
+        evaluate_policy_cpu(
+            model,
+            {},
+            ZeroNetwork(),
+            None,
+            get_obs_fn=get_obs,
+            normalize_obs_fn=lambda obs, _stats: obs,
+            scale_action_fn=lambda _action: jnp.asarray(model.key_ctrl[home_id]),
+            reward_fn=reward_fn,
+            reward_cfg={},
+            config=EvalConfig(
+                n_episodes=1,
+                max_episode_steps=max_steps,
+                healthy_z_range=(0.0, 10.0),
+                max_tilt_angle=np.pi,
+                natural_forward_z=-1.0,
+                nosedive_threshold=10.0,
+                root_body_id=root_body_id,
+                action_mapping="home-keyframe-residual/v1",
+                reset_noise_scale=0.05,
+                seed=42,
+                **perturbation,
+            ),
+        )
+        return model, first_qpos[0], np.stack(xfrc)
+
+    def test_a_no_push_config_leaves_xfrc_zero_throughout(self):
+        _model, _qpos, xfrc = self._roll(300)
+        assert xfrc.shape == (300, 3)
+        assert not xfrc.any()
+
+    def test_the_recovery_config_pushes_on_the_shared_schedule(self):
+        import mujoco
+
+        from environments.shared.perturbation import derive_push_parameters
+
+        model, _qpos, xfrc = self._roll(300, **self._RECOVERY)
+        home_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        force_n = derive_push_parameters(model, capture_velocity_multiple=1.5, duration_s=0.2, keyframe_id=home_id)[
+            "force_n"
+        ]
+        assert force_n == pytest.approx(165.5, abs=2.0)
+
+        active = np.flatnonzero(np.abs(xfrc).sum(axis=1) > 0.0)
+        # Exactly one 20-step window inside [150, 250]; the second push
+        # (>= 350) lies past the roll.  Zero everywhere else.
+        assert active.size == 20
+        assert 150 <= active[0] <= 250
+        np.testing.assert_array_equal(active, np.arange(active[0], active[0] + 20))
+        np.testing.assert_allclose(np.linalg.norm(xfrc[active, :2], axis=1), force_n, rtol=1e-5)
+        assert not xfrc[active, 2].any()
+        # One heading per push, held for the whole window.
+        np.testing.assert_allclose(xfrc[active], np.broadcast_to(xfrc[active[0]], (20, 3)), rtol=1e-6, atol=1e-6)
+
+    def test_the_schedule_draw_is_appended_and_deterministic(self):
+        _m, pushed_qpos, xfrc_a = self._roll(60, **self._SHORT)
+        _m, free_qpos, xfrc_free = self._roll(60)
+        _m, _q, xfrc_b = self._roll(60, **self._SHORT)
+        assert xfrc_a.any() and not xfrc_free.any()
+        # The reset draws are unchanged by the appended seed draw ...
+        np.testing.assert_array_equal(pushed_qpos, free_qpos)
+        # ... and the same eval seed yields the same schedule (pairing).
+        np.testing.assert_array_equal(xfrc_a, xfrc_b)
