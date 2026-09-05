@@ -268,7 +268,7 @@ class TRexEnv(BaseDinoEnv):
         # The theropod stance halved the residual: a flexed limb settles closer
         # to its commanded pose than a columnar one does, so the plant now
         # settles 1.55° nose-down where the columnar stance settled 2.9°.
-        # nosedive_termination_threshold in configs/trex/stage1_balance.toml is
+        # nosedive_termination_threshold in configs/trex/stance.toml is
         # calibrated against this number and moved with it.
         # Unlike the raptor, the T-Rex posture reward stays centred on world
         # vertical (see _get_reward_info); the MJX path matches by leaving

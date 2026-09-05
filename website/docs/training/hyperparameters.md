@@ -8,25 +8,31 @@ Guide to tuning hyperparameters for training experiments.
 
 ## Config Files
 
-All hyperparameters are defined in TOML config files under `configs/<species>/`. Each species has three stage configs:
+All hyperparameters are defined in TOML config files under `configs/<species>/`. The T-Rex has four stage configs plus a `stages.toml` manifest that orders them by semantic id; the other three species have three stage configs each, named by stage number:
 
 ```
 configs/
 ├── velociraptor/
-│   ├── stance.toml
-│   ├── locomotion.toml
+│   ├── stage1_balance.toml
+│   ├── stage2_locomotion.toml
 │   └── stage3_strike.toml
 ├── trex/
 │   ├── stance.toml
+│   ├── recovery.toml
 │   ├── locomotion.toml
-│   └── behavior.toml
-└── brachiosaurus/
-    ├── stance.toml
-    ├── locomotion.toml
-    └── stage3_food_reach.toml
+│   ├── behavior.toml
+│   └── stages.toml
+├── brachiosaurus/
+│   ├── stage1_balance.toml
+│   ├── stage2_locomotion.toml
+│   └── stage3_food_reach.toml
+└── dibothrosuchus/
+    ├── stage1_balance.toml
+    ├── stage2_locomotion.toml
+    └── stage3_snap.toml
 ```
 
-Each TOML file contains `[ppo]`, `[sac]`, `[env]`, and `[curriculum]` sections.
+Each stage TOML file contains `[env]` and `[curriculum]` sections plus the algorithm sections it supports (`[ppo]`, `[sac]`, and for some stages `[jax]`; the T-Rex recovery stage is PPO-only); `stages.toml` holds only the stage order and the mapping from stage id to config file.
 
 ## Per-Stage Hyperparameters
 

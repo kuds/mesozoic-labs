@@ -171,7 +171,8 @@ smoothness_weight = 2.0                        # Second escalation: 0.1 -> 0.7 -
                                                # already fitting worse at 0.7, and this term is what got bigger.
                                                # Single-variable change; see min_avg_reward for the gate margin.
 heading_weight = 0.1                           # Small heading reward to prevent spin-to-balance exploits
-gait_symmetry_weight = 0.0                     # Disable: default formula rewards single-foot stance, bad for balance
+gait_symmetry_weight = 0.0                     # Kept at 0.0: the alternation formula is fixed (base_env.py), but a
+                                               # standing stage has no touchdowns to alternate, and it is unswept for the T-Rex
 height_weight = 0.6                            # Bounded target-centred height shaping; no reward for standing taller than home
 height_target_tolerance = 0.06                 # m Gaussian scale around the measured 0.926 m settled pelvis height
 fall_penalty = -100.0                          # Restored to -100: stronger penalty needed to discourage lying-flat exploit

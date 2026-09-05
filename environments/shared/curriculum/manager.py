@@ -255,10 +255,10 @@ class CurriculumManager:
         elif threshold.gate_kind == RECOVERY_GATE_KIND:
             passes = self._recovery_gate_refuses()
         else:
-            # A kind with no evaluator here — recovery_quality/v1 is
-            # schema-valid, but its verdict comes only from the gate resolver
-            # (gate_resolver.evaluate_recovery_gate_from_resolution): frozen
-            # thresholds, frozen null pairings. This used to be the
+            # A kind with no evaluator here: a future entry added to
+            # gate_schema.GATE_KINDS (the schema's documented extension path
+            # is to add the entry AND teach both backends to evaluate it)
+            # that has not been given a branch above. This used to be the
             # reward_and_length fall-through, so such a stage advanced on
             # return alone under StageThreshold's permissive defaults
             # (min_avg_reward = -inf) — the exact fall-through
@@ -461,12 +461,14 @@ def thresholds_from_configs(
             or malformed.
     """
     thresholds: dict[int, dict[str, Any]] = {}
-    # The numeric curriculum advances through legacy-numbered stages only.
-    # Semantic-only stages (recovery, which load_all_stages keys by ID) are
-    # deliberately excluded: train_curriculum walks the manifest and skips
-    # every non-advancing stage with a log line, and this manager judges
-    # none of their gate kinds — including one here would validate it under
-    # advancement and correctly-but-prematurely refuse the whole run.
+    # The numeric curriculum advances through legacy-numbered (integer-keyed)
+    # stages only.  Semantic-only stages (recovery, which load_all_stages keys
+    # by ID) are deliberately excluded: train_curriculum walks the manifest
+    # and skips every non-advancing stage with a log line, and the recovery
+    # stage is judged post-stage by reporting/gates.py::evaluate_stage_gate
+    # from its frozen gate_resolution.json — its recovery_quality/v1
+    # threshold keys are deliberately not carried onto StageThreshold (see
+    # the comment on the copy below and _recovery_gate_refuses).
     for stage, cfg in configs.items():
         if not isinstance(stage, int):
             continue

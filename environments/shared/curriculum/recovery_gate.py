@@ -21,10 +21,11 @@ on the mean per-seed success difference.  Pairing is the point — the
 schedule PRF guarantees the nulls saw identical pushes, so the difference
 isolates control.
 
-All thresholds are PROVISIONAL until the calibration runs (plan P3/P5)
-measure the finalized pushed task; the recovery stage's config declares
-``none/v1`` until then, and the resolver (W5) freezes the null baselines
-this gate's paired criterion consumes.  Everything fails closed: NaN or
+The thresholds were provisional until the P3/P5 calibration runs measured
+the finalized pushed task; since 2026-08-28 the trex recovery config
+(configs/trex/recovery.toml) declares ``recovery_quality/v1`` at measured
+values, and the resolver's (W5) frozen null panels supply the paired
+criterion this gate consumes.  Everything fails closed: NaN or
 missing inputs are gate failures, never passes.
 """
 
@@ -166,12 +167,13 @@ def episode_recovery_success(full_horizon: bool, per_push_recovered: Sequence[bo
 
 @dataclass(frozen=True)
 class RecoveryGateThresholds:
-    """The ``recovery_quality/v1`` criteria.  All PROVISIONAL until P5.
+    """The ``recovery_quality/v1`` criteria.
 
     ``min_recovery_success_lcb`` is the load-bearing bound.
     ``min_paired_success_delta_lcb`` is optional (None disables) because it
-    needs the frozen null panels the resolver (W5) provides; once those
-    exist it becomes the authoritative criterion per the split plan.
+    needs the frozen null panels the resolver (W5) provides; with the
+    resolver's frozen null panels it is the authoritative criterion per the
+    split plan (each species' recovery config declares its value).
     """
 
     min_recovery_success_lcb: float

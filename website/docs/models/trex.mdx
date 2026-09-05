@@ -26,14 +26,17 @@ by a per-species stage manifest rather than bare numbers:
    own mass and stance geometry), warm-started from the certified stance
    checkpoint. Only a disturbance can certify *active* balance control; the
    `recovery_quality/v1` gate judges per-shove recovery against frozen null
-   baselines and is enabled once its thresholds are calibrated.
+   baselines. It was frozen on 2026-08-28 with measured thresholds; the
+   verdict comes from the stage directory's `gate_resolution.json`, written
+   by `freeze_recovery_gate.py`.
 3. **Locomotion** (historical stage 2) — forward walking/running.
 4. **Behavior** (historical stage 3) — the head-contact "bite" proxy task.
 
 Integer stage references keep their historical meaning everywhere (stage 2
 remains locomotion); the recovery stage is addressed by its semantic id.
 The catalog tables and stage videos below cover the numbered curriculum;
-recovery results join them once the stage's gate is calibrated.
+recovery results join them as runs certified under the now-frozen
+`recovery_quality/v1` gate are published.
 
 ## Anatomy
 
