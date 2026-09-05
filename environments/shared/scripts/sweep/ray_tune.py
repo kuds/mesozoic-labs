@@ -71,18 +71,6 @@ def _copy_to_drive(src: str | Path, dst: str | Path) -> bool:
     return False  # unreachable, but keeps type checkers happy
 
 
-def _sync_to_drive(src_dir: str | Path, drive_dir: str | Path, label: str = "") -> None:
-    """Copy files from a local directory to Drive, tolerating FUSE flakiness."""
-    src_dir = Path(src_dir)
-    drive_dir = Path(drive_dir)
-    if not src_dir.exists():
-        return
-    drive_dir.mkdir(parents=True, exist_ok=True)
-    for src_file in src_dir.iterdir():
-        if src_file.is_file():
-            _copy_to_drive(src_file, drive_dir / src_file.name)
-
-
 def _sync_best_model(src_dir: str | Path, drive_dir: str | Path) -> None:
     """Copy only best_model* and final* files to Drive (skip periodic checkpoints)."""
     src_dir = Path(src_dir)

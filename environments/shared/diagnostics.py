@@ -173,8 +173,6 @@ class DiagnosticsCallback(_BaseCallback):
 
     def __init__(
         self,
-        plateau_window=None,
-        plateau_threshold=None,
         log_dir=None,
         verbose=0,
         action_saturation_threshold=0.99,
@@ -190,11 +188,6 @@ class DiagnosticsCallback(_BaseCallback):
             self.logger = None
             self.num_timesteps = 0
             self.training_env = None
-        if plateau_window is not None or plateau_threshold is not None:
-            logger.warning(
-                "DiagnosticsCallback plateau_window/plateau_threshold are deprecated and ignored; "
-                "plateau detection now uses deterministic stage-gate evaluations."
-            )
         # |action| at/above this (in the normalized [-1, 1] control space) counts
         # as "saturated" for the diagnostics/raw_action_saturation metric.
         self.action_saturation_threshold = action_saturation_threshold

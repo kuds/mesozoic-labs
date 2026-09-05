@@ -59,9 +59,6 @@ FIGURES_DIRNAME = "figures"
 #: Subdirectory holding replay videos and their per-frame stance CSVs.
 REPLAYS_DIRNAME = "replays"
 
-#: Every subdirectory this module owns, in the order a reader should try.
-GENERATED_DIRNAMES: tuple[str, ...] = (FIGURES_DIRNAME, REPLAYS_DIRNAME)
-
 #: Suffixes that belong under ``replays/``.  The stance CSV is a per-frame
 #: trace of the very episode the video shows, so it travels with it rather
 #: than with the evaluation evidence.
@@ -92,21 +89,6 @@ def replays_dir(stage_dir: "str | Path", *, create: bool = False) -> Path:
     if create:
         path.mkdir(parents=True, exist_ok=True)
     return path
-
-
-def find_figure(stage_dir: "str | Path", name: str) -> Path | None:
-    """Locate one figure by filename, nested form first, then legacy flat.
-
-    Returns ``None`` when neither exists, so a caller can distinguish
-    "this run never produced that plot" from "this run is laid out the old
-    way" without stat-ing two paths itself.
-    """
-    stage_path = Path(stage_dir)
-    nested = stage_path / FIGURES_DIRNAME / name
-    if nested.is_file():
-        return nested
-    legacy = stage_path / name
-    return legacy if legacy.is_file() else None
 
 
 def iter_figures(stage_dir: "str | Path") -> Iterator[Path]:

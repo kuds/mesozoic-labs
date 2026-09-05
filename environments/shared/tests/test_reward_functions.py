@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 
 from environments.shared.reward_functions import (
-    check_distance_contact,
     check_height_tilt_termination,
     check_nosedive_termination,
     quat_to_forward_2d,
@@ -422,18 +421,6 @@ class TestNosediveTermination:
         terminated, reason = check_nosedive_termination(-0.8, -0.17)
         assert terminated
         assert reason == "nosedive"
-
-
-class TestDistanceContact:
-    def test_close(self):
-        a = np.array([0.0, 0.0, 0.0])
-        b = np.array([0.1, 0.0, 0.0])
-        assert check_distance_contact(a, b, 0.15)
-
-    def test_far(self):
-        a = np.array([0.0, 0.0, 0.0])
-        b = np.array([1.0, 0.0, 0.0])
-        assert not check_distance_contact(a, b, 0.15)
 
 
 # ---------------------------------------------------------------------------

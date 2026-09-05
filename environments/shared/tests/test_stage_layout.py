@@ -27,20 +27,6 @@ class TestDirectoryAccessors:
         assert stage_layout.replays_dir(tmp_path, create=True).is_dir()
 
 
-class TestFindFigure:
-    def test_prefers_the_nested_form(self, tmp_path):
-        _touch(tmp_path / "training_curves.png")
-        nested = _touch(tmp_path / "figures" / "training_curves.png")
-        assert stage_layout.find_figure(tmp_path, "training_curves.png") == nested
-
-    def test_falls_back_to_the_legacy_flat_form(self, tmp_path):
-        legacy = _touch(tmp_path / "training_curves.png")
-        assert stage_layout.find_figure(tmp_path, "training_curves.png") == legacy
-
-    def test_returns_none_when_the_figure_was_never_produced(self, tmp_path):
-        assert stage_layout.find_figure(tmp_path, "training_curves.png") is None
-
-
 class TestIterFigures:
     def test_finds_nested_figures(self, tmp_path):
         _touch(tmp_path / "figures" / "training_curves.png")

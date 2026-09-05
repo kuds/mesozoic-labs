@@ -6,7 +6,6 @@ notebook lean while making the logic reusable by the CLI training path.
 - **Stability monitoring**: KL divergence, gradient norm, and loss watchdog
 - **Episode tracking**: Reconstruct per-episode returns from per-step data
 - **CSV logging**: Per-update metric writer
-- **Profiling**: Per-operation timing within rollout steps
 """
 
 from __future__ import annotations
@@ -258,52 +257,3 @@ class TrainingCSVLogger:
 
     def __exit__(self, *exc):
         self.close()
-
-
-# ---------------------------------------------------------------------------
-# Per-operation profiling
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class RolloutProfiler:
-    """Lightweight per-operation profiler for rollout steps.
-
-    Measures wall-clock time for individual operations (obs extraction,
-    policy forward pass, physics step, reward computation, reset) within
-    the rollout loop.  Only active when ``interval > 0`` and the current
-    update is a profiling update.
-
-    Args:
-        interval: Profile every N updates.  0 disables profiling.
-    """
-
-    interval: int = 50
-    _results: list[dict[str, float]] = field(default_factory=list, init=False)
-
-    def should_profile(self, update: int) -> bool:
-        """Return True if this update should be profiled."""
-        return self.interval > 0 and update % self.interval == 0
-
-    def record(self, update: int, op_times: dict[str, float]) -> None:
-        """Store timing results for one profiled update."""
-        self._results.append({"update": update, **op_times})
-
-    def summary(self) -> str:
-        """Return a human-readable summary of averaged per-op timings."""
-        if not self._results:
-            return ""
-        ops = [k for k in self._results[0] if k != "update"]
-        avg = {k: np.mean([r[k] for r in self._results]) for k in ops}
-        total = sum(avg.values())
-        lines = [f"Per-operation breakdown (averaged over {len(self._results)} profiled updates):"]
-        for k, v in avg.items():
-            pct = 100 * v / total if total > 0 else 0
-            lines.append(f"  {k:8s}: {v:6.2f}s ({pct:4.1f}%)")
-        lines.append(f"  {'total':8s}: {total:6.2f}s")
-        return "\n".join(lines)
-
-    @property
-    def results(self) -> list[dict[str, float]]:
-        """Raw per-update timing results."""
-        return self._results

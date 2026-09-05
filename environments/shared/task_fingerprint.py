@@ -285,8 +285,11 @@ def validate_recorded_task(
             # hash-match v2.  A v1 record whose raw kwargs all agree with
             # the effective env resumes with a warning; any actual kwarg
             # or section difference still fails closed below.  Tighten to
-            # exact-hash-only once v2-fingerprinted checkpoints are the
-            # norm (alongside the allow_unfingerprinted valve, plan §W5).
+            # or section difference still fails closed below.  Tighten to
+            # exact-hash-only once no live checkpoint predates the 2026-08-23
+            # v2 bump (today the recovery pilots 20260819_154702 /
+            # 20260821_142144 still do); retire it together with the
+            # allow_unfingerprinted valve in train_base._create_or_load_model.
             if _v1_raw_env_matches_effective(recorded, current):
                 _logger.warning(
                     "%s records a schema-v1 task fingerprint (env section = TOML-present kwargs only, "
