@@ -70,6 +70,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   experiment that blocks P5.
 
 ### Changed
+- **Cleanup batches from the gap review** (Phase K,
+  `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` §6 — every entry
+  re-verified against the tree after the five fix phases, and no behavior
+  changed).
+  - One home each: species configs (`species_registry.get_species_config`
+    replaces the inline copies in the four `train_sb3.py` scripts and the
+    sweep trial), env construction for the report scripts
+    (`config.build_env` / `config.SPECIES_NAMES`), the publication seed
+    (`constants.PUBLICATION_SEED_START`), the stance gate's 40-episode
+    minimum (`DEFAULT_MIN_EVAL_EPISODES_STANCE`) and its curriculum mapping
+    (`StanceGateThresholds.from_curriculum`, replacing four copies and the
+    manager's field copy), the stage-entry shaping block
+    (`train_base._stage_entry_shaping_callbacks`, now used by the Ray Tune
+    worker and the SB3 notebook), the fake test plant
+    (`reporting_helpers.make_plant_identity`, replacing eight copies), and
+    the SB3 checkpoint + VecNormalize loader shared by the report scripts.
+  - Moves: `select_handoff_checkpoint` to `curriculum.checkpoints`; the
+    notebook-path PPO loop (`train`, `TrainConfig`, `TrainResult`,
+    `_build_jit_fns`) to `jax_train_fn.py`, re-exported from `jax_trainer`;
+    the stance report builders out of `scripts/stance_gate_report.py` into
+    `reporting/stance_report.py` so library code no longer imports from a
+    script. `roll_recovery_panel` passes the height reference to
+    `_safe_step` as a parameter instead of stamping the env.
+  - Retired markers: the "provisional until P5" text in `recovery_gate`,
+    `gate_schema` and the curriculum manager; KNOWN_ISSUES entries the stance
+    gate overtook (pruned per the file's own policy); the website's
+    hyperparameters tree and trex page; the renamed `stage1_balance.toml`
+    pointer in `trex_env.py` (the twin in `trex.xml` stays: the plant
+    manifest hashes that file); `quality_scoring.toml`'s falsified TODOs;
+    the two "plan §W5" pointers on the task-fingerprint valves, now tracked
+    in the stage-1b plan.
+
 - **The T-Rex recovery gate is frozen: `recovery.toml` declares
   `recovery_quality/v1`** (plan P5, `docs/STAGE1B_IMPLEMENTATION_PLAN.md` §4;
   measurements in `TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md` §4 and §9). The
@@ -368,6 +400,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   against 1000), so it does not need the sample size the bound's power is
   specified at. The whole sweep costs about what the old single 40-episode
   probe did.
+
+### Removed
+- **Dead code the gap review found** (Phase K): the in-code sweep
+  search-space defaults (search spaces load from
+  `configs/<species>/sweep_*.json`), `RolloutProfiler`,
+  `jax_reward_termination._check_foot_contact`, `mjx_utils.unscale_action_jax`,
+  `sweep/ray_tune._sync_to_drive`, `compare_run_diagnostics._fmt`,
+  `reward_functions.check_distance_contact`, `stage_layout.find_figure` /
+  `GENERATED_DIRNAMES`, five uncalled reward-test helpers, `train_base`'s
+  unused `DiagnosticsCallback` / `evaluate` / `record_stage_video`
+  re-exports, and `DiagnosticsCallback`'s long-deprecated
+  `plateau_window` / `plateau_threshold` parameters (now a `TypeError`).
 
 ### Fixed
 - **The JAX/MJX backend evaluates, trains and resumes on the same plant as
