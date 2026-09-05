@@ -832,7 +832,9 @@ def run_stage_evaluation(
         # pushes training did.  A multiple of 0 (every non-recovery stage,
         # and any config that does not declare pushes) keeps the eval
         # push-free; the defaults are MJXEnvConfig's.
-        perturbation_capture_velocity_multiple=float(getattr(env.config, "perturbation_capture_velocity_multiple", 0.0)),
+        perturbation_capture_velocity_multiple=float(
+            getattr(env.config, "perturbation_capture_velocity_multiple", 0.0)
+        ),
         perturbation_interval=float(getattr(env.config, "perturbation_interval", 2.0)),
         perturbation_jitter=float(getattr(env.config, "perturbation_jitter", 0.5)),
         perturbation_duration=float(getattr(env.config, "perturbation_duration", 0.20)),
