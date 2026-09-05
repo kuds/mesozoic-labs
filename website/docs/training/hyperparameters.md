@@ -32,7 +32,7 @@ configs/
     └── stage3_snap.toml
 ```
 
-Each stage TOML file contains `[env]` and `[curriculum]` sections plus the algorithm sections it supports (`[ppo]`, `[sac]`, and for some stages `[jax]`; the T-Rex recovery stage is PPO-only); `stages.toml` holds only the stage order and the mapping from stage id to config file.
+Each stage TOML file contains `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]`, `[sac]` and `[jax]` everywhere except the T-Rex recovery stage, which is PPO-only. `stages.toml` carries no hyperparameters: it records the manifest schema and, per stage in curriculum order, the stage id, its config file and (where one exists) its legacy integer number, which is how integer stage references resolve.
 
 ## Per-Stage Hyperparameters
 

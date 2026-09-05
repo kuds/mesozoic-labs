@@ -16,6 +16,7 @@ from typing import Any
 
 import numpy as np
 
+from .curriculum.manager import DEFAULT_MIN_EVAL_EPISODES
 from .curriculum.stance_gate import required_duty_episodes
 from .stance_diagnostics import derive_stance_info
 
@@ -619,7 +620,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
                 counts["mean_unsupported_duty"],
                 # The gate's own rule, not the panel size -- see _GateMetric.
                 min_samples=required_duty_episodes(
-                    int(self.curriculum_kwargs.get("min_eval_episodes", 10)),
+                    int(self.curriculum_kwargs.get("min_eval_episodes", DEFAULT_MIN_EVAL_EPISODES)),
                     float(self.curriculum_kwargs.get("min_full_horizon_fraction", 0.0)),
                 ),
                 ceiling=True,
@@ -873,7 +874,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             # above already happened.
             return
 
-        min_eval_episodes = int(self.curriculum_kwargs.get("min_eval_episodes", 10))
+        min_eval_episodes = int(self.curriculum_kwargs.get("min_eval_episodes", DEFAULT_MIN_EVAL_EPISODES))
         reward_metric = next((metric for metric in metrics if metric.key == "mean_reward"), None)
         if reward_metric is not None:
             self.logger.record("diagnostics/eval_episode_count", reward_metric.sample_count)

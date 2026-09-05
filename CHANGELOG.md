@@ -72,20 +72,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Cleanup batches from the gap review** (Phase K,
   `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` §6 — every entry
-  re-verified against the tree after the five fix phases, and no behavior
-  changed).
+  re-verified against the tree after the five fix phases; no behavior
+  change beyond the three alignments called out below).
   - One home each: species configs (`species_registry.get_species_config`
     replaces the inline copies in the four `train_sb3.py` scripts and the
     sweep trial), env construction for the report scripts
     (`config.build_env` / `config.SPECIES_NAMES`), the publication seed
     (`constants.PUBLICATION_SEED_START`), the stance gate's 40-episode
-    minimum (`DEFAULT_MIN_EVAL_EPISODES_STANCE`) and its curriculum mapping
-    (`StanceGateThresholds.from_curriculum`, replacing four copies and the
-    manager's field copy), the stage-entry shaping block
+    minimum (`DEFAULT_MIN_EVAL_EPISODES_STANCE`) and the SB3 curriculum
+    path's 10-episode fallback (`curriculum.manager.DEFAULT_MIN_EVAL_EPISODES`),
+    the stance gate's curriculum mapping
+    (`StanceGateThresholds.from_curriculum`, replacing four copies; the SB3
+    curriculum manager keeps its own field copy,
+    `StageThreshold.stance_thresholds()`, because its 10-episode
+    `min_eval_episodes` default differs), the stage-entry shaping block
     (`train_base._stage_entry_shaping_callbacks`, now used by the Ray Tune
-    worker and the SB3 notebook), the fake test plant
+    worker and the SB3 notebook — so the notebook now honours
+    `[curriculum] warmup_lr_scale` like the CLI and, like the CLI, applies
+    no shaping to an explicit `initialize_next_stage` call that has no
+    load path), the fake test plant
     (`reporting_helpers.make_plant_identity`, replacing eight copies), and
-    the SB3 checkpoint + VecNormalize loader shared by the report scripts.
+    the SB3 checkpoint + VecNormalize loader shared by the report scripts
+    (`policy_loading.load_sb3_checkpoint`; the three diagnostic scripts now
+    report a corrupt sidecar with the certification tool's diagnosable
+    message instead of a raw unpickling traceback, still exit 1).
   - Moves: `select_handoff_checkpoint` to `curriculum.checkpoints`; the
     notebook-path PPO loop (`train`, `TrainConfig`, `TrainResult`,
     `_build_jit_fns`) to `jax_train_fn.py`, re-exported from `jax_trainer`;

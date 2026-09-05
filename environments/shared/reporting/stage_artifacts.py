@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
+from ..constants import PUBLICATION_SEED_START
 from ..curriculum.checkpoints import select_handoff_checkpoint
 from ..curriculum.stance_gate import DEFAULT_MIN_EVAL_EPISODES_STANCE
 from . import bundles, csv_output, stage_layout, text_summaries
@@ -1115,7 +1116,7 @@ def save_jax_stage_artifacts(
     best_params: Any | None = None,
     best_reward: float = 0.0,
     best_update: int = 0,
-    evaluation_seed: int = 3042,
+    evaluation_seed: int = PUBLICATION_SEED_START,
     backend_version: str | None = None,
     plant_identity: PlantIdentity | None = None,
 ) -> dict[str, Path]:

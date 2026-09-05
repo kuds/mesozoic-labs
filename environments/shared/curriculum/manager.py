@@ -25,6 +25,15 @@ from .stance_gate import (
 
 logger = logging.getLogger(__name__)
 
+# Fallback panel size for the SB3 curriculum path (the manager's
+# ``StageThreshold``, the recorded-gate evaluator in ``reporting.gates`` and
+# the in-training diagnostics callback) when a stage's ``[curriculum]``
+# omits ``min_eval_episodes``.  Deliberately distinct from the stance gate's
+# own ``DEFAULT_MIN_EVAL_EPISODES_STANCE`` (40): naming the 10 is
+# behavior-neutral; unifying the two would change which panels the SB3
+# manager certifies (gap review DU4, part 2 — not applied).
+DEFAULT_MIN_EVAL_EPISODES: int = 10
+
 
 @dataclass
 class StageThreshold:
@@ -55,7 +64,7 @@ class StageThreshold:
     settle_steps: int = 0
 
     # Shared
-    min_eval_episodes: int = 10
+    min_eval_episodes: int = DEFAULT_MIN_EVAL_EPISODES
     required_consecutive: int = 3
 
     def stance_thresholds(self) -> StanceGateThresholds:
