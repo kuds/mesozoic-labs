@@ -83,12 +83,18 @@ class CheckpointHook:
             plant_identity=plant_identity,
         )
 
+    # Checkpoints record the number of updates COMPLETED (state.update is the
+    # index of the one just finished), the convention the functional trainer
+    # and restore_train_state share: a resume starts at that count and trains
+    # the budget's remainder.  Recording the index instead made every resume
+    # repeat one update and re-number from one too low.
     def on_update_end(self, state: TrainerState, metrics: dict[str, float]) -> None:
-        if state.update % self.interval != 0:
+        completed = state.update + 1
+        if completed % self.interval != 0:
             return
         self._manager.save(
             params=state.params,
-            update=state.update,
+            update=completed,
             obs_rms=state.obs_stats,
             opt_state=state.opt_state,
         )
@@ -96,7 +102,7 @@ class CheckpointHook:
     def on_train_end(self, state: TrainerState) -> None:
         self._manager.save(
             params=state.params,
-            update=state.update,
+            update=state.update + 1,
             obs_rms=state.obs_stats,
             opt_state=state.opt_state,
         )

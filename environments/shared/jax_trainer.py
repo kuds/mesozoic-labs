@@ -1202,11 +1202,12 @@ class JaxTrainer:
         init_params: Any | None = None,
         init_opt_state: Any | None = None,
         init_obs_stats: Any | None = None,
+        start_update: int = 0,
     ) -> tuple[Any, dict[str, float], TrainerState]:
         """Run the training loop.
 
         Args:
-            num_updates: Number of PPO update iterations.
+            num_updates: Number of PPO update iterations to run in this call.
             seed: Random seed.
             init_params: Optional initial network parameters.
             init_opt_state: Optional optimizer state to resume from (see
@@ -1214,11 +1215,19 @@ class JaxTrainer:
                 Ignored unless *init_params* is also provided.
             init_obs_stats: Optional observation RunningMeanStd to resume
                 from (must match *init_params*' normalization).
+            start_update: Absolute index of the first update this call runs.
+                A same-stage resume passes the checkpoint's update so the
+                curriculum ramp, the progress log and — through
+                ``state.update`` — the checkpoint numbering continue from
+                where the interrupted session stopped instead of restarting
+                at 0 and overwriting its files.
 
         Returns:
             ``(params, eval_metrics, state)`` tuple.
         """
         check_jax()
+        if start_update < 0:
+            raise ValueError(f"start_update must be non-negative, got {start_update}")
 
         import jax
         import jax.numpy as jnp
@@ -1287,7 +1296,7 @@ class JaxTrainer:
         ep_stats_acc = EpisodeStatsAccumulator()
 
         try:
-            for update in range(num_updates):
+            for update in range(start_update, start_update + num_updates):
                 state.update = update
 
                 t_rollout_start = time.time()

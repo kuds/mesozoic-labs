@@ -225,6 +225,26 @@ def train_jax(
             resumed_update,
             obs_rms_decay_on_resume,
         )
+        # A continuation trains the stage's REMAINING budget: the LR schedule
+        # (sized to num_updates above, its count restored in opt_state), the
+        # checkpoint numbering and the stage record all assume num_updates in
+        # total, so num_updates *more* would overrun all three.
+        start_update = resumed_update
+        updates_to_run = max(num_updates - resumed_update, 0)
+        if updates_to_run == 0:
+            _logger.warning(
+                "Checkpoint %s is already at update %d of the %d-update budget; nothing left to train",
+                resume_from,
+                resumed_update,
+                num_updates,
+            )
+        else:
+            _logger.info(
+                "Continuing at update %d: %d of %d updates remain", resumed_update, updates_to_run, num_updates
+            )
+    else:
+        start_update = 0
+        updates_to_run = num_updates
 
     # Assemble hooks.  When a checkpoint dir is given, the headless run also
     # produces the durable artifacts the notebook path gets: a per-update
@@ -266,11 +286,12 @@ def train_jax(
     )
 
     params, eval_metrics, _state = trainer.train(
-        num_updates=num_updates,
+        num_updates=updates_to_run,
         seed=seed,
         init_params=init_params,
         init_opt_state=init_opt_state,
         init_obs_stats=init_obs_stats,
+        start_update=start_update,
     )
 
     # Persist the best-return checkpoint alongside the rotating ones so the

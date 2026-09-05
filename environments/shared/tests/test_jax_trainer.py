@@ -805,7 +805,7 @@ class TestTrainJaxResume:
             stage=1,
             num_envs=2,
             rollout_len=2,
-            num_updates=1,
+            num_updates=extra.pop("num_updates", 1),
             seed=0,
             checkpoint_dir=str(checkpoint_dir),
             policy_kwargs={"net_arch": [8]},
@@ -821,15 +821,24 @@ class TestTrainJaxResume:
 
         plant = current_plant_identity("trex")
         self._run(tmp_path / "first")
-        ckpt = tmp_path / "first" / "trex_s1_0.pkl"
+        # Checkpoints are numbered by updates COMPLETED (1 after a 1-update run).
+        ckpt = tmp_path / "first" / "trex_s1_1.pkl"
         assert ckpt.exists()
-        _, opt_before, rms_before, _ = restore_train_state(ckpt, current_plant=plant)
+        assert not (tmp_path / "first" / "trex_s1_0.pkl").exists()
+        _, opt_before, rms_before, resumed = restore_train_state(ckpt, current_plant=plant)
+        assert resumed == 1
         # 1 epoch x 2 minibatches = 2 Adam steps; 2 envs x 2 steps = 4 obs.
         assert _adam_count(opt_before) == 2
         assert float(rms_before.count) == pytest.approx(4.0001)
 
-        self._run(tmp_path / "second", resume_from=str(ckpt))
-        _, opt_after, rms_after, _ = restore_train_state(tmp_path / "second" / "trex_s1_0.pkl", current_plant=plant)
+        # A 2-update budget with 1 done: exactly one more update runs, and its
+        # checkpoint continues the numbering instead of overwriting _1.
+        self._run(tmp_path / "second", resume_from=str(ckpt), num_updates=2)
+        second = tmp_path / "second" / "trex_s1_2.pkl"
+        assert second.exists()
+        assert not (tmp_path / "second" / "trex_s1_1.pkl").exists()
+        _, opt_after, rms_after, resumed_after = restore_train_state(second, current_plant=plant)
+        assert resumed_after == 2
         # Continued, not re-initialised: 2 more Adam steps on top of the 2.
         assert _adam_count(opt_after) == 4
         # Undecayed (effective obs_rms_decay_on_resume = 1.0): 4 more obs on
@@ -842,7 +851,7 @@ class TestTrainJaxResume:
         from environments.shared import jax_trainer
 
         self._run(tmp_path / "first")
-        ckpt = tmp_path / "first" / "trex_s1_0.pkl"
+        ckpt = tmp_path / "first" / "trex_s1_1.pkl"
         seen: dict = {}
 
         def fake_train(self, **kwargs):
@@ -850,7 +859,10 @@ class TestTrainJaxResume:
             return ({}, {}, SimpleNamespace(obs_stats=kwargs["init_obs_stats"]))
 
         monkeypatch.setattr(jax_trainer.JaxTrainer, "train", fake_train)
-        self._run(tmp_path / "second", resume_from=str(ckpt), obs_rms_decay_on_resume=0.01)
+        self._run(tmp_path / "second", resume_from=str(ckpt), obs_rms_decay_on_resume=0.01, num_updates=3)
+        # The remaining budget, from where the checkpoint left off.
+        assert seen["start_update"] == 1
+        assert seen["num_updates"] == 2
         assert seen["init_params"] is not None
         assert _adam_count(seen["init_opt_state"]) == 2
         assert float(seen["init_obs_stats"].count) == pytest.approx(4.0001 * 0.01)
