@@ -20,8 +20,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from environments.shared.scripts import stance_gate_report
-from environments.shared.scripts.stance_gate_report import (
+from environments.shared.reporting import stance_report
+from environments.shared.reporting.stance_report import (
     StanceGateReportError,
     write_stance_gate_report,
 )
@@ -52,7 +52,7 @@ def test_corrupt_vecnorm_is_fatal_with_a_diagnosable_message(stub_ppo, tmp_path:
     truncated.write_bytes(pickle.dumps({"obs_rms": None})[:12])
 
     with pytest.raises(StanceGateReportError) as excinfo:
-        stance_gate_report._load_policy("model.zip", str(truncated), lambda: None)
+        stance_report._load_policy("model.zip", str(truncated), lambda: None)
 
     message = str(excinfo.value)
     # Names the file, says why it is fatal, and points at the likely cause.
@@ -63,7 +63,7 @@ def test_corrupt_vecnorm_is_fatal_with_a_diagnosable_message(stub_ppo, tmp_path:
 
 def test_no_vecnorm_is_allowed_but_labelled(stub_ppo) -> None:
     """Running unnormalised is permitted only when explicitly not supplied."""
-    _predict, description = stance_gate_report._load_policy("model.zip", None, lambda: None)
+    _predict, description = stance_report._load_policy("model.zip", None, lambda: None)
     assert "no obs normalisation" in description
 
 
@@ -92,7 +92,7 @@ def test_dict_observation_statistics_are_rejected(stub_ppo, monkeypatch) -> None
     monkeypatch.setattr(vec_env_module, "DummyVecEnv", lambda fns: None)
 
     with pytest.raises(StanceGateReportError) as excinfo:
-        stance_gate_report._load_policy("model.zip", "v.pkl", lambda: None)
+        stance_report._load_policy("model.zip", "v.pkl", lambda: None)
 
     message = str(excinfo.value)
     assert "Dict observation space" in message
@@ -109,7 +109,7 @@ def test_flat_statistics_are_applied(stub_ppo, monkeypatch) -> None:
     )
     monkeypatch.setattr(vec_env_module, "DummyVecEnv", lambda fns: None)
 
-    _predict, description = stance_gate_report._load_policy("model.zip", "v.pkl", lambda: None)
+    _predict, description = stance_report._load_policy("model.zip", "v.pkl", lambda: None)
     assert "VecNormalize stats applied" in description
 
 
@@ -145,7 +145,7 @@ class TestTrainingPipelineHook:
             called = True
             raise AssertionError("must not roll a panel for a non-stance stage")
 
-        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         stage_artifacts._write_stance_gate_report(
             species="trex",
             stage=2,
@@ -180,7 +180,7 @@ class TestTrainingPipelineHook:
         (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
 
         monkeypatch.setattr(
-            stance_gate_report,
+            stance_report,
             "build_stance_gate_report",
             lambda *a, **k: (_ for _ in ()).throw(RuntimeError("rollout exploded")),
         )
@@ -210,7 +210,7 @@ class TestTrainingPipelineHook:
 
         called: list = []
         monkeypatch.setattr(
-            stance_gate_report,
+            stance_report,
             "build_stance_gate_report",
             lambda *a, **k: called.append(k) or {},
         )
@@ -239,7 +239,7 @@ class TestTrainingPipelineHook:
 
         seen: dict = {}
         monkeypatch.setattr(
-            stance_gate_report,
+            stance_report,
             "build_stance_gate_report",
             lambda *a, **k: seen.update(k) or (_ for _ in ()).throw(RuntimeError("stop here")),
         )
@@ -301,7 +301,7 @@ class TestTrainingPipelineHook:
                 "reward_components": {"reward_alive": 832.23},
             }
 
-        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _fake)
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _fake)
         stage_artifacts._write_stance_gate_report(
             species="trex",
             stage=1,
@@ -385,7 +385,7 @@ class TestJsonIsParseable:
         # one that used to emit bare NaN / Infinity tokens.
         import json
 
-        stance_gate_report.write_stance_gate_report(tmp_path, self._report())
+        stance_report.write_stance_gate_report(tmp_path, self._report())
         text = (tmp_path / "stance_gate_report.json").read_text()
 
         assert "NaN" not in text
@@ -400,14 +400,14 @@ class TestJsonIsParseable:
         assert payload["metrics"]["n_duty_episodes"] == 0
 
     def test_the_text_form_still_shows_the_sentinel(self, tmp_path):
-        stance_gate_report.write_stance_gate_report(tmp_path, self._report())
+        stance_report.write_stance_gate_report(tmp_path, self._report())
         text = (tmp_path / "stance_gate_report.txt").read_text()
         assert "inf" in text
 
     def test_finite_values_are_untouched(self, tmp_path):
         import json
 
-        stance_gate_report.write_stance_gate_report(
+        stance_report.write_stance_gate_report(
             tmp_path,
             self._report(mean_unsupported_duty=0.0187, unsupported_duty_ucb=0.0191),
         )
@@ -473,9 +473,9 @@ class TestStanceSharesSumToOne:
         # too, and it keeps mypy from checking a SimpleNamespace stub against
         # the registry's declared Callable[[], SpeciesConfig].
         monkeypatch.setattr(
-            stance_gate_report, "SPECIES_FACTORIES", {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
+            stance_report, "SPECIES_FACTORIES", {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
         )
-        return stance_gate_report.run_panel(
+        return stance_report.run_panel(
             "trex",
             predict=lambda obs: np.zeros(6),
             episodes=40,
@@ -541,7 +541,7 @@ class TestPanelHygiene:
         import numpy as np
 
         monkeypatch.setattr(
-            stance_gate_report,
+            stance_report,
             "SPECIES_FACTORIES",
             {"trex": lambda: types.SimpleNamespace(env_class=self._fake_env_class(recorder))},
         )
@@ -554,7 +554,7 @@ class TestPanelHygiene:
             env_kwargs={},
         )
         kwargs.update(overrides)
-        return stance_gate_report.run_panel("trex", **kwargs)
+        return stance_report.run_panel("trex", **kwargs)
 
     def test_the_environment_is_closed(self, monkeypatch):
         # A MuJoCo env holds native handles and the artifact path builds one
@@ -610,13 +610,13 @@ class TestBuildReportArguments:
         # panel for `--episodes 0`, and skipped the under-powered warning too,
         # so the flag read as an override that did nothing.
         with pytest.raises(ValueError, match="at least 1"):
-            stance_gate_report.build_stance_gate_report(
+            stance_report.build_stance_gate_report(
                 "trex", 1, stage_config=self._stage_config(), zero_action=True, episodes=0
             )
 
     def test_negative_episodes_is_rejected(self):
         with pytest.raises(ValueError, match="at least 1"):
-            stance_gate_report.build_stance_gate_report(
+            stance_report.build_stance_gate_report(
                 "trex", 1, stage_config=self._stage_config(), zero_action=True, episodes=-5
             )
 
@@ -651,7 +651,7 @@ class TestStanceReportEpisodesKnob:
 
         seen: dict = {}
         monkeypatch.setattr(
-            stance_gate_report,
+            stance_report,
             "build_stance_gate_report",
             lambda *a, **k: seen.update(k) or (_ for _ in ()).throw(RuntimeError("stop after the call")),
         )
@@ -713,19 +713,19 @@ class TestPlantValidation:
 
         identity = current_plant_identity("trex", verify_generated=False)
         with pytest.raises(PlantCompatibilityError):
-            stance_gate_report._load_policy("model.zip", None, lambda: None, plant_identity=identity)
+            stance_report._load_policy("model.zip", None, lambda: None, plant_identity=identity)
 
     def test_allow_legacy_plant_permits_it(self, stub_ppo):
         from environments.shared.plant_contract import current_plant_identity
 
         identity = current_plant_identity("trex", verify_generated=False)
-        predict, _ = stance_gate_report._load_policy(
+        predict, _ = stance_report._load_policy(
             "model.zip", None, lambda: None, plant_identity=identity, allow_legacy_plant=True
         )
         assert callable(predict)
 
     def test_no_identity_supplied_skips_validation(self, stub_ppo):
-        predict, _ = stance_gate_report._load_policy("model.zip", None, lambda: None)
+        predict, _ = stance_report._load_policy("model.zip", None, lambda: None)
         assert callable(predict)
 
     def test_the_report_records_whether_the_plant_was_validated(self, tmp_path):
@@ -768,7 +768,7 @@ class TestPlantValidation:
         }
         import json
 
-        stance_gate_report.write_stance_gate_report(tmp_path, report)
+        stance_report.write_stance_gate_report(tmp_path, report)
         payload = json.loads((tmp_path / "stance_gate_report.json").read_text())
         assert payload["checkpoint_plant_validated"] is False
 
@@ -818,12 +818,12 @@ class TestCheckpointPlantProvenance:
                 pass
 
         monkeypatch.setattr(
-            stance_gate_report, "SPECIES_FACTORIES", {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
+            stance_report, "SPECIES_FACTORIES", {"trex": lambda: types.SimpleNamespace(env_class=FakeEnv)}
         )
         monkeypatch.setattr(
             "environments.shared.plant_contract.validate_environment_plant", lambda *a, **k: None, raising=False
         )
-        return stance_gate_report.build_stance_gate_report(
+        return stance_report.build_stance_gate_report(
             "trex", 1, stage_config=self._stage_config(), episodes=1, **kwargs
         )
 
@@ -1002,7 +1002,7 @@ class TestActionFilterProbe:
 
     @staticmethod
     def _filtered(cutoff_hz, control_dt=0.01, actions=None):
-        from environments.shared.scripts.stance_gate_report import _low_pass_predict
+        from environments.shared.reporting.stance_report import _low_pass_predict
 
         seq = iter(actions or [])
         base = lambda _obs: np.asarray(next(seq), dtype=np.float64)  # noqa: E731
@@ -1034,7 +1034,7 @@ class TestActionFilterProbe:
         assert float(predict(None)[0]) == pytest.approx(-1.0)
 
     def test_the_report_records_the_probe_so_a_pass_cannot_be_mistaken(self):
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+        from environments.shared.reporting.stance_report import render_stance_gate_report
 
         report = _minimal_stance_report()
         report["filter_actions_hz"] = 5.0
@@ -1045,7 +1045,7 @@ class TestActionFilterProbe:
         assert text.index("PROBE") < text.index("GATE:")
 
     def test_an_unfiltered_report_says_nothing_about_the_probe(self):
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+        from environments.shared.reporting.stance_report import render_stance_gate_report
 
         assert "PROBE" not in render_stance_gate_report(_minimal_stance_report())
 
@@ -1113,7 +1113,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
             nonlocal called
             called = True
 
-        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         stage_artifacts._write_filtered_action_probe(
             species="trex",
             stage=1,
@@ -1142,7 +1142,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         assert _probe_cutoffs([5.0, "nonsense", -3.0, 0.0, 10.0]) == [5.0, 10.0]
 
     def test_the_sweep_writes_one_curve_and_no_panel_evidence(self, tmp_path):
-        from environments.shared.scripts.stance_gate_report import write_action_filter_sweep
+        from environments.shared.reporting.stance_report import write_action_filter_sweep
 
         reports = []
         for hz, length in ((20.0, 289.2), (5.0, 96.2), (10.0, 189.1)):
@@ -1179,7 +1179,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
             r["filter_actions_hz"] = kwargs["filter_actions_hz"]
             return r
 
-        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _flaky)
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _flaky)
         stage_artifacts._write_filtered_action_probe(
             species="trex",
             stage=1,
@@ -1206,7 +1206,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
             r["filter_actions_hz"] = kwargs["filter_actions_hz"]
             return r
 
-        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _capture)
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _capture)
         stage_artifacts._write_filtered_action_probe(
             species="trex",
             stage=1,
@@ -1229,7 +1229,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
             report["filter_actions_hz"] = kwargs["filter_actions_hz"]
             return report
 
-        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _capture)
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _capture)
         stage_artifacts._write_filtered_action_probe(
             species="trex",
             stage=1,
@@ -1247,7 +1247,7 @@ class TestTheProbeIsWiredIntoTrainingArtifacts:
         from environments.shared.reporting import stage_artifacts
 
         monkeypatch.setattr(
-            stance_gate_report,
+            stance_report,
             "build_stance_gate_report",
             lambda *a, **k: (_ for _ in ()).throw(RuntimeError("probe exploded")),
         )
@@ -1284,7 +1284,7 @@ class TestPerActuatorActionReporting:
 
     @staticmethod
     def _stats(sequence):
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             _accumulate_action,
             _new_action_stats,
         )
@@ -1295,7 +1295,7 @@ class TestPerActuatorActionReporting:
         return stats
 
     def test_dc_and_ac_are_reported_per_actuator(self):
-        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+        from environments.shared.reporting.stance_report import _reduce_action_stats
 
         # Actuator 0 holds 0.5 and shakes +/-0.1; actuator 1 is still at 0.
         stats = self._stats([[0.6, 0.0], [0.4, 0.0]] * 10)
@@ -1307,7 +1307,7 @@ class TestPerActuatorActionReporting:
         assert by_joint["tail_1"]["ac_rms"] == pytest.approx(0.0)
 
     def test_the_effective_frequency_matches_the_inversion(self):
-        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+        from environments.shared.reporting.stance_report import _reduce_action_stats
 
         # Alternating every step is the Nyquist rate: 50 Hz at dt = 0.01.
         stats = self._stats([[1.0], [-1.0]] * 20)
@@ -1315,7 +1315,7 @@ class TestPerActuatorActionReporting:
         assert out["effective_freq_hz"] == pytest.approx(50.0, abs=0.5)
 
     def test_a_constant_action_has_no_frequency(self):
-        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+        from environments.shared.reporting.stance_report import _reduce_action_stats
 
         out = _reduce_action_stats(self._stats([[0.5]] * 10), ["j"], 0.01)
         # No first difference leaves the ratio undefined. NaN is honest;
@@ -1324,7 +1324,7 @@ class TestPerActuatorActionReporting:
         assert out["dc_rms"] == pytest.approx(0.5)
 
     def test_no_measured_steps_yields_an_empty_block(self):
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             _new_action_stats,
             _reduce_action_stats,
         )
@@ -1332,13 +1332,13 @@ class TestPerActuatorActionReporting:
         assert _reduce_action_stats(_new_action_stats(), [], 0.01) == {}
 
     def test_unnamed_actuators_fall_back_to_an_index(self):
-        from environments.shared.scripts.stance_gate_report import _reduce_action_stats
+        from environments.shared.reporting.stance_report import _reduce_action_stats
 
         out = _reduce_action_stats(self._stats([[0.1, 0.2]] * 4), [], 0.01)
         assert [entry["joint"] for entry in out["per_actuator"]] == ["actuator_0", "actuator_1"]
 
     def test_the_text_form_lists_the_largest_offsets_first(self):
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+        from environments.shared.reporting.stance_report import render_stance_gate_report
 
         report = _minimal_stance_report()
         report["action"] = {
@@ -1357,7 +1357,7 @@ class TestPerActuatorActionReporting:
         assert text.index("tail_1") < text.index("r_knee")
 
     def test_a_report_without_the_block_still_renders(self):
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+        from environments.shared.reporting.stance_report import render_stance_gate_report
 
         assert "commanded action" not in render_stance_gate_report(_minimal_stance_report())
 
@@ -1394,14 +1394,14 @@ class TestConstantHoldWrapper:
 
     @staticmethod
     def _held(hold, actions=None):
-        from environments.shared.scripts.stance_gate_report import _hold_constant_predict
+        from environments.shared.reporting.stance_report import _hold_constant_predict
 
         seq = iter(actions or [])
         base = lambda _obs: np.asarray(next(seq), dtype=np.float64)  # noqa: E731
         return _hold_constant_predict(base, hold)
 
     def test_the_policy_runs_until_handoff_then_stops_being_consulted(self):
-        from environments.shared.scripts.stance_gate_report import ConstantHold
+        from environments.shared.reporting.stance_report import ConstantHold
 
         hold = ConstantHold((0.5,), handoff_steps=2)
         # Only two policy actions are supplied: a third call would raise
@@ -1411,14 +1411,14 @@ class TestConstantHoldWrapper:
 
     def test_a_handoff_at_the_horizon_never_substitutes(self):
         """This is how the unmodified control variant is expressed."""
-        from environments.shared.scripts.stance_gate_report import ConstantHold
+        from environments.shared.reporting.stance_report import ConstantHold
 
         hold = ConstantHold((9.9,), handoff_steps=1000, holds=False)
         predict = self._held(hold, actions=[[0.1], [0.2], [0.3]])
         assert [float(predict(None)[0]) for _ in range(3)] == pytest.approx([0.1, 0.2, 0.3])
 
     def test_the_ramp_blends_from_the_policys_last_action(self):
-        from environments.shared.scripts.stance_gate_report import ConstantHold
+        from environments.shared.reporting.stance_report import ConstantHold
 
         hold = ConstantHold((1.0,), handoff_steps=1, ramp_steps=4)
         predict = self._held(hold, actions=[[0.0]])
@@ -1434,14 +1434,14 @@ class TestConstantHoldWrapper:
         Starting the ramp anywhere else would jump the pose on the first step,
         which is the transient the ramp exists to avoid.
         """
-        from environments.shared.scripts.stance_gate_report import ConstantHold
+        from environments.shared.reporting.stance_report import ConstantHold
 
         hold = ConstantHold((1.0,), handoff_steps=0, ramp_steps=2)
         predict = self._held(hold)
         assert [float(predict(None)[0]) for _ in range(3)] == pytest.approx([0.5, 1.0, 1.0])
 
     def test_reset_prevents_one_episode_starting_past_handoff(self):
-        from environments.shared.scripts.stance_gate_report import ConstantHold
+        from environments.shared.reporting.stance_report import ConstantHold
 
         hold = ConstantHold((0.5,), handoff_steps=1)
         predict = self._held(hold, actions=[[0.1], [0.2]])
@@ -1455,7 +1455,7 @@ class TestConstantHoldWrapper:
 
 class TestConstantHoldExtraction:
     def test_it_reads_the_per_actuator_dc_in_index_order(self):
-        from environments.shared.scripts.stance_gate_report import constant_hold_actions
+        from environments.shared.reporting.stance_report import constant_hold_actions
 
         report = {
             "action": {
@@ -1470,7 +1470,7 @@ class TestConstantHoldExtraction:
 
     def test_a_report_without_the_block_fails_loudly(self):
         """Silently holding zeros would score the statue and call it the policy."""
-        from environments.shared.scripts.stance_gate_report import constant_hold_actions
+        from environments.shared.reporting.stance_report import constant_hold_actions
 
         with pytest.raises(StanceGateReportError, match="no per-actuator action statistics"):
             constant_hold_actions(_minimal_stance_report())
@@ -1478,7 +1478,7 @@ class TestConstantHoldExtraction:
 
 class TestConstantHoldVariants:
     def test_the_set_brackets_the_held_rows_with_two_controls(self):
-        from environments.shared.scripts.stance_gate_report import constant_hold_variants
+        from environments.shared.reporting.stance_report import constant_hold_variants
 
         variants = constant_hold_variants((0.5, -0.5), settle_steps=200, horizon=1000)
         by_label = {v.label: v for v in variants}
@@ -1491,7 +1491,7 @@ class TestConstantHoldVariants:
         assert by_label["hold_from_reset"].handoff_steps == 0
 
     def test_the_zero_control_matches_the_hold_width(self):
-        from environments.shared.scripts.stance_gate_report import constant_hold_variants
+        from environments.shared.reporting.stance_report import constant_hold_variants
 
         variants = constant_hold_variants(tuple([0.5] * 21), settle_steps=200, horizon=1000)
         assert all(len(v.actions) == 21 for v in variants)
@@ -1517,7 +1517,7 @@ class TestConstantHoldProbeCannotBeMistakenForTheVerdict:
         assert not (tmp_path / "stance_gate_report.txt").exists()
 
     def test_the_banner_precedes_the_verdict(self):
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+        from environments.shared.reporting.stance_report import render_stance_gate_report
 
         text = render_stance_gate_report(_held_report("hold_after_settle"))
         assert "PROBE" in text
@@ -1525,20 +1525,20 @@ class TestConstantHoldProbeCannotBeMistakenForTheVerdict:
         assert text.index("PROBE") < text.index("GATE:")
 
     def test_the_control_row_says_it_was_not_held(self):
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+        from environments.shared.reporting.stance_report import render_stance_gate_report
 
         text = render_stance_gate_report(_held_report("policy (control)", holds=False, handoff=1000))
         assert "unmodified control" in text
 
     def test_every_probe_marker_maps_to_a_distinct_stem(self):
         """Two probes sharing a stem would overwrite each other's artifact."""
-        from environments.shared.scripts.stance_gate_report import _PROBE_MARKERS
+        from environments.shared.reporting.stance_report import _PROBE_MARKERS
 
         assert len(set(_PROBE_MARKERS.values())) == len(_PROBE_MARKERS)
         assert "stance_gate_report" not in set(_PROBE_MARKERS.values())
 
     def test_an_ordinary_report_is_still_not_a_probe(self):
-        from environments.shared.scripts.stance_gate_report import probe_stem
+        from environments.shared.reporting.stance_report import probe_stem
 
         assert probe_stem(_minimal_stance_report()) is None
 
@@ -1562,13 +1562,13 @@ class TestConstantHoldProbeTable:
         Counting it among the measured holds would make an all-falling result
         read as mixed, which is the one reading that stops the probe concluding.
         """
-        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+        from environments.shared.reporting.stance_report import write_constant_hold_probe
 
         write_constant_hold_probe(tmp_path, self._standard(0.0), probe_episodes=10)
         assert "REQUIRES" in (tmp_path / "stance_gate_probe_constant.txt").read_text()
 
     def test_all_held_rows_standing_reads_as_an_optimisation_failure(self, tmp_path):
-        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+        from environments.shared.reporting.stance_report import write_constant_hold_probe
 
         write_constant_hold_probe(tmp_path, self._standard(1.0), probe_episodes=10)
         text = (tmp_path / "stance_gate_probe_constant.txt").read_text()
@@ -1576,7 +1576,7 @@ class TestConstantHoldProbeTable:
         assert "MODIFIED policy" in text
 
     def test_all_held_rows_falling_reads_as_load_bearing_feedback(self, tmp_path):
-        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+        from environments.shared.reporting.stance_report import write_constant_hold_probe
 
         write_constant_hold_probe(tmp_path, self._standard(0.0), probe_episodes=10)
         text = (tmp_path / "stance_gate_probe_constant.txt").read_text()
@@ -1584,7 +1584,7 @@ class TestConstantHoldProbeTable:
         assert "penalising" in text, "the conclusion must warn against the obvious wrong fix"
 
     def test_a_mixed_result_refuses_to_conclude(self, tmp_path):
-        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+        from environments.shared.reporting.stance_report import write_constant_hold_probe
 
         reports = self._standard(1.0)
         reports[1]["metrics"] = dict(reports[1]["metrics"], full_horizon_fraction=0.0, episode_length_mean=231.0)
@@ -1594,7 +1594,7 @@ class TestConstantHoldProbeTable:
         assert "step transient" in text, "the ramped variant is what tells the two apart"
 
     def test_it_never_writes_the_certification_evidence(self, tmp_path):
-        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+        from environments.shared.reporting.stance_report import write_constant_hold_probe
 
         written = write_constant_hold_probe(tmp_path, self._standard(1.0), probe_episodes=10)
         assert set(written) == {"constant_hold_probe_txt", "constant_hold_probe_json"}
@@ -1604,7 +1604,7 @@ class TestConstantHoldProbeTable:
     def test_the_json_carries_the_held_vector_not_the_controls_zeros(self, tmp_path):
         import json
 
-        from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+        from environments.shared.reporting.stance_report import write_constant_hold_probe
 
         write_constant_hold_probe(tmp_path, self._standard(1.0), probe_episodes=10)
         payload = json.loads((tmp_path / "stance_gate_probe_constant.json").read_text())
@@ -1623,7 +1623,7 @@ class TestTheConstantHoldProbeIsWiredIntoTrainingArtifacts:
             nonlocal called
             called = True
 
-        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         stage_artifacts._write_constant_hold_probe(
             species="trex",
             stage=1,
@@ -1696,20 +1696,20 @@ _TREX_ACTUATORS = [
 
 class TestActuatorGroupSelection:
     def test_saturation_is_measured_not_named(self):
-        from environments.shared.scripts.stance_gate_report import saturated_actuator_indices
+        from environments.shared.reporting.stance_report import saturated_actuator_indices
 
         report = _report_with_actuators(_TREX_ACTUATORS)
         assert saturated_actuator_indices(report) == (2, 4, 7, 8, 9)
 
     def test_the_threshold_is_a_magnitude_so_both_limits_count(self):
         """`l_hip_roll` sits at -1.0 and is exactly as saturated as +1.0."""
-        from environments.shared.scripts.stance_gate_report import saturated_actuator_indices
+        from environments.shared.reporting.stance_report import saturated_actuator_indices
 
         report = _report_with_actuators([("a", -1.0), ("b", 0.5)])
         assert saturated_actuator_indices(report) == (0,)
 
     def test_groups_match_by_joint_name(self):
-        from environments.shared.scripts.stance_gate_report import actuator_indices_matching
+        from environments.shared.reporting.stance_report import actuator_indices_matching
 
         report = _report_with_actuators(_TREX_ACTUATORS)
         assert actuator_indices_matching(report, ("tail",)) == (9,)
@@ -1719,18 +1719,18 @@ class TestActuatorGroupSelection:
         assert actuator_indices_matching(report, ("head", "neck")) == (0, 1, 2)
 
     def test_release_returns_the_named_actuators_to_home(self):
-        from environments.shared.scripts.stance_gate_report import constant_hold_released
+        from environments.shared.reporting.stance_report import constant_hold_released
 
         assert constant_hold_released((0.5, -0.5, 1.0), (0, 2)) == pytest.approx((0.0, -0.5, 0.0))
 
     def test_releasing_everything_is_the_statue(self):
         """The ablation is a path between two measured endpoints; this is one."""
-        from environments.shared.scripts.stance_gate_report import constant_hold_released
+        from environments.shared.reporting.stance_report import constant_hold_released
 
         assert constant_hold_released((0.5, -0.5), (0, 1)) == pytest.approx((0.0, 0.0))
 
     def test_releasing_nothing_leaves_the_pose_alone(self):
-        from environments.shared.scripts.stance_gate_report import constant_hold_released
+        from environments.shared.reporting.stance_report import constant_hold_released
 
         assert constant_hold_released((0.5, -0.5), ()) == pytest.approx((0.5, -0.5))
 
@@ -1738,7 +1738,7 @@ class TestActuatorGroupSelection:
 class TestReleaseAblationVariants:
     @staticmethod
     def _variants():
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             constant_hold_actions,
             constant_hold_release_variants,
         )
@@ -1750,7 +1750,7 @@ class TestReleaseAblationVariants:
     def test_every_group_gets_both_directions(self):
         """One side alone is not evidence: necessity and sufficiency differ.
 
-        The tuple must track `_ACTUATOR_GROUPS` in stance_gate_report.py: the
+        The tuple must track `_ACTUATOR_GROUPS` in reporting/stance_report.py: the
         r7 additions (knees_ankles and the per-side legs) are the groups the
         passive-toes run's knee-localization conclusion rests on, and they
         went untested for a week because this list wasn't extended with them.
@@ -1810,7 +1810,7 @@ class TestReleaseAblationVariants:
 
     def test_a_group_covering_every_actuator_is_not_an_ablation(self):
         """Releasing all of them is the statue, which is already a row."""
-        from environments.shared.scripts.stance_gate_report import constant_hold_release_variants
+        from environments.shared.reporting.stance_report import constant_hold_release_variants
 
         report = _report_with_actuators([("tail_1_pitch", 1.0), ("tail_2_pitch", 1.0)])
         labels = {v.label for v in constant_hold_release_variants((1.0, 1.0), report, horizon=1000)}
@@ -1829,7 +1829,7 @@ def _ablation_row(label, full, *, holds=True, length=None, released=0):
 class TestAblationVerdicts:
     @staticmethod
     def _render(pairs, **extra):
-        from environments.shared.scripts.stance_gate_report import render_constant_hold_ablation
+        from environments.shared.reporting.stance_report import render_constant_hold_ablation
 
         reports = [_ablation_row("policy (control)", 1.0, holds=False), _ablation_row("hold_all", 0.0)]
         for group, (release_full, only_full) in pairs.items():
@@ -1877,7 +1877,7 @@ class TestAblationVerdicts:
         assert "bystander" in text, "the failure mode must be named, not just the success"
 
     def test_it_writes_its_own_filenames_and_no_evidence(self, tmp_path):
-        from environments.shared.scripts.stance_gate_report import write_constant_hold_ablation
+        from environments.shared.reporting.stance_report import write_constant_hold_ablation
 
         reports = [_ablation_row("policy (control)", 1.0, holds=False), _ablation_row("hold_all", 0.0)]
         written = write_constant_hold_ablation(tmp_path, reports, probe_episodes=8)
@@ -1919,7 +1919,7 @@ class TestControlTargetsInDegrees:
 
     @staticmethod
     def _stats(means, mapping, names=None):
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             _commanded_angle,
             _new_action_stats,
             _reduce_action_stats,
@@ -1967,7 +1967,7 @@ class TestControlTargetsInDegrees:
         assert by_joint["r_toe_d2_joint"]["dc_deg"] == pytest.approx(37.5, abs=0.1)
 
     def test_the_table_is_ordered_by_degrees_not_by_normalised_action(self):
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+        from environments.shared.reporting.stance_report import render_stance_gate_report
 
         report = _minimal_stance_report()
         report["action"] = self._stats([1.0, 0.6], [self._TAIL, self._TOE], names=["tail_1_pitch", "r_toe_d2_joint"])
@@ -1978,7 +1978,7 @@ class TestControlTargetsInDegrees:
 
     def test_a_centred_mapping_reports_applied_control_rms(self):
         """The physical AC field comes from controls, even in the easy symmetric case."""
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             _accumulate_action,
             _new_action_stats,
             _reduce_action_stats,
@@ -1998,7 +1998,7 @@ class TestControlTargetsInDegrees:
 
     def test_asymmetric_mapping_uses_actual_control_moments(self):
         """E[f(a)] and rms(f(a)) cannot be recovered by scaling action moments."""
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             _accumulate_action,
             _new_action_stats,
             _reduce_action_stats,
@@ -2024,7 +2024,7 @@ class TestControlTargetsInDegrees:
         assert entry["ac_rms_deg"] == pytest.approx(math.degrees(0.625))
 
     def test_missing_applied_controls_does_not_guess_physical_moments(self):
-        from environments.shared.scripts.stance_gate_report import _new_action_stats, _reduce_action_stats
+        from environments.shared.reporting.stance_report import _new_action_stats, _reduce_action_stats
 
         stats = _new_action_stats()
         stats["sum"] = np.asarray([0.25])
@@ -2037,7 +2037,7 @@ class TestControlTargetsInDegrees:
 
     def test_trex_mapping_uses_home_control_and_keeps_preload_separate(self):
         """Action zero is home control; ankle control-vs-pose preload is intentional."""
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             _actuator_joint_names,
             _actuator_pose_mapping,
             render_stance_gate_report,
@@ -2068,7 +2068,7 @@ class TestControlTargetsInDegrees:
         assert "this is not policy displacement" in text
 
     def test_trex_asymmetric_piecewise_mapping_matches_the_environment(self):
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             _actuator_joint_names,
             _actuator_pose_mapping,
             _commanded_angle,
@@ -2085,7 +2085,7 @@ class TestControlTargetsInDegrees:
             env.close()
 
     def test_trex_cross_zero_controls_are_reduced_after_scaling(self):
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             _accumulate_action,
             _actuator_joint_names,
             _actuator_pose_mapping,
@@ -2114,7 +2114,7 @@ class TestControlTargetsInDegrees:
         assert by_joint["neck_pitch"]["ac_rms_deg"] == pytest.approx(17.5, abs=0.01)
 
     def test_real_panel_records_the_controls_applied_by_trex(self):
-        from environments.shared.scripts.stance_gate_report import run_panel
+        from environments.shared.reporting.stance_report import run_panel
 
         result = run_panel(
             "trex",
@@ -2132,7 +2132,7 @@ class TestControlTargetsInDegrees:
         assert by_joint["r_ankle"]["home_preload_deg"] == pytest.approx(5.5, abs=0.1)
 
     def test_motor_controls_are_not_mislabeled_as_degrees(self):
-        from environments.shared.scripts.stance_gate_report import run_panel
+        from environments.shared.reporting.stance_report import run_panel
 
         action = np.zeros(22, dtype=np.float32)
         action[[6, 13]] = 1.0  # r/l claw motors, each with gear=50
@@ -2169,7 +2169,7 @@ class TestControlTargetsInDegrees:
 
     def test_a_report_without_a_mapping_still_renders(self):
         """The model is unreachable from some callers; degrees are a convenience."""
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+        from environments.shared.reporting.stance_report import render_stance_gate_report
 
         report = _minimal_stance_report()
         report["action"] = self._stats([1.0], [], names=["tail_1_pitch"])
@@ -2181,7 +2181,7 @@ class TestControlTargetsInDegrees:
 
     def test_the_hold_probe_still_reads_normalised_dc(self):
         """`constant_hold_actions` commands actions, not angles."""
-        from environments.shared.scripts.stance_gate_report import constant_hold_actions
+        from environments.shared.reporting.stance_report import constant_hold_actions
 
         report = _minimal_stance_report()
         report["action"] = self._stats([0.4, -0.7], [self._TAIL, self._TOE])
@@ -2208,7 +2208,7 @@ def _impulse_report(speed, axis, *, length, full, reward=3000.0, step=200):
 class TestRootImpulse:
     def test_the_impulse_translates_the_whole_animal(self):
         """qvel[0:3] is the free joint's world velocity; children compose from it."""
-        from environments.shared.scripts.stance_gate_report import RootImpulse, _apply_root_impulse
+        from environments.shared.reporting.stance_report import RootImpulse, _apply_root_impulse
 
         class _Data:
             qvel = np.zeros(10)
@@ -2228,7 +2228,7 @@ class TestRootImpulse:
 
     def test_it_adds_rather_than_overwriting(self):
         """The animal is already moving; overwriting would erase its own state."""
-        from environments.shared.scripts.stance_gate_report import RootImpulse, _apply_root_impulse
+        from environments.shared.reporting.stance_report import RootImpulse, _apply_root_impulse
 
         class _Env:
             unwrapped = type(
@@ -2245,13 +2245,13 @@ class TestRootImpulse:
         assert env.unwrapped.data.qvel[:3] == pytest.approx([0.1, 0.8, 0.3])
 
     def test_the_speed_is_the_vector_magnitude(self):
-        from environments.shared.scripts.stance_gate_report import RootImpulse
+        from environments.shared.reporting.stance_report import RootImpulse
 
         assert RootImpulse(step=0, delta_v=(3.0, 4.0, 0.0)).speed == pytest.approx(5.0)
 
     def test_both_directions_are_swept(self):
         """The policy is asymmetric, so a one-sided sweep measures one side."""
-        from environments.shared.scripts.stance_gate_report import impulse_variants
+        from environments.shared.reporting.stance_report import impulse_variants
 
         labels = [v.axis_label for v in impulse_variants([1.0], step=200)]
         assert labels.count("lateral +y") == 1
@@ -2259,13 +2259,13 @@ class TestRootImpulse:
         assert "none (control)" in labels
 
     def test_the_zero_control_is_always_present(self):
-        from environments.shared.scripts.stance_gate_report import impulse_variants
+        from environments.shared.reporting.stance_report import impulse_variants
 
         control = impulse_variants([2.0], step=200)[0]
         assert control.speed == 0.0
 
     def test_nonpositive_speeds_are_dropped_not_mirrored(self):
-        from environments.shared.scripts.stance_gate_report import impulse_variants
+        from environments.shared.reporting.stance_report import impulse_variants
 
         speeds = {v.speed for v in impulse_variants([1.0, 0.0, -1.0], step=200)}
         assert speeds == {0.0, 1.0}
@@ -2281,7 +2281,7 @@ class TestImpulseProbeIsNotAVerdict:
 
     def test_the_banner_says_the_TASK_was_modified_not_the_policy(self):
         """Opposite direction from the other two probes, same consequence."""
-        from environments.shared.scripts.stance_gate_report import render_stance_gate_report
+        from environments.shared.reporting.stance_report import render_stance_gate_report
 
         text = render_stance_gate_report(_impulse_report(1.0, "lateral +y", length=400.0, full=0.0))
         assert "MODIFIED TASK" in text
@@ -2289,7 +2289,7 @@ class TestImpulseProbeIsNotAVerdict:
         assert text.index("PROBE") < text.index("GATE:")
 
     def test_all_three_probes_have_distinct_stems(self):
-        from environments.shared.scripts.stance_gate_report import _PROBE_MARKERS
+        from environments.shared.reporting.stance_report import _PROBE_MARKERS
 
         assert len(set(_PROBE_MARKERS.values())) == len(_PROBE_MARKERS) == 3
 
@@ -2310,7 +2310,7 @@ class TestImpulseRecoveryReading:
         return policy, statue
 
     def test_a_large_positive_margin_reads_as_active_correction(self):
-        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+        from environments.shared.reporting.stance_report import render_impulse_probe
 
         policy, statue = self._sweep(
             [(1000.0, 1.0), (1000.0, 1.0), (1000.0, 1.0)],
@@ -2325,7 +2325,7 @@ class TestImpulseRecoveryReading:
         assert payload["recovery_envelopes"]["lateral +y"]["statue"] == 0.0
 
     def test_no_margin_reads_as_the_task_gap(self):
-        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+        from environments.shared.reporting.stance_report import render_impulse_probe
 
         policy, statue = self._sweep(
             [(1000.0, 1.0), (310.0, 0.0), (295.0, 0.0)],
@@ -2338,7 +2338,7 @@ class TestImpulseRecoveryReading:
 
     def test_a_negative_margin_is_reported_as_such(self):
         """Worse than standing still is a finding, not a rounding of 'no effect'."""
-        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+        from environments.shared.reporting.stance_report import render_impulse_probe
 
         policy, statue = self._sweep(
             [(1000.0, 1.0), (120.0, 0.0), (110.0, 0.0)],
@@ -2349,7 +2349,7 @@ class TestImpulseRecoveryReading:
 
     def test_the_zero_impulse_control_is_excluded_from_the_margin(self):
         """Both sides reach the horizon there, so including it dilutes the signal."""
-        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+        from environments.shared.reporting.stance_report import render_impulse_probe
 
         policy, statue = self._sweep(
             [(1000.0, 1.0), (1000.0, 1.0), (1000.0, 1.0)],
@@ -2361,7 +2361,7 @@ class TestImpulseRecoveryReading:
         assert all(row["margin_steps"] == pytest.approx(700.0) for row in disturbed)
 
     def test_it_writes_no_certification_evidence(self, tmp_path):
-        from environments.shared.scripts.stance_gate_report import write_impulse_probe
+        from environments.shared.reporting.stance_report import write_impulse_probe
 
         policy, statue = self._sweep(
             [(1000.0, 1.0), (900.0, 0.5), (880.0, 0.5)],
@@ -2378,7 +2378,7 @@ class TestImpulseRecoveryReading:
         Pooled over directions that averages to a healthy-looking +135 steps
         and describes neither row. The envelope has to be reported per side.
         """
-        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+        from environments.shared.reporting.stance_report import render_impulse_probe
 
         policy, statue = self._sweep(
             [(1000.0, 1.0), (424.0, 0.0), (1000.0, 1.0)],
@@ -2392,7 +2392,7 @@ class TestImpulseRecoveryReading:
         assert envelopes["lateral -y"]["policy"] == pytest.approx(1.0)
 
     def test_the_pooled_margin_is_reported_second_with_its_caveat(self):
-        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+        from environments.shared.reporting.stance_report import render_impulse_probe
 
         policy, statue = self._sweep(
             [(1000.0, 1.0), (424.0, 0.0), (1000.0, 1.0)],
@@ -2403,7 +2403,7 @@ class TestImpulseRecoveryReading:
         assert text.index("recovery envelope") < text.index("Mean step margin")
 
     def test_a_symmetric_full_recovery_is_not_flagged_asymmetric(self):
-        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+        from environments.shared.reporting.stance_report import render_impulse_probe
 
         policy, statue = self._sweep(
             [(1000.0, 1.0), (1000.0, 1.0), (1000.0, 1.0)],
@@ -2415,7 +2415,7 @@ class TestImpulseRecoveryReading:
 
     def test_a_statue_that_recovers_too_does_not_count_as_active_control(self):
         """Passive robustness is not correction; only the margin over it is."""
-        from environments.shared.scripts.stance_gate_report import render_impulse_probe
+        from environments.shared.reporting.stance_report import render_impulse_probe
 
         policy, statue = self._sweep(
             [(1000.0, 1.0), (1000.0, 1.0), (1000.0, 1.0)],
@@ -2588,7 +2588,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
             nonlocal called
             called = True
 
-        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         self._artifacts()._write_constant_hold_ablation(
             species="trex",
             stage=1,
@@ -2607,7 +2607,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
             nonlocal called
             called = True
 
-        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         self._artifacts()._write_impulse_probe(
             species="trex",
             stage=1,
@@ -2626,7 +2626,7 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
             nonlocal called
             called = True
 
-        monkeypatch.setattr(stance_gate_report, "build_stance_gate_report", _boom)
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", _boom)
         self._artifacts()._write_impulse_probe(
             species="trex",
             stage=1,
@@ -2658,3 +2658,56 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
                 vecnorm_path=None,
                 **kwargs,
             )
+
+
+class TestLibraryBoundary:
+    """The report lives in the reporting package; the script is a CLI shim over it.
+
+    ``reporting.stage_artifacts`` used to import the builders from the
+    script, inverting the package boundary and hiding the code the
+    certification path runs from the coverage gate.  Both directions are
+    pinned: the script re-exports the library's names, and nothing under
+    ``reporting`` reaches into the scripts tree.
+    """
+
+    def test_the_script_re_exports_the_library_names(self):
+        from environments.shared.scripts import stance_gate_report
+
+        for name in (
+            "StanceGateReportError",
+            "ConstantHold",
+            "RootImpulse",
+            "STANCE_PANEL_FIELDNAMES",
+            "build_stance_gate_report",
+            "render_stance_gate_report",
+            "write_stance_gate_report",
+            "write_stance_panel_evidence",
+            "run_panel",
+        ):
+            assert getattr(stance_gate_report, name) is getattr(stance_report, name), name
+
+    def test_stage_artifacts_does_not_import_the_scripts_tree(self):
+        import inspect
+
+        from environments.shared.reporting import stage_artifacts
+
+        assert "environments.shared.scripts" not in inspect.getsource(stage_artifacts)
+
+    def test_importing_the_reporting_modules_never_loads_a_script(self):
+        import subprocess
+        import sys
+
+        code = (
+            "import sys\n"
+            "class _Block:\n"
+            "    def find_spec(self, name, path=None, target=None):\n"
+            "        if name == 'environments.shared.scripts' or name.startswith('environments.shared.scripts.'):\n"
+            "            raise ImportError(f'library code imported {name}')\n"
+            "        return None\n"
+            "sys.meta_path.insert(0, _Block())\n"
+            "import environments.shared.reporting.stage_artifacts\n"
+            "import environments.shared.reporting.stance_report\n"
+            "assert not [m for m in sys.modules if m.startswith('environments.shared.scripts')]\n"
+        )
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=300)
+        assert result.returncode == 0, result.stderr

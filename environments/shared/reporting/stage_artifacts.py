@@ -254,7 +254,7 @@ def _write_stance_gate_report(
 
     selected_name, selected_path, selected_vecnorm = handoff
     try:
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             build_stance_gate_report,
             write_stance_gate_report,
         )
@@ -452,7 +452,7 @@ def _write_filtered_action_probe(
     probe_episodes = max(1, min(episodes, _PROBE_EPISODES))
     entries: list[dict[str, Any]] = []
     try:
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             build_stance_gate_report,
             write_action_filter_sweep,
         )
@@ -483,7 +483,7 @@ def _write_filtered_action_probe(
     # a failure in one of them.
     if entries:
         try:
-            from environments.shared.scripts.stance_gate_report import write_action_filter_sweep
+            from environments.shared.reporting.stance_report import write_action_filter_sweep
 
             written = write_action_filter_sweep(stage_dir, entries, probe_episodes=probe_episodes)
             logger.info("Filtered action probe sweep -> %s", written["action_filter_sweep_txt"])
@@ -526,7 +526,7 @@ def _write_constant_hold_probe(
     probe_episodes = max(1, min(episodes, _PROBE_EPISODES))
     entries: list[dict[str, Any]] = []
     try:
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             build_stance_gate_report,
             constant_hold_actions,
             constant_hold_variants,
@@ -564,7 +564,7 @@ def _write_constant_hold_probe(
     # controls are what make the others readable.
     if entries:
         try:
-            from environments.shared.scripts.stance_gate_report import write_constant_hold_probe
+            from environments.shared.reporting.stance_report import write_constant_hold_probe
 
             written = write_constant_hold_probe(stage_dir, entries, probe_episodes=probe_episodes)
             logger.info("Constant-hold probe -> %s", written["constant_hold_probe_txt"])
@@ -600,7 +600,7 @@ def _write_constant_hold_ablation(
         return
     entries: list[dict[str, Any]] = []
     try:
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             build_stance_gate_report,
             constant_hold_actions,
             constant_hold_release_variants,
@@ -628,7 +628,7 @@ def _write_constant_hold_ablation(
         logger.warning("Release ablation failed for stage %s", stage, exc_info=True)
     if entries:
         try:
-            from environments.shared.scripts.stance_gate_report import write_constant_hold_ablation
+            from environments.shared.reporting.stance_report import write_constant_hold_ablation
 
             written = write_constant_hold_ablation(stage_dir, entries, probe_episodes=_ABLATION_EPISODES)
             logger.info("Release ablation -> %s", written["constant_hold_ablation_txt"])
@@ -681,7 +681,7 @@ def _write_impulse_probe(
     if not speeds:
         return
     try:
-        from environments.shared.scripts.stance_gate_report import (
+        from environments.shared.reporting.stance_report import (
             build_stance_gate_report,
             impulse_variants,
             write_impulse_probe,

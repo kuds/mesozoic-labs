@@ -19,7 +19,7 @@ from environments.trex.envs.trex_env import TRexEnv
 class TestLowPassPrimitives:
     def test_alpha_matches_probe_discretization(self) -> None:
         # alpha = dt / (RC + dt), RC = 1 / (2*pi*fc): the formula
-        # _low_pass_predict in stance_gate_report.py has always used.
+        # _low_pass_predict in reporting/stance_report.py has always used.
         dt = 0.01
         rc = 1.0 / (2.0 * np.pi * 10.0)
         assert low_pass_alpha(10.0, dt) == pytest.approx(dt / (rc + dt))

@@ -26,6 +26,10 @@ from that layout:
   generated figures and replays live, and the local-staging publish
 * :mod:`~environments.shared.reporting.stage_artifacts` — post-training
   artifact generation for the SB3 and JAX/MJX backends
+* :mod:`~environments.shared.reporting.stance_report` — the
+  ``stance_quality/v1`` checkpoint report and its probes, behind
+  ``scripts/stance_gate_report.py``; deliberately not re-exported here
+  (it imports the species registry at module level), so import it by path
 """
 
 from __future__ import annotations

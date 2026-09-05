@@ -278,20 +278,23 @@ def load_all_stages(species: str) -> "dict[int | str, dict[str, Any]]":
     return configs
 
 
-def build_env(species: str, stage: "int | str") -> Any:
+def build_env(species: str, stage: "int | str", **env_overrides: Any) -> Any:
     """Construct the stage's environment from its committed config.
 
     The one construction path the report scripts and the frozen recovery
     gate share: every ``[env]`` key the stage TOML declares reaches the
-    constructor, exactly as training builds the environment.  The registry
-    import is deferred because ``species_registry`` imports ``train_base``,
-    which imports this module.
+    constructor, exactly as training builds the environment.  Keyword
+    *env_overrides* replace individual ``[env]`` values for the diagnostics
+    that need a deliberately different plant state -- the foot-sensor
+    cross-check zeroes ``reset_noise_scale`` so the plant settles
+    deterministically.  The registry import is deferred because
+    ``species_registry`` imports ``train_base``, which imports this module.
     """
     from .species_registry import get_species_config
 
     config = load_stage_config(species, stage)
     env_class = get_species_config(species).env_class
-    return env_class(**config["env_kwargs"])
+    return env_class(**{**config["env_kwargs"], **env_overrides})
 
 
 def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:

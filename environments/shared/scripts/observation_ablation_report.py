@@ -61,6 +61,7 @@ if _repo_root not in sys.path:
 
 from environments.shared.config import SPECIES_NAMES, build_env
 from environments.shared.constants import PUBLICATION_SEED_START
+from environments.shared.policy_loading import UNNORMALIZED_BANNER, PolicyLoadError, load_sb3_checkpoint
 
 # Named observation slices per species, as (start, stop, quat_start_or_None).
 # quat_start is the index of the pelvis/torso quaternion, needed only by the
@@ -76,34 +77,6 @@ SLICES: dict[str, dict[str, tuple[int, int, int | None]]] = {
 # Slices the simulator can supply but a physical robot could not, per species.
 # "privileged" ablates all of them at once.
 PRIVILEGED_SLICES = {"trex": ("root_linvel", "target_dir", "target_dist")}
-UNNORMALIZED_BANNER = "UNNORMALIZED EVAL — results are not comparable to training-time metrics"
-
-
-def resolve_vecnorm_path(model_path: str, vecnorm_arg: str | None, allow_unnormalized: bool) -> str | None:
-    """The VecNormalize sidecar to evaluate with, or ``None`` for a deliberately unnormalised run.
-
-    An explicit ``--vecnorm`` wins.  Otherwise the trainer's own resolver
-    probes both sidecar conventions -- the ``<stem>_vecnorm.pkl`` guess this
-    script used to make can never match SB3's periodic
-    ``<prefix>_vecnormalize_<steps>_steps.pkl``, so every periodic checkpoint
-    was silently scored on raw observations.  No sidecar is fatal unless
-    ``--allow-unnormalized``: the ``mean`` intervention is defined in
-    normalised space, so without statistics every delta below is meaningless.
-    """
-    if vecnorm_arg is not None:
-        return vecnorm_arg
-    from environments.shared.train_base import _resolve_vecnorm_sidecar
-
-    candidate = _resolve_vecnorm_sidecar(model_path)
-    if Path(candidate).exists():
-        return candidate
-    if allow_unnormalized:
-        return None
-    raise SystemExit(
-        f"no VecNormalize sidecar found for {model_path} (probed {candidate}). A policy evaluated on "
-        "unnormalised observations is a different policy; pass --vecnorm, or --allow-unnormalized "
-        "to proceed deliberately."
-    )
 
 
 def quat_to_rotation(quat: np.ndarray) -> np.ndarray:
@@ -219,18 +192,17 @@ def main(argv: list[str]) -> None:
     if args.species not in SLICES:
         raise SystemExit(f"no observation slice table for {args.species!r}; add one to SLICES")
 
-    from stable_baselines3 import PPO
-    from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-
     env = build_env(args.species, args.stage)
-    model = PPO.load(args.model, device="cpu")
-
-    vecnorm_path = resolve_vecnorm_path(args.model, args.vecnorm, args.allow_unnormalized)
-    normalizer = None
-    if vecnorm_path:
-        normalizer = VecNormalize.load(vecnorm_path, DummyVecEnv([lambda: build_env(args.species, args.stage)]))
-        normalizer.training = False
-        normalizer.norm_reward = False
+    try:
+        model, normalizer, _ = load_sb3_checkpoint(
+            args.model,
+            args.vecnorm,
+            lambda: build_env(args.species, args.stage),
+            allow_unnormalized=args.allow_unnormalized,
+        )
+    except PolicyLoadError as exc:
+        # The CLI boundary is where a loading failure becomes an exit status.
+        raise SystemExit(str(exc)) from exc
 
     print(f"\n{args.species} stage {args.stage}: {Path(args.model).name}")
     print(f"{args.episodes} episodes, seeds {args.seed}..{args.seed + args.episodes - 1}, deterministic")

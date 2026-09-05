@@ -75,7 +75,7 @@ prune; §2.3 is cosmetic. Each item was verified against the current tree.
    `test_every_group_gets_both_directions`
    (`environments/shared/tests/test_stance_gate_report.py:1748`) still
    iterates only the five r6-era groups; #501's `knees_ankles`, `left_leg`,
-   `right_leg` (`stance_gate_report.py:2052-2054`) — the groups the
+   `right_leg` (`environments/shared/reporting/stance_report.py:2013-2015`) — the groups the
    knee-localization conclusion rests on — could be deleted or broken without
    a test noticing. Extend the tuple (and `_TREX_ACTUATORS` if needed).
 4. **The factory parity test pins the pack weights with `> 0.0`.**
@@ -115,7 +115,7 @@ prune; §2.3 is cosmetic. Each item was verified against the current tree.
 
 9. `configs/trex/stage1_balance.toml:549`: the release-ablation cost comment
    says "13 panels"; the current plant's group set gives 17.
-10. `stance_gate_report.py:413-422`: `_actuator_pose_mapping`'s docstring
+10. `environments/shared/reporting/stance_report.py:380-399`: `_actuator_pose_mapping`'s docstring
     describes the deleted toe actuators in the present tense; add the same
     past-tense r6 framing #500 used elsewhere in the file.
 11. Stale TOML provenance comments: `posture_weight` "Increased from 1.5" (a
