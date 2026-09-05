@@ -1,4 +1,4 @@
-"""Tests for jax_trainer and jax_hooks modules."""
+"""Tests for jax_trainer, jax_train_fn and jax_hooks modules."""
 
 from __future__ import annotations
 
@@ -701,7 +701,7 @@ class TestTruncationBootstrap:
 
 def _install_gae_spies(monkeypatch):
     """Record what each trainer feeds ``_bootstrap_truncations`` and ``compute_gae``."""
-    from environments.shared import jax_ppo, jax_trainer
+    from environments.shared import jax_ppo, jax_train_fn, jax_trainer
 
     calls: dict = {}
     real_boot = jax_trainer._bootstrap_truncations
@@ -722,7 +722,10 @@ def _install_gae_spies(monkeypatch):
         calls["gae"] = {"rewards": rewards, "values": values, "dones": dones}
         return real_gae(rewards, values, dones, gamma, gae_lambda)
 
+    # Each loop resolves ``_bootstrap_truncations`` in its own module's globals:
+    # JaxTrainer in jax_trainer, the notebook train() in jax_train_fn.
     monkeypatch.setattr(jax_trainer, "_bootstrap_truncations", spy_boot)
+    monkeypatch.setattr(jax_train_fn, "_bootstrap_truncations", spy_boot)
     monkeypatch.setattr(jax_ppo, "compute_gae", spy_gae)
     return calls
 
@@ -1257,7 +1260,7 @@ class TestStageEvaluationWiring:
 
 class TestRewardComponentPanelLags:
     def test_lag_keywords_are_detected(self):
-        from environments.shared.jax_trainer import _detail_fn_accepts_action_lags
+        from environments.shared.jax_train_fn import _detail_fn_accepts_action_lags
 
         assert not _detail_fn_accepts_action_lags(lambda data, action: {})
         assert _detail_fn_accepts_action_lags(lambda data, action, **step_kwargs: {})
@@ -1278,7 +1281,7 @@ class TestRewardComponentPanelLags:
         import environments.trex.mjx_config  # noqa: F401
         from environments.shared.jax_normalization import RunningMeanStd
         from environments.shared.jax_ppo import make_actor_critic
-        from environments.shared.jax_trainer import TrainConfig, _build_jit_fns
+        from environments.shared.jax_train_fn import TrainConfig, _build_jit_fns
         from environments.shared.mjx_env import MJXDinoEnv
 
         num_envs, rollout_len = 2, 2
@@ -1311,7 +1314,7 @@ class TestRewardComponentPanelLags:
         assert jnp.array_equal(seen["prev_prev_action"], last_lags[1])
 
         # A detail fn without the keywords still works, on the zero-lag path, loudly.
-        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_trainer"):
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_train_fn"):
             legacy = _build_jit_fns(cfg, network, optax.adam(1e-3), lambda data, action: {"a": action}, env=env)
         assert "zero lags" in caplog.text
         out = legacy["batched_reward_components"](states, states.prev_action, *last_lags)
@@ -1337,7 +1340,7 @@ class TestNotebookTrainResumeContinues:
         import jax
 
         import environments.trex.mjx_config  # noqa: F401
-        from environments.shared import jax_trainer
+        from environments.shared import jax_train_fn
         from environments.shared.jax_normalization import RunningMeanStd
         from environments.shared.jax_ppo import PPOConfig, make_actor_critic, make_optimizer
         from environments.shared.jax_trainer import TrainConfig, train
@@ -1357,7 +1360,7 @@ class TestNotebookTrainResumeContinues:
         params = network.init(init_rng, states.obs[0])
 
         seen: dict = {"ppo": [], "scale": [], "weight": []}
-        real_build = jax_trainer._build_jit_fns
+        real_build = jax_train_fn._build_jit_fns
 
         def spy_build(*args, **kwargs):
             fns = real_build(*args, **kwargs)
@@ -1374,7 +1377,7 @@ class TestNotebookTrainResumeContinues:
             fns["scan_ppo_epochs"], fns["collect_rollout"] = ppo, collect
             return fns
 
-        monkeypatch.setattr(jax_trainer, "_build_jit_fns", spy_build)
+        monkeypatch.setattr(jax_train_fn, "_build_jit_fns", spy_build)
 
         reward_cfg = {"forward_vel_weight": 1.0}
         cfg = TrainConfig(

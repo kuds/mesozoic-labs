@@ -257,7 +257,7 @@ tolerance) remains the standing recommendation for the divergences above.
   - SB3 `on_policy_algorithm.py:214-218` — `clipped_actions = np.clip(actions,
     low, high)` immediately before `env.step(clipped_actions)`; `policies.py:379`
     does the same inside `predict()`, which is what both eval loops use.
-  - `jax_trainer.py:365` — `actions = jnp.clip(raw_actions, -1.0, 1.0)` before
+  - `jax_train_fn.py` (step_fn) — `actions = jnp.clip(raw_actions, -1.0, 1.0)` before
     `env.step`; `jax_ppo.sample_action`'s docstring states the contract
     ("returns the **unclipped** action… callers must clip before sending to the
     environment").
