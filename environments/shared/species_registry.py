@@ -22,8 +22,8 @@ def _make_raptor_config() -> SpeciesConfig:
         stage_descriptions="1=balance, 2=locomotion, 3=strike",
         height_label="Pelvis height",
         stage3_section_label="Hunting",
-        # Parity with velociraptor/scripts/train_sb3.py: the raptor env only
-        # emits strike_success (bite_success was impossible and was removed).
+        # The raptor env only emits strike_success (bite_success was
+        # impossible and was removed).
         success_keys=["strike_success"],
     )
 

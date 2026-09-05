@@ -200,10 +200,9 @@ class TestRunTrialLoadMode:
         from environments.shared.scripts.sweep.trial import run_trial
 
         train = MagicMock()
-        species_module = SimpleNamespace(SPECIES_CONFIG=object())
         stage_configs = {1: {"ppo_kwargs": {}, "curriculum_kwargs": {}}}
         with (
-            patch.dict("sys.modules", {"environments.trex.scripts.train_sb3": species_module}),
+            patch("environments.shared.species_registry.get_species_config", return_value=object()),
             patch("environments.shared.config.load_all_stages", return_value=stage_configs),
             patch("environments.shared.train_base.train", train),
             patch("environments.shared.scripts.sweep.trial._log_hardware_info"),

@@ -7,26 +7,38 @@ of them need in common.
 
 from __future__ import annotations
 
+from typing import Any
+
 from environments.shared.plant_contract import PlantIdentity
 
+#: The fake velociraptor plant every test that needs a PlantIdentity shares.
+_PLANT_IDENTITY_FIELDS: dict[str, Any] = {
+    "species": "velociraptor",
+    "model_path": "environments/velociraptor/assets/raptor.xml",
+    "physics_revision": 1,
+    "policy_interface_revision": 1,
+    "visual_revision": 1,
+    "source_closure_sha256": "sha256:" + "1" * 64,
+    "policy_interface_sha256": "sha256:" + "2" * 64,
+    "physics_sha256": "sha256:" + "3" * 64,
+    "visual_sha256": "sha256:" + "4" * 64,
+    "nq": 31,
+    "nv": 30,
+    "nu": 22,
+    "observation_dim": 67,
+    "action_dim": 22,
+}
 
-def plant_identity():
-    return PlantIdentity(
-        species="velociraptor",
-        model_path="environments/velociraptor/assets/raptor.xml",
-        physics_revision=1,
-        policy_interface_revision=1,
-        visual_revision=1,
-        source_closure_sha256="sha256:" + "1" * 64,
-        policy_interface_sha256="sha256:" + "2" * 64,
-        physics_sha256="sha256:" + "3" * 64,
-        visual_sha256="sha256:" + "4" * 64,
-        nq=31,
-        nv=30,
-        nu=22,
-        observation_dim=67,
-        action_dim=22,
-    )
+
+def make_plant_identity(**changes: Any) -> PlantIdentity:
+    """The shared fake plant, with any field overridden by keyword."""
+    values = dict(_PLANT_IDENTITY_FIELDS)
+    values.update(changes)
+    return PlantIdentity(**values)
+
+
+def plant_identity() -> PlantIdentity:
+    return make_plant_identity()
 
 
 def make_stage_result(stage=1, **overrides):

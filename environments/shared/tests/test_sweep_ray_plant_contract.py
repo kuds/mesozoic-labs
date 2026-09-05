@@ -18,25 +18,7 @@ from environments.shared.plant_contract import (
 )
 from environments.shared.scripts.sweep import ray_orchestration, ray_tune
 
-
-def _plant_identity(**changes) -> PlantIdentity:
-    identity = PlantIdentity(
-        species="velociraptor",
-        model_path="environments/velociraptor/assets/raptor.xml",
-        physics_revision=1,
-        policy_interface_revision=1,
-        visual_revision=1,
-        source_closure_sha256="sha256:" + "1" * 64,
-        policy_interface_sha256="sha256:" + "2" * 64,
-        physics_sha256="sha256:" + "3" * 64,
-        visual_sha256="sha256:" + "4" * 64,
-        nq=31,
-        nv=30,
-        nu=22,
-        observation_dim=67,
-        action_dim=22,
-    )
-    return replace(identity, **changes)
+from .reporting_helpers import make_plant_identity as _plant_identity
 
 
 def _install_fake_promotion_loaders(monkeypatch, current: PlantIdentity) -> dict[str, PlantIdentity]:

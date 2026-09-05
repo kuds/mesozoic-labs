@@ -50,9 +50,7 @@ Usage::
 """
 
 import argparse
-import importlib
 import sys
-import tomllib
 from pathlib import Path
 
 import numpy as np
@@ -61,15 +59,8 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-SPECIES_ENVS = {
-    "trex": ("environments.trex.envs.trex_env", "TRexEnv"),
-    "velociraptor": ("environments.velociraptor.envs.raptor_env", "RaptorEnv"),
-    "brachiosaurus": ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv"),
-    "dibothrosuchus": ("environments.dibothrosuchus.envs.dibothrosuchus_env", "DibothrosuchusEnv"),
-}
-# Keys the TOML [env] block carries for the MJX path only, as in
-# zero_action_baseline.py and joint_excursion_report.py.
-JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
+from environments.shared.config import SPECIES_NAMES, build_env
+from environments.shared.constants import PUBLICATION_SEED_START
 
 # Named observation slices per species, as (start, stop, quat_start_or_None).
 # quat_start is the index of the pelvis/torso quaternion, needed only by the
@@ -113,26 +104,6 @@ def resolve_vecnorm_path(model_path: str, vecnorm_arg: str | None, allow_unnorma
         "unnormalised observations is a different policy; pass --vecnorm, or --allow-unnormalized "
         "to proceed deliberately."
     )
-
-
-def stage_env_section(species: str, stage: int) -> dict:
-    from environments.shared.stage_manifest import load_stage_manifest
-
-    entry = load_stage_manifest(species).resolve(stage)
-    config_path = Path(_repo_root) / "configs" / species / entry.config_file
-    section: dict = tomllib.loads(config_path.read_text()).get("env", {})
-    return section
-
-
-def build_env(species: str, stage: int):
-    module_name, class_name = SPECIES_ENVS[species]
-    env_class = getattr(importlib.import_module(module_name), class_name)
-    kwargs = {
-        key: (tuple(value) if isinstance(value, list) else value)
-        for key, value in stage_env_section(species, stage).items()
-        if key not in JAX_ONLY_ENV_KEYS
-    }
-    return env_class(**kwargs)
 
 
 def quat_to_rotation(quat: np.ndarray) -> np.ndarray:
@@ -224,7 +195,7 @@ def build_conditions(species: str, requested: list[str]) -> list[tuple]:
 
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("species", choices=sorted(SPECIES_ENVS))
+    parser.add_argument("species", choices=SPECIES_NAMES)
     parser.add_argument("stage", type=int, choices=(1, 2, 3))
     parser.add_argument("--model", required=True, help="SB3 .zip policy")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
@@ -234,7 +205,9 @@ def main(argv: list[str]) -> None:
         help="proceed without a VecNormalize sidecar (the report then scores a different policy)",
     )
     parser.add_argument("--episodes", type=int, default=30)
-    parser.add_argument("--seed", type=int, default=3042, help="first evaluation seed (publication protocol)")
+    parser.add_argument(
+        "--seed", type=int, default=PUBLICATION_SEED_START, help="first evaluation seed (publication protocol)"
+    )
     parser.add_argument(
         "--slices",
         nargs="*",

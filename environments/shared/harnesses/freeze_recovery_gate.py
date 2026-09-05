@@ -54,7 +54,8 @@ from typing import Any, Callable, Mapping
 
 import numpy as np
 
-from environments.shared.config import load_stage_config
+from environments.shared.config import build_env, load_stage_config
+from environments.shared.constants import PUBLICATION_SEED_START
 from environments.shared.curriculum.gate_resolver import (
     GateResolutionError,
     build_gate_resolution,
@@ -110,7 +111,9 @@ DWELL_STEPS = 50
 #: is frozen at the panel size, so a short panel fails the gate instead of
 #: quietly widening its own confidence interval.
 MIN_EVAL_EPISODES = 40
-PANEL_SEED_START = 3042
+#: The publication-protocol first seed (constants.PUBLICATION_SEED_START,
+#: 3042), which the panel family starts from.
+PANEL_SEED_START = PUBLICATION_SEED_START
 
 #: The backend string every SB3 train path stamps into its stage
 #: fingerprint (train_base), so the frozen ``task_sha256`` is the one a
@@ -163,18 +166,10 @@ def stage_task_fingerprint(species: str, stage: "int | str") -> dict[str, Any]:
     )
 
 
-def build_env(species: str, stage: "int | str") -> Any:
-    """Construct the stage's environment from its committed config.
-
-    Species-generic through the registry (the perturbation engine is, by
-    the 2026-08-15 standing constraint), even though P5 enables the
-    recovery stage for T-Rex only.
-    """
-    from environments.shared.species_registry import get_species_config
-
-    config = load_stage_config(species, stage)
-    env_class = get_species_config(species).env_class
-    return env_class(**config["env_kwargs"])
+# ``build_env`` is the shared ``environments.shared.config.build_env``,
+# re-exported above: species-generic through the registry (the
+# perturbation engine is, by the 2026-08-15 standing constraint), even
+# though P5 enables the recovery stage for T-Rex only.
 
 
 # ---------------------------------------------------------------------------

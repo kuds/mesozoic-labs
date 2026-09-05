@@ -177,18 +177,15 @@ def run_trial(args: argparse.Namespace, extra_args: list[str], task_load_mode: s
 
     # Import shared training infrastructure
     from environments.shared.config import load_all_stages
+    from environments.shared.species_registry import get_species_config
     from environments.shared.train_base import _apply_overrides, train
 
-    # Load species config and stage configs
-    if args.species == "velociraptor":
-        from environments.velociraptor.scripts.train_sb3 import SPECIES_CONFIG
-    elif args.species == "brachiosaurus":
-        from environments.brachiosaurus.scripts.train_sb3 import SPECIES_CONFIG
-    elif args.species == "trex":
-        from environments.trex.scripts.train_sb3 import SPECIES_CONFIG
-    elif args.species == "dibothrosuchus":
-        from environments.dibothrosuchus.scripts.train_sb3 import SPECIES_CONFIG
-    else:
+    # Load species config and stage configs.  The CLI already gates
+    # --species with argparse choices; run_trial is public API (sweep
+    # __init__), so an unknown species still fails closed with exit 1.
+    try:
+        SPECIES_CONFIG = get_species_config(args.species)
+    except ValueError:
         logger.error("Unknown species: %s", args.species)
         sys.exit(1)
 

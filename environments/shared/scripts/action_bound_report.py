@@ -62,9 +62,7 @@ Usage::
 """
 
 import argparse
-import importlib
 import sys
-import tomllib
 from pathlib import Path
 
 import numpy as np
@@ -73,15 +71,9 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-SPECIES_ENVS = {
-    "trex": ("environments.trex.envs.trex_env", "TRexEnv"),
-    "velociraptor": ("environments.velociraptor.envs.raptor_env", "RaptorEnv"),
-    "brachiosaurus": ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv"),
-    "dibothrosuchus": ("environments.dibothrosuchus.envs.dibothrosuchus_env", "DibothrosuchusEnv"),
-}
-# Keys the TOML [env] block carries for the MJX path only, as in
-# zero_action_baseline.py and joint_excursion_report.py.
-JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
+from environments.shared.config import SPECIES_NAMES, build_env
+from environments.shared.constants import PUBLICATION_SEED_START
+
 # Matches DiagnosticsCallback.action_saturation_threshold, so the figures here
 # are directly comparable to diagnostics/raw_action_saturation.
 SATURATION_THRESHOLD = 0.99
@@ -115,28 +107,6 @@ def resolve_vecnorm_path(model_path: str, vecnorm_arg: str | None, allow_unnorma
     )
 
 
-def stage_env_section(species: str, stage: int) -> dict:
-    from environments.shared.stage_manifest import load_stage_manifest
-
-    entry = load_stage_manifest(species).resolve(stage)
-    config_path = Path(_repo_root) / "configs" / species / entry.config_file
-    # Annotated local: tomllib returns Any, and mypy will not carry the
-    # declared return type back through a bare return of it.
-    section: dict = tomllib.loads(config_path.read_text()).get("env", {})
-    return section
-
-
-def build_env(species: str, stage: int):
-    module_name, class_name = SPECIES_ENVS[species]
-    env_class = getattr(importlib.import_module(module_name), class_name)
-    kwargs = {
-        key: (tuple(value) if isinstance(value, list) else value)
-        for key, value in stage_env_section(species, stage).items()
-        if key not in JAX_ONLY_ENV_KEYS
-    }
-    return env_class(**kwargs)
-
-
 def actuator_names(env, n_actuators: int) -> list[str]:
     """Actuator names from the compiled model, falling back to indices."""
     import mujoco
@@ -147,7 +117,7 @@ def actuator_names(env, n_actuators: int) -> list[str]:
 
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("species", choices=sorted(SPECIES_ENVS))
+    parser.add_argument("species", choices=SPECIES_NAMES)
     parser.add_argument("stage", type=int, choices=(1, 2, 3))
     parser.add_argument("--model", default=None, help="SB3 .zip policy; omit to probe an untrained Gaussian")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
@@ -158,7 +128,7 @@ def main(argv: list[str]) -> None:
     )
     parser.add_argument("--std", type=float, default=1.0, help="Gaussian std when --model is omitted")
     parser.add_argument("--episodes", type=int, default=10)
-    parser.add_argument("--seed", type=int, default=3042)
+    parser.add_argument("--seed", type=int, default=PUBLICATION_SEED_START)
     args = parser.parse_args(argv)
 
     env = build_env(args.species, args.stage)

@@ -26,3 +26,10 @@ DEFAULT_CLIP_REWARD: float = 50.0
 # ---------------------------------------------------------------------------
 DEFAULT_FRAME_SKIP: int = 5
 TAIL_ANGULAR_VEL_MAX: float = 10.0  # rad/s — normalisation ceiling
+
+# ---------------------------------------------------------------------------
+# Evaluation protocol
+# ---------------------------------------------------------------------------
+# First seed of the publication_evaluation seed role; the registered panel
+# family is 3042-3081 — see provenance.evaluation_protocols.
+PUBLICATION_SEED_START: int = 3042

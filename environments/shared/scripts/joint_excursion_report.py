@@ -29,9 +29,7 @@ Usage::
 """
 
 import argparse
-import importlib
 import sys
-import tomllib
 from pathlib import Path
 
 import mujoco
@@ -41,15 +39,9 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-SPECIES_ENVS = {
-    "trex": ("environments.trex.envs.trex_env", "TRexEnv"),
-    "velociraptor": ("environments.velociraptor.envs.raptor_env", "RaptorEnv"),
-    "brachiosaurus": ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv"),
-    "dibothrosuchus": ("environments.dibothrosuchus.envs.dibothrosuchus_env", "DibothrosuchusEnv"),
-}
-# Keys the TOML [env] block carries for the MJX path only, as in
-# zero_action_baseline.py.
-JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
+from environments.shared.config import SPECIES_NAMES, build_env
+from environments.shared.constants import PUBLICATION_SEED_START
+
 UNNORMALIZED_BANNER = "UNNORMALIZED EVAL — results are not comparable to training-time metrics"
 
 
@@ -80,25 +72,9 @@ def resolve_vecnorm_path(model_path: str, vecnorm_arg: str | None, allow_unnorma
     )
 
 
-def build_env(species: str, stage: int):
-    module_name, class_name = SPECIES_ENVS[species]
-    env_class = getattr(importlib.import_module(module_name), class_name)
-    from environments.shared.stage_manifest import load_stage_manifest
-
-    entry = load_stage_manifest(species).resolve(stage)
-    config_path = Path(_repo_root) / "configs" / species / entry.config_file
-    env_section = tomllib.loads(config_path.read_text()).get("env", {})
-    kwargs = {
-        key: (tuple(value) if isinstance(value, list) else value)
-        for key, value in env_section.items()
-        if key not in JAX_ONLY_ENV_KEYS
-    }
-    return env_class(**kwargs)
-
-
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("species", choices=sorted(SPECIES_ENVS))
+    parser.add_argument("species", choices=SPECIES_NAMES)
     parser.add_argument("stage", type=int, choices=(1, 2, 3))
     parser.add_argument("model", help="path to the SB3 .zip policy")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
@@ -108,7 +84,7 @@ def main(argv: list[str]) -> None:
         help="proceed without a VecNormalize sidecar (the report then scores a different policy)",
     )
     parser.add_argument("--episodes", type=int, default=10)
-    parser.add_argument("--seed", type=int, default=3042)
+    parser.add_argument("--seed", type=int, default=PUBLICATION_SEED_START)
     args = parser.parse_args(argv)
 
     from stable_baselines3 import PPO

@@ -30,6 +30,12 @@ _logger = logging.getLogger(__name__)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
+#: The canonical species names, sorted, as the report scripts expose them
+#: for argparse ``choices``.  Deliberately not the registry's key set: that
+#: also carries aliases (raptor, t-rex, brachio, dibo) that are not part of
+#: the CLI surface.
+SPECIES_NAMES: tuple[str, ...] = ("brachiosaurus", "dibothrosuchus", "trex", "velociraptor")
+
 
 def get_library_version() -> str:
     """Return the mesozoic-labs package version string.
@@ -270,6 +276,22 @@ def load_all_stages(species: str) -> "dict[int | str, dict[str, Any]]":
         key: "int | str" = entry.legacy_number if entry.legacy_number is not None else entry.id
         configs[key] = load_stage_config(species, key)
     return configs
+
+
+def build_env(species: str, stage: "int | str") -> Any:
+    """Construct the stage's environment from its committed config.
+
+    The one construction path the report scripts and the frozen recovery
+    gate share: every ``[env]`` key the stage TOML declares reaches the
+    constructor, exactly as training builds the environment.  The registry
+    import is deferred because ``species_registry`` imports ``train_base``,
+    which imports this module.
+    """
+    from .species_registry import get_species_config
+
+    config = load_stage_config(species, stage)
+    env_class = get_species_config(species).env_class
+    return env_class(**config["env_kwargs"])
 
 
 def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:
