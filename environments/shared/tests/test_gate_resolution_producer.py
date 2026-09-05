@@ -78,14 +78,6 @@ class TestHeightReference:
     def test_omitting_it_and_passing_none_are_the_same_panel(self):
         assert _roll(_pushed_env()) == _roll(_pushed_env(), height_reference=None)
 
-    def test_none_stamps_the_per_episode_reset_height(self):
-        env = _pushed_env()
-        env.reset(seed=3042)
-        reset_height = float(env.data.qpos[2])
-        rolled = _pushed_env()
-        _roll(rolled, episodes=1, seed=3042, height_reference=None)
-        assert rolled._recovery_height_reference == pytest.approx(reset_height)
-
     def test_a_float_reference_reproduces_none_when_it_equals_the_reset_height(self):
         """The calibrated path differs from the old one ONLY in the reference.
 
@@ -106,14 +98,8 @@ class TestHeightReference:
 
         env = _pushed_env()
         shifted = _roll(env, height_reference=0.0)
-        assert env._recovery_height_reference == 0.0
         assert [shove.recovered for shove in shifted.shoves] == [False] * len(shifted.shoves)
         assert not any(record.success for record in shifted.episodes)
-
-    def test_the_calibrated_reference_is_the_measured_settled_height(self):
-        env = _pushed_env()
-        _roll(env, episodes=1, seed=3042, height_reference=CALIBRATED_HEIGHT_REFERENCE_M)
-        assert env._recovery_height_reference == CALIBRATED_HEIGHT_REFERENCE_M
 
 
 class TestCalibratedSafeSetIsSingleSourced:
@@ -150,10 +136,10 @@ class TestCalibratedSafeSetIsSingleSourced:
         """
         env = _pushed_env()
         env.reset(seed=3042)
-        env._recovery_height_reference = float(env.data.qpos[2])
+        height_target = float(env.data.qpos[2])
         monkeypatch.setattr(env, "_foot_contact_forces", lambda: (0.0, 0.0))
-        assert _safe_step(env, dict(CALIBRATED_POSTURE_ONLY)) is True
-        assert _safe_step(env, dict(DEFAULT_SAFE_SET)) is False
+        assert _safe_step(env, dict(CALIBRATED_POSTURE_ONLY), height_target) is True
+        assert _safe_step(env, dict(DEFAULT_SAFE_SET), height_target) is False
 
 
 class TestNumpyForwardPass:

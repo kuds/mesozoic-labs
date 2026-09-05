@@ -28,9 +28,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
-import importlib
 import sys
-import tomllib
 from pathlib import Path
 
 import numpy as np
@@ -39,15 +37,7 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-SPECIES_ENVS = {
-    "trex": ("environments.trex.envs.trex_env", "TRexEnv"),
-    "velociraptor": ("environments.velociraptor.envs.raptor_env", "RaptorEnv"),
-    "brachiosaurus": ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv"),
-    "dibothrosuchus": ("environments.dibothrosuchus.envs.dibothrosuchus_env", "DibothrosuchusEnv"),
-}
-
-# Keys the TOML [env] block carries for the MJX path only.
-JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
+from environments.shared.config import SPECIES_NAMES, build_env
 
 #: Sensor attribute names to try, in order, per species.
 _FOOT_SENSOR_ATTRS = (
@@ -107,17 +97,10 @@ def _animal_weight(env) -> float:
 
 
 def report(species: str, settle_steps: int = 200) -> dict:
-    module_name, class_name = SPECIES_ENVS[species]
-    env_cls = getattr(importlib.import_module(module_name), class_name)
-
-    from environments.shared.stage_manifest import load_stage_manifest
-
-    stance_file = load_stage_manifest(species).resolve(1).config_file
-    config_path = Path(_repo_root) / "configs" / species / stance_file
-    env_kwargs = {k: v for k, v in tomllib.loads(config_path.read_text())["env"].items() if k not in JAX_ONLY_ENV_KEYS}
-    env_kwargs["reset_noise_scale"] = 0.0
-
-    env = env_cls(**env_kwargs)
+    # The stage-1 plant exactly as training builds it, minus the reset noise:
+    # the invariants below hold on a SETTLED plant, and a jittered start would
+    # turn a physics identity into a distribution.
+    env = build_env(species, 1, reset_noise_scale=0.0)
     try:
         env.reset(seed=0)
         zero = np.zeros(env.action_space.shape)
@@ -146,14 +129,14 @@ def main() -> int:
         "species",
         nargs="*",
         default=[],
-        help=f"species to check (default: all of {', '.join(sorted(SPECIES_ENVS))})",
+        help=f"species to check (default: all of {', '.join(SPECIES_NAMES)})",
     )
     parser.add_argument("--settle-steps", type=int, default=200)
     args = parser.parse_args()
-    species_list = args.species or sorted(SPECIES_ENVS)
-    unknown = [s for s in species_list if s not in SPECIES_ENVS]
+    species_list = args.species or list(SPECIES_NAMES)
+    unknown = [s for s in species_list if s not in SPECIES_NAMES]
     if unknown:
-        parser.error(f"unknown species {unknown}; choose from {sorted(SPECIES_ENVS)}")
+        parser.error(f"unknown species {unknown}; choose from {list(SPECIES_NAMES)}")
 
     print(f"{'species':16} {'sensors':>10} {'contact':>10} {'weight':>10} {'sens/con':>9} {'con/wt':>8}")
     bad = []

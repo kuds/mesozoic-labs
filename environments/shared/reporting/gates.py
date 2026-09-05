@@ -43,6 +43,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from ..curriculum.manager import DEFAULT_MIN_EVAL_EPISODES
+
 
 def evaluate_recorded_gate(
     curriculum: dict[str, Any],
@@ -76,7 +78,7 @@ def evaluate_recorded_gate(
     if not (criteria or ceilings) or not evaluations:
         return None
 
-    min_eval_episodes = int(curriculum.get("min_eval_episodes", 10))
+    min_eval_episodes = int(curriculum.get("min_eval_episodes", DEFAULT_MIN_EVAL_EPISODES))
     required_consecutive = int(curriculum.get("required_consecutive", 3))
     consecutive = 0
     incomplete = False

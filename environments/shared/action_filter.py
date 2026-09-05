@@ -25,7 +25,7 @@ need fast stabilisation stop being reachable attractors during training.
 See docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md.
 
 The discretization matches the eval-side probe filter
-(``_low_pass_predict`` in environments/shared/scripts/stance_gate_report.py):
+(``_low_pass_predict`` in environments/shared/reporting/stance_report.py):
 a discrete RC filter with ``alpha = dt / (RC + dt)``, ``RC = 1/(2*pi*fc)``,
 state seeded with the first post-reset action so episodes do not open with
 a transient toward zero.

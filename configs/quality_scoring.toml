@@ -49,11 +49,23 @@ direction = "minimize"
 # Goal: walk/run forward with good gait quality.
 # Forward velocity and distance are the primary signals.
 #
-# TODO: Re-add gait_symmetry once the training reward is fixed.
-# Currently gait_symmetry_weight=0.0 in all training configs (the
-# formula rewards asymmetry/single-foot stance, not alternation), so
-# scoring on a metric the agent was never trained on adds noise.
-# See: base_env.py _compute_gait_symmetry() and stage config comments.
+# gait_symmetry is deliberately NOT scored here, and the reason has
+# changed since this block was written. The training formula is fixed:
+# base_env.py _compute_gait_symmetry() rewards touchdown ALTERNATION
+# (L->R->L = 1.0), and has since before 2026-07-24, the earliest commit
+# in this clone's history. Two species now train stage 2 on it --
+# brachiosaurus (gait_symmetry_weight 2.2) and dibothrosuchus (2.0) --
+# while trex (unswept) and velociraptor (sweep design: let forward_vel
+# dominate) keep 0.0. For the two quadrupeds the trained signal is the
+# diagonal-pair alternation that LocomotionMetrics emits as
+# quad_gait_symmetry; their gait_symmetry key covers only the untrained
+# front pair, so it is the wrong key to score them on.
+#
+# FOLLOW-UP (tracked here, NOT applied in the 2026-09 cleanup): decide
+# per species whether stage_2 scoring should add quad_gait_symmetry
+# (brachiosaurus, dibothrosuchus) or gait_symmetry (a biped, once one
+# trains on it). Adding any weight reorders existing sweep rankings, so
+# it needs a scoring re-run, never a silent edit.
 [stage_2]
 
 [stage_2.best_mean_reward]
@@ -91,8 +103,9 @@ direction = "minimize"
 # A dino that finds and contacts the target quickly is better than one
 # that wanders for the full episode before getting lucky.
 #
-# TODO: Re-add gait_symmetry once the training reward is fixed.
-# Same issue as Stage 2 — see comment above.
+# gait_symmetry is not scored here either: see the stage-2 note above
+# for the current facts and the tracked follow-up; the same per-species
+# decision (quad_gait_symmetry vs gait_symmetry) applies to this stage.
 [stage_3]
 
 [stage_3.best_mean_reward]

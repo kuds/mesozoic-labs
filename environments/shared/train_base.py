@@ -8,18 +8,23 @@ define a :class:`SpeciesConfig` and delegate to :func:`main`.
 The original monolithic module has been split into focused submodules for
 maintainability:
 
-- :mod:`~environments.shared.diagnostics` -- ``DiagnosticsCallback``
+- :mod:`~environments.shared.diagnostics` -- the TensorBoard diagnostics callback
 - :mod:`~environments.shared.eval_diagnostics` -- stage-aware SB3 evaluation
   and plateau diagnostics
-- :mod:`~environments.shared.evaluation` -- ``eval_policy``, ``evaluate``,
-  ``record_stage_video``
+- :mod:`~environments.shared.evaluation` -- ``eval_policy`` and the other
+  policy-evaluation and replay-recording helpers
 - :mod:`~environments.shared.cli` -- ``main``, ``_apply_overrides``,
   ``_cast_value``
 - :mod:`~environments.shared.tb_sync` -- ``_is_gcs_path``,
   ``_make_local_tb_dir``, ``_sync_tb_to_gcs``
 
-All public names are re-exported here so existing ``from
-environments.shared.train_base import ...`` statements continue to work.
+Only a few names are still re-exported here for backward compatibility --
+``main``, ``_apply_overrides``, ``_cast_value``, ``eval_policy``,
+``_select_handoff_checkpoint`` (now
+:func:`~environments.shared.curriculum.checkpoints.select_handoff_checkpoint`),
+and the ``tb_sync`` helpers -- so existing ``from environments.shared.train_base
+import ...`` statements naming them keep working.  Import everything else
+from its home module.
 """
 
 from __future__ import annotations
@@ -34,6 +39,7 @@ from pathlib import Path
 from typing import Any
 
 from .constants import DEFAULT_CLIP_OBS, DEFAULT_CLIP_REWARD, DEFAULT_NORM_OBS, DEFAULT_NORM_REWARD
+from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
 from .plant_contract import (
     PlantIdentity,
     attach_plant_identity,
@@ -42,7 +48,7 @@ from .plant_contract import (
     validate_model_plant,
 )
 from .stage_manifest import stage_label
-from .tb_sync import (  # noqa: F401  (re-exported for backward compat)
+from .tb_sync import (  # noqa: F401  (used internally; test_train_base also imports them from here)
     _is_gcs_path,
     _make_local_tb_dir,
     _mirror_remote_run_dirs,
@@ -561,9 +567,10 @@ def _create_or_load_model(
         if task_fingerprint is not None:
             # allow_unfingerprinted: transition valve — no checkpoint minted
             # before 2026-08-15 carries a task fingerprint, so a missing one
-            # warns instead of failing.  Tighten to fail-closed once
-            # fingerprinted checkpoints are the norm (planned with the gate
-            # resolver, plan §W5).
+            # warns instead of failing.  Tighten to fail-closed once no live
+            # lineage resumes a pre-2026-08-15 checkpoint (today the certified
+            # stance parent 20260810_145546 still does); retire it together
+            # with the schema-v1 valve in task_fingerprint.validate_recorded_task.
             task_lineage = validate_model_task(
                 model,
                 task_fingerprint,
@@ -799,23 +806,6 @@ def _build_core_callbacks(
         callbacks.append(PeriodicTbSyncCallback(local_tb_dir, gcs_tb_path, sync_freq=save_freq, verbose=verbose))
 
     return callbacks, eval_callback, save_vecnorm_cb
-
-
-def _select_handoff_checkpoint(model_dir: Path) -> "tuple[str, str, str] | None":
-    """The checkpoint the curriculum actually promotes to the next stage.
-
-    Preference order matches next-stage loading: the risk-adjusted
-    ``robust_best_model``, then SB3's mean-reward ``best_model`` — each
-    only when its matched VecNormalize stats exist, so obs normalization
-    matches the policy weights. Returns ``(name, model_path_without_ext,
-    vecnorm_path)`` or ``None`` when neither candidate is complete.
-    """
-    for candidate in ("robust_best_model", "best_model"):
-        cand_zip = model_dir / f"{candidate}.zip"
-        cand_vecnorm = model_dir / f"{candidate}_vecnorm.pkl"
-        if cand_zip.exists() and cand_vecnorm.exists():
-            return candidate, str(model_dir / candidate), str(cand_vecnorm)
-    return None
 
 
 def _maybe_ent_coef_decay_callback(config: dict, algorithm: str, total_timesteps: int):
@@ -2051,5 +2041,4 @@ def _record_stage_result(
 # to work without changes.
 
 from .cli import _apply_overrides, _cast_value, main  # noqa: E402, F401
-from .diagnostics import DiagnosticsCallback  # noqa: E402, F401
-from .evaluation import eval_policy, evaluate, record_stage_video  # noqa: E402, F401
+from .evaluation import eval_policy  # noqa: E402

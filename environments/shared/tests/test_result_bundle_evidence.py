@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from environments.shared.reporting import save_evaluation_episodes, save_result_bundle
+from environments.shared.reporting.stance_report import STANCE_PANEL_FIELDNAMES
 from environments.shared.result_bundle import (
     ResultBundleError,
     audit_result_bundle,
@@ -18,7 +19,6 @@ from environments.shared.result_bundle import (
     validate_result_bundle,
     write_artifact_manifest,
 )
-from environments.shared.scripts.stance_gate_report import STANCE_PANEL_FIELDNAMES
 
 from .result_bundle_helpers import (
     _complete_bundle,

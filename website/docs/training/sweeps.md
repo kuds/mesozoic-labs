@@ -206,23 +206,13 @@ For prerequisites (GCP project, Docker image, GCS bucket), see [Training on Vert
 
 ## Default Search Spaces
 
-### PPO
-
-| Parameter | Type | Range / Values |
-|---|---|---|
-| `ppo_learning_rate` | log-uniform | `1e-5` to `3e-4` |
-| `ppo_ent_coef` | log-uniform | `1e-4` to `0.05` |
-| `ppo_batch_size` | discrete | `64, 128, 256, 512` |
-| `ppo_gamma` | uniform | `0.97` to `0.999` |
-| `ppo_n_steps` | discrete | `1024, 2048, 4096` |
-
-### SAC
-
-| Parameter | Type | Range / Values |
-|---|---|---|
-| `sac_learning_rate` | log-uniform | `1e-5` to `3e-4` |
-| `sac_batch_size` | discrete | `128, 256, 512` |
-| `sac_gamma` | uniform | `0.97` to `0.999` |
+The defaults are the per-species files `configs/<species>/sweep_ppo.json` and
+`configs/<species>/sweep_sac.json`, used automatically when `--search-space-file`
+is omitted (there is no in-code default any more). Each file can scope parameters
+per stage with `"stage1"` / `"stage2"` / `"stage3"` top-level keys; open the file
+for the species you are sweeping to see its exact ranges (the JSON block under
+*Customising the Search Space* below illustrates the file format only, not the
+current values).
 
 ## Customising the Search Space
 

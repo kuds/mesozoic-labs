@@ -141,10 +141,6 @@ class Run:
         return float((lengths >= horizon).mean())
 
 
-def _fmt(value, digits=3):
-    return "n/a" if value is None else f"{value:.{digits}f}"
-
-
 def _delta(a, b):
     if a is None or b is None:
         return ""

@@ -1,4 +1,4 @@
-"""Shared constants, exceptions, and default search spaces for the sweep tool."""
+"""Shared constants and exceptions for the sweep tool."""
 
 from __future__ import annotations
 
@@ -22,32 +22,6 @@ class _SweepJobFailed(SweepStageError):
         super().__init__(message)
         self.hpt_job = hpt_job
 
-
-# ── Default search spaces ────────────────────────────────────────────────────
-# Each entry: parameter_id -> {"type": ..., ...}
-# parameter_id uses underscore notation to match Vertex AI HPT arg injection.
-# The trial entry point converts them to dot notation for --override.
-
-_DEFAULT_PPO_SEARCH_SPACE = {
-    "ppo_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
-    "ppo_ent_coef": {"type": "double", "min": 1e-4, "max": 0.05, "scale": "log"},
-    "ppo_batch_size": {"type": "discrete", "values": [64, 128, 256, 512]},
-    "ppo_gamma": {"type": "double", "min": 0.97, "max": 0.999, "scale": "linear"},
-    "ppo_n_steps": {"type": "discrete", "values": [1024, 2048, 4096]},
-}
-
-_DEFAULT_SAC_SEARCH_SPACE = {
-    "sac_learning_rate": {"type": "double", "min": 1e-5, "max": 3e-4, "scale": "log"},
-    "sac_batch_size": {"type": "discrete", "values": [128, 256, 512]},
-    "sac_gamma": {"type": "double", "min": 0.97, "max": 0.995, "scale": "linear"},
-    "sac_tau": {"type": "double", "min": 0.001, "max": 0.01, "scale": "log"},
-    "sac_buffer_size": {"type": "discrete", "values": [100000, 300000, 1000000]},
-}
-
-_DEFAULT_SEARCH_SPACES = {
-    "ppo": _DEFAULT_PPO_SEARCH_SPACE,
-    "sac": _DEFAULT_SAC_SEARCH_SPACE,
-}
 
 # ── Net-arch presets ─────────────────────────────────────────────────────────
 # Categorical values for the ``ppo_net_arch`` / ``sac_net_arch`` sweep param.

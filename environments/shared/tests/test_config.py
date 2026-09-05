@@ -24,30 +24,12 @@ from environments.shared.config import (
     save_stage_config,
     upload_curriculum_artifacts,
 )
-from environments.shared.plant_contract import PlantIdentity
+
+from .reporting_helpers import make_plant_identity as _plant_identity
 
 SPECIES = ["velociraptor", "brachiosaurus", "trex"]
 #: Every species with committed stage configs, manifest-less ones included.
 COMMITTED_SPECIES = sorted(path.name for path in _CONFIGS_DIR.iterdir() if path.is_dir())
-
-
-def _plant_identity():
-    return PlantIdentity(
-        species="velociraptor",
-        model_path="environments/velociraptor/assets/raptor.xml",
-        physics_revision=1,
-        policy_interface_revision=1,
-        visual_revision=1,
-        source_closure_sha256="sha256:" + "1" * 64,
-        policy_interface_sha256="sha256:" + "2" * 64,
-        physics_sha256="sha256:" + "3" * 64,
-        visual_sha256="sha256:" + "4" * 64,
-        nq=31,
-        nv=30,
-        nu=22,
-        observation_dim=67,
-        action_dim=22,
-    )
 
 
 class TestLoadStageConfig:

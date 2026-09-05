@@ -884,15 +884,7 @@ def check_stage_gate_for_config(
 
     if gate_kind == STANCE_GATE_KIND:
         horizon = int(stage_config.get("env_kwargs", {}).get("max_episode_steps", 1000))
-        thresholds = StanceGateThresholds(
-            min_full_horizon_fraction=float(curriculum["min_full_horizon_fraction"]),
-            max_unsupported_duty=float(curriculum["max_unsupported_duty"]),
-            max_unsupported_duty_ucb=float(curriculum["max_unsupported_duty_ucb"]),
-            settle_steps=int(curriculum.get("settle_steps", 0)),
-            min_eval_episodes=int(curriculum.get("min_eval_episodes", 40)),
-            min_avg_reward=float(curriculum.get("min_avg_reward", -float("inf"))),
-            required_consecutive=int(curriculum.get("required_consecutive", 3)),
-        )
+        thresholds = StanceGateThresholds.from_curriculum(curriculum)
         panel, reason = stance_panel_from_eval_results(
             results,
             horizon=horizon,

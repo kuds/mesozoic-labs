@@ -95,53 +95,28 @@ tolerance) remains the standing recommendation for the divergences above.
   at 0.33. The open question is no longer whether the configuration can
   pass (it usually does) but what decides the anneal's endpoint; the
   seed-43 postmortem's candidate responses stand.
-- **MEDIUM** — **stage 1 contains no in-episode disturbance, so it cannot ask
-  for postural correction.** The only perturbation is joint-angle noise at
-  reset (`reset_noise_scale 0.05`); nothing applies an external force during an
-  episode. A policy that learns active correction therefore earns nothing over
-  one that stands still, which is why the zero-action statue is the objective's
-  optimum. Active balance recovery is **absent from the task**, not
-  underweighted in the reward, and no reweighting substitutes for adding it —
-  that is what `STAGE1_SPLIT_PLAN.md`'s 1a stance / 1b recovery split is for.
-  **Measured (2026-08-06):** `--impulse-probe` shows the passing policy *does*
-  correct, but only just — it fully recovers a **0.50 m/s** lateral shove in one
-  direction (8/8 to the horizon, against a statue that never recovers from
-  anything) and **fails the same shove in the other direction** (0/8, 424 steps
-  against the statue's 337). At **1.0 m/s and above it is within noise of the
-  statue on both sides.** Recovery envelope: **0.50 m/s one way, 0.00 the
-  other** — narrow *and* asymmetric, which is what the differently-splayed toes
-  predict. So the stage-1 gap is a **metric** gap: the capability partly exists
-  and the task cannot see it. The envelope on the weaker side is a ready-made
-  acceptance metric for 1b, and 0.00 m/s is the number to beat.
+- **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
+  stance-gate PASS certifies stance quality, not active balance control.** The
+  only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
+  That is by design since the 1a/1b split: the disturbance lives in the
+  recovery stage (`configs/trex/recovery.toml` — stance's `[env]` plus the
+  scheduled pushes, warm-started from the certified stance checkpoint), whose
+  `recovery_quality/v1` gate was frozen 2026-08-28 with measured thresholds.
+  The pre-split `--impulse-probe` envelope (2026-08-06: 0.50 m/s one way,
+  0.00 the other) is superseded by the recovery records —
+  [STAGE1B_IMPLEMENTATION_PLAN.md](STAGE1B_IMPLEMENTATION_PLAN.md) and
+  [investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md](investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md).
 
-<!-- The six items below come from the 2026-07-31 plant validation pass; full
+<!-- The items below come from the 2026-07-31 plant validation pass; full
      evidence in PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md. The reset and
      self-collision defects that pass also found are FIXED in PR #479 and so
-     are deliberately not listed here. -->
-
-- **HIGH** — **the stage-1 objective's global optimum is the zero-action
-  policy, so no reward threshold can gate it.** Summing the positive T-Rex
-  stage-1 weights gives 3.35/step = 3350; the statue collects 3250.27 = **97.0%**
-  of it with `energy` and `smoothness` at exactly zero. Every active policy pays
-  both — the 7/31 run paid 0.30/step on smoothness alone — so a policy's ceiling
-  sits *below* the statue's score. Set a threshold above the statue and stage 1
-  is unpassable; below, and a statue passes. Needs the episode-level
-  `stance_success` gate (STAGE1_SPLIT_PLAN §2.3), not a better number.
-  (PLANT_VALIDATION §9)
-
-- **HIGH → MEDIUM** — **stage 1's real gate machinery does not exist yet.** The
-  four `min_avg_reward` values are no longer arbitrary — each is now the §12
-  sanity rail (0.89 × its statue's standing reward at the 0.05 operating
-  point), `min_avg_episode_length = 950` encodes the full-horizon ≥ 95% floor,
-  and stage-1 `reset_noise_scale` sits at 0.05 for every species so survival
-  is no longer the binding constraint. But a statue still clears the rail *by
-  §12's own design* — the rail only rejects return-discarding policies. What
-  separates a competent policy from a statue is the episode-level
-  `stance_success` event over unsupported duty (STAGE1_SPLIT_PLAN §2.3), which
-  is new machinery: per-episode aggregation, an LCB gate, duty metrics fed to
-  both backends' evaluators, and a `stance_quality/v1` gate kind. Until it
-  lands, passing stage 1a certifies "did not discard return and did not fall",
-  not stance quality. (PLANT_VALIDATION §12/§14)
+     are deliberately not listed here. Two further entries — the stage-1
+     statue-optimum-cannot-be-reward-gated finding (§9) and "stage 1's real
+     gate machinery does not exist yet" (§12/§14) — were deleted 2026-09-05:
+     their ask shipped as the stance_quality/v1 gate kind
+     (environments/shared/curriculum/gate_schema.py, stance_gate.py), which
+     certified the first GATE: PASS on 2026-08-11
+     (investigations/TREX_STAGE1_GATE_PASS_RUN_2026_08.md). -->
 
 - **HIGH** — **`foot_load_balance_min_support_force = 0.0` makes the §7.1
   airborne repair a no-op.** `derive_stance_info` and `reward_foot_load_balance`
@@ -163,14 +138,15 @@ tolerance) remains the standing recommendation for the divergences above.
   buzzier in fact. Needs a contact-switch-rate cost or smoothness on the second
   difference of actions. (PLANT_VALIDATION §11.2)
 
-- **MEDIUM** — **`collapse_peak_floor` is an absolute reward value and cannot
-  survive a reward-function edit.** Calibrated at 2200 against the 7/29 run
-  (rolling-median peak 2496), it left the 7/31 run (peak **1934.1**) permanently
-  disarmed through a **−59%** collapse (2148.3 → 888.0; full-horizon 93% → 7%).
-  Simulation confirms it never armed; it also confirms that even armed at the old
-  inherited 1840 floor, `drop_fraction=0.5` + `patience=10` would not have fired.
-  Make the floor relative to the zero-action standing baseline and tighten the
-  drop/patience pair independently. (PLANT_VALIDATION §11.4)
+- **MEDIUM** — **`collapse_peak_floor` is still an absolute reward value on
+  three species' stage-1 configs and cannot survive a reward-function edit.**
+  The T-Rex is done: `stance.toml` and `recovery.toml` use the relative
+  `collapse_peak_floor_fraction` (PLANT_VALIDATION §14 item 3) after the
+  absolute floor failed to arm twice. `velociraptor`, `brachiosaurus` and
+  `dibothrosuchus` `stage1_balance.toml` still carry absolute floors
+  (1300 / 1300 / 1950, each commented "Absolute pending §14 item 3") derived
+  from their statues' standing reward; re-derive them as fractions the same
+  way. (PLANT_VALIDATION §11.4)
 
 - **LOW** — **contact-switch rate conflates bilateral↔single with
   bilateral↔airborne.** The PR #479 plant repair moved T-Rex's raw switch count
@@ -281,7 +257,7 @@ tolerance) remains the standing recommendation for the divergences above.
   - SB3 `on_policy_algorithm.py:214-218` — `clipped_actions = np.clip(actions,
     low, high)` immediately before `env.step(clipped_actions)`; `policies.py:379`
     does the same inside `predict()`, which is what both eval loops use.
-  - `jax_trainer.py:365` — `actions = jnp.clip(raw_actions, -1.0, 1.0)` before
+  - `jax_train_fn.py` (step_fn) — `actions = jnp.clip(raw_actions, -1.0, 1.0)` before
     `env.step`; `jax_ppo.sample_action`'s docstring states the contract
     ("returns the **unclipped** action… callers must clip before sending to the
     environment").

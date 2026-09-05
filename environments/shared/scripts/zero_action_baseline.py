@@ -26,9 +26,7 @@ Usage::
 """
 
 import argparse
-import importlib
 import sys
-import tomllib
 from pathlib import Path
 
 import numpy as np
@@ -37,38 +35,13 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-SPECIES_ENVS = {
-    "trex": ("environments.trex.envs.trex_env", "TRexEnv"),
-    "velociraptor": ("environments.velociraptor.envs.raptor_env", "RaptorEnv"),
-    "brachiosaurus": ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv"),
-    "dibothrosuchus": ("environments.dibothrosuchus.envs.dibothrosuchus_env", "DibothrosuchusEnv"),
-}
+from environments.shared.config import SPECIES_NAMES, build_env
+from environments.shared.constants import PUBLICATION_SEED_START
 
 #: Legacy stage numbers this script accepts; files resolve via the manifest.
 KNOWN_STAGES = frozenset({1, 2, 3})
 
-# Keys the TOML [env] block carries for the MJX path only; the Gymnasium envs
-# do not accept them.  Mirrors the JAX-only note in the stage-1 configs.
-JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
-
 NOISE_SWEEP = (0.01, 0.05, 0.10, 0.15, 0.20)
-
-
-def build_env(species: str, stage: int):
-    """Instantiate a species env from its committed stage TOML."""
-    module_name, class_name = SPECIES_ENVS[species]
-    env_class = getattr(importlib.import_module(module_name), class_name)
-    from environments.shared.stage_manifest import load_stage_manifest
-
-    entry = load_stage_manifest(species).resolve(stage)
-    config_path = Path(_repo_root) / "configs" / species / entry.config_file
-    env_section = tomllib.loads(config_path.read_text()).get("env", {})
-    kwargs = {
-        key: (tuple(value) if isinstance(value, list) else value)
-        for key, value in env_section.items()
-        if key not in JAX_ONLY_ENV_KEYS
-    }
-    return env_class(**kwargs)
 
 
 def score(env, episodes: int, seed: int, noise: float | None = None) -> dict:
@@ -187,14 +160,19 @@ def main(argv: list[str]) -> None:
         help="species, optionally with a stage suffix (e.g. trex:2). Default: all species, stage 1.",
     )
     parser.add_argument("--episodes", type=int, default=30, help="episodes per measurement (default 30)")
-    parser.add_argument("--seed", type=int, default=3042, help="first evaluation seed (default 3042)")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=PUBLICATION_SEED_START,
+        help=f"first evaluation seed (default {PUBLICATION_SEED_START})",
+    )
     parser.add_argument("--sweep-noise", action="store_true", help="sweep reset_noise_scale instead of one point")
     args = parser.parse_args(argv)
 
     for target in args.targets:
         species, _, stage_text = target.partition(":")
-        if species not in SPECIES_ENVS:
-            raise SystemExit(f"unknown species {species!r}; choose from {sorted(SPECIES_ENVS)}")
+        if species not in SPECIES_NAMES:
+            raise SystemExit(f"unknown species {species!r}; choose from {sorted(SPECIES_NAMES)}")
         stage = int(stage_text) if stage_text else 1
         if stage not in KNOWN_STAGES:
             raise SystemExit(f"unknown stage {stage}; choose from {sorted(KNOWN_STAGES)}")

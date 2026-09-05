@@ -697,14 +697,3 @@ def check_nosedive_termination(
             return True, "nosedive"
         return False, None
     return terminated, None
-
-
-def check_distance_contact(
-    pos_a: Array,
-    pos_b: Array,
-    threshold: float,
-) -> Array:
-    """Check proximity-based contact (JAX-compatible alternative to contact pairs)."""
-    xp = _array_mod(pos_a)
-    dist = xp.linalg.norm(pos_a - pos_b)
-    return dist < threshold

@@ -85,9 +85,10 @@ GATE_KINDS: dict[str, frozenset[str]] = {
     # The recovery stage's gate (stage 1b): certifies per-shove recovery
     # under the scheduled pushes via an exact binomial LCB on episode
     # success, with an optional paired null-superiority criterion that
-    # becomes authoritative once the resolver freezes the null panels.
-    # Thresholds are provisional until the calibration runs (plan P3/P5);
-    # configs declare none/v1 until then.  See
+    # consumes the resolver's frozen null panels and is authoritative when
+    # declared.  Frozen for trex 2026-08-28 (plan P5) with measured
+    # thresholds (configs/trex/recovery.toml); none/v1 remains only for
+    # future non-advancing pilots.  See
     # :mod:`environments.shared.curriculum.recovery_gate` for the statistic.
     "recovery_quality/v1": frozenset(
         {

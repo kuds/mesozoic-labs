@@ -29,17 +29,10 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.shared.train_base import SpeciesConfig, main
+from environments.shared.species_registry import get_species_config
+from environments.shared.train_base import main
 
-SPECIES_CONFIG = SpeciesConfig(
-    species="brachiosaurus",
-    env_class=BrachioEnv,
-    stage_descriptions="1=balance, 2=locomotion, 3=food_reach",
-    height_label="Torso height",
-    stage3_section_label="Food Reaching",
-    success_keys=["food_reached"],
-)
+SPECIES_CONFIG = get_species_config("brachiosaurus")
 
 if __name__ == "__main__":
     main(SPECIES_CONFIG)

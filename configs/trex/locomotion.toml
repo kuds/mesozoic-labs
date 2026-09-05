@@ -22,7 +22,8 @@ nosedive_weight = 0.5                  # Reduce from 1.0 (raptor uses 0.3): allo
                                        # Keep slightly above raptor since head_contact is major termination cause
 height_weight = 0.3                    # Reduce from 1.0: pelvis already at 0.932m (above 0.90 target),
                                        # this was wasting reward budget; raptor doesn't use height at all
-gait_symmetry_weight = 0.0            # Keep disabled: formula is inverted
+gait_symmetry_weight = 0.0            # Kept at 0.0: the alternation formula is fixed (base_env.py) but untested and
+                                      # unswept for the T-Rex; brachiosaurus/dibothrosuchus train stage 2 on it
 smoothness_weight = 0.05              # Reduce from 0.1 to match raptor: less penalty for dynamic motion
 heading_weight = 0.3                   # Reduce from 0.5 to match raptor: heading is already ~0.99
 lateral_penalty_weight = 0.1           # Reduce from 0.3 to match raptor: allow lateral dynamics for gait

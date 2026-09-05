@@ -724,14 +724,3 @@ def _per_foot_forces(
             force = force + data.sensordata[index]
         forces.append(force)
     return jnp.stack(forces)
-
-
-def _check_foot_contact(data: Any, foot_indices: tuple[int, ...]) -> Array:
-    """Check if any foot sensor reads above threshold."""
-    import jax.numpy as jnp
-
-    threshold = 0.1  # Newtons
-    has_contact = jnp.bool_(False)
-    for idx in foot_indices:
-        has_contact = has_contact | (data.sensordata[idx] > threshold)
-    return has_contact

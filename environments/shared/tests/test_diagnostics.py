@@ -53,13 +53,11 @@ class TestInit:
         assert cb.action_saturation_threshold == 0.95
         assert cb.save_interval_seconds == 30.0
 
-    def test_legacy_plateau_params_are_accepted_but_ignored(self, caplog):
-        with caplog.at_level("WARNING", logger="environments.shared.diagnostics"):
-            cb = DiagnosticsCallback(plateau_window=20, plateau_threshold=2.0)
-
-        assert not hasattr(cb, "plateau_window")
-        assert not hasattr(cb, "plateau_threshold")
-        assert "deprecated and ignored" in caplog.text
+    def test_legacy_plateau_params_are_rejected(self):
+        # The 2026-07-24 deprecation shim is retired: the kwargs are gone,
+        # not silently ignored.
+        with pytest.raises(TypeError):
+            DiagnosticsCallback(plateau_window=20, plateau_threshold=2.0)
 
     def test_initial_state(self, callback):
         assert callback._rollout_terminations == Counter()

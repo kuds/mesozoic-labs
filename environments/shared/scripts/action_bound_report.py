@@ -4,10 +4,11 @@
 The action space is ``Box(-1, 1)``, but SB3's Gaussian policy is unbounded, so
 the sampled action routinely lands outside it.  Both training paths clip before
 stepping the environment -- SB3 at ``on_policy_algorithm.py:214-218`` and
-``policies.py:379`` (inside ``predict``), the JAX trainer at
-``jax_trainer.py:365`` -- so the plant and the reward both see an in-bound
-action.  What the clip hides is how hard the policy is pushing against the
-bound, and that is what this script measures.
+``policies.py:379`` (inside ``predict``), the JAX trainer in
+``collect_rollout`` inside ``_build_jit_fns``
+(``environments/shared/jax_train_fn.py``) -- so the plant and the reward both
+see an in-bound action.  What the clip hides is how hard the policy is pushing
+against the bound, and that is what this script measures.
 
 It matters because PPO stores the *raw* action and its ``log_prob`` while the
 environment responds to the *clipped* one.  Once a large fraction of components
@@ -62,9 +63,7 @@ Usage::
 """
 
 import argparse
-import importlib
 import sys
-import tomllib
 from pathlib import Path
 
 import numpy as np
@@ -73,68 +72,13 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-SPECIES_ENVS = {
-    "trex": ("environments.trex.envs.trex_env", "TRexEnv"),
-    "velociraptor": ("environments.velociraptor.envs.raptor_env", "RaptorEnv"),
-    "brachiosaurus": ("environments.brachiosaurus.envs.brachio_env", "BrachioEnv"),
-    "dibothrosuchus": ("environments.dibothrosuchus.envs.dibothrosuchus_env", "DibothrosuchusEnv"),
-}
-# Keys the TOML [env] block carries for the MJX path only, as in
-# zero_action_baseline.py and joint_excursion_report.py.
-JAX_ONLY_ENV_KEYS = frozenset({"foot_contact_weight", "foot_contact_gate"})
+from environments.shared.config import SPECIES_NAMES, build_env
+from environments.shared.constants import PUBLICATION_SEED_START
+from environments.shared.policy_loading import UNNORMALIZED_BANNER, PolicyLoadError, load_sb3_checkpoint
+
 # Matches DiagnosticsCallback.action_saturation_threshold, so the figures here
 # are directly comparable to diagnostics/raw_action_saturation.
 SATURATION_THRESHOLD = 0.99
-UNNORMALIZED_BANNER = "UNNORMALIZED EVAL — results are not comparable to training-time metrics"
-
-
-def resolve_vecnorm_path(model_path: str, vecnorm_arg: str | None, allow_unnormalized: bool) -> str | None:
-    """The VecNormalize sidecar to evaluate with, or ``None`` for a deliberately unnormalised run.
-
-    An explicit ``--vecnorm`` wins.  Otherwise the trainer's own resolver
-    probes both sidecar conventions -- the ``<stem>_vecnorm.pkl`` guess this
-    script used to make can never match SB3's periodic
-    ``<prefix>_vecnormalize_<steps>_steps.pkl``, so every periodic checkpoint
-    was silently scored on raw observations.  No sidecar is fatal unless
-    ``--allow-unnormalized``: a policy evaluated unnormalised is a different
-    policy, and its saturation figures describe nothing that trained.
-    """
-    if vecnorm_arg is not None:
-        return vecnorm_arg
-    from environments.shared.train_base import _resolve_vecnorm_sidecar
-
-    candidate = _resolve_vecnorm_sidecar(model_path)
-    if Path(candidate).exists():
-        return candidate
-    if allow_unnormalized:
-        return None
-    raise SystemExit(
-        f"no VecNormalize sidecar found for {model_path} (probed {candidate}). A policy evaluated on "
-        "unnormalised observations is a different policy; pass --vecnorm, or --allow-unnormalized "
-        "to proceed deliberately."
-    )
-
-
-def stage_env_section(species: str, stage: int) -> dict:
-    from environments.shared.stage_manifest import load_stage_manifest
-
-    entry = load_stage_manifest(species).resolve(stage)
-    config_path = Path(_repo_root) / "configs" / species / entry.config_file
-    # Annotated local: tomllib returns Any, and mypy will not carry the
-    # declared return type back through a bare return of it.
-    section: dict = tomllib.loads(config_path.read_text()).get("env", {})
-    return section
-
-
-def build_env(species: str, stage: int):
-    module_name, class_name = SPECIES_ENVS[species]
-    env_class = getattr(importlib.import_module(module_name), class_name)
-    kwargs = {
-        key: (tuple(value) if isinstance(value, list) else value)
-        for key, value in stage_env_section(species, stage).items()
-        if key not in JAX_ONLY_ENV_KEYS
-    }
-    return env_class(**kwargs)
 
 
 def actuator_names(env, n_actuators: int) -> list[str]:
@@ -147,7 +91,7 @@ def actuator_names(env, n_actuators: int) -> list[str]:
 
 def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("species", choices=sorted(SPECIES_ENVS))
+    parser.add_argument("species", choices=SPECIES_NAMES)
     parser.add_argument("stage", type=int, choices=(1, 2, 3))
     parser.add_argument("--model", default=None, help="SB3 .zip policy; omit to probe an untrained Gaussian")
     parser.add_argument("--vecnorm", default=None, help="VecNormalize .pkl (default: alongside the model)")
@@ -158,7 +102,7 @@ def main(argv: list[str]) -> None:
     )
     parser.add_argument("--std", type=float, default=1.0, help="Gaussian std when --model is omitted")
     parser.add_argument("--episodes", type=int, default=10)
-    parser.add_argument("--seed", type=int, default=3042)
+    parser.add_argument("--seed", type=int, default=PUBLICATION_SEED_START)
     args = parser.parse_args(argv)
 
     env = build_env(args.species, args.stage)
@@ -168,15 +112,16 @@ def main(argv: list[str]) -> None:
     model = None
     normalizer = None
     if args.model:
-        from stable_baselines3 import PPO
-        from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-
-        model = PPO.load(args.model, device="cpu")
-        vecnorm_path = resolve_vecnorm_path(args.model, args.vecnorm, args.allow_unnormalized)
-        if vecnorm_path:
-            normalizer = VecNormalize.load(vecnorm_path, DummyVecEnv([lambda: build_env(args.species, args.stage)]))
-            normalizer.training = False
-            normalizer.norm_reward = False
+        try:
+            model, normalizer, _ = load_sb3_checkpoint(
+                args.model,
+                args.vecnorm,
+                lambda: build_env(args.species, args.stage),
+                allow_unnormalized=args.allow_unnormalized,
+            )
+        except PolicyLoadError as exc:
+            # The CLI boundary is where a loading failure becomes an exit status.
+            raise SystemExit(str(exc)) from exc
 
     rng = np.random.default_rng(args.seed)
     returns: list[float] = []

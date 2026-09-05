@@ -23,19 +23,13 @@ from typing import Any
 
 import numpy as np
 
-from environments.brachiosaurus.envs.brachio_env import BrachioEnv
-from environments.dibothrosuchus.envs.dibothrosuchus_env import DibothrosuchusEnv
-from environments.trex.envs.trex_env import TRexEnv
-from environments.velociraptor.envs.raptor_env import RaptorEnv
+from environments.shared.constants import PUBLICATION_SEED_START
+from environments.shared.species_registry import get_species_config
 
 warnings.filterwarnings("ignore")
 
-SPECIES: list[tuple[type, str]] = [
-    (TRexEnv, "trex"),
-    (RaptorEnv, "velociraptor"),
-    (BrachioEnv, "brachiosaurus"),
-    (DibothrosuchusEnv, "dibothrosuchus"),
-]
+#: Report order: the table prints its rows in this order, not the registry's.
+SPECIES: tuple[str, ...] = ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus")
 
 CONFIG_ROOT = Path(__file__).resolve().parents[3] / "configs"
 HORIZON = 1000
@@ -102,12 +96,12 @@ def measure(env_cls: type, species: str, noise: float, seeds: range) -> dict[str
 def main(argv: list[str]) -> None:
     noise = float(argv[1]) if len(argv) > 1 else 0.05
     episodes = int(argv[2]) if len(argv) > 2 else 40
-    seeds = range(3042, 3042 + episodes)
+    seeds = range(PUBLICATION_SEED_START, PUBLICATION_SEED_START + episodes)
 
     print(f"statue stance quality at reset_noise={noise}, {episodes} episodes")
     print(f"{'species':>15} {'full-hz':>8} {'all-feet':>9} {'unsup':>7} {'switch/s':>9} {'standing reward':>18}")
-    for env_cls, species in SPECIES:
-        result = measure(env_cls, species, noise, seeds)
+    for species in SPECIES:
+        result = measure(get_species_config(species).env_class, species, noise, seeds)
         standing_sd = result["standing_sd"]
         spread = f"+/-{standing_sd:.1f}" if standing_sd == standing_sd else ""
         print(

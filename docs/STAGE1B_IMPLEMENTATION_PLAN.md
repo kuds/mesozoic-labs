@@ -75,7 +75,7 @@ prune; §2.3 is cosmetic. Each item was verified against the current tree.
    `test_every_group_gets_both_directions`
    (`environments/shared/tests/test_stance_gate_report.py:1748`) still
    iterates only the five r6-era groups; #501's `knees_ankles`, `left_leg`,
-   `right_leg` (`stance_gate_report.py:2052-2054`) — the groups the
+   `right_leg` (`environments/shared/reporting/stance_report.py:2013-2015`) — the groups the
    knee-localization conclusion rests on — could be deleted or broken without
    a test noticing. Extend the tuple (and `_TREX_ACTUATORS` if needed).
 4. **The factory parity test pins the pack weights with `> 0.0`.**
@@ -115,7 +115,7 @@ prune; §2.3 is cosmetic. Each item was verified against the current tree.
 
 9. `configs/trex/stage1_balance.toml:549`: the release-ablation cost comment
    says "13 panels"; the current plant's group set gives 17.
-10. `stance_gate_report.py:413-422`: `_actuator_pose_mapping`'s docstring
+10. `environments/shared/reporting/stance_report.py:380-399`: `_actuator_pose_mapping`'s docstring
     describes the deleted toe actuators in the present tense; add the same
     past-tense r6 framing #500 used elsewhere in the file.
 11. Stale TOML provenance comments: `posture_weight` "Increased from 1.5" (a
@@ -146,6 +146,16 @@ prune; §2.3 is cosmetic. Each item was verified against the current tree.
   (`configs/trex/stage1_balance.toml:337`) — and 1b's push schedule interacts
   with it directly (§6, decision 4). Calibrate against stored rollouts before
   the 1b gate depends on it.
+- **Two task-fingerprint transition valves are still open** (tracked here
+  since the 2026-08 gap review, entry SM4): `allow_unfingerprinted` in
+  `train_base._create_or_load_model` admits checkpoints saved before the
+  fingerprint landed on 2026-08-15, and the schema-v1 valve in
+  `task_fingerprint.validate_recorded_task` admits records from before the
+  2026-08-23 v2 bump. Both must stay while a live lineage still resumes such a
+  checkpoint — the certified stance parent `20260810_145546` does, as do the
+  1b pilots `20260819_154702` / `20260821_142144`. Tighten both to fail-closed
+  together, once every lineage that matters has been re-saved under the
+  current schema; no date is scheduled.
 
 ## 3. What 1b is (adopted design, in brief)
 

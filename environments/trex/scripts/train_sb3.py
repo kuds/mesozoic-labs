@@ -29,17 +29,10 @@ _repo_root = str(Path(__file__).resolve().parents[3])
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
-from environments.shared.train_base import SpeciesConfig, main
-from environments.trex.envs.trex_env import TRexEnv
+from environments.shared.species_registry import get_species_config
+from environments.shared.train_base import main
 
-SPECIES_CONFIG = SpeciesConfig(
-    species="trex",
-    env_class=TRexEnv,
-    stage_descriptions="1=balance, 2=locomotion, 3=bite",
-    height_label="Pelvis height",
-    stage3_section_label="Hunting",
-    success_keys=["bite_success", "strike_success"],
-)
+SPECIES_CONFIG = get_species_config("trex")
 
 if __name__ == "__main__":
     main(SPECIES_CONFIG)

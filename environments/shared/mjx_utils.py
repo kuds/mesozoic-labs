@@ -64,14 +64,6 @@ def scale_action_around_nominal_jax(action, ctrl_range, nominal_ctrl):
     return jnp.where(action < 0.0, below_nominal, above_nominal)
 
 
-def unscale_action_jax(ctrl, ctrl_range):
-    """Inverse of :func:`scale_action_jax`: control range → [-1, 1]."""
-
-    ctrl_min = ctrl_range[:, 0]
-    ctrl_max = ctrl_range[:, 1]
-    return 2.0 * (ctrl - ctrl_min) / (ctrl_max - ctrl_min + 1e-8) - 1.0
-
-
 def reset_mujoco_data_to_home(mj_model, mj_data) -> None:
     """Reset CPU MuJoCo data to the named ``home`` keyframe.
 

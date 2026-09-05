@@ -25,6 +25,15 @@ from .stance_gate import (
 
 logger = logging.getLogger(__name__)
 
+# Fallback panel size for the SB3 curriculum path (the manager's
+# ``StageThreshold``, the recorded-gate evaluator in ``reporting.gates`` and
+# the in-training diagnostics callback) when a stage's ``[curriculum]``
+# omits ``min_eval_episodes``.  Deliberately distinct from the stance gate's
+# own ``DEFAULT_MIN_EVAL_EPISODES_STANCE`` (40): naming the 10 is
+# behavior-neutral; unifying the two would change which panels the SB3
+# manager certifies (gap review DU4, part 2 — not applied).
+DEFAULT_MIN_EVAL_EPISODES: int = 10
+
 
 @dataclass
 class StageThreshold:
@@ -55,8 +64,26 @@ class StageThreshold:
     settle_steps: int = 0
 
     # Shared
-    min_eval_episodes: int = 10
+    min_eval_episodes: int = DEFAULT_MIN_EVAL_EPISODES
     required_consecutive: int = 3
+
+    def stance_thresholds(self) -> StanceGateThresholds:
+        """The ``stance_quality/v1`` fields, as :func:`evaluate_stance_gate` reads them.
+
+        A field copy on purpose, never :meth:`StanceGateThresholds.from_curriculum`:
+        this dataclass defaults ``min_eval_episodes`` to 10 where the
+        curriculum-dict readers default to 40, so routing the manager through
+        the dict reader would change which panels it certifies.
+        """
+        return StanceGateThresholds(
+            min_full_horizon_fraction=self.min_full_horizon_fraction,
+            max_unsupported_duty=self.max_unsupported_duty,
+            max_unsupported_duty_ucb=self.max_unsupported_duty_ucb,
+            settle_steps=self.settle_steps,
+            min_eval_episodes=self.min_eval_episodes,
+            min_avg_reward=self.min_avg_reward,
+            required_consecutive=self.required_consecutive,
+        )
 
 
 class CurriculumManager:
@@ -255,10 +282,10 @@ class CurriculumManager:
         elif threshold.gate_kind == RECOVERY_GATE_KIND:
             passes = self._recovery_gate_refuses()
         else:
-            # A kind with no evaluator here — recovery_quality/v1 is
-            # schema-valid, but its verdict comes only from the gate resolver
-            # (gate_resolver.evaluate_recovery_gate_from_resolution): frozen
-            # thresholds, frozen null pairings. This used to be the
+            # A kind with no evaluator here: a future entry added to
+            # gate_schema.GATE_KINDS (the schema's documented extension path
+            # is to add the entry AND teach both backends to evaluate it)
+            # that has not been given a branch above. This used to be the
             # reward_and_length fall-through, so such a stage advanced on
             # return alone under StageThreshold's permissive defaults
             # (min_avg_reward = -inf) — the exact fall-through
@@ -385,18 +412,7 @@ class CurriculumManager:
             mean_unsupported_duty=latest["mean_unsupported_duty"],
             unsupported_duty_ucb=latest["unsupported_duty_ucb"],
         )
-        passed, failures = evaluate_stance_gate(
-            panel,
-            StanceGateThresholds(
-                min_full_horizon_fraction=threshold.min_full_horizon_fraction,
-                max_unsupported_duty=threshold.max_unsupported_duty,
-                max_unsupported_duty_ucb=threshold.max_unsupported_duty_ucb,
-                settle_steps=threshold.settle_steps,
-                min_eval_episodes=threshold.min_eval_episodes,
-                min_avg_reward=threshold.min_avg_reward,
-                required_consecutive=threshold.required_consecutive,
-            ),
-        )
+        passed, failures = evaluate_stance_gate(panel, threshold.stance_thresholds())
         if not passed:
             logger.info("Stage %d stance gate not met: %s", self._current_stage, "; ".join(failures))
         return passed
@@ -461,12 +477,14 @@ def thresholds_from_configs(
             or malformed.
     """
     thresholds: dict[int, dict[str, Any]] = {}
-    # The numeric curriculum advances through legacy-numbered stages only.
-    # Semantic-only stages (recovery, which load_all_stages keys by ID) are
-    # deliberately excluded: train_curriculum walks the manifest and skips
-    # every non-advancing stage with a log line, and this manager judges
-    # none of their gate kinds — including one here would validate it under
-    # advancement and correctly-but-prematurely refuse the whole run.
+    # The numeric curriculum advances through legacy-numbered (integer-keyed)
+    # stages only.  Semantic-only stages (recovery, which load_all_stages keys
+    # by ID) are deliberately excluded: train_curriculum walks the manifest
+    # and skips every non-advancing stage with a log line, and the recovery
+    # stage is judged post-stage by reporting/gates.py::evaluate_stage_gate
+    # from its frozen gate_resolution.json — its recovery_quality/v1
+    # threshold keys are deliberately not carried onto StageThreshold (see
+    # the comment on the copy below and _recovery_gate_refuses).
     for stage, cfg in configs.items():
         if not isinstance(stage, int):
             continue
