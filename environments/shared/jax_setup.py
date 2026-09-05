@@ -829,13 +829,14 @@ def run_stage_evaluation(
         target_standing_z=(ctx.target_standing_z if ctx.target_standing_z is not None else 0.90),
         # Scheduled pushes (recovery stage): thread the instantiated env's
         # perturbation_* fields one-to-one so the eval applies the same
-        # pushes training did.  A multiple of 0 (every non-recovery stage)
-        # keeps the eval push-free.
-        perturbation_capture_velocity_multiple=float(env.config.perturbation_capture_velocity_multiple),
-        perturbation_interval=float(env.config.perturbation_interval),
-        perturbation_jitter=float(env.config.perturbation_jitter),
-        perturbation_duration=float(env.config.perturbation_duration),
-        perturbation_direction=str(env.config.perturbation_direction),
+        # pushes training did.  A multiple of 0 (every non-recovery stage,
+        # and any config that does not declare pushes) keeps the eval
+        # push-free; the defaults are MJXEnvConfig's.
+        perturbation_capture_velocity_multiple=float(getattr(env.config, "perturbation_capture_velocity_multiple", 0.0)),
+        perturbation_interval=float(getattr(env.config, "perturbation_interval", 2.0)),
+        perturbation_jitter=float(getattr(env.config, "perturbation_jitter", 0.5)),
+        perturbation_duration=float(getattr(env.config, "perturbation_duration", 0.20)),
+        perturbation_direction=str(getattr(env.config, "perturbation_direction", "uniform_horizontal")),
         seed=eval_seed,
     )
 
