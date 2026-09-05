@@ -232,6 +232,24 @@ class TestAutoResumeFindsTheGatedPreviousStage:
         assert "stage1" in candidates, "runs written before 2026-08-20 must still be found"
 
 
+class TestNotebookNetworkFollowsNetArch:
+    """JX9 (notebook half): the network is built by make_network(ctx), the one factory
+    train_jax and every load/eval path share, so [jax.policy_kwargs] net_arch is honored."""
+
+    def test_network_is_built_by_the_shared_factory(self):
+        cells = _code_cells()
+        assert any("network = make_network(ctx)" in src for src in cells)
+        assert not any("make_actor_critic(" in src for src in cells), (
+            "the notebook must not size the network itself; make_network(ctx) reads net_arch"
+        )
+
+    def test_the_factory_reads_the_stage_net_arch(self):
+        from environments.shared.jax_curriculum import network_hidden_dims
+
+        assert network_hidden_dims({"policy_kwargs": {"net_arch": [256, 128]}}) == (256, 128)
+        assert network_hidden_dims({}) == (512, 256)
+
+
 class TestVideoUsesThePlantActionFilter:
     """JX7 (notebook half): the evaluation video runs on the training plant's command low-pass."""
 
