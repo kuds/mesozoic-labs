@@ -1,7 +1,18 @@
-"""Running-mean observation normalisation in JAX.
+"""Running-mean OBSERVATION normalisation in JAX.
 
-Equivalent to SB3's ``VecNormalize`` but implemented as a pure
-JAX pytree so it can be used inside ``jax.jit``/``jax.vmap``.
+The observation half of SB3's ``VecNormalize`` (``norm_obs``), implemented
+as a pure JAX pytree so it can be used inside ``jax.jit``/``jax.vmap``.  It
+normalises observations only.  Reward normalisation (``VecNormalize``'s
+``norm_reward``, on by default for SB3 PPO in ``train_base``) has no
+counterpart on this backend: the JAX trainers optimise raw rewards.
+
+That asymmetry is confined to training — SB3's gate evaluation switches
+``norm_reward`` off, so the ``[curriculum]`` reward thresholds are compared
+against RAW episode returns on both backends.  What differs between the
+backends at the gate is the reward the two kernels pay for the same
+behaviour (the MJX height-gated alive bonus, the ``[jax] fall_penalty``
+override), which is why ``[curriculum.jax]`` exists — see
+:mod:`environments.shared.curriculum.gate_schema`.
 
 Usage::
 

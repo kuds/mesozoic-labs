@@ -602,6 +602,91 @@ class TestSaveJaxStageArtifacts:
             summary, expected_species="velociraptor", require_complete=True, canonical_provenance=True
         )
 
+    @staticmethod
+    def _override_config(stage):
+        """A reward_and_length/v1 stage whose shared (SB3-calibrated) bar of 100
+        the fake evidence (rewards mean 55) FAILS and whose [curriculum.jax]
+        bar of 40 it clears."""
+        config = TestSaveJaxStageArtifacts._gated_config(stage)
+        config["curriculum_kwargs"] = {
+            "gate_kind": "reward_and_length/v1",
+            "gate_schema_version": 1,
+            "min_avg_reward": 100.0,
+            "min_avg_episode_length": 100,
+            "jax": {"min_avg_reward": 40.0},
+        }
+        return config
+
+    def test_persists_the_effective_jax_thresholds_not_the_shared_sb3_bar(self, tmp_path):
+        """Review J #9: this is the JAX backend's writer, so stage_config.json
+        and the collected_results.csv row rebuilt from it record the bar the
+        JAX gate judged -- the [curriculum.jax] override applied, the
+        sub-table gone -- not the shared SB3 bar every artifact reader
+        (csv_output, evidence.py, the catalog) would otherwise report."""
+        raw = self._override_config(1)
+        paths, _, _ = self._call(tmp_path, stage_config=raw)
+
+        saved = json.loads(paths["stage_config"].read_text())["curriculum"]
+        assert saved["min_avg_reward"] == 40.0
+        assert saved["min_avg_episode_length"] == 100
+        assert saved["gate_kind"] == "reward_and_length/v1"
+        assert "jax" not in saved
+
+        with open(paths["collected_results_csv"]) as f:
+            row = list(csv.DictReader(f))[0]
+        assert row["reward_threshold"] == "40.0"
+        assert row["curriculum_min_avg_reward"] == "40.0"
+        assert "curriculum_jax" not in row
+
+        record = json.loads(paths["stage_result"].read_text())
+        assert record["gate_kind"] == "reward_and_length/v1"
+        # The caller's config (the notebook's ctx.stage_config) is not mutated.
+        assert raw["curriculum_kwargs"]["min_avg_reward"] == 100.0
+        assert raw["curriculum_kwargs"]["jax"] == {"min_avg_reward": 40.0}
+
+    def test_a_jax_bar_the_evidence_clears_finalises_the_bundle(self, tmp_path):
+        """End to end with the validator.  The JAX gate passes stage 2 against
+        the override (55 >= 40); written raw, evidence.py re-judged the same
+        evidence against the shared 100 at stage-3 finalisation and refused
+        the run the gate had just passed, so summary.json was never written."""
+        from environments.shared.jax_curriculum import jax_gate_thresholds
+        from environments.shared.jax_eval import EvalResults, check_stage_gate_for_config
+        from environments.shared.result_bundle import validate_result_bundle
+
+        raw = self._override_config(2)
+        evidence = _FakeEvalResults()
+        judged = EvalResults()
+        judged.rewards = list(evidence.rewards)
+        judged.lengths = list(evidence.lengths)
+        judged.forward_vels = list(evidence.forward_vels)
+        judged.distances = list(evidence.distances)
+        judged.successes = list(evidence.successes)
+        # run_stage_evaluation's preparation of the config it judges.
+        as_judged = dict(raw, curriculum_kwargs=jax_gate_thresholds(2, raw, species="velociraptor"))
+        passed, failures = check_stage_gate_for_config(judged, as_judged)
+        assert passed, failures
+
+        self._call(tmp_path, stage=1, backend_version="0.11.0", stage_config=self._gated_config(1))
+        # The notebook hands the writer the RAW config (ctx.stage_config).
+        self._call(tmp_path, stage=2, backend_version="0.11.0", stage_config=raw, eval_results=evidence)
+        _, _, run_dir = self._call(tmp_path, stage=3, backend_version="0.11.0", stage_config=self._gated_config(3))
+        assert (run_dir / "summary.json").exists()
+        assert validate_result_bundle(run_dir)["status"] == "canonical-valid"
+
+    def test_the_sb3_config_writer_still_records_the_shared_table_verbatim(self, tmp_path):
+        """The flattening belongs to the JAX writer alone.  generate_stage_artifacts
+        hands save_stage_config the raw config and the SB3 gate judges the
+        shared bar (thresholds_from_configs ignores the table), so the SB3
+        artifacts keep recording it, sub-table and all."""
+        from environments.shared.config import save_stage_config
+
+        path = save_stage_config(
+            tmp_path, stage=1, stage_config=self._override_config(1), algorithm="PPO", species="velociraptor"
+        )
+        saved = json.loads(path.read_text())["curriculum"]
+        assert saved["min_avg_reward"] == 100.0
+        assert saved["jax"] == {"min_avg_reward": 40.0}
+
     def _crash_publishing(self, monkeypatch, filename):
         """Fail the atomic publish of one artifact, as a lost mount would."""
         real_replace = os.replace

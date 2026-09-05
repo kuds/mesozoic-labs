@@ -337,3 +337,323 @@ class TestJaxKwargsPlumbing:
         assert seen[2]["init_obs_stats"] == ("decayed", "stats-s1")
         assert seen[2]["init_params"] == "params-s1"
         assert seen[2]["ramp_attr"] == stage2_jax["ramp_attr"]
+
+
+class TestBackendOverrideTable:
+    """``[curriculum.jax]`` states a JAX-calibrated bar ADDITIVELY (review JX6).
+
+    The shared scalar thresholds are compared against raw episode returns on
+    both backends, but the MJX kernel height-gates the stage-2/3 alive bonus
+    and ``[jax] fall_penalty`` overrides ``[env] fall_penalty``, so one shared
+    ``min_avg_reward`` is a different bar per backend.  The sub-table lets a
+    stage override just the scalar thresholds for the JAX path; absent, nothing
+    changes anywhere.
+    """
+
+    def test_absent_table_leaves_the_shared_thresholds_unchanged(self):
+        from environments.shared.jax_curriculum import jax_gate_thresholds
+
+        curriculum = dict(_GATE, min_avg_reward=100.0, min_avg_episode_length=950)
+        assert jax_gate_thresholds(2, {"curriculum_kwargs": curriculum}) == curriculum
+
+    def test_jax_override_replaces_only_the_named_scalar_on_the_jax_path(self):
+        from environments.shared.jax_curriculum import jax_gate_thresholds
+
+        curriculum = dict(_GATE, min_avg_reward=100.0, min_avg_episode_length=950, jax={"min_avg_reward": 40.0})
+        stage_config = {"curriculum_kwargs": curriculum}
+
+        effective = jax_gate_thresholds(2, stage_config)
+        assert effective["min_avg_reward"] == 40.0
+        assert effective["min_avg_episode_length"] == 950
+        assert "jax" not in effective, "downstream readers must see a flat [curriculum] mapping"
+
+        # 50 fails the shared bar (100) and clears the JAX one (40).
+        metrics = {"mean_episode_return": 50.0, "mean_episode_length": 1000.0}
+        assert check_stage_gate(metrics, stage_config) is True
+        assert check_stage_gate({**metrics, "mean_episode_return": 30.0}, stage_config) is False
+
+    def test_the_override_can_add_a_rail_the_shared_table_declines(self):
+        """A stance stage may set a JAX-only reward rail."""
+        stance = dict(TestStanceRailUnits.STANCE, jax={"min_avg_reward": 500.0})
+        metrics = TestStanceRailUnits()._metrics(mean_episode_return=400.0)
+        assert check_stage_gate(metrics, {"curriculum_kwargs": stance}) is False
+        assert check_stage_gate({**metrics, "mean_episode_return": 600.0}, {"curriculum_kwargs": stance}) is True
+
+    def test_unknown_key_inside_the_override_table_is_fatal(self):
+        typo = dict(_GATE, min_avg_reward=100.0, jax={"min_avg_rewrad": 40.0})
+        with pytest.raises(GateSchemaError, match="cannot be overridden"):
+            check_stage_gate({"mean_episode_return": 1e9}, {"curriculum_kwargs": typo})
+
+    def test_a_composite_criterion_cannot_be_overridden_per_backend(self):
+        stance = dict(TestStanceRailUnits.STANCE, jax={"max_unsupported_duty": 0.5})
+        with pytest.raises(GateSchemaError, match="cannot be overridden"):
+            check_stage_gate({}, {"curriculum_kwargs": stance})
+
+    def test_overriding_a_field_the_kind_does_not_consume_is_fatal(self):
+        stance = dict(TestStanceRailUnits.STANCE, jax={"min_success_rate": 0.5})
+        with pytest.raises(GateSchemaError, match="does not consume"):
+            check_stage_gate({}, {"curriculum_kwargs": stance})
+
+    def test_non_numeric_and_non_table_overrides_are_fatal(self):
+        with pytest.raises(GateSchemaError, match="finite numbers"):
+            check_stage_gate({}, {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0, jax={"min_avg_reward": "x"})})
+        with pytest.raises(GateSchemaError, match="must be a table"):
+            check_stage_gate({}, {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0, jax=40.0)})
+
+    def test_the_sb3_thresholds_ignore_the_jax_table(self):
+        """The override is per-backend: SB3 keeps judging the shared bar."""
+        from environments.shared.curriculum import thresholds_from_configs
+
+        configs = {1: {"curriculum_kwargs": dict(_GATE, min_avg_reward=100.0, jax={"min_avg_reward": 40.0})}}
+        thresholds = thresholds_from_configs(configs)
+        assert thresholds[1]["min_avg_reward"] == 100.0
+        assert "jax" not in thresholds[1]
+
+    #: A stage TOML declaring the shared bar and a JAX override for it.
+    OVERRIDE_TOML = (
+        '[stage]\nname = "t"\n[env]\nalive_bonus = 1.0\n[jax]\nnum_updates = 1\n'
+        '[curriculum]\ngate_schema_version = 1\ngate_kind = "reward_and_length/v1"\n'
+        "min_avg_reward = 100.0\n[curriculum.jax]\nmin_avg_reward = 40.0\n"
+    )
+
+    def test_a_toml_sub_table_loads_validates_and_applies_on_the_jax_path(self, tmp_path):
+        """From the TOML in: the loader keeps [curriculum.jax] nested under
+        curriculum_kwargs (it always passed sub-tables through), the schema
+        accepts it (validate_gate_config rejected ``jax`` as an unrecognised
+        [curriculum] key before the table existed), and apply_backend_overrides
+        yields the JAX bar while the loaded dict still carries the shared one
+        for the SB3 path."""
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum.gate_schema import apply_backend_overrides, validate_gate_config
+
+        good = tmp_path / "good.toml"
+        good.write_text(self.OVERRIDE_TOML)
+        curriculum = load_stage_config("trex", 1, config_path=str(good))["curriculum_kwargs"]
+        assert curriculum["min_avg_reward"] == 100.0
+        assert curriculum["jax"] == {"min_avg_reward": 40.0}
+        assert validate_gate_config(1, curriculum, advancement_enabled=True) == "reward_and_length/v1"
+        effective = apply_backend_overrides(curriculum, "jax")
+        assert effective["min_avg_reward"] == 40.0
+        assert "jax" not in effective
+
+    def test_an_unknown_key_in_the_toml_sub_table_is_rejected_by_the_schema(self, tmp_path):
+        """The loader is not the guard -- it passes the misspelling through --
+        so the schema must be, or the shared bar silently stays in force."""
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum.gate_schema import validate_gate_config
+
+        bad = tmp_path / "bad.toml"
+        bad.write_text(
+            self.OVERRIDE_TOML.replace("[curriculum.jax]\nmin_avg_reward", "[curriculum.jax]\nmin_avg_rewrad")
+        )
+        curriculum = load_stage_config("trex", 1, config_path=str(bad))["curriculum_kwargs"]
+        assert curriculum["jax"] == {"min_avg_rewrad": 40.0}
+        with pytest.raises(GateSchemaError, match="cannot be overridden"):
+            validate_gate_config(1, curriculum, advancement_enabled=True)
+
+
+class TestSb3CalibratedBarWarning:
+    """A reward bar left at its shared value warns ONCE on the JAX path (JX6c)."""
+
+    @pytest.fixture(autouse=True)
+    def _fresh_warning_state(self, monkeypatch):
+        from environments.shared import jax_curriculum
+
+        monkeypatch.setattr(jax_curriculum, "_sb3_calibrated_bar_warned", set())
+
+    def _stage_config(self, **curriculum_overrides):
+        return {
+            "stage": 2,
+            "env_kwargs": {"fall_penalty": -150.0},
+            "jax_kwargs": {"fall_penalty": -10.0},
+            "curriculum_kwargs": dict(_GATE, min_avg_reward=100.0, **curriculum_overrides),
+        }
+
+    def test_warns_once_naming_the_alive_gate_and_both_fall_penalties(self, caplog):
+        import logging
+
+        stage_config = self._stage_config()
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_curriculum"):
+            for _ in range(3):
+                check_stage_gate({"mean_episode_return": 150.0}, stage_config)
+        warnings = [r for r in caplog.records if "SB3" in r.getMessage()]
+        assert len(warnings) == 1
+        message = warnings[0].getMessage()
+        assert "alive bonus" in message
+        assert "fall_penalty=-10.0" in message and "fall_penalty=-150.0" in message
+        assert "[curriculum.jax]" in message
+
+    def test_no_warning_once_a_jax_override_is_declared(self, caplog):
+        import logging
+
+        stage_config = self._stage_config(jax={"min_avg_reward": 40.0})
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_curriculum"):
+            check_stage_gate({"mean_episode_return": 150.0}, stage_config)
+        assert not [r for r in caplog.records if "SB3" in r.getMessage()]
+
+    def test_no_warning_for_a_stage_with_no_reward_bar(self, caplog):
+        import logging
+
+        stance = {"stage": 1, "curriculum_kwargs": dict(TestStanceRailUnits.STANCE)}
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_curriculum"):
+            check_stage_gate(TestStanceRailUnits()._metrics(), stance)
+        assert not [r for r in caplog.records if "SB3" in r.getMessage()]
+
+    def test_run_curriculum_warns_before_spending_the_stage_budget(self, caplog):
+        import logging
+
+        from environments.shared.jax_curriculum import run_curriculum
+
+        order: list[str] = []
+        messages: list[str] = []
+
+        def fake_train(species, stage, **kwargs):
+            order.append(f"train-{stage}")
+            return ("params", {"mean_episode_return": -1e9, "mean_episode_length": 0.0}, "stats")
+
+        class _Recorder(logging.Handler):
+            def emit(self, record):
+                if "SB3" in record.getMessage():
+                    order.append("warned")
+                    messages.append(record.getMessage())
+
+        handler = _Recorder()
+        logger = logging.getLogger("environments.shared.jax_curriculum")
+        logger.addHandler(handler)
+        try:
+            with caplog.at_level(logging.WARNING, logger="environments.shared.jax_curriculum"):
+                run_curriculum("velociraptor", fake_train, stages=(1, 2))
+        finally:
+            logger.removeHandler(handler)
+        assert order[:2] == ["warned", "train-1"]
+        assert order.count("warned") == 1
+        # run_curriculum knows the species, so the note names it.
+        assert messages[0].startswith("velociraptor stage 1:")
+
+    def test_each_species_warns_once_with_its_own_fall_penalties(self, caplog):
+        """Review J #11: every species' stage 2 is named ``locomotion`` at the
+        same shared bar, so a warn-once key without the species let only the
+        first species in a process warn -- and quoted ITS fall penalties for
+        every other species' identically named stage."""
+        import logging
+
+        from environments.shared.jax_curriculum import jax_gate_thresholds
+
+        def locomotion(env_fall_penalty):
+            return {
+                "name": "locomotion",
+                "env_kwargs": {"fall_penalty": env_fall_penalty},
+                "jax_kwargs": {"fall_penalty": -10.0},
+                "curriculum_kwargs": dict(_GATE, min_avg_reward=100.0),
+            }
+
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_curriculum"):
+            jax_gate_thresholds(2, locomotion(-150.0), species="trex")
+            jax_gate_thresholds(2, locomotion(-50.0), species="brachiosaurus")
+            jax_gate_thresholds(2, locomotion(-50.0), species="brachiosaurus")
+        warnings = [r.getMessage() for r in caplog.records if "SB3" in r.getMessage()]
+        assert len(warnings) == 2, "once per species, not once per config name"
+        assert warnings[0].startswith("trex stage 2:")
+        assert "[env] fall_penalty=-150.0" in warnings[0]
+        assert warnings[1].startswith("brachiosaurus stage 2:")
+        assert "[env] fall_penalty=-50.0" in warnings[1]
+        assert "-150.0" not in warnings[1]
+
+    def test_check_stage_gate_forwards_the_species_to_the_note(self, caplog):
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_curriculum"):
+            check_stage_gate({"mean_episode_return": 150.0}, self._stage_config(), species="velociraptor")
+            check_stage_gate({"mean_episode_return": 150.0}, self._stage_config(), species="trex")
+        warnings = [r.getMessage() for r in caplog.records if "SB3" in r.getMessage()]
+        assert [w.split(":")[0] for w in warnings] == ["velociraptor stage 2", "trex stage 2"]
+
+    def test_the_shipped_stage_2_configs_warn_once_per_species(self, caplog):
+        """The review probe: the shipped stage-2 TOMLs share name and bar."""
+        import logging
+
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum.gate_schema import has_backend_overrides
+        from environments.shared.jax_curriculum import jax_gate_thresholds
+
+        species = ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus")
+        configs = {name: load_stage_config(name, 2) for name in species}
+        # A species that declares [curriculum.jax] (none today) legitimately
+        # stops warning: expect one note per species still on the shared bar.
+        expected = [
+            name
+            for name, config in configs.items()
+            if "min_avg_reward" in config["curriculum_kwargs"]
+            and not has_backend_overrides(config["curriculum_kwargs"], "jax")
+        ]
+        assert len(expected) >= 2, "the collision needs two species on the shared bar"
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_curriculum"):
+            for name in species:
+                jax_gate_thresholds(2, configs[name], species=name)
+        warned = [r.getMessage().split(" stage ")[0] for r in caplog.records if "SB3" in r.getMessage()]
+        assert warned == expected
+
+
+class TestNetArchPlumbing:
+    """``[jax.policy_kwargs] net_arch`` must size the network (review JX9).
+
+    Every trex stage TOML declares it ("Match SB3 PPO architecture") while
+    every JAX call site built the hardcoded (512, 256) default.
+    """
+
+    def test_network_hidden_dims_reads_the_toml_table(self):
+        from environments.shared.config import load_stage_config
+        from environments.shared.jax_curriculum import network_hidden_dims
+
+        assert network_hidden_dims({"policy_kwargs": {"net_arch": [256, 128]}}) == (256, 128)
+        assert network_hidden_dims({}) == (512, 256)
+        assert network_hidden_dims({"policy_kwargs": {}}) == (512, 256)
+        shipped = load_stage_config("trex", 1)["jax_kwargs"]
+        assert network_hidden_dims(shipped) == tuple(shipped["policy_kwargs"]["net_arch"])
+
+    def test_an_empty_or_non_positive_net_arch_is_rejected(self):
+        from environments.shared.jax_curriculum import network_hidden_dims
+
+        with pytest.raises(ValueError, match="net_arch"):
+            network_hidden_dims({"policy_kwargs": {"net_arch": []}})
+        with pytest.raises(ValueError, match="net_arch"):
+            network_hidden_dims({"policy_kwargs": {"net_arch": [256, 0]}})
+
+    def test_policy_kwargs_is_forwarded_to_train_fn(self):
+        from environments.shared.config import load_stage_config
+        from environments.shared.jax_curriculum import _JAX_KEY_MAP, run_curriculum
+
+        assert _JAX_KEY_MAP["policy_kwargs"] == "policy_kwargs"
+        seen: dict = {}
+
+        def fake_train(species, stage, **kwargs):
+            seen[stage] = kwargs
+            return ("params", {}, "stats")
+
+        run_curriculum("trex", fake_train, stages=(1,))
+        assert seen[1]["policy_kwargs"] == load_stage_config("trex", 1)["jax_kwargs"]["policy_kwargs"]
+
+    def test_an_unwired_policy_kwarg_is_rejected_by_name(self):
+        from environments.shared.jax_curriculum import validate_jax_kwargs
+
+        with pytest.raises(ValueError, match="ortho_init"):
+            validate_jax_kwargs({"policy_kwargs": {"net_arch": [8], "ortho_init": False}}, source="test [jax]")
+
+
+class TestSemanticStageCli:
+    """The JAX CLI parses ``--stage`` like the SB3 CLI (review JX3d)."""
+
+    def test_digits_are_legacy_numbers_and_anything_else_a_semantic_id(self):
+        from environments.shared.jax_training import _build_parser
+
+        parser = _build_parser()
+        assert parser.parse_args(["--species", "trex", "--stage", "2"]).stage == 2
+        assert parser.parse_args(["--species", "trex", "--stage", "recovery"]).stage == "recovery"
+        args = parser.parse_args(["--species", "trex", "--stage", "1", "--resume-from", "ckpt.pkl"])
+        assert args.resume_from == "ckpt.pkl"
+
+    def test_artifact_prefix_keeps_legacy_names_and_does_not_mint_srecovery(self):
+        from environments.shared.jax_training import _artifact_prefix
+
+        assert _artifact_prefix("trex", 1) == "trex_s1"
+        assert _artifact_prefix("trex", "recovery") == "trex_recovery"

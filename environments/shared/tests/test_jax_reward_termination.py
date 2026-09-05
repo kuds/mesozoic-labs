@@ -723,3 +723,119 @@ class TestAggregatedFootForcesOverride:
             "aggregated_foot_forces -- evaluate_policy_cpu's reward decomposition would "
             "silently revert to boundary-snapshot forces"
         )
+
+
+# ---------------------------------------------------------------------------
+# JX1: the CPU-eval composer must pay the action-jerk term the MJX step pays
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+class TestStepComposerJerkParity:
+    """The composer reproduces the MJX step's reward once jerk is enabled.
+
+    Before this pin the composer omitted ``action_jerk_weight`` entirely, so
+    ``run_stage_evaluation``'s episode rewards, the min_avg_reward rail and
+    the reward-component panel overscored high-frequency-chatter policies
+    relative to training (stance/recovery weight 3.0) and to the SB3
+    backend.  The state-shaped weights the composer would need species
+    geometry for are zeroed; alive/energy/posture/smoothness stay on so the
+    parity is over a non-trivial sum, and the plant's 10 Hz command filter is
+    live, so the lags compared are the FILTERED commands the kernel carries.
+    """
+
+    _ISOLATED = {
+        "forward_vel_weight": 0.0,
+        "alive_bonus": 1.0,
+        "energy_penalty_weight": 0.05,
+        "posture_weight": 0.5,
+        "smoothness_weight": 1.0,
+        "action_jerk_weight": 3.0,
+        "approach_weight": 0.0,
+        "foot_contact_gate": 0.0,
+        "foot_contact_weight": 0.0,
+        "bilateral_support_weight": 0.0,
+        "foot_load_balance_weight": 0.0,
+        "support_conditioned_alive_fraction": 0.0,
+        "height_weight": 0.0,
+        "nosedive_weight": 0.0,
+        "drift_penalty_weight": 0.0,
+        "speed_penalty_weight": 0.0,
+        "spin_penalty_weight": 0.0,
+        "tail_stability_weight": 0.0,
+        "heading_weight": 0.0,
+        "lateral_penalty_weight": 0.0,
+        "action_saturation_weight": 0.0,
+        "bite_head_proximity_weight": 0.0,
+        "bite_bonus": 0.0,
+    }
+
+    def test_composer_reproduces_the_step_reward_with_jerk_enabled(self):
+        pytest.importorskip("mujoco.mjx")
+        import environments.trex.mjx_config  # noqa: F401  (registers trex)
+        from environments.shared.jax_reward_termination import compute_total_reward
+        from environments.shared.mjx_env import MJXDinoEnv
+
+        env = MJXDinoEnv("trex", stage=1, num_envs=1, env_kwargs=dict(self._ISOLATED))
+        cfg = env.config
+        assert cfg.reward_weights["action_jerk_weight"] == 3.0
+        composer_kw = dict(
+            root_body_id=cfg.body_ids["pelvis"],
+            healthy_z_min=cfg.healthy_z_range[0],
+            healthy_z_max=cfg.healthy_z_range[1],
+            max_tilt_angle=cfg.max_tilt_angle,
+            natural_forward_z=cfg.natural_forward_z,
+            n_actuators=env.mj_model.nu,
+            posture_target_forward_z=cfg.posture_target_forward_z,
+            sensor_quat_start=cfg.sensor_quat_start,
+            sensor_gyro_start=cfg.sensor_gyro_start,
+            foot_indices=cfg.sensor_foot_indices,
+            fall_penalty=cfg.fall_penalty,
+        )
+        no_jerk_cfg = {**cfg.reward_weights, "action_jerk_weight": 0.0}
+
+        rng = jax.random.PRNGKey(3)
+        state = env._reset_single(rng)
+        actions = jax.random.uniform(jax.random.PRNGKey(4), (3, env.action_dim), minval=-0.6, maxval=0.6)
+        for k in range(3):
+            # The kernel's second lag BEFORE this step (zeros while k < 2).
+            prev_prev_before = state.prev_prev_action
+            state, step_reward, terminated, _ = env._step_single(state, actions[k], rng, jnp.float32(1.0))
+            assert not bool(terminated)
+            # After the step the carries are: prev_action == this step's
+            # (filtered) command, prev_prev_action == the previous one.
+            lags = {"prev_action": state.prev_prev_action, "prev_prev_action": prev_prev_before}
+            composer = compute_total_reward(state.data, state.prev_action, cfg.reward_weights, **lags, **composer_kw)
+            np.testing.assert_allclose(float(composer), float(step_reward), rtol=1e-5, atol=1e-6)
+            # Teeth: without the jerk term the composer overscores every one
+            # of these steps -- including the first two, which the kernel
+            # charges against its zero carries.
+            without = compute_total_reward(state.data, state.prev_action, no_jerk_cfg, **lags, **composer_kw)
+            assert float(without) > float(step_reward) + 1e-4
+
+    def test_components_expose_the_jerk_term_under_the_same_zero_lag_convention(self):
+        from environments.shared.jax_reward_termination import compute_reward_components, compute_total_reward
+        from environments.shared.reward_functions import reward_action_jerk
+
+        data = _make_mock_data(pelvis_z=0.8)
+        common = dict(root_body_id=1, healthy_z_min=0.3, max_tilt_angle=1.0, natural_forward_z=0.0, n_actuators=4)
+        cfg = {"forward_vel_weight": 0.0, "alive_bonus": 0.0, "energy_penalty_weight": 0.0, "posture_weight": 0.0}
+        action = jnp.array([0.5, -0.5, 0.25, 0.0])
+        prev = jnp.array([0.1, 0.1, 0.1, 0.1])
+        prev_prev = jnp.array([-0.2, 0.3, 0.0, 0.4])
+        expected, raw = reward_action_jerk(action, prev, prev_prev, 4, 3.0)
+
+        with_jerk = compute_reward_components(
+            data, action, {**cfg, "action_jerk_weight": 3.0}, prev_action=prev, prev_prev_action=prev_prev, **common
+        )
+        assert float(with_jerk["action_jerk"]) == pytest.approx(float(expected))
+        assert float(with_jerk["_action_jerk"]) == pytest.approx(float(raw))
+        assert "action_jerk" not in compute_reward_components(data, action, cfg, **common)
+
+        # Missing lags mean zeros (the MJX reset carries), for both entry points.
+        first_step_expected, _ = reward_action_jerk(action, jnp.zeros(4), jnp.zeros(4), 4, 3.0)
+        total_first = compute_total_reward(data, action, {**cfg, "action_jerk_weight": 3.0}, **common)
+        assert float(total_first) == pytest.approx(float(first_step_expected))
+        assert float(
+            compute_reward_components(data, action, {**cfg, "action_jerk_weight": 3.0}, **common)["action_jerk"]
+        ) == pytest.approx(float(first_step_expected))

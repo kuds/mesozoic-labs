@@ -162,13 +162,16 @@ def restore_train_state(
     current_plant: PlantIdentity | None = None,
     allow_legacy_plant: bool = False,
     unsafe_skip_plant_validation: bool = False,
+    require_opt_state: bool = False,
 ) -> tuple[Any, Any, Any, int]:
     """Load a checkpoint and return ``(params, opt_state, obs_rms, update)``.
 
     When the checkpoint predates opt_state saving (or *optimizer* is given
     and the checkpoint has no opt_state), a fresh ``optimizer.init(params)``
     state is returned with a warning — resuming then restarts Adam moments,
-    which is what the old checkpoints silently did.
+    which is what the old checkpoints silently did.  A same-stage resume
+    that must continue the LR schedule passes ``require_opt_state=True`` to
+    refuse such a file instead.
 
     Args:
         path: Path to a ``.pkl`` checkpoint file.
@@ -182,6 +185,9 @@ def restore_train_state(
             compatibility validation.  This unsafe inspection-only escape
             hatch cannot be combined with ``current_plant`` or
             ``allow_legacy_plant``.
+        require_opt_state: Raise ``ValueError`` when the checkpoint carries
+            no ``opt_state`` (a best-model or params-only file) instead of
+            substituting a fresh optimizer state.
 
     Returns:
         ``(params, opt_state, obs_rms, update)`` — ``opt_state`` is ``None``
@@ -196,6 +202,12 @@ def restore_train_state(
     params = data["params"]
     opt_state = data.get("opt_state")
     if opt_state is None:
+        if require_opt_state:
+            raise ValueError(
+                f"Checkpoint {path} carries no optimizer state (a best-model or params-only file), so "
+                "resuming from it would restart Adam and the LR schedule; resume from a periodic checkpoint "
+                "that saved its opt_state -- the <prefix>_<N>.pkl files written beside it."
+            )
         if optimizer is not None:
             opt_state = optimizer.init(params)
         _logger.warning(
@@ -267,9 +279,17 @@ class CheckpointManager:
             **kwargs,
         )
 
+        # A re-save of the same update (the trainer's final save landing on
+        # a periodic one) overwrites the file in place; it must not occupy a
+        # second rotation slot, and rotation must never unlink the file this
+        # call just wrote.
+        if path in self._recent:
+            self._recent.remove(path)
         self._recent.append(path)
         while len(self._recent) > self.max_keep:
             old = self._recent.pop(0)
+            if old == path:
+                continue
             old.unlink(missing_ok=True)
             _logger.debug("Removed old checkpoint: %s", old)
 

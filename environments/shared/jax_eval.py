@@ -24,6 +24,13 @@ from typing import Any
 import numpy as np
 
 from .action_filter import apply_low_pass, low_pass_alpha
+from .perturbation import (
+    derive_push_parameters,
+    external_push_force,
+    max_pushes_for,
+    push_schedule,
+    validate_push_config,
+)
 from .reward_functions import reward_lean_aware_posture, reward_posture
 
 
@@ -52,6 +59,16 @@ class EvalConfig:
     # drive the same filtered plant the training kernel does, and feed the
     # filtered command to the action-derived reward terms.
     action_filter_cutoff_hz: float = 0.0
+    # Scheduled external pushes of the recovery task (0.0 = off).  Eval
+    # must roll the same pushed plant the training kernels do -- schedule,
+    # force and body from the shared perturbation module -- or a recovery
+    # stage certifies push-free episodes.  Names mirror MJXEnvConfig's
+    # perturbation_* fields so callers thread them one-to-one.
+    perturbation_capture_velocity_multiple: float = 0.0
+    perturbation_interval: float = 2.0
+    perturbation_jitter: float = 0.5
+    perturbation_duration: float = 0.20
+    perturbation_direction: str = "uniform_horizontal"
     reset_noise_scale: float = 0.01
     init_qpos_noise: float = 0.0
     init_yaw_noise: float = 0.0
@@ -312,6 +329,40 @@ def evaluate_policy_cpu(
             float(mj_model.opt.timestep) * config.frame_skip,
         )
 
+    # Scheduled pushes of the recovery task (see perturbation.py).  None
+    # means off: no derivation, no RNG draw, no xfrc write -- byte-identical
+    # to the push-free eval, exactly as both training backends promise.
+    _push: dict[str, Any] | None = None
+    if config.perturbation_capture_velocity_multiple > 0.0:
+        _schedule_steps = validate_push_config(
+            capture_velocity_multiple=config.perturbation_capture_velocity_multiple,
+            interval_s=config.perturbation_interval,
+            jitter_s=config.perturbation_jitter,
+            duration_s=config.perturbation_duration,
+            direction=config.perturbation_direction,
+            control_dt=float(mj_model.opt.timestep) * config.frame_skip,
+        )
+        # Calibrate from the pose the reset restores, as both training
+        # backends do (MJXDinoEnv resolves 'home' by name, BaseDinoEnv passes
+        # its _reset_keyframe_id); keyframe 0 only when no 'home' exists.
+        _push_keyframe_id = max(mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_KEY, "home"), 0)
+        _push_params = derive_push_parameters(
+            mj_model,
+            capture_velocity_multiple=config.perturbation_capture_velocity_multiple,
+            duration_s=config.perturbation_duration,
+            keyframe_id=_push_keyframe_id,
+        )
+        _push = {
+            **_schedule_steps,
+            "max_pushes": max_pushes_for(
+                config.max_episode_steps,
+                _schedule_steps["interval_steps"],
+                _schedule_steps["jitter_steps"],
+            ),
+            "root_body_id": int(_push_params["root_body_id"]),
+            "force_n": float(_push_params["force_n"]),
+        }
+
     for ep in range(config.n_episodes):
         if config.action_mapping == ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
             reset_mujoco_data_to_home(mj_model, mj_data)
@@ -326,6 +377,22 @@ def evaluate_policy_cpu(
             reset_rng,
             _target_body_id,
         )
+        push_starts: np.ndarray | None = None
+        push_dirs: np.ndarray | None = None
+        if _push is not None:
+            # New episode, new schedule.  The seed draw is APPENDED to the
+            # reset draw sequence (BaseDinoEnv.reset's discipline), so the
+            # joint/target draws above are bit-identical to a push-free eval
+            # of the same seed, and the same eval seed yields the same
+            # schedule for the policy and for every null controller.
+            mj_data.xfrc_applied[:] = 0.0
+            schedule_seed = np.uint32(reset_rng.integers(0, 2**32, dtype=np.uint64))
+            push_starts, push_dirs = push_schedule(
+                schedule_seed,
+                max_pushes=_push["max_pushes"],
+                interval_steps=_push["interval_steps"],
+                jitter_steps=_push["jitter_steps"],
+            )
         mujoco.mj_forward(mj_model, mj_data)
 
         ep_reward = 0.0
@@ -335,6 +402,9 @@ def evaluate_policy_cpu(
         ep_success = False
         start_pos = mj_data.xpos[config.root_body_id, :2].copy()
         prev_action = None
+        # Second action lag for the jerk term; None = zeros, like the MJX
+        # kernel's reset carry (see compute_total_reward).
+        prev_prev_action = None
         # Per-episode command low-pass carry (None = seed with first action),
         # mirroring the training backends' filter state.
         filtered_action = None
@@ -361,6 +431,19 @@ def evaluate_policy_cpu(
 
             ctrl = np.array(scale_action_fn(action))
             mj_data.ctrl[:] = ctrl
+            if _push is not None:
+                # Scheduled external push, in lockstep with both training
+                # backends: the root row is rewritten every control step and
+                # the kernel returns zero outside every window, so the force
+                # self-clears and never persists past its schedule.  Reward
+                # and observation are deliberately untouched.
+                mj_data.xfrc_applied[_push["root_body_id"], 0:3] = external_push_force(
+                    step,
+                    push_starts,
+                    push_dirs,
+                    duration_steps=_push["duration_steps"],
+                    force_newtons=_push["force_n"],
+                )
             # Substep-aggregated contact, in lockstep with both training
             # backends (BaseDinoEnv.step and the MJX step_fn carry): per-foot
             # MIN touch force across the frame_skip substeps, and an
@@ -497,8 +580,9 @@ def evaluate_policy_cpu(
 
             # Per-step state for reward parity with the training env:
             # target position/direction, previous-step target distance
-            # (approach shaping), previous action (smoothness), and success
-            # site positions (proximity reward + success bonus).  Passed as
+            # (approach shaping), the two previous actions (smoothness and
+            # jerk), and success site positions (proximity reward + success
+            # bonus).  Passed as
             # kwargs so simple 3-arg reward_fns keep working when absent.
             step_kwargs: dict[str, Any] = {
                 "initial_pos_2d": jnp.asarray(start_pos),
@@ -527,6 +611,8 @@ def evaluate_policy_cpu(
                     step_kwargs["forward_ref_2d"] = jnp.asarray(rel_2d / rel_norm)
             if prev_action is not None:
                 step_kwargs["prev_action"] = prev_action
+            if prev_prev_action is not None:
+                step_kwargs["prev_prev_action"] = prev_prev_action
             if _success_site_ids:
                 step_kwargs["success_site_positions"] = jnp.asarray(
                     np.stack([np.array(mj_data.site_xpos[sid]) for sid in _success_site_ids])
@@ -564,6 +650,7 @@ def evaluate_policy_cpu(
 
             # Update AFTER the reward call: the training env compares the
             # current action/distance against the previous step's values.
+            prev_prev_action = prev_action
             prev_action = action
             if _target_body_id >= 0:
                 prev_target_dist = float(
@@ -765,6 +852,15 @@ def check_stage_gate_for_config(
 
     A gate kind whose criteria cannot be evaluated from *results* fails
     closed with the reason, rather than passing on the subset that can.
+    That includes every schema-valid kind the JAX path has no evaluator for
+    (``recovery_quality/v1`` today): it declares none of the four scalar
+    thresholds, so falling through to :func:`check_stage_gate` certified a
+    policy that fell in every pushed episode as ``(True, [])`` and
+    ``jax_setup`` wrote that into ``publication_gate_passed``.  The refusal
+    is the same predicate and message as the in-training curriculum's
+    (:func:`~environments.shared.jax_curriculum.unevaluable_gate_kind_reason`),
+    so the two JAX paths cannot disagree about which kinds they refuse; here
+    the reason is the verdict, so it survives into ``gate_failures``.
 
     Raises:
         GateSchemaError: If the gate declaration is missing, unknown or
@@ -774,9 +870,17 @@ def check_stage_gate_for_config(
     """
     from .curriculum.gate_schema import validate_gate_config
     from .curriculum.stance_gate import STANCE_GATE_KIND, StanceGateThresholds, evaluate_stance_gate
+    from .jax_curriculum import unevaluable_gate_kind_reason
 
     curriculum = stage_config.get("curriculum_kwargs", {})
-    gate_kind = validate_gate_config(stage_config.get("stage", "?"), curriculum, advancement_enabled=True)
+    stage = stage_config.get("stage", "?")
+    gate_kind = validate_gate_config(stage, curriculum, advancement_enabled=True)
+
+    # Schema-valid is not judgeable: refuse, with the reason as the verdict,
+    # BEFORE any arm below can read a threshold that is not there.
+    refusal = unevaluable_gate_kind_reason(stage, gate_kind)
+    if refusal is not None:
+        return False, [refusal]
 
     if gate_kind == STANCE_GATE_KIND:
         horizon = int(stage_config.get("env_kwargs", {}).get("max_episode_steps", 1000))

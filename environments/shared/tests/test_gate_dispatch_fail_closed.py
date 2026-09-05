@@ -112,6 +112,65 @@ class TestJaxCheckStageGateRefusesUnevaluatableKinds:
             check_stage_gate({"mean_episode_return": 1e9}, bogus)
 
 
+class TestJaxEvalGateRefusesUnevaluatableKinds:
+    """F2 on the OTHER JAX path (review J #10).
+
+    ``jax_eval.check_stage_gate_for_config`` is what ``run_stage_evaluation``
+    writes into ``publication_gate_passed``.  It refused nothing the schema
+    accepted, so a recovery stage -- reachable once ``jax_setup`` took the
+    semantic id -- fell through to the scalar check with every threshold
+    unset and passed on evidence nobody checked.  It must refuse exactly what
+    ``check_stage_gate`` refuses, for exactly the same reason.
+    """
+
+    def _results(self, reward):
+        from environments.shared.jax_eval import EvalResults
+
+        results = EvalResults()
+        results.rewards = [reward] * 10
+        results.lengths = [1000] * 10
+        results.forward_vels = [0.0] * 10
+        results.distances = [0.0] * 10
+        results.successes = [False] * 10
+        return results
+
+    def test_recovery_quality_is_refused_with_the_reason_as_the_verdict(self):
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        config = {"stage": 1, "curriculum_kwargs": dict(_RECOVERY)}
+        passed, failures = check_stage_gate_for_config(self._results(1e9), config)
+        assert passed is False
+        assert len(failures) == 1
+        assert "recovery_quality/v1" in failures[0]
+        assert "cannot evaluate" in failures[0]
+
+    def test_the_optional_reward_rail_does_not_convert_it_into_a_reward_gate(self):
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        config = {"stage": 1, "curriculum_kwargs": dict(_RECOVERY, min_avg_reward=100.0)}
+        passed, _ = check_stage_gate_for_config(self._results(1e9), config)
+        assert passed is False
+
+    def test_both_jax_gates_share_one_refusal(self):
+        """One predicate, one message: jax_curriculum.unevaluable_gate_kind_reason."""
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        config = {"stage": 1, "curriculum_kwargs": dict(_RECOVERY)}
+        _, failures = check_stage_gate_for_config(self._results(1e9), config)
+        with pytest.raises(GateSchemaError) as excinfo:
+            check_stage_gate({"mean_episode_return": 1e9, "mean_episode_length": 1000.0}, config)
+        assert failures == [str(excinfo.value)]
+
+    def test_the_evaluable_kinds_are_one_set_for_both_paths(self):
+        from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
+        from environments.shared.jax_curriculum import unevaluable_gate_kind_reason
+
+        assert unevaluable_gate_kind_reason(1, "reward_and_length/v1") is None
+        assert unevaluable_gate_kind_reason(1, STANCE_GATE_KIND) is None
+        reason = unevaluable_gate_kind_reason(1, "recovery_quality/v1")
+        assert reason is not None and "recovery_quality/v1" in reason
+
+
 class TestRunCurriculumFailsFastBeforeTraining:
     """F2's expensive half: the refusal must land before the budget is spent.
 

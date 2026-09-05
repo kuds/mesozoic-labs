@@ -82,24 +82,41 @@ class CheckpointHook:
             max_keep=max_keep,
             plant_identity=plant_identity,
         )
+        # Updates observed complete, and the count last written, so the final
+        # save neither re-saves the count the last periodic save just wrote
+        # (which counted twice against max_keep) nor writes a "_1" checkpoint
+        # of untrained params when no update ran at all.
+        self._completed: int | None = None
+        self._last_saved: int | None = None
+
+    # Checkpoints record the number of updates COMPLETED (state.update is the
+    # index of the one just finished), the convention the functional trainer
+    # and restore_train_state share: a resume starts at that count and trains
+    # the budget's remainder.  Recording the index instead made every resume
+    # repeat one update and re-number from one too low.
+    def _save(self, state: TrainerState, completed: int) -> None:
+        self._manager.save(
+            params=state.params,
+            update=completed,
+            obs_rms=state.obs_stats,
+            opt_state=state.opt_state,
+        )
+        self._last_saved = completed
 
     def on_update_end(self, state: TrainerState, metrics: dict[str, float]) -> None:
-        if state.update % self.interval != 0:
+        completed = state.update + 1
+        self._completed = completed
+        if completed % self.interval != 0:
             return
-        self._manager.save(
-            params=state.params,
-            update=state.update,
-            obs_rms=state.obs_stats,
-            opt_state=state.opt_state,
-        )
+        self._save(state, completed)
 
     def on_train_end(self, state: TrainerState) -> None:
-        self._manager.save(
-            params=state.params,
-            update=state.update,
-            obs_rms=state.obs_stats,
-            opt_state=state.opt_state,
-        )
+        if self._completed is None:
+            return
+        completed = state.update + 1
+        if completed == self._last_saved:
+            return
+        self._save(state, completed)
 
     @property
     def manager(self) -> CheckpointManager:
@@ -158,14 +175,17 @@ class CSVLoggingHook:
     Args:
         path: Path to the CSV file.
         extra_fields: Optional extra field names to include.
+        append: Append to an existing log instead of truncating it -- pass
+            ``True`` on a same-stage resume so the interrupted session's rows
+            survive (the functional trainer's ``append=start_update > 0``).
     """
 
-    def __init__(self, path: str | Any, extra_fields: list[str] | None = None):
+    def __init__(self, path: str | Any, extra_fields: list[str] | None = None, append: bool = False):
         from pathlib import Path as _Path
 
         from .jax_training_utils import TrainingCSVLogger
 
-        self._logger = TrainingCSVLogger(_Path(path) if not isinstance(path, _Path) else path)
+        self._logger = TrainingCSVLogger(_Path(path) if not isinstance(path, _Path) else path, append=append)
         self._extra_fields = extra_fields or []
 
     def on_update_end(self, state: TrainerState, metrics: dict[str, float]) -> None:

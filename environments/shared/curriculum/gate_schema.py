@@ -216,6 +216,29 @@ _PROVENANCE_KEYS = frozenset({"statue_constants_physics_revision"})
 #: The schema's own declaration keys.
 _SCHEMA_KEYS = frozenset({"gate_schema_version", "gate_kind"})
 
+#: Name of the per-backend override sub-table: ``[curriculum.jax]`` in TOML,
+#: ``curriculum_kwargs["jax"]`` once loaded.  The shared scalar thresholds are
+#: compared against raw episode returns on both backends, but the two do not
+#: pay the same return for the same behaviour: the MJX stage-2/3 alive bonus
+#: is height-gated (a deliberate legacy kernel) and ``[jax] fall_penalty``
+#: overrides ``[env] fall_penalty``, so one shared number encodes a different
+#: bar per backend.  The sub-table lets a stage state a JAX-calibrated bar
+#: ADDITIVELY: absent, nothing changes; present, only the keys it names are
+#: replaced on the JAX path (see :func:`apply_backend_overrides`).
+BACKEND_OVERRIDE_TABLES = frozenset({"jax"})
+
+#: The only keys an override table may carry: the legacy scalar thresholds.
+#: Composite criteria (stance duty, recovery LCB) are physical, not
+#: reward-denominated, so they must stay identical across backends.
+BACKEND_OVERRIDABLE_KEYS = frozenset(
+    {
+        "min_avg_reward",
+        "min_avg_episode_length",
+        "min_avg_forward_vel",
+        "min_success_rate",
+    }
+)
+
 #: Every threshold key any gate kind knows about, used to tell "belongs to a
 #: different gate kind" apart from "not a gate key at all".
 _ALL_THRESHOLD_KEYS = frozenset().union(*GATE_KINDS.values())
@@ -294,6 +317,7 @@ def validate_gate_config(
         | _DIAGNOSTIC_KEYS
         | _PROVENANCE_KEYS
         | _ALL_THRESHOLD_KEYS
+        | BACKEND_OVERRIDE_TABLES
     )
     unknown = sorted(set(curriculum_kwargs) - known)
     if unknown:
@@ -361,7 +385,69 @@ def validate_gate_config(
             "pilot, so it cannot be used in a run that advances between stages."
         )
 
+    for table in sorted(BACKEND_OVERRIDE_TABLES & set(curriculum_kwargs)):
+        _validate_backend_override_table(stage, table, curriculum_kwargs[table], allowed)
+
     return str(declared_kind)
+
+
+def _validate_backend_override_table(stage: int | str, table: str, overrides: Any, allowed: frozenset[str]) -> None:
+    """Validate one ``[curriculum.<backend>]`` override sub-table.
+
+    Fail-closed like the parent table: a misspelled key here would silently
+    leave the shared (mis-calibrated) threshold in force on that backend.
+    """
+    if not isinstance(overrides, Mapping):
+        raise GateSchemaError(
+            f"{_describe(stage)}: [curriculum.{table}] must be a table of threshold overrides, "
+            f"not {type(overrides).__name__}."
+        )
+    unknown = sorted(set(overrides) - BACKEND_OVERRIDABLE_KEYS)
+    if unknown:
+        raise GateSchemaError(
+            f"{_describe(stage)}: [curriculum.{table}] carries key(s) {unknown} that cannot be "
+            f"overridden per backend; only the scalar thresholds {sorted(BACKEND_OVERRIDABLE_KEYS)} "
+            "may differ between backends, and only when the declared gate_kind consumes them."
+        )
+    misplaced = sorted(set(overrides) - allowed)
+    if misplaced:
+        raise GateSchemaError(
+            f"{_describe(stage)}: [curriculum.{table}] overrides threshold field(s) {misplaced} that the "
+            "declared gate_kind does not consume, which implies a bar that is not actually enforced."
+        )
+    non_numeric = sorted(key for key, value in overrides.items() if finite_gate_metric(value) is None)
+    if non_numeric:
+        raise GateSchemaError(
+            f"{_describe(stage)}: [curriculum.{table}] threshold(s) {non_numeric} must be finite numbers."
+        )
+
+
+def apply_backend_overrides(curriculum_kwargs: Mapping[str, Any], backend: str) -> dict[str, Any]:
+    """Return *curriculum_kwargs* with *backend*'s override sub-table applied.
+
+    The result carries no override sub-tables at all (every backend's table
+    is dropped, the requested one after being merged over the shared scalar
+    thresholds), so downstream readers see a flat ``[curriculum]`` mapping
+    exactly as they always have.  Absent table, identical thresholds — the
+    override is strictly additive.
+
+    Args:
+        curriculum_kwargs: A stage's ``curriculum_kwargs`` mapping, already
+            validated by :func:`validate_gate_config`.
+        backend: Which sub-table to apply, e.g. ``"jax"``.
+    """
+    if backend not in BACKEND_OVERRIDE_TABLES:
+        raise ValueError(f"unknown backend override table {backend!r}; known: {sorted(BACKEND_OVERRIDE_TABLES)}")
+    merged = {key: value for key, value in curriculum_kwargs.items() if key not in BACKEND_OVERRIDE_TABLES}
+    overrides = curriculum_kwargs.get(backend)
+    if overrides:
+        merged.update(dict(overrides))
+    return merged
+
+
+def has_backend_overrides(curriculum_kwargs: Mapping[str, Any], backend: str) -> bool:
+    """Whether the stage declares a non-empty ``[curriculum.<backend>]`` table."""
+    return bool(curriculum_kwargs.get(backend))
 
 
 def validate_gate_configs(

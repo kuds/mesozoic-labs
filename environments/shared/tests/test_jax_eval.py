@@ -596,6 +596,114 @@ def test_stage_evaluation_uses_effective_training_noise_and_detailed_rewards(mon
     assert stage_results["evaluation_seed"] == 42
 
 
+def test_stage_evaluation_refuses_the_recovery_gate_instead_of_certifying_it(monkeypatch):
+    """Review J #10, on the production path.
+
+    ``run_stage_evaluation`` writes ``check_stage_gate_for_config``'s verdict
+    into ``gate_passed`` / ``publication_gate_passed``.  Once ``jax_setup``
+    accepted the semantic id ``"recovery"`` (it used to raise on
+    ``stage >= 3`` before any gate check), a recovery stage fell through to
+    the scalar check with every threshold unset, and a policy that fell in
+    every pushed episode was persisted as a PASS.  The eval path must refuse
+    the kind exactly as the in-training curriculum does.
+    """
+    pytest.importorskip("jax")
+    from types import SimpleNamespace
+
+    import environments.shared.jax_eval as jax_eval
+    import environments.shared.jax_setup as jax_setup
+
+    def scalar(*_args, **_kwargs):
+        return 0.0
+
+    def detailed(*_args, **_kwargs):
+        return {"alive": 0.0}
+
+    monkeypatch.setattr(jax_setup, "make_obs_fn", lambda _ctx: scalar)
+    monkeypatch.setattr(jax_setup, "make_scale_action_fn", lambda _ctx: scalar)
+    monkeypatch.setattr(jax_setup, "make_reward_fns", lambda _ctx: (scalar, detailed, scalar))
+
+    def fallen_in_every_episode(*_args, **_kwargs):
+        results = EvalResults()
+        results.rewards = [-150.0] * 3
+        results.lengths = [5] * 3
+        results.forward_vels = [0.0] * 3
+        results.distances = [0.0] * 3
+        results.successes = [False] * 3
+        return results
+
+    monkeypatch.setattr(jax_eval, "evaluate_policy_cpu", fallen_in_every_episode)
+
+    ctx = SimpleNamespace(
+        species="trex",
+        stage="recovery",
+        stage_name="Recovery",
+        reward_cfg={},
+        jax_kwargs={"rollout_len": 64},
+        max_episode_steps=1000,
+        frame_skip=5,
+        healthy_z_range=(0.3, 2.0),
+        max_tilt_angle=1.0,
+        natural_forward_z=0.0,
+        posture_target_forward_z=None,
+        termination_body_heights={},
+        termination_site_heights={},
+        success_sites=(),
+        success_threshold=0.3,
+        target_body_name="prey",
+        root_body_id=1,
+        sensor_layout=SimpleNamespace(
+            quat_start=6,
+            gyro_start=0,
+            foot_indices=(10, 11),
+            foot_aux_indices=((), ()),
+        ),
+        action_mapping="midpoint/v1",
+        forward_vel_max=8.0,
+        target_standing_z=0.926,
+        mj_model=SimpleNamespace(opt=SimpleNamespace(timestep=0.002)),
+    )
+    env = SimpleNamespace(
+        num_envs=4,
+        config=SimpleNamespace(
+            reset_noise_scale=0.05,
+            init_qpos_noise=0.01,
+            init_yaw_noise=0.1,
+            target_distance_range=(10.0, 15.0),
+            target_lateral_range=(-2.0, 2.0),
+            target_z=0.5,
+        ),
+    )
+
+    _, _, stage_results, gate_passed, gate_failures = jax_setup.run_stage_evaluation(
+        ctx,
+        env,
+        np.zeros(1),
+        object(),
+        None,
+        n_episodes=3,
+    )
+
+    assert gate_passed is False
+    assert stage_results["gate_passed"] is False
+    assert stage_results["publication_gate_passed"] is False
+    assert stage_results["gate_failures"] == gate_failures
+    assert len(gate_failures) == 1
+    assert "recovery_quality/v1" in gate_failures[0]
+    assert "cannot evaluate" in gate_failures[0]
+
+
+#: A schema-valid recovery gate, as configs/trex/recovery.toml declares it:
+#: the three composite thresholds and NONE of the four scalar ones.
+_RECOVERY_GATE = {
+    "gate_schema_version": 1,
+    "gate_kind": "recovery_quality/v1",
+    "min_recovery_success_lcb": 0.70,
+    "recovery_t_recover_steps": 66,
+    "recovery_dwell_steps": 66,
+}
+
+
 class TestCheckStageGateForConfig:
     """The gate-kind-aware JAX gate (`check_stage_gate_for_config`).
 
@@ -731,6 +839,80 @@ class TestCheckStageGateForConfig:
         passed, _ = check_stage_gate_for_config(chatterer, config)
         assert not passed
 
+    def _fallen(self, episodes=30):
+        """Every episode ends in a fall within a few steps: the evidence a
+        recovery gate exists to reject."""
+        from environments.shared.jax_eval import EvalResults
+
+        results = EvalResults()
+        results.rewards = [-150.0] * episodes
+        results.lengths = [5] * episodes
+        results.forward_vels = [0.0] * episodes
+        results.distances = [0.0] * episodes
+        results.successes = [False] * episodes
+        return results
+
+    def test_a_recovery_gate_is_refused_rather_than_passed_vacuously(self):
+        """Review J #10: recovery_quality/v1 validates and declares no scalar
+        threshold, so the fall-through to check_stage_gate asserted nothing
+        and certified a policy that fell in every pushed episode as
+        (True, [])."""
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        passed, failures = check_stage_gate_for_config(self._fallen(), {"curriculum_kwargs": dict(_RECOVERY_GATE)})
+        assert passed is False
+        assert len(failures) == 1
+        assert "recovery_quality/v1" in failures[0]
+        assert "cannot evaluate" in failures[0]
+
+    def test_a_recovery_gate_is_refused_on_sky_high_evidence_even_with_its_optional_rail(self):
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        railed = {"curriculum_kwargs": dict(_RECOVERY_GATE, min_avg_reward=100.0)}
+        passed, failures = check_stage_gate_for_config(self._results(duty=0.0, reward=1e9), railed)
+        assert passed is False
+        assert "recovery_quality/v1" in failures[0]
+
+    def test_the_shipped_recovery_config_is_refused_as_run_stage_evaluation_reads_it(self):
+        """The exact review probe: configs/trex/recovery.toml, prepared the
+        way run_stage_evaluation prepares it (jax_gate_thresholds applied)."""
+        from environments.shared.config import load_stage_config
+        from environments.shared.jax_curriculum import jax_gate_thresholds
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        config = dict(load_stage_config("trex", "recovery"))
+        assert config["curriculum_kwargs"]["gate_kind"] == "recovery_quality/v1"
+        config["curriculum_kwargs"] = jax_gate_thresholds("recovery", config, species="trex")
+        passed, failures = check_stage_gate_for_config(self._fallen(), config)
+        assert passed is False
+        assert "recovery_quality/v1" in failures[0]
+
+    @pytest.mark.parametrize(
+        "curriculum",
+        [
+            pytest.param({"gate_schema_version": 1, "gate_kind": "none/v1"}, id="none-v1"),
+            pytest.param({"min_avg_reward": 1.0}, id="undeclared"),
+            pytest.param(_RECOVERY_GATE, id="recovery"),
+        ],
+    )
+    def test_a_gate_the_eval_cannot_judge_never_passes_by_default(self, curriculum):
+        """Mirror of reporting.gates.evaluate_stage_gate: nothing certifies a
+        stage by default.  none/v1 and an undeclared gate are refused by the
+        schema (a raise, louder than False -- the two tests above pin it); a
+        schema-valid kind with no evaluator here is refused with the reason
+        as the verdict.  None may reach (True, ...) on any evidence."""
+        from environments.shared.curriculum.gate_schema import GateSchemaError
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        try:
+            passed, failures = check_stage_gate_for_config(
+                self._results(duty=0.0, reward=1e9), {"curriculum_kwargs": dict(curriculum)}
+            )
+        except GateSchemaError:
+            return
+        assert passed is False
+        assert failures
+
 
 def test_run_stage_evaluation_routes_through_the_gate_kind_aware_check(monkeypatch):
     """The integration, not just the function.
@@ -773,3 +955,128 @@ def test_the_legacy_jax_gate_is_not_reachable_from_production_code():
                     continue
                 offenders.append(f"{path.relative_to(repo)}:{number}")
     assert not offenders, f"legacy four-threshold gate called from: {offenders}"
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+class TestEvaluationPushes:
+    """JX3(e): CPU eval rolls the recovery stage's scheduled pushes.
+
+    Before this pin ``evaluate_policy_cpu`` never wrote ``xfrc_applied``, so
+    a recovery-stage evaluation certified push-free episodes while
+    ``MJXDinoEnv`` trained against the derived 165.5 N shoves.  Schedule,
+    force and body come from the shared perturbation module (the same
+    ``push_schedule`` / ``external_push_force`` the MJX step traces), the
+    seed draw is appended to the reset draws so a push-free eval of the same
+    seed is unchanged, and a config that declares no pushes never touches
+    ``xfrc_applied``.
+    """
+
+    # configs/trex/recovery.toml [env] perturbation block, verbatim (control
+    # dt 0.01 s: interval 200 +/- 50 steps, duration 20 steps).
+    _RECOVERY = {
+        "perturbation_capture_velocity_multiple": 1.5,
+        "perturbation_interval": 2.0,
+        "perturbation_jitter": 0.5,
+        "perturbation_duration": 0.2,
+    }
+    # Cheap schedule for the RNG-discipline checks: first push near step 30.
+    _SHORT = {
+        "perturbation_capture_velocity_multiple": 1.5,
+        "perturbation_interval": 0.3,
+        "perturbation_jitter": 0.05,
+        "perturbation_duration": 0.1,
+    }
+
+    @staticmethod
+    def _roll(max_steps, **perturbation):
+        pytest.importorskip("jax")
+        pytest.importorskip("mujoco.mjx")
+        import jax.numpy as jnp
+        import mujoco
+
+        from environments.shared.jax_eval import evaluate_policy_cpu
+        from environments.shared.mjx_env import _get_model_path
+
+        model = mujoco.MjModel.from_xml_path(_get_model_path("trex"))
+        root_body_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pelvis")
+        home_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        first_qpos: list[np.ndarray] = []
+        xfrc: list[np.ndarray] = []
+
+        def get_obs(data):
+            if not first_qpos:
+                first_qpos.append(np.asarray(data.qpos).copy())
+            return jnp.zeros(1)
+
+        class ZeroNetwork:
+            def apply(self, _params, _obs):
+                return jnp.zeros(model.nu), jnp.zeros(model.nu), jnp.float32(0.0)
+
+        def reward_fn(data, _action, _cfg, **_kwargs):
+            # Post-step data carries the force written for this control step.
+            xfrc.append(np.asarray(data.xfrc_applied[root_body_id, :3]).copy())
+            return jnp.float32(0.0)
+
+        evaluate_policy_cpu(
+            model,
+            {},
+            ZeroNetwork(),
+            None,
+            get_obs_fn=get_obs,
+            normalize_obs_fn=lambda obs, _stats: obs,
+            scale_action_fn=lambda _action: jnp.asarray(model.key_ctrl[home_id]),
+            reward_fn=reward_fn,
+            reward_cfg={},
+            config=EvalConfig(
+                n_episodes=1,
+                max_episode_steps=max_steps,
+                healthy_z_range=(0.0, 10.0),
+                max_tilt_angle=np.pi,
+                natural_forward_z=-1.0,
+                nosedive_threshold=10.0,
+                root_body_id=root_body_id,
+                action_mapping="home-keyframe-residual/v1",
+                reset_noise_scale=0.05,
+                seed=42,
+                **perturbation,
+            ),
+        )
+        return model, first_qpos[0], np.stack(xfrc)
+
+    def test_a_no_push_config_leaves_xfrc_zero_throughout(self):
+        _model, _qpos, xfrc = self._roll(300)
+        assert xfrc.shape == (300, 3)
+        assert not xfrc.any()
+
+    def test_the_recovery_config_pushes_on_the_shared_schedule(self):
+        import mujoco
+
+        from environments.shared.perturbation import derive_push_parameters
+
+        model, _qpos, xfrc = self._roll(300, **self._RECOVERY)
+        home_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_KEY, "home")
+        force_n = derive_push_parameters(model, capture_velocity_multiple=1.5, duration_s=0.2, keyframe_id=home_id)[
+            "force_n"
+        ]
+        assert force_n == pytest.approx(165.5, abs=2.0)
+
+        active = np.flatnonzero(np.abs(xfrc).sum(axis=1) > 0.0)
+        # Exactly one 20-step window inside [150, 250]; the second push
+        # (>= 350) lies past the roll.  Zero everywhere else.
+        assert active.size == 20
+        assert 150 <= active[0] <= 250
+        np.testing.assert_array_equal(active, np.arange(active[0], active[0] + 20))
+        np.testing.assert_allclose(np.linalg.norm(xfrc[active, :2], axis=1), force_n, rtol=1e-5)
+        assert not xfrc[active, 2].any()
+        # One heading per push, held for the whole window.
+        np.testing.assert_allclose(xfrc[active], np.broadcast_to(xfrc[active[0]], (20, 3)), rtol=1e-6, atol=1e-6)
+
+    def test_the_schedule_draw_is_appended_and_deterministic(self):
+        _m, pushed_qpos, xfrc_a = self._roll(60, **self._SHORT)
+        _m, free_qpos, xfrc_free = self._roll(60)
+        _m, _q, xfrc_b = self._roll(60, **self._SHORT)
+        assert xfrc_a.any() and not xfrc_free.any()
+        # The reset draws are unchanged by the appended seed draw ...
+        np.testing.assert_array_equal(pushed_qpos, free_qpos)
+        # ... and the same eval seed yields the same schedule (pairing).
+        np.testing.assert_array_equal(xfrc_a, xfrc_b)

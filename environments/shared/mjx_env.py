@@ -835,10 +835,16 @@ class MJXDinoEnv:
                 direction=self.config.perturbation_direction,
                 control_dt=control_dt,
             )
+            # Calibrate from the pose the reset restores: MJX resolves the
+            # 'home' keyframe by name (reset_mujoco_data_to_home and the
+            # settle probe above), as BaseDinoEnv passes its
+            # _reset_keyframe_id.  Keyframe 0 only when no 'home' exists.
+            push_keyframe_id = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_KEY, "home")
             push_params = derive_push_parameters(
                 self.mj_model,
                 capture_velocity_multiple=self.config.perturbation_capture_velocity_multiple,
                 duration_s=self.config.perturbation_duration,
+                keyframe_id=max(push_keyframe_id, 0),
             )
             self._push_constants = {
                 **schedule_steps,

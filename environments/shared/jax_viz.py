@@ -23,6 +23,8 @@ from typing import Any
 
 import numpy as np
 
+from .action_filter import apply_low_pass, low_pass_alpha
+
 
 def _smooth(values: list | np.ndarray, window: int = 50) -> np.ndarray:
     """Rolling-mean smoothing filter."""
@@ -518,6 +520,18 @@ def plot_reward_components(
     return fig
 
 
+def _accepts_lag_kwargs(fn: Any) -> bool:
+    """Whether *fn* can take ``prev_action`` / ``prev_prev_action`` keywords."""
+    import inspect
+
+    try:
+        params = inspect.signature(fn).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    names = {p.name for p in params if p.kind in (p.KEYWORD_ONLY, p.POSITIONAL_OR_KEYWORD)}
+    return any(p.kind is p.VAR_KEYWORD for p in params) or {"prev_action", "prev_prev_action"} <= names
+
+
 def record_training_video(
     mj_model: Any,
     params: Any,
@@ -543,6 +557,7 @@ def record_training_video(
     target_body: str | None = None,
     sensor_quat_start: int = 6,
     action_mapping: str = "midpoint/v1",
+    action_filter_cutoff_hz: float | None = None,
     output_path: str | Path | None = None,
     fps: int = 50,
     height: int = 480,
@@ -581,6 +596,11 @@ def record_training_video(
         sensor_quat_start: Index into sensordata where root quaternion starts.
         action_mapping: Versioned action mapping used by the policy. Home-
             residual policies also start video rollouts from the home keyframe.
+        action_filter_cutoff_hz: Command low-pass cutoff of the plant
+            interface (pass ``env.config.action_filter_cutoff_hz``).  The
+            rollout then drives the SAME filtered plant training and the
+            CPU gate eval drive, and ``reward_fn`` scores the filtered
+            command.  ``None`` or ``0.0`` keeps the raw policy mean.
         output_path: If provided, save video to this path (requires mediapy).
         fps: Frames per second for the video.
         height: Render height in pixels.
@@ -647,6 +667,25 @@ def record_training_video(
     if target_body is not None:
         _target_body_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_BODY, target_body)
 
+    # Command low-pass of the plant interface: the SAME alpha, seeding
+    # (first post-reset action) and blend as evaluate_policy_cpu, the MJX
+    # step_fn and BaseDinoEnv._filter_action.  A raw-mean rollout is a
+    # different plant (measured ~0.19 m root-height divergence within 2 s
+    # on the trex), so the video and its printed reward would not be the
+    # policy training and gate eval saw.
+    _filter_alpha: float | None = None
+    if action_filter_cutoff_hz is not None and action_filter_cutoff_hz > 0.0:
+        _filter_alpha = low_pass_alpha(action_filter_cutoff_hz, float(mj_model.opt.timestep) * frame_skip)
+    filtered_action = None
+    # The two previous (filtered) commands, carried the way evaluate_policy_cpu
+    # and the MJX kernel carry them, so the printed reward charges smoothness
+    # and jerk against the real lags rather than zeros.  Passed only to a
+    # reward_fn that takes them (the notebook's compute_reward forwards
+    # **step_kwargs; a bare three-argument scorer keeps working).
+    prev_action = None
+    prev_prev_action = None
+    _reward_takes_lags = reward_fn is not None and _accepts_lag_kwargs(reward_fn)
+
     frames = []
     episode_reward = 0.0
 
@@ -657,6 +696,10 @@ def record_training_video(
 
         mean, _log_std, _value = network.apply(params, obs)
         action = jnp.clip(mean, -1.0, 1.0)
+        if _filter_alpha is not None:
+            if filtered_action is not None:
+                action = apply_low_pass(filtered_action, action, _filter_alpha)
+            filtered_action = action
 
         ctrl = np.array(scale_action_fn(action))
         mj_data.ctrl[:] = ctrl
@@ -668,8 +711,16 @@ def record_training_video(
 
         if reward_fn is not None and reward_cfg is not None:
             cpu_data = mjx.put_data(mj_model, mj_data)
-            r = float(reward_fn(cpu_data, action, reward_cfg))
+            lag_kwargs: dict[str, Any] = {}
+            if _reward_takes_lags:
+                if prev_action is not None:
+                    lag_kwargs["prev_action"] = prev_action
+                if prev_prev_action is not None:
+                    lag_kwargs["prev_prev_action"] = prev_prev_action
+            r = float(reward_fn(cpu_data, action, reward_cfg, **lag_kwargs))
             episode_reward += r
+        prev_prev_action = prev_action
+        prev_action = action
 
         # Height termination
         body_z = mj_data.xpos[root_body_id, 2]

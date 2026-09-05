@@ -152,6 +152,22 @@ class TestSaveLoadCheckpoint:
         assert update == 3
         assert "UNSAFE" in caplog.text
 
+    def test_restore_train_state_can_refuse_a_checkpoint_without_opt_state(self, tmp_path):
+        """A best-model / params-only file must not resume a stage: substituting
+        ``optimizer.init`` restarts Adam and the LR schedule mid-stage."""
+        path = tmp_path / "best.pkl"
+        identity = _plant_identity()
+        save_checkpoint(path, params={"w": 1.0}, update=7, plant_identity=identity)
+
+        with pytest.raises(ValueError, match="no optimizer state"):
+            restore_train_state(path, current_plant=identity, require_opt_state=True)
+        # The default keeps the substitution for callers that want a fresh optimizer.
+        _params, opt_state, _obs_rms, update = restore_train_state(path, current_plant=identity)
+        assert opt_state is None and update == 7
+
+        save_checkpoint(path, params={"w": 1.0}, opt_state="opt", update=7, plant_identity=identity)
+        assert restore_train_state(path, current_plant=identity, require_opt_state=True)[1] == "opt"
+
     def test_extra_cannot_override_reserved_plant_metadata(self, tmp_path):
         with pytest.raises(ValueError, match="reserved key"):
             save_checkpoint(
@@ -211,6 +227,23 @@ class TestCheckpointManager:
         assert "ckpt_random_other.pkl" in names
         assert "ckpt_5.pkl" not in names
         assert "ckpt_6.pkl" in names
+
+    def test_resaving_an_update_takes_one_slot_and_keeps_the_file_just_written(self, tmp_path):
+        """The trainer's final save lands on the last periodic count whenever
+        the budget is a multiple of the interval; the re-written file must
+        not count twice against max_keep (with max_keep=1 rotation unlinked
+        the checkpoint right after writing it and ``latest`` dangled)."""
+        mgr = CheckpointManager(tmp_path, prefix="ckpt", max_keep=1)
+        mgr.save({"w": 1}, update=100)
+        path = mgr.save({"w": 2}, update=100)
+        assert path.exists() and mgr.latest == path
+        assert [p.name for p in mgr._recent] == ["ckpt_100.pkl"]
+        assert load_checkpoint(path, unsafe_skip_plant_validation=True)["params"] == {"w": 2}
+
+        mgr = CheckpointManager(tmp_path / "two", prefix="ckpt", max_keep=2)
+        for u in (1, 2, 3, 3):
+            mgr.save({"w": u}, update=u)
+        assert sorted(p.name for p in (tmp_path / "two").iterdir()) == ["ckpt_2.pkl", "ckpt_3.pkl"]
 
     def test_manager_tags_every_rotating_checkpoint(self, tmp_path):
         identity = _plant_identity()

@@ -8,6 +8,7 @@ environment, runs a JIT-compiled PPO training loop via
 Usage::
 
     python -m environments.shared.jax_training --species trex --stage 1
+    python -m environments.shared.jax_training --species trex --stage recovery
 
 Or from Python::
 
@@ -22,14 +23,24 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from .cli import _parse_stage_ref
 from .mjx_utils import check_jax
 
 _logger = logging.getLogger(__name__)
 
 
+def _artifact_prefix(species: str, stage: int | str) -> str:
+    """``{species}_s{N}`` for legacy numbers (unchanged), ``{species}_{id}`` for semantic ids.
+
+    A literal ``f"{species}_s{stage}"`` would mint ``trex_srecovery`` the
+    moment a semantic stage reaches this path.
+    """
+    return f"{species}_s{stage}" if isinstance(stage, int) else f"{species}_{stage}"
+
+
 def train_jax(
     species: str,
-    stage: int = 1,
+    stage: int | str = 1,
     num_envs: int = 2048,
     num_updates: int = 500,
     rollout_len: int = 64,
@@ -37,6 +48,10 @@ def train_jax(
     checkpoint_dir: str | None = None,
     init_params: Any | None = None,
     init_obs_stats: Any | None = None,
+    init_opt_state: Any | None = None,
+    resume_from: str | Path | None = None,
+    obs_rms_decay_on_resume: float = 1.0,
+    policy_kwargs: dict[str, Any] | None = None,
     learning_rate: float = 3e-4,
     learning_rate_end: float | None = None,
     clip_range: float = 0.2,
@@ -65,15 +80,45 @@ def train_jax(
 
     Args:
         species: One of ``"trex"``, ``"velociraptor"``, ``"brachiosaurus"``.
-        stage: Curriculum stage (1, 2, or 3).
+        stage: Curriculum stage reference — a legacy number (1, 2, 3) or a
+            semantic stage id from the species' manifest (``"recovery"``);
+            both resolve through :mod:`~environments.shared.stage_manifest`.
         num_envs: Number of parallel environments.
         num_updates: Number of PPO update iterations.
         rollout_len: Number of steps per rollout.
         seed: Random seed.
         checkpoint_dir: Optional directory for saving checkpoints.
-        init_params: Optional initial network parameters (for curriculum).
+        init_params: Optional initial network parameters (for a CROSS-stage
+            init — the curriculum handing stage N's policy to stage N+1).
         init_obs_stats: Optional observation RunningMeanStd to carry over
-            (for curriculum — must match *init_params*' normalization).
+            (for curriculum — must match *init_params*' normalization).  A
+            cross-stage init decays its count in :func:`run_curriculum`
+            (``[jax] obs_rms_decay_on_resume``, default 0.01) so the stats
+            re-anchor on the new stage's distribution; that is intentional
+            and does not happen here.
+        init_opt_state: Optional optimizer state to continue from (forwarded
+            to :meth:`JaxTrainer.train`; ignored unless *init_params* is
+            also given).  Without it every start re-initialises Adam.
+        resume_from: Path to a periodic checkpoint written by this path
+            (``<prefix>_<N>.pkl``) for a SAME-stage resume: params, optimizer
+            state and obs stats are loaded via
+            :func:`~environments.shared.jax_checkpoint.restore_train_state`
+            and continued as they were, and the stage's REMAINING budget is
+            trained.  A file without optimizer state (``<prefix>_best.pkl``,
+            a params-only export) is refused: it would restart Adam and the
+            LR schedule.  A checkpoint already at the budget returns at once
+            with the restored state and ``eval_metrics["already_complete"]``
+            set, writing nothing.  Mutually exclusive with the ``init_*``
+            arguments.
+        obs_rms_decay_on_resume: Count decay applied to the obs stats loaded
+            by *resume_from*.  Defaults to ``1.0`` (no decay): a same-stage
+            resume sees the same distribution, so decaying would only make
+            the restored policy's inputs drift.  Cross-stage init keeps the
+            TOML key's usual 0.01 default in :func:`run_curriculum`.
+        policy_kwargs: The stage's ``[jax.policy_kwargs]`` table; ``net_arch``
+            sizes the actor-critic backbone (default ``(512, 256)``).  Any
+            path that rebuilds the network to load these params must use the
+            same widths (:func:`~environments.shared.jax_curriculum.network_hidden_dims`).
         learning_rate: PPO learning rate.
         learning_rate_end: Final LR for linear decay (None = constant LR).
         clip_range: PPO clip range.
@@ -111,20 +156,34 @@ def train_jax(
     """
     check_jax()
 
+    from .jax_curriculum import network_hidden_dims
     from .jax_hooks import BestModelHook, CheckpointHook, CSVLoggingHook, LoggingHook
     from .jax_ppo import PPOConfig, make_actor_critic, make_optimizer
     from .jax_trainer import JaxTrainer
     from .mjx_env import MJXDinoEnv
     from .plant_contract import current_plant_identity, validate_mjx_environment_plant, write_plant_identity
+    from .stage_manifest import load_stage_manifest
+
+    if resume_from is not None and (
+        init_params is not None or init_obs_stats is not None or init_opt_state is not None
+    ):
+        raise ValueError(
+            "resume_from restores params, optimizer state and obs stats from the checkpoint; "
+            "it cannot be combined with init_params / init_obs_stats / init_opt_state (a cross-stage init)."
+        )
 
     # Import species config to trigger registration
     _import_species_config(species)
 
-    _logger.info("species=%s stage=%d num_envs=%d", species, stage, num_envs)
+    # Resolve the reference through the manifest up front so an unknown
+    # stage fails here, not inside the env or a reward function.
+    load_stage_manifest(species).resolve(stage)
+    _logger.info("species=%s stage=%s num_envs=%d", species, stage, num_envs)
     plant_identity = current_plant_identity(species)
 
     # Create environment with TOML-derived reward weights
-    env = MJXDinoEnv(species, stage=stage, num_envs=num_envs, env_kwargs=env_kwargs)
+    # mjx_env still annotates stage as int; it only records the value.
+    env = MJXDinoEnv(species, stage=stage, num_envs=num_envs, env_kwargs=env_kwargs)  # type: ignore[arg-type]
     validate_mjx_environment_plant(env, plant_identity, artifact="headless JAX training environment")
 
     # TOML configs specify minibatch_size; PPOConfig wants a count.
@@ -149,8 +208,63 @@ def train_jax(
     )
 
     # Create network and optimizer
-    network = make_actor_critic(env.action_dim)
+    network = make_actor_critic(env.action_dim, hidden_dims=network_hidden_dims({"policy_kwargs": policy_kwargs or {}}))
     optimizer = make_optimizer(ppo_config)
+
+    prefix = _artifact_prefix(species, stage)
+    if resume_from is not None:
+        from .jax_checkpoint import restore_train_state
+
+        # require_opt_state: <prefix>_best.pkl and other params-only files
+        # would silently restart Adam and the LR schedule mid-stage.
+        init_params, init_opt_state, init_obs_stats, resumed_update = restore_train_state(
+            resume_from, optimizer, current_plant=plant_identity, require_opt_state=True
+        )
+        if init_obs_stats is not None and obs_rms_decay_on_resume != 1.0:
+            from .jax_normalization import decay_running_stats
+
+            init_obs_stats = decay_running_stats(init_obs_stats, decay_factor=obs_rms_decay_on_resume)
+        _logger.info(
+            "Resuming %s stage %s from %s (update %d): params, optimizer state and obs stats restored "
+            "(obs_rms_decay_on_resume=%s)",
+            species,
+            stage,
+            resume_from,
+            resumed_update,
+            obs_rms_decay_on_resume,
+        )
+        # A continuation trains the stage's REMAINING budget: the LR schedule
+        # (sized to num_updates above, its count restored in opt_state), the
+        # checkpoint numbering and the stage record all assume num_updates in
+        # total, so num_updates *more* would overrun all three.
+        start_update = resumed_update
+        updates_to_run = max(num_updates - resumed_update, 0)
+        if updates_to_run == 0:
+            # Return before any hook exists: running the trainer for zero
+            # updates saved the restored params as <prefix>_1.pkl (evicting
+            # a genuine checkpoint by rotation) and truncated the training
+            # CSV to its header.
+            _logger.warning(
+                "Checkpoint %s is already at update %d of the %d-update budget; nothing left to train",
+                resume_from,
+                resumed_update,
+                num_updates,
+            )
+            eval_metrics: dict[str, float] = {
+                "already_complete": True,
+                "mean_reward": 0.0,
+                "mean_episode_return": 0.0,
+                "mean_episode_length": 0.0,
+                "total_steps": 0,
+                "elapsed": 0.0,
+                "t_rollout_cumulative": 0.0,
+                "t_ppo_cumulative": 0.0,
+            }
+            return init_params, eval_metrics, init_obs_stats
+        _logger.info("Continuing at update %d: %d of %d updates remain", resumed_update, updates_to_run, num_updates)
+    else:
+        start_update = 0
+        updates_to_run = num_updates
 
     # Assemble hooks.  When a checkpoint dir is given, the headless run also
     # produces the durable artifacts the notebook path gets: a per-update
@@ -158,19 +272,33 @@ def train_jax(
     hooks: list[Any] = [LoggingHook(interval=10, num_updates=num_updates)]
 
     best_hook: Any = None
+    prior_best_return: float | None = None
     if checkpoint_dir:
         _ckpt_dir = Path(checkpoint_dir)
         write_plant_identity(_ckpt_dir / "plant_identity.json", plant_identity)
         hooks.append(
             CheckpointHook(
                 directory=checkpoint_dir,
-                prefix=f"{species}_s{stage}",
+                prefix=prefix,
                 interval=50,
                 plant_identity=plant_identity,
             )
         )
-        hooks.append(CSVLoggingHook(_ckpt_dir / f"{species}_s{stage}_training_log.csv"))
+        # Append on resume so the interrupted session's rows survive.
+        hooks.append(CSVLoggingHook(_ckpt_dir / f"{prefix}_training_log.csv", append=start_update > 0))
         best_hook = BestModelHook(metric_key="episode_return")
+        best_path = _ckpt_dir / f"{prefix}_best.pkl"
+        if start_update > 0 and best_path.exists():
+            # A same-directory resume continues the stage, so the best-model
+            # file is only replaced by a policy that beats the recorded best
+            # -- not by the best of the continuation segment alone.
+            from .jax_checkpoint import load_checkpoint
+
+            prior_best = load_checkpoint(best_path, current_plant=plant_identity).get("best_episode_return")
+            if prior_best is not None:
+                prior_best_return = float(prior_best)
+                best_hook.best_reward = prior_best_return
+                _logger.info("Best-model tracking resumes from %s (episode return %.4f)", best_path, prior_best_return)
         hooks.append(best_hook)
 
     # Create trainer and run
@@ -191,10 +319,12 @@ def train_jax(
     )
 
     params, eval_metrics, _state = trainer.train(
-        num_updates=num_updates,
+        num_updates=updates_to_run,
         seed=seed,
         init_params=init_params,
+        init_opt_state=init_opt_state,
         init_obs_stats=init_obs_stats,
+        start_update=start_update,
     )
 
     # Persist the best-return checkpoint alongside the rotating ones so the
@@ -203,14 +333,19 @@ def train_jax(
         from .jax_checkpoint import save_checkpoint
 
         save_checkpoint(
-            Path(checkpoint_dir) / f"{species}_s{stage}_best.pkl",
+            Path(checkpoint_dir) / f"{prefix}_best.pkl",
             params=best_hook.best_params,
             obs_rms=_state.obs_stats,
-            update=best_hook.best_update,
+            # Updates COMPLETED by these params (the hook records the update
+            # INDEX), the same convention as the periodic checkpoints.
+            update=best_hook.best_update + 1,
             extra={"best_episode_return": best_hook.best_reward},
             plant_identity=plant_identity,
         )
         eval_metrics["best_episode_return"] = best_hook.best_reward
+    elif prior_best_return is not None:
+        # The continuation never beat the recorded best; the file stands.
+        eval_metrics["best_episode_return"] = prior_best_return
 
     return params, eval_metrics, _state.obs_stats
 
@@ -230,22 +365,59 @@ def _import_species_config(species: str) -> None:
         importlib.import_module(module_name)
 
 
-def main():
-    """CLI entry point for JAX/MJX training."""
+def _build_parser() -> argparse.ArgumentParser:
+    """The ``python -m environments.shared.jax_training`` argument parser."""
     parser = argparse.ArgumentParser(description="Train dinosaur locomotion with JAX/MJX PPO")
     parser.add_argument(
         "--species", type=str, required=True, choices=["trex", "velociraptor", "brachiosaurus", "dibothrosuchus"]
     )
-    parser.add_argument("--stage", type=int, default=1, choices=[1, 2, 3])
+    parser.add_argument(
+        "--stage",
+        type=_parse_stage_ref,
+        default=1,
+        help=(
+            "Curriculum stage: a legacy number (1=stance, 2=locomotion, 3=behavior) or a semantic "
+            "stage id from the species' manifest (e.g. 'recovery'); same rule as the SB3 CLI"
+        ),
+    )
     parser.add_argument("--num-envs", type=int, default=2048)
     parser.add_argument("--num-updates", type=int, default=500)
     parser.add_argument("--rollout-len", type=int, default=64)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--checkpoint-dir", type=str, default=None)
+    parser.add_argument(
+        "--resume-from",
+        type=str,
+        default=None,
+        help=(
+            "Same-stage resume: checkpoint .pkl whose params, optimizer state and obs stats are "
+            "continued as-is (no obs-stats decay; the [jax] obs_rms_decay_on_resume key is for "
+            "cross-stage init under --curriculum)"
+        ),
+    )
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--curriculum", action="store_true", help="Run full 3-stage curriculum")
+    return parser
 
-    args = parser.parse_args()
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse and cross-check the CLI arguments (``argv`` defaults to ``sys.argv[1:]``)."""
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    if args.curriculum and args.resume_from:
+        # run_curriculum never received the flag, so the run silently
+        # started stage 1 from scratch in the same directory.
+        parser.error(
+            "--resume-from applies to a single-stage run and cannot be combined with --curriculum "
+            "(the curriculum path hands each stage's policy to the next itself); "
+            "resume the interrupted stage with --stage <its stage> --resume-from <checkpoint>"
+        )
+    return args
+
+
+def main():
+    """CLI entry point for JAX/MJX training."""
+    args = _parse_args()
 
     if args.curriculum:
         from .jax_curriculum import run_curriculum
@@ -268,7 +440,7 @@ def main():
         )
         for stage, (params, metrics) in results.items():
             _logger.info(
-                "Stage %d: episode return=%.2f (per-step reward=%.2f)",
+                "Stage %s: episode return=%.2f (per-step reward=%.2f)",
                 stage,
                 metrics.get("mean_episode_return", 0.0),
                 metrics.get("mean_reward", 0.0),
@@ -303,6 +475,8 @@ def main():
             rollout_len=jax_kwargs.get("rollout_len", args.rollout_len),
             seed=args.seed,
             checkpoint_dir=args.checkpoint_dir,
+            resume_from=args.resume_from,
+            policy_kwargs=jax_kwargs.get("policy_kwargs"),
             learning_rate=jax_kwargs.get("learning_rate", args.learning_rate),
             learning_rate_end=jax_kwargs.get("learning_rate_end"),
             gamma=jax_kwargs.get("gamma", 0.99),

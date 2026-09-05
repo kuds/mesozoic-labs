@@ -24,6 +24,7 @@ Usage (library)::
 
 from __future__ import annotations
 
+import inspect
 import logging
 import time
 from collections.abc import Callable
@@ -96,7 +97,7 @@ class TrainConfig:
 
     # Env metadata (for summary printing)
     species: str = ""
-    stage: int = 1
+    stage: "int | str" = 1
     frame_skip: int = 5
 
     def __post_init__(self):
@@ -138,7 +139,10 @@ class TrainResult:
     diagnostics_history: list[dict[str, Any]] = field(default_factory=list)
     reward_component_history: list[dict[str, Any]] = field(default_factory=list)
 
+    # Env steps for the WHOLE stage (a same-stage resume counts the
+    # checkpoint's prior updates); ``session_steps`` is this call's segment.
     total_steps: int = 0
+    session_steps: int = 0
     elapsed: float = 0.0
     actual_updates: int = 0
     csv_path: Path | None = None
@@ -160,6 +164,91 @@ def _finite_mean(values: "list[float]") -> float:
     """
     finite = [v for v in values if np.isfinite(v)]
     return float(np.mean(finite)) if finite else 0.0
+
+
+def _build_eval_metrics(state: TrainerState, elapsed: float) -> dict[str, float]:
+    """The ``eval_metrics`` :meth:`JaxTrainer.train` returns for *state*.
+
+    Windows are the last 10 updates.  Episode-level entries are NaN for
+    updates with no completed episode, and one NaN poisoned the whole
+    ``mean_episode_return`` (a spurious gate failure and a NaN headline
+    metric); both episode reductions use the same finite mean, collapsing
+    an all-NaN window to ``0.0`` -- the fail-closed reading for a gate.
+    """
+    return {
+        "mean_reward": float(np.mean([h["mean_reward"] for h in state.history[-10:]])) if state.history else 0.0,
+        # Episode-level return (comparable to SB3's mean episode reward
+        # and the TOML min_avg_reward gates); mean_reward above is the
+        # mean PER-STEP rollout reward, orders of magnitude smaller.
+        "mean_episode_return": _finite_mean(state.episode_return_history[-10:]),
+        # Episode length over the same window, so check_stage_gate can
+        # enforce min_avg_episode_length.
+        "mean_episode_length": _finite_mean(state.episode_length_history[-10:]),
+        "total_steps": state.total_steps,
+        "elapsed": elapsed,
+        "t_rollout_cumulative": state.t_rollout_cumulative,
+        "t_ppo_cumulative": state.t_ppo_cumulative,
+    }
+
+
+def _detail_fn_accepts_action_lags(fn: Callable) -> bool:
+    """Whether *fn* takes ``prev_action`` / ``prev_prev_action`` keywords."""
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return True
+    return "prev_action" in params and "prev_prev_action" in params
+
+
+def _bootstrap_truncations(rewards, gae_dones, full_dones, final_values, gamma: float):
+    """SB3-style per-step time-limit bootstrap for GAE.
+
+    Both trainers collect ``final_obs`` (the pre-auto-reset obs) for EVERY
+    step but used it only for the rollout's last step.  A truncation at a
+    non-final rollout position therefore bootstrapped
+    ``gamma * V(post-auto-reset obs)`` — the next episode's first state —
+    and, because the GAE mask was termination-only, let the lambda carry
+    leak the next episode's advantages into the ended one.  With
+    synchronized resets, ``max_episode_steps=1000`` and ``rollout_len=64``
+    (1000 mod 64 = 40) the whole fleet truncates mid-rollout at once as soon
+    as a policy reaches the horizon — precisely the regime the stance gate
+    selects for.
+
+    Where a step truncated without terminating, fold ``gamma * V(final_obs)``
+    into that step's reward and mask it as done, so the step bootstraps its
+    true successor value and the carry stops at the episode boundary.
+    Terminations are unchanged: no bootstrap term, and they were already
+    masked.
+
+    Args:
+        rewards: ``(T, N)`` per-step rewards.
+        gae_dones: ``(T, N)`` float mask, 1 where the step TERMINATED.
+        full_dones: ``(T, N)`` float mask, 1 where the step terminated OR
+            truncated (``gae_dones <= full_dones`` elementwise).
+        final_values: ``(T, N)`` value of each step's pre-reset ``final_obs``
+            under the rollout policy and rollout-time obs stats.
+        gamma: Discount factor.
+
+    Returns:
+        ``(rewards_with_bootstrap, gae_mask)`` — feed both to ``compute_gae``
+        in place of the raw rewards and the termination-only mask.
+    """
+    truncated_only = full_dones - gae_dones
+    return rewards + gamma * final_values * truncated_only, full_dones
+
+
+def _build_batched_value(network):
+    """JIT value head over a flat ``(B, obs_dim)`` batch of normalized obs."""
+    import jax
+
+    @jax.jit
+    def batched_value(params, obs_batch):
+        _, _, values = network.apply(params, obs_batch)
+        return values
+
+    return batched_value
 
 
 def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, env=None):
@@ -365,7 +454,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
             """
 
             def step_fn(carry, _):
-                states, rng = carry
+                states, rng, _ = carry
                 rng, action_rng, step_rng = jax.random.split(rng, 3)
 
                 raw_obs = states.obs
@@ -375,6 +464,10 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
                     params, obs_normed, rngs
                 )
 
+                # The action lags the kernel scores THIS step against; its
+                # post-step state overwrites them, so keep the last step's
+                # for the reward-component panel.
+                pre_step_lags = (states.prev_action, states.prev_prev_action)
                 actions = jnp.clip(raw_actions, -1.0, 1.0)
                 new_states, rewards, terminated, truncated, final_obs = env.step(
                     states, actions, step_rng, return_final_obs=True, forward_vel_scale=forward_vel_scale
@@ -382,7 +475,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
                 full_done = terminated | truncated
                 gae_done = terminated
 
-                return (new_states, rng), (
+                return (new_states, rng, pre_step_lags), (
                     raw_obs,
                     raw_actions,
                     log_probs,
@@ -393,20 +486,44 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
                     final_obs,
                 )
 
-            (states, _), rollout = jax.lax.scan(step_fn, (states, rng), None, length=ROLLOUT_LEN)
-            return states, rollout
+            init_lags = (states.prev_action, states.prev_prev_action)
+            (states, _, last_step_lags), rollout = jax.lax.scan(
+                step_fn, (states, rng, init_lags), None, length=ROLLOUT_LEN
+            )
+            return states, rollout, last_step_lags
 
     # --- Reward component diagnostics ---
 
+    # Scores ``(states.data, action)`` per env with the action lags the
+    # kernel held for that step, so the panel's smoothness / action_jerk
+    # rows equal the terms the kernel charged instead of a zero-lag
+    # stand-in.  A detail fn without the keywords still gets the zero-lag
+    # rows, loudly.
     batched_reward_components = None
     if reward_detail_fn is not None:
+        if _detail_fn_accepts_action_lags(reward_detail_fn):
 
-        @jax.jit
-        def batched_reward_components(states, action_batch):
-            return jax.vmap(reward_detail_fn, in_axes=(0, 0))(states.data, action_batch)
+            def _detail_with_lags(data, action, prev_action, prev_prev_action):
+                return reward_detail_fn(data, action, prev_action=prev_action, prev_prev_action=prev_prev_action)
+
+            @jax.jit
+            def batched_reward_components(states, action_batch, prev_action, prev_prev_action):
+                return jax.vmap(_detail_with_lags)(states.data, action_batch, prev_action, prev_prev_action)
+
+        else:
+            _logger.warning(
+                "reward_detail_fn %r does not accept prev_action / prev_prev_action; the component panel's "
+                "smoothness and action_jerk rows are computed against zero lags (accept **step_kwargs to fix)",
+                getattr(reward_detail_fn, "__name__", reward_detail_fn),
+            )
+
+            @jax.jit
+            def batched_reward_components(states, action_batch, prev_action, prev_prev_action):
+                return jax.vmap(reward_detail_fn, in_axes=(0, 0))(states.data, action_batch)
 
     return {
         "batched_sample": batched_sample,
+        "batched_value": _build_batched_value(network),
         "ppo_update": ppo_update,
         "scan_ppo_epochs": scan_ppo_epochs,
         "collect_rollout": collect_rollout,
@@ -444,7 +561,11 @@ def train(
         reward_cfg: Reward configuration dict (may be mutated by reward ramp).
         rng: JAX PRNGKey.
         reward_detail_fn: Optional per-component reward function for diagnostics.
-            Signature: ``(mjx_data, action) -> dict[str, scalar]``.
+            Signature: ``(mjx_data, action, *, prev_action, prev_prev_action)
+            -> dict[str, scalar]`` -- the two action lags the kernel scored
+            the step against are forwarded when the function accepts them
+            (``**step_kwargs`` will do), so the panel's smoothness and jerk
+            rows equal the charged terms.
         optimizer: Optax optimizer (needed for gradient updates).
         callback: Optional ``(update, metrics_dict) -> None`` called each update.
 
@@ -470,7 +591,7 @@ def train(
 
     # Build JIT functions
     jit_fns = _build_jit_fns(config, network, optimizer, reward_detail_fn, env=env)
-    batched_sample = jit_fns["batched_sample"]
+    batched_value = jit_fns["batched_value"]
     scan_ppo_epochs = jit_fns["scan_ppo_epochs"]
     collect_rollout = jit_fns["collect_rollout"]
     batched_reward_components = jit_fns["batched_reward_components"]
@@ -555,17 +676,26 @@ def train(
         f"({ROLLOUT_LEN} steps x {NUM_ENVS} envs)"
     )
     print(f"Checkpoint frequency: every {CHECKPOINT_FREQ} updates (keep last {config.max_checkpoints})")
+    # Warmup and ramp are stage-absolute (updates 0..N-1 of the stage): a
+    # same-stage resume past them must not re-warm or restart the ramp.
     if _warmup_active:
-        print(
-            f"Warmup: updates 0..{config.warmup_updates - 1} "
-            f"(clip_range={config.warmup_clip_range}, ent_coef={config.warmup_ent_coef})"
-        )
+        if _start_update < config.warmup_updates:
+            print(
+                f"Warmup: updates {_start_update}..{config.warmup_updates - 1} "
+                f"(clip_range={config.warmup_clip_range}, ent_coef={config.warmup_ent_coef})"
+            )
+        else:
+            print(f"Warmup: updates 0..{config.warmup_updates - 1} already complete at update {_start_update}")
     if _ramp_active:
-        print(
-            f"Reward ramp: {config.ramp_attr} from "
-            f"{_ramp_target_value * config.ramp_start_fraction:.4f} to "
-            f"{_ramp_target_value:.4f} over updates 0..{config.ramp_updates - 1}"
-        )
+        if _start_update < config.ramp_updates:
+            print(
+                f"Reward ramp: {config.ramp_attr} from "
+                f"{_ramp_target_value * config.ramp_start_fraction:.4f} to "
+                f"{_ramp_target_value:.4f} over updates 0..{config.ramp_updates - 1}"
+                + (f" (resuming at {_start_update})" if _start_update else "")
+            )
+        else:
+            print(f"Reward ramp: updates 0..{config.ramp_updates - 1} already complete at update {_start_update}")
     print(f"CSV log: {csv_path}")
     print("=" * 70)
 
@@ -579,15 +709,16 @@ def train(
             relative_update = update - _start_update
 
             # ---------- Warmup ----------
-            if _warmup_active and relative_update < config.warmup_updates:
+            # Keyed off the ABSOLUTE update, like JaxTrainer: a same-stage
+            # resume continues past the warmup instead of re-running it (a
+            # cross-stage init starts at 0, so its warmup is unchanged).
+            if _warmup_active and update < config.warmup_updates:
                 _active_clip_range = config.warmup_clip_range
                 _active_ent_coef = config.warmup_ent_coef
-                if relative_update == 0 and _log_interval is not None:
-                    pass  # printed in banner
             else:
                 _active_clip_range = config.clip_range
                 _active_ent_coef = config.ent_coef
-                if _warmup_active and relative_update == config.warmup_updates and _log_interval is not None:
+                if _warmup_active and update == config.warmup_updates and _log_interval is not None:
                     print(
                         f"  >>> Warmup complete at update {update}: "
                         f"restoring clip_range={config.clip_range}, ent_coef={config.ent_coef}"
@@ -596,9 +727,9 @@ def train(
             # ---------- Reward ramp ----------
             # The ramp scales forward_vel_weight in [start_fraction, 1.0]
             # and is passed through to env.step at runtime so the JIT
-            # trace doesn't need to be invalidated.
-            if _ramp_active and relative_update < config.ramp_updates:
-                ramp_progress = relative_update / config.ramp_updates
+            # trace doesn't need to be invalidated.  Absolute, as above.
+            if _ramp_active and update < config.ramp_updates:
+                ramp_progress = update / config.ramp_updates
                 forward_vel_scale = config.ramp_start_fraction + (1.0 - config.ramp_start_fraction) * ramp_progress
                 # Mirror the effective weight into reward_cfg so callers
                 # inspecting it (e.g. diagnostics) see the current value.
@@ -616,7 +747,9 @@ def train(
             # see the same normalization, otherwise the importance ratio
             # is biased.  We update obs_rms only after consuming the batch.
             rollout_obs_rms = obs_rms
-            states, rollout = collect_rollout(states, rng_collect, params, rollout_obs_rms, forward_vel_scale_arr)
+            states, rollout, last_step_lags = collect_rollout(
+                states, rng_collect, params, rollout_obs_rms, forward_vel_scale_arr
+            )
             obs_t, act_t, lp_t, val_t, rew_t, gae_done_t, full_done_t, final_obs_t = rollout
 
             jax.block_until_ready(full_done_t)
@@ -633,20 +766,21 @@ def train(
             full_done_np = np.array(full_done_t)
             _completed_returns, _completed_lengths = compute_episode_stats(rew_np, full_done_np, _ep_stats_acc)
 
-            # ---------- Bootstrap value for GAE ----------
-            # Use the per-step ``final_obs`` (pre-auto-reset) for the last
-            # step so truncations bootstrap their true s_T value.  Natural
-            # terminations are masked out by the GAE done flag anyway.
-            rng, rng_bootstrap = jax.random.split(rng)
-            last_final_obs = final_obs_t[-1]
-            bootstrap_obs = normalize_obs(last_final_obs, rollout_obs_rms)
-            _, _, bootstrap_values = batched_sample(params, bootstrap_obs, rng_bootstrap)
-            val_t_plus1 = jnp.concatenate([val_t, bootstrap_values[None]], axis=0)
+            # ---------- Bootstrap values for GAE ----------
+            # Value every step's pre-auto-reset ``final_obs`` under the
+            # rollout policy and rollout-time stats.  The last entry is the
+            # rollout's tail bootstrap (V(s_T), or V(final_obs) if the last
+            # step truncated); every other entry bootstraps a MID-rollout
+            # truncation via _bootstrap_truncations, which folds it into
+            # that step's reward and masks the step as done.  Natural
+            # terminations are masked out by the GAE done flag as before.
+            final_obs_normed = normalize_obs(final_obs_t.reshape(-1, OBS_DIM), rollout_obs_rms)
+            final_values = batched_value(params, final_obs_normed).reshape(ROLLOUT_LEN, NUM_ENVS)
+            val_t_plus1 = jnp.concatenate([val_t, final_values[-1][None]], axis=0)
 
             # ---------- Compute advantages ----------
-            # gae_done_t masks ONLY natural termination so truncated
-            # rollout steps still bootstrap V(s_{t+1}) correctly.
-            advantages, returns = compute_gae(rew_t, val_t_plus1, gae_done_t, GAMMA, GAE_LAMBDA)
+            rew_boot_t, gae_mask_t = _bootstrap_truncations(rew_t, gae_done_t, full_done_t, final_values, GAMMA)
+            advantages, returns = compute_gae(rew_boot_t, val_t_plus1, gae_mask_t, GAMMA, GAE_LAMBDA)
 
             # Normalize PPO inputs with the rollout-time stats so the new
             # policy sees the same scaled inputs as the behaviour policy.
@@ -686,10 +820,14 @@ def train(
             _t_ppo = time.time() - _t_phase
             _cum_t_ppo += _t_ppo
 
-            # Compute current learning rate for logging
+            # Compute current learning rate for logging, from the ABSOLUTE
+            # position on the stage schedule: on a same-stage resume
+            # config.num_updates is the remaining budget while the restored
+            # optax count continues, so relative progress would log the LR
+            # snapping back to learning_rate.
             if config.learning_rate_end is not None and config.learning_rate_end != config.learning_rate:
-                total_lr_steps = config.num_updates * config.ppo_epochs
-                lr_step = min(relative_update * config.ppo_epochs, total_lr_steps)
+                total_lr_steps = (_start_update + config.num_updates) * config.ppo_epochs
+                lr_step = min(update * config.ppo_epochs, total_lr_steps)
                 current_lr = (
                     config.learning_rate + (config.learning_rate_end - config.learning_rate) * lr_step / total_lr_steps
                 )
@@ -727,7 +865,11 @@ def train(
             # Per-component reward diagnostics
             if relative_update % config.reward_component_interval == 0 and batched_reward_components is not None:
                 try:
-                    _comp = batched_reward_components(states, act_t[-1])
+                    # Re-score the rollout's last step as the kernel did: the
+                    # command it scored is the post-step prev_action carry
+                    # (clipped, low-passed), against the lags it held BEFORE
+                    # that step.
+                    _comp = batched_reward_components(states, states.prev_action, *last_step_lags)
                     _comp_means = {k: float(jnp.mean(v)) for k, v in _comp.items()}
                     _comp_means["update"] = update
                     reward_component_history.append(_comp_means)
@@ -751,8 +893,11 @@ def train(
 
             # CSV log
             elapsed = time.time() - t_start
-            steps_done = (update - _start_update + 1) * ROLLOUT_LEN * NUM_ENVS
-            sps = steps_done / elapsed
+            session_steps_done = (update - _start_update + 1) * ROLLOUT_LEN * NUM_ENVS
+            sps = session_steps_done / elapsed
+            # Stage-cumulative, so a resumed session's rows continue the
+            # interrupted session's count.
+            steps_done = (update + 1) * ROLLOUT_LEN * NUM_ENVS
             _csv_logger.log(
                 {
                     "update": update,
@@ -825,9 +970,15 @@ def train(
     # ==================== Training Summary ====================
     elapsed = time.time() - t_start
     actual_updates = update - _start_update + 1
-    total_steps = actual_updates * ROLLOUT_LEN * NUM_ENVS
+    session_steps = actual_updates * ROLLOUT_LEN * NUM_ENVS
+    # The stage record counts the WHOLE stage: on a same-stage resume the
+    # checkpoint's prior updates are part of it.
+    total_steps = (update + 1) * ROLLOUT_LEN * NUM_ENVS
     print("=" * 70)
-    print(f"Done! {total_steps:,} steps in {format_duration(elapsed)} ({total_steps / elapsed:,.0f} SPS)")
+    print(
+        f"Done! {session_steps:,} steps in {format_duration(elapsed)} ({session_steps / elapsed:,.0f} SPS)"
+        + (f"; {total_steps:,} for the stage" if _start_update else "")
+    )
     print(f"Best metric: {best_reward:+.4f} at update {best_update}")
 
     _pct_rollout = 100 * _cum_t_rollout / elapsed if elapsed > 0 else 0
@@ -891,6 +1042,7 @@ def train(
         diagnostics_history=diagnostics_history,
         reward_component_history=reward_component_history,
         total_steps=total_steps,
+        session_steps=session_steps,
         elapsed=elapsed,
         actual_updates=actual_updates,
         csv_path=csv_path,
@@ -1004,12 +1156,14 @@ class JaxTrainer:
         - ``raw_obs`` is the unnormalized obs at the input to the policy.
           Callers normalize once on the host with the *same* stats used
           inside this rollout to keep PPO importance sampling consistent.
-        - ``gae_done`` masks ONLY natural termination — used by GAE so
-          that time-limit truncations still bootstrap their value.
+        - ``gae_done`` masks ONLY natural termination — with ``full_done``
+          it identifies time-limit truncations, which bootstrap their value
+          per step (see :func:`_bootstrap_truncations`).
         - ``full_done`` marks any episode boundary (terminated or
-          truncated) — used for episode tracking and fall-rate stats.
-        - ``final_obs`` is the post-step pre-auto-reset obs, needed to
-          bootstrap value correctly at truncation boundaries.
+          truncated) — the GAE carry mask, and used for episode tracking
+          and fall-rate stats.
+        - ``final_obs`` is the post-step pre-auto-reset obs, valued at
+          every step to bootstrap truncation boundaries correctly.
         """
         import jax
         import jax.numpy as jnp
@@ -1149,11 +1303,12 @@ class JaxTrainer:
         init_params: Any | None = None,
         init_opt_state: Any | None = None,
         init_obs_stats: Any | None = None,
+        start_update: int = 0,
     ) -> tuple[Any, dict[str, float], TrainerState]:
         """Run the training loop.
 
         Args:
-            num_updates: Number of PPO update iterations.
+            num_updates: Number of PPO update iterations to run in this call.
             seed: Random seed.
             init_params: Optional initial network parameters.
             init_opt_state: Optional optimizer state to resume from (see
@@ -1161,17 +1316,25 @@ class JaxTrainer:
                 Ignored unless *init_params* is also provided.
             init_obs_stats: Optional observation RunningMeanStd to resume
                 from (must match *init_params*' normalization).
+            start_update: Absolute index of the first update this call runs.
+                A same-stage resume passes the checkpoint's update so the
+                curriculum ramp, the progress log and — through
+                ``state.update`` — the checkpoint numbering continue from
+                where the interrupted session stopped instead of restarting
+                at 0 and overwriting its files.
 
         Returns:
             ``(params, eval_metrics, state)`` tuple.
         """
         check_jax()
+        if start_update < 0:
+            raise ValueError(f"start_update must be non-negative, got {start_update}")
 
         import jax
         import jax.numpy as jnp
 
         from .jax_normalization import RunningMeanStd, normalize_obs, update_running_stats
-        from .jax_ppo import compute_gae, sample_action
+        from .jax_ppo import compute_gae
 
         _logger.info("num_envs=%d rollout_len=%d num_updates=%d", self.num_envs, self.rollout_len, num_updates)
 
@@ -1213,18 +1376,9 @@ class JaxTrainer:
                 self.ramp_updates,
             )
 
-        # Jitted bootstrap sampler — avoids re-tracing a lambda each update
-        _network = self.network
-        _num_envs = self.num_envs
-
-        @jax.jit
-        def _batched_bootstrap(params, obs_batch, rng):
-            rngs = jax.random.split(rng, _num_envs)
-            _, _, values = jax.vmap(
-                lambda o, r: sample_action(params, _network, o, r),
-                in_axes=(0, 0),
-            )(obs_batch, rngs)
-            return values
+        # Jitted value head over the per-step final_obs — built once so it is
+        # not re-traced each update.
+        _batched_value = _build_batched_value(self.network)
 
         state = TrainerState(
             params=params,
@@ -1243,7 +1397,7 @@ class JaxTrainer:
         ep_stats_acc = EpisodeStatsAccumulator()
 
         try:
-            for update in range(num_updates):
+            for update in range(start_update, start_update + num_updates):
                 state.update = update
 
                 t_rollout_start = time.time()
@@ -1311,26 +1465,30 @@ class JaxTrainer:
                 }
                 self._dispatch("on_rollout_end", state, rollout_metrics)
 
-                # Bootstrap value at the end of the rollout.  When the last
-                # step truncated, ``state.env_states.obs`` is the post-reset
-                # obs, so use the per-step ``rollout_final_obs`` for the
-                # last index — that's the true s_T.  When the last step
-                # terminated, the (1 - gae_done) GAE mask zeros it out.
-                last_final_obs = rollout_final_obs[-1]
-
                 # Normalize PPO inputs with the SAME stats used during sampling
                 rollout_obs_norm = normalize_obs(rollout_obs.reshape(-1, obs_dim), rollout_obs_stats)
 
-                rng, bootstrap_rng = jax.random.split(state.rng)
-                state.rng = rng
-                bootstrap_obs_norm = normalize_obs(last_final_obs, rollout_obs_stats)
-                bootstrap_value = _batched_bootstrap(state.params, bootstrap_obs_norm, bootstrap_rng)
+                # Value every step's pre-auto-reset ``final_obs`` under the
+                # rollout policy and stats.  The last entry is the tail
+                # bootstrap (``state.env_states.obs`` would be the post-reset
+                # obs if the last step truncated); every other entry
+                # bootstraps a MID-rollout truncation via
+                # _bootstrap_truncations.  Terminations stay masked out.
+                final_obs_norm = normalize_obs(rollout_final_obs.reshape(-1, obs_dim), rollout_obs_stats)
+                final_values = _batched_value(state.params, final_obs_norm).reshape(self.rollout_len, self.num_envs)
 
-                rollout_values_arr = jnp.concatenate([rollout_values, bootstrap_value[None]], axis=0)
-                advantages, returns = compute_gae(
+                rollout_values_arr = jnp.concatenate([rollout_values, final_values[-1][None]], axis=0)
+                rewards_boot, gae_mask = _bootstrap_truncations(
                     rollout_rewards,
-                    rollout_values_arr,
                     rollout_gae_dones,
+                    rollout_full_dones,
+                    final_values,
+                    self.ppo_config.gamma,
+                )
+                advantages, returns = compute_gae(
+                    rewards_boot,
+                    rollout_values_arr,
+                    gae_mask,
                     self.ppo_config.gamma,
                     self.ppo_config.gae_lambda,
                 )
@@ -1401,25 +1559,4 @@ class JaxTrainer:
 
         self._dispatch("on_train_end", state)
 
-        eval_metrics = {
-            "mean_reward": float(jnp.mean(jnp.array([h["mean_reward"] for h in state.history[-10:]])))
-            if state.history
-            else 0.0,
-            # Episode-level return (comparable to SB3's mean episode reward
-            # and the TOML min_avg_reward gates); mean_reward above is the
-            # mean PER-STEP rollout reward, orders of magnitude smaller.
-            "mean_episode_return": float(jnp.mean(jnp.array(state.episode_return_history[-10:])))
-            if state.episode_return_history
-            else 0.0,
-            # Episode length over the same window, so check_stage_gate can
-            # enforce min_avg_episode_length.  NaN windows (no episode
-            # completed yet) collapse to 0.0, which fails a length gate rather
-            # than passing it -- the fail-closed direction.
-            "mean_episode_length": _finite_mean(state.episode_length_history[-10:]),
-            "total_steps": state.total_steps,
-            "elapsed": elapsed,
-            "t_rollout_cumulative": state.t_rollout_cumulative,
-            "t_ppo_cumulative": state.t_ppo_cumulative,
-        }
-
-        return state.params, eval_metrics, state
+        return state.params, _build_eval_metrics(state, elapsed), state

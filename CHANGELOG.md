@@ -370,6 +370,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Fixed
+- **The JAX/MJX backend evaluates, trains and resumes on the same plant as
+  SB3** (gap review Phase J, `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md`
+  findings JX1–JX9, EP3). Mechanical parity fixes only; the recovery gate
+  itself stays refused on the JAX side by design.
+  - The CPU-eval reward composer omitted the action-jerk term the MJX
+    training step pays, so eval rewards, the `min_avg_reward` rail
+    comparison and the component panel overscored chattering policies
+    relative to training and to SB3. `compute_total_reward` /
+    `compute_reward_components` take `prev_prev_action` and charge jerk
+    exactly as the kernel does, pinned by a step-vs-composer parity test on
+    a real MJX env (JX1). The evaluation video is rendered under the plant's
+    mandatory 10 Hz command filter like training and the gate eval (JX7).
+    `evaluate_policy_cpu` applies recovery pushes from the env's
+    `perturbation_*` config on the shared schedule and force derivation, so a
+    recovery evaluation no longer certifies push-free episodes (JX3), and the
+    MJX push calibration uses the resolved home keyframe rather than
+    keyframe 0 (EP3).
+  - Both JAX trainers bootstrapped a mid-rollout time-limit truncation from
+    the post-reset observation and let the GAE carry leak the next episode's
+    advantages into the ended one — the synchronized full-horizon regime the
+    stance gate selects for. Truncated-but-not-terminated steps bootstrap
+    from `V(final_obs_t)` (JX5). `mean_episode_return` uses `_finite_mean`,
+    so one update without a completed episode no longer fails the gate with
+    NaN (JX8).
+  - `[jax.policy_kwargs] net_arch` was inert on the JAX path; it now reaches
+    every `make_actor_critic` construction site, training and load alike
+    (JX9). The JAX CLI and `jax_setup` accept semantic stage ids, so
+    `"recovery"` no longer crashes on an int comparison (JX3).
+  - Same-stage resume on the JAX path re-initialised the optimizer and
+    decayed the observation statistics instead of restoring the checkpoint's
+    `opt_state`: `train_jax` gains `init_opt_state` / `resume_from` (via
+    `restore_train_state`, no decay), and the notebook's `RESUME_FROM`
+    restores the full train state, refuses a silently mismatched optimizer
+    structure, and trains the stage's remaining budget rather than
+    `NUM_UPDATES` more; the cross-stage handoff keeps its deliberate fresh
+    optimizer and decay (JX2). The notebook's stage-2/3 auto-resume resolves
+    the previous stage through the manifest and `stage_dir_candidates`
+    instead of the retired `stage{N}` layout, keeping the publication-gate
+    check on that path (JX4).
+  - `jax_normalization` no longer claims VecNormalize equivalence (it
+    normalizes observations only); an additive `[curriculum.jax]` table lets
+    the scalar gate thresholds be calibrated per backend, and the JAX path
+    warns once when a reward-judged stage has no override, naming the
+    alive-gate and fall-penalty differences behind the shared number (JX6).
 - **Evaluation numbers now describe the policy they claim to** (gap review
   Phase V, `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` — the
   evaluation-validity findings). Every fix is mechanical; the two design
