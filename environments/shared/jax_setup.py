@@ -46,12 +46,45 @@ _CAMERA_DEFAULTS: dict[str, dict[str, Any]] = {
     "dibothrosuchus": {"camera_track_body": "torso", "camera_distance": 1.6},
 }
 
+#: Display names keyed by LEGACY stage number (stage_manifest: an integer
+#: reference always means the legacy number).  Stages without one (recovery)
+#: take their id, title-cased — see :func:`_stage_display_name`.
 _STAGE_NAMES: dict[str, dict[int, str]] = {
     "trex": {1: "Balance", 2: "Locomotion", 3: "Bite"},
     "velociraptor": {1: "Balance", 2: "Locomotion", 3: "Strike"},
     "brachiosaurus": {1: "Balance", 2: "Locomotion", 3: "Food Reach"},
     "dibothrosuchus": {1: "Balance", 2: "Locomotion", 3: "Snap"},
 }
+
+#: The manifest id of the stage whose task engages the success machinery
+#: (success sites, bite/strike/food-reach bonus) — legacy "stage 3".
+_BEHAVIOR_STAGE_ID = "behavior"
+
+
+def _stage_display_name(species: str, stage: "int | str") -> str:
+    from .stage_manifest import load_stage_manifest
+
+    entry = load_stage_manifest(species).resolve(stage)
+    if entry.legacy_number is not None:
+        return _STAGE_NAMES.get(species, {}).get(entry.legacy_number, f"Stage {entry.legacy_number}")
+    return entry.id.title()
+
+
+def _is_behavior_stage_ref(stage: "int | str") -> bool:
+    """Whether a bare stage reference names the behavior stage.
+
+    For callers with no species in hand (:func:`print_eval_summary`): a legacy
+    number resolves through the manifest module's universal legacy mapping, a
+    semantic id is compared directly.  Replaces the ``stage >= 3`` comparison
+    that raised ``TypeError`` for ``"recovery"``.
+    """
+    from .stage_manifest import LEGACY_STAGE_IDS
+
+    if isinstance(stage, bool):
+        return False
+    if isinstance(stage, int):
+        return LEGACY_STAGE_IDS.get(stage) == _BEHAVIOR_STAGE_ID
+    return stage == _BEHAVIOR_STAGE_ID
 
 
 # ---------------------------------------------------------------------------
@@ -69,7 +102,9 @@ class SpeciesContext:
     """
 
     species: str
-    stage: int
+    #: Stage reference as given: a legacy number or a semantic id (see
+    #: :attr:`stage_entry` for the resolved manifest entry).
+    stage: "int | str"
 
     # MuJoCo model (CPU, for eval / video)
     mj_model: Any = None
@@ -106,6 +141,24 @@ class SpeciesContext:
     camera_track_body: str = "pelvis"
     camera_distance: float = 3.0
     stage_name: str = ""
+
+    @property
+    def stage_entry(self) -> Any:
+        """The species-manifest entry this context's stage reference resolves to."""
+        from .stage_manifest import load_stage_manifest
+
+        return load_stage_manifest(self.species).resolve(self.stage)
+
+    @property
+    def is_behavior_stage(self) -> bool:
+        """Whether this is the species' behavior stage (legacy stage 3).
+
+        The stage whose task engages the success machinery — success sites
+        and the species' bite/strike/food-reach bonus.  Resolved through the
+        manifest so ``"recovery"`` (no legacy number) is simply "not it",
+        where the old ``self.stage >= 3`` raised ``TypeError``.
+        """
+        return bool(self.stage_entry.id == _BEHAVIOR_STAGE_ID)
 
     @property
     def healthy_z_range(self) -> tuple[float, float]:
@@ -165,7 +218,7 @@ class SpeciesContext:
 
     @property
     def success_sites(self) -> tuple[str, ...]:
-        if self.env_config and self.stage >= 3:
+        if self.env_config and self.is_behavior_stage:
             return tuple(self.env_config.success_sites)
         return ()
 
@@ -194,7 +247,7 @@ class SpeciesContext:
 # ---------------------------------------------------------------------------
 
 
-def setup_species(species: str, stage: int = 1) -> SpeciesContext:
+def setup_species(species: str, stage: "int | str" = 1) -> SpeciesContext:
     """Load all configuration for a species + stage and resolve model IDs.
 
     This single call replaces notebook cells 6, 8, and 10 (~170 lines).
@@ -203,7 +256,9 @@ def setup_species(species: str, stage: int = 1) -> SpeciesContext:
 
     Args:
         species: One of ``"trex"``, ``"velociraptor"``, ``"brachiosaurus"``.
-        stage: Curriculum stage (1, 2, or 3).
+        stage: Curriculum stage reference — a legacy number (1, 2, 3) or a
+            semantic stage id (``"recovery"``), resolved through the
+            species' stage manifest.
 
     Returns:
         A :class:`SpeciesContext` with everything resolved and ready.
@@ -300,7 +355,7 @@ def setup_species(species: str, stage: int = 1) -> SpeciesContext:
 
     # Camera / display
     cam = _CAMERA_DEFAULTS.get(species, {})
-    stage_name = _STAGE_NAMES.get(species, {}).get(stage, f"Stage {stage}")
+    stage_name = _stage_display_name(species, stage)
 
     ctx = SpeciesContext(
         species=species,
@@ -326,7 +381,7 @@ def setup_species(species: str, stage: int = 1) -> SpeciesContext:
     )
 
     _logger.info(
-        "%s stage %d (%s): obs=%d act=%d root=%s(%d)",
+        "%s stage %s (%s): obs=%d act=%d root=%s(%d)",
         species,
         stage,
         stage_name,
@@ -409,6 +464,22 @@ def build_env_kwargs(
     return env_kwargs
 
 
+def make_network(ctx: SpeciesContext) -> Any:
+    """Build the actor-critic sized by the stage's ``[jax.policy_kwargs] net_arch``.
+
+    The ONE network factory for a species context: the training path
+    (:func:`~environments.shared.jax_training.train_jax`) and every
+    load/eval path that rebuilds the module to apply saved params must
+    agree on the hidden widths, or the checkpoint's params will not fit.
+    Both read the same ``jax_kwargs`` through
+    :func:`~environments.shared.jax_curriculum.network_hidden_dims`.
+    """
+    from .jax_curriculum import network_hidden_dims
+    from .jax_ppo import make_actor_critic
+
+    return make_actor_critic(ctx.act_dim, hidden_dims=network_hidden_dims(ctx.jax_kwargs))
+
+
 def create_env(
     ctx: SpeciesContext,
     num_envs: int = 2048,
@@ -434,7 +505,8 @@ def create_env(
 
     env = MJXDinoEnv(
         ctx.species,
-        stage=ctx.stage,
+        # mjx_env still annotates stage as int; it only records the value.
+        stage=ctx.stage,  # type: ignore[arg-type]
         num_envs=num_envs,
         env_kwargs=env_kwargs,
     )
@@ -617,7 +689,7 @@ def make_reward_fns(ctx: SpeciesContext):
         dt=float(ctx.mj_model.opt.timestep) * ctx.frame_skip,
         fall_penalty=float(ctx.jax_kwargs.get("fall_penalty", ctx.reward_cfg.get("fall_penalty", 0.0))),
         success_threshold=ctx.success_threshold,
-        success_bonus=success_bonus if ctx.stage >= 3 else 0.0,
+        success_bonus=success_bonus if ctx.is_behavior_stage else 0.0,
     )
 
     nosedive_threshold = ctx.reward_cfg.get("nosedive_termination_threshold", 0.5)
@@ -638,10 +710,12 @@ def make_reward_fns(ctx: SpeciesContext):
 
     def compute_reward_detailed(data, action, reward_cfg, **step_kwargs):
         # compute_reward_components takes a subset of the per-step kwargs.
+        # Both action lags are forwarded so the eval component panel's
+        # action_jerk uses the real second lag rather than a zero stand-in.
         allowed = {
             k: v
             for k, v in step_kwargs.items()
-            if k in ("prev_action", "forward_ref_2d", "initial_pos_2d", "aggregated_foot_forces")
+            if k in ("prev_action", "prev_prev_action", "forward_ref_2d", "initial_pos_2d", "aggregated_foot_forces")
         }
         detail_kw = {
             k: v
@@ -702,6 +776,8 @@ def run_stage_evaluation(
     import numpy as np
 
     from .config import load_stage_config
+    from .curriculum.gate_schema import validate_gate_config
+    from .jax_curriculum import jax_gate_thresholds
     from .jax_eval import EvalConfig, check_stage_gate_for_config, evaluate_policy_cpu
     from .jax_normalization import normalize_obs
 
@@ -751,6 +827,15 @@ def run_stage_evaluation(
         target_z=float(env.config.target_z),
         forward_vel_max=ctx.forward_vel_max,
         target_standing_z=(ctx.target_standing_z if ctx.target_standing_z is not None else 0.90),
+        # Scheduled pushes (recovery stage): thread the instantiated env's
+        # perturbation_* fields one-to-one so the eval applies the same
+        # pushes training did.  A multiple of 0 (every non-recovery stage)
+        # keeps the eval push-free.
+        perturbation_capture_velocity_multiple=float(env.config.perturbation_capture_velocity_multiple),
+        perturbation_interval=float(env.config.perturbation_interval),
+        perturbation_jitter=float(env.config.perturbation_jitter),
+        perturbation_duration=float(env.config.perturbation_duration),
+        perturbation_direction=str(env.config.perturbation_direction),
         seed=eval_seed,
     )
 
@@ -803,7 +888,13 @@ def run_stage_evaluation(
     # Both the zero-action statue (3271.8) and the chattering policy the gate
     # exists to reject (2133.4) cleared it — and the verdict is written into
     # publication_gate_passed below.
-    stage_config = load_stage_config(ctx.species, ctx.stage)
+    stage_config = dict(load_stage_config(ctx.species, ctx.stage))
+    # Apply the stage's [curriculum.jax] threshold overrides (additive: absent,
+    # the shared thresholds are unchanged) so the JAX eval judges the same bar
+    # the JAX curriculum does.  Validate the declared table first so a
+    # malformed override table fails with the schema's message.
+    validate_gate_config(ctx.stage, stage_config.get("curriculum_kwargs", {}), advancement_enabled=True)
+    stage_config["curriculum_kwargs"] = jax_gate_thresholds(ctx.stage, stage_config)
     gate_passed, gate_failures = check_stage_gate_for_config(selected_eval_results, stage_config)
 
     num_envs = env.num_envs
@@ -881,7 +972,7 @@ def print_eval_summary(
     eval_results: Any,
     gate_passed: bool,
     gate_failures: list[str],
-    stage: int,
+    stage: "int | str",
 ) -> None:
     """Print evaluation results and gate status."""
     import numpy as np
@@ -893,7 +984,7 @@ def print_eval_summary(
     print(f"  Mean distance: {eval_results.mean_distance:.2f} m")
     print(f"  Mean tilt:     {np.degrees(eval_results.mean_tilt):.1f} deg")
     print(f"  Mean pelvis H: {eval_results.mean_height:.3f} m")
-    if stage >= 3:
+    if _is_behavior_stage_ref(stage):
         print(f"  Success rate:  {100.0 * eval_results.mean_success_rate:.0f}%")
 
     if gate_failures:

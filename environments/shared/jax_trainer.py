@@ -96,7 +96,7 @@ class TrainConfig:
 
     # Env metadata (for summary printing)
     species: str = ""
-    stage: int = 1
+    stage: "int | str" = 1
     frame_skip: int = 5
 
     def __post_init__(self):
@@ -160,6 +160,55 @@ def _finite_mean(values: "list[float]") -> float:
     """
     finite = [v for v in values if np.isfinite(v)]
     return float(np.mean(finite)) if finite else 0.0
+
+
+def _bootstrap_truncations(rewards, gae_dones, full_dones, final_values, gamma: float):
+    """SB3-style per-step time-limit bootstrap for GAE.
+
+    Both trainers collect ``final_obs`` (the pre-auto-reset obs) for EVERY
+    step but used it only for the rollout's last step.  A truncation at a
+    non-final rollout position therefore bootstrapped
+    ``gamma * V(post-auto-reset obs)`` — the next episode's first state —
+    and, because the GAE mask was termination-only, let the lambda carry
+    leak the next episode's advantages into the ended one.  With
+    synchronized resets, ``max_episode_steps=1000`` and ``rollout_len=64``
+    (1000 mod 64 = 40) the whole fleet truncates mid-rollout at once as soon
+    as a policy reaches the horizon — precisely the regime the stance gate
+    selects for.
+
+    Where a step truncated without terminating, fold ``gamma * V(final_obs)``
+    into that step's reward and mask it as done, so the step bootstraps its
+    true successor value and the carry stops at the episode boundary.
+    Terminations are unchanged: no bootstrap term, and they were already
+    masked.
+
+    Args:
+        rewards: ``(T, N)`` per-step rewards.
+        gae_dones: ``(T, N)`` float mask, 1 where the step TERMINATED.
+        full_dones: ``(T, N)`` float mask, 1 where the step terminated OR
+            truncated (``gae_dones <= full_dones`` elementwise).
+        final_values: ``(T, N)`` value of each step's pre-reset ``final_obs``
+            under the rollout policy and rollout-time obs stats.
+        gamma: Discount factor.
+
+    Returns:
+        ``(rewards_with_bootstrap, gae_mask)`` — feed both to ``compute_gae``
+        in place of the raw rewards and the termination-only mask.
+    """
+    truncated_only = full_dones - gae_dones
+    return rewards + gamma * final_values * truncated_only, full_dones
+
+
+def _build_batched_value(network):
+    """JIT value head over a flat ``(B, obs_dim)`` batch of normalized obs."""
+    import jax
+
+    @jax.jit
+    def batched_value(params, obs_batch):
+        _, _, values = network.apply(params, obs_batch)
+        return values
+
+    return batched_value
 
 
 def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, env=None):
@@ -407,6 +456,7 @@ def _build_jit_fns(config: TrainConfig, network, optimizer, reward_detail_fn, en
 
     return {
         "batched_sample": batched_sample,
+        "batched_value": _build_batched_value(network),
         "ppo_update": ppo_update,
         "scan_ppo_epochs": scan_ppo_epochs,
         "collect_rollout": collect_rollout,
@@ -470,7 +520,7 @@ def train(
 
     # Build JIT functions
     jit_fns = _build_jit_fns(config, network, optimizer, reward_detail_fn, env=env)
-    batched_sample = jit_fns["batched_sample"]
+    batched_value = jit_fns["batched_value"]
     scan_ppo_epochs = jit_fns["scan_ppo_epochs"]
     collect_rollout = jit_fns["collect_rollout"]
     batched_reward_components = jit_fns["batched_reward_components"]
@@ -633,20 +683,21 @@ def train(
             full_done_np = np.array(full_done_t)
             _completed_returns, _completed_lengths = compute_episode_stats(rew_np, full_done_np, _ep_stats_acc)
 
-            # ---------- Bootstrap value for GAE ----------
-            # Use the per-step ``final_obs`` (pre-auto-reset) for the last
-            # step so truncations bootstrap their true s_T value.  Natural
-            # terminations are masked out by the GAE done flag anyway.
-            rng, rng_bootstrap = jax.random.split(rng)
-            last_final_obs = final_obs_t[-1]
-            bootstrap_obs = normalize_obs(last_final_obs, rollout_obs_rms)
-            _, _, bootstrap_values = batched_sample(params, bootstrap_obs, rng_bootstrap)
-            val_t_plus1 = jnp.concatenate([val_t, bootstrap_values[None]], axis=0)
+            # ---------- Bootstrap values for GAE ----------
+            # Value every step's pre-auto-reset ``final_obs`` under the
+            # rollout policy and rollout-time stats.  The last entry is the
+            # rollout's tail bootstrap (V(s_T), or V(final_obs) if the last
+            # step truncated); every other entry bootstraps a MID-rollout
+            # truncation via _bootstrap_truncations, which folds it into
+            # that step's reward and masks the step as done.  Natural
+            # terminations are masked out by the GAE done flag as before.
+            final_obs_normed = normalize_obs(final_obs_t.reshape(-1, OBS_DIM), rollout_obs_rms)
+            final_values = batched_value(params, final_obs_normed).reshape(ROLLOUT_LEN, NUM_ENVS)
+            val_t_plus1 = jnp.concatenate([val_t, final_values[-1][None]], axis=0)
 
             # ---------- Compute advantages ----------
-            # gae_done_t masks ONLY natural termination so truncated
-            # rollout steps still bootstrap V(s_{t+1}) correctly.
-            advantages, returns = compute_gae(rew_t, val_t_plus1, gae_done_t, GAMMA, GAE_LAMBDA)
+            rew_boot_t, gae_mask_t = _bootstrap_truncations(rew_t, gae_done_t, full_done_t, final_values, GAMMA)
+            advantages, returns = compute_gae(rew_boot_t, val_t_plus1, gae_mask_t, GAMMA, GAE_LAMBDA)
 
             # Normalize PPO inputs with the rollout-time stats so the new
             # policy sees the same scaled inputs as the behaviour policy.
@@ -1004,12 +1055,14 @@ class JaxTrainer:
         - ``raw_obs`` is the unnormalized obs at the input to the policy.
           Callers normalize once on the host with the *same* stats used
           inside this rollout to keep PPO importance sampling consistent.
-        - ``gae_done`` masks ONLY natural termination — used by GAE so
-          that time-limit truncations still bootstrap their value.
+        - ``gae_done`` masks ONLY natural termination — with ``full_done``
+          it identifies time-limit truncations, which bootstrap their value
+          per step (see :func:`_bootstrap_truncations`).
         - ``full_done`` marks any episode boundary (terminated or
-          truncated) — used for episode tracking and fall-rate stats.
-        - ``final_obs`` is the post-step pre-auto-reset obs, needed to
-          bootstrap value correctly at truncation boundaries.
+          truncated) — the GAE carry mask, and used for episode tracking
+          and fall-rate stats.
+        - ``final_obs`` is the post-step pre-auto-reset obs, valued at
+          every step to bootstrap truncation boundaries correctly.
         """
         import jax
         import jax.numpy as jnp
@@ -1171,7 +1224,7 @@ class JaxTrainer:
         import jax.numpy as jnp
 
         from .jax_normalization import RunningMeanStd, normalize_obs, update_running_stats
-        from .jax_ppo import compute_gae, sample_action
+        from .jax_ppo import compute_gae
 
         _logger.info("num_envs=%d rollout_len=%d num_updates=%d", self.num_envs, self.rollout_len, num_updates)
 
@@ -1213,18 +1266,9 @@ class JaxTrainer:
                 self.ramp_updates,
             )
 
-        # Jitted bootstrap sampler — avoids re-tracing a lambda each update
-        _network = self.network
-        _num_envs = self.num_envs
-
-        @jax.jit
-        def _batched_bootstrap(params, obs_batch, rng):
-            rngs = jax.random.split(rng, _num_envs)
-            _, _, values = jax.vmap(
-                lambda o, r: sample_action(params, _network, o, r),
-                in_axes=(0, 0),
-            )(obs_batch, rngs)
-            return values
+        # Jitted value head over the per-step final_obs — built once so it is
+        # not re-traced each update.
+        _batched_value = _build_batched_value(self.network)
 
         state = TrainerState(
             params=params,
@@ -1311,26 +1355,30 @@ class JaxTrainer:
                 }
                 self._dispatch("on_rollout_end", state, rollout_metrics)
 
-                # Bootstrap value at the end of the rollout.  When the last
-                # step truncated, ``state.env_states.obs`` is the post-reset
-                # obs, so use the per-step ``rollout_final_obs`` for the
-                # last index — that's the true s_T.  When the last step
-                # terminated, the (1 - gae_done) GAE mask zeros it out.
-                last_final_obs = rollout_final_obs[-1]
-
                 # Normalize PPO inputs with the SAME stats used during sampling
                 rollout_obs_norm = normalize_obs(rollout_obs.reshape(-1, obs_dim), rollout_obs_stats)
 
-                rng, bootstrap_rng = jax.random.split(state.rng)
-                state.rng = rng
-                bootstrap_obs_norm = normalize_obs(last_final_obs, rollout_obs_stats)
-                bootstrap_value = _batched_bootstrap(state.params, bootstrap_obs_norm, bootstrap_rng)
+                # Value every step's pre-auto-reset ``final_obs`` under the
+                # rollout policy and stats.  The last entry is the tail
+                # bootstrap (``state.env_states.obs`` would be the post-reset
+                # obs if the last step truncated); every other entry
+                # bootstraps a MID-rollout truncation via
+                # _bootstrap_truncations.  Terminations stay masked out.
+                final_obs_norm = normalize_obs(rollout_final_obs.reshape(-1, obs_dim), rollout_obs_stats)
+                final_values = _batched_value(state.params, final_obs_norm).reshape(self.rollout_len, self.num_envs)
 
-                rollout_values_arr = jnp.concatenate([rollout_values, bootstrap_value[None]], axis=0)
-                advantages, returns = compute_gae(
+                rollout_values_arr = jnp.concatenate([rollout_values, final_values[-1][None]], axis=0)
+                rewards_boot, gae_mask = _bootstrap_truncations(
                     rollout_rewards,
-                    rollout_values_arr,
                     rollout_gae_dones,
+                    rollout_full_dones,
+                    final_values,
+                    self.ppo_config.gamma,
+                )
+                advantages, returns = compute_gae(
+                    rewards_boot,
+                    rollout_values_arr,
+                    gae_mask,
                     self.ppo_config.gamma,
                     self.ppo_config.gae_lambda,
                 )
@@ -1408,9 +1456,11 @@ class JaxTrainer:
             # Episode-level return (comparable to SB3's mean episode reward
             # and the TOML min_avg_reward gates); mean_reward above is the
             # mean PER-STEP rollout reward, orders of magnitude smaller.
-            "mean_episode_return": float(jnp.mean(jnp.array(state.episode_return_history[-10:])))
-            if state.episode_return_history
-            else 0.0,
+            # Window entries are NaN for updates with no completed episode,
+            # and one NaN poisoned the whole mean (a spurious gate failure
+            # and a NaN headline metric) -- same finite reduction as the
+            # length below.
+            "mean_episode_return": _finite_mean(state.episode_return_history[-10:]),
             # Episode length over the same window, so check_stage_gate can
             # enforce min_avg_episode_length.  NaN windows (no episode
             # completed yet) collapse to 0.0, which fails a length gate rather

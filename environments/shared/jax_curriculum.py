@@ -9,11 +9,18 @@ from __future__ import annotations
 
 import logging
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from .config import load_stage_config
-from .curriculum.gate_schema import GateSchemaError, validate_gate_config
+from .curriculum.gate_schema import (
+    BACKEND_OVERRIDABLE_KEYS,
+    GateSchemaError,
+    apply_backend_overrides,
+    finite_gate_metric,
+    has_backend_overrides,
+    validate_gate_config,
+)
 from .curriculum.recovery_gate import RECOVERY_GATE_KIND
 from .curriculum.stance_gate import (
     STANCE_GATE_KIND,
@@ -123,7 +130,16 @@ _JAX_KEY_MAP = {
     "ramp_updates": "ramp_updates",
     "ramp_start_fraction": "ramp_start_fraction",
     "ramp_attr": "ramp_attr",
+    # ``[jax.policy_kwargs]`` — net_arch sizes the actor-critic backbone
+    # (train_jax -> make_actor_critic(hidden_dims=...)).  It was declared in
+    # every stage TOML as "Match SB3 PPO architecture" while every JAX call
+    # site built the hardcoded (512, 256) default.
+    "policy_kwargs": "policy_kwargs",
 }
+
+#: Keys ``[jax.policy_kwargs]`` may carry.  Only the architecture is wired;
+#: an SB3-only key (activation_fn, ortho_init, ...) would be silently inert.
+KNOWN_JAX_POLICY_KWARGS = frozenset({"net_arch"})
 
 #: ``[jax]`` keys applied as ``[env]`` overrides rather than train kwargs.
 _JAX_ENV_OVERRIDE_KEYS = ("fall_penalty", "reset_noise_scale", "init_qpos_noise", "init_yaw_noise")
@@ -133,14 +149,9 @@ _JAX_ENV_OVERRIDE_KEYS = ("fall_penalty", "reset_noise_scale", "init_qpos_noise"
 #: threshold disables it") and ``[env]`` keys fail loudly at env construction;
 #: the ``[jax]`` table had neither, and the configs' own history shows the trap
 #: is real ("species default was leaking into stage 1 via key mismatch bug").
-#: ``policy_kwargs`` is declared in every TOML but consumed by no JAX path
-#: today — the network factory is fixed — kept known so shipped configs
-#: validate; wiring it into ``make_actor_critic`` is its own change.
-KNOWN_JAX_KEYS = (
-    frozenset(_JAX_KEY_MAP)
-    | frozenset(_JAX_ENV_OVERRIDE_KEYS)
-    | frozenset({"obs_rms_decay_on_resume", "policy_kwargs"})
-)
+#: ``obs_rms_decay_on_resume`` is consumed by :func:`run_curriculum` itself
+#: (cross-stage init), not forwarded to ``train_jax``.
+KNOWN_JAX_KEYS = frozenset(_JAX_KEY_MAP) | frozenset(_JAX_ENV_OVERRIDE_KEYS) | frozenset({"obs_rms_decay_on_resume"})
 
 
 def validate_jax_kwargs(jax_kwargs: dict[str, Any], *, source: str) -> None:
@@ -165,6 +176,35 @@ def validate_jax_kwargs(jax_kwargs: dict[str, Any], *, source: str) -> None:
             "spelling, or add it to _JAX_KEY_MAP / KNOWN_JAX_KEYS in jax_curriculum.py "
             "alongside the code that consumes it."
         )
+    policy_kwargs = jax_kwargs.get("policy_kwargs") or {}
+    unknown_policy = sorted(set(policy_kwargs) - KNOWN_JAX_POLICY_KWARGS)
+    if unknown_policy:
+        raise ValueError(
+            f"{source} [jax.policy_kwargs] declares keys the JAX network factory does not read: "
+            f"{unknown_policy}; only {sorted(KNOWN_JAX_POLICY_KWARGS)} is wired (make_actor_critic hidden_dims)."
+        )
+
+
+def network_hidden_dims(jax_kwargs: Mapping[str, Any], default: tuple[int, ...] = (512, 256)) -> tuple[int, ...]:
+    """The actor-critic backbone widths a stage's ``[jax.policy_kwargs]`` asks for.
+
+    Every path that builds the network — training, and every load/eval path
+    that rebuilds it to apply saved params — must call this with the SAME
+    stage's ``jax_kwargs``: a mismatch there is a shape error at parameter
+    load, or worse, a silently different network than the checkpoint was
+    trained with.
+
+    Args:
+        jax_kwargs: The stage config's ``jax_kwargs`` table.
+        default: Widths used when the table declares no ``net_arch``.
+    """
+    net_arch = (jax_kwargs.get("policy_kwargs") or {}).get("net_arch")
+    if net_arch is None:
+        return tuple(default)
+    dims = tuple(int(width) for width in net_arch)
+    if not dims or any(width <= 0 for width in dims):
+        raise ValueError(f"[jax.policy_kwargs] net_arch must be a non-empty list of positive widths, got {net_arch!r}")
+    return dims
 
 
 def episode_return_for_gate(eval_metrics: dict[str, float], *, threshold: float) -> float:
@@ -222,6 +262,70 @@ def episode_return_for_gate(eval_metrics: dict[str, float], *, threshold: float)
     )
 
 
+#: Calibrations already warned about, keyed by (config name, bar) rather than
+#: by the stage reference: the gate is checked many times per stage
+#: (pre-flight, every evaluation) and not every caller knows the stage —
+#: ``load_stage_config`` emits no ``"stage"`` key, so :func:`check_stage_gate`
+#: sees ``"?"`` — but the bar the warning describes does not change between
+#: checks.  (The fall penalties are deliberately not part of the key:
+#: :func:`run_curriculum` applies the ``[jax]`` override into ``env_kwargs``
+#: in place before training, so they read differently after the stage.)
+_sb3_calibrated_bar_warned: set[tuple[Any, ...]] = set()
+
+
+def jax_gate_thresholds(stage: int | str, stage_config: dict[str, Any]) -> dict[str, Any]:
+    """The ``[curriculum]`` thresholds as the JAX path must read them.
+
+    Applies the stage's ``[curriculum.jax]`` override table (additive: absent,
+    the shared thresholds are returned unchanged) and, when a reward-denominated
+    threshold is left at its shared value, warns ONCE that the bar is
+    SB3-calibrated.  ``min_avg_reward`` is compared against raw episode returns
+    on both backends, but the backends do not pay the same return for the same
+    behaviour: the MJX kernel height-gates the alive bonus by the
+    ``healthy_z_range`` fraction whenever ``support_conditioned_alive_fraction``
+    is 0 (the stage-2/3 configs; ~0.27x of ``alive_bonus`` for a standing
+    trex — a deliberate legacy), and ``[jax] fall_penalty`` overrides
+    ``[env] fall_penalty`` (-10 vs -150 on trex locomotion).  The other
+    overridable thresholds (length, velocity, success) are not
+    reward-denominated, so they raise no warning.
+
+    Args:
+        stage: Stage reference, named in the warning.
+        stage_config: The loaded stage config (``curriculum_kwargs`` already
+            validated by :func:`validate_gate_config`; ``env_kwargs`` /
+            ``jax_kwargs`` are read only to name the fall penalties).
+    """
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    if has_backend_overrides(curriculum, "jax"):
+        return apply_backend_overrides(curriculum, "jax")
+    shared = apply_backend_overrides(curriculum, "jax")
+    min_avg_reward = finite_gate_metric(shared.get("min_avg_reward"))
+    if min_avg_reward is None:
+        return shared
+    env_fall = stage_config.get("env_kwargs", {}).get("fall_penalty")
+    jax_fall = stage_config.get("jax_kwargs", {}).get("fall_penalty")
+    key = (stage_config.get("name"), min_avg_reward)
+    if key not in _sb3_calibrated_bar_warned:
+        _sb3_calibrated_bar_warned.add(key)
+        fall_note = (
+            f"[jax] fall_penalty={jax_fall} overrides [env] fall_penalty={env_fall}"
+            if jax_fall is not None
+            else f"[env] fall_penalty={env_fall} applies unchanged (no [jax] override)"
+        )
+        _logger.warning(
+            "stage %s: [curriculum] min_avg_reward=%s is compared against raw MJX episode returns but "
+            "was calibrated on the SB3 backend: the MJX kernel height-gates the alive bonus by the "
+            "healthy_z_range fraction whenever support_conditioned_alive_fraction is 0 (~0.27x of "
+            "alive_bonus for a standing trex; deliberate legacy), and %s. The same number is therefore "
+            "a different bar on this backend. Declare [curriculum.jax] (%s) to state a JAX-calibrated bar.",
+            stage,
+            min_avg_reward,
+            fall_note,
+            ", ".join(sorted(BACKEND_OVERRIDABLE_KEYS)),
+        )
+    return shared
+
+
 def check_stage_gate(
     eval_metrics: dict[str, float],
     stage_config: dict[str, Any],
@@ -256,6 +360,7 @@ def check_stage_gate(
     stage = stage_config.get("stage", "?")
     gate_kind = validate_gate_config(stage, curriculum, advancement_enabled=True)
     _require_evaluable_gate_kind(stage, gate_kind)
+    curriculum = jax_gate_thresholds(stage, stage_config)
 
     if gate_kind == STANCE_GATE_KIND:
         return _check_stance_gate(eval_metrics, curriculum)
@@ -370,7 +475,8 @@ def run_curriculum(
         train_fn: Training function with signature
             ``train_fn(species, stage, **kwargs) -> (params, eval_metrics, obs_stats)``
             (a legacy 2-tuple without *obs_stats* is also accepted).
-        stages: Tuple of stage numbers to train through.
+        stages: Tuple of stage references (legacy numbers or semantic ids)
+            to train through, in order.
         **train_kwargs: Extra keyword arguments forwarded to ``train_fn``.
 
     Returns:
@@ -387,14 +493,18 @@ def run_curriculum(
     # evaluated here, and single-stage pilots legitimately run configs that
     # would not validate under advancement.
     for stage in stages[:-1]:
-        curriculum = load_stage_config(species, stage).get("curriculum_kwargs", {})
+        stage_config = load_stage_config(species, stage)
+        curriculum = stage_config.get("curriculum_kwargs", {})
         _require_evaluable_gate_kind(stage, validate_gate_config(stage, curriculum, advancement_enabled=True))
+        # Warn about an SB3-calibrated reward bar here, before the stage's
+        # budget is spent, rather than only at the gate check after it.
+        jax_gate_thresholds(stage, stage_config)
 
     results: dict[int, Any] = {}
 
     params = None
     obs_stats = None
-    for stage in stages:
+    for index, stage in enumerate(stages):
         stage_config = load_stage_config(species, stage)
         jax_kwargs = stage_config.get("jax_kwargs", {})
         env_kwargs = stage_config.get("env_kwargs", {})
@@ -421,7 +531,7 @@ def run_curriculum(
                 from .jax_normalization import decay_running_stats
 
                 obs_stats = decay_running_stats(obs_stats, decay_factor=decay)
-                _logger.info("Stage %d resume: obs normalization count decayed by %.4g", stage, decay)
+                _logger.info("Stage %s init: obs normalization count decayed by %.4g", stage, decay)
             train_kwargs["init_obs_stats"] = obs_stats
 
         # Merge TOML [jax] and [env] sections into train_kwargs so that
@@ -456,7 +566,7 @@ def run_curriculum(
             if not check_stage_gate(eval_metrics, stage_config):
                 episode_return = eval_metrics.get("mean_episode_return")
                 _logger.warning(
-                    "Stage %d gate NOT passed (episode return=%s). Stopping early.",
+                    "Stage %s gate NOT passed (episode return=%s). Stopping early.",
                     stage,
                     # Never the per-step mean_reward: labelling it "episode
                     # return" in the one message a stopped run leaves behind
@@ -464,6 +574,6 @@ def run_curriculum(
                     f"{float(episode_return):.1f}" if episode_return is not None else "not reported",
                 )
                 break
-            _logger.info("Stage %d gate passed. Advancing to stage %d.", stage, stage + 1)
+            _logger.info("Stage %s gate passed. Advancing to stage %s.", stage, stages[index + 1])
 
     return results
