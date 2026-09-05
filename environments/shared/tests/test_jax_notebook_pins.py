@@ -178,6 +178,15 @@ class TestSameStageResumeIsAContinuation:
         assert "at update {_resume_update}" in same_src
 
 
+class TestRewardPanelReceivesActionLags:
+    def test_the_detail_wrapper_forwards_the_step_kwargs(self):
+        """Without **step_kwargs the panel's jerk row is scored against zero lags."""
+        cells = _code_cells()
+        cell = next(src for src in cells if "def _reward_detail_fn(" in src)
+        assert "def _reward_detail_fn(data, action, **step_kwargs):" in cell
+        assert "compute_reward_detailed(data, action, reward_cfg, **step_kwargs)" in cell
+
+
 class TestResumeGuardsAndScheduleSizing:
     def test_a_resume_with_nothing_left_stops_before_training(self):
         """A 0-update train() overwrote models/params.pkl with an empty history."""
