@@ -1284,9 +1284,26 @@ def save_jax_stage_artifacts(
             "best_model_success_rate": round(float(selected_successes.mean()), 4),
         }
     )
+    # This is the JAX backend's writer, so it persists the thresholds the
+    # JAX gate actually judged.  The stage's [curriculum.jax] override table
+    # is applied onto the scalar keys -- the same apply_backend_overrides
+    # that jax_curriculum.jax_gate_thresholds runs for run_stage_evaluation
+    # -- and the sub-table dropped, so stage_config.json and the
+    # collected_results.csv row rebuilt from it carry ONE flat [curriculum]
+    # block, and the result-bundle validator (result_bundle/evidence.py)
+    # re-judges the evidence against the bar the verdict was earned under.
+    # Written raw, a JAX bar below the shared SB3 one passed in-run, recorded
+    # the SB3 bar in every artifact, and then refused the whole run at
+    # stage-3 finalisation.  Absent table, identical config.  The SB3 writer
+    # (generate_stage_artifacts) is untouched: it judges the shared table.
+    from environments.shared.curriculum.gate_schema import apply_backend_overrides
+
+    stage_config = dict(stage_config)
+    stage_config["curriculum_kwargs"] = apply_backend_overrides(stage_config.get("curriculum_kwargs", {}), "jax")
+
     # Gate-kind provenance beside the verdict (review SS5), from the same
     # config the verdict was judged against.
-    curriculum = stage_config.get("curriculum_kwargs", {})
+    curriculum = stage_config["curriculum_kwargs"]
     stage_results["gate_kind"] = curriculum.get("gate_kind")
     stage_results["gate_schema_version"] = curriculum.get("gate_schema_version")
 

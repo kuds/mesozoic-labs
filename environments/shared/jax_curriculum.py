@@ -47,6 +47,46 @@ _REWARD_AND_LENGTH_GATE_KIND = "reward_and_length/v1"
 _EVALUATABLE_GATE_KINDS = frozenset({_REWARD_AND_LENGTH_GATE_KIND, STANCE_GATE_KIND})
 
 
+def unevaluable_gate_kind_reason(stage: int | str, gate_kind: str) -> str | None:
+    """Why the JAX path cannot judge *gate_kind*, or ``None`` when it can.
+
+    The ONE predicate (and message) behind both JAX-side refusals:
+    :func:`check_stage_gate` -- the in-training curriculum, which raises it
+    through :func:`_require_evaluable_gate_kind` -- and
+    :func:`~environments.shared.jax_eval.check_stage_gate_for_config` -- the
+    CPU eval, which records it as the failing verdict.  A kind refused on one
+    JAX path and passed vacuously on the other is exactly what the recovery
+    stage hit once ``jax_setup`` accepted its semantic id: the eval path had
+    no refusal, fell through to the scalar check with every threshold unset,
+    and certified a policy that fell in every pushed episode.
+
+    Args:
+        stage: Stage identifier, used only in the message.
+        gate_kind: A kind already validated by
+            :func:`~environments.shared.curriculum.gate_schema.validate_gate_config`.
+    """
+    if gate_kind in _EVALUATABLE_GATE_KINDS:
+        return None
+    detail = ""
+    if gate_kind == RECOVERY_GATE_KIND:
+        detail = (
+            " A recovery verdict needs the stage directory's frozen gate_resolution.json, "
+            "the stage's current task_sha256, and per-seed episode successes on the "
+            "registered panel seeds paired against the frozen null manifest; this path "
+            "receives a TOML config and reduced eval metrics, so it has none of them, and "
+            "no MJX pushed-panel roller exists (every recovery panel is SB3). The verdict "
+            "is produced after the stage by reporting.gates.evaluate_stage_gate."
+        )
+    return (
+        f"stage {stage} declares gate_kind {gate_kind!r}, which the JAX path cannot evaluate "
+        f"(neither the in-training curriculum nor the CPU eval); kinds evaluated here: "
+        f"{sorted(_EVALUATABLE_GATE_KINDS)}. Recovery verdicts come only from "
+        "the gate resolver (curriculum.gate_resolver."
+        "evaluate_recovery_gate_from_resolution); falling through to the reward "
+        f"gate would advance the stage on return alone.{detail}"
+    )
+
+
 def _require_evaluable_gate_kind(stage: int | str, gate_kind: str) -> None:
     """Reject a schema-valid gate kind this module cannot evaluate.
 
@@ -81,25 +121,9 @@ def _require_evaluable_gate_kind(stage: int | str, gate_kind: str) -> None:
             ``reporting/gates.py`` refused for exactly this reason before it
             gained its resolver wiring.
     """
-    if gate_kind not in _EVALUATABLE_GATE_KINDS:
-        detail = ""
-        if gate_kind == RECOVERY_GATE_KIND:
-            detail = (
-                " A recovery verdict needs the stage directory's frozen gate_resolution.json, "
-                "the stage's current task_sha256, and per-seed episode successes on the "
-                "registered panel seeds paired against the frozen null manifest; this path "
-                "receives a TOML config and reduced eval metrics, so it has none of them, and "
-                "no MJX pushed-panel roller exists (every recovery panel is SB3). The verdict "
-                "is produced after the stage by reporting.gates.evaluate_stage_gate."
-            )
-        raise GateSchemaError(
-            f"stage {stage} declares gate_kind {gate_kind!r}, which the in-training "
-            f"JAX curriculum cannot evaluate; kinds evaluated here: "
-            f"{sorted(_EVALUATABLE_GATE_KINDS)}. Recovery verdicts come only from "
-            "the gate resolver (curriculum.gate_resolver."
-            "evaluate_recovery_gate_from_resolution); falling through to the reward "
-            f"gate would advance the stage on return alone.{detail}"
-        )
+    reason = unevaluable_gate_kind_reason(stage, gate_kind)
+    if reason is not None:
+        raise GateSchemaError(reason)
 
 
 #: TOML ``[jax]`` keys mapped to :func:`~environments.shared.jax_training.train_jax`
@@ -262,18 +286,28 @@ def episode_return_for_gate(eval_metrics: dict[str, float], *, threshold: float)
     )
 
 
-#: Calibrations already warned about, keyed by (config name, bar) rather than
-#: by the stage reference: the gate is checked many times per stage
-#: (pre-flight, every evaluation) and not every caller knows the stage —
-#: ``load_stage_config`` emits no ``"stage"`` key, so :func:`check_stage_gate`
+#: Calibrations already warned about, keyed by (species, config name, bar)
+#: rather than by the stage reference: the gate is checked many times per
+#: stage (pre-flight, every evaluation) and not every caller knows the stage
+#: — ``load_stage_config`` emits no ``"stage"`` key, so :func:`check_stage_gate`
 #: sees ``"?"`` — but the bar the warning describes does not change between
-#: checks.  (The fall penalties are deliberately not part of the key:
-#: :func:`run_curriculum` applies the ``[jax]`` override into ``env_kwargs``
-#: in place before training, so they read differently after the stage.)
+#: checks.  The species IS part of the key because the config name is not
+#: unique across species (every species' stage 2 is ``locomotion`` at the
+#: same shared bar) while the fall penalties the note quotes are per-species;
+#: keyed on the name alone, only the first species in a process warned and
+#: its note was quoted for all the others.  (The fall penalties are
+#: deliberately not part of the key: :func:`run_curriculum` applies the
+#: ``[jax]`` override into ``env_kwargs`` in place before training, so they
+#: read differently after the stage.)
 _sb3_calibrated_bar_warned: set[tuple[Any, ...]] = set()
 
 
-def jax_gate_thresholds(stage: int | str, stage_config: dict[str, Any]) -> dict[str, Any]:
+def jax_gate_thresholds(
+    stage: int | str,
+    stage_config: dict[str, Any],
+    *,
+    species: str | None = None,
+) -> dict[str, Any]:
     """The ``[curriculum]`` thresholds as the JAX path must read them.
 
     Applies the stage's ``[curriculum.jax]`` override table (additive: absent,
@@ -294,6 +328,11 @@ def jax_gate_thresholds(stage: int | str, stage_config: dict[str, Any]) -> dict[
         stage_config: The loaded stage config (``curriculum_kwargs`` already
             validated by :func:`validate_gate_config`; ``env_kwargs`` /
             ``jax_kwargs`` are read only to name the fall penalties).
+        species: The species the config belongs to, when the caller knows
+            it.  Part of the warn-once key and named in the warning:
+            ``load_stage_config`` returns no species, the config name alone
+            does not identify one, and the fall penalties the note quotes
+            differ per species.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
     if has_backend_overrides(curriculum, "jax"):
@@ -304,7 +343,7 @@ def jax_gate_thresholds(stage: int | str, stage_config: dict[str, Any]) -> dict[
         return shared
     env_fall = stage_config.get("env_kwargs", {}).get("fall_penalty")
     jax_fall = stage_config.get("jax_kwargs", {}).get("fall_penalty")
-    key = (stage_config.get("name"), min_avg_reward)
+    key = (species, stage_config.get("name"), min_avg_reward)
     if key not in _sb3_calibrated_bar_warned:
         _sb3_calibrated_bar_warned.add(key)
         fall_note = (
@@ -313,12 +352,12 @@ def jax_gate_thresholds(stage: int | str, stage_config: dict[str, Any]) -> dict[
             else f"[env] fall_penalty={env_fall} applies unchanged (no [jax] override)"
         )
         _logger.warning(
-            "stage %s: [curriculum] min_avg_reward=%s is compared against raw MJX episode returns but "
+            "%s: [curriculum] min_avg_reward=%s is compared against raw MJX episode returns but "
             "was calibrated on the SB3 backend: the MJX kernel height-gates the alive bonus by the "
             "healthy_z_range fraction whenever support_conditioned_alive_fraction is 0 (~0.27x of "
             "alive_bonus for a standing trex; deliberate legacy), and %s. The same number is therefore "
             "a different bar on this backend. Declare [curriculum.jax] (%s) to state a JAX-calibrated bar.",
-            stage,
+            f"{species} stage {stage}" if species else f"stage {stage}",
             min_avg_reward,
             fall_note,
             ", ".join(sorted(BACKEND_OVERRIDABLE_KEYS)),
@@ -329,6 +368,8 @@ def jax_gate_thresholds(stage: int | str, stage_config: dict[str, Any]) -> dict[
 def check_stage_gate(
     eval_metrics: dict[str, float],
     stage_config: dict[str, Any],
+    *,
+    species: str | None = None,
 ) -> bool:
     """Check if curriculum gate thresholds are met.
 
@@ -337,6 +378,9 @@ def check_stage_gate(
         stage_config: Stage configuration dict as returned by
             :func:`~environments.shared.config.load_stage_config` (the TOML
             ``[curriculum]`` section lives under ``"curriculum_kwargs"``).
+        species: The species being gated, when known; forwarded to
+            :func:`jax_gate_thresholds` so its warn-once SB3-calibration
+            note is per species rather than per config name.
 
     Returns:
         ``True`` if the gate is passed and training should advance.
@@ -360,7 +404,7 @@ def check_stage_gate(
     stage = stage_config.get("stage", "?")
     gate_kind = validate_gate_config(stage, curriculum, advancement_enabled=True)
     _require_evaluable_gate_kind(stage, gate_kind)
-    curriculum = jax_gate_thresholds(stage, stage_config)
+    curriculum = jax_gate_thresholds(stage, stage_config, species=species)
 
     if gate_kind == STANCE_GATE_KIND:
         return _check_stance_gate(eval_metrics, curriculum)
@@ -498,7 +542,7 @@ def run_curriculum(
         _require_evaluable_gate_kind(stage, validate_gate_config(stage, curriculum, advancement_enabled=True))
         # Warn about an SB3-calibrated reward bar here, before the stage's
         # budget is spent, rather than only at the gate check after it.
-        jax_gate_thresholds(stage, stage_config)
+        jax_gate_thresholds(stage, stage_config, species=species)
 
     results: dict[int, Any] = {}
 
@@ -563,7 +607,7 @@ def run_curriculum(
 
         # Check gate (skip for last stage)
         if stage != stages[-1]:
-            if not check_stage_gate(eval_metrics, stage_config):
+            if not check_stage_gate(eval_metrics, stage_config, species=species):
                 episode_return = eval_metrics.get("mean_episode_return")
                 _logger.warning(
                     "Stage %s gate NOT passed (episode return=%s). Stopping early.",

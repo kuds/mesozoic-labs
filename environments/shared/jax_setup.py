@@ -897,7 +897,7 @@ def run_stage_evaluation(
     # the JAX curriculum does.  Validate the declared table first so a
     # malformed override table fails with the schema's message.
     validate_gate_config(ctx.stage, stage_config.get("curriculum_kwargs", {}), advancement_enabled=True)
-    stage_config["curriculum_kwargs"] = jax_gate_thresholds(ctx.stage, stage_config)
+    stage_config["curriculum_kwargs"] = jax_gate_thresholds(ctx.stage, stage_config, species=ctx.species)
     gate_passed, gate_failures = check_stage_gate_for_config(selected_eval_results, stage_config)
 
     num_envs = env.num_envs

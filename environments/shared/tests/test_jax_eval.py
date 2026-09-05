@@ -596,6 +596,114 @@ def test_stage_evaluation_uses_effective_training_noise_and_detailed_rewards(mon
     assert stage_results["evaluation_seed"] == 42
 
 
+def test_stage_evaluation_refuses_the_recovery_gate_instead_of_certifying_it(monkeypatch):
+    """Review J #10, on the production path.
+
+    ``run_stage_evaluation`` writes ``check_stage_gate_for_config``'s verdict
+    into ``gate_passed`` / ``publication_gate_passed``.  Once ``jax_setup``
+    accepted the semantic id ``"recovery"`` (it used to raise on
+    ``stage >= 3`` before any gate check), a recovery stage fell through to
+    the scalar check with every threshold unset, and a policy that fell in
+    every pushed episode was persisted as a PASS.  The eval path must refuse
+    the kind exactly as the in-training curriculum does.
+    """
+    pytest.importorskip("jax")
+    from types import SimpleNamespace
+
+    import environments.shared.jax_eval as jax_eval
+    import environments.shared.jax_setup as jax_setup
+
+    def scalar(*_args, **_kwargs):
+        return 0.0
+
+    def detailed(*_args, **_kwargs):
+        return {"alive": 0.0}
+
+    monkeypatch.setattr(jax_setup, "make_obs_fn", lambda _ctx: scalar)
+    monkeypatch.setattr(jax_setup, "make_scale_action_fn", lambda _ctx: scalar)
+    monkeypatch.setattr(jax_setup, "make_reward_fns", lambda _ctx: (scalar, detailed, scalar))
+
+    def fallen_in_every_episode(*_args, **_kwargs):
+        results = EvalResults()
+        results.rewards = [-150.0] * 3
+        results.lengths = [5] * 3
+        results.forward_vels = [0.0] * 3
+        results.distances = [0.0] * 3
+        results.successes = [False] * 3
+        return results
+
+    monkeypatch.setattr(jax_eval, "evaluate_policy_cpu", fallen_in_every_episode)
+
+    ctx = SimpleNamespace(
+        species="trex",
+        stage="recovery",
+        stage_name="Recovery",
+        reward_cfg={},
+        jax_kwargs={"rollout_len": 64},
+        max_episode_steps=1000,
+        frame_skip=5,
+        healthy_z_range=(0.3, 2.0),
+        max_tilt_angle=1.0,
+        natural_forward_z=0.0,
+        posture_target_forward_z=None,
+        termination_body_heights={},
+        termination_site_heights={},
+        success_sites=(),
+        success_threshold=0.3,
+        target_body_name="prey",
+        root_body_id=1,
+        sensor_layout=SimpleNamespace(
+            quat_start=6,
+            gyro_start=0,
+            foot_indices=(10, 11),
+            foot_aux_indices=((), ()),
+        ),
+        action_mapping="midpoint/v1",
+        forward_vel_max=8.0,
+        target_standing_z=0.926,
+        mj_model=SimpleNamespace(opt=SimpleNamespace(timestep=0.002)),
+    )
+    env = SimpleNamespace(
+        num_envs=4,
+        config=SimpleNamespace(
+            reset_noise_scale=0.05,
+            init_qpos_noise=0.01,
+            init_yaw_noise=0.1,
+            target_distance_range=(10.0, 15.0),
+            target_lateral_range=(-2.0, 2.0),
+            target_z=0.5,
+        ),
+    )
+
+    _, _, stage_results, gate_passed, gate_failures = jax_setup.run_stage_evaluation(
+        ctx,
+        env,
+        np.zeros(1),
+        object(),
+        None,
+        n_episodes=3,
+    )
+
+    assert gate_passed is False
+    assert stage_results["gate_passed"] is False
+    assert stage_results["publication_gate_passed"] is False
+    assert stage_results["gate_failures"] == gate_failures
+    assert len(gate_failures) == 1
+    assert "recovery_quality/v1" in gate_failures[0]
+    assert "cannot evaluate" in gate_failures[0]
+
+
+#: A schema-valid recovery gate, as configs/trex/recovery.toml declares it:
+#: the three composite thresholds and NONE of the four scalar ones.
+_RECOVERY_GATE = {
+    "gate_schema_version": 1,
+    "gate_kind": "recovery_quality/v1",
+    "min_recovery_success_lcb": 0.70,
+    "recovery_t_recover_steps": 66,
+    "recovery_dwell_steps": 66,
+}
+
+
 class TestCheckStageGateForConfig:
     """The gate-kind-aware JAX gate (`check_stage_gate_for_config`).
 
@@ -730,6 +838,80 @@ class TestCheckStageGateForConfig:
         chatterer = self._results(duty=1 / 3, episodes=episodes, reward=2133.4)
         passed, _ = check_stage_gate_for_config(chatterer, config)
         assert not passed
+
+    def _fallen(self, episodes=30):
+        """Every episode ends in a fall within a few steps: the evidence a
+        recovery gate exists to reject."""
+        from environments.shared.jax_eval import EvalResults
+
+        results = EvalResults()
+        results.rewards = [-150.0] * episodes
+        results.lengths = [5] * episodes
+        results.forward_vels = [0.0] * episodes
+        results.distances = [0.0] * episodes
+        results.successes = [False] * episodes
+        return results
+
+    def test_a_recovery_gate_is_refused_rather_than_passed_vacuously(self):
+        """Review J #10: recovery_quality/v1 validates and declares no scalar
+        threshold, so the fall-through to check_stage_gate asserted nothing
+        and certified a policy that fell in every pushed episode as
+        (True, [])."""
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        passed, failures = check_stage_gate_for_config(self._fallen(), {"curriculum_kwargs": dict(_RECOVERY_GATE)})
+        assert passed is False
+        assert len(failures) == 1
+        assert "recovery_quality/v1" in failures[0]
+        assert "cannot evaluate" in failures[0]
+
+    def test_a_recovery_gate_is_refused_on_sky_high_evidence_even_with_its_optional_rail(self):
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        railed = {"curriculum_kwargs": dict(_RECOVERY_GATE, min_avg_reward=100.0)}
+        passed, failures = check_stage_gate_for_config(self._results(duty=0.0, reward=1e9), railed)
+        assert passed is False
+        assert "recovery_quality/v1" in failures[0]
+
+    def test_the_shipped_recovery_config_is_refused_as_run_stage_evaluation_reads_it(self):
+        """The exact review probe: configs/trex/recovery.toml, prepared the
+        way run_stage_evaluation prepares it (jax_gate_thresholds applied)."""
+        from environments.shared.config import load_stage_config
+        from environments.shared.jax_curriculum import jax_gate_thresholds
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        config = dict(load_stage_config("trex", "recovery"))
+        assert config["curriculum_kwargs"]["gate_kind"] == "recovery_quality/v1"
+        config["curriculum_kwargs"] = jax_gate_thresholds("recovery", config, species="trex")
+        passed, failures = check_stage_gate_for_config(self._fallen(), config)
+        assert passed is False
+        assert "recovery_quality/v1" in failures[0]
+
+    @pytest.mark.parametrize(
+        "curriculum",
+        [
+            pytest.param({"gate_schema_version": 1, "gate_kind": "none/v1"}, id="none-v1"),
+            pytest.param({"min_avg_reward": 1.0}, id="undeclared"),
+            pytest.param(_RECOVERY_GATE, id="recovery"),
+        ],
+    )
+    def test_a_gate_the_eval_cannot_judge_never_passes_by_default(self, curriculum):
+        """Mirror of reporting.gates.evaluate_stage_gate: nothing certifies a
+        stage by default.  none/v1 and an undeclared gate are refused by the
+        schema (a raise, louder than False -- the two tests above pin it); a
+        schema-valid kind with no evaluator here is refused with the reason
+        as the verdict.  None may reach (True, ...) on any evidence."""
+        from environments.shared.curriculum.gate_schema import GateSchemaError
+        from environments.shared.jax_eval import check_stage_gate_for_config
+
+        try:
+            passed, failures = check_stage_gate_for_config(
+                self._results(duty=0.0, reward=1e9), {"curriculum_kwargs": dict(curriculum)}
+            )
+        except GateSchemaError:
+            return
+        assert passed is False
+        assert failures
 
 
 def test_run_stage_evaluation_routes_through_the_gate_kind_aware_check(monkeypatch):

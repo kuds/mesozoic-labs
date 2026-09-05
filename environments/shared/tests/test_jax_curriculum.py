@@ -409,26 +409,47 @@ class TestBackendOverrideTable:
         assert thresholds[1]["min_avg_reward"] == 100.0
         assert "jax" not in thresholds[1]
 
-    def test_loader_accepts_the_sub_table_and_still_rejects_unknown_top_level_tables(self, tmp_path):
-        """A sub-table of [curriculum] is not a top-level table, so the
-        loader's fail-closed table check (phase V) is untouched."""
-        from environments.shared.config import load_stage_config
+    #: A stage TOML declaring the shared bar and a JAX override for it.
+    OVERRIDE_TOML = (
+        '[stage]\nname = "t"\n[env]\nalive_bonus = 1.0\n[jax]\nnum_updates = 1\n'
+        '[curriculum]\ngate_schema_version = 1\ngate_kind = "reward_and_length/v1"\n'
+        "min_avg_reward = 100.0\n[curriculum.jax]\nmin_avg_reward = 40.0\n"
+    )
 
-        body = (
-            '[stage]\nname = "t"\n[env]\nalive_bonus = 1.0\n[jax]\nnum_updates = 1\n'
-            '[curriculum]\ngate_schema_version = 1\ngate_kind = "reward_and_length/v1"\n'
-            "min_avg_reward = 100.0\n[curriculum.jax]\nmin_avg_reward = 40.0\n"
-        )
+    def test_a_toml_sub_table_loads_validates_and_applies_on_the_jax_path(self, tmp_path):
+        """From the TOML in: the loader keeps [curriculum.jax] nested under
+        curriculum_kwargs (it always passed sub-tables through), the schema
+        accepts it (validate_gate_config rejected ``jax`` as an unrecognised
+        [curriculum] key before the table existed), and apply_backend_overrides
+        yields the JAX bar while the loaded dict still carries the shared one
+        for the SB3 path."""
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum.gate_schema import apply_backend_overrides, validate_gate_config
+
         good = tmp_path / "good.toml"
-        good.write_text(body)
-        loaded = load_stage_config("trex", 1, config_path=str(good))
-        assert loaded["curriculum_kwargs"]["jax"] == {"min_avg_reward": 40.0}
-        assert loaded["curriculum_kwargs"]["min_avg_reward"] == 100.0
+        good.write_text(self.OVERRIDE_TOML)
+        curriculum = load_stage_config("trex", 1, config_path=str(good))["curriculum_kwargs"]
+        assert curriculum["min_avg_reward"] == 100.0
+        assert curriculum["jax"] == {"min_avg_reward": 40.0}
+        assert validate_gate_config(1, curriculum, advancement_enabled=True) == "reward_and_length/v1"
+        effective = apply_backend_overrides(curriculum, "jax")
+        assert effective["min_avg_reward"] == 40.0
+        assert "jax" not in effective
+
+    def test_an_unknown_key_in_the_toml_sub_table_is_rejected_by_the_schema(self, tmp_path):
+        """The loader is not the guard -- it passes the misspelling through --
+        so the schema must be, or the shared bar silently stays in force."""
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum.gate_schema import validate_gate_config
 
         bad = tmp_path / "bad.toml"
-        bad.write_text(body + "[curriculum_jax]\nmin_avg_reward = 40.0\n")
-        with pytest.raises(ValueError, match="unknown top-level table"):
-            load_stage_config("trex", 1, config_path=str(bad))
+        bad.write_text(
+            self.OVERRIDE_TOML.replace("[curriculum.jax]\nmin_avg_reward", "[curriculum.jax]\nmin_avg_rewrad")
+        )
+        curriculum = load_stage_config("trex", 1, config_path=str(bad))["curriculum_kwargs"]
+        assert curriculum["jax"] == {"min_avg_rewrad": 40.0}
+        with pytest.raises(GateSchemaError, match="cannot be overridden"):
+            validate_gate_config(1, curriculum, advancement_enabled=True)
 
 
 class TestSb3CalibratedBarWarning:
@@ -484,6 +505,7 @@ class TestSb3CalibratedBarWarning:
         from environments.shared.jax_curriculum import run_curriculum
 
         order: list[str] = []
+        messages: list[str] = []
 
         def fake_train(species, stage, **kwargs):
             order.append(f"train-{stage}")
@@ -493,6 +515,7 @@ class TestSb3CalibratedBarWarning:
             def emit(self, record):
                 if "SB3" in record.getMessage():
                     order.append("warned")
+                    messages.append(record.getMessage())
 
         handler = _Recorder()
         logger = logging.getLogger("environments.shared.jax_curriculum")
@@ -504,6 +527,71 @@ class TestSb3CalibratedBarWarning:
             logger.removeHandler(handler)
         assert order[:2] == ["warned", "train-1"]
         assert order.count("warned") == 1
+        # run_curriculum knows the species, so the note names it.
+        assert messages[0].startswith("velociraptor stage 1:")
+
+    def test_each_species_warns_once_with_its_own_fall_penalties(self, caplog):
+        """Review J #11: every species' stage 2 is named ``locomotion`` at the
+        same shared bar, so a warn-once key without the species let only the
+        first species in a process warn -- and quoted ITS fall penalties for
+        every other species' identically named stage."""
+        import logging
+
+        from environments.shared.jax_curriculum import jax_gate_thresholds
+
+        def locomotion(env_fall_penalty):
+            return {
+                "name": "locomotion",
+                "env_kwargs": {"fall_penalty": env_fall_penalty},
+                "jax_kwargs": {"fall_penalty": -10.0},
+                "curriculum_kwargs": dict(_GATE, min_avg_reward=100.0),
+            }
+
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_curriculum"):
+            jax_gate_thresholds(2, locomotion(-150.0), species="trex")
+            jax_gate_thresholds(2, locomotion(-50.0), species="brachiosaurus")
+            jax_gate_thresholds(2, locomotion(-50.0), species="brachiosaurus")
+        warnings = [r.getMessage() for r in caplog.records if "SB3" in r.getMessage()]
+        assert len(warnings) == 2, "once per species, not once per config name"
+        assert warnings[0].startswith("trex stage 2:")
+        assert "[env] fall_penalty=-150.0" in warnings[0]
+        assert warnings[1].startswith("brachiosaurus stage 2:")
+        assert "[env] fall_penalty=-50.0" in warnings[1]
+        assert "-150.0" not in warnings[1]
+
+    def test_check_stage_gate_forwards_the_species_to_the_note(self, caplog):
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_curriculum"):
+            check_stage_gate({"mean_episode_return": 150.0}, self._stage_config(), species="velociraptor")
+            check_stage_gate({"mean_episode_return": 150.0}, self._stage_config(), species="trex")
+        warnings = [r.getMessage() for r in caplog.records if "SB3" in r.getMessage()]
+        assert [w.split(":")[0] for w in warnings] == ["velociraptor stage 2", "trex stage 2"]
+
+    def test_the_shipped_stage_2_configs_warn_once_per_species(self, caplog):
+        """The review probe: the shipped stage-2 TOMLs share name and bar."""
+        import logging
+
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum.gate_schema import has_backend_overrides
+        from environments.shared.jax_curriculum import jax_gate_thresholds
+
+        species = ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus")
+        configs = {name: load_stage_config(name, 2) for name in species}
+        # A species that declares [curriculum.jax] (none today) legitimately
+        # stops warning: expect one note per species still on the shared bar.
+        expected = [
+            name
+            for name, config in configs.items()
+            if "min_avg_reward" in config["curriculum_kwargs"]
+            and not has_backend_overrides(config["curriculum_kwargs"], "jax")
+        ]
+        assert len(expected) >= 2, "the collision needs two species on the shared bar"
+        with caplog.at_level(logging.WARNING, logger="environments.shared.jax_curriculum"):
+            for name in species:
+                jax_gate_thresholds(2, configs[name], species=name)
+        warned = [r.getMessage().split(" stage ")[0] for r in caplog.records if "SB3" in r.getMessage()]
+        assert warned == expected
 
 
 class TestNetArchPlumbing:

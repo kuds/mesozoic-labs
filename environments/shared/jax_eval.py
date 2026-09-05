@@ -852,6 +852,15 @@ def check_stage_gate_for_config(
 
     A gate kind whose criteria cannot be evaluated from *results* fails
     closed with the reason, rather than passing on the subset that can.
+    That includes every schema-valid kind the JAX path has no evaluator for
+    (``recovery_quality/v1`` today): it declares none of the four scalar
+    thresholds, so falling through to :func:`check_stage_gate` certified a
+    policy that fell in every pushed episode as ``(True, [])`` and
+    ``jax_setup`` wrote that into ``publication_gate_passed``.  The refusal
+    is the same predicate and message as the in-training curriculum's
+    (:func:`~environments.shared.jax_curriculum.unevaluable_gate_kind_reason`),
+    so the two JAX paths cannot disagree about which kinds they refuse; here
+    the reason is the verdict, so it survives into ``gate_failures``.
 
     Raises:
         GateSchemaError: If the gate declaration is missing, unknown or
@@ -861,9 +870,17 @@ def check_stage_gate_for_config(
     """
     from .curriculum.gate_schema import validate_gate_config
     from .curriculum.stance_gate import STANCE_GATE_KIND, StanceGateThresholds, evaluate_stance_gate
+    from .jax_curriculum import unevaluable_gate_kind_reason
 
     curriculum = stage_config.get("curriculum_kwargs", {})
-    gate_kind = validate_gate_config(stage_config.get("stage", "?"), curriculum, advancement_enabled=True)
+    stage = stage_config.get("stage", "?")
+    gate_kind = validate_gate_config(stage, curriculum, advancement_enabled=True)
+
+    # Schema-valid is not judgeable: refuse, with the reason as the verdict,
+    # BEFORE any arm below can read a threshold that is not there.
+    refusal = unevaluable_gate_kind_reason(stage, gate_kind)
+    if refusal is not None:
+        return False, [refusal]
 
     if gate_kind == STANCE_GATE_KIND:
         horizon = int(stage_config.get("env_kwargs", {}).get("max_episode_steps", 1000))
