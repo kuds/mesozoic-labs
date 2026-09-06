@@ -715,10 +715,11 @@ three); a synthesized manifest alone would yield only hunt as a deliverable
 (§4.1). Their stage TOMLs, ids and legacy numbers do not change. Their follow-direction
 leaves wait on plant preflight — the velociraptor's single toe site reads
 about 55% of true load (`docs/STAGE1B_IMPLEMENTATION_PLAN.md` §5,
-`configs/plant_versions.toml` note 8), and the brachiosaurus and
-dibothrosuchus have had no stance-quality or perturbation preflight at all
-(the brachiosaurus statue stands 40/40 since physics r4, note 7) — and their
-stance gates remain reward-cleared by their statues, so "stand" for them is labelled by gate kind
+`configs/plant_versions.toml` note 8), the brachiosaurus statue has stood
+40/40 since the physics-r4 repair (note 7) but its shins are uninstrumented,
+so a kneeling pose reads identically to airborne (note 8), and the
+dibothrosuchus has had no stance-quality or perturbation preflight at all —
+and their stance gates remain reward-cleared by their statues, so "stand" for them is labelled by gate kind
 in the catalog rather than claimed as certified stance quality.
 
 ### 4.9 What does not change
@@ -762,7 +763,7 @@ as recommendations; each may be vetoed at review of this document):
 
 | # | Decision | Veto changes |
 |---|---|---|
-| D1 | The gap review's held decisions are settled here: CF2 by dropping the 2.0 m/s hunting term (the 2026-09-05 proposal's option 1A, not the review's suggested windowed metric), SS2 (success LCB), CF3 (measured collapse floor), SS1 (seed provenance, default 1, provisional labelling) | Phase B scope |
+| D1 | The gap review's held decisions are settled here: CF2 by dropping the 2.0 m/s hunting term outright (this plan's choice; the review itself suggested a windowed/peak metric or probe episodes), SS2 (success LCB), CF3 (measured collapse floor with its arming delay), SS1 (replication as provenance, default 1, provisional labelling) | Phase B scope |
 | D2 | Body-relative command frame (`v_x`, `v_y`, `yaw_rate`), three dims, pre-scaled | Phase C interface; cannot change after the bump without another revision |
 | D3 | The interface bump is done early, once, for all species, **without** the height-channel removal; the certified stance checkpoint is widened and re-paneled, and one recovery freeze is re-rolled from it | Phase C ordering and which checkpoints survive |
 | D4 | "Stand" has two certifiable nodes: stance publishes as quiet stance, recovery as balance under pushes once a run passes | Manifest `deliverable` flags; catalog rows |
