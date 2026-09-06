@@ -28,7 +28,7 @@ from .provenance import load_provenance
 #: persists it (``--load`` today validates the lineage and then forgets it).
 #: Audited when present, skipped when absent, so bundles from either side of
 #: that change keep auditing.
-_LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_task_sha256", "parent_checkpoint_sha256")
+_LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_task_sha256", "parent_checkpoint_sha256", "parent_run_id")
 
 
 def _lineage_parent_keys(load_path: str, run_path: Path) -> list[str]:
@@ -77,6 +77,9 @@ def _audit_load_lineage(
         digest = lineage.get(key)
         if key in lineage and (not isinstance(digest, str) or evidence._SHA256_DIGEST.fullmatch(digest) is None):
             problems.append(f"stage {stage} config run.{key} must be sha256:<64 lowercase hex>")
+    parent_run_id = lineage.get("parent_run_id")
+    if "parent_run_id" in lineage and (not isinstance(parent_run_id, str) or not parent_run_id.strip()):
+        problems.append(f"stage {stage} config run.parent_run_id must be a non-empty string")
     parent_hash = lineage.get("parent_checkpoint_sha256")
     if isinstance(load_path, str) and load_path.strip() and isinstance(parent_hash, str):
         # A parent that lives in this bundle is hashed by the manifest; the

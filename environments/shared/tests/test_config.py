@@ -772,9 +772,12 @@ class TestSaveStageConfigLoadLineage:
     """Review RP4: the run block records where a stage's weights came from.
 
     The audit reads exactly ``load_path`` / ``load_mode`` /
-    ``parent_checkpoint_sha256`` / ``parent_task_sha256`` and audits each key
-    when present, so a from-scratch stage writes none of them and an
-    unfingerprinted parent leaves the task digest out rather than null.
+    ``parent_checkpoint_sha256`` / ``parent_task_sha256`` /
+    ``parent_run_id`` and audits each key when present, so a from-scratch
+    stage writes none of them, an unfingerprinted parent leaves the task
+    digest out rather than null, and a parent from this run leaves
+    ``parent_run_id`` out (BEHAVIOR_RECIPES_PLAN §4.2: it is written only
+    for a certified ancestor reused from ANOTHER run).
     """
 
     STAGE_CONFIG = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
@@ -792,7 +795,7 @@ class TestSaveStageConfigLoadLineage:
         out = save_stage_config(tmp_path / "run", 1, self.STAGE_CONFIG, "PPO")
         assert "run" not in json.loads(out.read_text())
 
-    def test_loaded_checkpoint_records_all_four_keys(self, tmp_path):
+    def test_loaded_checkpoint_records_the_lineage_keys(self, tmp_path):
         from environments.shared.result_bundle import sha256_file
         from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
 
@@ -804,6 +807,39 @@ class TestSaveStageConfigLoadLineage:
         assert run["load_mode"] == "initialize_next_stage"
         assert run["parent_checkpoint_sha256"] == sha256_file(parent)
         assert run["parent_task_sha256"] == digest
+        # A same-run handoff (and a plain --load) never names a parent run.
+        assert "parent_run_id" not in run
+
+    def test_a_cross_run_parent_records_its_run_id(self, tmp_path):
+        parent = _sb3_style_zip(tmp_path / "best_model.zip", {})
+        run = self._run_block(
+            tmp_path, load_path=str(parent), load_mode="initialize_next_stage", parent_run_id="20260901_120000"
+        )
+        assert run["parent_run_id"] == "20260901_120000"
+        for absent in ("", None):
+            run = self._run_block(
+                tmp_path, load_path=str(parent), load_mode="initialize_next_stage", parent_run_id=absent
+            )
+            assert "parent_run_id" not in run
+        # Without a load there is no lineage at all, whatever else is passed.
+        assert "parent_run_id" not in self._run_block(tmp_path, parent_run_id="20260901_120000")
+
+    def test_load_lineage_keys_cover_parent_run_id(self, tmp_path):
+        from environments.shared.result_bundle import audit
+
+        assert LOAD_LINEAGE_KEYS[-1] == "parent_run_id"
+        assert set(audit._LOAD_LINEAGE_KEYS) == set(LOAD_LINEAGE_KEYS)
+        # The audit's rule for the new key: present means a non-empty string.
+        base = {"load_path": "01_stance/models/best_model.zip", "load_mode": "initialize_next_stage"}
+        _, problems = audit._audit_load_lineage(
+            {**base, "parent_run_id": "20260901_120000"}, stage=2, run_path=tmp_path, declared_hashes={}
+        )
+        assert problems == []
+        for bad in ("", "  ", 5, None):
+            _, problems = audit._audit_load_lineage(
+                {**base, "parent_run_id": bad}, stage=2, run_path=tmp_path, declared_hashes={}
+            )
+            assert problems == ["stage 2 config run.parent_run_id must be a non-empty string"], bad
 
     def test_stem_load_path_is_recorded_as_the_zip_it_hashes(self, tmp_path):
         """SB3 loads ``<stem>.zip``; the manifest hashes the ``.zip``.

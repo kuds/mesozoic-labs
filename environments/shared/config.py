@@ -331,10 +331,19 @@ def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:
 #: ``load_path`` names the file whose sha256 is recorded — ``<stem>.zip`` when
 #: the trainer was handed an SB3 stem — so a parent inside the run directory
 #: resolves to the manifest entry the audit cross-checks the hash against.
-LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256")
+#: ``parent_run_id`` is present iff the parent was a certified ancestor
+#: reused from ANOTHER run (BEHAVIOR_RECIPES_PLAN §4.2): its value is that
+#: run's provenance ``run_id`` when it has one, else the run directory name.
+#: A ``--load`` and a same-run curriculum handoff never write it.
+LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256", "parent_run_id")
 
 
-def _checkpoint_lineage(load_path: str | None, load_mode: str | None) -> dict[str, Any]:
+def _checkpoint_lineage(
+    load_path: str | None,
+    load_mode: str | None,
+    *,
+    parent_run_id: str | None = None,
+) -> dict[str, Any]:
     """The load-lineage keys for a stage's ``run`` block; empty from scratch.
 
     A loaded checkpoint records the path of the file hashed, the load mode,
@@ -344,7 +353,9 @@ def _checkpoint_lineage(load_path: str | None, load_mode: str | None) -> dict[st
     (``train_curriculum`` and the notebook both hand SB3 a stem): the manifest
     hashes the ``.zip``, and a bare stem never matches a manifest key, so the
     audit's parent-hash cross-check would never fire.  A relative path stays
-    relative; nothing else about the path is rewritten.
+    relative; nothing else about the path is rewritten.  ``parent_run_id``
+    is recorded only when it is a non-empty string — the audit reads
+    absence as "the parent came from this run".
     """
     if not load_path:
         return {}
@@ -366,6 +377,8 @@ def _checkpoint_lineage(load_path: str | None, load_mode: str | None) -> dict[st
     parent_task_sha256 = _recorded_checkpoint_task_sha256(checkpoint)
     if parent_task_sha256 is not None:
         lineage["parent_task_sha256"] = parent_task_sha256
+    if isinstance(parent_run_id, str) and parent_run_id:
+        lineage["parent_run_id"] = parent_run_id
     return lineage
 
 
@@ -382,6 +395,7 @@ def save_stage_config(
     *,
     load_path: str | None = None,
     load_mode: str | None = None,
+    parent_run_id: str | None = None,
 ) -> Path:
     """Save the reward weights and model hyperparameters for a stage to JSON.
 
@@ -410,6 +424,9 @@ def save_stage_config(
             given to the trainer, or ``None`` for a from-scratch stage.
         load_mode: The task load mode the checkpoint was loaded under
             (``resume_same_stage`` / ``initialize_next_stage``).
+        parent_run_id: The run the loaded checkpoint was reused from when it
+            is a certified ancestor of ANOTHER run; ``None`` (or empty) for a
+            parent trained in this run or a plain ``--load``.
 
     When a checkpoint was loaded the ``run`` block carries the
     :data:`LOAD_LINEAGE_KEYS` alongside *extra*; a from-scratch stage
@@ -460,7 +477,7 @@ def save_stage_config(
         "hyperparameters": stage_config.get(algo_key, {}),
         "curriculum": stage_config.get("curriculum_kwargs", {}),
     }
-    run_block = {**(extra or {}), **_checkpoint_lineage(load_path, load_mode)}
+    run_block = {**(extra or {}), **_checkpoint_lineage(load_path, load_mode, parent_run_id=parent_run_id)}
     if run_block:
         data["run"] = run_block
     if plant_identity is not None:
@@ -629,12 +646,14 @@ def upload_curriculum_artifacts(
 
         # Summaries and analysis sidecars.  metrics.json / stage_config.json
         # are what `sweep collect-results` consumes, so uploading them makes
-        # the run collectable from GCS alone.
+        # the run collectable from GCS alone; gate_verdict.json lives at the
+        # stage root and is what makes the stage reusable as an ancestor.
         for name in (
             "stage_summary.txt",
             "stage_config.json",
             "plant_identity.json",
             "task_fingerprint.json",
+            "gate_verdict.json",
             "metrics.json",
             "evaluations.npz",
             "diagnostics.npz",

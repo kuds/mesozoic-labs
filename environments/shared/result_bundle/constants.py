@@ -20,6 +20,15 @@ PROVENANCE_SCHEMA_VERSION = 1
 DEFAULT_MANIFEST_NAME = "artifact_manifest.json"
 DEFAULT_PROVENANCE_NAME = "provenance.json"
 
+#: Certified ancestors reused from another run (BEHAVIOR_RECIPES_PLAN §4.2):
+#: ``<run_dir>/ancestors/<stage_id>/ancestor.json`` plus verbatim copies of
+#: the ancestor stage's verdict, config, fingerprint and plant identity —
+#: never a checkpoint.  Written by ``environments.shared.ancestors``, read by
+#: :mod:`.ancestors`.
+ANCESTORS_DIRNAME = "ancestors"
+ANCESTOR_RECORD_NAME = "ancestor.json"
+ANCESTOR_RECORD_SCHEMA = "mesozoic.ancestor-record/v1"
+
 _FINALIZATION_PROVENANCE_FIELDS = frozenset(
     {
         "backend_version",
