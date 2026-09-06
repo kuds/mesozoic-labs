@@ -1,0 +1,32 @@
+# brachiosaurus stage manifest (mesozoic.stage-manifest/v2; BEHAVIOR_RECIPES_PLAN
+# §4.1/§4.8, 2026-09-05). Until Phase A this species had no manifest and
+# read a synthesized one from its stage{1,2,3}_*.toml filenames; this file
+# declares exactly those three entries — same ids, legacy numbers and config
+# files, so every existing artifact and integer reference keeps its meaning —
+# and makes the implicit edges explicit so stand and walk publish as
+# deliverables instead of only food_reach. Config filenames are unchanged.
+
+schema = "mesozoic.stage-manifest/v2"
+
+[[stages]]                       # quiet stance; gate reward-cleared by the statue (plan §4.8)
+id = "stance"
+config = "stage1_balance.toml"
+legacy_number = 1
+recipe = "stand"
+deliverable = true
+
+[[stages]]
+id = "locomotion"
+config = "stage2_locomotion.toml"
+legacy_number = 2
+warm_start_from = "stance"
+recipe = "walk"
+deliverable = true
+
+[[stages]]                       # id stays "behavior"; the task name (food_reach) is the TOML's [stage] name
+id = "behavior"
+config = "stage3_food_reach.toml"
+legacy_number = 3
+warm_start_from = "locomotion"
+recipe = "hunt"
+deliverable = true

@@ -873,20 +873,18 @@ def _collect_results_local(
         return []
 
     # Discover stage directories — all three generations: the historical
-    # stage{N} form, the bare semantic id a stage without a legacy number
-    # wrote before 2026-08-20 ("recovery"), and the NN_id form new runs
-    # write. The NN prefix is the stage's POSITION, not its number, so the
-    # stage reference comes from the id suffix, never from the digits — a
-    # legacy number where the id has one, the id itself (recovery) where
-    # it does not.
-    from environments.shared.stage_manifest import KNOWN_STAGE_IDS, LEGACY_STAGE_IDS
-
-    id_to_legacy = {stage_id: number for number, stage_id in LEGACY_STAGE_IDS.items()}
-
-    def _ref_for_stage_id(stage_id: str) -> "int | str | None":
-        if stage_id not in KNOWN_STAGE_IDS:
-            return None
-        return id_to_legacy.get(stage_id, stage_id)
+    # stage{N} form (kept as the wider ``stage{N}_<suffix>`` parse because
+    # sweep output directories look like ``stage2_r1``), and — through the
+    # manifest module's species-free helper — the bare semantic id a stage
+    # without a legacy number wrote before 2026-08-20 ("recovery") and the
+    # NN_id form new runs write. The NN prefix is the stage's POSITION, not
+    # its number, so the stage reference comes from the id suffix, never
+    # from the digits — a legacy number where the id has one, the id itself
+    # (recovery) where it does not.  Species-free, so only the reserved ids
+    # are recognised (decision D-A12): the collect CLI derives ``species``
+    # from a directory name it cannot trust, and an ``ancestors`` or
+    # ``NN_<word>`` directory must not collect as a stage.
+    from environments.shared.stage_manifest import stage_ref_from_dirname
 
     stage_dirs: list[tuple["int | str", Path]] = []
     for child in sorted(output_dir.iterdir()):
@@ -898,10 +896,8 @@ def _collect_results_local(
                 stage_num = int(child.name.replace("stage", "").split("_")[0])
             except ValueError:
                 stage_num = None
-        elif len(child.name) > 3 and child.name[:2].isdigit() and child.name[2] == "_":
-            stage_num = _ref_for_stage_id(child.name[3:])
-        elif child.name in KNOWN_STAGE_IDS:
-            stage_num = _ref_for_stage_id(child.name)
+        else:
+            stage_num = stage_ref_from_dirname(child.name)
         if stage_num is None:
             continue
         if stages and stage_num not in stages:

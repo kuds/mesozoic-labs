@@ -173,6 +173,13 @@ class TestDetectStageFromPathSemanticLayouts:
     def test_unrecognized_paths_keep_the_historical_default(self):
         assert detect_stage_from_path("/tmp/some_model.zip") == 1
 
+    def test_an_unreserved_nn_component_keeps_the_historical_default_species_free(self):
+        # Manifest v2 opened the id vocabulary, but a species-free reader
+        # recognises only the reserved ids (decision D-A12): an NN_<word>
+        # directory on a checkpoint path cannot claim to be a stage.
+        assert detect_stage_from_path("/runs/x/05_experiments/models/best_model.zip") == 1
+        assert detect_stage_from_path("/runs/x/05_follow_direction/models/best_model.zip") == 1
+
 
 class TestCliStageResolution:
     """--stage resolution runs before ANY stage_configs lookup (F10)."""

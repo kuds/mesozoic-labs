@@ -1,35 +1,51 @@
-# T-Rex stage manifest (mesozoic.stage-manifest/v1; STAGE1_SPLIT_PLAN §4,
-# adopted 2026-08-15). The curriculum has FOUR stages ordered by position;
-# a stage's identity is its semantic id, not its number. legacy_number is
-# the integer the stage was known as before this manifest existed — old
-# artifacts and integer stage references resolve through it, which is why
-# locomotion stays "stage 2" to history even though its position here is 3.
-# recovery has no legacy_number: it never had a numeric identity, and is
-# addressed by id ("recovery") everywhere.
+# T-Rex stage manifest (mesozoic.stage-manifest/v2; BEHAVIOR_RECIPES_PLAN §4.1,
+# adopted 2026-09-05; v1 of STAGE1_SPLIT_PLAN §4, 2026-08-15). A stage's
+# identity is its semantic id, not its number: legacy_number is the integer
+# the stage was known as before the manifest existed — old artifacts and
+# integer references resolve through it, which is why locomotion stays
+# "stage 2" to history at position 3 here. recovery has no legacy_number and
+# is addressed by id everywhere.
 #
-# Config files are named by stage id (decision of 2026-08-20, reversing
-# the earlier keep-historical-names stance): the manifest is the only
-# place order and numbering live, so filenames carry no stage{N} token
-# that could collide with legacy numbers. All references resolve through
-# the `config` fields below — integer refs included.
+# v2 adds the recipe DAG on top of the same ids, numbers and config files:
+#   warm_start_from  the EARLIER entry this node initialises from
+#                    (initialize_next_stage, lineage recorded); absent = root
+#   deliverable      this node's certified checkpoint is a published policy
+#   recipe           the behavior label the node belongs to; a label resolves
+#                    to its deepest deliverable in manifest order
+# Recipes are derived from the edges (a deliverable plus its ancestor chain),
+# never declared in a second table.
+#
+# Config files are named by stage id (2026-08-20): the manifest is the only
+# place order and numbering live, so filenames carry no stage{N} token.
 
-schema = "mesozoic.stage-manifest/v1"
+schema = "mesozoic.stage-manifest/v2"
 
-[[stages]]
+[[stages]]                       # quiet stance
 id = "stance"
 config = "stance.toml"
 legacy_number = 1
+recipe = "stand"
+deliverable = true               # stance_quality/v1; certified 2/3 seeds
 
-[[stages]]
+[[stages]]                       # balance under pushes
 id = "recovery"
 config = "recovery.toml"
+warm_start_from = "stance"
+recipe = "stand"
+deliverable = true               # recovery_quality/v1, judged against a per-run frozen resolution
 
 [[stages]]
 id = "locomotion"
 config = "locomotion.toml"
 legacy_number = 2
+warm_start_from = "stance"       # the 2026-08-23 lineage rule, now declared;
+recipe = "walk"                  # flips to "recovery" once a recovery run passes (plan A2)
+deliverable = true
 
-[[stages]]
+[[stages]]                       # id stays "behavior"; the label is the recipe
 id = "behavior"
 config = "behavior.toml"
 legacy_number = 3
+warm_start_from = "locomotion"
+recipe = "hunt"
+deliverable = true

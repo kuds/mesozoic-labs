@@ -183,10 +183,10 @@ def load_stage_config(
         species: Species name (e.g. "velociraptor", "brachiosaurus", "trex").
         stage: Either a legacy stage number (1, 2, or 3 — resolved through
             the stage manifest's legacy_number mapping, so existing callers
-            and artifacts keep their meaning) or a semantic stage ID
-            (``"stance"``/``"recovery"``/``"locomotion"``/``"behavior"``,
-            resolved through the species' stage manifest).  Stages without
-            a legacy number — recovery — are reachable only by ID.
+            and artifacts keep their meaning) or a semantic stage ID — any
+            id the species' manifest declares, resolved through it.  Stages
+            without a legacy number — recovery, every open id — are
+            reachable only by ID.
         config_path: Optional explicit path to a TOML file. Overrides
             automatic discovery when provided.
 
@@ -611,20 +611,18 @@ def upload_curriculum_artifacts(
 
     # 2. Upload per-stage artifacts — every stage directory the run wrote,
     # in either naming generation (stage{N}, bare ids like "recovery", or
-    # the NN_id form new runs use). Iterating the disk instead of a fixed
-    # 1..3 range keeps semantic-only stages (recovery) from silently never
-    # syncing.
-    from .stage_manifest import KNOWN_STAGE_IDS
+    # the NN_id form new runs use), recognised by the one species-aware
+    # helper so any id this species' manifest declares uploads and nothing
+    # else (an ``ancestors`` directory, ``models`` at run level) ever does.
+    # Iterating the disk instead of a fixed 1..3 range keeps semantic-only
+    # stages (recovery) from silently never syncing.
+    from .stage_manifest import stage_ref_from_dirname
 
-    stage_dir_list = []
-    for child in sorted(base_dir.iterdir()):
-        if not child.is_dir():
-            continue
-        name = child.name
-        is_legacy = name.startswith("stage") and name[5:].isdigit()
-        is_prefixed = len(name) > 3 and name[:2].isdigit() and name[2] == "_" and name[3:] in KNOWN_STAGE_IDS
-        if is_legacy or is_prefixed or name in KNOWN_STAGE_IDS:
-            stage_dir_list.append(child)
+    stage_dir_list = [
+        child
+        for child in sorted(base_dir.iterdir())
+        if child.is_dir() and stage_ref_from_dirname(child.name, species=species) is not None
+    ]
     for stage_dir in stage_dir_list:
         # Mirror whatever the run actually named the directory.
         gcs_stage_prefix = f"{gcs_run_prefix}/{stage_dir.name}"

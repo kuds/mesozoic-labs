@@ -652,6 +652,54 @@ class TestUploadCurriculumArtifacts:
         assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_best.mp4" in uploaded_paths
         assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_final.mp4" in uploaded_paths
 
+    @staticmethod
+    def _uploaded_keys(base, species):
+        with patch("environments.shared.config._upload_to_gcs", return_value=True) as mock_upload:
+            upload_curriculum_artifacts(base, species, "ppo", bucket="test-bucket")
+        return [call.args[2] for call in mock_upload.call_args_list]
+
+    def test_nn_id_and_bare_id_dirs_upload_and_unrelated_dirs_do_not(self, tmp_path):
+        """The stage-dir filter is stage_ref_from_dirname with the species in hand."""
+        base = tmp_path / "curriculum_20260901_120000"
+        for name in ("02_recovery", "recovery", "stage1", "models", "replays", "stage4", "ancestors"):
+            (base / name).mkdir(parents=True)
+            (base / name / "stage_config.json").write_text("{}")
+        keys = self._uploaded_keys(base, "trex")
+        run = base.name
+        for name in ("02_recovery", "recovery", "stage1"):
+            assert f"training/trex/{run}/{name}/stage_config.json" in keys
+        for name in ("models", "replays", "stage4", "ancestors"):
+            assert not [key for key in keys if f"/{name}/" in key], name
+
+    def test_an_open_id_dir_uploads_only_when_the_manifest_declares_it(self, tmp_path, monkeypatch):
+        import shutil
+
+        from environments.shared import stage_manifest
+
+        configs = tmp_path / "configs"
+        shutil.copytree(stage_manifest._CONFIGS_DIR / "trex", configs / "trex")
+        species_dir = configs / "pilot"
+        species_dir.mkdir(parents=True)
+        for name in ("stance.toml", "follow_direction.toml"):
+            (species_dir / name).write_text("[stage]\nname = 'x'\n")
+        (species_dir / "stages.toml").write_text(
+            f'schema = "{stage_manifest.STAGE_MANIFEST_SCHEMA_V2}"\n'
+            '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\ndeliverable = true\n'
+            '[[stages]]\nid = "follow_direction"\nconfig = "follow_direction.toml"\nwarm_start_from = "stance"\n'
+            "deliverable = true\n"
+        )
+        monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
+        base = tmp_path / "run"
+        for name in ("01_stance", "02_follow_direction", "02_sprint"):
+            (base / name).mkdir(parents=True)
+            (base / name / "stage_config.json").write_text("{}")
+        keys = self._uploaded_keys(base, "pilot")
+        assert "training/pilot/run/01_stance/stage_config.json" in keys
+        assert "training/pilot/run/02_follow_direction/stage_config.json" in keys
+        assert not [key for key in keys if "02_sprint" in key]
+        # A species whose manifest does not declare the id skips the directory.
+        assert not [key for key in self._uploaded_keys(base, "trex") if "follow_direction" in key]
+
 
 class TestLoadStageConfigTableValidation:
     """Review CF4: a misspelled top-level table must fail, never load as empty.
