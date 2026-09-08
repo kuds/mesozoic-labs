@@ -19,6 +19,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
@@ -101,7 +102,7 @@ def _run_arm(species: str, arm: str, output: Path, baseline_ref: str, updates: i
     config_path = output / f"{species}_{arm}.toml"
     config_path.write_bytes(config_bytes)
     config = load_stage_config(species, "stance", config_path=str(config_path))
-    configs = {"stance": config}
+    configs: dict[int | str, dict[str, Any]] = {"stance": config}
     horizon = config["curriculum_kwargs"]["timesteps"]
     budget = updates * N_ENVS * config["ppo_kwargs"]["n_steps"]
     if budget > horizon:

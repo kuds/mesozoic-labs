@@ -168,8 +168,8 @@ and PyTorch 2.9.0+cpu.
 | Live updates and checkpoint reloads | LR schedules, KL forwarding, entropy decay, and stage warm-up release verified |
 | Model and task changes | Environment tables, gate thresholds, SAC optimizer tables, and policy architectures compared against the parent and preserved; plant manifest current |
 | Generated interfaces | Species catalog and README regenerated and checked; notebook code parses |
-| Python style | Changed Python files pass Ruff lint and format checks |
-| Reusable probe CLI | Four-arm end-to-end smoke passed with `--updates 1`; isolated script typing check passed |
+| Python style and typing | Full `environments/` Ruff lint/format and CI mypy command pass (304 source files), using the lint job's dependency versions |
+| Reusable probe CLI | Four-arm end-to-end smoke passed with `--updates 1`; configuration mapping explicitly matches the shared trainer's stage-key type |
 
 The [bounded optimizer probe](scripts/probe_ppo_updates.py) compared the original
 and revised stance settings on the same current implementation. Each of four
