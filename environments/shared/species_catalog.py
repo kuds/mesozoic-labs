@@ -552,7 +552,9 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
     }
 
 
-def _build_success_metrics(species_id: str, raw_metrics: Any) -> list[dict[str, Any]]:
+def _build_success_metrics(
+    species_id: str, raw_metrics: Any, expected_backends: set[str] | None = None
+) -> list[dict[str, Any]]:
     if not isinstance(raw_metrics, list) or not raw_metrics:
         raise CatalogError(f"{species_id} must define at least one backend-scoped success metric")
 
@@ -586,9 +588,11 @@ def _build_success_metrics(species_id: str, raw_metrics: Any) -> list[dict[str, 
             }
         )
 
-    if covered_backends != ALLOWED_TRAINING_BACKENDS:
-        missing = sorted(ALLOWED_TRAINING_BACKENDS - covered_backends)
-        raise CatalogError(f"{species_id} has no success metric for backends: {missing}")
+    expected = ALLOWED_TRAINING_BACKENDS if expected_backends is None else expected_backends
+    if covered_backends != expected:
+        missing = sorted(expected - covered_backends)
+        extra = sorted(covered_backends - expected)
+        raise CatalogError(f"{species_id} success metric backends mismatch; missing={missing}, unsupported={extra}")
     return metrics
 
 
@@ -660,6 +664,12 @@ def build_catalog(
         )
 
         training_notebook_ids = [str(notebook_id) for notebook_id in raw_species.get("training_notebooks", [])]
+        training_backends = set(raw_species.get("training_backends", ALLOWED_TRAINING_BACKENDS))
+        if not training_backends or training_backends - ALLOWED_TRAINING_BACKENDS:
+            raise CatalogError(f"{species_id} has invalid training backends: {training_backends}")
+        for notebook_id, backend in (("sb3_training", "stable-baselines3"), ("jax_training", "jax-mjx")):
+            if notebook_id in training_notebook_ids and backend not in training_backends:
+                raise CatalogError(f"{species_id} advertises unsupported notebook {notebook_id}")
         unknown_notebooks = sorted(set(training_notebook_ids) - notebook_ids)
         if unknown_notebooks:
             raise CatalogError(f"{species_id} references unknown notebooks: {unknown_notebooks}")
@@ -681,7 +691,9 @@ def build_catalog(
                 "environment": environment,
                 "model": model,
                 "training_notebooks": training_notebook_ids,
-                "success_metrics": _build_success_metrics(species_id, raw_species.get("success_metrics")),
+                "success_metrics": _build_success_metrics(
+                    species_id, raw_species.get("success_metrics"), training_backends
+                ),
                 "stages": _build_stages(species_id, raw_species.get("stage_videos", [])),
                 "historical_results": [_build_result(species_id, result_path) for result_path in result_summary_paths],
             }
@@ -700,9 +712,18 @@ def build_catalog(
         for path in (REPOSITORY_ROOT / "environments").iterdir()
         if path.is_dir() and (path / "envs").is_dir() and (path / "assets").is_dir()
     }
-    if species_ids != implemented_species:
-        missing = sorted(implemented_species - species_ids)
-        unknown = sorted(species_ids - implemented_species)
+    variants = {str(entry["id"]): str(entry["variant_of"]) for entry in species_entries if "variant_of" in entry}
+    for entry in species_entries:
+        if entry["id"] in variants:
+            parent = variants[entry["id"]]
+            if parent not in species_ids - variants.keys() or parent not in implemented_species:
+                raise CatalogError(f"invalid parent species for variant {entry['id']}: {parent}")
+            if not str(entry["env_entrypoint"]).startswith(f"environments.{parent}.envs."):
+                raise CatalogError(f"variant {entry['id']} must use its parent species' environment package")
+    primary_species = species_ids - variants.keys()
+    if primary_species != implemented_species:
+        missing = sorted(implemented_species - primary_species)
+        unknown = sorted(primary_species - implemented_species)
         raise CatalogError(f"manifest/implemented species coverage mismatch; unlisted={missing}, unknown={unknown}")
 
     plant_species = set(raw_plant_entries)
@@ -890,7 +911,8 @@ def render_readme_species(catalog: dict[str, Any]) -> str:
                 _format_backend(backend).replace(" (version not recorded)", "") for backend in metric["backends"]
             )
             lines.append(f"- **{scopes} — {metric['label']}:** {metric['definition']}")
-        lines.extend(["", f"[Full documentation →](environments/{species['id']}/README.md)"])
+        model_package = Path(species["model"]["path"]).parent.parent.as_posix()
+        lines.extend(["", f"[Full documentation →]({model_package}/README.md)"])
         if species["id"] == "velociraptor":
             lines.extend(
                 [

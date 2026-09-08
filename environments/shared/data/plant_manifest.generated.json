@@ -44,6 +44,154 @@
         "sha256": "sha256:445b4d9a4a3b8d4cc41af2ddec2f590b2ad2ec86dcdf4c1b17ee6e3373d32047"
       }
     },
+    "compsognathus": {
+      "bundle_sha256": "sha256:3e30f2dd7d9c25c38141fd129ac36a7af7b3e9aa5754249225abace30da478b3",
+      "env_entrypoint": "environments.compsognathus.envs.compsognathus_env:CompsognathusEnv",
+      "model_path": "environments/compsognathus/assets/compsognathus.xml",
+      "physics": {
+        "nq": 24,
+        "nu": 14,
+        "nv": 23,
+        "revision": 1,
+        "schema": "mesozoic.mujoco-physics/v1",
+        "sha256": "sha256:08a5fbf7c03d251308ec8815b6b53af5e6c1a1a4d343a11700284fe389d6be33"
+      },
+      "policy_interface": {
+        "action_dim": 14,
+        "observation_dim": 53,
+        "observation_schema": "bipedal-target/v1",
+        "revision": 1,
+        "schema": "mesozoic.policy-interface/v1",
+        "sha256": "sha256:5d68b303f458b413ef7ca0615070ea384fbfefa9f0b46a4ee1fea5c828f6e37f"
+      },
+      "source": {
+        "closure_sha256": "sha256:4f36e487862eef18eda24667e532a824491166159c69200ff8c3ad4c87a7f26b",
+        "dependencies": [
+          {
+            "content_sha256": "sha256:fc6ef368bf14a37b76dbf90821f44b27a39e87cf6bfe5d52c0e5628d7f997cfd",
+            "kind": "mjcf",
+            "logical_path": "environments/compsognathus/assets/compsognathus.xml"
+          }
+        ],
+        "root": "environments/compsognathus/assets/compsognathus.xml",
+        "schema": "mesozoic.source-closure/v1"
+      },
+      "species": "compsognathus",
+      "visual": {
+        "revision": 1,
+        "schema": "mesozoic.mujoco-visual/v1",
+        "sha256": "sha256:b3a0d649caee2314772b49b4ab23ff6ab3e61398099546e61034b78ab94cb17b"
+      }
+    },
+    "compsognathus_robot": {
+      "bundle_sha256": "sha256:9f20232a5f9137fe90ce077198debd3abcfb28e882bc7a3a480e90a89afafd12",
+      "env_entrypoint": "environments.compsognathus.envs.compsognathus_env:CompsognathusRobotEnv",
+      "model_path": "environments/compsognathus/assets/compsognathus_robot.xml",
+      "physics": {
+        "nq": 19,
+        "nu": 12,
+        "nv": 18,
+        "revision": 1,
+        "schema": "mesozoic.mujoco-physics/v1",
+        "sha256": "sha256:728f0c03fb67f66056b8383e85a625aed892d3ed255760d6a70f3123bb71386d"
+      },
+      "policy_interface": {
+        "action_dim": 12,
+        "observation_dim": 43,
+        "observation_schema": "bipedal-target/v1",
+        "revision": 1,
+        "schema": "mesozoic.policy-interface/v1",
+        "sha256": "sha256:4debe06fb07181c1cdd8d51c814484c1082880a70cec87750cee3743845cbe60"
+      },
+      "source": {
+        "closure_sha256": "sha256:c0f948f27f99136d5719803060289d7131694140913f5e7072081aa0d69c928c",
+        "dependencies": [
+          {
+            "content_sha256": "sha256:2bb1040d5a057653e4a67355317d20b4fa55f57ff1ab485eb92036b80bfffffe",
+            "kind": "mjcf",
+            "logical_path": "environments/compsognathus/assets/compsognathus_robot.xml"
+          },
+          {
+            "content_sha256": "sha256:70ba3a79ca51aa6c39739cba934d0cf91ad3a6115da3d995cadff1811080c217",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/drive_palonier.stl"
+          },
+          {
+            "content_sha256": "sha256:8ba1ec39e643b0ba932eb7de9e6327c8bf7d2991cd8642068a99f8038963faf4",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/left_cache.stl"
+          },
+          {
+            "content_sha256": "sha256:c49d18abcd227c01132ffbf1825c4c2e8f46b27f90cb08936d4a955b09532dec",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/left_knee_to_ankle_left_sheet.stl"
+          },
+          {
+            "content_sha256": "sha256:831703441094337352fec9adef68c79b660c25e643e68b19aefb2f088b6fb673",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/left_knee_to_ankle_right_sheet.stl"
+          },
+          {
+            "content_sha256": "sha256:6f876a11c3c2076ddc9d437948aba94217dad5de75dba9e1f5fab663e8598379",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/left_roll_to_pitch.stl"
+          },
+          {
+            "content_sha256": "sha256:f7e2d0c4ca470032ce6c5cce07447a4c321b6f217a14d1e467cbee972344c14d",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/leg_spacer.stl"
+          },
+          {
+            "content_sha256": "sha256:88f1ac81c6214080d7ef083a5faafcde9e986b551136e531a1ac7bb1b6b11a4a",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/passive_palonier.stl"
+          },
+          {
+            "content_sha256": "sha256:7cf3edfd76be032fcb657ded24e7b098a7c4107919f6420073ae86276df9d002",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/right_cache.stl"
+          },
+          {
+            "content_sha256": "sha256:60c5ac394fceafa042103745cca33d09dc879ba78867c76cee5950c3f2d59b43",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/right_roll_to_pitch.stl"
+          },
+          {
+            "content_sha256": "sha256:20c85b387cd88a8939e70d86cdfc1556f562c8c3e39fc105cfe84e50c977e60a",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/roll_motor_bottom.stl"
+          },
+          {
+            "content_sha256": "sha256:e9b6e70d23ad1aee3704de2b2240d3450daaa69d55429a57e50702d98c8c8fb4",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/roll_motor_top.stl"
+          },
+          {
+            "content_sha256": "sha256:aa68a42a6e95bf1c90f2875232804982630ec1d6011efba559a7b7681c595cb4",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/wj-wk00-0122topcabinetcase_95.stl"
+          },
+          {
+            "content_sha256": "sha256:2d0c841a7d7f2bb7cdb17ee7cb7cab7871cc6bb33ca3cee375beab2fdac2f6b4",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/wj-wk00-0123middlecase_56.stl"
+          },
+          {
+            "content_sha256": "sha256:bf0d8a2b7c00710e6c5e6a0f100f3dc27132e6d0bac215480d37dc3236395349",
+            "kind": "asset",
+            "logical_path": "environments/compsognathus/assets/meshes/wj-wk00-0124bottomcase_45.stl"
+          }
+        ],
+        "root": "environments/compsognathus/assets/compsognathus_robot.xml",
+        "schema": "mesozoic.source-closure/v1"
+      },
+      "species": "compsognathus_robot",
+      "visual": {
+        "revision": 1,
+        "schema": "mesozoic.mujoco-visual/v1",
+        "sha256": "sha256:ff33b8bebd0677d212c98858ab9507a274966ffa610bfc79fbef653e77cebf6d"
+      }
+    },
     "dibothrosuchus": {
       "bundle_sha256": "sha256:3d70bcaab09d7fa9add5ba07edacb4f9cc19e7326799716c66e153b00e44bacd",
       "env_entrypoint": "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv",

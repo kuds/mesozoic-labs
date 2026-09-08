@@ -211,9 +211,43 @@ key = "snap_proximity_success"
 label = "Snout-tip proximity snap proxy"
 definition = "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
 
-# Full display labels for model-only work. These entries are not training
-# species and do not enter the executable species catalog or curriculum.
-[[model_prototypes]]
+[[species]]
 id = "compsognathus"
+display_order = 5
 display_name = "Compsognathus Longipes"
+tagline = "Small Bipedal Theropod"
+gait = "Bipedal"
+specialty = "Non-contact target reaching"
 aliases = ["compso"]
+env_entrypoint = "environments.compsognathus.envs.compsognathus_env:CompsognathusEnv"
+model_path = "environments/compsognathus/assets/compsognathus.xml"
+training_backends = ["stable-baselines3"]
+training_notebooks = ["sb3_training"]
+result_summary_paths = []
+
+[[species.success_metrics]]
+backends = ["stable-baselines3"]
+key = "target_success"
+label = "Pelvis target-reaching success"
+definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+
+[[species]]
+id = "compsognathus_robot"
+variant_of = "compsognathus"
+display_order = 6
+display_name = "Compsognathus Longipes (Robot)"
+tagline = "Twelve-Servo Biped Prototype"
+gait = "Bipedal"
+specialty = "Non-contact target reaching with fixed head and tail"
+aliases = ["compso-robot"]
+env_entrypoint = "environments.compsognathus.envs.compsognathus_env:CompsognathusRobotEnv"
+model_path = "environments/compsognathus/assets/compsognathus_robot.xml"
+training_backends = ["stable-baselines3"]
+training_notebooks = ["sb3_training"]
+result_summary_paths = []
+
+[[species.success_metrics]]
+backends = ["stable-baselines3"]
+key = "target_success"
+label = "Pelvis target-reaching success"
+definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."

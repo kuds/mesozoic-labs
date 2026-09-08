@@ -17,6 +17,8 @@ FULL_NAMES = {
     "trex": "Tyrannosaurus Rex",
     "brachiosaurus": "Brachiosaurus Altithorax",
     "dibothrosuchus": "Dibothrosuchus Elaphros",
+    "compsognathus": "Compsognathus Longipes",
+    "compsognathus_robot": "Compsognathus Longipes (Robot)",
 }
 
 
@@ -78,12 +80,15 @@ def test_manifest_labels_cover_every_training_species():
 
 
 @pytest.mark.parametrize("name", ["Compsognathus Longipes", "compsognathus", "compso"])
-def test_prototype_selection_stops_before_training_setup(name):
-    namespace = {}
-    with pytest.raises(ValueError, match="model-only prototype.*Gymnasium environment or SB3 curriculum"):
-        exec(_selection_code(name), namespace)
-    assert "SPECIES_CFG" not in namespace
-    assert "RUN_DIR" not in namespace
+def test_compsognathus_aliases_are_trainable(name):
+    assert get_species_config(name).species == "compsognathus"
+
+
+def test_backend_specific_names_do_not_advertise_unimplemented_jax():
+    assert species_display_names(backend="stable-baselines3") == FULL_NAMES
+    assert set(species_display_names(backend="jax-mjx")) == set(FULL_NAMES) - {"compsognathus", "compsognathus_robot"}
+    with pytest.raises(ValueError, match="Unknown training backend"):
+        species_display_names(backend="unsupported")
 
 
 def test_unknown_training_name_is_rejected_but_custom_plot_label_is_preserved():
@@ -99,7 +104,8 @@ def test_colab_species_selectors_match_the_manifest():
             for line in "".join(cell["source"]).splitlines():
                 if line.startswith("SPECIES = ") and "# @param [" in line:
                     labels = json.loads(line.split("# @param ", 1)[1])
-                    assert labels == list(species_display_names().values())
+                    backend = "jax-mjx" if filename == "jax_training.ipynb" else "stable-baselines3"
+                    assert labels == list(species_display_names(backend=backend).values())
                     break
             else:
                 continue

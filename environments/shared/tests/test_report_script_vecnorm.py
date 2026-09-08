@@ -16,6 +16,8 @@ exit rather than a traceback.
 from __future__ import annotations
 
 import inspect
+import json
+import zipfile
 
 import pytest
 
@@ -32,6 +34,30 @@ SCRIPTS = pytest.mark.parametrize(
     [joint_excursion_report, action_bound_report, observation_ablation_report],
     ids=lambda module: module.__name__.rsplit(".", 1)[-1],
 )
+
+
+@pytest.mark.parametrize(
+    "metadata,expected",
+    [({"clip_range": 0.2, "n_epochs": 1}, "PPO"), ({"target_entropy": -12, "replay_buffer_class": {}}, "SAC")],
+)
+def test_report_loader_identifies_the_saved_algorithm(metadata, expected, tmp_path):
+    sb3 = pytest.importorskip("stable_baselines3")
+    path = tmp_path / "robust_best_model.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("data", json.dumps(metadata))
+    assert policy_loading._checkpoint_algorithm(str(path)) is getattr(sb3, expected)
+    assert policy_loading._checkpoint_algorithm(str(path.with_suffix(""))) is getattr(sb3, expected)
+
+
+@pytest.mark.parametrize(
+    "metadata", [{}, {"clip_range": 0.2, "n_epochs": 1, "target_entropy": -12, "replay_buffer_class": {}}]
+)
+def test_report_loader_rejects_unknown_or_ambiguous_algorithm(metadata, tmp_path):
+    path = tmp_path / "checkpoint.zip"
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("data", json.dumps(metadata))
+    with pytest.raises(PolicyLoadError, match="exactly one supported algorithm"):
+        policy_loading._checkpoint_algorithm(str(path))
 
 
 def test_periodic_checkpoint_resolves_to_the_vecnormalize_sidecar(tmp_path):
@@ -83,6 +109,7 @@ def stub_ppo(monkeypatch):
     import stable_baselines3
 
     monkeypatch.setattr(stable_baselines3, "PPO", _StubModel)
+    monkeypatch.setattr(policy_loading, "_checkpoint_algorithm", lambda _path: _StubModel)
     return _StubModel
 
 

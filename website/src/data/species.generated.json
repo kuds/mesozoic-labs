@@ -1107,6 +1107,296 @@
         }
       ],
       "historical_results": []
+    },
+    {
+      "id": "compsognathus",
+      "display_name": "Compsognathus Longipes",
+      "tagline": "Small Bipedal Theropod",
+      "gait": "Bipedal",
+      "specialty": "Non-contact target reaching",
+      "aliases": [
+        "compso"
+      ],
+      "environment": {
+        "entrypoint": "environments.compsognathus.envs.compsognathus_env:CompsognathusEnv",
+        "observation_dim": 53,
+        "action_dim": 14
+      },
+      "model": {
+        "path": "environments/compsognathus/assets/compsognathus.xml",
+        "nq": 24,
+        "nv": 23,
+        "nu": 14,
+        "dynamic_mass_kg": 1.0,
+        "plant_contract": {
+          "bundle_sha256": "sha256:3e30f2dd7d9c25c38141fd129ac36a7af7b3e9aa5754249225abace30da478b3",
+          "source_closure_sha256": "sha256:4f36e487862eef18eda24667e532a824491166159c69200ff8c3ad4c87a7f26b",
+          "policy_interface": {
+            "schema": "mesozoic.policy-interface/v1",
+            "revision": 1,
+            "observation_schema": "bipedal-target/v1",
+            "sha256": "sha256:5d68b303f458b413ef7ca0615070ea384fbfefa9f0b46a4ee1fea5c828f6e37f"
+          },
+          "physics": {
+            "schema": "mesozoic.mujoco-physics/v1",
+            "revision": 1,
+            "sha256": "sha256:08a5fbf7c03d251308ec8815b6b53af5e6c1a1a4d343a11700284fe389d6be33"
+          },
+          "visual": {
+            "schema": "mesozoic.mujoco-visual/v1",
+            "revision": 1,
+            "sha256": "sha256:b3a0d649caee2314772b49b4ab23ff6ab3e61398099546e61034b78ab94cb17b"
+          }
+        }
+      },
+      "training_notebooks": [
+        "sb3_training"
+      ],
+      "success_metrics": [
+        {
+          "backends": [
+            "stable-baselines3"
+          ],
+          "key": "target_success",
+          "label": "Pelvis target-reaching success",
+          "definition": "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+        }
+      ],
+      "stages": [
+        {
+          "id": "stance",
+          "position": 1,
+          "number": 1,
+          "label": "1",
+          "name": "balance",
+          "title": "Balance",
+          "description": "Hold an upright stance with both feet supported",
+          "config_path": "configs/compsognathus/stance.toml",
+          "timesteps": 1000000,
+          "advancement_gate": {
+            "gate_kind": "stance_quality/v1",
+            "pending_gate_kind": null,
+            "min_avg_reward": 1500.0,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
+            "min_success_rate": null,
+            "min_full_horizon_fraction": 0.9,
+            "max_unsupported_duty": 0.1,
+            "max_unsupported_duty_ucb": 0.15,
+            "min_recovery_success_lcb": null,
+            "min_paired_success_delta_lcb": null,
+            "recovery_t_recover_steps": null,
+            "recovery_dwell_steps": null,
+            "min_eval_episodes": 20,
+            "required_consecutive": 3
+          },
+          "video": null
+        },
+        {
+          "id": "locomotion",
+          "position": 2,
+          "number": 2,
+          "label": "2",
+          "name": "locomotion",
+          "title": "Locomotion",
+          "description": "Move forward while remaining upright and avoiding body-floor contact",
+          "config_path": "configs/compsognathus/locomotion.toml",
+          "timesteps": 3000000,
+          "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
+            "min_avg_reward": 500.0,
+            "min_avg_episode_length": 900,
+            "min_avg_forward_velocity": 0.08,
+            "min_success_rate": null,
+            "min_full_horizon_fraction": null,
+            "max_unsupported_duty": null,
+            "max_unsupported_duty_ucb": null,
+            "min_recovery_success_lcb": null,
+            "min_paired_success_delta_lcb": null,
+            "recovery_t_recover_steps": null,
+            "recovery_dwell_steps": null,
+            "min_eval_episodes": 20,
+            "required_consecutive": 3
+          },
+          "video": null
+        },
+        {
+          "id": "behavior",
+          "position": 3,
+          "number": 3,
+          "label": "3",
+          "name": "target_reach",
+          "title": "Target Reach",
+          "description": "Reach the randomized horizontal target and slow down while upright",
+          "config_path": "configs/compsognathus/behavior.toml",
+          "timesteps": 3000000,
+          "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
+            "min_avg_reward": 25.0,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
+            "min_success_rate": 0.7,
+            "min_full_horizon_fraction": null,
+            "max_unsupported_duty": null,
+            "max_unsupported_duty_ucb": null,
+            "min_recovery_success_lcb": null,
+            "min_paired_success_delta_lcb": null,
+            "recovery_t_recover_steps": null,
+            "recovery_dwell_steps": null,
+            "min_eval_episodes": 20,
+            "required_consecutive": 3
+          },
+          "video": null
+        }
+      ],
+      "historical_results": []
+    },
+    {
+      "id": "compsognathus_robot",
+      "display_name": "Compsognathus Longipes (Robot)",
+      "tagline": "Twelve-Servo Biped Prototype",
+      "gait": "Bipedal",
+      "specialty": "Non-contact target reaching with fixed head and tail",
+      "aliases": [
+        "compso-robot"
+      ],
+      "environment": {
+        "entrypoint": "environments.compsognathus.envs.compsognathus_env:CompsognathusRobotEnv",
+        "observation_dim": 43,
+        "action_dim": 12
+      },
+      "model": {
+        "path": "environments/compsognathus/assets/compsognathus_robot.xml",
+        "nq": 19,
+        "nv": 18,
+        "nu": 12,
+        "dynamic_mass_kg": 1.5856,
+        "plant_contract": {
+          "bundle_sha256": "sha256:9f20232a5f9137fe90ce077198debd3abcfb28e882bc7a3a480e90a89afafd12",
+          "source_closure_sha256": "sha256:c0f948f27f99136d5719803060289d7131694140913f5e7072081aa0d69c928c",
+          "policy_interface": {
+            "schema": "mesozoic.policy-interface/v1",
+            "revision": 1,
+            "observation_schema": "bipedal-target/v1",
+            "sha256": "sha256:4debe06fb07181c1cdd8d51c814484c1082880a70cec87750cee3743845cbe60"
+          },
+          "physics": {
+            "schema": "mesozoic.mujoco-physics/v1",
+            "revision": 1,
+            "sha256": "sha256:728f0c03fb67f66056b8383e85a625aed892d3ed255760d6a70f3123bb71386d"
+          },
+          "visual": {
+            "schema": "mesozoic.mujoco-visual/v1",
+            "revision": 1,
+            "sha256": "sha256:ff33b8bebd0677d212c98858ab9507a274966ffa610bfc79fbef653e77cebf6d"
+          }
+        }
+      },
+      "training_notebooks": [
+        "sb3_training"
+      ],
+      "success_metrics": [
+        {
+          "backends": [
+            "stable-baselines3"
+          ],
+          "key": "target_success",
+          "label": "Pelvis target-reaching success",
+          "definition": "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+        }
+      ],
+      "stages": [
+        {
+          "id": "stance",
+          "position": 1,
+          "number": 1,
+          "label": "1",
+          "name": "balance",
+          "title": "Balance",
+          "description": "Hold an upright stance with both feet supported",
+          "config_path": "configs/compsognathus_robot/stance.toml",
+          "timesteps": 1000000,
+          "advancement_gate": {
+            "gate_kind": "stance_quality/v1",
+            "pending_gate_kind": null,
+            "min_avg_reward": 1500.0,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
+            "min_success_rate": null,
+            "min_full_horizon_fraction": 0.9,
+            "max_unsupported_duty": 0.1,
+            "max_unsupported_duty_ucb": 0.15,
+            "min_recovery_success_lcb": null,
+            "min_paired_success_delta_lcb": null,
+            "recovery_t_recover_steps": null,
+            "recovery_dwell_steps": null,
+            "min_eval_episodes": 20,
+            "required_consecutive": 3
+          },
+          "video": null
+        },
+        {
+          "id": "locomotion",
+          "position": 2,
+          "number": 2,
+          "label": "2",
+          "name": "locomotion",
+          "title": "Locomotion",
+          "description": "Move forward while remaining upright and avoiding body-floor contact",
+          "config_path": "configs/compsognathus_robot/locomotion.toml",
+          "timesteps": 3000000,
+          "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
+            "min_avg_reward": 500.0,
+            "min_avg_episode_length": 900,
+            "min_avg_forward_velocity": 0.04,
+            "min_success_rate": null,
+            "min_full_horizon_fraction": null,
+            "max_unsupported_duty": null,
+            "max_unsupported_duty_ucb": null,
+            "min_recovery_success_lcb": null,
+            "min_paired_success_delta_lcb": null,
+            "recovery_t_recover_steps": null,
+            "recovery_dwell_steps": null,
+            "min_eval_episodes": 20,
+            "required_consecutive": 3
+          },
+          "video": null
+        },
+        {
+          "id": "behavior",
+          "position": 3,
+          "number": 3,
+          "label": "3",
+          "name": "target_reach",
+          "title": "Target Reach",
+          "description": "Reach the randomized horizontal target and slow down while upright",
+          "config_path": "configs/compsognathus_robot/behavior.toml",
+          "timesteps": 3000000,
+          "advancement_gate": {
+            "gate_kind": "reward_and_length/v1",
+            "pending_gate_kind": null,
+            "min_avg_reward": 25.0,
+            "min_avg_episode_length": null,
+            "min_avg_forward_velocity": null,
+            "min_success_rate": 0.7,
+            "min_full_horizon_fraction": null,
+            "max_unsupported_duty": null,
+            "max_unsupported_duty_ucb": null,
+            "min_recovery_success_lcb": null,
+            "min_paired_success_delta_lcb": null,
+            "recovery_t_recover_steps": null,
+            "recovery_dwell_steps": null,
+            "min_eval_episodes": 20,
+            "required_consecutive": 3
+          },
+          "video": null
+        }
+      ],
+      "historical_results": []
     }
   ]
 }

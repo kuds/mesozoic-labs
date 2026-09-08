@@ -106,7 +106,7 @@ def brace_controller(env: Any, predict: Callable[[Any], np.ndarray]) -> Callable
             obs, _reward, terminated, truncated, _info = env.step(action)
             if terminated or truncated:
                 break
-    return constant_action_controller(np.mean(np.stack(actions), axis=0))
+    return constant_action_controller(np.mean(np.stack(actions), axis=0).tolist())
 
 
 def roll_panel(

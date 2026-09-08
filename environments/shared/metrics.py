@@ -150,7 +150,7 @@ class LocomotionMetrics:
 
         # Accept bite_success (T-Rex), strike_success (Velociraptor), or
         # food_reached (Brachiosaurus) as equivalent "success" signals.
-        for _success_key in ("bite_success", "strike_success", "food_reached"):
+        for _success_key in ("bite_success", "strike_success", "food_reached", "target_success"):
             if _success_key in info:
                 self._success_events.append(float(info[_success_key]))
                 break

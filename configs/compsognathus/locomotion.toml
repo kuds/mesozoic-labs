@@ -1,0 +1,69 @@
+# Initial SB3 training recipe; budgets and optimizer settings are starting
+# points, not measured convergence claims. State observations are privileged.
+[stage]
+name = "locomotion"
+description = "Move forward while remaining upright and avoiding body-floor contact"
+
+[env]
+frame_skip = 10
+max_episode_steps = 1000
+reset_noise_scale = 0.01
+reset_height_noise_scale = 0.0
+forward_vel_max = 0.25
+fall_penalty = -25.0
+energy_penalty_weight = 0.02
+smoothness_weight = 0.02
+spin_penalty_weight = 0.02
+lateral_penalty_weight = 0.1
+max_tilt_angle = 0.7
+forward_vel_weight = 8.0
+alive_bonus = 0.5
+posture_weight = 0.4
+height_weight = 0.4
+home_pose_weight = 0.02
+drift_penalty_weight = 0.0
+heading_weight = 0.2
+gait_symmetry_weight = 0.0
+target_approach_weight = 0.0
+target_reach_bonus = 0.0
+prey_distance_range = [5.0, 5.0]
+prey_lateral_range = [0.0, 0.0]
+
+[ppo]
+learning_rate = 0.0003
+n_steps = 1024
+batch_size = 64
+n_epochs = 5
+gamma = 0.99
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.005
+max_grad_norm = 0.5
+
+[ppo.policy_kwargs]
+net_arch = [128, 128]
+log_std_init = -2.0
+
+[sac]
+learning_rate = 0.0003
+buffer_size = 100000
+learning_starts = 1000
+batch_size = 128
+tau = 0.005
+gamma = 0.99
+train_freq = 4
+gradient_steps = 1
+ent_coef = "auto"
+
+[sac.policy_kwargs]
+net_arch = [128, 128]
+
+[curriculum]
+gate_schema_version = 1
+gate_kind = "reward_and_length/v1"
+timesteps = 3000000
+min_avg_reward = 500.0
+min_avg_episode_length = 900
+min_avg_forward_vel = 0.08
+min_eval_episodes = 20
+required_consecutive = 3

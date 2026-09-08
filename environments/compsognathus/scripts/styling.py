@@ -249,7 +249,12 @@ def apply_styles(root, variant, parameters):
     head.find("site[@name='head_tip']").set("pos", numbers(tip_pos))
     # Explicitly label privileged ground truth. Neither is raw IMU output.
     root.find("sensor/framequat").set("name", "diagnostic_pelvis_quat")
+    # MuJoCo's "body" denotes the inertial frame, whose principal axes can
+    # rotate relative to the torso. Training and diagnostics need the pelvis
+    # frame itself ("xbody"), including on the anatomical model.
+    root.find("sensor/framequat").set("objtype", "xbody")
     root.find("sensor/framelinvel").set("name", "diagnostic_pelvis_velocity")
+    root.find("sensor/framelinvel").set("objtype", "xbody")
     custom = add(root, "custom")
     add(
         custom,

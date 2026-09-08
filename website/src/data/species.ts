@@ -421,6 +421,8 @@ export const VELOCIRAPTOR = requireSpecies('velociraptor');
 export const TREX = requireSpecies('trex');
 export const BRACHIOSAURUS = requireSpecies('brachiosaurus');
 export const DIBOTHROSUCHUS = requireSpecies('dibothrosuchus');
+export const COMPSOGNATHUS = requireSpecies('compsognathus');
+export const COMPSOGNATHUS_ROBOT = requireSpecies('compsognathus_robot');
 
 /** Sum of current actuator/action dimensions across implemented species. */
 export const TOTAL_ACTUATORS = ALL_SPECIES.reduce((total, species) => total + species.actionDim, 0);

@@ -68,6 +68,32 @@ def _make_dibothrosuchus_config() -> SpeciesConfig:
     )
 
 
+def _make_compsognathus_config() -> SpeciesConfig:
+    from environments.compsognathus.envs import CompsognathusEnv
+
+    return SpeciesConfig(
+        species="compsognathus",
+        env_class=CompsognathusEnv,
+        stage_descriptions="1=balance, 2=locomotion, 3=target_reach",
+        height_label="Pelvis height",
+        stage3_section_label="Target Reaching",
+        success_keys=["target_success"],
+    )
+
+
+def _make_compsognathus_robot_config() -> SpeciesConfig:
+    from environments.compsognathus.envs import CompsognathusRobotEnv
+
+    return SpeciesConfig(
+        species="compsognathus_robot",
+        env_class=CompsognathusRobotEnv,
+        stage_descriptions="1=balance, 2=locomotion, 3=target_reach",
+        height_label="Pelvis height",
+        stage3_section_label="Target Reaching",
+        success_keys=["target_success"],
+    )
+
+
 # Lazy registry — factories are called only when the species is selected,
 # so we don't import all env modules at startup.
 SPECIES_FACTORIES = {
@@ -79,6 +105,10 @@ SPECIES_FACTORIES = {
     "brachio": _make_brachio_config,  # alias
     "dibothrosuchus": _make_dibothrosuchus_config,
     "dibo": _make_dibothrosuchus_config,  # alias
+    "compsognathus": _make_compsognathus_config,
+    "compso": _make_compsognathus_config,
+    "compsognathus_robot": _make_compsognathus_robot_config,
+    "compso-robot": _make_compsognathus_robot_config,
 }
 
 

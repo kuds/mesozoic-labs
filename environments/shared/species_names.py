@@ -21,13 +21,19 @@ def _manifest() -> dict[str, Any]:
         return tomllib.load(source)
 
 
-def species_display_names(*, include_prototypes: bool = False) -> dict[str, str]:
+def species_display_names(*, include_prototypes: bool = False, backend: str | None = None) -> dict[str, str]:
     """Return IDs and full labels in manifest display order.
 
     By default only registered training species are returned. Model-only
     prototypes can be included for presentation without making them trainable.
     """
     entries = sorted(_manifest()["species"], key=lambda entry: entry["display_order"])
+    if backend is not None:
+        if backend not in ("stable-baselines3", "jax-mjx"):
+            raise ValueError(f"Unknown training backend: {backend!r}")
+        entries = [
+            entry for entry in entries if backend in entry.get("training_backends", ["stable-baselines3", "jax-mjx"])
+        ]
     if include_prototypes:
         entries += _manifest().get("model_prototypes", [])
     return {entry["id"]: entry["display_name"] for entry in entries}

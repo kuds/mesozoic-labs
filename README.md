@@ -188,6 +188,60 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 - **JAX/MJX — Snout-tip proximity snap proxy:** The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
 
 [Full documentation →](environments/dibothrosuchus/README.md)
+
+<a id="compsognathus"></a>
+<a id="compso"></a>
+
+### Compsognathus Longipes
+
+Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
+
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 53 |
+| Action dimension / actuators | 14 |
+| Generalized coordinates / velocities | nq=24, nv=23 |
+| Compiled dynamic model mass | 1.0 kg |
+| Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Model | `environments/compsognathus/assets/compsognathus.xml` |
+
+| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---:|---:|
+| 1 — Balance | Hold an upright stance with both feet supported | 1M | reward ≥ 1500; full-horizon episodes ≥ 90.0%; unsupported duty ≤ 0.1; unsupported duty 95% upper bound ≤ 0.15; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.08 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 3 — Target Reach | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
+
+[Full documentation →](environments/compsognathus/README.md)
+
+<a id="compsognathus_robot"></a>
+<a id="compso-robot"></a>
+
+### Compsognathus Longipes (Robot)
+
+Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fixed head and tail.
+
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 43 |
+| Action dimension / actuators | 12 |
+| Generalized coordinates / velocities | nq=19, nv=18 |
+| Compiled dynamic model mass | 1.6 kg |
+| Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Model | `environments/compsognathus/assets/compsognathus_robot.xml` |
+
+| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---:|---:|
+| 1 — Balance | Hold an upright stance with both feet supported | 1M | reward ≥ 1500; full-horizon episodes ≥ 90.0%; unsupported duty ≤ 0.1; unsupported duty 95% upper bound ≤ 0.15; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.04 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 3 — Target Reach | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
+
+[Full documentation →](environments/compsognathus/README.md)
 <!-- END GENERATED: SPECIES -->
 
 ### Planned Species
