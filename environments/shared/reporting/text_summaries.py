@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from ..species_names import species_display_name
 from .formatting import format_duration
 
 
@@ -45,7 +46,7 @@ def write_stage_summary(
         f"Mesozoic Labs: Stage {results_dict['stage']} Summary",
         "=" * 50,
         "",
-        f"Species:        {species.title()}",
+        f"Species:        {species_display_name(species)}",
         f"Stage:          {results_dict['stage']} ({results_dict['name']})",
         f"Description:    {results_dict['description']}",
         f"Algorithm:      {algorithm}",
@@ -139,7 +140,7 @@ def write_training_summary(
         "Mesozoic Labs Training Summary",
         "=" * 50,
         "",
-        f"Species:        {species.title()}",
+        f"Species:        {species_display_name(species)}",
         f"Algorithm:      {algorithm}",
         f"Date:           {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         f"Seed:           {seed}",

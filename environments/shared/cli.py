@@ -9,6 +9,8 @@ import argparse
 import logging
 from pathlib import Path
 
+from .species_names import species_display_name
+
 logger = logging.getLogger(__name__)
 
 
@@ -210,7 +212,7 @@ def main(species_cfg):
 
     stage_configs = load_all_stages(species_cfg.species)
 
-    parser = argparse.ArgumentParser(description=f"Train {species_cfg.species.title()} with SB3 PPO")
+    parser = argparse.ArgumentParser(description=f"Train {species_display_name(species_cfg.species)} with SB3 PPO")
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # -- train ---------------------------------------------------------

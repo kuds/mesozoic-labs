@@ -75,7 +75,10 @@ The active-species tables are generated from `configs/species_manifest.toml`, th
 the executable Gymnasium environments, compiled MJCF models, and current stage TOML files. The budgets and
 gates shown are for the Stable-Baselines3 curriculum path. Do not edit the generated block by hand.
 
-### Velociraptor
+<a id="velociraptor"></a>
+<a id="raptor"></a>
+
+### Velociraptor Mongoliensis
 
 Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 
@@ -102,7 +105,10 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 
 [Hugging Face models →](https://huggingface.co/kuds/mesozoic-labs-velocipastor)
 
-### T-Rex
+<a id="trex"></a>
+<a id="t-rex"></a>
+
+### Tyrannosaurus Rex
 
 Apex Predator. **Specialty:** Head-contact attack task.
 
@@ -128,7 +134,10 @@ Apex Predator. **Specialty:** Head-contact attack task.
 
 [Full documentation →](environments/trex/README.md)
 
-### Brachiosaurus
+<a id="brachiosaurus"></a>
+<a id="brachio"></a>
+
+### Brachiosaurus Altithorax
 
 Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 
@@ -152,7 +161,10 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 
 [Full documentation →](environments/brachiosaurus/README.md)
 
-### Dibothrosuchus
+<a id="dibothrosuchus"></a>
+<a id="dibo"></a>
+
+### Dibothrosuchus Elaphros
 
 Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 
@@ -251,7 +263,7 @@ The summaries below are historical experiment records generated from the version
 `results/`. They are not evidence for the current model revision unless provenance is marked both current
 and verified. Current stage budgets may therefore differ from the steps reported here.
 
-### Velociraptor (PPO · Stable-Baselines3) — 2026-03-15
+### Velociraptor Mongoliensis (PPO · Stable-Baselines3) — 2026-03-15
 
 **Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 11:25:15. [Source summary](results/velociraptor/ppo/summary.json).
 
@@ -263,7 +275,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
-### Velociraptor (SAC · Stable-Baselines3) — 2026-03-21
+### Velociraptor Mongoliensis (SAC · Stable-Baselines3) — 2026-03-21
 
 **Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 22:59:18. [Source summary](results/velociraptor/sac/summary.json).
 
@@ -275,7 +287,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
-### T-Rex (PPO · Stable-Baselines3) — 2026-03-18
+### Tyrannosaurus Rex (PPO · Stable-Baselines3) — 2026-03-18
 
 **Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 13:02:32. [Source summary](results/trex/ppo/summary.json).
 
@@ -287,7 +299,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
 
-### Brachiosaurus (PPO · Stable-Baselines3) — 2026-07-18
+### Brachiosaurus Altithorax (PPO · Stable-Baselines3) — 2026-07-18
 
 **Provenance:** Historical model; unverified; 30 evaluation episodes; Stable-Baselines3 (version not recorded). **Run total:** 34.0214M steps; 19:46:16. [Source summary](results/brachiosaurus/ppo/summary.json).
 

@@ -1,4 +1,4 @@
-# Brachiosaurus Environment
+# Brachiosaurus Altithorax Environment
 
 Quadrupedal dinosaur-inspired locomotion and target-reaching environment using MuJoCo and Gymnasium.
 
@@ -9,7 +9,7 @@ This Brachiosaurus-inspired model has longer front legs than rear legs and a lon
 ## Generated Specifications, Curriculum, and Results
 
 The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
-results are in the generator-managed [Brachiosaurus catalog entry](../../README.md#brachiosaurus). They are derived
+results are in the generator-managed [Brachiosaurus Altithorax catalog entry](../../README.md#brachiosaurus). They are derived
 from the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
 
 ## Implementation Notes

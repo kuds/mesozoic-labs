@@ -853,6 +853,8 @@ def render_readme_species(catalog: dict[str, Any]) -> str:
         lines.extend(
             [
                 "",
+                *[f'<a id="{anchor}"></a>' for anchor in [species["id"], *species["aliases"]]],
+                "",
                 f"### {species['display_name']}",
                 "",
                 f"{species['tagline']}. **Specialty:** {species['specialty']}.",

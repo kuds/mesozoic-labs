@@ -51,7 +51,7 @@ path = "notebooks/google_drive_summary.ipynb"
 [[species]]
 id = "velociraptor"
 display_order = 1
-display_name = "Velociraptor"
+display_name = "Velociraptor Mongoliensis"
 tagline = "Swift Bipedal Predator"
 gait = "Bipedal"
 specialty = "Sickle-claw contact attacks"
@@ -103,7 +103,7 @@ verification_status = "unverified"
 [[species]]
 id = "trex"
 display_order = 2
-display_name = "T-Rex"
+display_name = "Tyrannosaurus Rex"
 tagline = "Apex Predator"
 gait = "Bipedal"
 specialty = "Head-contact attack task"
@@ -152,7 +152,7 @@ verification_status = "unverified"
 [[species]]
 id = "brachiosaurus"
 display_order = 3
-display_name = "Brachiosaurus"
+display_name = "Brachiosaurus Altithorax"
 tagline = "Gentle Giant Herbivore"
 gait = "Quadrupedal"
 specialty = "Head-to-food reaching"
@@ -189,7 +189,7 @@ repository_commit = "e179198baddbaa1b3003031b7e97472594946b34"
 [[species]]
 id = "dibothrosuchus"
 display_order = 4
-display_name = "Dibothrosuchus"
+display_name = "Dibothrosuchus Elaphros"
 tagline = "Gracile Erect-Limbed Crocodylomorph"
 gait = "Quadrupedal"
 specialty = "Snout-contact snap task"
@@ -210,3 +210,10 @@ backends = ["jax-mjx"]
 key = "snap_proximity_success"
 label = "Snout-tip proximity snap proxy"
 definition = "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
+
+# Full display labels for model-only work. These entries are not training
+# species and do not enter the executable species catalog or curriculum.
+[[model_prototypes]]
+id = "compsognathus"
+display_name = "Compsognathus Longipes"
+aliases = ["compso"]

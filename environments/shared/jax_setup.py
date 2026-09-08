@@ -36,6 +36,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from .species_names import species_display_name
+
 _logger = logging.getLogger(__name__)
 
 # Camera / display defaults not stored in MJXEnvConfig
@@ -959,7 +961,7 @@ def run_stage_evaluation(
 
 def print_species_summary(ctx: SpeciesContext) -> None:
     """Print a human-readable summary of the species context."""
-    print(f"Species:     {ctx.species}")
+    print(f"Species:     {species_display_name(ctx.species)}")
     print(f"Stage:       {ctx.stage} ({ctx.stage_name})")
     print(f"Obs dim:     {ctx.obs_dim}")
     print(f"Act dim:     {ctx.act_dim}")

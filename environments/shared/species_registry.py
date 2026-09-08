@@ -10,6 +10,7 @@ Usage:
     python -m environments.shared.train --species dibothrosuchus train --stage 1
 """
 
+from environments.shared.species_names import resolve_species_id, species_display_name, species_display_names
 from environments.shared.train_base import SpeciesConfig
 
 
@@ -82,11 +83,15 @@ SPECIES_FACTORIES = {
 
 
 def get_species_config(species: str) -> SpeciesConfig:
-    """Look up and return the SpeciesConfig for the given species name."""
-    key = species.lower().replace("_", "").replace("-", "")
-    # Try exact match first, then normalized
-    factory = SPECIES_FACTORIES.get(species.lower()) or SPECIES_FACTORIES.get(key)
+    """Look up a training config by full name, stable ID or legacy alias."""
+    key = resolve_species_id(species)
+    factory = SPECIES_FACTORIES.get(key)
     if factory is None:
-        available = sorted(set(SPECIES_FACTORIES.keys()))
-        raise ValueError(f"Unknown species '{species}'. Available: {available}")
+        available = ", ".join(species_display_names().values())
+        raise ValueError(
+            f"{species_display_name(key)} is a model-only prototype: no registered "
+            "Gymnasium environment or SB3 curriculum exists yet. "
+            f"See environments/{key}/README.md for model validation. "
+            f"Trainable species: {available}"
+        )
     return factory()

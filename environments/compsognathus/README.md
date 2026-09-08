@@ -1,4 +1,4 @@
-# Compsognathus: anatomical and Rev B robot prototypes
+# Compsognathus Longipes: anatomical and Rev B robot prototypes
 
 Two **model-only MuJoCo prototypes**, added September 7, 2026. Both have a
 floating base, articulated legs, working ground contact, joint-angle servos,
