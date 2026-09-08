@@ -1,4 +1,4 @@
-"""Concept-inspired metal/olive enclosures around the unchanged Rev B mechanism.
+"""Tapered silver/olive enclosures around the unchanged Rev B mechanism.
 
 The panels, fasteners and inspection-window details use the existing core/head
 mass allowances. They are enclosure proxies, not fabrication-ready part CAD.
@@ -9,6 +9,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 
 import numpy as np
+
+from environments.compsognathus.scripts.robot_finish import apply_leg_finish
 
 
 def text(values):
@@ -57,9 +59,10 @@ def section_mesh(asset, name, sections):
 def robot_casings(root, parameters):
     asset = root.find("asset")
     for name, rgba, specular in (
-        ("shell_alloy_mat", ".50 .53 .51 1", ".28"),
-        ("shell_olive_mat", ".34 .39 .28 1", ".12"),
+        ("shell_alloy_mat", ".58 .61 .57 1", ".23"),
+        ("shell_olive_mat", ".34 .41 .25 1", ".12"),
         ("shell_dark_mat", ".065 .08 .085 1", ".18"),
+        ("leg_cover_mat", ".12 .15 .15 1", ".12"),
         ("circuit_mat", ".12 .27 .20 1", ".08"),
         ("fastener_mat", ".28 .30 .30 1", ".35"),
         ("wire_mat", ".47 .12 .08 1", ".1"),
@@ -71,17 +74,18 @@ def robot_casings(root, parameters):
     section_mesh(
         asset,
         "core_casing_mesh",
-        [
-            (-0.060, 0.047, -0.026, 0.026, 0.009),
-            (-0.043, 0.065, -0.040, 0.040, 0.011),
-            (0.025, 0.065, -0.034, 0.038, 0.011),
-            (0.060, 0.034, -0.013, 0.014, 0.007),
-        ],
+        parameters["robot"]["torso_sections_m"],
     )
     envelope = core.find("geom[@name='core_envelope']")
     envelope.attrib.pop("size")
     envelope.attrib.update(type="mesh", mesh="core_casing_mesh", material="shell_alloy_mat")
-    geom(core, "dorsal_service_panel", "box", "shell_olive_mat", pos="-.01 0 .039", size=".028 .048 .0015")
+    # A sloping roof panel follows the casing instead of protruding as a box.
+    section_mesh(
+        asset,
+        "dorsal_service_panel_mesh",
+        [(-0.036, 0.047, 0.0432, 0.0444, 0.0003), (0.012, 0.047, 0.0399, 0.0411, 0.0003)],
+    )
+    geom(core, "dorsal_service_panel", "mesh", "shell_olive_mat", mesh="dorsal_service_panel_mesh")
     for side in (-1, 1):
         # A recessed electronics-window proxy, with protected interior details.
         geom(
@@ -89,7 +93,7 @@ def robot_casings(root, parameters):
             f"service_window_frame_{side}",
             "box",
             "shell_dark_mat",
-            pos=text([-0.008, side * 0.0654, 0]),
+            pos=text([-0.012, side * 0.0654, 0.001]),
             size=".022 .0008 .014",
         )
         geom(
@@ -97,10 +101,10 @@ def robot_casings(root, parameters):
             f"service_window_board_{side}",
             "box",
             "circuit_mat",
-            pos=text([-0.008, side * 0.0663, 0.002]),
+            pos=text([-0.012, side * 0.0663, 0.003]),
             size=".018 .0004 .009",
         )
-        for n, x in enumerate((-0.020, -0.007, 0.006)):
+        for n, x in enumerate((-0.024, -0.012, 0.000)):
             geom(
                 core,
                 f"board_chip_{side}_{n}",
@@ -114,7 +118,7 @@ def robot_casings(root, parameters):
             f"power_module_face_{side}",
             "box",
             "shell_dark_mat",
-            pos=text([-0.008, side * 0.0667, -0.008]),
+            pos=text([-0.012, side * 0.0667, -0.007]),
             size=".016 .0005 .003",
         )
         geom(
@@ -122,19 +126,11 @@ def robot_casings(root, parameters):
             f"window_wire_{side}",
             "capsule",
             "wire_mat",
-            fromto=text([-0.025, side * 0.067, 0.012, 0.008, side * 0.067, 0.012]),
+            fromto=text([-0.029, side * 0.067, 0.013, 0.004, side * 0.067, 0.013]),
             size=".00065",
         )
-        geom(
-            core,
-            f"lower_access_panel_{side}",
-            "box",
-            "shell_olive_mat",
-            pos=text([-0.016, side * 0.062, -0.025]),
-            size=".021 .001 .005",
-        )
-        for x in (-0.037, 0.020):
-            for z in (-0.020, 0.023):
+        for x in (-0.037, 0.013):
+            for z in (-0.016, 0.023):
                 geom(
                     core,
                     f"core_screw_{side}_{x}_{z}",
@@ -234,3 +230,4 @@ def robot_casings(root, parameters):
             quat=".707106781187 0 .707106781187 0",
             size=text([radius + 0.0005, 0.003]),
         )
+    apply_leg_finish(root)

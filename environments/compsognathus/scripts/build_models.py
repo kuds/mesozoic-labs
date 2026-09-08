@@ -114,7 +114,7 @@ def build_robot(parameters):
         raise ValueError("Rev B reference changed: review provenance before regenerating")
     p = parameters["robot"]
     root = ET.parse(source).getroot()
-    root.set("model", "compsognathus_robot_rev_b_dynamics_v2")
+    root.set("model", "compsognathus_robot_rev_b_dynamics_v2_style_v3")
     root.insert(
         0, ET.Comment("Generated prototype. Rev B geometry/inertias preserved. See README and references/NOTICE.md.")
     )

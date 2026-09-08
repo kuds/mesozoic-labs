@@ -50,6 +50,24 @@ def test_robot_preserves_rev_b_mechanics():
         other = model.joint(reference.joint(j).name).id
         np.testing.assert_allclose(model.jnt_range[other], reference.jnt_range[j])
         np.testing.assert_allclose(model.jnt_axis[other], reference.jnt_axis[j])
+    # A finish revision must not silently shrink/remove a bracket or cover.
+    # The source core/head/tail are aggregate envelopes, checked separately.
+    for g in range(reference.ngeom):
+        if reference.body(int(reference.geom_bodyid[g])).name in ("world", "core", "fixed_head", "passive_tail"):
+            continue
+        other = model.geom(reference.geom(g).name).id
+        for field in ("geom_type", "geom_pos", "geom_quat", "geom_size"):
+            np.testing.assert_allclose(getattr(model, field)[other], getattr(reference, field)[g], atol=1e-12)
+        if reference.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+            actual_mesh, expected_mesh = model.geom_dataid[other], reference.geom_dataid[g]
+            assert model.mesh(int(actual_mesh)).name == reference.mesh(int(expected_mesh)).name
+            for field, adr, count in (
+                ("mesh_vert", "mesh_vertadr", "mesh_vertnum"),
+                ("mesh_face", "mesh_faceadr", "mesh_facenum"),
+            ):
+                a, b = getattr(model, adr)[actual_mesh], getattr(reference, adr)[expected_mesh]
+                na, nb = getattr(model, count)[actual_mesh], getattr(reference, count)[expected_mesh]
+                np.testing.assert_array_equal(getattr(model, field)[a : a + na], getattr(reference, field)[b : b + nb])
     assert model.body_jntnum[model.body("passive_tail").id] == 0
     assert model.body_jntnum[model.body("fixed_head").id] == 0
     dimensions = geometry("robot")

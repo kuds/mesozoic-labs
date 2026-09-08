@@ -63,7 +63,7 @@ The generator verifies its SHA-256 and uses the original first
 double-support pose stored in `data/model_parameters.json`. Body transforms,
 joint signs/ranges and leg/core inertials remain unchanged. The head's
 45 g allocation uses the component COM and inertia established in v1.
-The v2 mechanical enclosures retain those aggregate mass proxies; their panel
+The v3 mechanical enclosures retain those aggregate mass proxies; their panel
 surfaces are not used to infer the mass of solid metal blocks.
 The tapered tail retains its conservative 50 g Rev B aggregate inertial
 allowance, including its attachment; this is not a uniform-density tail CAD.
@@ -112,15 +112,39 @@ The anatomical head has no eyes, teeth or lip rim. Its plain lower-jaw proxy
 blends inside the closed snout while preserving the articulated jaw and 7 g
 mass allocation.
 
-The robot's v2 body and head follow the silver/olive mechanical styling of
-the September 6 **Mesozoic Labs Biped Robot Concept.png**. A chamfered metal
-core, olive service panels, inspection-window details, dark neck coupling,
-fasteners and tapered camera housing replace the rounded animal-like shells.
-The passive tail uses a dark finish with rigid collars. The existing leg
-geometry and materials stay unchanged. This adapts the concept's enclosure
-styling to the screened proportions; it does not assert the sketch's parts
-or proportions are manufacturable. Head and tail remain fixed;
-**all twelve motors are in the legs**.
+The robot's v3 styling combines the silver/olive finish of the September 6
+**Mesozoic Labs Biped Robot Concept.png** with lessons from Microduck's visible
+mechanics and coordinated colour accents. The core casing is now **155 mm
+long, 130 mm wide and 74 mm high**, versus 120 × 130 × 80 mm in v2. Tapered
+ends and a raised belly preserve a distinct neck and reduce overlap near the
+hip mounts. Its six cross-sections are in `data/model_parameters.json`.
+
+The original large leg covers remain present, visible and collision-enabled.
+They now have a graphite finish with narrow olive/silver colour fields clipped
+to their surfaces. These are surface finishes with an 80 micrometre rendering
+offset, not removed brackets, replacement covers or additional structural
+plates. Servo housings are dark; selected mounting hardware matches the body.
+Three painted toe cues sit within each unchanged sole. No weight savings are
+credited to these appearance changes.
+
+The tapered camera housing, dark fixed neck and passive tail with rigid collars
+remain. **All twelve motors are in the legs.** The camera and IMU poses, joint
+centres, link lengths, actuator settings and inherited inertials are unchanged.
+The 505 g core allocation is a design target, not proof that a fabricated
+155 mm casing and selected electronics meet the budget. Hollow-shell CAD,
+wall thickness, fasteners, mounting and actual mass/inertia still need design.
+
+![Robot before and after the v3 surface and proportion revision](data/robot_style_comparison_v3.png)
+
+The comparison uses identical poses and camera scale. It is an actual MuJoCo
+render, not a generated illustration. To reproduce it or the local envelope
+screen, recover the previous robot XML from the v2 commit:
+
+```bash
+git show 8b9f1fb:environments/compsognathus/assets/compsognathus_robot.xml > /tmp/robot_v2.xml
+python -m environments.compsognathus.scripts.render_style_comparison --before /tmp/robot_v2.xml --output /tmp/style.png
+python -m environments.compsognathus.scripts.validate_shells --reference /tmp/robot_v2.xml --output /tmp/shell-screen.json
+```
 
 `data/sensor_layout.json` defines the mounting frames and signal contract:
 
@@ -190,10 +214,10 @@ tissue are simulation approximations, not a fossil-fitted reconstruction.
 
 ## Validation scope
 
-`data/preflight_v2.json` records current model/validator hashes, dimensions,
+`data/preflight_v3.json` records current model/validator hashes, dimensions,
 masses, contact loads, torque utilisation and explicit acceptance thresholds.
-`preflight_v0.json` and `preflight_v1.json` are historical evidence for earlier revisions.
-`data/validation_summary_v2.json` records **105 passing targeted tests**,
+`preflight_v0.json` through `preflight_v2.json` are historical evidence for earlier revisions.
+`data/validation_summary_v3.json` records **105 passing targeted tests**,
 including the existing T-Rex and raptor static-balance suites, plus all
 26 preflight trials. This is not a claim that the entire repository test
 suite or the training stack was exercised.
@@ -227,9 +251,20 @@ scenario. Torque utilisation does not establish speed or thermal headroom.
   horizontal drift below 10 mm and contact penetration below 1 mm.
   Non-foot floor contact and penetration are checked at every physics step.
 - Tests cover knee travel using the existing species' shared test helper,
-  six independent robot foot-control axes, original Rev B mechanism inertials,
+  six independent robot foot-control axes, original Rev B mechanism inertials
+  and every original leg collision mesh/transform,
   head mass/COM/inertia, true actuator disabling and restoration, per-foot
   touchdown sensing, IMU units, encoder order and 63 optical rays per camera.
+
+`data/shell_screen_v3.json` separately compares v2 and v3 at **113 local poses**
+against **80 original leg geoms**, using direct signed distances that ignore
+the core-leg contact masks. It finds no newly introduced overlap exceeding
+0.5 mm and no penetration worsened by more than 1 mm in this sample. At home,
+two existing solid-envelope overlaps with the upper hip-mount meshes reduce
+from approximately 11.5 mm to 2.7 mm. The casing is a convex solid proxy, so
+these results require interpretation against real hollow-shell and mount CAD.
+This is a discrete comparison around home, not a complete range-of-motion
+clearance proof, and it does not validate internal component packaging.
 
 There is no gait, policy training, deliberate push test, uneven terrain,
 battery-runtime result or fabrication-ready assembly. The earlier Rev B
@@ -261,3 +296,4 @@ the tail kept fixed.
 - [Bidar, Demay and Thomel (1972), Smithsonian-hosted translation](https://naturalhistory.si.edu/sites/default/files/media/translated_publications/Bidar%26amp%3B%25201972.pdf): anatomical context for longer tibiae, slender metatarsals and three functional foot digits; not used for current taxonomic or palaeoecological claims.
 - [Feetech STS3215-C018](https://www.feetechrc.com/525603.html) and [STS3250](https://www.feetechrc.com/562636.html): ratings carried forward from the September 6 Rev B research.
 - [MuJoCo 3.10 position actuators](https://mujoco.readthedocs.io/en/3.10.0/XMLreference.html#actuator-position): servo and force-limit semantics.
+- [Pollen Robotics: Meet Microduck](https://pollen-robotics.com/microduck/blog/introducing-microduck/) and [official press kit](https://pollen-robotics.com/microduck/press-kit/): character through silhouette, visible mechanics and coordinated colours. Styling inspiration only; no Microduck geometry, electronics, proportions or walking qualification is transferred to this heavier robot.

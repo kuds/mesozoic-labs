@@ -1,0 +1,68 @@
+{
+  "schema": "mesozoic.compso-validation-summary/v3",
+  "date": "2026-09-08",
+  "runtime": {
+    "python": "3.12.13",
+    "mujoco": "3.10.0",
+    "numpy": "2.3.5",
+    "scipy": "1.17.0",
+    "pytest": "9.1.1"
+  },
+  "pytest": {
+    "command": "python -m pytest environments/compsognathus/tests environments/shared/tests/test_mjcf_assets.py environments/trex/tests/test_static_balance.py environments/velociraptor/tests/test_static_balance.py -q",
+    "passed": 105,
+    "failed": 0,
+    "exit_code": 0,
+    "output": "........................................................................ [ 68%]\n.................................                                        [100%]\n"
+  },
+  "preflight": {
+    "file": "preflight_v3.json",
+    "passed": true,
+    "trial_count": 26,
+    "sha256": "91ddb6f8520cb3f92b844d89feb5c01bea699db86a18d750b4e73e578c58eb07"
+  },
+  "shell_screen": {
+    "file": "shell_screen_v3.json",
+    "sha256": "f9f808f6702319b9be77578bdc8e8b6f1d17a171a6c6b8881b295300466e0e57",
+    "pose_count": 113,
+    "pair_count_per_pose": 80,
+    "no_new_or_worsened_overlaps_in_sample": true,
+    "remaining_home_overlap_count": 2,
+    "interpretation": "Convex solid-envelope comparison ignoring masks. Two prior hip-mount overlaps shrink from about 11.5 mm to 2.7 mm. Not hollow-shell CAD or full swept clearance."
+  },
+  "changes": [
+    "155 x 130 x 74 mm tapered torso with raised belly, replacing 120 x 130 x 80 mm casing",
+    "Original visible leg covers darkened; narrow olive/silver finishes clipped to original surfaces",
+    "Three painted toe cues within the unchanged soles; coordinated servo and bracket colours",
+    "All body mass/inertials, original leg collision geometry, joint transforms, motor limits and sensor poses retained",
+    "Anatomical proxy unchanged"
+  ],
+  "other_checks": {
+    "ruff_check": "passed",
+    "ruff_format": "passed; 19 files",
+    "mypy_scoped": "passed; 17 source files; --follow-imports=silent --ignore-missing-imports",
+    "mypy_imported_dependencies": "With normal import following, six existing errors remain in five unchanged other-species/shared files: four no-any-return errors and two matplotlib cm.tab10 attribute errors. No errors reported in Compsognathus files.",
+    "generator_reproducibility": "both XMLs byte-identical after regeneration",
+    "rendering": "Actual MuJoCo before/after and species comparisons inspected; head-camera rays and rendered image verified"
+  },
+  "worst_active_trial_metrics": {
+    "biological": {
+      "tilt_deg": 0.8560120700886161,
+      "horizontal_drift_m": 0.005412249005895844,
+      "minimum_settled_support_margin_m": 0.01851400264020099,
+      "torque_cap_fraction": 0.6771611932086379
+    },
+    "robot": {
+      "tilt_deg": 0.9969956700621656,
+      "horizontal_drift_m": 0.0035394807571584312,
+      "minimum_settled_support_margin_m": 0.0348230482038283,
+      "torque_cap_fraction": 0.858641734709736
+    }
+  },
+  "limits": [
+    "1.5856 kg is an allocation using inherited inertials, not weighed hardware or mass computed from fabricated shells",
+    "Original leg covers are retained; no structural thinning or weight savings are claimed",
+    "Standing and local discrete envelope checks do not establish walking, full swept clearance or manufactured fit",
+    "Hardware sensors, motor response, battery/power and actual assembled inertia remain uncalibrated"
+  ]
+}
