@@ -23,7 +23,9 @@ def _main():
     # Parse --species before handing off to the shared main()
     if "--species" not in sys.argv:
         print("Usage: python -m environments.shared.train --species <name> <command> [options]", file=sys.stderr)
-        print("Species: velociraptor, trex, brachiosaurus, dibothrosuchus", file=sys.stderr)
+        from environments.shared.config import SPECIES_NAMES
+
+        print("Species: " + ", ".join(SPECIES_NAMES), file=sys.stderr)
         sys.exit(1)
 
     idx = sys.argv.index("--species")

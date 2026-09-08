@@ -9,7 +9,7 @@ This Tyrannosaurus-inspired model has a heavy head, vestigial forelimbs, and a t
 ## Generated Specifications, Curriculum, and Results
 
 The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
-results are in the generator-managed [T-Rex catalog entry](../../README.md#t-rex). They are derived from the species
+results are in the generator-managed [Tyrannosaurus Rex catalog entry](../../README.md#t-rex). They are derived from the species
 manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
 
 ## Implementation Notes

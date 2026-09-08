@@ -24,6 +24,7 @@ from typing import Any
 import numpy as np
 
 from .action_filter import apply_low_pass, low_pass_alpha
+from .species_names import species_display_name
 
 
 def _smooth(values: list | np.ndarray, window: int = 50) -> np.ndarray:
@@ -202,7 +203,7 @@ def plot_training_curves(
 
     title = "JAX/MJX Training Diagnostics"
     if species:
-        title = f"{species.title()} {title} (Stage {stage})"
+        title = f"{species_display_name(species)} {title} (Stage {stage})"
     plt.suptitle(title, fontsize=14, fontweight="bold")
     plt.tight_layout()
 
@@ -328,7 +329,7 @@ def plot_locomotion_diagnostics(
 
     title = "Locomotion Diagnostics"
     if species:
-        title = f"{species.title()} Stage {stage} -- {title}"
+        title = f"{species_display_name(species)} Stage {stage} -- {title}"
     plt.suptitle(title, fontsize=14, fontweight="bold")
     plt.tight_layout()
 
@@ -368,7 +369,7 @@ def plot_locomotion_diagnostics(
 
         foot_title = "Foot Contact Analysis"
         if species:
-            foot_title = f"{species.title()} -- {foot_title}"
+            foot_title = f"{species_display_name(species)} -- {foot_title}"
         plt.suptitle(foot_title, fontsize=13, fontweight="bold")
         plt.tight_layout()
 

@@ -20,6 +20,8 @@ convention, so the module stays importable without it.
 
 from __future__ import annotations
 
+import json
+import zipfile
 from pathlib import Path
 from typing import Any, Callable
 
@@ -66,6 +68,31 @@ def resolve_vecnorm_path(model_path: str, vecnorm_arg: str | None, allow_unnorma
     )
 
 
+def _checkpoint_algorithm(model_path: str) -> Any:
+    """Choose PPO or SAC from the checkpoint's JSON optimizer metadata.
+
+    Report filenames such as ``robust_best_model.zip`` do not encode the
+    algorithm. Inspect JSON before loading; trying PPO and falling back after
+    arbitrary load errors can hide a corrupt checkpoint. Custom policy classes
+    retain these algorithm attributes, so their module names are not required.
+    """
+    path = Path(model_path)
+    if not path.is_file():
+        path = Path(f"{model_path}.zip")
+    try:
+        with zipfile.ZipFile(path) as archive:
+            data = json.loads(archive.read("data"))
+    except (OSError, KeyError, ValueError, zipfile.BadZipFile) as exc:
+        raise PolicyLoadError(f"cannot read SB3 checkpoint metadata from {model_path}: {exc}") from exc
+    is_ppo = isinstance(data, dict) and "clip_range" in data and "n_epochs" in data
+    is_sac = isinstance(data, dict) and "target_entropy" in data and "replay_buffer_class" in data
+    if is_ppo == is_sac:
+        raise PolicyLoadError(f"checkpoint {model_path} does not identify exactly one supported algorithm (PPO/SAC)")
+    from stable_baselines3 import PPO, SAC
+
+    return PPO if is_ppo else SAC
+
+
 def load_sb3_checkpoint(
     model_path: str,
     vecnorm_path: str | None,
@@ -78,7 +105,8 @@ def load_sb3_checkpoint(
 ) -> tuple[Any, Any, str | None]:
     """Return ``(model, normalizer, resolved_vecnorm_path)`` for a saved SB3 checkpoint.
 
-    ``PPO.load`` on the CPU, then the statistics through ``VecNormalize.load``
+    ``PPO.load`` or ``SAC.load`` on the CPU, selected from the checkpoint's
+    recorded optimizer metadata, then the statistics through ``VecNormalize.load``
     over a throwaway ``DummyVecEnv`` built from *env_factory* -- the loader
     needs a live env to rebuild the wrapper, and hand-unpickling reconstructs
     a partial object whose ``__setstate__`` expectations drift with the SB3
@@ -95,17 +123,16 @@ def load_sb3_checkpoint(
     unnormalised run, and the caller prints :data:`UNNORMALIZED_BANNER`.
 
     With *plant_identity*, both artifacts are validated against it in the
-    order they load -- the model right after ``PPO.load``, the statistics
+    order they load -- the model right after the algorithm's ``load``, the statistics
     right after ``VecNormalize.load`` -- so a checkpoint from another plant
     is refused before anything is scored; *allow_legacy_plant* admits one
     that predates the contract.  An unreadable sidecar raises
     :class:`PolicyLoadError` naming the file; plant refusals propagate as
     ``PlantCompatibilityError``.
     """
-    from stable_baselines3 import PPO
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
-    model = PPO.load(model_path, device="cpu")
+    model = _checkpoint_algorithm(model_path).load(model_path, device="cpu")
     if plant_identity is not None:
         from environments.shared.plant_contract import validate_model_plant
 

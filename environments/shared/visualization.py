@@ -18,6 +18,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+from .species_names import species_display_name
+
 logger = logging.getLogger(__name__)
 
 # Type alias for the (stage_ref, stage_dir) tuples used throughout: a stage
@@ -96,7 +98,7 @@ def plot_training_curves(
     import numpy as np
 
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    species_title = species.title()
+    species_title = species_display_name(species)
 
     for stage_num, stage_dir in stage_dirs:
         stage_dir = Path(stage_dir)
@@ -232,7 +234,7 @@ def plot_diagnostics_graphs(
 
     from environments.shared.diagnostics import DiagnosticsCallback
 
-    species_title = species.title()
+    species_title = species_display_name(species)
     _REWARD_COMPONENTS = [k for k in DiagnosticsCallback.REWARD_KEYS if k != "reward_total"]
 
     # Mapping from diagnostic reward key → config weight parameter name(s).
@@ -556,7 +558,7 @@ def plot_foot_contacts(
     import matplotlib.pyplot as plt
     import numpy as np
 
-    species_title = species.title()
+    species_title = species_display_name(species)
 
     def _has_finite(diag, key: str) -> bool:
         # Presence is not evidence: DiagnosticsCallback saves EVERY info key
@@ -748,7 +750,7 @@ def plot_stance_diagnostics(
 
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
     fig.suptitle(
-        f"{species.title()} {algorithm} – Stance Diagnostics",
+        f"{species_display_name(species)} {algorithm} – Stance Diagnostics",
         fontsize=14,
         fontweight="bold",
     )
@@ -833,7 +835,9 @@ def plot_trial_comparison(
         return None
 
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    fig.suptitle(f"{species.title()} Stage {stage} — Top {len(analysis_rows)} Trials Comparison", fontsize=14)
+    fig.suptitle(
+        f"{species_display_name(species)} Stage {stage} — Top {len(analysis_rows)} Trials Comparison", fontsize=14
+    )
     trial_labels = [str(r.get("trial", f"T{i}"))[:12] for i, r in enumerate(analysis_rows)]
     x = range(len(analysis_rows))
 

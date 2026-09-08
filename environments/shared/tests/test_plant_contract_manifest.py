@@ -31,7 +31,9 @@ def test_committed_manifest_is_current_and_covers_all_species():
 
     assert manifest["fingerprint_tool_version"] == plant_contract.FINGERPRINT_TOOL_VERSION == 2
     assert manifest["generated_with"]["float_significant_digits"] == 12
-    assert set(manifest["plants"]) == {"velociraptor", "trex", "brachiosaurus", "dibothrosuchus"}
+    from environments.shared.config import SPECIES_NAMES
+
+    assert set(manifest["plants"]) == set(SPECIES_NAMES)
     for entry in manifest["plants"].values():
         assert entry["policy_interface"]["revision"] >= 1
         assert entry["physics"]["revision"] >= 1
@@ -40,6 +42,27 @@ def test_committed_manifest_is_current_and_covers_all_species():
 
 def test_bundled_runtime_manifest_matches_repository_manifest():
     assert BUNDLED_MANIFEST_PATH.read_bytes() == GENERATED_MANIFEST_PATH.read_bytes()
+
+
+@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+def test_sb3_only_species_do_not_claim_mjx_parity(species, monkeypatch):
+    from environments.shared.plant_contract import policy_layer
+    from environments.shared.species_registry import get_species_config
+
+    def unexpected_mjx(*args, **kwargs):
+        pytest.fail("An explicitly SB3-only model attempted an MJX interface probe")
+
+    monkeypatch.setattr(policy_layer, "_jax_policy_interface_payload", unexpected_mjx)
+    with get_species_config(species).env_class() as env:
+        payload = policy_layer._policy_interface_payload(
+            env.model,
+            env,
+            load_plant_versions()[1][species],
+            require_backend_parity=True,
+        )
+    assert payload["jax_interface"] == {"supported": False, "backend": "jax-mjx"}
+    assert payload["backend_observation_equal"] is None
+    assert payload["observation"]["shape"] == [43 if species.endswith("_robot") else 53]
 
 
 def test_runtime_identity_falls_back_to_bundled_manifest(monkeypatch, tmp_path):

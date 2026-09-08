@@ -112,7 +112,7 @@ class TestWriteTrainingSummary:
         results = [make_stage_result(1)]
         path = write_training_summary(tmp_path, results, "trex", "PPO", seed=42, n_envs=4)
         text = path.read_text()
-        assert "Trex" in text
+        assert "Tyrannosaurus Rex" in text
 
     def test_contains_algorithm(self, tmp_path):
         results = [make_stage_result(1)]

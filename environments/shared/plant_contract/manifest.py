@@ -87,6 +87,10 @@ def _manifest_entry_for_identity(
     env_class = _load_environment(str(entry["env_entrypoint"]))
     env = env_class(reset_noise_scale=0.0)
     try:
+        declared_backends = set(entry.get("training_backends", ("stable-baselines3", "jax-mjx")))
+        implemented_backends = set(getattr(env, "supported_training_backends", ("stable-baselines3", "jax-mjx")))
+        if declared_backends != implemented_backends:
+            raise PlantContractError(f"{species} manifest/environment training backends differ")
         model = env.model
         source_payload = source_layer._source_payload(model_path)
         source_digest = _semantic_digest(SOURCE_SCHEMA, source_payload)

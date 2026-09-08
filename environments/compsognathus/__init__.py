@@ -1,4 +1,4 @@
-"""Experimental Compsognathus MJCF assets; not a registered training environment."""
+"""Compsognathus anatomical/robot models and SB3 training environments."""
 
 from pathlib import Path
 

@@ -1,11 +1,11 @@
-# Velociraptor MuJoCo Project
+# Velociraptor Mongoliensis Environment
 
 A bipedal dinosaur locomotion and predatory strike environment built with MuJoCo and Gymnasium.
 
 ## Generated Specifications, Curriculum, and Results
 
 The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
-results are in the generator-managed [Velociraptor catalog entry](../../README.md#velociraptor). They are derived from
+results are in the generator-managed [Velociraptor Mongoliensis catalog entry](../../README.md#velociraptor). They are derived from
 the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
 
 ## Project Structure

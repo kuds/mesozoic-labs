@@ -307,3 +307,18 @@ physics_revision = 1
 policy_interface_revision = 6
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"
+
+# Initial training interfaces for the anatomical and Rev B robot variants.
+# Existing kinematics, masses and actuators are retained. Diagnostic frame
+# sensors use xbody (the pelvis frame), not the inertial principal axes.
+[plants.compsognathus]
+physics_revision = 1
+policy_interface_revision = 1
+visual_revision = 1
+observation_schema = "bipedal-target/v1"
+
+[plants.compsognathus_robot]
+physics_revision = 1
+policy_interface_revision = 1
+visual_revision = 1
+observation_schema = "bipedal-target/v1"

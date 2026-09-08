@@ -1,0 +1,60 @@
+{
+  "_comment": "Initial Compsognathus SB3 tuning space; budgets are pilot runs, not convergence estimates.",
+  "stage1": {
+    "trials": 4,
+    "timesteps": 100000,
+    "parallel": 1,
+    "n_envs": 2,
+    "sac_learning_rate": {
+      "type": "double",
+      "min": 5e-05,
+      "max": 0.0003,
+      "scale": "log"
+    },
+    "sac_batch_size": {
+      "type": "discrete",
+      "values": [
+        64,
+        128
+      ]
+    }
+  },
+  "stage2": {
+    "trials": 4,
+    "timesteps": 100000,
+    "parallel": 1,
+    "n_envs": 2,
+    "sac_learning_rate": {
+      "type": "double",
+      "min": 5e-05,
+      "max": 0.0003,
+      "scale": "log"
+    },
+    "sac_batch_size": {
+      "type": "discrete",
+      "values": [
+        64,
+        128
+      ]
+    }
+  },
+  "stage3": {
+    "trials": 4,
+    "timesteps": 100000,
+    "parallel": 1,
+    "n_envs": 2,
+    "sac_learning_rate": {
+      "type": "double",
+      "min": 5e-05,
+      "max": 0.0003,
+      "scale": "log"
+    },
+    "sac_batch_size": {
+      "type": "discrete",
+      "values": [
+        64,
+        128
+      ]
+    }
+  }
+}

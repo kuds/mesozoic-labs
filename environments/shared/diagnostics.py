@@ -125,6 +125,8 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_neck_posture",
         "reward_tail_home_pose",
         "reward_action_saturation",
+        "reward_home_pose",  # Compsognathus
+        "reward_target",  # Compsognathus target reaching
         "reward_total",
     ]
     INFO_KEYS = [
@@ -151,6 +153,7 @@ class DiagnosticsCallback(_BaseCallback):
         "approach_delta",
         "strike_success",
         "bite_success",
+        "target_success",
         "r_foot_contact",
         "l_foot_contact",
         "rr_foot_contact",

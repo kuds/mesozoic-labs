@@ -1,10 +1,11 @@
-# Compsognathus: anatomical and Rev B robot prototypes
+# Compsognathus Longipes: anatomical and Rev B robot models
 
-Two **model-only MuJoCo prototypes**, added September 7, 2026. Both have a
+Two MuJoCo models, added September 7, 2026, with **SB3 training integration**. Both have a
 floating base, articulated legs, working ground contact, joint-angle servos,
 an IMU, encoders, foot touch sensors and one forward-facing camera. Both hold
-a standing pose in forward dynamics. **Neither has a trained walking policy
-or a registered Mesozoic Labs training environment yet.**
+a standing pose in forward dynamics. Both now have registered Gymnasium
+environments, PPO/SAC recipes, evaluation and checkpoint contracts.
+**A converged walking policy has not yet been demonstrated.**
 
 ![MuJoCo renders of the authored home poses](data/model_preview.png)
 
@@ -55,6 +56,89 @@ python -m environments.compsognathus.scripts.view_model --model robot --video /t
 
 Headless rendering needs a working OSMesa runtime with `MUJOCO_GL=osmesa`,
 or EGL with `MUJOCO_GL=egl`. Model loading and physics tests need neither.
+
+## Training
+
+In `notebooks/sb3_training.ipynb`, choose **Compsognathus Longipes** or
+**Compsognathus Longipes (Robot)** and set `ALGORITHM` to `ppo` or `sac`.
+The notebook's normal training, checkpoint, evaluation, graph, video and
+curriculum-gate cells apply to both variants. `QUICK_TEST` reduces the budget;
+a short run may fail the advancement gate and stop, as intended.
+
+| Contract | Anatomical proxy | Robot |
+|---|---|---|
+| Stable ID / config directory | `compsognathus` | `compsognathus_robot` |
+| Gymnasium ID | `MesozoicLabs/Compsognathus-v0` | `MesozoicLabs/CompsognathusRobot-v0` |
+| Observation dimensions | 53 | 43 |
+| Action dimensions | 14 | 12 |
+| Control rate / episode horizon | 50 Hz / 1,000 steps (20 s) | 50 Hz / 1,000 steps (20 s) |
+| Initial locomotion velocity gate | 0.08 m/s | 0.04 m/s |
+
+Actions in `[-1, 1]` specify position residuals about the gravity-preloaded
+`home` controls, with piecewise scaling to each servo's existing limits.
+Zero action holds that pose. The fixed robot head and tail acquire no
+actuators. Falls, excessive tilt, and non-foot body contact with the floor
+terminate the episode; time limits remain truncations for SB3 bootstrapping.
+
+The observation contains joint positions/velocities, pelvis orientation,
+angular velocity, world linear velocity, acceleration, ideal foot forces,
+and target direction/distance. **These are privileged simulator-state MLP
+policies.** They do not consume camera images and cannot be deployed as-is
+on the robot. `env.render_head_camera()` exposes the single 640 × 480 RGB
+camera separately. Real pose/velocity estimation, noisy sensors, control
+latency, motor calibration and sim-to-real validation remain future work.
+
+Each variant has its own three-stage manifest and initial recipes:
+
+| Stage | Objective and advancement criteria | Initial budget |
+|---|---|---:|
+| 1 / `stance` | Supported upright stance; ≥90% full-horizon episodes, unsupported duty ≤10%, its upper bound ≤15%, reward rail ≥1,500 | 1M steps |
+| 2 / `locomotion` | Forward progress; average speed gate above, average length ≥900 and reward ≥500 | 3M steps |
+| 3 / `behavior` | Upright arrival within 8 cm of the goal in XY, horizontal speed ≤0.10 m/s; success rate ≥70% and reward ≥25 | 3M steps |
+
+All stages request at least 20 evaluation episodes and three consecutive
+passing checkpoint evaluations. The notebook also applies the shared
+publication gate to the selected checkpoint's evaluation evidence. These
+thresholds and 7M-step totals are **initial recipes**, not calibrated claims
+about convergence time. The target is a non-contact marker: success is
+`target_success`, distinct from the generic 0.5 m proximity diagnostic.
+The robot does not bite or move its fixed head to reach the marker.
+
+The nominal standing pose already supports zero-action balance. Measure
+that baseline before interpreting any return improvement; stance is a
+foundation, and passing it does not establish locomotion or active recovery.
+
+From the repository root:
+
+```bash
+python -m pip install -e ".[train,test,viz]"
+python -m environments.shared.train --species "Compsognathus Longipes" train --stage 1
+python -m environments.shared.train --species "Compsognathus Longipes (Robot)" curriculum --n-envs 4
+python -m environments.shared.scripts.zero_action_baseline compsognathus compsognathus_robot --episodes 20
+pytest environments/compsognathus/tests environments/shared/tests/test_compsognathus_training.py
+```
+
+The final command includes real, small CPU PPO/SAC runs through all three
+shared-trainer stages, checkpoint handoffs and the actual notebook training
+function. The tests shorten horizons and budgets while preserving the
+production gate criteria; they verify infrastructure, not learned behavior.
+The `configs/<variant>/sweep_ppo.json` and `sweep_sac.json` files provide
+conservative initial algorithm search spaces for the Ray Tune notebook.
+Distributed sweep execution is a separate optional runtime.
+
+Both variants explicitly support **SB3 only**. They are absent from the
+JAX notebook selector until MJX environments and backend parity tests exist.
+The plant contract fingerprints the actual SB3 interface and records separate
+anatomical/robot identities; a checkpoint from one variant is rejected by
+the other. Save each checkpoint with its matched VecNormalize sidecar.
+
+The training integration also corrects `diagnostic_pelvis_quat` and
+`diagnostic_pelvis_velocity` to use MuJoCo's body frame (`xbody`). The previous
+`body` quaternion reported the inertial principal axes, making the upright
+anatomical pelvis appear tilted by about 1.44 radians. Regression tests
+compare the quaternion sensor to the body axes at multiple orientations.
+This changes diagnostic sensor semantics, not the mass allocation or mechanism.
+The older `preflight_v3.json` remains historical model evidence.
 
 ## Preserved robot design
 
@@ -214,7 +298,11 @@ tissue are simulation approximations, not a fossil-fitted reconstruction.
 
 ## Validation scope
 
-`data/preflight_v3.json` records current model/validator hashes, dimensions,
+`data/preflight_training_v1.json` records current model hashes and all 26
+standing-protocol trials after the diagnostic sensor correction. See
+[training validation](TRAINING_VALIDATION.md) for the training-specific checks.
+
+`data/preflight_v3.json` records the pre-training v3 model/validator hashes, dimensions,
 masses, contact loads, torque utilisation and explicit acceptance thresholds.
 `preflight_v0.json` through `preflight_v2.json` are historical evidence for earlier revisions.
 `data/validation_summary_v3.json` records **105 passing targeted tests**,
@@ -266,7 +354,7 @@ these results require interpretation against real hollow-shell and mount CAD.
 This is a discrete comparison around home, not a complete range-of-motion
 clearance proof, and it does not validate internal component packaging.
 
-There is no gait, policy training, deliberate push test, uneven terrain,
+There is no demonstrated learned gait, deliberate push test, uneven terrain,
 battery-runtime result or fabrication-ready assembly. The earlier Rev B
 341-pose clearance/load screen remains historical prescribed-motion
 evidence; it is not a forward-dynamics walking result for this model.
@@ -276,17 +364,15 @@ evidence; it is not a forward-dynamics walking result for this model.
 The anatomical model follows the T-Rex/raptor `+X forward, +Y left, +Z up`
 convention, `pelvis` root, limb names, mocap prey, sensors and `home` keyframe.
 The robot retains upstream `left_`/`right_` joint names and mirrored signs
-for traceability. Controls are **absolute angles in actuator order**, not
-the existing environments' normalized residual actions.
+for traceability. Raw MJCF controls are **absolute angles in actuator order**;
+the Gymnasium wrappers map normalized residual actions onto those angles.
 
-Both assets are in the MJCF inventory tests and a new CI test-suite entry.
-They are intentionally absent from the species catalog, training registry,
-plant certificates and behavior recipes. Existing species interfaces stay
-unchanged. The next milestones are a loaded-servo identification test,
-separate biological/robot observation and action contracts, a Gymnasium
-wrapper with plant/reset preflight, then weight-transfer and slow-walking
-training. The robot policy must use onboard-observable quantities, with
-the tail kept fixed.
+Both variants are in the model inventory, species catalog, SB3 registry,
+plant contracts and CI suites, with separate observation/action contracts
+and three-stage recipes. Next steps are measured training of weight transfer,
+slow walking and target reaching, plus loaded-servo identification. Before
+hardware deployment, replace privileged simulation state with estimated,
+onboard-observable quantities and validate transfer with the tail kept fixed.
 
 ## Sources
 
