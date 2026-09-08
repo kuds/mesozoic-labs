@@ -21,7 +21,7 @@ from environments.shared.stance_diagnostics import derive_stance_info
 
 
 class CompsognathusEnv(BaseDinoEnv):
-    """Balance, locomotion and non-contact target reaching on the anatomical model."""
+    """Balance, push recovery, locomotion and target reaching on the anatomical model."""
 
     variant = "biological"
     supported_training_backends = ("stable-baselines3",)
@@ -60,6 +60,11 @@ class CompsognathusEnv(BaseDinoEnv):
         max_tilt_angle: float = 0.7,
         reset_noise_scale: float = 0.01,
         reset_height_noise_scale: float = 0.0,
+        perturbation_capture_velocity_multiple: float = 0.0,
+        perturbation_interval: float = 2.0,
+        perturbation_jitter: float = 0.5,
+        perturbation_duration: float = 0.20,
+        perturbation_direction: str = "uniform_horizontal",
     ):
         if render_mode not in (None, "human", "rgb_array"):
             raise ValueError(f"Unsupported render mode: {render_mode!r}")
@@ -78,6 +83,16 @@ class CompsognathusEnv(BaseDinoEnv):
             raise ValueError("reset_noise_scale must be between 0 and 0.1 radians")
         if not np.isfinite(max_tilt_angle) or not 0 < max_tilt_angle < np.pi / 2:
             raise ValueError("max_tilt_angle must be between 0 and pi/2 radians")
+        if not np.isfinite(perturbation_capture_velocity_multiple) or perturbation_capture_velocity_multiple < 0:
+            raise ValueError("perturbation_capture_velocity_multiple must be finite and nonnegative")
+        if perturbation_capture_velocity_multiple > 0:
+            for name, value in (
+                ("perturbation_interval", perturbation_interval),
+                ("perturbation_jitter", perturbation_jitter),
+                ("perturbation_duration", perturbation_duration),
+            ):
+                if not np.isfinite(value):
+                    raise ValueError(f"{name} must be finite")
         for name, bounds in (("prey_distance_range", prey_distance_range), ("prey_lateral_range", prey_lateral_range)):
             if len(bounds) != 2 or not np.all(np.isfinite(bounds)) or bounds[0] > bounds[1]:
                 raise ValueError(f"{name} must contain two ordered finite bounds")
@@ -122,6 +137,11 @@ class CompsognathusEnv(BaseDinoEnv):
             max_tilt_angle=max_tilt_angle,
             reset_noise_scale=reset_noise_scale,
             reset_height_noise_scale=reset_height_noise_scale,
+            perturbation_capture_velocity_multiple=perturbation_capture_velocity_multiple,
+            perturbation_interval=perturbation_interval,
+            perturbation_jitter=perturbation_jitter,
+            perturbation_duration=perturbation_duration,
+            perturbation_direction=perturbation_direction,
         )
         self.metadata = {**self.metadata, "render_fps": round(1 / self.dt)}
 

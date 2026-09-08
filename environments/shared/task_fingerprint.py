@@ -130,6 +130,26 @@ def _effective_env_kwargs(species: str, env_kwargs: Mapping[str, Any]) -> dict[s
         if name in NON_TASK_ENV_PARAMS:
             continue
         effective[str(name)] = value
+    # Compsognathus gained explicit push controls after its first training
+    # release. Their implicit, disabled defaults change no trajectory and
+    # must not strand existing stance/locomotion/behavior checkpoints. Keep
+    # the historical quiet-task encoding only when none of those knobs was
+    # explicitly configured. Enabled pushes and every explicit setting retain
+    # their full identity; other species' historical encodings are untouched.
+    push_keys = {
+        "perturbation_capture_velocity_multiple",
+        "perturbation_interval",
+        "perturbation_jitter",
+        "perturbation_duration",
+        "perturbation_direction",
+    }
+    if (
+        species in {"compsognathus", "compsognathus_robot"}
+        and effective.get("perturbation_capture_velocity_multiple") == 0.0
+        and not push_keys.intersection(env_kwargs)
+    ):
+        for name in push_keys:
+            effective.pop(name, None)
     return effective
 
 

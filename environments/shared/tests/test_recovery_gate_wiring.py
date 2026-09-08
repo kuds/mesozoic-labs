@@ -143,7 +143,7 @@ def _freeze_resolution(
     null_successes: Sequence[bool] = STATUE_PANEL,
 ) -> dict[str, Any]:
     resolution = build_gate_resolution(
-        task_fingerprint={"task_sha256": task_sha256},
+        task_fingerprint={"task_sha256": task_sha256, "species": "trex"},
         thresholds=FROZEN_THRESHOLDS,
         null_evidence={"zero_action": _null_evidence(null_successes)},
         panel_seed_start=PANEL_SEED_START,
@@ -225,7 +225,7 @@ class TestRollPolicyPanel:
 
         def fake_roll(env, predict, **kwargs):
             rolled.update(kwargs)
-            return "EVIDENCE"
+            return RecoveryPanelEvidence("policy", (), (), kwargs["safe_set"])
 
         monkeypatch.setattr(fz, "roll_recovery_panel", fake_roll)
         return fz, stage_dir, rolled, FakeEnv
@@ -239,7 +239,7 @@ class TestRollPolicyPanel:
         fz, stage_dir, rolled, FakeEnv = self._wire(monkeypatch, tmp_path)
         evidence = fz.roll_policy_panel(stage_dir, "policy.zip", "vecnorm.pkl")
 
-        assert evidence == "EVIDENCE"
+        assert evidence.controller_id == "policy"
         # The pairing domain is the frozen nulls' panel, not a caller choice.
         assert rolled["episodes"] == len(STATUE_PANEL)
         assert rolled["seed"] == PANEL_SEED_START

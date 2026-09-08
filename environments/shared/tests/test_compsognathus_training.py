@@ -4,6 +4,7 @@ Tiny budgets exercise gradient updates and artifact contracts; they are not
 learning-performance tests. Production curriculum thresholds remain intact.
 """
 
+import csv
 import json
 from copy import deepcopy
 from pathlib import Path
@@ -24,7 +25,10 @@ from environments.shared.plant_contract import (  # noqa: E402
 )
 from environments.shared.reporting import generate_stage_artifacts  # noqa: E402
 from environments.shared.species_registry import get_species_config  # noqa: E402
-from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE  # noqa: E402
+from environments.shared.task_fingerprint import (  # noqa: E402
+    MODEL_TASK_ATTRIBUTE,
+    MODEL_TASK_LINEAGE_ATTRIBUTE,
+)
 from environments.shared.train_base import create_vec_env, train  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -62,6 +66,10 @@ def smoke_configs(species):
     configs = deepcopy(load_all_stages(species))
     for config in configs.values():
         config["env_kwargs"].update(max_episode_steps=32)
+        if config["env_kwargs"].get("perturbation_capture_velocity_multiple", 0.0) > 0:
+            # Put real, non-overlapping pushes inside the tiny test horizon.
+            # Preserve the dimensionless impulse and production gate thresholds.
+            config["env_kwargs"].update(perturbation_interval=0.2, perturbation_jitter=0.0, perturbation_duration=0.02)
         config["ppo_kwargs"].update(n_steps=32, batch_size=32, n_epochs=1)
         config["ppo_kwargs"]["policy_kwargs"] = {"net_arch": [16, 16], "log_std_init": -2}
         config["sac_kwargs"].update(learning_starts=16, batch_size=16, buffer_size=256, train_freq=1)
@@ -186,7 +194,156 @@ def test_shared_trainer_all_stages_and_checkpoint_handoffs(species, algorithm, t
 
 @pytest.mark.parametrize("species", SPECIES)
 @pytest.mark.parametrize("algorithm", ["ppo", "sac"])
-def test_actual_notebook_training_and_stance_report(species, algorithm, tmp_path):
+def test_recovery_warm_start_updates_and_checkpoint_handoff(species, algorithm, tmp_path, ppo_updates):
+    species_config = get_species_config(species)
+    stages = smoke_configs(species)
+    stance_dir = tmp_path / "stance"
+    common = {
+        "total_timesteps": 64,
+        "n_envs": 1,
+        "seed": 42,
+        "eval_freq": 64,
+        "save_freq": 64,
+        "verbose": 0,
+        "algorithm": algorithm,
+        "use_tensorboard": False,
+        "post_eval_episodes": 2,
+    }
+    parent = train(species_config, stages, 1, log_dir=str(stance_dir), **common)
+    parent_parameters = [parameter.detach().clone() for parameter in parent.policy.parameters()]
+    parent_fingerprint = getattr(parent, MODEL_TASK_ATTRIBUTE)
+    stance_checkpoint = stance_dir / "models/stage1_final.zip"
+    recovery_dir = tmp_path / "recovery"
+    ppo_updates.clear()
+    child = train(
+        species_config,
+        stages,
+        "recovery",
+        load_path=str(stance_checkpoint),
+        task_load_mode="initialize_next_stage",
+        log_dir=str(recovery_dir),
+        **common,
+    )
+    child_fingerprint = getattr(child, MODEL_TASK_ATTRIBUTE)
+    lineage = getattr(child, MODEL_TASK_LINEAGE_ATTRIBUTE)
+    assert lineage["mode"] == "initialize_next_stage"
+    assert lineage["parent_task_sha256"] == parent_fingerprint["task_sha256"]
+    assert lineage["child_task_sha256"] == child_fingerprint["task_sha256"]
+    assert lineage["parent_task_sha256"] != lineage["child_task_sha256"]
+    assert child.num_timesteps == 64
+    assert child._n_updates > parent._n_updates
+    assert any(not torch.equal(before, after) for before, after in zip(parent_parameters, child.policy.parameters()))
+    if algorithm == "ppo":
+        assert [update["step"] for update in ppo_updates] == [32, 64]
+        curriculum = stages["recovery"]["curriculum_kwargs"]
+        assert ppo_updates[0]["clip_range"] == curriculum["warmup_clip_range"]
+        assert ppo_updates[0]["ent_coef"] == curriculum["warmup_ent_coef"]
+        assert ppo_updates[-1]["clip_range"] == stages["recovery"]["ppo_kwargs"]["clip_range"]
+    checkpoint = str(recovery_dir / "models/recovery_final.zip")
+    stats = str(recovery_dir / "models/recovery_final_vecnorm.pkl")
+    assert_checkpoint_round_trip(species, algorithm, stages, "recovery", checkpoint, stats)
+    restored = getattr(sb3, algorithm.upper()).load(checkpoint, device="cpu")
+    assert getattr(restored, MODEL_TASK_LINEAGE_ATTRIBUTE) == lineage
+    metadata = json.loads((recovery_dir / "stage_config.json").read_text())
+    assert metadata["plant_identity"]["species"] == species
+    assert metadata["reward_weights"]["perturbation_capture_velocity_multiple"] > 0
+
+
+@pytest.mark.parametrize("species", SPECIES)
+@pytest.mark.parametrize("algorithm", ["ppo", "sac"])
+def test_profile_backed_recovery_freeze_rehearsal_cannot_certify(species, algorithm, tmp_path):
+    """Roll the committed physical task and judge without weakening its gate."""
+    from environments.shared.curriculum.gate_resolver import GateResolutionError, require_gate_resolution
+    from environments.shared.harnesses.freeze_recovery_gate import (
+        freeze_recovery_gate,
+        roll_policy_panel,
+        stage_task_fingerprint,
+    )
+    from environments.shared.plant_contract import attach_plant_identity
+    from environments.shared.recovery_calibration import load_recovery_calibration
+    from environments.shared.task_fingerprint import attach_task_fingerprint
+
+    calibration = load_recovery_calibration(species)
+    identity = current_plant_identity(species)
+    env = create_vec_env(
+        get_species_config(species), load_all_stages(species), 1, 1, 42, algorithm=algorithm, plant_identity=identity
+    )
+    try:
+        env.reset()
+        kwargs = {"n_steps": 32, "batch_size": 32, "n_epochs": 1} if algorithm == "ppo" else {"buffer_size": 64}
+        model = getattr(sb3, algorithm.upper())(
+            "MlpPolicy", env, policy_kwargs={"net_arch": [16, 16]}, device="cpu", **kwargs
+        )
+        # A real SB3 checkpoint that deterministically commands the home pose:
+        # validates the source contract and quiet brace without claiming that
+        # this synthetic zero controller has learned stance or recovery.
+        with torch.no_grad():
+            for parameter in model.policy.parameters():
+                parameter.zero_()
+        attach_plant_identity(model, identity)
+        attach_task_fingerprint(model, stage_task_fingerprint(species, 1))
+        checkpoint = tmp_path / "stance.zip"
+        stats = tmp_path / "stance_vecnorm.pkl"
+        model.save(checkpoint)
+        env.save(stats)
+    finally:
+        env.close()
+    frozen = freeze_recovery_gate(
+        tmp_path, species=species, episodes=1, policy_zip=checkpoint, vecnorm=stats, algorithm=algorithm
+    )
+    assert set(frozen.null_evidence) == {"zero_action", "brace"}
+    evidence = frozen.null_evidence["zero_action"]
+    assert len(evidence.episodes) == 1
+    assert evidence.shoves
+    assert all(np.isfinite(shove.force_n) and shove.force_n > 0 for shove in evidence.shoves)
+    assert evidence.safe_set == calibration.safe_set
+    loaded = require_gate_resolution(tmp_path, current_task_sha256=frozen.task_fingerprint["task_sha256"])
+    assert loaded["evaluation_spec"] == calibration.evaluation_spec()
+    assert loaded["capability_spec"] == calibration.profile["capability_spec"]
+    assert loaded["capability_spec"]["min_eval_episodes"] == 40
+    assert loaded["null_provenance"]["brace"]["algorithm"] == algorithm
+    assert evidence.successes_by_seed() == frozen.null_evidence["brace"].successes_by_seed()
+    # The real policy-panel path refuses before checkpoint loading: this is
+    # plumbing evidence, never qualification from one lucky episode.
+    with pytest.raises(GateResolutionError, match="rehearsal freeze"):
+        roll_policy_panel(tmp_path, "unused_policy.zip", "unused_vecnorm.pkl", species=species)
+
+
+def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(tmp_path):
+    from environments.shared.curriculum.gate_resolver import GateResolutionError
+    from environments.shared.stage_manifest import stage_dirname
+
+    notebook = json.loads((ROOT / "notebooks/sb3_training.ipynb").read_text())
+    source = next(
+        "".join(cell["source"])
+        for cell in notebook["cells"]
+        if cell["cell_type"] == "code" and "RUN_RECOVERY_STAGE = False" in "".join(cell["source"])
+    ).replace("RUN_RECOVERY_STAGE = False", "RUN_RECOVERY_STAGE = True", 1)
+    directory = tmp_path / stage_dirname("compsognathus", "recovery")
+    directory.mkdir()
+    (directory / "gate_resolution.json").write_text("{}")
+
+    def forbidden_training(**kwargs):
+        pytest.fail("an existing but invalid recovery resolution must refuse before training")
+
+    namespace = {
+        "Path": Path,
+        "RUN_DIR": tmp_path,
+        "SPECIES": "compsognathus",
+        "STAGE_CONFIGS": load_all_stages("compsognathus"),
+        "QUICK_TEST": False,
+        "path_1": "unused_stance",
+        "vecnorm_1": "unused_vecnorm.pkl",
+        "ALGORITHM": "ppo",
+        "train_stage": forbidden_training,
+    }
+    with pytest.raises(GateResolutionError):
+        exec(compile(source, "sb3_recovery_invalid_resolution", "exec"), namespace)
+
+
+@pytest.mark.parametrize("species", SPECIES)
+@pytest.mark.parametrize("algorithm", ["ppo", "sac"])
+def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm, tmp_path, monkeypatch):
     notebook = json.loads((ROOT / "notebooks/sb3_training.ipynb").read_text())
 
     def cell(marker):
@@ -236,3 +393,105 @@ def test_actual_notebook_training_and_stance_report(species, algorithm, tmp_path
     report = json.loads((directory / "stance_gate_report.json").read_text())
     assert np.isfinite(report["metrics"]["mean_unsupported_duty"])
     assert results["gate_failures"]
+
+    # Execute the real opt-in cell and trainer. Replace only the expensive
+    # registered panels: below, one genuine pushed episode checks artifact
+    # persistence; the separate profile test exercises the real freeze path.
+    from environments.shared.harnesses import freeze_recovery_gate as freeze
+    from environments.shared.recovery_evaluation import roll_recovery_panel
+
+    events = []
+    trained = {}
+    panels = {}
+    original_train_stage = namespace["train_stage"]
+
+    def record_freeze(stage_dir, **kwargs):
+        assert kwargs["species"] == species
+        assert kwargs["algorithm"] == algorithm
+        assert kwargs["policy_zip"] == selected + ".zip"
+        assert kwargs["vecnorm"] == stats
+        events.append("freeze")
+
+    def record_training(**kwargs):
+        assert kwargs["load_path"] == selected
+        assert kwargs["vecnorm_path"] == stats
+        assert events == ["freeze", "validate"]
+        events.append("train")
+        trained["result"] = original_train_stage(**kwargs, eval_freq=64, save_freq=64)
+        return trained["result"]
+
+    def record_validation(stage_dir, **kwargs):
+        assert kwargs == {
+            "species": species,
+            "policy_zip": selected + ".zip",
+            "vecnorm": stats,
+            "algorithm": algorithm,
+        }
+        assert events == ["freeze"]
+        events.append("validate")
+
+    def one_episode_panel(stage_dir, policy_zip, vecnorm_pkl, **kwargs):
+        assert kwargs == {"species": species, "algorithm": algorithm}
+        assert events == ["freeze", "validate", "train"]
+        events.append("panel")
+        recovery_model, recovery_selected, _, _, recovery_stats, _ = trained["result"]
+        assert policy_zip == recovery_selected + ".zip"
+        assert vecnorm_pkl == recovery_stats
+        assert_optimizer_recipe(recovery_model, algorithm, namespace["STAGE_CONFIGS"]["recovery"])
+        # The controller loads the actual selected policy and its matching
+        # normalization sidecar, including the SAC inference path.
+        env = namespace["EnvClass"](**namespace["STAGE_CONFIGS"]["recovery"]["env_kwargs"])
+        try:
+            predict = freeze.policy_controller(
+                policy_zip, vecnorm_pkl, action_space=env.action_space, algorithm=algorithm, inference="sb3"
+            )
+            evidence = roll_recovery_panel(
+                env, predict, controller_id="policy", episodes=1, seed=3042, t_recover_steps=4, dwell_steps=2
+            )
+        finally:
+            env.close()
+        assert evidence.shoves, "the short notebook panel must actually encounter a shove"
+        panels["evidence"] = evidence
+        return evidence
+
+    def recovery_report(**kwargs):
+        assert events == ["freeze", "validate", "train", "panel"]
+        events.append("report")
+        evidence = panels["evidence"]
+        assert kwargs["recovery_successes_by_seed"] == evidence.successes_by_seed()
+        for kind, expected in (("episodes", evidence.episodes), ("shoves", evidence.shoves)):
+            with (kwargs["stage_dir"] / f"recovery_{kind}_policy.csv").open(newline="") as source:
+                rows = list(csv.DictReader(source))
+            assert len(rows) == len(expected)
+            assert {int(row["panel_seed"]) for row in rows} == {3042}
+        # No synthetic gate resolution is made for the shortened task. The
+        # real report must refuse certification from this rehearsal evidence.
+        return generate_stage_artifacts(**kwargs, record_videos=False, generate_graphs=False)
+
+    monkeypatch.setattr(freeze, "freeze_recovery_gate", record_freeze)
+    monkeypatch.setattr(freeze, "validate_recovery_resolution", record_validation)
+    monkeypatch.setattr(freeze, "roll_policy_panel", one_episode_panel)
+    namespace["STAGE_CONFIGS"]["recovery"]["curriculum_kwargs"]["timesteps"] = 64
+    namespace.update(
+        RUN_DIR=tmp_path,
+        QUICK_TEST=False,
+        SEED=42,
+        path_1=selected,
+        vecnorm_1=stats,
+        results_1=results,
+        completed_stages=[],
+        train_stage=record_training,
+        generate_stage_artifacts=recovery_report,
+        curriculum_results=lambda stance_results: [stance_results, namespace["results_r"]],
+        write_training_summary=lambda *_args: None,
+        save_run_bundle=lambda *_args, **_kwargs: [],
+    )
+    recovery_source = cell("RUN_RECOVERY_STAGE = False").replace(
+        "RUN_RECOVERY_STAGE = False", "RUN_RECOVERY_STAGE = True", 1
+    )
+    exec(compile(recovery_source, "sb3_recovery", "exec"), namespace)
+    assert events == ["freeze", "validate", "train", "panel", "report"]
+    assert not namespace["results_r"]["publication_gate_passed"]
+    assert namespace["results_r"]["gate_failures"]
+    assert namespace["completed_stages"] == [("recovery", namespace["dir_r"])]
+    assert namespace["path_1"] == selected  # Stage 2 still initializes from stance.

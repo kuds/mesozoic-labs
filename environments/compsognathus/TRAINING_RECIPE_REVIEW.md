@@ -144,17 +144,19 @@ use the original optimizer settings with the same 11M allowance and seeds.
 
 ## Recovery and qualification limits
 
-The current manifest remains stance → locomotion → target reaching. The stance
+This recipe review originally covered stance → locomotion → target reaching.
+The subsequent [recovery extension](RECOVERY_CALIBRATION.md) adds an opt-in
+push-recovery pilot with a separate physical calibration. The stance
 gate measures foot support and does not require both feet to carry load at
 every instant. It does not certify disturbance recovery or a moving gait.
 
-A future Compsognathus recovery stage needs reproducible, physically scaled
+The recovery extension implements reproducible, physically scaled
 perturbations; seeded evaluation panels; a measured zero-action/held-action
-comparison; and recovery-time, survival, and support criteria calibrated on
-each variant. It must use the shared task/provenance and gate machinery before
-being added as an advancing stage. Copying Tyrannosaurus Rex's shove forces or
-declaring a recovery stage without environment support would not supply that
-evidence. The robot's head and tail remain fixed and unpowered.
+comparison; and a physical recovery judge measured separately on each variant.
+It uses the shared task/provenance and frozen gate machinery, while learned
+policy qualification remains outstanding and recovery remains non-advancing.
+Copying Tyrannosaurus Rex's shove forces or declaring a recovery stage alone
+would not supply that evidence. The robot's head and tail remain fixed and unpowered.
 
 ## Validation of this change
 

@@ -25,6 +25,7 @@ from environments.shared.species_catalog import (
     current_gate_kinds,
     render_readme_results,
 )
+from environments.shared.stage_manifest import load_stage_manifest
 
 
 def test_catalog_derives_current_model_and_stage_facts() -> None:
@@ -246,8 +247,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "dibothrosuchus": stance_null,
     }
 
-    # Only the trex recovery stage declares recovery_quality/v1 criteria;
-    # every numbered stage exports nulls for them.
+    # Recovery stages declare recovery_quality/v1 criteria; every numbered
+    # stage exports nulls for them.
     recovery_null: dict[str, float | None] = {
         "min_recovery_success_lcb": None,
         "min_paired_success_delta_lcb": None,
@@ -264,7 +265,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
 
     for species_id, entry in species.items():
         if species_id in ("compsognathus", "compsognathus_robot"):
-            first, second, third = [stage["advancement_gate"] for stage in entry["stages"]]
+            stages_by_id = {stage["id"]: stage for stage in entry["stages"]}
+            first, second, third = (
+                stages_by_id[stage_id]["advancement_gate"] for stage_id in ("stance", "locomotion", "behavior")
+            )
             assert first["gate_kind"] == "stance_quality/v1"
             assert first["min_avg_reward"] == 1500
             assert first["min_full_horizon_fraction"] == 0.9
@@ -275,6 +279,33 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             assert third["min_success_rate"] == 0.7
             assert third["min_avg_episode_length"] is None
             assert all(gate["min_eval_episodes"] == 20 for gate in (first, second, third))
+            # The semantic recovery row is published without renumbering the
+            # advancing curriculum or turning its pilot verdict into a handoff.
+            assert [stage.id for stage in load_stage_manifest(species_id).advancing_stages] == [
+                "stance",
+                "locomotion",
+                "behavior",
+            ]
+            assert [stages_by_id[stage_id]["number"] for stage_id in ("stance", "locomotion", "behavior")] == [1, 2, 3]
+            recovery = stages_by_id["recovery"]
+            assert recovery["number"] is None
+            assert recovery["label"] == "recovery"
+            assert recovery["timesteps"] == 3_000_000
+            assert recovery["advancement_gate"] == {
+                "gate_kind": "recovery_quality/v1",
+                "pending_gate_kind": None,
+                "min_avg_reward": None,
+                "min_avg_episode_length": None,
+                "min_avg_forward_velocity": None,
+                "min_success_rate": None,
+                "min_eval_episodes": 40,
+                "required_consecutive": 3,
+                "min_recovery_success_lcb": 0.5,
+                "min_paired_success_delta_lcb": 0.1,
+                "recovery_t_recover_steps": 40,
+                "recovery_dwell_steps": 20,
+                **stance_null,
+            }
             continue
         # Gates are addressed by LEGACY number, not by list position: the
         # trex list has four rows because the recovery stage sits at

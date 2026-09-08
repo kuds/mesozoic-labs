@@ -202,6 +202,14 @@ def derive_push_parameters(
 
     Masses use the root body's kinematic subtree — never ``mj_getTotalmass``,
     which also counts scene bodies such as the prey (plan §W1).
+
+    ``xfrc_applied`` acts at the selected body's inertial centre.  A massless
+    root is a coordinate frame, whose compiler-assigned inertial position
+    need not lie on the physical trunk.  In that case only, target the
+    heaviest massive body rigidly welded to that root; never an articulated
+    limb.  ``root_body_id`` still identifies the mass/CoM subtree, while the
+    extra ``push_body_id`` records the actual force target.  Massive roots
+    retain their existing force point and manifest without alteration.
     """
     import mujoco
 
@@ -212,6 +220,12 @@ def derive_push_parameters(
     if len(free_joints) < 1:
         raise ValueError("plant has no free root joint; cannot locate the push target body")
     root_body = int(model.jnt_bodyid[free_joints[0]])
+    push_body = root_body
+    if model.body_mass[root_body] == 0.0:
+        rigid_candidates = np.flatnonzero((model.body_weldid == root_body) & (model.body_mass > 0.0))
+        if rigid_candidates.size == 0:
+            raise ValueError("massless root has no massive rigidly attached body for the push force")
+        push_body = int(rigid_candidates[np.argmax(model.body_mass[rigid_candidates])])
 
     data = mujoco.MjData(model)
     if model.nkey > 0:
@@ -245,7 +259,7 @@ def derive_push_parameters(
     delta_v = capture_velocity_multiple * capture_velocity
     impulse = subtree_mass * delta_v
     force = impulse / duration_s
-    return {
+    params = {
         "root_body_id": float(root_body),
         "subtree_mass_kg": subtree_mass,
         "com_height_m": com_height,
@@ -257,3 +271,6 @@ def derive_push_parameters(
         "force_n": force,
         "duration_s": float(duration_s),
     }
+    if push_body != root_body:
+        params["push_body_id"] = float(push_body)
+    return params
