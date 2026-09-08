@@ -1,0 +1,180 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="compsognathus_biological_v0">
+  <!--Generated anatomy-inspired proxy, not a fossil-fitted musculoskeletal reconstruction.-->
+  <compiler angle="radian" autolimits="true" />
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" iterations="100" cone="elliptic" />
+  <default>
+    <joint damping="0.01" armature="0.00005" limited="true" />
+    <geom contype="1" conaffinity="3" friction="0.8 0.005 0.0001" condim="3" solref="0.008 1" solimp="0.95 0.99 0.001" rgba=".34 .53 .35 1" />
+  </default>
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".12 .18 .23" rgb2=".25 .34 .40" width="128" height="128" />
+    <texture name="ground_grid" type="2d" builtin="checker" rgb1="0.15 0.19 0.23" rgb2="0.19 0.23 0.27" width="256" height="256" />
+    <material name="ground_mat" texture="ground_grid" texrepeat="10 10" texuniform="true" />
+  </asset>
+  <worldbody>
+    <geom name="floor" type="plane" size="3 3 0.05" contype="2" conaffinity="1" friction="0.8 0.005 0.0001" material="ground_mat" rgba="1 1 1 1" condim="3" />
+    <light name="key_light" pos="0.5 -0.8 1.5" dir="-0.3 0.4 -1" directional="true" />
+    <light name="fill_light" pos="-1 0.5 1" dir="0.5 -0.3 -1" diffuse="0.4 0.4 0.4" />
+    <body name="prey" mocap="true" pos="1.2 0 0.04">
+      <geom name="prey_geom" type="sphere" size="0.035" mass="0.001" contype="0" conaffinity="0" rgba="0.92 0.35 0.19 1" />
+    </body>
+    <body name="pelvis" pos="0 0 0.244391440454">
+      <freejoint name="root" />
+      <geom name="torso" type="ellipsoid" pos=".025 0 .025" size=".11 .038 .044" mass="0.37" />
+      <body name="neck" pos=".105 0 .05">
+        <joint name="neck_pitch" axis="0 1 0" range="-0.55 0.55" />
+        <geom name="neck_geom" type="capsule" fromto="0 0 0 .10 0 .065" size=".014" mass=".04" />
+        <body name="skull" pos=".13 0 .065">
+          <geom name="skull_geom" type="ellipsoid" pos=".02 0 0" size=".058 .019 .022" mass=".045" />
+          <body name="jaw" pos="-.015 0 -.012">
+            <joint name="jaw_pitch" axis="0 1 0" range="-0.04 0.6" />
+            <geom name="jaw_geom" type="capsule" fromto="0 0 0 .079 0 0" size=".005" mass=".007" rgba=".46 .61 .41 1" />
+          </body>
+          <geom name="eye_-1" type="sphere" pos="0 -0.018 0.011" size=".005" mass="0" contype="0" conaffinity="0" rgba=".035 .045 .025 1" />
+          <geom name="eye_1" type="sphere" pos="0 0.018 0.011" size=".005" mass="0" contype="0" conaffinity="0" rgba=".035 .045 .025 1" />
+          <site name="head_tip" pos="0.035 0 0" size="0.003" group="4" />
+          <camera name="head_camera" pos="0.032 0 0.008" xyaxes="0 -1 0 0 0 1" fovy="70" />
+        </body>
+      </body>
+      <body name="r_arm" pos="0.08 -0.035 0.005">
+        <geom name="arm_geom_-1" type="capsule" fromto="0 0 0 0.025 -0.014 -0.038" size=".007" mass=".008" />
+        <geom name="hand_visual_-1" type="capsule" fromto="0.025 -0.014 -0.038 0.05 -0.014 -0.024" size=".003" mass="0" contype="0" conaffinity="0" />
+      </body>
+      <body name="l_arm" pos="0.08 0.035 0.005">
+        <geom name="arm_geom_1" type="capsule" fromto="0 0 0 0.025 0.014 -0.038" size=".007" mass=".008" />
+        <geom name="hand_visual_1" type="capsule" fromto="0.025 0.014 -0.038 0.05 0.014 -0.024" size=".003" mass="0" contype="0" conaffinity="0" />
+      </body>
+      <body name="tail_1" pos="-.085 0 .026">
+        <joint name="tail_1_pitch" axis="0 1 0" range="-0.35 0.35" />
+        <joint name="tail_1_yaw" axis="0 0 1" range="-0.45 0.45" />
+        <geom name="tail_1_geom" type="capsule" fromto="0 0 0 -0.15 0 0" size="0.018" mass="0.08" />
+        <body name="tail_2" pos="-0.15 0 0">
+          <joint name="tail_2_pitch" axis="0 1 0" range="-.2 .2" stiffness="1.5" damping=".08" />
+          <geom name="tail_2_geom" type="capsule" fromto="0 0 0 -0.13 0 0" size="0.013" mass="0.055" />
+          <body name="tail_3" pos="-0.13 0 0">
+            <joint name="tail_3_pitch" axis="0 1 0" range="-.2 .2" stiffness="1.5" damping=".08" />
+            <geom name="tail_3_geom" type="capsule" fromto="0 0 0 -0.1 0 0" size="0.009" mass="0.028" />
+            <body name="tail_4" pos="-0.1 0 0">
+              <joint name="tail_4_pitch" axis="0 1 0" range="-.2 .2" stiffness="1.5" damping=".08" />
+              <geom name="tail_4_geom" type="capsule" fromto="0 0 0 -0.08 0 0" size="0.004" mass="0.015" />
+              <site name="tail_tip" pos="-0.08 0 0" size=".003" group="4" />
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="r_thigh" pos="-0.025 -0.047 0">
+        <joint name="r_hip_pitch" axis="0 1 0" range="-0.6 0.7" />
+        <joint name="r_hip_roll" axis="1 0 0" range="-0.35 0.35" />
+        <geom name="r_thigh_geom" type="capsule" fromto="0 0 0 0.04 0 -0.0861684396981" size=".022" mass=".078" />
+        <body name="r_tibia" pos="0.04 0 -0.0861684396981">
+          <joint name="r_knee" axis="0 1 0" range="-0.5 1" />
+          <geom name="r_tibia_geom" type="capsule" fromto="0 0 0 -0.068 0 -0.0914986338696" size=".012" mass=".056" />
+          <body name="r_metatarsus" pos="-0.068 0 -0.0914986338696">
+            <joint name="r_ankle" axis="0 1 0" range="-0.65 0.65" />
+            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0 0.023 0 -0.0597243668866" size=".006" mass=".018" />
+            <body name="r_foot" pos="0.023 0 -0.0597243668866">
+              <joint name="r_toe" axis="0 1 0" range="-0.4 0.5" />
+              <geom name="r_plantar_pad" type="box" pos=".017 0 -.002" size=".028 .016 .005" mass=".008" rgba=".35 .31 .22 1" />
+              <geom name="r_toe_d2_geom" type="capsule" fromto="0 0 -0.002 0.049 -0.017 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
+              <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 -0.002 0.062 0 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
+              <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 -0.002 0.045 0.017 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
+              <site name="r_sole" pos=".017 0 -.007" size=".002" group="4" />
+              <site name="r_foot_touch_volume" type="box" pos=".027 0 -.002" size=".045 .03 .007" group="4" />
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="l_thigh" pos="-0.025 0.047 0">
+        <joint name="l_hip_pitch" axis="0 1 0" range="-0.6 0.7" />
+        <joint name="l_hip_roll" axis="1 0 0" range="-0.35 0.35" />
+        <geom name="l_thigh_geom" type="capsule" fromto="0 0 0 0.04 0 -0.0861684396981" size=".022" mass=".078" />
+        <body name="l_tibia" pos="0.04 0 -0.0861684396981">
+          <joint name="l_knee" axis="0 1 0" range="-0.5 1" />
+          <geom name="l_tibia_geom" type="capsule" fromto="0 0 0 -0.068 0 -0.0914986338696" size=".012" mass=".056" />
+          <body name="l_metatarsus" pos="-0.068 0 -0.0914986338696">
+            <joint name="l_ankle" axis="0 1 0" range="-0.65 0.65" />
+            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0 0.023 0 -0.0597243668866" size=".006" mass=".018" />
+            <body name="l_foot" pos="0.023 0 -0.0597243668866">
+              <joint name="l_toe" axis="0 1 0" range="-0.4 0.5" />
+              <geom name="l_plantar_pad" type="box" pos=".017 0 -.002" size=".028 .016 .005" mass=".008" rgba=".35 .31 .22 1" />
+              <geom name="l_toe_d2_geom" type="capsule" fromto="0 0 -0.002 0.049 -0.017 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
+              <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 -0.002 0.062 0 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
+              <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 -0.002 0.045 0.017 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
+              <site name="l_sole" pos=".017 0 -.007" size=".002" group="4" />
+              <site name="l_foot_touch_volume" type="box" pos=".027 0 -.002" size=".045 .03 .007" group="4" />
+            </body>
+          </body>
+        </body>
+      </body>
+      <site name="imu" pos="0 0 0.025" size="0.003" group="4" />
+    </body>
+  </worldbody>
+  <visual>
+    <global offwidth="1440" offheight="1000" />
+    <quality shadowsize="2048" />
+    <headlight diffuse="0.65 0.65 0.65" ambient="0.35 0.35 0.35" />
+  </visual>
+  <statistic center="0 0 0.2" extent="0.9" />
+  <actuator>
+    <position name="neck_pitch_act" joint="neck_pitch" kp="8" kv="0.12" ctrlrange="-0.55 0.55" forcerange="-0.4 0.4" />
+    <position name="jaw_pitch_act" joint="jaw_pitch" kp="0.3" kv="0.01" ctrlrange="-0.04 0.6" forcerange="-0.04 0.04" />
+    <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="10" kv="0.16" ctrlrange="-0.35 0.35" forcerange="-0.7 0.7" />
+    <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="8" kv="0.12" ctrlrange="-0.45 0.45" forcerange="-0.5 0.5" />
+    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="20" kv="0.3" ctrlrange="-0.6 0.7" forcerange="-1 1" />
+    <position name="r_hip_roll_act" joint="r_hip_roll" kp="20" kv="0.3" ctrlrange="-0.35 0.35" forcerange="-1 1" />
+    <position name="r_knee_act" joint="r_knee" kp="20" kv="0.3" ctrlrange="-0.5 1" forcerange="-1 1" />
+    <position name="r_ankle_act" joint="r_ankle" kp="16" kv="0.22" ctrlrange="-0.65 0.65" forcerange="-0.8 0.8" />
+    <position name="r_toe_act" joint="r_toe" kp="12" kv="0.18" ctrlrange="-0.4 0.5" forcerange="-0.6 0.6" />
+    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="20" kv="0.3" ctrlrange="-0.6 0.7" forcerange="-1 1" />
+    <position name="l_hip_roll_act" joint="l_hip_roll" kp="20" kv="0.3" ctrlrange="-0.35 0.35" forcerange="-1 1" />
+    <position name="l_knee_act" joint="l_knee" kp="20" kv="0.3" ctrlrange="-0.5 1" forcerange="-1 1" />
+    <position name="l_ankle_act" joint="l_ankle" kp="16" kv="0.22" ctrlrange="-0.65 0.65" forcerange="-0.8 0.8" />
+    <position name="l_toe_act" joint="l_toe" kp="12" kv="0.18" ctrlrange="-0.4 0.5" forcerange="-0.6 0.6" />
+  </actuator>
+  <sensor>
+    <gyro name="pelvis_gyro" site="imu" />
+    <accelerometer name="pelvis_accel" site="imu" />
+    <framequat name="pelvis_quat" objtype="body" objname="pelvis" />
+    <touch name="r_foot_touch" site="r_foot_touch_volume" />
+    <touch name="l_foot_touch" site="l_foot_touch_volume" />
+    <framelinvel name="pelvis_velocity" objtype="body" objname="pelvis" />
+    <jointpos name="neck_pitch_position" joint="neck_pitch" />
+    <jointvel name="neck_pitch_velocity" joint="neck_pitch" />
+    <jointpos name="jaw_pitch_position" joint="jaw_pitch" />
+    <jointvel name="jaw_pitch_velocity" joint="jaw_pitch" />
+    <jointpos name="tail_1_pitch_position" joint="tail_1_pitch" />
+    <jointvel name="tail_1_pitch_velocity" joint="tail_1_pitch" />
+    <jointpos name="tail_1_yaw_position" joint="tail_1_yaw" />
+    <jointvel name="tail_1_yaw_velocity" joint="tail_1_yaw" />
+    <jointpos name="tail_2_pitch_position" joint="tail_2_pitch" />
+    <jointvel name="tail_2_pitch_velocity" joint="tail_2_pitch" />
+    <jointpos name="tail_3_pitch_position" joint="tail_3_pitch" />
+    <jointvel name="tail_3_pitch_velocity" joint="tail_3_pitch" />
+    <jointpos name="tail_4_pitch_position" joint="tail_4_pitch" />
+    <jointvel name="tail_4_pitch_velocity" joint="tail_4_pitch" />
+    <jointpos name="r_hip_pitch_position" joint="r_hip_pitch" />
+    <jointvel name="r_hip_pitch_velocity" joint="r_hip_pitch" />
+    <jointpos name="r_hip_roll_position" joint="r_hip_roll" />
+    <jointvel name="r_hip_roll_velocity" joint="r_hip_roll" />
+    <jointpos name="r_knee_position" joint="r_knee" />
+    <jointvel name="r_knee_velocity" joint="r_knee" />
+    <jointpos name="r_ankle_position" joint="r_ankle" />
+    <jointvel name="r_ankle_velocity" joint="r_ankle" />
+    <jointpos name="r_toe_position" joint="r_toe" />
+    <jointvel name="r_toe_velocity" joint="r_toe" />
+    <jointpos name="l_hip_pitch_position" joint="l_hip_pitch" />
+    <jointvel name="l_hip_pitch_velocity" joint="l_hip_pitch" />
+    <jointpos name="l_hip_roll_position" joint="l_hip_roll" />
+    <jointvel name="l_hip_roll_velocity" joint="l_hip_roll" />
+    <jointpos name="l_knee_position" joint="l_knee" />
+    <jointvel name="l_knee_velocity" joint="l_knee" />
+    <jointpos name="l_ankle_position" joint="l_ankle" />
+    <jointvel name="l_ankle_velocity" joint="l_ankle" />
+    <jointpos name="l_toe_position" joint="l_toe" />
+    <jointvel name="l_toe_velocity" joint="l_toe" />
+  </sensor>
+  <keyframe>
+    <key name="home" qpos="0 0 0.244391440454 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" ctrl="0 0 0 0 0 0 0 0 0 0 0 0 0 0" />
+  </keyframe>
+</mujoco>

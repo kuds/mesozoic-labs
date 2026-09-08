@@ -171,7 +171,7 @@ jobs:
           assert load_stage_config("velociraptor", 1)["name"]
           PY
 
-  # One matrix over the five per-directory suites: the previous five jobs
+  # One matrix over per-directory suites, including the Compsognathus model prototypes: the previous five jobs
   # were byte-identical 37-line blocks differing only in the pytest path and
   # coverage-file suffix (gap review ST1). NOTE for branch protection: the
   # check names change from "test-shared (3.11)" to "test (shared, 3.11)" —
@@ -183,7 +183,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-        suite: [shared, velociraptor, brachiosaurus, trex, dibothrosuchus]
+        suite: [shared, velociraptor, brachiosaurus, trex, dibothrosuchus, compsognathus]
     steps:
       - uses: actions/checkout@v4
 

@@ -1,0 +1,250 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="compsognathus_robot_rev_b_dynamics_v0">
+  <!--Generated prototype. Rev B geometry/inertias preserved. See README and references/NOTICE.md.-->
+  <compiler angle="radian" meshdir="meshes" inertiafromgeom="false" autolimits="true" />
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" iterations="100" cone="elliptic" />
+  <default>
+    <joint damping="0.005" armature="0.0001" frictionloss="0" />
+    <geom contype="0" conaffinity="0" rgba=".35 .52 .58 1" friction="0.8 0.005 0.0001" condim="3" solref="0.008 1" solimp="0.95 0.99 0.001" />
+  </default>
+  <asset>
+    <mesh name="roll_motor_bottom" file="roll_motor_bottom.stl" />
+    <mesh name="roll_motor_top" file="roll_motor_top.stl" />
+    <mesh name="wj-wk00-0123middlecase_56" file="wj-wk00-0123middlecase_56.stl" />
+    <mesh name="drive_palonier" file="drive_palonier.stl" />
+    <mesh name="wj-wk00-0124bottomcase_45" file="wj-wk00-0124bottomcase_45.stl" />
+    <mesh name="wj-wk00-0122topcabinetcase_95" file="wj-wk00-0122topcabinetcase_95.stl" />
+    <mesh name="passive_palonier" file="passive_palonier.stl" />
+    <mesh name="left_roll_to_pitch" file="left_roll_to_pitch.stl" />
+    <mesh name="left_cache" file="left_cache.stl" />
+    <mesh name="leg_spacer" file="leg_spacer.stl" />
+    <mesh name="left_knee_to_ankle_right_sheet" file="left_knee_to_ankle_right_sheet.stl" />
+    <mesh name="left_knee_to_ankle_left_sheet" file="left_knee_to_ankle_left_sheet.stl" />
+    <mesh name="right_roll_to_pitch" file="right_roll_to_pitch.stl" />
+    <mesh name="right_cache" file="right_cache.stl" />
+    <texture type="skybox" builtin="gradient" rgb1=".12 .18 .23" rgb2=".25 .34 .40" width="128" height="128" />
+    <texture name="ground_grid" type="2d" builtin="checker" rgb1="0.15 0.19 0.23" rgb2="0.19 0.23 0.27" width="256" height="256" />
+    <material name="ground_mat" texture="ground_grid" texrepeat="10 10" texuniform="true" />
+  </asset>
+  <worldbody>
+    <geom name="floor" type="plane" size="3 3 0.05" rgba="1 1 1 1" contype="2" conaffinity="1" friction="0.8 0.005 0.0001" material="ground_mat" condim="3" />
+    <body name="pelvis" pos="0 0 .22">
+      <freejoint name="root" />
+      <body name="core" pos="-0.002 0 0.07">
+        <inertial pos="0 0 0" mass="0.505" diaginertia="0.000980541666667 0.000875333333333 0.00131720833333" />
+        <geom name="core_envelope" type="box" size="0.06 0.065 0.04" rgba=".82 .57 .18 1" contype="1" conaffinity="2" />
+        <geom name="neck_mount_visual" type="capsule" fromto=".05 0 .015 .082 0 .04" size=".006" contype="0" conaffinity="0" rgba=".2 .28 .32 1" />
+        <geom name="tail_mount_visual" type="capsule" fromto="-.055 0 .005 -.075 0 .01" size=".005" contype="0" conaffinity="0" rgba=".2 .28 .32 1" />
+      </body>
+      <body name="fixed_head" pos="0.115 0 0.11">
+        <inertial pos="0 0 0" mass="0.045" diaginertia="1.6635e-05 2.775e-05 2.5635e-05" />
+        <geom name="fixed_head_envelope" type="box" size="0.035 0.022 0.025" rgba=".91 .72 .32 1" contype="17" conaffinity="14" />
+        <geom name="camera_lens_visual" type="sphere" pos=".030 0 .008" size=".005" contype="0" conaffinity="0" rgba=".05 .08 .1 1" />
+        <site name="head_tip" pos="0.035 0 0" size="0.003" group="4" />
+        <camera name="head_camera" pos="0.032 0 0.008" xyaxes="0 -1 0 0 0 1" fovy="70" />
+      </body>
+      <body name="passive_tail" pos="-0.195 0 0.08">
+        <inertial pos="0 0 0" mass="0.05" diaginertia="1.2e-06 0.0002406 0.0002406" />
+        <geom name="passive_tail_envelope" type="box" size="0.12 0.006 0.006" rgba=".29 .45 .50 1" contype="17" conaffinity="14" />
+        <site name="tail_tip" pos="-.12 0 0" size="0.003" group="4" />
+      </body>
+      <body name="hip_roll_assembly" pos="0.01606 0.035 0.046015" quat="1 -1.03785088385e-16 -1.09912079438e-14 -3.80798623686e-27">
+        <joint name="left_hip_yaw" type="hinge" axis="0 0 1" range="-0.52359877559829881566 0.52359877559829881566" />
+        <inertial pos="0.00079508052674466121908 -5.4654095770169530693e-06 -0.033060020136905461652" mass="0.08598000000000006" fullinertia="3.16101932183e-05 3.64481764516e-05 1.84539794198e-05 3.04781701333e-09 -4.92831308797e-07 -9.70037084471e-09" />
+        <geom name="hip_roll_assembly_mesh_0" type="mesh" mesh="roll_motor_bottom" pos="-3.3306690738754696213e-16 -0.034999999999999101274 0.019049999999999983613" quat="1 -4.38499196435e-16 3.54571054623e-16 -3.34801630864e-16" contype="5" conaffinity="26" />
+        <geom name="hip_roll_assembly_mesh_1" type="mesh" mesh="roll_motor_top" pos="0 -0.034999999999999989453 0.019050000000000011369" quat="1 -1.60698434058e-33 -7.1490519536e-31 1.6252998379e-43" contype="5" conaffinity="26" />
+        <geom name="hip_roll_assembly_mesh_2" type="mesh" mesh="wj-wk00-0123middlecase_56" pos="0.0096000000000019836827 7.3691053259494765371e-15 -0.020515000000001309965" quat="-0.5 0.5 0.5 0.5" contype="5" conaffinity="26" />
+        <geom name="hip_roll_assembly_mesh_3" type="mesh" mesh="drive_palonier" pos="0.0096000000000019836827 7.3691053259494765371e-15 -0.020515000000001309965" quat="-0.5 0.5 0.5 0.5" contype="5" conaffinity="26" />
+        <geom name="hip_roll_assembly_mesh_4" type="mesh" mesh="wj-wk00-0124bottomcase_45" pos="0.0096000000000019836827 7.3691053259494765371e-15 -0.020515000000001309965" quat="-0.5 0.5 0.5 0.5" contype="5" conaffinity="26" />
+        <geom name="hip_roll_assembly_mesh_5" type="mesh" mesh="wj-wk00-0122topcabinetcase_95" pos="0.0096000000000019836827 7.3691053259494765371e-15 -0.020515000000001309965" quat="-0.5 0.5 0.5 0.5" contype="5" conaffinity="26" />
+        <geom name="hip_roll_assembly_mesh_6" type="mesh" mesh="passive_palonier" pos="0.012500000000002495226 5.9882654390719380899e-15 -0.02051500000000196916" quat="-0.5 0.5 0.5 0.5" contype="5" conaffinity="26" />
+        <body name="left_roll_to_pitch_assembly" pos="0.01905 2.04697370165e-15 -0.046015" quat="-0.5 0.5 0.5 -0.5">
+          <joint name="left_hip_roll" type="hinge" axis="0 0 1" range="-0.43633231299858238339 0.43633231299858238339" />
+          <inertial pos="0.050804245437506757865 -0.00041104958524988720932 0.020470437421083776536" mass="0.07516000000000006" fullinertia="2.52335222403e-05 4.13854855773e-05 2.81269936832e-05 1.22133461456e-07 -5.90498895154e-07 -1.07544289722e-07" />
+          <geom name="left_roll_to_pitch_assembly_mesh_0" type="mesh" mesh="left_roll_to_pitch" pos="-0.03500000000000001027 -0.06500000000000000222 0.019050000000000021777" quat="0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+          <geom name="left_roll_to_pitch_assembly_mesh_1" type="mesh" mesh="wj-wk00-0123middlecase_56" pos="0.064699999999999840972 -1.4826464708739273135e-17 0.0096099999999999796696" quat="0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+          <geom name="left_roll_to_pitch_assembly_mesh_2" type="mesh" mesh="drive_palonier" pos="0.064699999999999840972 -1.4826464708739273135e-17 0.0096099999999999796696" quat="0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+          <geom name="left_roll_to_pitch_assembly_mesh_3" type="mesh" mesh="wj-wk00-0124bottomcase_45" pos="0.064699999999999840972 -1.4826464708739273135e-17 0.0096099999999999796696" quat="0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+          <geom name="left_roll_to_pitch_assembly_mesh_4" type="mesh" mesh="wj-wk00-0122topcabinetcase_95" pos="0.064699999999999840972 -1.4826464708739273135e-17 0.0096099999999999796696" quat="0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+          <geom name="left_roll_to_pitch_assembly_mesh_5" type="mesh" mesh="passive_palonier" pos="0.067600000000001769784 3.657284978336727832e-16 0.0096099999999997767069" quat="0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+          <body name="knee_and_ankle_assembly" pos="0.07415 1.39591029708e-18 0.03511" quat="4.32978028118e-17 0.707106781187 4.32978028118e-17 -0.707106781187">
+            <joint name="left_hip_pitch" type="hinge" axis="0 0 1" range="-1.2217304763960306069 0.52359877559829881566" />
+            <inertial pos="0.0025336932086845848598 -0.039063625582320897489 0.010277553221843004072" mass="0.12407000000000001" fullinertia="0.000211406430708 7.83759465786e-05 0.000225619341956 -2.68705710868e-05 3.81906266058e-06 2.08009390133e-05" />
+            <geom name="knee_and_ankle_assembly_mesh_0" type="mesh" mesh="left_cache" pos="0.016059999999998214593 0.065000000000001986744 0.10914999999999977498" quat="0.707106781187 -0.707106781187 8.5539776524e-30 8.5539776524e-30" contype="5" conaffinity="26" />
+            <geom name="knee_and_ankle_assembly_mesh_1" type="mesh" mesh="leg_spacer" pos="0.016059999999999997888 0.1436499999999999444 0.10924999999999998601" quat="0.707106781187 -0.707106781187 -5.88784671988e-17 5.88784672025e-17" contype="5" conaffinity="26" />
+            <geom name="knee_and_ankle_assembly_mesh_2" type="mesh" mesh="left_knee_to_ankle_right_sheet" pos="0.016060000000000018705 0.14364999999999997216 0.10914999999999995539" quat="-0.707106781187 0.707106781187 1.96261557336e-17 -1.96261557335e-17" contype="5" conaffinity="26" />
+            <geom name="knee_and_ankle_assembly_mesh_3" type="mesh" mesh="left_knee_to_ankle_left_sheet" pos="0.016060000000000001358 0.14365000000000002767 0.10914999999999992764" quat="-0.707106781187 0.707106781187 -8.55397765237e-30 -8.55397765237e-30" contype="5" conaffinity="26" />
+            <geom name="knee_and_ankle_assembly_mesh_4" type="mesh" mesh="wj-wk00-0123middlecase_56" pos="4.4408920985006261617e-16 -0.053150000000001439149 0.009549999999999739253" quat="-0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+            <geom name="knee_and_ankle_assembly_mesh_5" type="mesh" mesh="drive_palonier" pos="4.4408920985006261617e-16 -0.053150000000001439149 0.009549999999999739253" quat="-0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+            <geom name="knee_and_ankle_assembly_mesh_6" type="mesh" mesh="wj-wk00-0124bottomcase_45" pos="4.4408920985006261617e-16 -0.053150000000001439149 0.009549999999999739253" quat="-0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+            <geom name="knee_and_ankle_assembly_mesh_7" type="mesh" mesh="wj-wk00-0122topcabinetcase_95" pos="4.4408920985006261617e-16 -0.053150000000001439149 0.009549999999999739253" quat="-0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+            <geom name="knee_and_ankle_assembly_mesh_8" type="mesh" mesh="passive_palonier" pos="7.3552275381416620803e-16 -0.05315000000000136976 0.0066499999999972136955" quat="-0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+            <body name="knee_and_ankle_assembly_2" pos="1.38777878078e-17 -0.07865 0.0001" quat="1 -1.32068783909e-16 -1.36699063889e-26 -1.80536791294e-42">
+              <joint name="left_knee" type="hinge" axis="0 0 1" range="-1.570796326794896558 1.570796326794896558" />
+              <inertial pos="5.0185935256645920267e-06 -0.057746501775911777965 0.018113576234400546872" mass="0.07259000000000006" fullinertia="4.99574704884e-05 1.87273120472e-05 4.23932040182e-05 1.03816599048e-08 2.25175427819e-09 8.81049463024e-08" />
+              <geom name="knee_and_ankle_assembly_2_mesh_0" type="mesh" mesh="leg_spacer" pos="0.016059999999998287451 0.14365000000000685554 0.10924999999999794598" quat="-0.707106781187 0.707106781187 -7.78299738232e-16 -7.78299738234e-16" contype="5" conaffinity="26" />
+              <geom name="knee_and_ankle_assembly_2_mesh_1" type="mesh" mesh="left_knee_to_ankle_right_sheet" pos="0.016060000000000060338 0.14365000000000138769 0.10914999999999996927" quat="-0.707106781187 0.707106781187 -7.74065930701e-28 -5.11456021394e-29" contype="5" conaffinity="26" />
+              <geom name="knee_and_ankle_assembly_2_mesh_2" type="mesh" mesh="left_knee_to_ankle_left_sheet" pos="0.016060000000000004827 0.14364999999999999991 0.10914999999999994151" quat="-0.707106781187 0.707106781187 -2.0584193359e-30 -2.0584193359e-30" contype="5" conaffinity="26" />
+              <geom name="knee_and_ankle_assembly_2_mesh_3" type="mesh" mesh="wj-wk00-0123middlecase_56" pos="-2.7755575615628913511e-17 -0.053150000000000072187 0.0095499999999999751754" quat="-0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+              <geom name="knee_and_ankle_assembly_2_mesh_4" type="mesh" mesh="drive_palonier" pos="-2.7755575615628913511e-17 -0.053150000000000072187 0.0095499999999999751754" quat="-0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+              <geom name="knee_and_ankle_assembly_2_mesh_5" type="mesh" mesh="wj-wk00-0124bottomcase_45" pos="-2.7755575615628913511e-17 -0.053150000000000072187 0.0095499999999999751754" quat="-0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+              <geom name="knee_and_ankle_assembly_2_mesh_6" type="mesh" mesh="wj-wk00-0122topcabinetcase_95" pos="-2.7755575615628913511e-17 -0.053150000000000072187 0.0095499999999999751754" quat="-0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+              <geom name="knee_and_ankle_assembly_2_mesh_7" type="mesh" mesh="passive_palonier" pos="-7.0082828429463006614e-16 -0.053150000000000099942 0.0066499999999981157517" quat="-0.5 0.5 0.5 -0.5" contype="5" conaffinity="26" />
+              <body name="foot_assembly" pos="-3.46944695195e-17 -0.07865 0.0001" quat="1 -1.32068783873e-16 6.11041882273e-27 1.3877788091e-17">
+                <joint name="left_ankle" type="hinge" axis="0 0 1" range="-1.570796326794896558 1.570796326794896558" />
+                <body name="left_ankle_adapter" quat="0.707106781187 -0.707106781187 1.28188236174e-13 7.90247160609e-14">
+                  <inertial pos="0.0005 -0.01215 -0.0347" mass=".075" diaginertia=".000065 .000075 .000060" />
+                  <geom name="left_ankle_roll_servo" type="box" pos="0.0005 -0.00945 -0.04" size=".01925 .023 .013" rgba=".18 .22 .26 1" contype="5" conaffinity="26" />
+                  <geom name="left_ankle_adapter_web_-1" type="box" pos="-0.0305 -0.01955 -0.021" size=".002 .009 .022" rgba=".27 .60 .65 1" contype="5" conaffinity="26" />
+                  <geom name="left_ankle_adapter_web_1" type="box" pos="0.0305 -0.01955 -0.021" size=".002 .009 .022" rgba=".27 .60 .65 1" contype="5" conaffinity="26" />
+                  <geom name="left_ankle_adapter_bridge" type="box" pos="0 -.01955 -.022" size=".031 .024 .002" rgba=".27 .60 .65 1" contype="5" conaffinity="26" />
+                  <geom name="left_ankle_adapter_saddle" type="box" pos="0 -.01355 -.0255" size=".012 .018 .0015" rgba=".27 .60 .65 1" contype="5" conaffinity="26" />
+                  <geom name="left_ankle_pitch_cheek_-1" type="box" pos="0 -0.04155 -0.008" size=".012 .002 .012" rgba=".27 .60 .65 1" contype="5" conaffinity="26" />
+                  <geom name="left_ankle_pitch_cheek_1" type="box" pos="0 0.00245 -0.008" size=".012 .002 .012" rgba=".27 .60 .65 1" contype="5" conaffinity="26" />
+                  <body name="left_rolling_foot" pos=".0005 -.01955 -.040">
+                    <joint name="left_ankle_roll" axis="1 0 0" range="-.436332313 .436332313" />
+                    <inertial pos="0 0 -.026" mass=".060" diaginertia=".0000525 .0000615 .000096" />
+                    <geom name="left_sole" type="box" pos="0 0 -.034" size=".050 .045 .004" rgba=".35 .38 .4 1" contype="5" conaffinity="26" />
+                    <geom name="left_roll_cheek_-1" type="box" pos="-0.0235 0 -0.014" size=".002 .013 .016" rgba=".30 .67 .71 1" contype="5" conaffinity="26" />
+                    <geom name="left_roll_cheek_1" type="box" pos="0.0235 0 -0.014" size=".002 .013 .016" rgba=".30 .67 .71 1" contype="5" conaffinity="26" />
+                    <site name="left_sole" pos="0 0 -.038" size=".002" />
+                    <site name="left_foot_touch_volume" type="box" pos="0 0 -.034" size=".0505 .0455 .005" group="4" />
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="hip_roll_assembly_2" pos="0.01606 -0.035 0.046015" quat="1 -2.31124962694e-16 -1.10189635194e-14 -8.32667268511e-17">
+        <joint name="right_hip_yaw" type="hinge" axis="0 0 1" range="-0.52359877559829881566 0.52359877559829881566" />
+        <inertial pos="0.00079508052675062086158 -5.4654095489695737564e-06 -0.033060020136904864907" mass="0.08598000000000006" fullinertia="3.16101932183e-05 3.64481764516e-05 1.84539794198e-05 3.04781701315e-09 -4.92831308796e-07 -9.70037083934e-09" />
+        <geom name="hip_roll_assembly_2_mesh_0" type="mesh" mesh="roll_motor_bottom" pos="-3.6429192995512948983e-16 -0.034999999999999351075 0.019050000000000018308" quat="1 2.20853114864e-18 -2.77517551898e-17 -1.52655665886e-16" contype="9" conaffinity="22" />
+        <geom name="hip_roll_assembly_2_mesh_1" type="mesh" mesh="roll_motor_top" pos="3.4694469519536141888e-18 -0.035000000000000017208 0.019050000000000018308" quat="1 4.0324889068e-33 1.60237371378e-31 -5.97852410678e-33" contype="9" conaffinity="22" />
+        <geom name="hip_roll_assembly_2_mesh_2" type="mesh" mesh="wj-wk00-0123middlecase_56" pos="0.009600000000011033735 3.8517800060589024724e-14 -0.020515000000002000385" quat="-0.5 0.5 0.5 0.5" contype="9" conaffinity="22" />
+        <geom name="hip_roll_assembly_2_mesh_3" type="mesh" mesh="drive_palonier" pos="0.009600000000011033735 3.8517800060589024724e-14 -0.020515000000002000385" quat="-0.5 0.5 0.5 0.5" contype="9" conaffinity="22" />
+        <geom name="hip_roll_assembly_2_mesh_4" type="mesh" mesh="wj-wk00-0124bottomcase_45" pos="0.009600000000011033735 3.8517800060589024724e-14 -0.020515000000002000385" quat="-0.5 0.5 0.5 0.5" contype="9" conaffinity="22" />
+        <geom name="hip_roll_assembly_2_mesh_5" type="mesh" mesh="wj-wk00-0122topcabinetcase_95" pos="0.009600000000011033735 3.8517800060589024724e-14 -0.020515000000002000385" quat="-0.5 0.5 0.5 0.5" contype="9" conaffinity="22" />
+        <geom name="hip_roll_assembly_2_mesh_6" type="mesh" mesh="passive_palonier" pos="0.012500000000016761592 3.9114544936325046365e-14 -0.020515000000002069774" quat="-0.5 0.5 0.5 0.5" contype="9" conaffinity="22" />
+        <body name="right_roll_to_pitch_assembly" pos="0.01905 3.78516662458e-14 -0.046015" quat="0.5 -0.5 -0.5 0.5">
+          <joint name="right_hip_roll" type="hinge" axis="0 0 1" range="-0.43633231299858238339 0.43633231299858238339" />
+          <inertial pos="-0.050804245559722800707 -0.00042074186984666911556 0.02047043747768734559" mass="0.07516000000000006" fullinertia="2.523291747e-05 4.13854870414e-05 2.81263895862e-05 -1.30527860173e-07 5.90498732242e-07 -9.13426759694e-08" />
+          <geom name="right_roll_to_pitch_assembly_mesh_0" type="mesh" mesh="right_roll_to_pitch" pos="0.03500000000000001027 -0.065000000000000016098 0.019050000000000021777" quat="0.5 0.5 0.5 -0.5" contype="9" conaffinity="22" />
+          <geom name="right_roll_to_pitch_assembly_mesh_1" type="mesh" mesh="wj-wk00-0123middlecase_56" pos="-0.06469999999999997975 1.0421893383016911372e-17 0.0096099999999999918127" quat="0.5 -0.5 0.5 0.5" contype="9" conaffinity="22" />
+          <geom name="right_roll_to_pitch_assembly_mesh_2" type="mesh" mesh="drive_palonier" pos="-0.06469999999999997975 1.0421893383016911372e-17 0.0096099999999999918127" quat="0.5 -0.5 0.5 0.5" contype="9" conaffinity="22" />
+          <geom name="right_roll_to_pitch_assembly_mesh_3" type="mesh" mesh="wj-wk00-0124bottomcase_45" pos="-0.06469999999999997975 1.0421893383016911372e-17 0.0096099999999999918127" quat="0.5 -0.5 0.5 0.5" contype="9" conaffinity="22" />
+          <geom name="right_roll_to_pitch_assembly_mesh_4" type="mesh" mesh="wj-wk00-0122topcabinetcase_95" pos="-0.06469999999999997975 1.0421893383016911372e-17 0.0096099999999999918127" quat="0.5 -0.5 0.5 0.5" contype="9" conaffinity="22" />
+          <geom name="right_roll_to_pitch_assembly_mesh_5" type="mesh" mesh="passive_palonier" pos="-0.067600000000005655565 9.5220055798539426917e-17 0.0096099999999999848738" quat="0.5 -0.5 0.5 0.5" contype="9" conaffinity="22" />
+          <body name="knee_and_ankle_assembly_3" pos="-0.07415 3.18687676075e-16 0.03511" quat="0.707106781187 -8.42733216842e-25 0.707106781187 8.42733216842e-25">
+            <joint name="right_hip_pitch" type="hinge" axis="0 0 1" range="-0.52359877559829881566 1.2217304763960306069" />
+            <inertial pos="0.0025336932086842409509 0.039063625582319495833 0.010808979048309722351" mass="0.12407000000000001" fullinertia="0.000212362923178 7.93324390495e-05 0.000225619341956 2.68705710868e-05 3.96559815691e-06 -2.17406667e-05" />
+            <geom name="knee_and_ankle_assembly_3_mesh_0" type="mesh" mesh="right_cache" pos="0.016060000000000060338 -0.06500000000000000222 0.10919999999999911722" quat="0.707106781187 0.707106781187 -2.17345948583e-26 2.13722282546e-26" contype="9" conaffinity="22" />
+            <geom name="knee_and_ankle_assembly_3_mesh_1" type="mesh" mesh="leg_spacer" pos="0.0160600000000000534 -0.1436499999999996946 -0.072149999999999658851" quat="0.707106781187 0.707106781187 -2.33410844774e-26 2.29787178736e-26" contype="9" conaffinity="22" />
+            <geom name="knee_and_ankle_assembly_3_mesh_2" type="mesh" mesh="left_knee_to_ankle_right_sheet" pos="0.016060000000000008297 -0.14365000000000002767 -0.072049999999999891909" quat="0.707106781187 0.707106781187 -6.82276103477e-30 1.03787927435e-29" contype="9" conaffinity="22" />
+            <geom name="knee_and_ankle_assembly_3_mesh_3" type="mesh" mesh="left_knee_to_ankle_left_sheet" pos="0.016060000000000015236 -0.14364999999999930602 -0.072049999999999558842" quat="0.707106781187 0.707106781187 1.96261557338e-17 1.96261557333e-17" contype="9" conaffinity="22" />
+            <geom name="knee_and_ankle_assembly_3_mesh_4" type="mesh" mesh="wj-wk00-0123middlecase_56" pos="-1.3877787807814456755e-17 0.053149999999999530953 0.027549999999999699729" quat="0.5 0.5 -0.5 -0.5" contype="9" conaffinity="22" />
+            <geom name="knee_and_ankle_assembly_3_mesh_5" type="mesh" mesh="drive_palonier" pos="-1.3877787807814456755e-17 0.053149999999999530953 0.027549999999999699729" quat="0.5 0.5 -0.5 -0.5" contype="9" conaffinity="22" />
+            <geom name="knee_and_ankle_assembly_3_mesh_6" type="mesh" mesh="wj-wk00-0124bottomcase_45" pos="-1.3877787807814456755e-17 0.053149999999999530953 0.027549999999999699729" quat="0.5 0.5 -0.5 -0.5" contype="9" conaffinity="22" />
+            <geom name="knee_and_ankle_assembly_3_mesh_7" type="mesh" mesh="wj-wk00-0122topcabinetcase_95" pos="-1.3877787807814456755e-17 0.053149999999999530953 0.027549999999999699729" quat="0.5 0.5 -0.5 -0.5" contype="9" conaffinity="22" />
+            <geom name="knee_and_ankle_assembly_3_mesh_8" type="mesh" mesh="passive_palonier" pos="-3.3306690738754696213e-16 0.053149999999998955025 0.030449999999998561551" quat="0.5 0.5 -0.5 -0.5" contype="9" conaffinity="22" />
+            <body name="knee_and_ankle_assembly_4" pos="-6.93889390391e-18 0.07865 0.037" quat="6.12323399574e-17 1 2.51449413533e-30 1.04095514854e-24">
+              <joint name="right_knee" type="hinge" axis="0 0 1" range="-1.570796326794896558 1.570796326794896558" />
+              <inertial pos="5.0185935258263388972e-06 -0.057746501775911528165 0.018113576234400654424" mass="0.07259000000000006" fullinertia="4.99574704884e-05 1.87273120472e-05 4.23932040182e-05 1.03816599047e-08 2.25175427807e-09 8.81049463024e-08" />
+              <geom name="knee_and_ankle_assembly_4_mesh_0" type="mesh" mesh="leg_spacer" pos="0.016060000000000192177 0.14364999999999975011 0.10925000000000001377" quat="0.707106781187 -0.707106781187 1.96261554882e-17 -1.96261559789e-17" contype="9" conaffinity="22" />
+              <geom name="knee_and_ankle_assembly_4_mesh_1" type="mesh" mesh="left_knee_to_ankle_right_sheet" pos="0.016060000000000022174 0.14364999999999811253 0.10914999999999996927" quat="-0.707106781187 0.707106781187 -1.96261557336e-17 1.96261557348e-17" contype="9" conaffinity="22" />
+              <geom name="knee_and_ankle_assembly_4_mesh_2" type="mesh" mesh="left_knee_to_ankle_left_sheet" pos="0.016060000000000008297 0.14365000000000005542 0.10914999999999994151" quat="-0.707106781187 0.707106781187 8.78544388008e-30 8.78544388008e-30" contype="9" conaffinity="22" />
+              <geom name="knee_and_ankle_assembly_4_mesh_3" type="mesh" mesh="wj-wk00-0123middlecase_56" pos="0 -0.053150000000000016676 0.0095499999999999751754" quat="-0.5 0.5 0.5 -0.5" contype="9" conaffinity="22" />
+              <geom name="knee_and_ankle_assembly_4_mesh_4" type="mesh" mesh="drive_palonier" pos="0 -0.053150000000000016676 0.0095499999999999751754" quat="-0.5 0.5 0.5 -0.5" contype="9" conaffinity="22" />
+              <geom name="knee_and_ankle_assembly_4_mesh_5" type="mesh" mesh="wj-wk00-0124bottomcase_45" pos="0 -0.053150000000000016676 0.0095499999999999751754" quat="-0.5 0.5 0.5 -0.5" contype="9" conaffinity="22" />
+              <geom name="knee_and_ankle_assembly_4_mesh_6" type="mesh" mesh="wj-wk00-0122topcabinetcase_95" pos="0 -0.053150000000000016676 0.0095499999999999751754" quat="-0.5 0.5 0.5 -0.5" contype="9" conaffinity="22" />
+              <geom name="knee_and_ankle_assembly_4_mesh_7" type="mesh" mesh="passive_palonier" pos="2.7061686225238190673e-16 -0.053150000000000099942 0.006650000000000974576" quat="-0.5 0.5 0.5 -0.5" contype="9" conaffinity="22" />
+              <body name="foot_assembly_2" pos="-6.93889390391e-18 -0.07865 0.0001" quat="1 -1.32068784921e-16 -3.46911437224e-25 -2.58610173081e-17">
+                <joint name="right_ankle" type="hinge" axis="0 0 1" range="-1.570796326794896558 1.570796326794896558" />
+                <body name="right_ankle_adapter" quat="-0.707106781187 0.707106781187 -7.51106376468e-14 -1.36302311914e-13">
+                  <inertial pos="0.0005 -0.02695 -0.0347" mass=".075" diaginertia=".000065 .000075 .000060" />
+                  <geom name="right_ankle_roll_servo" type="box" pos="0.0005 -0.02965 -0.04" size=".01925 .023 .013" rgba=".18 .22 .26 1" contype="9" conaffinity="22" />
+                  <geom name="right_ankle_adapter_web_-1" type="box" pos="-0.0305 -0.01955 -0.021" size=".002 .009 .022" rgba=".27 .60 .65 1" contype="9" conaffinity="22" />
+                  <geom name="right_ankle_adapter_web_1" type="box" pos="0.0305 -0.01955 -0.021" size=".002 .009 .022" rgba=".27 .60 .65 1" contype="9" conaffinity="22" />
+                  <geom name="right_ankle_adapter_bridge" type="box" pos="0 -.01955 -.022" size=".031 .024 .002" rgba=".27 .60 .65 1" contype="9" conaffinity="22" />
+                  <geom name="right_ankle_adapter_saddle" type="box" pos="0 -.01355 -.0255" size=".012 .018 .0015" rgba=".27 .60 .65 1" contype="9" conaffinity="22" />
+                  <geom name="right_ankle_pitch_cheek_-1" type="box" pos="0 -0.04155 -0.008" size=".012 .002 .012" rgba=".27 .60 .65 1" contype="9" conaffinity="22" />
+                  <geom name="right_ankle_pitch_cheek_1" type="box" pos="0 0.00245 -0.008" size=".012 .002 .012" rgba=".27 .60 .65 1" contype="9" conaffinity="22" />
+                  <body name="right_rolling_foot" pos=".0005 -.01955 -.040">
+                    <joint name="right_ankle_roll" axis="1 0 0" range="-.436332313 .436332313" />
+                    <inertial pos="0 0 -.026" mass=".060" diaginertia=".0000525 .0000615 .000096" />
+                    <geom name="right_sole" type="box" pos="0 0 -.034" size=".050 .045 .004" rgba=".35 .38 .4 1" contype="9" conaffinity="22" />
+                    <geom name="right_roll_cheek_-1" type="box" pos="-0.0235 0 -0.014" size=".002 .013 .016" rgba=".30 .67 .71 1" contype="9" conaffinity="22" />
+                    <geom name="right_roll_cheek_1" type="box" pos="0.0235 0 -0.014" size=".002 .013 .016" rgba=".30 .67 .71 1" contype="9" conaffinity="22" />
+                    <site name="right_sole" pos="0 0 -.038" size=".002" />
+                    <site name="right_foot_touch_volume" type="box" pos="0 0 -.034" size=".0505 .0455 .005" group="4" />
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <site name="imu" pos="0 0 0.025" size="0.003" group="4" />
+    </body>
+    <light name="key_light" pos="0.5 -0.8 1.5" dir="-0.3 0.4 -1" directional="true" />
+    <light name="fill_light" pos="-1 0.5 1" dir="0.5 -0.3 -1" diffuse="0.4 0.4 0.4" />
+    <body name="prey" mocap="true" pos="1.2 0 0.04">
+      <geom name="prey_geom" type="sphere" size="0.035" mass="0.001" contype="0" conaffinity="0" rgba="0.92 0.35 0.19 1" />
+    </body>
+  </worldbody>
+  <actuator>
+    <position name="left_hip_yaw_act" joint="left_hip_yaw" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-0.52359877559829881566 0.52359877559829881566" forcelimited="true" forcerange="-0.8458235625 0.8458235625" />
+    <position name="left_hip_roll_act" joint="left_hip_roll" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-0.43633231299858238339 0.43633231299858238339" forcelimited="true" forcerange="-1.3533177 1.3533177" />
+    <position name="left_hip_pitch_act" joint="left_hip_pitch" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-1.2217304763960306069 0.52359877559829881566" forcelimited="true" forcerange="-0.8458235625 0.8458235625" />
+    <position name="left_knee_act" joint="left_knee" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-1.570796326794896558 1.570796326794896558" forcelimited="true" forcerange="-0.8458235625 0.8458235625" />
+    <position name="left_ankle_act" joint="left_ankle" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-1.570796326794896558 1.570796326794896558" forcelimited="true" forcerange="-0.8458235625 0.8458235625" />
+    <position name="left_ankle_roll_act" joint="left_ankle_roll" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-.436332313 .436332313" forcelimited="true" forcerange="-0.8458235625 0.8458235625" />
+    <position name="right_hip_yaw_act" joint="right_hip_yaw" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-0.52359877559829881566 0.52359877559829881566" forcelimited="true" forcerange="-0.8458235625 0.8458235625" />
+    <position name="right_hip_roll_act" joint="right_hip_roll" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-0.43633231299858238339 0.43633231299858238339" forcelimited="true" forcerange="-1.3533177 1.3533177" />
+    <position name="right_hip_pitch_act" joint="right_hip_pitch" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-0.52359877559829881566 1.2217304763960306069" forcelimited="true" forcerange="-0.8458235625 0.8458235625" />
+    <position name="right_knee_act" joint="right_knee" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-1.570796326794896558 1.570796326794896558" forcelimited="true" forcerange="-0.8458235625 0.8458235625" />
+    <position name="right_ankle_act" joint="right_ankle" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-1.570796326794896558 1.570796326794896558" forcelimited="true" forcerange="-0.8458235625 0.8458235625" />
+    <position name="right_ankle_roll_act" joint="right_ankle_roll" gear="1" kp="25.0" kv="0.4" ctrllimited="true" ctrlrange="-.436332313 .436332313" forcelimited="true" forcerange="-0.8458235625 0.8458235625" />
+  </actuator>
+  <visual>
+    <global offwidth="1440" offheight="1000" />
+    <quality shadowsize="2048" />
+    <headlight diffuse="0.65 0.65 0.65" ambient="0.35 0.35 0.35" />
+  </visual>
+  <statistic center="0 0 0.2" extent="0.9" />
+  <sensor>
+    <gyro name="pelvis_gyro" site="imu" />
+    <accelerometer name="pelvis_accel" site="imu" />
+    <framequat name="pelvis_quat" objtype="body" objname="pelvis" />
+    <touch name="r_foot_touch" site="right_foot_touch_volume" />
+    <touch name="l_foot_touch" site="left_foot_touch_volume" />
+    <framelinvel name="pelvis_velocity" objtype="body" objname="pelvis" />
+    <jointpos name="left_hip_yaw_position" joint="left_hip_yaw" />
+    <jointvel name="left_hip_yaw_velocity" joint="left_hip_yaw" />
+    <jointpos name="left_hip_roll_position" joint="left_hip_roll" />
+    <jointvel name="left_hip_roll_velocity" joint="left_hip_roll" />
+    <jointpos name="left_hip_pitch_position" joint="left_hip_pitch" />
+    <jointvel name="left_hip_pitch_velocity" joint="left_hip_pitch" />
+    <jointpos name="left_knee_position" joint="left_knee" />
+    <jointvel name="left_knee_velocity" joint="left_knee" />
+    <jointpos name="left_ankle_position" joint="left_ankle" />
+    <jointvel name="left_ankle_velocity" joint="left_ankle" />
+    <jointpos name="left_ankle_roll_position" joint="left_ankle_roll" />
+    <jointvel name="left_ankle_roll_velocity" joint="left_ankle_roll" />
+    <jointpos name="right_hip_yaw_position" joint="right_hip_yaw" />
+    <jointvel name="right_hip_yaw_velocity" joint="right_hip_yaw" />
+    <jointpos name="right_hip_roll_position" joint="right_hip_roll" />
+    <jointvel name="right_hip_roll_velocity" joint="right_hip_roll" />
+    <jointpos name="right_hip_pitch_position" joint="right_hip_pitch" />
+    <jointvel name="right_hip_pitch_velocity" joint="right_hip_pitch" />
+    <jointpos name="right_knee_position" joint="right_knee" />
+    <jointvel name="right_knee_velocity" joint="right_knee" />
+    <jointpos name="right_ankle_position" joint="right_ankle" />
+    <jointvel name="right_ankle_velocity" joint="right_ankle" />
+    <jointpos name="right_ankle_roll_position" joint="right_ankle_roll" />
+    <jointvel name="right_ankle_roll_velocity" joint="right_ankle_roll" />
+  </sensor>
+  <keyframe>
+    <key name="home" qpos="0.0158065118848 -0.000263877745672 0.218 1 2.74469701292e-16 0 0 -2.92606115065e-13 0.136062935233 0.419794559087 -1.07402110301 0.654226543923 0.136062935233 -3.06120350287e-13 -0.152876375672 -0.429553617191 -1.09503494865 0.665481331457 -0.152876375672" ctrl="-2.92606115065e-13 0.136062935233 0.419794559087 -1.07402110301 0.654226543923 0.136062935233 -3.06120350287e-13 -0.152876375672 -0.429553617191 -1.09503494865 0.665481331457 -0.152876375672" />
+  </keyframe>
+</mujoco>

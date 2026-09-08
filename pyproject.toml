@@ -106,6 +106,7 @@ include = ["environments*", "configs*"]
 
 [tool.setuptools.package-data]
 "*" = ["assets/*.xml", "data/*.json"]
+"environments.compsognathus" = ["assets/meshes/*.stl", "references/*.xml", "references/LICENSE*", "references/*.md"]
 "configs" = ["*.toml", "*.json", "*/*.toml", "*/*.json"]
 
 [tool.pytest.ini_options]
@@ -115,6 +116,7 @@ testpaths = [
     "environments/brachiosaurus/tests",
     "environments/trex/tests",
     "environments/dibothrosuchus/tests",
+    "environments/compsognathus/tests",
 ]
 norecursedirs = [
     "scripts",
