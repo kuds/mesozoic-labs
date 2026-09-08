@@ -141,7 +141,7 @@ render, not a generated illustration. To reproduce it or the local envelope
 screen, recover the previous robot XML from the v2 commit:
 
 ```bash
-git show 8b9f1fb:environments/compsognathus/assets/compsognathus_robot.xml > /tmp/robot_v2.xml
+git show 11d8469fb6973fa5638ce9f491f25f739ece3de9:environments/compsognathus/assets/compsognathus_robot.xml > /tmp/robot_v2.xml
 python -m environments.compsognathus.scripts.render_style_comparison --before /tmp/robot_v2.xml --output /tmp/style.png
 python -m environments.compsognathus.scripts.validate_shells --reference /tmp/robot_v2.xml --output /tmp/shell-screen.json
 ```
