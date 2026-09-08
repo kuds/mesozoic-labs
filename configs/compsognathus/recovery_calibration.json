@@ -1,0 +1,122 @@
+{
+  "schema": "mesozoic.recovery-calibration/v1",
+  "species": "compsognathus",
+  "calibration_id": "compsognathus-fixed-command-recovery-2026-09-v1",
+  "status": "physical pilot calibration; learned-policy qualification outstanding",
+  "control_dt_s": 0.02,
+  "height_reference_m": 0.24447437995813373,
+  "safe_set": {
+    "height_error_max_m": 0.005,
+    "tilt_max_rad": 0.08,
+    "planar_speed_max_mps": 0.08,
+    "min_foot_force_n": 0.0
+  },
+  "recovery_env_kwargs": {
+    "frame_skip": 10,
+    "max_episode_steps": 1000,
+    "reset_noise_scale": 0.01,
+    "reset_height_noise_scale": 0.0,
+    "forward_vel_max": 0.25,
+    "fall_penalty": -25.0,
+    "energy_penalty_weight": 0.02,
+    "smoothness_weight": 0.02,
+    "spin_penalty_weight": 0.02,
+    "lateral_penalty_weight": 0.1,
+    "max_tilt_angle": 0.7,
+    "forward_vel_weight": 0.0,
+    "alive_bonus": 1.0,
+    "posture_weight": 1.0,
+    "height_weight": 1.0,
+    "home_pose_weight": 0.15,
+    "drift_penalty_weight": 0.5,
+    "heading_weight": 0.0,
+    "gait_symmetry_weight": 0.0,
+    "target_approach_weight": 0.0,
+    "target_reach_bonus": 0.0,
+    "prey_distance_range": [
+      0.8,
+      1.2
+    ],
+    "prey_lateral_range": [
+      0.0,
+      0.0
+    ],
+    "perturbation_capture_velocity_multiple": 1.32,
+    "perturbation_interval": 2.0,
+    "perturbation_jitter": 0.25,
+    "perturbation_duration": 0.2,
+    "perturbation_direction": "uniform_horizontal"
+  },
+  "capability_spec": {
+    "gate_kind": "recovery_quality/v1",
+    "min_recovery_success_lcb": 0.5,
+    "recovery_t_recover_steps": 40,
+    "recovery_dwell_steps": 20,
+    "min_eval_episodes": 40,
+    "min_paired_success_delta_lcb": 0.1
+  },
+  "required_paired_nulls": [
+    "zero_action",
+    "brace"
+  ],
+  "plant_identity": {
+    "schema": "mesozoic.plant-identity/v1",
+    "species": "compsognathus",
+    "model_path": "environments/compsognathus/assets/compsognathus.xml",
+    "physics_revision": 1,
+    "policy_interface_revision": 1,
+    "visual_revision": 1,
+    "source_closure_sha256": "sha256:4f36e487862eef18eda24667e532a824491166159c69200ff8c3ad4c87a7f26b",
+    "policy_interface_sha256": "sha256:5d68b303f458b413ef7ca0615070ea384fbfefa9f0b46a4ee1fea5c828f6e37f",
+    "physics_sha256": "sha256:08a5fbf7c03d251308ec8815b6b53af5e6c1a1a4d343a11700284fe389d6be33",
+    "visual_sha256": "sha256:b3a0d649caee2314772b49b4ab23ff6ab3e61398099546e61034b78ab94cb17b",
+    "nq": 24,
+    "nv": 23,
+    "nu": 14,
+    "observation_dim": 53,
+    "action_dim": 14
+  },
+  "task_sha256": "sha256:bf64c2feb09f7e42fb4c79518be995f644d20f25cb9d0099611fbde4fe0953b9",
+  "derived_push_manifest": {
+    "root_body_id": 2.0,
+    "subtree_mass_kg": 0.9999999999999999,
+    "com_height_m": 0.22834630254409544,
+    "support_radius_m": 0.0196047706603328,
+    "capture_velocity_mps": 0.12849886096548988,
+    "capture_velocity_multiple": 1.32,
+    "delta_v_mps": 0.16961849647444666,
+    "impulse_ns": 0.16961849647444663,
+    "force_n": 0.8480924823722331,
+    "duration_s": 0.2,
+    "interval_s": 2.0,
+    "jitter_s": 0.25,
+    "direction": "uniform_horizontal"
+  },
+  "provenance": {
+    "measurement_artifact": "environments/compsognathus/data/recovery_calibration_v1.json",
+    "method": "Fixed-command PD quiet reference; max(engineering floor, 1.5 * quiet p99.9). Force selection on 32 separate seeds; no trained-policy calibration.",
+    "quiet_seed_range": [
+      1042,
+      1049
+    ],
+    "selection_seed_range": [
+      2042,
+      2073
+    ],
+    "diagnostic_seed_range": [
+      7042,
+      7081
+    ],
+    "stress_seed_range": [
+      8042,
+      8081
+    ],
+    "reserved_publication_seed_range": [
+      3042,
+      3081
+    ],
+    "nominal_recovery_seconds": 0.8,
+    "nominal_dwell_seconds": 0.4,
+    "qualification_targets": "Pre-registered pilot engineering targets, not measured policy achievement."
+  }
+}

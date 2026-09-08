@@ -853,7 +853,7 @@ class MJXDinoEnv:
                     schedule_steps["interval_steps"],
                     schedule_steps["jitter_steps"],
                 ),
-                "root_body_id": int(push_params["root_body_id"]),
+                "root_body_id": int(push_params.get("push_body_id", push_params["root_body_id"])),
                 "force_n": float(push_params["force_n"]),
                 "params": push_params,
             }

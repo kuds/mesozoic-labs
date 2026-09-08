@@ -269,7 +269,7 @@ class BaseDinoEnv(gym.Env, ABC):
                 duration_s=perturbation_duration,
                 keyframe_id=int(getattr(self, "_reset_keyframe_id", 0)),
             )
-            self._push_root_body = int(self._push_params["root_body_id"])
+            self._push_root_body = int(self._push_params.get("push_body_id", self._push_params["root_body_id"]))
             self._push_force_n = float(self._push_params["force_n"])
 
         # Define action space (normalized to [-1, 1])

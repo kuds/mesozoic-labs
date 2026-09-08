@@ -1,0 +1,92 @@
+# Opt-in SB3 push-recovery pilot, warm-started from a passing stance policy.
+# Disturbance and physical judge are calibrated against fixed-command PD
+# controls. Qualification targets are pre-registered, not measured RL results.
+# This stage does not automatically feed a checkpoint to locomotion.
+[stage]
+name = "recovery"
+description = "Pilot: recover an upright stance after calibrated horizontal pushes"
+
+[env]
+frame_skip = 10
+max_episode_steps = 1000
+reset_noise_scale = 0.01
+reset_height_noise_scale = 0.0
+forward_vel_max = 0.15
+fall_penalty = -25.0
+energy_penalty_weight = 0.02
+smoothness_weight = 0.02
+spin_penalty_weight = 0.02
+lateral_penalty_weight = 0.1
+max_tilt_angle = 0.7
+forward_vel_weight = 0.0
+alive_bonus = 1.0
+posture_weight = 1.0
+height_weight = 1.0
+home_pose_weight = 0.15
+drift_penalty_weight = 0.5
+heading_weight = 0.0
+gait_symmetry_weight = 0.0
+target_approach_weight = 0.0
+target_reach_bonus = 0.0
+prey_distance_range = [0.8, 1.2]
+prey_lateral_range = [0.0, 0.0]
+
+# Plant-scaled finite force pulses. The selected multiple is calibrated separately
+# for each variant; see RECOVERY_CALIBRATION.md and recovery_calibration.json.
+perturbation_capture_velocity_multiple = 1.2
+perturbation_interval = 2.0
+perturbation_jitter = 0.25
+perturbation_duration = 0.2
+perturbation_direction = "uniform_horizontal"
+
+[ppo]
+learning_rate = 0.00003
+learning_rate_end = 0.00001
+lr_schedule = "linear"
+n_steps = 1024
+batch_size = 64
+n_epochs = 5
+gamma = 0.99
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.005
+ent_coef_end = 0.0
+ent_coef_decay_timesteps = 2000000
+target_kl = 0.03
+max_grad_norm = 0.5
+
+[ppo.policy_kwargs]
+net_arch = [128, 128]
+log_std_init = -2.0
+
+[sac]
+learning_rate = 0.0003
+buffer_size = 100000
+learning_starts = 1000
+batch_size = 128
+tau = 0.005
+gamma = 0.99
+train_freq = 4
+gradient_steps = 1
+ent_coef = "auto"
+
+[sac.policy_kwargs]
+net_arch = [128, 128]
+
+[curriculum]
+gate_schema_version = 1
+gate_kind = "recovery_quality/v1"
+# Experimental allowance; no Compsognathus convergence budget is established.
+timesteps = 3000000
+warmup_timesteps = 100000
+warmup_clip_range = 0.02
+warmup_ent_coef = 0.005
+# Pre-registered pilot targets. PASS requires the frozen same-task null panel;
+# these values never substitute for a measured policy evaluation.
+min_recovery_success_lcb = 0.50
+min_paired_success_delta_lcb = 0.10
+recovery_t_recover_steps = 40
+recovery_dwell_steps = 20
+min_eval_episodes = 40
+required_consecutive = 3
+# Keep collapse detection unarmed until a learned-policy history calibrates it.

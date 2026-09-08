@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .recovery_gate import (
+    RecoveryGateResult,
     RecoveryGateThresholds,
     RecoveryPanel,
     binomial_ucb,
@@ -73,6 +74,8 @@ def build_gate_resolution(
     thresholds: RecoveryGateThresholds,
     null_evidence: Mapping[str, Any],
     panel_seed_start: int,
+    evaluation_spec: Mapping[str, Any] | None = None,
+    null_provenance: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Freeze spec, nulls, and procedure into one hashed record."""
     payload: dict[str, Any] = {
@@ -96,6 +99,17 @@ def build_gate_resolution(
             "pairing": "identical seeds imply identical push schedules (schedule PRF)",
         },
     }
+    if isinstance(task_fingerprint.get("species"), str):
+        payload["species"] = task_fingerprint["species"]
+    # Optional for historical T-Rex records. New species freeze the complete
+    # judge identity, including the formerly unrecorded height reference and
+    # control clock, inside the same integrity hash as their null outcomes.
+    if evaluation_spec is not None:
+        payload["evaluation_spec"] = dict(evaluation_spec)
+    if null_provenance is not None:
+        # Config loading restores range tuples for constructors. Freeze their
+        # JSON representation so strict write/read equality remains meaningful.
+        payload["null_provenance"] = json.loads(json.dumps(dict(null_provenance), allow_nan=False))
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
     ).hexdigest()
@@ -190,12 +204,91 @@ def paired_differences_from_resolution(
     return tuple(float(policy_successes_by_seed[seed]) - float(null_by_seed[seed]) for seed in sorted(null_by_seed))
 
 
+def required_paired_nulls(resolution: Mapping[str, Any], *, legacy_null: str = "zero_action") -> tuple[str, ...]:
+    """Read the predeclared comparison family; historical gates keep one null."""
+    judge = resolution.get("evaluation_spec")
+    if judge is None:
+        return (legacy_null,)
+    required = judge.get("required_paired_nulls") if isinstance(judge, Mapping) else None
+    if (
+        not isinstance(required, list)
+        or not required
+        or any(not isinstance(name, str) or name not in ("zero_action", "brace") for name in required)
+        or len(set(required)) != len(required)
+    ):
+        raise GateResolutionError("evaluation_spec must declare unique known required_paired_nulls")
+    if judge.get("species") in ("compsognathus", "compsognathus_robot") and set(required) != {"zero_action", "brace"}:
+        raise GateResolutionError(
+            "Compsognathus recovery requires paired comparisons against both zero_action and brace"
+        )
+    return tuple(required)
+
+
+def _resolution_species(
+    resolution: Mapping[str, Any], stage_dir: str | Path | None, expected_species: str | None
+) -> str | None:
+    """Resolve identity from explicit context and hashed or task-bound records."""
+    identities = {expected_species} if expected_species is not None else set()
+    judge = resolution.get("evaluation_spec")
+    for record in (resolution, judge):
+        if isinstance(record, Mapping) and isinstance(record.get("species"), str):
+            identities.add(record["species"])
+    if stage_dir is not None:
+        for name in ("task_fingerprint.json", "stage_config.json"):
+            path = Path(stage_dir) / name
+            if not path.is_file():
+                continue
+            try:
+                record = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                raise GateResolutionError(f"cannot verify recovery species from {path}: {exc}") from exc
+            if name == "stage_config.json" and isinstance(record, Mapping):
+                record = record.get("task_fingerprint")
+            if (
+                isinstance(record, Mapping)
+                and record.get("task_sha256") == resolution.get("task_sha256")
+                and isinstance(record.get("species"), str)
+            ):
+                identities.add(record["species"])
+    if len(identities) > 1:
+        raise GateResolutionError(f"recovery species identity disagrees across records: {sorted(identities)}")
+    return next(iter(identities)) if identities else None
+
+
+def validate_current_recovery_judge(
+    resolution: Mapping[str, Any], *, stage_dir: str | Path | None = None, expected_species: str | None = None
+) -> None:
+    """A cached outcome cannot be re-certified after its measured judge moves."""
+    judge = resolution.get("evaluation_spec")
+    species = _resolution_species(resolution, stage_dir, expected_species)
+    if judge is None:
+        if species != "trex":
+            raise GateResolutionError(
+                "missing recovery evaluation_spec: only an identified historical T-Rex task may use the legacy judge; "
+                "Compsognathus and unknown-species records require a current frozen calibration"
+            )
+        return
+    if not isinstance(judge, Mapping) or not isinstance(judge.get("species"), str):
+        raise GateResolutionError("frozen recovery evaluation_spec has no species identity")
+    # Lazy: recovery_calibration imports the resolver's error/threshold types.
+    from environments.shared.recovery_calibration import load_recovery_calibration
+
+    calibration = load_recovery_calibration(judge["species"])
+    if judge != calibration.evaluation_spec():
+        raise GateResolutionError("frozen recovery evaluation_spec differs from the current calibration; re-freeze")
+    if resolution.get("capability_spec") != calibration.profile["capability_spec"]:
+        raise GateResolutionError("frozen recovery capability_spec differs from the current calibration; re-freeze")
+    if resolution.get("task_sha256") != calibration.profile["task_sha256"]:
+        raise GateResolutionError("frozen recovery task differs from the current calibration; re-freeze")
+
+
 def evaluate_recovery_gate_from_resolution(
     stage_dir: "str | Path",
     *,
     current_task_sha256: str,
     policy_successes_by_seed: Mapping[int, bool],
     null_controller_id: str = "zero_action",
+    expected_species: str | None = None,
 ):
     """The full W5 path: load the frozen resolution, pair, judge.
 
@@ -205,14 +298,32 @@ def evaluate_recovery_gate_from_resolution(
     staleness have already blocked upstream.
     """
     resolution = require_gate_resolution(stage_dir, current_task_sha256=current_task_sha256)
+    validate_current_recovery_judge(resolution, stage_dir=stage_dir, expected_species=expected_species)
     thresholds = thresholds_from_resolution(resolution)
-    paired = None
-    if thresholds.min_paired_success_delta_lcb is not None:
-        paired = paired_differences_from_resolution(
-            resolution, policy_successes_by_seed, null_controller_id=null_controller_id
+    required = required_paired_nulls(resolution, legacy_null=null_controller_id)
+    if resolution.get("evaluation_spec") is not None and thresholds.min_paired_success_delta_lcb is None:
+        raise GateResolutionError("the calibrated recovery comparison family requires a paired success threshold")
+    outcomes = tuple(outcome for _seed, outcome in sorted(policy_successes_by_seed.items()))
+    results: list[tuple[str, RecoveryGateResult]] = []
+    for controller_id in required:
+        paired = None
+        if thresholds.min_paired_success_delta_lcb is not None:
+            paired = paired_differences_from_resolution(
+                resolution, policy_successes_by_seed, null_controller_id=controller_id
+            )
+        results.append(
+            (controller_id, evaluate_recovery_gate(RecoveryPanel(outcomes, paired_null_differences=paired), thresholds))
         )
-    panel = RecoveryPanel(
-        episode_successes=tuple(outcome for _seed, outcome in sorted(policy_successes_by_seed.items())),
-        paired_null_differences=paired,
+    if len(results) == 1:
+        return results[0][1]
+    first = results[0][1]
+    paired_bounds = [result.paired_delta_lcb for _, result in results if result.paired_delta_lcb is not None]
+    return RecoveryGateResult(
+        passed=all(result.passed for _, result in results),
+        failures=tuple(
+            f"{controller_id}: {failure}" for controller_id, result in results for failure in result.failures
+        ),
+        success_fraction=first.success_fraction,
+        success_lcb=first.success_lcb,
+        paired_delta_lcb=min(paired_bounds) if paired_bounds else None,
     )
-    return evaluate_recovery_gate(panel, thresholds)

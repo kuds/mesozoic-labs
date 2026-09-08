@@ -831,7 +831,9 @@ def _format_advancement_gate(gate: dict[str, Any]) -> str:
     if gate.get("gate_kind") == "recovery_quality/v1":
         recovery_criteria = [f"recovery success LCB95 ≥ {gate['min_recovery_success_lcb']:g}"]
         if gate.get("min_paired_success_delta_lcb") is not None:
-            recovery_criteria.append(f"paired Δ vs zero-action null LCB95 ≥ {gate['min_paired_success_delta_lcb']:g}")
+            recovery_criteria.append(
+                f"paired Δ vs each required frozen null LCB95 ≥ {gate['min_paired_success_delta_lcb']:g}"
+            )
         recovery_criteria.extend(
             [
                 f"re-entry ≤ {gate['recovery_t_recover_steps']:g} steps + {gate['recovery_dwell_steps']:g}-step dwell",
