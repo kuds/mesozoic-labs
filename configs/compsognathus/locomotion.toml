@@ -1,5 +1,6 @@
-# Initial SB3 training recipe; budgets and optimizer settings are starting
-# points, not measured convergence claims. State observations are privileged.
+# Experimental SB3 recipe informed by the current Tyrannosaurus Rex workflow.
+# See environments/compsognathus/TRAINING_RECIPE_REVIEW.md for evidence,
+# validation limits, and the next-run protocol. State observations are privileged.
 [stage]
 name = "locomotion"
 description = "Move forward while remaining upright and avoiding body-floor contact"
@@ -30,7 +31,9 @@ prey_distance_range = [5.0, 5.0]
 prey_lateral_range = [0.0, 0.0]
 
 [ppo]
-learning_rate = 0.0003
+learning_rate = 0.00003
+learning_rate_end = 0.00001
+lr_schedule = "linear"
 n_steps = 1024
 batch_size = 64
 n_epochs = 5
@@ -38,6 +41,9 @@ gamma = 0.99
 gae_lambda = 0.95
 clip_range = 0.2
 ent_coef = 0.005
+ent_coef_end = 0.001
+ent_coef_decay_timesteps = 2000000
+target_kl = 0.03
 max_grad_norm = 0.5
 
 [ppo.policy_kwargs]
@@ -67,3 +73,9 @@ min_avg_episode_length = 900
 min_avg_forward_vel = 0.08
 min_eval_episodes = 20
 required_consecutive = 3
+# Make the shared stage-entry settings explicit. Avoid a fourfold entropy-bonus
+# increase from the generic 0.02 default when leaving the supported stance.
+# The shared warm-up uses this entropy setting for both PPO and SAC.
+warmup_timesteps = 100000
+warmup_clip_range = 0.02
+warmup_ent_coef = 0.005

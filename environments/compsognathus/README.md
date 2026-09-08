@@ -92,21 +92,43 @@ Each variant has its own three-stage manifest and initial recipes:
 
 | Stage | Objective and advancement criteria | Initial budget |
 |---|---|---:|
-| 1 / `stance` | Supported upright stance; ≥90% full-horizon episodes, unsupported duty ≤10%, its upper bound ≤15%, reward rail ≥1,500 | 1M steps |
+| 1 / `stance` | Supported upright stance; ≥90% full-horizon episodes, unsupported duty ≤10%, its upper bound ≤15%, reward rail ≥1,500 | 11M steps |
 | 2 / `locomotion` | Forward progress; average speed gate above, average length ≥900 and reward ≥500 | 3M steps |
 | 3 / `behavior` | Upright arrival within 8 cm of the goal in XY, horizontal speed ≤0.10 m/s; success rate ≥70% and reward ≥25 | 3M steps |
 
 All stages request at least 20 evaluation episodes and three consecutive
 passing checkpoint evaluations. The notebook also applies the shared
 publication gate to the selected checkpoint's evaluation evidence. These
-thresholds and 7M-step totals are **initial recipes**, not calibrated claims
+thresholds and 17M-step totals are **experimental recipes**, not calibrated claims
 about convergence time. The target is a non-contact marker: success is
 `target_success`, distinct from the generic 0.5 m proximity diagnostic.
 The robot does not bite or move its fixed head to reach the marker.
+The notebook normally uses the full per-stage allowance before its publication
+gate. The CLI `curriculum` runner can advance early on consecutive passes.
+
+The [September 8 recipe review](TRAINING_RECIPE_REVIEW.md) uses current
+Tyrannosaurus Rex training as the reference; the older species' successful
+runs do not validate recipes on the updated library. PPO now uses a linear
+learning-rate schedule from `3e-5` to `1e-5`, `target_kl=0.03`, and entropy
+decay. Stance decays entropy from `0.005` to zero over 7M steps; the later
+stages decay to `0.001` over 2M. Their explicit 100k-step transition warm-up
+uses `0.005` entropy rather than inheriting the generic `0.02` boost.
+The 128×128 network and small initial action standard deviation remain.
+The stage budgets and transition warm-up are shared with SAC; its optimizer
+settings are unchanged and its learning performance is still unvalidated.
+
+Use a fresh run to evaluate this recipe. Existing runs retain their captured
+configuration; loading a checkpoint with the new settings creates a mixed
+experiment. The notebook reads these TOMLs through its existing loader, so
+restart the runtime and load the updated checkout before a new run.
 
 The nominal standing pose already supports zero-action balance. Measure
 that baseline before interpreting any return improvement; stance is a
 foundation, and passing it does not establish locomotion or active recovery.
+The support gate also does not require bilateral loading at every step.
+There is no Compsognathus push-recovery stage yet. Automatic reward-collapse
+stopping is deliberately unarmed until this plant has suitable calibration
+data; advisory baseline reporting and the advancement gates remain active.
 
 From the repository root:
 
