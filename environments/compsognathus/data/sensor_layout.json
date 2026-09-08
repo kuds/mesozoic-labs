@@ -1,0 +1,52 @@
+{
+  "schema": "mesozoic.compso-sensors/v1",
+  "status": "Ideal simulated baseline; hardware part numbers, noise, sample rates and calibration remain unselected.",
+  "body_frame": {"x": "forward", "y": "left", "z": "up"},
+  "camera": {
+    "name": "head_camera",
+    "baseline": true,
+    "type": "single RGB camera",
+    "resolution_pixels": [640, 480],
+    "vertical_field_of_view_deg": 70,
+    "optical_axis_in_head": [1, 0, 0],
+    "image_right_in_head": [0, -1, 0],
+    "image_up_in_head": [0, 0, 1],
+    "robot_optical_center_in_fixed_head_m": [0.042, 0, 0.008],
+    "robot_module_mass_allocation_kg": 0.006,
+    "mount": "Fixed tapered mechanical camera housing; lens ahead of head envelopes; no pan/tilt actuator.",
+    "limitations": "Pinhole optics only. No depth, stereo, distortion, exposure, rolling shutter or latency model. Geometry is a packaging allowance, not a selected camera's CAD."
+  },
+  "imu": {
+    "site": "imu",
+    "baseline": true,
+    "robot_position_in_pelvis_m": [-0.002, 0, 0.070],
+    "orientation": "Aligned with pelvis axes, rigidly mounted inside core",
+    "gyro_sensor": "pelvis_gyro",
+    "gyro_units": "rad/s in IMU frame",
+    "accelerometer_sensor": "pelvis_accel",
+    "accelerometer_units": "m/s^2 of specific force in IMU frame; about +9.81 on upright stationary Z, zero in free fall",
+    "mass_accounting": "Inside 505 g aggregate core allowance",
+    "limitations": "Ideal readings; no bias, noise, drift, mounting compliance or timing model. No magnetometer. Orientation requires an estimator on hardware."
+  },
+  "joint_feedback": {
+    "baseline": true,
+    "order": "Actuator order, exported with joint_names by sensors.onboard_readings",
+    "position_suffix": "_position",
+    "velocity_suffix": "_velocity",
+    "units": ["rad", "rad/s"],
+    "robot_channel_count": 12,
+    "limitations": "Velocity may require differentiating bus position feedback. Encoder resolution, bus rate and latency need identification."
+  },
+  "foot_contact": {
+    "baseline": false,
+    "optional_sensors": ["r_foot_touch", "l_foot_touch"],
+    "units": "N; sum of contact normal forces on the matching foot body inside its touch volume",
+    "robot_sites": ["right_foot_touch_volume", "left_foot_touch_volume"],
+    "robot_site_half_sizes_m": [0.0505, 0.0455, 0.005],
+    "mass_accounting": "Any added physical pad, ADC and wiring must fit the current foot/core budgets or be added to model mass.",
+    "limitations": "Ideal MuJoCo touch sensors; not a selected FSR or load-cell design. They do not measure shear force or provide a hardware center of pressure."
+  },
+  "simulator_only": ["diagnostic_pelvis_quat", "diagnostic_pelvis_velocity"],
+  "onboard_adapter": "sensors.onboard_readings excludes simulator-only state and foot forces by default; camera pixels are rendered separately.",
+  "tail": "Robot tail is rigid and unmotorized; no tail sensor or actuator required."
+}

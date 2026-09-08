@@ -1,0 +1,56 @@
+{
+  "schema": "mesozoic.compso-validation-summary/v2",
+  "date": "2026-09-07",
+  "runtime": {
+    "python": "3.12.13",
+    "mujoco": "3.10.0",
+    "numpy": "2.3.5",
+    "scipy": "1.17.0",
+    "pytest": "9.1.1"
+  },
+  "pytest": {
+    "command": "python -m pytest environments/compsognathus/tests environments/shared/tests/test_mjcf_assets.py environments/trex/tests/test_static_balance.py environments/velociraptor/tests/test_static_balance.py",
+    "passed": 105,
+    "failed": 0,
+    "output": "........................................................................ [ 68%]\n.................................                                        [100%]\n105 passed in 26.28s"
+  },
+  "preflight": {
+    "file": "preflight_v2.json",
+    "passed": true,
+    "trial_count": 26,
+    "sha256": "11c15713ae65666318180b23e7c4dec18c37bee099fa6bc1b809bc15ad20d912"
+  },
+  "style_reference": "Mesozoic Labs Biped Robot Concept.png, generated September 6, 2026",
+  "changes": [
+    "Anatomical eyes and teeth removed; lower jaw blends into closed head without a lip rim",
+    "Robot silver/olive mechanical casings and camera bezel replace animal-like body/head surfaces",
+    "Original robot leg geometry, body inertials, motor limits and sensor poses retained",
+    "Previous anatomical jaw inertia retained explicitly so visual cleanup does not retune the plant"
+  ],
+  "other_checks": {
+    "ruff": "passed",
+    "mypy": "passed; 14 source files",
+    "git_diff_check": "passed",
+    "v1_mechanics_comparison": "Both models retain body mass/inertials, joint transforms, ranges and motor limits; robot leg geometry also matches",
+    "rendering": "Actual MuJoCo OSMesa comparison inspected; camera visibility tested"
+  },
+  "worst_active_trial_metrics": {
+    "biological": {
+      "tilt_deg": 0.8560120700886161,
+      "horizontal_drift_m": 0.005412249005895844,
+      "minimum_settled_support_margin_m": 0.01851400264020099,
+      "torque_cap_fraction": 0.6771611932086379
+    },
+    "robot": {
+      "tilt_deg": 0.9969956700621656,
+      "horizontal_drift_m": 0.0035394807571584312,
+      "minimum_settled_support_margin_m": 0.0348230482038283,
+      "torque_cap_fraction": 0.858641734709736
+    }
+  },
+  "limits": [
+    "Enclosures and internal details are styling and collision proxies using existing mass allowances, not fabricated-part CAD",
+    "Flat-floor standing and small reset errors; no walking or hardware validation",
+    "Sensor noise, motor response and assembled inertia need measurement"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "schema": "mesozoic.compso-validation-summary/v1",
+  "date": "2026-09-07",
+  "runtime": {
+    "python": "3.12.13",
+    "mujoco": "3.10.0",
+    "numpy": "2.3.5",
+    "scipy": "1.17.0",
+    "pytest": "9.1.1"
+  },
+  "pytest": {
+    "command": "python -m pytest environments/compsognathus/tests environments/shared/tests/test_mjcf_assets.py environments/trex/tests/test_static_balance.py environments/velociraptor/tests/test_static_balance.py",
+    "passed": 105,
+    "failed": 0,
+    "output": "........................................................................ [ 68%]\n.................................                                        [100%]\n105 passed in 26.02s"
+  },
+  "preflight": {
+    "file": "preflight_v1.json",
+    "passed": true,
+    "trial_count": 26,
+    "sha256": "5318bfe0403b6376806cf1fbe3deed8100909f3046ff95d0d439f640462d9844"
+  },
+  "other_checks": {
+    "ruff": "passed",
+    "mypy": "passed; 13 source files",
+    "git_diff_check": "passed",
+    "generator_reproducibility": "Rebuilding both XMLs produces identical SHA-256 values",
+    "rendering": "Actual MuJoCo OSMesa renders; comparison and robot head camera inspected"
+  },
+  "worst_active_trial_metrics": {
+    "biological": {
+      "tilt_deg": 0.8560120700886161,
+      "horizontal_drift_m": 0.005412249005895838,
+      "minimum_settled_support_margin_m": 0.018514002640200998,
+      "torque_cap_fraction": 0.6771611932086379
+    },
+    "robot": {
+      "tilt_deg": 0.9969956700621656,
+      "horizontal_drift_m": 0.0035394807571584312,
+      "minimum_settled_support_margin_m": 0.0348230482038283,
+      "torque_cap_fraction": 0.858641734709736
+    }
+  },
+  "limits": [
+    "Flat-floor fixed-target standing, not walking or push recovery",
+    "Gains and sensors are ideal simulations, not identified hardware",
+    "Ten specific joint-reset seeds, not a certified training distribution",
+    "Robot self-collision filtering is not a manufacturing clearance check"
+  ]
+}
