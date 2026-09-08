@@ -270,7 +270,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 stages_by_id[stage_id]["advancement_gate"] for stage_id in ("stance", "locomotion", "behavior")
             )
             assert first["gate_kind"] == "stance_quality/v1"
-            assert first["min_avg_reward"] == 1500
+            assert first["min_avg_reward"] == 1800
             assert first["min_full_horizon_fraction"] == 0.9
             assert first["max_unsupported_duty"] == 0.1
             assert first["max_unsupported_duty_ucb"] == 0.15

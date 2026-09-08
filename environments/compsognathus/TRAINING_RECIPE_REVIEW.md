@@ -123,9 +123,9 @@ the combined recipe, not identify which individual change caused it.
    support duty and its bound, reward, action variation, KL, clip fraction,
    and learned standard deviation. Repeated non-finite values or broken
    artifacts require investigation; an early reward dip alone does not.
-4. Require the existing stance gate: at least 20 evaluation episodes, at least
+4. Require the current stance gate: at least 20 evaluation episodes, at least
    90% full horizon, mean unsupported duty at most 10%, its upper bound at most
-   15%, reward at least 1,500, and three consecutive qualifying screening
+   15%, reward at least 1,800, and three consecutive qualifying screening
    evaluations. Require the selected checkpoint's independent publication
    evaluation too; the last or highest-return checkpoint alone is insufficient.
 5. Before calling the recipe reliable, repeat with additional training seeds
@@ -134,8 +134,17 @@ the combined recipe, not identify which individual change caused it.
    independently. SB3's [experiment guidance](https://stable-baselines3.readthedocs.io/en/v2.9.0/guide/rl_tips.html)
    supports multiple seeds, separate evaluation, and environment-specific tuning.
 
+The reward threshold above was subsequently raised from 1,500 to 1,800 for
+both variants. This is 60% of their 3,000-point stance ceiling and approximately
+60% of the anatomical zero-command baseline (2,998.74), matching the fraction
+used by Tyrannosaurus Rex's fixed threshold (`2,100 / 3,495.2`). The robot's
+baseline and learned performance must still be evaluated independently.
+Only the reward threshold changed; the physical stance criteria did not.
+The archived probe JSON retains its original 1,500 threshold as historical
+evidence, and already-running experiments retain their captured settings.
+
 Existing checkpoints remain plant/task compatible because optimizer settings
-and budget do not change the environment identity. Resuming with these changes
+and budget do not change the environment identity. Resuming with the optimizer changes above
 is a **mixed-recipe continuation**, with inherited normalization, learned action
 standard deviation, and optimizer state. It is useful for exploration but is
 not a fresh test of this recipe. Do not relabel the already-running experiment

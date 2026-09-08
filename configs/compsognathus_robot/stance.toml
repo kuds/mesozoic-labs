@@ -70,8 +70,10 @@ gate_kind = "stance_quality/v1"
 # Shared PPO/SAC ceiling, chosen from Tyrannosaurus Rex PPO evidence; neither
 # Compsognathus algorithm has a measured convergence budget yet.
 timesteps = 11000000
-# Reward is an advancement guard; foot support and survival are also required.
-min_avg_reward = 1500.0
+# 60% of the shared 3,000-point stance ceiling. Uses the anatomical variant's
+# baseline-relative target; the robot's baseline and learned performance must
+# still be evaluated separately. Foot support and survival remain required.
+min_avg_reward = 1800.0
 min_full_horizon_fraction = 0.9
 max_unsupported_duty = 0.1
 max_unsupported_duty_ucb = 0.15

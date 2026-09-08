@@ -25,6 +25,7 @@ import math
 import numpy as np
 import pytest
 
+from environments.shared.config import load_all_stages
 from environments.shared.curriculum.stance_gate import (
     STANCE_GATE_KIND,
     StanceGateThresholds,
@@ -111,6 +112,26 @@ class TestDiscrimination:
         passed, failures = evaluate_stance_gate(_panel(0.000, 3000.0, full_fraction=0.5), TREX_1A)
         assert not passed
         assert any("full_horizon_fraction" in f for f in failures)
+
+
+@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+@pytest.mark.parametrize("reward, expected_pass", [(1500.0, False), (1799.0, False), (1800.0, True)])
+def test_compsognathus_configured_reward_rail(species, reward, expected_pass):
+    """Good support cannot bypass the configured 60% standing reward floor."""
+    config = load_all_stages(species)[1]
+    thresholds = StanceGateThresholds.from_curriculum(config["curriculum_kwargs"])
+    horizon = config["env_kwargs"]["max_episode_steps"]
+    panel = stance_panel_from_episode_duties(
+        episode_lengths=[horizon] * 30,
+        episode_duties=[0.05] * 30,
+        episode_rewards=[reward] * 30,
+        horizon=horizon,
+    )
+    passed, failures = evaluate_stance_gate(panel, thresholds)
+    assert passed is expected_pass, failures
+    if not expected_pass:
+        assert len(failures) == 1
+        assert "mean_reward" in failures[0] and "(rail)" in failures[0]
 
 
 class TestFailedEpisodesAreExcludedFromDuty:
