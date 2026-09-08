@@ -29,8 +29,7 @@ result artifacts are not renamed. Regenerate public catalog labels with
 
 Both Compsognathus variants are training selections in the SB3 notebook, with
 separate environment classes, configs, normalization statistics and checkpoint
-identities. Its optional Compsognathus check still runs the standing model
-protocol independently of training. The Ray Tune notebook includes both
+identities. The Ray Tune notebook includes both
 variants with initial PPO/SAC search spaces. JAX/MJX support remains limited to
 the original four species; backend-specific selectors follow the manifest.
 See the [training guide](../environments/compsognathus/README.md#training).
