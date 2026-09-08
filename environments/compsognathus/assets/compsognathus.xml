@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mujoco model="compsognathus_biological_v1">
+<mujoco model="compsognathus_biological_v2">
   <compiler angle="radian" autolimits="true" />
   <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" iterations="100" cone="elliptic" />
   <default>
@@ -43,18 +43,9 @@
           <geom name="skull_geom" type="ellipsoid" pos=".002 0 .003" size=".036 .019 .022" mass=".030" material="head_mat" />
           <body name="jaw" pos="-.015 0 -.012">
             <joint name="jaw_pitch" axis="0 1 0" range="-0.04 0.6" />
-            <geom name="jaw_geom" type="capsule" fromto="0 0 0 .079 0 0" size=".005" mass=".007" material="belly_mat" />
-            <geom name="tooth_-1_0" type="capsule" fromto="0.035 -0.004 0 0.035 -0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
-            <geom name="tooth_-1_1" type="capsule" fromto="0.046 -0.004 0 0.046 -0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
-            <geom name="tooth_-1_2" type="capsule" fromto="0.057 -0.004 0 0.057 -0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
-            <geom name="tooth_-1_3" type="capsule" fromto="0.068 -0.004 0 0.068 -0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
-            <geom name="tooth_1_0" type="capsule" fromto="0.035 0.004 0 0.035 0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
-            <geom name="tooth_1_1" type="capsule" fromto="0.046 0.004 0 0.046 0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
-            <geom name="tooth_1_2" type="capsule" fromto="0.057 0.004 0 0.057 0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
-            <geom name="tooth_1_3" type="capsule" fromto="0.068 0.004 0 0.068 0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
+            <geom name="jaw_geom" type="ellipsoid" size=".040 .009 .006" mass=".007" material="head_mat" pos=".045 0 .008" />
+            <inertial mass="0.007" pos="0.0395 0 0" quat="0.707106781187 0 -0.707106781187 0" diaginertia="4.33369455253e-06 4.33369455253e-06 8.61381322957e-08" />
           </body>
-          <geom name="eye_-1" type="sphere" pos="0 -0.018 0.011" size=".005" mass="0" contype="0" conaffinity="0" material="eye_mat" />
-          <geom name="eye_1" type="sphere" pos="0 0.018 0.011" size=".005" mass="0" contype="0" conaffinity="0" material="eye_mat" />
           <site name="head_tip" pos="0.078 0 -0.002" size="0.003" group="4" />
           <camera name="head_camera" pos="0.08 0 0.002" xyaxes="0 -1 0 0 0 1" fovy="70" resolution="640 480" />
           <geom name="muzzle_geom" type="ellipsoid" pos=".045 0 -.002" size=".033 .011 .011" mass=".015" material="head_mat" />

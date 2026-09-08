@@ -114,7 +114,7 @@ def build_robot(parameters):
         raise ValueError("Rev B reference changed: review provenance before regenerating")
     p = parameters["robot"]
     root = ET.parse(source).getroot()
-    root.set("model", "compsognathus_robot_rev_b_dynamics_v1")
+    root.set("model", "compsognathus_robot_rev_b_dynamics_v2")
     root.insert(
         0, ET.Comment("Generated prototype. Rev B geometry/inertias preserved. See README and references/NOTICE.md.")
     )
@@ -221,7 +221,7 @@ def build_robot(parameters):
 
 def build_biological(parameters):
     p = parameters["biological"]
-    root = ET.Element("mujoco", model="compsognathus_biological_v1")
+    root = ET.Element("mujoco", model="compsognathus_biological_v2")
     root.append(ET.Comment("Generated anatomy-inspired proxy, not a fossil-fitted musculoskeletal reconstruction."))
     element(root, "compiler", angle="radian", autolimits="true")
     element(
@@ -296,18 +296,6 @@ def build_biological(parameters):
         rgba=".46 .61 .41 1",
     )
     for side in (-1, 1):
-        element(
-            skull,
-            "geom",
-            name=f"eye_{side}",
-            type="sphere",
-            pos=fmt([0, side * 0.018, 0.011]),
-            size=".005",
-            mass="0",
-            contype="0",
-            conaffinity="0",
-            rgba=".035 .045 .025 1",
-        )
         arm = element(pelvis, "body", name="l_arm" if side == 1 else "r_arm", pos=fmt([0.08, side * 0.035, 0.005]))
         element(
             arm,

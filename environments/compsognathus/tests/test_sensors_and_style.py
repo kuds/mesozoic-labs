@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 import mujoco
 import numpy as np
 import pytest
+from scipy.spatial import ConvexHull
 
 from environments.compsognathus import MODEL_PATHS
 from environments.compsognathus.model import PARAMETERS, floor_contacts, load_model, robot_body_ids, set_motors_enabled
@@ -110,7 +111,10 @@ def test_robot_imu_is_inside_core_and_head_mass_is_accounted_for():
     model, data = load_model("robot")
     core = model.geom("core_envelope").id
     local = data.geom_xmat[core].reshape(3, 3).T @ (data.site("imu").xpos - data.geom_xpos[core])
-    assert np.sum((local / model.geom_size[core]) ** 2) < 1
+    mesh = model.geom_dataid[core]
+    start, count = model.mesh_vertadr[mesh], model.mesh_vertnum[mesh]
+    hull = ConvexHull(model.mesh_vert[start : start + count])
+    assert np.max(hull.equations[:, :3] @ local + hull.equations[:, 3]) < -0.001
     parts = PARAMETERS["robot"]["head_parts"]
     total = sum(p["mass_kg"] for p in parts)
     head = model.body("fixed_head").id

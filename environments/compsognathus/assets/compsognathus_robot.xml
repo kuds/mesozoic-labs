@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mujoco model="compsognathus_robot_rev_b_dynamics_v1">
+<mujoco model="compsognathus_robot_rev_b_dynamics_v2">
   <compiler angle="radian" meshdir="meshes" inertiafromgeom="false" autolimits="true" />
   <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" iterations="100" cone="elliptic" />
   <default>
@@ -36,6 +36,15 @@
     <material name="lens_mat" rgba=".06 .13 .19 1" specular=".15" shininess=".12" />
     <material name="sole_mat" rgba=".16 .17 .18 1" specular=".15" shininess=".12" />
     <mesh name="robot_tail_shell" vertex="0.135 0.01 0 0.135 0.00951056516295 0.00309016994375 0.135 0.00809016994375 0.00587785252292 0.135 0.00587785252292 0.00809016994375 0.135 0.00309016994375 0.00951056516295 0.135 6.12323399574e-19 0.01 0.135 -0.00309016994375 0.00951056516295 0.135 -0.00587785252292 0.00809016994375 0.135 -0.00809016994375 0.00587785252292 0.135 -0.00951056516295 0.00309016994375 0.135 -0.01 1.22464679915e-18 0.135 -0.00951056516295 -0.00309016994375 0.135 -0.00809016994375 -0.00587785252292 0.135 -0.00587785252292 -0.00809016994375 0.135 -0.00309016994375 -0.00951056516295 0.135 -1.83697019872e-18 -0.01 0.135 0.00309016994375 -0.00951056516295 0.135 0.00587785252292 -0.00809016994375 0.135 0.00809016994375 -0.00587785252292 0.135 0.00951056516295 -0.00309016994375 -0.12 0.0015 0 -0.12 0.00142658477444 0.000463525491562 -0.12 0.00121352549156 0.000881677878439 -0.12 0.000881677878439 0.00121352549156 -0.12 0.000463525491562 0.00142658477444 -0.12 9.18485099361e-20 0.0015 -0.12 -0.000463525491562 0.00142658477444 -0.12 -0.000881677878439 0.00121352549156 -0.12 -0.00121352549156 0.000881677878439 -0.12 -0.00142658477444 0.000463525491562 -0.12 -0.0015 1.83697019872e-19 -0.12 -0.00142658477444 -0.000463525491562 -0.12 -0.00121352549156 -0.000881677878439 -0.12 -0.000881677878439 -0.00121352549156 -0.12 -0.000463525491562 -0.00142658477444 -0.12 -2.75545529808e-19 -0.0015 -0.12 0.000463525491562 -0.00142658477444 -0.12 0.000881677878439 -0.00121352549156 -0.12 0.00121352549156 -0.000881677878439 -0.12 0.00142658477444 -0.000463525491562" face="0 21 1 0 20 21 1 22 2 1 21 22 2 23 3 2 22 23 3 24 4 3 23 24 4 25 5 4 24 25 5 26 6 5 25 26 6 27 7 6 26 27 7 28 8 7 27 28 8 29 9 8 28 29 9 30 10 9 29 30 10 31 11 10 30 31 11 32 12 11 31 32 12 33 13 12 32 33 13 34 14 13 33 34 14 35 15 14 34 35 15 36 16 15 35 36 16 37 17 16 36 37 17 38 18 17 37 38 18 39 19 18 38 39 19 20 0 19 39 20 0 1 2 20 22 21 0 2 3 20 23 22 0 3 4 20 24 23 0 4 5 20 25 24 0 5 6 20 26 25 0 6 7 20 27 26 0 7 8 20 28 27 0 8 9 20 29 28 0 9 10 20 30 29 0 10 11 20 31 30 0 11 12 20 32 31 0 12 13 20 33 32 0 13 14 20 34 33 0 14 15 20 35 34 0 15 16 20 36 35 0 16 17 20 37 36 0 17 18 20 38 37 0 18 19 20 39 38" />
+    <material name="shell_alloy_mat" rgba=".50 .53 .51 1" specular=".28" shininess=".3" />
+    <material name="shell_olive_mat" rgba=".34 .39 .28 1" specular=".12" shininess=".3" />
+    <material name="shell_dark_mat" rgba=".065 .08 .085 1" specular=".18" shininess=".3" />
+    <material name="circuit_mat" rgba=".12 .27 .20 1" specular=".08" shininess=".3" />
+    <material name="fastener_mat" rgba=".28 .30 .30 1" specular=".35" shininess=".3" />
+    <material name="wire_mat" rgba=".47 .12 .08 1" specular=".1" shininess=".3" />
+    <mesh name="core_casing_mesh" vertex="-0.06 -0.038 -0.026 -0.06 0.038 -0.026 -0.06 0.047 -0.017 -0.06 0.047 0.017 -0.06 0.038 0.026 -0.06 -0.038 0.026 -0.06 -0.047 0.017 -0.06 -0.047 -0.017 -0.043 -0.054 -0.04 -0.043 0.054 -0.04 -0.043 0.065 -0.029 -0.043 0.065 0.029 -0.043 0.054 0.04 -0.043 -0.054 0.04 -0.043 -0.065 0.029 -0.043 -0.065 -0.029 0.025 -0.054 -0.034 0.025 0.054 -0.034 0.025 0.065 -0.023 0.025 0.065 0.027 0.025 0.054 0.038 0.025 -0.054 0.038 0.025 -0.065 0.027 0.025 -0.065 -0.023 0.06 -0.027 -0.013 0.06 0.027 -0.013 0.06 0.034 -0.006 0.06 0.034 0.007 0.06 0.027 0.014 0.06 -0.027 0.014 0.06 -0.034 0.007 0.06 -0.034 -0.006" face="0 1 9 0 9 8 1 2 10 1 10 9 2 3 11 2 11 10 3 4 12 3 12 11 4 5 13 4 13 12 5 6 14 5 14 13 6 7 15 6 15 14 7 0 8 7 8 15 8 9 17 8 17 16 9 10 18 9 18 17 10 11 19 10 19 18 11 12 20 11 20 19 12 13 21 12 21 20 13 14 22 13 22 21 14 15 23 14 23 22 15 8 16 15 16 23 16 17 25 16 25 24 17 18 26 17 26 25 18 19 27 18 27 26 19 20 28 19 28 27 20 21 29 20 29 28 21 22 30 21 30 29 22 23 31 22 31 30 23 16 24 23 24 31 0 2 1 24 25 26 0 3 2 24 26 27 0 4 3 24 27 28 0 5 4 24 28 29 0 6 5 24 29 30 0 7 6 24 30 31" />
+    <mesh name="head_camera_casing_mesh" vertex="-0.035 -0.012 -0.018 -0.035 0.012 -0.018 -0.035 0.018 -0.012 -0.035 0.018 0.019 -0.035 0.012 0.025 -0.035 -0.012 0.025 -0.035 -0.018 0.019 -0.035 -0.018 -0.012 -0.013 -0.013 -0.017 -0.013 0.013 -0.017 -0.013 0.02 -0.01 -0.013 0.02 0.018 -0.013 0.013 0.025 -0.013 -0.013 0.025 -0.013 -0.02 0.018 -0.013 -0.02 -0.01 0.038 -0.006 -0.003 0.038 0.006 -0.003 0.038 0.01 0.001 0.038 0.01 0.014 0.038 0.006 0.018 0.038 -0.006 0.018 0.038 -0.01 0.014 0.038 -0.01 0.001" face="0 1 9 0 9 8 1 2 10 1 10 9 2 3 11 2 11 10 3 4 12 3 12 11 4 5 13 4 13 12 5 6 14 5 14 13 6 7 15 6 15 14 7 0 8 7 8 15 8 9 17 8 17 16 9 10 18 9 18 17 10 11 19 10 19 18 11 12 20 11 20 19 12 13 21 12 21 20 13 14 22 13 22 21 14 15 23 14 23 22 15 8 16 15 16 23 0 2 1 16 17 18 0 3 2 16 18 19 0 4 3 16 19 20 0 5 4 16 20 21 0 6 5 16 21 22 0 7 6 16 22 23" />
+    <mesh name="head_top_panel_mesh" vertex="-0.029 -0.0096 0.024 -0.029 0.0096 0.024 -0.029 0.01 0.0244 -0.029 0.01 0.0246 -0.029 0.0096 0.025 -0.029 -0.0096 0.025 -0.029 -0.01 0.0246 -0.029 -0.01 0.0244 -0.014 -0.0106 0.024 -0.014 0.0106 0.024 -0.014 0.011 0.0244 -0.014 0.011 0.0246 -0.014 0.0106 0.025 -0.014 -0.0106 0.025 -0.014 -0.011 0.0246 -0.014 -0.011 0.0244 0.012 -0.0066 0.0203 0.012 0.0066 0.0203 0.012 0.007 0.0207 0.012 0.007 0.0209 0.012 0.0066 0.0213 0.012 -0.0066 0.0213 0.012 -0.007 0.0209 0.012 -0.007 0.0207" face="0 1 9 0 9 8 1 2 10 1 10 9 2 3 11 2 11 10 3 4 12 3 12 11 4 5 13 4 13 12 5 6 14 5 14 13 6 7 15 6 15 14 7 0 8 7 8 15 8 9 17 8 17 16 9 10 18 9 18 17 10 11 19 10 19 18 11 12 20 11 20 19 12 13 21 12 21 20 13 14 22 13 22 21 14 15 23 14 23 22 15 8 16 15 16 23 0 2 1 16 17 18 0 3 2 16 18 19 0 4 3 16 19 20 0 5 4 16 20 21 0 6 5 16 21 22 0 7 6 16 22 23" />
   </asset>
   <worldbody>
     <geom name="floor" type="plane" size="3 3 0.05" rgba="1 1 1 1" contype="2" conaffinity="1" friction="0.8 0.005 0.0001" material="ground_mat" condim="3" />
@@ -43,27 +52,71 @@
       <freejoint name="root" />
       <body name="core" pos="-0.002 0 0.07">
         <inertial pos="0 0 0" mass="0.505" diaginertia="0.000980541666667 0.000875333333333 0.00131720833333" />
-        <geom name="core_envelope" type="ellipsoid" size="0.06 0.065 0.04" contype="1" conaffinity="2" material="body_mat" />
-        <geom name="neck_mount_visual" type="capsule" fromto=".05 0 .015 .082 0 .04" size=".006" contype="0" conaffinity="0" material="frame_mat" />
+        <geom name="core_envelope" type="mesh" contype="1" conaffinity="2" material="shell_alloy_mat" mesh="core_casing_mesh" />
+        <geom name="neck_mount_visual" type="cylinder" fromto=".05 0 .015 .082 0 .04" size=".007" contype="0" conaffinity="0" material="shell_dark_mat" />
         <geom name="tail_mount_visual" type="capsule" fromto="-.055 0 .005 -.075 0 .01" size=".005" contype="0" conaffinity="0" material="frame_mat" />
+        <geom name="dorsal_service_panel" type="box" material="shell_olive_mat" contype="0" conaffinity="0" pos="-.01 0 .039" size=".028 .048 .0015" />
+        <geom name="service_window_frame_-1" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.008 -0.0654 0" size=".022 .0008 .014" />
+        <geom name="service_window_board_-1" type="box" material="circuit_mat" contype="0" conaffinity="0" pos="-0.008 -0.0663 0.002" size=".018 .0004 .009" />
+        <geom name="board_chip_-1_0" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.02 -0.0668 0.003" size=".003 .0003 .003" />
+        <geom name="board_chip_-1_1" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.007 -0.0668 0.003" size=".003 .0003 .003" />
+        <geom name="board_chip_-1_2" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="0.006 -0.0668 0.003" size=".003 .0003 .003" />
+        <geom name="power_module_face_-1" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.008 -0.0667 -0.008" size=".016 .0005 .003" />
+        <geom name="window_wire_-1" type="capsule" material="wire_mat" contype="0" conaffinity="0" fromto="-0.025 -0.067 0.012 0.008 -0.067 0.012" size=".00065" />
+        <geom name="lower_access_panel_-1" type="box" material="shell_olive_mat" contype="0" conaffinity="0" pos="-0.016 -0.062 -0.025" size=".021 .001 .005" />
+        <geom name="core_screw_-1_-0.037_-0.02" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="-0.037 -0.0657 -0.02" quat=".707106781187 .707106781187 0 0" size=".0018 .0007" />
+        <geom name="core_screw_-1_-0.037_0.023" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="-0.037 -0.0657 0.023" quat=".707106781187 .707106781187 0 0" size=".0018 .0007" />
+        <geom name="core_screw_-1_0.02_-0.02" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="0.02 -0.0657 -0.02" quat=".707106781187 .707106781187 0 0" size=".0018 .0007" />
+        <geom name="core_screw_-1_0.02_0.023" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="0.02 -0.0657 0.023" quat=".707106781187 .707106781187 0 0" size=".0018 .0007" />
+        <geom name="core_vent_-1_0" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.027 -0.0656 0.024" size=".002 .0007 .004" />
+        <geom name="core_vent_-1_1" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.019 -0.0656 0.024" size=".002 .0007 .004" />
+        <geom name="core_vent_-1_2" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.011 -0.0656 0.024" size=".002 .0007 .004" />
+        <geom name="core_vent_-1_3" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.003 -0.0656 0.024" size=".002 .0007 .004" />
+        <geom name="service_window_frame_1" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.008 0.0654 0" size=".022 .0008 .014" />
+        <geom name="service_window_board_1" type="box" material="circuit_mat" contype="0" conaffinity="0" pos="-0.008 0.0663 0.002" size=".018 .0004 .009" />
+        <geom name="board_chip_1_0" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.02 0.0668 0.003" size=".003 .0003 .003" />
+        <geom name="board_chip_1_1" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.007 0.0668 0.003" size=".003 .0003 .003" />
+        <geom name="board_chip_1_2" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="0.006 0.0668 0.003" size=".003 .0003 .003" />
+        <geom name="power_module_face_1" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.008 0.0667 -0.008" size=".016 .0005 .003" />
+        <geom name="window_wire_1" type="capsule" material="wire_mat" contype="0" conaffinity="0" fromto="-0.025 0.067 0.012 0.008 0.067 0.012" size=".00065" />
+        <geom name="lower_access_panel_1" type="box" material="shell_olive_mat" contype="0" conaffinity="0" pos="-0.016 0.062 -0.025" size=".021 .001 .005" />
+        <geom name="core_screw_1_-0.037_-0.02" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="-0.037 0.0657 -0.02" quat=".707106781187 .707106781187 0 0" size=".0018 .0007" />
+        <geom name="core_screw_1_-0.037_0.023" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="-0.037 0.0657 0.023" quat=".707106781187 .707106781187 0 0" size=".0018 .0007" />
+        <geom name="core_screw_1_0.02_-0.02" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="0.02 0.0657 -0.02" quat=".707106781187 .707106781187 0 0" size=".0018 .0007" />
+        <geom name="core_screw_1_0.02_0.023" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="0.02 0.0657 0.023" quat=".707106781187 .707106781187 0 0" size=".0018 .0007" />
+        <geom name="core_vent_1_0" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.027 0.0656 0.024" size=".002 .0007 .004" />
+        <geom name="core_vent_1_1" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.019 0.0656 0.024" size=".002 .0007 .004" />
+        <geom name="core_vent_1_2" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.011 0.0656 0.024" size=".002 .0007 .004" />
+        <geom name="core_vent_1_3" type="box" material="shell_dark_mat" contype="0" conaffinity="0" pos="-0.003 0.0656 0.024" size=".002 .0007 .004" />
+        <geom name="fixed_neck_coupling" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos=".075 0 .035" quat=".707106781187 .707106781187 0 0" size=".009 .009" />
       </body>
       <body name="fixed_head" pos="0.115 0 0.11">
         <site name="head_tip" pos="0.04 0 -0.003" size="0.003" group="4" />
         <camera name="head_camera" pos="0.042 0 0.008" xyaxes="0 -1 0 0 0 1" fovy="70" resolution="640 480" />
-        <geom name="cranium_shell" type="ellipsoid" pos="-0.011 0 0.005" size="0.024 0.02 0.02" material="head_mat" contype="17" conaffinity="14" group="0" />
-        <geom name="muzzle_shell" type="ellipsoid" pos="0.014 0 -0.003" size="0.026 0.012 0.011" material="head_mat" contype="17" conaffinity="14" group="0" />
-        <geom name="fixed_jaw_shell" type="ellipsoid" pos="0.008 0 -0.015" size="0.03 0.012 0.005" material="belly_mat" contype="17" conaffinity="14" group="0" />
-        <geom name="camera_module" type="box" pos="0.027 0 0.008" size="0.007 0.01 0.007" material="electronics_mat" contype="17" conaffinity="14" group="3" />
-        <geom name="head_mount" type="box" pos="-0.005 0 -0.012" size="0.012 0.011 0.004" material="frame_mat" contype="17" conaffinity="14" group="3" />
+        <geom name="cranium_shell" type="ellipsoid" pos="-0.011 0 0.005" size="0.024 0.02 0.02" material="head_mat" contype="0" conaffinity="0" group="3" />
+        <geom name="muzzle_shell" type="ellipsoid" pos="0.014 0 -0.003" size="0.026 0.012 0.011" material="head_mat" contype="0" conaffinity="0" group="3" />
+        <geom name="fixed_jaw_shell" type="ellipsoid" pos="0.008 0 -0.015" size="0.03 0.012 0.005" material="belly_mat" contype="0" conaffinity="0" group="3" />
+        <geom name="camera_module" type="box" pos="0.027 0 0.008" size="0.007 0.01 0.007" material="electronics_mat" contype="0" conaffinity="0" group="3" />
+        <geom name="head_mount" type="box" pos="-0.005 0 -0.012" size="0.012 0.011 0.004" material="frame_mat" contype="0" conaffinity="0" group="3" />
         <inertial pos="0.00115555555556 0 0.000244444444444" mass="0.045" fullinertia="7.29797777778e-06 1.85721555556e-05 1.62656444444e-05 0 6.22711111111e-07 0" />
         <geom name="camera_lens_visual" type="cylinder" pos=".0395 0 .008" quat=".707106781187 0 .707106781187 0" size=".006 .0015" material="lens_mat" contype="0" conaffinity="0" />
-        <geom name="eye_detail_-1" type="sphere" pos="-0.006 -0.019 0.01" size=".0035" material="eye_mat" contype="0" conaffinity="0" />
-        <geom name="eye_detail_1" type="sphere" pos="-0.006 0.019 0.01" size=".0035" material="eye_mat" contype="0" conaffinity="0" />
+        <geom name="head_camera_casing" type="mesh" material="shell_alloy_mat" contype="17" conaffinity="14" mesh="head_camera_casing_mesh" />
+        <geom name="head_top_panel" type="mesh" material="shell_olive_mat" contype="0" conaffinity="0" mesh="head_top_panel_mesh" />
+        <geom name="camera_bezel" type="cylinder" material="shell_dark_mat" contype="0" conaffinity="0" pos=".039 0 .008" quat=".707106781187 0 .707106781187 0" size=".0078 .0018" />
+        <geom name="head_fastener_-1_0" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="-0.025 -0.0198 0.002" quat=".707106781187 .707106781187 0 0" size=".0012 .0006" />
+        <geom name="head_fastener_-1_1" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="-0.013 -0.0198 0.002" quat=".707106781187 .707106781187 0 0" size=".0012 .0006" />
+        <geom name="head_rear_panel_-1" type="box" material="shell_olive_mat" contype="0" conaffinity="0" pos="-0.03 -0.0186 0.004" size=".003 .0006 .008" />
+        <geom name="head_fastener_1_0" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="-0.025 0.0198 0.002" quat=".707106781187 .707106781187 0 0" size=".0012 .0006" />
+        <geom name="head_fastener_1_1" type="cylinder" material="fastener_mat" contype="0" conaffinity="0" pos="-0.013 0.0198 0.002" quat=".707106781187 .707106781187 0 0" size=".0012 .0006" />
+        <geom name="head_rear_panel_1" type="box" material="shell_olive_mat" contype="0" conaffinity="0" pos="-0.03 0.0186 0.004" size=".003 .0006 .008" />
       </body>
       <body name="passive_tail" pos="-0.195 0 0.08">
         <inertial pos="0 0 0" mass="0.05" diaginertia="1.2e-06 0.0002406 0.0002406" />
-        <geom name="passive_tail_envelope" type="mesh" contype="17" conaffinity="14" material="body_mat" mesh="robot_tail_shell" />
+        <geom name="passive_tail_envelope" type="mesh" contype="17" conaffinity="14" material="shell_dark_mat" mesh="robot_tail_shell" />
         <site name="tail_tip" pos="-.12 0 0" size="0.003" group="4" />
+        <geom name="tail_collar_0" type="cylinder" material="shell_alloy_mat" contype="0" conaffinity="0" pos="0.095 0 0" quat=".707106781187 0 .707106781187 0" size="0.00916666666667 0.003" />
+        <geom name="tail_collar_1" type="cylinder" material="shell_alloy_mat" contype="0" conaffinity="0" pos="0.02 0 0" quat=".707106781187 0 .707106781187 0" size="0.00666666666667 0.003" />
+        <geom name="tail_collar_2" type="cylinder" material="shell_alloy_mat" contype="0" conaffinity="0" pos="-0.055 0 0" quat=".707106781187 0 .707106781187 0" size="0.00416666666667 0.003" />
       </body>
       <body name="hip_roll_assembly" pos="0.01606 0.035 0.046015" quat="1 -1.03785088385e-16 -1.09912079438e-14 -3.80798623686e-27">
         <joint name="left_hip_yaw" type="hinge" axis="0 0 1" range="-0.52359877559829881566 0.52359877559829881566" />

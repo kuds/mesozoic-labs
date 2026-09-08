@@ -1,15 +1,18 @@
 """Repository-consistent primitive styling with explicit mass treatment.
 
-Brown/tan materials match T-Rex, not a claim about fossil colour. The robot's
-head budget is redistributed explicitly; all other robot inertials remain the
-Rev B aggregate allowances. Inline tapered meshes need no downloaded artwork.
+Anatomical brown/tan materials match T-Rex, not a claim about fossil colour.
+The robot's mechanical fairings retain the v1 head and Rev B core/leg mass
+proxies. Inline meshes need no downloaded artwork.
 """
 
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 
+import mujoco
 import numpy as np
+
+from environments.compsognathus.scripts.robot_shells import robot_casings
 
 
 def numbers(values):
@@ -95,18 +98,6 @@ def robot_head(head, parts):
         contype="0",
         conaffinity="0",
     )
-    for side in (-1, 1):
-        add(
-            head,
-            "geom",
-            name=f"eye_detail_{side}",
-            type="sphere",
-            pos=numbers([-0.006, side * 0.019, 0.010]),
-            size=".0035",
-            material="eye_mat",
-            contype="0",
-            conaffinity="0",
-        )
 
 
 def apply_styles(root, variant, parameters):
@@ -163,6 +154,7 @@ def apply_styles(root, variant, parameters):
             material="electronics_mat",
         )
         pelvis.find("site[@name='imu']").set("pos", numbers(parameters["robot"]["imu_pos_m"]))
+        robot_casings(root, parameters)
         camera_pos = parameters["robot"]["camera_pos_m"]
         tip_pos = [0.040, 0, -0.003]
     else:
@@ -210,25 +202,32 @@ def apply_styles(root, variant, parameters):
             material="head_mat",
         )
         jaw = head.find("body[@name='jaw']")
-        set_material(jaw.find("geom"), "belly_mat")
-        for geom in head.findall("geom"):
-            if geom.get("name", "").startswith("eye_"):
-                set_material(geom, "eye_mat")
-        for side in (-1, 1):
-            for i in range(4):
-                x = 0.035 + i * 0.011
-                add(
-                    jaw,
-                    "geom",
-                    name=f"tooth_{side}_{i}",
-                    type="capsule",
-                    fromto=numbers([x, side * 0.004, 0, x, side * 0.004, 0.003]),
-                    size=".0007",
-                    mass="0",
-                    contype="0",
-                    conaffinity="0",
-                    material="tooth_mat",
-                )
+        # A plain lower-jaw proxy blends into the closed head without a lip
+        # rim. Preserve the previous 7 g capsule's COM/inertia explicitly:
+        # this is a visual revision, not a change to the articulated plant.
+        jaw_geom = jaw.find("geom")
+        mass_reference = ET.Element("mujoco")
+        ref_body = add(add(mass_reference, "worldbody"), "body", name="jaw")
+        add(
+            ref_body,
+            "geom",
+            type="capsule",
+            fromto=jaw_geom.get("fromto"),
+            size=jaw_geom.get("size"),
+            mass=jaw_geom.get("mass"),
+        )
+        compiled = mujoco.MjModel.from_xml_string(ET.tostring(mass_reference, encoding="unicode"))
+        add(
+            jaw,
+            "inertial",
+            mass=compiled.body_mass[1],
+            pos=numbers(compiled.body_ipos[1]),
+            quat=numbers(compiled.body_iquat[1]),
+            diaginertia=numbers(compiled.body_inertia[1]),
+        )
+        jaw_geom.attrib.pop("fromto")
+        jaw_geom.attrib.update(type="ellipsoid", pos=".045 0 .008", size=".040 .009 .006")
+        set_material(jaw_geom, "head_mat")
         radii = [0.019, 0.014, 0.009, 0.0045, 0.0015]
         for i, length in enumerate(parameters["biological"]["tail_segment_lengths_m"]):
             name = f"tail_{i + 1}_taper"

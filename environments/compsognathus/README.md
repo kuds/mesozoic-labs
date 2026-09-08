@@ -62,7 +62,9 @@ or EGL with `MUJOCO_GL=egl`. Model loading and physics tests need neither.
 The generator verifies its SHA-256 and uses the original first
 double-support pose stored in `data/model_parameters.json`. Body transforms,
 joint signs/ranges and leg/core inertials remain unchanged. The head's
-45 g allocation now has an explicitly recomputed component COM and inertia.
+45 g allocation uses the component COM and inertia established in v1.
+The v2 mechanical enclosures retain those aggregate mass proxies; their panel
+surfaces are not used to infer the mass of solid metal blocks.
 The tapered tail retains its conservative 50 g Rev B aggregate inertial
 allowance, including its attachment; this is not a uniform-density tail CAD.
 
@@ -90,11 +92,14 @@ masses, not weighed hardware. The core remains an aggregate envelope, not
 a verified arrangement of the battery, boards and regulator. Decorative
 mounts and the camera lens use existing inertial allowances.
 
-The new fixed head allocates **22 g cranium shell, 8 g muzzle, 5 g jaw,
+The fixed head allocates **22 g rear shell, 8 g nose housing, 5 g lower shell,
 6 g camera module/lens and 4 g mount**. These overlapping primitive envelopes
-approximate shells and internal packaging; they are not solid intersecting
-manufacturing parts. The camera dimensions and 6 g allowance require a real
-part selection before fabrication.
+are now hidden mass proxies. A chamfered outer camera housing supplies the
+visible shape and external collision envelope. Panels, screws and window
+details fit the existing head/core allowances, not additional mass-free
+hardware. The camera dimensions and 6 g allowance require a real part
+selection before fabrication. Recalculate mass/inertia from the selected
+parts and actual shells before treating this as a manufacturing model.
 
 ## Appearance and sensor layout
 
@@ -103,8 +108,19 @@ The anatomical proxy uses rounded torso/neck forms, an elongated small skull,
 three functional toes, a tibia longer than the femur and a continuously
 tapered long tail. Colours express repository styling, not known fossil
 colouration. It remains an anatomy-inspired proxy rather than a specimen scan.
-The robot shares that palette and head silhouette around its original legs.
-Its head, jaw and tail remain fixed; **all twelve motors are in the legs**.
+The anatomical head has no eyes, teeth or lip rim. Its plain lower-jaw proxy
+blends inside the closed snout while preserving the articulated jaw and 7 g
+mass allocation.
+
+The robot's v2 body and head follow the silver/olive mechanical styling of
+the September 6 **Mesozoic Labs Biped Robot Concept.png**. A chamfered metal
+core, olive service panels, inspection-window details, dark neck coupling,
+fasteners and tapered camera housing replace the rounded animal-like shells.
+The passive tail uses a dark finish with rigid collars. The existing leg
+geometry and materials stay unchanged. This adapts the concept's enclosure
+styling to the screened proportions; it does not assert the sketch's parts
+or proportions are manufacturable. Head and tail remain fixed;
+**all twelve motors are in the legs**.
 
 `data/sensor_layout.json` defines the mounting frames and signal contract:
 
@@ -174,10 +190,10 @@ tissue are simulation approximations, not a fossil-fitted reconstruction.
 
 ## Validation scope
 
-`data/preflight_v1.json` records current model/validator hashes, dimensions,
+`data/preflight_v2.json` records current model/validator hashes, dimensions,
 masses, contact loads, torque utilisation and explicit acceptance thresholds.
-`preflight_v0.json` is historical evidence for the previous shapes and gains.
-`data/validation_summary_v1.json` records **105 passing targeted tests**,
+`preflight_v0.json` and `preflight_v1.json` are historical evidence for earlier revisions.
+`data/validation_summary_v2.json` records **105 passing targeted tests**,
 including the existing T-Rex and raptor static-balance suites, plus all
 26 preflight trials. This is not a claim that the entire repository test
 suite or the training stack was exercised.

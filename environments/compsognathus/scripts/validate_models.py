@@ -249,7 +249,7 @@ def validate():
         trials.append(hold_trial(variant, motors_off=True, seconds=5))
         trials.append(hold_trial(variant, mass_scale=PARAMETERS["robot"]["stress_mass_scale"]))
     return {
-        "schema": "mesozoic.compso-preflight/v1",
+        "schema": "mesozoic.compso-preflight/v2",
         "protocol": PROTOCOL,
         "validator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "mujoco_version": mujoco.__version__,
