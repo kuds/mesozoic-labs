@@ -207,7 +207,7 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Hold an upright stance with both feet supported | 1M | reward ≥ 1500; full-horizon episodes ≥ 90.0%; unsupported duty ≤ 0.1; unsupported duty 95% upper bound ≤ 0.15; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Hold an upright stance with foot support | 11M | reward ≥ 1500; full-horizon episodes ≥ 90.0%; unsupported duty ≤ 0.1; unsupported duty 95% upper bound ≤ 0.15; ≥ 20 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.08 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
 | 3 — Target Reach | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
 
@@ -234,7 +234,7 @@ Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fi
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Hold an upright stance with both feet supported | 1M | reward ≥ 1500; full-horizon episodes ≥ 90.0%; unsupported duty ≤ 0.1; unsupported duty 95% upper bound ≤ 0.15; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Hold an upright stance with foot support | 11M | reward ≥ 1500; full-horizon episodes ≥ 90.0%; unsupported duty ≤ 0.1; unsupported duty 95% upper bound ≤ 0.15; ≥ 20 episodes/evaluation; 3 consecutive passes |
 | 2 — Locomotion | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.04 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
 | 3 — Target Reach | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
 

@@ -4,6 +4,12 @@ Measured September 8, 2026. Both the anatomical and Rev B robot models now
 support the repository's SB3 training workflow. This validates the pipeline;
 it does not establish a converged walking controller.
 
+These are the original integration results. The subsequent
+[September 8 recipe review](TRAINING_RECIPE_REVIEW.md) records the revised
+PPO settings, their separate validation, and the full-run qualification that
+is still required. Passing the integration suite does not validate a recipe's
+convergence or the older species' compatibility with current training code.
+
 Machine-readable evidence: [training validation](data/training_validation_v1.json)
 and [current model preflight](data/preflight_training_v1.json).
 

@@ -1,5 +1,5 @@
 {
-  "_comment": "Initial Compsognathus SB3 tuning space; budgets are pilot runs, not convergence estimates.",
+  "_comment": "100k-step trials check wiring and early stability, not convergence or the full entropy schedule. Include the 3e-5 recipe baseline; qualify candidates with full runs and held-out gates.",
   "stage1": {
     "trials": 4,
     "timesteps": 100000,
@@ -7,7 +7,7 @@
     "n_envs": 2,
     "ppo_learning_rate": {
       "type": "double",
-      "min": 5e-05,
+      "min": 1e-05,
       "max": 0.0003,
       "scale": "log"
     },
@@ -32,7 +32,7 @@
     "n_envs": 2,
     "ppo_learning_rate": {
       "type": "double",
-      "min": 5e-05,
+      "min": 1e-05,
       "max": 0.0003,
       "scale": "log"
     },
@@ -57,7 +57,7 @@
     "n_envs": 2,
     "ppo_learning_rate": {
       "type": "double",
-      "min": 5e-05,
+      "min": 1e-05,
       "max": 0.0003,
       "scale": "log"
     },
