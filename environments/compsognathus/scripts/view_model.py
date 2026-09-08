@@ -44,7 +44,9 @@ def comparison(path):
     except OSError:
         title = body = ImageFont.load_default()
     draw.text((32, 18), "MESOZOIC LABS  /  COMPSOGNATHUS", font=title, fill="#f3f0e8")
-    draw.text((32, 62), "Initial MuJoCo models • authored home poses • equal camera scale", font=body, fill="#bac9cf")
+    draw.text(
+        (32, 62), "Styled MuJoCo prototypes • authored home poses • equal camera scale", font=body, fill="#bac9cf"
+    )
     for column, variant in enumerate(MODEL_PATHS):
         model, data = load_model(variant)
         low, high = model_bounds(model, data)
@@ -71,7 +73,7 @@ def comparison(path):
     )
     draw.text(
         (32, 999),
-        "Standing smoke tests passed. Walking, manufactured fit, motor identification and hardware transfer remain open.",
+        "Standing and sensor validation only. Walking, manufactured fit and hardware calibration remain open.",
         font=body,
         fill="#bac9cf",
     )
@@ -86,6 +88,7 @@ def main():
     parser.add_argument("--motors-off", action="store_true")
     parser.add_argument("--snapshot", type=Path)
     parser.add_argument("--compare", type=Path)
+    parser.add_argument("--head-camera", action="store_true", help="View the onboard 640x480 RGB camera")
     parser.add_argument("--video", type=Path)
     parser.add_argument("--seconds", type=float, default=5)
     args = parser.parse_args()
@@ -98,8 +101,12 @@ def main():
     if args.motors_off:
         set_motors_enabled(model, False)
     camera = camera_for(model, data)
+    if args.head_camera:
+        camera.type = mujoco.mjtCamera.mjCAMERA_FIXED
+        camera.fixedcamid = model.camera("head_camera").id
     if args.snapshot or args.video:
-        with mujoco.Renderer(model, height=720, width=1080) as renderer:
+        height, width = (480, 640) if args.head_camera else (720, 1080)
+        with mujoco.Renderer(model, height=height, width=width) as renderer:
             if args.snapshot:
                 from PIL import Image
 
@@ -121,6 +128,8 @@ def main():
     from mujoco import viewer as mj_viewer
 
     with mj_viewer.launch_passive(model, data) as viewer:
+        viewer.cam.type = camera.type
+        viewer.cam.fixedcamid = camera.fixedcamid
         viewer.cam.lookat[:] = camera.lookat
         viewer.cam.distance = camera.distance
         viewer.cam.azimuth = camera.azimuth

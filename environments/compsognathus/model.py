@@ -45,11 +45,12 @@ def load_model(variant: str, mass_scale: float = 1.0):
 
 
 def set_motors_enabled(model: mujoco.MjModel, enabled: bool):
-    """Disable a freshly loaded model's servos. Reload to restore its gains."""
+    """Toggle solver-level actuation, preserving gains and other disable flags."""
+    flag = int(mujoco.mjtDisableBit.mjDSBL_ACTUATION)
     if enabled:
-        raise ValueError("Reload the model to restore its original servo gains")
-    model.actuator_gainprm[:] = 0
-    model.actuator_biasprm[:] = 0
+        model.opt.disableflags &= ~flag
+    else:
+        model.opt.disableflags |= flag
 
 
 def model_bounds(model: mujoco.MjModel, data: mujoco.MjData):

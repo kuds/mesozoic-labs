@@ -1,5 +1,5 @@
 {
-  "schema": "mesozoic.compso-model-prototype/v1",
+  "schema": "mesozoic.compso-model-prototype/v2",
   "source_revision": "Leg mechanism Rev B, 2026-09-06",
   "source_xml_sha256": "f7bfb6ff93defa2ca542daa1180a72bba01cf54739ffb4d4040ffef71c2cf956",
   "source_pose": "motion.npz qpos[0] (prescribed double support; not a walking controller)",
@@ -46,8 +46,103 @@
     "hip_roll_no_load_speed_rad_s": 7.873666,
     "other_no_load_speed_rad_s": 4.717106,
     "kp": 25.0,
-    "kv": 0.4,
-    "joint_armature_kg_m2": 0.0001
+    "kv": 0.2,
+    "joint_armature_kg_m2": 0.0001,
+    "head_parts": [
+      {
+        "name": "cranium_shell",
+        "mass_kg": 0.022,
+        "type": "ellipsoid",
+        "pos_m": [
+          -0.011,
+          0,
+          0.005
+        ],
+        "size_m": [
+          0.024,
+          0.02,
+          0.02
+        ],
+        "material": "head_mat"
+      },
+      {
+        "name": "muzzle_shell",
+        "mass_kg": 0.008,
+        "type": "ellipsoid",
+        "pos_m": [
+          0.014,
+          0,
+          -0.003
+        ],
+        "size_m": [
+          0.026,
+          0.012,
+          0.011
+        ],
+        "material": "head_mat"
+      },
+      {
+        "name": "fixed_jaw_shell",
+        "mass_kg": 0.005,
+        "type": "ellipsoid",
+        "pos_m": [
+          0.008,
+          0,
+          -0.015
+        ],
+        "size_m": [
+          0.03,
+          0.012,
+          0.005
+        ],
+        "material": "belly_mat"
+      },
+      {
+        "name": "camera_module",
+        "mass_kg": 0.006,
+        "type": "box",
+        "pos_m": [
+          0.027,
+          0,
+          0.008
+        ],
+        "size_m": [
+          0.007,
+          0.01,
+          0.007
+        ],
+        "material": "electronics_mat",
+        "internal": true
+      },
+      {
+        "name": "head_mount",
+        "mass_kg": 0.004,
+        "type": "box",
+        "pos_m": [
+          -0.005,
+          0,
+          -0.012
+        ],
+        "size_m": [
+          0.012,
+          0.011,
+          0.004
+        ],
+        "material": "frame_mat",
+        "internal": true
+      }
+    ],
+    "imu_pos_m": [
+      -0.002,
+      0,
+      0.07
+    ],
+    "camera_pos_m": [
+      0.042,
+      0,
+      0.008
+    ],
+    "head_mass_status": "45 g allocated among shell, camera and mount; not measured hardware. Head COM/inertia recomputed from these parts."
   },
   "biological": {
     "mass_kg": 1.0,
@@ -73,5 +168,6 @@
     "torso_mass_kg": 0.37,
     "mass_and_soft_tissue_status": "engineering allocations, not specimen measurements",
     "hip_forward_offset_m": -0.025
-  }
+  },
+  "styling_revision": "v1: Mesozoic earth-tone palette, anatomy-inspired head and tapered tail"
 }

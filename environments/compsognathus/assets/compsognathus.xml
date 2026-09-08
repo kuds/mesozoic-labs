@@ -1,16 +1,30 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mujoco model="compsognathus_biological_v0">
-  <!--Generated anatomy-inspired proxy, not a fossil-fitted musculoskeletal reconstruction.-->
+<mujoco model="compsognathus_biological_v1">
   <compiler angle="radian" autolimits="true" />
   <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" iterations="100" cone="elliptic" />
   <default>
     <joint damping="0.01" armature="0.00005" limited="true" />
-    <geom contype="1" conaffinity="3" friction="0.8 0.005 0.0001" condim="3" solref="0.008 1" solimp="0.95 0.99 0.001" rgba=".34 .53 .35 1" />
+    <geom contype="1" conaffinity="3" friction="0.8 0.005 0.0001" condim="3" solref="0.006 1" solimp="0.95 0.99 0.001" margin=".00005" material="body_mat" />
   </default>
   <asset>
     <texture type="skybox" builtin="gradient" rgb1=".12 .18 .23" rgb2=".25 .34 .40" width="128" height="128" />
     <texture name="ground_grid" type="2d" builtin="checker" rgb1="0.15 0.19 0.23" rgb2="0.19 0.23 0.27" width="256" height="256" />
     <material name="ground_mat" texture="ground_grid" texrepeat="10 10" texuniform="true" />
+    <material name="body_mat" rgba=".55 .45 .35 1" specular=".15" shininess=".12" />
+    <material name="belly_mat" rgba=".60 .50 .40 1" specular=".15" shininess=".12" />
+    <material name="head_mat" rgba=".50 .40 .30 1" specular=".15" shininess=".12" />
+    <material name="claw_mat" rgba=".30 .25 .20 1" specular=".15" shininess=".12" />
+    <material name="tooth_mat" rgba=".90 .88 .80 1" specular=".15" shininess=".12" />
+    <material name="eye_mat" rgba=".035 .03 .025 1" specular=".15" shininess=".12" />
+    <material name="frame_mat" rgba=".35 .38 .40 1" specular=".15" shininess=".12" />
+    <material name="servo_mat" rgba=".13 .15 .17 1" specular=".15" shininess=".12" />
+    <material name="electronics_mat" rgba=".12 .30 .23 1" specular=".15" shininess=".12" />
+    <material name="lens_mat" rgba=".06 .13 .19 1" specular=".15" shininess=".12" />
+    <material name="sole_mat" rgba=".16 .17 .18 1" specular=".15" shininess=".12" />
+    <mesh name="tail_1_taper" vertex="0.012 0.019 0 0.012 0.0180700738096 0.00587132289312 0.012 0.0153713228931 0.0111679197936 0.012 0.0111679197936 0.0153713228931 0.012 0.00587132289312 0.0180700738096 0.012 1.16341445919e-18 0.019 0.012 -0.00587132289312 0.0180700738096 0.012 -0.0111679197936 0.0153713228931 0.012 -0.0153713228931 0.0111679197936 0.012 -0.0180700738096 0.00587132289312 0.012 -0.019 2.32682891838e-18 0.012 -0.0180700738096 -0.00587132289312 0.012 -0.0153713228931 -0.0111679197936 0.012 -0.0111679197936 -0.0153713228931 0.012 -0.00587132289312 -0.0180700738096 0.012 -3.49024337757e-18 -0.019 0.012 0.00587132289312 -0.0180700738096 0.012 0.0111679197936 -0.0153713228931 0.012 0.0153713228931 -0.0111679197936 0.012 0.0180700738096 -0.00587132289312 -0.15 0.014 0 -0.15 0.0133147912281 0.00432623792125 -0.15 0.0113262379212 0.00822899353209 -0.15 0.00822899353209 0.0113262379212 -0.15 0.00432623792125 0.0133147912281 -0.15 8.57252759403e-19 0.014 -0.15 -0.00432623792125 0.0133147912281 -0.15 -0.00822899353209 0.0113262379212 -0.15 -0.0113262379212 0.00822899353209 -0.15 -0.0133147912281 0.00432623792125 -0.15 -0.014 1.71450551881e-18 -0.15 -0.0133147912281 -0.00432623792125 -0.15 -0.0113262379212 -0.00822899353209 -0.15 -0.00822899353209 -0.0113262379212 -0.15 -0.00432623792125 -0.0133147912281 -0.15 -2.57175827821e-18 -0.014 -0.15 0.00432623792125 -0.0133147912281 -0.15 0.00822899353209 -0.0113262379212 -0.15 0.0113262379212 -0.00822899353209 -0.15 0.0133147912281 -0.00432623792125" face="0 21 1 0 20 21 1 22 2 1 21 22 2 23 3 2 22 23 3 24 4 3 23 24 4 25 5 4 24 25 5 26 6 5 25 26 6 27 7 6 26 27 7 28 8 7 27 28 8 29 9 8 28 29 9 30 10 9 29 30 10 31 11 10 30 31 11 32 12 11 31 32 12 33 13 12 32 33 13 34 14 13 33 34 14 35 15 14 34 35 15 36 16 15 35 36 16 37 17 16 36 37 17 38 18 17 37 38 18 39 19 18 38 39 19 20 0 19 39 20 0 1 2 20 22 21 0 2 3 20 23 22 0 3 4 20 24 23 0 4 5 20 25 24 0 5 6 20 26 25 0 6 7 20 27 26 0 7 8 20 28 27 0 8 9 20 29 28 0 9 10 20 30 29 0 10 11 20 31 30 0 11 12 20 32 31 0 12 13 20 33 32 0 13 14 20 34 33 0 14 15 20 35 34 0 15 16 20 36 35 0 16 17 20 37 36 0 17 18 20 38 37 0 18 19 20 39 38" />
+    <mesh name="tail_2_taper" vertex="0 0.014 0 0 0.0133147912281 0.00432623792125 0 0.0113262379212 0.00822899353209 0 0.00822899353209 0.0113262379212 0 0.00432623792125 0.0133147912281 0 8.57252759403e-19 0.014 0 -0.00432623792125 0.0133147912281 0 -0.00822899353209 0.0113262379212 0 -0.0113262379212 0.00822899353209 0 -0.0133147912281 0.00432623792125 0 -0.014 1.71450551881e-18 0 -0.0133147912281 -0.00432623792125 0 -0.0113262379212 -0.00822899353209 0 -0.00822899353209 -0.0113262379212 0 -0.00432623792125 -0.0133147912281 0 -2.57175827821e-18 -0.014 0 0.00432623792125 -0.0133147912281 0 0.00822899353209 -0.0113262379212 0 0.0113262379212 -0.00822899353209 0 0.0133147912281 -0.00432623792125 -0.13 0.009 0 -0.13 0.00855950864666 0.00278115294937 -0.13 0.00728115294937 0.00529006727063 -0.13 0.00529006727063 0.00728115294937 -0.13 0.00278115294937 0.00855950864666 -0.13 5.51091059616e-19 0.009 -0.13 -0.00278115294937 0.00855950864666 -0.13 -0.00529006727063 0.00728115294937 -0.13 -0.00728115294937 0.00529006727063 -0.13 -0.00855950864666 0.00278115294937 -0.13 -0.009 1.10218211923e-18 -0.13 -0.00855950864666 -0.00278115294937 -0.13 -0.00728115294937 -0.00529006727063 -0.13 -0.00529006727063 -0.00728115294937 -0.13 -0.00278115294937 -0.00855950864666 -0.13 -1.65327317885e-18 -0.009 -0.13 0.00278115294937 -0.00855950864666 -0.13 0.00529006727063 -0.00728115294937 -0.13 0.00728115294937 -0.00529006727063 -0.13 0.00855950864666 -0.00278115294937" face="0 21 1 0 20 21 1 22 2 1 21 22 2 23 3 2 22 23 3 24 4 3 23 24 4 25 5 4 24 25 5 26 6 5 25 26 6 27 7 6 26 27 7 28 8 7 27 28 8 29 9 8 28 29 9 30 10 9 29 30 10 31 11 10 30 31 11 32 12 11 31 32 12 33 13 12 32 33 13 34 14 13 33 34 14 35 15 14 34 35 15 36 16 15 35 36 16 37 17 16 36 37 17 38 18 17 37 38 18 39 19 18 38 39 19 20 0 19 39 20 0 1 2 20 22 21 0 2 3 20 23 22 0 3 4 20 24 23 0 4 5 20 25 24 0 5 6 20 26 25 0 6 7 20 27 26 0 7 8 20 28 27 0 8 9 20 29 28 0 9 10 20 30 29 0 10 11 20 31 30 0 11 12 20 32 31 0 12 13 20 33 32 0 13 14 20 34 33 0 14 15 20 35 34 0 15 16 20 36 35 0 16 17 20 37 36 0 17 18 20 38 37 0 18 19 20 39 38" />
+    <mesh name="tail_3_taper" vertex="0 0.009 0 0 0.00855950864666 0.00278115294937 0 0.00728115294937 0.00529006727063 0 0.00529006727063 0.00728115294937 0 0.00278115294937 0.00855950864666 0 5.51091059616e-19 0.009 0 -0.00278115294937 0.00855950864666 0 -0.00529006727063 0.00728115294937 0 -0.00728115294937 0.00529006727063 0 -0.00855950864666 0.00278115294937 0 -0.009 1.10218211923e-18 0 -0.00855950864666 -0.00278115294937 0 -0.00728115294937 -0.00529006727063 0 -0.00529006727063 -0.00728115294937 0 -0.00278115294937 -0.00855950864666 0 -1.65327317885e-18 -0.009 0 0.00278115294937 -0.00855950864666 0 0.00529006727063 -0.00728115294937 0 0.00728115294937 -0.00529006727063 0 0.00855950864666 -0.00278115294937 -0.1 0.0045 0 -0.1 0.00427975432333 0.00139057647469 -0.1 0.00364057647469 0.00264503363532 -0.1 0.00264503363532 0.00364057647469 -0.1 0.00139057647469 0.00427975432333 -0.1 2.75545529808e-19 0.0045 -0.1 -0.00139057647469 0.00427975432333 -0.1 -0.00264503363532 0.00364057647469 -0.1 -0.00364057647469 0.00264503363532 -0.1 -0.00427975432333 0.00139057647469 -0.1 -0.0045 5.51091059616e-19 -0.1 -0.00427975432333 -0.00139057647469 -0.1 -0.00364057647469 -0.00264503363532 -0.1 -0.00264503363532 -0.00364057647469 -0.1 -0.00139057647469 -0.00427975432333 -0.1 -8.26636589424e-19 -0.0045 -0.1 0.00139057647469 -0.00427975432333 -0.1 0.00264503363532 -0.00364057647469 -0.1 0.00364057647469 -0.00264503363532 -0.1 0.00427975432333 -0.00139057647469" face="0 21 1 0 20 21 1 22 2 1 21 22 2 23 3 2 22 23 3 24 4 3 23 24 4 25 5 4 24 25 5 26 6 5 25 26 6 27 7 6 26 27 7 28 8 7 27 28 8 29 9 8 28 29 9 30 10 9 29 30 10 31 11 10 30 31 11 32 12 11 31 32 12 33 13 12 32 33 13 34 14 13 33 34 14 35 15 14 34 35 15 36 16 15 35 36 16 37 17 16 36 37 17 38 18 17 37 38 18 39 19 18 38 39 19 20 0 19 39 20 0 1 2 20 22 21 0 2 3 20 23 22 0 3 4 20 24 23 0 4 5 20 25 24 0 5 6 20 26 25 0 6 7 20 27 26 0 7 8 20 28 27 0 8 9 20 29 28 0 9 10 20 30 29 0 10 11 20 31 30 0 11 12 20 32 31 0 12 13 20 33 32 0 13 14 20 34 33 0 14 15 20 35 34 0 15 16 20 36 35 0 16 17 20 37 36 0 17 18 20 38 37 0 18 19 20 39 38" />
+    <mesh name="tail_4_taper" vertex="0 0.0045 0 0 0.00427975432333 0.00139057647469 0 0.00364057647469 0.00264503363532 0 0.00264503363532 0.00364057647469 0 0.00139057647469 0.00427975432333 0 2.75545529808e-19 0.0045 0 -0.00139057647469 0.00427975432333 0 -0.00264503363532 0.00364057647469 0 -0.00364057647469 0.00264503363532 0 -0.00427975432333 0.00139057647469 0 -0.0045 5.51091059616e-19 0 -0.00427975432333 -0.00139057647469 0 -0.00364057647469 -0.00264503363532 0 -0.00264503363532 -0.00364057647469 0 -0.00139057647469 -0.00427975432333 0 -8.26636589424e-19 -0.0045 0 0.00139057647469 -0.00427975432333 0 0.00264503363532 -0.00364057647469 0 0.00364057647469 -0.00264503363532 0 0.00427975432333 -0.00139057647469 -0.08 0.0015 0 -0.08 0.00142658477444 0.000463525491562 -0.08 0.00121352549156 0.000881677878439 -0.08 0.000881677878439 0.00121352549156 -0.08 0.000463525491562 0.00142658477444 -0.08 9.18485099361e-20 0.0015 -0.08 -0.000463525491562 0.00142658477444 -0.08 -0.000881677878439 0.00121352549156 -0.08 -0.00121352549156 0.000881677878439 -0.08 -0.00142658477444 0.000463525491562 -0.08 -0.0015 1.83697019872e-19 -0.08 -0.00142658477444 -0.000463525491562 -0.08 -0.00121352549156 -0.000881677878439 -0.08 -0.000881677878439 -0.00121352549156 -0.08 -0.000463525491562 -0.00142658477444 -0.08 -2.75545529808e-19 -0.0015 -0.08 0.000463525491562 -0.00142658477444 -0.08 0.000881677878439 -0.00121352549156 -0.08 0.00121352549156 -0.000881677878439 -0.08 0.00142658477444 -0.000463525491562" face="0 21 1 0 20 21 1 22 2 1 21 22 2 23 3 2 22 23 3 24 4 3 23 24 4 25 5 4 24 25 5 26 6 5 25 26 6 27 7 6 26 27 7 28 8 7 27 28 8 29 9 8 28 29 9 30 10 9 29 30 10 31 11 10 30 31 11 32 12 11 31 32 12 33 13 12 32 33 13 34 14 13 33 34 14 35 15 14 34 35 15 36 16 15 35 36 16 37 17 16 36 37 17 38 18 17 37 38 18 39 19 18 38 39 19 20 0 19 39 20 0 1 2 20 22 21 0 2 3 20 23 22 0 3 4 20 24 23 0 4 5 20 25 24 0 5 6 20 26 25 0 6 7 20 27 26 0 7 8 20 28 27 0 8 9 20 29 28 0 9 10 20 30 29 0 10 11 20 31 30 0 11 12 20 32 31 0 12 13 20 33 32 0 13 14 20 34 33 0 14 15 20 35 34 0 15 16 20 36 35 0 16 17 20 37 36 0 17 18 20 38 37 0 18 19 20 39 38" />
   </asset>
   <worldbody>
     <geom name="floor" type="plane" size="3 3 0.05" contype="2" conaffinity="1" friction="0.8 0.005 0.0001" material="ground_mat" rgba="1 1 1 1" condim="3" />
@@ -21,43 +35,53 @@
     </body>
     <body name="pelvis" pos="0 0 0.244391440454">
       <freejoint name="root" />
-      <geom name="torso" type="ellipsoid" pos=".025 0 .025" size=".11 .038 .044" mass="0.37" />
+      <geom name="torso" type="capsule" size=".035" mass="0.33" material="body_mat" fromto="-.050 0 .015 .100 0 .035" />
       <body name="neck" pos=".105 0 .05">
         <joint name="neck_pitch" axis="0 1 0" range="-0.55 0.55" />
-        <geom name="neck_geom" type="capsule" fromto="0 0 0 .10 0 .065" size=".014" mass=".04" />
+        <geom name="neck_geom" type="capsule" fromto="0 0 0 .043 0 .046" size=".014" mass=".025" material="body_mat" />
         <body name="skull" pos=".13 0 .065">
-          <geom name="skull_geom" type="ellipsoid" pos=".02 0 0" size=".058 .019 .022" mass=".045" />
+          <geom name="skull_geom" type="ellipsoid" pos=".002 0 .003" size=".036 .019 .022" mass=".030" material="head_mat" />
           <body name="jaw" pos="-.015 0 -.012">
             <joint name="jaw_pitch" axis="0 1 0" range="-0.04 0.6" />
-            <geom name="jaw_geom" type="capsule" fromto="0 0 0 .079 0 0" size=".005" mass=".007" rgba=".46 .61 .41 1" />
+            <geom name="jaw_geom" type="capsule" fromto="0 0 0 .079 0 0" size=".005" mass=".007" material="belly_mat" />
+            <geom name="tooth_-1_0" type="capsule" fromto="0.035 -0.004 0 0.035 -0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
+            <geom name="tooth_-1_1" type="capsule" fromto="0.046 -0.004 0 0.046 -0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
+            <geom name="tooth_-1_2" type="capsule" fromto="0.057 -0.004 0 0.057 -0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
+            <geom name="tooth_-1_3" type="capsule" fromto="0.068 -0.004 0 0.068 -0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
+            <geom name="tooth_1_0" type="capsule" fromto="0.035 0.004 0 0.035 0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
+            <geom name="tooth_1_1" type="capsule" fromto="0.046 0.004 0 0.046 0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
+            <geom name="tooth_1_2" type="capsule" fromto="0.057 0.004 0 0.057 0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
+            <geom name="tooth_1_3" type="capsule" fromto="0.068 0.004 0 0.068 0.004 0.003" size=".0007" mass="0" contype="0" conaffinity="0" material="tooth_mat" />
           </body>
-          <geom name="eye_-1" type="sphere" pos="0 -0.018 0.011" size=".005" mass="0" contype="0" conaffinity="0" rgba=".035 .045 .025 1" />
-          <geom name="eye_1" type="sphere" pos="0 0.018 0.011" size=".005" mass="0" contype="0" conaffinity="0" rgba=".035 .045 .025 1" />
-          <site name="head_tip" pos="0.035 0 0" size="0.003" group="4" />
-          <camera name="head_camera" pos="0.032 0 0.008" xyaxes="0 -1 0 0 0 1" fovy="70" />
+          <geom name="eye_-1" type="sphere" pos="0 -0.018 0.011" size=".005" mass="0" contype="0" conaffinity="0" material="eye_mat" />
+          <geom name="eye_1" type="sphere" pos="0 0.018 0.011" size=".005" mass="0" contype="0" conaffinity="0" material="eye_mat" />
+          <site name="head_tip" pos="0.078 0 -0.002" size="0.003" group="4" />
+          <camera name="head_camera" pos="0.08 0 0.002" xyaxes="0 -1 0 0 0 1" fovy="70" resolution="640 480" />
+          <geom name="muzzle_geom" type="ellipsoid" pos=".045 0 -.002" size=".033 .011 .011" mass=".015" material="head_mat" />
         </body>
+        <geom name="upper_neck_geom" type="capsule" fromto=".043 0 .046 .102 0 .065" size=".012" mass=".015" material="body_mat" />
       </body>
       <body name="r_arm" pos="0.08 -0.035 0.005">
-        <geom name="arm_geom_-1" type="capsule" fromto="0 0 0 0.025 -0.014 -0.038" size=".007" mass=".008" />
-        <geom name="hand_visual_-1" type="capsule" fromto="0.025 -0.014 -0.038 0.05 -0.014 -0.024" size=".003" mass="0" contype="0" conaffinity="0" />
+        <geom name="arm_geom_-1" type="capsule" fromto="0 0 0 0.025 -0.014 -0.038" size=".007" mass=".008" material="body_mat" />
+        <geom name="hand_visual_-1" type="capsule" fromto="0.025 -0.014 -0.038 0.05 -0.014 -0.024" size=".003" mass="0" contype="0" conaffinity="0" material="claw_mat" />
       </body>
       <body name="l_arm" pos="0.08 0.035 0.005">
-        <geom name="arm_geom_1" type="capsule" fromto="0 0 0 0.025 0.014 -0.038" size=".007" mass=".008" />
-        <geom name="hand_visual_1" type="capsule" fromto="0.025 0.014 -0.038 0.05 0.014 -0.024" size=".003" mass="0" contype="0" conaffinity="0" />
+        <geom name="arm_geom_1" type="capsule" fromto="0 0 0 0.025 0.014 -0.038" size=".007" mass=".008" material="body_mat" />
+        <geom name="hand_visual_1" type="capsule" fromto="0.025 0.014 -0.038 0.05 0.014 -0.024" size=".003" mass="0" contype="0" conaffinity="0" material="claw_mat" />
       </body>
       <body name="tail_1" pos="-.085 0 .026">
         <joint name="tail_1_pitch" axis="0 1 0" range="-0.35 0.35" />
         <joint name="tail_1_yaw" axis="0 0 1" range="-0.45 0.45" />
-        <geom name="tail_1_geom" type="capsule" fromto="0 0 0 -0.15 0 0" size="0.018" mass="0.08" />
+        <geom name="tail_1_geom" type="mesh" mass="0.08" material="body_mat" mesh="tail_1_taper" />
         <body name="tail_2" pos="-0.15 0 0">
           <joint name="tail_2_pitch" axis="0 1 0" range="-.2 .2" stiffness="1.5" damping=".08" />
-          <geom name="tail_2_geom" type="capsule" fromto="0 0 0 -0.13 0 0" size="0.013" mass="0.055" />
+          <geom name="tail_2_geom" type="mesh" mass="0.055" material="body_mat" mesh="tail_2_taper" />
           <body name="tail_3" pos="-0.13 0 0">
             <joint name="tail_3_pitch" axis="0 1 0" range="-.2 .2" stiffness="1.5" damping=".08" />
-            <geom name="tail_3_geom" type="capsule" fromto="0 0 0 -0.1 0 0" size="0.009" mass="0.028" />
+            <geom name="tail_3_geom" type="mesh" mass="0.028" material="body_mat" mesh="tail_3_taper" />
             <body name="tail_4" pos="-0.1 0 0">
               <joint name="tail_4_pitch" axis="0 1 0" range="-.2 .2" stiffness="1.5" damping=".08" />
-              <geom name="tail_4_geom" type="capsule" fromto="0 0 0 -0.08 0 0" size="0.004" mass="0.015" />
+              <geom name="tail_4_geom" type="mesh" mass="0.015" material="body_mat" mesh="tail_4_taper" />
               <site name="tail_tip" pos="-0.08 0 0" size=".003" group="4" />
             </body>
           </body>
@@ -66,19 +90,19 @@
       <body name="r_thigh" pos="-0.025 -0.047 0">
         <joint name="r_hip_pitch" axis="0 1 0" range="-0.6 0.7" />
         <joint name="r_hip_roll" axis="1 0 0" range="-0.35 0.35" />
-        <geom name="r_thigh_geom" type="capsule" fromto="0 0 0 0.04 0 -0.0861684396981" size=".022" mass=".078" />
+        <geom name="r_thigh_geom" type="capsule" fromto="0 0 0 0.04 0 -0.0861684396981" size=".022" mass=".078" material="body_mat" />
         <body name="r_tibia" pos="0.04 0 -0.0861684396981">
           <joint name="r_knee" axis="0 1 0" range="-0.5 1" />
-          <geom name="r_tibia_geom" type="capsule" fromto="0 0 0 -0.068 0 -0.0914986338696" size=".012" mass=".056" />
+          <geom name="r_tibia_geom" type="capsule" fromto="0 0 0 -0.068 0 -0.0914986338696" size=".012" mass=".056" material="body_mat" />
           <body name="r_metatarsus" pos="-0.068 0 -0.0914986338696">
             <joint name="r_ankle" axis="0 1 0" range="-0.65 0.65" />
-            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0 0.023 0 -0.0597243668866" size=".006" mass=".018" />
+            <geom name="r_metatarsus_geom" type="capsule" fromto="0 0 0 0.023 0 -0.0597243668866" size=".006" mass=".018" material="body_mat" />
             <body name="r_foot" pos="0.023 0 -0.0597243668866">
               <joint name="r_toe" axis="0 1 0" range="-0.4 0.5" />
-              <geom name="r_plantar_pad" type="box" pos=".017 0 -.002" size=".028 .016 .005" mass=".008" rgba=".35 .31 .22 1" />
-              <geom name="r_toe_d2_geom" type="capsule" fromto="0 0 -0.002 0.049 -0.017 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
-              <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 -0.002 0.062 0 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
-              <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 -0.002 0.045 0.017 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
+              <geom name="r_plantar_pad" type="box" pos=".017 0 -.002" size=".028 .016 .005" mass=".008" material="claw_mat" />
+              <geom name="r_toe_d2_geom" type="capsule" fromto="0 0 -0.002 0.049 -0.017 -0.002" size=".005" mass=".004" material="claw_mat" />
+              <geom name="r_toe_d3_geom" type="capsule" fromto="0 0 -0.002 0.062 0 -0.002" size=".005" mass=".004" material="claw_mat" />
+              <geom name="r_toe_d4_geom" type="capsule" fromto="0 0 -0.002 0.045 0.017 -0.002" size=".005" mass=".004" material="claw_mat" />
               <site name="r_sole" pos=".017 0 -.007" size=".002" group="4" />
               <site name="r_foot_touch_volume" type="box" pos=".027 0 -.002" size=".045 .03 .007" group="4" />
             </body>
@@ -88,19 +112,19 @@
       <body name="l_thigh" pos="-0.025 0.047 0">
         <joint name="l_hip_pitch" axis="0 1 0" range="-0.6 0.7" />
         <joint name="l_hip_roll" axis="1 0 0" range="-0.35 0.35" />
-        <geom name="l_thigh_geom" type="capsule" fromto="0 0 0 0.04 0 -0.0861684396981" size=".022" mass=".078" />
+        <geom name="l_thigh_geom" type="capsule" fromto="0 0 0 0.04 0 -0.0861684396981" size=".022" mass=".078" material="body_mat" />
         <body name="l_tibia" pos="0.04 0 -0.0861684396981">
           <joint name="l_knee" axis="0 1 0" range="-0.5 1" />
-          <geom name="l_tibia_geom" type="capsule" fromto="0 0 0 -0.068 0 -0.0914986338696" size=".012" mass=".056" />
+          <geom name="l_tibia_geom" type="capsule" fromto="0 0 0 -0.068 0 -0.0914986338696" size=".012" mass=".056" material="body_mat" />
           <body name="l_metatarsus" pos="-0.068 0 -0.0914986338696">
             <joint name="l_ankle" axis="0 1 0" range="-0.65 0.65" />
-            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0 0.023 0 -0.0597243668866" size=".006" mass=".018" />
+            <geom name="l_metatarsus_geom" type="capsule" fromto="0 0 0 0.023 0 -0.0597243668866" size=".006" mass=".018" material="body_mat" />
             <body name="l_foot" pos="0.023 0 -0.0597243668866">
               <joint name="l_toe" axis="0 1 0" range="-0.4 0.5" />
-              <geom name="l_plantar_pad" type="box" pos=".017 0 -.002" size=".028 .016 .005" mass=".008" rgba=".35 .31 .22 1" />
-              <geom name="l_toe_d2_geom" type="capsule" fromto="0 0 -0.002 0.049 -0.017 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
-              <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 -0.002 0.062 0 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
-              <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 -0.002 0.045 0.017 -0.002" size=".005" mass=".004" rgba=".38 .34 .23 1" />
+              <geom name="l_plantar_pad" type="box" pos=".017 0 -.002" size=".028 .016 .005" mass=".008" material="claw_mat" />
+              <geom name="l_toe_d2_geom" type="capsule" fromto="0 0 -0.002 0.049 -0.017 -0.002" size=".005" mass=".004" material="claw_mat" />
+              <geom name="l_toe_d3_geom" type="capsule" fromto="0 0 -0.002 0.062 0 -0.002" size=".005" mass=".004" material="claw_mat" />
+              <geom name="l_toe_d4_geom" type="capsule" fromto="0 0 -0.002 0.045 0.017 -0.002" size=".005" mass=".004" material="claw_mat" />
               <site name="l_sole" pos=".017 0 -.007" size=".002" group="4" />
               <site name="l_foot_touch_volume" type="box" pos=".027 0 -.002" size=".045 .03 .007" group="4" />
             </body>
@@ -108,6 +132,7 @@
         </body>
       </body>
       <site name="imu" pos="0 0 0.025" size="0.003" group="4" />
+      <geom name="belly_geom" type="ellipsoid" pos=".025 0 .012" size=".07 .029 .023" mass=".04" material="belly_mat" />
     </body>
   </worldbody>
   <visual>
@@ -121,24 +146,24 @@
     <position name="jaw_pitch_act" joint="jaw_pitch" kp="0.3" kv="0.01" ctrlrange="-0.04 0.6" forcerange="-0.04 0.04" />
     <position name="tail_1_pitch_act" joint="tail_1_pitch" kp="10" kv="0.16" ctrlrange="-0.35 0.35" forcerange="-0.7 0.7" />
     <position name="tail_1_yaw_act" joint="tail_1_yaw" kp="8" kv="0.12" ctrlrange="-0.45 0.45" forcerange="-0.5 0.5" />
-    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="20" kv="0.3" ctrlrange="-0.6 0.7" forcerange="-1 1" />
-    <position name="r_hip_roll_act" joint="r_hip_roll" kp="20" kv="0.3" ctrlrange="-0.35 0.35" forcerange="-1 1" />
-    <position name="r_knee_act" joint="r_knee" kp="20" kv="0.3" ctrlrange="-0.5 1" forcerange="-1 1" />
-    <position name="r_ankle_act" joint="r_ankle" kp="16" kv="0.22" ctrlrange="-0.65 0.65" forcerange="-0.8 0.8" />
-    <position name="r_toe_act" joint="r_toe" kp="12" kv="0.18" ctrlrange="-0.4 0.5" forcerange="-0.6 0.6" />
-    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="20" kv="0.3" ctrlrange="-0.6 0.7" forcerange="-1 1" />
-    <position name="l_hip_roll_act" joint="l_hip_roll" kp="20" kv="0.3" ctrlrange="-0.35 0.35" forcerange="-1 1" />
-    <position name="l_knee_act" joint="l_knee" kp="20" kv="0.3" ctrlrange="-0.5 1" forcerange="-1 1" />
-    <position name="l_ankle_act" joint="l_ankle" kp="16" kv="0.22" ctrlrange="-0.65 0.65" forcerange="-0.8 0.8" />
-    <position name="l_toe_act" joint="l_toe" kp="12" kv="0.18" ctrlrange="-0.4 0.5" forcerange="-0.6 0.6" />
+    <position name="r_hip_pitch_act" joint="r_hip_pitch" kp="20" kv="0.2" ctrlrange="-0.6 0.7" forcerange="-1 1" />
+    <position name="r_hip_roll_act" joint="r_hip_roll" kp="20" kv="0.2" ctrlrange="-0.35 0.35" forcerange="-1 1" />
+    <position name="r_knee_act" joint="r_knee" kp="20" kv="0.2" ctrlrange="-0.5 1" forcerange="-1 1" />
+    <position name="r_ankle_act" joint="r_ankle" kp="16" kv="0.2" ctrlrange="-0.65 0.65" forcerange="-0.8 0.8" />
+    <position name="r_toe_act" joint="r_toe" kp="12" kv="0.2" ctrlrange="-0.4 0.5" forcerange="-0.6 0.6" />
+    <position name="l_hip_pitch_act" joint="l_hip_pitch" kp="20" kv="0.2" ctrlrange="-0.6 0.7" forcerange="-1 1" />
+    <position name="l_hip_roll_act" joint="l_hip_roll" kp="20" kv="0.2" ctrlrange="-0.35 0.35" forcerange="-1 1" />
+    <position name="l_knee_act" joint="l_knee" kp="20" kv="0.2" ctrlrange="-0.5 1" forcerange="-1 1" />
+    <position name="l_ankle_act" joint="l_ankle" kp="16" kv="0.2" ctrlrange="-0.65 0.65" forcerange="-0.8 0.8" />
+    <position name="l_toe_act" joint="l_toe" kp="12" kv="0.2" ctrlrange="-0.4 0.5" forcerange="-0.6 0.6" />
   </actuator>
   <sensor>
     <gyro name="pelvis_gyro" site="imu" />
     <accelerometer name="pelvis_accel" site="imu" />
-    <framequat name="pelvis_quat" objtype="body" objname="pelvis" />
+    <framequat name="diagnostic_pelvis_quat" objtype="body" objname="pelvis" />
     <touch name="r_foot_touch" site="r_foot_touch_volume" />
     <touch name="l_foot_touch" site="l_foot_touch_volume" />
-    <framelinvel name="pelvis_velocity" objtype="body" objname="pelvis" />
+    <framelinvel name="diagnostic_pelvis_velocity" objtype="body" objname="pelvis" />
     <jointpos name="neck_pitch_position" joint="neck_pitch" />
     <jointvel name="neck_pitch_velocity" joint="neck_pitch" />
     <jointpos name="jaw_pitch_position" joint="jaw_pitch" />
@@ -175,6 +200,9 @@
     <jointvel name="l_toe_velocity" joint="l_toe" />
   </sensor>
   <keyframe>
-    <key name="home" qpos="0 0 0.244391440454 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" ctrl="0 0 0 0 0 0 0 0 0 0 0 0 0 0" />
+    <key name="home" qpos="0 0 0.244391440454 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" ctrl="-0.011393701875 -0.00904155 0.0306471554822 0 -6.04071223217e-05 -2.84333070052e-05 -0.00728514568148 0.00903953483636 0.00317354532929 -8.14598687851e-05 -2.84333070052e-05 -0.00725780130963 0.00897087142476 0.00312837468553" />
   </keyframe>
+  <custom>
+    <text name="sensor_contract" data="compso-sensors/v1: gyro+accel+joint-encoders+RGB; touch is ideal/optional; diagnostic_* is simulator-only" />
+  </custom>
 </mujoco>

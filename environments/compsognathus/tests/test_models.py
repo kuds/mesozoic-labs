@@ -41,6 +41,10 @@ def test_robot_preserves_rev_b_mechanics():
     for body in range(1, reference.nbody):
         other = model.body(reference.body(body).name).id
         for field in ("body_pos", "body_quat", "body_mass", "body_ipos", "body_iquat", "body_inertia"):
+            if reference.body(body).name == "fixed_head" and field in ("body_ipos", "body_iquat", "body_inertia"):
+                # The styled head has an explicit new component COM/inertia,
+                # validated separately, inside the original 45 g allowance.
+                continue
             np.testing.assert_allclose(getattr(model, field)[other], getattr(reference, field)[body], atol=1e-12)
     for j in range(1, reference.njnt):
         other = model.joint(reference.joint(j).name).id
@@ -59,8 +63,9 @@ def test_robot_preserves_rev_b_mechanics():
 
 @pytest.mark.parametrize("variant", ["biological", "robot"])
 def test_standing_contacts_and_motor_limits(variant):
-    trial = hold_trial(variant, seconds=5)
+    trial = hold_trial(variant, seconds=10)
     assert trial["stood"], trial
+    assert all(trial["standing_checks"].values()), trial
     assert trial["maximum_torque_cap_fraction"] <= 1.000001
     assert trial["final_support_margin_m"] > 0.005
     assert trial["foot_sensor_load_N"] == pytest.approx(trial["ground_normal_load_N"], rel=0.005)
@@ -106,4 +111,7 @@ def test_registered_model_files_are_self_contained():
         root = ET.parse(path)
         assert not root.findall(".//include")
         for mesh in root.findall("./asset/mesh"):
-            assert (path.parent / root.find("compiler").get("meshdir") / mesh.get("file")).is_file()
+            if mesh.get("file"):
+                assert (path.parent / root.find("compiler").get("meshdir") / mesh.get("file")).is_file()
+            else:
+                assert mesh.get("vertex") and mesh.get("face"), "Inline meshes must be self-contained"

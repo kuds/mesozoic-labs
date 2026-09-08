@@ -14,6 +14,9 @@ from pathlib import Path
 
 import numpy as np
 
+from environments.compsognathus.scripts.standing_targets import write_gravity_targets
+from environments.compsognathus.scripts.styling import apply_styles
+
 ROOT = Path(__file__).resolve().parents[1]
 PARAMETERS = ROOT / "data/model_parameters.json"
 
@@ -111,7 +114,7 @@ def build_robot(parameters):
         raise ValueError("Rev B reference changed: review provenance before regenerating")
     p = parameters["robot"]
     root = ET.parse(source).getroot()
-    root.set("model", "compsognathus_robot_rev_b_dynamics_v0")
+    root.set("model", "compsognathus_robot_rev_b_dynamics_v1")
     root.insert(
         0, ET.Comment("Generated prototype. Rev B geometry/inertias preserved. See README and references/NOTICE.md.")
     )
@@ -119,7 +122,7 @@ def build_robot(parameters):
     root.find("option").attrib.update(timestep="0.002", iterations="100", cone="elliptic")
     root.find("default/joint").attrib.update(damping="0.005", armature=str(p["joint_armature_kg_m2"]))
     root.find("default/geom").attrib.update(
-        friction="0.8 0.005 0.0001", condim="3", solref="0.008 1", solimp="0.95 0.99 0.001"
+        friction="0.8 0.005 0.0001", condim="3", solref="0.008 1", solimp="0.95 0.99 0.001", margin=".00005"
     )
     world, asset = root.find("worldbody"), root.find("asset")
     scene(root, world, asset)
@@ -211,12 +214,14 @@ def build_robot(parameters):
     sensors(root, pelvis, head, "left_foot_touch_volume", "right_foot_touch_volume")
     home = p["home_qpos"]
     element(element(root, "keyframe"), "key", name="home", qpos=fmt(home), ctrl=fmt(home[7:]))
+    apply_styles(root, "robot", parameters)
     write(root, ROOT / "assets/compsognathus_robot.xml")
+    write_gravity_targets(ROOT / "assets/compsognathus_robot.xml")
 
 
 def build_biological(parameters):
     p = parameters["biological"]
-    root = ET.Element("mujoco", model="compsognathus_biological_v0")
+    root = ET.Element("mujoco", model="compsognathus_biological_v1")
     root.append(ET.Comment("Generated anatomy-inspired proxy, not a fossil-fitted musculoskeletal reconstruction."))
     element(root, "compiler", angle="radian", autolimits="true")
     element(
@@ -237,8 +242,9 @@ def build_biological(parameters):
         conaffinity="3",
         friction="0.8 0.005 0.0001",
         condim="3",
-        solref="0.008 1",
+        solref="0.006 1",
         solimp="0.95 0.99 0.001",
+        margin=".00005",
         rgba=".34 .53 .35 1",
     )
     asset, world = element(root, "asset"), element(root, "worldbody")
@@ -259,7 +265,7 @@ def build_biological(parameters):
     )
     actuator = element(root, "actuator")
 
-    def hinge(body, name, axis, limits, kp=20, kv=0.3, cap=1.0):
+    def hinge(body, name, axis, limits, kp=20, kv=0.2, cap=1.0):
         element(body, "joint", name=name, axis=axis, range=fmt(limits))
         element(
             actuator,
@@ -379,7 +385,7 @@ def build_biological(parameters):
             mass=".056",
         )
         meta = element(tibia, "body", name=f"{side}_metatarsus", pos=fmt(displacements[1]))
-        hinge(meta, f"{side}_ankle", "0 1 0", [-0.65, 0.65], 16, 0.22, 0.8)
+        hinge(meta, f"{side}_ankle", "0 1 0", [-0.65, 0.65], 16, 0.2, 0.8)
         element(
             meta,
             "geom",
@@ -390,7 +396,7 @@ def build_biological(parameters):
             mass=".018",
         )
         foot = element(meta, "body", name=f"{side}_foot", pos=fmt(displacements[2]))
-        hinge(foot, f"{side}_toe", "0 1 0", [-0.4, 0.5], 12, 0.18, 0.6)
+        hinge(foot, f"{side}_toe", "0 1 0", [-0.4, 0.5], 12, 0.2, 0.6)
         element(
             foot,
             "geom",
@@ -433,7 +439,9 @@ def build_biological(parameters):
         qpos=fmt([0, 0, hip_z, 1, 0, 0, 0] + [0] * joint_count),
         ctrl=fmt([0] * len(actuator)),
     )
+    apply_styles(root, "biological", parameters)
     write(root, ROOT / "assets/compsognathus.xml")
+    write_gravity_targets(ROOT / "assets/compsognathus.xml")
 
 
 def main():

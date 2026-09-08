@@ -11,8 +11,8 @@ or a registered Mesozoic Labs training environment yet.**
 | Property | Anatomical proxy | Rev B robot |
 |---|---|---|
 | MJCF | `assets/compsognathus.xml` | `assets/compsognathus_robot.xml` |
-| Home standing height | 38.1 cm | **35.3 cm** |
-| Nose-to-tail envelope | 86.2 cm | **46.5 cm** |
+| Home standing height | 38.4 cm | **35.3 cm** |
+| Nose-to-tail envelope | 85.8 cm | **47.1 cm** |
 | Maximum visual width | 13.8 cm | 25.8 cm, including leg hardware |
 | Pelvis-frame height | 24.4 cm | **21.8 cm** |
 | Model mass, excluding target | 1.000 kg, assumed | **1.5856 kg**, preserved Rev B allocation |
@@ -41,7 +41,7 @@ pytest environments/compsognathus/tests environments/shared/tests/test_mjcf_asse
 The repository pins **MuJoCo 3.10.0**, used for these checks. The original
 Rev B package used 3.12.0. On macOS use `mjpython` for the interactive viewer.
 The viewer starts at `home`, holds fixed joint-angle targets and steps real
-physics. `--motors-off` disables actuator gains; `--mass-scale 1.15` increases
+physics. `--motors-off` disables actuation at solver level; `--mass-scale 1.15` increases
 body masses and inertias while preserving motor limits.
 
 Pictures need Pillow; videos additionally need `imageio imageio-ffmpeg`:
@@ -49,6 +49,7 @@ Pictures need Pillow; videos additionally need `imageio imageio-ffmpeg`:
 ```bash
 python -m environments.compsognathus.scripts.view_model --compare /tmp/models.png
 python -m environments.compsognathus.scripts.view_model --model robot --snapshot /tmp/robot.png
+python -m environments.compsognathus.scripts.view_model --model robot --head-camera --snapshot /tmp/onboard.png
 python -m environments.compsognathus.scripts.view_model --model robot --video /tmp/standing.mp4 --seconds 5
 ```
 
@@ -60,7 +61,10 @@ or EGL with `MUJOCO_GL=egl`. Model loading and physics tests need neither.
 `references/compso_rev_b.xml` preserves the original September 6 Rev B model.
 The generator verifies its SHA-256 and uses the original first
 double-support pose stored in `data/model_parameters.json`. Body transforms,
-joint signs/ranges, centres of mass and inertias remain unchanged.
+joint signs/ranges and leg/core inertials remain unchanged. The head's
+45 g allocation now has an explicitly recomputed component COM and inertia.
+The tapered tail retains its conservative 50 g Rev B aggregate inertial
+allowance, including its attachment; this is not a uniform-density tail CAD.
 
 Each leg has hip yaw, hip roll, hip pitch, knee pitch, ankle pitch and ankle
 roll. **Both thigh and shin parallel shaft separations are 78.65 mm**. The
@@ -86,13 +90,63 @@ masses, not weighed hardware. The core remains an aggregate envelope, not
 a verified arrangement of the battery, boards and regulator. Decorative
 mounts and the camera lens use existing inertial allowances.
 
+The new fixed head allocates **22 g cranium shell, 8 g muzzle, 5 g jaw,
+6 g camera module/lens and 4 g mount**. These overlapping primitive envelopes
+approximate shells and internal packaging; they are not solid intersecting
+manufacturing parts. The camera dimensions and 6 g allowance require a real
+part selection before fabrication.
+
+## Appearance and sensor layout
+
+Brown/tan body, belly, head and claw materials use the T-Rex asset's palette.
+The anatomical proxy uses rounded torso/neck forms, an elongated small skull,
+three functional toes, a tibia longer than the femur and a continuously
+tapered long tail. Colours express repository styling, not known fossil
+colouration. It remains an anatomy-inspired proxy rather than a specimen scan.
+The robot shares that palette and head silhouette around its original legs.
+Its head, jaw and tail remain fixed; **all twelve motors are in the legs**.
+
+`data/sensor_layout.json` defines the mounting frames and signal contract:
+
+| Signal | Baseline and mounting | Simulation limitations |
+|---|---|---|
+| Single RGB camera | Fixed snout; 640 × 480, 70° vertical FOV; forward +X | Pinhole camera, no depth; hardware optics and timing not identified |
+| Gyroscope + accelerometer | Inside core at pelvis coordinates (−2, 0, 70) mm | Local angular velocity and specific force; no calibrated noise or bias |
+| Joint position/velocity | All 12 servos, in actuator order | Ideal feedback; velocity may need estimation from bus positions |
+| Foot normal force | Optional, one ideal touch volume per foot | Physical pads, ADC, wiring and their masses still need selection |
+| Orientation/world velocity | `diagnostic_*` only | Simulator ground truth, excluded from the onboard adapter |
+
+`sensors.onboard_readings` returns copied SI-unit IMU/encoder readings.
+Foot forces require `include_foot_contacts=True`; images are rendered
+separately through `head_camera`. An accelerometer measures specific force:
+about +9.81 m/s² along upright stationary Z, approximately zero in free fall.
+Orientation on the real robot requires an estimator. The lens is ahead of
+the head geometry; tests include its own body when checking optical rays.
+
+This is the single-camera tier. It does not assume an additional depth
+camera, lidar, perfect pose sensor, or a motorized sensor head.
+
 ## Actuation and contact assumptions
 
-Robot position servos use `kp=25 N·m/rad`, `kv=0.4 N·m·s/rad`, `gear=1`
+Robot position servos use `kp=25 N·m/rad`, `kv=0.2 N·m·s/rad`, `gear=1`
 and absolute-radian command limits matching the joints. These gains are
 **simulation assumptions**, not identified Feetech parameters. The derivative
 term is inside the torque clamp. Passive joint damping is only 0.005
 N·m·s/rad; armature is an assumed 0.0001 kg·m².
+
+Both `home` keyframes include **offline gravity preload**: nonnegative
+vertical foot loads balance weight and COM moments; contact Jacobians give
+the nominal joint torques, converted to `tau/kp` position-target offsets.
+Home joint angles stay unchanged. No external root force, weld, hidden
+ballast or online ground-truth balance feedback is added. This nominal
+preload is kept unchanged in mass-growth trials. `standing_targets.py`
+reproduces it and rejects torque or control-limit violations.
+
+Robot damping was reduced from the original 0.4 to 0.2 to remove transient
+rocking in the reset trials. The biological leg actuators also use 0.2.
+These are simulation tuning results, not measured motor responses. Contact
+time constants are 8 ms for the robot and 6 ms for the anatomical proxy,
+with a 50 µm contact margin; neither is a substitute for material testing.
 
 The caps are manufacturer **rated** torque multiplied by an assumed 11.5/12
 voltage factor and 0.9 derating: approximately **±1.3533 N·m at hip roll**
@@ -120,20 +174,46 @@ tissue are simulation approximations, not a fossil-fitted reconstruction.
 
 ## Validation scope
 
-`data/preflight_v0.json` records model hashes, dimensions, masses, contact
-loads, torque utilisation and the complete trial settings:
+`data/preflight_v1.json` records current model/validator hashes, dimensions,
+masses, contact loads, torque utilisation and explicit acceptance thresholds.
+`preflight_v0.json` is historical evidence for the previous shapes and gains.
+`data/validation_summary_v1.json` records **105 passing targeted tests**,
+including the existing T-Rex and raptor static-balance suites, plus all
+26 preflight trials. This is not a claim that the entire repository test
+suite or the training stack was exercised.
+
+| Worst active-trial metric | Anatomical proxy | Robot |
+|---|---:|---:|
+| Pelvis tilt | 0.86° | 1.00° |
+| Horizontal drift | 5.41 mm | 3.54 mm |
+| Minimum settled COM support margin | 18.51 mm | 34.82 mm |
+| Peak fraction of configured torque cap | 67.7% | 85.9% |
+
+These maxima/minima include the specified reset trials and mass-growth
+scenario. Torque utilisation does not establish speed or thermal headroom.
 
 - Both stand for **ten seconds** with fixed angle targets, finite state,
   torque limits respected and support exclusively through their feet.
-- Each stands after **three seeded ±1° joint-position perturbations**,
-  five seconds per trial. This is a narrow smoke test, not certification.
-- The robot stands at **1.15× mass/inertia** with unchanged motor limits.
+- Each stands after **ten seeded ±1° joint-position perturbations**,
+  five seconds per trial. The floating base is translated vertically so
+  noisy feet start 50 µm above the floor, instead of penetrating it. Angles
+  and targets are not changed by this reset clearance correction.
+- Both stand at **1.15× mass/inertia** with unchanged motor limits and targets.
 - Foot sensors account for ground support, and the standing centres of mass
   lie inside the contact support polygons.
 - Both lose the standing pose when motors are disabled: no hidden weld or
   large passive joint spring supplies the posture.
-- Regression tests compare the robot against the preserved Rev B transforms
-  and inertias, and pin its dimensions, mass and twelve-actuator layout.
+- At 50 Hz after the first 0.5 seconds: COM stays at least 5 mm inside the
+  loaded-contact hull, each foot carries at least 20% of support, total
+  load stays within 3% of weight and touch readings account for it within 0.5%.
+  No missing or degenerate support polygon is silently skipped.
+- Over the whole trial: tilt stays below 5°, pelvis drop below 5 mm,
+  horizontal drift below 10 mm and contact penetration below 1 mm.
+  Non-foot floor contact and penetration are checked at every physics step.
+- Tests cover knee travel using the existing species' shared test helper,
+  six independent robot foot-control axes, original Rev B mechanism inertials,
+  head mass/COM/inertia, true actuator disabling and restoration, per-foot
+  touchdown sensing, IMU units, encoder order and 63 optical rays per camera.
 
 There is no gait, policy training, deliberate push test, uneven terrain,
 battery-runtime result or fabrication-ready assembly. The earlier Rev B
