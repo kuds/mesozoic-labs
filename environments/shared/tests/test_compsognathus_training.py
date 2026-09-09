@@ -448,6 +448,18 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
         # normalization sidecar, including the SAC inference path.
         env = namespace["EnvClass"](**namespace["STAGE_CONFIGS"]["recovery"]["env_kwargs"])
         try:
+            # This artifact smoke test must deliver a shove even if the
+            # barely trained policy falls before the normal first window.
+            # Keep the seeded directions, force, duration, and spacing;
+            # move only this panel's first pulse to its first control step.
+            original_reset = env.reset
+
+            def reset_with_immediate_push(*args, **kwargs):
+                result = original_reset(*args, **kwargs)
+                env._push_schedule_starts -= env._push_schedule_starts[0]
+                return result
+
+            monkeypatch.setattr(env, "reset", reset_with_immediate_push)
             predict = freeze.policy_controller(
                 policy_zip, vecnorm_pkl, action_space=env.action_space, algorithm=algorithm, inference="sb3"
             )
@@ -457,6 +469,8 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
         finally:
             env.close()
         assert evidence.shoves, "the short notebook panel must actually encounter a shove"
+        assert evidence.shoves[0].start_step == 0
+        assert np.isfinite(evidence.shoves[0].force_n) and evidence.shoves[0].force_n > 0
         panels["evidence"] = evidence
         return evidence
 
