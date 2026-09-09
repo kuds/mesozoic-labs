@@ -92,25 +92,32 @@ Each variant has three advancing stages and an opt-in recovery pilot:
 
 | Stage | Objective and advancement criteria | Initial budget |
 |---|---|---:|
-| 1 / `stance` | Supported upright stance; ≥90% full-horizon episodes, unsupported duty ≤10%, its upper bound ≤15%, reward rail ≥1,800 | 11M steps |
+| 1 / `stance` | Supported upright stance; ≥95% full-horizon episodes, unsupported duty ≤2%, its one-sided 95% upper bound ≤2%, reward rail ≥1,800 | 11M steps |
 | `recovery` (opt-in) | Recover after calibrated horizontal pushes; frozen paired-null evaluation, with provisional pilot targets | 3M steps |
 | 2 / `locomotion` | Forward progress; average speed gate above, average length ≥900 and reward ≥500 | 3M steps |
 | 3 / `behavior` | Upright arrival within 8 cm of the goal in XY, horizontal speed ≤0.10 m/s; success rate ≥70% and reward ≥25 | 3M steps |
 
-The stance reward threshold is now **1,800**, raised from 1,500 to align with
-Tyrannosaurus Rex's approximately 60% of measured standing baseline
-(`2,100 / 3,495.2`). Both Compsognathus variants have a 3,000-point stance
-ceiling: supported survival, posture, and height each contribute at most one
-point per step over 1,000 steps. The anatomical baseline measured 2,998.74,
-so 1,800 is also approximately 60% of that baseline; the robot uses the same
-ceiling-based threshold and still requires its own baseline evaluation.
-This is a fixed progression threshold, not automatic baseline normalization
-or a claim that either learned policy will converge. The 20-second horizon,
-support criteria, and other stages retain their existing settings. Existing
-runs retain their captured 1,500 threshold; the new threshold applies when
-the updated stage configuration is loaded for a subsequent run.
+Both variants use the mechanical stance criteria from
+[Tyrannosaurus Rex's stance configuration](../../configs/trex/stance.toml):
+at least **40 evaluation episodes**, at least **95%** full-horizon episodes,
+mean unsupported duty at most **2%**, and its one-sided 95% upper confidence
+bound at most **2%**. Duty is measured on full-horizon episodes after
+**200 settling steps**, matching 20% of the 1,000-step horizon. Compsognathus
+retains its 50 Hz control rate and 20-second horizon, so this settling window
+is **4 seconds**, versus **2 seconds** for the 100 Hz Tyrannosaurus Rex.
 
-The three advancing stages request at least 20 evaluation episodes and three consecutive
+The fixed stance reward rail is **1,800**. Both Compsognathus variants have a
+3,000-point stance ceiling: supported survival, posture, and height each contribute at most one
+point per step over 1,000 steps. The rail is 60% of that ceiling and approximately
+60% of the measured anatomical baseline (2,998.74), following Tyrannosaurus Rex's
+reference fraction (`2,100 / 3,495.2`). The robot uses the same ceiling-based
+threshold and still requires its own baseline evaluation.
+The rail does not automatically normalize rewards by the baseline or change
+the reward function. Existing runs and archived probes retain their captured
+criteria; these settings apply when the updated configuration is loaded.
+
+Stance requires at least 40 evaluation episodes; locomotion and target reaching
+each require at least 20. All three advancing stages require three consecutive
 passing checkpoint evaluations. The notebook also applies the shared
 publication gate to the selected checkpoint's evaluation evidence. These
 thresholds and 17M-step totals (20M with the recovery pilot) are **experimental recipes**, not calibrated claims
@@ -143,7 +150,8 @@ restart the runtime and load the updated checkout before a new run.
 The nominal standing pose already supports zero-action balance. Measure
 that baseline before interpreting any return improvement; stance is a
 foundation, and passing it does not establish locomotion or active recovery.
-The support gate also does not require bilateral loading at every step.
+Bilateral support remains a diagnostic: the gate sets no minimum bilateral
+support duty, so passing does not establish sustained two-foot loading.
 Set `RUN_RECOVERY_STAGE = True` after a passing stance run to enable the
 calibrated recovery pilot. The notebook freezes its null comparisons before
 training and saves per-episode and per-push evaluation evidence afterwards.

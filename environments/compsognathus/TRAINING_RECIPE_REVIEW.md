@@ -4,6 +4,9 @@ September 8, 2026. Applies separately to the anatomical and robot variants.
 Reviewed against repository revision `21dfa4521b0822f0bee60be927893c2099c139c7`
 and Stable-Baselines3 2.9.0. This is an experimental recipe update, not a
 claim of learned balance, walking, or recovery.
+The current stance protocol below includes the subsequent alignment with
+Tyrannosaurus Rex's mechanical gate; the September 8 evidence retains its
+original captured criteria.
 
 ## Evidence and reference choice
 
@@ -123,25 +126,36 @@ the combined recipe, not identify which individual change caused it.
    support duty and its bound, reward, action variation, KL, clip fraction,
    and learned standard deviation. Repeated non-finite values or broken
    artifacts require investigation; an early reward dip alone does not.
-4. Require the current stance gate: at least 20 evaluation episodes, at least
-   90% full horizon, mean unsupported duty at most 10%, its upper bound at most
-   15%, reward at least 1,800, and three consecutive qualifying screening
-   evaluations. Require the selected checkpoint's independent publication
-   evaluation too; the last or highest-return checkpoint alone is insufficient.
+4. Require the current stance gate for each variant: at least 40 evaluation
+   episodes, at least 95% full horizon, mean unsupported duty at most 2%, its
+   one-sided 95% upper confidence bound at most 2%, reward at least 1,800,
+   and three consecutive qualifying screening evaluations. Measure duty on
+   full-horizon episodes after 200 settling steps. Require the selected
+   checkpoint's independent publication evaluation too; the last or
+   highest-return checkpoint alone is insufficient.
 5. Before calling the recipe reliable, repeat with additional training seeds
    (for example 43 and 44) and independent evaluation seeds, keeping settings
    and version identifiers fixed. Evaluate biological and robot variants
    independently. SB3's [experiment guidance](https://stable-baselines3.readthedocs.io/en/v2.9.0/guide/rl_tips.html)
    supports multiple seeds, separate evaluation, and environment-specific tuning.
 
-The reward threshold above was subsequently raised from 1,500 to 1,800 for
-both variants. This is 60% of their 3,000-point stance ceiling and approximately
-60% of the anatomical zero-command baseline (2,998.74), matching the fraction
-used by Tyrannosaurus Rex's fixed threshold (`2,100 / 3,495.2`). The robot's
+Both variants take their mechanical gate settings from
+[Tyrannosaurus Rex's stance configuration](../../configs/trex/stance.toml),
+including the 200-step settling window and 40-episode panel. The window is
+20% of each 1,000-step horizon: **4 seconds** at Compsognathus's 50 Hz control
+rate and **2 seconds** at Tyrannosaurus Rex's 100 Hz rate. The control rates,
+horizons, models, and reward functions are unchanged. Locomotion and target
+reaching retain their 20-episode minimum; all three advancing stages require
+three consecutive passing checkpoint evaluations.
+
+The fixed reward rail of 1,800 is 60% of both variants' 3,000-point stance
+ceiling and approximately 60% of the anatomical zero-command baseline
+(2,998.74), matching the fraction used by Tyrannosaurus Rex's fixed threshold
+(`2,100 / 3,495.2`). The robot's
 baseline and learned performance must still be evaluated independently.
-Only the reward threshold changed; the physical stance criteria did not.
-The archived probe JSON retains its original 1,500 threshold as historical
-evidence, and already-running experiments retain their captured settings.
+This rail does not automatically normalize rewards by the baseline. Archived
+probe JSON retains its original 1,500 rail and mechanical criteria as
+historical evidence; already-running experiments retain their captured settings.
 
 Existing checkpoints remain plant/task compatible because optimizer settings
 and budget do not change the environment identity. Resuming with the optimizer changes above
@@ -155,9 +169,10 @@ use the original optimizer settings with the same 11M allowance and seeds.
 
 This recipe review originally covered stance → locomotion → target reaching.
 The subsequent [recovery extension](RECOVERY_CALIBRATION.md) adds an opt-in
-push-recovery pilot with a separate physical calibration. The stance
-gate measures foot support and does not require both feet to carry load at
-every instant. It does not certify disturbance recovery or a moving gait.
+push-recovery pilot with a separate physical calibration. Bilateral support
+remains a diagnostic: the shared stance gate sets no minimum bilateral duty.
+Passing therefore does not establish sustained two-foot loading, disturbance
+recovery, or a moving gait.
 
 The recovery extension implements reproducible, physically scaled
 perturbations; seeded evaluation panels; a measured zero-action/held-action
@@ -167,10 +182,10 @@ policy qualification remains outstanding and recovery remains non-advancing.
 Copying Tyrannosaurus Rex's shove forces or declaring a recovery stage alone
 would not supply that evidence. The robot's head and tail remain fixed and unpowered.
 
-## Validation of this change
+## Original September 8 optimizer validation
 
-Validation used MuJoCo 3.10.0, SB3 2.9.0, Gymnasium 1.3.0, NumPy 2.3.5,
-and PyTorch 2.9.0+cpu.
+These historical checks preceded the current stance-gate alignment. Validation
+used MuJoCo 3.10.0, SB3 2.9.0, Gymnasium 1.3.0, NumPy 2.3.5, and PyTorch 2.9.0+cpu.
 
 | Check | Result |
 |---|---|

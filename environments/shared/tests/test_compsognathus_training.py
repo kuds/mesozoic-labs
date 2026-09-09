@@ -65,6 +65,12 @@ def ppo_updates(monkeypatch):
 def smoke_configs(species):
     configs = deepcopy(load_all_stages(species))
     for config in configs.values():
+        if config["curriculum_kwargs"].get("gate_kind") == "stance_quality/v1":
+            # Compress the settling prefix with the tiny test horizon while
+            # retaining the production support, survival, and panel-size gates.
+            config["curriculum_kwargs"]["settle_steps"] = round(
+                config["curriculum_kwargs"]["settle_steps"] * 32 / config["env_kwargs"]["max_episode_steps"]
+            )
         config["env_kwargs"].update(max_episode_steps=32)
         if config["env_kwargs"].get("perturbation_capture_velocity_multiple", 0.0) > 0:
             # Put real, non-overlapping pushes inside the tiny test horizon.

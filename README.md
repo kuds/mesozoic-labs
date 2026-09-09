@@ -207,7 +207,7 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Hold an upright stance with foot support | 11M | reward ≥ 1800; full-horizon episodes ≥ 90.0%; unsupported duty ≤ 0.1; unsupported duty 95% upper bound ≤ 0.15; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Hold an upright stance with foot support | 11M | reward ≥ 1800; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
 | recovery — Recovery | Pilot: recover an upright stance after calibrated horizontal pushes | 3M | recovery success LCB95 ≥ 0.5; paired Δ vs each required frozen null LCB95 ≥ 0.1; re-entry ≤ 40 steps + 20-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
 | 2 — Locomotion | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.08 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
 | 3 — Target Reach | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
@@ -235,7 +235,7 @@ Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fi
 
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
-| 1 — Balance | Hold an upright stance with foot support | 11M | reward ≥ 1800; full-horizon episodes ≥ 90.0%; unsupported duty ≤ 0.1; unsupported duty 95% upper bound ≤ 0.15; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 1 — Balance | Hold an upright stance with foot support | 11M | reward ≥ 1800; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
 | recovery — Recovery | Pilot: recover an upright stance after calibrated horizontal pushes | 3M | recovery success LCB95 ≥ 0.5; paired Δ vs each required frozen null LCB95 ≥ 0.1; re-entry ≤ 40 steps + 20-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
 | 2 — Locomotion | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.04 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
 | 3 — Target Reach | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
