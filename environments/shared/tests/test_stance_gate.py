@@ -21,10 +21,12 @@ The gate exists to pass the first and reject the second.  The old
 from __future__ import annotations
 
 import math
+from dataclasses import replace
 
 import numpy as np
 import pytest
 
+from environments.shared.config import load_all_stages
 from environments.shared.curriculum.stance_gate import (
     STANCE_GATE_KIND,
     StanceGateThresholds,
@@ -111,6 +113,89 @@ class TestDiscrimination:
         passed, failures = evaluate_stance_gate(_panel(0.000, 3000.0, full_fraction=0.5), TREX_1A)
         assert not passed
         assert any("full_horizon_fraction" in f for f in failures)
+
+
+@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+@pytest.mark.parametrize("reward, expected_pass", [(1500.0, False), (1799.0, False), (1800.0, True)])
+def test_compsognathus_configured_reward_rail(species, reward, expected_pass):
+    """Good support cannot bypass the configured 60% standing reward floor."""
+    config = load_all_stages(species)[1]
+    thresholds = StanceGateThresholds.from_curriculum(config["curriculum_kwargs"])
+    horizon = config["env_kwargs"]["max_episode_steps"]
+    panel = stance_panel_from_episode_duties(
+        episode_lengths=[horizon] * 40,
+        episode_duties=[0.005] * 40,
+        episode_rewards=[reward] * 40,
+        horizon=horizon,
+    )
+    passed, failures = evaluate_stance_gate(panel, thresholds)
+    assert passed is expected_pass, failures
+    if not expected_pass:
+        assert len(failures) == 1
+        assert "mean_reward" in failures[0] and "(rail)" in failures[0]
+
+
+@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+def test_compsognathus_mechanical_gate_matches_trex(species):
+    """T-Rex is the source of truth; only the species reward rail differs."""
+    trex = load_all_stages("trex")[1]
+    config = load_all_stages(species)[1]
+    assert config["curriculum_kwargs"]["gate_kind"] == trex["curriculum_kwargs"]["gate_kind"]
+    assert StanceGateThresholds.from_curriculum(config["curriculum_kwargs"]) == replace(
+        StanceGateThresholds.from_curriculum(trex["curriculum_kwargs"]), min_avg_reward=1800.0
+    )
+
+
+@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+@pytest.mark.parametrize(
+    "n_full, duties, failed_criterion",
+    [
+        pytest.param(38, [0.0] * 40, None, id="survival-boundary-passes"),
+        pytest.param(40, [0.02] * 40, None, id="duty-boundary-passes"),
+        pytest.param(37, [0.0] * 40, "full_horizon_fraction", id="old-survival-pass-rejected"),
+        pytest.param(40, [0.021] * 40, "mean_unsupported_duty", id="old-duty-pass-rejected"),
+        pytest.param(40, [0.0, 0.038] * 20, "unsupported_duty_ucb", id="uncertainty-rejected"),
+        pytest.param(20, [0.0] * 20, "n_episodes", id="old-panel-size-rejected"),
+    ],
+)
+def test_compsognathus_configured_mechanical_gate(species, n_full, duties, failed_criterion):
+    """High reward cannot bypass the adopted T-Rex mechanical criteria."""
+    config = load_all_stages(species)[1]
+    thresholds = StanceGateThresholds.from_curriculum(config["curriculum_kwargs"])
+    horizon = config["env_kwargs"]["max_episode_steps"]
+    panel = stance_panel_from_episode_duties(
+        episode_lengths=[horizon] * n_full + [horizon - 1] * (len(duties) - n_full),
+        episode_duties=duties,
+        episode_rewards=[3000.0] * len(duties),
+        horizon=horizon,
+    )
+    passed, failures = evaluate_stance_gate(panel, thresholds)
+    assert passed is (failed_criterion is None), failures
+    if failed_criterion is not None:
+        assert any(failure.startswith(failed_criterion + " ") for failure in failures)
+    if failed_criterion == "unsupported_duty_ucb":
+        assert panel.mean_unsupported_duty < thresholds.max_unsupported_duty
+        assert len(failures) == 1
+
+
+@pytest.mark.parametrize("species", ["compsognathus", "compsognathus_robot"])
+def test_compsognathus_configured_settling_window(species):
+    config = load_all_stages(species)[1]
+    thresholds = StanceGateThresholds.from_curriculum(config["curriculum_kwargs"])
+    horizon = config["env_kwargs"]["max_episode_steps"]
+    # Reset corrections throughout the first 20% must not count as stance duty.
+    flags = np.zeros(horizon)
+    flags[: horizon // 5] = 1.0
+    panel = summarize_stance_panel(
+        episode_lengths=[horizon] * 40,
+        episode_unsupported=[flags] * 40,
+        episode_rewards=[3000.0] * 40,
+        horizon=horizon,
+        settle_steps=thresholds.settle_steps,
+    )
+    assert panel.mean_unsupported_duty == 0.0
+    passed, failures = evaluate_stance_gate(panel, thresholds)
+    assert passed, failures
 
 
 class TestFailedEpisodesAreExcludedFromDuty:

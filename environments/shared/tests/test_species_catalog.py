@@ -270,15 +270,16 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 stages_by_id[stage_id]["advancement_gate"] for stage_id in ("stance", "locomotion", "behavior")
             )
             assert first["gate_kind"] == "stance_quality/v1"
-            assert first["min_avg_reward"] == 1500
-            assert first["min_full_horizon_fraction"] == 0.9
-            assert first["max_unsupported_duty"] == 0.1
-            assert first["max_unsupported_duty_ucb"] == 0.15
+            assert first["min_avg_reward"] == 1800
+            assert first["min_full_horizon_fraction"] == 0.95
+            assert first["max_unsupported_duty"] == 0.02
+            assert first["max_unsupported_duty_ucb"] == 0.02
             assert second["min_avg_forward_velocity"] == (0.04 if species_id.endswith("_robot") else 0.08)
             assert second["min_avg_episode_length"] == 900
             assert third["min_success_rate"] == 0.7
             assert third["min_avg_episode_length"] is None
-            assert all(gate["min_eval_episodes"] == 20 for gate in (first, second, third))
+            assert first["min_eval_episodes"] == 40
+            assert all(gate["min_eval_episodes"] == 20 for gate in (second, third))
             # The semantic recovery row is published without renumbering the
             # advancing curriculum or turning its pilot verdict into a handoff.
             assert [stage.id for stage in load_stage_manifest(species_id).advancing_stages] == [

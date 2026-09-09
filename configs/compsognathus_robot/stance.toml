@@ -70,13 +70,19 @@ gate_kind = "stance_quality/v1"
 # Shared PPO/SAC ceiling, chosen from Tyrannosaurus Rex PPO evidence; neither
 # Compsognathus algorithm has a measured convergence budget yet.
 timesteps = 11000000
-# Reward is an advancement guard; foot support and survival are also required.
-min_avg_reward = 1500.0
-min_full_horizon_fraction = 0.9
-max_unsupported_duty = 0.1
-max_unsupported_duty_ucb = 0.15
-settle_steps = 25
-min_eval_episodes = 20
+# 60% of the shared 3,000-point stance ceiling. Uses the anatomical variant's
+# baseline-relative target; the robot's baseline and learned performance must
+# still be evaluated separately. Foot support and survival remain required.
+min_avg_reward = 1800.0
+# Mechanical stance criteria follow configs/trex/stance.toml. The reward rail
+# above remains species-specific because the reward functions differ.
+min_full_horizon_fraction = 0.95
+max_unsupported_duty = 0.02
+max_unsupported_duty_ucb = 0.02
+# Same 20% settling prefix as T-Rex: 200 of 1,000 steps. At 50 Hz this is
+# 4 seconds, leaving 16 seconds of duty measurement in the 20-second episode.
+settle_steps = 200
+min_eval_episodes = 40
 required_consecutive = 3
 # Deliberately omit a collapse floor: the shared detector stays unarmed until
 # this plant has a learning history to calibrate it. Baseline reporting is advisory.
