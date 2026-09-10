@@ -27,14 +27,16 @@ gate at the selected 10.85M-step checkpoint: reward **2801.62**, full horizon
 control-window duty was only **1.403%**. Passing the supported-stance gate does
 not establish quiet double support or load on the plantar pads.
 
-Tyrannosaurus Rex offers three relevant precedents:
+Tyrannosaurus Rex offers several relevant precedents:
 
 | Feature | Tyrannosaurus Rex | Current Compsognathus Longipes |
 |---|---|---|
 | Toe mechanism | Passive articulated toes; toe actuators removed during the earlier investigation | One powered hinge moves each entire foot |
+| Passive leg compliance | Springs and damping at hip pitch, hip roll, knee and ankle | No leg springs; much smaller passive damping |
 | Action filter | 10 Hz, declared in the plant interface | Disabled |
 | Stance load shaping | Bilateral-support weight 0.6 and load-balance weight 0.3 | No equivalent bilateral terms |
 | Stance action smoothness weight | 2.0 | 0.02 |
+| Home-pose objective | Narrow and broad Gaussian rewards for leg pose, plus settled-tail targets | Quadratic error cost over actuated joints |
 
 See [Tyrannosaurus Rex stance config](../../configs/trex/stance.toml),
 [passive-toe investigation](TREX_STAGE1_PASSIVE_TOES_RUN_2026_08.md), and
@@ -117,8 +119,9 @@ it is not a vector ground-reaction-force measurement.
 
 ## Control comparisons on the existing learned policy
 
-All replays use the same checkpoint and frozen VecNormalize statistics. The
-canonical environment and both artifacts must pass plant-identity validation
+All replays use deterministic policy predictions, the same checkpoint and frozen
+VecNormalize statistics. The canonical environment and both artifacts must pass
+plant-identity validation
 before an external action intervention is applied. No policy weights are updated
 and no altered plant is mislabeled as a compatible checkpoint.
 
@@ -170,29 +173,217 @@ necessarily periods when both feet are simultaneously airborne. Simultaneous
 bilateral physics samples are reported separately. Failed episodes have blank
 post-settle metrics when no samples exist; they are not treated as zero duty.
 
-## Recommendation and next training experiment
+## Additional lessons from Tyrannosaurus Rex
 
-1. Carry forward the **fixed sole plus passive digits**, with the **2 mm distal
-   envelope correction**, as a mechanical candidate. Keep coupled and independent
-   digits as alternatives: both passed the tested scenes; independence adds local
-   adaptation and higher sole share but also four more DOFs across the animal.
-2. Test **10 Hz filtering of all actions during new training** as a separate
-   factor. The replay evidence favors it over a foot-only filter. Do not turn it
-   on while silently resuming the old checkpoint: filtering changes action meaning.
-3. Use matched training seeds and budgets for four primary arms: current plant;
-   filter only; compliant sole/toe plant only; and both. Keep reward and reset
-   settings fixed initially. Compare gate qualification, pad share, bilateral
-   weight support, pitch spectrum, cap occupancy and mechanical work.
-4. Then calibrate load-balance rewards, passive stiffness/damping and ankle/foot
-   gains separately. Add pushes, slopes, obstacle positions and terrain not used
-   to select the candidate. Establish convergence over multiple independent
-   training seeds before changing the notebook default.
+The following findings come from the current model/reward code and the earlier
+Tyrannosaurus Rex investigations. They add interpretation and proposed work;
+they do not add new Compsognathus trials to the 208 records above.
+
+### Passive leg springs are a separate design difference
+
+A compiled-model audit confirms these parameters on both sides:
+
+| Joint | Tyrannosaurus Rex stiffness, N·m/rad | Tyrannosaurus Rex passive damping, N·m·s/rad | Compsognathus stiffness, N·m/rad | Compsognathus passive damping, N·m·s/rad |
+|---|---:|---:|---:|---:|
+| Hip pitch | 40 | 45 | 0 | 0.01 |
+| Hip roll | 40 | 45 | 0 | 0.01 |
+| Knee | 40 | 45 | 0 | 0.01 |
+| Ankle | 40 | 45 | 0 | 0.01 |
+
+These are **passive joint parameters**, distinct from position-actuator gains
+and derivative feedback. The Tyrannosaurus Rex hip-pitch, knee and ankle spring
+references are the standing-pose values (−2.6°, −24.8° and 76.9° in its
+degree-based XML); hip roll is zero. The geometric joint reference, spring
+reference and commanded home target have different meanings. See the
+[Tyrannosaurus Rex XML](../../environments/trex/assets/trex.xml) and
+[Compsognathus XML](../../environments/compsognathus/assets/compsognathus.xml).
+The experimental Compsognathus variants add springs at the digits only.
+
+Test weak leg compliance as a separate hypothesis, with spring references
+calibrated around the loaded standing equilibrium. Select stiffness and damping
+using Compsognathus joint inertia, gravity loading and response times; mass
+scaling alone does not preserve dynamics. Copying the Tyrannosaurus Rex numbers
+would ignore the different geometry, inertia, actuator authority and control
+interval. Springs can introduce rebound or resist deliberate stepping, so
+improved quiet stance must also survive disturbance and foot-lift tests. A
+zero-residual or fixed-command experiment still has active position servos;
+its success is not evidence of unpowered standing.
+
+### Fixing toes can move the exploit to another joint
+
+The [passive-toe investigation](TREX_STAGE1_PASSIVE_TOES_RUN_2026_08.md) and
+[subsequent narrow-tolerance run](TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md)
+show that passive toes alone did not establish quiet stance. The later policy
+used a knee-locked crouch with ankle pumping. Diagnose actual joint motion,
+joint-limit contact and torque throughout the legs so that suppressing one
+oscillation channel does not hide its replacement elsewhere.
+
+The [gate-pass run](TREX_STAGE1_GATE_PASS_RUN_2026_08.md) combined the 10 Hz
+training-time command filter with action-saturation shaping, settled-tail
+home targets and a broad leg-home gradient. These changes were introduced
+together. That history motivates the Compsognathus experiments, but it cannot
+isolate which component caused the improvement.
+
+One reward fix does **not** transfer directly. The current
+[Compsognathus reward](../../environments/compsognathus/envs/compsognathus_env.py)
+uses `-home_pose_weight * mean(square(joint_error))` over actuated joints.
+Its gradient does not disappear far from home as the earlier narrow Gaussian
+did. Audit joint coverage, settled targets, ranges and relative weights before
+adding another home-pose term. Current support-conditioned alive, posture and
+height rewards also do not explicitly price bilateral load sharing in the same
+way as Tyrannosaurus Rex.
+
+### Replication and deterministic motion matter
+
+The [seed-43 report, including its August 16 addendum](TREX_STAGE1_SEED43_REPLICATE_2026_08.md)
+records three independent training seeds on the same Tyrannosaurus Rex plant
+and configuration:
+
+| Training seed | Stance verdict | Full horizon | Unsupported duty | Duty upper bound | Reported command AC RMS |
+|---|---|---:|---:|---:|---:|
+| 42 | Pass | 40/40 | 0.48% | 0.80% | 0.135 |
+| 43 | Fail | 37/40 | 5.97% | 7.47% | 0.329 |
+| 44 | Pass | 40/40 | 0.69% | 1.17% | 0.132 |
+
+This is **two observed passes in three runs**, not an established success
+probability. Additional reset seeds for one saved policy are not independent
+training replicates. Use at least three independent training seeds for
+promising Compsognathus candidates as an initial replication budget, and report
+every outcome rather than selecting only the best seed.
+
+The Tyrannosaurus Rex report did not directly re-analyze the learned policy
+standard-deviation trajectory. Residual command variation alone does not prove
+its exploration-noise hypothesis. Compsognathus bouncing is already present in
+the **deterministic** replays in this PR, so sampled exploration noise cannot
+be its sole explanation. A learned closed-loop oscillation, contact response or
+posture strategy remains possible. Compare deterministic and stochastic runs,
+recording policy means, sampled actions, applied commands and learned action
+standard deviation separately. Setting the entropy coefficient to zero does not itself
+force that standard deviation to zero; a new noise penalty needs its own evidence.
+
+## Diagnose motion and load before optimizing their summaries
+
+“Bouncing feet” can describe different behavior. Add synchronized physics-step
+traces that distinguish the following, using the same timestamps as the commands:
+
+| Possible behavior | Measurements that distinguish it |
+|---|---|
+| Whole-body hopping | Pelvis/COM height and vertical velocity, both feet's height and vertical load, simultaneous loss of support |
+| Heel/toe rocking | Foot pitch and angular velocity, pad versus digit contacts, contact positions and center of pressure |
+| Alternating weight transfer | Left/right vertical load as fractions of body weight, simultaneous bilateral support and pelvis roll |
+| Joint or actuator limit cycling | Raw and applied commands, actual joint angles/velocities, actuator force, joint-limit contacts |
+
+Compute ground-reaction vectors from the contact frames for vertical-load and
+center-of-pressure diagnostics. The current scalar touch/normal-force sums do
+not provide those quantities on arbitrary terrain. Mark center of pressure
+undefined when vertical support is negligible rather than dividing by near zero.
+Pad load share is a geometry-dependent diagnostic, not an objective to maximize
+to 100%; a stance that cannot unload a foot is a poor basis for locomotion.
+
+Keep three different limit metrics separate: **normalized command-limit
+occupancy, actual actuator force-cap occupancy, and joint hard-stop contact**.
+The Tyrannosaurus Rex reports' “zero saturated” summaries refer to normalized
+command/DC thresholds. They are not directly comparable to the **66.84%**
+physics-step actuator force-cap occupancy reported here. Low command saturation
+does not establish unused torque capacity.
+
+For species comparisons, express loads as fractions of body weight and durations
+in seconds. The same absolute 0.1 N support threshold represents different
+fractions of body weight. Preserve the official gate while adding normalized
+diagnostics, and keep simultaneous physics-step support separate from the
+conservative per-foot minima over control windows.
+
+## Recommended validation and training sequence
+
+The remaining work below is **proposed, not completed**. The first choice remains
+a fixed sole with passive digits and the 2 mm clearance correction, with global
+10 Hz filtering tested as an independent training factor. Neither larger motors
+nor a wider foot is yet established as necessary by these measurements.
+
+### Focused screening before long training runs
+
+| Priority | Experiment | Decision it should resolve |
+|---|---|---|
+| 1 | Record the synchronized motion, load and limit traces above on matched baseline and candidate scenes | Identify hopping, rocking, load transfer or a joint-level cycle before choosing a fix |
+| 2 | Audit reward ordering for quiet double support, rocking, single support and airborne motion; compare component returns over equal durations and retain termination costs | Check that desired stance is preferred, and whether scaled bilateral shaping is needed without removing recovery incentives |
+| 3 | Calibrate the loaded ankle/leg response, changing actuator gains, passive damping and weak leg springs separately | Reduce tracking error and rebound while retaining torque headroom, reset survival and perturbation response |
+| 4 | Compare corrected coupled and independent digits; then test modest sole width, length and placement changes separately | Decide whether independent articulation or footprint changes justify their complexity; retain matched mass/controller where possible and record any COM/inertia changes |
+| 5 | Compare 1 ms and 2 ms physics with the same 50 Hz control interval, then small contact-softness, damping and friction sweeps | Check that rankings persist across reasonable numerical/material settings rather than a single contact configuration |
+| 6 | Use fresh obstacle positions, slopes, friction conditions and lateral/forward pushes; later test deliberate foot lifting | Reject candidates that gain quiet stance by sacrificing recovery or stepping capability |
+
+Loaded calibration should measure settling time, overshoot, foot pitch, actual
+torque clipping and joint-limit contact with identical home-controller targets
+and disturbances. Record passive spring/damping torque separately from actuator
+torque so added compliance is not mistaken for increased motor authority. Do not
+add all promising gain, spring and reward changes to the first training comparison.
+
+For numerical sensitivity, use 20 substeps at 1 ms versus 10 at 2 ms so the policy
+still updates every 20 ms. Keep horizons, filter constants, perturbation timing
+and diagnostic windows fixed in seconds, and record the changed plant identity.
+The current `solref="0.006 1"` at a 2 ms timestep already satisfies MuJoCo's
+guidance that the positive-format contact time constant be at least twice the
+timestep; it is not evidence of an obvious violation. The
+[MuJoCo solver-parameter guidance](https://mujoco.readthedocs.io/en/stable/modeling.html#solver-parameters)
+motivates a sensitivity test, not arbitrary softening until the model passes.
+Preserve strict non-foot-contact checks and report margin contacts separately;
+do not relabel the earlier zero-force metatarsal contacts as successful trials.
+
+Use mass- and size-aware disturbance descriptions, such as force/body weight,
+impulse/mass and obstacle height/leg length, along with their physical units.
+Do not transplant Tyrannosaurus Rex push magnitudes or foot dimensions directly.
+Keep candidate-selection scenes separate from later confirmation scenes.
+
+### Four matched training arms
+
+Choose and record one corrected compliant-foot candidate before this comparison.
+Coupled and independent digits both passed the existing mechanical panel;
+independence adds local adaptation and higher sole share, but also four more
+DOFs across the animal. If both remain contenders, add explicit extra arms
+rather than pooling different mechanisms under one label.
+
+| Arm | Foot mechanism | Global action filter |
+|---|---|---|
+| A: control | Current canonical powered foot | Off |
+| B: filter only | Current canonical powered foot | 10 Hz |
+| C: mechanism only | Selected fixed sole/passive digits with 2 mm clearance correction | Off |
+| D: combined | Same mechanism as C | 10 Hz |
+
+Start new training runs with matched training seeds, environment-step budgets,
+reward settings, resets, remaining actuator gains, evaluation seeds and
+checkpoint-selection rules. Match common-joint reset perturbations by name;
+declare initialization for any added passive joints. Arm C is a selected
+mechanical package; this matrix separates that package from filtering, while
+the earlier clearance ablation separates its geometry correction. It does not
+independently estimate every toe parameter's contribution.
+
+Use the existing 40-episode stance gate for qualification and report the full
+gate verdict, time/steps to qualification and failures for every seed. Supplement
+it with simultaneous support, load distribution, foot/COM motion spectra,
+command limits, actuator clipping, joint stops and positive mechanical work.
+Compare failed and surviving episodes explicitly rather than averaging only
+the successful trajectories. Keep reward rails fixed for this matched comparison;
+if a later plant or reward change requires new home/theoretical reference values,
+recompute and version the rails and affected percentage thresholds before that
+study. A raw reward increase across different reward definitions is not progress.
+
+Predeclare acceptable tradeoffs before selecting a winner: reproducible gate
+qualification, lower unwanted motion/work or clipping, and no material loss of
+disturbance tolerance or ability to unload a foot. The existing measurements do
+not yet justify a numerical pad-share or bounce-frequency acceptance threshold.
+Replicate promising arms across independent training seeds; fresh evaluation
+seeds alone do not establish convergence. After isolating mechanism and filter
+effects, evaluate reward, gain and passive-spring changes separately, followed
+by recovery and locomotion qualification. Establish those results before changing
+the notebook default.
 
 Training integration must update the SB3/MJX action and observation mappings,
 body-ground exclusions for moving digits, all foot sensor groups, home/reset
 logic, canonical plant revisions/manifests and parity tests. Existing compiled-
-plant validation correctly rejects these derived models. The fixed-tail robot
-has different mechanics and needs its own experiment; this research uses the
+plant validation correctly rejects these derived models. Filtering must be part
+of the declared training interface with consistent reset/state handling; do not
+silently resume an existing checkpoint under changed action semantics or mechanics.
+The fixed-tail robot has different mechanics and needs its own experiment;
+this research uses the
 **anatomical proxy only**.
 
 The 18-trial mechanical panels use two reset seeds and a powered home controller,
@@ -247,6 +438,9 @@ baselines; bitwise reproduction of the original hosted run is not claimed.
 - [MuJoCo contact model](https://mujoco.readthedocs.io/en/stable/computation/index.html#contact):
   contact-list entries, soft contact and normal-force constraints must be
   distinguished when interpreting clearance failures.
+- [MuJoCo solver parameters](https://mujoco.readthedocs.io/en/stable/modeling.html#solver-parameters):
+  contact stiffness/damping and timestep interact; sensitivity tests must retain
+  the control interval and distinguish numerical robustness from physical validation.
 - [MuJoCo touch sensors and actuators](https://mujoco.readthedocs.io/en/stable/XMLreference.html):
   moving digit bodies need their own sensor coverage; position gains and force
   limits are distinct from measured actuator bandwidth or electrical power.
