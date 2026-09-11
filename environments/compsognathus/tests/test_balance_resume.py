@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -192,3 +193,127 @@ def test_interrupted_completed_update_resumes_without_restarting_schedules(tmp_p
     finally:
         (run / "confirmation.json").write_bytes(confirmation_bytes)
         (run / "run_summary.json").write_bytes(summary_bytes)
+
+
+@pytest.mark.parametrize("max_seconds", [0.0, -1.0, float("inf"), float("-inf"), float("nan"), True, False])
+def test_invalid_session_deadline_is_rejected_before_starting_a_run(tmp_path, max_seconds):
+    runner.prepare_study(tmp_path, training_seeds=(42,))
+    with pytest.raises(ValueError, match="max_seconds|positive|finite"):
+        runner.train_balance_arm(tmp_path, "D", 42, probe_updates=3, evaluation_episodes=2, max_seconds=max_seconds)
+    assert not (tmp_path / "runs").exists()
+
+
+def test_session_deadline_pauses_at_an_update_and_resumes_full_schedules(tmp_path, monkeypatch):
+    plan = runner.prepare_study(tmp_path, training_seeds=(42,))
+    assert plan["screen_every_steps"] > 3 * 4096
+    real_time = runner.time
+    original_train = runner.BalanceStudyPPO.train
+    original_load = runner.load_study_checkpoint
+    original_evaluate = runner._evaluate
+    clock = {"now": 0.0}
+    monkeypatch.setattr(runner, "time", SimpleNamespace(perf_counter=lambda: clock["now"]))
+
+    def expire_during_first_update(self):
+        # Collection and the before-learn check see time zero. The first
+        # completed update's callback sees an expired soft session budget.
+        clock["now"] = 1.0
+        return original_train(self)
+
+    monkeypatch.setattr(runner.BalanceStudyPPO, "train", expire_during_first_update)
+    paused = runner.train_balance_arm(tmp_path, "D", 42, probe_updates=3, evaluation_episodes=2, max_seconds=0.001)
+    assert paused["status"] == "paused"
+    assert paused["training_steps"] == 4096
+    assert paused["planned_training_steps"] == 12288
+    assert not paused.get("learned_balance_qualified", False)
+    run = tmp_path / "runs" / "D_seed42_probe3"
+    first_checkpoint = run / paused["checkpoint"]
+    assert first_checkpoint.parent.name == "continuations"
+    protected_paths = [
+        Path(str(first_checkpoint) + suffix) for suffix in (".model.zip", ".vecnormalize.pkl", ".manifest.json")
+    ]
+    protected_hashes = {path: _sha256(path) for path in protected_paths}
+    assert not first_checkpoint.with_suffix(".screen.json").exists()
+    assert not list((run / "checkpoints").glob("*.screen.json"))
+    assert not (run / "run_summary.json").exists()
+    assert not (run / "confirmation.json").exists()
+    assert json.loads((run / "resume_history.json").read_text())[-1]["status"] == "paused"
+
+    # A later session can spend its allowance verifying/restoring a cached
+    # checkpoint. It must not start another rollout or re-score cached screens.
+    clock["now"] = 0.0
+
+    def expire_after_restore(*args, **kwargs):
+        loaded = original_load(*args, **kwargs)
+        if kwargs.get("model_class") is runner.BalanceStudyPPO:
+            clock["now"] = 1.0
+        return loaded
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("no new training or inference is allowed for this cached/deadline result")
+
+    monkeypatch.setattr(runner, "load_study_checkpoint", expire_after_restore)
+    monkeypatch.setattr(runner.BalanceStudyPPO, "train", forbidden)
+    monkeypatch.setattr(runner, "_evaluate", forbidden)
+    cached_pause = runner.train_balance_arm(
+        tmp_path, "D", 42, probe_updates=3, evaluation_episodes=2, resume=True, max_seconds=0.001
+    )
+    assert cached_pause["status"] == "paused"
+    assert cached_pause["training_steps"] == 4096
+    assert not cached_pause.get("learned_balance_qualified", False)
+    assert {path: _sha256(path) for path in protected_paths} == protected_hashes
+    assert not (run / "run_summary.json").exists()
+    assert not (run / "confirmation.json").exists()
+
+    monkeypatch.setattr(runner, "time", real_time)
+    monkeypatch.setattr(runner, "load_study_checkpoint", original_load)
+    monkeypatch.setattr(runner.BalanceStudyPPO, "train", original_train)
+    monkeypatch.setattr(runner, "_evaluate", original_evaluate)
+    result = runner.train_balance_arm(tmp_path, "D", 42, probe_updates=3, evaluation_episodes=2, resume=True)
+    assert result["training_steps"] == 12288
+    assert result["diagnostic_probe"] and not result["learned_balance_qualified"]
+    assert {path: _sha256(path) for path in protected_paths} == protected_hashes
+    updates = json.loads((run / "updates.json").read_text())
+    assert [row["timesteps"] for row in updates] == [4096, 8192, 12288]
+    final = updates[-1]
+    ppo = plan["stage_config"]["ppo_kwargs"]
+    expected_lr = ppo["learning_rate"] + (12288 / plan["training_budget"]) * (
+        ppo["learning_rate_end"] - ppo["learning_rate"]
+    )
+    expected_entropy = ppo["ent_coef"] + (12288 / ppo["ent_coef_decay_timesteps"]) * (
+        ppo["ent_coef_end"] - ppo["ent_coef"]
+    )
+    assert final["learning_rate"] == pytest.approx(expected_lr, rel=1e-10)
+    assert final["entropy_coefficient"] == pytest.approx(expected_entropy, rel=1e-10)
+    assert (run / "confirmation.json").is_file()
+    summary_bytes = (run / "run_summary.json").read_bytes()
+    history_bytes = (run / "resume_history.json").read_bytes()
+    monkeypatch.setattr(runner.BalanceStudyPPO, "learn", forbidden)
+    monkeypatch.setattr(runner, "_evaluate", forbidden)
+    completed = runner.train_balance_arm(
+        tmp_path, "D", 42, probe_updates=3, evaluation_episodes=2, resume=True, max_seconds=1e-12
+    )
+    assert completed["training_steps"] == 12288
+    assert (run / "run_summary.json").read_bytes() == summary_bytes
+    assert (run / "resume_history.json").read_bytes() == history_bytes
+
+    # Inspecting a completed run is read-only, including unrelated incomplete
+    # files left by an older interrupted attempt.
+    orphan = run / "checkpoints" / "step_8192.model.zip"
+    orphan.write_bytes(b"uncommitted checkpoint fragment")
+    runner.train_balance_arm(tmp_path, "D", 42, probe_updates=3, evaluation_episodes=2, resume=True)
+    assert orphan.read_bytes() == b"uncommitted checkpoint fragment"
+    assert not (run / "incomplete_checkpoints").exists()
+
+    identity_path = run / "study_identity.json"
+    identity_bytes = identity_path.read_bytes()
+    identity_path.unlink()
+    before_missing_identity_check = {path.relative_to(run): _sha256(path) for path in run.rglob("*") if path.is_file()}
+    try:
+        with pytest.raises(ValueError, match="missing.*identity"):
+            runner.train_balance_arm(tmp_path, "D", 42, probe_updates=3, evaluation_episodes=2, resume=True)
+        assert not identity_path.exists()
+        assert {path.relative_to(run): _sha256(path) for path in run.rglob("*") if path.is_file()} == (
+            before_missing_identity_check
+        )
+    finally:
+        identity_path.write_bytes(identity_bytes)

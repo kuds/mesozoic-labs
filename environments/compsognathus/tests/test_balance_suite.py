@@ -31,15 +31,16 @@ def suite(tmp_path, monkeypatch):
             tag += f"_probe{kwargs['probe_updates']}"
         calls.append((tag, kwargs))
         assert kwargs["resume"] is True
-        progress = json.loads((output / "suite_progress.json").read_text())
-        assert next(job for job in progress["jobs"] if job["name"] == tag)["status"] == "running"
+        path = output / "runs" / tag / "run_summary.json"
+        if not path.exists():
+            progress = json.loads((output / "suite_progress.json").read_text())
+            assert next(job for job in progress["jobs"] if job["name"] == tag)["status"] == "running"
         if tag in failures:
             raise failures[tag]
-        path = output / "runs" / tag / "run_summary.json"
         if path.exists():
             return json.loads(path.read_text())
         trained.append(tag)
-        path.parent.mkdir(parents=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
         result = {"arm": arm, "seed": seed, "training_seconds": 1.5, "diagnostic_probe": "probe" in tag}
         path.write_text(json.dumps(result))
         return result
@@ -188,6 +189,167 @@ def test_full_suite_requires_the_prepared_three_seed_matrix(suite):
     with pytest.raises(ValueError, match="training seeds"):
         balance_suite.run_balance_suite(output)
     assert not calls
+
+
+def test_startup_inventory_does_not_start_missing_runs_or_write_files(suite):
+    output, _, calls, trained, _ = suite
+    inventory = balance_suite.inspect_balance_suite(output)
+    assert inventory["read_only"]
+    assert len(inventory["jobs"]) == 16
+    assert inventory["completed_full_runs"] == 0 and inventory["remaining_full_runs"] == 12
+    assert inventory["remaining_probe_runs"] == 4
+    assert inventory["next_job"]["name"] == "A_seed42_probe2"
+    assert not calls and not trained
+    assert not list(output.iterdir())
+
+
+def test_default_session_runs_probes_and_only_one_full_job_then_selects_next(suite):
+    output, _, _, trained, _ = suite
+    first = balance_suite.run_balance_suite(output)
+    assert trained == [f"{arm}_seed42_probe2" for arm in "ABCD"] + ["A_seed42"]
+    assert first["status"] == "session_complete"
+    assert first["session_hours"] == 14.0
+    assert first["completed_full_runs"] == 1 and first["remaining_full_runs"] == 11
+    assert first["next_job"]["name"] == "A_seed43"
+    second = balance_suite.run_balance_suite(output)
+    assert trained[-1] == "A_seed43" and len(trained) == 6
+    assert second["status"] == "session_complete"
+    assert second["completed_full_runs"] == 2 and second["remaining_full_runs"] == 10
+    assert second["next_job"]["name"] == "A_seed44"
+
+
+@pytest.mark.parametrize("checkpoint_kind", ["checkpoints", "continuations", None])
+def test_session_prefers_existing_unfinished_full_job_over_new_job(suite, checkpoint_kind):
+    output, _, _, trained, _ = suite
+    balance_suite.run_balance_suite(output, mode="smoke")
+    directory = output / "runs" / "C_seed43"
+    directory.mkdir(parents=True)
+    if checkpoint_kind:
+        checkpoint_directory = directory / checkpoint_kind
+        checkpoint_directory.mkdir()
+        (checkpoint_directory / "step_4096.manifest.json").write_text("{}")
+    before = balance_suite.inspect_balance_suite(output)
+    assert before["next_job"]["name"] == "C_seed43"
+    assert before["next_job"]["status"] == ("resumable" if checkpoint_kind else "unfinished")
+    result = balance_suite.run_balance_suite(output)
+    assert trained[-1] == "C_seed43" and len(trained) == 5
+    assert result["completed_full_runs"] == 1
+    assert result["next_job"]["name"] == "A_seed42"
+
+
+def test_all_complete_session_validates_existing_jobs_without_any_new_training(suite):
+    output, _, calls, trained, _ = suite
+    balance_suite.run_balance_suite(output, mode="full")
+    result = balance_suite.run_balance_suite(output)
+    assert len(trained) == 16 and len(calls) == 32
+    assert result["status"] == "complete"
+    assert result["completed_full_runs"] == 12 and result["remaining_full_runs"] == 0
+    assert result["next_job"] is None
+
+
+def test_session_budget_includes_startup_and_probes_and_paused_result_never_qualifies(suite, monkeypatch):
+    output, plan, calls, _, _ = suite
+    clock = [100.0]
+    monkeypatch.setattr(balance_suite.time, "monotonic", lambda: clock[0])
+
+    def load_plan(output):
+        clock[0] += 90.0  # Startup inspection/config work consumes the session.
+        return plan
+
+    monkeypatch.setattr(balance_suite, "_load_plan", load_plan)
+    original = balance_suite.train_balance_arm
+    full_limits = []
+
+    def timed_runner(output, arm, seed, **kwargs):
+        if kwargs.get("probe_updates"):
+            result = original(output, arm, seed, **kwargs)
+            clock[0] += 60.0
+            return result
+        full_limits.append(kwargs["max_seconds"])
+        calls.append((f"{arm}_seed{seed}", kwargs))
+        directory = output / "runs" / f"{arm}_seed{seed}" / "continuations"
+        directory.mkdir(parents=True)
+        (directory / "step_4096.manifest.json").write_text("{}")
+        clock[0] += kwargs["max_seconds"]
+        return {"status": "paused", "arm": arm, "seed": seed, "learned_balance_qualified": False}
+
+    monkeypatch.setattr(balance_suite, "train_balance_arm", timed_runner)
+    result = balance_suite.run_balance_suite(output, session_hours=14)
+    assert full_limits == [14 * 3600 - 90 - 4 * 60]
+    assert result["status"] == "paused"
+    assert result["completed_full_runs"] == 0 and result["remaining_full_runs"] == 12
+    assert result["resumable_full_runs"] == 1
+    assert result["next_job"]["name"] == "A_seed42"
+    assert result["next_job"]["status"] == "resumable"
+    paused = next(job for job in result["jobs"] if job["name"] == "A_seed42")
+    assert paused["status"] == "paused"
+    assert not paused["result"]["learned_balance_qualified"]
+    assert not paused.get("completion_validated")
+    assert not (output / "runs" / "A_seed42" / "run_summary.json").exists()
+    assert len(calls) == 5
+
+
+def test_expired_startup_budget_does_not_launch_another_job(suite, monkeypatch):
+    output, plan, calls, _, _ = suite
+    clock = [0.0]
+    monkeypatch.setattr(balance_suite.time, "monotonic", lambda: clock[0])
+
+    def load_plan(output):
+        clock[0] = 100.0
+        return plan
+
+    monkeypatch.setattr(balance_suite, "_load_plan", load_plan)
+    result = balance_suite.run_balance_suite(output, session_hours=0.01)
+    assert not calls
+    assert result["status"] == "paused"
+    assert result["session_stop_reason"] == "time_budget_exhausted_before_next_job"
+    assert result["remaining_full_runs"] == 12
+
+
+def test_session_full_failure_ends_session_without_starting_other_full_runs(suite):
+    output, _, _, trained, failures = suite
+    balance_suite.run_balance_suite(output, mode="smoke")
+    failures["A_seed42"] = RuntimeError("training failed")
+    result = balance_suite.run_balance_suite(output)
+    assert result["status"] == "complete_with_errors"
+    assert len(trained) == 4
+    assert result["failed_jobs"] == 1
+    assert result["remaining_full_runs"] == 12
+
+
+def test_inventory_marks_invalid_completed_job_failed_without_writing_or_starting_jobs(suite):
+    output, _, _, trained, failures = suite
+    balance_suite.run_balance_suite(output, mode="smoke")
+    failures["A_seed42_probe2"] = PlantCompatibilityError("invalid checkpoint pair")
+    before = {path: path.read_bytes() for path in output.rglob("*") if path.is_file()}
+    inventory = balance_suite.inspect_balance_suite(output)
+    after = {path: path.read_bytes() for path in output.rglob("*") if path.is_file()}
+    assert before == after
+    assert len(trained) == 4
+    assert inventory["invalid_completed_runs"] == 1
+    assert inventory["jobs"][0]["status"] == "failed"
+    assert inventory["next_job"]["name"] == "A_seed42_probe2"
+
+
+@pytest.mark.parametrize("hours", [0, -1, float("nan"), float("inf"), True, "14", None, 1e308])
+def test_invalid_session_time_is_rejected_before_work(suite, hours):
+    with pytest.raises(ValueError, match="session_hours"):
+        balance_suite.run_balance_suite(suite[0], session_hours=hours)
+    assert not suite[2]
+
+
+def test_single_seed_smoke_plan_can_be_inspected_without_requiring_full_matrix(suite):
+    output, plan, calls, _, _ = suite
+    plan["training_seeds"] = [42]
+    inventory = balance_suite.inspect_balance_suite(output)
+    assert inventory["expected_full_runs"] == inventory["remaining_full_runs"] == 4
+    assert inventory["expected_probe_runs"] == 4
+    assert len(inventory["jobs"]) == 8
+    assert not calls
+    result = balance_suite.run_balance_suite(output, mode="smoke")
+    assert result["status"] == "complete"
+    assert result["completed_jobs"] == 4
+    assert result["inventory_after"]["remaining_full_runs"] == 4
 
 
 def test_comparison_rejects_corrupted_completed_pair_despite_plausible_qualified_summary(tmp_path, monkeypatch):

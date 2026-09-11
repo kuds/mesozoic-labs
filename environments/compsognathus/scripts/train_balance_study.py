@@ -173,12 +173,13 @@ class BalanceStudyPPO(PPO):
         self.stop_after_steps = stop_after_steps
         self.after_update = after_update
         self.update_records: list[dict] = []
+        self.pause_requested = False
 
     def _excluded_save_params(self):
-        return super()._excluded_save_params() + ["after_update", "update_records"]
+        return super()._excluded_save_params() + ["after_update", "update_records", "pause_requested"]
 
     def collect_rollouts(self, *args, **kwargs):
-        if self.num_timesteps >= self.stop_after_steps:
+        if self.pause_requested or self.num_timesteps >= self.stop_after_steps:
             return False
         return super().collect_rollouts(*args, **kwargs)
 
@@ -274,6 +275,7 @@ def train_balance_arm(
     probe_updates: int | None = None,
     evaluation_episodes: int | None = None,
     resume: bool = False,
+    max_seconds: float | None = None,
 ) -> dict:
     """Train or continue one arm/seed; full runs confirm on 40 fresh seeds.
 
@@ -281,7 +283,21 @@ def train_balance_arm(
     The simulator and random streams reset to the recorded worker seeds, so it
     is not a bitwise continuation of the interrupted trajectory. Committed
     checkpoints are immutable; incomplete saves are preserved in quarantine.
+    A session time limit pauses after a complete PPO update and saves a paired
+    continuation checkpoint. Off-schedule saves never enter policy selection.
     """
+    if max_seconds is not None and (
+        isinstance(max_seconds, bool)
+        or not isinstance(max_seconds, (int, float))
+        or not math.isfinite(max_seconds)
+        or max_seconds <= 0
+    ):
+        raise ValueError("max_seconds must be positive and finite")
+    deadline = time.perf_counter() + max_seconds if max_seconds is not None else None
+
+    def expired() -> bool:
+        return deadline is not None and time.perf_counter() >= deadline
+
     output = Path(output)
     plan = _load_plan(output)
     if arm not in ARMS or seed not in plan["training_seeds"]:
@@ -308,6 +324,7 @@ def train_balance_arm(
     snapshot = {"plan": plan, "arm": arm, "seed": seed, "probe_updates": probe_updates, "evaluation_episodes": n_eval}
     tag = f"{arm}_seed{seed}" + (f"_probe{probe_updates}" if probe_updates is not None else "")
     run_dir = output / "runs" / tag
+    already_complete = (run_dir / "run_summary.json").exists()
     if run_dir.exists() and not resume:
         raise FileExistsError("Run already exists; use resume=True to validate and continue it")
     bare = make_balance_env(arm, **config["env_kwargs"])
@@ -315,7 +332,8 @@ def train_balance_arm(
         identity = build_study_identity(bare, snapshot)
     finally:
         bare.close()
-    run_dir.mkdir(parents=True, exist_ok=True)
+    if not run_dir.exists():
+        run_dir.mkdir(parents=True)
     config_path = run_dir / "run_config.json"
     identity_path = run_dir / "study_identity.json"
     if config_path.exists():
@@ -328,23 +346,34 @@ def train_balance_arm(
     if identity_path.exists():
         validate_study_identity(_read_json(identity_path), identity)
     else:
+        if already_complete:
+            raise ValueError("Completed run is missing its saved study identity")
         _save(identity_path, identity)
     screen_seeds = plan["probe_screen_seeds" if probe_updates is not None else "screen_seeds"][:n_eval]
     confirmation_seeds = plan["probe_confirmation_seeds" if probe_updates is not None else "confirmation_seeds"][
         :n_eval
     ]
     checkpoint_dir = run_dir / "checkpoints"
-    checkpoint_dir.mkdir(exist_ok=True)
+    continuation_dir = run_dir / "continuations"
+    if not checkpoint_dir.exists():
+        if already_complete:
+            raise ValueError("Completed run is missing its screening checkpoints")
+        checkpoint_dir.mkdir()
     # A manifest commits a pair. Preserve orphaned writes before reusing a step
     # number; a corrupt committed pair fails closed instead of silently falling back.
-    for artifact in list(checkpoint_dir.glob("step_*.*")):
+    artifacts = (
+        []
+        if already_complete
+        else [path for directory in (checkpoint_dir, continuation_dir) for path in directory.glob("step_*.*")]
+    )
+    for artifact in artifacts:
         if not artifact.exists():
             continue
-        prefix = checkpoint_dir / artifact.name.split(".")[0]
+        prefix = artifact.parent / artifact.name.split(".")[0]
         if not prefix.with_suffix(".manifest.json").exists():
             quarantine = run_dir / "incomplete_checkpoints" / str(uuid.uuid4())
             quarantine.mkdir(parents=True)
-            for partial in checkpoint_dir.glob(prefix.name + ".*"):
+            for partial in artifact.parent.glob(prefix.name + ".*"):
                 partial.rename(quarantine / partial.name)
     checkpoints = sorted(
         (
@@ -353,12 +382,17 @@ def train_balance_arm(
         ),
         key=lambda path: int(path.name.removeprefix("step_")),
     )
-    for checkpoint in checkpoints:
+    continuations = [
+        path.with_name(path.name.removesuffix(".manifest.json"))
+        for path in continuation_dir.glob("step_*.manifest.json")
+    ]
+    all_checkpoints = sorted(checkpoints + continuations, key=lambda path: int(path.name.removeprefix("step_")))
+    for checkpoint in all_checkpoints:
         verify_study_checkpoint(checkpoint, identity)
         step = int(checkpoint.name.removeprefix("step_"))
         if step <= 0 or step > stop or step % rollout:
             raise ValueError("Saved checkpoint is outside this run's completed PPO updates")
-    latest = checkpoints[-1] if checkpoints else None
+    latest = all_checkpoints[-1] if all_checkpoints else None
     from_steps = int(latest.name.removeprefix("step_")) if latest else 0
     records: list[dict] = []
     best_key: tuple | None = None
@@ -434,6 +468,7 @@ def train_balance_arm(
         "status": "started",
         "to_steps": from_steps,
         "elapsed_seconds": 0.0,
+        "session_max_seconds": max_seconds,
     }
     history.append(segment)
     _save(history_path, history)
@@ -444,35 +479,67 @@ def train_balance_arm(
     model = None
     normalizer = None
     vector = None
+    last_saved = latest
 
     def after_update(policy):
-        nonlocal next_screen
-        if policy.num_timesteps < next_screen and policy.num_timesteps < stop:
+        nonlocal next_screen, last_saved
+        screen_due = policy.num_timesteps >= next_screen or policy.num_timesteps >= stop
+        if not screen_due and not expired():
             return
-        checkpoint = checkpoint_dir / f"step_{policy.num_timesteps}"
+        checkpoint = (checkpoint_dir if screen_due else continuation_dir) / f"step_{policy.num_timesteps}"
         save_study_checkpoint(policy, normalizer, checkpoint, identity)
         _save(checkpoint.with_suffix(".updates.json"), policy.update_records)
-        panel = _evaluate(policy, normalizer, arm, plan, screen_seeds)
-        panel["study_panel"] = _panel_binding(checkpoint, screen_seeds, plan)
-        _save(checkpoint.with_suffix(".screen.json"), panel)
-        remember(checkpoint, panel)
-        _save(run_dir / "screening_history.json", records)
+        last_saved = checkpoint
+        if screen_due:
+            panel = _evaluate(policy, normalizer, arm, plan, screen_seeds)
+            panel["study_panel"] = _panel_binding(checkpoint, screen_seeds, plan)
+            _save(checkpoint.with_suffix(".screen.json"), panel)
+            remember(checkpoint, panel)
+            _save(run_dir / "screening_history.json", records)
+            next_screen = (policy.num_timesteps // plan["screen_every_steps"] + 1) * plan["screen_every_steps"]
+            print(
+                json.dumps(
+                    _json_value({"arm": arm, "seed": seed, "steps": policy.num_timesteps, "screen": panel["summary"]})
+                ),
+                flush=True,
+            )
         _save(run_dir / "updates.json", policy.update_records)
         segment.update(to_steps=policy.num_timesteps, elapsed_seconds=time.perf_counter() - started)
         _save(history_path, history)
-        next_screen = (policy.num_timesteps // plan["screen_every_steps"] + 1) * plan["screen_every_steps"]
-        print(
-            json.dumps(
-                _json_value({"arm": arm, "seed": seed, "steps": policy.num_timesteps, "screen": panel["summary"]})
-            ),
-            flush=True,
-        )
+        policy.pause_requested = expired()
+
+    def pause_result() -> dict:
+        steps = model.num_timesteps if model is not None else from_steps
+        segment.update(status="paused", to_steps=steps, elapsed_seconds=time.perf_counter() - started)
+        _save(history_path, history)
+        result = {
+            "schema": SCHEMA,
+            "status": "paused",
+            "reason": "session_time_limit",
+            "arm": arm,
+            "seed": seed,
+            "training_steps": steps,
+            "planned_training_steps": stop,
+            "checkpoint": str(last_saved.relative_to(run_dir)) if last_saved else None,
+            "training_seconds": sum(item["elapsed_seconds"] for item in history),
+            "awaiting_confirmation": steps == stop,
+            "diagnostic_probe": probe_updates is not None,
+            "learned_balance_qualified": False,
+            "research_only": True,
+            "production_advancement": False,
+        }
+        _save(run_dir / "run_pause.json", result)
+        return result
 
     try:
+        if expired():
+            return pause_result()
         for checkpoint in checkpoints:
             panel = saved_panel(checkpoint, screen_seeds, checkpoint.with_suffix(".screen.json"))
             remember(checkpoint, panel)
         _save(run_dir / "screening_history.json", records)
+        if expired():
+            return pause_result()
         vector = _vector_env(arm, config["env_kwargs"], plan["n_envs"], worker_seed)
         if latest is not None:
             model, normalizer = load_study_checkpoint(latest, identity, vector, model_class=BalanceStudyPPO)
@@ -487,6 +554,7 @@ def train_balance_arm(
             model.update_records = json.loads(update_path.read_text()) if update_path.exists() else []
             model.after_update = after_update
             model.stop_after_steps = stop
+            model.pause_requested = False
         else:
             normalizer = VecNormalize(vector, **plan["normalization"])
             attach_study_identity(normalizer, identity)
@@ -515,12 +583,16 @@ def train_balance_arm(
             ),
             flush=True,
         )
+        if expired():
+            return pause_result()
         if model.num_timesteps < stop:
             model.learn(
                 total_timesteps=budget - model.num_timesteps,
                 reset_num_timesteps=False,
                 callback=_maybe_ent_coef_decay_callback(config, "ppo", budget),
             )
+        if model.pause_requested or expired():
+            return pause_result()
         if selected is None or model.num_timesteps != stop:
             raise RuntimeError("Training did not produce the complete planned screening history")
         confirmation = saved_panel(
@@ -612,6 +684,11 @@ def summarize_study(output: Path) -> dict:
                 )
             else:
                 status = "failed" if failure.exists() else "unfinished" if directory.exists() else "not_started"
+                history_path = directory / "resume_history.json"
+                if history_path.exists():
+                    history = json.loads(history_path.read_text())
+                    if history and history[-1]["status"] in ("paused", "interrupted", "disconnected"):
+                        status = history[-1]["status"]
                 rows.append({"arm": arm, "seed": seed, "status": status, "learned_balance_qualified": False})
     result = {
         "schema": SCHEMA,
@@ -658,6 +735,7 @@ def main() -> None:
     parser.add_argument("--probe-updates", type=int)
     parser.add_argument("--evaluation-episodes", type=int)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--max-seconds", type=float)
     args = parser.parse_args()
     if args.mode == "prepare":
         result = prepare_study(args.output, training_seeds=tuple(args.training_seeds))
@@ -689,6 +767,7 @@ def main() -> None:
             probe_updates=args.probe_updates,
             evaluation_episodes=args.evaluation_episodes,
             resume=args.resume,
+            max_seconds=args.max_seconds,
         )
     else:
         result = summarize_study(args.output)
