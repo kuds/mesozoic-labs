@@ -1,0 +1,187 @@
+{
+  "source_xml_sha256": "fc6ef368bf14a37b76dbf90821f44b27a39e87cf6bfe5d52c0e5628d7f997cfd",
+  "mujoco": "3.10.0",
+  "numpy": "2.3.5",
+  "mode": "replay",
+  "seeds": [
+    4100,
+    4101,
+    4102,
+    4103
+  ],
+  "settle_s": 4,
+  "horizon_s": 20,
+  "research_only": true,
+  "variants": [
+    "baseline",
+    "feet_lp10",
+    "feet_lp5",
+    "feet_lp2",
+    "ankles_feet_lp10",
+    "all_lp10",
+    "all_lp5",
+    "feet_mean_after4s",
+    "ankles_feet_mean_after4s",
+    "feet_home_after4s"
+  ],
+  "stage_config": {
+    "species": "compsognathus",
+    "stage": 1,
+    "name": "balance",
+    "description": "Hold an upright stance with foot support",
+    "algorithm": "PPO",
+    "library_version": "0.3.7.dev0",
+    "git_commit": "9557e97df44f0f1dbebfb17e2527e63ac57e0f54",
+    "reward_weights": {
+      "frame_skip": 10,
+      "max_episode_steps": 1000,
+      "forward_vel_weight": 0.0,
+      "forward_vel_max": 0.25,
+      "alive_bonus": 1.0,
+      "energy_penalty_weight": 0.02,
+      "fall_penalty": -25.0,
+      "posture_weight": 1.0,
+      "height_weight": 1.0,
+      "home_pose_weight": 0.15,
+      "smoothness_weight": 0.02,
+      "spin_penalty_weight": 0.02,
+      "drift_penalty_weight": 0.5,
+      "lateral_penalty_weight": 0.1,
+      "heading_weight": 0.0,
+      "gait_symmetry_weight": 0.0,
+      "target_approach_weight": 0.0,
+      "target_reach_bonus": 0.0,
+      "target_radius": 0.08,
+      "target_max_speed": 0.1,
+      "prey_distance_range": [
+        0.8,
+        1.2
+      ],
+      "prey_lateral_range": [
+        0.0,
+        0.0
+      ],
+      "healthy_z_range": null,
+      "max_tilt_angle": 0.7,
+      "reset_noise_scale": 0.01,
+      "reset_height_noise_scale": 0.0,
+      "perturbation_capture_velocity_multiple": 0.0,
+      "perturbation_interval": 2.0,
+      "perturbation_jitter": 0.5,
+      "perturbation_duration": 0.2,
+      "perturbation_direction": "uniform_horizontal"
+    },
+    "hyperparameters": {
+      "learning_rate": 3e-05,
+      "learning_rate_end": 1e-05,
+      "lr_schedule": "linear",
+      "n_steps": 1024,
+      "batch_size": 64,
+      "n_epochs": 5,
+      "gamma": 0.99,
+      "gae_lambda": 0.95,
+      "clip_range": 0.2,
+      "ent_coef": 0.005,
+      "ent_coef_end": 0.0,
+      "ent_coef_decay_timesteps": 7000000,
+      "target_kl": 0.03,
+      "max_grad_norm": 0.5,
+      "policy_kwargs": {
+        "net_arch": [
+          128,
+          128
+        ],
+        "log_std_init": -2.0
+      }
+    },
+    "curriculum": {
+      "gate_schema_version": 1,
+      "gate_kind": "stance_quality/v1",
+      "timesteps": 11000000,
+      "min_avg_reward": 1800.0,
+      "min_full_horizon_fraction": 0.95,
+      "max_unsupported_duty": 0.02,
+      "max_unsupported_duty_ucb": 0.02,
+      "settle_steps": 200,
+      "min_eval_episodes": 40,
+      "required_consecutive": 3
+    },
+    "run": {
+      "seed": 42,
+      "n_envs": 4,
+      "timesteps": 11000000
+    },
+    "plant_identity": {
+      "schema": "mesozoic.plant-identity/v1",
+      "species": "compsognathus",
+      "model_path": "environments/compsognathus/assets/compsognathus.xml",
+      "physics_revision": 1,
+      "policy_interface_revision": 1,
+      "visual_revision": 1,
+      "source_closure_sha256": "sha256:4f36e487862eef18eda24667e532a824491166159c69200ff8c3ad4c87a7f26b",
+      "policy_interface_sha256": "sha256:5d68b303f458b413ef7ca0615070ea384fbfefa9f0b46a4ee1fea5c828f6e37f",
+      "physics_sha256": "sha256:08a5fbf7c03d251308ec8815b6b53af5e6c1a1a4d343a11700284fe389d6be33",
+      "visual_sha256": "sha256:b3a0d649caee2314772b49b4ab23ff6ab3e61398099546e61034b78ab94cb17b",
+      "nq": 24,
+      "nv": 23,
+      "nu": 14,
+      "observation_dim": 53,
+      "action_dim": 14
+    },
+    "task_fingerprint": {
+      "schema": "mesozoic.task-fingerprint/v2",
+      "species": "compsognathus",
+      "stage": 1,
+      "backend": "stable-baselines3",
+      "plant": {
+        "physics_sha256": "sha256:08a5fbf7c03d251308ec8815b6b53af5e6c1a1a4d343a11700284fe389d6be33",
+        "policy_interface_sha256": "sha256:5d68b303f458b413ef7ca0615070ea384fbfefa9f0b46a4ee1fea5c828f6e37f"
+      },
+      "env": {
+        "frame_skip": 10,
+        "max_episode_steps": 1000,
+        "forward_vel_weight": 0.0,
+        "forward_vel_max": 0.25,
+        "alive_bonus": 1.0,
+        "energy_penalty_weight": 0.02,
+        "fall_penalty": -25.0,
+        "posture_weight": 1.0,
+        "height_weight": 1.0,
+        "home_pose_weight": 0.15,
+        "smoothness_weight": 0.02,
+        "spin_penalty_weight": 0.02,
+        "drift_penalty_weight": 0.5,
+        "lateral_penalty_weight": 0.1,
+        "heading_weight": 0.0,
+        "gait_symmetry_weight": 0.0,
+        "target_approach_weight": 0.0,
+        "target_reach_bonus": 0.0,
+        "target_radius": 0.08,
+        "target_max_speed": 0.1,
+        "prey_distance_range": [
+          0.8,
+          1.2
+        ],
+        "prey_lateral_range": [
+          0.0,
+          0.0
+        ],
+        "healthy_z_range": null,
+        "max_tilt_angle": 0.7,
+        "reset_noise_scale": 0.01,
+        "reset_height_noise_scale": 0.0
+      },
+      "perturbation": null,
+      "task_sha256": "sha256:6cd19e14c6b96ce87814c45d1d9f398ae739bb3bc80a9aaa76a3cf8cdc4eb2b2"
+    },
+    "gpu": {
+      "gpu_model": "L4",
+      "gpu_full_name": "NVIDIA L4",
+      "gpu_memory_gb": 23.7,
+      "cuda_version": "12.8"
+    }
+  },
+  "checkpoint_sha256": "d701ae8641c86ea60e305ad753c2503c82d5bccdcdad772bace1ae392c7abdb5",
+  "normalization_sha256": "09595614869ae2b4ae70c914684534ee1f6209796b1aea38456f16e8145877c5",
+  "stable_baselines3": "2.9.0"
+}

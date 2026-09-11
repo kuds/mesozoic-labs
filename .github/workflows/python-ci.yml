@@ -273,6 +273,7 @@ jobs:
       - name: Run SB3 integration tests
         run: |
           pytest \
+            environments/compsognathus/tests/test_balance_*.py \
             environments/shared/tests/test_config.py \
             environments/shared/tests/test_compsognathus_training.py \
             environments/shared/tests/test_recovery_calibration.py \
