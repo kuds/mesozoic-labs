@@ -1,0 +1,53 @@
+# Compsognathus learned-balance study
+
+This study tests the next step after [PR527](https://github.com/kuds/mesozoic-labs/pull/527): learn quiet, sustained bilateral stance on the current anatomical feet. It separates the effects of command filtering and stance rewards before changing mechanics.
+
+The prior Drive reports motivate that distinction: the successful [T. rex reference](https://drive.google.com/file/d/1rk90nXWhLwRwfmJVzOiC-y4HBdZ1a8co/view) had about 99.27% bilateral control-window support, while the [Compsognathus reference](https://drive.google.com/file/d/1oeo1zycysUv81ueYyOxMNDf7XwyCDkxs/view) had about 1.4%, despite both completing 40/40 episodes. These historical metrics use contact support, not the new stricter 20%-body-weight-per-foot criterion. The new quietness targets are proposed study criteria; they are not numerical thresholds fitted to replayed historical policies.
+
+## Matched comparison
+
+| Arm | Global action filter | Reward |
+|---|---|---|
+| A | Off | Current stance reward |
+| B | 10 Hz | Current stance reward |
+| C | Off | Current reward plus bilateral stance shaping |
+| D | 10 Hz | Same shaping as C |
+
+Each arm uses policy seeds 42, 43 and 44, four environments, the captured PPO stance recipe, and an 11-million-step budget. Complete PPO updates round the actual budget to 11,001,856 steps. Worker reset seeds are 168–171, 172–175 and 176–179, respectively, matched across arms and disjoint across replications. All arms retain the canonical XML, 14 actuators and 53 observations. No production config, manifest or environment is changed.
+
+Shaping adds at most 0.75 per control step to the roughly 3-point base reward. At one body weight total support, additive scores are +0.75 for 50/50 loading, +0.675 for 75/25, +0.18 for 90/10, −0.15 for single support and −0.25 for no support. Each foot's minimum load over the same control window is used. Load clipping bounds impact rewards. These weights are calibrated starting hypotheses, not demonstrated optimal weights.
+
+Checkpoints are screened every 250k steps, rounded to complete updates, on reset seeds 6042–6081. Selection prefers physical qualification, projected stance-gate pass, survival, meaningful bilateral loading, then lower pelvis motion. Ties retain the earlier checkpoint. Only the selected checkpoint is confirmed, once, on seeds 7142–7181. Probes use separate panels, 9042–9081 and 10042–10081. No full-training confirmation has run.
+
+The existing stance criteria are evaluated on the original base reward, with a 1,800 reward floor, at least 40 episodes, at least 95% full-horizon survival, and unchanged unsupported-duty limits. Additive reward cannot satisfy that floor on its own. This is a projection of the criteria, not production curriculum advancement or its three-consecutive-panel requirement.
+
+Proposed additional targets, measured after four seconds of settling, are at least 95% simultaneous bilateral loading above 20% body weight per foot, pelvis angular RMS at most 0.1 rad/s, COM vertical standard deviation at most 2% of home height, and sole pitch motion RMS at most 0.03 rad. Physical aggregates sample every 2 ms. Failed episodes remain in survival accounting; physical means use full-horizon episodes. Per-episode data are retained to expose variation hidden by means.
+
+## Verification completed locally
+
+- 75 focused tests passed, including exact A/canonical trajectory and reward parity, filter behavior, contact timing, reward ordering, actual PPO optimization, paired checkpoint reload, identity mismatch rejection, disjoint seed streams, and probe exclusion.
+- All four arms completed 8,192-step probes with finite parameters and preserved 11M learning-rate / 7M entropy schedules. Each completed four screening and four separate confirmation episodes; all maintained meaningful bilateral loading throughout the measured interval. These short probes cannot qualify learned balance or establish an arm winner.
+- The zero-residual home servo reference completed 40/40 episodes on seeds 8042–8081, with 100% meaningful bilateral support and zero unsupported time. Every episode met the proposed physical targets. Mean canonical return was 2,998.51; mean shaped return was 3,745.73. Mean pelvis angular RMS was 0.00115 rad/s. This demonstrates an accessible powered stance, not learned recovery.
+- Canonical compiled-plant fingerprint verification also fails on the unchanged PR head in this local runtime. No manifest was regenerated or compatibility check relaxed. Research identities compare the study plant against a fresh local compilation of the canonical XML, verify canonical source bytes, and bind checkpoints to exact source, runtime, arm and normalization state. Cross-platform canonical compatibility remains unresolved.
+
+Local runtime: Python 3.12.14, MuJoCo 3.10.0, NumPy 2.3.5, PyTorch 2.14.0, SB3 2.9.0, Gymnasium 1.3.0. Colab creates its own frozen runtime plan; local results are not silently mixed into that plan.
+
+## Colab and persistent Drive storage
+
+Open [the PR notebook in Colab](https://colab.research.google.com/github/kuds/mesozoic-labs/blob/codex/compsognathus-foot-research/notebooks/compsognathus_balance_study.ipynb). Source is fetched directly from PR527; later sessions fetch the exact commit recorded in the saved study plan. No source archive or model upload is required. The notebook mounts existing Drive storage, verifies the source digest and performs a write/read check before training.
+
+The default `MODE="baseline"` reads existing experiment reports and replays the recorded Compsognathus model pair if canonical compatibility checks pass. It discovers the existing `logs/{species}/ppo/{run}/01_stance` layout, including loose config/report sidecars. The default references are Compsognathus `20260909_162812` and T. rex `20260821_142144`; both stage summaries explicitly select `models/robust_best_model.zip` with `robust_best_model_vecnorm.pkl`. The original files stay in place. A new `references/historical_baselines.json` records their saved measurements and file hashes; compatible Compy replay adds the new physical measures under `references/replays/`. T. rex is a saved-report reference, not a policy transplanted into another species.
+
+Choose `MODE="probe"` to check new training and checkpoint reload, then `MODE="full"`, an arm and a policy seed. Repeat A–D for all three seeds. Keep the same study name across the twelve full runs. The notebook saves its own snapshot beside the plan for later sessions. Probes and historical baselines do not fill full-run comparison slots. The matched training arms still start fresh; the historical model is reused for evaluation, not silently relabeled under changed action semantics.
+
+All results are written directly under `MyDrive/mesozoic-labs/<STUDY_NAME>/`, rather than waiting for the end of training to copy them. The study plan and run identity are saved at the start. Every screening checkpoint includes a model ZIP, paired normalization file, hash manifest and screening report; progress history and optimizer diagnostics are saved alongside them. Confirmation episodes, the selected trajectory, and final run summaries are saved when complete. `comparison.csv` exposes physical balance measures, and `comparison.json` retains full details and missing/failed/unfinished slots. Completed records must match the frozen study before comparison.
+
+The notebook's final cell flushes pending uploads and unmounts Drive by default. Disable `FINISH_SESSION` only when continuing other runs in the same session, and run it when finished. Remount through the setup cell before another run. Colab's official [`flush_and_unmount`](https://github.com/googlecolab/colabtools/blob/main/google/colab/drive.py) supplies the final flush. A network interruption can still leave the most recent write incomplete; checkpoint manifests detect incomplete pairs.
+
+Later sessions restore the recorded core package versions and source commit before importing the study. A changed Python version or unavailable recorded package fails explicitly; do not erase the saved plan to bypass this. This first version does not resume training or initialize from old policies. Keep interrupted runs and their checkpoints as evidence; a fresh replacement requires a new study directory and documented interruption. Saved checkpoints remain available for exact-runtime evaluation. This notebook is a separate research workflow and does not generate the production reporting bundle or advance the production curriculum.
+
+## Reading the result
+
+Compare physical behavior across all three training seeds, not raw return across reward variants. If D consistently retains quiet bilateral support and outperforms A, use B/C to determine whether filtering, shaping or their combination explains the improvement. If several arms perform similarly, favor the smaller effective change. Review screening histories for degradation and individual episodes for outliers.
+
+Drive run paths and selected model pairs were verified against the existing saved stage summaries. New tests cover report discovery without unpickling models, explicit pairing, missing/changed artifacts, source-run preservation and canonical replay rejection. Live Colab mounting and remote upload synchronization have not been tested locally. The 12 full runs have not started. Passing this study would support learned quiet stance under the captured reset distribution. Disturbance recovery, intentional foot unloading and walking readiness require subsequent tests before production promotion.

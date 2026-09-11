@@ -14,6 +14,8 @@ The anatomical plant, robot plant, notebook, rewards, gates and registered
 checkpoint identities retain their existing behavior. These derived XMLs are
 **not registered training environments** and cannot accept the existing policy.
 
+The follow-up [learned-balance study](COMPSOGNATHUS_LEARNED_BALANCE_STUDY_2026_09.md) now provides an opt-in Colab notebook that loads this PR directly, reads existing Drive experiments, and compares filtering × stance rewards on the current feet. This prioritizes learned quiet bilateral stance before additional mechanical redesign. The mechanical candidates and evidence below remain separate hypotheses.
+
 ## What problem is being isolated?
 
 The canonical anatomical foot places its plantar pad and three digit capsules
