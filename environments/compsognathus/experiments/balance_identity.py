@@ -21,7 +21,7 @@ import uuid
 from dataclasses import asdict
 from importlib.metadata import version as distribution_version
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 import mujoco
 import numpy as np
@@ -336,7 +336,7 @@ def load_study_checkpoint(
     _validate_artifact(normalizer, expected)
     if getattr(normalizer, _PAIR_ATTRIBUTE, None) != pair_id:
         raise PlantCompatibilityError("normalizer belongs to a different checkpoint pair")
-    model = model_class.load(str(model_path), env=normalizer, device="cpu")
+    model = cast(Any, model_class).load(str(model_path), env=normalizer, device="cpu")
     _validate_artifact(model, expected)
     if getattr(model, _PAIR_ATTRIBUTE, None) != pair_id:
         raise PlantCompatibilityError("model belongs to a different checkpoint pair")
