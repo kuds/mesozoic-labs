@@ -84,7 +84,7 @@ def make_study_plan(*, training_seeds: tuple[int, ...] = (42, 43, 44)) -> dict:
     if any(worker in evaluation_seeds for workers in worker_seeds.values() for worker in workers):
         raise ValueError("Training environment seeds overlap a screening or confirmation panel")
     config = load_stage_config("compsognathus", "stance")
-    return _json_value(
+    plan: dict = _json_value(
         {
             "schema": SCHEMA,
             "source_commit": get_git_commit(),
@@ -137,6 +137,7 @@ def make_study_plan(*, training_seeds: tuple[int, ...] = (42, 43, 44)) -> dict:
             ],
         }
     )
+    return plan
 
 
 def prepare_study(output: Path, *, training_seeds: tuple[int, ...] = (42, 43, 44)) -> dict:
@@ -152,7 +153,7 @@ def prepare_study(output: Path, *, training_seeds: tuple[int, ...] = (42, 43, 44
 
 
 def _load_plan(output: Path) -> dict:
-    plan = json.loads((output / "study_plan.json").read_text())
+    plan: dict = json.loads((output / "study_plan.json").read_text())
     if plan.get("schema") != SCHEMA:
         raise ValueError("Unsupported study plan schema")
     current = make_study_plan(training_seeds=tuple(plan["training_seeds"]))

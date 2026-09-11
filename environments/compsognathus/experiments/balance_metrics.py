@@ -11,7 +11,7 @@ import csv
 import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Sequence, cast
 
 import mujoco
 import numpy as np
@@ -145,7 +145,7 @@ def _trace_row(env, raw, info, step: int, probe: BalanceProbe) -> dict:
     row = {"step": step, "time_s": float(env.data.time)}
     for key, value in info.items():
         if np.isscalar(value) and not isinstance(value, (str, bytes)):
-            row[key] = float(value)
+            row[key] = float(cast(float, value))
     for axis, value in zip("xyz", env.data.subtree_com[probe.pelvis]):
         row[f"com_{axis}_m"] = float(value)
     for axis, value in zip("xyz", env.data.xpos[probe.pelvis]):
@@ -214,7 +214,7 @@ def evaluate_balance_episode(
             base_rewards += float(info.get("balance_base_reward", reward))
             for key, value in info.items():
                 if key.startswith("reward_") and np.isscalar(value):
-                    reward_components[key] = reward_components.get(key, 0.0) + float(value)
+                    reward_components[key] = reward_components.get(key, 0.0) + float(cast(float, value))
             if control_index >= settle_steps:
                 unsupported.append(float(info["unsupported_duty"]))
                 bilateral.append(float(info["bilateral_support_duty"]))
@@ -319,7 +319,9 @@ def summarize_balance_panel(
     for field in fields:
         values = [r.get(field) for r in completed]
         means[field] = (
-            float(np.mean(values)) if values and all(v is not None and math.isfinite(v) for v in values) else None
+            float(np.mean(cast(list[float], values)))
+            if values and all(v is not None and math.isfinite(v) for v in values)
+            else None
         )
     behavior_failures = []
     if not gate_passed:
@@ -349,7 +351,7 @@ def summarize_balance_panel(
         bilateral if bilateral is not None else -1.0,
         -motion if motion is not None else -1e30,
     ]
-    return _json_safe(
+    result: dict = _json_safe(
         {
             "research_only": True,
             "advances_curriculum": False,
@@ -376,3 +378,4 @@ def summarize_balance_panel(
             "mean_study_reward": float(np.mean([r["reward"] for r in rows])) if rows else None,
         }
     )
+    return result

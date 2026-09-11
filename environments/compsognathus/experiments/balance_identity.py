@@ -122,7 +122,7 @@ def _environment_snapshot(env: Any) -> dict[str, Any]:
         for name in inspect.signature(CompsognathusEnv.__init__).parameters
         if name not in {"self", "render_mode"}
     }
-    return _json_copy(
+    snapshot: dict[str, Any] = _json_copy(
         {
             "class": type(env).__name__,
             "arm": asdict(env.balance_arm),
@@ -132,6 +132,7 @@ def _environment_snapshot(env: Any) -> dict[str, Any]:
             "control_timestep": env.dt,
         }
     )
+    return snapshot
 
 
 def study_source_fingerprint() -> str:
@@ -185,10 +186,10 @@ def build_study_identity(env: Any, config: Mapping[str, Any]) -> dict[str, Any]:
     return identity
 
 
-def _checked_identity(identity: Mapping[str, Any]) -> dict[str, Any]:
+def _checked_identity(identity: object) -> dict[str, Any]:
     if not isinstance(identity, Mapping) or identity.get("schema") != STUDY_IDENTITY_SCHEMA:
         raise PlantCompatibilityError("missing or invalid balance-study identity")
-    value = _json_copy(dict(identity))
+    value: dict[str, Any] = _json_copy(dict(identity))
     recorded_digest = value.pop("identity_sha256", None)
     if recorded_digest != _digest(value):
         raise PlantCompatibilityError("balance-study identity digest mismatch")
@@ -199,7 +200,7 @@ def _checked_identity(identity: Mapping[str, Any]) -> dict[str, Any]:
     return value
 
 
-def validate_study_identity(recorded: Mapping[str, Any], expected: Mapping[str, Any]) -> None:
+def validate_study_identity(recorded: Mapping[str, Any] | None, expected: Mapping[str, Any]) -> None:
     """Reject every arm/config/source/runtime mismatch, even at equal dimensions."""
     recorded_value = _checked_identity(recorded)
     expected_value = _checked_identity(expected)
@@ -246,7 +247,11 @@ def _validate_vector_environment(env: Any, identity: Mapping[str, Any]) -> None:
 
 def _paths(path: str | Path) -> tuple[Path, Path, Path]:
     prefix = Path(path)
-    return tuple(Path(str(prefix) + suffix) for suffix in (".model.zip", ".vecnormalize.pkl", ".manifest.json"))
+    return (
+        Path(str(prefix) + ".model.zip"),
+        Path(str(prefix) + ".vecnormalize.pkl"),
+        Path(str(prefix) + ".manifest.json"),
+    )
 
 
 def save_study_checkpoint(model: Any, normalizer: Any, path: str | Path, identity: Mapping[str, Any]) -> Path:

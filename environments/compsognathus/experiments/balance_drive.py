@@ -10,6 +10,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 
 def _hash(path: Path) -> str:
@@ -79,7 +80,7 @@ def discover_balance_runs(project_drive_root: Path) -> list[dict]:
             config_path = stage / "stage_config.json"
             report_path = stage / "stance_gate_report.txt"
             summary_path = stage / "stage_summary.txt"
-            row = {
+            row: dict[str, Any] = {
                 "species": species,
                 "run_id": stage.parent.name,
                 "run_dir": str(stage.parent),
