@@ -208,7 +208,7 @@ def test_default_session_runs_probes_and_only_one_full_job_then_selects_next(sui
     first = balance_suite.run_balance_suite(output)
     assert trained == [f"{arm}_seed42_probe2" for arm in "ABCD"] + ["A_seed42"]
     assert first["status"] == "session_complete"
-    assert first["session_hours"] == 14.0
+    assert first["session_hours"] is None
     assert first["completed_full_runs"] == 1 and first["remaining_full_runs"] == 11
     assert first["next_job"]["name"] == "A_seed43"
     second = balance_suite.run_balance_suite(output)
@@ -245,6 +245,28 @@ def test_all_complete_session_validates_existing_jobs_without_any_new_training(s
     assert result["status"] == "complete"
     assert result["completed_full_runs"] == 12 and result["remaining_full_runs"] == 0
     assert result["next_job"] is None
+
+
+def test_default_session_remains_uncapped_beyond_twenty_four_hours(suite, monkeypatch):
+    output, _, calls, trained, _ = suite
+    clock = [0.0]
+    monkeypatch.setattr(balance_suite.time, "monotonic", lambda: clock[0])
+    original = balance_suite.train_balance_arm
+
+    def long_runner(output, arm, seed, **kwargs):
+        assert "max_seconds" not in kwargs
+        clock[0] += (7 if kwargs.get("probe_updates") else 30) * 3600.0
+        return original(output, arm, seed, **kwargs)
+
+    monkeypatch.setattr(balance_suite, "train_balance_arm", long_runner)
+    result = balance_suite.run_balance_suite(output)
+    assert clock[0] > 24 * 3600
+    assert trained == [f"{arm}_seed42_probe2" for arm in "ABCD"] + ["A_seed42"]
+    assert all("max_seconds" not in kwargs for _, kwargs in calls)
+    assert result["session_hours"] is None
+    assert result["status"] == "session_complete"
+    assert result["completed_full_runs"] == 1 and result["remaining_full_runs"] == 11
+    assert result["next_job"]["name"] == "A_seed43"
 
 
 def test_session_budget_includes_startup_and_probes_and_paused_result_never_qualifies(suite, monkeypatch):
@@ -331,11 +353,24 @@ def test_inventory_marks_invalid_completed_job_failed_without_writing_or_startin
     assert inventory["next_job"]["name"] == "A_seed42_probe2"
 
 
-@pytest.mark.parametrize("hours", [0, -1, float("nan"), float("inf"), True, "14", None, 1e308])
+@pytest.mark.parametrize("hours", [0, -1, float("nan"), float("inf"), True, "14", 1e308])
 def test_invalid_session_time_is_rejected_before_work(suite, hours):
     with pytest.raises(ValueError, match="session_hours"):
         balance_suite.run_balance_suite(suite[0], session_hours=hours)
     assert not suite[2]
+
+
+def test_cli_default_session_does_not_add_a_time_cap(tmp_path, monkeypatch):
+    calls = []
+
+    def run(output, **kwargs):
+        calls.append((output, kwargs))
+        return {"status": "session_complete"}
+
+    monkeypatch.setattr(balance_suite, "run_balance_suite", run)
+    monkeypatch.setattr("sys.argv", ["balance_suite", "--output", str(tmp_path)])
+    balance_suite.main()
+    assert calls == [(tmp_path, {"mode": "session", "session_hours": None})]
 
 
 def test_single_seed_smoke_plan_can_be_inspected_without_requiring_full_matrix(suite):

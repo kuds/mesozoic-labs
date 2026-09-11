@@ -182,12 +182,13 @@ def _update_totals(progress: dict) -> None:
     progress["updated_at"] = _timestamp()
 
 
-def run_balance_suite(output: str | Path, *, mode: str = "session", session_hours: float = 14.0) -> dict:
+def run_balance_suite(output: str | Path, *, mode: str = "session", session_hours: float | None = None) -> dict:
     """Run all prepared jobs, validating completed output on every invocation.
 
     ``session`` completes missing probes and advances one unfinished full run,
-    preferring an existing run over a new one. Its wall-clock allowance includes
-    startup validation and probes; the trainer checkpoints when it pauses.
+    preferring an existing run over a new one. Sessions have no time limit by
+    default. An explicitly supplied ``session_hours`` cap includes startup
+    validation and probes; the trainer checkpoints when that cap pauses it.
     ``full`` runs A–D probes (two PPO updates and four evaluation episodes at
     seed 42), then A–D full training at seeds 42/43/44. ``smoke`` runs only the
     probes. Every job delegates completion validation/resume to the trainer.
@@ -198,7 +199,7 @@ def run_balance_suite(output: str | Path, *, mode: str = "session", session_hour
     """
     if mode not in ("session", "full", "smoke"):
         raise ValueError("mode must be 'session', 'full' or 'smoke'")
-    if (
+    if session_hours is not None and (
         isinstance(session_hours, bool)
         or not isinstance(session_hours, (int, float))
         or not math.isfinite(session_hours)
@@ -206,8 +207,8 @@ def run_balance_suite(output: str | Path, *, mode: str = "session", session_hour
         or not math.isfinite(float(session_hours) * 3600.0)
     ):
         raise ValueError("session_hours must be finite and positive")
-    started = time.monotonic()
-    session_seconds = float(session_hours) * 3600.0
+    session_seconds = float(session_hours) * 3600.0 if session_hours is not None and mode == "session" else None
+    started = time.monotonic() if session_seconds is not None else 0.0
     output = Path(output)
     plan = _load_plan(output)
     digest = _plan_digest(plan)
@@ -283,8 +284,8 @@ def run_balance_suite(output: str | Path, *, mode: str = "session", session_hour
             job.update(status="skipped", skip_reason="prerequisite_failed")
             checkpoint()
             continue
-        remaining_seconds = session_seconds - (time.monotonic() - started)
-        if mode == "session" and remaining_seconds <= 0:
+        remaining_seconds = session_seconds - (time.monotonic() - started) if session_seconds is not None else None
+        if remaining_seconds is not None and remaining_seconds <= 0:
             progress["session_stop_reason"] = "time_budget_exhausted_before_next_job"
             paused = True
             break
@@ -297,7 +298,7 @@ def run_balance_suite(output: str | Path, *, mode: str = "session", session_hour
             kwargs: dict[str, Any] = {"resume": True}
             if job["phase"] == "smoke":
                 kwargs.update(probe_updates=PROBE_UPDATES, evaluation_episodes=PROBE_EVALUATION_EPISODES)
-            if mode == "session":
+            if remaining_seconds is not None:
                 kwargs["max_seconds"] = remaining_seconds
             result = train_balance_arm(output, job["arm"], job["seed"], **kwargs)
             job["result"] = result
@@ -365,7 +366,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--mode", choices=("session", "full", "smoke"), default="session")
-    parser.add_argument("--session-hours", type=float, default=14.0)
+    parser.add_argument(
+        "--session-hours", type=float, default=None, help="Optional session time cap; omitted by default"
+    )
     args = parser.parse_args()
     result = run_balance_suite(args.output, mode=args.mode, session_hours=args.session_hours)
     print(json.dumps(result, indent=2, allow_nan=False))
