@@ -4,6 +4,8 @@ import json
 
 import pytest
 
+pytest.importorskip("stable_baselines3")
+
 from environments.compsognathus.experiments import balance_suite
 from environments.compsognathus.scripts import train_balance_study
 from environments.shared.plant_contract import PlantCompatibilityError
