@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
 import platform
 import time
+import uuid
 from dataclasses import asdict
 from importlib.metadata import version
 from pathlib import Path
@@ -37,6 +39,7 @@ from environments.compsognathus.experiments.balance_identity import (
     save_study_checkpoint,
     study_source_fingerprint,
     validate_study_identity,
+    verify_study_checkpoint,
 )
 from environments.compsognathus.experiments.balance_metrics import (
     BalanceTargets,
@@ -133,7 +136,7 @@ def make_study_plan(*, training_seeds: tuple[int, ...] = (42, 43, 44)) -> dict:
                 "Targets are proposed study criteria, not validated hardware thresholds or production curriculum gates.",
                 "Confirmation evaluates only the selected checkpoint, once, on the separate 40-seed panel.",
                 "Small probes and home controllers never establish learned qualification.",
-                "No checkpoint continuation or old-policy initialization is supported in v1.",
+                "Continuation uses verified study pairs with the original schedule; simulator episodes restart. Historical policies are references only.",
             ],
         }
     )
@@ -165,7 +168,7 @@ def _load_plan(output: Path) -> dict:
 class BalanceStudyPPO(PPO):
     """Stop probes after complete updates, keeping the full schedule horizon."""
 
-    def __init__(self, *args, stop_after_steps: int, after_update=None, **kwargs):
+    def __init__(self, *args, stop_after_steps: int = 0, after_update=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.stop_after_steps = stop_after_steps
         self.after_update = after_update
@@ -235,6 +238,34 @@ def _evaluate(model, normalizer, arm: str, plan: dict, seeds: list[int], *, trac
         env.close()
 
 
+def _read_json(path: Path) -> dict:
+    value: dict = json.loads(path.read_text())
+    return value
+
+
+def _panel_binding(checkpoint: Path, seeds: list[int], plan: dict) -> dict:
+    return {
+        "checkpoint_manifest_sha256": hashlib.sha256(checkpoint.with_suffix(".manifest.json").read_bytes()).hexdigest(),
+        "seeds": seeds,
+        "horizon": plan["stage_config"]["env_kwargs"]["max_episode_steps"],
+        "settle_steps": plan["stage_config"]["curriculum_kwargs"]["settle_steps"],
+        "targets": plan["behavior_targets"],
+    }
+
+
+def _validate_panel(panel: dict, binding: dict, plan: dict) -> None:
+    if panel.get("study_panel") != binding or [row["seed"] for row in panel["episodes"]] != binding["seeds"]:
+        raise ValueError("Saved evaluation panel does not match this checkpoint and seed panel")
+    summary = summarize_balance_panel(
+        panel["episodes"],
+        horizon=binding["horizon"],
+        stance_thresholds=StanceGateThresholds.from_curriculum(plan["stage_config"]["curriculum_kwargs"]),
+        targets=BalanceTargets(**binding["targets"]),
+    )
+    if _json_value(summary) != panel["summary"]:
+        raise ValueError("Saved evaluation summary differs from its episode evidence")
+
+
 def train_balance_arm(
     output: Path,
     arm: str,
@@ -242,8 +273,15 @@ def train_balance_arm(
     *,
     probe_updates: int | None = None,
     evaluation_episodes: int | None = None,
+    resume: bool = False,
 ) -> dict:
-    """Train one prepared arm/seed; full runs always confirm on 40 fresh seeds."""
+    """Train or continue one arm/seed; full runs confirm on 40 fresh seeds.
+
+    Continuation retains weights, optimizer, normalizer and absolute schedules.
+    The simulator and random streams reset to the recorded worker seeds, so it
+    is not a bitwise continuation of the interrupted trajectory. Committed
+    checkpoints are immutable; incomplete saves are preserved in quarantine.
+    """
     output = Path(output)
     plan = _load_plan(output)
     if arm not in ARMS or seed not in plan["training_seeds"]:
@@ -266,104 +304,237 @@ def train_balance_arm(
     stop = math.ceil(budget / rollout) * rollout if probe_updates is None else probe_updates * rollout
     if probe_updates is not None and stop > budget:
         raise ValueError("Probe exceeds the full study budget")
+    n_eval = evaluation_episodes or 40
+    snapshot = {"plan": plan, "arm": arm, "seed": seed, "probe_updates": probe_updates, "evaluation_episodes": n_eval}
     tag = f"{arm}_seed{seed}" + (f"_probe{probe_updates}" if probe_updates is not None else "")
     run_dir = output / "runs" / tag
-    run_dir.mkdir(parents=True, exist_ok=False)
-    snapshot = {"plan": plan, "arm": arm, "seed": seed, "probe_updates": probe_updates}
+    if run_dir.exists() and not resume:
+        raise FileExistsError("Run already exists; use resume=True to validate and continue it")
     bare = make_balance_env(arm, **config["env_kwargs"])
     try:
         identity = build_study_identity(bare, snapshot)
     finally:
         bare.close()
-    _save(run_dir / "study_identity.json", identity)
-    _save(run_dir / "run_config.json", snapshot)
-    worker_seed = plan["training_environment_seeds"][str(seed)][0]
-    vec = _vector_env(arm, config["env_kwargs"], plan["n_envs"], worker_seed)
-    normalizer = VecNormalize(vec, **plan["normalization"])
-    attach_study_identity(normalizer, identity)
-    model_kwargs, _, _ = _prepare_alg_kwargs(config, "ppo", 0, run_dir, False)
-    records: list[dict] = []
-    best_key: tuple | None = None
-    selected: Path | None = None
-    next_screen = int(plan["screen_every_steps"])
-    n_eval = evaluation_episodes or 40
+    run_dir.mkdir(parents=True, exist_ok=True)
+    config_path = run_dir / "run_config.json"
+    identity_path = run_dir / "study_identity.json"
+    if config_path.exists():
+        if _read_json(config_path) != snapshot:
+            raise ValueError("Saved run configuration differs from this requested run")
+    else:
+        if any(run_dir.iterdir()):
+            raise ValueError("Existing run has no configuration; preserve it and choose a new study")
+        _save(config_path, snapshot)
+    if identity_path.exists():
+        validate_study_identity(_read_json(identity_path), identity)
+    else:
+        _save(identity_path, identity)
     screen_seeds = plan["probe_screen_seeds" if probe_updates is not None else "screen_seeds"][:n_eval]
     confirmation_seeds = plan["probe_confirmation_seeds" if probe_updates is not None else "confirmation_seeds"][
         :n_eval
     ]
-    started = time.perf_counter()
+    checkpoint_dir = run_dir / "checkpoints"
+    checkpoint_dir.mkdir(exist_ok=True)
+    # A manifest commits a pair. Preserve orphaned writes before reusing a step
+    # number; a corrupt committed pair fails closed instead of silently falling back.
+    for artifact in list(checkpoint_dir.glob("step_*.*")):
+        if not artifact.exists():
+            continue
+        prefix = checkpoint_dir / artifact.name.split(".")[0]
+        if not prefix.with_suffix(".manifest.json").exists():
+            quarantine = run_dir / "incomplete_checkpoints" / str(uuid.uuid4())
+            quarantine.mkdir(parents=True)
+            for partial in checkpoint_dir.glob(prefix.name + ".*"):
+                partial.rename(quarantine / partial.name)
+    checkpoints = sorted(
+        (
+            path.with_name(path.name.removesuffix(".manifest.json"))
+            for path in checkpoint_dir.glob("step_*.manifest.json")
+        ),
+        key=lambda path: int(path.name.removeprefix("step_")),
+    )
+    for checkpoint in checkpoints:
+        verify_study_checkpoint(checkpoint, identity)
+        step = int(checkpoint.name.removeprefix("step_"))
+        if step <= 0 or step > stop or step % rollout:
+            raise ValueError("Saved checkpoint is outside this run's completed PPO updates")
+    latest = checkpoints[-1] if checkpoints else None
+    from_steps = int(latest.name.removeprefix("step_")) if latest else 0
+    records: list[dict] = []
+    best_key: tuple | None = None
+    selected: Path | None = None
 
-    def after_update(model):
-        nonlocal next_screen, best_key, selected
-        if model.num_timesteps < next_screen and model.num_timesteps < stop:
-            return
-        checkpoint = run_dir / "checkpoints" / f"step_{model.num_timesteps}"
-        panel = _evaluate(model, normalizer, arm, plan, screen_seeds)
-        save_study_checkpoint(model, normalizer, checkpoint, identity)
-        _save(checkpoint.with_suffix(".screen.json"), panel)
+    def remember(checkpoint: Path, panel: dict) -> None:
+        nonlocal selected, best_key
         key = tuple(panel["summary"]["selection_key"])
         if best_key is None or key > best_key:
             best_key, selected = key, checkpoint
-        records.append({"timesteps": model.num_timesteps, "checkpoint": checkpoint.name, **panel["summary"]})
+        records.append(
+            {"timesteps": int(checkpoint.name.removeprefix("step_")), "checkpoint": checkpoint.name, **panel["summary"]}
+        )
+
+    def saved_panel(checkpoint: Path, seeds: list[int], path: Path, *, trace_path: Path | None = None) -> dict:
+        binding = _panel_binding(checkpoint, seeds, plan)
+        if path.exists():
+            panel = _read_json(path)
+            _validate_panel(panel, binding, plan)
+            return panel
+        vector = _vector_env(arm, config["env_kwargs"], 1, seeds[0])
+        frozen = None
+        try:
+            policy, frozen = load_study_checkpoint(checkpoint, identity, vector)
+            panel = _evaluate(policy, frozen, arm, plan, seeds, trace_path=trace_path)
+        finally:
+            (frozen if frozen is not None else vector).close()
+        panel["study_panel"] = binding
+        _save(path, panel)
+        return panel
+
+    # Completed jobs are checked without new training or evaluation. Missing
+    # evidence in a declared-complete bundle is an error, never a silent rerun.
+    summary_path = run_dir / "run_summary.json"
+    if summary_path.exists():
+        result = _read_json(summary_path)
+        for checkpoint in checkpoints:
+            panel = _read_json(checkpoint.with_suffix(".screen.json"))
+            _validate_panel(panel, _panel_binding(checkpoint, screen_seeds, plan), plan)
+            remember(checkpoint, panel)
+        if selected is None or from_steps != stop:
+            raise ValueError("Completed run has no complete training/checkpoint history")
+        confirmation = _read_json(run_dir / "confirmation.json")
+        _validate_panel(confirmation, _panel_binding(selected, confirmation_seeds, plan), plan)
+        if (
+            result.get("schema") != SCHEMA
+            or result.get("arm") != arm
+            or result.get("seed") != seed
+            or result.get("training_steps") != stop
+            or result.get("diagnostic_probe") != (probe_updates is not None)
+            or result.get("selected_checkpoint") != str(selected.relative_to(run_dir))
+            or result.get("confirmation") != confirmation["summary"]
+            or result.get("learned_balance_qualified")
+            != (probe_updates is None and confirmation["summary"]["behavior_qualified"])
+            or result.get("research_only") is not True
+            or result.get("production_advancement") is not False
+        ):
+            raise ValueError("Completed result does not match its verified training and confirmation evidence")
+        return result
+
+    history_path = run_dir / "resume_history.json"
+    history: list[dict] = json.loads(history_path.read_text()) if history_path.exists() else []
+    for previous in history:
+        if previous["status"] == "started":
+            previous["status"] = "disconnected"
+    worker_seeds = plan["training_environment_seeds"][str(seed)]
+    segment: dict = {
+        "segment_id": len(history),
+        "from_checkpoint": str(latest.relative_to(run_dir)) if latest else None,
+        "from_steps": from_steps,
+        "worker_seeds": worker_seeds,
+        "simulator_reset": True,
+        "status": "started",
+        "to_steps": from_steps,
+        "elapsed_seconds": 0.0,
+    }
+    history.append(segment)
+    _save(history_path, history)
+    worker_seed = worker_seeds[0]
+    model_kwargs, _, _ = _prepare_alg_kwargs(config, "ppo", 0, run_dir, False)
+    next_screen = (from_steps // plan["screen_every_steps"] + 1) * plan["screen_every_steps"]
+    started = time.perf_counter()
+    model = None
+    normalizer = None
+    vector = None
+
+    def after_update(policy):
+        nonlocal next_screen
+        if policy.num_timesteps < next_screen and policy.num_timesteps < stop:
+            return
+        checkpoint = checkpoint_dir / f"step_{policy.num_timesteps}"
+        save_study_checkpoint(policy, normalizer, checkpoint, identity)
+        _save(checkpoint.with_suffix(".updates.json"), policy.update_records)
+        panel = _evaluate(policy, normalizer, arm, plan, screen_seeds)
+        panel["study_panel"] = _panel_binding(checkpoint, screen_seeds, plan)
+        _save(checkpoint.with_suffix(".screen.json"), panel)
+        remember(checkpoint, panel)
         _save(run_dir / "screening_history.json", records)
-        _save(run_dir / "updates.json", model.update_records)
-        next_screen = (model.num_timesteps // plan["screen_every_steps"] + 1) * plan["screen_every_steps"]
+        _save(run_dir / "updates.json", policy.update_records)
+        segment.update(to_steps=policy.num_timesteps, elapsed_seconds=time.perf_counter() - started)
+        _save(history_path, history)
+        next_screen = (policy.num_timesteps // plan["screen_every_steps"] + 1) * plan["screen_every_steps"]
         print(
             json.dumps(
-                _json_value({"arm": arm, "seed": seed, "steps": model.num_timesteps, "screen": panel["summary"]})
+                _json_value({"arm": arm, "seed": seed, "steps": policy.num_timesteps, "screen": panel["summary"]})
             ),
             flush=True,
         )
 
-    model = None
     try:
-        model = BalanceStudyPPO(
-            "MlpPolicy",
-            normalizer,
-            seed=seed,
-            device="cpu",
-            stop_after_steps=stop,
-            after_update=after_update,
-            **model_kwargs,
-        )
-        # PPO construction reseeds its vector env with the policy seed. Restore
-        # disjoint worker streams before learn() performs the first reset.
+        for checkpoint in checkpoints:
+            panel = saved_panel(checkpoint, screen_seeds, checkpoint.with_suffix(".screen.json"))
+            remember(checkpoint, panel)
+        _save(run_dir / "screening_history.json", records)
+        vector = _vector_env(arm, config["env_kwargs"], plan["n_envs"], worker_seed)
+        if latest is not None:
+            model, normalizer = load_study_checkpoint(latest, identity, vector, model_class=BalanceStudyPPO)
+            if model.num_timesteps != from_steps:
+                raise ValueError("Loaded model step count differs from its checkpoint name")
+            normalizer.training = plan["normalization"]["norm_reward"] or plan["normalization"]["norm_obs"]
+            normalizer.norm_reward = plan["normalization"]["norm_reward"]
+            # Callback initialization captures ent_coef. Restore the ORIGINAL
+            # start coefficient so absolute-step decay is not applied twice.
+            model.ent_coef = config["ppo_kwargs"]["ent_coef"]
+            update_path = latest.with_suffix(".updates.json")
+            model.update_records = json.loads(update_path.read_text()) if update_path.exists() else []
+            model.after_update = after_update
+            model.stop_after_steps = stop
+        else:
+            normalizer = VecNormalize(vector, **plan["normalization"])
+            attach_study_identity(normalizer, identity)
+            model = BalanceStudyPPO(
+                "MlpPolicy",
+                normalizer,
+                seed=seed,
+                device="cpu",
+                stop_after_steps=stop,
+                after_update=after_update,
+                **model_kwargs,
+            )
+            attach_study_identity(model, identity)
         normalizer.seed(worker_seed)
-        attach_study_identity(model, identity)
-        model.set_logger(configure(str(run_dir / "training_logs"), ["csv"]))
+        model.set_logger(configure(str(run_dir / "training_logs" / f"segment_{segment['segment_id']:03d}"), ["csv"]))
         print(
             json.dumps(
-                {"event": "start", "arm": arm, "seed": seed, "planned_steps": stop, "full_schedule_steps": budget}
+                {
+                    "event": "resume" if latest else "start",
+                    "arm": arm,
+                    "seed": seed,
+                    "from_steps": from_steps,
+                    "planned_steps": stop,
+                    "full_schedule_steps": budget,
+                }
             ),
             flush=True,
         )
-        model.learn(total_timesteps=budget, callback=_maybe_ent_coef_decay_callback(config, "ppo", budget))
-        if selected is None:
-            raise RuntimeError("Training did not produce a screening checkpoint")
-        confirmation_env = _vector_env(arm, config["env_kwargs"], 1, confirmation_seeds[0])
-        loaded_normalizer = None
-        try:
-            loaded_model, loaded_normalizer = load_study_checkpoint(selected, identity, confirmation_env)
-            confirmation = _evaluate(
-                loaded_model,
-                loaded_normalizer,
-                arm,
-                plan,
-                confirmation_seeds,
-                trace_path=run_dir / "selected_trace.csv",
+        if model.num_timesteps < stop:
+            model.learn(
+                total_timesteps=budget - model.num_timesteps,
+                reset_num_timesteps=False,
+                callback=_maybe_ent_coef_decay_callback(config, "ppo", budget),
             )
-        finally:
-            if loaded_normalizer is not None:
-                loaded_normalizer.close()
-            else:
-                confirmation_env.close()
-        _save(run_dir / "confirmation.json", confirmation)
+        if selected is None or model.num_timesteps != stop:
+            raise RuntimeError("Training did not produce the complete planned screening history")
+        confirmation = saved_panel(
+            selected, confirmation_seeds, run_dir / "confirmation.json", trace_path=run_dir / "selected_trace.csv"
+        )
+        segment.update(status="completed", to_steps=model.num_timesteps, elapsed_seconds=time.perf_counter() - started)
+        _save(history_path, history)
+        _save(run_dir / "updates.json", model.update_records)
         result = {
             "schema": SCHEMA,
             "arm": arm,
             "seed": seed,
             "training_steps": model.num_timesteps,
-            "training_seconds": time.perf_counter() - started,
+            "training_seconds": sum(item["elapsed_seconds"] for item in history),
             "diagnostic_probe": probe_updates is not None,
             "selected_checkpoint": str(selected.relative_to(run_dir)),
             "confirmation": confirmation["summary"],
@@ -371,15 +542,26 @@ def train_balance_arm(
             "research_only": True,
             "production_advancement": False,
         }
-        _save(run_dir / "run_summary.json", result)
+        _save(summary_path, result)
         return result
-    except Exception as exc:
-        _save(run_dir / "run_failure.json", {"type": type(exc).__name__, "message": str(exc), "arm": arm, "seed": seed})
+    except BaseException as exc:
+        error = {"type": type(exc).__name__, "message": str(exc), "arm": arm, "seed": seed}
+        segment.update(
+            status="interrupted" if isinstance(exc, KeyboardInterrupt) else "failed",
+            to_steps=model.num_timesteps if model is not None else from_steps,
+            elapsed_seconds=time.perf_counter() - started,
+            error=error,
+        )
+        _save(history_path, history)
+        _save(run_dir / "run_failure.json", error)
         raise
     finally:
-        if model is not None:
+        if model is not None and hasattr(model, "_logger"):
             model.logger.close()
-        normalizer.close()
+        if normalizer is not None:
+            normalizer.close()
+        elif vector is not None:
+            vector.close()
 
 
 def summarize_study(output: Path) -> dict:
@@ -394,7 +576,7 @@ def summarize_study(output: Path) -> dict:
             failure = directory / "run_failure.json"
             if summary.exists():
                 result = json.loads(summary.read_text())
-                snapshot = {"plan": plan, "arm": arm, "seed": seed, "probe_updates": None}
+                snapshot = {"plan": plan, "arm": arm, "seed": seed, "probe_updates": None, "evaluation_episodes": 40}
                 if json.loads((directory / "run_config.json").read_text()) != snapshot:
                     raise ValueError(f"Completed run does not match this study: {directory.name}")
                 env = make_balance_env(arm, **plan["stage_config"]["env_kwargs"])
@@ -414,6 +596,10 @@ def summarize_study(output: Path) -> dict:
                     or result["training_steps"] != expected_steps
                 ):
                     raise ValueError(f"Completed run is not a full matched arm/seed: {directory.name}")
+                # A summary file alone cannot certify completion. Reuse the
+                # trainer's read-only completed path to verify paired hashes,
+                # checkpoint selection and both panels' episode evidence.
+                result = train_balance_arm(output, arm, seed, resume=True)
                 confirmation = result["confirmation"]
                 rows.append(
                     {
@@ -471,6 +657,7 @@ def main() -> None:
     parser.add_argument("--training-seeds", type=int, nargs="+", default=[42, 43, 44])
     parser.add_argument("--probe-updates", type=int)
     parser.add_argument("--evaluation-episodes", type=int)
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if args.mode == "prepare":
         result = prepare_study(args.output, training_seeds=tuple(args.training_seeds))
@@ -501,6 +688,7 @@ def main() -> None:
             args.seed,
             probe_updates=args.probe_updates,
             evaluation_episodes=args.evaluation_episodes,
+            resume=args.resume,
         )
     else:
         result = summarize_study(args.output)

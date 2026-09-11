@@ -289,23 +289,12 @@ def save_study_checkpoint(model: Any, normalizer: Any, path: str | Path, identit
     return manifest_path
 
 
-def load_study_checkpoint(path: str | Path, expected_identity: Mapping[str, Any], env: Any) -> tuple[Any, Any]:
-    """Load a trusted paired study checkpoint after hashes and identities pass.
-
-    Supply the checkpoint prefix and a fresh, unnormalized DummyVecEnv with the
-    exact study task. Canonical/historical checkpoints have no accepted path.
-    The returned normalizer is frozen for evaluation with raw rewards.
-    """
-    from stable_baselines3 import PPO
-    from stable_baselines3.common.vec_env import VecNormalize
-
+def verify_study_checkpoint(path: str | Path, expected_identity: Mapping[str, Any]) -> dict:
+    """Verify the committed pair without deserializing either artifact."""
     expected = _checked_identity(expected_identity)
-    _validate_vector_environment(env, expected)
-    if isinstance(env, VecNormalize):
-        raise PlantCompatibilityError("load requires an unnormalized environment")
     model_path, norm_path, manifest_path = _paths(path)
     try:
-        manifest = json.loads(manifest_path.read_text())
+        manifest: dict = json.loads(manifest_path.read_text())
         if manifest.get("schema") != CHECKPOINT_SCHEMA:
             raise PlantCompatibilityError("invalid balance-study checkpoint manifest")
         validate_study_identity(manifest.get("identity"), expected)
@@ -318,12 +307,36 @@ def load_study_checkpoint(path: str | Path, expected_identity: Mapping[str, Any]
             raise PlantCompatibilityError("balance-study checkpoint has no pairing identity")
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
         raise PlantCompatibilityError(f"cannot verify balance-study checkpoint: {exc}") from exc
+    return manifest
+
+
+def load_study_checkpoint(
+    path: str | Path, expected_identity: Mapping[str, Any], env: Any, *, model_class: Any = None
+) -> tuple[Any, Any]:
+    """Load a verified pair into a fresh environment, frozen for evaluation.
+
+    ``model_class`` may select a PPO subclass for study continuation. Hash and
+    identity checks still run before either artifact is deserialized.
+    """
+    from stable_baselines3 import PPO
+    from stable_baselines3.common.vec_env import VecNormalize
+
+    expected = _checked_identity(expected_identity)
+    _validate_vector_environment(env, expected)
+    if isinstance(env, VecNormalize):
+        raise PlantCompatibilityError("load requires an unnormalized environment")
+    model_class = PPO if model_class is None else model_class
+    if not isinstance(model_class, type) or not issubclass(model_class, PPO):
+        raise TypeError("model_class must be a PPO subclass")
+    manifest = verify_study_checkpoint(path, expected)
+    pair_id = manifest["pair_id"]
+    model_path, norm_path, _ = _paths(path)
     # Nothing containing pickle is loaded until BOTH hashes have been checked.
     normalizer = VecNormalize.load(str(norm_path), env)
     _validate_artifact(normalizer, expected)
     if getattr(normalizer, _PAIR_ATTRIBUTE, None) != pair_id:
         raise PlantCompatibilityError("normalizer belongs to a different checkpoint pair")
-    model = PPO.load(str(model_path), env=normalizer, device="cpu")
+    model = model_class.load(str(model_path), env=normalizer, device="cpu")
     _validate_artifact(model, expected)
     if getattr(model, _PAIR_ATTRIBUTE, None) != pair_id:
         raise PlantCompatibilityError("model belongs to a different checkpoint pair")
