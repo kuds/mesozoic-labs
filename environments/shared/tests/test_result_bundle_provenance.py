@@ -308,8 +308,14 @@ def test_old_style_provenance_without_sessions_still_audits_and_resumes(
     run_dir = tmp_path / "run"
     configs: dict[int | str, dict[str, Any]] = {1: _stage_config(1, "PPO")}
     _write_stage_configs(run_dir, configs)
+    # An uncertified stance (schema v4 would publish a certified one, which
+    # needs its checkpoint on disk): the bundle is unpublishable, and what is
+    # under test is the provenance's session handling.
+    failed_stance = _stage_result(1)
+    failed_stance["gate_passed"] = False
+    failed_stance["publication_gate_passed"] = False
     paths = save_result_bundle(
-        [_stage_result(1)],
+        [failed_stance],
         configs,
         "velociraptor",
         "PPO",
@@ -326,11 +332,11 @@ def test_old_style_provenance_without_sessions_still_audits_and_resumes(
     legacy = json.loads(paths["provenance"].read_text(encoding="utf-8"))
     del legacy["sessions"]
     paths["provenance"].write_text(json.dumps(legacy, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    write_artifact_manifest(run_dir, status="partial")
+    write_artifact_manifest(run_dir, status="failed")
 
     # An older bundle that never recorded sessions keeps validating.
     report = audit_result_bundle(run_dir)
-    assert report["status"] == "partial"
+    assert report["status"] == "failed"
     assert report["errors"] == []
 
     monkeypatch.setattr(result_bundle_provenance, "_PROCESS_SESSION_TOKEN", "f" * 32)
@@ -351,9 +357,9 @@ def test_old_style_provenance_without_sessions_still_audits_and_resumes(
     resumed = json.loads(resumed_path.read_text(encoding="utf-8"))
     assert resumed["sessions"] == [{"session_token": "f" * 32, "resumed_at": "2026-07-19T09:00:00+00:00"}]
 
-    write_artifact_manifest(run_dir, status="partial")
+    write_artifact_manifest(run_dir, status="failed")
     report = audit_result_bundle(run_dir)
-    assert report["status"] == "partial"
+    assert report["status"] == "failed"
     assert report["errors"] == []
 
 
@@ -451,15 +457,18 @@ def test_repository_url_sanitizer_never_publishes_credentials_or_local_paths(
     assert result_bundle_provenance._sanitize_repository_url(remote) == expected
 
 
-def test_partial_bundle_requires_complete_capture_time_provenance(
+def test_an_unpublishable_bundle_requires_complete_capture_time_provenance(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
     run_dir = tmp_path / "run"
     configs: dict[int | str, dict[str, Any]] = {1: _stage_config(1, "PPO")}
     _write_stage_configs(run_dir, configs)
+    failed_stance = _stage_result(1)
+    failed_stance["gate_passed"] = False
+    failed_stance["publication_gate_passed"] = False
     paths = save_result_bundle(
-        [_stage_result(1)],
+        [failed_stance],
         configs,
         "velociraptor",
         "PPO",
@@ -475,7 +484,7 @@ def test_partial_bundle_requires_complete_capture_time_provenance(
     provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
     del provenance["species"]
     paths["provenance"].write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    write_artifact_manifest(run_dir, status="partial")
+    write_artifact_manifest(run_dir, status="failed")
 
     report = audit_result_bundle(run_dir)
     assert report["status"] == "canonical-conflict"

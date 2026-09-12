@@ -9,14 +9,18 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from ..stage_manifest import find_stage_dir
+from ..stage_manifest import StageManifestError, find_stage_dir, resolve_stage_key
 from . import evidence, hashing
+from .ancestors import load_ancestor_records, project_ancestor_records
 from .constants import (
+    ANCESTOR_RECORD_NAME,
+    ANCESTORS_DIRNAME,
     ARTIFACT_MANIFEST_SCHEMA_VERSION,
     DEFAULT_MANIFEST_NAME,
     DEFAULT_PROVENANCE_NAME,
 )
 from .errors import ResultBundleError
+from .gate_verdict import GATE_VERDICT_FILENAME
 
 # Imported by name, not through the module: `manifest` is also used as a local
 # variable here, so `manifest.x()` would shadow it. Patch these at this module.
@@ -60,8 +64,19 @@ def _audit_load_lineage(
     stage: "int | str",
     run_path: Path,
     declared_hashes: Mapping[str, Any],
+    ancestor_records: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> tuple[dict[str, Any] | None, list[str]]:
-    """Return a stage's recorded load lineage and the problems it has, if any."""
+    """Return a stage's recorded load lineage and the problems it has, if any.
+
+    A parent inside this bundle must hash as the manifest says.  A parent
+    reused from ANOTHER run (``parent_run_id`` present, BEHAVIOR_RECIPES_PLAN
+    §4.2) must be carried by an ``ancestors/`` record — one of
+    *ancestor_records* — whose ``run_id`` is that run and whose checkpoint
+    hash is the recorded ``parent_checkpoint_sha256``; a parent run without
+    a record, or a record that hashes the checkpoint differently, is a
+    problem.  A parent elsewhere with no ``parent_run_id`` (a plain
+    ``--load`` from a Drive path) stays uncheckable, as before.
+    """
     from ..task_fingerprint import LOAD_MODES
 
     lineage = {key: run_block[key] for key in _LOAD_LINEAGE_KEYS if key in run_block}
@@ -90,6 +105,24 @@ def _audit_load_lineage(
             problems.append(
                 f"stage {stage} records parent_checkpoint_sha256 {parent_hash} for {parent_key}, "
                 f"but the manifest hashes that artifact as {declared_hashes[parent_key]}"
+            )
+    if isinstance(parent_run_id, str) and parent_run_id.strip() and isinstance(parent_hash, str):
+        records = ancestor_records or {}
+        from_that_run = [
+            (key, record)
+            for key, record in records.items()
+            if isinstance(record, Mapping) and record.get("run_id") == parent_run_id
+        ]
+        if not from_that_run:
+            problems.append(
+                f"stage {stage} records parent_run_id {parent_run_id!r}, but no ancestors/ record carries a "
+                "node reused from that run"
+            )
+        elif not any(record.get("model_hash") == parent_hash for _, record in from_that_run):
+            recorded = {key: record.get("model_hash") for key, record in from_that_run}
+            problems.append(
+                f"stage {stage} records parent_checkpoint_sha256 {parent_hash} from run {parent_run_id!r}, "
+                f"but the ancestors/ record(s) from that run hash the reused checkpoint as {recorded}"
             )
     return lineage, problems
 
@@ -128,6 +161,7 @@ def audit_result_bundle(
     summary: dict[str, Any] | None = None
     provenance: dict[str, Any] | None = None
     manifest: dict[str, Any] | None = None
+    ancestor_records: dict[str, dict[str, Any]] = {}
 
     if summary_path.exists():
         try:
@@ -135,10 +169,16 @@ def audit_result_bundle(
             if not isinstance(loaded, dict):
                 raise ResultBundleError("summary.json must contain an object")
             summary = loaded
+            # Publishable, not complete: a summary exists whenever at least
+            # one deliverable is certified (schema v4), and whether the
+            # bundle is COMPLETE is the manifest's status, cross-checked
+            # against the summary below.  Below schema 4 the two flags are
+            # synonyms, so every historical bundle audits as before.
             validate_result_summary(
                 summary,
                 expected_species=summary.get("species"),
-                require_complete=True,
+                require_complete=False,
+                require_publishable=True,
                 require_canonical_provenance=canonical,
                 result_path=str(summary_path),
             )
@@ -192,14 +232,29 @@ def audit_result_bundle(
     elif summary is None and csv_path.exists():
         warnings.append("CSV-only run cannot be promoted without a canonical summary")
 
-    # The stages a complete bundle must prove are the stages its summary
+    # The stages a publishable bundle must prove are the stages its summary
     # RECORDS — historically the hardcoded trio (1, 2, 3), now resolved
     # through the species' manifest so a recorded recovery stage is audited
     # too (configs, evidence, hashes) rather than treated as foreign.  When
     # the summary is absent or its stage keys do not resolve, the audit
-    # falls back to the advancing trio; the summary validation above has
+    # falls back to the species' advancing stages (the literal trio only
+    # when no species is readable); the summary validation above has
     # already recorded that failure as an error of its own.
     ordered_stage_refs: "list[int | str]" = [1, 2, 3]
+    fallback_species = None
+    if summary is not None and isinstance(summary.get("species"), str):
+        fallback_species = summary["species"]
+    elif provenance is not None and isinstance(provenance.get("species"), str):
+        fallback_species = provenance["species"]
+    if fallback_species:
+        try:
+            from ..stage_manifest import load_stage_manifest
+
+            ordered_stage_refs = [entry.reference for entry in load_stage_manifest(fallback_species).advancing_stages]
+        except Exception:
+            # An unreadable manifest is reported by the summary / provenance
+            # validation; the literal trio keeps the audit going.
+            pass
     if summary is not None and isinstance(summary.get("stages"), Mapping):
         try:
             summary_stage_entries = ordered_stage_entries(
@@ -280,15 +335,45 @@ def audit_result_bundle(
             except (OSError, json.JSONDecodeError, ResultBundleError) as exc:
                 errors.append(str(exc))
 
+        # The records of nodes reused from another run.  Loaded whenever the
+        # species is known — a failed or partial bundle's lineage binds to
+        # them too — and every malformation is an error, never a pass.
+        provenance_species = provenance.get("species")
+        if isinstance(provenance_species, str) and provenance_species.strip():
+            try:
+                ancestor_records = load_ancestor_records(run_path, species=provenance_species)
+            except ResultBundleError as exc:
+                errors.append(str(exc))
+
+        # A summary is the mark of a PUBLISHABLE bundle: at least one
+        # deliverable certified.  It coexists with a complete manifest
+        # (every present deliverable and the target certified) or a partial
+        # one; under a failed manifest it is stale, and its own bundle_status
+        # must agree with the manifest's.
+        publishable = summary is not None and manifest_status in {"complete", "partial"}
+        if summary is not None and manifest is not None and manifest_status not in {"complete", "partial"}:
+            errors.append(
+                "summary.json is only valid with a complete or partial artifact manifest, "
+                f"not a {manifest_status!r} one"
+            )
+        if summary is not None and manifest_status in {"complete", "partial"}:
+            summary_status = summary.get("bundle_status")
+            if summary_status != manifest_status:
+                errors.append(
+                    f"summary bundle_status {summary_status!r} does not match the artifact manifest status "
+                    f"{manifest_status!r}"
+                )
+
         if manifest is not None:
             required_paths = {DEFAULT_PROVENANCE_NAME, "collected_results.csv"}
-            if manifest_status == "complete":
+            if publishable or manifest_status == "complete":
                 required_paths.update({"summary.json", "plant_identity.json"})
                 # Per-stage requirements resolve to whatever the run actually
                 # named its stage directories (stage{N} historically, NN_id
                 # from 2026-08-20 on, the bare id in between for semantic
-                # stages) — a complete bundle in any layout must audit,
-                # never wedge as canonical-conflict.
+                # stages) — a publishable bundle in any layout must audit,
+                # never wedge as canonical-conflict.  gate_verdict.json is
+                # not required: pre-Phase-A bundles never wrote one.
                 for stage in ordered_stage_refs:
                     stage_dir_name = find_stage_dir(run_path, stage).name
                     required_paths.update(
@@ -298,6 +383,23 @@ def audit_result_bundle(
                             f"{stage_dir_name}/evaluation_selected.csv",
                         }
                     )
+                # Every ancestor the provenance claims must be on disk as a
+                # record: ancestor.json, the verdict it copied, the config.
+                claimed_ancestors = provenance.get("ancestors")
+                if isinstance(claimed_ancestors, Mapping) and isinstance(provenance_species, str):
+                    for ancestor_key in claimed_ancestors:
+                        try:
+                            ancestor_id = resolve_stage_key(provenance_species, str(ancestor_key)).id
+                        except StageManifestError as exc:
+                            errors.append(f"provenance.ancestors names an unknown stage {ancestor_key!r}: {exc}")
+                            continue
+                        required_paths.update(
+                            {
+                                f"{ANCESTORS_DIRNAME}/{ancestor_id}/{ANCESTOR_RECORD_NAME}",
+                                f"{ANCESTORS_DIRNAME}/{ancestor_id}/{GATE_VERDICT_FILENAME}",
+                                f"{ANCESTORS_DIRNAME}/{ancestor_id}/stage_config.json",
+                            }
+                        )
             missing_declared = sorted(required_paths - declared_paths)
             if missing_declared:
                 errors.append(f"manifest is missing required bundle artifacts: {missing_declared}")
@@ -305,19 +407,17 @@ def audit_result_bundle(
             if missing_files:
                 errors.append(f"bundle is missing required artifacts: {missing_files}")
 
-        if summary is not None and manifest_status != "complete":
-            errors.append("summary.json is only valid with a complete artifact manifest")
+        if manifest_status == "complete" and summary is None:
+            errors.append("complete bundle is missing summary.json")
 
-        if manifest_status == "complete":
-            if summary is None:
-                errors.append("complete bundle is missing summary.json")
-            else:
-                try:
-                    evidence.validate_evaluation_evidence(run_path, summary, provenance, warnings=warnings)
-                except (OSError, ResultBundleError) as exc:
-                    errors.append(str(exc))
+        if publishable:
+            assert summary is not None
+            try:
+                evidence.validate_evaluation_evidence(run_path, summary, provenance, warnings=warnings)
+            except (OSError, ResultBundleError) as exc:
+                errors.append(str(exc))
             if not plant_path.is_file():
-                errors.append("complete bundle is missing plant_identity.json")
+                errors.append(f"{manifest_status} bundle is missing plant_identity.json")
 
             # Manifest position order — the same order save_result_bundle
             # hashed the configs in (identical to sorted-by-number for
@@ -352,6 +452,7 @@ def audit_result_bundle(
                                 stage=stage,
                                 run_path=run_path,
                                 declared_hashes=declared_hashes,
+                                ancestor_records=ancestor_records,
                             )
                             errors.extend(lineage_problems)
                             if stage_lineage is not None:
@@ -420,6 +521,31 @@ def audit_result_bundle(
                         except (OSError, ValueError, ResultBundleError) as exc:
                             errors.append(str(exc))
 
+            # Schema v4 cross-checks, cheap and defensive: the deliverables
+            # map names the checkpoints the provenance selected, and the
+            # ancestors map is exactly the projection of the on-disk records.
+            claimed_deliverables = provenance.get("deliverables")
+            if isinstance(claimed_deliverables, Mapping) and isinstance(selected_checkpoints, Mapping):
+                for stage_key, record in claimed_deliverables.items():
+                    checkpoint_value = selected_checkpoints.get(stage_key)
+                    if not isinstance(record, Mapping) or not isinstance(checkpoint_value, Mapping):
+                        errors.append(f"deliverable {stage_key} has no selected checkpoint record")
+                        continue
+                    for hash_key in ("model_path", "model_hash", "normalization_hash"):
+                        if record.get(hash_key) != checkpoint_value.get(hash_key):
+                            errors.append(
+                                f"deliverable {stage_key} {hash_key} {record.get(hash_key)!r} does not match the "
+                                f"selected checkpoint's {checkpoint_value.get(hash_key)!r}"
+                            )
+            if "ancestors" in provenance or ancestor_records:
+                claimed_ancestors = provenance.get("ancestors")
+                on_disk = project_ancestor_records(ancestor_records)
+                if (claimed_ancestors or {}) != on_disk:
+                    errors.append(
+                        f"provenance.ancestors {claimed_ancestors!r} does not match the on-disk ancestors/ "
+                        f"records {on_disk!r}"
+                    )
+
     if canonical:
         if errors:
             status = "canonical-conflict"
@@ -427,6 +553,11 @@ def audit_result_bundle(
             status = manifest_status
         elif summary is not None and manifest_status == "complete":
             status = "canonical-valid"
+        elif summary is not None and manifest_status == "partial":
+            # Publishable but not complete: at least one deliverable is
+            # certified and summarised, the target (or another present
+            # deliverable) is not.
+            status = "canonical-partial"
         else:
             status = "partial"
     elif errors:
@@ -435,6 +566,9 @@ def audit_result_bundle(
         status = "legacy-unverified"
         warnings.append("legacy run has no captured provenance or artifact manifest")
 
+    summary_provenance = summary.get("provenance") if summary is not None else None
+    summary_provenance = summary_provenance if isinstance(summary_provenance, Mapping) else {}
+    deliverables = summary_provenance.get("deliverables")
     return {
         "status": status,
         "canonical": canonical,
@@ -443,6 +577,8 @@ def audit_result_bundle(
         "errors": errors,
         "warnings": warnings,
         "lineage": lineage,
+        "deliverables": dict(deliverables) if isinstance(deliverables, Mapping) else {},
+        "primary_deliverable": summary_provenance.get("primary_deliverable"),
     }
 
 
@@ -450,16 +586,29 @@ def validate_result_bundle(
     run_dir: str | Path,
     *,
     require_complete: bool = True,
+    require_publishable: bool = False,
     reject_unlisted: bool = True,
     prospective_manifest: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Validate a canonical Drive bundle and raise on conflicts."""
+    """Validate a canonical Drive bundle and raise on conflicts.
+
+    ``require_complete`` accepts only ``canonical-valid`` (the target
+    deliverable and every present deliverable certified);
+    ``require_publishable`` (decision D-A2) also accepts
+    ``canonical-partial`` (at least one certified deliverable, with its
+    summary); neither accepts every non-conflicting canonical status.
+    """
     report = audit_result_bundle(
         run_dir,
         reject_unlisted=reject_unlisted,
         prospective_manifest=prospective_manifest,
     )
-    allowed = {"canonical-valid"} if require_complete else {"canonical-valid", "partial", "failed"}
+    if require_complete:
+        allowed = {"canonical-valid"}
+    elif require_publishable:
+        allowed = {"canonical-valid", "canonical-partial"}
+    else:
+        allowed = {"canonical-valid", "canonical-partial", "partial", "failed"}
     if report["status"] not in allowed:
         details = "; ".join([*report["errors"], *report["warnings"]])
         raise ResultBundleError(f"result bundle is {report['status']}: {details}")

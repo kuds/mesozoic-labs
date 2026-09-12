@@ -305,6 +305,10 @@ class TestSaveJaxStageArtifacts:
             best_reward=55.0,
             best_update=10,
             plant_identity=plant_identity(),
+            # A certified stance-only save is publishable (schema v4), and a
+            # publishable bundle records its backend version; the test hosts
+            # need not have jax installed to prove the rest.
+            backend_version="0.4.0-test",
         )
         kwargs.update(overrides)
         return save_jax_stage_artifacts(**kwargs), stage_dir, run_dir
@@ -324,6 +328,9 @@ class TestSaveJaxStageArtifacts:
             "training_summary",
             "provenance",
             "artifact_manifest",
+            # Stand is a deliverable (schema v4): a certified stance-only
+            # save publishes it, so the public summary is written too.
+            "summary",
         }
         assert set(paths.keys()) == expected_keys
 
@@ -444,13 +451,51 @@ class TestSaveJaxStageArtifacts:
         assert "JAX/MJX PPO" in text
         assert (paths["training_summary"].parent / "plant_identity.json").exists()
 
-    def test_partial_bundle_has_no_public_summary(self, tmp_path):
+    def test_a_stance_only_jax_save_is_partial_with_a_summary(self, tmp_path):
+        """Stand is a deliverable (schema v4): a certified stance-only save publishes
+        it as ``partial`` — the run's target (behavior) is absent — never complete."""
         paths, _, run_dir = self._call(tmp_path)
+        from environments.shared.result_bundle import ResultBundleError, validate_result_bundle
+
+        assert paths["summary"] == run_dir / "summary.json"
+        summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+        assert summary["bundle_status"] == "partial"
+        assert summary["provenance"]["primary_deliverable"] == "1"
+        assert summary["provenance"]["target_deliverable"] == "3"
+        assert list(summary["provenance"]["deliverables"]) == ["1"]
+        assert summary["provenance"]["deliverables"]["1"]["certified"] is True
+        assert validate_result_bundle(run_dir, require_complete=False)["status"] == "canonical-partial"
+        assert validate_result_bundle(run_dir, require_complete=False, require_publishable=True)["status"] == (
+            "canonical-partial"
+        )
+        with pytest.raises(ResultBundleError, match="result bundle is canonical-partial"):
+            validate_result_bundle(run_dir, require_complete=True)
+
+    def test_a_failed_stance_jax_save_has_no_summary(self, tmp_path):
+        """Nothing certified, nothing published: a failed stance is ``failed`` with no summary."""
         from environments.shared.result_bundle import validate_result_bundle
 
+        # The JAX save persists the verdict its caller judged; a recorded
+        # failure is bound to its evidence but never re-gated or certified.
+        failed = make_stage_result(
+            stage=1,
+            model_path=str(tmp_path / "run" / "stage1" / "models" / "best_model.pkl"),
+            best_eval_reward=55.0,
+            best_eval_timestep=50000,
+            mean_distance_traveled=2.5,
+            gate_passed=False,
+            publication_gate_passed=False,
+            gate_failures=["min_avg_reward: evidence=55.0 threshold=100.0"],
+        )
+        paths, _, run_dir = self._call(tmp_path, stage_results=failed)
         assert "summary" not in paths
         assert not (run_dir / "summary.json").exists()
-        assert validate_result_bundle(run_dir, require_complete=False)["status"] == "partial"
+        manifest = json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))
+        assert manifest["status"] == "failed"
+        provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+        assert provenance["primary_deliverable"] is None
+        assert provenance["deliverables"]["1"]["certified"] is False
+        assert validate_result_bundle(run_dir, require_complete=False)["status"] == "failed"
 
     def test_csv_upserts_across_stages(self, tmp_path):
         """Each stage is represented once in the regenerated canonical CSV."""

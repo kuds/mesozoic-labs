@@ -240,8 +240,12 @@ def test_summary_accepts_both_supported_schema_versions() -> None:
     for version in (2, 3):
         summary["schema_version"] = version
         validate_result_summary(summary, expected_species="velociraptor", require_complete=True)
+    # Schema 4 accepts the same fixture as a non-publishable stage subset; the
+    # publishable rules need the deliverables map (tested below).
+    summary["schema_version"] = 4
+    validate_result_summary(summary, expected_species="velociraptor", require_complete=False)
     summary["schema_version"] = 1
-    with pytest.raises(ResultSchemaError, match=r"schema_version must be one of \[2, 3\]"):
+    with pytest.raises(ResultSchemaError, match=r"schema_version must be one of \[2, 3, 4\]"):
         validate_result_summary(summary, expected_species="velociraptor", require_complete=True)
 
 

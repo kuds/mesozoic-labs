@@ -1,7 +1,11 @@
-"""``summary.json`` construction (result schema v3).
+"""``summary.json`` construction (result schema v4).
 
 Turns in-memory stage results into the backend-independent public result
-summary, including its provenance block."""
+summary, including its provenance block.  When the provenance carries the
+schema-v4 ``deliverables`` map (``save_result_bundle``'s finalization), the
+bundle status and the headline reward follow the certified deliverables and
+the run's target; without it (the ``save_results_json`` compatibility
+wrapper) the historical advancing-stage fallback holds verbatim."""
 
 from __future__ import annotations
 
@@ -138,9 +142,21 @@ def build_result_summary(
     result_date: str | None = None,
     plant_identity: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build one backend-independent result summary from normalized stage data."""
+    """Build one backend-independent result summary from normalized stage data.
+
+    With a *provenance* override carrying ``deliverables`` (the bundle
+    writer's finalization) ``bundle_status`` is
+    :func:`~environments.shared.result_schema.bundle_status_for` of that map
+    and the recorded ``target_deliverable``, and ``final_avg_reward`` is the
+    PRIMARY deliverable's ``final_eval_reward`` — the same checkpoint
+    ``selected_model_path`` names, never a failed leaf's.  The writer only
+    builds a summary when at least one deliverable is certified, so the
+    primary is never null there.  Without the map, the historical fallback:
+    complete iff every advancing stage is present, headline = the last
+    advancing stage present (else the last stage).
+    """
     from ..result_bundle import canonical_algorithm, canonical_backend
-    from ..result_schema import RESULT_SCHEMA_VERSION
+    from ..result_schema import RESULT_SCHEMA_VERSION, bundle_status_for, primary_deliverable_key
     from ..stage_manifest import load_stage_manifest
 
     if not stage_results_list:
@@ -163,17 +179,30 @@ def build_result_summary(
 
     total_duration = sum(float(stage["training_time_seconds"] or 0.0) for stage in stages.values())
     total_timesteps = sum(int(result["timesteps"]) for result in stage_results_list)
-    # The headline reward is the terminal ADVANCING stage's; a trailing
-    # non-advancing pilot must not redefine it.  Falls back to the last
-    # stage present so a recovery-only partial summary stays writable.
-    advancing_keys = [entry.key for entry, _ in keyed_results if entry.legacy_number is not None]
-    final_stage_key = advancing_keys[-1] if advancing_keys else keyed_results[-1][0].key
-    complete = {entry.id for entry, _ in keyed_results} >= {entry.id for entry in manifest.advancing_stages}
+    deliverables = provenance.get("deliverables") if provenance is not None else None
+    if isinstance(deliverables, Mapping):
+        # Schema v4: status and headline follow the certified deliverables
+        # and the target the run aimed at (bundles.py's finalization).
+        target = provenance.get("target_deliverable") if provenance is not None else None
+        verdicts = {key: stage["stage_passed"] for key, stage in stages.items()}
+        bundle_status = bundle_status_for(deliverables, species=species, target=target, stages=verdicts)
+        primary_key = primary_deliverable_key(deliverables, species=species, target=target)
+        if primary_key is None:
+            raise ValueError("a summary with a deliverables map needs at least one certified deliverable")
+        final_stage_key = manifest.resolve(_stage_reference(primary_key)).key
+    else:
+        # The headline reward is the terminal ADVANCING stage's; a trailing
+        # non-advancing pilot must not redefine it.  Falls back to the last
+        # stage present so a recovery-only partial summary stays writable.
+        advancing_keys = [entry.key for entry, _ in keyed_results if entry.legacy_number is not None]
+        final_stage_key = advancing_keys[-1] if advancing_keys else keyed_results[-1][0].key
+        complete = {entry.id for entry, _ in keyed_results} >= {entry.id for entry in manifest.advancing_stages}
+        bundle_status = "complete" if complete else "partial"
     public_algorithm = canonical_algorithm(algorithm)
     public_backend = canonical_backend(algorithm, backend)
     summary: dict[str, Any] = {
         "schema_version": RESULT_SCHEMA_VERSION,
-        "bundle_status": "complete" if complete else "partial",
+        "bundle_status": bundle_status,
         "species": species,
         "algorithm": public_algorithm,
         "backend": public_backend,
@@ -220,11 +249,11 @@ def save_results_json(
     result_date: str | None = None,
     plant_identity: Mapping[str, Any] | None = None,
 ) -> Path:
-    """Save a schema-v3 ``summary.json`` to *results_dir*.
+    """Save a schema-v4 ``summary.json`` to *results_dir*.
 
     This compatibility wrapper can write partial summaries.  The canonical
-    :func:`save_result_bundle` workflow only publishes ``summary.json`` after
-    all three stages exist.
+    :func:`save_result_bundle` workflow publishes ``summary.json`` whenever
+    at least one deliverable is certified.
     """
     results_path = Path(results_dir)
     results_path.mkdir(parents=True, exist_ok=True)

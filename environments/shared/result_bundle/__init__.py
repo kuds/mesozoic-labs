@@ -7,8 +7,9 @@ relative to the run directory, and a manifest written last detects incomplete
 copies or later modification.
 
 The result schema itself lives in :mod:`environments.shared.result_schema`.
-Drive bundles may be partial, but repository promotion requires a complete
-three-stage summary.
+Drive bundles may be partial or failed; a ``summary.json`` exists whenever
+at least one deliverable is certified, and repository promotion requires a
+publishable (canonical-valid or canonical-partial) bundle.
 
 Submodules layer bottom-up; import from this package rather than from one of
 them:
@@ -30,10 +31,13 @@ them:
   before repository promotion
 * :mod:`~environments.shared.result_bundle.gate_verdict` — the per-node
   ``gate_verdict.json`` record a stage directory carries beside its handoff
+* :mod:`~environments.shared.result_bundle.ancestors` — the reader of the
+  ``ancestors/<stage_id>/`` records of nodes reused from another run
 """
 
 from __future__ import annotations
 
+from .ancestors import load_ancestor_records, project_ancestor_records
 from .audit import audit_result_bundle, validate_result_bundle
 from .constants import (
     ANCESTOR_RECORD_NAME,
@@ -86,8 +90,10 @@ __all__ = [
     "canonical_json_sha256",
     "compare_summary_to_csv",
     "initialize_result_bundle",
+    "load_ancestor_records",
     "load_provenance",
     "manifest_disagreements",
+    "project_ancestor_records",
     "read_gate_verdict",
     "sha256_file",
     "update_provenance",

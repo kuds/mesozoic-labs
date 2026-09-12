@@ -29,14 +29,24 @@ ANCESTORS_DIRNAME = "ancestors"
 ANCESTOR_RECORD_NAME = "ancestor.json"
 ANCESTOR_RECORD_SCHEMA = "mesozoic.ancestor-record/v1"
 
+#: The fields :func:`.provenance.update_provenance` may write after capture.
+#: ``deliverables`` / ``primary_deliverable`` / ``target_deliverable`` /
+#: ``ancestors`` are FINALIZATION fields (decision D-A16), written by
+#: ``save_result_bundle`` — never identity fields captured at
+#: ``initialize_result_bundle``, so re-running the notebook's setup cell
+#: under the same run id with a different BEHAVIOR is not a rejected run.
 _FINALIZATION_PROVENANCE_FIELDS = frozenset(
     {
+        "ancestors",
         "backend_version",
         "config_hash",
+        "deliverables",
         "model_hash",
         "model_revision_status",
+        "primary_deliverable",
         "selected_checkpoints",
         "selected_model_path",
+        "target_deliverable",
         "verification_status",
     }
 )

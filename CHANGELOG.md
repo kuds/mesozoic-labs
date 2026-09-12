@@ -31,8 +31,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar, so a later run can prove an ancestor passed without the run-level
   CSV; `ANCESTORS_DIRNAME` and the per-ancestor record filenames are declared,
   and load lineage gains an optional `parent_run_id` (audited as a non-empty
-  string). Writers, the `--trunk-from` reuse path and the per-deliverable
-  bundle status land in the rest of Phase A.
+  string).
+- **Warm-starts keyed on the manifest edge** (Phase A, WS2). Parentage was
+  inferred from position in three places; each now reads the node's declared
+  `warm_start_from`, which on every v1 and synthesized manifest is set
+  exactly when the position is > 1, so a legacy curriculum is unchanged:
+  `_stage_entry_shaping_callbacks` takes `parent_id` and fires only when the
+  node has an edge and the load crosses it (a root never warms up); `train()`
+  and the notebook's `train_stage` refuse an `initialize_next_stage` load
+  whose recorded stage is not the declared parent
+  (`task_fingerprint.validate_declared_parent`); `train_curriculum` resolves
+  each node's parent from its edge out of the run's certified nodes, stops
+  with a warning naming a missing ancestor instead of training from scratch,
+  and writes `gate_verdict.json` for every trained node. New
+  `environments/shared/ancestors.py` (`find_certified_ancestor`,
+  `record_ancestor`) and `curriculum --trunk-from RUN_DIR` reuse an earlier
+  run's certified nodes under the plan's rule (passed verdict hash-bound to
+  the handoff pair, plant identity validating, task hash equal), recording
+  them under `ancestors/<stage_id>/` and their children's `parent_run_id`;
+  `generate_stage_artifacts` writes the verdict beside the handoff it judged
+  and `scripts/backfill_gate_verdict.py` re-derives it for pre-Phase-A stage
+  directories.
+- **Publication per deliverable** (Phase A, WS3): result schema v4 (v2 and v3
+  still read verbatim). `provenance.deliverables` records every deliverable
+  the run trained with its checkpoint hashes and a `certified` flag (own gate
+  plus every `warm_start_from` ancestor's, in the run or as an `ancestors/`
+  record); `primary_deliverable` / `target_deliverable` name the published
+  model and the node the run aimed at. Bundle status is `complete` when the
+  target and every present deliverable are certified, `partial` when at
+  least one is, `failed` otherwise; `summary.json` is written whenever
+  something is certified and `selected_model_path` is the primary's — so a
+  failed hunt publishes the certified walk, a walk-only run is a complete
+  bundle when walk was its target, and a certified stance-only run publishes
+  as partial. `validate_result_summary` / `validate_result_bundle` gain
+  `require_publishable`; the audit reports `canonical-partial`, binds a
+  `parent_run_id` lineage to the ancestor record carrying that checkpoint,
+  and cross-checks the deliverables and ancestors maps against disk.
+  Evidence validation re-derives a recorded pass and binds, without
+  re-gating, a recorded failure. Under a v1 or synthesized manifest the
+  rules collapse to the pre-Phase-A outcomes (pinned). The catalog, website
+  and the notebook chain loop follow in the rest of Phase A.
 - **Behavior recipes plan** (`docs/BEHAVIOR_RECIPES_PLAN.md`): the adopted
   design for turning the linear stage curriculum into a DAG of behavior
   recipes — stand, walk, hunt and follow direction — each a separately

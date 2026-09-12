@@ -1,8 +1,8 @@
 """Idempotent, Drive-portable result bundle publication.
 
 Validates a curriculum run end to end, then writes provenance, CSV, an
-artifact manifest, and (only for a complete, passing curriculum) the public
-``summary.json``."""
+artifact manifest, and — whenever at least one deliverable is certified — the
+public ``summary.json`` (result schema v4, BEHAVIOR_RECIPES_PLAN §4.3)."""
 
 from __future__ import annotations
 
@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 #: disagree with it: they are rebuilt from the in-memory results, so a
 #: disagreement there loses nothing certified.  A disagreement on anything
 #: else — checkpoints and sidecars under ``models/``, evaluation evidence,
-#: stage configs, diagnostics, gate files, task fingerprints, a file that
-#: appeared after publication — is a change to a certified artifact, and a
-#: rebuild would re-certify it under new hashes.
+#: stage configs, diagnostics, gate files, task fingerprints, ancestor
+#: records, a file that appeared after publication — is a change to a
+#: certified artifact, and a rebuild would re-certify it under new hashes.
 _REGENERATED_ARTIFACTS = frozenset(
     {DEFAULT_PROVENANCE_NAME, "plant_identity.json", "collected_results.csv", "summary.json"}
 )
@@ -66,15 +66,36 @@ def save_result_bundle(
     plant_identity: Mapping[str, Any] | None = None,
     run_id: str | None = None,
     repository_root: str | Path | None = None,
+    target_deliverable: "int | str | None" = None,
 ) -> dict[str, Path]:
     """Write one idempotent, Drive-portable result bundle.
 
-    Partial curricula receive provenance, CSV, and a ``partial``/``failed``
-    manifest.  A public schema-v3 ``summary.json`` is emitted only when every
-    advancing stage is present and the selected checkpoint, resolved configs,
-    backend version, and plant identity are available.  Non-advancing
-    semantic stages (recovery) join the bundle — CSV row, summary stage,
-    selected checkpoint, evaluation evidence — without gating its status.
+    Publication is per DELIVERABLE (result schema v4).  A deliverable node
+    present in the run is *certified* when its own gate passed and every
+    ``warm_start_from`` ancestor is present with a passed gate — trained in
+    this run or carried by an ``ancestors/<stage_id>/`` record of a node
+    reused from another run.  The bundle status is target-aware (decision
+    D-A1): *target_deliverable* is the node the run aimed at — the manifest's
+    last deliverable by default (the behavior node for every committed
+    species, i.e. the historical terminal stage; the notebook passes its
+    BEHAVIOR's node) — and the status is ``complete`` iff the target is
+    present and certified AND every present deliverable is certified,
+    ``partial`` iff at least one deliverable is certified, ``failed``
+    otherwise.  A public ``summary.json`` is written whenever at least one
+    deliverable is certified, so a failed leaf publishes its certified
+    trunk and a walk-only run writes a valid bundle; its
+    ``selected_model_path`` / ``model_hash`` are the PRIMARY deliverable's —
+    the target when certified, else the deepest certified one.  A stance-only
+    run targeting hunt is ``partial``, never ``complete``, so the bundle stays
+    writable for the chain's next node; a ``complete`` marker is immutable.
+
+    Every present stage's declared parent must be present or carried by an
+    ancestor record.  Partial and failed curricula receive provenance, CSV
+    and a manifest; a publishable one additionally requires the selected
+    checkpoint (and SB3 sidecar), resolved config with plant identity, and
+    evaluation evidence for every PRESENT stage, plus a recorded backend
+    version.  Under a v1 or synthesized stage manifest — one deliverable, the
+    last advancing node — all of this collapses to the pre-Phase-A rule.
     """
     from ..result_bundle import (
         ResultBundleError,
@@ -86,15 +107,23 @@ def save_result_bundle(
         compare_summary_to_csv,
         hashing,
         initialize_result_bundle,
+        load_ancestor_records,
         load_provenance,
         manifest_disagreements,
+        project_ancestor_records,
         sha256_file,
         update_provenance,
         validate_evaluation_evidence,
         validate_result_bundle,
     )
     from ..result_bundle.audit import _audit_load_lineage, _lineage_parent_keys
-    from ..result_schema import validate_result_summary
+    from ..result_schema import (
+        ResultSchemaError,
+        bundle_status_for,
+        certified_deliverables,
+        primary_deliverable_key,
+        validate_result_summary,
+    )
     from ..stage_manifest import StageManifestError, load_stage_manifest
     from .summaries import _stage_reference
 
@@ -126,23 +155,47 @@ def save_result_bundle(
         raise ResultBundleError("stage_results_list contains duplicate stages")
     if not keyed_results:
         raise ResultBundleError("stage_results_list must contain at least one stage")
-    # The historical "contiguous prefix" rule, restated over the manifest: a
-    # stage's record is only coherent if every ADVANCING stage before it was
-    # trained.  A non-advancing stage (recovery) may be absent anywhere —
-    # skipping the opt-in pilot is the normal case, not a gap.
-    present_id_set = set(present_ids)
-    advancing_entries = stage_manifest.advancing_stages
-    for entry, _ in keyed_results:
-        missing_before = [
-            prior.reference
-            for prior in advancing_entries
-            if prior.position < entry.position and prior.id not in present_id_set
-        ]
-        if missing_before:
+    if not stage_manifest.deliverables:
+        raise ResultBundleError(f"the {species} stage manifest declares no deliverable node to publish")
+    if target_deliverable is None:
+        target_entry = stage_manifest.deliverables[-1]
+    else:
+        try:
+            target_entry = stage_manifest.resolve(_stage_reference(target_deliverable))
+        except (TypeError, ValueError, StageManifestError) as exc:
             raise ResultBundleError(
-                f"stage_results_list must be a contiguous curriculum prefix; stage {entry.reference} "
-                f"is recorded without earlier advancing stages {missing_before}"
+                f"target_deliverable {target_deliverable!r} is not a stage the {species} manifest declares"
+            ) from exc
+        if not target_entry.deliverable:
+            raise ResultBundleError(
+                f"target_deliverable {target_deliverable!r} is not a deliverable of the {species} manifest"
             )
+    # Nodes reused from another run (BEHAVIOR_RECIPES_PLAN §4.2): their
+    # records stand in for the stages this run did not train.  Every
+    # malformation fails closed here, before anything is written.
+    ancestor_records = load_ancestor_records(run_path, species=species)
+    present_id_set = set(present_ids)
+    reused_and_trained = [
+        record["stage_id"] for record in ancestor_records.values() if record["stage_id"] in present_id_set
+    ]
+    if reused_and_trained:
+        raise ResultBundleError(
+            f"stages {reused_and_trained} are recorded both as trained in this run and as reused ancestors"
+        )
+    # The historical "contiguous curriculum prefix" rule, restated over the
+    # manifest's EDGES: a stage's record is only coherent if the parent it
+    # warm-started from was trained in this run or reused as an ancestor.
+    # Transitively that is the old rule for every legacy chain; a node
+    # nobody warm-starts from (recovery today) may be absent anywhere.
+    for entry, _ in keyed_results:
+        parent = stage_manifest.parent_of(entry.id)
+        if parent is None or parent.id in present_id_set or parent.key in ancestor_records:
+            continue
+        raise ResultBundleError(
+            f"stage_results_list must be a contiguous curriculum prefix over the manifest's edges; stage "
+            f"{entry.reference} is recorded without its declared parent {parent.reference} "
+            f"(warm_start_from = {parent.id!r}); neither trained in this run nor recorded under ancestors/"
+        )
     gate_values: dict[str, bool] = {}
     for entry, result in keyed_results:
         gate_value = parse_optional_bool(result.get("publication_gate_passed"))
@@ -151,17 +204,24 @@ def save_result_bundle(
                 f"stage {entry.reference} is missing an explicit boolean publication_gate_passed value"
             )
         gate_values[entry.key] = gate_value
-    # Bundle status is decided by the ADVANCING stages alone: recovery's
-    # verdict is recorded honestly in its row (today necessarily False —
-    # gate_kind none/v1 refuses to pass) but a non-advancing pilot neither
-    # completes nor fails the curriculum.
-    advancing_gate_values = [gate_values[entry.key] for entry, _ in keyed_results if entry.legacy_number is not None]
-    has_all_stages = {entry.id for entry in advancing_entries} <= present_id_set
-    promotion_ready = has_all_stages and all(advancing_gate_values)
-    status = "complete" if promotion_ready else ("failed" if not all(advancing_gate_values) else "partial")
+    # Certification per deliverable: its own gate plus every chain ancestor's,
+    # in this run or in an ancestor record.  Recovery's honest False verdict
+    # (gate_kind none/v1 refuses to pass) leaves recovery uncertified and
+    # everything else untouched — it neither completes nor fails the run.
+    try:
+        certified = certified_deliverables(
+            [(entry.key, entry) for entry, _ in keyed_results],
+            gate_values,
+            ancestor_records,
+            species=species,
+        )
+        status = bundle_status_for(certified, species=species, target=target_entry.key, stages=gate_values)
+    except ResultSchemaError as exc:
+        raise ResultBundleError(str(exc)) from exc
+    publishable = any(certified.values())
 
     summary_path = run_path / "summary.json"
-    if not promotion_ready and summary_path.exists():
+    if not publishable and summary_path.exists():
         raise ResultBundleError("non-publishable bundle contains a stale summary.json")
     if not evaluation_seeds:
         raise ResultBundleError("result bundle requires at least one recorded publication evaluation seed")
@@ -191,8 +251,8 @@ def save_result_bundle(
     detected_backend_version = backend_version or summaries._backend_version(
         "JAX_PPO" if public_backend == "jax-mjx" else algorithm
     )
-    if promotion_ready and not detected_backend_version:
-        raise ResultBundleError("complete bundle requires a recorded backend version")
+    if publishable and not detected_backend_version:
+        raise ResultBundleError("publishable bundle requires a recorded backend version")
 
     # Position order, matching the audit's recomputation: the aggregate
     # config hash is order-sensitive, and for integer-only runs position
@@ -231,8 +291,8 @@ def save_result_bundle(
             if saved_algorithm != public_algorithm:
                 raise ResultBundleError(f"resolved stage config algorithm mismatch: {config_path}")
         saved_plant_value = saved_config.get("plant_identity")
-        if promotion_ready and saved_plant_value is None:
-            raise ResultBundleError(f"complete bundle stage config is missing plant identity: {config_path}")
+        if publishable and saved_plant_value is None:
+            raise ResultBundleError(f"publishable bundle stage config is missing plant identity: {config_path}")
         if saved_plant_value is not None:
             if not isinstance(saved_plant_value, Mapping):
                 raise ResultBundleError(f"invalid plant identity in resolved stage config: {config_path}")
@@ -274,8 +334,8 @@ def save_result_bundle(
     for entry, result in keyed_results:
         stage = entry.reference
         model_artifact = _resolve_model_artifact(result.get("model_path"), run_dir=run_path)
-        if promotion_ready and model_artifact is None:
-            raise ResultBundleError(f"complete bundle is missing its selected Stage {stage} checkpoint")
+        if publishable and model_artifact is None:
+            raise ResultBundleError(f"publishable bundle is missing its selected Stage {stage} checkpoint")
         if model_artifact is None:
             continue
         try:
@@ -289,9 +349,9 @@ def save_result_bundle(
                 result.get("vecnorm_path"),
                 run_dir=run_path,
             )
-            if promotion_ready and normalization_artifact is None:
+            if publishable and normalization_artifact is None:
                 raise ResultBundleError(
-                    f"complete SB3 bundle is missing selected Stage {stage} VecNormalize statistics"
+                    f"publishable SB3 bundle is missing selected Stage {stage} VecNormalize statistics"
                 )
             if normalization_artifact is not None:
                 try:
@@ -308,23 +368,16 @@ def save_result_bundle(
             "normalization_hash": normalization_hash,
         }
 
-    # The published model stays the terminal ADVANCING stage's checkpoint
-    # ("3", behavior); a non-advancing pilot's checkpoint is carried in
-    # selected_checkpoints but never promoted.
-    terminal_checkpoint = selected_checkpoints.get(advancing_entries[-1].key, {}) if advancing_entries else {}
-    selected_model_path = terminal_checkpoint.get("model_path")
-    model_hash = terminal_checkpoint.get("model_hash")
-
-    if promotion_ready:
-        # Every RECORDED stage — the optional recovery pilot included — must
-        # carry its evaluation evidence; a stage in the bundle without
-        # evidence would publish unverifiable numbers.
+    if publishable:
+        # Every RECORDED stage — the failed leaf and the optional recovery
+        # pilot included — must carry its evaluation evidence; a stage in
+        # the bundle without evidence would publish unverifiable numbers.
         for ref in ordered_refs:
             for checkpoint_label in ("selected", "final"):
                 evidence_path = find_stage_dir(run_path, ref) / f"evaluation_{checkpoint_label}.csv"
                 if not evidence_path.is_file() or evidence_path.stat().st_size == 0:
                     raise ResultBundleError(
-                        f"complete bundle is missing {checkpoint_label} evaluation evidence: {evidence_path}"
+                        f"publishable bundle is missing {checkpoint_label} evaluation evidence: {evidence_path}"
                     )
 
     previous_manifest_status: str | None = None
@@ -333,7 +386,8 @@ def save_result_bundle(
     # re-export (identical results return early below; different results
     # are refused).  One that no longer verifies is neither downgraded nor
     # unlinked here: nothing on disk changes until the rebuild has passed
-    # every check the final validation will apply.
+    # every check the final validation will apply.  A partial marker — a
+    # chain whose target has not certified yet — is simply rebuilt over.
     previous_manifest_verified = False
     if previous_manifest.exists():
         try:
@@ -394,18 +448,53 @@ def save_result_bundle(
         repository_root=repository_root,
     )
     captured = load_provenance(run_path)
+    # The deliverables map (schema v4): one record per present deliverable
+    # whose selected checkpoint exists — every present stage's, once the
+    # bundle is publishable.  gate_kind is the verdict's own record, else
+    # the resolved config's declaration, else null (unrecorded, like the
+    # stage rows).  Phase A replication is this run alone.
+    deliverables: dict[str, dict[str, Any]] = {}
+    for entry, result in keyed_results:
+        checkpoint = selected_checkpoints.get(entry.key)
+        if not entry.deliverable or checkpoint is None:
+            continue
+        gate_kind = result.get("gate_kind")
+        if gate_kind is None:
+            gate_kind = resolved_stage_configs[entry.reference]["curriculum_kwargs"].get("gate_kind")
+        deliverables[entry.key] = {
+            "model_path": checkpoint["model_path"],
+            "model_hash": checkpoint["model_hash"],
+            "normalization_hash": checkpoint["normalization_hash"],
+            "gate_kind": gate_kind if isinstance(gate_kind, str) and gate_kind.strip() else None,
+            "certified": certified[entry.key],
+            "replication": {"count": 1, "runs": [{"run_id": str(captured["run_id"]), "training_seed": seed}]},
+        }
+    # The published model is the PRIMARY deliverable's checkpoint: the target
+    # when certified, else the deepest certified deliverable — never a failed
+    # leaf, never a checkpoint of an uncertified node.
+    try:
+        primary_key = primary_deliverable_key(deliverables, species=species, target=target_entry.key)
+    except ResultSchemaError as exc:
+        raise ResultBundleError(str(exc)) from exc
+    primary_checkpoint = selected_checkpoints.get(primary_key, {}) if primary_key is not None else {}
+    selected_model_path = primary_checkpoint.get("model_path")
+    model_hash = primary_checkpoint.get("model_hash")
     finalization = {
         "model_hash": model_hash,
         "config_hash": config_hash,
         "backend_version": detected_backend_version,
         "selected_model_path": selected_model_path,
         "selected_checkpoints": selected_checkpoints,
+        "deliverables": deliverables,
+        "primary_deliverable": primary_key,
+        "target_deliverable": target_entry.key,
+        "ancestors": project_ancestor_records(ancestor_records),
     }
     finalized_provenance = {**captured, **finalization}
     result_date = str(captured.get("captured_at", "")).split("T", maxsplit=1)[0]
 
     prospective_summary: dict[str, Any] | None = None
-    if promotion_ready:
+    if publishable:
         prospective_summary = summaries.build_result_summary(
             ordered_stage_results,
             species,
@@ -420,18 +509,28 @@ def save_result_bundle(
             result_date=result_date,
             plant_identity=normalized_plant,
         )
-        validate_result_summary(
-            prospective_summary,
-            expected_species=species,
-            require_complete=True,
-            require_canonical_provenance=True,
-            result_path=str(summary_path),
-        )
+        if prospective_summary["bundle_status"] != status:
+            raise ResultBundleError(
+                f"bundle status {status!r} disagrees with the summary's {prospective_summary['bundle_status']!r}"
+            )
+        try:
+            validate_result_summary(
+                prospective_summary,
+                expected_species=species,
+                require_complete=status == "complete",
+                require_publishable=True,
+                require_canonical_provenance=True,
+                result_path=str(summary_path),
+            )
+        except ResultSchemaError as exc:
+            raise ResultBundleError(str(exc)) from exc
         validate_evaluation_evidence(run_path, prospective_summary, finalized_provenance)
         # The audit's one remaining rule that nothing above has applied: a
         # recorded load lineage must agree with the hash of the parent it
-        # names when that parent lives in this bundle.  Hashed from disk
-        # here, which is what the manifest below will declare.
+        # names when that parent lives in this bundle — or, for a parent
+        # reused from another run, with the ancestor record that carries it.
+        # Hashed from disk here, which is what the manifest below will
+        # declare.
         for stage, run_block in run_blocks.items():
             if not isinstance(run_block, Mapping):
                 continue
@@ -439,14 +538,15 @@ def save_result_bundle(
             load_path = run_block.get("load_path")
             if isinstance(load_path, str) and load_path.strip():
                 for parent_key in _lineage_parent_keys(load_path, run_path):
-                    parent = run_path / parent_key
-                    if parent.is_file():
-                        parent_hashes[parent_key] = sha256_file(parent)
+                    parent_file = run_path / parent_key
+                    if parent_file.is_file():
+                        parent_hashes[parent_key] = sha256_file(parent_file)
             _, lineage_problems = _audit_load_lineage(
                 run_block,
                 stage=stage,
                 run_path=run_path.resolve(),
                 declared_hashes=parent_hashes,
+                ancestor_records=ancestor_records,
             )
             if lineage_problems:
                 raise ResultBundleError("; ".join(lineage_problems))
@@ -507,7 +607,7 @@ def save_result_bundle(
         "collected_results_csv": csv_path,
     }
 
-    if promotion_ready:
+    if publishable:
         assert prospective_summary is not None
         hashing._write_json(summary_path, prospective_summary)
         contradictions = compare_summary_to_csv(prospective_summary, csv_path)
@@ -519,6 +619,11 @@ def save_result_bundle(
     # marker is only ever written for a bundle that has already passed, and
     # the previous marker is replaced only by one that has.
     manifest = build_artifact_manifest(run_path, status=status)
-    validate_result_bundle(run_path, require_complete=promotion_ready, prospective_manifest=manifest)
+    validate_result_bundle(
+        run_path,
+        require_complete=status == "complete",
+        require_publishable=publishable,
+        prospective_manifest=manifest,
+    )
     paths["artifact_manifest"] = hashing._write_json(previous_manifest, manifest)
     return paths
