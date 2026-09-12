@@ -20,6 +20,9 @@ from environments.shared.task_fingerprint import (
     attach_task_lineage,
     compute_task_fingerprint,
     derive_stage_task_fingerprint,
+    read_checkpoint_attribute,
+    read_checkpoint_task_fingerprint,
+    validate_declared_parent,
     validate_model_task,
     validate_recorded_task,
     write_task_fingerprint,
@@ -237,3 +240,89 @@ class TestStageConfigWiring:
         assert sidecar == payload
         embedded = json.loads((tmp_path / "stage_config.json").read_text())["task_fingerprint"]
         assert embedded["task_sha256"] == payload["task_sha256"]
+
+
+def _checkpoint(path, data):
+    """An SB3-shaped archive: the ``data`` member holds the model's JSON attributes."""
+    import zipfile
+
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("data", json.dumps(data))
+    return path
+
+
+class TestCheckpointReaders:
+    """Attributes are read off the archive, never through a model load; absence is None."""
+
+    def test_reads_the_recorded_fingerprint_from_a_stem_or_a_zip(self, tmp_path):
+        fingerprint = _fingerprint(stage=2)
+        _checkpoint(tmp_path / "best_model.zip", {MODEL_TASK_ATTRIBUTE: fingerprint, "other": 1})
+        assert read_checkpoint_task_fingerprint(tmp_path / "best_model.zip") == fingerprint
+        assert read_checkpoint_task_fingerprint(tmp_path / "best_model") == fingerprint
+        assert read_checkpoint_attribute(str(tmp_path / "best_model"), "other") == 1
+
+    def test_every_absence_reads_as_none_never_a_guess(self, tmp_path):
+        assert read_checkpoint_task_fingerprint(tmp_path / "missing.zip") is None
+        (tmp_path / "policy.pkl").write_bytes(b"not a zip")
+        assert read_checkpoint_task_fingerprint(tmp_path / "policy.pkl") is None
+        import zipfile
+
+        with zipfile.ZipFile(tmp_path / "no_data.zip", "w") as archive:
+            archive.writestr("pytorch_variables.pth", b"weights")
+        assert read_checkpoint_attribute(tmp_path / "no_data.zip", MODEL_TASK_ATTRIBUTE) is None
+        _checkpoint(tmp_path / "untagged.zip", {"other": 1})
+        assert read_checkpoint_task_fingerprint(tmp_path / "untagged.zip") is None
+        # A fingerprint that is not an object is not a fingerprint.
+        _checkpoint(tmp_path / "scalar.zip", {MODEL_TASK_ATTRIBUTE: "sha256:abc"})
+        assert read_checkpoint_task_fingerprint(tmp_path / "scalar.zip") is None
+
+
+class TestDeclaredParent:
+    """BEHAVIOR_RECIPES_PLAN §8 invariant 4: an initialize_next_stage load crosses the declared edge."""
+
+    def _check(self, recorded, *, declared_parent, child_stage, species="trex"):
+        validate_declared_parent(
+            recorded,
+            declared_parent=declared_parent,
+            species=species,
+            child_stage=child_stage,
+            artifact="parent.zip",
+        )
+
+    def test_a_parent_recorded_as_the_declared_edge_is_accepted(self):
+        # trex locomotion (legacy 2) declares warm_start_from = stance (legacy 1).
+        self._check(_fingerprint(stage=1), declared_parent=1, child_stage=2)
+        # A semantic edge compares by id: recovery declares stance too.
+        self._check(_fingerprint(stage=1), declared_parent=1, child_stage="recovery")
+        # And a semantic parent compares by its id.
+        self._check(_fingerprint(stage="recovery"), declared_parent="recovery", child_stage=2)
+
+    def test_a_parent_from_another_node_is_refused(self):
+        with pytest.raises(TaskFingerprintError, match="declares warm_start_from = 1 \\(stance\\)"):
+            self._check(_fingerprint(stage=3), declared_parent=1, child_stage=2)
+        with pytest.raises(TaskFingerprintError, match="records trex stage 'recovery'"):
+            self._check(_fingerprint(stage="recovery"), declared_parent=1, child_stage=2)
+
+    def test_a_root_accepts_only_an_earlier_checkpoint_of_itself(self):
+        # Decision D-A3: re-initialising stance from an earlier stance run.
+        self._check(_fingerprint(stage=1), declared_parent=None, child_stage=1)
+        with pytest.raises(TaskFingerprintError, match="is a root node"):
+            self._check(_fingerprint(stage=2), declared_parent=None, child_stage=1)
+
+    def test_another_species_checkpoint_is_refused_before_the_stage_is_read(self):
+        with pytest.raises(TaskFingerprintError, match="records species 'trex', not 'velociraptor'"):
+            self._check(_fingerprint(stage=1), declared_parent=1, child_stage=2, species="velociraptor")
+
+    def test_a_bool_or_missing_stage_never_matches(self):
+        recorded = dict(_fingerprint(stage=1))
+        recorded["stage"] = True
+        with pytest.raises(TaskFingerprintError):
+            self._check(recorded, declared_parent=1, child_stage=2)
+        del recorded["stage"]
+        with pytest.raises(TaskFingerprintError):
+            self._check(recorded, declared_parent=1, child_stage=2)
+
+    def test_an_unfingerprinted_checkpoint_warns_through_the_dated_valve(self, caplog):
+        with caplog.at_level("WARNING"):
+            self._check(None, declared_parent=1, child_stage=2)
+        assert any("carries no task fingerprint" in record.message for record in caplog.records)

@@ -808,6 +808,8 @@ def test_load_lineage_in_stage_config_is_validated_and_surfaced(
         ({"parent_checkpoint_sha256": "sha256:" + "f" * 64}, "but the manifest hashes that artifact as"),
         ({"parent_task_sha256": "not-a-digest"}, "run.parent_task_sha256 must be sha256:<64 lowercase hex>"),
         ({"load_path": ""}, "run.load_path must be a non-empty string"),
+        # A parent from another run must be carried by an ancestors/ record.
+        ({"parent_run_id": "other-run"}, "no ancestors/ record carries a node reused from that run"),
     ],
 )
 def test_inconsistent_load_lineage_fails_before_a_complete_manifest_is_written(
@@ -1106,3 +1108,57 @@ def test_complete_bundle_in_position_prefixed_layout_audits_clean(
     # report canonical-conflict.
     assert paths["summary"].is_file()
     result_bundle.validate_result_bundle(run_dir, require_complete=True)
+
+
+class TestAuditLoadLineageAcrossRuns:
+    """A parent_run_id lineage binds to the ancestors/ record carrying that run's checkpoint."""
+
+    PARENT_HASH = "sha256:" + "a" * 64
+
+    def _run_block(self, **overrides: Any) -> dict[str, Any]:
+        block = {
+            "seed": 42,
+            "n_envs": 4,
+            "load_path": "/elsewhere/trunk-run/01_stance/models/best_model",
+            "load_mode": "initialize_next_stage",
+            "parent_task_sha256": "sha256:" + "1" * 64,
+            "parent_checkpoint_sha256": self.PARENT_HASH,
+            "parent_run_id": "trunk-run",
+        }
+        block.update(overrides)
+        return block
+
+    def _audit(self, tmp_path: Path, records: dict[str, dict[str, Any]] | None) -> tuple[Any, list[str]]:
+        from environments.shared.result_bundle.audit import _audit_load_lineage
+
+        return _audit_load_lineage(
+            self._run_block(), stage=2, run_path=tmp_path, declared_hashes={}, ancestor_records=records
+        )
+
+    def test_a_record_from_that_run_with_the_recorded_hash_binds(self, tmp_path: Path) -> None:
+        lineage, problems = self._audit(tmp_path, {"1": {"run_id": "trunk-run", "model_hash": self.PARENT_HASH}})
+        assert problems == []
+        assert lineage["parent_run_id"] == "trunk-run"
+        assert lineage["parent_checkpoint_sha256"] == self.PARENT_HASH
+
+    def test_no_record_from_that_run_is_a_problem(self, tmp_path: Path) -> None:
+        _, problems = self._audit(tmp_path, {})
+        assert len(problems) == 1 and "no ancestors/ record carries a node reused from that run" in problems[0]
+        # A record from a DIFFERENT run does not satisfy it either.
+        _, problems = self._audit(tmp_path, {"1": {"run_id": "another-run", "model_hash": self.PARENT_HASH}})
+        assert len(problems) == 1 and "no ancestors/ record carries" in problems[0]
+
+    def test_a_record_whose_hash_disagrees_is_a_problem(self, tmp_path: Path) -> None:
+        _, problems = self._audit(tmp_path, {"1": {"run_id": "trunk-run", "model_hash": "sha256:" + "b" * 64}})
+        assert len(problems) == 1 and "hash the reused checkpoint as" in problems[0]
+
+    def test_a_parent_elsewhere_without_a_run_id_stays_uncheckable(self, tmp_path: Path) -> None:
+        from environments.shared.result_bundle.audit import _audit_load_lineage
+
+        block = self._run_block()
+        del block["parent_run_id"]
+        lineage, problems = _audit_load_lineage(
+            block, stage=2, run_path=tmp_path, declared_hashes={}, ancestor_records={}
+        )
+        assert problems == []
+        assert lineage is not None and "parent_run_id" not in lineage

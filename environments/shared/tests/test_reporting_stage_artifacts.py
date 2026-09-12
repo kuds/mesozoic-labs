@@ -2,6 +2,7 @@
 
 import csv
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -959,3 +960,115 @@ class TestStageResultDiscoveryAcrossLayouts:
         (tmp_path / "02_locomotion" / "stage_result.json").write_text("{}")
         found = sorted(path.parent.name for path in _iter_stage_result_paths(tmp_path))
         assert found == ["02_locomotion", "stage1"]
+
+
+class TestStageGateVerdictRecord:
+    """The post-stage judge writes gate_verdict.json beside the handoff pair it judged
+    (decision D-A5): hash-bound, task-bound, and never at the cost of the artifacts."""
+
+    STANCE_CONFIG = TestApplyStageGate.STANCE_CONFIG
+    TASK = "sha256:" + "7" * 64
+
+    def _stage_dir(self, tmp_path, *, with_handoff=True):
+        stage_dir = tmp_path / "01_stance"
+        (stage_dir / "models").mkdir(parents=True)
+        if with_handoff:
+            (stage_dir / "models" / "best_model.zip").write_bytes(b"policy weights")
+            (stage_dir / "models" / "best_model_vecnorm.pkl").write_bytes(b"normalisation statistics")
+        (stage_dir / "stage_config.json").write_text(
+            json.dumps({"task_fingerprint": {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": self.TASK}}),
+            encoding="utf-8",
+        )
+        return stage_dir
+
+    def _apply(self, stage_dir, stance_report, *, species="velociraptor", stage=1):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        results = {"best_model_reward": 2297.0, "mean_reward": 2200.0, "timesteps": 10}
+        _apply_stage_gate(
+            stage=stage,
+            stage_config=self.STANCE_CONFIG,
+            stage_results=results,
+            stance_report=stance_report,
+            stage_dir=stage_dir,
+            species=species,
+        )
+        return results
+
+    def test_a_pass_is_recorded_hash_bound_to_the_handoff_it_judged(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import GATE_VERDICT_JUDGED_BY
+        from environments.shared.result_bundle import read_gate_verdict, sha256_file, verdict_is_reusable
+
+        stage_dir = self._stage_dir(tmp_path)
+        results = self._apply(stage_dir, {"gate_kind": "stance_quality/v1", "passed": True, "failures": []})
+
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True and verdict["failures"] == []
+        assert (verdict["species"], verdict["stage"], verdict["stage_id"]) == ("velociraptor", 1, "stance")
+        assert verdict["gate_kind"] == "stance_quality/v1" and verdict["gate_schema_version"] == 1
+        assert verdict["checkpoint"] == "models/best_model.zip"
+        assert verdict["checkpoint_sha256"] == sha256_file(stage_dir / "models" / "best_model.zip")
+        assert verdict["normalization"] == "models/best_model_vecnorm.pkl"
+        assert verdict["normalization_sha256"] == sha256_file(stage_dir / "models" / "best_model_vecnorm.pkl")
+        assert verdict["task_sha256"] == self.TASK
+        assert verdict["judged_by"] == GATE_VERDICT_JUDGED_BY
+        # The numbers the gate was judged on travel with the verdict.
+        assert verdict["stage_result"]["publication_gate_passed"] is True
+        assert verdict["stage_result"]["best_model_reward"] == results["best_model_reward"]
+        assert verdict_is_reusable(verdict)
+
+    def test_a_failure_is_recorded_too_and_is_not_reusable(self, tmp_path):
+        from environments.shared.result_bundle import read_gate_verdict, verdict_is_reusable
+
+        stage_dir = self._stage_dir(tmp_path)
+        results = self._apply(stage_dir, None)
+
+        assert results["publication_gate_passed"] is False
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is False
+        assert verdict["failures"] == results["gate_failures"] and verdict["failures"]
+        assert not verdict_is_reusable(verdict)
+
+    def test_a_stage_without_a_handoff_pair_records_an_unreusable_verdict(self, tmp_path):
+        from environments.shared.result_bundle import read_gate_verdict, verdict_is_reusable
+
+        stage_dir = self._stage_dir(tmp_path, with_handoff=False)
+        self._apply(stage_dir, {"gate_kind": "stance_quality/v1", "passed": True, "failures": []})
+
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True
+        assert verdict["checkpoint_sha256"] is None and verdict["normalization_sha256"] is None
+        assert not verdict_is_reusable(verdict)
+
+    def test_a_stage_the_manifest_does_not_declare_is_recorded_by_reference(self, tmp_path, caplog):
+        from environments.shared.result_bundle import read_gate_verdict
+
+        stage_dir = self._stage_dir(tmp_path)
+        with caplog.at_level(logging.WARNING):
+            self._apply(stage_dir, None, stage="warp")
+
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["stage_id"] == "warp"
+        assert any("is not in the velociraptor manifest" in record.message for record in caplog.records)
+
+    def test_no_stage_dir_means_no_verdict_and_the_gate_still_records(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        results: dict = {"best_model_reward": 2297.0}
+        _apply_stage_gate(stage=1, stage_config=self.STANCE_CONFIG, stage_results=results, stance_report=None)
+        assert results["publication_gate_passed"] is False
+        assert not list(tmp_path.iterdir())
+
+    def test_a_verdict_write_failure_never_costs_the_artifacts(self, tmp_path, caplog, monkeypatch):
+        from environments.shared import result_bundle
+
+        def explode(*args, **kwargs):
+            raise OSError("disk full")
+
+        monkeypatch.setattr(result_bundle, "write_gate_verdict", explode)
+        stage_dir = self._stage_dir(tmp_path)
+        with caplog.at_level(logging.WARNING):
+            results = self._apply(stage_dir, {"gate_kind": "stance_quality/v1", "passed": True, "failures": []})
+        assert results["publication_gate_passed"] is True
+        assert not (stage_dir / "gate_verdict.json").exists()
+        assert any("gate verdict could not be written" in record.message for record in caplog.records)

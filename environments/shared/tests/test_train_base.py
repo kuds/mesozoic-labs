@@ -1,6 +1,7 @@
 """Tests for shared training infrastructure (train_base.py)."""
 
 import dataclasses
+import json
 import logging
 import math
 from pathlib import Path
@@ -903,14 +904,25 @@ class TestTrainCurriculumWalksTheManifest:
     are the only things exercised.
     """
 
-    def _run(self, species, tmp_path, monkeypatch, caplog, *, learn_side_effect=None):
+    def _run(
+        self,
+        species,
+        tmp_path,
+        monkeypatch,
+        caplog,
+        *,
+        learn_side_effect=None,
+        trunk_from=None,
+        find_ancestor=None,
+    ):
+        from environments.shared import ancestors as ancestors_module
         from environments.shared import config as config_module
         from environments.shared import curriculum as curriculum_module
         from environments.shared import plant_contract, result_bundle, task_fingerprint, train_base
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_label
 
-        record: dict = {"saved": [], "loads": [], "parents": [], "verdicts": []}
+        record: dict = {"saved": [], "loads": [], "parents": [], "verdicts": [], "parent_run_ids": [], "ancestors": []}
         model = MagicMock()
         model.num_timesteps = 10
         model.learn.side_effect = learn_side_effect
@@ -923,12 +935,24 @@ class TestTrainCurriculumWalksTheManifest:
         # so the recorder sees every verdict the loop decides to record.
         monkeypatch.setattr(result_bundle, "write_gate_verdict", write_verdict)
 
+        # The reuse rule and the record writer are imported the same way; a
+        # test that passes trunk_from supplies the rule's answer per node.
+        if find_ancestor is not None:
+            monkeypatch.setattr(ancestors_module, "find_certified_ancestor", find_ancestor)
+
+        def record_ancestor(run_dir, ancestor):
+            record["ancestors"].append((Path(run_dir), ancestor))
+            return Path(run_dir) / "ancestors" / ancestor.stage_id
+
+        monkeypatch.setattr(ancestors_module, "record_ancestor", record_ancestor)
+
         def create_or_load(sb3, algorithm, alg_kwargs, train_env, load_path, **kwargs):
             record["loads"].append(load_path)
             return model
 
         def save_config(stage_dir, stage, config, algorithm, **kwargs):
             record["saved"].append((stage, kwargs.get("load_path"), kwargs.get("load_mode")))
+            record["parent_run_ids"].append((stage, kwargs.get("parent_run_id")))
 
         def shaping(config, **kwargs):
             record["parents"].append(kwargs["parent_id"])
@@ -967,8 +991,93 @@ class TestTrainCurriculumWalksTheManifest:
                 verbose=0,
                 use_tensorboard=False,
                 output_dir=str(tmp_path),
+                trunk_from=trunk_from,
             )
         return record
+
+    @staticmethod
+    def _certified_ancestor(trunk: Path, stage_id: str = "stance", stage_key: str = "1"):
+        from environments.shared.ancestors import CertifiedAncestor
+
+        stage_dir = trunk / f"01_{stage_id}"
+        (stage_dir / "models").mkdir(parents=True, exist_ok=True)
+        return CertifiedAncestor(
+            stage_id=stage_id,
+            stage_key=stage_key,
+            run_id="trunk-run-id",
+            source_run_dir=trunk,
+            stage_dir=stage_dir,
+            handoff_name="best_model",
+            model_stem=str(stage_dir / "models" / "best_model"),
+            model_zip=stage_dir / "models" / "best_model.zip",
+            model_sha256="sha256:" + "a" * 64,
+            normalization_path=stage_dir / "models" / "best_model_vecnorm.pkl",
+            normalization_sha256="sha256:" + "b" * 64,
+            task_sha256="sha256:" + "c" * 64,
+            judged_by="test",
+            verdict={"passed": True},
+        )
+
+    def test_trunk_from_reuses_a_certified_ancestor_and_trains_the_rest(self, tmp_path, monkeypatch, caplog):
+        """BEHAVIOR_RECIPES_PLAN §4.2: a node satisfied by an earlier run's certified checkpoint is
+        recorded, not trained; its child enters on that handoff with the trunk's run id as lineage;
+        every node the rule refuses is trained here with the refusal logged."""
+        from environments.shared.ancestors import AncestorReuseError
+
+        trunk = tmp_path / "trunk-run"
+        ancestor = self._certified_ancestor(trunk)
+        asked: list[str] = []
+
+        def find_ancestor(run_dir, *, species, entry, current_task_sha256, plant_identity):
+            asked.append(entry.id)
+            assert Path(run_dir) == trunk and species == "velociraptor"
+            if entry.id == "stance":
+                return ancestor
+            raise AncestorReuseError(f"{entry.id}: no gate_verdict.json in the trunk")
+
+        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor)
+
+        assert asked == ["stance", "locomotion", "behavior"]
+        # Stance was reused, never trained; walk and hunt were trained here.
+        assert [stage for stage, _, _ in record["saved"]] == [2, 3]
+        assert [v["stage_id"] for v in record["verdicts"]] == ["locomotion", "behavior"]
+        # Walk entered on the ancestor's handoff, crossing the edge, with the
+        # trunk's run id recorded as lineage; hunt's parent was trained here.
+        assert record["loads"][0] == ancestor.model_stem
+        assert record["saved"][0] == (2, ancestor.model_stem, "initialize_next_stage")
+        assert record["parent_run_ids"] == [(2, "trunk-run-id"), (3, None)]
+        # The reuse left a record in this run, never a checkpoint copy.
+        assert [(run_dir, a.stage_id) for run_dir, a in record["ancestors"]] == [(tmp_path, "stance")]
+        refused = [r.message for r in caplog.records if r.message.startswith("Not reusing")]
+        assert len(refused) == 2 and "locomotion" in refused[0] and "behavior" in refused[1]
+
+    def test_a_node_whose_parent_has_no_certified_checkpoint_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):
+        """Nothing is trained from scratch silently: with locomotion's edge pointing at the
+        non-advancing recovery node (plan A2), the CLI curriculum stops after stance and says why."""
+        import shutil
+
+        from environments.shared import config as config_module
+        from environments.shared import stage_manifest
+
+        configs = tmp_path / "configs"
+        shutil.copytree(stage_manifest._CONFIGS_DIR / "trex", configs / "trex")
+        manifest_path = configs / "trex" / "stages.toml"
+        lines = manifest_path.read_text(encoding="utf-8").splitlines()
+        marker = 'warm_start_from = "stance"       # the 2026-08-23 lineage rule'
+        (index,) = [i for i, line in enumerate(lines) if line.startswith(marker)]
+        lines[index] = 'warm_start_from = "recovery"'
+        manifest_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
+        monkeypatch.setattr(config_module, "_CONFIGS_DIR", configs)
+
+        record = self._run("trex", tmp_path, monkeypatch, caplog)
+
+        assert [stage for stage, _, _ in record["saved"]] == [1]
+        assert [v["stage_id"] for v in record["verdicts"]] == ["stance"]
+        skipped = [r for r in caplog.records if "Skipping 'locomotion'" in r.message]
+        assert len(skipped) == 1 and skipped[0].levelno == logging.WARNING
+        assert "declared parent 'recovery' has no certified checkpoint" in skipped[0].message
+        assert record["loads"] == [None]
 
     def test_trex_visits_the_advancing_stages_in_manifest_order_and_logs_the_skip(self, tmp_path, monkeypatch, caplog):
         from environments.shared.stage_manifest import load_stage_manifest
@@ -1027,3 +1136,91 @@ class TestTrainCurriculumWalksTheManifest:
         assert [stage for stage, _, _ in record["saved"]] == [1]
         assert record["verdicts"] == []
         assert [r for r in caplog.records if "no gate verdict recorded" in r.message]
+
+
+class TestTrainRefusesAnUndeclaredParent:
+    """Invariant 4 at the launch path: train() checks the recorded parent stage against the
+    manifest edge before it creates a directory, writes a config, or imports SB3."""
+
+    @staticmethod
+    def _checkpoint(path, stage):
+        import zipfile
+
+        from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
+
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("data", json.dumps({MODEL_TASK_ATTRIBUTE: {"species": "trex", "stage": stage}}))
+        return path
+
+    def _train(self, tmp_path, monkeypatch, *, parent_stage, child_stage):
+        from environments.shared import task_fingerprint, train_base
+        from environments.shared.config import load_all_stages
+
+        class SB3Reached(RuntimeError):
+            """The check passed: train() went on to import the backend."""
+
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: (_ for _ in ()).throw(SB3Reached()))
+        parent = self._checkpoint(tmp_path / "parent.zip", parent_stage)
+        output_dir = tmp_path / "out"
+        output_dir.mkdir(exist_ok=True)
+        try:
+            train_base.train(
+                SimpleNamespace(species="trex", env_class=object),
+                load_all_stages("trex"),
+                child_stage,
+                total_timesteps=1,
+                load_path=str(parent),
+                task_load_mode="initialize_next_stage",
+                output_dir=str(output_dir),
+                use_tensorboard=False,
+                verbose=0,
+            )
+        except SB3Reached:
+            return "passed-the-check", output_dir
+        return "returned", output_dir
+
+    def test_the_declared_parent_is_accepted_and_nothing_else_is(self, tmp_path, monkeypatch):
+        from environments.shared.task_fingerprint import TaskFingerprintError
+
+        outcome, output_dir = self._train(tmp_path, monkeypatch, parent_stage=1, child_stage=2)
+        assert outcome == "passed-the-check"
+
+        with pytest.raises(TaskFingerprintError, match="declares warm_start_from"):
+            self._train(tmp_path, monkeypatch, parent_stage=3, child_stage=2)
+        # Refused before a stage directory, a config or an environment existed.
+        assert not any(output_dir.iterdir())
+
+    def test_a_root_refuses_a_foreign_parent_but_accepts_itself(self, tmp_path, monkeypatch):
+        from environments.shared.task_fingerprint import TaskFingerprintError
+
+        outcome, _ = self._train(tmp_path, monkeypatch, parent_stage=1, child_stage=1)
+        assert outcome == "passed-the-check"
+        with pytest.raises(TaskFingerprintError, match="is a root node"):
+            self._train(tmp_path, monkeypatch, parent_stage=2, child_stage=1)
+
+    def test_a_same_stage_resume_is_not_checked_against_the_edge(self, tmp_path, monkeypatch):
+        """resume_same_stage is judged by the exact task hash later, never by the edge here."""
+        from environments.shared import task_fingerprint, train_base
+        from environments.shared.config import load_all_stages
+
+        calls = []
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
+        monkeypatch.setattr(task_fingerprint, "validate_declared_parent", lambda *a, **k: calls.append(k))
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: (_ for _ in ()).throw(KeyboardInterrupt()))
+        parent = self._checkpoint(tmp_path / "parent.zip", 3)
+        with pytest.raises(KeyboardInterrupt):
+            train_base.train(
+                SimpleNamespace(species="trex", env_class=object),
+                load_all_stages("trex"),
+                2,
+                total_timesteps=1,
+                load_path=str(parent),
+                task_load_mode="resume_same_stage",
+                output_dir=str(tmp_path),
+                use_tensorboard=False,
+                verbose=0,
+            )
+        assert calls == []

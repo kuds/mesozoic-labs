@@ -16,6 +16,7 @@ from environments.shared.result_bundle import (
     audit_result_bundle,
     compare_summary_to_csv,
     sha256_file,
+    validate_evaluation_evidence,
     validate_result_bundle,
     write_artifact_manifest,
 )
@@ -847,3 +848,64 @@ def test_final_evaluation_claims_are_bound_to_terminal_episode_evidence(
     report = audit_result_bundle(run_dir)
     assert report["status"] == "canonical-conflict"
     assert any("final evaluation aggregate" in error for error in report["errors"])
+
+
+# ── Verdict-aware enforcement (result schema v4) ─────────────────────────
+
+
+def _bundle_summary_and_provenance(run_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    paths, _, _ = _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+    return summary, provenance
+
+
+def _raise_stage_three_bar(run_dir: Path) -> None:
+    """Rewrite the resolved stage-3 config so its reward rail sits above the evidence."""
+    config_path = run_dir / "stage3" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    block = config["curriculum"] if "curriculum" in config else config["curriculum_kwargs"]
+    block["min_avg_reward"] = 1e9
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def test_a_recorded_pass_must_reproduce_from_the_evidence(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    summary, provenance = _bundle_summary_and_provenance(run_dir)
+    validate_evaluation_evidence(run_dir, summary, provenance)
+
+    _raise_stage_three_bar(run_dir)
+    with pytest.raises(ResultBundleError, match="stage 3 publication gate fails min_avg_reward"):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+
+
+def test_a_recorded_failure_is_bound_to_its_evidence_but_never_re_gated(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    """A failed node's aggregates still bind, but the gate is not re-derived from them."""
+    run_dir = tmp_path / "run"
+    summary, provenance = _bundle_summary_and_provenance(run_dir)
+    _raise_stage_three_bar(run_dir)
+    summary["stages"]["3"]["stage_passed"] = False
+    summary["stages"]["3"]["publication_gate_passed"] = False
+    provenance["deliverables"]["3"]["certified"] = False
+
+    validate_evaluation_evidence(run_dir, summary, provenance)
+
+    tampered = json.loads(json.dumps(summary))
+    tampered["stages"]["3"]["final_eval_reward"] += 1.0
+    with pytest.raises(ResultBundleError, match="final evaluation aggregate for stage 3 final_eval_reward differs"):
+        validate_evaluation_evidence(run_dir, tampered, provenance)
+
+
+def test_a_certified_flag_beside_a_failed_verdict_is_refused(tmp_path: Path, stable_provenance: None) -> None:
+    """Defence in depth beside the schema rule: certified implies a recorded pass."""
+    run_dir = tmp_path / "run"
+    summary, provenance = _bundle_summary_and_provenance(run_dir)
+    summary["stages"]["3"]["stage_passed"] = False
+    assert provenance["deliverables"]["3"]["certified"] is True
+
+    with pytest.raises(
+        ResultBundleError, match="recorded as a certified deliverable, but the summary records stage_passed=False"
+    ):
+        validate_evaluation_evidence(run_dir, summary, provenance)

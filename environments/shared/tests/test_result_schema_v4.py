@@ -10,11 +10,14 @@ verbatim, and ``require_publishable`` is a synonym of ``require_complete``.
 
 from __future__ import annotations
 
+import shutil
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from environments.shared import stage_manifest
 from environments.shared.result_schema import (
     CANONICAL_RUNTIME_PROVENANCE_FIELDS,
     CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4,
@@ -320,3 +323,168 @@ def test_require_publishable_equals_require_complete_below_v4() -> None:
         validate_result_summary(
             summary, expected_species="velociraptor", require_complete=False, require_publishable=True
         )
+
+
+# ── The v4 provenance shape validators ───────────────────────────────────
+
+
+def _canonical_publishable(summary: dict[str, Any]) -> dict[str, Any]:
+    return validate_result_summary(
+        summary,
+        expected_species="velociraptor",
+        require_complete=False,
+        require_publishable=True,
+        canonical_provenance=True,
+    )
+
+
+def _walk_only_v4() -> dict[str, Any]:
+    """The v4 canonical summary reduced to stance and walk, walk targeted."""
+    summary = _canonical_summary_v4()
+    del summary["stages"]["3"]
+    provenance = summary["provenance"]
+    del provenance["selected_checkpoints"]["3"]
+    del provenance["deliverables"]["3"]
+    provenance["target_deliverable"] = "2"
+    provenance["primary_deliverable"] = "2"
+    provenance["selected_model_path"] = provenance["selected_checkpoints"]["2"]["model_path"]
+    provenance["model_hash"] = provenance["selected_checkpoints"]["2"]["model_hash"]
+    summary["final_avg_reward"] = summary["stages"]["2"]["final_eval_reward"]
+    summary["total_timesteps"] = sum(int(stage["timesteps"]) for stage in summary["stages"].values())
+    summary["total_training_time_seconds"] = round(
+        sum(float(stage.get("training_time_seconds") or 0.0) for stage in summary["stages"].values()), 1
+    )
+    return summary
+
+
+def _ancestor_record(**overrides: Any) -> dict[str, Any]:
+    record = {
+        "run_id": "trunk-run",
+        "model_hash": "sha256:" + "e" * 64,
+        "normalization_hash": "sha256:" + "f" * 64,
+        "gate_kind": "reward_and_length/v1",
+        "passed": True,
+        "task_sha256": "sha256:" + "7" * 64,
+    }
+    record.update(overrides)
+    return record
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda r: r.__setitem__("extra", True), "must carry exactly the fields"),
+        (lambda r: r.pop("replication"), "must carry exactly the fields"),
+        (lambda r: r["replication"].__setitem__("count", 2), "replication.runs must be a list of 2 run records"),
+        (lambda r: r["replication"].__setitem__("runs", []), "replication.runs must be a list of 1 run records"),
+        (lambda r: r["replication"]["runs"][0].__setitem__("extra", 1), "must carry exactly run_id and training_seed"),
+        (
+            lambda r: r["replication"]["runs"][0].__setitem__("training_seed", -1),
+            "training_seed must be a non-negative integer",
+        ),
+        (lambda r: r.__setitem__("certified", "yes"), "certified must be a boolean"),
+        (lambda r: r.__setitem__("model_path", "/abs/best_model.zip"), "must be a normalized relative POSIX path"),
+        (lambda r: r.__setitem__("model_hash", "sha256:" + "0" * 64), "does not match provenance.selected_checkpoints"),
+        (
+            lambda r: r.__setitem__("normalization_hash", "sha256:" + "1" * 64),
+            "does not match provenance.selected_checkpoints",
+        ),
+        (lambda r: r.__setitem__("normalization_hash", None), "normalization_hash must be sha256"),
+    ],
+    ids=[
+        "extra-field",
+        "missing-field",
+        "replication-count-mismatch",
+        "replication-runs-empty",
+        "run-record-extra-key",
+        "negative-seed",
+        "certified-not-bool",
+        "absolute-model-path",
+        "model-hash-disagrees",
+        "normalization-hash-disagrees",
+        "sb3-normalization-hash-null",
+    ],
+)
+def test_v4_deliverable_record_shape_is_fail_closed(mutate, message: str) -> None:
+    summary = _canonical_summary_v4()
+    mutate(summary["provenance"]["deliverables"]["3"])
+    with pytest.raises(ResultSchemaError, match=message):
+        _canonical_publishable(summary)
+
+
+def test_v4_rejects_a_deliverable_key_the_manifest_does_not_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Under a synthesized manifest only the last advancing node is a deliverable."""
+    configs = tmp_path / "configs"
+    shutil.copytree(stage_manifest._CONFIGS_DIR / "velociraptor", configs / "velociraptor")
+    (configs / "velociraptor" / "stages.toml").unlink()
+    monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
+    assert [entry.id for entry in load_stage_manifest("velociraptor").deliverables] == ["behavior"]
+
+    summary = _canonical_summary_v4()
+    with pytest.raises(ResultSchemaError, match="does not flag as a deliverable"):
+        _canonical_publishable(summary)
+
+    for key in ("1", "2"):
+        del summary["provenance"]["deliverables"][key]
+    _canonical_publishable(summary)
+
+
+def test_v4_certified_deliverable_needs_its_chain_present() -> None:
+    """A certified walk with no stance in the summary and no ancestor record is refused."""
+    summary = _walk_only_v4()
+    del summary["stages"]["1"]
+    provenance = summary["provenance"]
+    del provenance["selected_checkpoints"]["1"]
+    del provenance["deliverables"]["1"]
+    summary["total_timesteps"] = sum(int(stage["timesteps"]) for stage in summary["stages"].values())
+    summary["total_training_time_seconds"] = round(
+        sum(float(stage.get("training_time_seconds") or 0.0) for stage in summary["stages"].values()), 1
+    )
+    with pytest.raises(ResultSchemaError, match="no selected checkpoint or ancestor record for its chain ancestors"):
+        _canonical_publishable(summary)
+
+    # An ancestor record for stance satisfies the chain ...
+    provenance["ancestors"] = {"1": _ancestor_record()}
+    _canonical_publishable(summary)
+
+    # ... unless the record did not pass, in which case the certified flag is laundering.
+    provenance["ancestors"]["1"]["passed"] = False
+    with pytest.raises(ResultSchemaError, match="recorded as certified, but its recorded verdicts"):
+        _canonical_publishable(summary)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda r: r.pop("task_sha256"), "must carry exactly the fields"),
+        (lambda r: r.__setitem__("judged_by", "x"), "must carry exactly the fields"),
+        (lambda r: r.__setitem__("passed", "yes"), "passed must be a boolean"),
+        (lambda r: r.__setitem__("model_hash", "not-a-digest"), "model_hash must be sha256"),
+        (lambda r: r.__setitem__("run_id", ""), "run_id must be a non-empty string"),
+    ],
+    ids=["missing-field", "extra-field", "passed-not-bool", "bad-hash", "empty-run-id"],
+)
+def test_v4_ancestor_record_shape_is_fail_closed(mutate, message: str) -> None:
+    summary = _walk_only_v4()
+    del summary["stages"]["1"]
+    provenance = summary["provenance"]
+    del provenance["selected_checkpoints"]["1"]
+    del provenance["deliverables"]["1"]
+    summary["total_timesteps"] = sum(int(stage["timesteps"]) for stage in summary["stages"].values())
+    summary["total_training_time_seconds"] = round(
+        sum(float(stage.get("training_time_seconds") or 0.0) for stage in summary["stages"].values()), 1
+    )
+    provenance["ancestors"] = {"1": _ancestor_record()}
+    _canonical_publishable(summary)
+    mutate(provenance["ancestors"]["1"])
+    with pytest.raises(ResultSchemaError, match=message):
+        _canonical_publishable(summary)
+
+
+def test_v4_a_stage_cannot_be_both_trained_and_a_reused_ancestor() -> None:
+    summary = _canonical_summary_v4()
+    summary["provenance"]["ancestors"] = {"1": _ancestor_record()}
+    with pytest.raises(ResultSchemaError, match="cannot be both trained here and reused"):
+        _canonical_publishable(summary)
