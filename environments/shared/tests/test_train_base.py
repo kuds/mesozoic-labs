@@ -910,7 +910,7 @@ class TestTrainCurriculumWalksTheManifest:
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_label
 
-        record: dict = {"saved": [], "loads": [], "positions": []}
+        record: dict = {"saved": [], "loads": [], "parents": []}
         model = MagicMock()
         model.num_timesteps = 10
 
@@ -922,7 +922,7 @@ class TestTrainCurriculumWalksTheManifest:
             record["saved"].append((stage, kwargs.get("load_path"), kwargs.get("load_mode")))
 
         def shaping(config, **kwargs):
-            record["positions"].append(kwargs["stage_position"])
+            record["parents"].append(kwargs["parent_id"])
             return []
 
         monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"CallbackList": list})
@@ -972,9 +972,10 @@ class TestTrainCurriculumWalksTheManifest:
         skips = [r for r in caplog.records if "Skipping non-advancing stage 'recovery'" in r.message]
         assert len(skips) == 1 and skips[0].levelno == logging.WARNING
         assert "train --stage recovery" in skips[0].message
-        # Shaping is keyed on the manifest POSITION, so locomotion (legacy 2)
-        # enters as position 3 and behavior as position 4.
-        assert record["positions"] == [1, 3, 4]
+        # Shaping is keyed on the node's declared EDGE (BEHAVIOR_RECIPES_PLAN
+        # §4.2), never on its position: stance is a root, locomotion (legacy
+        # 2, position 3) enters from stance and behavior from locomotion.
+        assert record["parents"] == [None, "stance", "locomotion"]
 
     def test_the_handoff_skips_over_the_non_advancing_stage(self, tmp_path, monkeypatch, caplog):
         record = self._run("trex", tmp_path, monkeypatch, caplog)
@@ -993,5 +994,6 @@ class TestTrainCurriculumWalksTheManifest:
         record = self._run("velociraptor", tmp_path, monkeypatch, caplog)
 
         assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
-        assert record["positions"] == [1, 2, 3]
+        # The v2 file declares the edges the synthesizer used to derive.
+        assert record["parents"] == [None, "stance", "locomotion"]
         assert not [r for r in caplog.records if "Skipping non-advancing stage" in r.message]

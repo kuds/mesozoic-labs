@@ -242,7 +242,8 @@ def main(species_cfg):
             "How the loaded checkpoint's task fingerprint is validated: resume_same_stage "
             "requires an exact task match; initialize_next_stage records the boundary as "
             "lineage (use it to warm-start a new stage, e.g. --stage recovery from a "
-            "stance checkpoint)"
+            "stance checkpoint) and refuses a checkpoint whose recorded stage is not this "
+            "node's declared warm_start_from parent in the species' stage manifest"
         ),
     )
     train_parser.add_argument(
@@ -304,8 +305,9 @@ def main(species_cfg):
     cur_parser = subparsers.add_parser(
         "curriculum",
         help="Run the automated end-to-end curriculum over the species' advancing stages in manifest "
-        "order (a non-advancing pilot stage such as trex 'recovery' is skipped with a log line; "
-        "train it on its own with `train --stage recovery`)",
+        "order; each node warm-starts from its manifest parent (warm_start_from) and a node whose "
+        "parent has no certified checkpoint stops the curriculum (a non-advancing pilot stage such "
+        "as trex 'recovery' is skipped with a log line; train it on its own with `train --stage recovery`)",
     )
     cur_parser.add_argument("--n-envs", type=int, default=4)
     cur_parser.add_argument("--seed", type=int, default=42)
@@ -323,6 +325,17 @@ def main(species_cfg):
         help="Explicitly allow a stage handoff to proceed when its VecNormalize sidecar is missing",
     )
     cur_parser.add_argument("--output-dir", type=str, default=None)
+    cur_parser.add_argument(
+        "--trunk-from",
+        type=str,
+        default=None,
+        metavar="RUN_DIR",
+        help=(
+            "Earlier run directory whose certified ancestors (gate_verdict.json passed, plant and task "
+            "hash matching the current config) satisfy nodes instead of training them; their records are "
+            "copied into ancestors/ and the lineage records parent_run_id"
+        ),
+    )
     cur_parser.add_argument("--gcs-bucket", type=str, default=None)
     cur_parser.add_argument("--gcs-project", type=str, default=None)
 
@@ -454,12 +467,16 @@ def main(species_cfg):
             logger.info("SAC: defaulting to %d parallel envs (override with --n-envs)", _SAC_DEFAULT_N_ENVS)
 
         _apply_overrides(stage_configs, args.override, species_cfg.species)
+        trunk_from = getattr(args, "trunk_from", None)
+        if trunk_from is not None and not Path(trunk_from).is_dir():
+            parser.error(f"--trunk-from {trunk_from!r} is not a directory")
         train_curriculum(
             species_cfg=species_cfg,
             stage_configs=stage_configs,
             n_envs=args.n_envs,
             seed=args.seed,
             allow_fresh_vecnorm=getattr(args, "allow_fresh_vecnorm", False),
+            trunk_from=trunk_from,
             eval_freq=args.eval_freq,
             save_freq=args.save_freq,
             log_dir=args.log_dir,

@@ -19,6 +19,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import math
 import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -307,27 +308,80 @@ def build_env(species: str, stage: "int | str", **env_overrides: Any) -> Any:
 def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:
     """The task-fingerprint digest an SB3 checkpoint ZIP recorded, or ``None``.
 
-    Read straight from the archive's ``data`` member (SB3 stores every
-    JSON-serialisable model attribute there verbatim, the fingerprint dict
-    included) so the lineage can be written before — and independently of —
-    the model load.  ``None`` for a checkpoint minted before fingerprints
-    existed and for a non-SB3 file (a JAX ``.pkl``); both are honest
-    "unknown parent task", never a guess.
+    A digest-only view over
+    :func:`~environments.shared.task_fingerprint.read_checkpoint_task_fingerprint`,
+    which reads the archive's ``data`` member so the lineage can be written
+    before — and independently of — the model load.  ``None`` for a
+    checkpoint minted before fingerprints existed and for a non-SB3 file (a
+    JAX ``.pkl``); both are honest "unknown parent task", never a guess.
     """
-    import zipfile
+    from .task_fingerprint import read_checkpoint_task_fingerprint
 
-    from .task_fingerprint import MODEL_TASK_ATTRIBUTE
+    recorded = read_checkpoint_task_fingerprint(checkpoint)
+    digest = recorded.get("task_sha256") if recorded is not None else None
+    return digest if isinstance(digest, str) and digest else None
 
-    if not zipfile.is_zipfile(checkpoint):
+
+#: Run-block key recording how long a stage actually trained, in seconds,
+#: across every session that trained it (decision D-A15).  Written by
+#: :func:`record_stage_duration` on every ``train_stage`` exit rather than by
+#: :func:`save_stage_config`, which runs BEFORE training: a node resumed by
+#: the notebook's resume cell and judged later would otherwise report the
+#: judge session's 0.0 seconds.  Not a lineage key — the audit ignores it.
+STAGE_DURATION_KEY = "duration_seconds"
+
+
+def read_stage_duration(stage_dir: str | Path) -> float | None:
+    """The ``run.duration_seconds`` a stage directory records, or ``None``.
+
+    ``None`` when ``stage_config.json`` is absent, unreadable, has no run
+    block, or the key is missing or not a finite non-negative number — every
+    case an honest "unknown", so a caller accumulating a resumed session's
+    duration starts from nothing rather than from a guess.
+    """
+    path = Path(stage_dir) / "stage_config.json"
+    if not path.is_file():
         return None
     try:
-        with zipfile.ZipFile(checkpoint) as archive:
-            data = json.loads(archive.read("data"))
-    except (KeyError, ValueError, zipfile.BadZipFile):
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return None
-    recorded = data.get(MODEL_TASK_ATTRIBUTE) if isinstance(data, dict) else None
-    digest = recorded.get("task_sha256") if isinstance(recorded, dict) else None
-    return digest if isinstance(digest, str) and digest else None
+    run_block = data.get("run") if isinstance(data, dict) else None
+    value = run_block.get(STAGE_DURATION_KEY) if isinstance(run_block, dict) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    seconds = float(value)
+    return seconds if math.isfinite(seconds) and seconds >= 0.0 else None
+
+
+def record_stage_duration(stage_dir: str | Path, duration_seconds: float) -> Path:
+    """Record *duration_seconds* into ``stage_config.json``'s run block, atomically.
+
+    Sets the value; it does not accumulate.  A caller resuming an
+    interrupted stage reads the prior value with :func:`read_stage_duration`
+    BEFORE it re-saves the stage config (which writes a fresh run block) and
+    records the sum on exit.  A stage directory without ``stage_config.json``
+    is an error: the duration is a property of a recorded stage, not a
+    record on its own.
+    """
+    from .file_io import atomic_write_text
+
+    seconds = float(duration_seconds)
+    if isinstance(duration_seconds, bool) or not math.isfinite(seconds) or seconds < 0.0:
+        raise ValueError(f"duration_seconds must be a finite non-negative number, not {duration_seconds!r}")
+    path = Path(stage_dir) / "stage_config.json"
+    if not path.is_file():
+        raise FileNotFoundError(f"cannot record the stage duration: no stage_config.json in {stage_dir}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} must hold a JSON object")
+    run_block = data.get("run")
+    if not isinstance(run_block, dict):
+        run_block = {}
+    run_block[STAGE_DURATION_KEY] = seconds
+    data["run"] = run_block
+    atomic_write_text(path, json.dumps(data, indent=2) + "\n")
+    return path
 
 
 #: Run-block keys recording where a stage's initial weights came from.  Read

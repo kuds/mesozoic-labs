@@ -833,28 +833,29 @@ def _stage_entry_shaping_callbacks(
     stage_config: dict[str, Any],
     *,
     task_load_mode: str,
-    stage_position: int,
+    parent_id: str | None,
     load_path: str | None,
 ) -> list:
-    """Stage-entry shaping (warm-up + reward ramp) for a boundary-crossing load.
+    """Stage-entry shaping (warm-up + reward ramp) for a load that crosses the node's edge.
 
-    Applies only when a loaded checkpoint ENTERS a new non-first stage —
-    ``task_load_mode == "initialize_next_stage"``, the mode
-    ``_create_or_load_model`` records as lineage.  A same-stage resume
-    (``resume_same_stage``) just passed an exact task-fingerprint identity
-    check and must resume the exact task: warm-up clamps and a
-    forward-velocity ramp would train it for ~500k steps on a task the
-    fingerprint claims is unchanged (review F4).
-
-    ``stage_position`` comes from the stage manifest, so a semantic reference
-    ("recovery", position 2) gets the same warm-up an integer one does; for
-    legacy integers this is behaviourally identical to the old ``stage > 1``.
+    Fires iff the node HAS an edge (``parent_id`` — the manifest's
+    ``warm_start_from``, passed verbatim by every caller) and the load
+    crosses it: ``task_load_mode == "initialize_next_stage"``, the mode
+    ``_create_or_load_model`` records as lineage, with a checkpoint loaded.
+    Never on a root (a node with no edge, whatever its manifest position),
+    and never on a same-stage resume: a ``resume_same_stage`` load just
+    passed an exact task-fingerprint identity check and must resume the
+    exact task — warm-up clamps and a forward-velocity ramp would train it
+    for ~500k steps on a task the fingerprint claims is unchanged (review
+    F4).  On every v1 and synthesized manifest the derived edge is non-None
+    exactly when the position is > 1, so this is behaviourally identical to
+    the position rule it replaces (BEHAVIOR_RECIPES_PLAN §4.2 retarget 1).
 
     Both launch paths (:func:`train` and :func:`train_curriculum`) MUST build
     their shaping here rather than inline — the notebook's inline copy is how
     the ramp guard below was lost once already (the 20260821 recovery pilot).
     """
-    if task_load_mode != "initialize_next_stage" or stage_position <= 1 or not load_path:
+    if task_load_mode != "initialize_next_stage" or parent_id is None or not load_path:
         return []
 
     from .curriculum import RewardRampCallback, StageWarmupCallback
@@ -948,6 +949,12 @@ def train(
     requires an exact task match; ``initialize_next_stage`` records the
     crossing as lineage — the mode for warm-starting a NEW stage from a
     previous stage's checkpoint, e.g. recovery from a stance checkpoint.
+    The load must come from the node's declared parent: under
+    ``initialize_next_stage`` the checkpoint's recorded stage must be this
+    stage's manifest ``warm_start_from`` (a root accepts only an earlier
+    checkpoint of itself), refused before any directory exists; a
+    checkpoint with no fingerprint warns through the dated valve
+    (:func:`~environments.shared.task_fingerprint.validate_declared_parent`).
 
     A ``resume_same_stage`` load is treated as a **continuation** of the
     interrupted run: the SB3 step counter keeps counting from the
@@ -969,10 +976,13 @@ def train(
     _validate_post_eval_episodes(post_eval_episodes)
 
     from .config import save_stage_config
-    from .task_fingerprint import derive_stage_task_fingerprint
+    from .stage_manifest import load_stage_manifest
+    from .task_fingerprint import (
+        derive_stage_task_fingerprint,
+        read_checkpoint_task_fingerprint,
+        validate_declared_parent,
+    )
     from .wandb_integration import init_wandb
-
-    sb3 = _ensure_sb3()
 
     config = stage_configs[stage]
     species = species_cfg.species
@@ -984,6 +994,28 @@ def train(
         env_kwargs=config.get("env_kwargs", {}),
         plant_identity=plant_identity.to_dict(),
     )
+    # The node and its declared edge, resolved once: the edge keys the
+    # declared-parent refusal below and the stage-entry shaping further down.
+    manifest = load_stage_manifest(species)
+    entry = manifest.resolve(stage)
+    parent = manifest.parent_of(stage)
+
+    if load_path and task_load_mode == "initialize_next_stage":
+        # BEHAVIOR_RECIPES_PLAN §4.2 retarget 3: a boundary-crossing load
+        # must come from THIS node's declared parent.  Checked here, before
+        # the stage directory, stage_config.json or any environment exists,
+        # so a refused load leaves nothing behind.  The recorded fingerprint
+        # is read off the archive; the model itself is loaded (and validated
+        # again) only in _create_or_load_model.
+        validate_declared_parent(
+            read_checkpoint_task_fingerprint(load_path),
+            declared_parent=parent.reference if parent is not None else None,
+            species=species,
+            child_stage=entry.reference,
+            artifact=str(load_path),
+        )
+
+    sb3 = _ensure_sb3()
 
     logger.info("=" * 60)
     logger.info("Training stage %s: %s", stage, config["name"])
@@ -1194,17 +1226,15 @@ def train(
     if ent_decay_cb is not None:
         callbacks.append(ent_decay_cb)
 
-    # Stage-entry shaping is keyed on the load MODE, not on stage position
-    # alone: a resume_same_stage --load of a non-first stage passes the exact
-    # task-fingerprint check above and must resume un-warmed and un-ramped.
-    from .stage_manifest import load_stage_manifest
-
-    stage_position = load_stage_manifest(species).resolve(stage).position
+    # Stage-entry shaping is keyed on the load MODE and the node's declared
+    # EDGE, never on its position: a resume_same_stage --load of a non-root
+    # stage passes the exact task-fingerprint check above and must resume
+    # un-warmed and un-ramped, and a root never warms up.
     callbacks.extend(
         _stage_entry_shaping_callbacks(
             config,
             task_load_mode=task_load_mode,
-            stage_position=stage_position,
+            parent_id=entry.warm_start_from,
             load_path=load_path,
         )
     )
@@ -1577,6 +1607,26 @@ def _post_training_eval_panels(
 
 # ── Curriculum training ──────────────────────────────────────────────────
 
+#: What ``train_curriculum``'s in-training verdict records as ``judged_by``
+#: (decision D-A5): the CurriculumManager's advancement decision, not the
+#: evidence-backed post-stage judgement ``generate_stage_artifacts`` makes.
+CURRICULUM_MANAGER_JUDGED_BY = "train_base.train_curriculum/CurriculumManager"
+
+
+@dataclasses.dataclass(frozen=True)
+class _ResolvedNode:
+    """A node with a certified handoff another node may warm-start from.
+
+    ``run_id`` is None for a node trained in this run and the ancestor's
+    run id for one reused through ``--trunk-from`` (recorded as the child's
+    ``parent_run_id`` lineage).
+    """
+
+    model_stem: str
+    vecnorm_path: str
+    stage_dir: Path
+    run_id: str | None
+
 
 def train_curriculum(
     species_cfg: SpeciesConfig,
@@ -1595,20 +1645,42 @@ def train_curriculum(
     gcs_project: str | None = None,
     use_tensorboard: bool = True,
     allow_fresh_vecnorm: bool = False,
+    trunk_from: "str | Path | None" = None,
 ):
     """Run the curriculum's advancing stages, in manifest order, with automatic advancement.
 
     Walks ``load_stage_manifest(species).stages`` rather than a hardcoded
     ``range(1, 4)``: indexed into ``load_all_stages``' ``[1, "recovery", 2,
     3]``, the range trained stance -> locomotion -> behavior and skipped the
-    T-Rex recovery stage without a log line (review TC7/OP6).  Stages the
-    manifest marks non-advancing (no legacy number — recovery, whose gate the
-    in-training manager cannot judge) are skipped with an explicit log line
-    and do not break the handoff: the next advancing stage still enters on
-    the previous advancing stage's promoted checkpoint under
-    ``initialize_next_stage``.  Run a skipped stage on its own with
+    T-Rex recovery stage without a log line (review TC7/OP6).  Each node
+    warm-starts from its manifest EDGE (``warm_start_from``,
+    BEHAVIOR_RECIPES_PLAN §4.2): the parent's promoted handoff checkpoint
+    and its VecNormalize sidecar, resolved per node from what this run (or
+    ``trunk_from``) certified, under ``initialize_next_stage`` with lineage
+    recorded.  A node whose declared parent has no certified checkpoint —
+    the parent failed its gate, or is a non-advancing node the in-training
+    manager cannot judge — stops the curriculum with a warning naming the
+    ancestor; nothing is ever trained from scratch silently.  Stages the
+    manifest marks non-advancing (no legacy number — recovery) are still
+    skipped with an explicit log line in Phase A (the manager is
+    integer-keyed; decision D-A7); run one on its own with
     ``train --stage <id>``.
+
+    ``trunk_from`` names an earlier run directory whose certified ancestors
+    satisfy nodes instead of training them, under the reuse rule
+    :func:`~environments.shared.ancestors.find_certified_ancestor` applies
+    (passed ``gate_verdict.json`` hash-bound to the handoff pair, plant
+    identity validating, recorded task equal to the current config's).  A
+    reused node is recorded under ``ancestors/<stage_id>/`` (never its
+    checkpoint), writes no ``curriculum_results.csv`` row, and its children
+    record ``parent_run_id``; a candidate that fails the rule is trained
+    here with the refusal logged.
+
+    Every trained node writes ``gate_verdict.json`` from the manager's
+    in-training verdict (``judged_by`` names it), which is what lets a CLI
+    run serve as a later run's trunk.
     """
+    from .ancestors import AncestorReuseError, find_certified_ancestor, record_ancestor
     from .config import (
         save_stage_config,
         upload_curriculum_artifacts,
@@ -1618,6 +1690,7 @@ def train_curriculum(
         CurriculumManager,
         thresholds_from_configs,
     )
+    from .result_bundle import write_gate_verdict
     from .stage_manifest import load_stage_manifest, stage_dirname
     from .task_fingerprint import derive_stage_task_fingerprint
     from .wandb_integration import init_wandb
@@ -1652,9 +1725,10 @@ def train_curriculum(
     logger.info("Base directory: %s", base_dir)
     logger.info("=" * 60)
 
-    model = None
-    load_path = None
-    prev_vecnorm_path = None
+    # Nodes with a certified handoff, by id: trained here and passed, or
+    # reused from ``trunk_from``.  Each node resolves its parent from this
+    # map through its edge; nothing is carried from one iteration to the next.
+    resolved: dict[str, _ResolvedNode] = {}
 
     for entry in manifest.stages:
         if entry not in advancing:
@@ -1675,11 +1749,7 @@ def train_curriculum(
         config = stage_configs[stage]
         cur_kwargs = config.get("curriculum_kwargs", {})
         total_timesteps = cur_kwargs.get("timesteps", 500000)
-
-        stage_dir = base_dir / stage_dirname(species, stage)
-        stage_dir.mkdir(exist_ok=True)
-        model_dir = stage_dir / "models"
-        model_dir.mkdir(exist_ok=True)
+        parent = manifest.parent_of(stage)
 
         logger.info("=" * 60)
         logger.info(
@@ -1701,6 +1771,68 @@ def train_curriculum(
             env_kwargs=config.get("env_kwargs", {}),
             plant_identity=plant_identity.to_dict(),
         )
+
+        if trunk_from is not None:
+            # Reuse before training: a certified ancestor satisfies the node
+            # outright.  Every refusal is logged with its reason and the
+            # node is trained here instead — never silently either way.
+            try:
+                ancestor = find_certified_ancestor(
+                    trunk_from,
+                    species=species,
+                    entry=entry,
+                    current_task_sha256=task_fingerprint.get("task_sha256"),
+                    plant_identity=plant_identity,
+                )
+            except AncestorReuseError as exc:
+                logger.warning(
+                    "Not reusing %r from --trunk-from %s: %s. Training it in this run instead.",
+                    entry.id,
+                    trunk_from,
+                    exc,
+                )
+            else:
+                record_ancestor(base_dir, ancestor)
+                resolved[entry.id] = _ResolvedNode(
+                    model_stem=ancestor.model_stem,
+                    vecnorm_path=str(ancestor.normalization_path),
+                    stage_dir=ancestor.stage_dir,
+                    run_id=ancestor.run_id,
+                )
+                logger.info(
+                    "Reusing certified %r from run %s: %s (%s) with VecNormalize: %s",
+                    entry.id,
+                    ancestor.run_id,
+                    ancestor.handoff_name,
+                    ancestor.model_stem,
+                    ancestor.normalization_path,
+                )
+                # The manager judges by integer stage: a reused non-final
+                # node advances it exactly once so the next node is judged
+                # against its own thresholds.
+                if not manager.is_final_stage:
+                    manager.advance()
+                    logger.info("Auto-advanced to stage %d", manager.current_stage)
+                continue
+
+        if parent is not None and parent.id not in resolved:
+            logger.warning(
+                "Skipping %r: its declared parent %r has no certified checkpoint in this run or "
+                "--trunk-from; not training it from scratch. Stopping the curriculum here — every "
+                "later advancing node's chain runs through it.",
+                entry.id,
+                parent.id,
+            )
+            break
+        parent_node = resolved[parent.id] if parent is not None else None
+        load_path = parent_node.model_stem if parent_node is not None else None
+        parent_vecnorm_path = parent_node.vecnorm_path if parent_node is not None else None
+
+        stage_dir = base_dir / stage_dirname(species, stage)
+        stage_dir.mkdir(exist_ok=True)
+        model_dir = stage_dir / "models"
+        model_dir.mkdir(exist_ok=True)
+
         save_stage_config(
             stage_dir,
             stage,
@@ -1711,10 +1843,13 @@ def train_curriculum(
             species=species_cfg.species,
             plant_identity=plant_identity,
             task_fingerprint=task_fingerprint,
-            # The handoff checkpoint this stage enters on (review RP4); the
-            # first stage, loading nothing, records no lineage keys.
+            # The parent's handoff checkpoint this node enters on (review
+            # RP4); a root, loading nothing, records no lineage keys, and
+            # parent_run_id is written only for a parent reused from
+            # another run.
             load_path=load_path,
             load_mode="initialize_next_stage" if load_path else None,
+            parent_run_id=parent_node.run_id if parent_node is not None else None,
         )
 
         effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
@@ -1744,7 +1879,7 @@ def train_curriculum(
         )
 
         _load_vecnorm_into_envs(
-            prev_vecnorm_path,
+            parent_vecnorm_path,
             train_env,
             eval_env,
             plant_identity=plant_identity,
@@ -1777,10 +1912,10 @@ def train_curriculum(
             load_path,
             plant_identity=plant_identity,
             task_fingerprint=task_fingerprint,
-            # Inside the curriculum loop, load_path is only ever the previous
-            # stage's promoted checkpoint (it starts None and is assigned
-            # exclusively by the stage handoff), so every load here crosses a
-            # stage/task boundary deliberately and is recorded as lineage.
+            # Inside the curriculum loop, load_path is only ever the declared
+            # parent's promoted checkpoint (resolved through the node's edge
+            # above), so every load here crosses a stage/task boundary
+            # deliberately and is recorded as lineage.
             task_load_mode="initialize_next_stage",
         )
 
@@ -1816,16 +1951,17 @@ def train_curriculum(
         )
         callbacks.append(curriculum_cb)
 
-        # Every stage after the first enters on the previous stage's promoted
-        # checkpoint — the same initialize_next_stage boundary recorded above.
-        # The shared helper also applies train()'s forward_vel_weight > 0 ramp
-        # guard: a stage that sets the weight to 0.0 (recovery mirrors stance)
-        # must not have a walk incentive ramped through it.
+        # A node with an edge enters on its parent's promoted checkpoint —
+        # the same initialize_next_stage boundary recorded above; a root
+        # gets no shaping.  The shared helper also applies train()'s
+        # forward_vel_weight > 0 ramp guard: a stage that sets the weight to
+        # 0.0 (recovery mirrors stance) must not have a walk incentive ramped
+        # through it.
         callbacks.extend(
             _stage_entry_shaping_callbacks(
                 config,
                 task_load_mode="initialize_next_stage",
-                stage_position=entry.position,
+                parent_id=entry.warm_start_from,
                 load_path=load_path,
             )
         )
@@ -1872,16 +2008,49 @@ def train_curriculum(
         # mean-reward best_model, then the final checkpoint — each with
         # its matched VecNormalize so obs normalization matches the
         # policy weights.
-        load_path = str(final_path)
-        prev_vecnorm_path = str(final_path) + "_vecnorm.pkl"
+        handoff_stem = str(final_path)
+        handoff_vecnorm = str(final_path) + "_vecnorm.pkl"
         handoff = _select_handoff_checkpoint(model_dir)
         if handoff is not None:
-            candidate, load_path, prev_vecnorm_path = handoff
+            candidate, handoff_stem, handoff_vecnorm = handoff
             logger.info(
                 "Next stage will load %s (%s) with VecNormalize: %s",
                 candidate,
-                load_path,
-                prev_vecnorm_path,
+                handoff_stem,
+                handoff_vecnorm,
+            )
+
+        # The per-node verdict record (decision D-A5): the manager's
+        # in-training decision, hash-bound to the handoff pair, which is
+        # what lets this run serve as a later run's --trunk-from.  Never
+        # raises: a lost verdict file must not cost the run its results
+        # (the node can be re-judged by generate_stage_artifacts).
+        passed = bool(curriculum_cb.ready_to_advance)
+        try:
+            write_gate_verdict(
+                stage_dir,
+                species=species,
+                stage=stage,
+                stage_id=entry.id,
+                gate_kind=cur_kwargs.get("gate_kind"),
+                gate_schema_version=cur_kwargs.get("gate_schema_version"),
+                passed=passed,
+                failures=[] if passed else ["stage budget exhausted without meeting advancement thresholds"],
+                task_sha256=task_fingerprint.get("task_sha256"),
+                judged_by=CURRICULUM_MANAGER_JUDGED_BY,
+                checkpoint=Path(handoff_stem + ".zip"),
+                normalization=Path(handoff_vecnorm),
+            )
+        except Exception:  # noqa: BLE001 - the verdict file must never sink the run
+            logger.warning("Stage %s gate verdict could not be recorded", stage, exc_info=True)
+        # Only a node that passed feeds anything forward (the 2026-08-23
+        # lineage rule): a failed node's children find no parent and stop.
+        if passed:
+            resolved[entry.id] = _ResolvedNode(
+                model_stem=handoff_stem,
+                vecnorm_path=handoff_vecnorm,
+                stage_dir=stage_dir,
+                run_id=None,
             )
 
         train_env.close()

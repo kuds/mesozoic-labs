@@ -722,6 +722,59 @@ def _write_impulse_probe(
         logger.warning("Impulse recovery probe failed for stage %s", stage, exc_info=True)
 
 
+#: What ``generate_stage_artifacts``' verdict records as ``judged_by``
+#: (decision D-A5): the evidence-backed post-stage judgement.
+GATE_VERDICT_JUDGED_BY = "reporting.stage_artifacts.generate_stage_artifacts"
+
+
+def _write_stage_gate_verdict(
+    *,
+    stage_dir: Path,
+    species: "str | None",
+    stage: "int | str",
+    curriculum: Mapping[str, Any],
+    passed: bool,
+    failures: list[str],
+    stage_results: dict[str, Any],
+) -> None:
+    """Write the per-node ``gate_verdict.json`` beside the handoff pair it judged.
+
+    The handoff resolved here is the same one ``_write_stance_gate_report``
+    scored and the notebook's evidence CSVs bind (all through
+    ``select_handoff_checkpoint``), so the verdict is hash-bound to the
+    checkpoint the evidence describes.  ``stage_id`` is the manifest id when
+    the species is known, else the stage reference spelled out.
+    """
+    from ..result_bundle import write_gate_verdict
+    from ..stage_manifest import StageManifestError, load_stage_manifest
+    from .gates import _current_task_sha256
+
+    stage_id = str(stage)
+    if species:
+        try:
+            stage_id = load_stage_manifest(species).resolve(stage).id
+        except StageManifestError:
+            logger.warning("Stage %s is not in the %s manifest; recording the verdict by reference", stage, species)
+    handoff = select_handoff_checkpoint(stage_dir / "models")
+    # Recorded as declared: null for a stage that declares no gate kind.
+    gate_kind: Any = curriculum.get("gate_kind")
+    write_gate_verdict(
+        stage_dir,
+        species=species or "",
+        stage=stage,
+        stage_id=stage_id,
+        gate_kind=gate_kind,
+        gate_schema_version=curriculum.get("gate_schema_version"),
+        passed=passed,
+        failures=failures,
+        task_sha256=_current_task_sha256(stage_dir),
+        judged_by=GATE_VERDICT_JUDGED_BY,
+        checkpoint=Path(handoff[1] + ".zip") if handoff is not None else None,
+        normalization=Path(handoff[2]) if handoff is not None else None,
+        stage_result=stage_results,
+    )
+
+
 def _apply_stage_gate(
     *,
     stage: int,
@@ -730,6 +783,7 @@ def _apply_stage_gate(
     stance_report: dict[str, Any] | None,
     stage_dir: "str | Path | None" = None,
     recovery_successes_by_seed: "dict[int, bool] | None" = None,
+    species: "str | None" = None,
 ) -> None:
     """Record this stage's gate verdict onto *stage_results*, in place.
 
@@ -741,9 +795,13 @@ def _apply_stage_gate(
     and advanced to stage 2 on it.
 
     Sets ``gate_passed``, ``publication_gate_passed`` and ``gate_failures``;
-    callers enforce them.  Never raises: a stage that cannot be certified is
-    recorded as failing, which is the fail-closed reading, and an exception
-    here would instead cost the run the artifacts written around it.
+    callers enforce them.  When *stage_dir* is given the same verdict is
+    also written as the stage's ``gate_verdict.json`` (decision D-A5),
+    hash-bound to the handoff pair, which is what lets another run reuse the
+    node.  Never raises: a stage that cannot be certified is recorded as
+    failing, which is the fail-closed reading, and an exception here — the
+    verdict file included — would instead cost the run the artifacts written
+    around it.
     """
     from .gates import evaluate_stage_gate
 
@@ -785,6 +843,19 @@ def _apply_stage_gate(
         logger.info("Stage %s curriculum gate: PASS", stage)
     else:
         logger.warning("Stage %s curriculum gate: FAIL — %s", stage, "; ".join(failures))
+    if stage_dir is not None:
+        try:
+            _write_stage_gate_verdict(
+                stage_dir=Path(stage_dir),
+                species=species,
+                stage=stage,
+                curriculum=curriculum,
+                passed=passed,
+                failures=failures,
+                stage_results=stage_results,
+            )
+        except Exception:  # noqa: BLE001 - the verdict file must never cost the artifacts
+            logger.warning("Stage %s gate verdict could not be written to %s", stage, stage_dir, exc_info=True)
 
 
 def generate_stage_artifacts(
@@ -851,6 +922,7 @@ def generate_stage_artifacts(
     )
     # Before the replays and graphs below, which are best-effort and can be
     # skipped: the verdict must not depend on whether matplotlib imported.
+    # This also writes the stage's gate_verdict.json (species names the id).
     _apply_stage_gate(
         stage=stage,
         stage_config=stage_config,
@@ -858,6 +930,7 @@ def generate_stage_artifacts(
         stance_report=stance_report,
         stage_dir=stage_dir,
         recovery_successes_by_seed=recovery_successes_by_seed,
+        species=species,
     )
 
     # After the gate, not before it: the summary now states the verdict and

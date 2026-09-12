@@ -211,7 +211,7 @@ class TestStageEntryShapingCallbacks:
         callbacks = _stage_entry_shaping_callbacks(
             _shaping_config(),
             task_load_mode="resume_same_stage",
-            stage_position=2,
+            parent_id="stance",
             load_path="/run/models/stage2_5000000_steps.zip",
         )
         assert callbacks == []
@@ -223,19 +223,21 @@ class TestStageEntryShapingCallbacks:
         callbacks = _stage_entry_shaping_callbacks(
             _shaping_config(),
             task_load_mode="initialize_next_stage",
-            stage_position=2,
+            parent_id="stance",
             load_path="/run/models/robust_best_model.zip",
         )
         assert self._types(callbacks) == ["StageWarmupCallback", "RewardRampCallback"]
         assert isinstance(callbacks[0], StageWarmupCallback)
         assert isinstance(callbacks[1], RewardRampCallback)
 
-    def test_first_stage_gets_no_shaping_even_when_crossing(self):
+    def test_a_root_gets_no_shaping_even_when_crossing(self):
+        # A node with no declared edge never warms up, whatever its manifest
+        # position (BEHAVIOR_RECIPES_PLAN §4.2 retarget 1).
         pytest.importorskip("stable_baselines3")
         callbacks = _stage_entry_shaping_callbacks(
             _shaping_config(),
             task_load_mode="initialize_next_stage",
-            stage_position=1,
+            parent_id=None,
             load_path="/run/models/best_model.zip",
         )
         assert callbacks == []
@@ -245,7 +247,7 @@ class TestStageEntryShapingCallbacks:
         callbacks = _stage_entry_shaping_callbacks(
             _shaping_config(),
             task_load_mode="initialize_next_stage",
-            stage_position=2,
+            parent_id="stance",
             load_path=None,
         )
         assert callbacks == []
@@ -257,7 +259,7 @@ class TestStageEntryShapingCallbacks:
         callbacks = _stage_entry_shaping_callbacks(
             _shaping_config(forward_vel_weight=0.0),
             task_load_mode="initialize_next_stage",
-            stage_position=2,
+            parent_id="stance",
             load_path="/run/models/robust_best_model.zip",
         )
         assert self._types(callbacks) == ["StageWarmupCallback"]
@@ -273,7 +275,7 @@ class TestStageEntryShapingCallbacks:
                 ramp_timesteps=250_000,
             ),
             task_load_mode="initialize_next_stage",
-            stage_position=2,
+            parent_id="stance",
             load_path="/run/models/best_model.zip",
         )
         warmup, ramp = callbacks
@@ -297,6 +299,9 @@ class TestShapingIsWired:
         src = inspect.getsource(train_base.train)
         assert "_stage_entry_shaping_callbacks(" in src
         assert "task_load_mode=task_load_mode" in src
+        # Keyed on the node's declared edge, never its manifest position.
+        assert "parent_id=" in src
+        assert "stage_position" not in src
         assert "StageWarmupCallback(" not in src
         assert "RewardRampCallback(" not in src
 
@@ -304,6 +309,8 @@ class TestShapingIsWired:
         src = inspect.getsource(train_base.train_curriculum)
         assert "_stage_entry_shaping_callbacks(" in src
         assert 'task_load_mode="initialize_next_stage"' in src
+        assert "parent_id=" in src
+        assert "stage_position" not in src
         assert "StageWarmupCallback(" not in src
         assert "RewardRampCallback(" not in src
 
@@ -320,6 +327,8 @@ class TestShapingIsWired:
         )
         for src in (cell, sweep):
             assert "_stage_entry_shaping_callbacks(" in src
+            assert "parent_id=" in src
+            assert "stage_position" not in src
             assert "StageWarmupCallback(" not in src
             assert "RewardRampCallback(" not in src
         assert "task_load_mode=task_load_mode" in cell
