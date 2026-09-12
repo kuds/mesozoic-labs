@@ -601,6 +601,10 @@ class TestCommittedManifestsAreV2:
             "velociraptor": ["01_stance", "02_locomotion", "03_behavior"],
             "brachiosaurus": ["01_stance", "02_locomotion", "03_behavior"],
             "dibothrosuchus": ["01_stance", "02_locomotion", "03_behavior"],
+            # The two Compsognathus species landed (PRs #521-#526) on the
+            # T-Rex layout with v1 manifests; their v2 files keep it.
+            "compsognathus": ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],
+            "compsognathus_robot": ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],
         }
         assert sorted(pre_phase_a) == COMMITTED_SPECIES
         for species, names in pre_phase_a.items():

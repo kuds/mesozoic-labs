@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.7)
 
 ### Added
+- **Stage manifest v2** (`docs/BEHAVIOR_RECIPES_PLAN.md` Phase A, part 1).
+  `environments/shared/stage_manifest.py` reads `mesozoic.stage-manifest/v2`
+  beside v1: per-stage `warm_start_from` (an EARLIER entry; self and forward
+  references are fatal), `deliverable` and `recipe`, with ids an open
+  vocabulary matching `^[a-z][a-z0-9_]*$` (the four reserved ids and every
+  legacy-number, no-rewrite and no-reorder rule are unchanged). A v1 or
+  synthesized manifest derives its edges as "previous advancing entry" and one
+  deliverable (the last advancing entry), bit-identical to before and pinned.
+  `StageManifest` gains `deliverables`, `recipe_labels`, `parent_of`,
+  `ancestors`, `chain_for` and `resolve_behavior`; `stage_ref_from_dirname`
+  resolves `NN_<id>` directories through the species' manifest so
+  `detect_stage_from_path`, artifact upload and the sweep collector accept
+  any declared id. Every species now commits a v2 `stages.toml` (T-Rex,
+  Velociraptor, Brachiosaurus, Dibothrosuchus, Compsognathus and the
+  Compsognathus robot) declaring exactly the ids, numbers, config files and
+  edges it had, so stand and walk become deliverables without moving any
+  stage directory, file label or task fingerprint.
+- **`gate_verdict.json`** (`environments/shared/result_bundle/gate_verdict.py`,
+  schema `mesozoic.gate-verdict/v1`): a per-stage verdict record written
+  beside the handoff checkpoint and hash-bound to it and its normalization
+  sidecar, so a later run can prove an ancestor passed without the run-level
+  CSV; `ANCESTORS_DIRNAME` and the per-ancestor record filenames are declared,
+  and load lineage gains an optional `parent_run_id` (audited as a non-empty
+  string). Writers, the `--trunk-from` reuse path and the per-deliverable
+  bundle status land in the rest of Phase A.
 - **Behavior recipes plan** (`docs/BEHAVIOR_RECIPES_PLAN.md`): the adopted
   design for turning the linear stage curriculum into a DAG of behavior
   recipes — stand, walk, hunt and follow direction — each a separately
