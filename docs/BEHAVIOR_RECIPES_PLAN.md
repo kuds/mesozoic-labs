@@ -799,6 +799,36 @@ Assumptions (state an objection and the plan changes):
 - A9 The notebook loop applies stage-entry warm-up to SAC as the CLI does.
 - A10 Ancestor reuse copies records, never checkpoints, into the child run.
 
+### 6.1 Decisions taken during Phase A (the D-A series)
+
+Taken while implementing Phase A (2026-09-06 to 2026-09-12); the pull
+requests, CHANGELOG and code comments cite them by number.
+
+| # | Decision |
+|---|---|
+| D-A1 | `save_result_bundle(target_deliverable=...)` (default the manifest's last deliverable; the notebook passes `BEHAVIOR`'s node). `complete` = target present and certified and every present deliverable certified; `partial` = at least one certified deliverable; `failed` = none. A stance-only run targeting hunt is partial, never complete, so the bundle stays mutable. |
+| D-A2 | `validate_result_summary` / `validate_result_bundle` gain `require_publishable` (at least one certified deliverable); `require_complete` keeps meaning `complete`. The audit, the bundle writer and the catalog use `require_publishable`; the notebook completion cell keeps `require_complete`, its failure branch `require_publishable`. |
+| D-A3 | A root node under `initialize_next_stage` accepts a parent whose recorded stage is the node itself, refuses any other fingerprinted parent, and warns on an unfingerprinted one. |
+| D-A4 | Two v2-only manifest validators: a numbered reserved id must declare its legacy number; a v2 manifest with no deliverable is fatal. |
+| D-A5 | `gate_verdict.json` is written by `generate_stage_artifacts` (post-stage, evidence-backed) and by `train_curriculum`'s in-training manager verdict, with `judged_by` recorded; reuse accepts any well-formed passed verdict. `train()` and the JAX saver do not write it in Phase A. |
+| D-A6 | `scripts/backfill_gate_verdict.py` re-derives a verdict for a pre-Phase-A stage directory from its evidence through `evaluate_stage_gate`; it refuses when evidence is missing. |
+| D-A7 | Reused nodes write no `curriculum_results.csv` row; `train_curriculum` stops (does not skip past) a node whose declared ancestor has no certified checkpoint; non-advancing nodes are still skipped by the CLI curriculum in Phase A. |
+| D-A8 | Catalog `schema_version` 3 → 4; `species_manifest.toml` `schema_version` 1 → 2. |
+| D-A9 | Stance and recovery deliverable headlines render the metric name with a null value in Phase A; exporting per-stage gate metrics into the summary is Phase B. |
+| D-A10 | The README's generated SPECIES table gains Recipe and Warm-start-from columns; the generated RESULTS block and the website's published run summaries stay byte-identical (golden regression). |
+| D-A11 | The notebook's `BEHAVIOR` defaults to `"hunt"`; the recovery gate is enforced by the chain under `BEHAVIOR="stand"`; the manual single-node cell never swallows a `ResultBundleError` silently. |
+| D-A12 | Species-free readers (`detect_stage_from_path`, the sweep collector) stay reserved-id only; species-aware readers accept any declared id. |
+| D-A13 | The website `RawStage` / index-page defect fix ships inside the catalog workstream. |
+| D-A14 | CSV deliverable columns, the training summary's deliverables block and `species_registry.describe_stages` are out of Phase A. |
+| D-A15 | `duration_seconds` is recorded into `stage_config.json`'s run block on every `train_stage` exit so a resumed-then-judged node reports its real duration. |
+| D-A16 | `target_deliverable` / `primary_deliverable` are finalization fields written by `save_result_bundle`, not identity fields. |
+| D-A17 | Reuse is chain-aware by digest (§4.2 rule 4): a non-root candidate's recorded `parent_checkpoint_sha256` must equal the digest resolved for its declared parent; a root candidate must not have entered from a parent. Reuse is root-first and a child of a node trained in the same run is never looked up. |
+| D-A18 | The target node is never reused across runs; an earlier run's certified target is that run's deliverable, published from there. |
+| D-A19 | A retrain-from knob (`curriculum --retrain-from <stage_id>`, the notebook's `RETRAIN_FROM`) reuses certified ancestors strictly above the named node and trains it and every descendant; it generalises D-A18. Lands with the notebook loop. |
+| D-A20 | Training refuses to write into a stage directory that already holds a verdict or stage config unless the load is an explicit same-stage resume, so a fresh run directory per variant is enforced. Lands with the notebook loop. |
+| D-A21 | Every trained node records a `hyperparameters_sha256` (its algorithm block and stage-entry shaping keys) and an optional label, propagated to `provenance.deliverables` and the W&B run; at reuse time the loop compares the current digest against the ancestor's copied config and warns, naming the differing keys, when an edit is being ignored. The task fingerprint and the reuse rule are unchanged. Lands with the notebook loop. |
+| D-A22 | `gate_verdict.json` records the gate configuration it was judged under (kind, schema version, every threshold, and a `gate_sha256` over them) and reuse gains rule 7: a candidate judged under a different gate configuration is refused, naming the differing thresholds. Lands with the Phase B gate work. |
+
 ---
 
 ## 7. Risks
