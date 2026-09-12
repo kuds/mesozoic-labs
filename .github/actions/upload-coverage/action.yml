@@ -1,0 +1,65 @@
+name: Upload coverage with bounded retries
+description: Retry transient artifact upload failures while keeping coverage required.
+inputs:
+  name:
+    description: Unique coverage artifact name for this job.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Require coverage data
+      shell: bash
+      run: |
+        shopt -s nullglob
+        for path in .coverage.*; do
+          if [[ -f "$path" ]]; then
+            exit 0
+          fi
+        done
+        echo "::error::Coverage data files (.coverage.*) were not produced."
+        exit 1
+
+    - name: Upload coverage (attempt 1)
+      id: attempt_1
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.name }}
+        path: .coverage.*
+        include-hidden-files: true
+        retention-days: 1
+        if-no-files-found: error
+
+    - name: Wait before second attempt
+      if: ${{ !cancelled() && steps.attempt_1.outcome == 'failure' }}
+      shell: bash
+      run: sleep 5
+
+    - name: Upload coverage (attempt 2)
+      id: attempt_2
+      if: ${{ !cancelled() && steps.attempt_1.outcome == 'failure' }}
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.name }}
+        path: .coverage.*
+        include-hidden-files: true
+        retention-days: 1
+        if-no-files-found: error
+        overwrite: true
+
+    - name: Wait before final attempt
+      if: ${{ !cancelled() && steps.attempt_2.outcome == 'failure' }}
+      shell: bash
+      run: sleep 10
+
+    - name: Upload coverage (final attempt)
+      if: ${{ !cancelled() && steps.attempt_2.outcome == 'failure' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.name }}
+        path: .coverage.*
+        include-hidden-files: true
+        retention-days: 1
+        if-no-files-found: error
+        overwrite: true

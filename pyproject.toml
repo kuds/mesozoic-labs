@@ -100,12 +100,15 @@ Raptor-v0 = "environments.velociraptor.envs.raptor_env:RaptorEnv"
 Brachio-v0 = "environments.brachiosaurus.envs.brachio_env:BrachioEnv"
 TRex-v0 = "environments.trex.envs.trex_env:TRexEnv"
 Dibothrosuchus-v0 = "environments.dibothrosuchus.envs.dibothrosuchus_env:DibothrosuchusEnv"
+Compsognathus-v0 = "environments.compsognathus.envs.compsognathus_env:CompsognathusEnv"
+CompsognathusRobot-v0 = "environments.compsognathus.envs.compsognathus_env:CompsognathusRobotEnv"
 
 [tool.setuptools.packages.find]
 include = ["environments*", "configs*"]
 
 [tool.setuptools.package-data]
 "*" = ["assets/*.xml", "data/*.json"]
+"environments.compsognathus" = ["assets/meshes/*.stl", "references/*.xml", "references/LICENSE*", "references/*.md"]
 "configs" = ["*.toml", "*.json", "*/*.toml", "*/*.json"]
 
 [tool.pytest.ini_options]
@@ -115,6 +118,7 @@ testpaths = [
     "environments/brachiosaurus/tests",
     "environments/trex/tests",
     "environments/dibothrosuchus/tests",
+    "environments/compsognathus/tests",
 ]
 norecursedirs = [
     "scripts",

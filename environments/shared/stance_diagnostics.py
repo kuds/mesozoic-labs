@@ -39,6 +39,7 @@ STANCE_INFO_KEYS: tuple[str, ...] = (
 # distinguishes its biped contacts from similarly named quadruped front-foot
 # contacts without adding a new environment signal.
 STANCE_MARKER_KEYS: tuple[str, ...] = (
+    "unsupported_duty",  # Explicit biped instrumentation (including Compsognathus).
     "bite_success",
     "leg_home_pose_error",
     "head_pelvis_rel_z",
@@ -67,7 +68,7 @@ _LEG_JOINTS: tuple[tuple[str, str], ...] = (
 
 
 def has_stance_diagnostics(info: Mapping[str, Any]) -> bool:
-    """Return whether *info* carries T. rex stance instrumentation."""
+    """Return whether *info* carries explicit biped stance instrumentation."""
     return any(key in info for key in STANCE_MARKER_KEYS)
 
 

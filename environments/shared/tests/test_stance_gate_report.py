@@ -44,6 +44,7 @@ def stub_ppo(monkeypatch):
     import stable_baselines3
 
     monkeypatch.setattr(stable_baselines3, "PPO", _StubModel)
+    monkeypatch.setattr("environments.shared.policy_loading._checkpoint_algorithm", lambda _path: _StubModel)
     return _StubModel
 
 

@@ -23,6 +23,7 @@ on:
       # changing collection behavior for every later run (gap review CI7).
       - "conftest.py"
       - ".github/workflows/**"
+      - ".github/actions/**"
   pull_request:
     branches: [main]
     paths:
@@ -45,6 +46,7 @@ on:
       # changing collection behavior for every later run (gap review CI7).
       - "conftest.py"
       - ".github/workflows/**"
+      - ".github/actions/**"
   workflow_dispatch:
 
 jobs:
@@ -147,12 +149,9 @@ jobs:
           COVERAGE_FILE: .coverage.plant-contract
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-coverage
         with:
           name: coverage-plant-contract
-          path: .coverage.*
-          include-hidden-files: true
-          retention-days: 1
 
       - name: Verify plant identity from an installed wheel
         run: |
@@ -171,7 +170,7 @@ jobs:
           assert load_stage_config("velociraptor", 1)["name"]
           PY
 
-  # One matrix over the five per-directory suites: the previous five jobs
+  # One matrix over per-directory suites, including the Compsognathus model prototypes: the previous five jobs
   # were byte-identical 37-line blocks differing only in the pytest path and
   # coverage-file suffix (gap review ST1). NOTE for branch protection: the
   # check names change from "test-shared (3.11)" to "test (shared, 3.11)" —
@@ -183,7 +182,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-        suite: [shared, velociraptor, brachiosaurus, trex, dibothrosuchus]
+        suite: [shared, velociraptor, brachiosaurus, trex, dibothrosuchus, compsognathus]
     steps:
       - uses: actions/checkout@v4
 
@@ -207,12 +206,9 @@ jobs:
           COVERAGE_FILE: .coverage.${{ matrix.suite }}-${{ matrix.python-version }}
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-coverage
         with:
           name: coverage-${{ matrix.suite }}-${{ matrix.python-version }}
-          path: .coverage.*
-          include-hidden-files: true
-          retention-days: 1
 
   test-sb3:
     runs-on: ubuntu-latest
@@ -278,6 +274,8 @@ jobs:
         run: |
           pytest \
             environments/shared/tests/test_config.py \
+            environments/shared/tests/test_compsognathus_training.py \
+            environments/shared/tests/test_recovery_calibration.py \
             environments/shared/tests/test_curriculum_*.py \
             environments/shared/tests/test_diagnostics.py \
             environments/shared/tests/test_eval_diagnostics.py \
@@ -296,12 +294,9 @@ jobs:
           COVERAGE_FILE: .coverage.sb3
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-coverage
         with:
           name: coverage-sb3
-          path: .coverage.*
-          include-hidden-files: true
-          retention-days: 1
 
   test-jax-cpu:
     runs-on: ubuntu-latest
@@ -343,12 +338,9 @@ jobs:
           COVERAGE_FILE: .coverage.jax-cpu
 
       - name: Upload coverage data
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-coverage
         with:
           name: coverage-jax-cpu
-          path: .coverage.*
-          include-hidden-files: true
-          retention-days: 1
 
   coverage:
     # The only job that reports a coverage number. Each test job above measures

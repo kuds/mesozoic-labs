@@ -34,7 +34,14 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 #: for argparse ``choices``.  Deliberately not the registry's key set: that
 #: also carries aliases (raptor, t-rex, brachio, dibo) that are not part of
 #: the CLI surface.
-SPECIES_NAMES: tuple[str, ...] = ("brachiosaurus", "dibothrosuchus", "trex", "velociraptor")
+SPECIES_NAMES: tuple[str, ...] = (
+    "brachiosaurus",
+    "compsognathus",
+    "compsognathus_robot",
+    "dibothrosuchus",
+    "trex",
+    "velociraptor",
+)
 
 
 def get_library_version() -> str:

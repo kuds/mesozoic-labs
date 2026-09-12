@@ -10,6 +10,7 @@ Usage:
     python -m environments.shared.train --species dibothrosuchus train --stage 1
 """
 
+from environments.shared.species_names import resolve_species_id, species_display_name, species_display_names
 from environments.shared.train_base import SpeciesConfig
 
 
@@ -67,6 +68,32 @@ def _make_dibothrosuchus_config() -> SpeciesConfig:
     )
 
 
+def _make_compsognathus_config() -> SpeciesConfig:
+    from environments.compsognathus.envs import CompsognathusEnv
+
+    return SpeciesConfig(
+        species="compsognathus",
+        env_class=CompsognathusEnv,
+        stage_descriptions="1=balance, 2=locomotion, 3=target_reach",
+        height_label="Pelvis height",
+        stage3_section_label="Target Reaching",
+        success_keys=["target_success"],
+    )
+
+
+def _make_compsognathus_robot_config() -> SpeciesConfig:
+    from environments.compsognathus.envs import CompsognathusRobotEnv
+
+    return SpeciesConfig(
+        species="compsognathus_robot",
+        env_class=CompsognathusRobotEnv,
+        stage_descriptions="1=balance, 2=locomotion, 3=target_reach",
+        height_label="Pelvis height",
+        stage3_section_label="Target Reaching",
+        success_keys=["target_success"],
+    )
+
+
 # Lazy registry — factories are called only when the species is selected,
 # so we don't import all env modules at startup.
 SPECIES_FACTORIES = {
@@ -78,15 +105,23 @@ SPECIES_FACTORIES = {
     "brachio": _make_brachio_config,  # alias
     "dibothrosuchus": _make_dibothrosuchus_config,
     "dibo": _make_dibothrosuchus_config,  # alias
+    "compsognathus": _make_compsognathus_config,
+    "compso": _make_compsognathus_config,
+    "compsognathus_robot": _make_compsognathus_robot_config,
+    "compso-robot": _make_compsognathus_robot_config,
 }
 
 
 def get_species_config(species: str) -> SpeciesConfig:
-    """Look up and return the SpeciesConfig for the given species name."""
-    key = species.lower().replace("_", "").replace("-", "")
-    # Try exact match first, then normalized
-    factory = SPECIES_FACTORIES.get(species.lower()) or SPECIES_FACTORIES.get(key)
+    """Look up a training config by full name, stable ID or legacy alias."""
+    key = resolve_species_id(species)
+    factory = SPECIES_FACTORIES.get(key)
     if factory is None:
-        available = sorted(set(SPECIES_FACTORIES.keys()))
-        raise ValueError(f"Unknown species '{species}'. Available: {available}")
+        available = ", ".join(species_display_names().values())
+        raise ValueError(
+            f"{species_display_name(key)} is a model-only prototype: no registered "
+            "Gymnasium environment or SB3 curriculum exists yet. "
+            f"See environments/{key}/README.md for model validation. "
+            f"Trainable species: {available}"
+        )
     return factory()

@@ -5,6 +5,13 @@ These are *plans/designs* in the [docs map](../README.md) sense — nothing here
 has been built. `hardware_prototype` is still `planned` in
 [`species_manifest.toml`](../../configs/species_manifest.toml).
 
+**Compsognathus model update (2026-09-07):** an
+[anatomical proxy and Rev B robot prototype](../../environments/compsognathus/README.md)
+now load and stand in MuJoCo. The robot preserves the later twelve-leg-axis,
+1.5856 kg design with a fixed passive tail. Use that page for current
+geometry and validation limits; the older cost figures below are not an
+updated bill of materials for Rev B. Neither prototype has demonstrated walking.
+
 > **Headline conclusion (2026): there is no buildable-today, sub-$10k,
 > two-legged _running_ recipe — the limit is control, not motors.** The
 > recommended solo first build is a juvenile-Psittacosaurus shell on the open

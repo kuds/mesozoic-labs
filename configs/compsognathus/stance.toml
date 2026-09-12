@@ -1,0 +1,89 @@
+# Experimental SB3 recipe informed by the current Tyrannosaurus Rex workflow.
+# See environments/compsognathus/TRAINING_RECIPE_REVIEW.md for evidence,
+# validation limits, and the next-run protocol. State observations are privileged.
+[stage]
+name = "balance"
+description = "Hold an upright stance with foot support"
+
+[env]
+frame_skip = 10
+max_episode_steps = 1000
+reset_noise_scale = 0.01
+reset_height_noise_scale = 0.0
+forward_vel_max = 0.25
+fall_penalty = -25.0
+energy_penalty_weight = 0.02
+smoothness_weight = 0.02
+spin_penalty_weight = 0.02
+lateral_penalty_weight = 0.1
+max_tilt_angle = 0.7
+forward_vel_weight = 0.0
+alive_bonus = 1.0
+posture_weight = 1.0
+height_weight = 1.0
+home_pose_weight = 0.15
+drift_penalty_weight = 0.5
+heading_weight = 0.0
+gait_symmetry_weight = 0.0
+target_approach_weight = 0.0
+target_reach_bonus = 0.0
+prey_distance_range = [0.8, 1.2]
+prey_lateral_range = [0.0, 0.0]
+
+[ppo]
+learning_rate = 0.00003
+learning_rate_end = 0.00001
+lr_schedule = "linear"
+n_steps = 1024
+batch_size = 64
+n_epochs = 5
+gamma = 0.99
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.005
+ent_coef_end = 0.0
+ent_coef_decay_timesteps = 7000000
+target_kl = 0.03
+max_grad_norm = 0.5
+
+[ppo.policy_kwargs]
+net_arch = [128, 128]
+log_std_init = -2.0
+
+[sac]
+learning_rate = 0.0003
+buffer_size = 100000
+learning_starts = 1000
+batch_size = 128
+tau = 0.005
+gamma = 0.99
+train_freq = 4
+gradient_steps = 1
+ent_coef = "auto"
+
+[sac.policy_kwargs]
+net_arch = [128, 128]
+
+[curriculum]
+gate_schema_version = 1
+gate_kind = "stance_quality/v1"
+# Shared PPO/SAC ceiling, chosen from Tyrannosaurus Rex PPO evidence; neither
+# Compsognathus algorithm has a measured convergence budget yet.
+timesteps = 11000000
+# 60% of the 3,000-point stance ceiling, approximately 60% of the measured
+# anatomical standing baseline (2,998.74). Matches Tyrannosaurus Rex's
+# baseline-relative fraction (2,100 / 3,495.2), rounded to a fixed threshold.
+# Foot support and survival are still required independently.
+min_avg_reward = 1800.0
+# Mechanical stance criteria follow configs/trex/stance.toml. The reward rail
+# above remains species-specific because the reward functions differ.
+min_full_horizon_fraction = 0.95
+max_unsupported_duty = 0.02
+max_unsupported_duty_ucb = 0.02
+# Same 20% settling prefix as T-Rex: 200 of 1,000 steps. At 50 Hz this is
+# 4 seconds, leaving 16 seconds of duty measurement in the 20-second episode.
+settle_steps = 200
+min_eval_episodes = 40
+required_consecutive = 3
+# Deliberately omit a collapse floor: the shared detector stays unarmed until
+# this plant has a learning history to calibrate it. Baseline reporting is advisory.

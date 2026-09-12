@@ -1,0 +1,274 @@
+{
+  "schema": "mesozoic.training-infrastructure-validation/v1",
+  "date": "2026-09-08",
+  "scope": "SB3 simulation infrastructure; no learned-walking or hardware-readiness claim",
+  "runtime": {
+    "python": "3.12.13",
+    "platform": "Linux x86_64",
+    "mujoco": "3.10.0",
+    "gymnasium": "1.3.0",
+    "numpy": "2.3.5",
+    "torch": "2.9.0+cpu",
+    "stable_baselines3": "2.9.0"
+  },
+  "checks": {
+    "broad_regression": {
+      "passed": 2507,
+      "skipped": 113,
+      "note": "Optional backend tests skipped; affected modules rechecked after final fixes."
+    },
+    "final_affected_module_regression": {
+      "passed": 249
+    },
+    "environment_and_sweep_resolution": {
+      "passed": 20
+    },
+    "real_training_integration": {
+      "passed": 8
+    },
+    "model_validation_trials": {
+      "passed": 26
+    },
+    "notebook_code_cells_parsed": 80,
+    "ci_mypy_source_files": 303,
+    "ruff": "passed",
+    "website_production_build": "passed"
+  },
+  "plant_identities": {
+    "compsognathus": {
+      "schema": "mesozoic.plant-identity/v1",
+      "species": "compsognathus",
+      "model_path": "environments/compsognathus/assets/compsognathus.xml",
+      "physics_revision": 1,
+      "policy_interface_revision": 1,
+      "visual_revision": 1,
+      "source_closure_sha256": "sha256:4f36e487862eef18eda24667e532a824491166159c69200ff8c3ad4c87a7f26b",
+      "policy_interface_sha256": "sha256:5d68b303f458b413ef7ca0615070ea384fbfefa9f0b46a4ee1fea5c828f6e37f",
+      "physics_sha256": "sha256:08a5fbf7c03d251308ec8815b6b53af5e6c1a1a4d343a11700284fe389d6be33",
+      "visual_sha256": "sha256:b3a0d649caee2314772b49b4ab23ff6ab3e61398099546e61034b78ab94cb17b",
+      "nq": 24,
+      "nv": 23,
+      "nu": 14,
+      "observation_dim": 53,
+      "action_dim": 14
+    },
+    "compsognathus_robot": {
+      "schema": "mesozoic.plant-identity/v1",
+      "species": "compsognathus_robot",
+      "model_path": "environments/compsognathus/assets/compsognathus_robot.xml",
+      "physics_revision": 1,
+      "policy_interface_revision": 1,
+      "visual_revision": 1,
+      "source_closure_sha256": "sha256:c0f948f27f99136d5719803060289d7131694140913f5e7072081aa0d69c928c",
+      "policy_interface_sha256": "sha256:4debe06fb07181c1cdd8d51c814484c1082880a70cec87750cee3743845cbe60",
+      "physics_sha256": "sha256:728f0c03fb67f66056b8383e85a625aed892d3ed255760d6a70f3123bb71386d",
+      "visual_sha256": "sha256:ff33b8bebd0677d212c98858ab9507a274966ffa610bfc79fbef653e77cebf6d",
+      "nq": 19,
+      "nv": 18,
+      "nu": 12,
+      "observation_dim": 43,
+      "action_dim": 12
+    }
+  },
+  "shared_trainer_trials": [
+    {
+      "species": "compsognathus",
+      "algorithm": "PPO",
+      "stage": 1,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus",
+      "algorithm": "PPO",
+      "stage": 2,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus",
+      "algorithm": "PPO",
+      "stage": 3,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus_robot",
+      "algorithm": "PPO",
+      "stage": 1,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus_robot",
+      "algorithm": "PPO",
+      "stage": 2,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus_robot",
+      "algorithm": "PPO",
+      "stage": 3,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus",
+      "algorithm": "SAC",
+      "stage": 1,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus",
+      "algorithm": "SAC",
+      "stage": 2,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus",
+      "algorithm": "SAC",
+      "stage": 3,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus_robot",
+      "algorithm": "SAC",
+      "stage": 1,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus_robot",
+      "algorithm": "SAC",
+      "stage": 2,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    },
+    {
+      "species": "compsognathus_robot",
+      "algorithm": "SAC",
+      "stage": 3,
+      "training_steps": 64,
+      "episode_horizon": 32,
+      "gradient_updates_and_round_trip_passed": true
+    }
+  ],
+  "notebook_trials": [
+    {
+      "species": "compsognathus",
+      "algorithm": "PPO",
+      "training_steps": 64,
+      "stance_panel_measured": true,
+      "publication_gate_passed": false,
+      "metrics": {
+        "reward_mean": 95.65170615880007,
+        "full_horizon_fraction": 1.0,
+        "mean_unsupported_duty": 0.0
+      }
+    },
+    {
+      "species": "compsognathus_robot",
+      "algorithm": "PPO",
+      "training_steps": 64,
+      "stance_panel_measured": true,
+      "publication_gate_passed": false,
+      "metrics": {
+        "reward_mean": 93.9068777884174,
+        "full_horizon_fraction": 1.0,
+        "mean_unsupported_duty": 0.0
+      }
+    },
+    {
+      "species": "compsognathus",
+      "algorithm": "SAC",
+      "training_steps": 64,
+      "stance_panel_measured": true,
+      "publication_gate_passed": false,
+      "metrics": {
+        "reward_mean": 61.83669132645749,
+        "full_horizon_fraction": 0.85,
+        "mean_unsupported_duty": 0.0
+      }
+    },
+    {
+      "species": "compsognathus_robot",
+      "algorithm": "SAC",
+      "training_steps": 64,
+      "stance_panel_measured": true,
+      "publication_gate_passed": false,
+      "metrics": {
+        "reward_mean": 26.825665540925808,
+        "full_horizon_fraction": 0.4,
+        "mean_unsupported_duty": 0.125
+      }
+    }
+  ],
+  "render_checks": [
+    {
+      "variant": "biological",
+      "view": "external",
+      "shape": [
+        480,
+        640,
+        3
+      ],
+      "dtype": "uint8",
+      "pixel_std": 18.362592541784792
+    },
+    {
+      "variant": "biological",
+      "view": "head_camera",
+      "shape": [
+        480,
+        640,
+        3
+      ],
+      "dtype": "uint8",
+      "pixel_std": 14.302695248730696
+    },
+    {
+      "variant": "robot",
+      "view": "external",
+      "shape": [
+        480,
+        640,
+        3
+      ],
+      "dtype": "uint8",
+      "pixel_std": 21.530152954832786
+    },
+    {
+      "variant": "robot",
+      "view": "head_camera",
+      "shape": [
+        480,
+        640,
+        3
+      ],
+      "dtype": "uint8",
+      "pixel_std": 13.44807547151704
+    }
+  ],
+  "limits": [
+    "Smoke trials use 64 training steps, a 32-step horizon and smaller networks.",
+    "Production gate criteria are preserved; smoke runs do not certify advancement.",
+    "JAX/MJX and distributed Ray execution were not validated for these variants.",
+    "The robot MLP uses privileged simulator state, not camera input or an onboard state estimator.",
+    "Full-scale walking, recovery and target-reaching training remain to be run."
+  ]
+}

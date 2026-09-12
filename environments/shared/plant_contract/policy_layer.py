@@ -335,46 +335,58 @@ def _policy_interface_payload(
     ]
     collision_ids = np.flatnonzero((model.geom_contype != 0) | (model.geom_conaffinity != 0))
     sb3_observation_probe = _observation_probe(model, env)
-    jax_interface = _jax_policy_interface_payload(model, env, version)
     action_mapping, jax_action_functions = _action_mapping_contract(model, env)
-    mjx_env_module = importlib.import_module("environments.shared.mjx_env")
-    jax_setup_module = importlib.import_module("environments.shared.jax_setup")
-    backend_observation_equal = np.array_equal(
-        sb3_observation_probe["values"],
-        jax_interface["observation_probe"]["values"],
-    )
-    if require_backend_parity and not backend_observation_equal:
-        raise PlantContractError(
-            f"SB3 and MJX observation probes diverge for {version.species}; "
-            "check cached body IDs, sensor offsets, and observation builders"
-        )
-    interface_implementations = {
+    backends = tuple(getattr(env, "supported_training_backends", ("stable-baselines3", "jax-mjx")))
+    if "stable-baselines3" not in backends or set(backends) - {"stable-baselines3", "jax-mjx"}:
+        raise PlantContractError(f"invalid training backends for {version.species}: {backends}")
+    supports_jax = "jax-mjx" in backends
+    interface_implementations: dict[str, Any] = {
         "sb3_observation": _callable_semantics(env._get_obs),
         "sb3_action_mapping": _callable_semantics(env._scale_action),
-        "backend_neutral_observation": _module_function_semantics(
-            "environments.shared.obs_functions",
-            observation_functions,
-        ),
-        "jax_action_mapping": _module_function_semantics(
-            "environments.shared.mjx_utils",
-            jax_action_functions,
-        ),
-        # These are intentionally production observation callables, not a
-        # parallel test implementation. Reward/termination code stays out
-        # of the interface fingerprint.
-        "jax_observation_callers": {
-            "training_reset_and_step": _callable_semantics(mjx_env_module.build_mjx_observation),
-            "cpu_evaluation": _callable_semantics(jax_setup_module.make_obs_fn),
-        },
     }
+    backend_observation_equal: bool | None = None
+    if supports_jax:
+        jax_interface = _jax_policy_interface_payload(model, env, version)
+        mjx_env_module = importlib.import_module("environments.shared.mjx_env")
+        jax_setup_module = importlib.import_module("environments.shared.jax_setup")
+        backend_observation_equal = bool(
+            np.array_equal(sb3_observation_probe["values"], jax_interface["observation_probe"]["values"])
+        )
+        if require_backend_parity and not backend_observation_equal:
+            raise PlantContractError(
+                f"SB3 and MJX observation probes diverge for {version.species}; "
+                "check cached body IDs, sensor offsets, and observation builders"
+            )
+        interface_implementations.update(
+            {
+                "backend_neutral_observation": _module_function_semantics(
+                    "environments.shared.obs_functions",
+                    observation_functions,
+                ),
+                "jax_action_mapping": _module_function_semantics(
+                    "environments.shared.mjx_utils",
+                    jax_action_functions,
+                ),
+                "jax_observation_callers": {
+                    "training_reset_and_step": _callable_semantics(mjx_env_module.build_mjx_observation),
+                    "cpu_evaluation": _callable_semantics(jax_setup_module.make_obs_fn),
+                },
+            }
+        )
+    else:
+        # Explicit capability declaration, never an import-error fallback.
+        # Existing dual-backend species retain their exact payload/digests.
+        jax_interface = {"supported": False, "backend": "jax-mjx"}
+        interface_implementations["supported_training_backends"] = list(backends)
+        interface_implementations["sb3_sensor_cache"] = _callable_semantics(env._cache_ids)
     if str(getattr(env, "action_mapping", _ACTION_MAPPING_MIDPOINT)) == _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL:
-        interface_implementations["home_reset"] = {
-            "sb3": _callable_semantics(env.reset),
-            "jax": _module_function_semantics(
+        home_reset = {"sb3": _callable_semantics(env.reset)}
+        if supports_jax:
+            home_reset["jax"] = _module_function_semantics(
                 "environments.shared.mjx_utils",
                 ("reset_mujoco_data_to_home",),
-            ),
-        }
+            )
+        interface_implementations["home_reset"] = home_reset
     action_filter_cutoff = float(getattr(env, "action_filter_cutoff_hz", 0.0))
     if action_filter_cutoff > 0.0:
         # Conditional: species without the filter keep their fingerprint.

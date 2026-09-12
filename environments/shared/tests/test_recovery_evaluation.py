@@ -115,7 +115,7 @@ class TestPanelHarness:
 
 
 def _resolution(tmp_path, evidence, *, paired_delta=None, min_episodes=2):
-    fingerprint = {"task_sha256": "sha256:task-a"}
+    fingerprint = {"task_sha256": "sha256:task-a", "species": "trex"}
     thresholds = RecoveryGateThresholds(
         min_recovery_success_lcb=0.01,
         t_recover_steps=20,

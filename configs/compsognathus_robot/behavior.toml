@@ -1,0 +1,82 @@
+# Experimental SB3 recipe informed by the current Tyrannosaurus Rex workflow.
+# See environments/compsognathus/TRAINING_RECIPE_REVIEW.md for evidence,
+# validation limits, and the next-run protocol. State observations are privileged.
+[stage]
+name = "target_reach"
+description = "Reach the randomized horizontal target and slow down while upright"
+
+[env]
+frame_skip = 10
+max_episode_steps = 1000
+reset_noise_scale = 0.01
+reset_height_noise_scale = 0.0
+forward_vel_max = 0.15
+fall_penalty = -25.0
+energy_penalty_weight = 0.02
+smoothness_weight = 0.02
+spin_penalty_weight = 0.02
+lateral_penalty_weight = 0.1
+max_tilt_angle = 0.7
+forward_vel_weight = 0.0
+alive_bonus = 0.25
+posture_weight = 0.25
+height_weight = 0.25
+home_pose_weight = 0.02
+drift_penalty_weight = 0.0
+heading_weight = 0.1
+gait_symmetry_weight = 0.0
+target_approach_weight = 8.0
+target_reach_bonus = 25.0
+target_radius = 0.08
+target_max_speed = 0.10
+prey_distance_range = [0.45, 0.9]
+prey_lateral_range = [-0.25, 0.25]
+
+[ppo]
+learning_rate = 0.00003
+learning_rate_end = 0.00001
+lr_schedule = "linear"
+n_steps = 1024
+batch_size = 64
+n_epochs = 5
+gamma = 0.99
+gae_lambda = 0.95
+clip_range = 0.2
+ent_coef = 0.005
+ent_coef_end = 0.001
+ent_coef_decay_timesteps = 2000000
+target_kl = 0.03
+max_grad_norm = 0.5
+
+[ppo.policy_kwargs]
+net_arch = [128, 128]
+log_std_init = -2.0
+
+[sac]
+learning_rate = 0.0003
+buffer_size = 100000
+learning_starts = 1000
+batch_size = 128
+tau = 0.005
+gamma = 0.99
+train_freq = 4
+gradient_steps = 1
+ent_coef = "auto"
+
+[sac.policy_kwargs]
+net_arch = [128, 128]
+
+[curriculum]
+gate_schema_version = 1
+gate_kind = "reward_and_length/v1"
+timesteps = 3000000
+min_avg_reward = 25.0
+min_success_rate = 0.7
+min_eval_episodes = 20
+required_consecutive = 3
+# Make the shared stage-entry settings explicit. Avoid a fourfold entropy-bonus
+# increase from the generic 0.02 default when leaving the supported stance.
+# The shared warm-up uses this entropy setting for both PPO and SAC.
+warmup_timesteps = 100000
+warmup_clip_range = 0.02
+warmup_ent_coef = 0.005

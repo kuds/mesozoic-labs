@@ -22,6 +22,9 @@ ENVIRONMENTS_DIR = Path(__file__).resolve().parents[2]
 
 EXPECTED_MODELS = {
     "brachiosaurus/assets/brachiosaurus.xml": ModelExpectations(38, 37, 30, 175.3),
+    # Model-only prototypes; these entries do not register training environments.
+    "compsognathus/assets/compsognathus.xml": ModelExpectations(24, 23, 14, 1.0),
+    "compsognathus/assets/compsognathus_robot.xml": ModelExpectations(19, 18, 12, 1.5856),
     "dibothrosuchus/assets/dibothrosuchus.xml": ModelExpectations(35, 34, 27, 8.65),
     "trex/assets/trex.xml": ModelExpectations(28, 27, 15, 85.72),
     "velociraptor/assets/raptor.xml": ModelExpectations(31, 30, 22, 13.5),

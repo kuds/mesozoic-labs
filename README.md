@@ -75,7 +75,10 @@ The active-species tables are generated from `configs/species_manifest.toml`, th
 the executable Gymnasium environments, compiled MJCF models, and current stage TOML files. The budgets and
 gates shown are for the Stable-Baselines3 curriculum path. Do not edit the generated block by hand.
 
-### Velociraptor
+<a id="velociraptor"></a>
+<a id="raptor"></a>
+
+### Velociraptor Mongoliensis
 
 Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 
@@ -102,7 +105,10 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 
 [Hugging Face models →](https://huggingface.co/kuds/mesozoic-labs-velocipastor)
 
-### T-Rex
+<a id="trex"></a>
+<a id="t-rex"></a>
+
+### Tyrannosaurus Rex
 
 Apex Predator. **Specialty:** Head-contact attack task.
 
@@ -118,7 +124,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
 |---|---|---:|---:|
 | 1 — Balance | Learn to stand and balance without falling | 11M | reward ≥ 2100; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
-| recovery — Recovery | Hold the stance against scheduled external pushes and recover from each | 3M | recovery success LCB95 ≥ 0.3; paired Δ vs zero-action null LCB95 ≥ 0.2; re-entry ≤ 100 steps + 50-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
+| recovery — Recovery | Hold the stance against scheduled external pushes and recover from each | 3M | recovery success LCB95 ≥ 0.3; paired Δ vs each required frozen null LCB95 ≥ 0.2; re-entry ≤ 100 steps + 50-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
 | 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 1 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
 | 3 — Bite | Sprint to prey and make contact with the head bite proxy | 8M | reward ≥ 100; avg. velocity ≥ 2 m/s; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
@@ -128,7 +134,10 @@ Apex Predator. **Specialty:** Head-contact attack task.
 
 [Full documentation →](environments/trex/README.md)
 
-### Brachiosaurus
+<a id="brachiosaurus"></a>
+<a id="brachio"></a>
+
+### Brachiosaurus Altithorax
 
 Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 
@@ -152,7 +161,10 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 
 [Full documentation →](environments/brachiosaurus/README.md)
 
-### Dibothrosuchus
+<a id="dibothrosuchus"></a>
+<a id="dibo"></a>
+
+### Dibothrosuchus Elaphros
 
 Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 
@@ -176,6 +188,62 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 - **JAX/MJX — Snout-tip proximity snap proxy:** The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
 
 [Full documentation →](environments/dibothrosuchus/README.md)
+
+<a id="compsognathus"></a>
+<a id="compso"></a>
+
+### Compsognathus Longipes
+
+Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
+
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 53 |
+| Action dimension / actuators | 14 |
+| Generalized coordinates / velocities | nq=24, nv=23 |
+| Compiled dynamic model mass | 1.0 kg |
+| Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Model | `environments/compsognathus/assets/compsognathus.xml` |
+
+| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---:|---:|
+| 1 — Balance | Hold an upright stance with foot support | 11M | reward ≥ 1800; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
+| recovery — Recovery | Pilot: recover an upright stance after calibrated horizontal pushes | 3M | recovery success LCB95 ≥ 0.5; paired Δ vs each required frozen null LCB95 ≥ 0.1; re-entry ≤ 40 steps + 20-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
+| 2 — Locomotion | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.08 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 3 — Target Reach | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
+
+[Full documentation →](environments/compsognathus/README.md)
+
+<a id="compsognathus_robot"></a>
+<a id="compso-robot"></a>
+
+### Compsognathus Longipes (Robot)
+
+Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fixed head and tail.
+
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 43 |
+| Action dimension / actuators | 12 |
+| Generalized coordinates / velocities | nq=19, nv=18 |
+| Compiled dynamic model mass | 1.6 kg |
+| Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
+| Model | `environments/compsognathus/assets/compsognathus_robot.xml` |
+
+| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---:|---:|
+| 1 — Balance | Hold an upright stance with foot support | 11M | reward ≥ 1800; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
+| recovery — Recovery | Pilot: recover an upright stance after calibrated horizontal pushes | 3M | recovery success LCB95 ≥ 0.5; paired Δ vs each required frozen null LCB95 ≥ 0.1; re-entry ≤ 40 steps + 20-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
+| 2 — Locomotion | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.04 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 3 — Target Reach | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
+
+[Full documentation →](environments/compsognathus/README.md)
 <!-- END GENERATED: SPECIES -->
 
 ### Planned Species
@@ -251,7 +319,7 @@ The summaries below are historical experiment records generated from the version
 `results/`. They are not evidence for the current model revision unless provenance is marked both current
 and verified. Current stage budgets may therefore differ from the steps reported here.
 
-### Velociraptor (PPO · Stable-Baselines3) — 2026-03-15
+### Velociraptor Mongoliensis (PPO · Stable-Baselines3) — 2026-03-15
 
 **Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 11:25:15. [Source summary](results/velociraptor/ppo/summary.json).
 
@@ -263,7 +331,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
-### Velociraptor (SAC · Stable-Baselines3) — 2026-03-21
+### Velociraptor Mongoliensis (SAC · Stable-Baselines3) — 2026-03-21
 
 **Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 22:59:18. [Source summary](results/velociraptor/sac/summary.json).
 
@@ -275,7 +343,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 
-### T-Rex (PPO · Stable-Baselines3) — 2026-03-18
+### Tyrannosaurus Rex (PPO · Stable-Baselines3) — 2026-03-18
 
 **Provenance:** Historical model; unverified; evaluation episode count not recorded; Stable-Baselines3 (version not recorded). **Run total:** 22M steps; 13:02:32. [Source summary](results/trex/ppo/summary.json).
 
@@ -287,7 +355,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 
 **Current Stable-Baselines3 catalog definition for this task label:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
 
-### Brachiosaurus (PPO · Stable-Baselines3) — 2026-07-18
+### Brachiosaurus Altithorax (PPO · Stable-Baselines3) — 2026-07-18
 
 **Provenance:** Historical model; unverified; 30 evaluation episodes; Stable-Baselines3 (version not recorded). **Run total:** 34.0214M steps; 19:46:16. [Source summary](results/brachiosaurus/ppo/summary.json).
 

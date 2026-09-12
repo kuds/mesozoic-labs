@@ -1,4 +1,4 @@
-# Dibothrosuchus elaphros Environment
+# Dibothrosuchus Elaphros Environment
 
 A small, gracile crocodylomorph locomotion and snout-contact environment built with MuJoCo and Gymnasium.
 
@@ -20,7 +20,7 @@ The model is a research abstraction, not a validated reconstruction.
 ## Generated Specifications, Curriculum, and Results
 
 The authoritative public dimensions, current stage budgets, success criterion, and provenance-labelled historical
-results are in the generator-managed [Dibothrosuchus catalog entry](../../README.md#dibothrosuchus). They are derived
+results are in the generator-managed [Dibothrosuchus Elaphros catalog entry](../../README.md#dibothrosuchus). They are derived
 from the species manifest, executable environment, compiled MJCF, current TOML stage configs, and result summaries.
 
 No training runs have been published for this species yet, so the catalog entry carries no results table.

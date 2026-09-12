@@ -12,6 +12,7 @@ from typing import Any
 from environments.shared.reporting import CSV_METRIC_COLUMNS
 from environments.shared.reporting import write_results_csv as _write_results_csv
 from environments.shared.reporting.formatting import parse_optional_bool
+from environments.shared.species_names import species_display_name
 
 from .constants import SweepStageError
 
@@ -516,7 +517,7 @@ def plot_sweep_results(csv_path: str | Path, species: str, algorithm: str, save_
 
     # ── Figure 1: Trial Metrics (2x2) ────────────────────────────────────────
     fig1, axes1 = plt.subplots(2, 2, figsize=(14, 10))
-    title = f"{species.capitalize()} {algorithm.upper()} Sweep"
+    title = f"{species_display_name(species)} {algorithm.upper()} Sweep"
     fig1.suptitle(title, fontsize=14, fontweight="bold")
 
     # Build combined x-axis labels: "S{stage}_{trial_id}" for each trial

@@ -1,0 +1,27 @@
+---
+sidebar_position: 6
+---
+
+import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
+import {COMPSOGNATHUS_ROBOT} from '@site/src/data/species';
+
+# Compsognathus Longipes (Robot)
+
+The Rev B robot has a 1.5856 kg allocated mass, 12 leg servos, a fixed head, an unpowered fixed tail, and 43 state observations. Its single head camera, IMU and joint encoders preserve the hardware design direction; the mass allocations still need validation against real parts.
+
+<SpeciesCatalog species={COMPSOGNATHUS_ROBOT} />
+
+## Training
+
+Select **Compsognathus Longipes (Robot)** in the SB3 training notebook. PPO and SAC use separate balance, locomotion and non-contact target-reaching stages. The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
+
+```bash
+python -m pip install -e ".[train]"
+python -m environments.shared.train --species compsognathus_robot train --stage 1
+```
+
+Actions are residual joint-position commands around a preloaded standing pose. The control rate is 50 Hz and the default episode horizon is 20 seconds. Simulator state and target coordinates are privileged MLP inputs; the RGB camera is available separately for rendering. These policies are not onboard camera controllers.
+
+The initial recipes and short integration runs establish training compatibility. They do not establish learned walking, behavior convergence or hardware readiness. The zero-action standing baseline should be measured before tuning, and every stage must pass its recorded curriculum gate before promotion. JAX/MJX training is not implemented for this variant.
+
+See the [model and training guide](https://github.com/kuds/mesozoic-labs/blob/main/environments/compsognathus/README.md) for mechanical assumptions, sensor details and validation commands.

@@ -51,7 +51,7 @@ path = "notebooks/google_drive_summary.ipynb"
 [[species]]
 id = "velociraptor"
 display_order = 1
-display_name = "Velociraptor"
+display_name = "Velociraptor Mongoliensis"
 tagline = "Swift Bipedal Predator"
 gait = "Bipedal"
 specialty = "Sickle-claw contact attacks"
@@ -103,7 +103,7 @@ verification_status = "unverified"
 [[species]]
 id = "trex"
 display_order = 2
-display_name = "T-Rex"
+display_name = "Tyrannosaurus Rex"
 tagline = "Apex Predator"
 gait = "Bipedal"
 specialty = "Head-contact attack task"
@@ -152,7 +152,7 @@ verification_status = "unverified"
 [[species]]
 id = "brachiosaurus"
 display_order = 3
-display_name = "Brachiosaurus"
+display_name = "Brachiosaurus Altithorax"
 tagline = "Gentle Giant Herbivore"
 gait = "Quadrupedal"
 specialty = "Head-to-food reaching"
@@ -189,7 +189,7 @@ repository_commit = "e179198baddbaa1b3003031b7e97472594946b34"
 [[species]]
 id = "dibothrosuchus"
 display_order = 4
-display_name = "Dibothrosuchus"
+display_name = "Dibothrosuchus Elaphros"
 tagline = "Gracile Erect-Limbed Crocodylomorph"
 gait = "Quadrupedal"
 specialty = "Snout-contact snap task"
@@ -210,3 +210,44 @@ backends = ["jax-mjx"]
 key = "snap_proximity_success"
 label = "Snout-tip proximity snap proxy"
 definition = "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
+
+[[species]]
+id = "compsognathus"
+display_order = 5
+display_name = "Compsognathus Longipes"
+tagline = "Small Bipedal Theropod"
+gait = "Bipedal"
+specialty = "Non-contact target reaching"
+aliases = ["compso"]
+env_entrypoint = "environments.compsognathus.envs.compsognathus_env:CompsognathusEnv"
+model_path = "environments/compsognathus/assets/compsognathus.xml"
+training_backends = ["stable-baselines3"]
+training_notebooks = ["sb3_training"]
+result_summary_paths = []
+
+[[species.success_metrics]]
+backends = ["stable-baselines3"]
+key = "target_success"
+label = "Pelvis target-reaching success"
+definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+
+[[species]]
+id = "compsognathus_robot"
+variant_of = "compsognathus"
+display_order = 6
+display_name = "Compsognathus Longipes (Robot)"
+tagline = "Twelve-Servo Biped Prototype"
+gait = "Bipedal"
+specialty = "Non-contact target reaching with fixed head and tail"
+aliases = ["compso-robot"]
+env_entrypoint = "environments.compsognathus.envs.compsognathus_env:CompsognathusRobotEnv"
+model_path = "environments/compsognathus/assets/compsognathus_robot.xml"
+training_backends = ["stable-baselines3"]
+training_notebooks = ["sb3_training"]
+result_summary_paths = []
+
+[[species.success_metrics]]
+backends = ["stable-baselines3"]
+key = "target_success"
+label = "Pelvis target-reaching success"
+definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."

@@ -1,0 +1,78 @@
+{
+  "_comment": "100k-step trials check wiring and early stability, not convergence or the full entropy schedule. Include the 3e-5 recipe baseline; qualify candidates with full runs and held-out gates.",
+  "stage1": {
+    "trials": 4,
+    "timesteps": 100000,
+    "parallel": 1,
+    "n_envs": 2,
+    "ppo_learning_rate": {
+      "type": "double",
+      "min": 1e-05,
+      "max": 0.0003,
+      "scale": "log"
+    },
+    "ppo_batch_size": {
+      "type": "discrete",
+      "values": [
+        64,
+        128
+      ]
+    },
+    "ppo_ent_coef": {
+      "type": "double",
+      "min": 0.001,
+      "max": 0.01,
+      "scale": "log"
+    }
+  },
+  "stage2": {
+    "trials": 4,
+    "timesteps": 100000,
+    "parallel": 1,
+    "n_envs": 2,
+    "ppo_learning_rate": {
+      "type": "double",
+      "min": 1e-05,
+      "max": 0.0003,
+      "scale": "log"
+    },
+    "ppo_batch_size": {
+      "type": "discrete",
+      "values": [
+        64,
+        128
+      ]
+    },
+    "ppo_ent_coef": {
+      "type": "double",
+      "min": 0.001,
+      "max": 0.01,
+      "scale": "log"
+    }
+  },
+  "stage3": {
+    "trials": 4,
+    "timesteps": 100000,
+    "parallel": 1,
+    "n_envs": 2,
+    "ppo_learning_rate": {
+      "type": "double",
+      "min": 1e-05,
+      "max": 0.0003,
+      "scale": "log"
+    },
+    "ppo_batch_size": {
+      "type": "discrete",
+      "values": [
+        64,
+        128
+      ]
+    },
+    "ppo_ent_coef": {
+      "type": "double",
+      "min": 0.001,
+      "max": 0.01,
+      "scale": "log"
+    }
+  }
+}

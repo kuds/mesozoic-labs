@@ -25,6 +25,7 @@ from environments.shared.species_catalog import (
     current_gate_kinds,
     render_readme_results,
 )
+from environments.shared.stage_manifest import load_stage_manifest
 
 
 def test_catalog_derives_current_model_and_stage_facts() -> None:
@@ -47,6 +48,8 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         "trex": (61, 15, 28, 27, 15, 85.72),
         "brachiosaurus": (83, 30, 38, 37, 30, 175.3),
         "dibothrosuchus": (77, 27, 35, 34, 27, 8.65),
+        "compsognathus": (53, 14, 24, 23, 14, 1.0),
+        "compsognathus_robot": (43, 12, 19, 18, 12, 1.5856),
     }
 
     assert [stage["timesteps"] for stage in species["velociraptor"]["stages"]] == [6_000_000, 8_000_000, 12_000_000]
@@ -98,6 +101,8 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "trex": "bipedal-target/v1",
         "brachiosaurus": "quadrupedal-target/v1",
         "dibothrosuchus": "quadrupedal-target/v1",
+        "compsognathus": "bipedal-target/v1",
+        "compsognathus_robot": "bipedal-target/v1",
     }
     # The T-Rex is at physics r5 for the theropod stance correction: the home
     # keyframe moved off a near-straight knee onto a 135 deg one and the leg
@@ -128,6 +133,8 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     expected_policy_revisions = {"velociraptor": 9, "trex": 12, "brachiosaurus": 7, "dibothrosuchus": 6}
     expected_physics_revisions = {"velociraptor": 2, "trex": 7, "brachiosaurus": 4, "dibothrosuchus": 1}
     expected_visual_revisions = {"velociraptor": 3, "trex": 4, "brachiosaurus": 2, "dibothrosuchus": 1}
+    for revisions in (expected_policy_revisions, expected_physics_revisions, expected_visual_revisions):
+        revisions.update(compsognathus=1, compsognathus_robot=1)
     digest_pattern = re.compile(r"sha256:[0-9a-f]{64}")
     for species in catalog["species"]:
         plant = species["model"]["plant_contract"]
@@ -240,8 +247,8 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "dibothrosuchus": stance_null,
     }
 
-    # Only the trex recovery stage declares recovery_quality/v1 criteria;
-    # every numbered stage exports nulls for them.
+    # Recovery stages declare recovery_quality/v1 criteria; every numbered
+    # stage exports nulls for them.
     recovery_null: dict[str, float | None] = {
         "min_recovery_success_lcb": None,
         "min_paired_success_delta_lcb": None,
@@ -257,6 +264,50 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     }
 
     for species_id, entry in species.items():
+        if species_id in ("compsognathus", "compsognathus_robot"):
+            stages_by_id = {stage["id"]: stage for stage in entry["stages"]}
+            first, second, third = (
+                stages_by_id[stage_id]["advancement_gate"] for stage_id in ("stance", "locomotion", "behavior")
+            )
+            assert first["gate_kind"] == "stance_quality/v1"
+            assert first["min_avg_reward"] == 1800
+            assert first["min_full_horizon_fraction"] == 0.95
+            assert first["max_unsupported_duty"] == 0.02
+            assert first["max_unsupported_duty_ucb"] == 0.02
+            assert second["min_avg_forward_velocity"] == (0.04 if species_id.endswith("_robot") else 0.08)
+            assert second["min_avg_episode_length"] == 900
+            assert third["min_success_rate"] == 0.7
+            assert third["min_avg_episode_length"] is None
+            assert first["min_eval_episodes"] == 40
+            assert all(gate["min_eval_episodes"] == 20 for gate in (second, third))
+            # The semantic recovery row is published without renumbering the
+            # advancing curriculum or turning its pilot verdict into a handoff.
+            assert [stage.id for stage in load_stage_manifest(species_id).advancing_stages] == [
+                "stance",
+                "locomotion",
+                "behavior",
+            ]
+            assert [stages_by_id[stage_id]["number"] for stage_id in ("stance", "locomotion", "behavior")] == [1, 2, 3]
+            recovery = stages_by_id["recovery"]
+            assert recovery["number"] is None
+            assert recovery["label"] == "recovery"
+            assert recovery["timesteps"] == 3_000_000
+            assert recovery["advancement_gate"] == {
+                "gate_kind": "recovery_quality/v1",
+                "pending_gate_kind": None,
+                "min_avg_reward": None,
+                "min_avg_episode_length": None,
+                "min_avg_forward_velocity": None,
+                "min_success_rate": None,
+                "min_eval_episodes": 40,
+                "required_consecutive": 3,
+                "min_recovery_success_lcb": 0.5,
+                "min_paired_success_delta_lcb": 0.1,
+                "recovery_t_recover_steps": 40,
+                "recovery_dwell_steps": 20,
+                **stance_null,
+            }
+            continue
         # Gates are addressed by LEGACY number, not by list position: the
         # trex list has four rows because the recovery stage sits at
         # position 2, and the numbered stages must be unaffected by it.
@@ -377,7 +428,9 @@ def test_manifest_covers_all_curated_results_and_implemented_species() -> None:
         for path in (REPOSITORY_ROOT / "environments").iterdir()
         if path.is_dir() and (path / "envs").is_dir() and (path / "assets").is_dir()
     }
-    assert manifested_species == implemented_species
+    assert manifested_species - {"compsognathus_robot"} == implemented_species
+    robot = next(entry for entry in catalog["species"] if entry["id"] == "compsognathus_robot")
+    assert robot["environment"]["entrypoint"].startswith("environments.compsognathus.envs.")
 
 
 def _published_summary() -> dict[str, Any]:
