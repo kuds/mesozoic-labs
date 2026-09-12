@@ -445,6 +445,18 @@ lineage gains `parent_run_id`, so the bundle audit can verify a cross-run
 parent it cannot verify today (`environments/shared/result_bundle/audit.py`
 checks parents only inside one bundle).
 
+Two rules adopted while implementing Phase A sharpen this. *The chain is
+checked by digest, root-first*: a non-root candidate is reused only when
+its recorded `parent_checkpoint_sha256` equals the digest of the checkpoint
+resolved for its declared parent in the child run — two runs that both
+certified stance produced two different checkpoints, and a walk descends
+from exactly one of them — so a child is reusable only once its parent is,
+and once a node is trained in the child run none of its descendants are
+looked up. *The target is never reused*: the node a run exists to certify
+is always trained; an earlier run's certified target is that run's
+deliverable, published from there. The notebook loop (§4.7) codes against
+the same two rules.
+
 **Curriculum manager.** `CurriculumManager` stays integer-keyed through
 Phase A (`environments/shared/curriculum/manager.py:109-149`): semantic-id
 nodes are judged post-stage, exactly as recovery is today, and the leaf's

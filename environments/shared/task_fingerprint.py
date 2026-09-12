@@ -39,6 +39,12 @@ bump records a v1 fingerprint (TOML-present kwargs only — the
 20260821_142144 run's included), which ``resume_same_stage`` accepts —
 warned, never silently — when every raw kwarg it did record matches the
 current effective config, and still refuses on any actual difference.
+
+Manifest v2 (BEHAVIOR_RECIPES_PLAN §4.2) adds a third, edge-level check on
+top of the two modes: :func:`validate_declared_parent` refuses an
+``initialize_next_stage`` load whose recorded ``stage`` is not the node's
+declared ``warm_start_from`` parent, read off the checkpoint archive by
+:func:`read_checkpoint_task_fingerprint` before anything is created.
 """
 
 from __future__ import annotations
@@ -354,6 +360,124 @@ def validate_model_task(
         )
     return validate_recorded_task(
         raw, current, mode=mode, artifact=artifact, allow_unfingerprinted=allow_unfingerprinted
+    )
+
+
+def read_checkpoint_attribute(checkpoint: "str | Path", attribute: str) -> Any | None:
+    """A JSON-serialisable attribute an SB3 checkpoint ZIP persisted, or ``None``.
+
+    Read straight from the archive's ``data`` member (SB3 stores every
+    JSON-serialisable model attribute there verbatim — the task fingerprint
+    and plant identity dicts included), so a checkpoint's recorded task or
+    plant can be inspected before, and independently of, any model load.
+    A bare stem is resolved the way SB3 and ``config._checkpoint_lineage``
+    resolve it (``<stem>.zip``).  ``None`` for a missing file, a non-ZIP
+    (a JAX ``.pkl``), an archive without a readable ``data`` member, and an
+    absent attribute — every one an honest "not recorded", never a guess.
+    """
+    import zipfile
+
+    path = Path(checkpoint)
+    if not path.is_file() and not path.name.endswith(".zip"):
+        path = path.with_name(path.name + ".zip")
+    if not path.is_file() or not zipfile.is_zipfile(path):
+        return None
+    try:
+        with zipfile.ZipFile(path) as archive:
+            data = json.loads(archive.read("data"))
+    except (KeyError, ValueError, OSError, zipfile.BadZipFile):
+        return None
+    if not isinstance(data, Mapping):
+        return None
+    return data.get(attribute)
+
+
+def read_checkpoint_task_fingerprint(checkpoint: "str | Path") -> dict[str, Any] | None:
+    """The task fingerprint an SB3 checkpoint recorded, or ``None`` when it has none."""
+    raw = read_checkpoint_attribute(checkpoint, MODEL_TASK_ATTRIBUTE)
+    return dict(raw) if isinstance(raw, Mapping) else None
+
+
+def _describe_stage(species: str, ref: Any) -> str:
+    """``3 (behavior)`` / ``'recovery'`` — the reference with its id when the manifest knows it."""
+    from .stage_manifest import StageManifestError, load_stage_manifest
+
+    try:
+        entry = load_stage_manifest(species).resolve(ref)
+    except (StageManifestError, TypeError, ValueError):
+        return repr(ref)
+    if isinstance(ref, str):
+        return repr(entry.id)
+    return f"{ref!r} ({entry.id})"
+
+
+def validate_declared_parent(
+    recorded: Mapping[str, Any] | None,
+    *,
+    declared_parent: "int | str | None",
+    species: str,
+    child_stage: "int | str",
+    artifact: str,
+) -> None:
+    """Refuse an ``initialize_next_stage`` load that does not cross the node's declared edge.
+
+    BEHAVIOR_RECIPES_PLAN §4.2 retarget 3: the stage manifest declares which
+    node each node warm-starts from (``warm_start_from``), and a parent
+    checkpoint whose recorded fingerprint ``stage`` is any other node is
+    refused — before a stage directory, ``stage_config.json`` or an
+    environment exists.  The comparison is against the parent's canonical
+    reference exactly as the fingerprint records it (the legacy integer for a
+    numbered stage, the id otherwise; a bool never matches), and the recorded
+    ``species`` must be this species.
+
+    *declared_parent* ``None`` means *child_stage* is a root: a root accepts
+    only a parent whose recorded stage is the node ITSELF (re-initialising
+    stance from an earlier stance run across a task change — the path a
+    same-stage resume would refuse on the hash) and refuses any other node
+    (decision D-A3).
+
+    A checkpoint with no fingerprint at all (*recorded* ``None``: minted before
+    2026-08-15) cannot be checked; it warns and continues — the same dated
+    valve :func:`validate_recorded_task` applies, kept so the historical
+    checkpoints stay loadable until fingerprinted ones are the norm.
+    """
+    if recorded is None:
+        _logger.warning(
+            "%s carries no task fingerprint (minted before 2026-08-15); its recorded parent stage "
+            "cannot be checked against %s stage %s's declared warm_start_from edge — loading it "
+            "under initialize_next_stage unverified",
+            artifact,
+            species,
+            _describe_stage(species, child_stage),
+        )
+        return
+    recorded_species = recorded.get("species")
+    if recorded_species != species:
+        raise TaskFingerprintError(
+            f"{artifact} records species {recorded_species!r}, not {species!r}; a checkpoint from "
+            "another species cannot initialize this node"
+        )
+    recorded_stage = recorded.get("stage")
+    expected: "int | str" = child_stage if declared_parent is None else declared_parent
+    matches = (
+        not isinstance(recorded_stage, bool) and isinstance(recorded_stage, (int, str)) and recorded_stage == expected
+    )
+    if matches:
+        return
+    recorded_desc = _describe_stage(species, recorded_stage)
+    child_desc = _describe_stage(species, child_stage)
+    if declared_parent is None:
+        raise TaskFingerprintError(
+            f"{artifact} records {species} stage {recorded_desc}, but stage {child_desc} is a root "
+            "node (no warm_start_from): under initialize_next_stage a root accepts only an earlier "
+            "checkpoint of itself. Declare the edge in the species' stage manifest if this node "
+            "should warm-start from that stage."
+        )
+    raise TaskFingerprintError(
+        f"{artifact} records {species} stage {recorded_desc}, but stage {child_desc} declares "
+        f"warm_start_from = {_describe_stage(species, declared_parent)}: an initialize_next_stage "
+        "load must come from the node's declared parent. Load that parent's checkpoint, or change "
+        "the edge in the species' stage manifest."
     )
 
 

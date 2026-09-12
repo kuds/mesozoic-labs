@@ -379,29 +379,32 @@ _RUN_TIMESTAMP_SUFFIX = re.compile(r"_\d{8}_\d{6}$")
 _PATH_TOKEN_SPLIT = re.compile(r"[^A-Za-z0-9]+")
 
 
-def detect_stage_from_path(model_path: str) -> "int | str":
+def detect_stage_from_path(model_path: str, *, species: "str | None" = None) -> "int | str":
     """Infer the stage a checkpoint belongs to from its path, any layout.
 
     Walks path components deepest-first, so the stage directory next to the
     checkpoint always beats an outer folder that merely mentions a stage.
-    Each component is checked for the id-based layouts — ``NN_{id}``
-    (2026-08-20), the same with train()'s run timestamp appended, and the
-    bare id the 20260819 runs used — with the id mapped to its legacy
-    number when it has one and passed through as the semantic id
-    (``"recovery"``) when it does not.  Historical ``stage{N}`` references
-    match as whole tokens only.  Falls back to stage 1, matching the
-    historical default.
+    Each component (with train()'s run timestamp stripped) goes through
+    :func:`~environments.shared.stage_manifest.stage_ref_from_dirname`,
+    which recognises ``stage{N}``, the ``NN_{id}`` layout (2026-08-20) and
+    the bare id the 20260819 runs used, mapping a numbered id to its legacy
+    number and passing a semantic id (``"recovery"``) through.  Species-free
+    (the default) only the reserved ids are recognised — an ``NN_<word>``
+    directory cannot claim a stage on its own (decision D-A12); with
+    *species*, any id that species' manifest declares (``05_follow_direction``
+    -> ``"follow_direction"``) and nothing it does not.  Bare ids are the
+    reserved four only in either mode.  Historical ``stage{N}`` references
+    also match as whole tokens inside a component.  Falls back to stage 1,
+    matching the historical default.
     """
-    from .stage_manifest import KNOWN_STAGE_IDS, LEGACY_STAGE_IDS
+    from .stage_manifest import LEGACY_STAGE_IDS, stage_ref_from_dirname
 
-    id_to_legacy = {stage_id: number for number, stage_id in LEGACY_STAGE_IDS.items()}
     legacy_tokens = {f"stage{number}": number for number in LEGACY_STAGE_IDS}
     for part in reversed(Path(model_path).parts):
         candidate = _RUN_TIMESTAMP_SUFFIX.sub("", part)
-        if len(candidate) > 3 and candidate[:2].isdigit() and candidate[2] == "_":
-            candidate = candidate[3:]
-        if candidate in KNOWN_STAGE_IDS:
-            return id_to_legacy.get(candidate, candidate)
+        ref = stage_ref_from_dirname(candidate, species=species)
+        if ref is not None:
+            return ref
         for token in _PATH_TOKEN_SPLIT.split(part):
             if token in legacy_tokens:
                 return legacy_tokens[token]
@@ -446,7 +449,7 @@ def evaluate(
     logger.info("Loading model from: %s", model_path)
 
     if stage is None:
-        stage = detect_stage_from_path(model_path)
+        stage = detect_stage_from_path(model_path, species=species_cfg.species)
         logger.info("Auto-detected stage %s from filename", stage)
 
     env_kwargs = stage_configs[stage]["env_kwargs"].copy()

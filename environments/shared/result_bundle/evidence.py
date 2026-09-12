@@ -676,7 +676,29 @@ def validate_evaluation_evidence(
                 f"stage {stage} declares gate_kind none/v1, a non-advancing pilot that never "
                 "passes, but the summary records stage_passed=true"
             )
-        if gate_kind == STANCE_GATE_KIND:
+        # Defence in depth beside the schema's own rule: a deliverable the
+        # provenance calls certified must have a recorded pass; a failed
+        # node is bound to its evidence but never certified.
+        deliverables = provenance.get("deliverables")
+        deliverable = deliverables.get(stage_key) if isinstance(deliverables, Mapping) else None
+        if (
+            isinstance(deliverable, Mapping)
+            and deliverable.get("certified") is True
+            and stage_summary.get("stage_passed") is not True
+        ):
+            raise ResultBundleError(
+                f"stage {stage} is recorded as a certified deliverable, but the summary records "
+                f"stage_passed={stage_summary.get('stage_passed')!r}"
+            )
+        # Threshold enforcement is verdict-aware (schema v4): a recorded PASS
+        # must be reproducible from the evidence — that is what certifies
+        # it — while a recorded failure is bound to its evidence above and
+        # below but is not required to fail again here (a criterion such as
+        # required_consecutive or the recovery paired null is not
+        # re-derivable from these files), and can never be certified.  A
+        # failed stance stage therefore needs no panel file.
+        recorded_pass = stage_summary.get("stage_passed") is True
+        if recorded_pass and gate_kind == STANCE_GATE_KIND:
             # The stance criteria REPLACE the legacy threshold loop below
             # rather than joining it: applying `min_avg_reward` here as if it
             # were the gate is the reading this kind exists to reject, and
@@ -691,7 +713,7 @@ def validate_evaluation_evidence(
                 env_kwargs=config_value.get("reward_weights", config_value.get("env_kwargs", {})),
                 stage=stage,
             )
-        else:
+        elif recorded_pass:
             publication_thresholds = {
                 "min_avg_reward": "reward",
                 "min_avg_episode_length": "episode_length",

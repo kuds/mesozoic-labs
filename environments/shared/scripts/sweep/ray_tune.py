@@ -592,6 +592,7 @@ def train_trial(config: dict[str, Any]) -> None:
         write_plant_identity,
     )
     from environments.shared.species_registry import get_species_config
+    from environments.shared.stage_manifest import load_stage_manifest
     from environments.shared.train_base import (
         _stage_entry_shaping_callbacks,
         cosine_schedule,
@@ -814,17 +815,22 @@ def train_trial(config: dict[str, Any]) -> None:
 
         callbacks.append(DiagnosticsCallback(log_dir=str(trial_dir), verbose=0))
 
-        # Stage transition callbacks (stages 2+): a later-stage trial enters on
-        # the previous stage's handoff, the same initialize_next_stage boundary
-        # train_base's launch paths shape. The shared helper carries the
-        # forward_vel_weight > 0 ramp guard (recovery mirrors stance and sets
-        # it to 0.0; ramping 0.1 -> 0.0 would inject a walk incentive the
-        # task fingerprint says is absent).
+        # Stage transition callbacks (nodes with an edge): a later-stage trial
+        # enters on its parent's handoff, the same initialize_next_stage
+        # boundary train_base's launch paths shape, keyed on the node's
+        # manifest edge (warm_start_from) exactly as they are. The shared
+        # helper carries the forward_vel_weight > 0 ramp guard (recovery
+        # mirrors stance and sets it to 0.0; ramping 0.1 -> 0.0 would inject
+        # a walk incentive the task fingerprint says is absent). The sweep's
+        # own load above is validated against the plant only — never against
+        # the task fingerprint or the declared parent (Phase A, plan A6 /
+        # gap-review OP1): the declared-parent refusal train() makes does not
+        # reach cross-stage sweep chaining.
         callbacks.extend(
             _stage_entry_shaping_callbacks(
                 stage_config,
                 task_load_mode="initialize_next_stage",
-                stage_position=stage,
+                parent_id=load_stage_manifest(species).resolve(stage).warm_start_from,
                 load_path=load_path,
             )
         )

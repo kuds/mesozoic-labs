@@ -652,6 +652,87 @@ class TestUploadCurriculumArtifacts:
         assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_best.mp4" in uploaded_paths
         assert f"training/velociraptor/{run}/stage1/velociraptor_ppo_stage1_final.mp4" in uploaded_paths
 
+    @staticmethod
+    def _uploaded_keys(base, species):
+        with patch("environments.shared.config._upload_to_gcs", return_value=True) as mock_upload:
+            upload_curriculum_artifacts(base, species, "ppo", bucket="test-bucket")
+        return [call.args[2] for call in mock_upload.call_args_list]
+
+    def test_nn_id_and_bare_id_dirs_upload_and_unrelated_dirs_do_not(self, tmp_path):
+        """The stage-dir filter is stage_ref_from_dirname with the species in hand."""
+        base = tmp_path / "curriculum_20260901_120000"
+        for name in ("02_recovery", "recovery", "stage1", "models", "replays", "stage4", "ancestors"):
+            (base / name).mkdir(parents=True)
+            (base / name / "stage_config.json").write_text("{}")
+        keys = self._uploaded_keys(base, "trex")
+        run = base.name
+        for name in ("02_recovery", "recovery", "stage1"):
+            assert f"training/trex/{run}/{name}/stage_config.json" in keys
+        for name in ("models", "replays", "stage4", "ancestors"):
+            # Not stage directories: none of their stage-level sidecars
+            # upload (the ancestors/ RECORDS, one directory deeper, do —
+            # test_ancestor_records_upload_beside_the_stages).
+            assert f"training/trex/{run}/{name}/stage_config.json" not in keys, name
+
+    def test_ancestor_records_upload_beside_the_stages(self, tmp_path):
+        """A reused node's ancestors/<id>/ record mirrors in full: the audit requires it."""
+        base = tmp_path / "curriculum_20260906_120000"
+        stage = base / "02_locomotion"
+        (stage / "models").mkdir(parents=True)
+        (stage / "stage_config.json").write_text("{}")
+        record = base / "ancestors" / "stance"
+        record.mkdir(parents=True)
+        record_files = (
+            "ancestor.json",
+            "gate_verdict.json",
+            "stage_config.json",
+            "task_fingerprint.json",
+            "plant_identity.json",
+        )
+        for name in record_files:
+            (record / name).write_text("{}")
+        # Litter beside the records never uploads: only record directories do.
+        (base / "ancestors" / "README.txt").write_text("not a record")
+
+        keys = self._uploaded_keys(base, "trex")
+
+        run = base.name
+        assert f"training/trex/{run}/02_locomotion/stage_config.json" in keys
+        for name in record_files:
+            assert f"training/trex/{run}/ancestors/stance/{name}" in keys, name
+        assert not [key for key in keys if key.endswith("README.txt")]
+        # The record directory is never mistaken for a stage directory.
+        assert not [key for key in keys if "/ancestors/stance/models/" in key]
+
+    def test_an_open_id_dir_uploads_only_when_the_manifest_declares_it(self, tmp_path, monkeypatch):
+        import shutil
+
+        from environments.shared import stage_manifest
+
+        configs = tmp_path / "configs"
+        shutil.copytree(stage_manifest._CONFIGS_DIR / "trex", configs / "trex")
+        species_dir = configs / "pilot"
+        species_dir.mkdir(parents=True)
+        for name in ("stance.toml", "follow_direction.toml"):
+            (species_dir / name).write_text("[stage]\nname = 'x'\n")
+        (species_dir / "stages.toml").write_text(
+            f'schema = "{stage_manifest.STAGE_MANIFEST_SCHEMA_V2}"\n'
+            '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\ndeliverable = true\n'
+            '[[stages]]\nid = "follow_direction"\nconfig = "follow_direction.toml"\nwarm_start_from = "stance"\n'
+            "deliverable = true\n"
+        )
+        monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
+        base = tmp_path / "run"
+        for name in ("01_stance", "02_follow_direction", "02_sprint"):
+            (base / name).mkdir(parents=True)
+            (base / name / "stage_config.json").write_text("{}")
+        keys = self._uploaded_keys(base, "pilot")
+        assert "training/pilot/run/01_stance/stage_config.json" in keys
+        assert "training/pilot/run/02_follow_direction/stage_config.json" in keys
+        assert not [key for key in keys if "02_sprint" in key]
+        # A species whose manifest does not declare the id skips the directory.
+        assert not [key for key in self._uploaded_keys(base, "trex") if "follow_direction" in key]
+
 
 class TestLoadStageConfigTableValidation:
     """Review CF4: a misspelled top-level table must fail, never load as empty.
@@ -724,9 +805,12 @@ class TestSaveStageConfigLoadLineage:
     """Review RP4: the run block records where a stage's weights came from.
 
     The audit reads exactly ``load_path`` / ``load_mode`` /
-    ``parent_checkpoint_sha256`` / ``parent_task_sha256`` and audits each key
-    when present, so a from-scratch stage writes none of them and an
-    unfingerprinted parent leaves the task digest out rather than null.
+    ``parent_checkpoint_sha256`` / ``parent_task_sha256`` /
+    ``parent_run_id`` and audits each key when present, so a from-scratch
+    stage writes none of them, an unfingerprinted parent leaves the task
+    digest out rather than null, and a parent from this run leaves
+    ``parent_run_id`` out (BEHAVIOR_RECIPES_PLAN §4.2: it is written only
+    for a certified ancestor reused from ANOTHER run).
     """
 
     STAGE_CONFIG = {"name": "t", "env_kwargs": {}, "ppo_kwargs": {}, "sac_kwargs": {}, "curriculum_kwargs": {}}
@@ -744,7 +828,7 @@ class TestSaveStageConfigLoadLineage:
         out = save_stage_config(tmp_path / "run", 1, self.STAGE_CONFIG, "PPO")
         assert "run" not in json.loads(out.read_text())
 
-    def test_loaded_checkpoint_records_all_four_keys(self, tmp_path):
+    def test_loaded_checkpoint_records_the_lineage_keys(self, tmp_path):
         from environments.shared.result_bundle import sha256_file
         from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
 
@@ -756,6 +840,39 @@ class TestSaveStageConfigLoadLineage:
         assert run["load_mode"] == "initialize_next_stage"
         assert run["parent_checkpoint_sha256"] == sha256_file(parent)
         assert run["parent_task_sha256"] == digest
+        # A same-run handoff (and a plain --load) never names a parent run.
+        assert "parent_run_id" not in run
+
+    def test_a_cross_run_parent_records_its_run_id(self, tmp_path):
+        parent = _sb3_style_zip(tmp_path / "best_model.zip", {})
+        run = self._run_block(
+            tmp_path, load_path=str(parent), load_mode="initialize_next_stage", parent_run_id="20260901_120000"
+        )
+        assert run["parent_run_id"] == "20260901_120000"
+        for absent in ("", None):
+            run = self._run_block(
+                tmp_path, load_path=str(parent), load_mode="initialize_next_stage", parent_run_id=absent
+            )
+            assert "parent_run_id" not in run
+        # Without a load there is no lineage at all, whatever else is passed.
+        assert "parent_run_id" not in self._run_block(tmp_path, parent_run_id="20260901_120000")
+
+    def test_load_lineage_keys_cover_parent_run_id(self, tmp_path):
+        from environments.shared.result_bundle import audit
+
+        assert LOAD_LINEAGE_KEYS[-1] == "parent_run_id"
+        assert set(audit._LOAD_LINEAGE_KEYS) == set(LOAD_LINEAGE_KEYS)
+        # The audit's rule for the new key: present means a non-empty string.
+        base = {"load_path": "01_stance/models/best_model.zip", "load_mode": "initialize_next_stage"}
+        _, problems = audit._audit_load_lineage(
+            {**base, "parent_run_id": "20260901_120000"}, stage=2, run_path=tmp_path, declared_hashes={}
+        )
+        assert problems == []
+        for bad in ("", "  ", 5, None):
+            _, problems = audit._audit_load_lineage(
+                {**base, "parent_run_id": bad}, stage=2, run_path=tmp_path, declared_hashes={}
+            )
+            assert problems == ["stage 2 config run.parent_run_id must be a non-empty string"], bad
 
     def test_stem_load_path_is_recorded_as_the_zip_it_hashes(self, tmp_path):
         """SB3 loads ``<stem>.zip``; the manifest hashes the ``.zip``.

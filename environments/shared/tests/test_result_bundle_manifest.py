@@ -281,14 +281,28 @@ def test_manifest_refresh_cannot_hide_stale_provenance_hash(
         validate_result_bundle(run_dir)
 
 
-def test_summary_is_rejected_under_a_partial_manifest(
+def test_summary_is_rejected_under_a_failed_manifest(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
+    run_dir = tmp_path / "run"
+    _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
+    write_artifact_manifest(run_dir, status="failed")
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-conflict"
+    assert any("only valid with a complete or partial" in error for error in report["errors"])
+
+
+def test_summary_status_must_agree_with_a_partial_manifest(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """A partial manifest may carry a summary (schema v4), but only one that says partial."""
     run_dir = tmp_path / "run"
     _complete_bundle(run_dir, algorithm="PPO", backend="stable-baselines3")
     write_artifact_manifest(run_dir, status="partial")
 
     report = audit_result_bundle(run_dir)
     assert report["status"] == "canonical-conflict"
-    assert any("only valid with a complete" in error for error in report["errors"])
+    assert any("does not match the artifact manifest status" in error for error in report["errors"])

@@ -933,3 +933,32 @@ class TestPositionPrefixedStageDirs:
             (stage_dir / "metrics.json").write_text(json.dumps({"mean_reward": 1.0}))
         rows = collect_results_from_disk(tmp_path, stages=["recovery"])
         assert [row["stage"] for row in rows] == ["recovery"]
+
+    def test_an_ancestors_directory_is_not_a_stage(self, tmp_path):
+        """A run reusing certified ancestors carries ancestors/<id>/ — records, never results."""
+        import json
+
+        from environments.shared.scripts.sweep.results import collect_results_from_disk
+
+        for name in ("01_stance", "ancestors"):
+            stage_dir = tmp_path / name
+            stage_dir.mkdir()
+            (stage_dir / "metrics.json").write_text(json.dumps({"mean_reward": 1.0}))
+        (tmp_path / "ancestors" / "stance").mkdir()
+        (tmp_path / "ancestors" / "stance" / "metrics.json").write_text(json.dumps({"mean_reward": 9.0}))
+        rows = collect_results_from_disk(tmp_path)
+        assert [row["stage"] for row in rows] == [1]
+
+    def test_an_unreserved_nn_dir_is_skipped_species_free(self, tmp_path):
+        """The collector holds no trustworthy species, so only reserved ids collect (D-A12)."""
+        import json
+
+        from environments.shared.scripts.sweep.results import collect_results_from_disk
+
+        for name in ("01_stance", "05_follow_direction", "05_experiments", "models"):
+            stage_dir = tmp_path / name
+            stage_dir.mkdir()
+            (stage_dir / "metrics.json").write_text(json.dumps({"mean_reward": 1.0}))
+        rows = collect_results_from_disk(tmp_path)
+        assert [row["stage"] for row in rows] == [1]
+        assert collect_results_from_disk(tmp_path, stages=["follow_direction"]) == []

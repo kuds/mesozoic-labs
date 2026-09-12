@@ -13,11 +13,22 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 from environments.shared.reporting import save_evaluation_episodes, save_result_bundle
-from environments.shared.stage_manifest import stage_label
+from environments.shared.result_bundle import (
+    ANCESTOR_RECORD_NAME,
+    ANCESTOR_RECORD_SCHEMA,
+    ANCESTORS_DIRNAME,
+    sha256_file,
+    write_gate_verdict,
+)
+from environments.shared.stage_manifest import load_stage_manifest, stage_label
 
 from .reporting_helpers import make_plant_identity
 
 _COMMIT = "a" * 40
+#: The task fingerprint a reused ancestor carries in every record of it.
+_ANCESTOR_TASK_SHA256 = "sha256:" + "7" * 64
+#: The run the reused trunk came from (its provenance run_id).
+_TRUNK_RUN_ID = "velociraptor-stable-baselines3-ppo-trunk"
 
 
 class _InitializeResultBundleKwargs(TypedDict):
@@ -263,6 +274,139 @@ def _complete_bundle_inputs(
             checkpoint_path=model_dir / "best_model.pkl",
             normalization_path=model_dir / "best_model_vecnorm.pkl",
         )
+    return stage_results, stage_configs
+
+
+def _write_ancestor_record(
+    run_dir: Path,
+    stage: "int | str",
+    *,
+    species: str = "velociraptor",
+    passed: bool = True,
+    parent_run_id: str = _TRUNK_RUN_ID,
+    task_sha256: str = _ANCESTOR_TASK_SHA256,
+    source_run_dir: Path | None = None,
+) -> "tuple[Path, str]":
+    """Write ``ancestors/<stage_id>/`` for a node reused from another run.
+
+    Reproduces the ANCESTORS LAYOUT contract by hand — ``ancestor.json`` plus
+    verbatim copies of the ancestor stage's ``gate_verdict.json``,
+    ``stage_config.json``, ``task_fingerprint.json`` and
+    ``plant_identity.json`` — so this helper pins the layout independently
+    of the writer in ``environments.shared.ancestors``.  The ancestor's
+    handoff pair lives OUTSIDE the bundle (the trunk run's directory); only
+    its hashes travel.  Returns the record directory and the handoff
+    checkpoint's sha256.
+    """
+    entry = load_stage_manifest(species).resolve(stage)
+    source_root = source_run_dir if source_run_dir is not None else run_dir.parent / "trunk-run"
+    source_stage_dir = source_root / _legacy_stage_dirname(stage)
+    source_models = source_stage_dir / "models"
+    source_models.mkdir(parents=True, exist_ok=True)
+    checkpoint = source_models / "best_model.zip"
+    if not checkpoint.exists():
+        checkpoint.write_bytes(f"trunk checkpoint for {entry.id}".encode())
+    normalization = source_models / "best_model_vecnorm.pkl"
+    if not normalization.exists():
+        normalization.write_bytes(f"trunk normalization for {entry.id}".encode())
+    stage_config = {
+        **_stage_config(stage, "PPO", magnitude=1),
+        "species": species,
+        "stage": entry.reference,
+        "algorithm": "PPO",
+        "plant_identity": _plant_identity(species),
+        "task_fingerprint": {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": task_sha256},
+    }
+    (source_stage_dir / "stage_config.json").write_text(
+        json.dumps(stage_config, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    write_gate_verdict(
+        source_stage_dir,
+        species=species,
+        stage=entry.reference,
+        stage_id=entry.id,
+        gate_kind="reward_and_length/v1",
+        gate_schema_version=1,
+        passed=passed,
+        failures=[] if passed else ["min_avg_reward: evidence=0.5 threshold=1.0"],
+        task_sha256=task_sha256,
+        judged_by="reporting.stage_artifacts.generate_stage_artifacts",
+        checkpoint=checkpoint,
+        normalization=normalization,
+    )
+
+    record_dir = run_dir / ANCESTORS_DIRNAME / entry.id
+    record_dir.mkdir(parents=True, exist_ok=True)
+    for name in ("gate_verdict.json", "stage_config.json"):
+        (record_dir / name).write_bytes((source_stage_dir / name).read_bytes())
+    (record_dir / "task_fingerprint.json").write_text(
+        json.dumps(stage_config["task_fingerprint"], indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    (record_dir / "plant_identity.json").write_text(
+        json.dumps(_plant_identity(species), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    record = {
+        "schema": ANCESTOR_RECORD_SCHEMA,
+        "stage_id": entry.id,
+        "stage_key": entry.key,
+        "parent_run_id": parent_run_id,
+        "source_run_dir": str(source_root),
+        "source_stage_dir": str(source_stage_dir),
+        "handoff": {
+            "name": "best_model",
+            "model_path": str(checkpoint),
+            "model_sha256": sha256_file(checkpoint),
+            "normalization_path": str(normalization),
+            "normalization_sha256": sha256_file(normalization),
+        },
+        "task_sha256": task_sha256,
+        "judged_by": "reporting.stage_artifacts.generate_stage_artifacts",
+        "reused_at": "2026-09-06T12:00:00+00:00",
+    }
+    (record_dir / ANCESTOR_RECORD_NAME).write_text(
+        json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return record_dir, sha256_file(checkpoint)
+
+
+def _reused_trunk_bundle_inputs(
+    run_dir: Path,
+    *,
+    reused: "tuple[int | str, ...]" = (1,),
+    trained: "tuple[int | str, ...]" = (2, 3),
+    species: str = "velociraptor",
+    reused_passed: bool = True,
+) -> "tuple[list[dict[str, Any]], dict[int | str, dict[str, Any]]]":
+    """A run that reused *reused* from another run and trained *trained* here.
+
+    Writes an ``ancestors/<id>/`` record per reused node and, on the FIRST
+    trained stage, the run-block lineage a reuse leaves behind:
+    ``load_path`` outside the bundle, ``load_mode`` initialize_next_stage,
+    ``parent_run_id`` and ``parent_checkpoint_sha256`` bound to the record.
+    """
+    stage_results, stage_configs = _complete_bundle_inputs(
+        run_dir, algorithm="PPO", species=species, stage_refs=trained
+    )
+    hashes: dict[Any, str] = {}
+    for stage in reused:
+        record_dir, checkpoint_hash = _write_ancestor_record(run_dir, stage, species=species, passed=reused_passed)
+        hashes[stage] = checkpoint_hash
+    first_trained = trained[0]
+    parent = load_stage_manifest(species).parent_of(first_trained)
+    if parent is not None and parent.reference in hashes:
+        config_path = run_dir / _legacy_stage_dirname(first_trained) / "stage_config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["run"] = {
+            "seed": 42,
+            "n_envs": 4,
+            "load_path": str(run_dir.parent / "trunk-run" / _legacy_stage_dirname(parent.reference) / "models"),
+            "load_mode": "initialize_next_stage",
+            "parent_task_sha256": _ANCESTOR_TASK_SHA256,
+            "parent_checkpoint_sha256": hashes[parent.reference],
+            "parent_run_id": _TRUNK_RUN_ID,
+        }
+        config["run"]["load_path"] += "/best_model"
+        config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return stage_results, stage_configs
 
 

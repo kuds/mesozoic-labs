@@ -19,6 +19,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import math
 import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -190,10 +191,10 @@ def load_stage_config(
         species: Species name (e.g. "velociraptor", "brachiosaurus", "trex").
         stage: Either a legacy stage number (1, 2, or 3 — resolved through
             the stage manifest's legacy_number mapping, so existing callers
-            and artifacts keep their meaning) or a semantic stage ID
-            (``"stance"``/``"recovery"``/``"locomotion"``/``"behavior"``,
-            resolved through the species' stage manifest).  Stages without
-            a legacy number — recovery — are reachable only by ID.
+            and artifacts keep their meaning) or a semantic stage ID — any
+            id the species' manifest declares, resolved through it.  Stages
+            without a legacy number — recovery, every open id — are
+            reachable only by ID.
         config_path: Optional explicit path to a TOML file. Overrides
             automatic discovery when provided.
 
@@ -307,27 +308,80 @@ def build_env(species: str, stage: "int | str", **env_overrides: Any) -> Any:
 def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:
     """The task-fingerprint digest an SB3 checkpoint ZIP recorded, or ``None``.
 
-    Read straight from the archive's ``data`` member (SB3 stores every
-    JSON-serialisable model attribute there verbatim, the fingerprint dict
-    included) so the lineage can be written before — and independently of —
-    the model load.  ``None`` for a checkpoint minted before fingerprints
-    existed and for a non-SB3 file (a JAX ``.pkl``); both are honest
-    "unknown parent task", never a guess.
+    A digest-only view over
+    :func:`~environments.shared.task_fingerprint.read_checkpoint_task_fingerprint`,
+    which reads the archive's ``data`` member so the lineage can be written
+    before — and independently of — the model load.  ``None`` for a
+    checkpoint minted before fingerprints existed and for a non-SB3 file (a
+    JAX ``.pkl``); both are honest "unknown parent task", never a guess.
     """
-    import zipfile
+    from .task_fingerprint import read_checkpoint_task_fingerprint
 
-    from .task_fingerprint import MODEL_TASK_ATTRIBUTE
+    recorded = read_checkpoint_task_fingerprint(checkpoint)
+    digest = recorded.get("task_sha256") if recorded is not None else None
+    return digest if isinstance(digest, str) and digest else None
 
-    if not zipfile.is_zipfile(checkpoint):
+
+#: Run-block key recording how long a stage actually trained, in seconds,
+#: across every session that trained it (decision D-A15).  Written by
+#: :func:`record_stage_duration` on every ``train_stage`` exit rather than by
+#: :func:`save_stage_config`, which runs BEFORE training: a node resumed by
+#: the notebook's resume cell and judged later would otherwise report the
+#: judge session's 0.0 seconds.  Not a lineage key — the audit ignores it.
+STAGE_DURATION_KEY = "duration_seconds"
+
+
+def read_stage_duration(stage_dir: str | Path) -> float | None:
+    """The ``run.duration_seconds`` a stage directory records, or ``None``.
+
+    ``None`` when ``stage_config.json`` is absent, unreadable, has no run
+    block, or the key is missing or not a finite non-negative number — every
+    case an honest "unknown", so a caller accumulating a resumed session's
+    duration starts from nothing rather than from a guess.
+    """
+    path = Path(stage_dir) / "stage_config.json"
+    if not path.is_file():
         return None
     try:
-        with zipfile.ZipFile(checkpoint) as archive:
-            data = json.loads(archive.read("data"))
-    except (KeyError, ValueError, zipfile.BadZipFile):
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return None
-    recorded = data.get(MODEL_TASK_ATTRIBUTE) if isinstance(data, dict) else None
-    digest = recorded.get("task_sha256") if isinstance(recorded, dict) else None
-    return digest if isinstance(digest, str) and digest else None
+    run_block = data.get("run") if isinstance(data, dict) else None
+    value = run_block.get(STAGE_DURATION_KEY) if isinstance(run_block, dict) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    seconds = float(value)
+    return seconds if math.isfinite(seconds) and seconds >= 0.0 else None
+
+
+def record_stage_duration(stage_dir: str | Path, duration_seconds: float) -> Path:
+    """Record *duration_seconds* into ``stage_config.json``'s run block, atomically.
+
+    Sets the value; it does not accumulate.  A caller resuming an
+    interrupted stage reads the prior value with :func:`read_stage_duration`
+    BEFORE it re-saves the stage config (which writes a fresh run block) and
+    records the sum on exit.  A stage directory without ``stage_config.json``
+    is an error: the duration is a property of a recorded stage, not a
+    record on its own.
+    """
+    from .file_io import atomic_write_text
+
+    seconds = float(duration_seconds)
+    if isinstance(duration_seconds, bool) or not math.isfinite(seconds) or seconds < 0.0:
+        raise ValueError(f"duration_seconds must be a finite non-negative number, not {duration_seconds!r}")
+    path = Path(stage_dir) / "stage_config.json"
+    if not path.is_file():
+        raise FileNotFoundError(f"cannot record the stage duration: no stage_config.json in {stage_dir}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} must hold a JSON object")
+    run_block = data.get("run")
+    if not isinstance(run_block, dict):
+        run_block = {}
+    run_block[STAGE_DURATION_KEY] = seconds
+    data["run"] = run_block
+    atomic_write_text(path, json.dumps(data, indent=2) + "\n")
+    return path
 
 
 #: Run-block keys recording where a stage's initial weights came from.  Read
@@ -338,10 +392,19 @@ def _recorded_checkpoint_task_sha256(checkpoint: Path) -> str | None:
 #: ``load_path`` names the file whose sha256 is recorded — ``<stem>.zip`` when
 #: the trainer was handed an SB3 stem — so a parent inside the run directory
 #: resolves to the manifest entry the audit cross-checks the hash against.
-LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256")
+#: ``parent_run_id`` is present iff the parent was a certified ancestor
+#: reused from ANOTHER run (BEHAVIOR_RECIPES_PLAN §4.2): its value is that
+#: run's provenance ``run_id`` when it has one, else the run directory name.
+#: A ``--load`` and a same-run curriculum handoff never write it.
+LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256", "parent_run_id")
 
 
-def _checkpoint_lineage(load_path: str | None, load_mode: str | None) -> dict[str, Any]:
+def _checkpoint_lineage(
+    load_path: str | None,
+    load_mode: str | None,
+    *,
+    parent_run_id: str | None = None,
+) -> dict[str, Any]:
     """The load-lineage keys for a stage's ``run`` block; empty from scratch.
 
     A loaded checkpoint records the path of the file hashed, the load mode,
@@ -351,7 +414,9 @@ def _checkpoint_lineage(load_path: str | None, load_mode: str | None) -> dict[st
     (``train_curriculum`` and the notebook both hand SB3 a stem): the manifest
     hashes the ``.zip``, and a bare stem never matches a manifest key, so the
     audit's parent-hash cross-check would never fire.  A relative path stays
-    relative; nothing else about the path is rewritten.
+    relative; nothing else about the path is rewritten.  ``parent_run_id``
+    is recorded only when it is a non-empty string — the audit reads
+    absence as "the parent came from this run".
     """
     if not load_path:
         return {}
@@ -373,6 +438,8 @@ def _checkpoint_lineage(load_path: str | None, load_mode: str | None) -> dict[st
     parent_task_sha256 = _recorded_checkpoint_task_sha256(checkpoint)
     if parent_task_sha256 is not None:
         lineage["parent_task_sha256"] = parent_task_sha256
+    if isinstance(parent_run_id, str) and parent_run_id:
+        lineage["parent_run_id"] = parent_run_id
     return lineage
 
 
@@ -389,6 +456,7 @@ def save_stage_config(
     *,
     load_path: str | None = None,
     load_mode: str | None = None,
+    parent_run_id: str | None = None,
 ) -> Path:
     """Save the reward weights and model hyperparameters for a stage to JSON.
 
@@ -417,6 +485,9 @@ def save_stage_config(
             given to the trainer, or ``None`` for a from-scratch stage.
         load_mode: The task load mode the checkpoint was loaded under
             (``resume_same_stage`` / ``initialize_next_stage``).
+        parent_run_id: The run the loaded checkpoint was reused from when it
+            is a certified ancestor of ANOTHER run; ``None`` (or empty) for a
+            parent trained in this run or a plain ``--load``.
 
     When a checkpoint was loaded the ``run`` block carries the
     :data:`LOAD_LINEAGE_KEYS` alongside *extra*; a from-scratch stage
@@ -467,7 +538,7 @@ def save_stage_config(
         "hyperparameters": stage_config.get(algo_key, {}),
         "curriculum": stage_config.get("curriculum_kwargs", {}),
     }
-    run_block = {**(extra or {}), **_checkpoint_lineage(load_path, load_mode)}
+    run_block = {**(extra or {}), **_checkpoint_lineage(load_path, load_mode, parent_run_id=parent_run_id)}
     if run_block:
         data["run"] = run_block
     if plant_identity is not None:
@@ -574,6 +645,11 @@ def upload_curriculum_artifacts(
     * Each stage's replay videos (``replays/*.mp4``, or ``*.mp4`` in a
       legacy flat stage directory) →
       ``training/<species>/<run>/stage<N>/``, at the same relative path
+    * Every ancestor record of a node reused from another run
+      (``ancestors/<stage_id>/*`` — ``ancestor.json``, the copied
+      ``gate_verdict.json`` and stage config; never a checkpoint) →
+      ``training/<species>/<run>/ancestors/<stage_id>/``, because the
+      bundle audit requires them and a mirror without them cannot audit
 
     When *bucket* is ``None`` (no GCP info provided), this function is a
     no-op and all artifacts remain local only.
@@ -618,32 +694,33 @@ def upload_curriculum_artifacts(
 
     # 2. Upload per-stage artifacts — every stage directory the run wrote,
     # in either naming generation (stage{N}, bare ids like "recovery", or
-    # the NN_id form new runs use). Iterating the disk instead of a fixed
-    # 1..3 range keeps semantic-only stages (recovery) from silently never
-    # syncing.
-    from .stage_manifest import KNOWN_STAGE_IDS
+    # the NN_id form new runs use), recognised by the one species-aware
+    # helper so any id this species' manifest declares uploads as a stage
+    # and nothing else (``models`` at run level, the ``ancestors`` records
+    # mirrored separately below) ever does.  Iterating the disk instead of
+    # a fixed 1..3 range keeps semantic-only stages (recovery) from silently
+    # never syncing.
+    from .stage_manifest import stage_ref_from_dirname
 
-    stage_dir_list = []
-    for child in sorted(base_dir.iterdir()):
-        if not child.is_dir():
-            continue
-        name = child.name
-        is_legacy = name.startswith("stage") and name[5:].isdigit()
-        is_prefixed = len(name) > 3 and name[:2].isdigit() and name[2] == "_" and name[3:] in KNOWN_STAGE_IDS
-        if is_legacy or is_prefixed or name in KNOWN_STAGE_IDS:
-            stage_dir_list.append(child)
+    stage_dir_list = [
+        child
+        for child in sorted(base_dir.iterdir())
+        if child.is_dir() and stage_ref_from_dirname(child.name, species=species) is not None
+    ]
     for stage_dir in stage_dir_list:
         # Mirror whatever the run actually named the directory.
         gcs_stage_prefix = f"{gcs_run_prefix}/{stage_dir.name}"
 
         # Summaries and analysis sidecars.  metrics.json / stage_config.json
         # are what `sweep collect-results` consumes, so uploading them makes
-        # the run collectable from GCS alone.
+        # the run collectable from GCS alone; gate_verdict.json lives at the
+        # stage root and is what makes the stage reusable as an ancestor.
         for name in (
             "stage_summary.txt",
             "stage_config.json",
             "plant_identity.json",
             "task_fingerprint.json",
+            "gate_verdict.json",
             "metrics.json",
             "evaluations.npz",
             "diagnostics.npz",
@@ -691,3 +768,28 @@ def upload_curriculum_artifacts(
                 _upload_to_gcs(
                     model_file, bucket, f"{gcs_model_prefix}/{model_file.name}", project=project, client=client
                 )
+
+    # 3. Ancestor records (BEHAVIOR_RECIPES_PLAN §4.2).  A node reused from
+    # another run through --trunk-from leaves ancestors/<stage_id>/ holding
+    # ancestor.json and verbatim copies of the ancestor's gate_verdict.json,
+    # stage_config.json, task_fingerprint.json and plant_identity.json —
+    # small records, never the checkpoint.  The bundle audit requires every
+    # record the provenance claims, so a mirror without them audits as a
+    # conflict; every file in every record directory uploads at its own
+    # relative path.
+    from .result_bundle.constants import ANCESTORS_DIRNAME
+
+    ancestors_dir = base_dir / ANCESTORS_DIRNAME
+    if ancestors_dir.is_dir():
+        for record_dir in sorted(ancestors_dir.iterdir()):
+            if not record_dir.is_dir():
+                continue
+            for record_file in sorted(record_dir.iterdir()):
+                if record_file.is_file():
+                    _upload_to_gcs(
+                        record_file,
+                        bucket,
+                        f"{gcs_run_prefix}/{ANCESTORS_DIRNAME}/{record_dir.name}/{record_file.name}",
+                        project=project,
+                        client=client,
+                    )

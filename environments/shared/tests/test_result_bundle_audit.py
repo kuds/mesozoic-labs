@@ -27,9 +27,11 @@ from environments.shared.result_bundle import (
 from environments.shared.result_schema import validate_result_summary
 
 from .result_bundle_helpers import (
+    _TRUNK_RUN_ID,
     _complete_bundle,
     _complete_bundle_inputs,
     _plant_identity,
+    _reused_trunk_bundle_inputs,
     _rewrite_csv_column,
     _snapshot_files,
     _stage_config,
@@ -38,36 +40,296 @@ from .result_bundle_helpers import (
 )
 
 
-def test_partial_bundle_is_valid_but_not_publishable(
+def _save(run_dir: Path, stage_results, stage_configs, *, species: str = "velociraptor", **overrides):
+    kwargs: dict[str, Any] = dict(
+        backend="stable-baselines3",
+        backend_version="test-backend-1.0",
+        parallel_envs=4,
+        evaluation_episodes=3,
+        evaluation_seeds=[101, 102, 103],
+        plant_identity=_plant_identity(species),
+        run_id=f"{species}-{run_dir.name}",
+    )
+    kwargs.update(overrides)
+    return save_result_bundle(stage_results, stage_configs, species, "PPO", 42, run_dir, **kwargs)
+
+
+def test_a_stance_only_certified_run_is_partial_and_publishes_its_stance(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
-    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260718_120000"
-    configs: dict[int | str, dict[str, Any]] = {1: _stage_config(1, "PPO")}
-    _write_stage_configs(run_dir, configs)
+    """Stand is a deliverable in its own right (schema v4, BEHAVIOR_RECIPES_PLAN §4.3).
 
-    paths = save_result_bundle(
-        [_stage_result(1)],
-        configs,
-        "velociraptor",
-        "PPO",
-        42,
-        run_dir,
-        backend="stable-baselines3",
-        backend_version="2.7.0",
-        parallel_envs=4,
-        evaluation_episodes=3,
-        evaluation_seeds=[101],
-        plant_identity=_plant_identity(),
-        run_id="partial-test",
+    A run that certified only stance publishes it — summary.json, primary
+    deliverable ``1`` — as ``partial``: the target (hunt, ``3``) is absent,
+    so the bundle is never ``complete`` and stays writable for the chain's
+    next node.  Before Phase A the same run was partial WITHOUT a summary.
+    """
+    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260718_120000"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1,))
+
+    paths = _save(run_dir, stage_results, stage_configs, run_id="partial-test")
+
+    assert paths["summary"] == run_dir / "summary.json"
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    assert summary["schema_version"] == 4
+    assert summary["bundle_status"] == "partial"
+    assert summary["provenance"]["primary_deliverable"] == "1"
+    assert summary["provenance"]["target_deliverable"] == "3"
+    assert list(summary["provenance"]["deliverables"]) == ["1"]
+    assert summary["provenance"]["deliverables"]["1"]["certified"] is True
+    assert (
+        summary["provenance"]["selected_model_path"] == summary["provenance"]["selected_checkpoints"]["1"]["model_path"]
     )
+    assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "partial"
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-partial"
+    assert report["errors"] == []
+    assert report["primary_deliverable"] == "1"
+    assert validate_result_bundle(run_dir, require_complete=False)["status"] == "canonical-partial"
+    assert validate_result_bundle(run_dir, require_complete=False, require_publishable=True)["status"] == (
+        "canonical-partial"
+    )
+    with pytest.raises(ResultBundleError, match="result bundle is canonical-partial"):
+        validate_result_bundle(run_dir, require_complete=True)
+
+
+def test_a_failed_trunk_publishes_nothing(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """A failed stance certifies nothing downstream: walk and hunt passed their own
+    gates, but their chain runs through the failed root (plan invariant 5)."""
+    run_dir = tmp_path / "failed-trunk"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    stage_results[0]["gate_passed"] = False
+    stage_results[0]["publication_gate_passed"] = False
+
+    paths = _save(run_dir, stage_results, stage_configs)
 
     assert "summary" not in paths
     assert not (run_dir / "summary.json").exists()
-    assert audit_result_bundle(run_dir)["status"] == "partial"
-    assert validate_result_bundle(run_dir, require_complete=False)["status"] == "partial"
-    with pytest.raises(ResultBundleError, match="result bundle is partial"):
+    assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "failed"
+    provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+    assert provenance["primary_deliverable"] is None
+    assert provenance["selected_model_path"] is None
+    assert {key: record["certified"] for key, record in provenance["deliverables"].items()} == {
+        "1": False,
+        "2": False,
+        "3": False,
+    }
+    assert audit_result_bundle(run_dir)["status"] == "failed"
+    assert validate_result_bundle(run_dir, require_complete=False)["status"] == "failed"
+    with pytest.raises(ResultBundleError):
+        validate_result_bundle(run_dir, require_complete=False, require_publishable=True)
+
+
+def test_a_walk_only_run_is_complete_when_targeted(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """A walk-only run writes a valid, COMPLETE bundle when walk was its target (invariant 5)."""
+    run_dir = tmp_path / "walk-only"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1, 2))
+
+    paths = _save(run_dir, stage_results, stage_configs, target_deliverable=2)
+
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    assert summary["bundle_status"] == "complete"
+    assert set(summary["stages"]) == {"1", "2"}
+    assert summary["provenance"]["target_deliverable"] == "2"
+    assert summary["provenance"]["primary_deliverable"] == "2"
+    assert (
+        summary["provenance"]["selected_model_path"] == summary["provenance"]["selected_checkpoints"]["2"]["model_path"]
+    )
+    assert summary["final_avg_reward"] == summary["stages"]["2"]["final_eval_reward"]
+    assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "complete"
+    assert audit_result_bundle(run_dir)["status"] == "canonical-valid"
+    assert validate_result_bundle(run_dir, require_complete=True)["status"] == "canonical-valid"
+
+
+def test_a_walk_only_run_is_partial_when_hunt_was_targeted(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    run_dir = tmp_path / "walk-only-hunt-target"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1, 2))
+
+    paths = _save(run_dir, stage_results, stage_configs)
+
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    assert summary["bundle_status"] == "partial"
+    assert summary["provenance"]["target_deliverable"] == "3"
+    assert summary["provenance"]["primary_deliverable"] == "2"
+    assert audit_result_bundle(run_dir)["status"] == "canonical-partial"
+    with pytest.raises(ResultBundleError, match="result bundle is canonical-partial"):
         validate_result_bundle(run_dir, require_complete=True)
+
+
+def test_a_growing_run_saves_partial_then_complete_without_tripping_immutability(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """The notebook's per-node saves: a partial marker is rebuilt over, a complete one is not."""
+    run_dir = tmp_path / "growing"
+    stance_only, stance_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1,))
+    first = _save(run_dir, stance_only, stance_configs)
+    assert json.loads(first["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "partial"
+
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    second = _save(run_dir, stage_results, stage_configs)
+    assert json.loads(second["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "complete"
+    assert validate_result_bundle(run_dir, require_complete=True)["status"] == "canonical-valid"
+
+    # A different result over a complete marker is still refused (a training
+    # count the evaluation evidence does not bind, so the immutability rule
+    # is what refuses it).
+    stage_results[2]["timesteps"] += 1
+    with pytest.raises(ResultBundleError, match="immutable"):
+        _save(run_dir, stage_results, stage_configs)
+
+
+def test_v1_manifest_species_bundle_rules_are_unchanged(
+    tmp_path: Path,
+    stable_provenance: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Under a synthesized manifest — one deliverable, the last advancing node — the
+    v4 rules collapse to the pre-Phase-A ones, byte for byte in outcome."""
+    import shutil
+
+    from environments.shared import stage_manifest
+    from environments.shared.stage_manifest import load_stage_manifest
+
+    configs = tmp_path / "configs"
+    shutil.copytree(stage_manifest._CONFIGS_DIR / "velociraptor", configs / "velociraptor")
+    (configs / "velociraptor" / "stages.toml").unlink()
+    monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
+    manifest = load_stage_manifest("velociraptor")
+    assert manifest.synthesized and [entry.id for entry in manifest.deliverables] == ["behavior"]
+
+    # A passing stance-only run: partial WITHOUT a summary.
+    stance_dir = tmp_path / "stance-only"
+    stance_only, stance_configs = _complete_bundle_inputs(stance_dir, algorithm="PPO", stage_refs=(1,))
+    paths = _save(stance_dir, stance_only, stance_configs)
+    assert "summary" not in paths
+    assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "partial"
+    assert audit_result_bundle(stance_dir)["status"] == "partial"
+
+    # Three stages with the leaf failed: failed, no summary.
+    failed_dir = tmp_path / "leaf-failed"
+    stage_results, stage_configs = _complete_bundle_inputs(failed_dir, algorithm="PPO")
+    stage_results[2]["gate_passed"] = False
+    stage_results[2]["publication_gate_passed"] = False
+    paths = _save(failed_dir, stage_results, stage_configs)
+    assert "summary" not in paths
+    assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "failed"
+
+    # Three passing stages: complete, and the published model is stage 3's.
+    complete_dir = tmp_path / "complete"
+    stage_results, stage_configs = _complete_bundle_inputs(complete_dir, algorithm="PPO")
+    paths = _save(complete_dir, stage_results, stage_configs)
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    assert summary["bundle_status"] == "complete"
+    assert (
+        summary["provenance"]["selected_model_path"] == summary["provenance"]["selected_checkpoints"]["3"]["model_path"]
+    )
+    assert list(summary["provenance"]["deliverables"]) == ["3"]
+    assert audit_result_bundle(complete_dir)["status"] == "canonical-valid"
+
+
+def test_a_reused_trunk_audits_through_the_ancestor_record(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """A run that reused a certified stance from another run (--trunk-from) publishes
+    walk and hunt: the ancestors/ record stands in for the stage it did not train,
+    the lineage's parent_run_id binds to that record, and the audit verifies it."""
+    run_dir = tmp_path / "child-run"
+    stage_results, stage_configs = _reused_trunk_bundle_inputs(run_dir)
+
+    paths = _save(run_dir, stage_results, stage_configs, run_id="child-run")
+
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    assert summary["bundle_status"] == "complete"
+    assert set(summary["stages"]) == {"2", "3"}
+    assert summary["provenance"]["primary_deliverable"] == "3"
+    assert {key: record["certified"] for key, record in summary["provenance"]["deliverables"].items()} == {
+        "2": True,
+        "3": True,
+    }
+    ancestors = summary["provenance"]["ancestors"]
+    assert list(ancestors) == ["1"]
+    assert ancestors["1"]["passed"] is True
+    assert ancestors["1"]["run_id"] == _TRUNK_RUN_ID
+    manifest = json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))
+    assert manifest["status"] == "complete"
+    listed = {entry["path"] for entry in manifest["files"]}
+    assert {"ancestors/stance/ancestor.json", "ancestors/stance/gate_verdict.json"} <= listed
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid", report["errors"]
+    assert report["lineage"]["2"]["parent_run_id"] == _TRUNK_RUN_ID
+    assert validate_result_bundle(run_dir, require_complete=True)["status"] == "canonical-valid"
+
+
+def test_a_reused_ancestor_that_did_not_pass_certifies_nothing(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    run_dir = tmp_path / "child-of-failed-trunk"
+    stage_results, stage_configs = _reused_trunk_bundle_inputs(run_dir, reused_passed=False)
+
+    paths = _save(run_dir, stage_results, stage_configs, run_id="child-of-failed-trunk")
+
+    assert "summary" not in paths
+    assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "failed"
+    provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+    assert {key: record["certified"] for key, record in provenance["deliverables"].items()} == {
+        "2": False,
+        "3": False,
+    }
+    assert provenance["ancestors"]["1"]["passed"] is False
+
+
+def test_a_stage_without_its_declared_parent_is_refused(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Walk recorded without stance — neither trained here nor an ancestors/ record."""
+    run_dir = tmp_path / "orphan-walk"
+    stage_results, stage_configs = _reused_trunk_bundle_inputs(run_dir)
+    import shutil
+
+    shutil.rmtree(run_dir / "ancestors")
+
+    with pytest.raises(ResultBundleError, match="contiguous curriculum prefix.*declared parent"):
+        _save(run_dir, stage_results, stage_configs, run_id="orphan-walk")
+    assert not (run_dir / "summary.json").exists()
+
+
+def test_provenance_ancestors_must_match_the_on_disk_records(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    run_dir = tmp_path / "child-run"
+    stage_results, stage_configs = _reused_trunk_bundle_inputs(run_dir)
+    _save(run_dir, stage_results, stage_configs, run_id="child-run")
+    assert audit_result_bundle(run_dir)["status"] == "canonical-valid"
+
+    # The on-disk record now names another run; the manifest is re-hashed
+    # over it (as a rewrite would), so the disagreement with the provenance
+    # is what the audit has to catch — not a stale hash.
+    record_path = run_dir / "ancestors" / "stance" / "ancestor.json"
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    record["parent_run_id"] = "some-other-run"
+    record_path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_artifact_manifest(run_dir, status="complete")
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-conflict"
+    assert any("provenance.ancestors" in error for error in report["errors"]), report["errors"]
+    # And the lineage that named the recorded run no longer finds it.
+    assert any("parent_run_id" in error for error in report["errors"]), report["errors"]
 
 
 @pytest.mark.parametrize(
@@ -154,11 +416,25 @@ def test_failed_save_preserves_existing_complete_bundle_byte_for_byte(
     assert validate_result_bundle(run_dir)["status"] == "canonical-valid"
 
 
-@pytest.mark.parametrize("failed_stage", [1, 2, 3])
+@pytest.mark.parametrize(
+    ("failed_stage", "expected_status", "expected_primary"),
+    [
+        # A failed root certifies nothing: failed, no summary.
+        (1, "failed", None),
+        # A failed walk leaves stance certified; hunt passed its own gate but
+        # its chain runs through the failed walk, so it is not certified.
+        (2, "partial", "1"),
+        # A failed hunt leaf publishes the certified trunk (plan invariant 5):
+        # the published model is walk's, never the failed leaf's.
+        (3, "partial", "2"),
+    ],
+)
 def test_any_failed_curriculum_gate_is_not_a_complete_bundle(
     tmp_path: Path,
     stable_provenance: None,
     failed_stage: int,
+    expected_status: str,
+    expected_primary: str | None,
 ) -> None:
     run_dir = tmp_path / f"failed-stage-{failed_stage}"
     stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
@@ -181,10 +457,31 @@ def test_any_failed_curriculum_gate_is_not_a_complete_bundle(
         run_id=f"failed-stage-{failed_stage}",
     )
 
-    assert "summary" not in paths
-    assert not (run_dir / "summary.json").exists()
-    assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "failed"
-    assert audit_result_bundle(run_dir)["status"] == "failed"
+    assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == expected_status
+    provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+    assert provenance["target_deliverable"] == "3"
+    assert provenance["primary_deliverable"] == expected_primary
+    assert {key: record["certified"] for key, record in provenance["deliverables"].items()} == {
+        str(stage): stage < failed_stage for stage in (1, 2, 3)
+    }
+    if expected_primary is None:
+        assert "summary" not in paths
+        assert not (run_dir / "summary.json").exists()
+        assert provenance["selected_model_path"] is None
+        assert audit_result_bundle(run_dir)["status"] == "failed"
+    else:
+        summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+        assert summary["bundle_status"] == "partial"
+        assert summary["provenance"]["primary_deliverable"] == expected_primary
+        expected_model = provenance["selected_checkpoints"][expected_primary]["model_path"]
+        assert summary["provenance"]["selected_model_path"] == expected_model
+        assert summary["final_avg_reward"] == summary["stages"][expected_primary]["final_eval_reward"]
+        # The failed stage's honest verdict is recorded, never laundered.
+        assert summary["stages"][str(failed_stage)]["stage_passed"] is False
+        assert audit_result_bundle(run_dir)["status"] == "canonical-partial"
+        assert validate_result_bundle(run_dir, require_complete=False, require_publishable=True)["status"] == (
+            "canonical-partial"
+        )
     with pytest.raises(ResultBundleError):
         validate_result_bundle(run_dir, require_complete=True)
 
@@ -511,6 +808,8 @@ def test_load_lineage_in_stage_config_is_validated_and_surfaced(
         ({"parent_checkpoint_sha256": "sha256:" + "f" * 64}, "but the manifest hashes that artifact as"),
         ({"parent_task_sha256": "not-a-digest"}, "run.parent_task_sha256 must be sha256:<64 lowercase hex>"),
         ({"load_path": ""}, "run.load_path must be a non-empty string"),
+        # A parent from another run must be carried by an ancestors/ record.
+        ({"parent_run_id": "other-run"}, "no ancestors/ record carries a node reused from that run"),
     ],
 )
 def test_inconsistent_load_lineage_fails_before_a_complete_manifest_is_written(
@@ -809,3 +1108,57 @@ def test_complete_bundle_in_position_prefixed_layout_audits_clean(
     # report canonical-conflict.
     assert paths["summary"].is_file()
     result_bundle.validate_result_bundle(run_dir, require_complete=True)
+
+
+class TestAuditLoadLineageAcrossRuns:
+    """A parent_run_id lineage binds to the ancestors/ record carrying that run's checkpoint."""
+
+    PARENT_HASH = "sha256:" + "a" * 64
+
+    def _run_block(self, **overrides: Any) -> dict[str, Any]:
+        block = {
+            "seed": 42,
+            "n_envs": 4,
+            "load_path": "/elsewhere/trunk-run/01_stance/models/best_model",
+            "load_mode": "initialize_next_stage",
+            "parent_task_sha256": "sha256:" + "1" * 64,
+            "parent_checkpoint_sha256": self.PARENT_HASH,
+            "parent_run_id": "trunk-run",
+        }
+        block.update(overrides)
+        return block
+
+    def _audit(self, tmp_path: Path, records: dict[str, dict[str, Any]] | None) -> tuple[Any, list[str]]:
+        from environments.shared.result_bundle.audit import _audit_load_lineage
+
+        return _audit_load_lineage(
+            self._run_block(), stage=2, run_path=tmp_path, declared_hashes={}, ancestor_records=records
+        )
+
+    def test_a_record_from_that_run_with_the_recorded_hash_binds(self, tmp_path: Path) -> None:
+        lineage, problems = self._audit(tmp_path, {"1": {"run_id": "trunk-run", "model_hash": self.PARENT_HASH}})
+        assert problems == []
+        assert lineage["parent_run_id"] == "trunk-run"
+        assert lineage["parent_checkpoint_sha256"] == self.PARENT_HASH
+
+    def test_no_record_from_that_run_is_a_problem(self, tmp_path: Path) -> None:
+        _, problems = self._audit(tmp_path, {})
+        assert len(problems) == 1 and "no ancestors/ record carries a node reused from that run" in problems[0]
+        # A record from a DIFFERENT run does not satisfy it either.
+        _, problems = self._audit(tmp_path, {"1": {"run_id": "another-run", "model_hash": self.PARENT_HASH}})
+        assert len(problems) == 1 and "no ancestors/ record carries" in problems[0]
+
+    def test_a_record_whose_hash_disagrees_is_a_problem(self, tmp_path: Path) -> None:
+        _, problems = self._audit(tmp_path, {"1": {"run_id": "trunk-run", "model_hash": "sha256:" + "b" * 64}})
+        assert len(problems) == 1 and "hash the reused checkpoint as" in problems[0]
+
+    def test_a_parent_elsewhere_without_a_run_id_stays_uncheckable(self, tmp_path: Path) -> None:
+        from environments.shared.result_bundle.audit import _audit_load_lineage
+
+        block = self._run_block()
+        del block["parent_run_id"]
+        lineage, problems = _audit_load_lineage(
+            block, stage=2, run_path=tmp_path, declared_hashes={}, ancestor_records={}
+        )
+        assert problems == []
+        assert lineage is not None and "parent_run_id" not in lineage

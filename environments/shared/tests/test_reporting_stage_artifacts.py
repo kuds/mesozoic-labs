@@ -2,6 +2,7 @@
 
 import csv
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -305,6 +306,10 @@ class TestSaveJaxStageArtifacts:
             best_reward=55.0,
             best_update=10,
             plant_identity=plant_identity(),
+            # A certified stance-only save is publishable (schema v4), and a
+            # publishable bundle records its backend version; the test hosts
+            # need not have jax installed to prove the rest.
+            backend_version="0.4.0-test",
         )
         kwargs.update(overrides)
         return save_jax_stage_artifacts(**kwargs), stage_dir, run_dir
@@ -324,6 +329,9 @@ class TestSaveJaxStageArtifacts:
             "training_summary",
             "provenance",
             "artifact_manifest",
+            # Stand is a deliverable (schema v4): a certified stance-only
+            # save publishes it, so the public summary is written too.
+            "summary",
         }
         assert set(paths.keys()) == expected_keys
 
@@ -444,13 +452,51 @@ class TestSaveJaxStageArtifacts:
         assert "JAX/MJX PPO" in text
         assert (paths["training_summary"].parent / "plant_identity.json").exists()
 
-    def test_partial_bundle_has_no_public_summary(self, tmp_path):
+    def test_a_stance_only_jax_save_is_partial_with_a_summary(self, tmp_path):
+        """Stand is a deliverable (schema v4): a certified stance-only save publishes
+        it as ``partial`` — the run's target (behavior) is absent — never complete."""
         paths, _, run_dir = self._call(tmp_path)
+        from environments.shared.result_bundle import ResultBundleError, validate_result_bundle
+
+        assert paths["summary"] == run_dir / "summary.json"
+        summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+        assert summary["bundle_status"] == "partial"
+        assert summary["provenance"]["primary_deliverable"] == "1"
+        assert summary["provenance"]["target_deliverable"] == "3"
+        assert list(summary["provenance"]["deliverables"]) == ["1"]
+        assert summary["provenance"]["deliverables"]["1"]["certified"] is True
+        assert validate_result_bundle(run_dir, require_complete=False)["status"] == "canonical-partial"
+        assert validate_result_bundle(run_dir, require_complete=False, require_publishable=True)["status"] == (
+            "canonical-partial"
+        )
+        with pytest.raises(ResultBundleError, match="result bundle is canonical-partial"):
+            validate_result_bundle(run_dir, require_complete=True)
+
+    def test_a_failed_stance_jax_save_has_no_summary(self, tmp_path):
+        """Nothing certified, nothing published: a failed stance is ``failed`` with no summary."""
         from environments.shared.result_bundle import validate_result_bundle
 
+        # The JAX save persists the verdict its caller judged; a recorded
+        # failure is bound to its evidence but never re-gated or certified.
+        failed = make_stage_result(
+            stage=1,
+            model_path=str(tmp_path / "run" / "stage1" / "models" / "best_model.pkl"),
+            best_eval_reward=55.0,
+            best_eval_timestep=50000,
+            mean_distance_traveled=2.5,
+            gate_passed=False,
+            publication_gate_passed=False,
+            gate_failures=["min_avg_reward: evidence=55.0 threshold=100.0"],
+        )
+        paths, _, run_dir = self._call(tmp_path, stage_results=failed)
         assert "summary" not in paths
         assert not (run_dir / "summary.json").exists()
-        assert validate_result_bundle(run_dir, require_complete=False)["status"] == "partial"
+        manifest = json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))
+        assert manifest["status"] == "failed"
+        provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+        assert provenance["primary_deliverable"] is None
+        assert provenance["deliverables"]["1"]["certified"] is False
+        assert validate_result_bundle(run_dir, require_complete=False)["status"] == "failed"
 
     def test_csv_upserts_across_stages(self, tmp_path):
         """Each stage is represented once in the regenerated canonical CSV."""
@@ -914,3 +960,115 @@ class TestStageResultDiscoveryAcrossLayouts:
         (tmp_path / "02_locomotion" / "stage_result.json").write_text("{}")
         found = sorted(path.parent.name for path in _iter_stage_result_paths(tmp_path))
         assert found == ["02_locomotion", "stage1"]
+
+
+class TestStageGateVerdictRecord:
+    """The post-stage judge writes gate_verdict.json beside the handoff pair it judged
+    (decision D-A5): hash-bound, task-bound, and never at the cost of the artifacts."""
+
+    STANCE_CONFIG = TestApplyStageGate.STANCE_CONFIG
+    TASK = "sha256:" + "7" * 64
+
+    def _stage_dir(self, tmp_path, *, with_handoff=True):
+        stage_dir = tmp_path / "01_stance"
+        (stage_dir / "models").mkdir(parents=True)
+        if with_handoff:
+            (stage_dir / "models" / "best_model.zip").write_bytes(b"policy weights")
+            (stage_dir / "models" / "best_model_vecnorm.pkl").write_bytes(b"normalisation statistics")
+        (stage_dir / "stage_config.json").write_text(
+            json.dumps({"task_fingerprint": {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": self.TASK}}),
+            encoding="utf-8",
+        )
+        return stage_dir
+
+    def _apply(self, stage_dir, stance_report, *, species="velociraptor", stage=1):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        results = {"best_model_reward": 2297.0, "mean_reward": 2200.0, "timesteps": 10}
+        _apply_stage_gate(
+            stage=stage,
+            stage_config=self.STANCE_CONFIG,
+            stage_results=results,
+            stance_report=stance_report,
+            stage_dir=stage_dir,
+            species=species,
+        )
+        return results
+
+    def test_a_pass_is_recorded_hash_bound_to_the_handoff_it_judged(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import GATE_VERDICT_JUDGED_BY
+        from environments.shared.result_bundle import read_gate_verdict, sha256_file, verdict_is_reusable
+
+        stage_dir = self._stage_dir(tmp_path)
+        results = self._apply(stage_dir, {"gate_kind": "stance_quality/v1", "passed": True, "failures": []})
+
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True and verdict["failures"] == []
+        assert (verdict["species"], verdict["stage"], verdict["stage_id"]) == ("velociraptor", 1, "stance")
+        assert verdict["gate_kind"] == "stance_quality/v1" and verdict["gate_schema_version"] == 1
+        assert verdict["checkpoint"] == "models/best_model.zip"
+        assert verdict["checkpoint_sha256"] == sha256_file(stage_dir / "models" / "best_model.zip")
+        assert verdict["normalization"] == "models/best_model_vecnorm.pkl"
+        assert verdict["normalization_sha256"] == sha256_file(stage_dir / "models" / "best_model_vecnorm.pkl")
+        assert verdict["task_sha256"] == self.TASK
+        assert verdict["judged_by"] == GATE_VERDICT_JUDGED_BY
+        # The numbers the gate was judged on travel with the verdict.
+        assert verdict["stage_result"]["publication_gate_passed"] is True
+        assert verdict["stage_result"]["best_model_reward"] == results["best_model_reward"]
+        assert verdict_is_reusable(verdict)
+
+    def test_a_failure_is_recorded_too_and_is_not_reusable(self, tmp_path):
+        from environments.shared.result_bundle import read_gate_verdict, verdict_is_reusable
+
+        stage_dir = self._stage_dir(tmp_path)
+        results = self._apply(stage_dir, None)
+
+        assert results["publication_gate_passed"] is False
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is False
+        assert verdict["failures"] == results["gate_failures"] and verdict["failures"]
+        assert not verdict_is_reusable(verdict)
+
+    def test_a_stage_without_a_handoff_pair_records_an_unreusable_verdict(self, tmp_path):
+        from environments.shared.result_bundle import read_gate_verdict, verdict_is_reusable
+
+        stage_dir = self._stage_dir(tmp_path, with_handoff=False)
+        self._apply(stage_dir, {"gate_kind": "stance_quality/v1", "passed": True, "failures": []})
+
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True
+        assert verdict["checkpoint_sha256"] is None and verdict["normalization_sha256"] is None
+        assert not verdict_is_reusable(verdict)
+
+    def test_a_stage_the_manifest_does_not_declare_is_recorded_by_reference(self, tmp_path, caplog):
+        from environments.shared.result_bundle import read_gate_verdict
+
+        stage_dir = self._stage_dir(tmp_path)
+        with caplog.at_level(logging.WARNING):
+            self._apply(stage_dir, None, stage="warp")
+
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["stage_id"] == "warp"
+        assert any("is not in the velociraptor manifest" in record.message for record in caplog.records)
+
+    def test_no_stage_dir_means_no_verdict_and_the_gate_still_records(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        results: dict = {"best_model_reward": 2297.0}
+        _apply_stage_gate(stage=1, stage_config=self.STANCE_CONFIG, stage_results=results, stance_report=None)
+        assert results["publication_gate_passed"] is False
+        assert not list(tmp_path.iterdir())
+
+    def test_a_verdict_write_failure_never_costs_the_artifacts(self, tmp_path, caplog, monkeypatch):
+        from environments.shared import result_bundle
+
+        def explode(*args, **kwargs):
+            raise OSError("disk full")
+
+        monkeypatch.setattr(result_bundle, "write_gate_verdict", explode)
+        stage_dir = self._stage_dir(tmp_path)
+        with caplog.at_level(logging.WARNING):
+            results = self._apply(stage_dir, {"gate_kind": "stance_quality/v1", "passed": True, "failures": []})
+        assert results["publication_gate_passed"] is True
+        assert not (stage_dir / "gate_verdict.json").exists()
+        assert any("gate verdict could not be written" in record.message for record in caplog.records)
