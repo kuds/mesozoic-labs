@@ -148,6 +148,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   experiment that blocks P5.
 
 ### Changed
+- **Ancestor reuse is chain-aware and never reuses the target** (Phase A,
+  WS2 follow-up). `find_certified_ancestor` gains rule 4: a non-root
+  candidate must record, in its `stage_config.json` run block, an
+  `initialize_next_stage` load whose `parent_checkpoint_sha256` equals the
+  digest of the checkpoint resolved for its declared parent (the new
+  `parent_model_sha256` argument), and a root candidate must not have
+  entered from a parent at all; ids are never a substitute for the
+  digests, and an unresolved parent refuses the child. `curriculum
+  --trunk-from` resolves each node's parent before consulting the trunk,
+  never looks up a child of a node trained in the same run (nothing earlier
+  descends from a checkpoint the run just produced), and never reuses the
+  run's target — the last advancing stage is always trained, and an earlier
+  run's certified target is that run's deliverable. Every non-reuse is
+  logged with its reason.
 - **The SB3 notebook's opt-in recovery pilot now shapes the bundle status**
   (Phase A, WS3 consequence). Under result schema v4 recovery is a
   deliverable, so a recovery that fails its frozen gate leaves the run

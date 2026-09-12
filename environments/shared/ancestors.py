@@ -13,10 +13,26 @@ on the first failure with a reason naming it:
    CURRENT stage config and the stage directory's own recorded task — exact
    equality, the same check ``resume_same_stage`` applies (the schema-v1
    fingerprint valve is deliberately not extended to reuse);
-4. the handoff pair the directory selects NOW re-hashes to the verdict's
+4. the chain: a non-root node's candidate must record, in its
+   ``stage_config.json`` run block, an ``initialize_next_stage`` load whose
+   ``parent_checkpoint_sha256`` equals the digest of the checkpoint the
+   caller resolved for the node's declared parent (``parent_model_sha256``),
+   so a certified walk is reused only on top of the very stance it was
+   trained from; a root's candidate must not have entered from a parent at
+   all (a ``resume_same_stage`` load is not a parent).  Reuse therefore
+   proceeds root-first: a child is reusable only once its parent is;
+5. the handoff pair the directory selects NOW re-hashes to the verdict's
    digests, so a checkpoint rewritten after judging is refused;
-5. the checkpoint's recorded plant identity validates against the current
+6. the checkpoint's recorded plant identity validates against the current
    plant with no legacy allowance.
+
+Two things the rule never does.  It never reuses a run's TARGET node — the
+node the run exists to certify is always trained; an earlier run's certified
+target is that run's deliverable and is published from there — which is why
+``train_curriculum`` consults the rule for ancestors of the target only.
+And it never treats the checkpoint hashes as replaceable by ids: two runs
+that both certified ``stance`` produced two different checkpoints, and a
+walk descends from exactly one of them.
 
 On reuse the child run records the ancestor under
 ``<run_dir>/ancestors/<stage_id>/``: ``ancestor.json`` plus verbatim copies
@@ -110,6 +126,62 @@ def run_id_for(run_dir: "str | Path") -> str:
     return run_id
 
 
+def _recorded_load_lineage(stage_dir: Path) -> dict[str, Any]:
+    """The load-lineage keys the stage's ``stage_config.json`` run block records.
+
+    Empty for a stage trained from scratch or one whose config is missing
+    or unreadable: rule 4 then reads "no recorded parent", which refuses a
+    non-root candidate and accepts a root, the same fail-closed reading the
+    bundle audit gives an absent lineage.
+    """
+    from .config import LOAD_LINEAGE_KEYS
+
+    path = stage_dir / "stage_config.json"
+    if not path.is_file():
+        return {}
+    try:
+        record: Any = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    run_block = record.get("run") if isinstance(record, Mapping) else None
+    if not isinstance(run_block, Mapping):
+        return {}
+    return {key: run_block[key] for key in LOAD_LINEAGE_KEYS if key in run_block}
+
+
+def _check_chain(stage_dir: Path, *, entry: "StageEntry", parent_model_sha256: "str | None") -> None:
+    """Rule 4: the candidate's recorded parent is the checkpoint resolved for its declared parent."""
+    lineage = _recorded_load_lineage(stage_dir)
+    load_mode = lineage.get("load_mode")
+    recorded_parent = lineage.get("parent_checkpoint_sha256")
+    if entry.warm_start_from is None:
+        if parent_model_sha256 is not None:
+            raise ValueError(f"{entry.id!r} is a root node; no parent checkpoint digest applies to it")
+        if load_mode == "initialize_next_stage":
+            raise AncestorReuseError(
+                f"{stage_dir} entered from a parent checkpoint ({recorded_parent}) under initialize_next_stage, "
+                f"but {entry.id!r} is a root node in the current manifest"
+            )
+        return
+    if not isinstance(parent_model_sha256, str) or not parent_model_sha256:
+        raise AncestorReuseError(
+            f"{entry.id!r} warm-starts from {entry.warm_start_from!r}, which has no resolved certified checkpoint "
+            "in this run, so the candidate's chain cannot be verified (reuse proceeds root-first)"
+        )
+    if load_mode != "initialize_next_stage" or not isinstance(recorded_parent, str) or not recorded_parent:
+        raise AncestorReuseError(
+            f"{stage_dir}/stage_config.json records no initialize_next_stage load "
+            f"(load_mode={load_mode!r}, parent_checkpoint_sha256={recorded_parent!r}), so which "
+            f"{entry.warm_start_from!r} checkpoint it descends from is unknown"
+        )
+    if recorded_parent != parent_model_sha256:
+        raise AncestorReuseError(
+            f"{stage_dir} descends from {entry.warm_start_from!r} checkpoint {recorded_parent}, not the "
+            f"{parent_model_sha256} resolved for {entry.warm_start_from!r} in this run; a certified node is "
+            "reusable only on top of the parent it was trained from"
+        )
+
+
 def find_certified_ancestor(
     run_dir: "str | Path",
     *,
@@ -117,14 +189,19 @@ def find_certified_ancestor(
     entry: "StageEntry",
     current_task_sha256: "str | None",
     plant_identity: "PlantIdentity",
+    parent_model_sha256: "str | None" = None,
 ) -> CertifiedAncestor:
     """Apply the §4.2 reuse rule to *run_dir*'s directory for *entry*.
 
     Raises :class:`AncestorReuseError` naming the first rule that failed
-    (module docstring, rules 1-5); returns the ancestor otherwise.
+    (module docstring, rules 1-6); returns the ancestor otherwise.
     *current_task_sha256* is the digest derived from the CURRENT stage
     config (``derive_stage_task_fingerprint``), which the verdict and the
-    directory's own record must both equal exactly.
+    directory's own record must both equal exactly.  *parent_model_sha256*
+    is the digest of the checkpoint resolved for *entry*'s declared parent
+    (a reused ancestor's ``model_sha256``): required for a non-root node,
+    which is refused when it is None because an unresolved parent leaves the
+    chain unverifiable; it must be None for a root.
     """
     from .curriculum.checkpoints import select_handoff_checkpoint
     from .plant_contract import MODEL_IDENTITY_ATTRIBUTE, PlantCompatibilityError, validate_recorded_identity
@@ -190,7 +267,11 @@ def find_certified_ancestor(
             f"which disagrees with the current task {current_task_sha256}"
         )
 
-    # (4) The handoff pair selected NOW re-hashes to the verdict's digests.
+    # (4) The chain: the candidate descends from the checkpoint resolved for
+    # the node's declared parent, or from nothing when the node is a root.
+    _check_chain(stage_dir, entry=entry, parent_model_sha256=parent_model_sha256)
+
+    # (5) The handoff pair selected NOW re-hashes to the verdict's digests.
     handoff = select_handoff_checkpoint(stage_dir / "models")
     if handoff is None:
         raise AncestorReuseError(
@@ -213,7 +294,7 @@ def find_certified_ancestor(
             f"{verdict.get('normalization')!r}): the VecNormalize sidecar was rewritten after judging"
         )
 
-    # (5) The plant, with no legacy allowance: an untagged ancestor is refused.
+    # (6) The plant, with no legacy allowance: an untagged ancestor is refused.
     raw_identity = read_checkpoint_attribute(model_zip, MODEL_IDENTITY_ATTRIBUTE)
     if raw_identity is not None and not isinstance(raw_identity, Mapping):
         raise AncestorReuseError(

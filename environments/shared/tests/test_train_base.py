@@ -996,7 +996,7 @@ class TestTrainCurriculumWalksTheManifest:
         return record
 
     @staticmethod
-    def _certified_ancestor(trunk: Path, stage_id: str = "stance", stage_key: str = "1"):
+    def _certified_ancestor(trunk: Path, stage_id: str = "stance", stage_key: str = "1", model_sha256: str = "a" * 64):
         from environments.shared.ancestors import CertifiedAncestor
 
         stage_dir = trunk / f"01_{stage_id}"
@@ -1010,7 +1010,7 @@ class TestTrainCurriculumWalksTheManifest:
             handoff_name="best_model",
             model_stem=str(stage_dir / "models" / "best_model"),
             model_zip=stage_dir / "models" / "best_model.zip",
-            model_sha256="sha256:" + "a" * 64,
+            model_sha256="sha256:" + model_sha256,
             normalization_path=stage_dir / "models" / "best_model_vecnorm.pkl",
             normalization_sha256="sha256:" + "b" * 64,
             task_sha256="sha256:" + "c" * 64,
@@ -1021,15 +1021,17 @@ class TestTrainCurriculumWalksTheManifest:
     def test_trunk_from_reuses_a_certified_ancestor_and_trains_the_rest(self, tmp_path, monkeypatch, caplog):
         """BEHAVIOR_RECIPES_PLAN §4.2: a node satisfied by an earlier run's certified checkpoint is
         recorded, not trained; its child enters on that handoff with the trunk's run id as lineage;
-        every node the rule refuses is trained here with the refusal logged."""
+        a node the rule refuses is trained here with the refusal logged, and its children are then
+        trained here without consulting the trunk (nothing there descends from a checkpoint this run
+        produced)."""
         from environments.shared.ancestors import AncestorReuseError
 
         trunk = tmp_path / "trunk-run"
         ancestor = self._certified_ancestor(trunk)
-        asked: list[str] = []
+        asked: list[tuple[str, str | None]] = []
 
-        def find_ancestor(run_dir, *, species, entry, current_task_sha256, plant_identity):
-            asked.append(entry.id)
+        def find_ancestor(run_dir, *, species, entry, current_task_sha256, plant_identity, parent_model_sha256):
+            asked.append((entry.id, parent_model_sha256))
             assert Path(run_dir) == trunk and species == "velociraptor"
             if entry.id == "stance":
                 return ancestor
@@ -1037,7 +1039,9 @@ class TestTrainCurriculumWalksTheManifest:
 
         record = self._run("velociraptor", tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor)
 
-        assert asked == ["stance", "locomotion", "behavior"]
+        # The rule is handed the resolved parent's digest so it can check the
+        # chain (rule 4): None for the root, the reused stance's for walk.
+        assert asked == [("stance", None), ("locomotion", ancestor.model_sha256)]
         # Stance was reused, never trained; walk and hunt were trained here.
         assert [stage for stage, _, _ in record["saved"]] == [2, 3]
         assert [v["stage_id"] for v in record["verdicts"]] == ["locomotion", "behavior"]
@@ -1048,12 +1052,90 @@ class TestTrainCurriculumWalksTheManifest:
         assert record["parent_run_ids"] == [(2, "trunk-run-id"), (3, None)]
         # The reuse left a record in this run, never a checkpoint copy.
         assert [(run_dir, a.stage_id) for run_dir, a in record["ancestors"]] == [(tmp_path, "stance")]
-        refused = [r.message for r in caplog.records if r.message.startswith("Not reusing")]
-        assert len(refused) == 2 and "locomotion" in refused[0] and "behavior" in refused[1]
+        not_reused = [r for r in caplog.records if r.message.startswith("Not reusing")]
+        assert [r.levelno for r in not_reused] == [logging.WARNING, logging.INFO]
+        assert "'locomotion'" in not_reused[0].message and "no gate_verdict.json" in not_reused[0].message
+        assert "'behavior'" in not_reused[1].message and "it is this run's target" in not_reused[1].message
 
-    def test_a_node_whose_parent_has_no_certified_checkpoint_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):
-        """Nothing is trained from scratch silently: with locomotion's edge pointing at the
-        non-advancing recovery node (plan A2), the CLI curriculum stops after stance and says why."""
+    def test_a_child_of_a_node_trained_here_is_not_looked_up(self, tmp_path, monkeypatch, caplog):
+        """Once a node is trained in this run the trunk is not consulted for its children: no earlier
+        run's checkpoint descends from a checkpoint this run just produced, so the chain (rule 4)
+        could never hold.  Every node is still accounted for in the log."""
+        from environments.shared.ancestors import AncestorReuseError
+
+        trunk = tmp_path / "trunk-run"
+        asked: list[str] = []
+
+        def find_ancestor(run_dir, *, entry, **kwargs):
+            asked.append(entry.id)
+            raise AncestorReuseError("stance: gate_verdict.json records a FAILED gate")
+
+        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor)
+
+        assert asked == ["stance"]
+        assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
+        assert record["parent_run_ids"] == [(1, None), (2, None), (3, None)]
+        assert record["ancestors"] == []
+        not_reused = [r for r in caplog.records if r.message.startswith("Not reusing")]
+        assert [r.levelno for r in not_reused] == [logging.WARNING, logging.INFO, logging.INFO]
+        assert "'stance'" in not_reused[0].message and "FAILED gate" in not_reused[0].message
+        assert (
+            "'locomotion'" in not_reused[1].message
+            and "parent 'stance' was trained in this run" in not_reused[1].message
+        )
+        assert "'behavior'" in not_reused[2].message and "it is this run's target" in not_reused[2].message
+
+    def test_trunk_from_reuses_the_whole_chain_but_never_the_target(self, tmp_path, monkeypatch, caplog):
+        """A run's target is what it exists to certify: with stance and walk both certified in the
+        trunk, hunt is still trained here, on the reused walk, with the trunk as its lineage.  An
+        earlier run's certified hunt is that run's deliverable, published from there."""
+        trunk = tmp_path / "trunk-run"
+        stance = self._certified_ancestor(trunk, "stance", "1", model_sha256="a" * 64)
+        locomotion = self._certified_ancestor(trunk, "locomotion", "2", model_sha256="b" * 64)
+        asked: list[tuple[str, str | None]] = []
+
+        def find_ancestor(run_dir, *, entry, parent_model_sha256, **kwargs):
+            asked.append((entry.id, parent_model_sha256))
+            return {"stance": stance, "locomotion": locomotion}[entry.id]
+
+        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor)
+
+        # Root-first, each child checked against the digest its parent resolved to.
+        assert asked == [("stance", None), ("locomotion", stance.model_sha256)]
+        assert [stage for stage, _, _ in record["saved"]] == [3]
+        assert [v["stage_id"] for v in record["verdicts"]] == ["behavior"]
+        assert record["loads"] == [locomotion.model_stem]
+        assert record["saved"] == [(3, locomotion.model_stem, "initialize_next_stage")]
+        assert record["parent_run_ids"] == [(3, "trunk-run-id")]
+        assert [a.stage_id for _, a in record["ancestors"]] == ["stance", "locomotion"]
+        target = [r for r in caplog.records if r.message.startswith("Not reusing 'behavior'")]
+        assert len(target) == 1 and target[0].levelno == logging.INFO
+        assert "it is this run's target" in target[0].message
+
+    def test_a_reused_child_needs_its_parent_resolved_first(self, tmp_path, monkeypatch, caplog):
+        """The parent check precedes reuse: with locomotion's edge pointing at the never-certified
+        recovery node, the trunk is not even consulted for locomotion — a certified walk from
+        anywhere is worth nothing on top of a parent this run does not have."""
+        from environments.shared.ancestors import AncestorReuseError
+
+        trunk = tmp_path / "trunk-run"
+        asked: list[str] = []
+
+        def find_ancestor(run_dir, *, entry, **kwargs):
+            asked.append(entry.id)
+            raise AncestorReuseError("nothing certified here")
+
+        record = self._run_with_recovery_edge(
+            tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor
+        )
+
+        assert asked == ["stance"]
+        assert [stage for stage, _, _ in record["saved"]] == [1]
+        skipped = [r for r in caplog.records if "Skipping 'locomotion'" in r.message]
+        assert len(skipped) == 1 and "declared parent 'recovery' has no certified checkpoint" in skipped[0].message
+
+    def _run_with_recovery_edge(self, tmp_path, monkeypatch, caplog, **run_kwargs):
+        """The trex curriculum with locomotion's edge retargeted at the non-advancing recovery node."""
         import shutil
 
         from environments.shared import config as config_module
@@ -1069,8 +1151,12 @@ class TestTrainCurriculumWalksTheManifest:
         manifest_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
         monkeypatch.setattr(config_module, "_CONFIGS_DIR", configs)
+        return self._run("trex", tmp_path, monkeypatch, caplog, **run_kwargs)
 
-        record = self._run("trex", tmp_path, monkeypatch, caplog)
+    def test_a_node_whose_parent_has_no_certified_checkpoint_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):
+        """Nothing is trained from scratch silently: with locomotion's edge pointing at the
+        non-advancing recovery node (plan A2), the CLI curriculum stops after stance and says why."""
+        record = self._run_with_recovery_edge(tmp_path, monkeypatch, caplog)
 
         assert [stage for stage, _, _ in record["saved"]] == [1]
         assert [v["stage_id"] for v in record["verdicts"]] == ["stance"]

@@ -1619,13 +1619,18 @@ class _ResolvedNode:
 
     ``run_id`` is None for a node trained in this run and the ancestor's
     run id for one reused through ``--trunk-from`` (recorded as the child's
-    ``parent_run_id`` lineage).
+    ``parent_run_id`` lineage).  ``model_sha256`` is the reused handoff's
+    digest — what a child's chain check (reuse rule 4) compares the
+    candidate's recorded ``parent_checkpoint_sha256`` against — and None for
+    a node trained here, whose children are never reused: no earlier run's
+    checkpoint can descend from a checkpoint this run just produced.
     """
 
     model_stem: str
     vecnorm_path: str
     stage_dir: Path
     run_id: str | None
+    model_sha256: str | None = None
 
 
 def train_curriculum(
@@ -1670,8 +1675,15 @@ def train_curriculum(
     satisfy nodes instead of training them, under the reuse rule
     :func:`~environments.shared.ancestors.find_certified_ancestor` applies
     (passed ``gate_verdict.json`` hash-bound to the handoff pair, plant
-    identity validating, recorded task equal to the current config's).  A
-    reused node is recorded under ``ancestors/<stage_id>/`` (never its
+    identity validating, recorded task equal to the current config's, and
+    the candidate's recorded parent checkpoint equal to the one resolved
+    for its declared parent here).  Reuse is root-first and stops at the
+    first node trained in this run: a child of a node trained here is never
+    looked up, because nothing in an earlier run descends from a checkpoint
+    this run just produced.  The run's TARGET — the last advancing node —
+    is never reused either: it is what the run exists to certify, and an
+    earlier run's certified target is that run's deliverable.  A reused
+    node is recorded under ``ancestors/<stage_id>/`` (never its
     checkpoint), writes no ``curriculum_results.csv`` row, and its children
     record ``parent_run_id``; a candidate that fails the rule is trained
     here with the refusal logged.
@@ -1772,7 +1784,37 @@ def train_curriculum(
             plant_identity=plant_identity.to_dict(),
         )
 
-        if trunk_from is not None:
+        # The parent resolves first, for a reused node as much as a trained
+        # one: a node is satisfied — by a checkpoint from anywhere — only on
+        # top of its declared parent's certified checkpoint.
+        if parent is not None and parent.id not in resolved:
+            logger.warning(
+                "Skipping %r: its declared parent %r has no certified checkpoint in this run or "
+                "--trunk-from; not training it from scratch. Stopping the curriculum here — every "
+                "later advancing node's chain runs through it.",
+                entry.id,
+                parent.id,
+            )
+            break
+        parent_node = resolved[parent.id] if parent is not None else None
+
+        if trunk_from is not None and entry is advancing[-1]:
+            logger.info(
+                "Not reusing %r from --trunk-from %s: it is this run's target, and the target is always "
+                "trained here (an earlier run's certified %r is that run's deliverable).",
+                entry.id,
+                trunk_from,
+                entry.id,
+            )
+        elif trunk_from is not None and parent_node is not None and parent_node.run_id is None:
+            logger.info(
+                "Not reusing %r from --trunk-from %s: its parent %r was trained in this run, and no earlier "
+                "run's checkpoint descends from a checkpoint this run produced. Training it here.",
+                entry.id,
+                trunk_from,
+                parent.id if parent is not None else None,
+            )
+        elif trunk_from is not None:
             # Reuse before training: a certified ancestor satisfies the node
             # outright.  Every refusal is logged with its reason and the
             # node is trained here instead — never silently either way.
@@ -1783,6 +1825,7 @@ def train_curriculum(
                     entry=entry,
                     current_task_sha256=task_fingerprint.get("task_sha256"),
                     plant_identity=plant_identity,
+                    parent_model_sha256=parent_node.model_sha256 if parent_node is not None else None,
                 )
             except AncestorReuseError as exc:
                 logger.warning(
@@ -1798,6 +1841,7 @@ def train_curriculum(
                     vecnorm_path=str(ancestor.normalization_path),
                     stage_dir=ancestor.stage_dir,
                     run_id=ancestor.run_id,
+                    model_sha256=ancestor.model_sha256,
                 )
                 logger.info(
                     "Reusing certified %r from run %s: %s (%s) with VecNormalize: %s",
@@ -1815,16 +1859,6 @@ def train_curriculum(
                     logger.info("Auto-advanced to stage %d", manager.current_stage)
                 continue
 
-        if parent is not None and parent.id not in resolved:
-            logger.warning(
-                "Skipping %r: its declared parent %r has no certified checkpoint in this run or "
-                "--trunk-from; not training it from scratch. Stopping the curriculum here — every "
-                "later advancing node's chain runs through it.",
-                entry.id,
-                parent.id,
-            )
-            break
-        parent_node = resolved[parent.id] if parent is not None else None
         load_path = parent_node.model_stem if parent_node is not None else None
         parent_vecnorm_path = parent_node.vecnorm_path if parent_node is not None else None
 

@@ -1,10 +1,12 @@
 """Tests for environments.shared.ancestors — certified-ancestor reuse (BEHAVIOR_RECIPES_PLAN §4.2).
 
-The reuse rule is fail-closed on five independent checks (invariant 6): a
+The reuse rule is fail-closed on six independent checks (invariant 6): a
 candidate whose gate did not pass, whose plant identity mismatches, or whose
 recorded task hash differs from the current stage config is refused, as is a
-checkpoint rewritten after judging.  The record a child run keeps under
-``ancestors/<stage_id>/`` holds JSON sidecars only — never a checkpoint.
+checkpoint rewritten after judging, and a non-root candidate is reused only
+on top of the very parent checkpoint it was trained from (rule 4, the
+chain).  The record a child run keeps under ``ancestors/<stage_id>/`` holds
+JSON sidecars only — never a checkpoint.
 
 SB3-free by construction: checkpoints are ``_sb3_style_zip`` archives (a JSON
 ``data`` member beside fake weights), the idiom ``test_config.py`` uses.
@@ -49,6 +51,7 @@ from .reporting_helpers import make_plant_identity
 #: curriculum tests derive the same digest for stage 1 so reuse can match.
 STANCE_TASK = "sha256:" + "1" * 64
 OTHER_TASK = "sha256:" + "2" * 64
+LOCOMOTION_TASK = "sha256:" + "3" * 64
 JUDGED_BY = "reporting.stage_artifacts.generate_stage_artifacts"
 
 
@@ -79,8 +82,15 @@ def build_trunk_run(
     curriculum: "dict[str, Any] | None" = None,
     verdict: bool = True,
     passed: bool = True,
+    lineage: "dict[str, Any] | None" = None,
 ) -> Path:
-    """A stage directory shaped like a judged run's: handoff pair, sidecars, verdict."""
+    """A stage directory shaped like a judged run's: handoff pair, sidecars, verdict.
+
+    *lineage* is merged into the ``stage_config.json`` run block: the load
+    keys ``save_stage_config`` records for a node that entered from a parent
+    (``load_mode``, ``parent_checkpoint_sha256``, ...).  None is a node
+    trained from scratch, which records no load keys at all.
+    """
     plant = plant or trunk_plant()
     stage_dir = run_dir / stage_dirname
     models = stage_dir / "models"
@@ -111,7 +121,7 @@ def build_trunk_run(
                 "curriculum": curriculum,
                 "task_fingerprint": fingerprint,
                 "plant_identity": plant.to_dict(),
-                "run": {"seed": 1, "timesteps": 1000},
+                "run": {"seed": 1, "timesteps": 1000, **(lineage or {})},
             },
             indent=2,
         )
@@ -290,6 +300,141 @@ class TestFindCertifiedAncestor:
         (stage_dir / "models" / "robust_best_model_vecnorm.pkl").unlink()
         with pytest.raises(AncestorReuseError, match="FAILED gate"):
             _find(tmp_path)
+
+
+def build_chained_trunk(
+    run_dir: Path, *, parent_sha256: "str | None" = None, **locomotion_overrides
+) -> tuple[Path, str]:
+    """A stance root plus a locomotion child that recorded entering from it.
+
+    Returns the locomotion stage directory and the stance handoff's digest —
+    the ``parent_checkpoint_sha256`` the child recorded unless
+    *parent_sha256* overrides it (a child trained from some OTHER stance).
+    """
+    stance_dir = build_trunk_run(run_dir)
+    stance_sha256 = sha256_file(stance_dir / "models" / "robust_best_model.zip")
+    lineage = {
+        "load_path": str(stance_dir / "models" / "robust_best_model.zip"),
+        "load_mode": "initialize_next_stage",
+        "parent_checkpoint_sha256": parent_sha256 or stance_sha256,
+        "parent_task_sha256": STANCE_TASK,
+    }
+    kwargs: dict[str, Any] = dict(
+        stage_dirname="03_locomotion",
+        stage=2,
+        stage_id="locomotion",
+        task_sha256=LOCOMOTION_TASK,
+        curriculum={"gate_kind": "locomotion/v1", "gate_schema_version": 1},
+        lineage=lineage,
+    )
+    kwargs.update(locomotion_overrides)
+    return build_trunk_run(run_dir, **kwargs), stance_sha256
+
+
+def _find_locomotion(run_dir, **overrides):
+    kwargs: dict[str, Any] = dict(
+        entry=load_stage_manifest("trex").by_id("locomotion"),
+        current_task_sha256=LOCOMOTION_TASK,
+    )
+    kwargs.update(overrides)
+    return _find(run_dir, **kwargs)
+
+
+class TestChainRule:
+    """Rule 4: a certified child is reusable only on top of the parent checkpoint it was trained from.
+
+    Two runs that both certified stance produced two different checkpoints;
+    a walk descends from exactly one of them.  Ids are never a substitute
+    for the digests, and reuse proceeds root-first.
+    """
+
+    def test_a_child_is_reused_on_top_of_the_parent_it_was_trained_from(self, tmp_path):
+        locomotion_dir, stance_sha256 = build_chained_trunk(tmp_path)
+
+        ancestor = _find_locomotion(tmp_path, parent_model_sha256=stance_sha256)
+
+        assert ancestor.stage_id == "locomotion" and ancestor.stage_dir == locomotion_dir
+        assert ancestor.task_sha256 == LOCOMOTION_TASK
+
+    def test_a_child_trained_from_another_parent_checkpoint_is_refused(self, tmp_path):
+        """Same ids, same task, a different stance checkpoint: the digest decides, not the id."""
+        other_stance = "sha256:" + "f" * 64
+        _, stance_sha256 = build_chained_trunk(tmp_path, parent_sha256=other_stance)
+
+        with pytest.raises(AncestorReuseError, match=f"descends from 'stance' checkpoint {other_stance}"):
+            _find_locomotion(tmp_path, parent_model_sha256=stance_sha256)
+
+    def test_a_child_that_recorded_no_load_is_refused(self, tmp_path):
+        """A locomotion trained from scratch (or before lineage was recorded) proves no chain."""
+        _, stance_sha256 = build_chained_trunk(tmp_path, lineage=None)
+
+        with pytest.raises(AncestorReuseError, match="records no initialize_next_stage load"):
+            _find_locomotion(tmp_path, parent_model_sha256=stance_sha256)
+
+    def test_a_child_that_entered_under_another_load_mode_is_refused(self, tmp_path):
+        _, stance_sha256 = build_chained_trunk(tmp_path)
+        locomotion_config = tmp_path / "03_locomotion" / "stage_config.json"
+        record = json.loads(locomotion_config.read_text(encoding="utf-8"))
+        record["run"]["load_mode"] = "resume_same_stage"
+        locomotion_config.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+
+        with pytest.raises(AncestorReuseError, match="load_mode='resume_same_stage'"):
+            _find_locomotion(tmp_path, parent_model_sha256=stance_sha256)
+
+    def test_a_child_whose_parent_is_unresolved_is_refused(self, tmp_path):
+        """Reuse is root-first: with no certified stance resolved, the walk's chain cannot be checked."""
+        build_chained_trunk(tmp_path)
+
+        with pytest.raises(AncestorReuseError, match="warm-starts from 'stance', which has no resolved certified"):
+            _find_locomotion(tmp_path, parent_model_sha256=None)
+
+    def test_an_unreadable_stage_config_reads_as_no_recorded_parent(self, tmp_path):
+        """The task still resolves from task_fingerprint.json; the chain then fails closed."""
+        _, stance_sha256 = build_chained_trunk(tmp_path)
+        (tmp_path / "03_locomotion" / "stage_config.json").write_text("{not json", encoding="utf-8")
+
+        with pytest.raises(AncestorReuseError, match="records no initialize_next_stage load"):
+            _find_locomotion(tmp_path, parent_model_sha256=stance_sha256)
+
+    def test_the_chain_is_checked_before_the_handoff_is_hashed(self, tmp_path):
+        """Rule order: a wrong parent is named even when the checkpoint was also rewritten."""
+        other_stance = "sha256:" + "f" * 64
+        locomotion_dir, stance_sha256 = build_chained_trunk(tmp_path, parent_sha256=other_stance)
+        (locomotion_dir / "models" / "robust_best_model.zip").write_bytes(b"rewritten")
+
+        with pytest.raises(AncestorReuseError, match="descends from 'stance' checkpoint"):
+            _find_locomotion(tmp_path, parent_model_sha256=stance_sha256)
+
+    def test_a_root_that_entered_from_a_parent_is_refused(self, tmp_path):
+        """A stance that warm-started from something contradicts the manifest, which makes it a root."""
+        build_trunk_run(
+            tmp_path,
+            lineage={
+                "load_path": "elsewhere/best_model.zip",
+                "load_mode": "initialize_next_stage",
+                "parent_checkpoint_sha256": "sha256:" + "e" * 64,
+            },
+        )
+
+        with pytest.raises(AncestorReuseError, match="'stance' is a root node in the current manifest"):
+            _find(tmp_path)
+
+    def test_a_resumed_root_is_not_a_child(self, tmp_path):
+        """resume_same_stage continues the same node; it is not a parent and the root stays reusable."""
+        build_trunk_run(
+            tmp_path,
+            lineage={
+                "load_path": "earlier/robust_best_model.zip",
+                "load_mode": "resume_same_stage",
+                "parent_checkpoint_sha256": "sha256:" + "e" * 64,
+            },
+        )
+
+        assert _find(tmp_path).stage_id == "stance"
+
+    def test_a_parent_digest_for_a_root_is_a_caller_error(self, trunk_run):
+        with pytest.raises(ValueError, match="'stance' is a root node"):
+            _find(trunk_run, parent_model_sha256="sha256:" + "a" * 64)
 
 
 class TestRunIdFor:

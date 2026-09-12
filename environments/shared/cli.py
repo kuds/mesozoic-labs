@@ -332,8 +332,10 @@ def main(species_cfg):
         metavar="RUN_DIR",
         help=(
             "Earlier run directory whose certified ancestors (gate_verdict.json passed, plant and task "
-            "hash matching the current config) satisfy nodes instead of training them; their records are "
-            "copied into ancestors/ and the lineage records parent_run_id"
+            "hash matching the current config, each child recorded as trained from the very parent "
+            "checkpoint reused before it) satisfy nodes instead of training them, root-first; the "
+            "run's target (the last advancing stage) is always trained here. Reused records are copied "
+            "into ancestors/ and the lineage records parent_run_id"
         ),
     )
     cur_parser.add_argument("--gcs-bucket", type=str, default=None)
