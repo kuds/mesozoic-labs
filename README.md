@@ -91,15 +91,21 @@ Swift Bipedal Predator. **Specialty:** Sickle-claw contact attacks.
 | Plant contract revisions | policy r9; physics r2; visual r3 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/velociraptor/assets/raptor.xml` |
 
-| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
-|---|---|---:|---:|
-| 1 — Balance | Learn to stand and balance without falling | 6M | reward ≥ 1050; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
-| 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
-| 3 — Strike | Sprint and strike prey with sickle claw | 12M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---|---|---:|---:|
+| 1 — Balance | stand (deliverable) | — | Learn to stand and balance without falling | 6M | reward ≥ 1050; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | walk (deliverable) | 1 — Balance | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 2 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 3 — Strike | hunt (deliverable) | 2 — Locomotion | Sprint and strike prey with sickle claw | 12M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
 **Backend-specific success semantics:**
 - **Stable-Baselines3 — Sickle-claw contact success:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
 - **JAX/MJX — Sickle-claw proximity success:** Either claw-tip site comes within 0.20 m of the prey target position while the strike bonus is enabled; physical geom contact is not required.
+
+**Per-deliverable success semantics:**
+- **stand (1 — Balance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):** The stance checkpoint clears the reward_and_length/v1 gate: mean evaluation reward at or above the statue-derived collapse rail and a near-full-horizon mean episode length over the required consecutive evaluations. The zero-action statue clears this gate, so stand is labelled by its gate kind here rather than claimed as certified stance quality; stance_quality/v1 waits on a foot-sensor repair (the single toe site reads about 55% of true load) (plan §4.8).
+- **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
+- **hunt (3 — Strike) · Stable-Baselines3 — Sickle-claw contact success:** A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled.
+- **hunt (3 — Strike) · JAX/MJX — Sickle-claw proximity success:** Either claw-tip site comes within 0.20 m of the prey target position while the strike bonus is enabled; physical geom contact is not required.
 
 [Full documentation →](environments/velociraptor/README.md)
 
@@ -121,16 +127,23 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Plant contract revisions | policy r12; physics r7; visual r4 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/trex/assets/trex.xml` |
 
-| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
-|---|---|---:|---:|
-| 1 — Balance | Learn to stand and balance without falling | 11M | reward ≥ 2100; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
-| recovery — Recovery | Hold the stance against scheduled external pushes and recover from each | 3M | recovery success LCB95 ≥ 0.3; paired Δ vs each required frozen null LCB95 ≥ 0.2; re-entry ≤ 100 steps + 50-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
-| 2 — Locomotion | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 1 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
-| 3 — Bite | Sprint to prey and make contact with the head bite proxy | 8M | reward ≥ 100; avg. velocity ≥ 2 m/s; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---|---|---:|---:|
+| 1 — Balance | stand (deliverable) | — | Learn to stand and balance without falling | 11M | reward ≥ 2100; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
+| recovery — Recovery | stand (deliverable) | 1 — Balance | Hold the stance against scheduled external pushes and recover from each | 3M | recovery success LCB95 ≥ 0.3; paired Δ vs each required frozen null LCB95 ≥ 0.2; re-entry ≤ 100 steps + 50-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
+| 2 — Locomotion | walk (deliverable) | 1 — Balance | Learn forward walking/running | 8M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 1 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 3 — Bite | hunt (deliverable) | 2 — Locomotion | Sprint to prey and make contact with the head bite proxy | 8M | reward ≥ 100; avg. velocity ≥ 2 m/s; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
 **Backend-specific success semantics:**
 - **Stable-Baselines3 — Head-contact bite proxy:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
 - **JAX/MJX — Head-tip proximity bite proxy:** The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
+
+**Per-deliverable success semantics:**
+- **stance (1 — Balance) · Stable-Baselines3 — Stance quality (stance_quality/v1):** The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json in Phase A, so the catalog names them with no value (decision D-A9).
+- **recovery (recovery — Recovery) · Stable-Baselines3 — Recovery under pushes (recovery_quality/v1):** The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json in Phase A (decision D-A9).
+- **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
+- **hunt (3 — Bite) · Stable-Baselines3 — Head-contact bite proxy:** The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw.
+- **hunt (3 — Bite) · JAX/MJX — Head-tip proximity bite proxy:** The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
 
 [Full documentation →](environments/trex/README.md)
 
@@ -150,14 +163,19 @@ Gentle Giant Herbivore. **Specialty:** Head-to-food reaching.
 | Plant contract revisions | policy r7; physics r4; visual r2 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/brachiosaurus/assets/brachiosaurus.xml` |
 
-| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
-|---|---|---:|---:|
-| 1 — Balance | Learn to stand on four legs without falling | 6M | reward ≥ 1040; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
-| 2 — Locomotion | Learn coordinated quadrupedal walking | 16M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 0.75 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
-| 3 — Food Reach | Move the head tip within the configured distance threshold of food | 12M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---|---|---:|---:|
+| 1 — Balance | stand (deliverable) | — | Learn to stand on four legs without falling | 6M | reward ≥ 1040; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | walk (deliverable) | 1 — Balance | Learn coordinated quadrupedal walking | 16M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 0.75 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 3 — Food Reach | hunt (deliverable) | 2 — Locomotion | Move the head tip within the configured distance threshold of food | 12M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
 **Backend-specific success semantics:**
 - **Stable-Baselines3 / JAX/MJX — Head-tip distance-threshold success:** The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled.
+
+**Per-deliverable success semantics:**
+- **stand (1 — Balance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):** The stance checkpoint clears the reward_and_length/v1 gate: mean evaluation reward at or above the statue-derived collapse rail and a near-full-horizon mean episode length over the required consecutive evaluations. The zero-action statue clears this gate, so stand is labelled by its gate kind here rather than claimed as certified stance quality; stance_quality/v1 waits on shin instrumentation (a kneeling pose currently reads identically to airborne) (plan §4.8).
+- **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
+- **hunt (3 — Food Reach) · Stable-Baselines3 / JAX/MJX — Head-tip distance-threshold success:** The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled.
 
 [Full documentation →](environments/brachiosaurus/README.md)
 
@@ -177,15 +195,21 @@ Gracile Erect-Limbed Crocodylomorph. **Specialty:** Snout-contact snap task.
 | Plant contract revisions | policy r6; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/dibothrosuchus/assets/dibothrosuchus.xml` |
 
-| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
-|---|---|---:|---:|
-| 1 — Balance | Hold the erect quadrupedal stance without collapsing into a sprawl | 6M | reward ≥ 1560; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
-| 2 — Locomotion | Learn a coordinated erect-limbed diagonal-pair walk | 12M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 0.9 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
-| 3 — Snap | Close on small prey and touch it with the snout snap proxy | 8M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---|---|---:|---:|
+| 1 — Balance | stand (deliverable) | — | Hold the erect quadrupedal stance without collapsing into a sprawl | 6M | reward ≥ 1560; episode length ≥ 950; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 2 — Locomotion | walk (deliverable) | 1 — Balance | Learn a coordinated erect-limbed diagonal-pair walk | 12M | reward ≥ 100; episode length ≥ 750; avg. velocity ≥ 0.9 m/s; ≥ 10 episodes/evaluation; 3 consecutive passes |
+| 3 — Snap | hunt (deliverable) | 2 — Locomotion | Close on small prey and touch it with the snout snap proxy | 8M | reward ≥ 100; task success ≥ 50.0%; ≥ 10 episodes/evaluation; 3 consecutive passes |
 
 **Backend-specific success semantics:**
 - **Stable-Baselines3 — Snout-contact snap proxy:** The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw.
 - **JAX/MJX — Snout-tip proximity snap proxy:** The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
+
+**Per-deliverable success semantics:**
+- **stand (1 — Balance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):** The stance checkpoint clears the reward_and_length/v1 gate: mean evaluation reward at or above the statue-derived collapse rail and a near-full-horizon mean episode length over the required consecutive evaluations. The zero-action statue clears this gate, so stand is labelled by its gate kind here rather than claimed as certified stance quality; stance_quality/v1 waits on a stance-quality and perturbation preflight this plant has not had (plan §4.8).
+- **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
+- **hunt (3 — Snap) · Stable-Baselines3 — Snout-contact snap proxy:** The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw.
+- **hunt (3 — Snap) · JAX/MJX — Snout-tip proximity snap proxy:** The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw.
 
 [Full documentation →](environments/dibothrosuchus/README.md)
 
@@ -205,15 +229,21 @@ Small Bipedal Theropod. **Specialty:** Non-contact target reaching.
 | Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/compsognathus/assets/compsognathus.xml` |
 
-| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
-|---|---|---:|---:|
-| 1 — Balance | Hold an upright stance with foot support | 11M | reward ≥ 1800; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
-| recovery — Recovery | Pilot: recover an upright stance after calibrated horizontal pushes | 3M | recovery success LCB95 ≥ 0.5; paired Δ vs each required frozen null LCB95 ≥ 0.1; re-entry ≤ 40 steps + 20-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
-| 2 — Locomotion | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.08 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
-| 3 — Target Reach | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---|---|---:|---:|
+| 1 — Balance | stand (deliverable) | — | Hold an upright stance with foot support | 11M | reward ≥ 1800; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
+| recovery — Recovery | stand (deliverable) | 1 — Balance | Pilot: recover an upright stance after calibrated horizontal pushes | 3M | recovery success LCB95 ≥ 0.5; paired Δ vs each required frozen null LCB95 ≥ 0.1; re-entry ≤ 40 steps + 20-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
+| 2 — Locomotion | walk (deliverable) | 1 — Balance | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.08 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 3 — Target Reach | hunt (deliverable) | 2 — Locomotion | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
 
 **Backend-specific success semantics:**
 - **Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
+
+**Per-deliverable success semantics:**
+- **stance (1 — Balance) · Stable-Baselines3 — Stance quality (stance_quality/v1):** The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json in Phase A, so the catalog names them with no value (decision D-A9).
+- **recovery (recovery — Recovery) · Stable-Baselines3 — Recovery under pushes (recovery_quality/v1):** The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json in Phase A (decision D-A9).
+- **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
+- **hunt (3 — Target Reach) · Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
 
 [Full documentation →](environments/compsognathus/README.md)
 
@@ -233,15 +263,21 @@ Twelve-Servo Biped Prototype. **Specialty:** Non-contact target reaching with fi
 | Plant contract revisions | policy r1; physics r1; visual r1 ([details](docs/PLANT_CONTRACT.md)) |
 | Model | `environments/compsognathus/assets/compsognathus_robot.xml` |
 
-| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |
-|---|---|---:|---:|
-| 1 — Balance | Hold an upright stance with foot support | 11M | reward ≥ 1800; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
-| recovery — Recovery | Pilot: recover an upright stance after calibrated horizontal pushes | 3M | recovery success LCB95 ≥ 0.5; paired Δ vs each required frozen null LCB95 ≥ 0.1; re-entry ≤ 40 steps + 20-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
-| 2 — Locomotion | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.04 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
-| 3 — Target Reach | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---|---|---:|---:|
+| 1 — Balance | stand (deliverable) | — | Hold an upright stance with foot support | 11M | reward ≥ 1800; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
+| recovery — Recovery | stand (deliverable) | 1 — Balance | Pilot: recover an upright stance after calibrated horizontal pushes | 3M | recovery success LCB95 ≥ 0.5; paired Δ vs each required frozen null LCB95 ≥ 0.1; re-entry ≤ 40 steps + 20-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
+| 2 — Locomotion | walk (deliverable) | 1 — Balance | Move forward while remaining upright and avoiding body-floor contact | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.04 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 3 — Target Reach | hunt (deliverable) | 2 — Locomotion | Reach the randomized horizontal target and slow down while upright | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
 
 **Backend-specific success semantics:**
 - **Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
+
+**Per-deliverable success semantics:**
+- **stance (1 — Balance) · Stable-Baselines3 — Stance quality (stance_quality/v1):** The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json in Phase A, so the catalog names them with no value (decision D-A9).
+- **recovery (recovery — Recovery) · Stable-Baselines3 — Recovery under pushes (recovery_quality/v1):** The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json in Phase A (decision D-A9).
+- **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
+- **hunt (3 — Target Reach) · Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
 
 [Full documentation →](environments/compsognathus/README.md)
 <!-- END GENERATED: SPECIES -->

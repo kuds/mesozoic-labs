@@ -5,6 +5,7 @@ import {
   PROJECT_CAPABILITIES,
   VELOCIRAPTOR,
   backendLabel,
+  headlineFor,
   posterFor,
   TOTAL_ACTUATORS,
   TOTAL_TRAINED_STEPS,
@@ -510,12 +511,11 @@ function SpeciesShowcase() {
                 aria-label={`${species.name} historical run summary (${result.algorithm}, ${result.date})`}
               >
                 <div className={styles.speciesStat}>
-                  <dt>Task success</dt>
-                  <dd>
-                    {result.stage3SuccessRate === null
-                      ? '—'
-                      : `${Math.round(result.stage3SuccessRate * 100)}%`}
-                  </dd>
+                  {/* A ladder summary headlines "Task success" exactly as before;
+                      a schema-4 result headlines its certified primary
+                      deliverable's gate-kind metric (decisions D-A9, D-A10). */}
+                  <dt>{headlineFor(result).label}</dt>
+                  <dd>{headlineFor(result).value}</dd>
                 </div>
                 <div className={styles.speciesStat}>
                   <dt>Max reported avg. velocity</dt>
@@ -552,10 +552,13 @@ function SpeciesShowcase() {
         </div>
 
         <div className={styles.speciesVideos}>
+          {/* Cards are keyed and labelled by the manifest stage id/label, never
+              the legacy number, which is null for a semantic-only stage such as
+              recovery and collided as a React key (decision D-A13). */}
           {species.stages.map((stage) => (
-            <div className={styles.speciesVideoCard} key={stage.number}>
+            <div className={styles.speciesVideoCard} key={stage.id}>
               <div className={styles.speciesVideoHeader}>
-                <span className={styles.speciesStageLabel}>STAGE {stage.number}</span>
+                <span className={styles.speciesStageLabel}>STAGE {stage.label.toUpperCase()}</span>
                 <span className={styles.speciesAlgoBadge}>
                   {stage.video
                     ? `${stage.video.algorithm} · ${backendLabel(stage.video.backend)} · ${stage.video.modelRevisionStatus}`
@@ -580,7 +583,7 @@ function SpeciesShowcase() {
                       preload="none"
                       poster={posterFor(stage.video.path)}
                       className={styles.speciesVideoPlayer}
-                      aria-label={`${species.name} stage ${stage.number}: ${stage.title}`}
+                      aria-label={`${species.name} stage ${stage.label}: ${stage.title}`}
                     />
                   </div>
                 </>

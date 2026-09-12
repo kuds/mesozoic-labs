@@ -4,6 +4,9 @@ import generatedCatalog from './species.generated.json';
 
 export type TrainingBackend = 'stable-baselines3' | 'jax-mjx';
 
+/** Units a deliverable headline metric can carry (species_catalog.HEADLINE_UNITS). */
+export type HeadlineUnit = 'percent' | 'm/s' | 'ratio';
+
 export interface SpeciesVideo {
   path: string;
   algorithm: string;
@@ -25,6 +28,15 @@ export interface AdvancementGate {
   minAverageEpisodeLength: number | null;
   minAverageForwardVelocity: number | null;
   minSuccessRate: number | null;
+  /** stance_quality/v1 criteria; null on every other gate kind. */
+  minFullHorizonFraction: number | null;
+  maxUnsupportedDuty: number | null;
+  maxUnsupportedDutyUcb: number | null;
+  /** recovery_quality/v1 criteria; null on every other gate kind. */
+  minRecoverySuccessLcb: number | null;
+  minPairedSuccessDeltaLcb: number | null;
+  recoveryTRecoverSteps: number | null;
+  recoveryDwellSteps: number | null;
   minEvaluationEpisodes: number;
   requiredConsecutive: number;
 }
@@ -57,6 +69,12 @@ export interface SpeciesStage {
   description: string;
   configPath: string;
   timesteps: number;
+  /** True when the stage's checkpoint is a published behavior deliverable. */
+  deliverable: boolean;
+  /** Stage id this node warm-starts from, or null for a root node. */
+  warmStartFrom: string | null;
+  /** Behavior recipe label (stand/walk/hunt) the node belongs to, or null. */
+  recipe: string | null;
   advancementGate: AdvancementGate;
   video: SpeciesVideo | null;
 }
@@ -75,6 +93,9 @@ export interface ResultStage {
   position: number;
   number: number | null;
   label: string;
+  /** Recipe label and deliverable flag from the CURRENT manifest entry. */
+  recipe: string | null;
+  deliverable: boolean;
   name: string;
   description: string;
   timesteps: number;
@@ -93,6 +114,29 @@ export interface ResultStage {
   gateRetired: boolean;
 }
 
+/** One statistic a deliverable's certifying gate measured (decision D-A9). */
+export interface HeadlineMetric {
+  key: string;
+  label: string;
+  /** Null when the summary does not record the statistic (stance/recovery in Phase A). */
+  value: number | null;
+  unit: HeadlineUnit;
+}
+
+/** One published behavior checkpoint of a schema-4 result, in manifest order. */
+export interface ResultDeliverable {
+  stageId: string;
+  /** The summary's stage key ("2" for a numbered stage, the id otherwise). */
+  stageKey: string;
+  label: string;
+  recipe: string | null;
+  gateKind: string | null;
+  certified: boolean;
+  modelHash: string;
+  replicationCount: number;
+  headline: HeadlineMetric[];
+}
+
 export interface PublishedResult {
   summaryPath: string;
   algorithm: string;
@@ -106,9 +150,28 @@ export interface PublishedResult {
   totalTrainingTime: string | null;
   finalAverageReward: number | null;
   maxAverageForwardVelocity: number | null;
+  /** Historical ladder headline; read only through headlineFor. */
   stage3SuccessRate: number | null;
   provenance: ResultProvenance;
+  /** Empty for every schema-2/3 ladder summary; never synthesized. */
+  deliverables: ResultDeliverable[];
+  primaryDeliverable: string | null;
+  targetDeliverable: string | null;
   stages: ResultStage[];
+}
+
+export interface SuccessMetric {
+  backends: TrainingBackend[];
+  key: string;
+  label: string;
+  definition: string;
+}
+
+export interface DeliverableMetric extends SuccessMetric {
+  /** The manifest spelling: a stage id or a recipe label. */
+  deliverable: string;
+  /** The stage the deliverable resolved to. */
+  stageId: string;
 }
 
 export interface Species {
@@ -122,6 +185,7 @@ export interface Species {
   specialty: string;
   aliases: string[];
   environmentEntrypoint: string;
+  trainingNotebooks: string[];
   model: {
     path: string;
     nq: number;
@@ -130,16 +194,16 @@ export interface Species {
     dynamicMassKg: number;
     plantContract: PlantContract;
   };
-  successMetrics: Array<{
-    backends: TrainingBackend[];
-    key: string;
-    label: string;
-    definition: string;
-  }>;
+  successMetrics: SuccessMetric[];
+  deliverableMetrics: DeliverableMetric[];
   stages: SpeciesStage[];
   historicalResults: PublishedResult[];
   featuredResult: PublishedResult | null;
 }
+
+// The Raw* types below declare the generated JSON's shape key for key; the
+// Python test test_website_adapter_declares_every_exported_key pins each of
+// them two-sided against the rows build_catalog() exports.
 
 interface RawStage {
   id: string;
@@ -151,6 +215,9 @@ interface RawStage {
   description: string;
   config_path: string;
   timesteps: number;
+  deliverable: boolean;
+  warm_start_from: string | null;
+  recipe: string | null;
   advancement_gate: {
     gate_kind: string | null;
     pending_gate_kind: string | null;
@@ -158,6 +225,13 @@ interface RawStage {
     min_avg_episode_length: number | null;
     min_avg_forward_velocity: number | null;
     min_success_rate: number | null;
+    min_full_horizon_fraction: number | null;
+    max_unsupported_duty: number | null;
+    max_unsupported_duty_ucb: number | null;
+    min_recovery_success_lcb: number | null;
+    min_paired_success_delta_lcb: number | null;
+    recovery_t_recover_steps: number | null;
+    recovery_dwell_steps: number | null;
     min_eval_episodes: number;
     required_consecutive: number;
   };
@@ -179,6 +253,8 @@ interface RawResultStage {
   position: number;
   number: number | null;
   label: string;
+  recipe: string | null;
+  deliverable: boolean;
   name: string;
   description: string;
   timesteps: number;
@@ -192,6 +268,25 @@ interface RawResultStage {
   gate_kind: string | null;
   current_gate_kind: string | null;
   gate_retired: boolean;
+}
+
+interface RawHeadlineMetric {
+  key: string;
+  label: string;
+  value: number | null;
+  unit: HeadlineUnit;
+}
+
+interface RawResultDeliverable {
+  id: string;
+  stage_key: string;
+  label: string;
+  recipe: string | null;
+  gate_kind: string | null;
+  certified: boolean;
+  model_hash: string;
+  replication_count: number;
+  headline: RawHeadlineMetric[];
 }
 
 interface RawResult {
@@ -216,6 +311,9 @@ interface RawResult {
     model_hash: string | null;
     config_hash: string | null;
   };
+  deliverables: RawResultDeliverable[];
+  primary_deliverable: string | null;
+  target_deliverable: string | null;
   stages: RawResultStage[];
 }
 
@@ -223,6 +321,22 @@ interface RawPlantLayerContract {
   schema: string;
   revision: number;
   sha256: string;
+}
+
+interface RawSuccessMetric {
+  backends: TrainingBackend[];
+  key: string;
+  label: string;
+  definition: string;
+}
+
+interface RawDeliverableMetric {
+  deliverable: string;
+  stage_id: string;
+  backends: TrainingBackend[];
+  key: string;
+  label: string;
+  definition: string;
 }
 
 interface RawSpecies {
@@ -251,18 +365,16 @@ interface RawSpecies {
       visual: RawPlantLayerContract;
     };
   };
-  success_metrics: Array<{
-    backends: TrainingBackend[];
-    key: string;
-    label: string;
-    definition: string;
-  }>;
+  training_notebooks: string[];
+  success_metrics: RawSuccessMetric[];
+  deliverable_metrics: RawDeliverableMetric[];
   stages: RawStage[];
   historical_results: RawResult[];
 }
 
 interface RawCatalog {
   schema_version: number;
+  manifest_path: string;
   plant_manifest: {
     path: string;
     schema: string;
@@ -275,6 +387,54 @@ interface RawCatalog {
 }
 
 const catalog = generatedCatalog as RawCatalog;
+
+// The adapter maps the catalog key for key, so a regenerated JSON of another
+// schema would be read through stale field names; refuse it at module load
+// (build time) rather than render undefined fields (decision D-A8).
+if (catalog.schema_version !== 4) throw new Error(`Generated catalog schema_version must be 4, got ${catalog.schema_version}`);
+
+function adaptSuccessMetric(metric: RawSuccessMetric): SuccessMetric {
+  return {
+    backends: metric.backends,
+    key: metric.key,
+    label: metric.label,
+    definition: metric.definition,
+  };
+}
+
+function adaptDeliverableMetric(metric: RawDeliverableMetric): DeliverableMetric {
+  return {
+    deliverable: metric.deliverable,
+    stageId: metric.stage_id,
+    backends: metric.backends,
+    key: metric.key,
+    label: metric.label,
+    definition: metric.definition,
+  };
+}
+
+function adaptHeadlineMetric(metric: RawHeadlineMetric): HeadlineMetric {
+  return {
+    key: metric.key,
+    label: metric.label,
+    value: metric.value,
+    unit: metric.unit,
+  };
+}
+
+function adaptDeliverable(deliverable: RawResultDeliverable): ResultDeliverable {
+  return {
+    stageId: deliverable.id,
+    stageKey: deliverable.stage_key,
+    label: deliverable.label,
+    recipe: deliverable.recipe,
+    gateKind: deliverable.gate_kind,
+    certified: deliverable.certified,
+    modelHash: deliverable.model_hash,
+    replicationCount: deliverable.replication_count,
+    headline: deliverable.headline.map(adaptHeadlineMetric),
+  };
+}
 
 function adaptResult(result: RawResult): PublishedResult {
   return {
@@ -299,11 +459,16 @@ function adaptResult(result: RawResult): PublishedResult {
       modelHash: result.provenance.model_hash,
       configHash: result.provenance.config_hash,
     },
+    deliverables: result.deliverables.map(adaptDeliverable),
+    primaryDeliverable: result.primary_deliverable,
+    targetDeliverable: result.target_deliverable,
     stages: result.stages.map((stage) => ({
       id: stage.id,
       position: stage.position,
       number: stage.number,
       label: stage.label,
+      recipe: stage.recipe,
+      deliverable: stage.deliverable,
       name: stage.name,
       description: stage.description,
       timesteps: stage.timesteps,
@@ -334,6 +499,7 @@ function adaptSpecies(raw: RawSpecies): Species {
     specialty: raw.specialty,
     aliases: raw.aliases,
     environmentEntrypoint: raw.environment.entrypoint,
+    trainingNotebooks: raw.training_notebooks,
     model: {
       path: raw.model.path,
       nq: raw.model.nq,
@@ -353,7 +519,8 @@ function adaptSpecies(raw: RawSpecies): Species {
         visual: raw.model.plant_contract.visual,
       },
     },
-    successMetrics: raw.success_metrics,
+    successMetrics: raw.success_metrics.map(adaptSuccessMetric),
+    deliverableMetrics: raw.deliverable_metrics.map(adaptDeliverableMetric),
     stages: raw.stages.map((stage) => ({
       id: stage.id,
       position: stage.position,
@@ -364,6 +531,9 @@ function adaptSpecies(raw: RawSpecies): Species {
       description: stage.description,
       configPath: stage.config_path,
       timesteps: stage.timesteps,
+      deliverable: stage.deliverable,
+      warmStartFrom: stage.warm_start_from,
+      recipe: stage.recipe,
       advancementGate: {
         gateKind: stage.advancement_gate.gate_kind,
         pendingGateKind: stage.advancement_gate.pending_gate_kind,
@@ -371,6 +541,13 @@ function adaptSpecies(raw: RawSpecies): Species {
         minAverageEpisodeLength: stage.advancement_gate.min_avg_episode_length,
         minAverageForwardVelocity: stage.advancement_gate.min_avg_forward_velocity,
         minSuccessRate: stage.advancement_gate.min_success_rate,
+        minFullHorizonFraction: stage.advancement_gate.min_full_horizon_fraction,
+        maxUnsupportedDuty: stage.advancement_gate.max_unsupported_duty,
+        maxUnsupportedDutyUcb: stage.advancement_gate.max_unsupported_duty_ucb,
+        minRecoverySuccessLcb: stage.advancement_gate.min_recovery_success_lcb,
+        minPairedSuccessDeltaLcb: stage.advancement_gate.min_paired_success_delta_lcb,
+        recoveryTRecoverSteps: stage.advancement_gate.recovery_t_recover_steps,
+        recoveryDwellSteps: stage.advancement_gate.recovery_dwell_steps,
         minEvaluationEpisodes: stage.advancement_gate.min_eval_episodes,
         requiredConsecutive: stage.advancement_gate.required_consecutive,
       },
@@ -404,6 +581,47 @@ export function successMetricForBackend(species: Species, backend: TrainingBacke
   const metric = species.successMetrics.find((candidate) => candidate.backends.includes(backend));
   if (!metric) throw new Error(`Generated catalog is missing ${backend} success semantics for ${species.id}`);
   return metric;
+}
+
+/** The certified primary deliverable of a schema-4 result, or null for a ladder summary. */
+export function primaryDeliverableOf(result: PublishedResult): ResultDeliverable | null {
+  if (result.deliverables.length === 0) return null;
+  const primary = result.deliverables.find((deliverable) => deliverable.stageKey === result.primaryDeliverable);
+  if (!primary) {
+    throw new Error(`Published result ${result.summaryPath} names no primary among its deliverables`);
+  }
+  return primary;
+}
+
+/** A headline metric's value in its unit: 97% / 3.47 m/s / 0.02, or a dash when unrecorded. */
+export function formatHeadlineValue(metric: HeadlineMetric): string {
+  if (metric.value === null) return '—';
+  if (metric.unit === 'percent') return `${Math.round(metric.value * 100)}%`;
+  if (metric.unit === 'm/s') return `${metric.value.toFixed(2)} m/s`;
+  return metric.value.toFixed(2);
+}
+
+/**
+ * The one statistic that headlines a published result on the landing page.
+ *
+ * A schema-4 result headlines its primary deliverable's first gate-kind
+ * metric (a walk its velocity, a hunt its task success; stance and recovery
+ * name the metric with no value in Phase A — decision D-A9).  A ladder
+ * summary publishes no deliverable and keeps the historical "Task success"
+ * headline from stage3_success_rate, rendered exactly as before (D-A10).
+ */
+export function headlineFor(result: PublishedResult): {label: string; value: string} {
+  const primary = primaryDeliverableOf(result);
+  if (primary === null) {
+    return {
+      label: 'Task success',
+      value: result.stage3SuccessRate === null ? '—' : `${Math.round(result.stage3SuccessRate * 100)}%`,
+    };
+  }
+  const metric = primary.headline[0];
+  if (metric === undefined) return {label: `${primary.recipe ?? primary.stageId} headline`, value: '—'};
+  const label = metric.label.charAt(0).toUpperCase() + metric.label.slice(1);
+  return {label, value: formatHeadlineValue(metric)};
 }
 
 export const PROJECT_CAPABILITIES = catalog.project_capabilities;

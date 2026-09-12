@@ -12,6 +12,11 @@ function VideoCard({ species, stage }: { species: string; stage: SpeciesStage })
     <div className={styles.card}>
       <div className={styles.cardBorder} aria-hidden="true" />
       <div className={styles.stageLabel}>STAGE {stage.label.toUpperCase()}</div>
+      {stage.recipe !== null && (
+        <span className={styles.recipeBadge}>
+          {stage.recipe}{stage.deliverable ? ' · deliverable' : ''}
+        </span>
+      )}
       <h3 className={styles.stageTitle}>{stage.title}</h3>
       <p className={styles.stageDescription}>{stage.description}</p>
       {stage.video && (

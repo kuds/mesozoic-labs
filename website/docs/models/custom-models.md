@@ -141,12 +141,57 @@ required_consecutive = 3
 
 ## Add the Species to the Public Catalog
 
-Copy an existing `[[species]]` block in `configs/species_manifest.toml` and
-update its presentation metadata, environment entry point, MJCF model path,
-notebook IDs, and result-summary paths. Add `[[species.success_metrics]]`
-entries that state the actual success semantics for every supported backend.
-Stage videos and curated result summaries are optional, but any declared
-artifact must exist and include the required backend and provenance metadata.
+Copy an existing `[[species]]` block in `configs/species_manifest.toml`
+(schema version 2) and update its presentation metadata, environment entry
+point, MJCF model path, notebook IDs, and result-summary paths. Add
+`[[species.success_metrics]]` entries that state the actual success semantics
+for every supported backend. Stage videos and curated result summaries are
+optional, but any declared artifact must exist and include the required
+backend and provenance metadata.
+
+### Per-deliverable success semantics
+
+Every behavior the species publishes — each stage its `configs/<species>/stages.toml`
+flags `deliverable = true` — needs a `[[species.deliverable_metrics]]` entry
+stating what "success" means for that checkpoint:
+
+```toml
+[[species.deliverable_metrics]]
+deliverable = "walk"                 # a recipe label, or a deliverable stage id
+backends = ["stable-baselines3"]
+key = "forward_velocity_gate"
+label = "Gated forward velocity (reward_and_length/v1)"
+definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: ..."
+```
+
+`deliverable` resolves exactly as the training notebook's `BEHAVIOR` knob
+does: a recipe label names its deepest deliverable in manifest order (on the
+T-Rex, `"stand"` is the recovery node, so its stance node is addressed by the
+id `"stance"`), and a stage id must be a deliverable. The generator fails
+closed on an unknown deliverable or label, on a backend the species does not
+train, and on two entries for the same stage and backend, and it requires a
+`stable-baselines3` entry for every deliverable the stage manifest declares.
+A stance stage that is still gated by `reward_and_length/v1` should say so in
+its definition rather than claim certified stance quality.
+
+### Stage videos
+
+`[[species.stage_videos]]` entries are keyed by stage id:
+
+```toml
+[[species.stage_videos]]
+stage = "locomotion"                 # the stage id; a legacy integer (2) is an accepted alias
+path = "website/static/videos/<species>_ppo_stage2_best.mp4"
+algorithm = "PPO"
+backend = "stable-baselines3"
+model_revision_status = "historical"
+verification_status = "unverified"
+```
+
+The id is the spelling that survives renumbering; a legacy integer resolves
+through the stage manifest's `legacy_number` mapping, and naming one stage
+both ways is rejected as a duplicate. A stage without a legacy number
+(`recovery`) is reachable only by id.
 
 Do not copy observation, action, or compiled-model dimensions into the
 manifest. The generator derives those values from the environment and MJCF,
