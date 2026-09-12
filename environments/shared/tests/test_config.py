@@ -669,7 +669,40 @@ class TestUploadCurriculumArtifacts:
         for name in ("02_recovery", "recovery", "stage1"):
             assert f"training/trex/{run}/{name}/stage_config.json" in keys
         for name in ("models", "replays", "stage4", "ancestors"):
-            assert not [key for key in keys if f"/{name}/" in key], name
+            # Not stage directories: none of their stage-level sidecars
+            # upload (the ancestors/ RECORDS, one directory deeper, do —
+            # test_ancestor_records_upload_beside_the_stages).
+            assert f"training/trex/{run}/{name}/stage_config.json" not in keys, name
+
+    def test_ancestor_records_upload_beside_the_stages(self, tmp_path):
+        """A reused node's ancestors/<id>/ record mirrors in full: the audit requires it."""
+        base = tmp_path / "curriculum_20260906_120000"
+        stage = base / "02_locomotion"
+        (stage / "models").mkdir(parents=True)
+        (stage / "stage_config.json").write_text("{}")
+        record = base / "ancestors" / "stance"
+        record.mkdir(parents=True)
+        record_files = (
+            "ancestor.json",
+            "gate_verdict.json",
+            "stage_config.json",
+            "task_fingerprint.json",
+            "plant_identity.json",
+        )
+        for name in record_files:
+            (record / name).write_text("{}")
+        # Litter beside the records never uploads: only record directories do.
+        (base / "ancestors" / "README.txt").write_text("not a record")
+
+        keys = self._uploaded_keys(base, "trex")
+
+        run = base.name
+        assert f"training/trex/{run}/02_locomotion/stage_config.json" in keys
+        for name in record_files:
+            assert f"training/trex/{run}/ancestors/stance/{name}" in keys, name
+        assert not [key for key in keys if key.endswith("README.txt")]
+        # The record directory is never mistaken for a stage directory.
+        assert not [key for key in keys if "/ancestors/stance/models/" in key]
 
     def test_an_open_id_dir_uploads_only_when_the_manifest_declares_it(self, tmp_path, monkeypatch):
         import shutil

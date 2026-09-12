@@ -903,16 +903,25 @@ class TestTrainCurriculumWalksTheManifest:
     are the only things exercised.
     """
 
-    def _run(self, species, tmp_path, monkeypatch, caplog):
+    def _run(self, species, tmp_path, monkeypatch, caplog, *, learn_side_effect=None):
         from environments.shared import config as config_module
         from environments.shared import curriculum as curriculum_module
-        from environments.shared import plant_contract, task_fingerprint, train_base
+        from environments.shared import plant_contract, result_bundle, task_fingerprint, train_base
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_label
 
-        record: dict = {"saved": [], "loads": [], "parents": []}
+        record: dict = {"saved": [], "loads": [], "parents": [], "verdicts": []}
         model = MagicMock()
         model.num_timesteps = 10
+        model.learn.side_effect = learn_side_effect
+
+        def write_verdict(stage_dir, **kwargs):
+            record["verdicts"].append({"stage_dir": stage_dir, **kwargs})
+            return stage_dir / "gate_verdict.json"
+
+        # train_curriculum imports the writer at call time from the package,
+        # so the recorder sees every verdict the loop decides to record.
+        monkeypatch.setattr(result_bundle, "write_gate_verdict", write_verdict)
 
         def create_or_load(sb3, algorithm, alg_kwargs, train_env, load_path, **kwargs):
             record["loads"].append(load_path)
@@ -997,3 +1006,24 @@ class TestTrainCurriculumWalksTheManifest:
         # The v2 file declares the edges the synthesizer used to derive.
         assert record["parents"] == [None, "stance", "locomotion"]
         assert not [r for r in caplog.records if "Skipping non-advancing stage" in r.message]
+
+    def test_every_trained_node_records_the_managers_verdict(self, tmp_path, monkeypatch, caplog):
+        """Decision D-A5: the in-training verdict is written per node, hash-bound to its handoff."""
+        from environments.shared.train_base import CURRICULUM_MANAGER_JUDGED_BY
+
+        record = self._run("velociraptor", tmp_path, monkeypatch, caplog)
+
+        assert [v["stage_id"] for v in record["verdicts"]] == ["stance", "locomotion", "behavior"]
+        for verdict in record["verdicts"]:
+            assert verdict["passed"] is True and verdict["failures"] == []
+            assert verdict["judged_by"] == CURRICULUM_MANAGER_JUDGED_BY
+            assert verdict["stage_dir"].name in {"01_stance", "02_locomotion", "03_behavior"}
+            assert verdict["checkpoint"].suffix == ".zip" and verdict["normalization"].suffix == ".pkl"
+
+    def test_an_interrupted_node_records_no_verdict_and_stops_the_curriculum(self, tmp_path, monkeypatch, caplog):
+        """A Ctrl-C partway through a budget is not a gate failure: no verdict, no handoff, loop stops."""
+        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, learn_side_effect=KeyboardInterrupt)
+
+        assert [stage for stage, _, _ in record["saved"]] == [1]
+        assert record["verdicts"] == []
+        assert [r for r in caplog.records if "no gate verdict recorded" in r.message]

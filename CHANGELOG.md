@@ -148,6 +148,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   experiment that blocks P5.
 
 ### Changed
+- **The SB3 notebook's opt-in recovery pilot now shapes the bundle status**
+  (Phase A, WS3 consequence). Under result schema v4 recovery is a
+  deliverable, so a recovery that fails its frozen gate leaves the run
+  bundle `partial` — the certified numbered stages still publish — instead
+  of riding along without affecting the status. The completion cell reports
+  a publishable-but-partial bundle, naming the uncertified deliverable,
+  rather than failing the run; the chain loop that replaces the per-stage
+  cells enforces the verdict outright.
+- **`train_curriculum` records no gate verdict for an interrupted node.** A
+  Ctrl-C partway through a stage's budget used to write a FAILED
+  "budget exhausted" `gate_verdict.json`, which every later `--trunk-from`
+  would have read as a genuine gate failure; the node is now left unjudged,
+  with a warning to resume or re-judge it before reuse.
+- **`upload_curriculum_artifacts` mirrors `ancestors/<stage_id>/` records**
+  (the reused node's `ancestor.json` and copied verdict, config, fingerprint
+  and plant identity — never a checkpoint): the bundle audit requires them,
+  so a GCS mirror of a `--trunk-from` run could not audit without them.
 - **Cleanup batches from the gap review** (Phase K,
   `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` §6 — every entry
   re-verified against the tree after the five fix phases; no behavior

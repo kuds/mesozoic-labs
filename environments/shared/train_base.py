@@ -2025,24 +2025,37 @@ def train_curriculum(
         # what lets this run serve as a later run's --trunk-from.  Never
         # raises: a lost verdict file must not cost the run its results
         # (the node can be re-judged by generate_stage_artifacts).
-        passed = bool(curriculum_cb.ready_to_advance)
-        try:
-            write_gate_verdict(
-                stage_dir,
-                species=species,
-                stage=stage,
-                stage_id=entry.id,
-                gate_kind=cur_kwargs.get("gate_kind"),
-                gate_schema_version=cur_kwargs.get("gate_schema_version"),
-                passed=passed,
-                failures=[] if passed else ["stage budget exhausted without meeting advancement thresholds"],
-                task_sha256=task_fingerprint.get("task_sha256"),
-                judged_by=CURRICULUM_MANAGER_JUDGED_BY,
-                checkpoint=Path(handoff_stem + ".zip"),
-                normalization=Path(handoff_vecnorm),
+        #
+        # An INTERRUPTED node gets no verdict at all: a Ctrl-C partway
+        # through the budget is not a gate failure, and a FAILED record
+        # would read as one to every later --trunk-from.  Absence never
+        # reads as a pass, so the node stays exactly what it is — unjudged
+        # until it is resumed or re-judged.
+        passed = bool(curriculum_cb.ready_to_advance) and not interrupted
+        if interrupted:
+            logger.warning(
+                "Stage %s was interrupted before its budget ran out; no gate verdict recorded "
+                "(resume it, or re-judge it with generate_stage_artifacts, before reusing it).",
+                stage,
             )
-        except Exception:  # noqa: BLE001 - the verdict file must never sink the run
-            logger.warning("Stage %s gate verdict could not be recorded", stage, exc_info=True)
+        else:
+            try:
+                write_gate_verdict(
+                    stage_dir,
+                    species=species,
+                    stage=stage,
+                    stage_id=entry.id,
+                    gate_kind=cur_kwargs.get("gate_kind"),
+                    gate_schema_version=cur_kwargs.get("gate_schema_version"),
+                    passed=passed,
+                    failures=[] if passed else ["stage budget exhausted without meeting advancement thresholds"],
+                    task_sha256=task_fingerprint.get("task_sha256"),
+                    judged_by=CURRICULUM_MANAGER_JUDGED_BY,
+                    checkpoint=Path(handoff_stem + ".zip"),
+                    normalization=Path(handoff_vecnorm),
+                )
+            except Exception:  # noqa: BLE001 - the verdict file must never sink the run
+                logger.warning("Stage %s gate verdict could not be recorded", stage, exc_info=True)
         # Only a node that passed feeds anything forward (the 2026-08-23
         # lineage rule): a failed node's children find no parent and stop.
         if passed:

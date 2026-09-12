@@ -645,6 +645,11 @@ def upload_curriculum_artifacts(
     * Each stage's replay videos (``replays/*.mp4``, or ``*.mp4`` in a
       legacy flat stage directory) →
       ``training/<species>/<run>/stage<N>/``, at the same relative path
+    * Every ancestor record of a node reused from another run
+      (``ancestors/<stage_id>/*`` — ``ancestor.json``, the copied
+      ``gate_verdict.json`` and stage config; never a checkpoint) →
+      ``training/<species>/<run>/ancestors/<stage_id>/``, because the
+      bundle audit requires them and a mirror without them cannot audit
 
     When *bucket* is ``None`` (no GCP info provided), this function is a
     no-op and all artifacts remain local only.
@@ -690,10 +695,11 @@ def upload_curriculum_artifacts(
     # 2. Upload per-stage artifacts — every stage directory the run wrote,
     # in either naming generation (stage{N}, bare ids like "recovery", or
     # the NN_id form new runs use), recognised by the one species-aware
-    # helper so any id this species' manifest declares uploads and nothing
-    # else (an ``ancestors`` directory, ``models`` at run level) ever does.
-    # Iterating the disk instead of a fixed 1..3 range keeps semantic-only
-    # stages (recovery) from silently never syncing.
+    # helper so any id this species' manifest declares uploads as a stage
+    # and nothing else (``models`` at run level, the ``ancestors`` records
+    # mirrored separately below) ever does.  Iterating the disk instead of
+    # a fixed 1..3 range keeps semantic-only stages (recovery) from silently
+    # never syncing.
     from .stage_manifest import stage_ref_from_dirname
 
     stage_dir_list = [
@@ -762,3 +768,28 @@ def upload_curriculum_artifacts(
                 _upload_to_gcs(
                     model_file, bucket, f"{gcs_model_prefix}/{model_file.name}", project=project, client=client
                 )
+
+    # 3. Ancestor records (BEHAVIOR_RECIPES_PLAN §4.2).  A node reused from
+    # another run through --trunk-from leaves ancestors/<stage_id>/ holding
+    # ancestor.json and verbatim copies of the ancestor's gate_verdict.json,
+    # stage_config.json, task_fingerprint.json and plant_identity.json —
+    # small records, never the checkpoint.  The bundle audit requires every
+    # record the provenance claims, so a mirror without them audits as a
+    # conflict; every file in every record directory uploads at its own
+    # relative path.
+    from .result_bundle.constants import ANCESTORS_DIRNAME
+
+    ancestors_dir = base_dir / ANCESTORS_DIRNAME
+    if ancestors_dir.is_dir():
+        for record_dir in sorted(ancestors_dir.iterdir()):
+            if not record_dir.is_dir():
+                continue
+            for record_file in sorted(record_dir.iterdir()):
+                if record_file.is_file():
+                    _upload_to_gcs(
+                        record_file,
+                        bucket,
+                        f"{gcs_run_prefix}/{ANCESTORS_DIRNAME}/{record_dir.name}/{record_file.name}",
+                        project=project,
+                        client=client,
+                    )
