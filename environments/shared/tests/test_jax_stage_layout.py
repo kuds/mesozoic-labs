@@ -96,6 +96,10 @@ class TestFinalCheckpointNaming:
             obs_rms=None,
             reward_cfg={"forward_vel_weight": 1.0},
             plant_identity=plant_identity(),
+            # A certified stance-only save is publishable (schema v4) and a
+            # publishable bundle records its backend version; jax need not be
+            # installed to prove the checkpoint naming.
+            backend_version="0.4.0-test",
         )
         return paths, dirs
 

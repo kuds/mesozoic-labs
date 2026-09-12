@@ -8,6 +8,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Reproducible Runs & Velociraptor Stage-1 Diagnosis (v0.3.7)
 
 ### Added
+- **Stage manifest v2** (`docs/BEHAVIOR_RECIPES_PLAN.md` Phase A, part 1).
+  `environments/shared/stage_manifest.py` reads `mesozoic.stage-manifest/v2`
+  beside v1: per-stage `warm_start_from` (an EARLIER entry; self and forward
+  references are fatal), `deliverable` and `recipe`, with ids an open
+  vocabulary matching `^[a-z][a-z0-9_]*$` (the four reserved ids and every
+  legacy-number, no-rewrite and no-reorder rule are unchanged). A v1 or
+  synthesized manifest derives its edges as "previous advancing entry" and one
+  deliverable (the last advancing entry), bit-identical to before and pinned.
+  `StageManifest` gains `deliverables`, `recipe_labels`, `parent_of`,
+  `ancestors`, `chain_for` and `resolve_behavior`; `stage_ref_from_dirname`
+  resolves `NN_<id>` directories through the species' manifest so
+  `detect_stage_from_path`, artifact upload and the sweep collector accept
+  any declared id. Every species now commits a v2 `stages.toml` (T-Rex,
+  Velociraptor, Brachiosaurus, Dibothrosuchus, Compsognathus and the
+  Compsognathus robot) declaring exactly the ids, numbers, config files and
+  edges it had, so stand and walk become deliverables without moving any
+  stage directory, file label or task fingerprint.
+- **`gate_verdict.json`** (`environments/shared/result_bundle/gate_verdict.py`,
+  schema `mesozoic.gate-verdict/v1`): a per-stage verdict record written
+  beside the handoff checkpoint and hash-bound to it and its normalization
+  sidecar, so a later run can prove an ancestor passed without the run-level
+  CSV; `ANCESTORS_DIRNAME` and the per-ancestor record filenames are declared,
+  and load lineage gains an optional `parent_run_id` (audited as a non-empty
+  string).
+- **Warm-starts keyed on the manifest edge** (Phase A, WS2). Parentage was
+  inferred from position in three places; each now reads the node's declared
+  `warm_start_from`, which on every v1 and synthesized manifest is set
+  exactly when the position is > 1, so a legacy curriculum is unchanged:
+  `_stage_entry_shaping_callbacks` takes `parent_id` and fires only when the
+  node has an edge and the load crosses it (a root never warms up); `train()`
+  and the notebook's `train_stage` refuse an `initialize_next_stage` load
+  whose recorded stage is not the declared parent
+  (`task_fingerprint.validate_declared_parent`); `train_curriculum` resolves
+  each node's parent from its edge out of the run's certified nodes, stops
+  with a warning naming a missing ancestor instead of training from scratch,
+  and writes `gate_verdict.json` for every trained node. New
+  `environments/shared/ancestors.py` (`find_certified_ancestor`,
+  `record_ancestor`) and `curriculum --trunk-from RUN_DIR` reuse an earlier
+  run's certified nodes under the plan's rule (passed verdict hash-bound to
+  the handoff pair, plant identity validating, task hash equal), recording
+  them under `ancestors/<stage_id>/` and their children's `parent_run_id`;
+  `generate_stage_artifacts` writes the verdict beside the handoff it judged
+  and `scripts/backfill_gate_verdict.py` re-derives it for pre-Phase-A stage
+  directories.
+- **Publication per deliverable** (Phase A, WS3): result schema v4 (v2 and v3
+  still read verbatim). `provenance.deliverables` records every deliverable
+  the run trained with its checkpoint hashes and a `certified` flag (own gate
+  plus every `warm_start_from` ancestor's, in the run or as an `ancestors/`
+  record); `primary_deliverable` / `target_deliverable` name the published
+  model and the node the run aimed at. Bundle status is `complete` when the
+  target and every present deliverable are certified, `partial` when at
+  least one is, `failed` otherwise; `summary.json` is written whenever
+  something is certified and `selected_model_path` is the primary's — so a
+  failed hunt publishes the certified walk, a walk-only run is a complete
+  bundle when walk was its target, and a certified stance-only run publishes
+  as partial. `validate_result_summary` / `validate_result_bundle` gain
+  `require_publishable`; the audit reports `canonical-partial`, binds a
+  `parent_run_id` lineage to the ancestor record carrying that checkpoint,
+  and cross-checks the deliverables and ancestors maps against disk.
+  Evidence validation re-derives a recorded pass and binds, without
+  re-gating, a recorded failure. Under a v1 or synthesized manifest the
+  rules collapse to the pre-Phase-A outcomes (pinned). The catalog, website
+  and the notebook chain loop follow in the rest of Phase A.
 - **Behavior recipes plan** (`docs/BEHAVIOR_RECIPES_PLAN.md`): the adopted
   design for turning the linear stage curriculum into a DAG of behavior
   recipes — stand, walk, hunt and follow direction — each a separately
@@ -85,6 +148,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   experiment that blocks P5.
 
 ### Changed
+- **Ancestor reuse is chain-aware and never reuses the target** (Phase A,
+  WS2 follow-up). `find_certified_ancestor` gains rule 4: a non-root
+  candidate must record, in its `stage_config.json` run block, an
+  `initialize_next_stage` load whose `parent_checkpoint_sha256` equals the
+  digest of the checkpoint resolved for its declared parent (the new
+  `parent_model_sha256` argument), and a root candidate must not have
+  entered from a parent at all; ids are never a substitute for the
+  digests, and an unresolved parent refuses the child. `curriculum
+  --trunk-from` resolves each node's parent before consulting the trunk,
+  never looks up a child of a node trained in the same run (nothing earlier
+  descends from a checkpoint the run just produced), and never reuses the
+  run's target — the last advancing stage is always trained, and an earlier
+  run's certified target is that run's deliverable. Every non-reuse is
+  logged with its reason.
+- **The SB3 notebook's opt-in recovery pilot now shapes the bundle status**
+  (Phase A, WS3 consequence). Under result schema v4 recovery is a
+  deliverable, so a recovery that fails its frozen gate leaves the run
+  bundle `partial` — the certified numbered stages still publish — instead
+  of riding along without affecting the status. The completion cell reports
+  a publishable-but-partial bundle, naming the uncertified deliverable,
+  rather than failing the run; the chain loop that replaces the per-stage
+  cells enforces the verdict outright.
+- **`train_curriculum` records no gate verdict for an interrupted node.** A
+  Ctrl-C partway through a stage's budget used to write a FAILED
+  "budget exhausted" `gate_verdict.json`, which every later `--trunk-from`
+  would have read as a genuine gate failure; the node is now left unjudged,
+  with a warning to resume or re-judge it before reuse.
+- **`upload_curriculum_artifacts` mirrors `ancestors/<stage_id>/` records**
+  (the reused node's `ancestor.json` and copied verdict, config, fingerprint
+  and plant identity — never a checkpoint): the bundle audit requires them,
+  so a GCS mirror of a `--trunk-from` run could not audit without them.
 - **Cleanup batches from the gap review** (Phase K,
   `docs/reviews/RL_PIPELINE_GAP_REVIEW_2026_08.md` §6 — every entry
   re-verified against the tree after the five fix phases; no behavior

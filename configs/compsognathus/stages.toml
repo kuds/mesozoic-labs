@@ -1,20 +1,42 @@
-schema = "mesozoic.stage-manifest/v1"
+# compsognathus stage manifest (mesozoic.stage-manifest/v2; BEHAVIOR_RECIPES_PLAN §4.1/§4.8).
+# The species landed (PRs #521-#526) with a v1 manifest declaring exactly the
+# T-Rex layout; this v2 file keeps the same ids, legacy numbers, config files
+# and order — every artifact and integer reference keeps its meaning — and
+# makes the edges the v1 reader derived explicit (each node warm-starts from
+# the previous advancing entry, so recovery and locomotion both start from
+# stance) so that stand and walk publish as deliverables instead of only the
+# behavior leaf. Recipe labels follow the shared convention: the behavior
+# node is labelled "hunt" whatever its task name (here target_reach), so the
+# notebook's BEHAVIOR="hunt" default resolves for every species.
 
-[[stages]]
+schema = "mesozoic.stage-manifest/v2"
+
+[[stages]]                       # quiet stance
 id = "stance"
 config = "stance.toml"
 legacy_number = 1
+recipe = "stand"
+deliverable = true               # stance_quality/v1
 
-[[stages]]
+[[stages]]                       # balance under pushes
 id = "recovery"
 config = "recovery.toml"
+warm_start_from = "stance"
+recipe = "stand"
+deliverable = true               # recovery_quality/v1, judged against a per-run frozen resolution
 
 [[stages]]
 id = "locomotion"
 config = "locomotion.toml"
 legacy_number = 2
+warm_start_from = "stance"       # the previous advancing entry, as the v1 reader derived
+recipe = "walk"
+deliverable = true
 
-[[stages]]
+[[stages]]                       # id stays "behavior"; the task name (target_reach) is the TOML's [stage] name
 id = "behavior"
 config = "behavior.toml"
 legacy_number = 3
+warm_start_from = "locomotion"
+recipe = "hunt"
+deliverable = true

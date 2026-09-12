@@ -23,7 +23,7 @@ from environments.shared.result_bundle import (
     compare_summary_to_csv,
     validate_result_bundle,
 )
-from environments.shared.result_schema import validate_result_summary
+from environments.shared.result_schema import ResultSchemaError, validate_result_summary
 
 from .result_bundle_helpers import (
     _complete_bundle,
@@ -39,7 +39,13 @@ def test_trex_bundle_with_recovery_stage_is_canonical_valid(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
-    """A recovery-bearing bundle publishes, audits clean, and re-validates."""
+    """A recovery-bearing bundle publishes its certified nodes, audits clean, and re-validates.
+
+    Recovery is a deliverable in the v2 manifest whose none/v1 pilot verdict is
+    False, so the bundle is PARTIAL (schema v4): stance, walk and hunt are
+    certified and published, recovery is recorded honestly as uncertified, and
+    the bundle is not ``complete`` (plan decision D4).
+    """
     run_dir = tmp_path / "trex-run"
     paths, _, _ = _complete_bundle(
         run_dir,
@@ -51,17 +57,28 @@ def test_trex_bundle_with_recovery_stage_is_canonical_valid(
 
     summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
     assert set(summary["stages"]) == {"1", "recovery", "2", "3"}
-    assert summary["schema_version"] == 3
+    assert summary["schema_version"] == 4
+    assert summary["bundle_status"] == "partial"
     # The pilot's honest verdict is recorded, not laundered.
     assert summary["stages"]["recovery"]["stage_passed"] is False
-    # The headline reward stays the terminal advancing stage's.
+    assert {key: record["certified"] for key, record in summary["provenance"]["deliverables"].items()} == {
+        "1": True,
+        "recovery": False,
+        "2": True,
+        "3": True,
+    }
+    # The headline reward is the primary deliverable's — the hunt target.
+    assert summary["provenance"]["primary_deliverable"] == "3"
     assert summary["final_avg_reward"] == summary["stages"]["3"]["final_eval_reward"]
     validate_result_summary(
         summary,
         expected_species="trex",
-        require_complete=True,
+        require_complete=False,
+        require_publishable=True,
         canonical_provenance=True,
     )
+    with pytest.raises(ResultSchemaError, match="complete"):
+        validate_result_summary(summary, expected_species="trex", require_complete=True)
     assert set(summary["provenance"]["selected_checkpoints"]) == {"1", "recovery", "2", "3"}
 
     with paths["collected_results_csv"].open(newline="", encoding="utf-8") as source:
@@ -73,8 +90,12 @@ def test_trex_bundle_with_recovery_stage_is_canonical_valid(
     assert recovery_row["curriculum_gate_kind"] == "none/v1"
     assert compare_summary_to_csv(summary, paths["collected_results_csv"]) == []
 
-    assert audit_result_bundle(run_dir)["status"] == "canonical-valid"
-    assert validate_result_bundle(run_dir, require_complete=True)["status"] == "canonical-valid"
+    assert audit_result_bundle(run_dir)["status"] == "canonical-partial"
+    assert validate_result_bundle(run_dir, require_complete=False, require_publishable=True)["status"] == (
+        "canonical-partial"
+    )
+    with pytest.raises(ResultBundleError, match="result bundle is canonical-partial"):
+        validate_result_bundle(run_dir, require_complete=True)
 
 
 def test_trex_bundle_with_recovery_stage_resaves_byte_identically(
@@ -178,12 +199,12 @@ def test_recovery_without_its_stance_parent_is_rejected(
         )
 
 
-def test_partial_stance_plus_recovery_bundle_stays_partial(
+def test_partial_stance_plus_recovery_bundle_publishes_the_certified_stance(
     tmp_path: Path,
     stable_provenance: None,
 ) -> None:
     """The pilot's recorded False verdict must not read as a FAILED
-    curriculum: only advancing gates decide the bundle status."""
+    curriculum: the certified stance publishes and the bundle is partial."""
     run_dir = tmp_path / "trex-run"
     stage_results, stage_configs = _complete_bundle_inputs(
         run_dir,
@@ -208,12 +229,19 @@ def test_partial_stance_plus_recovery_bundle_stays_partial(
         run_id="trex-partial-with-recovery",
     )
 
-    assert "summary" not in paths
+    assert paths["summary"].is_file()
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    assert summary["bundle_status"] == "partial"
+    assert summary["provenance"]["primary_deliverable"] == "1"
+    assert {key: record["certified"] for key, record in summary["provenance"]["deliverables"].items()} == {
+        "1": True,
+        "recovery": False,
+    }
     assert json.loads(paths["artifact_manifest"].read_text(encoding="utf-8"))["status"] == "partial"
     with paths["collected_results_csv"].open(newline="", encoding="utf-8") as source:
         rows = list(csv.DictReader(source))
     assert [row["stage"] for row in rows] == ["1", "recovery"]
-    assert audit_result_bundle(run_dir)["status"] == "partial"
+    assert audit_result_bundle(run_dir)["status"] == "canonical-partial"
 
 
 def test_a_stage_reference_outside_the_manifest_fails_closed(
@@ -270,4 +298,4 @@ def test_recovery_collected_results_row_round_trips(tmp_path: Path) -> None:
         reread = list(csv.DictReader(source))
     assert [row["stage"] for row in reread] == ["1", "recovery"]
     assert reread[1]["species"] == "trex"
-    assert reread[1]["schema_version"] == "3"
+    assert reread[1]["schema_version"] == "4"

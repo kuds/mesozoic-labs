@@ -903,3 +903,54 @@ class TestDetectStageFromPath:
         from environments.shared.evaluation import detect_stage_from_path
 
         assert detect_stage_from_path("/tmp/some_model.zip") == 1
+
+    @staticmethod
+    def _declare_pilot_species(tmp_path, monkeypatch):
+        """A tmp configs root whose species ``pilot`` declares the open id follow_direction."""
+        import shutil
+
+        from environments.shared import stage_manifest
+
+        for real in ("trex", "velociraptor"):
+            shutil.copytree(stage_manifest._CONFIGS_DIR / real, tmp_path / "configs" / real)
+        species_dir = tmp_path / "configs" / "pilot"
+        species_dir.mkdir(parents=True)
+        for name in ("stance.toml", "follow_direction.toml"):
+            (species_dir / name).write_text("[stage]\nname = 'x'\n")
+        (species_dir / "stages.toml").write_text(
+            f'schema = "{stage_manifest.STAGE_MANIFEST_SCHEMA_V2}"\n'
+            '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\ndeliverable = true\n'
+            '[[stages]]\nid = "follow_direction"\nconfig = "follow_direction.toml"\nwarm_start_from = "stance"\n'
+            "deliverable = true\n"
+        )
+        monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", tmp_path / "configs")
+
+    def test_open_id_nn_layout_passes_through_as_id_when_the_species_declares_it(self, tmp_path, monkeypatch):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        self._declare_pilot_species(tmp_path, monkeypatch)
+        path = "/runs/x/05_follow_direction/models/best_model.zip"
+        assert detect_stage_from_path(path, species="pilot") == "follow_direction"
+        assert detect_stage_from_path(
+            "/runs/x/05_follow_direction_20260901_120000/models/best.zip", species="pilot"
+        ) == ("follow_direction")
+        # Species-free, an NN_<word> directory cannot claim a stage (D-A12).
+        assert detect_stage_from_path(path) == 1
+
+    def test_species_filter_rejects_an_undeclared_id(self, tmp_path, monkeypatch):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        self._declare_pilot_species(tmp_path, monkeypatch)
+        path = "/runs/x/05_follow_direction/models/best_model.zip"
+        assert detect_stage_from_path(path, species="velociraptor") == 1
+        # A reserved id the species does not declare is filtered the same way.
+        assert detect_stage_from_path("/runs/x/02_recovery/models/best_model.zip", species="velociraptor") == 1
+        assert detect_stage_from_path("/runs/x/02_recovery/models/best_model.zip", species="trex") == "recovery"
+
+    def test_bare_open_id_is_not_read_as_a_stage(self, tmp_path, monkeypatch):
+        from environments.shared.evaluation import detect_stage_from_path
+
+        self._declare_pilot_species(tmp_path, monkeypatch)
+        path = "/runs/x/follow_direction/models/best_model.zip"
+        assert detect_stage_from_path(path) == 1
+        assert detect_stage_from_path(path, species="pilot") == 1

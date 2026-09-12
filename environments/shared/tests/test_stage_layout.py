@@ -301,6 +301,16 @@ class TestGcsUploadScope:
         keys = self._uploaded(tmp_path, monkeypatch)
         assert not [k for k in keys if k.endswith(".png") or k.endswith("_stance.csv")]
 
+    def test_gate_verdict_uploads_with_the_stage_sidecars(self, tmp_path, monkeypatch):
+        # gate_verdict.json lives at the stage root beside stage_config.json
+        # and is what makes a stage reusable from GCS alone.
+        stage = tmp_path / "stage1"
+        _touch(stage / "gate_verdict.json")
+        _touch(stage / "stage_config.json")
+        keys = self._uploaded(tmp_path, monkeypatch)
+        assert "training/trex/{}/stage1/gate_verdict.json".format(tmp_path.name) in keys
+        assert "training/trex/{}/stage1/stage_config.json".format(tmp_path.name) in keys
+
 
 class TestSelectedCheckpointReplay:
     """The replay must show the checkpoint the evidence CSV is evidence for.
