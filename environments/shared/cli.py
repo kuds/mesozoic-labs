@@ -312,10 +312,25 @@ def main(species_cfg):
     # -- curriculum ----------------------------------------------------
     cur_parser = subparsers.add_parser(
         "curriculum",
-        help="Run the automated end-to-end curriculum over the species' advancing stages in manifest "
-        "order; each node warm-starts from its manifest parent (warm_start_from) and a node whose "
-        "parent has no certified checkpoint stops the curriculum (a non-advancing pilot stage such "
-        "as trex 'recovery' is skipped with a log line; train it on its own with `train --stage recovery`)",
+        help="Run the automated end-to-end curriculum to a target behavior (--target; default: the last "
+        "advancing stage), walking the target's chain of advancing stages in manifest order; each node "
+        "warm-starts from its manifest parent (warm_start_from) and a node whose parent has no certified "
+        "checkpoint stops the curriculum (a non-advancing pilot stage such as trex 'recovery' is skipped "
+        "with a log line; train it on its own with `train --stage recovery`)",
+    )
+    cur_parser.add_argument(
+        "--target",
+        type=_parse_stage_ref,
+        default=None,
+        metavar="BEHAVIOR",
+        help=(
+            "The behavior this run certifies: a recipe label ('stand', 'walk', 'hunt') or a deliverable's "
+            "stage id ('locomotion'), resolved as the notebook's BEHAVIOR knob resolves them, or a legacy "
+            "number (2), resolved as --stage resolves it. The run walks the target's chain of advancing "
+            "stages and stops there, so `--target walk` certifies a walk-only run. Default: the last advancing "
+            "stage (the whole ladder). A chain through a non-advancing stage ('stand' on trex runs through "
+            "recovery) or one that skips a ladder stage is refused here; train it through the notebook"
+        ),
     )
     cur_parser.add_argument("--n-envs", type=int, default=4)
     cur_parser.add_argument("--seed", type=int, default=42)
@@ -342,8 +357,10 @@ def main(species_cfg):
             "Earlier run directory whose certified ancestors (gate_verdict.json passed, plant and task "
             "hash matching the current config, each child recorded as trained from the very parent "
             "checkpoint reused before it) satisfy nodes instead of training them, root-first; the "
-            "run's target (the last advancing stage) is always trained here. Reused records are copied "
-            "into ancestors/ and the lineage records parent_run_id"
+            "run's target (--target; the last advancing stage by default) is always trained here. Reused records are copied "
+            "into ancestors/ and the lineage records parent_run_id; a run that itself reused a node resolves "
+            "it through its ancestor records to the run that certified it (the command line follows those "
+            "records; the notebook's TRUNK_FROM does not yet)"
         ),
     )
     cur_parser.add_argument(
@@ -352,9 +369,9 @@ def main(species_cfg):
         default=None,
         metavar="STAGE_ID",
         help=(
-            "With --trunk-from: an advancing stage (id or legacy number) to train in this run together "
-            "with every advancing stage after it, even when the trunk holds a certified copy; only the "
-            "certified ancestors strictly above it are reused. A variant is a new run: pair it with a "
+            "With --trunk-from: a stage of the target's chain (id or legacy number) to train in this run "
+            "together with every chain stage after it, even when the trunk holds a certified copy; only "
+            "the certified ancestors strictly above it are reused. A variant is a new run: pair it with a "
             "fresh --output-dir"
         ),
     )
@@ -502,28 +519,31 @@ def main(species_cfg):
         if trunk_from is not None and not Path(trunk_from).is_dir():
             parser.error(f"--trunk-from {trunk_from!r} is not a directory")
         retrain_from = getattr(args, "retrain_from", None)
-        if retrain_from is not None:
-            # D-A19: the knob only means something against a trunk, and it
-            # must name a node the curriculum walks — refused here, before
-            # train_curriculum creates the run directory.
-            if trunk_from is None:
-                parser.error(
-                    f"--retrain-from {retrain_from!r} requires --trunk-from: without a trunk every stage "
-                    "is trained in this run already"
-                )
-            from .stage_manifest import StageManifestError, load_stage_manifest
+        target = getattr(args, "target", None)
+        # D-A19: the retrain knob only means something against a trunk.
+        if retrain_from is not None and trunk_from is None:
+            parser.error(
+                f"--retrain-from {retrain_from!r} requires --trunk-from: without a trunk every stage "
+                "is trained in this run already"
+            )
+        if target is not None or retrain_from is not None:
+            # D-A24 / D-A19: the target must resolve to a chain of advancing
+            # stages and --retrain-from must name a node on that chain —
+            # refused here, before train_curriculum creates the run
+            # directory, with the same words train_curriculum would use.
+            from .stage_manifest import load_stage_manifest
+            from .train_base import _resolve_curriculum_target, _resolve_retrain_from
 
             manifest = load_stage_manifest(species_cfg.species)
-            advancing_ids = [entry.id for entry in manifest.advancing_stages]
             try:
-                retrain_entry = manifest.resolve(retrain_from)
-            except StageManifestError as exc:
-                parser.error(f"--retrain-from {retrain_from!r}: {exc}; advancing stages: {advancing_ids}")
-            if retrain_entry not in manifest.advancing_stages:
-                parser.error(
-                    f"--retrain-from {retrain_from!r} names the non-advancing stage {retrain_entry.id!r}; "
-                    f"the curriculum trains only the advancing stages: {advancing_ids}"
-                )
+                _, chain = _resolve_curriculum_target(manifest, target, flag="--target")
+            except ValueError as exc:
+                parser.error(str(exc))
+            if retrain_from is not None:
+                try:
+                    _resolve_retrain_from(manifest, retrain_from, chain, flag="--retrain-from")
+                except ValueError as exc:
+                    parser.error(str(exc))
         train_curriculum(
             species_cfg=species_cfg,
             stage_configs=stage_configs,
@@ -532,6 +552,7 @@ def main(species_cfg):
             allow_fresh_vecnorm=getattr(args, "allow_fresh_vecnorm", False),
             trunk_from=trunk_from,
             retrain_from=retrain_from,
+            target=target,
             label=getattr(args, "label", None),
             eval_freq=args.eval_freq,
             save_freq=args.save_freq,

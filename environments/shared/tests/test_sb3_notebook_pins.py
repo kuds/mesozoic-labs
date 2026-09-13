@@ -554,6 +554,40 @@ class TestReuseRule:
         assert find_at < diff.lineno < _handoff_assigns(reuse_if)[0].lineno
         assert warning_if.lineno < _call(reuse_if, "record_ancestor").lineno
 
+    def test_only_the_trunk_candidate_follows_ancestor_records(self):
+        """Decision D-A23: ``find_certified_ancestor`` can follow a run's own
+        ``ancestors/<stage_id>/ancestor.json`` to the run that certified the node — opt-in through
+        ``follow_records`` (library default False).  The loop tries RUN_DIR before TRUNK_DIR with one
+        call and reads ``same_run = candidate == RUN_DIR`` off the CANDIDATE, so RUN_DIR must never
+        follow: a re-run after a pass that reused stance from the trunk would otherwise get the
+        trunk's stance back with ``same_run`` True — its results re-entered as trained here, the
+        bundle refusing the node as both trained and reused, later nodes recording no
+        ``parent_run_id``, and for the target (``candidates = [RUN_DIR]``) a cross-run reuse (D-A18).
+        The call therefore passes exactly ``follow_records=candidate is not RUN_DIR``: the trunk
+        candidate composes (a trunk that itself reused stance resolves it to the run that certified
+        it), this run's own directory never does."""
+        import inspect
+
+        from environments.shared.ancestors import find_certified_ancestor
+
+        src, loop = _chain_loop()
+        find = _call(loop, "find_certified_ancestor")
+        assert "follow_records" in _keyword_names(find), "the trunk candidate must opt in to following records"
+        assert _keyword_source(src, find, "follow_records") == "candidate is not RUN_DIR", (
+            "RUN_DIR must never follow its own record; only the trunk candidate may"
+        )
+        assert inspect.signature(find_certified_ancestor).parameters["follow_records"].default is False, (
+            "following ancestor records stays opt-in in the library"
+        )
+        # And ``same_run`` is still read off the candidate, which is why RUN_DIR must not follow.
+        reuse_if = _reuse_if(src, loop)
+        same_run = next(
+            node
+            for node in reuse_if.body
+            if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "same_run"
+        )
+        assert ast.unparse(same_run.value) == "candidate == RUN_DIR"
+
     def test_cross_run_reuse_records_ancestors_and_never_copies_checkpoints(self):
         src, loop = _chain_loop()
         record = _call(loop, "record_ancestor")

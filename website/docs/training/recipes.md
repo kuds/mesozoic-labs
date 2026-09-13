@@ -103,10 +103,10 @@ and the bare id otherwise (`recovery_final.zip`).
 
 ## What one run does
 
-A run names a target: `BEHAVIOR` in the notebook, or the last advancing
-(legacy-numbered) stage on the command line. It resolves the target's
-ancestor chain from the manifest and walks it root-first. At each node it
-does exactly one of three things:
+A run names a target: `BEHAVIOR` in the notebook, or `--target BEHAVIOR` on
+the command line (default: the last advancing, legacy-numbered stage). It
+resolves the target's ancestor chain from the manifest and walks it
+root-first. At each node it does exactly one of three things:
 
 1. **Reuse** a certified checkpoint that already exists — in this run, or,
    for an ancestor, in the trunk run — when the reuse rule below holds. A
@@ -137,7 +137,14 @@ and the notebook loop both apply it, refusing on the first failure with a
 reason naming it:
 
 1. the candidate run has a stage directory for the node, in any layout
-   generation;
+   generation — or, holding only `ancestors/<stage_id>/ancestor.json` for it
+   (it reused the node itself), the record is followed to the run that
+   certified the node: its `source_run_dir` as recorded, else the run of the
+   same name beside the candidate (Colab, Drive and bucket layouts keep runs
+   side by side), else a refusal naming both paths. The source must pass
+   every rule below, and its handoff pair must still hash to the digests the
+   record bound the reuse to; at most eight records are followed and a
+   record pointing back at a run already on the path is refused (D-A23);
 2. that directory carries a `gate_verdict.json` that passed, hashes both
    files of its handoff pair, and judged this node's id;
 3. the verdict's `task_sha256` equals the fingerprint derived from the
@@ -157,14 +164,25 @@ reason naming it:
 Two runs that both certified stance produced two different checkpoints; a
 walk descends from exactly one of them, and ids never stand in for digests.
 
-Rule 1 looks only at the candidate run's own stage directories; it never
-follows a candidate's `ancestors/<stage_id>/` records back to their source
-run. A run therefore serves as a trunk only for the nodes it trained itself.
-A run that reused stance from an earlier trunk holds no stance directory, so
-trunking a later run from it refuses stance, trains a fresh stance there,
-and then — because nothing older can descend from a checkpoint that run
-just produced — trains everything below it too. To build on a certified
-walk, trunk from the run that holds the whole chain.
+Trunks compose. A run that reused stance from an earlier
+trunk holds no stance directory, only `ancestors/stance/`; asked to follow
+records (`find_certified_ancestor(..., follow_records=True)`, which
+`curriculum --trunk-from` and the notebook's trunk candidate pass), rule 1 resolves through that record to the
+run that certified stance, one machine-visible run directory away, and
+applies every rule there. A later run trunked from it therefore reuses stance
+from the original run — its `ancestors/stance/ancestor.json` and walk's
+`parent_run_id` name the original, never the middle run — and reuses the walk
+the middle run trained itself. The log names the path taken (`Following the
+ancestor record in <middle> to run <original>`). A source rewritten and
+re-judged since the record was made is refused: the record binds the reuse to
+one checkpoint pair. The record names the source by absolute path, so one
+made from `--trunk-from logs/<run>` follows from any working directory; when
+the recorded path is gone, the run of the same name beside the middle run is
+tried (a moved `LOG_BASE`), else the refusal names both paths. The notebook's
+chain loop follows records for the `TRUNK_DIR` candidate only: it tries this
+run's own `RUN_DIR` first and takes a hit there as this run's own node, so a
+record in `RUN_DIR` — the reuse an earlier pass made from the trunk — is never
+followed, or the trunk's stance would re-enter as trained here.
 
 On reuse the child run writes `ancestors/<stage_id>/`: `ancestor.json` plus
 verbatim copies of the ancestor stage's `gate_verdict.json`,
@@ -264,9 +282,22 @@ The `curriculum` command runs the species' advancing stages in manifest
 order; each node warm-starts from its declared parent's handoff checkpoint
 and VecNormalize sidecar, a node whose parent has no certified checkpoint
 stops the run, and every trained node writes `gate_verdict.json` from the
-in-training manager's verdict. Its target is always the last advancing
-stage: there is no flag to stop at walk, so a certified walk-only run exists
-only through the notebook (`BEHAVIOR = "walk"`).
+in-training manager's verdict. `--target BEHAVIOR` names the behavior the
+run certifies — a recipe label (`walk`) or a deliverable's stage id
+(`locomotion`), resolved as the notebook's `BEHAVIOR` knob resolves them, or
+a legacy number (`2`), resolved as `--stage` resolves it (the notebook takes
+no number) — and the run walks that target's chain and stops there, so
+`--target walk` certifies a walk-only run; the default is the last advancing
+stage, the whole ladder. The target is never reused from a trunk, whichever
+node it is. The chain must be the advancing ladder up to the target, because
+the command-line curriculum judges with the integer-keyed `CurriculumManager`,
+advanced once per node walked: `--target stand` on the T-Rex or Compsognathus,
+whose `stand` chain runs through the non-advancing recovery node, is refused
+before any directory is written, and that chain is trained through the
+notebook (`BEHAVIOR = "stand"`); a chain that skips a ladder stage (an edge
+rewired past it) is refused the same way, since the manager would judge the
+node after the gap against the skipped stage's thresholds. `--retrain-from`
+must name a node on the target's chain.
 
 ```bash
 cd environments/velociraptor
@@ -274,6 +305,10 @@ cd environments/velociraptor
 # Reuse an earlier run's certified stance and locomotion; train behavior here
 python scripts/train_sb3.py curriculum --algorithm ppo \
   --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+
+# A walk-only run: reuse the certified stance, train locomotion here as the target, stop
+python scripts/train_sb3.py curriculum --algorithm ppo --target walk \
+  --trunk-from logs/<earlier_run> --output-dir logs/<walk_run>
 
 # Reuse only the certified stance; retrain locomotion and behavior here
 python scripts/train_sb3.py curriculum --algorithm ppo \
@@ -441,12 +476,12 @@ python scripts/train_sb3.py curriculum --algorithm ppo \
 ```
 
 The variant reuses stance as an ancestor and trains locomotion and behavior
-here. It cannot pass stance on: a run serves as a trunk only for the nodes it
-trained itself (rule 1 above), so a later hunt trunked from `<variant_run>`
-would retrain stance and, with it, locomotion. To carry a winning locomotion
-into later hunts, train that variant without `--trunk-from` (it retrains
-stance) and trunk from that whole-chain run; otherwise keep trunking from the
-run that holds the whole chain and treat the variant as a comparison.
+here. A later hunt trunked from `<variant_run>` reuses the variant's
+locomotion and, through the variant's `ancestors/stance/` record, the stance
+that `<certified_run>` certified (rule 1 above): the winning locomotion
+carries into later hunts without retraining anything, provided the original
+run is still visible from the machine — as recorded, or beside the variant
+under the same log base.
 
 Vertex AI sweep trials are single-stage `train()` runs wrapped by the
 `trial` subcommand, which judges the stage afterwards through

@@ -47,7 +47,7 @@ from .plant_contract import (
     validate_environment_plant,
     validate_model_plant,
 )
-from .stage_manifest import stage_label
+from .stage_manifest import StageEntry, StageManifest, stage_label
 from .tb_sync import (  # noqa: F401  (used internally; test_train_base also imports them from here)
     _is_gcs_path,
     _make_local_tb_dir,
@@ -1698,6 +1698,115 @@ class _ResolvedNode:
     model_sha256: str | None = None
 
 
+def _resolve_curriculum_target(
+    manifest: "StageManifest",
+    target: "int | str | None",
+    *,
+    flag: str = "target",
+) -> "tuple[StageEntry, tuple[StageEntry, ...]]":
+    """Resolve ``target`` (decision D-A24) to the node the run certifies and the chain it walks.
+
+    ``None`` is the last advancing stage and the walk is the WHOLE advancing
+    ladder — the walk before D-A24, bit for bit, and on every committed
+    manifest exactly that stage's chain.  It is not validated as a chain: a
+    ladder node whose declared parent is off the ladder stops the run with
+    the warning naming the ancestor, as it always has.  An explicit target
+    is a string — a recipe label or a deliverable's stage id
+    (``StageManifest.resolve_behavior``, the notebook's ``BEHAVIOR``
+    vocabulary) — or an int, a legacy number (``StageManifest.resolve``, the
+    ``--stage`` vocabulary); its walk is ``chain_for(target)``, root first,
+    and every node on it must be advancing AND the chain must be a prefix
+    of the advancing ladder (``advancing[:len(chain)]``): the command-line
+    curriculum judges with the integer-keyed ``CurriculumManager`` (decision
+    D-A7), advanced once per node walked, so a chain through a non-advancing
+    node (``"stand"`` on T-Rex and Compsognathus runs through recovery) or
+    one that skips a ladder node (a manifest whose ``behavior`` edge points
+    at ``stance``, leaving ``locomotion`` out — the loader pins legacy
+    numbers to ids, not the edges between them) would have the manager
+    judge a node against another stage's thresholds; both are refused
+    naming the offending node(s) and the notebook's ``BEHAVIOR`` knob, which
+    walks any chain.  Raises ``ValueError`` before any directory is
+    written; *flag* is how the message names the knob (the CLI passes
+    ``"--target"``).
+    """
+    from .stage_manifest import StageManifestError
+
+    advancing = manifest.advancing_stages
+    advancing_ids = [entry.id for entry in advancing]
+    if target is None:
+        return advancing[-1], advancing
+    try:
+        entry = manifest.resolve(target) if isinstance(target, int) else manifest.resolve_behavior(target)
+    except StageManifestError as exc:
+        raise ValueError(f"{flag} {target!r} does not name a behavior of {manifest.species}: {exc}") from exc
+    chain = manifest.chain_for(entry.id)
+    non_advancing = [node.id for node in chain if node not in advancing]
+    if non_advancing:
+        behavior = target if isinstance(target, str) else entry.id
+        raise ValueError(
+            f"{flag} {target!r} resolves to {entry.id!r}, whose chain {[node.id for node in chain]} runs through "
+            f"the non-advancing stage(s) {non_advancing}; the command-line curriculum walks only the advancing "
+            f"stages {advancing_ids} (the CurriculumManager is integer-keyed, decision D-A7). Train that chain "
+            f"through the notebook's BEHAVIOR knob (BEHAVIOR = {behavior!r})"
+        )
+    # The manager is advanced once per node walked and judges by ladder
+    # position, so the chain must BE the ladder up to the target: a chain
+    # that skips a ladder node would have the node after the gap judged
+    # against the skipped stage's thresholds.  ``chain`` is in manifest
+    # (ladder) order and all-advancing, so a prefix mismatch is a gap.
+    ladder_to_target = advancing[: advancing.index(entry) + 1]
+    skipped = [node.id for node in ladder_to_target if node not in chain]
+    if skipped:
+        behavior = target if isinstance(target, str) else entry.id
+        raise ValueError(
+            f"{flag} {target!r} resolves to {entry.id!r}, whose chain {[node.id for node in chain]} skips the "
+            f"advancing stage(s) {skipped} below it on the ladder {advancing_ids}; the command-line curriculum "
+            "walks the ladder in order (the CurriculumManager is integer-keyed and advanced once per node, "
+            f"decision D-A7), so it would judge the node after the gap against the skipped stage's thresholds. "
+            f"Train that chain through the notebook's BEHAVIOR knob (BEHAVIOR = {behavior!r})"
+        )
+    return entry, chain
+
+
+def _resolve_retrain_from(
+    manifest: "StageManifest",
+    retrain_from: "int | str",
+    chain: "tuple[StageEntry, ...]",
+    *,
+    flag: str = "retrain_from",
+) -> "StageEntry":
+    """Resolve ``retrain_from`` (decision D-A19) to a node of the walked *chain*.
+
+    A stage id or legacy number, like ``--stage``.  Raises ``ValueError``
+    naming the advancing ids for an unknown or non-advancing node and
+    naming the chain for an advancing node off it (one after a walk-only
+    target; decision D-A24) — before any directory is written.  *flag* is
+    how the message names the knob (the CLI passes ``"--retrain-from"``).
+    """
+    from .stage_manifest import StageManifestError
+
+    advancing = manifest.advancing_stages
+    advancing_ids = [entry.id for entry in advancing]
+    try:
+        entry = manifest.resolve(retrain_from)
+    except StageManifestError as exc:
+        raise ValueError(
+            f"{flag} {retrain_from!r} is not a stage of {manifest.species}: {exc}. "
+            f"It must name one of the advancing stages: {advancing_ids}"
+        ) from exc
+    if entry not in advancing:
+        raise ValueError(
+            f"{flag} {retrain_from!r} names the non-advancing stage {entry.id!r}; "
+            f"the curriculum trains only the advancing stages, so it must be one of {advancing_ids}"
+        )
+    if entry not in chain:
+        raise ValueError(
+            f"{flag} {retrain_from!r} names {entry.id!r}, which is not on the chain this run walks to its target "
+            f"{chain[-1].id!r}: {[node.id for node in chain]}; it must name one of those"
+        )
+    return entry
+
+
 def train_curriculum(
     species_cfg: SpeciesConfig,
     stage_configs: "dict[int | str, dict[str, Any]]",
@@ -1718,8 +1827,9 @@ def train_curriculum(
     trunk_from: "str | Path | None" = None,
     retrain_from: "int | str | None" = None,
     label: str | None = None,
+    target: "int | str | None" = None,
 ):
-    """Run the curriculum's advancing stages, in manifest order, with automatic advancement.
+    """Run the curriculum to its target: the target's chain, in manifest order, with automatic advancement.
 
     Walks ``load_stage_manifest(species).stages`` rather than a hardcoded
     ``range(1, 4)``: indexed into ``load_all_stages``' ``[1, "recovery", 2,
@@ -1738,33 +1848,61 @@ def train_curriculum(
     integer-keyed; decision D-A7); run one on its own with
     ``train --stage <id>``.
 
+    ``target`` (``--target``; decision D-A24) names the behavior the run
+    exists to certify: a recipe label (``"walk"``), a deliverable's stage id
+    (``"locomotion"``) or a legacy number (``2``), resolved once through
+    :func:`_resolve_curriculum_target` before any directory is written.  The
+    walk is the target's chain — ``manifest.chain_for(target)``, root first
+    — and every node on it must be advancing and the chain a prefix of the
+    advancing ladder, so a chain through a non-advancing node (``"stand"``
+    on T-Rex runs through recovery) or one that skips a ladder node is a
+    ``ValueError`` naming the notebook's ``BEHAVIOR`` knob.  ``None`` is the
+    last advancing stage and walks the WHOLE advancing ladder — the walk
+    before D-A24, bit for bit, and on every committed manifest exactly that
+    stage's chain — without chain validation, so a ladder node whose
+    declared parent is off the ladder still stops the run with the warning
+    naming the ancestor.  Advancing nodes off an explicit target's chain
+    (those after a walk-only target) are skipped with a log line, as
+    non-advancing ones are.  The ``CurriculumManager`` stays
+    integer-keyed over the FULL advancing ladder (``total_stages`` is its
+    length) and is advanced once per node that passed or was reused, so it
+    sits at each node's legacy number while the node is judged; it is never
+    advanced past the target, whose pass leaves it mid-ladder for a
+    walk-only run (``is_final_stage`` False, one more ``advance()`` legal,
+    a second one a ``RuntimeError`` — pinned).
+
     ``trunk_from`` names an earlier run directory whose certified ancestors
     satisfy nodes instead of training them, under the reuse rule
     :func:`~environments.shared.ancestors.find_certified_ancestor` applies
     (passed ``gate_verdict.json`` hash-bound to the handoff pair, plant
     identity validating, recorded task equal to the current config's, and
     the candidate's recorded parent checkpoint equal to the one resolved
-    for its declared parent here).  Reuse is root-first and stops at the
+    for its declared parent here); the rule is asked to follow the trunk's
+    own ``ancestors/<stage_id>/ancestor.json`` (``follow_records=True``,
+    decision D-A23), so a trunk that itself reused a node resolves it to
+    the run that certified it.  Reuse is root-first and stops at the
     first node trained in this run: a child of a node trained here is never
     looked up, because nothing in an earlier run descends from a checkpoint
-    this run just produced.  The run's TARGET — the last advancing node —
-    is never reused either: it is what the run exists to certify, and an
+    this run just produced.  The run's TARGET — the last node of the chain
+    — is never reused either: it is what the run exists to certify, and an
     earlier run's certified target is that run's deliverable.  A reused
     node is recorded under ``ancestors/<stage_id>/`` (never its
     checkpoint), writes no ``curriculum_results.csv`` row, and its children
     record ``parent_run_id``; a candidate that fails the rule is trained
     here with the refusal logged.
 
-    ``retrain_from`` (decision D-A19) names an advancing node — a stage id
-    or legacy number, resolved once through the manifest before the walk —
-    that is trained in this run together with every advancing node after it
-    (its descendants: the walk is linear), even when ``trunk_from`` holds a
-    certified copy; only the certified ancestors strictly above it are
-    reused, as before.  It generalises the target rule: ``--retrain-from``
+    ``retrain_from`` (decision D-A19) names a node of the target's chain — a
+    stage id or legacy number, resolved once through the manifest before the
+    walk — that is trained in this run together with every chain node after
+    it (its descendants: the chain is linear), even when ``trunk_from``
+    holds a certified copy; only the certified ancestors strictly above it
+    are reused, as before.  It generalises the target rule: ``--retrain-from``
     naming the target changes nothing.  A value that does not resolve to an
-    advancing node raises ``ValueError`` naming the advancing ids before any
-    directory is written.  Without ``trunk_from`` every node is trained here
-    already, so the knob has nothing to cover.
+    advancing node raises ``ValueError`` naming the advancing ids, and one
+    that names an advancing node off the chain (after a walk-only target)
+    raises naming the chain, both before any directory is written.  Without
+    ``trunk_from`` every node is trained here already, so the knob has
+    nothing to cover.
 
     A stage directory under ``base_dir`` that already records a stage
     (``stage_config.json`` or ``gate_verdict.json``) is refused with
@@ -1796,7 +1934,7 @@ def train_curriculum(
         thresholds_from_configs,
     )
     from .result_bundle import write_gate_verdict
-    from .stage_manifest import StageManifestError, load_stage_manifest, stage_dirname
+    from .stage_manifest import load_stage_manifest, stage_dirname
     from .task_fingerprint import derive_stage_task_fingerprint
     from .wandb_integration import init_wandb
 
@@ -1807,23 +1945,14 @@ def train_curriculum(
     manifest = load_stage_manifest(species)
     advancing = manifest.advancing_stages
 
-    # D-A19: the retrain-from node resolves once, before any directory
-    # exists, so a typo is refused before the run has a footprint.
+    # D-A24 / D-A19: the target and the retrain-from node resolve once,
+    # before any directory exists, so a typo is refused before the run has
+    # a footprint.  ``chain`` is the walk: the target's ancestors root-first
+    # then the target, every one of them advancing.
+    target_entry, chain = _resolve_curriculum_target(manifest, target)
     retrain_entry = None
     if retrain_from is not None:
-        advancing_ids = [entry.id for entry in advancing]
-        try:
-            retrain_entry = manifest.resolve(retrain_from)
-        except StageManifestError as exc:
-            raise ValueError(
-                f"retrain_from {retrain_from!r} is not a stage of {species}: {exc}. "
-                f"It must name one of the advancing stages: {advancing_ids}"
-            ) from exc
-        if retrain_entry not in advancing:
-            raise ValueError(
-                f"retrain_from {retrain_from!r} names the non-advancing stage {retrain_entry.id!r}; "
-                f"the curriculum trains only the advancing stages, so it must be one of {advancing_ids}"
-            )
+        retrain_entry = _resolve_retrain_from(manifest, retrain_from, chain)
         if trunk_from is None:
             logger.info(
                 "retrain_from %r has nothing to cover without trunk_from: every node is trained in this run.",
@@ -1848,8 +1977,9 @@ def train_curriculum(
 
     logger.info("=" * 60)
     logger.info(
-        "Starting automated curriculum training (advancing stages, manifest order): %s",
-        " -> ".join(entry.id for entry in advancing),
+        "Starting automated curriculum training (target %r, its chain in manifest order): %s",
+        target_entry.id,
+        " -> ".join(entry.id for entry in chain),
     )
     logger.info("Base directory: %s", base_dir)
     logger.info("=" * 60)
@@ -1860,7 +1990,19 @@ def train_curriculum(
     resolved: dict[str, _ResolvedNode] = {}
 
     for entry in manifest.stages:
-        if entry not in advancing:
+        if entry not in chain and entry in advancing:
+            # D-A24: an advancing node off the target's chain — after a
+            # walk-only target on every committed manifest — is not walked.
+            logger.info(
+                "Skipping advancing stage %r (position %d/%d): it is not on the chain of this run's target %r (%s).",
+                entry.id,
+                entry.position,
+                len(manifest.stages),
+                target_entry.id,
+                " -> ".join(node.id for node in chain),
+            )
+            continue
+        if entry not in chain:
             gate_kind = stage_configs.get(entry.reference, {}).get("curriculum_kwargs", {}).get("gate_kind")
             logger.warning(
                 "Skipping non-advancing stage %r (position %d/%d, gate_kind %s): the automated "
@@ -1928,7 +2070,7 @@ def train_curriculum(
                 trunk_from,
                 retrain_entry.id if retrain_entry is not None else None,
             )
-        elif trunk_from is not None and entry is advancing[-1]:
+        elif trunk_from is not None and entry is target_entry:
             logger.info(
                 "Not reusing %r from --trunk-from %s: it is this run's target, and the target is always "
                 "trained here (an earlier run's certified %r is that run's deliverable).",
@@ -1949,6 +2091,11 @@ def train_curriculum(
             # outright.  Every refusal is logged with its reason and the
             # node is trained here instead — never silently either way.
             try:
+                # ``trunk_from`` is another run by construction (the CLI
+                # never passes this run's own directory), so a node it
+                # only reused is followed to the run that certified it
+                # (D-A23); the notebook, which tries its own RUN_DIR first,
+                # must not opt in for that candidate.
                 ancestor = find_certified_ancestor(
                     trunk_from,
                     species=species,
@@ -1956,6 +2103,7 @@ def train_curriculum(
                     current_task_sha256=task_fingerprint.get("task_sha256"),
                     plant_identity=plant_identity,
                     parent_model_sha256=parent_node.model_sha256 if parent_node is not None else None,
+                    follow_records=True,
                 )
             except AncestorReuseError as exc:
                 logger.warning(
@@ -2282,10 +2430,15 @@ def train_curriculum(
         if interrupted:
             break
 
-        if curriculum_cb and curriculum_cb.ready_to_advance and not manager.is_final_stage:
+        # The manager is keyed over the full advancing ladder and advances
+        # once per node that passed, so the next chain node is judged
+        # against its own thresholds; it is never advanced past the target
+        # (D-A24: a walk-only target leaves it mid-ladder, which is fine —
+        # nothing after the target is walked).
+        if passed and entry is not target_entry and not manager.is_final_stage:
             manager.advance()
             logger.info("Auto-advanced to stage %d", manager.current_stage)
-        elif entry != advancing[-1]:
+        elif not passed and entry is not target_entry:
             logger.warning(
                 "Stage %s timestep budget exhausted without meeting advancement "
                 "thresholds. Stopping curriculum — advancing with a weak policy "

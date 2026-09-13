@@ -177,10 +177,11 @@ block you edited. The task digest a verdict is bound to covers the effective
 
 A variant is a new run directory: writing into a stage directory that already
 holds `stage_config.json` or `gate_verdict.json` is refused unless the load is
-an explicit same-stage resume. It is also a comparison, not a new trunk for
-the nodes it reused: `--trunk-from` follows a run's own stage directories,
-never its `ancestors/` records, so a run that reused stance cannot hand stance
-to a later run. See
+an explicit same-stage resume. It is also a trunk for everything it holds:
+`--trunk-from` follows a run's own stage directories first and, for a node
+it only reused, its `ancestors/<stage_id>/` record to the run that certified
+the node, so a variant that reused stance hands stance on to a later run as
+the original run's checkpoint. See
 [Behavior Recipes](recipes.md#experiments-on-a-node-that-already-passes).
 
 > **Systematic sweeps:** Use `notebooks/ray_tune_sweep.ipynb` for a Colab/Google
@@ -264,6 +265,6 @@ copying values from a guide.
 2. **Diagnose.** If the run fails, match symptoms against the tables above. Do not change more than one group of knobs per run.
 3. **Narrow.** For promising directions, launch a Ray Tune sweep over 3–5 candidate values using `notebooks/ray_tune_sweep.ipynb`. Use the ASHA scheduler to prune early.
 4. **Promote.** Commit the winning values back to the TOML with a trailing comment explaining why (see existing configs for the house style — e.g. `# Setting 4 sweep: ...`).
-5. **Regress-test.** Re-run everything below the edited node on the certified trunk before committing: `curriculum --trunk-from <certified run> --retrain-from <edited node> --output-dir <new run>` retrains that node and every node after it. An `[env]` edit retrains from that node down automatically, since it changes the task digest. A stance change often degrades the behavior node. The regress-test run reuses the trunk's ancestors above the edited node but cannot pass them on — a run serves as a trunk only for the nodes it trained itself — so trunk later behaviors from the run that holds the whole chain, or train the promoted config as a fresh, untrunked curriculum.
+5. **Regress-test.** Re-run everything below the edited node on the certified trunk before committing: `curriculum --trunk-from <certified run> --retrain-from <edited node> --output-dir <new run>` retrains that node and every node after it. An `[env]` edit retrains from that node down automatically, since it changes the task digest. A stance change often degrades the behavior node. The regress-test run reuses the trunk's ancestors above the edited node and can pass them on: a later run trunked from it resolves each reused node through its ancestor record to the run that certified it, one machine-visible run directory away, so later behaviors can trunk from the regress-test run directly.
 
 For systematic multi-parameter sweeps, see [Hyperparameter Sweeps](sweeps.md).
