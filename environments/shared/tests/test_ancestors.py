@@ -119,6 +119,10 @@ def build_trunk_run(
     lineage: "dict[str, Any] | None" = None,
     species: str = "trex",
     judged_under: "dict[str, Any] | None" = None,
+    seed: int = 1,
+    algorithm: "str | None" = None,
+    hyperparameters: "dict[str, Any] | None" = None,
+    record_recipe_digest: bool = False,
 ) -> Path:
     """A stage directory shaped like a judged run's: handoff pair, sidecars, verdict.
 
@@ -132,7 +136,12 @@ def build_trunk_run(
     ``gate_config_view`` is the verdict's ``gate``), :data:`STANCE_CURRICULUM`
     by default; *judged_under* judges the verdict under another block than
     the directory records (a directory re-judged after a threshold edit,
-    decision D-B8).
+    decision D-B8).  *seed* is the run block's training seed; *algorithm*
+    and *hyperparameters* record the ``"algorithm"`` / ``"hyperparameters"``
+    blocks ``save_stage_config`` writes (absent by default, as before), and
+    *record_recipe_digest* adds the D-A21 ``hyperparameters_sha256`` to the
+    run block — the shapes replicate discovery (test_replication.py) tells
+    apart.
     """
     plant = plant or trunk_plant()
     stage_dir = run_dir / stage_dirname
@@ -153,24 +162,28 @@ def build_trunk_run(
     vecnorm.write_bytes(b"vecnorm-stats")
     (stage_dir / "task_fingerprint.json").write_text(json.dumps(fingerprint, indent=2) + "\n", encoding="utf-8")
     curriculum = curriculum if curriculum is not None else STANCE_CURRICULUM
-    (stage_dir / "stage_config.json").write_text(
-        json.dumps(
-            {
-                "species": species,
-                "stage": stage,
-                "name": stage_id,
-                "description": "",
-                "reward_weights": {"forward_vel_weight": 0.0},
-                "curriculum": curriculum,
-                "task_fingerprint": fingerprint,
-                "plant_identity": plant.to_dict(),
-                "run": {"seed": 1, "timesteps": 1000, **(lineage or {})},
-            },
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
+    stage_config: dict[str, Any] = {
+        "species": species,
+        "stage": stage,
+        "name": stage_id,
+        "description": "",
+        "reward_weights": {"forward_vel_weight": 0.0},
+        "curriculum": curriculum,
+        "task_fingerprint": fingerprint,
+        "plant_identity": plant.to_dict(),
+        "run": {"seed": seed, "timesteps": 1000, **(lineage or {})},
+    }
+    if algorithm is not None:
+        from environments.shared.config import hyperparameters_sha256
+
+        stage_config["algorithm"] = algorithm
+        stage_config["hyperparameters"] = dict(hyperparameters or {})
+        if record_recipe_digest:
+            stage_config["run"]["hyperparameters_sha256"] = hyperparameters_sha256(
+                {f"{algorithm.lower()}_kwargs": dict(hyperparameters or {}), "curriculum_kwargs": curriculum},
+                algorithm,
+            )
+    (stage_dir / "stage_config.json").write_text(json.dumps(stage_config, indent=2) + "\n", encoding="utf-8")
     (stage_dir / "plant_identity.json").write_text(json.dumps(plant.to_dict(), indent=2) + "\n", encoding="utf-8")
     if verdict:
         write_gate_verdict(

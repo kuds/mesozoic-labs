@@ -13,6 +13,9 @@ from environments.shared.curriculum.gate_schema import (
     GATE_KINDS,
     GATE_SCHEMA_VERSION,
     GateSchemaError,
+    declared_certification_seeds,
+    gate_config_sha256,
+    gate_config_view,
     validate_gate_config,
     validate_gate_configs,
 )
@@ -573,3 +576,69 @@ class TestRetentionKeys:
             {1: {"curriculum_kwargs": {**_GATE, "min_avg_reward": 100.0, "max_checkpoints": 3}}}
         )
         assert "max_checkpoints" not in thresholds[1]
+
+
+class TestPublicationKeys:
+    """``certification_seeds`` configures publication, not the gate (plan §4.5, decision D-B9)."""
+
+    def test_it_is_accepted_beside_every_registered_gate_kind(self):
+        """Every kind trex declares (stance, reward_and_length, task_success, recovery) plus the pilot."""
+        from environments.shared.config import load_all_stages
+
+        stages = load_all_stages("trex")
+        seen = set()
+        for stage, cfg in stages.items():
+            block = {**cfg["curriculum_kwargs"], "certification_seeds": 3}
+            kind = validate_gate_config(stage, block, advancement_enabled=isinstance(stage, int))
+            seen.add(kind)
+        assert validate_gate_config(1, {**_PILOT, "certification_seeds": 3}, advancement_enabled=False) == "none/v1"
+        seen.add("none/v1")
+        assert seen == set(GATE_KINDS)
+
+    @pytest.mark.parametrize(
+        "value", [0, -1, 1.5, True, "2", None], ids=["zero", "negative", "float", "bool", "str", "null"]
+    )
+    def test_it_must_be_a_positive_integer(self, value):
+        with pytest.raises(GateSchemaError, match="stage 1: certification_seeds must be a positive integer"):
+            validate_gate_config(1, {**_GATE, "min_avg_reward": 100.0, "certification_seeds": value})
+        with pytest.raises(GateSchemaError, match="certification_seeds must be a positive integer"):
+            declared_certification_seeds({"certification_seeds": value}, stage=1)
+
+    def test_it_defaults_to_one(self):
+        assert declared_certification_seeds({}) == 1
+        assert declared_certification_seeds({**_GATE, "min_avg_reward": 100.0}) == 1
+        assert declared_certification_seeds({"certification_seeds": 2}) == 2
+
+    def test_it_is_not_a_threshold_and_enters_no_digest(self):
+        """Never in a kind's threshold set, never in the gate view, never carried onto the threshold."""
+        assert all("certification_seeds" not in keys for keys in GATE_KINDS.values())
+        block = {**_GATE, "min_avg_reward": 100.0, "certification_seeds": 2}
+        assert "certification_seeds" not in gate_config_view(block)["thresholds"]
+        assert gate_config_sha256(gate_config_view(block)) == gate_config_sha256(
+            gate_config_view({**_GATE, "min_avg_reward": 100.0})
+        )
+        thresholds = thresholds_from_configs({1: {"curriculum_kwargs": block}})
+        assert "certification_seeds" not in thresholds[1]
+
+    def test_trex_stance_declares_two_certification_seeds_outside_every_digest(self):
+        """configs/trex/stance.toml declares 2 (plan A8; the seed 42/43/44 record in KNOWN_ISSUES) and
+        every other committed stage keeps the default 1; the stance gate digest AND its recipe digest
+        are exactly what they were without the key, so the certified stance trunk stays reusable."""
+        from environments.shared.config import hyperparameters_sha256, load_all_stages
+        from environments.shared.stage_manifest import _CONFIGS_DIR
+
+        stance = load_all_stages("trex")[1]
+        block = stance["curriculum_kwargs"]
+        assert block["certification_seeds"] == 2 == declared_certification_seeds(block, stage=1)
+        without = {key: value for key, value in block.items() if key != "certification_seeds"}
+        assert gate_config_view(block) == gate_config_view(without)
+        assert gate_config_sha256(gate_config_view(block)) == gate_config_sha256(gate_config_view(without))
+        assert hyperparameters_sha256(stance, "PPO") == hyperparameters_sha256(
+            {**stance, "curriculum_kwargs": without}, "PPO"
+        )
+        for species in sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml")):
+            for stage, cfg in load_all_stages(species).items():
+                if (species, stage) == ("trex", 1):
+                    continue
+                assert "certification_seeds" not in cfg["curriculum_kwargs"], (species, stage)
+                assert declared_certification_seeds(cfg["curriculum_kwargs"], stage=stage) == 1

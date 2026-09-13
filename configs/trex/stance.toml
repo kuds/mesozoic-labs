@@ -420,6 +420,15 @@ min_avg_reward = 2100.0                 # Collapse RAIL, not the gate (PLANT_VAL
 required_consecutive = 3                # Scheduler hysteresis ONLY. Re-running a deterministic panel is not
                                         # statistical replication (§3.4 caution 3) — the certified claim comes from
                                         # the bound above, not from repeating the same evaluation three times.
+certification_seeds = 2                 # Publication bar, not a gate threshold (BEHAVIOR_RECIPES_PLAN §4.5, decision
+                                        # D-B9): distinct-seed runs that must certify this node before its
+                                        # deliverable stops being labelled provisional. 2 because this configuration
+                                        # is measured seed-sensitive — docs/KNOWN_ISSUES.md records seed 42 PASS,
+                                        # seed 43 FAIL (run 20260815_014118) and seed 44 PASS (run 20260815_205206)
+                                        # on the identical configuration, so one passing seed distinguishes "solved"
+                                        # from "lucky" no better than a coin. Every other stage keeps the default 1.
+                                        # Enters neither gate_sha256 nor hyperparameters_sha256 nor task_sha256:
+                                        # raising it relabels published bundles and invalidates no verdict.
 max_checkpoints = 5                     # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
                                         # wrote 12 and kept all of them: 48 MB of the 60 MB models/ on run 20260801_021545, on a
                                         # Drive mount, for files nothing in this repository reads — they exist for manual rollback,

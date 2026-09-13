@@ -77,6 +77,8 @@ export interface SpeciesStage {
   warmStartFrom: string | null;
   /** Behavior recipe label (stand/walk/hunt) the node belongs to, or null. */
   recipe: string | null;
+  /** Distinct-seed runs a deliverable needs before it stops being provisional (plan §4.5, D-B9; default 1). */
+  certificationSeeds: number;
   advancementGate: AdvancementGate;
   video: SpeciesVideo | null;
 }
@@ -135,7 +137,11 @@ export interface ResultDeliverable {
   gateKind: string | null;
   certified: boolean;
   modelHash: string;
+  /** Runs certifying this node in the published bundle: this run plus its replicates (plan §4.5, D-B16). */
   replicationCount: number;
+  /** The CURRENT config's certification_seeds; provisional is replicationCount < certificationSeeds (D-B10/D-B11). */
+  certificationSeeds: number;
+  provisional: boolean;
   headline: HeadlineMetric[];
 }
 
@@ -220,6 +226,7 @@ interface RawStage {
   deliverable: boolean;
   warm_start_from: string | null;
   recipe: string | null;
+  certification_seeds: number;
   advancement_gate: {
     gate_kind: string | null;
     pending_gate_kind: string | null;
@@ -289,6 +296,8 @@ interface RawResultDeliverable {
   certified: boolean;
   model_hash: string;
   replication_count: number;
+  certification_seeds: number;
+  provisional: boolean;
   headline: RawHeadlineMetric[];
 }
 
@@ -435,6 +444,8 @@ function adaptDeliverable(deliverable: RawResultDeliverable): ResultDeliverable 
     certified: deliverable.certified,
     modelHash: deliverable.model_hash,
     replicationCount: deliverable.replication_count,
+    certificationSeeds: deliverable.certification_seeds,
+    provisional: deliverable.provisional,
     headline: deliverable.headline.map(adaptHeadlineMetric),
   };
 }
@@ -537,6 +548,7 @@ function adaptSpecies(raw: RawSpecies): Species {
       deliverable: stage.deliverable,
       warmStartFrom: stage.warm_start_from,
       recipe: stage.recipe,
+      certificationSeeds: stage.certification_seeds,
       advancementGate: {
         gateKind: stage.advancement_gate.gate_kind,
         pendingGateKind: stage.advancement_gate.pending_gate_kind,
@@ -611,9 +623,12 @@ export function formatHeadlineValue(metric: HeadlineMetric): string {
  * A schema-4 result headlines its primary deliverable's first gate-kind
  * metric (a walk its velocity, a hunt its task success; stance and recovery
  * name the metric with no value until a later phase — decisions D-A9 and
- * D-B15).  A ladder
- * summary publishes no deliverable and keeps the historical "Task success"
- * headline from stage3_success_rate, rendered exactly as before (D-A10).
+ * D-B15), and a provisional primary — fewer certifying runs than the
+ * current config's certification_seeds — says so with its count (plan
+ * §4.5, decision D-B11), so a one-seed pass never headlines as settled.  A
+ * ladder summary publishes no deliverable and keeps the historical "Task
+ * success" headline from stage3_success_rate, rendered exactly as before
+ * (D-A10).
  */
 export function headlineFor(result: PublishedResult): {label: string; value: string} {
   const primary = primaryDeliverableOf(result);
@@ -623,10 +638,15 @@ export function headlineFor(result: PublishedResult): {label: string; value: str
       value: result.stage3SuccessRate === null ? '—' : `${Math.round(result.stage3SuccessRate * 100)}%`,
     };
   }
+  const provisional = primary.provisional
+    ? ` (provisional, ${primary.replicationCount} of ${primary.certificationSeeds} seeds)`
+    : '';
   const metric = primary.headline[0];
-  if (metric === undefined) return {label: `${primary.recipe ?? primary.stageId} headline`, value: '—'};
+  if (metric === undefined) {
+    return {label: `${primary.recipe ?? primary.stageId} headline`, value: `—${provisional}`};
+  }
   const label = metric.label.charAt(0).toUpperCase() + metric.label.slice(1);
-  return {label, value: formatHeadlineValue(metric)};
+  return {label, value: `${formatHeadlineValue(metric)}${provisional}`};
 }
 
 export const PROJECT_CAPABILITIES = catalog.project_capabilities;

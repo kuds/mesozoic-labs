@@ -138,6 +138,66 @@ def test_initialize_result_bundle_rejects_a_publication_seed_shared_with_selecti
     assert not (tmp_path / "run" / "provenance.json").exists()
 
 
+def test_default_seed_roles_declare_the_certification_panel(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Decision D-B17: every bundle initialised without explicit roles carries the panel's start seed,
+    and the role gets no evaluation protocol (it is bound per evidence file, not through the protocol
+    family, which is exactly the roles containing "evaluation")."""
+    from environments.shared.constants import PUBLICATION_SEED_START
+
+    path = initialize_result_bundle(
+        tmp_path / "run", species="velociraptor", algorithm="PPO", seed=42, evaluation_seeds=[101, 102]
+    )
+    provenance = json.loads(path.read_text(encoding="utf-8"))
+    assert provenance["seed_roles"] == {
+        "training": 42,
+        "certification_panel": PUBLICATION_SEED_START,
+        "publication_evaluation": 101,
+        "additional_evaluation_2": 102,
+    }
+    assert PUBLICATION_SEED_START == 3042
+    assert set(provenance["evaluation_protocols"]) == {"publication_evaluation", "additional_evaluation_2"}
+
+
+def test_the_certification_panel_role_may_equal_the_publication_seed(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """The notebook at SEED = 42 publishes on 3042 and certifies on the 3042 panel: no collision (D-B17).
+
+    ``seed_role_collisions`` checks the training and *selection* roles only, so the panel role beside
+    an equal publication seed is accepted — pinned here, since D-B17 relies on the rule not changing —
+    while a selection role on the publication seed is still refused.
+    """
+    from environments.shared.result_schema import seed_role_collisions
+
+    roles = {
+        "training": 42,
+        "checkpoint_selection_evaluation": 1042,
+        "publication_evaluation": 3042,
+        "certification_panel": 3042,
+    }
+    assert seed_role_collisions(roles) == []
+    assert seed_role_collisions({**roles, "checkpoint_selection_evaluation": 3042}) == [
+        "publication_evaluation reuses the checkpoint_selection_evaluation seed 3042"
+    ]
+    assert seed_role_collisions({**roles, "training": 3042}) == ["publication_evaluation reuses the training seed 3042"]
+
+    path = initialize_result_bundle(
+        tmp_path / "run",
+        species="velociraptor",
+        algorithm="PPO",
+        seed=42,
+        evaluation_seeds=[1042, 3042],
+        seed_roles=roles,
+    )
+    provenance = json.loads(path.read_text(encoding="utf-8"))
+    assert provenance["seed_roles"] == roles
+    assert "certification_panel" not in provenance["evaluation_protocols"]
+
+
 def test_distinct_seed_roles_publish_canonical_valid(
     tmp_path: Path,
     stable_provenance: None,

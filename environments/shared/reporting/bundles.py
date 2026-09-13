@@ -48,6 +48,89 @@ def _resolve_model_artifact(model_path: Any, *, run_dir: Path) -> Path | None:
     return None
 
 
+def _normalized_replicates(
+    replicates: "Mapping[str, Sequence[Mapping[str, Any]]] | None",
+    *,
+    deliverable_keys: "set[str]",
+    present_deliverable_keys: "set[str]",
+    seed: int,
+    own_run_id: "str | None",
+) -> dict[str, list[dict[str, Any]]]:
+    """The caller's replicates, checked and normalised per stage key (plan §4.5, decision D-B16).
+
+    Fail-closed preflight: a record without exactly ``run_id`` and
+    ``training_seed``, a run id listed twice or naming this run, a
+    training seed this run or another replicate trained, or a stage key
+    that names no deliverable of the species' manifest (*deliverable_keys*
+    — a caller keyed by something other than the stage key) is refused
+    here, before the bundle touches disk.  A key naming a deliverable the
+    run holds but this publication does not record (a node outside the
+    published chain, which ``discover_replicates_for_run`` scans all the
+    same) has no record to enter and is dropped with a logged reason.
+    *own_run_id* is the run's id when known (given, or captured earlier);
+    the writer re-checks it once captured.
+    """
+    from ..replication import REPLICATE_RUN_FIELDS
+    from ..result_bundle import ResultBundleError
+
+    given = dict(replicates or {})
+    foreign = sorted(set(given) - deliverable_keys)
+    if foreign:
+        raise ResultBundleError(f"replicates name stage key(s) {foreign} that are not deliverables of this species")
+    normalized: dict[str, list[dict[str, Any]]] = {}
+    for key, records in given.items():
+        if key not in present_deliverable_keys:
+            logger.info(
+                "replicates for deliverable %s are not recorded: the stage is not among this publication's results",
+                key,
+            )
+            continue
+        runs: list[dict[str, Any]] = []
+        for replicate in records:
+            if not isinstance(replicate, Mapping) or set(replicate) != set(REPLICATE_RUN_FIELDS):
+                raise ResultBundleError(
+                    f"replicate records for {key} must carry exactly {list(REPLICATE_RUN_FIELDS)}; found {replicate!r}"
+                )
+            run_id = replicate["run_id"]
+            training_seed = replicate["training_seed"]
+            if not isinstance(run_id, str) or not run_id.strip():
+                raise ResultBundleError(f"replicate run_id for {key} must be a non-empty string")
+            if isinstance(training_seed, bool) or not isinstance(training_seed, int) or training_seed < 0:
+                raise ResultBundleError(
+                    f"replicate {run_id} for {key} must record a non-negative integer training_seed"
+                )
+            if run_id == own_run_id or run_id in {run["run_id"] for run in runs}:
+                raise ResultBundleError(
+                    f"replicate {run_id} for {key} is this run or is listed twice: a replicate is a different run"
+                )
+            if training_seed == seed or training_seed in {run["training_seed"] for run in runs}:
+                raise ResultBundleError(
+                    f"replicate {run_id} for {key} repeats training seed {training_seed}: a replicate is a different seed"
+                )
+            runs.append({"run_id": run_id, "training_seed": training_seed})
+        normalized[key] = runs
+    return normalized
+
+
+def _without_replication(summary: Any) -> Any:
+    """*summary* with every deliverable record's replication fields masked (plan §4.5, decision D-B16).
+
+    ``provenance.deliverables[key].replication`` and the ``provisional``
+    label it decides are the only parts of a published summary that a
+    sibling run can change; what remains is what a complete bundle keeps
+    immutable.
+    """
+    masked = _json.loads(_json.dumps(summary))
+    provenance = masked.get("provenance") if isinstance(masked, dict) else None
+    records = provenance.get("deliverables") if isinstance(provenance, dict) else None
+    if isinstance(records, dict):
+        for record in records.values():
+            if isinstance(record, dict):
+                record.pop("replication", None)
+                record.pop("provisional", None)
+    return masked
+
+
 def save_result_bundle(
     stage_results_list: list[dict[str, Any]],
     stage_configs: "dict[int | str, dict[str, Any]]",
@@ -67,6 +150,7 @@ def save_result_bundle(
     run_id: str | None = None,
     repository_root: str | Path | None = None,
     target_deliverable: "int | str | None" = None,
+    replicates: "Mapping[str, Sequence[Mapping[str, Any]]] | None" = None,
 ) -> dict[str, Path]:
     """Write one idempotent, Drive-portable result bundle.
 
@@ -96,7 +180,25 @@ def save_result_bundle(
     evaluation evidence for every PRESENT stage, plus a recorded backend
     version.  Under a v1 or synthesized stage manifest — one deliverable, the
     last advancing node — all of this collapses to the pre-Phase-A rule.
+
+    Seed replication (plan §4.5, decisions D-B10/D-B11/D-B16): *replicates*
+    maps a deliverable's stage key to the ``{run_id, training_seed}`` records
+    of the sibling runs that certified the same recipe on other seeds
+    (``environments.shared.replication.discover_replicates_for_run``
+    supplies them; the JAX saver passes none).  Each deliverable's
+    ``replication`` record lists this run first, then its replicates;
+    ``certification_seeds`` is copied from the stage's resolved
+    ``[curriculum]`` block (default 1) and ``provisional`` is
+    ``count < certification_seeds``.  A replicate that names this run, a run
+    id twice, or a training seed this run or another replicate trained is
+    refused: a replicate is a different run on a different seed.  The count
+    is what the siblings held when the bundle was written: re-running the
+    publication with a new sibling present rebuilds a partial bundle, and
+    regenerates a complete bundle's derived artifacts when the replication
+    record is the only thing that changed (everything else in a complete
+    bundle stays immutable).
     """
+    from ..curriculum.gate_schema import GateSchemaError, declared_certification_seeds
     from ..result_bundle import (
         ResultBundleError,
         _normalize_plant_identity,
@@ -118,7 +220,7 @@ def save_result_bundle(
     )
     from ..result_bundle.audit import _audit_load_lineage, _lineage_parent_keys
     from ..result_schema import (
-        OPTIONAL_DELIVERABLE_RECORD_FIELDS,
+        RUN_BLOCK_DELIVERABLE_RECORD_FIELDS,
         ResultSchemaError,
         bundle_status_for,
         certified_deliverables,
@@ -369,6 +471,36 @@ def save_result_bundle(
             "normalization_hash": normalization_hash,
         }
 
+    # Seed replication (plan §4.5, D-B16), checked before anything is
+    # written: the run's own id is the one given, else the one an earlier
+    # session captured (a re-export), else unknown until captured below.
+    known_run_id = run_id
+    if known_run_id is None and (run_path / DEFAULT_PROVENANCE_NAME).is_file():
+        try:
+            recorded_run_id = load_provenance(run_path).get("run_id")
+        except ResultBundleError:
+            recorded_run_id = None
+        known_run_id = recorded_run_id if isinstance(recorded_run_id, str) else None
+    normalized_replicates = _normalized_replicates(
+        replicates,
+        deliverable_keys={entry.key for entry in stage_manifest.deliverables},
+        present_deliverable_keys={entry.key for entry, _ in keyed_results if entry.deliverable},
+        seed=seed,
+        own_run_id=known_run_id,
+    )
+    # The declared certification bar of every present deliverable, read
+    # the way the audit reads it back (D-B9/D-B11), also before any write.
+    certification_bars: dict[str, int] = {}
+    for entry, _ in keyed_results:
+        if not entry.deliverable:
+            continue
+        try:
+            certification_bars[entry.key] = declared_certification_seeds(
+                resolved_stage_configs[entry.reference]["curriculum_kwargs"], stage=entry.reference
+            )
+        except GateSchemaError as exc:
+            raise ResultBundleError(str(exc)) from exc
+
     if publishable:
         # Every RECORDED stage — the failed leaf and the optional recovery
         # pilot included — must carry its evaluation evidence; a stage in
@@ -453,10 +585,14 @@ def save_result_bundle(
     # whose selected checkpoint exists — every present stage's, once the
     # bundle is publishable.  gate_kind is the verdict's own record, else
     # the resolved config's declaration, else null (unrecorded, like the
-    # stage rows).  Phase A replication is this run alone.  The optional
-    # D-A21 fields are copied from the stage's own run block when it
-    # recorded them (a stage saved before D-A21 has neither).
+    # stage rows).  Replication lists this run first, then the replicates
+    # the caller discovered among its siblings (plan §4.5, D-B16), and the
+    # provisional label is the count read against the stage's declared
+    # certification_seeds (D-B11).  The optional D-A21 fields are copied
+    # from the stage's own run block when it recorded them (a stage saved
+    # before D-A21 has neither).
     deliverables: dict[str, dict[str, Any]] = {}
+    own_run_id = str(captured["run_id"])
     for entry, result in keyed_results:
         checkpoint = selected_checkpoints.get(entry.key)
         if not entry.deliverable or checkpoint is None:
@@ -464,17 +600,30 @@ def save_result_bundle(
         gate_kind = result.get("gate_kind")
         if gate_kind is None:
             gate_kind = resolved_stage_configs[entry.reference]["curriculum_kwargs"].get("gate_kind")
+        runs: list[dict[str, Any]] = [{"run_id": own_run_id, "training_seed": seed}]
+        for replicate in normalized_replicates.get(entry.key, ()):
+            if replicate["run_id"] == own_run_id:
+                # Preflight compared against the id given or previously
+                # captured; a freshly generated id is only known now.
+                raise ResultBundleError(
+                    f"replicate {own_run_id} for {entry.key} is this run or is listed twice: "
+                    "a replicate is a different run"
+                )
+            runs.append(dict(replicate))
+        certification_seeds = certification_bars[entry.key]
         deliverables[entry.key] = {
             "model_path": checkpoint["model_path"],
             "model_hash": checkpoint["model_hash"],
             "normalization_hash": checkpoint["normalization_hash"],
             "gate_kind": gate_kind if isinstance(gate_kind, str) and gate_kind.strip() else None,
             "certified": certified[entry.key],
-            "replication": {"count": 1, "runs": [{"run_id": str(captured["run_id"]), "training_seed": seed}]},
+            "replication": {"count": len(runs), "runs": runs},
+            "certification_seeds": certification_seeds,
+            "provisional": len(runs) < certification_seeds,
         }
         run_block = run_blocks.get(entry.reference)
         if isinstance(run_block, Mapping):
-            for optional_field in OPTIONAL_DELIVERABLE_RECORD_FIELDS:
+            for optional_field in RUN_BLOCK_DELIVERABLE_RECORD_FIELDS:
                 value = run_block.get(optional_field)
                 if isinstance(value, str) and value.strip():
                     deliverables[entry.key][optional_field] = value
@@ -562,13 +711,27 @@ def save_result_bundle(
         if previous_manifest_verified:
             existing_summary = _json.loads(summary_path.read_text(encoding="utf-8"))
             if existing_summary != prospective_summary:
-                raise ResultBundleError("completed result bundle is immutable; use a new run_id for different results")
-            return {
-                "provenance": provenance_path,
-                "collected_results_csv": run_path / "collected_results.csv",
-                "summary": summary_path,
-                "artifact_manifest": previous_manifest,
-            }
+                # The replication record is a property of the SET of sibling
+                # runs, not of this run's results (plan §4.5, D-B10/D-B16):
+                # a replicate that certified after publication changes it,
+                # and a re-run of the publication cell counts it by
+                # regenerating the derived artifacts.  Every certified
+                # artifact and every other result stays immutable.
+                if _without_replication(existing_summary) != _without_replication(prospective_summary):
+                    raise ResultBundleError(
+                        "completed result bundle is immutable; use a new run_id for different results"
+                    )
+                logger.info(
+                    "complete result bundle in %s is regenerated: only its replication record changed",
+                    run_path,
+                )
+            else:
+                return {
+                    "provenance": provenance_path,
+                    "collected_results_csv": run_path / "collected_results.csv",
+                    "summary": summary_path,
+                    "artifact_manifest": previous_manifest,
+                }
 
     # Exercise the CSV — and, for a publishable bundle, its agreement with the
     # prospective summary — in scratch, so the run directory is untouched

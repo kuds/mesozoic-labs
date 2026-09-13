@@ -944,6 +944,8 @@ class TestStancePanelEvidenceFile:
             curriculum,
             env_kwargs={"max_episode_steps": 1000},
             stage=1,
+            # The rows are seeded 3042 + index (D-B17's certification_panel binding).
+            panel_seed_start=3042,
         )
 
     def test_a_report_without_episode_evidence_writes_no_panel(self, tmp_path):

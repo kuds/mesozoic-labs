@@ -251,6 +251,23 @@ _RETENTION_KEYS = frozenset({"max_checkpoints"})
 #: trainer reads it.
 _PROVENANCE_KEYS = frozenset({"statue_constants_physics_revision"})
 
+#: Keys that configure PUBLICATION rather than the gate (decision D-B9,
+#: BEHAVIOR_RECIPES_PLAN §4.5).  ``certification_seeds`` is the number of
+#: distinct-seed runs a deliverable needs before it stops being labelled
+#: provisional (default :data:`DEFAULT_CERTIFICATION_SEEDS`).  Deliberately
+#: NOT a threshold key: it is in no :data:`GATE_KINDS` set, so it enters
+#: neither the gate digest (:func:`gate_config_view` projects thresholds
+#: only) nor the recipe digest (``config.hyperparameters_sha256`` covers the
+#: algorithm block and the shaping keys) nor the task fingerprint — bumping
+#: it relabels a published deliverable without invalidating any verdict.
+#: Read at publication (``reporting.bundles``) and by the catalog through
+#: :func:`declared_certification_seeds`.
+_PUBLICATION_KEYS = frozenset({"certification_seeds"})
+
+#: ``certification_seeds`` when a stage declares none: one run certifies a
+#: deliverable at n = 1, today's behaviour (plan §4.5).
+DEFAULT_CERTIFICATION_SEEDS = 1
+
 #: The schema's own declaration keys.
 _SCHEMA_KEYS = frozenset({"gate_schema_version", "gate_kind"})
 
@@ -290,7 +307,8 @@ def gate_config_view(curriculum: Mapping[str, Any]) -> dict[str, Any]:
     declared kind consumes (:data:`GATE_KINDS`) that *curriculum* declares —
     so every advancing kind's ``min_eval_episodes`` / ``required_consecutive``
     are in it (``none/v1`` consumes nothing), while schedule, collapse,
-    diagnostic, retention and provenance keys and any ``[curriculum.jax]``
+    diagnostic, retention, provenance and publication keys
+    (``certification_seeds``, decision D-B9) and any ``[curriculum.jax]``
     override table are not (SB3 never applies the override table and the
     JAX path writes no verdict, decision D-A5).  A null kind (a stage that
     declares no gate; ``stage_artifacts`` records it as null) or an
@@ -392,6 +410,24 @@ def _describe(stage: int | str) -> str:
     return f"stage {stage}"
 
 
+def declared_certification_seeds(curriculum: Mapping[str, Any], *, stage: int | str = "?") -> int:
+    """The ``certification_seeds`` a ``[curriculum]`` block declares, default 1 (decision D-B9).
+
+    The one reader every consumer shares — the bundle writer, the audit and
+    the catalog — so the default and the type rule cannot drift between
+    them.  A present value must be a positive integer (a bool is not one);
+    anything else is a :class:`GateSchemaError`, never a silent default.
+    """
+    value = curriculum.get("certification_seeds", DEFAULT_CERTIFICATION_SEEDS)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise GateSchemaError(
+            f"{_describe(stage)}: certification_seeds must be a positive integer (the number of passing "
+            "training seeds a deliverable needs before it stops being provisional; default "
+            f"{DEFAULT_CERTIFICATION_SEEDS}), not {value!r}"
+        )
+    return value
+
+
 def validate_gate_config(
     stage: int | str,
     curriculum_kwargs: Mapping[str, Any],
@@ -425,6 +461,7 @@ def validate_gate_config(
         | _RETENTION_KEYS
         | _DIAGNOSTIC_KEYS
         | _PROVENANCE_KEYS
+        | _PUBLICATION_KEYS
         | _ALL_THRESHOLD_KEYS
         | BACKEND_OVERRIDE_TABLES
     )
@@ -436,6 +473,10 @@ def validate_gate_config(
             "dropping a misspelled threshold disables it. Add the key to "
             "environments/shared/curriculum/gate_schema.py if it is real."
         )
+
+    # A publication key is validated for every kind, before the gate: it is
+    # never a threshold, so it can be neither misplaced nor missing.
+    declared_certification_seeds(curriculum_kwargs, stage=stage)
 
     declared_kind = curriculum_kwargs.get("gate_kind")
     declared_version = curriculum_kwargs.get("gate_schema_version")

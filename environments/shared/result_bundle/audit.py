@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from ..curriculum.gate_schema import GateSchemaError, declared_certification_seeds
 from ..stage_manifest import StageManifestError, find_stage_dir, resolve_stage_key
 from . import evidence, hashing
 from .ancestors import load_ancestor_records, project_ancestor_records
@@ -161,6 +162,9 @@ def audit_result_bundle(
     # Each hashed stage config's recorded recipe digest (D-A21), keyed by
     # stage key, for the cross-check against provenance.deliverables.
     recorded_hyperparameters: dict[str, Any] = {}
+    # Each hashed stage config's declared certification_seeds (D-B9/D-B11),
+    # keyed the same way — the reading a deliverable record must repeat.
+    declared_seeds: dict[str, Any] = {}
     summary: dict[str, Any] | None = None
     provenance: dict[str, Any] | None = None
     manifest: dict[str, Any] | None = None
@@ -448,6 +452,15 @@ def audit_result_bundle(
                             )
                             if normalized_config_plant != provenance_plant:
                                 errors.append(f"stage {stage} config plant_identity does not match provenance.json")
+                        # Read the way the writer reads it: an absent block
+                        # declares the default bar, so the cross-checks
+                        # below always run.
+                        curriculum_block = config_value.get("curriculum", config_value.get("curriculum_kwargs", {}))
+                        if isinstance(curriculum_block, Mapping):
+                            try:
+                                declared_seeds[str(stage)] = declared_certification_seeds(curriculum_block, stage=stage)
+                            except GateSchemaError as exc:
+                                errors.append(str(exc))
                         run_block = config_value.get("run")
                         if isinstance(run_block, Mapping):
                             recorded_hyperparameters[str(stage)] = run_block.get("hyperparameters_sha256")
@@ -550,6 +563,32 @@ def audit_result_bundle(
                                 f"deliverable {stage_key} hyperparameters_sha256 "
                                 f"{record['hyperparameters_sha256']!r} does not match the stage config run "
                                 f"block's {recorded_digest!r}"
+                            )
+                    # Seed replication (plan §4.5, D-B11/D-B16): the record
+                    # lists THIS run first, its certification_seeds is the
+                    # stage config's own declaration, and the provisional
+                    # label is the count read against it.  The schema has
+                    # already enforced the record's internal shape.
+                    replication = record.get("replication")
+                    runs = replication.get("runs") if isinstance(replication, Mapping) else None
+                    first = runs[0] if isinstance(runs, list) and runs and isinstance(runs[0], Mapping) else None
+                    this_run = {"run_id": provenance.get("run_id"), "training_seed": provenance.get("training_seed")}
+                    if first is None or dict(first) != this_run:
+                        errors.append(f"deliverable {stage_key} replication does not list this run first")
+                    if "certification_seeds" in record and str(stage_key) in declared_seeds:
+                        declared = declared_seeds[str(stage_key)]
+                        if record["certification_seeds"] != declared:
+                            errors.append(
+                                f"deliverable {stage_key} certification_seeds {record['certification_seeds']!r} "
+                                f"does not match the stage config's declared {declared!r}"
+                            )
+                    if "provisional" in record and str(stage_key) in declared_seeds:
+                        count = replication.get("count") if isinstance(replication, Mapping) else None
+                        expected = isinstance(count, int) and count < declared_seeds[str(stage_key)]
+                        if record["provisional"] is not expected:
+                            errors.append(
+                                f"deliverable {stage_key} provisional {record['provisional']!r} does not equal "
+                                f"replication.count {count!r} < certification_seeds {declared_seeds[str(stage_key)]!r}"
                             )
             if "ancestors" in provenance or ancestor_records:
                 claimed_ancestors = provenance.get("ancestors")

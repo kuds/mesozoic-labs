@@ -122,6 +122,25 @@ class TestFrozenDeclaration:
         every_threshold_key: set[str] = set().union(*GATE_KINDS.values())
         assert (set(curriculum) & every_threshold_key) <= GATE_KINDS[RECOVERY_GATE_KIND]
 
+    def test_certification_seeds_is_a_publication_key_not_a_threshold(self, curriculum: dict[str, Any]) -> None:
+        """Plan §4.5 / decision D-B9: accepted beside the frozen gate, never in its threshold set or its
+        digest, and not declared by the committed recovery block (default 1)."""
+        from environments.shared.curriculum.gate_schema import (
+            declared_certification_seeds,
+            gate_config_sha256,
+            gate_config_view,
+        )
+
+        assert "certification_seeds" not in curriculum
+        assert declared_certification_seeds(curriculum, stage="recovery") == 1
+        with_bar = {**curriculum, "certification_seeds": 2}
+        assert validate_gate_config("recovery", with_bar) == RECOVERY_GATE_KIND
+        assert "certification_seeds" not in GATE_KINDS[RECOVERY_GATE_KIND]
+        assert "certification_seeds" not in gate_config_view(with_bar)["thresholds"]
+        assert gate_config_sha256(gate_config_view(with_bar)) == gate_config_sha256(gate_config_view(curriculum))
+        with pytest.raises(GateSchemaError, match="certification_seeds must be a positive integer"):
+            validate_gate_config("recovery", {**curriculum, "certification_seeds": 0})
+
     @pytest.mark.parametrize(
         "field",
         ["min_recovery_success_lcb", "recovery_t_recover_steps", "recovery_dwell_steps"],

@@ -458,6 +458,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a threshold that moved since (the stance rail `min_avg_reward` did on
   2026-08-10) — a refused trunk is otherwise retrained in the new run; see
   `docs/KNOWN_ISSUES.md`.
+- **Seed replication is provenance: `certification_seeds`, the
+  `certification_panel` role, discovered replicates and the provisional
+  label** (Phase B, WS-B4; plan §4.5 / SS1, decisions D-B9, D-B10, D-B11,
+  D-B16, D-B17). A stage's `[curriculum]` may declare `certification_seeds`
+  (a new publication-key class in `gate_schema`, positive int, default 1;
+  never a threshold, so it enters neither `gate_sha256` nor
+  `hyperparameters_sha256` nor `task_sha256` — the certified stance trunk
+  stays reusable); `configs/trex/stance.toml` declares 2, citing the seed
+  42 PASS / 43 FAIL / 44 PASS record. New
+  `environments/shared/replication.py` discovers a deliverable's replicates
+  among the run's `LOG_BASE/<species>/<algo>/` siblings — the SAME recipe:
+  a passed, reusable verdict for the node with equal `task_sha256` and
+  `gate_sha256`, a `stage_config.json` with the same plant identity and
+  `hyperparameters_sha256` (recorded, else derived from the recorded blocks
+  through the new `config.recorded_hyperparameters_sha256`, so a pre-D-A21
+  sibling is never skipped for the missing field alone; a pre-D-A22 verdict
+  without `gate_sha256` IS skipped until re-backfilled), and a different
+  training seed; every skip is logged with its reason and nothing raises
+  on a malformed neighbour. `save_result_bundle(replicates=...)` records
+  them: each deliverable's `replication.runs` lists this run first, then
+  the replicates (distinct run ids and seeds, refused otherwise), plus the
+  optional record fields `certification_seeds` (the stage's declaration)
+  and `provisional` (`count < certification_seeds`); the schema
+  (`OPTIONAL_DELIVERABLE_RECORD_FIELDS` grows to four) and the audit fail
+  closed on a malformed or inconsistent record. The SB3 notebook passes the
+  discovered replicates and declares `certification_panel =
+  PUBLICATION_SEED_START` (3042) in both `seed_roles` dicts;
+  `initialize_result_bundle`'s default roles carry it too. The audit binds
+  the role per evidence — `stance_panel_selected.csv` row `i` must have run
+  on `role + i`, a recovery `gate_resolution.json` must register
+  `panel_seed_start == role` — pins a declared role to the registered block
+  itself, and refuses a recorded stance PASS whose provenance lacks the
+  role (pre-Phase-B stance bundles need republishing;
+  `docs/KNOWN_ISSUES.md`). A complete bundle regenerates its derived
+  artifacts when a re-run of the publication changes nothing but the
+  replication record (a replicate that certified later); every other
+  difference is still refused as immutable. The catalog validates the record and re-derives
+  `provisional` from the CURRENT `certification_seeds` (never aggregating
+  across bundles), exports `certification_seeds` on stage rows and
+  `certification_seeds` / `provisional` on deliverable rows, and renders
+  `N run(s) of M seed(s)` plus `provisional` identically in
+  `species_catalog._format_replication` and the site's `formatReplication`
+  (pinned); `headlineFor` appends ` (provisional, N of M seeds)` to a
+  provisional primary. `RESULT_SCHEMA_VERSION`, `GATE_VERDICT_SCHEMA` and
+  `SPECIES_MANIFEST_SCHEMA_VERSION` are unchanged (every addition is an
+  optional field) and the README RESULTS block is byte-identical.
 
 ### Changed
 - **`stage_manifest.KNOWN_STAGE_IDS` is renamed `RESERVED_STAGE_IDS`, with

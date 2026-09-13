@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from ..constants import PUBLICATION_SEED_START
 from ..curriculum.recovery_gate import binomial_lcb
 from ..curriculum.stance_gate import STANCE_GATE_KIND
 from ..curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
@@ -398,6 +399,7 @@ def _validate_stance_panel_evidence(
     *,
     env_kwargs: Mapping[str, Any],
     stage: "int | str",
+    panel_seed_start: int,
 ) -> None:
     """Re-derive the stance verdict from the panel's per-episode measurements.
 
@@ -406,6 +408,11 @@ def _validate_stance_panel_evidence(
     the published claim is reproducible from the episodes behind it; trusting
     a stored ``passed`` would certify the summary rather than the measurement,
     and a summary is exactly what cannot be re-checked.
+
+    The panel is also bound to the provenance's ``certification_panel`` seed
+    role (decision D-B17): row ``i`` must have run on ``panel_seed_start +
+    i``, the way ``stance_report`` seeds it, so the published rows are the
+    registered panel and not a lucky re-draw.
 
     Reduction and scoring both go through
     :mod:`~environments.shared.curriculum.stance_gate`, so this cannot drift
@@ -432,6 +439,13 @@ def _validate_stance_panel_evidence(
     reached_flags: list[bool | None] = []
     with panel_path.open(newline="", encoding="utf-8") as source:
         for index, row in enumerate(csv.DictReader(source), start=1):
+            panel_seed = _integral(_optional_csv_number(row.get("panel_seed")))
+            expected_seed = panel_seed_start + index - 1
+            if panel_seed != expected_seed:
+                raise ResultBundleError(
+                    f"stance panel row {index - 1} for stage {stage} ran on panel_seed "
+                    f"{row.get('panel_seed') or 'nothing'}, not the certification_panel seed {expected_seed}"
+                )
             length = _optional_csv_number(row.get("length"))
             reward = _optional_csv_number(row.get("reward"))
             if length is None or reward is None:
@@ -498,6 +512,34 @@ def _validate_stance_panel_evidence(
         raise ResultBundleError(
             f"stage {stage} publication gate fails {STANCE_GATE_KIND}, re-derived from "
             f"{panel_path.name}: " + "; ".join(failures)
+        )
+
+
+def _check_resolution_panel_seed(resolution_path: Path, *, stage: "int | str", panel_seed_start: int | None) -> None:
+    """A frozen ``gate_resolution.json`` must register the declared certification panel (decision D-B17).
+
+    ``decision_procedure.panel_seed_start`` is the seed the resolver froze
+    the null panels from and the policy panel is rolled from
+    (``harnesses.freeze_recovery_gate``); it must equal the provenance's
+    ``certification_panel`` role, and a bundle that declares no such role
+    cannot bind it.  Read as plain JSON: the resolution's integrity hash and
+    task binding are the recovery gate's own checks at judge time.
+    """
+    try:
+        resolution = json.loads(resolution_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ResultBundleError(f"cannot read stage {stage} gate_resolution.json: {exc}") from exc
+    procedure = resolution.get("decision_procedure") if isinstance(resolution, Mapping) else None
+    recorded = procedure.get("panel_seed_start") if isinstance(procedure, Mapping) else None
+    if panel_seed_start is None:
+        raise ResultBundleError(
+            f"provenance seed_roles must declare certification_panel: stage {stage} holds a frozen "
+            f"gate_resolution.json whose panel starts at seed {recorded!r}"
+        )
+    if _integral(recorded) != panel_seed_start:
+        raise ResultBundleError(
+            f"stage {stage} gate_resolution.json registers panel_seed_start {recorded!r}, not the "
+            f"certification_panel seed {panel_seed_start}"
         )
 
 
@@ -622,6 +664,25 @@ def validate_evaluation_evidence(
         or publication_evaluation_seed < 0
     ):
         raise ResultBundleError("provenance publication_evaluation seed role must be a non-negative integer")
+    # The certification panel's start seed (decision D-B17).  Optional in
+    # the provenance — a pre-Phase-B bundle has none — but the evidence it
+    # binds (a stance PASS, a frozen recovery resolution) then refuses.
+    # When declared it is THE registered panel block
+    # (``constants.PUBLICATION_SEED_START``): the per-evidence binding below
+    # checks the rows against the role, so a role that named another block
+    # would let a re-draw on that block certify.
+    certification_panel_seed = seed_roles.get("certification_panel")
+    if certification_panel_seed is not None and (
+        not isinstance(certification_panel_seed, int)
+        or isinstance(certification_panel_seed, bool)
+        or certification_panel_seed < 0
+    ):
+        raise ResultBundleError("provenance certification_panel seed role must be a non-negative integer")
+    if certification_panel_seed is not None and certification_panel_seed != PUBLICATION_SEED_START:
+        raise ResultBundleError(
+            f"provenance certification_panel seed role must be the registered panel block start "
+            f"{PUBLICATION_SEED_START}, not {certification_panel_seed}"
+        )
     stages = summary.get("stages")
     if not isinstance(stages, Mapping):
         raise ResultBundleError("summary stages must be an object")
@@ -801,6 +862,12 @@ def validate_evaluation_evidence(
         # re-derivable from these files), and can never be certified.  A
         # failed stance stage therefore needs no panel file.
         recorded_pass = stage_summary.get("stage_passed") is True
+        # A frozen recovery resolution (``gate_resolution.json``) registers
+        # the panel it was judged on; its start seed must be the declared
+        # certification panel (D-B17), whatever the recorded verdict.
+        resolution_path = find_stage_dir(run_path, stage) / "gate_resolution.json"
+        if resolution_path.is_file():
+            _check_resolution_panel_seed(resolution_path, stage=stage, panel_seed_start=certification_panel_seed)
         if recorded_pass and gate_kind == STANCE_GATE_KIND:
             # The stance criteria REPLACE the legacy threshold loop below
             # rather than joining it: applying `min_avg_reward` here as if it
@@ -808,6 +875,13 @@ def validate_evaluation_evidence(
             # `evaluate_stance_gate` already checks it as a rail against the
             # same panel. Only this block is stance-specific -- the
             # final-checkpoint evidence below is validated for every stage.
+            # The panel is bound to the certification_panel role, which a
+            # stance PASS therefore cannot be published without (D-B17).
+            if certification_panel_seed is None:
+                raise ResultBundleError(
+                    f"provenance seed_roles must declare certification_panel for a {STANCE_GATE_KIND} pass "
+                    f"(stage {stage}): the stance panel rows are bound to that seed block"
+                )
             _validate_stance_panel_evidence(
                 find_stage_dir(run_path, stage) / "stance_panel_selected.csv",
                 curriculum,
@@ -815,6 +889,7 @@ def validate_evaluation_evidence(
                 # `env_kwargs` is the in-memory name the same dict carries.
                 env_kwargs=config_value.get("reward_weights", config_value.get("env_kwargs", {})),
                 stage=stage,
+                panel_seed_start=certification_panel_seed,
             )
         elif recorded_pass and gate_kind == TASK_SUCCESS_GATE_KIND:
             # The hunting gate (plan §4.4) is re-derived from the SAME
