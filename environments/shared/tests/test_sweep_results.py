@@ -36,6 +36,14 @@ RECOVERY_CURRICULUM = {
     "recovery_t_recover_steps": 100,
     "recovery_dwell_steps": 50,
 }
+# The hunting gate (plan §4.4) at the provisional bar: 20/30 clears 0.5, 19/30 does not.
+TASK_SUCCESS_CURRICULUM = {
+    "gate_schema_version": 1,
+    "gate_kind": "task_success/v1",
+    "min_success_lcb": 0.5,
+    "min_eval_episodes": 30,
+    "min_avg_reward": 361.0,
+}
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -377,6 +385,235 @@ def _unevaluable_row(trial_id, reward, stage=1):
         "stage_passed": None,
         "gate_reason": "gate_kind 'stance_quality/v1' is judged on evidence a sweep row does not carry",
     }
+
+
+class TestTaskSuccessRows:
+    """Decision D-B12: task_success/v1 is offline-evaluable from the recorded count."""
+
+    @staticmethod
+    def _rows(tmp_path, metrics_by_trial):
+        job = MagicMock()
+        job.trials = []
+        for trial_id, metrics in metrics_by_trial.items():
+            job.trials.append(_make_mock_trial(trial_id, metrics={"best_mean_reward": metrics["best_mean_reward"]}))
+            _write_trial_metrics(tmp_path, trial_id, metrics)
+        return {
+            row["trial_id"]: row
+            for row in _collect_trial_results(
+                job, 3, {"curriculum_kwargs": TASK_SUCCESS_CURRICULUM}, output_base=str(tmp_path)
+            )
+        }
+
+    @staticmethod
+    def _panel(count, n=30, *, selected_mean_reward=600.0, best_mean_reward=600.0):
+        """The metrics.json entries run_success_panel records for a judged hunt panel."""
+        return {
+            "best_mean_reward": best_mean_reward,
+            "success_count": count,
+            "n_success_episodes": n,
+            "selected_mean_reward": selected_mean_reward,
+            "selected_mean_episode_length": 1000.0,
+        }
+
+    def test_task_success_gate_evaluates_from_the_recorded_count(self, tmp_path):
+        rows = self._rows(
+            tmp_path,
+            {
+                "twenty": self._panel(20),
+                "nineteen": self._panel(19),
+                "railed": self._panel(30, selected_mean_reward=200.0),
+            },
+        )
+        assert rows["twenty"]["stage_passed"] is True and rows["twenty"]["gate_evaluable"] is True
+        assert rows["twenty"]["gate_reason"] == ""
+        assert rows["nineteen"]["stage_passed"] is False and rows["nineteen"]["gate_evaluable"] is True
+        assert "task_success_lcb" in rows["nineteen"]["gate_reason"] and "19/30" in rows["nineteen"]["gate_reason"]
+        assert rows["railed"]["stage_passed"] is False
+        assert "task_success rail" in rows["railed"]["gate_reason"]
+        assert rows["twenty"]["success_lcb_threshold"] == 0.5
+        assert (rows["twenty"]["success_count"], rows["twenty"]["n_success_episodes"]) == (20, 30)
+        assert rows["twenty"]["selected_mean_reward"] == 600.0
+
+    def test_the_rail_reads_the_selected_panel_not_the_eval_callback_best(self, tmp_path):
+        """best_mean_reward is the argmax EvalCallback panel of a possibly different checkpoint; the
+        rail is judged on the panel the count came from, the one the on-disk judge rails on too."""
+        rows = self._rows(
+            tmp_path,
+            {
+                "npz_high": self._panel(30, selected_mean_reward=300.0, best_mean_reward=700.0),
+                "npz_low": self._panel(30, selected_mean_reward=600.0, best_mean_reward=100.0),
+                "no_panel_reward": {"best_mean_reward": 700.0, "success_count": 30, "n_success_episodes": 30},
+            },
+        )
+        assert rows["npz_high"]["stage_passed"] is False and "task_success rail" in rows["npz_high"]["gate_reason"]
+        assert rows["npz_low"]["stage_passed"] is True
+        assert rows["no_panel_reward"]["stage_passed"] is None and rows["no_panel_reward"]["gate_evaluable"] is False
+        assert "no selected_mean_reward" in rows["no_panel_reward"]["gate_reason"]
+
+    def test_task_success_without_a_count_is_not_evaluable(self, tmp_path):
+        """A rounded mean_success_rate cannot recover k/n: never a pass, never a reward substitute."""
+        rows = self._rows(tmp_path, {"mean_only": {"best_mean_reward": 1e9, "mean_success_rate": 1.0}})
+        row = rows["mean_only"]
+        assert row["stage_passed"] is None and row["gate_evaluable"] is False
+        assert "no success_count/n_success_episodes" in row["gate_reason"]
+        assert _gate_status(row) == "not evaluable"
+
+    def test_a_non_integral_count_is_not_evaluable(self, tmp_path):
+        """20.4/30 is not a count; a corrupted or hand-edited sidecar is refused, never truncated to 20/30."""
+        rows = self._rows(
+            tmp_path,
+            {"frac_count": self._panel(20.4), "frac_n": self._panel(22, n=30.9)},
+        )
+        for row in rows.values():
+            assert row["stage_passed"] is None and row["gate_evaluable"] is False
+            assert "non-integer success_count/n_success_episodes" in row["gate_reason"]
+
+    def test_success_lcb_threshold_column_is_exported(self, tmp_path):
+        from environments.shared.reporting.csv_output import CSV_METRIC_COLUMNS
+
+        # The pin itself: the columns are declared, in order, before the verdict columns.
+        for column in ("success_lcb_threshold", "success_count", "n_success_episodes", "selected_mean_reward"):
+            assert column in CSV_METRIC_COLUMNS
+            assert CSV_METRIC_COLUMNS.index(column) < CSV_METRIC_COLUMNS.index("gate_kind")
+        rows = list(self._rows(tmp_path, {"t": self._panel(20)}).values())
+        path = write_results_csv(rows, tmp_path / "sweep.csv")
+        with open(path, newline="") as handle:
+            reader = csv.DictReader(handle)
+            fieldnames = reader.fieldnames or []
+            written = list(reader)
+        assert {"success_lcb_threshold", "success_count", "n_success_episodes"} <= set(fieldnames)
+        assert written[0]["success_lcb_threshold"] == "0.5"
+        assert (written[0]["success_count"], written[0]["n_success_episodes"]) == ("20", "30")
+
+    def test_collect_ray_results_carries_the_count_and_judges_the_row(self):
+        """The Ray DataFrame path copies the count and the panel aggregates, and judges the kind on them."""
+        pandas = pytest.importorskip("pandas")
+        from environments.shared.scripts.sweep.ray_tune import collect_ray_results
+
+        frame = pandas.DataFrame(
+            [
+                {"trial_id": "twenty", **self._panel(20)},
+                {"trial_id": "nineteen", **self._panel(19)},
+                {"trial_id": "unjudged", "best_mean_reward": 700.0},
+            ]
+        )
+        rows = {
+            row["trial_id"]: row
+            for row in collect_ray_results(frame, 3, {"curriculum_kwargs": dict(TASK_SUCCESS_CURRICULUM)})
+        }
+        assert rows["twenty"]["stage_passed"] is True and rows["twenty"]["gate_evaluable"] is True
+        assert (rows["twenty"]["success_count"], rows["twenty"]["n_success_episodes"]) == (20, 30)
+        assert rows["twenty"]["selected_mean_reward"] == 600.0 and rows["twenty"]["success_lcb_threshold"] == 0.5
+        assert rows["nineteen"]["stage_passed"] is False and "19/30" in rows["nineteen"]["gate_reason"]
+        assert rows["unjudged"]["stage_passed"] is None and rows["unjudged"]["gate_evaluable"] is False
+
+
+class TestTaskSuccessRowAgreesWithTheVerdict:
+    """The sweep row and the trial's on-disk verdict are judged on ONE panel (D-B12 amendment).
+
+    The trial worker (train_base.run_success_panel, shared by train() and
+    the Ray Tune worker) writes evaluation_selected.csv from its post-training
+    panel and records metrics.json's success_count / selected_mean_reward
+    from the same episodes, so generate_stage_artifacts' verdict (through
+    _apply_stage_gate) and the collector's row cannot disagree — on the
+    bound or on the rail.
+    """
+
+    @staticmethod
+    def _trial(tmp_path, successes, *, reward=600.0, handoff=True, monkeypatch=None):
+        """A trial directory as the worker leaves it: the panel run through run_success_panel."""
+        from types import SimpleNamespace
+
+        from environments.shared import train_base
+        from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
+
+        trial_dir = tmp_path / "stage3" / "trial"
+        models = trial_dir / "models"
+        models.mkdir(parents=True)
+        if handoff:
+            (models / "robust_best_model.zip").write_bytes(b"weights")
+            (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
+        n = len(successes)
+        monkeypatch.setattr(
+            train_base,
+            "eval_policy",
+            lambda *a, n_episodes: ([reward] * n, [1000] * n, [1.0] * n, list(successes), [5.0] * n),
+        )
+        _, metrics = train_base.run_success_panel(
+            object(),
+            MagicMock(),
+            SimpleNamespace(species="trex", success_keys=["bite_success"]),
+            n_episodes=n,
+            curriculum=TASK_SUCCESS_CURRICULUM,
+            evaluated_handoff=select_handoff_checkpoint(models),
+            stage_dir=trial_dir,
+        )
+        (trial_dir / "metrics.json").write_text(json.dumps({"best_mean_reward": 700.0, **metrics}))
+        (trial_dir / "stage_config.json").write_text(
+            json.dumps({"species": "trex", "stage": 3, "curriculum": TASK_SUCCESS_CURRICULUM})
+        )
+        return trial_dir
+
+    @staticmethod
+    def _judge(trial_dir):
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+        from environments.shared.result_bundle import read_gate_verdict
+
+        # A sweep trial's stage_results come from evaluations.npz: the argmax
+        # EvalCallback panel, not the handoff pair's panel.
+        stage_results = {"best_eval_reward": 700.0, "best_eval_length": 1000.0}
+        _apply_stage_gate(
+            stage=3,
+            stage_config={"name": "Hunt", "description": "Hunt", "curriculum_kwargs": dict(TASK_SUCCESS_CURRICULUM)},
+            stage_results=stage_results,
+            stance_report=None,
+            stage_dir=trial_dir,
+            species="trex",
+        )
+        verdict = read_gate_verdict(trial_dir)
+        assert verdict is not None
+        return verdict, stage_results
+
+    @pytest.mark.parametrize("successes", [[True] * 20 + [False] * 10, [True] * 19 + [False] * 11])
+    def test_the_row_verdict_equals_the_on_disk_verdict(self, tmp_path, monkeypatch, successes):
+        trial_dir = self._trial(tmp_path, successes, monkeypatch=monkeypatch)
+        verdict, stage_results = self._judge(trial_dir)
+        rows = collect_results_from_disk(tmp_path)
+        assert rows[0]["gate_evaluable"] is True
+        assert rows[0]["stage_passed"] == verdict["passed"] == (sum(successes) >= 20)
+        assert verdict["stage_result"]["best_model_success_count"] == sum(successes)
+        assert verdict["stage_result"]["best_model_n_episodes"] == 30
+        # The verdict describes the ONE panel: its reward, not the npz best.
+        assert verdict["stage_result"]["best_model_reward"] == 600.0 == stage_results["best_model_reward"]
+        assert (rows[0]["success_count"], rows[0]["selected_mean_reward"]) == (sum(successes), 600.0)
+
+    def test_the_rail_agrees_on_the_same_panel(self, tmp_path, monkeypatch):
+        """A handoff panel below the rail fails BOTH verdicts although the npz best (700) clears it."""
+        trial_dir = self._trial(tmp_path, [True] * 30, reward=300.0, monkeypatch=monkeypatch)
+        verdict, _ = self._judge(trial_dir)
+        rows = collect_results_from_disk(tmp_path)
+        assert verdict["passed"] is False and rows[0]["stage_passed"] is False
+        assert any("task_success rail" in failure for failure in verdict["failures"])
+        assert "task_success rail" in rows[0]["gate_reason"]
+
+    def test_a_panel_that_did_not_evaluate_the_handoff_pair_is_unjudged_on_both_sides(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """The smoke-trial shape (no checkpoint saved, final_model evaluated): the worker records no
+        count, so the row is 'not evaluable' beside the refused verdict — never PASS beside FAIL."""
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            trial_dir = self._trial(tmp_path, [True] * 30, handoff=False, monkeypatch=monkeypatch)
+        assert "NOT recorded as a task_success/v1 count" in caplog.text
+        metrics = json.loads((trial_dir / "metrics.json").read_text())
+        assert "success_count" not in metrics and "selected_mean_reward" not in metrics
+        assert not (trial_dir / "evaluation_selected.csv").exists()
+        verdict, _ = self._judge(trial_dir)
+        assert verdict["passed"] is False
+        rows = collect_results_from_disk(tmp_path)
+        assert rows[0]["stage_passed"] is None and rows[0]["gate_evaluable"] is False
+        assert _gate_status(rows[0]) == "not evaluable"
 
 
 class TestNotEvaluableConsequences:

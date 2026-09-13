@@ -85,6 +85,7 @@ from .gate_schema import (
 )
 from .manager import CurriculumManager, StageThreshold, thresholds_from_configs
 from .schedules import EntCoefDecayCallback, _ConstantSchedule
+from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 __all__ = [
     "FROZEN_NULL_GATE_KINDS",
@@ -105,6 +106,7 @@ __all__ = [
     "SaveVecNormalizeCallback",
     "StageThreshold",
     "StageWarmupCallback",
+    "TASK_SUCCESS_GATE_KIND",
     "_ConstantSchedule",
     "build_baseline_progress_callback",
     "build_eval_collapse_early_stop_callback",

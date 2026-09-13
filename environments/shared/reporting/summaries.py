@@ -120,10 +120,19 @@ def _canonical_stage_summary(result: Mapping[str, Any]) -> dict[str, Any]:
         "selected_model_forward_vel_std": ("best_model_std_fwd_vel", 3),
         "selected_model_distance": ("best_model_distance", 3),
         "selected_model_success_rate": ("best_model_success_rate", 4),
+        # task_success/v1 (plan §4.4): the judged count, panel size and
+        # exact binomial lower bound, so the published row carries the
+        # statistic the gate certified rather than a rounded fraction.
+        "selected_model_success_count": ("best_model_success_count", 0),
+        "selected_model_n_episodes": ("best_model_n_episodes", 0),
+        "selected_model_success_lcb": ("best_model_success_lcb", 4),
     }
     for output_key, (result_key, digits) in selected_metrics.items():
         if result_key in result:
-            stage_summary[output_key] = _optional_metric(result.get(result_key), digits=digits)
+            metric = _optional_metric(result.get(result_key), digits=digits)
+            # A count is an integer, not 20.0: the schema accepts integral
+            # floats, but the published row should not carry one.
+            stage_summary[output_key] = int(metric) if digits == 0 and metric is not None else metric
     return stage_summary
 
 

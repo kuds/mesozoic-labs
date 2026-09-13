@@ -174,14 +174,14 @@ deliverable = "stance"
 backends = ["stable-baselines3"]
 key = "stance_quality"
 label = "Stance quality (stance_quality/v1)"
-definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json in Phase A, so the catalog names them with no value (decision D-A9)."
+definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
 [[species.deliverable_metrics]]
 deliverable = "recovery"
 backends = ["stable-baselines3"]
 key = "recovery_quality"
 label = "Recovery under pushes (recovery_quality/v1)"
-definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json in Phase A (decision D-A9)."
+definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15)."
 
 [[species.deliverable_metrics]]
 deliverable = "walk"
@@ -194,15 +194,15 @@ definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: me
 deliverable = "hunt"
 backends = ["stable-baselines3"]
 key = "bite_success"
-label = "Head-contact bite proxy"
-definition = "The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw."
+label = "Head-contact bite success (task_success/v1)"
+definition = "The hunt checkpoint clears the task_success/v1 gate: the one-sided 95% Clopper-Pearson lower bound on per-episode head-contact bite success (the head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw) over the selected checkpoint's evaluation_selected.csv at the stage's declared min_eval_episodes, hash-bound to that checkpoint, meets the configured min_success_lcb bar (provisional until the first Phase-B pilot re-freezes it; decision D-B2), with the reward rail as a collapse floor only. The bound is exported to summary.json as selected_model_success_lcb beside the raw selected-checkpoint rate."
 
 [[species.deliverable_metrics]]
 deliverable = "hunt"
 backends = ["jax-mjx"]
 key = "bite_proximity_success"
 label = "Head-tip proximity bite proxy"
-definition = "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
+definition = "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw. The JAX/MJX path cannot judge task_success/v1 (no MJX hunting panel exists) and refuses the stage rather than certifying it."
 
 [[species.stage_videos]]
 stage = "stance"
@@ -364,14 +364,14 @@ deliverable = "stance"
 backends = ["stable-baselines3"]
 key = "stance_quality"
 label = "Stance quality (stance_quality/v1)"
-definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json in Phase A, so the catalog names them with no value (decision D-A9)."
+definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
 [[species.deliverable_metrics]]
 deliverable = "recovery"
 backends = ["stable-baselines3"]
 key = "recovery_quality"
 label = "Recovery under pushes (recovery_quality/v1)"
-definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json in Phase A (decision D-A9)."
+definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15)."
 
 [[species.deliverable_metrics]]
 deliverable = "walk"
@@ -413,14 +413,14 @@ deliverable = "stance"
 backends = ["stable-baselines3"]
 key = "stance_quality"
 label = "Stance quality (stance_quality/v1)"
-definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json in Phase A, so the catalog names them with no value (decision D-A9)."
+definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
 [[species.deliverable_metrics]]
 deliverable = "recovery"
 backends = ["stable-baselines3"]
 key = "recovery_quality"
 label = "Recovery under pushes (recovery_quality/v1)"
-definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json in Phase A (decision D-A9)."
+definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15)."
 
 [[species.deliverable_metrics]]
 deliverable = "walk"

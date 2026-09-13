@@ -109,14 +109,16 @@ Stage transitions are controlled by the `[curriculum]` section in each config:
 | `timesteps` | Maximum configured stage budget before advancing |
 | `min_avg_reward` | Minimum evaluation-window mean reward for early advancement |
 | `min_avg_episode_length` | Minimum evaluation-window mean episode length for early advancement |
-| `min_avg_forward_vel` | Optional minimum mean forward velocity; enabled when greater than zero |
-| `min_success_rate` | Optional minimum episode success rate; enabled when greater than zero |
-| `min_eval_episodes` | Minimum episodes required in an evaluation window; currently defaults to 10 in `StageThreshold` |
+| `min_avg_forward_vel` | Optional minimum mean forward velocity; enabled when greater than zero (`reward_and_length/v1` only) |
+| `min_success_rate` | Optional minimum episode success rate; enabled when greater than zero (`reward_and_length/v1` only; retired for the trex hunt, which is gated on the bound below) |
+| `min_success_lcb` | `task_success/v1` only: the one-sided 95% Clopper-Pearson lower bound on per-episode task success must clear this bar (trex hunt: 0.5, provisional — 20/30 clears it, 19/30 does not); `min_avg_reward` is then a collapse rail, never the gate |
+| `min_eval_episodes` | Minimum episodes required in an evaluation window; defaults to 10 in `StageThreshold` except for `task_success/v1`, where it is REQUIRED (the bound's power is a function of the declared n; trex hunt: 30) |
 | `required_consecutive` | Consecutive evaluations that must satisfy every enabled criterion |
 
 For the SB3 curriculum, every enabled criterion must pass in the same evaluation
-window, the window must contain at least 10 episodes (the current
-`StageThreshold.min_eval_episodes` implementation default), and this result must
+window, the window must contain at least `min_eval_episodes` episodes (10 by
+default, the `StageThreshold.min_eval_episodes` implementation default; the
+declared value for a `task_success/v1` stage), and this result must
 repeat for `required_consecutive` evaluations before the stage advances early.
 If the `timesteps` budget runs out first, the node's `gate_verdict.json`
 records a failure and the `curriculum` command stops before the next node

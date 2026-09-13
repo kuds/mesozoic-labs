@@ -25,7 +25,13 @@ evidence the directory already holds, through the one shared judge
 * ``recovery_quality/v1`` — refused: the policy panel's per-seed successes
   the frozen ``gate_resolution.json`` is paired against were never
   persisted, so there is no evidence to re-judge from (re-judge through
-  the notebook chain, which rolls the panel).
+  the notebook chain, which rolls the panel);
+* ``task_success/v1`` — from the selected checkpoint's
+  ``evaluation_selected.csv`` ONLY, hash-bound to the handoff checkpoint:
+  the judge forms the exact binomial lower bound from the per-episode
+  ``task_success`` column, and a rounded ``mean_success_rate`` cannot
+  recover ``k/n``, so a directory without that file (a CLI ``curriculum``
+  hunt, whose only verdict is the in-training one) is refused.
 
 Every missing input is a refusal, never a default: a verdict re-derived
 from nothing would be exactly the pass-by-absence the record exists to
@@ -154,9 +160,12 @@ def selected_evidence_metrics(
         raise BackfillError(f"{path} is malformed: {exc}") from exc
     if any(success is None for success in successes):
         raise BackfillError(f"{path} carries a non-boolean task_success")
+    from environments.shared.curriculum.recovery_gate import binomial_lcb
+
     reward_mean, reward_std = _mean_std(rewards)
     length_mean, length_std = _mean_std(lengths)
     velocity_mean, velocity_std = _mean_std(velocities)
+    success_count = sum(1 for success in successes if success)
     return {
         "best_model_reward": reward_mean,
         "best_model_std_reward": reward_std,
@@ -166,6 +175,11 @@ def selected_evidence_metrics(
         "best_model_std_fwd_vel": velocity_std,
         "best_model_distance": float(statistics.fmean(distances)),
         "best_model_success_rate": float(statistics.fmean(1.0 if success else 0.0 for success in successes)),
+        # task_success/v1's judged numbers (plan §4.4), so the backfilled
+        # verdict carries the count and bound the judge re-derives.
+        "best_model_success_count": success_count,
+        "best_model_n_episodes": len(successes),
+        "best_model_success_lcb": binomial_lcb(success_count, len(successes)),
     }
 
 
@@ -190,6 +204,7 @@ def backfill_gate_verdict(
     from environments.shared.curriculum.gate_schema import gate_config_view
     from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
+    from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
     from environments.shared.reporting import build_stage_results_from_eval_data, evaluate_stage_gate
     from environments.shared.reporting.gates import _current_task_sha256
     from environments.shared.result_bundle import GATE_VERDICT_FILENAME, write_gate_verdict
@@ -290,6 +305,13 @@ def backfill_gate_verdict(
     selected = selected_evidence_metrics(stage_path, model_zip=model_zip, normalization=normalization_path)
     if selected is not None:
         stage_results.update(selected)
+    elif gate_kind == TASK_SUCCESS_GATE_KIND:
+        # The judge below would refuse anyway ("absent"); name the reason
+        # here so the tool exits before touching the directory.
+        raise BackfillError(
+            f"{entry.id!r} declares task_success/v1: no {SELECTED_EVIDENCE_CSV} hash-bound to the handoff, "
+            "so the verdict cannot be re-derived"
+        )
     elif stance_report is None and not (stage_path / "evaluations.npz").is_file():
         raise BackfillError(
             f"{stage_path} holds neither {SELECTED_EVIDENCE_CSV} nor evaluations.npz, so there is no measurement "

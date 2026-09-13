@@ -15,13 +15,14 @@ import numpy as np
 from environments.shared.config import load_all_stages
 
 from .gate_schema import validate_gate_config
-from .recovery_gate import RECOVERY_GATE_KIND
+from .recovery_gate import RECOVERY_GATE_KIND, binomial_lcb
 from .stance_gate import (
     STANCE_GATE_KIND,
     StanceGateThresholds,
     StancePanel,
     evaluate_stance_gate,
 )
+from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,11 @@ class StageThreshold:
     max_unsupported_duty: float = np.inf
     max_unsupported_duty_ucb: float = np.inf
     settle_steps: int = 0
+
+    # task_success/v1.  +inf so a field the schema failed to populate can
+    # never be reached: no binomial bound is >= inf, which is the fail-closed
+    # default for a floor (the schema requires the real value of the kind).
+    min_success_lcb: float = np.inf
 
     # Shared
     min_eval_episodes: int = DEFAULT_MIN_EVAL_EPISODES
@@ -191,6 +197,12 @@ class CurriculumManager:
             summary["mean_forward_vel"] = float(np.mean(forward_velocities))
         if success_rates is not None:
             summary["mean_success_rate"] = float(np.mean(success_rates))
+            # The count and the sample size, so task_success/v1 can form its
+            # binomial bound from the same panel: the flags are 0/1, so the
+            # rounded sum is exact for the npz sample (the 10-episode
+            # supplementary fallback then fails min_eval_episodes by its n).
+            summary["success_count"] = int(round(float(np.sum(success_rates))))
+            summary["n_success_samples"] = len(success_rates)
         if stance_panel is not None:
             # The bound is stored as a scalar rather than the raw duties: it is
             # a pure function of them, and the history is serialized into run
@@ -279,6 +291,8 @@ class CurriculumManager:
             passes = self._stance_gate_passes(latest)
         elif threshold.gate_kind == "reward_and_length/v1":
             passes = self._reward_and_length_gate_passes(latest, threshold)
+        elif threshold.gate_kind == TASK_SUCCESS_GATE_KIND:
+            passes = self._task_success_gate_passes(latest, threshold)
         elif threshold.gate_kind == RECOVERY_GATE_KIND:
             passes = self._recovery_gate_refuses()
         else:
@@ -333,6 +347,54 @@ class CurriculumManager:
             mean_success = latest.get("mean_success_rate", 0.0)
             passes = passes and mean_success >= threshold.min_success_rate
 
+        return passes
+
+    def _task_success_gate_passes(self, latest: dict[str, float], threshold: StageThreshold) -> bool:
+        """Evaluate ``task_success/v1`` against one evaluation (plan §4.4).
+
+        The same bound the post-stage judge forms from the evidence CSV —
+        :func:`~environments.shared.curriculum.recovery_gate.binomial_lcb`
+        over the panel's per-episode successes — formed here from the
+        ``success_count`` / ``n_success_samples`` :meth:`record_eval` keeps
+        beside the mean, at the panel size the bound's power is specified
+        at; ``required_consecutive`` hysteresis is applied by the caller.
+        An evaluation with no per-episode success sample fails closed and
+        says so, rather than falling through to the reward criteria: the
+        reward rail is a collapse backstop the hunting statue clears.
+        """
+        if "success_count" not in latest or "n_success_samples" not in latest:
+            logger.warning(
+                "Stage %d declares gate_kind %s but the evaluation carried no per-episode success sample; "
+                "refusing to advance. The eval path must pass the panel's success flags to record_eval().",
+                self._current_stage,
+                TASK_SUCCESS_GATE_KIND,
+            )
+            return False
+        n = int(latest["n_success_samples"])
+        k = int(latest["success_count"])
+        if n < threshold.min_eval_episodes or n <= 0:
+            logger.info(
+                "Stage %d task_success gate not met: n_episodes %d < min_eval_episodes %d",
+                self._current_stage,
+                n,
+                threshold.min_eval_episodes,
+            )
+            return False
+        lcb = binomial_lcb(k, n)
+        passes = lcb >= threshold.min_success_lcb
+        if not passes:
+            logger.info(
+                "Stage %d task_success gate not met: task_success_lcb %.4f < %.4f (%d/%d episodes succeeded)",
+                self._current_stage,
+                lcb,
+                threshold.min_success_lcb,
+                k,
+                n,
+            )
+        # The collapse rail and the optional length floor are conjuncts,
+        # exactly as the post-stage judge applies them.
+        passes = passes and latest["mean_reward"] >= threshold.min_avg_reward
+        passes = passes and latest["mean_length"] >= threshold.min_avg_episode_length
         return passes
 
     def _recovery_gate_refuses(self) -> bool:
@@ -507,6 +569,12 @@ def thresholds_from_configs(
         # frozen gate_resolution.json, never from the config, so that a
         # config edited after the freeze cannot change a verdict the frozen
         # record already fixed.  should_advance refuses the kind outright.
+        #
+        # task_success/v1's min_success_lcb IS copied: unlike recovery, the
+        # manager judges this kind in-training from the EvalCallback panel's
+        # per-episode successes (the same bound the post-stage judge forms
+        # from the evidence CSV), so the bar must reach StageThreshold —
+        # whose +inf default otherwise refuses every evaluation.
         threshold_fields: dict[str, Any] = {"gate_kind": gate_kind}
         for key in (
             "min_avg_reward",
@@ -517,6 +585,7 @@ def thresholds_from_configs(
             "max_unsupported_duty",
             "max_unsupported_duty_ucb",
             "settle_steps",
+            "min_success_lcb",
             "min_eval_episodes",
             "required_consecutive",
         ):

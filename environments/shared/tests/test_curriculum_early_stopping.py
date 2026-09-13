@@ -464,14 +464,40 @@ class TestCollapsePeakFloorIsDecoupledFromTheRewardGate:
         where an absolute floor silently never armed.  A stage that configures
         neither resolves to ``inf``, i.e. never arms, which is what this test
         exists to prevent.
+
+        Every species with a stage manifest is covered (D-B14 enumerates
+        compsognathus and its robot too).  Compsognathus and its robot
+        declare no floor on any stage -- the plant has no learned-policy
+        history to calibrate one against.  Only their stance TOMLs record
+        that as a decision ("Deliberately omit a collapse floor: the shared
+        detector stays unarmed until this plant has a learning history"; the
+        recovery TOMLs say "Keep collapse detection unarmed"); their
+        locomotion and behavior TOMLs omit the floor WITHOUT a comment, so
+        for those stage rows this assertion holds by the species-level
+        exemption alone (follow-up: a maintainer config decision to add the
+        pair or the unarmed statement there would let the exemption narrow
+        to per-stage statements).  Any other species' omission, and a
+        compsognathus omission whose stance TOML no longer records the
+        decision, still fails here.
         """
         from environments.shared.config import load_all_stages
+        from environments.shared.stage_manifest import _CONFIGS_DIR, resolve_stage_key
 
-        for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
+        unarmed_by_recorded_decision = {"compsognathus", "compsognathus_robot"}
+        species_ids = sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml"))
+        assert {"trex", "velociraptor", "brachiosaurus", "dibothrosuchus"} | unarmed_by_recorded_decision <= set(
+            species_ids
+        )
+        for species in species_ids:
+            if species in unarmed_by_recorded_decision:
+                stance_toml = _CONFIGS_DIR / species / resolve_stage_key(species, "stance").config_file
+                assert "Deliberately omit a collapse floor" in stance_toml.read_text(encoding="utf-8"), (
+                    f"{stance_toml} no longer records the unarmed-detector decision this exemption rests on"
+                )
             for stage, cfg in load_all_stages(species).items():
                 cur = cfg.get("curriculum_kwargs", {})
                 floor = collapse_settings_from_config(cur)["peak_floor"]
-                assert math.isfinite(floor), (
+                assert math.isfinite(floor) or species in unarmed_by_recorded_decision, (
                     f"{species} stage {stage} configures no collapse floor (neither collapse_peak_floor "
                     "nor the fraction/reference pair), so the backstop can never arm"
                 )
@@ -756,8 +782,13 @@ class TestPeakWarmup:
         the backstop just as completely.
         """
         from environments.shared.config import load_all_stages
+        from environments.shared.stage_manifest import _CONFIGS_DIR
 
-        for species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
+        # Every species with a stage manifest (D-B14 enumerates compsognathus
+        # and its robot too).
+        species_ids = sorted(path.parent.name for path in _CONFIGS_DIR.glob("*/stages.toml"))
+        assert {"trex", "velociraptor", "brachiosaurus", "dibothrosuchus", "compsognathus"} <= set(species_ids)
+        for species in species_ids:
             for stage, cfg in load_all_stages(species).items():
                 cur = cfg.get("curriculum_kwargs", {})
                 warmup = collapse_settings_from_config(cur)["peak_warmup_timesteps"]
@@ -775,3 +806,43 @@ class TestPeakWarmup:
                     f"{species} stage {stage} spends {100 * warmup / budget:.0f}% of its budget "
                     "in collapse warm-up, leaving too little of the run protected"
                 )
+
+
+class TestTrexBehaviorCollapseFloor:
+    """The hunting stage's backstop is the measured relative pair (WS-B2; review CF3).
+
+    The absolute ``collapse_peak_floor = 100.0`` sat 6x below the measured
+    do-nothing reward (602.13 +/- 175.35, n = 40, seed 3042, 40/40 full
+    horizon, physics r7), so it armed on the first qualifying evaluation of
+    every run and encoded nothing.  ``collapse_settings_from_config`` lets an
+    explicit absolute floor win over the pair, so the key must be ABSENT,
+    not shadowed.
+    """
+
+    def _behavior_curriculum(self) -> dict:
+        from environments.shared.config import load_all_stages
+
+        return dict(load_all_stages("trex")[3]["curriculum_kwargs"])
+
+    def test_trex_behavior_collapse_floor_is_the_pair_not_an_absolute(self):
+        cur = self._behavior_curriculum()
+        assert "collapse_peak_floor" not in cur
+        settings = collapse_settings_from_config(cur)
+        assert settings["peak_floor"] == pytest.approx(0.45 * cur["collapse_peak_floor_reference"])
+        assert cur["collapse_peak_floor_reference"] == pytest.approx(602.0)
+        assert settings["peak_floor"] == pytest.approx(270.9)
+        # D-B5: a judgment, not a replay -- bounded by the 600k entry window
+        # below and the half-budget pin above.
+        assert settings["peak_warmup_timesteps"] == 1_000_000
+        assert settings["peak_warmup_timesteps"] >= cur["warmup_timesteps"] + cur["ramp_timesteps"]
+        # Explicit, at locomotion's tuned values rather than the 12/8/0.4 defaults.
+        assert (settings["min_evals"], settings["patience"], settings["drop_fraction"]) == (20, 10, 0.5)
+        # The freshness pin that lets test_statue_constant_freshness.py guard it.
+        assert cur["statue_constants_physics_revision"] == 7
+
+    def test_trex_behavior_rail_sits_below_the_statue(self):
+        """D-B4: the rail is round(0.6 x reference); a statue must clear it, a collapse must not."""
+        cur = self._behavior_curriculum()
+        assert 0 < cur["min_avg_reward"] < cur["collapse_peak_floor_reference"]
+        assert cur["min_avg_reward"] == round(0.6 * 602.13)
+        assert cur["min_avg_reward"] == 361

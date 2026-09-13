@@ -909,3 +909,109 @@ def test_a_certified_flag_beside_a_failed_verdict_is_refused(tmp_path: Path, sta
         ResultBundleError, match="recorded as a certified deliverable, but the summary records stage_passed=False"
     ):
         validate_evaluation_evidence(run_dir, summary, provenance)
+
+
+def _declare_task_success_on_stage_three(run_dir: Path, *, min_success_lcb: float, min_eval_episodes: int = 3) -> None:
+    """Switch the resolved stage-3 config to task_success/v1 (plan §4.4) at the given bar."""
+    config_path = run_dir / "stage3" / "stage_config.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    key = "curriculum" if "curriculum" in config else "curriculum_kwargs"
+    config[key] = {
+        "gate_kind": "task_success/v1",
+        "gate_schema_version": 1,
+        "min_success_lcb": min_success_lcb,
+        "min_eval_episodes": min_eval_episodes,
+        "min_avg_reward": 1.0,
+    }
+    config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+#: The fixture's selected evidence records 2 of 3 successes: an exact
+#: one-sided 95% lower bound of 0.1354.
+_FIXTURE_LCB = 0.1354
+
+
+def test_publication_refuses_a_task_success_pass_below_the_bar(tmp_path: Path, stable_provenance: None) -> None:
+    """A recorded PASS whose evidence bounds below min_success_lcb is refused, whatever the reward."""
+    run_dir = tmp_path / "run"
+    summary, provenance = _bundle_summary_and_provenance(run_dir)
+    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.2)
+
+    with pytest.raises(ResultBundleError, match=r"stage 3 publication gate fails task_success/v1: task_success_lcb"):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+
+
+def test_a_task_success_pass_reproduces_from_the_evidence(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    summary, provenance = _bundle_summary_and_provenance(run_dir)
+    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1)
+
+    validate_evaluation_evidence(run_dir, summary, provenance)
+
+    # The panel size is judged too: n=3 below a declared 30 is a refusal.
+    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1, min_eval_episodes=30)
+    with pytest.raises(ResultBundleError, match=r"n_episodes 3 < min_eval_episodes 30"):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+
+
+def test_a_task_success_pass_needs_the_checkpoint_column(tmp_path: Path, stable_provenance: None) -> None:
+    """Unbound evidence only warns for the legacy kinds; a task_success pass is refused on it."""
+    run_dir = tmp_path / "run"
+    summary, provenance = _bundle_summary_and_provenance(run_dir)
+    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1)
+    _rewrite_csv_column(run_dir / "stage3" / "evaluation_selected.csv", field="checkpoint_sha256", value=None)
+
+    with pytest.raises(ResultBundleError, match=r"stage 3 selected evidence records no checkpoint_sha256"):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+
+
+def test_a_recorded_task_success_count_must_match_the_evidence(tmp_path: Path, stable_provenance: None) -> None:
+    """The bound is checked at a tolerance; the published k/n must equal the rows' exactly."""
+    run_dir = tmp_path / "run"
+    summary, provenance = _bundle_summary_and_provenance(run_dir)
+    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1)
+
+    summary["stages"]["3"].update(
+        {"selected_model_success_lcb": _FIXTURE_LCB, "selected_model_success_count": 2, "selected_model_n_episodes": 3}
+    )
+    validate_evaluation_evidence(run_dir, summary, provenance)
+
+    # A laundered headline: the bound still matches, the count claims 3/3.
+    summary["stages"]["3"]["selected_model_success_count"] = 3
+    with pytest.raises(ResultBundleError, match=r"stage 3 selected_model_success_count records 3, but .* 2/3"):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+    summary["stages"]["3"]["selected_model_success_count"] = 2
+    summary["stages"]["3"]["selected_model_n_episodes"] = 30
+    with pytest.raises(ResultBundleError, match=r"stage 3 selected_model_n_episodes records 30"):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+
+
+def test_a_task_success_pass_needs_a_certified_checkpoint_to_bind_to(tmp_path: Path, stable_provenance: None) -> None:
+    """Defence in depth beside the schema: no certified hash means nothing the evidence can be bound to."""
+    from environments.shared.result_bundle.evidence import _validate_task_success_evidence
+
+    run_dir = tmp_path / "run"
+    _bundle_summary_and_provenance(run_dir)
+    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1)
+    curriculum = {"gate_kind": "task_success/v1", "min_success_lcb": 0.1, "min_eval_episodes": 3}
+    with pytest.raises(ResultBundleError, match=r"stage 3 records no certified selected checkpoint"):
+        _validate_task_success_evidence(
+            run_dir / "stage3" / "evaluation_selected.csv",
+            curriculum,
+            selected_aggregates={"reward": 1.0, "episode_length": 1.0},
+            certified_hash=None,
+            stage=3,
+        )
+
+
+def test_a_recorded_task_success_lcb_must_match_the_evidence(tmp_path: Path, stable_provenance: None) -> None:
+    run_dir = tmp_path / "run"
+    summary, provenance = _bundle_summary_and_provenance(run_dir)
+    _declare_task_success_on_stage_three(run_dir, min_success_lcb=0.1)
+
+    summary["stages"]["3"]["selected_model_success_lcb"] = _FIXTURE_LCB
+    validate_evaluation_evidence(run_dir, summary, provenance)
+
+    summary["stages"]["3"]["selected_model_success_lcb"] = 0.9
+    with pytest.raises(ResultBundleError, match=r"stage 3 selected_model_success_lcb differs"):
+        validate_evaluation_evidence(run_dir, summary, provenance)

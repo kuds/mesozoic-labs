@@ -289,6 +289,26 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "recovery_t_recover_steps": None,
         "recovery_dwell_steps": None,
     }
+    # task_success/v1's bar (plan §4.4) is exported on every stage row and
+    # is null wherever the kind is not declared — every committed stage
+    # except the trex hunt, which adopted the kind (WS-B2; D-B14 keeps the
+    # other species' hunts on reward_and_length/v1).
+    task_success_null: dict[str, float | None] = {"min_success_lcb": None}
+    # The trex hunt under task_success/v1: the LCB95 bar (D-B2, provisional),
+    # the declared panel n (D-B1), the statue-derived collapse rail 361 =
+    # round(0.6 x 602.13) (D-B4) and neither retired criterion (CF2 / D1
+    # retired the velocity target, SS2 the raw-mean success rate).
+    trex_stage_three = {
+        "gate_kind": "task_success/v1",
+        "pending_gate_kind": None,
+        "min_avg_reward": 361.0,
+        "min_avg_episode_length": None,
+        "min_avg_forward_velocity": None,
+        "min_success_rate": None,
+        "min_eval_episodes": 30,
+        "required_consecutive": 3,
+        "min_success_lcb": 0.5,
+    }
 
     stage_one_gate_kind = {
         "trex": "stance_quality/v1",
@@ -340,6 +360,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 "recovery_t_recover_steps": 40,
                 "recovery_dwell_steps": 20,
                 **stance_null,
+                **task_success_null,
             }
             continue
         # Gates are addressed by LEGACY number, not by list position: the
@@ -358,6 +379,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "required_consecutive": 3,
             **stage_one_stance[species_id],
             **recovery_null,
+            **task_success_null,
         }
         # Stages 2 and 3 stay on reward_and_length/v1, so their stance fields
         # export as nulls.
@@ -372,7 +394,11 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "required_consecutive": 3,
             **stance_null,
             **recovery_null,
+            **task_success_null,
         }
+        if species_id == "trex":
+            assert stage_three == {**trex_stage_three, **stance_null, **recovery_null}
+            continue
         assert stage_three | {"min_avg_forward_velocity": None} == {
             "gate_kind": "reward_and_length/v1",
             "pending_gate_kind": None,
@@ -384,6 +410,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
             "required_consecutive": 3,
             **stance_null,
             **recovery_null,
+            **task_success_null,
         }
 
     # The recovery stage exports its frozen recovery_quality/v1 gate (P5,
@@ -409,6 +436,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "recovery_t_recover_steps": 100,
         "recovery_dwell_steps": 50,
         **stance_null,
+        **task_success_null,
     }
     assert trex_recovery["video"] is None
 
@@ -424,11 +452,17 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     assert _gate("velociraptor", 2)["min_avg_forward_velocity"] == 2.0
     assert _gate("trex", 2)["min_avg_forward_velocity"] == 1.0
     assert _gate("brachiosaurus", 2)["min_avg_forward_velocity"] == 0.75
-    # The 2.0 m/s capability target relocated to trex's behavior-stage gate
-    # (review §5.3 decision (b)); no other species gates stage 3 on speed.
-    assert _gate("trex", 3)["min_avg_forward_velocity"] == 2.0
-    for other in ("velociraptor", "brachiosaurus", "dibothrosuchus"):
-        assert _gate(other, 3)["min_avg_forward_velocity"] is None
+    # No species gates stage 3 on speed. The 2.0 m/s capability target that
+    # review §5.3 decision (b) relocated to trex's behavior stage was retired
+    # by plan D1 (review CF2: a bite terminates the episode after ~0.5 m, so
+    # a bite episode cannot AVERAGE 2.0 m/s); closing speed is measured, not
+    # gated. The trex hunt instead certifies the binomial LCB95 on task
+    # success (task_success/v1, plan §4.4; D-B2's provisional 0.5 bar) and
+    # consumes no raw-mean success rate (review SS2).
+    for stage_three_species in ("trex", "velociraptor", "brachiosaurus", "dibothrosuchus"):
+        assert _gate(stage_three_species, 3)["min_avg_forward_velocity"] is None
+    assert _gate("trex", 3)["min_success_lcb"] == 0.5
+    assert _gate("trex", 3)["min_success_rate"] is None
 
 
 def test_catalog_scopes_success_semantics_to_training_backends() -> None:
@@ -830,11 +864,13 @@ def test_default_paths_are_inside_repository() -> None:
 
 
 def test_current_gate_kinds_follow_the_manifest() -> None:
+    # The trex hunt adopted task_success/v1 (plan §4.4, WS-B2); every other
+    # species' hunt stays on reward_and_length/v1 (D-B14).
     assert current_gate_kinds("trex") == {
         "stance": "stance_quality/v1",
         "recovery": "recovery_quality/v1",
         "locomotion": "reward_and_length/v1",
-        "behavior": "reward_and_length/v1",
+        "behavior": "task_success/v1",
     }
     assert current_gate_kinds("velociraptor") == {
         "stance": "reward_and_length/v1",
@@ -1099,10 +1135,16 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
     assert by_id["locomotion"]["headline"] == [
         {"key": "avg_forward_vel", "label": "avg. forward velocity", "value": 3.47, "unit": "m/s"}
     ]
-    # Trex's hunt gate floors both velocity and success, so both headline.
+    # Trex's hunt is task_success/v1 (plan §4.4, WS-B2): the headline names
+    # the certified bound and the rate it bounds, and this ladder-shaped
+    # fixture records neither selected_model_success_lcb nor
+    # selected_model_success_rate, so both carry null values like the stance
+    # row above -- never the retired velocity target (plan D1) nor the raw
+    # ladder mean.
+    assert by_id["behavior"]["gate_kind"] == "task_success/v1"
     assert by_id["behavior"]["headline"] == [
-        {"key": "avg_forward_vel", "label": "avg. forward velocity", "value": 1.68, "unit": "m/s"},
-        {"key": "mean_success_rate", "label": "task success", "value": 0.9667, "unit": "percent"},
+        {"key": "selected_model_success_lcb", "label": "task success LCB95", "value": None, "unit": "ratio"},
+        {"key": "selected_model_success_rate", "label": "task success", "value": None, "unit": "percent"},
     ]
     # The ladder headline is untouched by the per-deliverable rows.
     assert result["stage3_success_rate"] == 0.9667
@@ -1142,6 +1184,27 @@ def test_v4_headline_reads_the_statistic_the_summary_records(tmp_path: Path, mon
     ]
     # The ladder row keeps its fixed columns: the statistic is not projected there.
     assert "unsupported_duty_ucb" not in result["stages"][0]
+
+
+def test_v4_headline_reads_the_task_success_lcb_the_summary_records(tmp_path: Path, monkeypatch: Any) -> None:
+    """A task_success/v1 hunt deliverable headlines selected_model_success_lcb from the stage row as written."""
+    summary = _trex_v4_summary({"1": True, "2": True, "3": True}, target="3", primary="3", bundle_status="complete")
+    summary["stages"]["3"]["gate_kind"] = "task_success/v1"
+    summary["provenance"]["deliverables"]["3"]["gate_kind"] = "task_success/v1"
+    summary["stages"]["3"]["selected_model_success_lcb"] = 0.851
+    summary["stages"]["3"]["selected_model_success_count"] = 29
+    summary["stages"]["3"]["selected_model_n_episodes"] = 30
+    summary["stages"]["3"]["selected_model_success_rate"] = 0.9667
+
+    result = _build_result_from(tmp_path, monkeypatch, summary)
+
+    hunt = next(row for row in result["deliverables"] if row["id"] == "behavior")
+    assert hunt["gate_kind"] == "task_success/v1"
+    assert [(metric["key"], metric["value"]) for metric in hunt["headline"]] == [
+        ("selected_model_success_lcb", 0.851),
+        ("selected_model_success_rate", 0.9667),
+    ]
+    assert "selected_model_success_lcb" not in result["stages"][-1]
 
 
 def test_v4_summary_whose_primary_is_spelled_by_id_over_numeric_keys_is_rejected(
@@ -1250,6 +1313,20 @@ def test_walk_only_v4_summary_is_publishable(tmp_path: Path, monkeypatch: Any) -
         ),
         # A reward-only rail headlines nothing: neither floor is declared.
         ("reward_and_length/v1", {"avg_forward_vel": 0.02}, {"min_avg_reward": 1050.0}, []),
+        # task_success/v1 (plan §4.4): the bound the gate certifies, then
+        # the raw selected-checkpoint rate it bounds; nulls until recorded.
+        (
+            "task_success/v1",
+            {"selected_model_success_lcb": 0.5006, "selected_model_success_rate": 0.6667},
+            {"min_success_lcb": 0.5},
+            [("selected_model_success_lcb", 0.5006, "ratio"), ("selected_model_success_rate", 0.6667, "percent")],
+        ),
+        (
+            "task_success/v1",
+            {"mean_success_rate": 0.9667},
+            {"min_success_lcb": 0.5},
+            [("selected_model_success_lcb", None, "ratio"), ("selected_model_success_rate", None, "percent")],
+        ),
         ("none/v1", {"mean_success_rate": 1.0}, {"min_success_rate": 0.5}, []),
         # Unrecorded gate kind: nothing measured, nothing headlined.
         (None, {"mean_success_rate": 1.0}, {"min_success_rate": 0.5}, []),
@@ -1494,8 +1571,8 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
         "1 — stand (certified; gate stance_quality/v1; 1 run; unsupported duty 95% UCB not recorded; "
         "full-horizon episodes not recorded) · "
         "2 — walk (certified, primary; gate reward_and_length/v1; 1 run; avg. forward velocity 3.47 m/s) · "
-        "3 — hunt (not certified; gate reward_and_length/v1; 1 run; avg. forward velocity 1.68 m/s; "
-        "task success 96.7%)"
+        "3 — hunt (not certified; gate task_success/v1; 1 run; task success LCB95 not recorded; "
+        "task success not recorded)"
     ) in rendered
     assert rendered.count("**Deliverables:**") == 1
     # The non-trex sections are untouched by the new line.
@@ -1643,9 +1720,11 @@ def test_website_gate_formatter_mirrors_python() -> None:
 
     Both renderers are pinned against one phrase list, so a criterion added
     to one and not the other fails here whichever side moved.  The branch
-    order pin (none/v1, then recovery_quality/v1, then the generic path)
-    keeps the frozen-verdict sentence on the recovery row and the
-    consecutive-passes tail off it, on both sides.
+    order pin (none/v1, then recovery_quality/v1, then task_success/v1, then
+    the generic path) keeps the frozen-verdict sentence on the recovery row,
+    the evidence-CSV sentence on the hunting row, and the consecutive-passes
+    tail off both, on both sides.  The task_success rail is rendered as
+    "reward rail" so the generic path's "reward ≥ " stays unique to it.
     """
     python_source = (REPOSITORY_ROOT / "environments/shared/species_catalog.py").read_text(encoding="utf-8")
     python_body = python_source.split("def _format_advancement_gate(", 1)[1].split("\ndef ", 1)[0]
@@ -1660,6 +1739,9 @@ def test_website_gate_formatter_mirrors_python() -> None:
         "re-entry ≤ ",
         "-step dwell",
         "verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale)",
+        "task success LCB95 ≥ ",
+        "reward rail ≥ ",
+        "verdict from the selected checkpoint's evaluation_selected.csv (post-stage; fail-closed when absent)",
         "reward ≥ ",
         "episode length ≥ ",
         "avg. velocity ≥ ",
@@ -1680,11 +1762,18 @@ def test_website_gate_formatter_mirrors_python() -> None:
     for body in (python_body, tsx_body):
         none_branch = body.index("none/v1")
         recovery_branch = body.index("recovery_quality/v1")
-        generic_path = body.index("reward ≥ ")
-        assert none_branch < recovery_branch < generic_path
+        task_success_branch = body.index("task_success/v1")
+        # Anchored on a phrase ONLY the generic path emits: "reward ≥ " would
+        # resolve inside a branch that rendered its rail with the same words.
+        generic_path = body.index("avg. velocity ≥ ")
+        assert none_branch < recovery_branch < task_success_branch < generic_path
         # The consecutive-passes tail belongs to the generic path only.
         assert body.index(" consecutive passes") > generic_path
-        assert body.index("verdict from the frozen gate_resolution.json") < generic_path
+        assert body.index("verdict from the frozen gate_resolution.json") < task_success_branch
+        assert task_success_branch < body.index("verdict from the selected checkpoint") < generic_path
+        # The hunting rail is "reward rail ≥ "; the plain criterion is generic.
+        assert task_success_branch < body.index("reward rail ≥ ") < generic_path
+        assert body.index("reward ≥ ") > body.index("reward rail ≥ ")
 
 
 def test_index_page_keys_video_cards_by_stage_id() -> None:

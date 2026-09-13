@@ -37,6 +37,8 @@ export interface AdvancementGate {
   minPairedSuccessDeltaLcb: number | null;
   recoveryTRecoverSteps: number | null;
   recoveryDwellSteps: number | null;
+  /** task_success/v1 bar (the binomial LCB95 on task success); null on every other gate kind. */
+  minSuccessLcb: number | null;
   minEvaluationEpisodes: number;
   requiredConsecutive: number;
 }
@@ -118,7 +120,7 @@ export interface ResultStage {
 export interface HeadlineMetric {
   key: string;
   label: string;
-  /** Null when the summary does not record the statistic (stance/recovery in Phase A). */
+  /** Null when the summary does not record the statistic (stance/recovery until a later phase — decision D-B15). */
   value: number | null;
   unit: HeadlineUnit;
 }
@@ -232,6 +234,7 @@ interface RawStage {
     min_paired_success_delta_lcb: number | null;
     recovery_t_recover_steps: number | null;
     recovery_dwell_steps: number | null;
+    min_success_lcb: number | null;
     min_eval_episodes: number;
     required_consecutive: number;
   };
@@ -548,6 +551,7 @@ function adaptSpecies(raw: RawSpecies): Species {
         minPairedSuccessDeltaLcb: stage.advancement_gate.min_paired_success_delta_lcb,
         recoveryTRecoverSteps: stage.advancement_gate.recovery_t_recover_steps,
         recoveryDwellSteps: stage.advancement_gate.recovery_dwell_steps,
+        minSuccessLcb: stage.advancement_gate.min_success_lcb,
         minEvaluationEpisodes: stage.advancement_gate.min_eval_episodes,
         requiredConsecutive: stage.advancement_gate.required_consecutive,
       },
@@ -606,7 +610,8 @@ export function formatHeadlineValue(metric: HeadlineMetric): string {
  *
  * A schema-4 result headlines its primary deliverable's first gate-kind
  * metric (a walk its velocity, a hunt its task success; stance and recovery
- * name the metric with no value in Phase A — decision D-A9).  A ladder
+ * name the metric with no value until a later phase — decisions D-A9 and
+ * D-B15).  A ladder
  * summary publishes no deliverable and keeps the historical "Task success"
  * headline from stage3_success_rate, rendered exactly as before (D-A10).
  */

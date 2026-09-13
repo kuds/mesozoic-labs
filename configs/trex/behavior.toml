@@ -88,24 +88,100 @@ net_arch = [512, 256]
 
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
-gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
+gate_kind = "task_success/v1"           # environments/shared/curriculum/gate_schema.py. Adopted 2026-09-13
+                                        # (BEHAVIOR_RECIPES_PLAN §4.4, Phase B): the hunt is certified on a
+                                        # binomial lower bound over the selected checkpoint's per-episode
+                                        # bite successes, never on return or on a raw success mean.
 timesteps = 8000000
-min_avg_reward = 100.0
-collapse_peak_floor = 100.0    # Explicit: this used to fall back to min_avg_reward, coupling an
-                                        # early-stop backstop to an unrelated advancement threshold. Set to
-                                        # the value that fallback produced, so behaviour is unchanged.
-min_avg_forward_vel = 2.0               # The sprint/capability target, relocated from the locomotion gate
-                                        # (2026-08 review §5.3 decision (b)). On this plant 2.0 m/s is
-                                        # Froude 0.46-0.57 — the walk-run boundary — which run
-                                        # 20260821_142144's measured velocity curve puts at 7.1M+ steps:
-                                        # defensible as a capability target, unreachable as locomotion's
-                                        # 8M-budget gate (which now gates a 1.0 m/s walk). It gates HERE
-                                        # because the bite task needs closing speed on prey anyway, so the
-                                        # requirement and the stage that trains it coincide. Consumed by
-                                        # reward_and_length/v1 (gate_schema.py lists the key; locomotion's
-                                        # gate used it first).
-min_success_rate = 0.5                # At least 50% bite success — confirms hunting behavior emerged
-required_consecutive = 3
+min_avg_reward = 361.0                  # Collapse RAIL only (plan §4.4, decision D-B4), never the gate: sits
+                                        # below the measured do-nothing statue (602.13, see
+                                        # collapse_peak_floor_reference below) so a collapsed policy fails
+                                        # it and nothing else does. round(0.6 x 602.13) = 361, the same
+                                        # statue ratio the stance rail uses (2100 / 3495.2 = 0.60). Re-derive
+                                        # WITH the reference whenever a reward weight or the plant changes;
+                                        # a moved rail is a RE-JUDGE of every certified trunk under the new
+                                        # gate, never a retrain (decisions D-B7/D-B8).
+# Retired 2026-09-13 (2026-08 review CF2, plan D1): min_avg_forward_vel = 2.0,
+# the sprint capability target relocated here from locomotion. A bite
+# terminates the episode after as little as ~0.5 m from a standing start, so a
+# bite episode structurally cannot AVERAGE 2.0 m/s and the gate could never
+# pass; closing speed is measured (avg_forward_vel in the summary), not gated.
+# The raw-mean min_success_rate = 0.5 (review SS2: 43% false-block at
+# threshold on a 30-episode panel with no interval) is replaced by the bound
+# below. gate_schema rejects both keys for this kind, so neither can return
+# silently.
+min_success_lcb = 0.5                   # PROVISIONAL (pre-pilot; decision D-B2): re-freeze from the first
+                                        # Phase-B hunting pilot's evaluation_selected.csv, attainable-not-
+                                        # aspirational as recovery's thresholds were (KNOWN_ISSUES follow-up).
+                                        # The bar is the exact one-sided 95% Clopper-Pearson lower bound
+                                        # (curriculum/recovery_gate.binomial_lcb) on the selected
+                                        # checkpoint's per-episode task_success column of
+                                        # evaluation_selected.csv, hash-bound to the handoff checkpoint. At
+                                        # n = 30 it needs 20/30 (LCB 0.5006; 19/30 bounds at 0.4669 and
+                                        # fails); at n = 40, 26/40 (0.5081; 25/40 at 0.4828). The committed
+                                        # 2026-03 result (results/trex/ppo/summary.json stage 3,
+                                        # mean_success_rate 0.9667) recomputes to 29/30 -> LCB 0.8514 from
+                                        # its rounded mean: a RECOMPUTATION, not a re-judgement -- that row
+                                        # holds no per-episode evidence and was judged at min_success_rate
+                                        # 0.25 with no velocity term (collected_results.csv stage-3 row), so
+                                        # it stays a historical ladder result and cannot be re-certified
+                                        # under this kind.
+min_eval_episodes = 30                  # The declared panel size the bound's power is specified at
+                                        # (decision D-B1); REQUIRED for this kind, unlike the others. MUST
+                                        # equal the notebook's selected panel (sb3_training.ipynb cell 14
+                                        # hard-codes 30) and the provenance evaluation_episodes (cells 7 and
+                                        # 14; result_bundle/evidence.py refuses any other row count for
+                                        # every stage of the run). Raising to 40 moves all three together;
+                                        # test_trex_behavior_gates_on_task_success pins the coupling.
+required_consecutive = 3                # Scheduler hysteresis ONLY (CurriculumManager, in-training; decision
+                                        # D-B3). The post-stage verdict is ONE panel judged once from
+                                        # evaluation_selected.csv; re-running a deterministic panel is not
+                                        # statistical replication.
+# Collapse backstop: the relative floor pair stance and locomotion use
+# (PLANT_VALIDATION §14 item 3; 2026-08 review CF3), replacing the absolute
+# collapse_peak_floor = 100.0 -- which sat 6x BELOW the measured do-nothing
+# reward, so it armed on the first qualifying eval of any run, healthy or
+# not, and encoded nothing about this stage. The absolute key is REMOVED,
+# not shadowed: collapse_settings_from_config (curriculum/early_stopping.py)
+# lets an explicit collapse_peak_floor win over the pair, so leaving it in
+# place would silently keep the old floor.
+collapse_peak_floor_reference = 602.0   # The zero-action hunting statue's reward at noise 0.05 ([env]
+                                        # reset_noise_scale above): 602.13 +/- 175.35 over 40 episodes,
+                                        # 40/40 full horizon (episode length 1000.0 of 1000, terminations
+                                        # {'truncated': 40}), measured 2026-09-13 with
+                                        # environments/shared/scripts/zero_action_baseline.py trex:3
+                                        # --episodes 40 --seed 3042 (mujoco 3.10.0, physics revision 7).
+                                        # The unconditional 'reward' mean, as locomotion.toml uses; with a
+                                        # 100% full-horizon share it coincides with the standing mean
+                                        # (602.13). Re-measure with the same command whenever a reward
+                                        # weight OR the plant changes: a weight change rescales the statue's
+                                        # terms exactly and cheaply; a plant change moves its trajectory, so
+                                        # only a re-run is evidence. Forgetting either is silent.
+collapse_peak_floor_fraction = 0.45     # Same fraction as stance, locomotion and recovery; floor = 0.45 x
+                                        # 602.0 = 270.9. The ratio, not the product, is what carries across
+                                        # a reward change.
+statue_constants_physics_revision = 7   # The trex PHYSICS revision the 602.0 reference and the 361 rail
+                                        # were measured on (2026-09-13; configs/plant_manifest.generated.json
+                                        # plants.trex.physics.revision). test_statue_constant_freshness.py
+                                        # holds this pin against the plant manifest, so a plant bump that
+                                        # forgets the re-measure fails CI instead of silently training
+                                        # against a backstop calibrated on a plant that no longer exists.
+                                        # Update it WITH the re-measurement, never alone.
+collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot SET the peak (decision D-B5).
+                                        # NOT measured: no behavior-stage evaluation series under this
+                                        # config exists to replay as stance's 20260803_012355 series was
+                                        # (stance.toml), so this is the stance/recovery value, bounded
+                                        # below by the 600k stage-entry window (warmup_timesteps 100k +
+                                        # ramp_timesteps 500k) where a warm-started walker evaluates near
+                                        # the statue and would arm the floor immediately -- the
+                                        # 20260803_012355 lesson -- and above by the <= 0.5 x budget bound
+                                        # test_curriculum_early_stopping.py pins; 12.5% of the 8M budget.
+                                        # Re-measure by replaying the first full hunting run's
+                                        # evaluations.npz through the detector (KNOWN_ISSUES follow-up).
+collapse_min_evals = 20                 # Explicit, at locomotion's tuned values rather than the 12/8/0.4
+collapse_patience = 10                  # defaults (review CF3): the stage-3 entry is the curriculum's largest
+collapse_drop_fraction = 0.5            # reward-landscape shift (alive_bonus 0.5 -> 0.0, forward_vel_weight
+                                        # halved, sparse bite reward undiscovered), so no tighter than 20/10/0.5.
 warmup_timesteps = 100000               # Timesteps to constrain policy updates while critic adapts (PPO only)
 warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change
 warmup_ent_coef = 0.02                  # Higher entropy during warm-up to maintain exploration

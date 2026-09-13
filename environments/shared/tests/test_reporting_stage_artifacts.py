@@ -1152,3 +1152,309 @@ class TestStageGateVerdictRecord:
         assert results["publication_gate_passed"] is True
         assert not (stage_dir / "gate_verdict.json").exists()
         assert any("gate verdict could not be written" in record.message for record in caplog.records)
+
+
+class TestTaskSuccessEvidence:
+    """generate_stage_artifacts gives task_success/v1 the stance treatment (D-B12 amendment).
+
+    The kind is judged from evaluation_selected.csv; the sweep trial workers
+    and the CLI write none themselves, so before the gate the directory
+    must hold one bound to the handoff — kept when the trainer's panel
+    wrote it, rolled from the handoff pair on the publication seed otherwise.
+    """
+
+    TASK_SUCCESS_CONFIG = {
+        "name": "Hunt",
+        "description": "Hunt prey",
+        "env_kwargs": {"max_episode_steps": 1000},
+        "ppo_kwargs": {"gamma": 0.99},
+        "curriculum_kwargs": {
+            "gate_kind": "task_success/v1",
+            "gate_schema_version": 1,
+            "min_success_lcb": 0.5,
+            "min_eval_episodes": 30,
+            "min_avg_reward": 361.0,
+        },
+    }
+
+    @staticmethod
+    def _handoff(stage_dir):
+        models = stage_dir / "models"
+        models.mkdir(parents=True, exist_ok=True)
+        (models / "robust_best_model.zip").write_bytes(b"weights")
+        (models / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
+        return models
+
+    @staticmethod
+    def _stub_rollout(monkeypatch, successes, *, seen):
+        """Stand in for the SB3 env/model/rollout so the roller's plumbing is what is tested."""
+        from types import SimpleNamespace
+
+        from environments.shared import curriculum as curriculum_package
+        from environments.shared import evaluation, plant_contract, train_base
+
+        class _Env:
+            training = True
+            norm_reward = True
+
+            def close(self):
+                seen["closed"] = True
+
+        def create_vec_env(species_cfg, stage_configs, stage, n_envs, seed, **kwargs):
+            seen["seed"] = seed
+            seen["n_envs"] = n_envs
+            return _Env()
+
+        class _Alg:
+            @staticmethod
+            def load(path, env=None):
+                seen["loaded"] = path
+                return object()
+
+        def eval_policy(model, env, success_keys, n_episodes):
+            seen["episodes"] = n_episodes
+            n = n_episodes
+            return [600.0] * n, [1000] * n, [1.0] * n, list(successes[:n]), [5.0] * n
+
+        monkeypatch.setattr(train_base, "create_vec_env", create_vec_env)
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"PPO": _Alg, "SAC": _Alg})
+        monkeypatch.setattr(evaluation, "eval_policy", eval_policy)
+        monkeypatch.setattr(plant_contract, "current_plant_identity", lambda species: SimpleNamespace(species=species))
+        monkeypatch.setattr(plant_contract, "validate_model_plant", lambda *a, **k: None)
+        monkeypatch.setattr(curriculum_package, "load_vecnorm_stats", lambda *a, **k: True)
+
+    def _roll(self, stage_dir, stage_config=None):
+        from types import SimpleNamespace
+
+        from environments.shared.reporting.stage_artifacts import _write_task_success_evidence
+
+        return _write_task_success_evidence(
+            species_cfg=SimpleNamespace(species="trex", success_keys=["bite_success"]),
+            stage=3,
+            stage_config=stage_config or self.TASK_SUCCESS_CONFIG,
+            stage_dir=stage_dir,
+            model_dir=stage_dir / "models",
+            algorithm="ppo",
+        )
+
+    def test_other_kinds_roll_nothing(self, tmp_path, monkeypatch):
+        seen: dict = {}
+        self._stub_rollout(monkeypatch, [True] * 30, seen=seen)
+        self._handoff(tmp_path)
+        config = dict(self.TASK_SUCCESS_CONFIG, curriculum_kwargs={"gate_kind": "reward_and_length/v1"})
+        assert self._roll(tmp_path, config) is None
+        assert seen == {} and not (tmp_path / "evaluation_selected.csv").exists()
+
+    def test_rolls_the_handoff_pair_on_the_publication_seed_at_min_eval_episodes(self, tmp_path, monkeypatch):
+        import csv
+
+        from environments.shared.result_bundle import sha256_file
+
+        seen: dict = {}
+        self._stub_rollout(monkeypatch, [True] * 20 + [False] * 10, seen=seen)
+        models = self._handoff(tmp_path)
+        written = self._roll(tmp_path)
+        assert written == tmp_path / "evaluation_selected.csv"
+        assert seen["seed"] == 3042 and seen["n_envs"] == 1 and seen["episodes"] == 30
+        assert seen["loaded"] == str(models / "robust_best_model") and seen["closed"] is True
+        with written.open(newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert len(rows) == 30
+        assert {row["checkpoint_sha256"] for row in rows} == {sha256_file(models / "robust_best_model.zip")}
+        assert {row["evaluation_seed"] for row in rows} == {"3042"}
+        assert sum(row["task_success"] == "True" for row in rows) == 20
+
+    def test_evidence_already_bound_to_the_handoff_is_kept(self, tmp_path, monkeypatch):
+        from environments.shared.reporting import save_evaluation_episodes
+
+        seen: dict = {}
+        self._stub_rollout(monkeypatch, [True] * 30, seen=seen)
+        models = self._handoff(tmp_path)
+        # At the declared panel size: a smaller bound file is re-rolled (see below).
+        existing = save_evaluation_episodes(
+            tmp_path,
+            rewards=[1.0] * 30,
+            lengths=[10] * 30,
+            forward_velocities=[0.0] * 30,
+            distances=[0.0] * 30,
+            successes=[False] * 30,
+            evaluation_seed=3042,
+            checkpoint_label="selected",
+            checkpoint_path=models / "robust_best_model.zip",
+            normalization_path=models / "robust_best_model_vecnorm.pkl",
+        )
+        before = existing.read_bytes()
+        assert self._roll(tmp_path) == existing
+        assert seen == {} and existing.read_bytes() == before
+
+    def test_evidence_for_another_checkpoint_is_re_rolled(self, tmp_path, monkeypatch, caplog):
+        from environments.shared.reporting import save_evaluation_episodes
+
+        seen: dict = {}
+        self._stub_rollout(monkeypatch, [True] * 30, seen=seen)
+        models = self._handoff(tmp_path)
+        other = tmp_path / "other.zip"
+        other.write_bytes(b"another policy")
+        save_evaluation_episodes(
+            tmp_path,
+            rewards=[1.0],
+            lengths=[10],
+            forward_velocities=[0.0],
+            distances=[0.0],
+            successes=[False],
+            evaluation_seed=3042,
+            checkpoint_label="selected",
+            checkpoint_path=other,
+            normalization_path=models / "robust_best_model_vecnorm.pkl",
+        )
+        with caplog.at_level(logging.WARNING):
+            assert self._roll(tmp_path) == tmp_path / "evaluation_selected.csv"
+        assert seen["episodes"] == 30
+        assert "is not bound to the handoff" in caplog.text
+
+    def test_evidence_under_another_vecnorm_sidecar_is_re_rolled(self, tmp_path, monkeypatch, caplog):
+        """Bound means the pair: the judge and the backfill tool refuse a panel rolled under other
+        observation statistics, so keeping it would leave the stage unjudgeable."""
+        from environments.shared.reporting import save_evaluation_episodes
+
+        seen: dict = {}
+        self._stub_rollout(monkeypatch, [True] * 30, seen=seen)
+        models = self._handoff(tmp_path)
+        other_stats = tmp_path / "other_vecnorm.pkl"
+        other_stats.write_bytes(b"other statistics")
+        save_evaluation_episodes(
+            tmp_path,
+            rewards=[1.0] * 30,
+            lengths=[10] * 30,
+            forward_velocities=[0.0] * 30,
+            distances=[0.0] * 30,
+            successes=[False] * 30,
+            evaluation_seed=3042,
+            checkpoint_label="selected",
+            checkpoint_path=models / "robust_best_model.zip",
+            normalization_path=other_stats,
+        )
+        with caplog.at_level(logging.WARNING):
+            assert self._roll(tmp_path) == tmp_path / "evaluation_selected.csv"
+        assert seen["episodes"] == 30 and "is not bound to the handoff" in caplog.text
+
+    def test_a_bound_panel_below_min_eval_episodes_is_re_rolled(self, tmp_path, monkeypatch, caplog):
+        """A 10-row trainer panel (--post-eval-episodes 10, a small Ray n_eval_episodes) bound to the
+        handoff would make the judge refuse 'n_episodes 10 < min_eval_episodes 30' although a fresh
+        roll makes the stage judgeable; it is re-rolled at the declared size."""
+        from environments.shared.reporting import save_evaluation_episodes
+
+        seen: dict = {}
+        self._stub_rollout(monkeypatch, [True] * 30, seen=seen)
+        models = self._handoff(tmp_path)
+        save_evaluation_episodes(
+            tmp_path,
+            rewards=[1.0] * 10,
+            lengths=[10] * 10,
+            forward_velocities=[0.0] * 10,
+            distances=[0.0] * 10,
+            successes=[True] * 10,
+            evaluation_seed=3042,
+            checkpoint_label="selected",
+            checkpoint_path=models / "robust_best_model.zip",
+            normalization_path=models / "robust_best_model_vecnorm.pkl",
+        )
+        with caplog.at_level(logging.WARNING):
+            written = self._roll(tmp_path)
+        assert written == tmp_path / "evaluation_selected.csv"
+        assert seen["episodes"] == 30 and "fewer than min_eval_episodes 30" in caplog.text
+        from environments.shared.reporting.gates import evaluate_stage_gate
+
+        assert evaluate_stage_gate(self.TASK_SUCCESS_CONFIG["curriculum_kwargs"], {}, stage=3, stage_dir=tmp_path) == (
+            True,
+            [],
+        )
+
+    def test_zero_panel_episodes_skips_and_an_override_is_warned_about(self, tmp_path, monkeypatch, caplog):
+        seen: dict = {}
+        self._stub_rollout(monkeypatch, [True] * 30, seen=seen)
+        self._handoff(tmp_path)
+        config = dict(self.TASK_SUCCESS_CONFIG)
+        config["curriculum_kwargs"] = dict(config["curriculum_kwargs"], task_success_panel_episodes=0)
+        assert self._roll(tmp_path, config) is None and seen == {}
+        config["curriculum_kwargs"] = dict(config["curriculum_kwargs"], task_success_panel_episodes=8)
+        with caplog.at_level(logging.WARNING):
+            assert self._roll(tmp_path, config) is not None
+        assert seen["episodes"] == 8 and "does not certify what the gate claims" in caplog.text
+
+    def test_no_handoff_pair_rolls_nothing(self, tmp_path, monkeypatch, caplog):
+        seen: dict = {}
+        self._stub_rollout(monkeypatch, [True] * 30, seen=seen)
+        (tmp_path / "models").mkdir()
+        (tmp_path / "models" / "best_model.zip").write_bytes(b"w")  # no matched sidecar
+        with caplog.at_level(logging.WARNING):
+            assert self._roll(tmp_path) is None
+        assert seen == {} and "matched _vecnorm.pkl" in caplog.text
+
+    def test_a_failed_roll_never_costs_the_artifacts_and_the_gate_refuses(self, tmp_path, monkeypatch, caplog):
+        from environments.shared import train_base
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+
+        self._handoff(tmp_path)
+
+        def explode(*args, **kwargs):
+            raise RuntimeError("no simulator here")
+
+        monkeypatch.setattr(train_base, "create_vec_env", explode)
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"PPO": object, "SAC": object})
+        with caplog.at_level(logging.WARNING):
+            assert self._roll(tmp_path) is None
+        assert "could not be rolled" in caplog.text
+        results: dict = {"best_model_reward": 1e9}
+        _apply_stage_gate(
+            stage=3,
+            stage_config=self.TASK_SUCCESS_CONFIG,
+            stage_results=results,
+            stance_report=None,
+            stage_dir=tmp_path,
+        )
+        assert results["publication_gate_passed"] is False
+        assert any("absent" in failure for failure in results["gate_failures"])
+
+    def test_generate_stage_artifacts_rolls_the_evidence_before_the_gate(self):
+        import inspect
+
+        from environments.shared.reporting import stage_artifacts
+
+        source = inspect.getsource(stage_artifacts.generate_stage_artifacts)
+        assert source.index("_write_task_success_evidence(") < source.index("_apply_stage_gate(")
+
+    def test_the_gate_copies_the_judged_numbers_onto_the_results_and_the_verdict(self, tmp_path):
+        from environments.shared.reporting import save_evaluation_episodes
+        from environments.shared.reporting.stage_artifacts import _apply_stage_gate
+        from environments.shared.result_bundle import read_gate_verdict
+
+        models = self._handoff(tmp_path)
+        save_evaluation_episodes(
+            tmp_path,
+            rewards=[600.0] * 30,
+            lengths=[1000] * 30,
+            forward_velocities=[1.0] * 30,
+            distances=[5.0] * 30,
+            successes=[True] * 29 + [False],
+            evaluation_seed=3042,
+            checkpoint_label="selected",
+            checkpoint_path=models / "robust_best_model.zip",
+            normalization_path=models / "robust_best_model_vecnorm.pkl",
+        )
+        results: dict = {"best_model_reward": 602.1, "best_model_length": 1000.0}
+        _apply_stage_gate(
+            stage=3,
+            stage_config=self.TASK_SUCCESS_CONFIG,
+            stage_results=results,
+            stance_report=None,
+            stage_dir=tmp_path,
+            species="trex",
+        )
+        assert results["publication_gate_passed"] is True
+        assert (results["best_model_success_count"], results["best_model_n_episodes"]) == (29, 30)
+        assert results["best_model_success_lcb"] == pytest.approx(0.851, abs=1e-3)
+        verdict = read_gate_verdict(tmp_path)
+        assert verdict is not None and verdict["passed"] is True
+        assert verdict["stage_result"]["best_model_success_count"] == 29
+        assert verdict["stage_result"]["best_model_success_lcb"] == pytest.approx(0.851, abs=1e-3)

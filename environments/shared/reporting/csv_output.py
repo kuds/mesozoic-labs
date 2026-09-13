@@ -35,6 +35,15 @@ CSV_METRIC_COLUMNS: list[str] = [
     "ep_length_threshold",
     "forward_vel_threshold",
     "success_rate_threshold",
+    # task_success/v1 (plan §4.4): the LCB bar, the sweep's recorded
+    # count / panel size the offline row verdict is judged on (D-B12), and
+    # the same panel's mean reward / length the rail is judged on.
+    # Additive: success_rate_threshold stays for the reward_and_length species.
+    "success_lcb_threshold",
+    "success_count",
+    "n_success_episodes",
+    "selected_mean_reward",
+    "selected_mean_episode_length",
     "gate_kind",
     "gate_evaluable",
     "stage_passed",
@@ -290,6 +299,7 @@ def build_results_csv_rows(
         row["ep_length_threshold"] = cur.get("min_avg_episode_length", "")
         row["forward_vel_threshold"] = cur.get("min_avg_forward_vel", "")
         row["success_rate_threshold"] = cur.get("min_success_rate", "")
+        row["success_lcb_threshold"] = cur.get("min_success_lcb", "")
         # stance_quality/v1. Without these a stance-gated stage exports only
         # its reward RAIL, reading as though reward were the gate.
         row["gate_kind"] = cur.get("gate_kind", "")

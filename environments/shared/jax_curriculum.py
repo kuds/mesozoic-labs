@@ -15,6 +15,7 @@ from typing import Any
 from .config import load_stage_config
 from .curriculum.gate_schema import (
     BACKEND_OVERRIDABLE_KEYS,
+    GATE_KINDS,
     GateSchemaError,
     apply_backend_overrides,
     finite_gate_metric,
@@ -28,6 +29,7 @@ from .curriculum.stance_gate import (
     StancePanel,
     evaluate_stance_gate,
 )
+from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 
 _logger = logging.getLogger(__name__)
 
@@ -45,6 +47,16 @@ _REWARD_AND_LENGTH_GATE_KIND = "reward_and_length/v1"
 #: :func:`_require_evaluable_gate_kind` for the three inputs this path cannot
 #: obtain.
 _EVALUATABLE_GATE_KINDS = frozenset({_REWARD_AND_LENGTH_GATE_KIND, STANCE_GATE_KIND})
+
+#: Registered, non-none kinds the JAX path cannot judge that a FINAL stage
+#: may nevertheless declare (decision D-B13 refuses every other such kind
+#: up front): a single-stage ``recovery_quality/v1`` pilot is the pinned
+#: designed state — its verdict is rolled after the stage by the SB3
+#: notebook chain, never by this path — so it keeps training here.
+#: ``task_success/v1`` is NOT listed: no MJX hunting panel exists and no
+#: JAX artifact reaches the SB3 evidence backend, so a JAX chain ending on
+#: it would spend the whole stage budget to record a refusal.
+_FINAL_STAGE_PILOT_KINDS = frozenset({RECOVERY_GATE_KIND})
 
 
 def unevaluable_gate_kind_reason(stage: int | str, gate_kind: str) -> str | None:
@@ -70,19 +82,25 @@ def unevaluable_gate_kind_reason(stage: int | str, gate_kind: str) -> str | None
     detail = ""
     if gate_kind == RECOVERY_GATE_KIND:
         detail = (
-            " A recovery verdict needs the stage directory's frozen gate_resolution.json, "
+            " Recovery verdicts come only from the gate resolver "
+            "(curriculum.gate_resolver.evaluate_recovery_gate_from_resolution): a recovery "
+            "verdict needs the stage directory's frozen gate_resolution.json, "
             "the stage's current task_sha256, and per-seed episode successes on the "
             "registered panel seeds paired against the frozen null manifest; this path "
             "receives a TOML config and reduced eval metrics, so it has none of them, and "
             "no MJX pushed-panel roller exists (every recovery panel is SB3). The verdict "
             "is produced after the stage by reporting.gates.evaluate_stage_gate."
         )
+    elif gate_kind == TASK_SUCCESS_GATE_KIND:
+        detail = (
+            " task_success/v1 is judged after the stage from the selected checkpoint's "
+            "evaluation_selected.csv by reporting.gates.evaluate_stage_gate (SB3 is the "
+            "evidence backend); no MJX hunting panel exists."
+        )
     return (
         f"stage {stage} declares gate_kind {gate_kind!r}, which the JAX path cannot evaluate "
         f"(neither the in-training curriculum nor the CPU eval); kinds evaluated here: "
-        f"{sorted(_EVALUATABLE_GATE_KINDS)}. Recovery verdicts come only from "
-        "the gate resolver (curriculum.gate_resolver."
-        "evaluate_recovery_gate_from_resolution); falling through to the reward "
+        f"{sorted(_EVALUATABLE_GATE_KINDS)}. Falling through to the reward "
         f"gate would advance the stage on return alone.{detail}"
     )
 
@@ -124,6 +142,36 @@ def _require_evaluable_gate_kind(stage: int | str, gate_kind: str) -> None:
     reason = unevaluable_gate_kind_reason(stage, gate_kind)
     if reason is not None:
         raise GateSchemaError(reason)
+
+
+def _refuse_unjudgeable_final_stage(species: str, stage: "int | str") -> None:
+    """Refuse a FINAL stage whose registered kind no JAX path can ever judge (decision D-B13).
+
+    Raises :class:`GateSchemaError` for a declared, registered, non-``none/v1``
+    kind that is neither in :data:`_EVALUATABLE_GATE_KINDS` nor in
+    :data:`_FINAL_STAGE_PILOT_KINDS`.  Only the declared ``gate_kind`` is
+    read: the final stage's block is deliberately NOT schema-validated here
+    (``run_curriculum`` never evaluates that gate, and single-stage pilots
+    legitimately run blocks that would not validate under advancement), so
+    a missing declaration, ``none/v1``, an unregistered kind or an
+    evaluable kind with an incomplete block all pass through exactly as
+    they did before decision D-B13.
+    """
+    curriculum = load_stage_config(species, stage).get("curriculum_kwargs", {})
+    gate_kind = curriculum.get("gate_kind")
+    if (
+        gate_kind is None
+        or gate_kind not in GATE_KINDS
+        or gate_kind == "none/v1"
+        or gate_kind in _EVALUATABLE_GATE_KINDS
+        or gate_kind in _FINAL_STAGE_PILOT_KINDS
+    ):
+        return
+    reason = unevaluable_gate_kind_reason(stage, gate_kind)
+    raise GateSchemaError(
+        f"{reason} Refusing before any training compute is spent: the stage is the chain's final one, and "
+        "its CPU eval would record this refusal as the verdict after the whole budget (decision D-B13)."
+    )
 
 
 #: TOML ``[jax]`` keys mapped to :func:`~environments.shared.jax_training.train_jax`
@@ -534,6 +582,13 @@ def run_curriculum(
         # Warn about an SB3-calibrated reward bar here, before the stage's
         # budget is spent, rather than only at the gate check after it.
         jax_gate_thresholds(stage, stage_config, species=species)
+    # Decision D-B13: the final stage's gate is not evaluated here either,
+    # but a registered, non-none kind NO JAX path can judge (task_success/v1:
+    # no MJX hunting panel, no route to the SB3 evidence backend) would spend
+    # the whole budget only for the CPU eval to record a refusal as its
+    # verdict.  Refuse it now instead.  A kind in _FINAL_STAGE_PILOT_KINDS
+    # (the single-stage recovery pilot) keeps training, as pinned.
+    _refuse_unjudgeable_final_stage(species, stages[-1])
 
     results: dict[int, Any] = {}
 

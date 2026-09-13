@@ -476,7 +476,8 @@ follow: stage rows carry `deliverable`, `warm_start_from` and `recipe`; the
 README SPECIES table shows Recipe and Warm-start-from columns (a generated
 block, never hand-edited); result rows list one entry per deliverable
 headlined by its gate kind, with stance and recovery headline values
-rendered as null until Phase B exports per-stage gate metrics; and stage
+rendered as null until a later phase exports per-stage gate metrics
+(decision D-B15); and stage
 videos are keyed by stage id. The four historical ladder summaries publish
 `deliverables = []` and are never relabelled certified.
 
@@ -538,6 +539,15 @@ curriculum or a trunked `--retrain-from` run. See
   advancing nodes during training, and semantic-id nodes (recovery) are
   judged after the stage.
 - Stance and recovery deliverables headline a metric name with a null value
-  until per-stage gate metrics are exported into the summary (Phase B). A
-  verdict records the gate it was judged under (`gate` / `gate_sha256`,
-  decision D-A22), but the deliverable's summary does not surface it yet.
+  until per-stage gate metrics are exported into the summary (a later phase,
+  decision D-B15). A verdict records the gate it was judged under (`gate` /
+  `gate_sha256`, decision D-A22), but the deliverable's summary does not
+  surface it yet. The hunt deliverable is the exception: `task_success/v1`
+  exports `selected_model_success_lcb` (with the count and panel size) into
+  the stage row, judged from the selected checkpoint's `evaluation_selected.csv`.
+- A CLI-certified hunt (`curriculum --target hunt`) is judged IN-TRAINING on
+  the last EvalCallback panel (the manager's bound over its successes,
+  recorded as `success_count` / `n_success_samples` in the verdict's
+  `stage_result`) and writes no `evaluation_selected.csv`, so it cannot be
+  backfilled or published without the notebook's post-stage judge; treat it
+  as a training-time signal, not a certification.

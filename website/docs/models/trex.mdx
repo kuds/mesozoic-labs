@@ -70,6 +70,7 @@ After each training stage the `eval` command reports:
 | `mean_pelvis_height` | Upright stability (m) |
 | `mean_heading_alignment` | cos θ toward prey ∈ [-1, 1] |
 | `success_rate` | Fraction of episodes where the fixed head-contact proxy touches the prey target |
+| `success_lcb` | One-sided 95% lower bound on that fraction over the selected checkpoint's 30-episode panel — the `task_success/v1` hunt gate statistic (bar 0.5, provisional), published as `selected_model_success_lcb` |
 | `min_prey_distance` | Closest approach to prey (m) |
 
 ## Training Videos

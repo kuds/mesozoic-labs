@@ -154,6 +154,29 @@ class TestWrite:
         assert not verdict_is_reusable(verdict)
         assert verdict_is_reusable(json.loads(_write(stage_dir).read_text()))
 
+    def test_task_success_numbers_are_persisted_in_stage_result(self, tmp_path):
+        """The count, panel size and bound a task_success/v1 verdict was judged on round-trip."""
+        stage_dir = _stage_dir(tmp_path)
+        stage_result = {
+            "best_model_success_count": 20,
+            "best_model_n_episodes": 30,
+            "best_model_success_lcb": 0.5005613,
+            # The CLI curriculum's in-training names (the manager's last panel).
+            "success_count": 20,
+            "n_success_samples": 30,
+            "per_episode_successes": [True] * 20,  # not persisted
+        }
+        _write(stage_dir, gate_kind="task_success/v1", stage_result=stage_result)
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None
+        assert verdict["stage_result"] == {
+            "best_model_success_count": 20,
+            "best_model_n_episodes": 30,
+            "best_model_success_lcb": 0.5005613,
+            "success_count": 20,
+            "n_success_samples": 30,
+        }
+
     def test_a_semantic_stage_records_its_id_as_the_stage(self, tmp_path):
         stage_dir = _stage_dir(tmp_path)
         _write(stage_dir, stage="recovery", stage_id="recovery", gate_kind="recovery_quality/v1")
