@@ -76,6 +76,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pristine checkout). `validate_result_summary` now raises a
   `ResultSchemaError` instead of a bare `StopIteration` when
   `primary_deliverable` is spelled differently from the deliverables map.
+- **Retrain-from, no silent overwrite, and the frozen-null gate set** (Phase A,
+  WS5 part 1). `curriculum --retrain-from STAGE_ID` (an id or legacy number,
+  `train_curriculum(..., retrain_from=...)`; decision D-A19) trains the named
+  advancing node and every advancing node after it in this run even when
+  `--trunk-from` holds a certified copy, reusing only the certified ancestors
+  strictly above it; it is a usage error without `--trunk-from` or naming a
+  non-advancing or unknown stage, refused before the run directory exists.
+  `config.refuse_occupied_stage_dir` (`STAGE_DIR_OCCUPANCY_FILES`,
+  `StageDirectoryOccupiedError`; D-A20) makes `train()` and
+  `train_curriculum` refuse to write into a stage directory that already
+  holds `stage_config.json` or `gate_verdict.json` unless the load is an
+  explicit `--load <checkpoint> --load-mode resume_same_stage`, so a variant
+  is a new run directory rather than an overwritten record.
+  `curriculum.FROZEN_NULL_GATE_KINDS` (`{"recovery_quality/v1"}`) names the
+  gate kinds whose null resolution is frozen before training and rolled
+  after, for the notebook chain loop to key on instead of a stage id.
+- **Hyperparameter digest, run label, and the ignored-edit warning** (Phase
+  A, WS5 part 2; decision D-A21). Every saved `stage_config.json` run block
+  now records `hyperparameters_sha256` — `config.hyperparameters_sha256`
+  over the stage's algorithm block and its `warmup_`/`ramp_` shaping keys,
+  key-order independent, untouched by env kwargs or gate thresholds — and,
+  with `train --label TEXT` / `curriculum --label TEXT`
+  (`train(..., label=)`, `train_curriculum(..., label=)`), a `label`.
+  `config.hyperparameter_diff` names the dotted keys (`ppo.learning_rate`,
+  `shaping.warmup_timesteps`) on which a config differs from a recorded
+  one; `train_curriculum` uses it after a successful `--trunk-from` reuse
+  to warn that this run's edit is ignored, naming the node, the ancestor's
+  run, the keys, and `--retrain-from` — never a refusal. Result schema v4
+  deliverable records may carry the two OPTIONAL fields
+  (`result_schema.OPTIONAL_DELIVERABLE_RECORD_FIELDS`), which
+  `save_result_bundle` copies from each deliverable stage's run block and
+  the audit cross-checks against it; earlier v4 records validate unchanged
+  and the catalog needs nothing. W&B runs are tagged `hp:<12 hex of the
+  digest>` and `label:<label>`.
+- **The SB3 notebook trains a behavior chain** (Phase A, WS5 notebook; plan
+  §4.7, decisions D-A11, D-A15, D-A17–D-A21). `notebooks/sb3_training.ipynb`
+  replaces its per-stage cells and the opt-in `RUN_RECOVERY_STAGE` pilot with
+  `BEHAVIOR` (default `"hunt"`; a recipe label or a deliverable's id),
+  `TRUNK_FROM`, `RETRAIN_FROM` and `RUN_LABEL` knobs and one
+  `# ===== BEHAVIOR CHAIN LOOP =====` cell that walks `MANIFEST.chain_for(
+  TARGET_NODE.id)` root-first: each node is REUSED through
+  `find_certified_ancestor` (this run first, then the trunk for ancestors —
+  never the target across runs; chained by the parent's `model_sha256`;
+  cross-run ancestors recorded under `ancestors/`, never copied), JUDGED
+  through the new `evaluate_stage_checkpoints` when it was trained but never
+  gated, or TRAINED from its parent's handoff with a declared
+  `task_load_mode`; a frozen-null gate kind freezes before training and
+  rolls its panel after, and every verdict — recovery's included — is
+  enforced after the bundle is written and the runtime released. A reuse
+  that ignores a hyperparameter edit prints the differing keys and points at
+  `RETRAIN_FROM`; `train_stage` refuses an occupied stage directory unless
+  resuming, records the real (accumulated) stage duration, and passes the
+  label. `evaluate_stage_checkpoints` is the notebook-side judge; the manual
+  single-node cell (`MANUAL_NODE`) records a verdict without enforcing it
+  and never feeds the chain; the evaluation, curves, replay and completion
+  cells read `NODE_HANDOFF` / `completed_stages` for the chosen behavior.
+  A same-stage resume (`train --load <periodic> --load-mode
+  resume_same_stage`, the notebook's RESUME cell) of a stage that entered
+  from its parent now keeps that edge's lineage keys in the re-saved
+  `stage_config.json` and records the continued-from checkpoint under
+  `config.RESUME_LINEAGE_KEYS` (`resume_load_path`,
+  `resume_checkpoint_sha256`), so a resumed-then-judged node still chains
+  by digest and can be reused by a later pass or as a `TRUNK_FROM`
+  ancestor; before, the re-save replaced the edge with the periodic
+  checkpoint and the reuse rule refused the node forever.
 - **Publication per deliverable** (Phase A, WS3): result schema v4 (v2 and v3
   still read verbatim). `provenance.deliverables` records every deliverable
   the run trained with its checkpoint hashes and a `certified` flag (own gate

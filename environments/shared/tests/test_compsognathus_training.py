@@ -24,6 +24,7 @@ from environments.shared.plant_contract import (  # noqa: E402
     validate_model_plant,
 )
 from environments.shared.reporting import generate_stage_artifacts  # noqa: E402
+from environments.shared.result_bundle import sha256_file  # noqa: E402
 from environments.shared.species_registry import get_species_config  # noqa: E402
 from environments.shared.task_fingerprint import (  # noqa: E402
     MODEL_TASK_ATTRIBUTE,
@@ -316,32 +317,67 @@ def test_profile_backed_recovery_freeze_rehearsal_cannot_certify(species, algori
 
 
 def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(tmp_path):
+    """An existing but invalid recovery resolution refuses before any training budget is spent.
+
+    Re-pinned for the behavior-chain loop (Phase A WS5): the opt-in recovery
+    cell became the loop's frozen-null branch, so the loop is executed over a
+    chain of just the recovery node with a stance handoff already certified in
+    NODE_HANDOFF — the state a ``BEHAVIOR = "stand"`` run is in when it reaches
+    recovery.
+    """
     from environments.shared.curriculum.gate_resolver import GateResolutionError
-    from environments.shared.stage_manifest import stage_dirname
+    from environments.shared.stage_manifest import load_stage_manifest, stage_dirname, stage_label
 
     notebook = json.loads((ROOT / "notebooks/sb3_training.ipynb").read_text())
     source = next(
         "".join(cell["source"])
         for cell in notebook["cells"]
-        if cell["cell_type"] == "code" and "RUN_RECOVERY_STAGE = False" in "".join(cell["source"])
-    ).replace("RUN_RECOVERY_STAGE = False", "RUN_RECOVERY_STAGE = True", 1)
+        if cell["cell_type"] == "code" and "# ===== BEHAVIOR CHAIN LOOP =====" in "".join(cell["source"])
+    )
     directory = tmp_path / stage_dirname("compsognathus", "recovery")
     directory.mkdir()
     (directory / "gate_resolution.json").write_text("{}")
 
-    def forbidden_training(**kwargs):
+    def forbidden(**kwargs):
         pytest.fail("an existing but invalid recovery resolution must refuse before training")
 
+    manifest = load_stage_manifest("compsognathus")
+    recovery = manifest.resolve("recovery")
     namespace = {
         "Path": Path,
         "RUN_DIR": tmp_path,
         "SPECIES": "compsognathus",
+        "SPECIES_CFG": get_species_config("compsognathus"),
         "STAGE_CONFIGS": load_all_stages("compsognathus"),
+        "PLANT_IDENTITY": current_plant_identity("compsognathus"),
         "QUICK_TEST": False,
-        "path_1": "unused_stance",
-        "vecnorm_1": "unused_vecnorm.pkl",
         "ALGORITHM": "ppo",
-        "train_stage": forbidden_training,
+        "SEED": 42,
+        "BEHAVIOR": "stand",
+        "MANIFEST": manifest,
+        "TARGET_NODE": recovery,
+        "CHAIN": (recovery,),
+        "RETRAIN_FROM": "",
+        "RETRAIN_NODE": None,
+        "TRUNK_DIR": None,
+        "RUN_LABEL": "",
+        "stage_dirname": stage_dirname,
+        "stage_label": stage_label,
+        "NODE_RESULTS": {},
+        "completed_stages": [],
+        "NODE_HANDOFF": {
+            "stance": {
+                "model": "unused_stance",
+                "vecnorm": "unused_vecnorm.pkl",
+                "stage_dir": tmp_path / stage_dirname("compsognathus", 1),
+                "run_dir": tmp_path,
+                "run_id": None,
+                "model_sha256": "sha256:" + "0" * 64,
+                "reused": False,
+            }
+        },
+        "train_stage": forbidden,
+        "evaluate_stage_checkpoints": forbidden,
     }
     with pytest.raises(GateResolutionError):
         exec(compile(source, "sb3_recovery_invalid_resolution", "exec"), namespace)
@@ -376,8 +412,10 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
         AUTO_DISCONNECT=False,
     )
     exec(compile(cell("def train_stage("), "sb3_training_infrastructure", "exec"), namespace)
+    # The load mode is declared, never inferred (Phase A WS5): a root that
+    # loads nothing passes "resume_same_stage", exactly as the chain loop does.
     model, selected, final, directory, stats, results = namespace["train_stage"](
-        1, 64, run_dir=tmp_path, eval_freq=64, save_freq=64
+        1, 64, run_dir=tmp_path, task_load_mode="resume_same_stage", eval_freq=64, save_freq=64
     )
     assert model._n_updates > 0
     assert_optimizer_recipe(model, algorithm, namespace["STAGE_CONFIGS"][1])
@@ -400,9 +438,12 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
     assert np.isfinite(report["metrics"]["mean_unsupported_duty"])
     assert results["gate_failures"]
 
-    # Execute the real opt-in cell and trainer. Replace only the expensive
-    # registered panels: below, one genuine pushed episode checks artifact
-    # persistence; the separate profile test exercises the real freeze path.
+    # Execute the real chain loop over the recovery node and the real trainer
+    # (Phase A WS5: the opt-in recovery cell became the loop's frozen-null
+    # branch, run here as a `BEHAVIOR = "stand"` chain whose stance is already
+    # certified). Replace only the expensive registered panels: below, one
+    # genuine pushed episode checks artifact persistence; the separate profile
+    # test exercises the real freeze path.
     from environments.shared.harnesses import freeze_recovery_gate as freeze
     from environments.shared.recovery_evaluation import roll_recovery_panel
 
@@ -427,8 +468,10 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
         return trained["result"]
 
     def record_validation(stage_dir, **kwargs):
+        # `stage=` is passed since the loop is generic over FROZEN_NULL_GATE_KINDS.
         assert kwargs == {
             "species": species,
+            "stage": "recovery",
             "policy_zip": selected + ".zip",
             "vecnorm": stats,
             "algorithm": algorithm,
@@ -437,7 +480,7 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
         events.append("validate")
 
     def one_episode_panel(stage_dir, policy_zip, vecnorm_pkl, **kwargs):
-        assert kwargs == {"species": species, "algorithm": algorithm}
+        assert kwargs == {"species": species, "stage": "recovery", "algorithm": algorithm}
         assert events == ["freeze", "validate", "train"]
         events.append("panel")
         recovery_model, recovery_selected, _, _, recovery_stats, _ = trained["result"]
@@ -492,26 +535,49 @@ def test_actual_notebook_training_stance_and_recovery_reports(species, algorithm
     monkeypatch.setattr(freeze, "validate_recovery_resolution", record_validation)
     monkeypatch.setattr(freeze, "roll_policy_panel", one_episode_panel)
     namespace["STAGE_CONFIGS"]["recovery"]["curriculum_kwargs"]["timesteps"] = 64
+    from environments.shared.stage_manifest import stage_dirname
+
+    recovery = namespace["MANIFEST"].resolve("recovery")
     namespace.update(
         RUN_DIR=tmp_path,
         QUICK_TEST=False,
         SEED=42,
-        path_1=selected,
-        vecnorm_1=stats,
-        results_1=results,
+        BEHAVIOR="stand",
+        TARGET_NODE=recovery,
+        CHAIN=(recovery,),
+        RETRAIN_FROM="",
+        RETRAIN_NODE=None,
+        TRUNK_DIR=None,
+        RUN_LABEL="",
+        NODE_RESULTS={"stance": results},
+        NODE_HANDOFF={
+            "stance": {
+                "model": selected,
+                "vecnorm": stats,
+                "stage_dir": directory,
+                "run_dir": tmp_path,
+                "run_id": None,
+                "model_sha256": sha256_file(selected + ".zip"),
+                "reused": False,
+            }
+        },
         completed_stages=[],
         train_stage=record_training,
         generate_stage_artifacts=recovery_report,
-        curriculum_results=lambda stance_results: [stance_results, namespace["results_r"]],
+        plot_training_curves=lambda *_args, **_kwargs: None,
+        plot_diagnostics_graphs=lambda *_args, **_kwargs: None,
         write_training_summary=lambda *_args: None,
         save_run_bundle=lambda *_args, **_kwargs: [],
     )
-    recovery_source = cell("RUN_RECOVERY_STAGE = False").replace(
-        "RUN_RECOVERY_STAGE = False", "RUN_RECOVERY_STAGE = True", 1
-    )
-    exec(compile(recovery_source, "sb3_recovery", "exec"), namespace)
+    # The verdict is ENFORCED by the chain (D-A11): the rehearsal panel fails
+    # the frozen gate, so the loop writes the bundle, releases the runtime
+    # (a no-op outside Colab) and raises — after recording the node.
+    with pytest.raises(RuntimeError, match="recovery failed its curriculum gate"):
+        exec(compile(cell("# ===== BEHAVIOR CHAIN LOOP ====="), "sb3_chain", "exec"), namespace)
     assert events == ["freeze", "validate", "train", "panel", "report"]
-    assert not namespace["results_r"]["publication_gate_passed"]
-    assert namespace["results_r"]["gate_failures"]
-    assert namespace["completed_stages"] == [("recovery", namespace["dir_r"])]
-    assert namespace["path_1"] == selected  # Stage 2 still initializes from stance.
+    recovery_results = namespace["NODE_RESULTS"]["recovery"]
+    assert not recovery_results["publication_gate_passed"]
+    assert recovery_results["gate_failures"]
+    assert namespace["completed_stages"] == [("recovery", tmp_path / stage_dirname(species, "recovery"))]
+    assert "recovery" not in namespace["NODE_HANDOFF"]  # a failed node never feeds the chain
+    assert namespace["NODE_HANDOFF"]["stance"]["model"] == selected  # the chain still starts from stance

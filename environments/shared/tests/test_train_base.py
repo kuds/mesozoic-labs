@@ -914,15 +914,28 @@ class TestTrainCurriculumWalksTheManifest:
         learn_side_effect=None,
         trunk_from=None,
         find_ancestor=None,
+        retrain_from=None,
+        output_dir=None,
+        label=None,
+        use_wandb=False,
     ):
         from environments.shared import ancestors as ancestors_module
         from environments.shared import config as config_module
         from environments.shared import curriculum as curriculum_module
-        from environments.shared import plant_contract, result_bundle, task_fingerprint, train_base
+        from environments.shared import plant_contract, result_bundle, task_fingerprint, train_base, wandb_integration
         from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import stage_label
 
-        record: dict = {"saved": [], "loads": [], "parents": [], "verdicts": [], "parent_run_ids": [], "ancestors": []}
+        record: dict = {
+            "saved": [],
+            "loads": [],
+            "parents": [],
+            "verdicts": [],
+            "parent_run_ids": [],
+            "ancestors": [],
+            "labels": [],
+            "wandb_tags": [],
+        }
         model = MagicMock()
         model.num_timesteps = 10
         model.learn.side_effect = learn_side_effect
@@ -953,6 +966,13 @@ class TestTrainCurriculumWalksTheManifest:
         def save_config(stage_dir, stage, config, algorithm, **kwargs):
             record["saved"].append((stage, kwargs.get("load_path"), kwargs.get("load_mode")))
             record["parent_run_ids"].append((stage, kwargs.get("parent_run_id")))
+            record["labels"].append((stage, kwargs.get("label")))
+
+        def init_wandb(**kwargs):
+            # Records the tags and reports W&B as unavailable (None), which
+            # is the path the loop takes on a headless worker.
+            record["wandb_tags"].append((kwargs["stage"], kwargs.get("tags")))
+            return None
 
         def shaping(config, **kwargs):
             record["parents"].append(kwargs["parent_id"])
@@ -977,6 +997,7 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(train_base, "_record_stage_result", lambda *args, **kwargs: None)
         monkeypatch.setattr(config_module, "save_stage_config", save_config)
         monkeypatch.setattr(config_module, "upload_curriculum_artifacts", lambda *args, **kwargs: None)
+        monkeypatch.setattr(wandb_integration, "init_wandb", init_wandb)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", lambda **kwargs: MagicMock(ready_to_advance=True))
         monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
         monkeypatch.setattr(plant_contract, "write_plant_identity", lambda path, identity: None)
@@ -990,17 +1011,40 @@ class TestTrainCurriculumWalksTheManifest:
                 seed=1,
                 verbose=0,
                 use_tensorboard=False,
-                output_dir=str(tmp_path),
+                output_dir=str(tmp_path if output_dir is None else output_dir),
                 trunk_from=trunk_from,
+                retrain_from=retrain_from,
+                label=label,
+                use_wandb=use_wandb,
             )
         return record
 
     @staticmethod
-    def _certified_ancestor(trunk: Path, stage_id: str = "stance", stage_key: str = "1", model_sha256: str = "a" * 64):
+    def _certified_ancestor(
+        trunk: Path,
+        stage_id: str = "stance",
+        stage_key: str = "1",
+        model_sha256: str = "a" * 64,
+        *,
+        species: str = "velociraptor",
+        edits: "dict[str, dict] | None" = None,
+        record_config: bool = True,
+    ):
+        """A certified ancestor under *trunk* whose stage directory records a REAL ``stage_config.json``
+        — the species' own config for the stage, with *edits* (``{"ppo_kwargs": {...}, ...}``) overlaid so
+        a test can make the ancestor's recorded recipe differ from this run's.  ``record_config=False``
+        leaves the directory without one.  Called before ``_run`` so the real writer is used."""
         from environments.shared.ancestors import CertifiedAncestor
+        from environments.shared.config import load_all_stages, save_stage_config
 
         stage_dir = trunk / f"01_{stage_id}"
         (stage_dir / "models").mkdir(parents=True, exist_ok=True)
+        if record_config:
+            stage_ref = int(stage_key) if stage_key.isdigit() else stage_key
+            recorded = dict(load_all_stages(species)[stage_ref])
+            for section, changes in (edits or {}).items():
+                recorded[section] = {**recorded.get(section, {}), **changes}
+            save_stage_config(stage_dir, stage_ref, recorded, "PPO", species=species)
         return CertifiedAncestor(
             stage_id=stage_id,
             stage_key=stage_key,
@@ -1223,6 +1267,269 @@ class TestTrainCurriculumWalksTheManifest:
         assert record["verdicts"] == []
         assert [r for r in caplog.records if "no gate verdict recorded" in r.message]
 
+    def test_retrain_from_covers_the_node_and_its_descendants_but_not_its_ancestors(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """Decision D-A19: ``--retrain-from locomotion`` against a trunk certifying stance AND
+        locomotion reuses stance (strictly above the named node), consults the trunk for nothing
+        else, and trains locomotion and behavior here — locomotion on the reused stance with the
+        trunk's run id as lineage, behavior on the locomotion trained here.  The retrain line is
+        the INFO reason for both covered nodes (checked before the target and parent-trained-here
+        branches)."""
+        trunk = tmp_path / "trunk-run"
+        stance = self._certified_ancestor(trunk, "stance", "1", model_sha256="a" * 64)
+        locomotion = self._certified_ancestor(trunk, "locomotion", "2", model_sha256="b" * 64)
+        asked: list[tuple[str, str | None]] = []
+
+        def find_ancestor(run_dir, *, entry, parent_model_sha256, **kwargs):
+            asked.append((entry.id, parent_model_sha256))
+            return {"stance": stance, "locomotion": locomotion}[entry.id]
+
+        record = self._run(
+            "velociraptor",
+            tmp_path,
+            monkeypatch,
+            caplog,
+            trunk_from=trunk,
+            find_ancestor=find_ancestor,
+            retrain_from="locomotion",
+        )
+
+        assert asked == [("stance", None)]
+        assert [stage for stage, _, _ in record["saved"]] == [2, 3]
+        assert [v["stage_id"] for v in record["verdicts"]] == ["locomotion", "behavior"]
+        assert record["saved"][0] == (2, stance.model_stem, "initialize_next_stage")
+        assert record["parent_run_ids"] == [(2, "trunk-run-id"), (3, None)]
+        assert [a.stage_id for _, a in record["ancestors"]] == ["stance"]
+        not_reused = [r for r in caplog.records if r.message.startswith("Not reusing")]
+        assert [(r.levelno, r.message) for r in not_reused] == [
+            (
+                logging.INFO,
+                f"Not reusing 'locomotion' from --trunk-from {trunk}: --retrain-from 'locomotion' covers it. "
+                "Training it here.",
+            ),
+            (
+                logging.INFO,
+                f"Not reusing 'behavior' from --trunk-from {trunk}: --retrain-from 'locomotion' covers it. "
+                "Training it here.",
+            ),
+        ]
+
+    def test_retrain_from_accepts_a_legacy_number_and_naming_the_root_reuses_nothing(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """The knob resolves through the manifest like ``--stage``: legacy 1 is stance, the root,
+        so nothing above it exists to reuse and the trunk is never consulted."""
+        trunk = tmp_path / "trunk-run"
+        asked: list[str] = []
+
+        def find_ancestor(run_dir, *, entry, **kwargs):
+            asked.append(entry.id)
+            raise AssertionError("the trunk must not be consulted for a covered node")
+
+        record = self._run(
+            "velociraptor", tmp_path, monkeypatch, caplog, trunk_from=trunk, find_ancestor=find_ancestor, retrain_from=1
+        )
+
+        assert asked == []
+        assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
+        assert record["parent_run_ids"] == [(1, None), (2, None), (3, None)]
+        assert record["ancestors"] == []
+        covered = [r for r in caplog.records if "--retrain-from 'stance' covers it" in r.message]
+        assert [r.levelno for r in covered] == [logging.INFO] * 3
+
+    @pytest.mark.parametrize(
+        ("retrain_from", "match"),
+        [
+            ("recovery", "non-advancing stage 'recovery'"),
+            ("no_such_node", "not a stage of trex"),
+            (7, "not a stage of trex"),
+        ],
+    )
+    def test_an_unknown_or_non_advancing_retrain_from_raises_before_any_directory_is_written(
+        self, tmp_path, monkeypatch, caplog, retrain_from, match
+    ):
+        """A retrain-from that the curriculum cannot walk (trex's non-advancing recovery, an unknown
+        id, an unknown legacy number) is a ValueError naming the advancing ids, raised before the run
+        directory exists — a typo leaves no footprint."""
+        run_dir = tmp_path / "fresh-run"
+
+        with pytest.raises(ValueError, match=match) as excinfo:
+            self._run(
+                "trex",
+                tmp_path,
+                monkeypatch,
+                caplog,
+                trunk_from=tmp_path / "trunk",
+                retrain_from=retrain_from,
+                output_dir=run_dir,
+            )
+
+        assert "['stance', 'locomotion', 'behavior']" in str(excinfo.value)
+        assert not run_dir.exists()
+
+    def test_an_occupied_stage_directory_is_refused_before_it_is_written(self, tmp_path, monkeypatch, caplog):
+        """Decision D-A20: the curriculum has no resume mode, so an ``output_dir`` whose stage
+        directory already records a stage (here a judged ``02_locomotion``) is refused when the walk
+        reaches it — after stance trained, before locomotion's config or models directory is
+        written — and the message names the directory, the file and both ways forward."""
+        from environments.shared.config import StageDirectoryOccupiedError
+
+        occupied = tmp_path / "02_locomotion"
+        occupied.mkdir()
+        (occupied / "gate_verdict.json").write_text("{}")
+
+        with pytest.raises(StageDirectoryOccupiedError, match="gate_verdict.json") as excinfo:
+            self._run("velociraptor", tmp_path, monkeypatch, caplog)
+
+        message = str(excinfo.value)
+        assert str(occupied) in message and "--output-dir" in message and "resume_same_stage" in message
+        assert not (occupied / "models").exists()
+        assert not (occupied / "stage_config.json").exists()
+        # Stance, whose directory was fresh, was walked (its models directory is the loop's own
+        # mkdir); the refusal stopped the run there, before anything of locomotion's.
+        assert (tmp_path / "01_stance" / "models").is_dir()
+        assert not (tmp_path / "03_behavior").exists()
+
+    def _reuse_stance(self, tmp_path, monkeypatch, caplog, ancestor):
+        """Walk velociraptor with a trunk whose rule certifies stance only; returns the record."""
+        from environments.shared.ancestors import AncestorReuseError
+
+        def find_ancestor(run_dir, *, entry, **kwargs):
+            if entry.id == "stance":
+                return ancestor
+            raise AncestorReuseError(f"{entry.id}: not in the trunk")
+
+        return self._run(
+            "velociraptor",
+            tmp_path,
+            monkeypatch,
+            caplog,
+            trunk_from=tmp_path / "trunk-run",
+            find_ancestor=find_ancestor,
+        )
+
+    @staticmethod
+    def _ignored_edit_warnings(caplog):
+        return [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING and "ignores this run's hyperparameter edit" in r.message
+        ]
+
+    def test_reuse_warns_naming_the_keys_of_an_ignored_hyperparameter_edit(self, tmp_path, monkeypatch, caplog):
+        """Decision D-A21: reuse carries the ancestor's recorded recipe.  When this run's algorithm
+        block or shaping keys differ from the ancestor's ``stage_config.json`` the loop warns — naming
+        the node, the ancestor's run, every differing dotted key, and ``--retrain-from`` as the way to
+        train it here — and still reuses (an ignored edit is a warning, never a refusal)."""
+        ancestor = self._certified_ancestor(
+            tmp_path / "trunk-run",
+            edits={"ppo_kwargs": {"learning_rate": 1e-5}, "curriculum_kwargs": {"warmup_timesteps": 1}},
+        )
+
+        record = self._reuse_stance(tmp_path, monkeypatch, caplog, ancestor)
+
+        warnings = self._ignored_edit_warnings(caplog)
+        assert len(warnings) == 1
+        message = warnings[0].message
+        assert "'stance'" in message and "trunk-run-id" in message
+        assert "ppo.learning_rate, shaping.warmup_timesteps" in message
+        assert "--retrain-from stance" in message
+        # Reused all the same: stance was not trained, walk and hunt were.
+        assert [stage for stage, _, _ in record["saved"]] == [2, 3]
+        assert [a.stage_id for _, a in record["ancestors"]] == ["stance"]
+
+    def test_reuse_is_silent_when_the_ancestor_recorded_the_same_recipe(self, tmp_path, monkeypatch, caplog):
+        """The digest agrees when nothing in the algorithm block or shaping keys changed, so the
+        warning stays silent — the common case must not nag."""
+        ancestor = self._certified_ancestor(tmp_path / "trunk-run")
+
+        record = self._reuse_stance(tmp_path, monkeypatch, caplog, ancestor)
+
+        assert self._ignored_edit_warnings(caplog) == []
+        assert [stage for stage, _, _ in record["saved"]] == [2, 3]
+
+    def test_an_ancestor_without_a_readable_config_is_reported_not_trusted(self, tmp_path, monkeypatch, caplog):
+        """An ancestor whose ``stage_config.json`` cannot be read is never assumed to match: the
+        warning names ``<unreadable stage_config.json>`` in place of the keys."""
+        ancestor = self._certified_ancestor(tmp_path / "trunk-run", record_config=False)
+
+        self._reuse_stance(tmp_path, monkeypatch, caplog, ancestor)
+
+        warnings = self._ignored_edit_warnings(caplog)
+        assert len(warnings) == 1 and "<unreadable stage_config.json>" in warnings[0].message
+
+    def test_the_label_reaches_every_trained_nodes_config_and_the_wandb_tags(self, tmp_path, monkeypatch, caplog):
+        """Decision D-A21: ``label`` is handed to ``save_stage_config`` for every trained node and
+        every W&B run is tagged ``hp:<12 hex of the node's digest>`` plus ``label:<label>``; without a
+        label the config gets ``None`` (nothing recorded) and only the ``hp:`` tag is set."""
+        from environments.shared.config import hyperparameters_sha256, load_all_stages
+
+        configs = load_all_stages("velociraptor")
+        expected_hp = {
+            stage: "hp:" + hyperparameters_sha256(configs[stage], "ppo").removeprefix("sha256:")[:12]
+            for stage in (1, 2, 3)
+        }
+        assert all(len(tag) == len("hp:") + 12 for tag in expected_hp.values())
+
+        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, label="lr-sweep-a", use_wandb=True)
+        assert record["labels"] == [(1, "lr-sweep-a"), (2, "lr-sweep-a"), (3, "lr-sweep-a")]
+        assert record["wandb_tags"] == [(stage, [expected_hp[stage], "label:lr-sweep-a"]) for stage in (1, 2, 3)]
+
+        record = self._run("velociraptor", tmp_path / "unlabelled", monkeypatch, caplog, use_wandb=True)
+        assert record["labels"] == [(1, None), (2, None), (3, None)]
+        assert record["wandb_tags"] == [(stage, [expected_hp[stage]]) for stage in (1, 2, 3)]
+
+
+class TestTrainRecordsTheLabel:
+    """Decision D-A21 at the single-stage launch path: ``train(..., label=...)`` hands the label to
+    ``save_stage_config`` (which records it beside the digest) exactly as given."""
+
+    class ConfigReached(RuntimeError):
+        pass
+
+    def _save_config_kwargs(self, tmp_path, monkeypatch, **train_kwargs):
+        from environments.shared import config as config_module
+        from environments.shared import task_fingerprint, train_base
+        from environments.shared.config import load_all_stages
+
+        captured = {}
+
+        def save_config(*args, **kwargs):
+            captured.update(kwargs)
+            raise self.ConfigReached()
+
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {})
+        monkeypatch.setattr(config_module, "save_stage_config", save_config)
+        with pytest.raises(self.ConfigReached):
+            train_base.train(
+                SimpleNamespace(species="velociraptor", env_class=object),
+                load_all_stages("velociraptor"),
+                1,
+                total_timesteps=1,
+                output_dir=str(tmp_path / "run"),
+                use_tensorboard=False,
+                verbose=0,
+                **train_kwargs,
+            )
+        return captured
+
+    def test_the_label_is_passed_through_and_defaults_to_none(self, tmp_path, monkeypatch):
+        assert self._save_config_kwargs(tmp_path, monkeypatch, label="lr-sweep-a")["label"] == "lr-sweep-a"
+        assert self._save_config_kwargs(tmp_path, monkeypatch)["label"] is None
+
+    def test_the_wandb_tags_carry_the_digest_prefix_and_the_label(self):
+        from environments.shared.config import hyperparameters_sha256, load_all_stages
+        from environments.shared.train_base import _wandb_run_tags
+
+        config = load_all_stages("velociraptor")[1]
+        hp_tag = "hp:" + hyperparameters_sha256(config, "ppo").removeprefix("sha256:")[:12]
+        assert _wandb_run_tags(config, "ppo", None) == [hp_tag]
+        assert _wandb_run_tags(config, "ppo", "  ") == [hp_tag]
+        assert _wandb_run_tags(config, "ppo", "lr-sweep-a") == [hp_tag, "label:lr-sweep-a"]
+
 
 class TestTrainRefusesAnUndeclaredParent:
     """Invariant 4 at the launch path: train() checks the recorded parent stage against the
@@ -1310,3 +1617,169 @@ class TestTrainRefusesAnUndeclaredParent:
                 verbose=0,
             )
         assert calls == []
+
+
+class TestTrainRefusesAnOccupiedStageDirectory:
+    """Decision D-A20 at the launch path: train() refuses to write into a stage directory that
+    already records a stage (``stage_config.json`` or ``gate_verdict.json``) unless the load is an
+    explicit same-stage resume — checked after the directory is resolved and before its config,
+    models directory or any environment is written."""
+
+    class ConfigReached(RuntimeError):
+        """The guard passed: train() went on to write the stage config."""
+
+    def _train(self, tmp_path, monkeypatch, *, output_dir, load_path=None, task_load_mode="resume_same_stage"):
+        from environments.shared import config as config_module
+        from environments.shared import task_fingerprint, train_base
+        from environments.shared.config import load_all_stages
+
+        def save_config(*args, **kwargs):
+            raise self.ConfigReached()
+
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
+        # The declared-parent check (pinned above) runs first and reads the checkpoint; the guard
+        # under test is what happens once a load has passed it.
+        monkeypatch.setattr(task_fingerprint, "read_checkpoint_task_fingerprint", lambda path: None)
+        monkeypatch.setattr(task_fingerprint, "validate_declared_parent", lambda *a, **k: None)
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {})
+        monkeypatch.setattr(config_module, "save_stage_config", save_config)
+        try:
+            train_base.train(
+                SimpleNamespace(species="velociraptor", env_class=object),
+                load_all_stages("velociraptor"),
+                1,
+                total_timesteps=1,
+                load_path=load_path,
+                task_load_mode=task_load_mode,
+                output_dir=str(output_dir),
+                use_tensorboard=False,
+                verbose=0,
+            )
+        except self.ConfigReached:
+            return "passed-the-guard"
+        return "returned"
+
+    @pytest.mark.parametrize("occupancy_file", ["stage_config.json", "gate_verdict.json"])
+    def test_a_recorded_stage_is_refused_from_scratch_and_from_a_parent(self, tmp_path, monkeypatch, occupancy_file):
+        from environments.shared.config import StageDirectoryOccupiedError
+
+        occupied = tmp_path / "old-run"
+        occupied.mkdir()
+        (occupied / occupancy_file).write_text("{}")
+
+        # From scratch: the CLI's default resume_same_stage without --load is not a resume.
+        with pytest.raises(StageDirectoryOccupiedError, match=occupancy_file) as excinfo:
+            self._train(tmp_path, monkeypatch, output_dir=occupied)
+        assert "--output-dir" in str(excinfo.value) and "--load-mode resume_same_stage" in str(excinfo.value)
+        # Entering from a parent is a new variant, not a resume, whatever the checkpoint.
+        with pytest.raises(StageDirectoryOccupiedError, match="initialize_next_stage"):
+            self._train(
+                tmp_path,
+                monkeypatch,
+                output_dir=occupied,
+                load_path=str(tmp_path / "stance.zip"),
+                task_load_mode="initialize_next_stage",
+            )
+        # Nothing was written into the refused directory.
+        assert sorted(p.name for p in occupied.iterdir()) == [occupancy_file]
+
+    def test_an_explicit_same_stage_resume_is_accepted(self, tmp_path, monkeypatch):
+        occupied = tmp_path / "old-run"
+        occupied.mkdir()
+        (occupied / "stage_config.json").write_text("{}")
+        (occupied / "gate_verdict.json").write_text("{}")
+
+        outcome = self._train(
+            tmp_path,
+            monkeypatch,
+            output_dir=occupied,
+            load_path=str(occupied / "models" / "stage1_1000_steps.zip"),
+            task_load_mode="resume_same_stage",
+        )
+
+        assert outcome == "passed-the-guard"
+
+    def test_a_fresh_directory_is_never_refused(self, tmp_path, monkeypatch):
+        assert self._train(tmp_path, monkeypatch, output_dir=tmp_path / "fresh") == "passed-the-guard"
+
+
+class TestTrainResumeKeepsTheEdge:
+    """A ``train --load <periodic> --load-mode resume_same_stage`` into a stage directory that
+    entered from its parent re-saves ``stage_config.json`` through the real ``save_stage_config``
+    and keeps the edge (``parent_checkpoint_sha256``, ``parent_run_id`` ...), recording the periodic
+    checkpoint under ``RESUME_LINEAGE_KEYS`` — so a resumed node still chains for reuse (ancestors
+    rule 4; BEHAVIOR_RECIPES_PLAN §4.7 branch 3). The notebook's ``train_stage`` re-saves through the
+    same function with the same ``load_mode`` argument (pinned in test_sb3_notebook_pins)."""
+
+    class EnvsReached(RuntimeError):
+        """The stage config was written; train() went on to build its environments."""
+
+    @staticmethod
+    def _zip(path):
+        import zipfile
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("data", json.dumps({}))
+            archive.writestr("policy.pth", b"weights")
+        return path
+
+    def test_the_kept_edge_survives_the_resume_re_save(self, tmp_path, monkeypatch):
+        from environments.shared import task_fingerprint, train_base
+        from environments.shared.config import (
+            LOAD_LINEAGE_KEYS,
+            RESUME_LINEAGE_KEYS,
+            load_all_stages,
+            save_stage_config,
+        )
+        from environments.shared.result_bundle import sha256_file
+
+        stage_configs = load_all_stages("velociraptor")
+        stage_dir = tmp_path / "run" / "02_locomotion"
+        parent = self._zip(tmp_path / "run" / "01_stance" / "models" / "stance_final.zip")
+        save_stage_config(
+            stage_dir,
+            2,
+            stage_configs[2],
+            "PPO",
+            species="velociraptor",
+            load_path=str(parent),
+            load_mode="initialize_next_stage",
+            parent_run_id="20260901_120000",
+        )
+        entered = json.loads((stage_dir / "stage_config.json").read_text())["run"]
+        # The parent zip carries no task fingerprint, so parent_task_sha256 is (rightly) absent.
+        edge = {key: entered[key] for key in LOAD_LINEAGE_KEYS if key in entered}
+        assert set(edge) == {"load_path", "load_mode", "parent_checkpoint_sha256", "parent_run_id"}
+        periodic = self._zip(stage_dir / "models" / "locomotion_100_steps.zip")
+
+        def envs_reached(*args, **kwargs):
+            raise self.EnvsReached()
+
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: _plant_identity())
+        monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
+        monkeypatch.setattr(task_fingerprint, "read_checkpoint_task_fingerprint", lambda path: None)
+        monkeypatch.setattr(task_fingerprint, "validate_declared_parent", lambda *a, **k: None)
+        monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {})
+        monkeypatch.setattr(train_base, "create_vec_env", envs_reached)
+        with pytest.raises(self.EnvsReached):
+            train_base.train(
+                SimpleNamespace(species="velociraptor", env_class=object),
+                stage_configs,
+                2,
+                total_timesteps=1,
+                load_path=str(periodic),
+                task_load_mode="resume_same_stage",
+                output_dir=str(stage_dir),
+                use_tensorboard=False,
+                verbose=0,
+            )
+
+        resumed = json.loads((stage_dir / "stage_config.json").read_text())["run"]
+        assert {key: resumed[key] for key in LOAD_LINEAGE_KEYS if key in resumed} == edge
+        assert resumed["parent_checkpoint_sha256"] == sha256_file(parent)
+        assert {key: resumed[key] for key in RESUME_LINEAGE_KEYS} == {
+            "resume_load_path": str(periodic),
+            "resume_checkpoint_sha256": sha256_file(periodic),
+        }

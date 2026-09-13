@@ -23,6 +23,7 @@ verdict here is the verdict the real evidence produces.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import logging
@@ -291,26 +292,56 @@ class TestRollPolicyPanel:
 
 
 class TestNotebookRecoveryFlowPin:
-    """Cell-level pin: the notebook's recovery flow stays freeze->train->panel->verdict."""
+    """Cell-level pin: the notebook's recovery flow stays freeze->train->panel->verdict.
+
+    Re-pinned for the behavior-chain loop (BEHAVIOR_RECIPES_PLAN §4.7, Phase A
+    WS5): the opt-in ``===== RECOVERY STAGE`` cell and its RUN_RECOVERY_STAGE knob
+    are gone — recovery runs when BEHAVIOR's chain includes it (``"stand"`` on a
+    species with a recovery stage) and its verdict is enforced like any node's.
+    The flow now lives inside the loop's ``for NODE in CHAIN:`` body, keyed on the
+    FROZEN_NULL_GATE_KINDS set rather than on the id ``"recovery"``, so a second
+    frozen-null kind would get the same pre-registration without a new branch.
+    """
 
     def test_cell_order_and_gate_evidence_wiring(self):
         repo_root = Path(__file__).resolve().parents[3]
         notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
-        recovery_cells = [
-            "".join(cell["source"])
-            for cell in notebook["cells"]
-            if cell["cell_type"] == "code" and "===== RECOVERY STAGE" in "".join(cell["source"])
+        code_cells = ["".join(cell["source"]) for cell in notebook["cells"] if cell["cell_type"] == "code"]
+        assert not any("RUN_RECOVERY_STAGE" in cell for cell in code_cells), (
+            "RUN_RECOVERY_STAGE is back: recovery is a chain node under BEHAVIOR, not an opt-in pilot"
+        )
+        chain_cells = [cell for cell in code_cells if "# ===== BEHAVIOR CHAIN LOOP =====" in cell]
+        assert len(chain_cells) == 1, "sb3_training.ipynb lost its behavior chain loop cell"
+        src = chain_cells[0]
+        loops = [
+            node
+            for node in ast.parse(src).body
+            if isinstance(node, ast.For)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "NODE"
+            and isinstance(node.iter, ast.Name)
+            and node.iter.id == "CHAIN"
         ]
-        assert len(recovery_cells) == 1, "sb3_training.ipynb lost its recovery stage cell"
-        src = recovery_cells[0]
-        freeze_at = src.index("freeze_recovery_gate(")
-        train_at = src.index("train_stage(")
-        panel_at = src.index("roll_policy_panel(")
-        gate_at = src.index("recovery_successes_by_seed=")
+        assert len(loops) == 1, "expected exactly one `for NODE in CHAIN:` loop"
+        body = ast.get_source_segment(src, loops[0])
+        freeze_at = body.index("freeze_recovery_gate(")
+        train_at = body.index("train_stage(")
+        panel_at = body.index("roll_policy_panel(")
+        gate_at = body.index("recovery_successes_by_seed=")
         assert freeze_at < train_at < panel_at < gate_at, (
-            "the recovery cell must freeze BEFORE training (pre-registration), roll the panel "
+            "the chain loop must freeze BEFORE training (pre-registration), roll the panel "
             "after training, and pass its successes into generate_stage_artifacts"
         )
+        # The freeze is keyed on the gate-kind SET, never on the node's id.
+        freeze_guards = [
+            node
+            for node in ast.walk(loops[0])
+            if isinstance(node, ast.If)
+            and any(isinstance(n, ast.Name) and n.id == "FROZEN_NULL_GATE_KINDS" for n in ast.walk(node.test))
+            and "freeze_recovery_gate(" in ast.get_source_segment(src, node)
+        ]
+        assert freeze_guards, "the freeze must sit under an `if` whose test names FROZEN_NULL_GATE_KINDS"
+        assert '== "recovery"' not in src, "the frozen-null flow is keyed on FROZEN_NULL_GATE_KINDS, not on the id"
 
 
 class TestSharedEntryPointReachesTheFrozenGate:

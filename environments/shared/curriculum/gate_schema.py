@@ -38,6 +38,7 @@ import math
 from collections.abc import Mapping
 from typing import Any
 
+from .recovery_gate import RECOVERY_GATE_KIND
 from .stance_gate import STANCE_GATE_KIND
 
 #: Bumped when the meaning of an existing key changes.  Adding a new gate
@@ -106,6 +107,15 @@ GATE_KINDS: dict[str, frozenset[str]] = {
     # it refuses to advance rather than passing by default.
     "none/v1": frozenset(),
 }
+
+#: Gate kinds judged against a FROZEN null resolution: the stage's
+#: ``gate_resolution.json`` (pre-registered null panels and thresholds) must
+#: be frozen BEFORE the node trains, and the trained policy is rolled over
+#: exactly that panel afterwards (``freeze_recovery_gate``).  The notebook's
+#: chain loop keys its freeze-then-roll flow on membership here rather than
+#: on a hard-coded stage id, so a second frozen-null kind joins by being
+#: listed, not by another ``== "recovery"`` predicate.
+FROZEN_NULL_GATE_KINDS: frozenset[str] = frozenset({RECOVERY_GATE_KIND})
 
 #: Threshold fields a gate kind cannot function without.  Declaring a kind and
 #: omitting its required fields used to fail OPEN on the SB3 path: the schema

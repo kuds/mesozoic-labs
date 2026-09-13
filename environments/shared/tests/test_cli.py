@@ -107,6 +107,53 @@ class TestMainDispatch:
             main(species_cfg)
             mock_curriculum.assert_called_once()
 
+    def _run_curriculum(self, species_cfg, argv):
+        """Dispatch ``curriculum`` with the trainer replaced; returns the mock."""
+        mock_curriculum = MagicMock()
+        mock_load = MagicMock(return_value={1: {}, 2: {}, 3: {}})
+        with (
+            patch("environments.shared.config.load_all_stages", mock_load),
+            patch("environments.shared.train_base.train_curriculum", mock_curriculum),
+            patch("sys.argv", ["prog", "curriculum", *argv]),
+        ):
+            main(species_cfg)
+        return mock_curriculum
+
+    def test_curriculum_forwards_retrain_from_with_its_trunk(self, species_cfg, tmp_path):
+        """Decision D-A19: ``--retrain-from`` resolves like ``--stage`` (id or legacy number) and
+        reaches train_curriculum beside the trunk it applies to."""
+        mock = self._run_curriculum(species_cfg, ["--trunk-from", str(tmp_path), "--retrain-from", "locomotion"])
+        kwargs = mock.call_args.kwargs
+        assert kwargs["trunk_from"] == str(tmp_path) and kwargs["retrain_from"] == "locomotion"
+
+        mock = self._run_curriculum(species_cfg, ["--trunk-from", str(tmp_path), "--retrain-from", "2"])
+        assert mock.call_args.kwargs["retrain_from"] == 2
+
+        mock = self._run_curriculum(species_cfg, ["--trunk-from", str(tmp_path)])
+        assert mock.call_args.kwargs["retrain_from"] is None
+
+    def test_retrain_from_without_a_trunk_is_a_usage_error(self, species_cfg, capsys):
+        """Without --trunk-from every stage is trained here already; the knob is refused rather
+        than silently ignored."""
+        with pytest.raises(SystemExit) as excinfo:
+            self._run_curriculum(species_cfg, ["--retrain-from", "locomotion"])
+        assert excinfo.value.code == 2
+        assert "--retrain-from 'locomotion' requires --trunk-from" in capsys.readouterr().err
+
+    @pytest.mark.parametrize(
+        ("ref", "expected"),
+        [("recovery", "non-advancing stage 'recovery'"), ("no_such_node", "has no stage 'no_such_node'")],
+    )
+    def test_retrain_from_must_name_an_advancing_stage(self, species_cfg, tmp_path, capsys, ref, expected):
+        """A non-advancing id (trex's recovery) or an unknown one is a parser.error naming the
+        advancing ids, before train_curriculum is reached."""
+        species_cfg.species = "trex"
+        with pytest.raises(SystemExit) as excinfo:
+            self._run_curriculum(species_cfg, ["--trunk-from", str(tmp_path), "--retrain-from", ref])
+        assert excinfo.value.code == 2
+        err = capsys.readouterr().err
+        assert expected in err and "['stance', 'locomotion', 'behavior']" in err
+
     def test_eval_command(self, species_cfg):
         """main() with 'eval' should call evaluate()."""
         mock_eval = MagicMock()
@@ -118,6 +165,24 @@ class TestMainDispatch:
         ):
             main(species_cfg)
             mock_eval.assert_called_once()
+
+    def test_label_reaches_train_and_train_curriculum(self, species_cfg, tmp_path):
+        """Decision D-A21: ``--label TEXT`` on both commands is forwarded verbatim as ``label=``;
+        without it the trainers receive ``None`` (nothing recorded)."""
+        mock_train = MagicMock()
+        mock_load = MagicMock(return_value={n: {"env_kwargs": {}, "ppo_kwargs": {}} for n in (1, 2, 3)})
+        for argv, expected in ((["--label", "lr-sweep-a"], "lr-sweep-a"), ([], None)):
+            with (
+                patch("environments.shared.config.load_all_stages", mock_load),
+                patch("environments.shared.train_base.train", mock_train),
+                patch("sys.argv", ["prog", "train", "--stage", "1", "--timesteps", "1000", *argv]),
+            ):
+                main(species_cfg)
+            assert mock_train.call_args.kwargs["label"] == expected
+
+        mock = self._run_curriculum(species_cfg, ["--label", "lr-sweep-a"])
+        assert mock.call_args.kwargs["label"] == "lr-sweep-a"
+        assert self._run_curriculum(species_cfg, []).call_args.kwargs["label"] is None
 
     def test_no_command_defaults_to_train(self, species_cfg):
         """main() with no subcommand should default to train."""

@@ -19,8 +19,12 @@ on the first failure with a reason naming it:
    caller resolved for the node's declared parent (``parent_model_sha256``),
    so a certified walk is reused only on top of the very stance it was
    trained from; a root's candidate must not have entered from a parent at
-   all (a ``resume_same_stage`` load is not a parent).  Reuse therefore
-   proceeds root-first: a child is reusable only once its parent is;
+   all (a ``resume_same_stage`` load is not a parent).  A same-stage resume
+   of a node that entered from its parent keeps that edge in the run block
+   (``save_stage_config`` records the continued-from checkpoint under
+   ``config.RESUME_LINEAGE_KEYS`` instead), so a resumed-then-judged node
+   still chains.  Reuse therefore proceeds root-first: a child is reusable
+   only once its parent is;
 5. the handoff pair the directory selects NOW re-hashes to the verdict's
    digests, so a checkpoint rewritten after judging is refused;
 6. the checkpoint's recorded plant identity validates against the current
@@ -29,8 +33,11 @@ on the first failure with a reason naming it:
 Two things the rule never does.  It never reuses a run's TARGET node — the
 node the run exists to certify is always trained; an earlier run's certified
 target is that run's deliverable and is published from there — which is why
-``train_curriculum`` consults the rule for ancestors of the target only.
-And it never treats the checkpoint hashes as replaceable by ids: two runs
+``train_curriculum`` consults the rule for ancestors of the target only —
+and ``--retrain-from <stage_id>`` (the notebook's ``RETRAIN_FROM``, decision
+D-A19) generalises that: the rule is consulted for the certified ancestors
+strictly above the named node, while the node and every descendant are
+trained in this run.  And it never treats the checkpoint hashes as replaceable by ids: two runs
 that both certified ``stance`` produced two different checkpoints, and a
 walk descends from exactly one of them.
 

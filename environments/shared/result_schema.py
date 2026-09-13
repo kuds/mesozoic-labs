@@ -41,6 +41,15 @@ edges to the previous advancing node, so the v4 rules collapse to the v3
 "every advancing stage present and passed / terminal = last advancing"
 rule.  All three versions are accepted here; writers emit
 :data:`RESULT_SCHEMA_VERSION`.
+
+Decision D-A21 (2026-09-13, Phase A WS5) adds two OPTIONAL fields to each
+``provenance.deliverables`` record — :data:`OPTIONAL_DELIVERABLE_RECORD_FIELDS`:
+``hyperparameters_sha256`` (the ``sha256:<hex>`` digest of the stage's
+algorithm block and shaping keys, copied from its ``stage_config.json`` run
+block) and ``label`` (the run's free-text label, non-empty).  A record
+carries exactly :data:`DELIVERABLE_RECORD_FIELDS` plus any subset of the
+optional ones; an unknown field is still refused.  The schema version does
+not change: every earlier v4 record is still exactly valid.
 """
 
 from __future__ import annotations
@@ -69,6 +78,12 @@ DELIVERABLE_RECORD_FIELDS = (
     "certified",
     "replication",
 )
+#: Fields a ``provenance.deliverables`` record MAY carry beyond the required
+#: set (decision D-A21): the stage's recipe digest (``sha256:<hex>``, from
+#: its ``stage_config.json`` run block, which the audit cross-checks) and
+#: the run's free-text label (non-empty).  Written when the stage recorded
+#: them; absent for stages recorded before D-A21.
+OPTIONAL_DELIVERABLE_RECORD_FIELDS = ("hyperparameters_sha256", "label")
 #: Exactly the fields of one ``provenance.ancestors`` record (schema v4): the
 #: summary-side projection of ``ancestors/<stage_id>/`` on disk.
 ANCESTOR_RECORD_FIELDS = (
@@ -532,9 +547,12 @@ def _validate_deliverable_records(
                 f"{field} names stage {key!r}, which the {species} manifest does not flag as a deliverable"
             )
         record = _require_mapping(deliverables_value[key], field=f"{field}.{key}")
-        if set(record) != set(DELIVERABLE_RECORD_FIELDS):
+        required_fields = set(DELIVERABLE_RECORD_FIELDS)
+        optional_fields = set(OPTIONAL_DELIVERABLE_RECORD_FIELDS)
+        if not required_fields <= set(record) or not set(record) <= required_fields | optional_fields:
             raise ResultSchemaError(
-                f"{field}.{key} must carry exactly the fields {list(DELIVERABLE_RECORD_FIELDS)}; found {sorted(record)}"
+                f"{field}.{key} must carry exactly the fields {list(DELIVERABLE_RECORD_FIELDS)} plus any of "
+                f"{list(OPTIONAL_DELIVERABLE_RECORD_FIELDS)}; found {sorted(record)}"
             )
         prefix = f"{field}.{key}"
         model_path = _require_relative_posix_path(record["model_path"], field=f"{prefix}.model_path")
@@ -576,6 +594,13 @@ def _validate_deliverable_records(
             "certified": record["certified"],
             "replication": {"count": count, "runs": normalized_runs},
         }
+        # The optional D-A21 fields are type-checked and kept when present.
+        if "hyperparameters_sha256" in record:
+            records[key]["hyperparameters_sha256"] = _require_sha256(
+                record["hyperparameters_sha256"], field=f"{prefix}.hyperparameters_sha256"
+            )
+        if "label" in record:
+            records[key]["label"] = _require_nonempty_string(record["label"], field=f"{prefix}.label")
     return entries, records
 
 
