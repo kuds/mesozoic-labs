@@ -67,7 +67,8 @@ The main fields are `learning_rate`, `batch_size`, `gamma`, `tau`, `ent_coef`,
 ## Curriculum and Recipes
 
 SAC walks the same recipe graph as PPO. The `curriculum` command runs the
-species' advancing stages in manifest order; each node warm-starts from its
+species' advancing stages in manifest order up to its `--target` (default
+the last advancing stage; `--target walk` stops at walk); each node warm-starts from its
 declared `warm_start_from` parent's handoff checkpoint and VecNormalize
 sidecar, a node whose parent has no certified checkpoint stops the run, and
 each trained node writes `gate_verdict.json` beside its handoff:

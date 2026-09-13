@@ -65,7 +65,9 @@ copied defaults here would quickly become stale. The main fields are
 
 ## Curriculum and Recipes
 
-The `curriculum` command runs the species' advancing stages in manifest order.
+The `curriculum` command runs the species' advancing stages in manifest order,
+up to its `--target` (a recipe label, a deliverable's stage id or a legacy
+number; default the last advancing stage, so `--target walk` stops at walk).
 Each node warm-starts from its declared `warm_start_from` parent's handoff
 checkpoint and VecNormalize sidecar, a node whose parent has no certified
 checkpoint stops the run, and each trained node writes `gate_verdict.json`

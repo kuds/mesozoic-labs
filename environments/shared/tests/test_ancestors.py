@@ -15,6 +15,8 @@ SB3-free by construction: checkpoints are ``_sb3_style_zip`` archives (a JSON
 from __future__ import annotations
 
 import json
+import logging
+import shutil
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -23,6 +25,7 @@ import pytest
 
 from environments.shared.ancestors import (
     ANCESTOR_COPIED_FILES,
+    ANCESTOR_RECORD_HOP_LIMIT,
     AncestorReuseError,
     CertifiedAncestor,
     find_certified_ancestor,
@@ -83,13 +86,16 @@ def build_trunk_run(
     verdict: bool = True,
     passed: bool = True,
     lineage: "dict[str, Any] | None" = None,
+    species: str = "trex",
 ) -> Path:
     """A stage directory shaped like a judged run's: handoff pair, sidecars, verdict.
 
     *lineage* is merged into the ``stage_config.json`` run block: the load
     keys ``save_stage_config`` records for a node that entered from a parent
     (``load_mode``, ``parent_checkpoint_sha256``, ...).  None is a node
-    trained from scratch, which records no load keys at all.
+    trained from scratch, which records no load keys at all.  *species*
+    names the species every record is stamped with; the default plant is
+    the trex fake, so pass a matching *plant* for another species.
     """
     plant = plant or trunk_plant()
     stage_dir = run_dir / stage_dirname
@@ -97,7 +103,7 @@ def build_trunk_run(
     models.mkdir(parents=True, exist_ok=True)
     fingerprint = {
         "schema": fingerprint_schema,
-        "species": "trex",
+        "species": species,
         "stage": stage,
         "backend": "stable-baselines3",
         "task_sha256": task_sha256,
@@ -113,7 +119,7 @@ def build_trunk_run(
     (stage_dir / "stage_config.json").write_text(
         json.dumps(
             {
-                "species": "trex",
+                "species": species,
                 "stage": stage,
                 "name": stage_id,
                 "description": "",
@@ -132,7 +138,7 @@ def build_trunk_run(
     if verdict:
         write_gate_verdict(
             stage_dir,
-            species="trex",
+            species=species,
             stage=stage,
             stage_id=stage_id,
             gate_kind=curriculum.get("gate_kind", "stance_quality/v1"),
@@ -164,6 +170,11 @@ def _find(run_dir, **overrides):
     )
     kwargs.update(overrides)
     return find_certified_ancestor(run_dir, **kwargs)
+
+
+def _follow(run_dir, **overrides):
+    """``_find`` for a candidate that is ANOTHER run: opts in to following its ancestor records."""
+    return _find(run_dir, follow_records=True, **overrides)
 
 
 class TestFindCertifiedAncestor:
@@ -516,3 +527,352 @@ class TestRecordAncestor:
         # An absent optional sidecar is simply not copied; the record is still complete.
         assert not (target / "plant_identity.json").exists()
         assert (target / "gate_verdict.json").is_file() and (target / ANCESTOR_RECORD_NAME).is_file()
+
+
+def build_middle_run(run_dir: Path, source_run: Path, **find_overrides) -> Path:
+    """A run that REUSED stance from *source_run* and trained nothing of it.
+
+    Holds exactly what ``record_ancestor`` writes — ``ancestors/stance/``
+    with ``ancestor.json`` and the copied sidecars — and no stage directory
+    or checkpoint for stance at all, which is what a run trunked from
+    *source_run* looks like.  Returns the record directory.
+    """
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return record_ancestor(run_dir, _find(source_run, **find_overrides))
+
+
+def _repoint_record(record_dir: Path, source_run: Path) -> Path:
+    """Rewrite a middle run's record to name *source_run* — a hand-edited or moved layout."""
+    record_path = record_dir / ANCESTOR_RECORD_NAME
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    record["source_run_dir"] = str(source_run)
+    record["source_stage_dir"] = str(source_run / "01_stance")
+    record_path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return record_path
+
+
+def _rejudge_rewritten_stance(stage_dir: Path) -> None:
+    """Rewrite the stance handoff and judge it again, so the source is reusable on its own
+    but is no longer the checkpoint an earlier record bound its reuse to."""
+    fingerprint = json.loads((stage_dir / "task_fingerprint.json").read_text(encoding="utf-8"))
+    zip_path = _sb3_style_zip(
+        stage_dir / "models" / "robust_best_model.zip",
+        {MODEL_TASK_ATTRIBUTE: fingerprint, MODEL_IDENTITY_ATTRIBUTE: trunk_plant().to_dict(), "rewritten": True},
+    )
+    write_gate_verdict(
+        stage_dir,
+        species="trex",
+        stage=1,
+        stage_id="stance",
+        gate_kind="stance_quality/v1",
+        gate_schema_version=1,
+        passed=True,
+        failures=[],
+        task_sha256=STANCE_TASK,
+        judged_by=JUDGED_BY,
+        checkpoint=zip_path,
+        normalization=stage_dir / "models" / "robust_best_model_vecnorm.pkl",
+    )
+
+
+class TestTrunksCompose:
+    """Decision D-A23: rule 1 follows a run's ``ancestors/<stage_id>/ancestor.json`` to the run that
+    certified the node, so a run that reused a node can serve as a trunk for it.  The result
+    describes the SOURCE; the record binds the reuse to one checkpoint pair; the source must be
+    a run directory this machine can see, as recorded or beside the run that holds the record.
+    Following is opt-in (``follow_records=True``, what ``train_curriculum --trunk-from`` passes):
+    a caller that tries its own run directory first must not follow the record it wrote itself."""
+
+    def test_a_record_is_followed_only_when_the_caller_opts_in(self, tmp_path):
+        """The default refuses a run that holds only a record, with the pre-D-A23 wording plus the
+        record it is not following.  The case that matters is the notebook's: RUN_DIR reused stance
+        from TRUNK_DIR in an earlier pass and holds ``ancestors/stance/`` for it; on a re-run RUN_DIR
+        is tried first and must refuse — following would return the TRUNK's stance with RUN_DIR as
+        the candidate, which the loop would take for this run's own node — and TRUNK_DIR then
+        resolves directly, cross-run, as before."""
+        trunk = tmp_path / "trunk"
+        trunk.mkdir()
+        stage_dir = build_trunk_run(trunk)
+        run_dir = tmp_path / "run"
+        build_middle_run(run_dir, trunk)
+
+        with pytest.raises(AncestorReuseError) as excinfo:
+            _find(run_dir)
+        message = str(excinfo.value)
+        assert message.startswith(f"{run_dir} has no stage directory for 'stance' (looked for ")
+        assert (
+            "it holds ancestors/stance/ancestor.json for a reuse it made itself, which is not followed here" in message
+        )
+        assert "follow_records=False" in message
+        assert "followed the ancestor record" not in message
+
+        direct = _find(trunk)
+        assert direct.source_run_dir == trunk and direct.stage_dir == stage_dir and direct.via == ()
+        # The same run, asked to follow, resolves to the trunk and says so.
+        followed = _follow(run_dir)
+        assert followed == CertifiedAncestor(**{**direct.__dict__, "via": (run_dir,)})
+
+    def test_a_record_names_its_source_absolutely_so_it_follows_from_any_cwd(self, tmp_path, monkeypatch, caplog):
+        """A record made from a relative trunk path (``--trunk-from logs/<run>``, the documented
+        spelling) stores the source resolved, like the handoff paths beside it, so following it
+        from another working directory — with the middle run copied elsewhere, so the sibling
+        fallback cannot help — reaches the original run directly."""
+        logs = tmp_path / "logs"
+        original = logs / "original"
+        original.mkdir(parents=True)
+        stage_dir = build_trunk_run(original)
+        monkeypatch.chdir(tmp_path)
+        record_dir = build_middle_run(Path("logs") / "middle", Path("logs") / "original")
+        record = json.loads((record_dir / ANCESTOR_RECORD_NAME).read_text(encoding="utf-8"))
+        assert record["source_run_dir"] == str(original.resolve())
+        assert record["source_stage_dir"] == str(stage_dir.resolve())
+        assert Path(record["source_run_dir"]).is_absolute()
+
+        elsewhere = tmp_path / "elsewhere"
+        shutil.copytree(logs / "middle", elsewhere / "middle")
+        assert not (elsewhere / "original").exists()
+        monkeypatch.chdir(elsewhere)
+        with caplog.at_level(logging.INFO):
+            found = _follow(Path("middle"))
+
+        assert found.source_run_dir == original.resolve() and found.stage_dir == stage_dir.resolve()
+        assert found.run_id == "original" and found.via == (Path("middle"),)
+        assert "using its sibling" not in caplog.text
+
+    def test_a_trunk_of_a_trunk_resolves_to_the_run_that_certified_the_node(self, tmp_path, caplog):
+        original = tmp_path / "logs" / "20260901_120000"
+        original.mkdir(parents=True)
+        (original / "provenance.json").write_text(json.dumps({"run_id": "trex-sb3-ppo-original"}), encoding="utf-8")
+        stage_dir = build_trunk_run(original)
+        middle = tmp_path / "logs" / "20260902_120000"
+        build_middle_run(middle, original)
+        assert not any(child.is_dir() and child.name != ANCESTORS_DIRNAME for child in middle.iterdir())
+
+        with caplog.at_level(logging.INFO):
+            found = _follow(middle)
+
+        direct = _follow(original)
+        assert found == CertifiedAncestor(**{**direct.__dict__, "via": (middle,)})
+        assert found.run_id == "trex-sb3-ppo-original"
+        assert found.source_run_dir == original and found.stage_dir == stage_dir
+        assert found.via == (middle,)
+        assert direct.via == ()
+        followed = [r for r in caplog.records if r.message.startswith("Following the ancestor record")]
+        assert len(followed) == 1 and str(middle) in followed[0].message and str(original) in followed[0].message
+
+        # A child trunked from the middle run records the ORIGINAL run as its parent.
+        child = tmp_path / "logs" / "20260903_120000"
+        with caplog.at_level(logging.INFO):
+            record_dir = record_ancestor(child, found)
+        record = json.loads((record_dir / ANCESTOR_RECORD_NAME).read_text(encoding="utf-8"))
+        assert record["parent_run_id"] == "trex-sb3-ppo-original"
+        assert record["source_run_dir"] == str(original) and record["source_stage_dir"] == str(stage_dir)
+        assert "via" not in record
+        assert f"resolved via {middle}" in caplog.text
+
+    def test_a_stage_directory_beside_a_record_is_preferred(self, tmp_path):
+        original = tmp_path / "original"
+        original.mkdir()
+        build_trunk_run(original)
+        middle = tmp_path / "middle"
+        build_middle_run(middle, original)
+        own = build_trunk_run(middle)
+
+        found = _follow(middle)
+
+        assert found.stage_dir == own and found.source_run_dir == middle and found.run_id == "middle"
+        assert found.via == ()
+
+    def test_a_record_bound_to_a_checkpoint_the_source_no_longer_holds_is_refused(self, tmp_path):
+        original = tmp_path / "original"
+        original.mkdir()
+        stage_dir = build_trunk_run(original)
+        middle = tmp_path / "middle"
+        record_dir = build_middle_run(middle, original)
+        bound = json.loads((record_dir / ANCESTOR_RECORD_NAME).read_text(encoding="utf-8"))["handoff"]["model_sha256"]
+
+        _rejudge_rewritten_stance(stage_dir)
+        rewritten = _follow(original)
+        assert rewritten.model_sha256 != bound
+
+        with pytest.raises(AncestorReuseError) as excinfo:
+            _follow(middle)
+        message = str(excinfo.value)
+        assert message.startswith(f"followed the ancestor record in {middle} to {original}: ")
+        assert rewritten.model_sha256 in message and bound in message
+        assert "rewritten since" in message
+
+    def test_a_record_whose_sidecar_digest_disagrees_is_refused(self, tmp_path):
+        original = tmp_path / "original"
+        original.mkdir()
+        build_trunk_run(original)
+        middle = tmp_path / "middle"
+        record_path = build_middle_run(middle, original) / ANCESTOR_RECORD_NAME
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        record["handoff"]["normalization_sha256"] = OTHER_TASK
+        record_path.write_text(json.dumps(record), encoding="utf-8")
+
+        with pytest.raises(AncestorReuseError, match="handoff.normalization_sha256 sha256:2{64}"):
+            _follow(middle)
+
+    def test_a_missing_source_refuses_naming_both_paths(self, tmp_path):
+        original = tmp_path / "old" / "original"
+        original.mkdir(parents=True)
+        build_trunk_run(original)
+        middle = tmp_path / "new" / "middle"
+        build_middle_run(middle, original)
+        shutil.rmtree(tmp_path / "old")
+
+        with pytest.raises(AncestorReuseError) as excinfo:
+            _follow(middle)
+        message = str(excinfo.value)
+        assert "a run directory this machine cannot see" in message
+        assert str(original) in message and str(tmp_path / "new" / "original") in message
+
+    def test_the_sibling_fallback_finds_a_moved_log_base(self, tmp_path, caplog):
+        old_base = tmp_path / "old" / "logs" / "trex" / "ppo"
+        original = old_base / "20260901_120000"
+        original.mkdir(parents=True)
+        build_trunk_run(original)
+        build_middle_run(old_base / "20260902_120000", original)
+        new_base = tmp_path / "new" / "logs" / "trex" / "ppo"
+        new_base.parent.mkdir(parents=True)
+        shutil.move(str(old_base), str(new_base))
+        assert not original.exists()
+
+        with caplog.at_level(logging.INFO):
+            found = _follow(new_base / "20260902_120000")
+
+        assert found.source_run_dir == new_base / "20260901_120000"
+        assert found.stage_dir == new_base / "20260901_120000" / "01_stance"
+        assert found.run_id == "20260901_120000"
+        assert found.via == (new_base / "20260902_120000",)
+        assert "using its sibling" in caplog.text
+
+    def test_a_two_hop_chain_resolves_through_both_records(self, tmp_path):
+        """A record made by ``record_ancestor`` already names the certifying run, so a chain longer
+        than one hop is a hand-edited layout; it still resolves, outermost hop first in ``via``."""
+        a = tmp_path / "a"
+        a.mkdir()
+        build_trunk_run(a)
+        b = tmp_path / "b"
+        build_middle_run(b, a)
+        c = tmp_path / "c"
+        _repoint_record(build_middle_run(c, a), b)
+
+        found = _follow(c)
+
+        assert found.run_id == "a" and found.source_run_dir == a and found.stage_dir == a / "01_stance"
+        assert found.via == (c, b)
+
+    def test_a_cycle_refuses(self, tmp_path):
+        a = tmp_path / "a"
+        a.mkdir()
+        build_trunk_run(a)
+        b = tmp_path / "b"
+        c = tmp_path / "c"
+        _repoint_record(build_middle_run(b, a), c)
+        _repoint_record(build_middle_run(c, a), b)
+
+        with pytest.raises(AncestorReuseError, match="already on the followed path .*which is a cycle") as excinfo:
+            _follow(c)
+        assert str(excinfo.value).startswith(f"followed the ancestor record in {c} to {b}: ")
+
+        # A record naming its own run is the one-hop cycle.
+        _repoint_record(b / ANCESTORS_DIRNAME / "stance", b)
+        with pytest.raises(AncestorReuseError, match="which is a cycle"):
+            _follow(b)
+
+    def test_the_hop_limit_refuses(self, tmp_path):
+        source = tmp_path / "run00"
+        source.mkdir()
+        build_trunk_run(source)
+        runs = [source]
+        for hop in range(1, ANCESTOR_RECORD_HOP_LIMIT + 2):
+            run = tmp_path / f"run{hop:02d}"
+            _repoint_record(build_middle_run(run, source), runs[-1])
+            runs.append(run)
+
+        # Exactly the limit is followed; one more is refused, naming the path.
+        assert _follow(runs[ANCESTOR_RECORD_HOP_LIMIT]).via == tuple(runs[ANCESTOR_RECORD_HOP_LIMIT:0:-1])
+        with pytest.raises(AncestorReuseError, match=f"past the limit of {ANCESTOR_RECORD_HOP_LIMIT}"):
+            _follow(runs[ANCESTOR_RECORD_HOP_LIMIT + 1])
+
+    @pytest.mark.parametrize(
+        "break_source, reason",
+        [
+            (lambda run: build_trunk_run(run, passed=False), "FAILED gate"),
+            (
+                lambda run: (run / "01_stance" / "models" / "robust_best_model_vecnorm.pkl").unlink(),
+                "no complete handoff pair",
+            ),
+            (lambda run: shutil.rmtree(run / "01_stance"), "no stage directory for 'stance'"),
+        ],
+    )
+    def test_every_refusal_at_the_source_is_prefixed_with_the_hop_taken(self, tmp_path, break_source, reason):
+        original = tmp_path / "original"
+        original.mkdir()
+        build_trunk_run(original)
+        middle = tmp_path / "middle"
+        build_middle_run(middle, original)
+        break_source(original)
+
+        with pytest.raises(AncestorReuseError, match=reason) as excinfo:
+            _follow(middle)
+        assert str(excinfo.value).startswith(f"followed the ancestor record in {middle} to {original}: ")
+
+    def test_the_chain_rule_is_applied_at_the_source(self, tmp_path):
+        """Rule 4 at the source: a walk reused through a record is still checked against the digest
+        resolved for its parent in THIS run, and refused on any other stance."""
+        original = tmp_path / "original"
+        original.mkdir()
+        _, stance_sha256 = build_chained_trunk(original)
+        middle = tmp_path / "middle"
+        middle.mkdir()
+        record_ancestor(middle, _find_locomotion(original, parent_model_sha256=stance_sha256))
+
+        found = _find_locomotion(middle, parent_model_sha256=stance_sha256, follow_records=True)
+        assert found.source_run_dir == original and found.via == (middle,)
+        with pytest.raises(AncestorReuseError, match="descends from 'stance' checkpoint") as excinfo:
+            _find_locomotion(middle, parent_model_sha256="sha256:" + "d" * 64, follow_records=True)
+        assert str(excinfo.value).startswith("followed the ancestor record in ")
+
+    @pytest.mark.parametrize(
+        "corrupt, reason",
+        [
+            (lambda record: "{broken", "not readable JSON"),
+            (lambda record: json.dumps([record]), "must hold a JSON object"),
+            (lambda record: json.dumps({**record, "schema": "mesozoic.ancestor-record/v0"}), "declares schema"),
+            (
+                lambda record: json.dumps({**record, "stage_id": "recovery"}),
+                "records stage_id 'recovery', not 'stance'",
+            ),
+            (
+                lambda record: json.dumps({k: v for k, v in record.items() if k != "source_run_dir"}),
+                "no source_run_dir",
+            ),
+            (lambda record: json.dumps({**record, "handoff": "sha256"}), "no handoff object"),
+            (
+                lambda record: json.dumps({**record, "handoff": {**record["handoff"], "model_sha256": None}}),
+                "no handoff.model_sha256",
+            ),
+        ],
+    )
+    def test_a_record_that_cannot_be_read_fails_closed(self, tmp_path, corrupt, reason):
+        original = tmp_path / "original"
+        original.mkdir()
+        build_trunk_run(original)
+        middle = tmp_path / "middle"
+        record_path = build_middle_run(middle, original) / ANCESTOR_RECORD_NAME
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        record_path.write_text(corrupt(record), encoding="utf-8")
+
+        with pytest.raises(AncestorReuseError, match=reason) as excinfo:
+            _follow(middle)
+        assert "cannot be followed" in str(excinfo.value)
+
+    def test_a_run_with_neither_directory_nor_record_says_so(self, tmp_path):
+        with pytest.raises(
+            AncestorReuseError, match="no stage directory for 'stance'.*and no ancestors/stance/ancestor.json to follow"
+        ):
+            _follow(tmp_path)

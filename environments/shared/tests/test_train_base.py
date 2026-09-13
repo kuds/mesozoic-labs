@@ -918,7 +918,15 @@ class TestTrainCurriculumWalksTheManifest:
         output_dir=None,
         label=None,
         use_wandb=False,
+        task_sha256=None,
+        plant=None,
+        target=None,
     ):
+        """*task_sha256* and *plant*, when given, are what every node derives as its task digest and
+        what ``current_plant_identity`` answers, so the REAL reuse rule can run against a real trunk
+        (a test that leaves ``find_ancestor`` None); otherwise both are inert stand-ins.  *target* is
+        forwarded as ``target=`` (decision D-A24).  The REAL ``CurriculumManager`` is used and every
+        instance is kept under ``record["managers"]`` so a test can pin where the walk left it."""
         from environments.shared import ancestors as ancestors_module
         from environments.shared import config as config_module
         from environments.shared import curriculum as curriculum_module
@@ -935,6 +943,7 @@ class TestTrainCurriculumWalksTheManifest:
             "ancestors": [],
             "labels": [],
             "wandb_tags": [],
+            "managers": [],
         }
         model = MagicMock()
         model.num_timesteps = 10
@@ -979,7 +988,11 @@ class TestTrainCurriculumWalksTheManifest:
             return []
 
         monkeypatch.setattr(train_base, "_ensure_sb3", lambda: {"CallbackList": list})
-        monkeypatch.setattr(train_base, "current_plant_identity", lambda species: SimpleNamespace(to_dict=dict))
+        monkeypatch.setattr(
+            train_base,
+            "current_plant_identity",
+            lambda species: SimpleNamespace(to_dict=dict) if plant is None else plant,
+        )
         monkeypatch.setattr(train_base, "create_vec_env", lambda *args, **kwargs: MagicMock())
         monkeypatch.setattr(train_base, "_load_vecnorm_into_envs", lambda *args, **kwargs: None)
         monkeypatch.setattr(train_base, "_create_or_load_model", create_or_load)
@@ -999,7 +1012,19 @@ class TestTrainCurriculumWalksTheManifest:
         monkeypatch.setattr(config_module, "upload_curriculum_artifacts", lambda *args, **kwargs: None)
         monkeypatch.setattr(wandb_integration, "init_wandb", init_wandb)
         monkeypatch.setattr(curriculum_module, "CurriculumCallback", lambda **kwargs: MagicMock(ready_to_advance=True))
-        monkeypatch.setattr(task_fingerprint, "derive_stage_task_fingerprint", lambda **kwargs: {})
+        real_manager = curriculum_module.CurriculumManager
+
+        def make_manager(**kwargs):
+            manager = real_manager(**kwargs)
+            record["managers"].append(manager)
+            return manager
+
+        monkeypatch.setattr(curriculum_module, "CurriculumManager", make_manager)
+        monkeypatch.setattr(
+            task_fingerprint,
+            "derive_stage_task_fingerprint",
+            lambda **kwargs: {} if task_sha256 is None else {"task_sha256": task_sha256},
+        )
         monkeypatch.setattr(plant_contract, "write_plant_identity", lambda path, identity: None)
 
         species_cfg = SimpleNamespace(species=species, env_class=object)
@@ -1016,6 +1041,7 @@ class TestTrainCurriculumWalksTheManifest:
                 retrain_from=retrain_from,
                 label=label,
                 use_wandb=use_wandb,
+                target=target,
             )
         return record
 
@@ -1074,9 +1100,15 @@ class TestTrainCurriculumWalksTheManifest:
         ancestor = self._certified_ancestor(trunk)
         asked: list[tuple[str, str | None]] = []
 
-        def find_ancestor(run_dir, *, species, entry, current_task_sha256, plant_identity, parent_model_sha256):
+        def find_ancestor(
+            run_dir, *, species, entry, current_task_sha256, plant_identity, parent_model_sha256, follow_records
+        ):
             asked.append((entry.id, parent_model_sha256))
             assert Path(run_dir) == trunk and species == "velociraptor"
+            # The trunk is another run by construction, so the curriculum opts
+            # in to following its ancestor records (D-A23); the notebook's
+            # same-run candidate must not, which is why the library defaults off.
+            assert follow_records is True
             if entry.id == "stance":
                 return ancestor
             raise AncestorReuseError(f"{entry.id}: no gate_verdict.json in the trunk")
@@ -1155,6 +1187,70 @@ class TestTrainCurriculumWalksTheManifest:
         target = [r for r in caplog.records if r.message.startswith("Not reusing 'behavior'")]
         assert len(target) == 1 and target[0].levelno == logging.INFO
         assert "it is this run's target" in target[0].message
+
+    def test_trunk_from_a_middle_run_reuses_stance_from_the_original_run(self, tmp_path, monkeypatch, caplog):
+        """Decision D-A23: a run that itself reused stance holds only ``ancestors/stance/``, and the real
+        rule, which the curriculum asks to follow records (``follow_records=True`` — the trunk is
+        another run by construction), follows that record to the run that certified stance.  The curriculum passes the middle
+        run and receives the ORIGINAL: it is what is recorded as this run's ancestor and what walk's
+        ``parent_run_id`` names; walk, which the middle run neither trained nor reused, is trained
+        here, and hunt is the target."""
+        from environments.shared.ancestors import find_certified_ancestor, record_ancestor
+        from environments.shared.stage_manifest import load_stage_manifest
+
+        from .reporting_helpers import make_plant_identity
+        from .test_ancestors import STANCE_TASK, build_trunk_run
+
+        plant = make_plant_identity()
+        original = tmp_path / "logs" / "original-run"
+        original.mkdir(parents=True)
+        stance_dir = build_trunk_run(original, species="velociraptor", plant=plant)
+        middle = tmp_path / "logs" / "middle-run"
+        middle.mkdir()
+        record_ancestor(
+            middle,
+            find_certified_ancestor(
+                original,
+                species="velociraptor",
+                entry=load_stage_manifest("velociraptor").by_id("stance"),
+                current_task_sha256=STANCE_TASK,
+                plant_identity=plant,
+            ),
+        )
+        assert [child.name for child in middle.iterdir()] == ["ancestors"]
+
+        record = self._run(
+            "velociraptor",
+            tmp_path,
+            monkeypatch,
+            caplog,
+            trunk_from=middle,
+            output_dir=tmp_path / "logs" / "child-run",
+            task_sha256=STANCE_TASK,
+            plant=plant,
+        )
+
+        assert [stage for stage, _, _ in record["saved"]] == [2, 3]
+        assert record["parent_run_ids"] == [(2, "original-run"), (3, None)]
+        assert record["loads"][0] == str(stance_dir / "models" / "robust_best_model")
+        [(child_dir, ancestor)] = record["ancestors"]
+        assert child_dir == tmp_path / "logs" / "child-run" and ancestor.stage_id == "stance"
+        assert ancestor.run_id == "original-run" and ancestor.source_run_dir == original
+        assert ancestor.stage_dir == stance_dir and ancestor.via == (middle,)
+        followed = [r for r in caplog.records if r.message.startswith("Following the ancestor record")]
+        assert len(followed) == 1 and str(middle) in followed[0].message and str(original) in followed[0].message
+        # The D-A21 ignored-edit warning (the fixture records no algorithm
+        # block) and the reuse line both name the ORIGINAL run, never the middle.
+        reused = [r for r in caplog.records if r.message.startswith("Reusing certified 'stance' from run original-run")]
+        assert [r.levelno for r in reused] == [logging.WARNING, logging.INFO]
+        assert not [r for r in caplog.records if "from run middle-run" in r.message]
+        not_reused = [r for r in caplog.records if r.message.startswith("Not reusing")]
+        assert [r.levelno for r in not_reused] == [logging.WARNING, logging.INFO]
+        assert (
+            "'locomotion'" in not_reused[0].message and "no stage directory for 'locomotion'" in not_reused[0].message
+        )
+        assert "ancestors/locomotion/ancestor.json to follow" in not_reused[0].message
+        assert "'behavior'" in not_reused[1].message and "it is this run's target" in not_reused[1].message
 
     def test_a_reused_child_needs_its_parent_resolved_first(self, tmp_path, monkeypatch, caplog):
         """The parent check precedes reuse: with locomotion's edge pointing at the never-certified
@@ -1366,6 +1462,238 @@ class TestTrainCurriculumWalksTheManifest:
             )
 
         assert "['stance', 'locomotion', 'behavior']" in str(excinfo.value)
+        assert not run_dir.exists()
+
+    # -- decision D-A24: ``target`` walks the target's chain -----------------
+
+    @staticmethod
+    def _walk(record, base_dir):
+        """The walk a record describes, with paths relative to *base_dir* so two runs compare."""
+        return {
+            "saved": [
+                (stage, load and str(Path(load).relative_to(base_dir)), mode) for stage, load, mode in record["saved"]
+            ],
+            "loads": [load and str(Path(load).relative_to(base_dir)) for load in record["loads"]],
+            "parents": record["parents"],
+            "verdicts": [(v["stage_id"], v["stage_dir"].name, v["passed"]) for v in record["verdicts"]],
+            "parent_run_ids": record["parent_run_ids"],
+            "ancestors": [(run_dir.name, a.stage_id) for run_dir, a in record["ancestors"]],
+        }
+
+    def test_target_walk_trains_stance_and_locomotion_only(self, tmp_path, monkeypatch, caplog):
+        """Decision D-A24: ``target="walk"`` walks walk's chain — stance, locomotion — and stops:
+        both are trained and judged, no third stage directory exists, behavior is skipped with a
+        line naming the target, and the banner names the chain.  The manager is still keyed over
+        the FULL advancing ladder (3 stages) and is advanced once per node that passed, never past
+        the target, so a walk-only run leaves it at stage 2 mid-ladder: ``is_final_stage`` False,
+        one more ``advance()`` legal (to 3), a second one a RuntimeError — the semantics the loop
+        relies on, pinned here."""
+        record = self._run("velociraptor", tmp_path, monkeypatch, caplog, target="walk")
+
+        assert [stage for stage, _, _ in record["saved"]] == [1, 2]
+        assert record["loads"] == [None, str(tmp_path / "01_stance" / "models" / "stage1_final")]
+        assert record["parents"] == [None, "stance"]
+        assert [v["stage_id"] for v in record["verdicts"]] == ["stance", "locomotion"]
+        assert all(v["passed"] for v in record["verdicts"])
+        assert sorted(p.name for p in tmp_path.iterdir() if p.is_dir()) == ["01_stance", "02_locomotion"]
+        banner = [r for r in caplog.records if r.message.startswith("Starting automated curriculum training")]
+        assert len(banner) == 1 and banner[0].message.endswith(
+            "(target 'locomotion', its chain in manifest order): stance -> locomotion"
+        )
+        skipped = [r for r in caplog.records if r.message.startswith("Skipping advancing stage 'behavior'")]
+        assert len(skipped) == 1 and skipped[0].levelno == logging.INFO
+        assert "target 'locomotion' (stance -> locomotion)" in skipped[0].message
+        assert not [r for r in caplog.records if "Skipping non-advancing stage" in r.message]
+        # The manager: full ladder, advanced exactly once (stance -> 2), left mid-ladder.
+        [manager] = record["managers"]
+        assert manager.total_stages == 3 and manager.current_stage == 2 and not manager.is_final_stage
+        assert [r.message for r in caplog.records if r.message.startswith("Auto-advanced")] == [
+            "Auto-advanced to stage 2"
+        ]
+        assert manager.advance() == 3 and manager.is_final_stage
+        with pytest.raises(RuntimeError, match="Cannot advance past final stage 3"):
+            manager.advance()
+
+    def test_target_walk_never_reuses_locomotion_from_a_trunk(self, tmp_path, monkeypatch, caplog):
+        """The target-is-never-reused rule (D-A18) follows the target: with a trunk certifying stance
+        AND locomotion, ``target="walk"`` reuses stance and trains locomotion here as the target,
+        with the trunk as its lineage; the trunk is never consulted for locomotion or behavior."""
+        trunk = tmp_path / "trunk-run"
+        stance = self._certified_ancestor(trunk, "stance", "1", model_sha256="a" * 64)
+        locomotion = self._certified_ancestor(trunk, "locomotion", "2", model_sha256="b" * 64)
+        asked: list[tuple[str, str | None]] = []
+
+        def find_ancestor(run_dir, *, entry, parent_model_sha256, **kwargs):
+            asked.append((entry.id, parent_model_sha256))
+            return {"stance": stance, "locomotion": locomotion}[entry.id]
+
+        record = self._run(
+            "velociraptor",
+            tmp_path,
+            monkeypatch,
+            caplog,
+            trunk_from=trunk,
+            find_ancestor=find_ancestor,
+            target="walk",
+        )
+
+        assert asked == [("stance", None)]
+        assert record["saved"] == [(2, stance.model_stem, "initialize_next_stage")]
+        assert [v["stage_id"] for v in record["verdicts"]] == ["locomotion"]
+        assert record["parent_run_ids"] == [(2, "trunk-run-id")]
+        assert [a.stage_id for _, a in record["ancestors"]] == ["stance"]
+        not_reused = [r for r in caplog.records if r.message.startswith("Not reusing")]
+        assert len(not_reused) == 1 and not_reused[0].levelno == logging.INFO
+        assert not_reused[0].message.startswith("Not reusing 'locomotion'")
+        assert "it is this run's target" in not_reused[0].message
+        [manager] = record["managers"]
+        assert manager.current_stage == 2
+
+    def test_target_hunt_is_the_default_and_a_stage_id_or_legacy_number_resolves_like_its_label(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """``target="hunt"`` (the label), ``"behavior"`` (the deliverable's id) and ``3`` (its legacy
+        number) each walk exactly what the default walks; ``"locomotion"`` and ``2`` walk exactly what
+        ``"walk"`` walks.  The record projections compare with run directories factored out."""
+        walks = {}
+        for name, target in (("default", None), ("hunt", "hunt"), ("behavior", "behavior"), ("three", 3)):
+            run_dir = tmp_path / name
+            record = self._run("velociraptor", tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
+            walks[name] = self._walk(record, run_dir)
+        assert walks["hunt"] == walks["behavior"] == walks["three"] == walks["default"]
+        assert [stage for stage, _, _ in walks["default"]["saved"]] == [1, 2, 3]
+        banners = [r.message for r in caplog.records if r.message.startswith("Starting automated")]
+        assert len(banners) == 4 and all(
+            b.endswith("(target 'behavior', its chain in manifest order): stance -> locomotion -> behavior")
+            for b in banners
+        )
+        assert not [r for r in caplog.records if r.message.startswith("Skipping advancing stage")]
+
+        caplog.clear()
+        for name, target in (("walk", "walk"), ("locomotion", "locomotion"), ("two", 2)):
+            run_dir = tmp_path / name
+            record = self._run("velociraptor", tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
+            walks[name] = self._walk(record, run_dir)
+        assert walks["locomotion"] == walks["two"] == walks["walk"]
+        assert [stage for stage, _, _ in walks["walk"]["saved"]] == [1, 2]
+        assert len([r for r in caplog.records if r.message.startswith("Skipping advancing stage 'behavior'")]) == 3
+
+    @pytest.mark.parametrize("target", ["stand", "recovery"])
+    def test_a_target_whose_chain_runs_through_a_non_advancing_stage_raises_before_any_directory_is_written(
+        self, tmp_path, monkeypatch, caplog, target
+    ):
+        """On T-Rex ``stand`` resolves to recovery (its deepest deliverable) and ``recovery`` names it
+        outright; either chain is stance -> recovery, which the integer-keyed manager cannot judge.
+        The ValueError names the offending node, the advancing ids and the notebook's BEHAVIOR knob,
+        and the run directory does not exist afterwards."""
+        run_dir = tmp_path / "fresh-run"
+
+        with pytest.raises(ValueError) as excinfo:
+            self._run("trex", tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
+
+        message = str(excinfo.value)
+        assert message.startswith(
+            f"target {target!r} resolves to 'recovery', whose chain ['stance', 'recovery'] runs through"
+        )
+        assert "the non-advancing stage(s) ['recovery']" in message
+        assert "advancing stages ['stance', 'locomotion', 'behavior']" in message
+        assert f"notebook's BEHAVIOR knob (BEHAVIOR = {target!r})" in message
+        assert not run_dir.exists()
+
+    def _run_with_behavior_edge_on_stance(self, tmp_path, monkeypatch, caplog, **run_kwargs):
+        """The velociraptor curriculum with behavior's edge retargeted at stance, leaving locomotion —
+        still advancing, still numbered 2 — off hunt's chain.  The loader accepts it: legacy numbers
+        pin ids and order, not the edges between advancing nodes."""
+        import shutil
+
+        from environments.shared import config as config_module
+        from environments.shared import stage_manifest
+
+        configs = tmp_path / "configs"
+        shutil.copytree(stage_manifest._CONFIGS_DIR / "velociraptor", configs / "velociraptor")
+        manifest_path = configs / "velociraptor" / "stages.toml"
+        text = manifest_path.read_text(encoding="utf-8")
+        assert text.count('warm_start_from = "locomotion"') == 1
+        manifest_path.write_text(text.replace('warm_start_from = "locomotion"', 'warm_start_from = "stance"'))
+        monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
+        monkeypatch.setattr(config_module, "_CONFIGS_DIR", configs)
+        return self._run("velociraptor", tmp_path, monkeypatch, caplog, **run_kwargs)
+
+    @pytest.mark.parametrize("target", ["hunt", "behavior", 3])
+    def test_a_target_whose_chain_skips_a_ladder_stage_raises_before_any_directory_is_written(
+        self, tmp_path, monkeypatch, caplog, target
+    ):
+        """An explicit target's chain must be a PREFIX of the advancing ladder, not merely all-advancing:
+        with behavior's edge on stance, hunt's chain is stance -> behavior and the manager — advanced
+        once after stance, so at stage 2 of 3 — would judge behavior against locomotion's thresholds.
+        Refused naming the skipped stage, the ladder and the notebook, with no run directory."""
+        run_dir = tmp_path / "fresh-run"
+
+        with pytest.raises(ValueError) as excinfo:
+            self._run_with_behavior_edge_on_stance(tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
+
+        message = str(excinfo.value)
+        assert message.startswith(f"target {target!r} resolves to 'behavior', whose chain ['stance', 'behavior'] skips")
+        assert (
+            "the advancing stage(s) ['locomotion'] below it on the ladder ['stance', 'locomotion', 'behavior']"
+            in message
+        )
+        assert "judge the node after the gap against the skipped stage's thresholds" in message
+        expected_behavior = target if isinstance(target, str) else "behavior"
+        assert f"notebook's BEHAVIOR knob (BEHAVIOR = {expected_behavior!r})" in message
+        assert not run_dir.exists()
+
+    def test_the_default_target_still_walks_the_whole_ladder_over_an_off_ladder_edge(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """``target=None`` is the ladder itself and is not validated as a chain (the walk before D-A24,
+        bit for bit): with behavior's edge on stance every ladder node is still walked in order and
+        behavior warm-starts from stance's handoff along its declared edge."""
+        record = self._run_with_behavior_edge_on_stance(tmp_path, monkeypatch, caplog)
+
+        assert [stage for stage, _, _ in record["saved"]] == [1, 2, 3]
+        assert record["parents"] == [None, "stance", "stance"]
+        assert record["loads"][2] == str(tmp_path / "01_stance" / "models" / "stage1_final")
+
+    @pytest.mark.parametrize(
+        ("target", "match"),
+        [
+            (
+                "fly",
+                "target 'fly' does not name a behavior of velociraptor: velociraptor has no behavior 'fly'; recipe labels: \\['stand', 'walk', 'hunt'\\], deliverable ids: \\['stance', 'locomotion', 'behavior'\\]",
+            ),
+            (7, "target 7 does not name a behavior of velociraptor: velociraptor has no stage with legacy number 7"),
+        ],
+    )
+    def test_an_unknown_target_raises_listing_the_labels(self, tmp_path, monkeypatch, caplog, target, match):
+        """An unknown label lists the recipe labels and deliverable ids; an unknown legacy number
+        says so; neither leaves a footprint."""
+        run_dir = tmp_path / "fresh-run"
+        with pytest.raises(ValueError, match=match):
+            self._run("velociraptor", tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
+        assert not run_dir.exists()
+
+    def test_retrain_from_outside_the_targets_chain_raises_before_any_directory_is_written(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """``retrain_from="behavior"`` with ``target="walk"`` names an advancing node the run never
+        walks: refused naming the chain, before the run directory exists."""
+        run_dir = tmp_path / "fresh-run"
+        with pytest.raises(ValueError) as excinfo:
+            self._run(
+                "velociraptor",
+                tmp_path,
+                monkeypatch,
+                caplog,
+                trunk_from=tmp_path / "trunk",
+                retrain_from="behavior",
+                target="walk",
+                output_dir=run_dir,
+            )
+        assert str(excinfo.value) == (
+            "retrain_from 'behavior' names 'behavior', which is not on the chain this run walks to its target "
+            "'locomotion': ['stance', 'locomotion']; it must name one of those"
+        )
         assert not run_dir.exists()
 
     def test_an_occupied_stage_directory_is_refused_before_it_is_written(self, tmp_path, monkeypatch, caplog):

@@ -6,7 +6,29 @@ chain loop both apply the rule this module owns, in this order, refusing
 on the first failure with a reason naming it:
 
 1. the candidate run has a stage directory for the node, in any layout
-   generation (``stage{N}``, ``NN_{id}``, bare id);
+   generation (``stage{N}``, ``NN_{id}``, bare id) — preferred whenever it
+   exists; else the candidate holds ``ancestors/<stage_id>/ancestor.json``
+   for the node (it REUSED the node itself) and the record is FOLLOWED
+   (decision D-A23): its ``source_run_dir`` is resolved — as recorded, else
+   the sibling of the candidate with the same name, since Colab, Drive and
+   bucket layouts keep runs side by side under ``LOG_BASE/<species>/<algo>/``
+   — and the rule is applied at the source, every rule below included, whose
+   handoff pair must still hash to the ``handoff.model_sha256`` /
+   ``handoff.normalization_sha256`` the record bound the reuse to.  At most
+   :data:`ANCESTOR_RECORD_HOP_LIMIT` records are followed, a record that
+   points back at a run already on the path is a cycle, and every refusal
+   met on the followed path is re-raised prefixed with the hop taken.  The
+   result describes the SOURCE (its run id, run directory and stage
+   directory) with the followed runs in ``via``, so a child trunked from a
+   run that reused a node records the run that certified it.  Following is
+   OPT-IN (``follow_records=True``, which ``train_curriculum --trunk-from``
+   passes, and the notebook's chain loop passes for its ``TRUNK_DIR``
+   candidate only): a caller that looks in its OWN run directory first — the
+   notebook tries ``RUN_DIR`` before ``TRUNK_DIR`` — must leave it off there,
+   because the record in its own directory is the reuse it made itself, and
+   following it would present the trunk's node as this run's own (its results
+   re-entered as trained here, its lineage lost); with the default the
+   pre-D-A23 refusal stands;
 2. that directory carries a ``gate_verdict.json`` that PASSED, hashes both
    files of its handoff pair, and judged this node's id;
 3. the verdict's ``task_sha256`` equals the fingerprint derived from the
@@ -29,6 +51,17 @@ on the first failure with a reason naming it:
    digests, so a checkpoint rewritten after judging is refused;
 6. the checkpoint's recorded plant identity validates against the current
    plant with no legacy allowance.
+
+Trunks therefore compose on the command line: a run that reused stance and
+trained walk serves as a ``--trunk-from`` for both, and a run trunked from
+it names the run that certified stance as stance's ``parent_run_id`` — one
+machine-visible run directory away, never a copy of the checkpoint.  The
+record names the source by ABSOLUTE path (``source_run_dir`` and
+``source_stage_dir`` are resolved when written, as the handoff paths are),
+so a record made from a relative ``--trunk-from logs/<run>`` follows from
+any working directory, and the sibling fallback is for a moved layout only.
+The notebook's chain loop opts in for its ``TRUNK_DIR`` candidate only, so
+``TRUNK_FROM`` composes the same way.
 
 Two things the rule never does.  It never reuses a run's TARGET node — the
 node the run exists to certify is always trained; an earlier run's certified
@@ -81,6 +114,14 @@ ANCESTOR_COPIED_FILES = (
 )
 
 
+#: How many ``ancestors/<stage_id>/ancestor.json`` records rule 1 follows
+#: before refusing (decision D-A23).  A real lineage is one hop deep — a
+#: followed record names the run that certified the node, so the child's
+#: own record names that run again — and a chain this long is a layout
+#: rewritten by hand, which the cycle guard alone would not bound.
+ANCESTOR_RECORD_HOP_LIMIT = 8
+
+
 class AncestorReuseError(RuntimeError):
     """A candidate stage directory cannot be reused as a certified ancestor."""
 
@@ -104,6 +145,10 @@ class CertifiedAncestor:
     task_sha256: str
     judged_by: str
     verdict: dict[str, Any]
+    #: The runs whose ``ancestors/<stage_id>/ancestor.json`` rule 1 followed
+    #: to reach ``source_run_dir``, outermost first; empty for a direct hit.
+    #: Logged, never persisted: ``ancestor.json`` records the source alone.
+    via: tuple[Path, ...] = ()
 
 
 def run_id_for(run_dir: "str | Path") -> str:
@@ -197,6 +242,7 @@ def find_certified_ancestor(
     current_task_sha256: "str | None",
     plant_identity: "PlantIdentity",
     parent_model_sha256: "str | None" = None,
+    follow_records: bool = False,
 ) -> CertifiedAncestor:
     """Apply the §4.2 reuse rule to *run_dir*'s directory for *entry*.
 
@@ -209,24 +255,213 @@ def find_certified_ancestor(
     (a reused ancestor's ``model_sha256``): required for a non-root node,
     which is refused when it is None because an unresolved parent leaves the
     chain unverifiable; it must be None for a root.
+
+    With *follow_records* a *run_dir* that holds no stage directory for
+    *entry* but an ``ancestors/<stage_id>/ancestor.json`` for it is followed
+    to the run that certified the node (rule 1, decision D-A23); the result
+    then describes that source and lists the followed runs in ``via``.  It
+    is off by default because only a caller that knows *run_dir* is ANOTHER
+    run may follow: ``train_curriculum`` passes it for ``--trunk-from``,
+    while a caller that tries its own run directory first (the notebook's
+    chain loop) must not, since the record it finds there is the reuse it
+    made itself and following it would present the trunk's node as this
+    run's own.  Without it such a *run_dir* is refused as one with no stage
+    directory, naming the record it holds.
     """
+    return _find_certified_ancestor(
+        Path(run_dir),
+        species=species,
+        entry=entry,
+        current_task_sha256=current_task_sha256,
+        plant_identity=plant_identity,
+        parent_model_sha256=parent_model_sha256,
+        follow_records=follow_records,
+        via=(),
+    )
+
+
+def _load_ancestor_record(record_path: Path, *, entry: "StageEntry") -> dict[str, Any]:
+    """The ``ancestor.json`` a run keeps for *entry*, with every key the follow needs — fail closed.
+
+    A local loader rather than ``result_bundle.ancestors.load_ancestor_records``:
+    that reader loads a whole run's records against the species manifest and
+    projects them to the provenance fields, dropping ``source_run_dir`` — the
+    one field the follow is about — and the source is re-verified in full
+    (every rule, at the source) rather than trusted from its copied sidecars.
+    """
+    from .result_bundle import ANCESTOR_RECORD_SCHEMA
+
+    try:
+        record: Any = json.loads(record_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise AncestorReuseError(f"{record_path} is not readable JSON, so it cannot be followed: {exc}") from exc
+    if not isinstance(record, Mapping):
+        raise AncestorReuseError(f"{record_path} must hold a JSON object, so it cannot be followed")
+    if record.get("schema") != ANCESTOR_RECORD_SCHEMA:
+        raise AncestorReuseError(
+            f"{record_path} declares schema {record.get('schema')!r}, not {ANCESTOR_RECORD_SCHEMA!r}, so it cannot "
+            "be followed"
+        )
+    if record.get("stage_id") != entry.id:
+        raise AncestorReuseError(
+            f"{record_path} records stage_id {record.get('stage_id')!r}, not {entry.id!r}, so it cannot be followed"
+        )
+    source = record.get("source_run_dir")
+    if not isinstance(source, str) or not source.strip():
+        raise AncestorReuseError(f"{record_path} records no source_run_dir, so it cannot be followed")
+    handoff = record.get("handoff")
+    if not isinstance(handoff, Mapping):
+        raise AncestorReuseError(f"{record_path} records no handoff object, so it cannot be followed")
+    for key in ("model_sha256", "normalization_sha256"):
+        digest = handoff.get(key)
+        if not isinstance(digest, str) or not digest:
+            raise AncestorReuseError(
+                f"{record_path} records no handoff.{key} (found {digest!r}), so the reuse it made is bound to "
+                "no checkpoint and it cannot be followed"
+            )
+    return dict(record)
+
+
+def _resolve_source_run_dir(run_path: Path, record_path: Path, recorded: str) -> Path:
+    """Where the followed record's source run is on THIS machine: as recorded, else beside *run_path*."""
+    recorded_path = Path(recorded)
+    if recorded_path.is_dir():
+        return recorded_path
+    sibling = run_path.parent / recorded_path.name
+    if sibling.is_dir():
+        logger.info(
+            "The ancestor record %s names source run %s, which is not here; using its sibling %s beside %s",
+            record_path,
+            recorded_path,
+            sibling,
+            run_path,
+        )
+        return sibling
+    raise AncestorReuseError(
+        f"{record_path} was made against a run directory this machine cannot see: neither the recorded "
+        f"source {recorded_path} nor its sibling {sibling} beside {run_path} is a directory"
+    )
+
+
+def _follow_ancestor_record(
+    run_path: Path,
+    record_path: Path,
+    *,
+    species: str,
+    entry: "StageEntry",
+    current_task_sha256: "str | None",
+    plant_identity: "PlantIdentity",
+    parent_model_sha256: "str | None",
+    via: tuple[Path, ...],
+) -> CertifiedAncestor:
+    """Rule 1's second branch: apply the rule at the run the record names, bound to the record's digests."""
+    record = _load_ancestor_record(record_path, entry=entry)
+    if len(via) >= ANCESTOR_RECORD_HOP_LIMIT:
+        raise AncestorReuseError(
+            f"{record_path} would be ancestor record number {len(via) + 1} followed for {entry.id!r}, past the "
+            f"limit of {ANCESTOR_RECORD_HOP_LIMIT} (path so far: {' -> '.join(str(hop) for hop in via)})"
+        )
+    source = _resolve_source_run_dir(run_path, record_path, record["source_run_dir"])
+    prefix = f"followed the ancestor record in {run_path} to {source}: "
+    path = (*via, run_path)
+    visited = {hop.resolve() for hop in path}
+    if source.resolve() in visited:
+        raise AncestorReuseError(
+            f"{prefix}the record points back at a run already on the followed path "
+            f"({' -> '.join(str(hop) for hop in path)}), which is a cycle"
+        )
+    logger.info(
+        "Following the ancestor record in %s for %r to run %s (parent_run_id %s)",
+        run_path,
+        entry.id,
+        source,
+        record.get("parent_run_id"),
+    )
+    try:
+        ancestor = _find_certified_ancestor(
+            source,
+            species=species,
+            entry=entry,
+            current_task_sha256=current_task_sha256,
+            plant_identity=plant_identity,
+            parent_model_sha256=parent_model_sha256,
+            follow_records=True,
+            via=path,
+        )
+    except AncestorReuseError as exc:
+        raise AncestorReuseError(f"{prefix}{exc}") from exc
+    # The record binds the reuse to one checkpoint pair: a source rewritten
+    # and re-judged since is a different checkpoint, which the run holding
+    # the record never descended from.
+    handoff = record["handoff"]
+    if ancestor.model_sha256 != handoff["model_sha256"]:
+        raise AncestorReuseError(
+            f"{prefix}{ancestor.model_zip} hashes to {ancestor.model_sha256} now, but {record_path} bound the "
+            f"reuse to handoff.model_sha256 {handoff['model_sha256']}; the source was rewritten since"
+        )
+    if ancestor.normalization_sha256 != handoff["normalization_sha256"]:
+        raise AncestorReuseError(
+            f"{prefix}{ancestor.normalization_path} hashes to {ancestor.normalization_sha256} now, but "
+            f"{record_path} bound the reuse to handoff.normalization_sha256 {handoff['normalization_sha256']}; "
+            "the source was rewritten since"
+        )
+    return ancestor
+
+
+def _find_certified_ancestor(
+    run_path: Path,
+    *,
+    species: str,
+    entry: "StageEntry",
+    current_task_sha256: "str | None",
+    plant_identity: "PlantIdentity",
+    parent_model_sha256: "str | None",
+    follow_records: bool,
+    via: tuple[Path, ...],
+) -> CertifiedAncestor:
+    """:func:`find_certified_ancestor` with the followed path carried through the recursion."""
     from .curriculum.checkpoints import select_handoff_checkpoint
     from .plant_contract import MODEL_IDENTITY_ATTRIBUTE, PlantCompatibilityError, validate_recorded_identity
     from .reporting.gates import _current_task_sha256
-    from .result_bundle import GateVerdictError, read_gate_verdict, sha256_file, verdict_is_reusable
+    from .result_bundle import (
+        ANCESTOR_RECORD_NAME,
+        ANCESTORS_DIRNAME,
+        GateVerdictError,
+        read_gate_verdict,
+        sha256_file,
+        verdict_is_reusable,
+    )
     from .stage_manifest import stage_dir_candidates
     from .task_fingerprint import read_checkpoint_attribute
 
-    run_path = Path(run_dir)
     if not run_path.is_dir():
         raise AncestorReuseError(f"{run_path} is not a run directory")
 
-    # (1) The stage directory, in any layout generation.
+    # (1) The stage directory, in any layout generation — else, for a caller
+    # that opted in, the record of a reuse, followed to the run that
+    # certified the node (D-A23).
     candidates = stage_dir_candidates(species, entry.reference)
     stage_dir = next((run_path / name for name in candidates if (run_path / name).is_dir()), None)
     if stage_dir is None:
-        raise AncestorReuseError(
-            f"{run_path} has no stage directory for {entry.id!r} (looked for {', '.join(candidates)})"
+        record_name = f"{ANCESTORS_DIRNAME}/{entry.id}/{ANCESTOR_RECORD_NAME}"
+        record_path = run_path / ANCESTORS_DIRNAME / entry.id / ANCESTOR_RECORD_NAME
+        reason = f"{run_path} has no stage directory for {entry.id!r} (looked for {', '.join(candidates)})"
+        if not record_path.is_file():
+            raise AncestorReuseError(reason + (f" and no {record_name} to follow" if follow_records else ""))
+        if not follow_records:
+            raise AncestorReuseError(
+                f"{reason}; it holds {record_name} for a reuse it made itself, which is not followed here "
+                "(follow_records=False: only another run's record may stand in for its stage directory)"
+            )
+        return _follow_ancestor_record(
+            run_path,
+            record_path,
+            species=species,
+            entry=entry,
+            current_task_sha256=current_task_sha256,
+            plant_identity=plant_identity,
+            parent_model_sha256=parent_model_sha256,
+            via=via,
         )
 
     # (2) A passed, reusable verdict for this node.
@@ -327,6 +562,7 @@ def find_certified_ancestor(
         task_sha256=recorded_task,
         judged_by=str(verdict.get("judged_by")),
         verdict=dict(verdict),
+        via=via,
     )
 
 
@@ -338,8 +574,11 @@ def _ancestor_record(ancestor: CertifiedAncestor) -> dict[str, Any]:
         "stage_id": ancestor.stage_id,
         "stage_key": ancestor.stage_key,
         "parent_run_id": ancestor.run_id,
-        "source_run_dir": str(ancestor.source_run_dir),
-        "source_stage_dir": str(ancestor.stage_dir),
+        # Absolute, like the handoff paths below: a record made from a
+        # relative ``--trunk-from logs/<run>`` is followed (D-A23) from any
+        # working directory, not only the one it was written from.
+        "source_run_dir": str(Path(ancestor.source_run_dir).resolve()),
+        "source_stage_dir": str(Path(ancestor.stage_dir).resolve()),
         "handoff": {
             "name": ancestor.handoff_name,
             "model_path": str(ancestor.model_zip.resolve()),
@@ -390,5 +629,11 @@ def record_ancestor(child_run_dir: "str | Path", ancestor: CertifiedAncestor) ->
         if source.is_file():
             shutil.copyfile(source, target / name)
     atomic_write_text(record_path, json.dumps(record, indent=2, sort_keys=True) + "\n")
-    logger.info("Recorded certified ancestor %r from run %s under %s", ancestor.stage_id, ancestor.run_id, target)
+    logger.info(
+        "Recorded certified ancestor %r from run %s under %s%s",
+        ancestor.stage_id,
+        ancestor.run_id,
+        target,
+        f" (resolved via {' -> '.join(str(hop) for hop in ancestor.via)})" if ancestor.via else "",
+    )
     return target

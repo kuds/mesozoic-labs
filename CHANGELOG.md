@@ -101,6 +101,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `curriculum.FROZEN_NULL_GATE_KINDS` (`{"recovery_quality/v1"}`) names the
   gate kinds whose null resolution is frozen before training and rolled
   after, for the notebook chain loop to key on instead of a stage id.
+- **Trunks compose through ancestor records** (Phase A follow-up; decision
+  D-A23). `find_certified_ancestor` rule 1 still prefers the candidate run's
+  stage directory and now, when the run holds only
+  `ancestors/<stage_id>/ancestor.json` for the node, follows the record to
+  the `source_run_dir` it names — as recorded, else the run of the same name
+  beside the candidate (Colab, Drive and bucket layouts keep runs side by
+  side), else a refusal naming both paths — and applies every rule at the
+  source, whose handoff pair must still hash to the record's
+  `handoff.model_sha256` / `handoff.normalization_sha256`. At most
+  `ANCESTOR_RECORD_HOP_LIMIT` (8) records are followed, a record pointing
+  back at a run already on the path is a cycle, and every refusal met on the
+  followed path is re-raised prefixed with the hop taken. `CertifiedAncestor`
+  describes the SOURCE and gains `via` (the followed runs, outermost first;
+  logged, never written to `ancestor.json`, whose schema is unchanged), so a
+  run trunked from a run that reused stance records the run that certified
+  stance as stance's `parent_run_id`. Following is opt-in
+  (`find_certified_ancestor(..., follow_records=True)`, default off):
+  `train_curriculum` passes it for `--trunk-from`, which is another run by
+  construction, and `curriculum --trunk-from` says so in its help. The
+  notebook's chain loop passes `follow_records=candidate is not RUN_DIR`: its
+  `TRUNK_DIR` candidate composes, while its own `RUN_DIR` — tried first, with
+  `same_run` read off the candidate — never follows, because a record there
+  (the reuse an earlier pass made from the trunk) would present the trunk's
+  node as this run's own on a re-run: its results re-entered as trained here,
+  the bundle refusing the node as both trained and reused, later nodes losing
+  `parent_run_id`, and the target reused across runs (pinned by
+  `test_sb3_notebook_pins`). `ancestor.json` now
+  records `source_run_dir` / `source_stage_dir` as absolute paths (the handoff
+  paths already were), so a record made from a relative `--trunk-from
+  logs/<run>` follows from any working directory; the sibling fallback is for
+  a moved layout only.
+- **`curriculum --target BEHAVIOR`** (Phase A follow-up; decision D-A24).
+  The command-line curriculum names the behavior it certifies — a recipe
+  label (`walk`) or a deliverable's stage id (`locomotion`), resolved as the
+  notebook's `BEHAVIOR` knob resolves them, or a legacy number (`2`),
+  resolved as `--stage` resolves it (the notebook accepts no number) — and
+  walks that target's chain (`manifest.chain_for`) root-first, stopping at
+  the target, so a certified walk-only run no longer needs the notebook.
+  The default is the last advancing stage and walks the whole advancing
+  ladder exactly as before (pinned: every curriculum test passes unchanged
+  with the default). Every node of an explicit target's chain must be
+  advancing AND the chain must be a prefix of the advancing ladder: `--target
+  stand` on the T-Rex or Compsognathus, whose chain runs through the
+  non-advancing recovery node, is refused before any directory is written,
+  naming the advancing ids and the notebook's `BEHAVIOR` knob, and so is a
+  chain that skips a ladder stage (a manifest whose `behavior` edge points at
+  `stance`, which the loader accepts — legacy numbers pin ids and order, not
+  the edges between advancing nodes — would otherwise have the integer-keyed
+  manager judge behavior against locomotion's thresholds); an unknown label
+  lists the labels; `--retrain-from` must name a node on the chain. The
+  target-is-never-reused rule, the budget-exhausted stop and the
+  start banner follow the target. The `CurriculumManager` stays
+  integer-keyed over the full advancing ladder and is never advanced past
+  the target (a walk-only run leaves it mid-ladder, where one more
+  `advance()` is legal and a second raises — pinned). `train_curriculum`
+  gains `target=None`; `_resolve_curriculum_target` / `_resolve_retrain_from`
+  give the CLI's `parser.error` and the trainer's `ValueError` the same words.
 - **Hyperparameter digest, run label, and the ignored-edit warning** (Phase
   A, WS5 part 2; decision D-A21). Every saved `stage_config.json` run block
   now records `hyperparameters_sha256` — `config.hyperparameters_sha256`

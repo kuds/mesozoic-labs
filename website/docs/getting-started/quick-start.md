@@ -104,9 +104,11 @@ already holds `stage_config.json` or `gate_verdict.json` is refused unless the
 load is `--load <checkpoint> --load-mode resume_same_stage`, so a new attempt is
 a new run directory. Hand-chained `train` runs are unjudged — `train` writes no
 `gate_verdict.json` — so they cannot serve as a later run's `--trunk-from`
-until re-judged with `scripts/backfill_gate_verdict.py`; and the curriculum
-always trains through the behavior leaf, so a certified walk-only run exists
-only through the notebook (`BEHAVIOR = "walk"`).
+until re-judged with `scripts/backfill_gate_verdict.py`. The curriculum walks
+to its `--target` (a recipe label, a deliverable's stage id or a legacy
+number; default the last advancing stage), so `curriculum --target walk`
+certifies a walk-only run on the command line as `BEHAVIOR = "walk"` does in
+the notebook.
 
 Pass `--timesteps` only when you intentionally want to override the stage
 config. The generated [model pages](/docs/models/velociraptor) show the current

@@ -154,6 +154,102 @@ class TestMainDispatch:
         err = capsys.readouterr().err
         assert expected in err and "['stance', 'locomotion', 'behavior']" in err
 
+    def test_curriculum_forwards_target_as_a_label_an_id_or_a_legacy_number(self, species_cfg, tmp_path):
+        """Decision D-A24: ``--target`` resolves like ``--stage`` (digits are a legacy number) and
+        reaches train_curriculum as ``target=``; absent, it is None (the whole ladder)."""
+        assert self._run_curriculum(species_cfg, ["--target", "walk"]).call_args.kwargs["target"] == "walk"
+        assert self._run_curriculum(species_cfg, ["--target", "locomotion"]).call_args.kwargs["target"] == "locomotion"
+        assert self._run_curriculum(species_cfg, ["--target", "2"]).call_args.kwargs["target"] == 2
+        assert self._run_curriculum(species_cfg, []).call_args.kwargs["target"] is None
+        # Beside a trunk and a retrain-from on its chain, all three are forwarded.
+        mock = self._run_curriculum(
+            species_cfg, ["--trunk-from", str(tmp_path), "--target", "walk", "--retrain-from", "locomotion"]
+        )
+        kwargs = mock.call_args.kwargs
+        assert (kwargs["trunk_from"], kwargs["target"], kwargs["retrain_from"]) == (str(tmp_path), "walk", "locomotion")
+
+    @pytest.mark.parametrize(
+        ("species", "target", "expected"),
+        [
+            (
+                "trex",
+                "stand",
+                "--target 'stand' resolves to 'recovery', whose chain ['stance', 'recovery'] runs through the "
+                "non-advancing stage(s) ['recovery']; the command-line curriculum walks only the advancing stages "
+                "['stance', 'locomotion', 'behavior'] (the CurriculumManager is integer-keyed, decision D-A7). "
+                "Train that chain through the notebook's BEHAVIOR knob (BEHAVIOR = 'stand')",
+            ),
+            (
+                "velociraptor",
+                "fly",
+                "--target 'fly' does not name a behavior of velociraptor: velociraptor has no behavior 'fly'; "
+                "recipe labels: ['stand', 'walk', 'hunt'], deliverable ids: ['stance', 'locomotion', 'behavior']",
+            ),
+        ],
+    )
+    def test_target_must_resolve_to_a_chain_of_advancing_stages(self, species_cfg, target, species, expected, capsys):
+        """A chain through a non-advancing node (trex's stand runs through recovery) is a parser.error
+        naming the notebook's BEHAVIOR knob; an unknown label lists the labels — both before
+        train_curriculum is reached."""
+        species_cfg.species = species
+        with pytest.raises(SystemExit) as excinfo:
+            self._run_curriculum(species_cfg, ["--target", target])
+        assert excinfo.value.code == 2
+        assert expected in capsys.readouterr().err
+
+    def test_a_target_whose_chain_skips_a_ladder_stage_is_a_usage_error(
+        self, species_cfg, tmp_path, monkeypatch, capsys
+    ):
+        """The chain must be a prefix of the advancing ladder: with velociraptor's behavior edge rewired
+        onto stance (a manifest the loader accepts), ``--target hunt`` is a parser.error naming the
+        skipped locomotion stage, before train_curriculum is reached."""
+        import shutil
+
+        from environments.shared import stage_manifest
+
+        configs = tmp_path / "configs"
+        shutil.copytree(stage_manifest._CONFIGS_DIR / "velociraptor", configs / "velociraptor")
+        manifest_path = configs / "velociraptor" / "stages.toml"
+        text = manifest_path.read_text(encoding="utf-8")
+        assert text.count('warm_start_from = "locomotion"') == 1
+        manifest_path.write_text(text.replace('warm_start_from = "locomotion"', 'warm_start_from = "stance"'))
+        monkeypatch.setattr(stage_manifest, "_CONFIGS_DIR", configs)
+
+        with pytest.raises(SystemExit) as excinfo:
+            self._run_curriculum(species_cfg, ["--target", "hunt"])
+        assert excinfo.value.code == 2
+        err = capsys.readouterr().err
+        assert (
+            "--target 'hunt' resolves to 'behavior', whose chain ['stance', 'behavior'] skips the advancing stage(s) ['locomotion']"
+            in err
+        )
+        assert "Train that chain through the notebook's BEHAVIOR knob (BEHAVIOR = 'hunt')" in err
+
+    def test_target_help_says_how_each_form_resolves(self, species_cfg, capsys):
+        """Labels and ids resolve as the notebook's BEHAVIOR knob does; a legacy number resolves as
+        ``--stage`` does (the notebook accepts no number) — the help must not conflate the two."""
+        with pytest.raises(SystemExit) as excinfo, patch("sys.argv", ["prog", "curriculum", "--help"]):
+            main(species_cfg)
+        assert excinfo.value.code == 0
+        help_text = " ".join(capsys.readouterr().out.split())
+        assert (
+            "resolved as the notebook's BEHAVIOR knob resolves them, or a legacy number (2), resolved as --stage resolves it"
+            in help_text
+        )
+        assert "the notebook's TRUNK_FROM does not yet" in help_text
+
+    def test_retrain_from_outside_the_targets_chain_is_a_usage_error(self, species_cfg, tmp_path, capsys):
+        """``--retrain-from behavior`` names an advancing node a ``--target walk`` run never walks."""
+        with pytest.raises(SystemExit) as excinfo:
+            self._run_curriculum(
+                species_cfg, ["--trunk-from", str(tmp_path), "--target", "walk", "--retrain-from", "behavior"]
+            )
+        assert excinfo.value.code == 2
+        assert (
+            "--retrain-from 'behavior' names 'behavior', which is not on the chain this run walks to its target "
+            "'locomotion': ['stance', 'locomotion']; it must name one of those"
+        ) in capsys.readouterr().err
+
     def test_eval_command(self, species_cfg):
         """main() with 'eval' should call evaluate()."""
         mock_eval = MagicMock()

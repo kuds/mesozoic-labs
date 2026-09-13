@@ -268,11 +268,12 @@ stance checkpoint for locomotion; `initialize_next_stage` in turn refuses a
 checkpoint whose recorded stage is not the node's declared parent. A
 hand-chained ladder is unjudged: `train` writes no `gate_verdict.json`, so its
 stage directories cannot serve as a later job's `--trunk-from` until each is
-re-judged with `scripts/backfill_gate_verdict.py`, and a certified walk-only
-run exists only through the notebook (`BEHAVIOR = "walk"`) — the curriculum
-always trains through the behavior leaf. Prefer `curriculum --trunk-from
-<run>` over hand chaining: it applies the same rule, judges every node and
-records the lineage (`parent_run_id`) for the audit.
+re-judged with `scripts/backfill_gate_verdict.py`. Prefer `curriculum
+--trunk-from <run>` over hand chaining: it applies the same rule, judges every
+node and records the lineage (`parent_run_id`) for the audit, and
+`curriculum --target walk` certifies a walk-only run (as `BEHAVIOR = "walk"`
+does in the notebook) instead of a hand-chained stance-then-locomotion pair
+of jobs.
 
 ### Option C: Using `gcloud` CLI
 
@@ -502,7 +503,9 @@ another run appears under `provenance.ancestors` instead (per deliverable:
 `normalization_hash`, `gate_kind`, `certified`, `replication`) with
 `selected_model_path` pointing at the primary deliverable — the run's target,
 else the deepest certified one. A run copied back whole can be passed to a
-later job as `--trunk-from`.
+later job as `--trunk-from`; a node it only reused resolves through its
+`ancestors/<stage_id>/ancestor.json` to the run that certified it, found at
+the recorded path or beside the trunk under the same bucket prefix.
 
 ## 10. Cost Estimation
 

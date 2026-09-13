@@ -316,6 +316,9 @@ python scripts/train_sb3.py curriculum --algorithm ppo --trunk-from logs/<earlie
 
 # Retrain locomotion (and everything after it) on top of the trunk's certified stance
 python scripts/train_sb3.py curriculum --algorithm ppo --trunk-from logs/<earlier_run> --retrain-from locomotion --output-dir logs/<new_run> --label lr-sweep-a
+
+# A walk-only run: certify locomotion on the trunk's certified stance and stop there
+python scripts/train_sb3.py curriculum --algorithm ppo --target walk --trunk-from logs/<earlier_run> --output-dir logs/<walk_run>
 ```
 
 Stages are declared by a per-species **stage manifest**
@@ -329,8 +332,9 @@ references always mean their historical stage, so existing artifacts and
 commands keep their meaning; stages without a numeric history are addressed
 by semantic id.
 
-The `curriculum` command trains the advancing stages in manifest order,
-warm-starting each node from its declared parent's handoff checkpoint and
+The `curriculum` command trains the advancing stages of its target's chain
+in manifest order — the whole ladder by default — warm-starting each node
+from its declared parent's handoff checkpoint and
 VecNormalize sidecar. Every trained node is judged and writes a
 `gate_verdict.json` beside its handoff; a node whose parent has no certified
 checkpoint stops the run with a warning, never trains from scratch. On the
@@ -344,18 +348,29 @@ certified. Ancestors reused from a trunk are not republished — they appear
 under `provenance.ancestors` and stay published by the run that certified
 them. Across runs:
 
+- `--target BEHAVIOR` names the behavior the run certifies — a recipe label
+  (`walk`) or a deliverable's stage id (`locomotion`), resolved as the
+  notebook's `BEHAVIOR` knob resolves them, or a legacy number (`2`),
+  resolved as `--stage` resolves it — and walks that target's chain and
+  stops there, so `--target walk` certifies a walk-only run. The default is
+  the last advancing stage. The chain must be the advancing ladder up to the
+  target: `--target stand` on the T-Rex, whose `stand` chain runs through the
+  non-advancing recovery node, is refused and points at the notebook, as is
+  a chain that skips a ladder stage.
 - `--trunk-from RUN_DIR` reuses an earlier run's certified ancestors,
   root-first, instead of retraining them (a passed verdict hash-bound to the
   handoff pair, the same task digest and plant, and each child trained from
-  the very parent checkpoint reused before it). The run's target — the last
-  advancing stage — is always trained here; a reused node's verdict, config,
+  the very parent checkpoint reused before it). The run's target — `--target`,
+  the last advancing stage by default — is always trained here; a reused node's verdict, config,
   fingerprint and plant records are copied under `ancestors/<stage_id>/` —
   never the checkpoint pair — and its children record `parent_run_id`. A run
-  can serve as a trunk only for the nodes it trained itself; one that reused
-  an ancestor cannot pass it on.
-- `--retrain-from STAGE_ID` (with `--trunk-from`) trains the named advancing
-  stage and everything after it even when the trunk holds a certified copy,
-  reusing only the ancestors strictly above it. A variant is a new run: a
+  that itself reused a node resolves it through its ancestor records to the
+  run that certified it, one machine-visible run directory away, so trunks
+  compose: the notebook's `TRUNK_FROM` follows them the same way, while a
+  run's own directory never does.
+- `--retrain-from STAGE_ID` (with `--trunk-from`) trains the named stage of
+  the target's chain and everything after it even when the trunk holds a
+  certified copy, reusing only the ancestors strictly above it. A variant is a new run: a
   stage directory that already records a node is refused, so pair it with a
   fresh `--output-dir`.
 - `--label TEXT` (on `train` and `curriculum`) is recorded in each trained
