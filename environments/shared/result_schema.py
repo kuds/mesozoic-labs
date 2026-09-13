@@ -78,8 +78,8 @@ RESULT_SCHEMA_VERSION = 4
 SUPPORTED_RESULT_SCHEMA_VERSIONS = frozenset({2, 3, RESULT_SCHEMA_VERSION})
 ALLOWED_BUNDLE_STATUSES = frozenset({"complete", "partial", "failed"})
 #: Exactly the fields of one ``provenance.deliverables`` record (schema v4).
-#: ``replication`` is ``{count, runs: [{run_id, training_seed}]}`` — Phase A
-#: writes count 1 with the run itself; Phase B's seed replication extends it.
+#: ``replication`` is ``{count, runs: [{run_id, training_seed}]}``: this run
+#: first, then its replicates (decisions D-B10/D-B16; ``shared.replication``).
 DELIVERABLE_RECORD_FIELDS = (
     "model_path",
     "model_hash",

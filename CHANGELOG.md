@@ -303,6 +303,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   experiment that blocks P5.
 
 #### Phase B (BEHAVIOR_RECIPES_PLAN §4.4/§4.5)
+Phase B landed 2026-09-13 as four pull requests — the gate-configuration
+digest and reuse rule 7 (#533, WS-B3), the `task_success/v1` hunting gate
+with the measured collapse floor (#534, WS-B1 + WS-B2), seed replication as
+provenance (#535, WS-B4), and the docs pass recording decisions D-B1–D-B17 in
+plan §6.1 (WS-B5); the bullets below are per workstream.
 - **`task_success/v1`, the hunting gate kind** (Phase B, WS-B1; plan §4.4,
   decisions D-B1, D-B2, D-B3, D-B12, D-B13, D-B14).
   `environments/shared/curriculum/task_success_gate.py` certifies the
@@ -894,6 +899,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   probe did.
 
 ### Removed
+- **`min_avg_forward_vel`, `min_success_rate` and the absolute
+  `collapse_peak_floor` leave `configs/trex/behavior.toml`** (Phase B,
+  WS-B2; 2026-08 review CF2, SS2, CF3; plan D1, decisions D-B2, D-B4). The
+  hunt is gated on `task_success/v1`'s `min_success_lcb` at the declared
+  `min_eval_episodes`, and `gate_schema` rejects the two retired threshold
+  keys for that kind, so neither can return silently; the absolute floor is
+  replaced by the measured `collapse_peak_floor_reference` /
+  `collapse_peak_floor_fraction` pair — removed, not shadowed, because an
+  explicit absolute key wins over the pair in
+  `collapse_settings_from_config`. All three keys stay valid for the
+  `reward_and_length/v1` stages of every other species.
 - **Dead code the gap review found** (Phase K): the in-code sweep
   search-space defaults (search spaces load from
   `configs/<species>/sweep_*.json`), `RolloutProfiler`,

@@ -265,6 +265,20 @@ Provenance records a scalar `training_seed` plus role-labelled evaluation
 seeds; nothing records replication (gap review SS1). The stance/recovery
 certification panel block 3042–3081 is not bound to any provenance role.
 
+**Phase B (2026-09-13; #533, #534 and #535).** The paragraphs
+above describe the 2026-09-05 baseline. Since Phase B the registry also
+holds `task_success/v1` (`curriculum/task_success_gate.py`: the exact
+one-sided 95% Clopper-Pearson lower bound on the selected checkpoint's
+per-episode `task_success` over `evaluation_selected.csv`, hash-bound to
+the handoff pair, at a declared panel size; `min_avg_reward` a collapse
+rail only), and the trex hunting stage is gated on it — the velocity term
+and the raw success mean are retired from `configs/trex/behavior.toml`
+(D1; §4.4 as implemented). `gate_verdict.json` records the gate it was
+judged under (`gate` / `gate_sha256`, D-A22) and reuse rule 7 checks it.
+Provenance records replication per deliverable (§4.5 as implemented), and
+the 3042–3081 panel block is bound as the `certification_panel` seed role,
+per evidence file (D-B17).
+
 ### 3.4 The SB3 notebook
 
 `notebooks/sb3_training.ipynb` is a hand-threaded ladder: cells 18, 21, 23
@@ -504,7 +518,7 @@ needs in-training advancement.
 | stand — stance | `stance_quality/v1` | none |
 | stand — recovery | `recovery_quality/v1` (frozen) | none |
 | walk — locomotion | `reward_and_length/v1`, `min_avg_forward_vel = 1.0`, `min_avg_episode_length = 750` | none now; a cruise-window velocity kind is a later refinement (CF2's suggested metric), not a prerequisite |
-| hunt — behavior | `task_success/v1` (new) | **delete `min_avg_forward_vel = 2.0`** (`behavior.toml:97`) — this plan's decision, chosen over the gap review's suggested windowed/peak velocity metric or no-prey probe episodes, which move to the walk gate as a later refinement: speed is the walking deliverable's claim, carried by lineage; gate success on `recovery_gate.binomial_lcb` at a declared n; replace the absolute `collapse_peak_floor = 100.0` with the `collapse_peak_floor_reference` / `fraction` pair plus `statue_constants_physics_revision`, measured with `zero_action_baseline.py trex:3`, together with `collapse_peak_warmup_timesteps` (the pair without the arming delay is what killed run 20260803_012355); set the collapse patience keys explicitly, no tighter than locomotion's 20/10/0.5 |
+| hunt — behavior | `task_success/v1` (new) | **delete `min_avg_forward_vel = 2.0`** (`behavior.toml:97`) — this plan's decision, chosen over the gap review's suggested windowed/peak velocity metric or no-prey probe episodes, which move to the walk gate as a later refinement: speed is the walking deliverable's claim, carried by lineage; gate success on `recovery_gate.binomial_lcb` at a declared n; replace the absolute `collapse_peak_floor = 100.0` with the `collapse_peak_floor_reference` / `fraction` pair plus `statue_constants_physics_revision`, measured with `zero_action_baseline.py trex:3`, together with `collapse_peak_warmup_timesteps` (the pair without the arming delay is what killed run 20260803_012355); set the collapse patience keys explicitly, no tighter than locomotion's 20/10/0.5. **Landed 2026-09-13 as the note below records** |
 | follow — follow_direction | `command_tracking/v1` (new, §4.6) | new |
 
 `task_success/v1` keys: `min_success_lcb`, `min_eval_episodes`,
@@ -518,6 +532,41 @@ registered in `GATE_KINDS` and `_REQUIRED_THRESHOLD_KEYS`, dispatched in
 `reporting/gates.py`, re-derived from per-episode evidence at publication,
 listed in the sweep's offline-evaluable set, rendered by the catalog and the
 TSX, and pinned by a fail-closed dispatch test.
+
+**As implemented (2026-09-13; #534, WS-B1
++ WS-B2).** `configs/trex/behavior.toml` declares `gate_kind =
+"task_success/v1"` with `min_eval_episodes = 30` (D-B1: the panel size
+every existing panel uses; the notebook's selected panel and the
+provenance `evaluation_episodes` are coupled to it and pinned) and
+`min_success_lcb = 0.5` (D-B2) — **provisional**: frozen before any
+Phase-B pilot on the strength of the committed 2026-03 row alone, to be
+re-frozen attainable-not-aspirational from the first pilot's
+`evaluation_selected.csv` (§10). Sizing at the bar: 20/30 → 0.5006 clears
+and 19/30 → 0.4669 does not; 26/40 → 0.5081 and 25/40 → 0.4828; the
+committed 29/30 → 0.8514 (a recomputation from a rounded mean, not a
+re-judgement — that row holds no per-episode evidence and was judged at
+`min_success_rate` 0.25 with no velocity term). The collapse floor is the
+measured pair: the hunting statue is **602.13 ± 175.35 over 40 episodes**
+(seed 3042, 40/40 full horizon, `zero_action_baseline.py trex:3 --episodes
+40 --seed 3042`, physics revision 7), so `collapse_peak_floor_reference =
+602.0`, `collapse_peak_floor_fraction = 0.45` (floor 270.9) and
+`min_avg_reward = 361` = round(0.6 × 602.13) as the rail (D-B4), pinned by
+`statue_constants_physics_revision = 7`; `collapse_peak_warmup_timesteps =
+1_000_000` is a judgment (D-B5, §10), and the patience keys are explicit
+at 20 / 10 / 0.5. `required_consecutive = 3` stays as in-training
+hysteresis only (D-B3). The certifying verdict is one post-stage panel:
+`generate_stage_artifacts` judges `evaluation_selected.csv` hash-bound to
+the handoff pair (rolling a panel on the publication seed when none is
+bound), publication re-derives the pass from the same rows bound to the
+certified checkpoint, and the sweep judges a row from the trial's recorded
+`success_count` / `n_success_episodes` (D-B12). The CLI curriculum's hunt
+verdict is the in-training manager's bound over the last EvalCallback
+panel (recorded as `success_count` / `n_success_samples` in the verdict's
+`stage_result`); it writes no evidence CSV and is not backfillable, so a
+CLI-certified hunt is a training-time signal, not a certification. The
+JAX path refuses the kind and, per D-B13, refuses a final stage declaring
+it before any training — on the declared kind alone. Every other species'
+hunt stays on `reward_and_length/v1` (D-B14).
 
 ### 4.5 Seed replication as provenance
 
@@ -538,6 +587,45 @@ is valid at n=1. Initial setting: 2 for trex stance, 1 elsewhere. Four
 deliverables per species at one seed each is four draws of the seed lottery,
 which is why this lands before any deliverable is called more than
 provisional (Phase B).
+
+**As implemented (2026-09-13; #535,
+WS-B4).** The count is writer-recorded, not catalog-aggregated (D-B10):
+`environments/shared/replication.py` discovers a deliverable's replicates
+among the run's `LOG_BASE/<species>/<algo>/` siblings when the notebook's
+publication cell runs, and `save_result_bundle(replicates=...)` records
+them in each deliverable's `replication` record — this run first, then its
+replicates, with distinct run ids and seeds. A replicate is a sibling of
+the SAME recipe (D-B16, tighter than "same task and plant, gate passed"
+above): equal `task_sha256`, plant identity, `gate_sha256` (the verdict's
+own record of the gate it was judged under) and `hyperparameters_sha256`,
+a passed reusable verdict, and a different training seed — two seeds of
+different gates or algorithm blocks are not replication of one
+deliverable. A sibling whose run block predates D-A21 has its
+hyperparameters digest DERIVED from its recorded blocks
+(`config.recorded_hyperparameters_sha256`) and is never skipped for that
+alone; a sibling whose verdict predates D-A22 (no `gate_sha256`) is skipped
+until re-backfilled, consistent with rule 7 and D-B6. Discovery never
+raises on a malformed neighbour (every skip is logged with its reason);
+the record is what fails closed (schema and audit). `certification_seeds`
+is a `[curriculum]` publication key (D-B9: positive int, default 1, in no
+digest; trex stance declares 2 on the seed 42 PASS / 43 FAIL / 44 PASS
+record), written into the record beside `provisional = count <
+certification_seeds` (D-B11); the catalog validates the record and
+re-derives only `provisional` from the CURRENT declaration, never
+aggregating across bundles, and renders `N run(s) of M seed(s)` plus
+`provisional` identically to the website. A replicate that finishes later
+is counted by re-running the counting run's publication cell with the
+sibling present: a `partial` bundle is rebuilt, and a verified `complete`
+bundle regenerates its derived artifacts when the replication record is
+the only change (the writer masks `replication` and `provisional` — not
+`certification_seeds` — when comparing the existing and prospective summaries) and is refused as immutable on any other
+difference. The `certification_panel` role is a default provenance role
+(`PUBLICATION_SEED_START`, 3042, for every SB3 bundle) bound per evidence
+(D-B17): stance panel row *i* must carry `panel_seed == role + i`, a
+recovery `gate_resolution.json` must register `panel_seed_start == role`,
+a declared role must equal the registered block, and a recorded stance
+PASS in a bundle without the role is refused at publication. The JAX saver
+passes no replicates, so its records count the run alone.
 
 ### 4.6 Follow-direction
 
@@ -755,7 +843,7 @@ and integer-keyed until a recipe sweep is needed).
 |---|---|---|---|---|
 | **Doc** | this | This plan; docs index and changelog entries | Reviewed; decisions §6 confirmed or vetoed | — |
 | **A** | manifest edges + publication + notebook | §4.1 manifest v2 (loader, validators, v1/synthesized compatibility); §4.2 retargets, `gate_verdict.json`, `--trunk-from`; §4.3 schema v4, per-deliverable status, catalog and TSX; §4.7 chain loop | v1 manifests read bit-identically (pinned); v2 manifests committed for all four species; a run with a failed leaf publishes its certified trunk (pinned); notebook AST pins; full suite green | ~1.5 weeks |
-| **B** | hunting gate + seeds | §4.4 `task_success/v1`, `behavior.toml` edits, measured statue floor; §4.5 provenance fields, `certification_panel` role, provisional labels | Fail-closed dispatch test for the new kind; `load_all_stages("trex")` accepts `behavior.toml` under `task_success/v1` and the gate-schema tests pass; catalog renders provisional | 2–3 days |
+| **B** | **landed 2026-09-13** — #533 (gate-configuration digest, reuse rule 7, backfill `--gate`; WS-B3), #534 (the `task_success/v1` hunting gate and `behavior.toml`; WS-B1 + WS-B2), #535 (seed replication; WS-B4); this docs pass is WS-B5 | §4.4 `task_success/v1`, `behavior.toml` edits, measured statue floor; §4.5 provenance fields, `certification_panel` role, provisional labels; decisions D-B1–D-B17 (§6.1) | Met: fail-closed dispatch test for the new kind (`test_gate_dispatch_fail_closed.py`); `load_all_stages("trex")` accepts `behavior.toml` under `task_success/v1` and the gate-schema tests pass; the catalog and the site render `N run(s) of M seed(s); provisional` identically (`test_species_catalog.py::test_website_replication_formatter_mirrors_python`); trex stance will read `1 run of 2 seeds; provisional` once its Drive bundles are republished (no stance bundle is committed; KNOWN_ISSUES) | 2–3 days |
 | **C** | interface bump | §4.6 reserved command dims across SB3 and MJX, plant revisions, `widen_checkpoint`, command-slice reseed, MJX fail-closed | Zero-column and action-equality pins; one PPO update from the widened checkpoint; regenerated plant manifest passes `plant_contract --check` with SB3/MJX parity over the widened probes; widened stance checkpoint re-paneled and one recovery freeze re-rolled from it, outcomes recorded in an investigation note | ~1 week |
 | **C½** | walker under the new interface | Locomotion re-run warm-started from the widened stance checkpoint (8M, one seed), or the seed-replicate retrain fallback if the re-panel failed | A walking checkpoint certified by `reward_and_length/v1` (≥ 1.0 m/s, ≥ 750 steps) under the new interface; recorded in the same investigation note | ~9 h of Colab per attempt |
 | **D** | follow leaf | §4.6 env sampler, tracking reward, `command_tracking/v1`, the two mini-stage TOMLs, notebook command video; T-Rex pilot | Pilot run from the C½ walker with frozen thresholds recorded; MJX fail-closed raise test; gate consulted-test (live-command SB3/MJX parity is a Phase E criterion, when MJX command mode lands) | ~1.5–2 weeks + one pilot run |
@@ -799,10 +887,13 @@ Assumptions (state an objection and the plan changes):
 - A9 The notebook loop applies stage-entry warm-up to SAC as the CLI does.
 - A10 Ancestor reuse copies records, never checkpoints, into the child run.
 
-### 6.1 Decisions taken during Phase A (the D-A series)
+### 6.1 Decisions taken during Phases A and B (the D-A and D-B series)
 
-Taken while implementing Phase A (2026-09-06 to 2026-09-12); the pull
-requests, CHANGELOG and code comments cite them by number.
+Taken while implementing Phase A (2026-09-06 to 2026-09-12, D-A1–D-A24)
+and Phase B (2026-09-13, D-B1–D-B17); the pull requests, CHANGELOG and
+code comments cite them by number. Each D-B row states the decision as
+taken and as implemented; where the implementation deviated from the
+design's wording, the row says what the code does.
 
 | # | Decision |
 |---|---|
@@ -814,7 +905,7 @@ requests, CHANGELOG and code comments cite them by number.
 | D-A6 | `scripts/backfill_gate_verdict.py` re-derives a verdict for a pre-Phase-A stage directory from its evidence through `evaluate_stage_gate`; it refuses when evidence is missing. |
 | D-A7 | Reused nodes write no `curriculum_results.csv` row; `train_curriculum` stops (does not skip past) a node whose declared ancestor has no certified checkpoint; non-advancing nodes are still skipped by the CLI curriculum in Phase A. |
 | D-A8 | Catalog `schema_version` 3 → 4; `species_manifest.toml` `schema_version` 1 → 2. |
-| D-A9 | Stance and recovery deliverable headlines render the metric name with a null value in Phase A; exporting per-stage gate metrics into the summary is Phase B. |
+| D-A9 | Stance and recovery deliverable headlines render the metric name with a null value in Phase A; exporting per-stage gate metrics into the summary is Phase B (deferred to a later phase by D-B15; the hunt's `selected_model_success_lcb` is the exception). |
 | D-A10 | The README's generated SPECIES table gains Recipe and Warm-start-from columns; the generated RESULTS block and the website's published run summaries stay byte-identical (golden regression). |
 | D-A11 | The notebook's `BEHAVIOR` defaults to `"hunt"`; the recovery gate is enforced by the chain under `BEHAVIOR="stand"`; the manual single-node cell never swallows a `ResultBundleError` silently. |
 | D-A12 | Species-free readers (`detect_stage_from_path`, the sweep collector) stay reserved-id only; species-aware readers accept any declared id. |
@@ -824,12 +915,29 @@ requests, CHANGELOG and code comments cite them by number.
 | D-A16 | `target_deliverable` / `primary_deliverable` are finalization fields written by `save_result_bundle`, not identity fields. |
 | D-A17 | Reuse is chain-aware by digest (§4.2 rule 4): a non-root candidate's recorded `parent_checkpoint_sha256` must equal the digest resolved for its declared parent; a root candidate must not have entered from a parent. Reuse is root-first and a child of a node trained in the same run is never looked up. |
 | D-A18 | The target node is never reused across runs; an earlier run's certified target is that run's deliverable, published from there. |
-| D-A19 | A retrain-from knob (`curriculum --retrain-from <stage_id>`, the notebook's `RETRAIN_FROM`) reuses certified ancestors strictly above the named node and trains it and every descendant; it generalises D-A18. Lands with the notebook loop. |
-| D-A20 | Training refuses to write into a stage directory that already holds a verdict or stage config unless the load is an explicit same-stage resume, so a fresh run directory per variant is enforced. Lands with the notebook loop. |
-| D-A21 | Every trained node records a `hyperparameters_sha256` (its algorithm block and stage-entry shaping keys) and an optional label, propagated to `provenance.deliverables` and the W&B run; at reuse time the loop compares the current digest against the ancestor's copied config and warns, naming the differing keys, when an edit is being ignored. The task fingerprint and the reuse rule are unchanged. Lands with the notebook loop. |
-| D-A22 | `gate_verdict.json` records the gate configuration it was judged under (kind, schema version, every threshold, and a `gate_sha256` over them) and reuse gains rule 7: a candidate judged under a different gate configuration is refused, naming the differing thresholds. Lands with the Phase B gate work. |
+| D-A19 | A retrain-from knob (`curriculum --retrain-from <stage_id>`, the notebook's `RETRAIN_FROM`) reuses certified ancestors strictly above the named node and trains it and every descendant; it generalises D-A18. Landed with the notebook loop (#530). |
+| D-A20 | Training refuses to write into a stage directory that already holds a verdict or stage config unless the load is an explicit same-stage resume, so a fresh run directory per variant is enforced. Landed with the notebook loop (#530). |
+| D-A21 | Every trained node records a `hyperparameters_sha256` (its algorithm block and stage-entry shaping keys) and an optional label, propagated to `provenance.deliverables` and the W&B run; at reuse time the loop compares the current digest against the ancestor's copied config and warns, naming the differing keys, when an edit is being ignored. The task fingerprint and the reuse rule are unchanged. Landed with the notebook loop (#530). |
+| D-A22 | `gate_verdict.json` records the gate configuration it was judged under (kind, schema version, every threshold, and a `gate_sha256` over them) and reuse gains rule 7: a candidate judged under a different gate configuration is refused, naming the differing thresholds. Landed in #533 (the payload is D-B7's threshold projection, not literally every key). |
 | D-A23 | Trunks compose: reuse rule 1 prefers the candidate's stage directory and otherwise follows its `ancestors/<stage_id>/ancestor.json` to the `source_run_dir` it names (as recorded, else the sibling of the same name beside the candidate; else refused naming both paths), applying every rule at the source and requiring the source's handoff pair to hash to the record's `handoff` digests. At most 8 records are followed, a cycle is refused, and refusals on the followed path are prefixed with the hop taken. The result describes the source (`via` lists the followed runs; logged, never persisted), so a child's `parent_run_id` names the run that certified the node. Following is opt-in (`follow_records=True`): `train_curriculum --trunk-from` passes it (the trunk is another run by construction); the notebook loop does not, because it tries its own `RUN_DIR` first and reads `same_run` off the candidate — a followed record there would present the trunk's node as this run's own on a re-run — so the loop passes `follow_records=candidate is not RUN_DIR`: `TRUNK_FROM` composes, this run's own directory never follows (pinned). `ancestor.json`'s schema is unchanged; `source_run_dir` / `source_stage_dir` are written as absolute paths so a record made from a relative `--trunk-from` follows from any working directory. |
 | D-A24 | `curriculum --target BEHAVIOR` (a recipe label, a deliverable's stage id or a legacy number; `train_curriculum(target=)`) walks the target's chain (`chain_for`) and stops at the target, so a walk-only certified run exists on the command line as through the notebook's `BEHAVIOR`. A label or id resolves as the notebook's `BEHAVIOR` does; a legacy number as `--stage` does. Every node of an explicit target's chain must be advancing and the chain a prefix of the advancing ladder — a chain through a non-advancing node (`stand` on T-Rex / Compsognathus) or one that skips a ladder node (an edge rewired past it, which the loader accepts) is refused before any directory is written, naming the notebook, since the integer-keyed manager would judge the node after the gap against the skipped stage's thresholds — and `--retrain-from` must name a chain node. The default (the last advancing stage) walks the whole advancing ladder unchanged. The manager stays integer-keyed over the full ladder and is never advanced past the target. |
+| D-B1 | The declared hunting panel is n = 30 (`min_eval_episodes = 30`), matching every existing panel; the coupled knobs (the notebook's selected panel, the provenance `evaluation_episodes`, `train_base`'s velocity episodes, the Ray Tune worker) are untouched and `test_trex_behavior_gates_on_task_success` pins the coupling. n was not sized up, so the bar separates ≥ 0.67 from 0.5, not 0.45 from 0.60. |
+| D-B2 | `min_success_lcb = 0.5` (20/30 needed, LCB 0.5006; 19/30 → 0.4669 fails). PROVISIONAL: frozen before any Phase-B pilot on the committed 2026-03 row alone (29/30 → 0.8514, a recomputation from a rounded mean with no per-episode evidence), to be re-frozen from the first pilot's `evaluation_selected.csv`; the TOML comment, §4.4, KNOWN_ISSUES and the catalog say so. A verdict minted under the provisional bar is re-judged, never retrained, when the bar moves (D-B7/D-B8). |
+| D-B3 | `required_consecutive` is an ALLOWED, not required, key of `task_success/v1`: scheduler hysteresis for the in-training manager only, in the digest like every advancing kind's copy of it. The certifying verdict is one post-stage panel judged once; re-running a deterministic panel is not replication. |
+| D-B4 | The collapse rail is `min_avg_reward = round(0.6 × statue reference) = 361` from the measured hunting statue (602.13 ± 175.35, n = 40, seed 3042, 40/40 full horizon, physics revision 7 — the stance rail's statue ratio), pinned by `statue_constants_physics_revision = 7`; the test asserts rail < reference. Re-derived WITH `collapse_peak_floor_reference` whenever a reward weight or the plant moves; a moved rail is a re-judge of every certified trunk, never a retrain. |
+| D-B5 | `collapse_peak_warmup_timesteps = 1_000_000`: a judgment (the stance/recovery value, bounded below by the 600k stage-entry window and above by the ≤ 0.5 × budget test pin), not a replay — no behavior-stage evaluation series under the current config exists. Re-measured from the first full hunting run's `evaluations.npz` (KNOWN_ISSUES follow-up; §10). |
+| D-B6 | A verdict without `gate_sha256` (judged before D-A22) is REFUSED by reuse rule 7 until re-judged — through the notebook's JUDGE branch (`generate_stage_artifacts`) or `backfill_gate_verdict.py --force [--gate current]`; recovery verdicts need a notebook re-roll; never a retrain. The refusal names both paths, and a refused trunk is trained in the new run. Every pre-D-A22 verdict on the log tree (the certified stance run `20260810_145546` and the seed-44 replicate `20260815_205206` included) is on the KNOWN_ISSUES inventory. |
+| D-B7 | The gate digest payload is thresholds only: `gate_config_view` projects the kind, the schema version and `GATE_KINDS[kind] ∩ declared` (every advancing kind's set carries `min_eval_episodes` / `required_consecutive`; `none/v1` is empty; `_ALL_THRESHOLD_KEYS` for a null or unregistered kind), numerics float-normalised (`100` and `100.0` are one gate); schedule, collapse, diagnostic, retention and publication keys and any `[curriculum.jax]` table are excluded; a recovery verdict hashes the declared block. `min_avg_reward` STAYS in the digest, so a moved rail (a statue re-measure) is a re-judge of every certified trunk under the new gate. |
+| D-B8 | Judge-time WARNING adopted; rule 7b NOT adopted. `generate_stage_artifacts` logs a warning naming the `gate_config_differences` when the block it judges under is not the one the directory's `stage_config.json` recorded, and never refuses. The stricter 7b variant — refusing reuse when the candidate's own recorded block does not digest to the verdict's `gate_sha256` — was rejected because under D-A22 re-judging a directory under an edited gate IS the intended path (edit a threshold, re-judge, never retrain): 7b would refuse every legitimately re-judged directory and make retraining the only escape. Only the gate the verdict was judged under counts. Replacement checks: a verdict must agree with itself — when both `gate` and `gate_sha256` are present, `gate_sha256 == gate_config_sha256(gate)`, enforced in `read_gate_verdict` and hence by rule 7, `load_ancestor_records` and the audit — and the warning names the differing thresholds. `backfill_gate_verdict.py --gate recorded\|current` judges under the recorded block (the default) or the checkout's, digests whichever it used, and refuses a stance report scored under other thresholds under either. |
+| D-B9 | `certification_seeds` is a `[curriculum]` key in `gate_schema`'s new `_PUBLICATION_KEYS` class (positive int, default 1; `declared_certification_seeds`), never in any digest — `gate_sha256`, `hyperparameters_sha256` or `task_sha256` — so raising it relabels published bundles and invalidates no verdict; trex stance declares 2, every other stage the default. |
+| D-B10 | Replicates are writer-recorded: `replication.discover_replicates_for_run` finds them among the run's `LOG_BASE/<species>/<algo>/` siblings when the publication cell runs, `save_result_bundle(replicates=...)` records them, and the catalog validates the record and re-derives only `provisional` from the current config — never aggregating across bundles. The `certification_panel` role and its collision question are settled by D-B17. |
+| D-B11 | `provisional` iff `count < certification_seeds`; count and N are always rendered — `N run(s) of M seed(s)`, plus `provisional`, and `headlineFor` appends ` (provisional, N of M seeds)` — pinned identically in `species_catalog._format_replication` and the site's `formatReplication`. |
+| D-B12 | `task_success/v1` is offline-evaluable in the sweep from the trial's recorded `success_count` / `n_success_episodes` (new `metrics.json` keys and CSV columns beside `success_lcb_threshold`), railing `min_avg_reward` on the same panel's `selected_mean_reward`. One shared trainer panel (`train_base.run_success_panel`) writes the trial's `evaluation_selected.csv` hash-bound to the handoff pair and records the count only beside it, so a trial never carries a FAILED task_success verdict without evidence and the row verdict and the on-disk verdict agree by construction. |
+| D-B13 | The JAX preflight (`jax_curriculum`) refuses a FINAL stage declaring a registered, non-none kind no JAX path can judge — `task_success/v1`; a final stage declaring `recovery_quality/v1` (the single-stage pilot's designed shape; `_FINAL_STAGE_PILOT_KINDS`, with no condition on chain length) keeps its allowance — before any training, on the declared `gate_kind` alone: the final stage's block is still not schema-validated there, so single-stage pilots train as before. |
+| D-B14 | Every other species' hunt, compsognathus and compsognathus_robot included, keeps `reward_and_length/v1`; every reader keeps both paths. The committed-config test loops cover every species with a stage manifest, and the compsognathus pair's collapse-floor omission passes those loops by the species-level decision their stance TOMLs record ("Deliberately omit a collapse floor"), not by a per-stage statement (§10). |
+| D-B15 | Exporting stance and recovery gate statistics into summary stage rows (D-A9's "Phase B" pointer) is DEFERRED to a later phase (Phase E); every pointer — `species.ts`, the catalog docstring, `species_manifest.toml`, recipes.md — defers it to a later phase citing D-B15. The hunt is the exception: `task_success/v1` exports `selected_model_success_lcb` with the count and panel size. |
+| D-B16 | A replicate is a sibling run of the SAME recipe: equal `task_sha256`, plant identity, `gate_sha256` (the verdict's) and `hyperparameters_sha256`, a passed reusable verdict and a distinct training seed — tightening §4.5's "same task and plant, gate passed" (two seeds of different recipes are not replication of one deliverable). A sibling with no recorded `hyperparameters_sha256` (pre-D-A21) gets it DERIVED from its recorded blocks (`config.recorded_hyperparameters_sha256`), never skipped for that alone; one whose verdict lacks `gate_sha256` (pre-D-A22) IS skipped until re-backfilled (D-B6). Implemented reading of a complete bundle: a re-run of the publication cell that changes nothing but the replication fields (`replication`, `provisional`) of a VERIFIED-COMPLETE bundle regenerates its derived artifacts — the writer masks those two fields when comparing the existing and prospective summaries (`_without_replication` in `reporting/bundles.py`) — and any other difference, a changed `certification_seeds` included, is still refused as immutable; a raised bar reaches published bundles through the catalog's re-derivation of `provisional` from the current declaration (D-B9/D-B10), not through republication; a late replicate is therefore counted by re-running the counting run's publication cell with the sibling present. The audit reads an absent curriculum block as the default bar 1. |
+| D-B17 | `certification_panel` is a default seed role: `initialize_result_bundle`'s default seed roles (`result_bundle/provenance.py`) carry `certification_panel = PUBLICATION_SEED_START` (3042) for every SB3 bundle, and a declared role must equal that block (refused otherwise). It is bound PER EVIDENCE, not through `evaluation_protocols` (the name deliberately lacks "evaluation"; the protocol family is untouched): stance panel row *i* must carry `panel_seed == role + i`, and a recovery `gate_resolution.json`'s `decision_procedure.panel_seed_start` must equal the role. A recorded stance PASS in a bundle whose provenance lacks the role is refused at publication (fail closed); pre-Phase-B stance bundles need republishing (none are committed; KNOWN_ISSUES). `seed_role_collisions` is unchanged — it checks training and selection roles only, so the role may equal the publication seed. |
 
 ---
 
@@ -887,7 +995,10 @@ requests, CHANGELOG and code comments cite them by number.
    a walk-only run writes a valid bundle.
 6. Ancestor reuse refuses a candidate whose gate did not pass, whose plant
    identity mismatches, or whose recorded task hash differs from the current
-   stage config.
+   stage config, or whose verdict's recorded gate-configuration digest
+   differs from the current stage config's (rule 7, D-A22), or which lacks
+   one (D-B6); a directory re-judged under the current gate is reusable
+   although it trained under another (D-B8; `test_ancestors.py`).
 7. `widen_checkpoint`: the padded columns are exactly zero, actions on
    zero-padded observations are allclose to the parent's over a seeded
    rollout, one PPO update completes from the widened checkpoint, and
@@ -899,7 +1010,8 @@ requests, CHANGELOG and code comments cite them by number.
    command segment from Phase C on.
 10. For every new gate kind: the fail-closed dispatch test and the
     "what code would have to be deleted for it to stop being consulted"
-    test.
+    test (`test_gate_dispatch_fail_closed.py`; for `task_success/v1`,
+    `TestTaskSuccessGateIsConsulted`).
 11. The follow panel contains the walk command and is paired against the
     command-blind walker; the evidence CSV carries the command columns.
 12. The notebook chain loop: AST pins for the `BEHAVIOR` knob, the reuse
@@ -913,8 +1025,14 @@ requests, CHANGELOG and code comments cite them by number.
   resolved by *removing* the velocity term from the hunting gate rather than
   by the review's suggested windowed/peak metric — the recipe framing makes
   the term's misplacement structural rather than a tuning question — and
-  the windowed metric becomes the walk gate's later refinement.
-- **SS1** (seed multiplicity): resolved by §4.5.
+  the windowed metric becomes the walk gate's later refinement. Landed
+  2026-09-13 in #534 (WS-B1 + WS-B2);
+  the review carries dated Status lines under each finding.
+- **SS1** (seed multiplicity): resolved by §4.5. Landed 2026-09-13 in the
+  seed-replication PR #535 (WS-B4); the review carries its
+  Status line. Trex stance publishes at 1 of 2 seeds — provisional — until
+  the seed-44 run is re-backfilled under D-A22 and the certified run is
+  republished with it present.
 - **DU1's open question** (SAC warm-up in the notebook): closed by §4.7.
 - **ROADMAP "Turning and steering"** (`docs/ROADMAP.md:253`) is the
   follow-direction leaf; **"Hierarchical RL architecture"** (`:320`) and
@@ -937,3 +1055,21 @@ requests, CHANGELOG and code comments cite them by number.
 - Is a cruise-window velocity gate for walking worth its new evidence
   columns, or does the 1.0 m/s episode-mean gate with the 750-step length
   floor suffice? (Decide after the first certified walker under Phase C.)
+- Where does the hunting bar settle? `min_success_lcb = 0.5` is
+  provisional (D-B2): re-freeze it attainable-not-aspirational from the
+  first Phase-B pilot's `evaluation_selected.csv` (20/30 clears at 0.5006,
+  19/30 does not), then update the TOML comment and §4.4 and re-judge —
+  never retrain — any verdict minted under the provisional bar.
+- Is 1.0M the right arming delay for the hunting collapse detector?
+  `collapse_peak_warmup_timesteps` is a judgment (D-B5): replay the first
+  full hunting run's `evaluations.npz` through
+  `EvalCollapseEarlyStopCallback` and re-derive it, and re-measure the
+  statue (`zero_action_baseline.py trex:3 --episodes 40 --seed 3042`)
+  whenever a behavior reward weight or the plant moves, re-deriving the
+  361 rail and the 602.0 reference together.
+- Should the compsognathus pair's locomotion and behavior TOMLs state
+  their collapse-floor omission per stage? Today the committed-config
+  loops exempt them on the species-level decision their stance TOMLs
+  record (D-B14); a maintainer decision to add the relative pair or the
+  unarmed statement to those stages would let the exemption narrow to
+  per-stage statements.
