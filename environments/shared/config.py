@@ -21,6 +21,7 @@ import json
 import logging
 import math
 import tomllib
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -512,6 +513,37 @@ def hyperparameters_sha256(stage_config: dict[str, Any], algorithm: str) -> str:
         stage_config.get("curriculum_kwargs", {}),
     )
     return canonical_json_sha256(view)
+
+
+def recorded_hyperparameters_sha256(recorded_stage_config: Mapping[str, Any]) -> str | None:
+    """The recipe digest a recorded ``stage_config.json`` states, else the one its blocks imply.
+
+    The run block's ``hyperparameters_sha256`` when the stage recorded one
+    (every stage saved since decision D-A21); otherwise the digest is
+    DERIVED from the file's recorded ``"algorithm"``, top-level
+    ``"hyperparameters"`` and the shaping keys of its ``"curriculum"`` —
+    exactly what :func:`hyperparameters_sha256` hashes at save time, so a
+    pre-D-A21 stage digests to what its run block would have recorded
+    (decision D-B16: a replicate is never skipped for predating the field
+    alone).  ``None`` when the file records no algorithm to digest under.
+    """
+    run_block = recorded_stage_config.get("run")
+    if isinstance(run_block, Mapping):
+        recorded = run_block.get("hyperparameters_sha256")
+        if isinstance(recorded, str) and recorded.strip():
+            return recorded
+    algorithm = recorded_stage_config.get("algorithm")
+    if not isinstance(algorithm, str) or not algorithm.strip():
+        return None
+    hyperparameters = recorded_stage_config.get("hyperparameters", {})
+    curriculum = recorded_stage_config.get("curriculum", {})
+    return hyperparameters_sha256(
+        {
+            _algorithm_kwargs_key(algorithm): dict(hyperparameters) if isinstance(hyperparameters, Mapping) else {},
+            "curriculum_kwargs": dict(curriculum) if isinstance(curriculum, Mapping) else {},
+        },
+        algorithm,
+    )
 
 
 def hyperparameter_diff(

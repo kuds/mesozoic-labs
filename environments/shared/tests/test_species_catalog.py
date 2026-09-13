@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import shutil
@@ -26,11 +27,13 @@ from environments.shared.species_catalog import (
     _build_result,
     _build_stages,
     _deliverable_headline,
+    _format_deliverable,
     _format_verdict,
     _max_reported_velocity,
     _validate_result_summary,
     build_catalog,
     check_catalog,
+    current_certification_seeds,
     current_gate_kinds,
     render_readme_results,
     render_readme_species,
@@ -1128,6 +1131,12 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
     assert by_id["stance"]["gate_kind"] == "stance_quality/v1"
     assert by_id["stance"]["model_hash"] == _SHA
     assert by_id["stance"]["replication_count"] == 1
+    # Seed replication (plan §4.5, D-B10/D-B11): the bar is the CURRENT
+    # config's — trex stance declares 2, every other stage the default 1 —
+    # so a one-run stance is provisional and a one-run walk or hunt is not.
+    assert (by_id["stance"]["certification_seeds"], by_id["stance"]["provisional"]) == (2, True)
+    assert (by_id["locomotion"]["certification_seeds"], by_id["locomotion"]["provisional"]) == (1, False)
+    assert (by_id["behavior"]["certification_seeds"], by_id["behavior"]["provisional"]) == (1, False)
     assert by_id["stance"]["headline"] == [
         {"key": "unsupported_duty_ucb", "label": "unsupported duty 95% UCB", "value": None, "unit": "ratio"},
         {"key": "full_horizon_fraction", "label": "full-horizon episodes", "value": None, "unit": "percent"},
@@ -1161,6 +1170,47 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
         "repository_commit",
         "verification_status",
     ]
+
+
+def test_provisional_is_rederived_from_the_current_config(tmp_path: Path, monkeypatch: Any) -> None:
+    """Decision D-B10: the catalog re-derives ``provisional`` from the CURRENT ``certification_seeds``.
+
+    A stance bundle recorded at n = 1 under a bar of 1 (``provisional: false``
+    when written) is relabelled provisional once the config declares 2,
+    without republishing; the same bundle with two runs recorded is not.
+    The recorded pair is validated (the schema refuses an inconsistent one)
+    but never re-served over the current bar.
+    """
+    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial")
+    stance = summary["provenance"]["deliverables"]["1"]
+    stance.update({"certification_seeds": 1, "provisional": False})
+
+    row = next(r for r in _build_result_from(tmp_path, monkeypatch, summary)["deliverables"] if r["id"] == "stance")
+    assert (row["replication_count"], row["certification_seeds"], row["provisional"]) == (1, 2, True)
+
+    stance["replication"] = {
+        "count": 2,
+        "runs": [{"run_id": "trex-test", "training_seed": 42}, {"run_id": "trex-seed-44", "training_seed": 44}],
+    }
+    stance.update({"certification_seeds": 2, "provisional": False})
+    row = next(r for r in _build_result_from(tmp_path, monkeypatch, summary)["deliverables"] if r["id"] == "stance")
+    assert (row["replication_count"], row["certification_seeds"], row["provisional"]) == (2, 2, False)
+
+    # A recorded pair that contradicts itself is a schema failure, never a
+    # silently reduced count.
+    stance.update({"certification_seeds": 2, "provisional": True})
+    with pytest.raises(CatalogError, match="provisional must equal replication.count < certification_seeds"):
+        _build_result_from(tmp_path, monkeypatch, summary)
+
+
+def test_stage_rows_carry_the_current_certification_seeds() -> None:
+    """Every stage row exports ``certification_seeds`` top-level (never inside the gate): trex stance 2, else 1."""
+    for species in build_catalog()["species"]:
+        expected = current_certification_seeds(species["id"])
+        for stage in species["stages"]:
+            assert stage["certification_seeds"] == expected[stage["id"]]
+            assert "certification_seeds" not in stage["advancement_gate"]
+            assert stage["certification_seeds"] == (2 if (species["id"], stage["id"]) == ("trex", "stance") else 1)
 
 
 def test_v4_headline_reads_the_statistic_the_summary_records(tmp_path: Path, monkeypatch: Any) -> None:
@@ -1568,12 +1618,16 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
 
     assert "**Deliverables:** " in rendered
     assert (
-        "1 — stand (certified; gate stance_quality/v1; 1 run; unsupported duty 95% UCB not recorded; "
-        "full-horizon episodes not recorded) · "
-        "2 — walk (certified, primary; gate reward_and_length/v1; 1 run; avg. forward velocity 3.47 m/s) · "
-        "3 — hunt (not certified; gate task_success/v1; 1 run; task success LCB95 not recorded; "
+        "1 — stand (certified; gate stance_quality/v1; 1 run of 2 seeds; provisional; "
+        "unsupported duty 95% UCB not recorded; full-horizon episodes not recorded) · "
+        "2 — walk (certified, primary; gate reward_and_length/v1; 1 run of 1 seed; avg. forward velocity 3.47 m/s) · "
+        "3 — hunt (not certified; gate task_success/v1; 1 run of 1 seed; task success LCB95 not recorded; "
         "task success not recorded)"
     ) in rendered
+    # Count and bar are always rendered (D-B11); only a count below the bar says provisional.
+    replicated = {**v4_result["deliverables"][0], "replication_count": 2, "provisional": False}
+    assert "; 2 runs of 2 seeds; " in _format_deliverable(replicated, primary=False)
+    assert "provisional" not in _format_deliverable(replicated, primary=False)
     assert rendered.count("**Deliverables:**") == 1
     # The non-trex sections are untouched by the new line.
     for heading in ("### Velociraptor Mongoliensis (PPO", "### Velociraptor Mongoliensis (SAC", "### Brachiosaurus"):
@@ -1595,6 +1649,16 @@ WEBSITE_SRC = REPOSITORY_ROOT / "website" / "src"
 
 def _website_source(relative_path: str) -> str:
     return (WEBSITE_SRC / relative_path).read_text(encoding="utf-8")
+
+
+def _python_function_code(source: str, name: str) -> str:
+    """The source of top-level function *name* with its docstring removed — the code the mirror pins read."""
+    module = ast.parse(source)
+    for node in module.body:
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            body = node.body[1:] if ast.get_docstring(node) is not None else node.body
+            return "\n".join(ast.get_source_segment(source, statement) or "" for statement in body)
+    raise AssertionError(f"no top-level function {name!r}")
 
 
 def _ts_block(source: str, header: str) -> str:
@@ -1774,6 +1838,44 @@ def test_website_gate_formatter_mirrors_python() -> None:
         # The hunting rail is "reward rail ≥ "; the plain criterion is generic.
         assert task_success_branch < body.index("reward rail ≥ ") < generic_path
         assert body.index("reward ≥ ") > body.index("reward rail ≥ ")
+
+
+def test_website_replication_formatter_mirrors_python() -> None:
+    """formatReplication in SpeciesCatalog/index.tsx renders the same phrases as _format_replication.
+
+    ``{count} run(s) of {N} seed(s)`` plus ``provisional`` (plan §4.5, D-B11) is
+    pinned on both sides so the README line and the site's Runs column cannot
+    drift; ``headlineFor`` carries the same count-of-N phrase into the landing
+    headline of a provisional primary.  The gate-formatter pin above keeps its
+    own anchors: this test reads only the replication formatters.
+    """
+    python_source = (REPOSITORY_ROOT / "environments/shared/species_catalog.py").read_text(encoding="utf-8")
+    python_body = _python_function_code(python_source, "_format_replication")
+    tsx_source = _website_source("components/SpeciesCatalog/index.tsx")
+    tsx_body = "\n".join(
+        line
+        for line in _ts_block(tsx_source, "function formatReplication(").splitlines()
+        if not line.strip().startswith("//")
+    )
+    # The rendered fragments, read from the CODE of both renderers (the
+    # Python docstring and the TSX comments are stripped above, so a phrase
+    # only a comment still carries does not satisfy the pin).
+    phrases = [" run", " of ", " seed", "; provisional"]
+    missing = {
+        phrase: [side for side, body in (("python", python_body), ("tsx", tsx_body)) if phrase not in body]
+        for phrase in phrases
+    }
+    assert {phrase: sides for phrase, sides in missing.items() if sides} == {}
+    # The singular/plural pair is decided the same way on both sides, once
+    # for the runs and once for the seeds.
+    assert python_body.count("== 1 else 's'") == 2
+    assert tsx_body.count("=== 1 ? '' : 's'") == 2
+    assert '"; provisional"' in python_body and "'; provisional'" in tsx_body
+    assert "formatReplication(deliverable)" in tsx_source, "the Runs column renders the formatter"
+
+    adapter = _website_source("data/species.ts")
+    headline_body = adapter.split("export function headlineFor(", 1)[1].split("\nexport ", 1)[0]
+    assert "(provisional, ${primary.replicationCount} of ${primary.certificationSeeds} seeds)" in headline_body
 
 
 def test_index_page_keys_video_cards_by_stage_id() -> None:

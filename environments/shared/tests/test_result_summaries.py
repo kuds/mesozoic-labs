@@ -456,6 +456,21 @@ def test_canonical_provenance_rejects_a_publication_seed_shared_with_selection()
         validate_result_summary(summary, canonical_provenance=True)
 
 
+def test_canonical_provenance_accepts_the_certification_panel_role_without_a_protocol() -> None:
+    """Decision D-B17: the panel role may equal the publication seed and gets no evaluation protocol —
+    it is bound per evidence file by the audit; a protocol entry for it is refused as before."""
+    summary = _canonical_summary()
+    provenance = summary["provenance"]
+    provenance["seed_roles"]["certification_panel"] = 3042
+    assert provenance["seed_roles"]["publication_evaluation"] == 3042
+
+    validate_result_summary(summary, canonical_provenance=True)
+
+    provenance["evaluation_protocols"]["certification_panel"] = {"seed": 3042, "episodes": 40, "deterministic": True}
+    with pytest.raises(ResultSchemaError, match=r"evaluation_protocols .* must exactly match evaluation seed roles"):
+        validate_result_summary(summary, canonical_provenance=True)
+
+
 def test_canonical_provenance_accepts_distinct_seed_roles() -> None:
     summary = _canonical_summary()
     provenance = summary["provenance"]

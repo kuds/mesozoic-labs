@@ -392,6 +392,30 @@ def _ancestor_record(**overrides: Any) -> dict[str, Any]:
             "does not match provenance.selected_checkpoints",
         ),
         (lambda r: r.__setitem__("normalization_hash", None), "normalization_hash must be sha256"),
+        # Seed replication (D-B11/D-B16): the label and the bar are typed,
+        # the label must be the count's own reading of the bar, and the
+        # runs are a set of distinct runs on distinct seeds.
+        (lambda r: r.__setitem__("provisional", "no"), "provisional must be a boolean"),
+        (lambda r: r.__setitem__("certification_seeds", 0), "certification_seeds must be a positive integer"),
+        (lambda r: r.__setitem__("certification_seeds", True), "certification_seeds must be a positive integer"),
+        (
+            lambda r: r.update({"provisional": True, "certification_seeds": 1}),
+            "provisional must equal replication.count < certification_seeds",
+        ),
+        (
+            lambda r: r.update({"provisional": False, "certification_seeds": 2}),
+            "provisional must equal replication.count < certification_seeds",
+        ),
+        (
+            lambda r: _with_second_run(
+                r, run_id="other-run", training_seed=r["replication"]["runs"][0]["training_seed"]
+            ),
+            "replication.runs must carry distinct run ids and training seeds",
+        ),
+        (
+            lambda r: _with_second_run(r, run_id=r["replication"]["runs"][0]["run_id"], training_seed=4242),
+            "replication.runs must carry distinct run ids and training seeds",
+        ),
     ],
     ids=[
         "extra-field",
@@ -405,6 +429,13 @@ def _ancestor_record(**overrides: Any) -> dict[str, Any]:
         "model-hash-disagrees",
         "normalization-hash-disagrees",
         "sb3-normalization-hash-null",
+        "provisional-not-bool",
+        "certification-seeds-zero",
+        "certification-seeds-bool",
+        "provisional-true-at-n-1",
+        "provisional-false-below-n",
+        "duplicate-training-seed",
+        "duplicate-run-id",
     ],
 )
 def test_v4_deliverable_record_shape_is_fail_closed(mutate, message: str) -> None:
@@ -414,11 +445,41 @@ def test_v4_deliverable_record_shape_is_fail_closed(mutate, message: str) -> Non
         _canonical_publishable(summary)
 
 
+def _with_second_run(record: dict[str, Any], *, run_id: str, training_seed: int) -> None:
+    first = record["replication"]["runs"][0]
+    record["replication"] = {"count": 2, "runs": [first, {"run_id": run_id, "training_seed": training_seed}]}
+
+
+def test_v4_replication_with_two_runs_validates() -> None:
+    """Seed replication (plan §4.5, D-B16): a record may list this run plus a replicate on another seed,
+    and the D-B11 pair beside it — certification_seeds 2 with the count 2 is NOT provisional."""
+    summary = _canonical_summary_v4()
+    record = summary["provenance"]["deliverables"]["3"]
+    _with_second_run(record, run_id="velociraptor-seed-43", training_seed=43)
+    record.update({"certification_seeds": 2, "provisional": False})
+    summary["provenance"]["deliverables"]["1"].update({"certification_seeds": 2, "provisional": True})
+
+    validated = _canonical_publishable(summary)
+
+    records = validated["provenance"]["deliverables"]
+    assert records["3"]["replication"]["count"] == 2
+    assert records["3"]["replication"]["runs"][1] == {"run_id": "velociraptor-seed-43", "training_seed": 43}
+    assert (records["3"]["certification_seeds"], records["3"]["provisional"]) == (2, False)
+    assert (records["1"]["certification_seeds"], records["1"]["provisional"]) == (2, True)
+    assert not {"certification_seeds", "provisional"} & set(records["2"])
+
+
 def test_v4_deliverable_record_optional_fields_validate_and_are_kept() -> None:
     """Decision D-A21: a deliverable record may carry ``hyperparameters_sha256`` and ``label`` —
     any subset of OPTIONAL_DELIVERABLE_RECORD_FIELDS on top of exactly the required fields — and
-    the validated summary keeps them (type-checked; writers record the label already stripped)."""
-    assert OPTIONAL_DELIVERABLE_RECORD_FIELDS == ("hyperparameters_sha256", "label")
+    the validated summary keeps them (type-checked; writers record the label already stripped).
+    Decisions D-B11/D-B16 add ``provisional`` and ``certification_seeds`` to the optional set."""
+    assert OPTIONAL_DELIVERABLE_RECORD_FIELDS == (
+        "hyperparameters_sha256",
+        "label",
+        "provisional",
+        "certification_seeds",
+    )
     assert not set(OPTIONAL_DELIVERABLE_RECORD_FIELDS) & set(DELIVERABLE_RECORD_FIELDS)
     digest = "sha256:" + "d" * 64
     summary = _canonical_summary_v4()

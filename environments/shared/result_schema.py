@@ -50,6 +50,16 @@ block) and ``label`` (the run's free-text label, non-empty).  A record
 carries exactly :data:`DELIVERABLE_RECORD_FIELDS` plus any subset of the
 optional ones; an unknown field is still refused.  The schema version does
 not change: every earlier v4 record is still exactly valid.
+
+Decisions D-B11 and D-B16 (2026-09-13, Phase B WS-B4; plan §4.5) extend the
+same record, again additively: ``replication`` may list more than one run —
+this run first, then its replicates (sibling runs of the same recipe that
+passed the node's gate on a different seed, discovered at publication by
+:mod:`environments.shared.replication`) — with distinct run ids and distinct
+training seeds; and two more OPTIONAL fields join the set,
+``certification_seeds`` (the positive integer the stage's ``[curriculum]``
+declared, default 1) and ``provisional`` (a boolean that must equal
+``replication.count < certification_seeds`` whenever both are present).
 """
 
 from __future__ import annotations
@@ -78,12 +88,17 @@ DELIVERABLE_RECORD_FIELDS = (
     "certified",
     "replication",
 )
+#: The optional fields copied from the stage's ``stage_config.json`` run
+#: block (decision D-A21): the recipe digest (``sha256:<hex>``, which the
+#: audit cross-checks) and the run's free-text label (non-empty).  Written
+#: when the stage recorded them; absent for stages recorded before D-A21.
+RUN_BLOCK_DELIVERABLE_RECORD_FIELDS = ("hyperparameters_sha256", "label")
 #: Fields a ``provenance.deliverables`` record MAY carry beyond the required
-#: set (decision D-A21): the stage's recipe digest (``sha256:<hex>``, from
-#: its ``stage_config.json`` run block, which the audit cross-checks) and
-#: the run's free-text label (non-empty).  Written when the stage recorded
-#: them; absent for stages recorded before D-A21.
-OPTIONAL_DELIVERABLE_RECORD_FIELDS = ("hyperparameters_sha256", "label")
+#: set: the run-block pair above, plus the seed-replication pair of decisions
+#: D-B11/D-B16 — ``provisional`` (bool) and ``certification_seeds`` (positive
+#: int), which the writer records together and which must agree with the
+#: record's ``replication.count`` (``provisional == count < N``).
+OPTIONAL_DELIVERABLE_RECORD_FIELDS = (*RUN_BLOCK_DELIVERABLE_RECORD_FIELDS, "provisional", "certification_seeds")
 #: Exactly the fields of one ``provenance.ancestors`` record (schema v4): the
 #: summary-side projection of ``ancestors/<stage_id>/`` on disk.
 ANCESTOR_RECORD_FIELDS = (
@@ -616,6 +631,12 @@ def _validate_deliverable_records(
                     f"{prefix}.replication.runs[{index}].training_seed must be a non-negative integer"
                 )
             normalized_runs.append({"run_id": run_id, "training_seed": training_seed})
+        # Replication is a set of DISTINCT runs on DISTINCT seeds (D-B16): a
+        # run listed twice, or two runs of one seed, inflates the count.
+        run_ids = [run["run_id"] for run in normalized_runs]
+        training_seeds = [run["training_seed"] for run in normalized_runs]
+        if len(set(run_ids)) != len(run_ids) or len(set(training_seeds)) != len(training_seeds):
+            raise ResultSchemaError(f"{prefix}.replication.runs must carry distinct run ids and training seeds")
         records[key] = {
             "model_path": model_path,
             "model_hash": model_hash,
@@ -631,6 +652,21 @@ def _validate_deliverable_records(
             )
         if "label" in record:
             records[key]["label"] = _require_nonempty_string(record["label"], field=f"{prefix}.label")
+        # The seed-replication pair (D-B11/D-B16): each type-checked when
+        # present, and the label must be the count's own reading of the
+        # declared N — a "certified, not provisional" flag beside n < N is
+        # exactly the claim the label exists to prevent.
+        if "provisional" in record:
+            if not isinstance(record["provisional"], bool):
+                raise ResultSchemaError(f"{prefix}.provisional must be a boolean")
+            records[key]["provisional"] = record["provisional"]
+        if "certification_seeds" in record:
+            records[key]["certification_seeds"] = _require_positive_int(
+                record["certification_seeds"], field=f"{prefix}.certification_seeds"
+            )
+        if "provisional" in record and "certification_seeds" in record:
+            if record["provisional"] != (count < records[key]["certification_seeds"]):
+                raise ResultSchemaError(f"{prefix}.provisional must equal replication.count < certification_seeds")
     return entries, records
 
 

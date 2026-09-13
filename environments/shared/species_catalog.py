@@ -23,7 +23,12 @@ import mujoco
 
 from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.curriculum import StageThreshold
-from environments.shared.curriculum.gate_schema import GATE_KINDS, STANCE_GATE_KIND
+from environments.shared.curriculum.gate_schema import (
+    GATE_KINDS,
+    STANCE_GATE_KIND,
+    GateSchemaError,
+    declared_certification_seeds,
+)
 from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
 from environments.shared.curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
 from environments.shared.plant_contract import (
@@ -624,6 +629,12 @@ def _build_stages(
                 "deliverable": entry.deliverable,
                 "warm_start_from": entry.warm_start_from,
                 "recipe": entry.recipe,
+                # The publication bar (plan §4.5, decision D-B9): how many
+                # distinct-seed runs certify this node before its
+                # deliverable stops being provisional.  Top-level like the
+                # DAG keys — it is a property of publication, not of the
+                # gate, and enters no gate digest.
+                "certification_seeds": _declared_certification_seeds(curriculum, stage=entry.reference),
                 "advancement_gate": _advancement_gate(entry, curriculum),
                 "video": video_by_stage.get(entry.id),
             }
@@ -657,6 +668,29 @@ def _validate_result_summary(summary: Any, *, species_id: str, relative_path: st
         )
     except ResultSchemaError as exc:
         raise CatalogError(str(exc)) from exc
+
+
+def _declared_certification_seeds(curriculum: dict[str, Any], *, stage: "int | str") -> int:
+    try:
+        return declared_certification_seeds(curriculum, stage=stage)
+    except GateSchemaError as exc:
+        raise CatalogError(str(exc)) from exc
+
+
+def current_certification_seeds(species_id: str, configs_dir: "Path | str | None" = None) -> dict[str, int]:
+    """The ``certification_seeds`` each of the species' stages declares TODAY, by stage id (default 1).
+
+    What a published replication count is read against (decision D-B10):
+    the catalog re-derives ``provisional`` from the CURRENT declaration,
+    the way ``gate_retired`` is read against the current gate kind, so
+    raising a stage's bar relabels a committed n = 1 bundle without
+    republishing it.  The recorded flag is audited at publication.
+    """
+    manifest, configs = _load_manifest_and_configs(species_id, configs_dir)
+    return {
+        entry.id: _declared_certification_seeds(configs[entry.reference]["curriculum_kwargs"], stage=entry.reference)
+        for entry in manifest.stages
+    }
 
 
 def current_gate_kinds(species_id: str, configs_dir: "Path | str | None" = None) -> dict[str, "str | None"]:
@@ -798,7 +832,11 @@ def _build_result_deliverables(
     was a pass of the retired reward gate, and relabelling it "certified"
     would mint a certification nothing measured.  From schema 4 on each
     ``provenance.deliverables`` record becomes a row carrying its gate kind,
-    certification, model hash, replication count and gate-kind headline; the
+    certification, model hash, replication count, the CURRENT
+    ``certification_seeds`` and the provisional label re-derived from the
+    two (plan §4.5, decisions D-B10/D-B11: the catalog validates the
+    record — the schema has already refused a malformed replication — and
+    never aggregates across bundles), and its gate-kind headline; the
     primary and target come from the explicit provenance keys, and a primary
     that is absent, unknown, uncertified or not the one the deliverables
     imply is a catalog failure.
@@ -816,6 +854,7 @@ def _build_result_deliverables(
     except ResultSchemaError as exc:
         raise CatalogError(str(exc)) from exc
     current_gates = current_advancement_gates(species_id)
+    current_seeds = current_certification_seeds(species_id)
     deliverables: list[dict[str, Any]] = []
     for key, entry in entries:
         record = raw_records[key]
@@ -824,6 +863,7 @@ def _build_result_deliverables(
             raise CatalogError(
                 f"provenance.deliverables in {relative_path} names stage {key!r}, which the summary does not record"
             )
+        replication_count = int(record["replication"]["count"])
         deliverables.append(
             {
                 "id": entry.id,
@@ -833,7 +873,12 @@ def _build_result_deliverables(
                 "gate_kind": record["gate_kind"],
                 "certified": bool(record["certified"]),
                 "model_hash": record["model_hash"],
-                "replication_count": int(record["replication"]["count"]),
+                "replication_count": replication_count,
+                # Read against the CURRENT declaration (D-B10), like
+                # gate_retired: the recorded pair was audited when the
+                # bundle was written; a bar raised since relabels it here.
+                "certification_seeds": current_seeds[entry.id],
+                "provisional": replication_count < current_seeds[entry.id],
                 "headline": _deliverable_headline(record["gate_kind"], stage_row, current_gates[entry.id]),
             }
         )
@@ -1262,6 +1307,18 @@ def _format_headline_metric(metric: dict[str, Any]) -> str:
     return f"{metric['label']} {rendered}"
 
 
+def _format_replication(deliverable: dict[str, Any]) -> str:
+    """``2 runs of 2 seeds`` / ``1 run of 2 seeds; provisional`` (plan §4.5, D-B11: count and N always shown).
+
+    Mirrors ``formatReplication`` in ``website/src/components/SpeciesCatalog/index.tsx``;
+    test_website_replication_formatter_mirrors_python pins the phrases on both sides.
+    """
+    count = deliverable["replication_count"]
+    seeds = deliverable["certification_seeds"]
+    text = f"{count} run{'' if count == 1 else 's'} of {seeds} seed{'' if seeds == 1 else 's'}"
+    return text + ("; provisional" if deliverable["provisional"] else "")
+
+
 def _format_deliverable(deliverable: dict[str, Any], *, primary: bool) -> str:
     """One published deliverable with its certification, gate, replication and headline."""
     status = "certified" if deliverable["certified"] else "not certified"
@@ -1270,7 +1327,7 @@ def _format_deliverable(deliverable: dict[str, Any], *, primary: bool) -> str:
     details = [
         status,
         f"gate {deliverable['gate_kind'] or 'not recorded'}",
-        f"{deliverable['replication_count']} run" + ("" if deliverable["replication_count"] == 1 else "s"),
+        _format_replication(deliverable),
         *(_format_headline_metric(metric) for metric in deliverable["headline"]),
     ]
     behavior = deliverable["recipe"] or deliverable["id"]

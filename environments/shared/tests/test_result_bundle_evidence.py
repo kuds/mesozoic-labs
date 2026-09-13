@@ -418,6 +418,95 @@ def test_stance_gated_stage_publishes_when_the_panel_evidence_clears_the_gate(
     assert (run_dir / "collected_results.csv").is_file()
 
 
+def test_stance_panel_rows_are_bound_to_the_certification_panel_role(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Decision D-B17: row i of the panel must have run on ``seed_roles.certification_panel + i``.
+
+    The panel that certifies is the registered 3042-3081 block; a row rolled
+    on any other seed is a different draw, and a lucky one is exactly what
+    the binding exists to keep out of the published pass.
+    """
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    rows = _stance_panel_rows(duty=0.0)
+    rows[0]["panel_seed"] = 3043
+    _write_stance_panel(run_dir, rows)
+
+    with pytest.raises(
+        ResultBundleError,
+        match=r"stance panel row 0 for stage 1 ran on panel_seed 3043, not the certification_panel seed 3042",
+    ):
+        _save_bundle(run_dir, stage_results, stage_configs)
+
+
+def test_the_certification_panel_role_must_name_the_registered_block(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """The per-row binding checks the panel against the ROLE, so the role itself is pinned to the registered
+    block (``PUBLICATION_SEED_START``): a self-consistent panel rolled on 5000..5039 under a role of 5000 is
+    the lucky re-draw the binding exists to keep out, and is refused."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    rows = _stance_panel_rows(duty=0.0)
+    for index, row in enumerate(rows):
+        row["panel_seed"] = 5000 + index
+    _write_stance_panel(run_dir, rows)
+
+    with pytest.raises(
+        ResultBundleError,
+        match=r"certification_panel seed role must be the registered panel block start 3042, not 5000",
+    ):
+        save_result_bundle(
+            stage_results,
+            stage_configs,
+            "velociraptor",
+            "PPO",
+            42,
+            run_dir,
+            backend="stable-baselines3",
+            backend_version="2.7.0",
+            parallel_envs=4,
+            evaluation_episodes=3,
+            evaluation_seeds=[101, 102],
+            plant_identity=_plant_identity(),
+            seed_roles={
+                "training": 42,
+                "checkpoint_selection_evaluation": 101,
+                "publication_evaluation": 102,
+                "certification_panel": 5000,
+            },
+        )
+    assert not (run_dir / "summary.json").exists()
+
+
+def test_a_stance_pass_without_the_certification_panel_role_is_refused(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """A recorded stance PASS binds its panel to the role, so a provenance without the role cannot publish
+    it (D-B17, fail closed): pre-Phase-B stance bundles are republished with the role, never re-read."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _make_stance_gated(run_dir)
+    _write_stance_panel(run_dir, _stance_panel_rows(duty=0.0))
+    paths = _save_bundle(run_dir, stage_results, stage_configs)
+    summary = json.loads(paths["summary"].read_text(encoding="utf-8"))
+    provenance = json.loads(paths["provenance"].read_text(encoding="utf-8"))
+    assert provenance["seed_roles"]["certification_panel"] == 3042
+    validate_evaluation_evidence(run_dir, summary, provenance)
+
+    del provenance["seed_roles"]["certification_panel"]
+    with pytest.raises(
+        ResultBundleError, match=r"provenance seed_roles must declare certification_panel for a stance_quality/v1 pass"
+    ):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+
+
 def test_stance_gated_stage_fails_on_the_real_duty_breach(
     tmp_path: Path,
     stable_provenance: None,
@@ -909,6 +998,38 @@ def test_a_certified_flag_beside_a_failed_verdict_is_refused(tmp_path: Path, sta
         ResultBundleError, match="recorded as a certified deliverable, but the summary records stage_passed=False"
     ):
         validate_evaluation_evidence(run_dir, summary, provenance)
+
+
+def test_a_recovery_resolution_must_start_at_the_certification_panel_seed(
+    tmp_path: Path, stable_provenance: None
+) -> None:
+    """A frozen ``gate_resolution.json`` registers its panel; that panel must be the declared one (D-B17)."""
+    run_dir = tmp_path / "run"
+    summary, provenance = _bundle_summary_and_provenance(run_dir)
+    resolution_path = run_dir / "stage3" / "gate_resolution.json"
+
+    def _freeze(panel_seed_start: Any) -> None:
+        resolution = {
+            "schema": "mesozoic.gate-resolution/v1",
+            "decision_procedure": {"panel_seed_start": panel_seed_start},
+        }
+        resolution_path.write_text(json.dumps(resolution) + "\n", encoding="utf-8")
+
+    _freeze(3042)
+    validate_evaluation_evidence(run_dir, summary, provenance)
+
+    _freeze(3050)
+    with pytest.raises(
+        ResultBundleError,
+        match=r"stage 3 gate_resolution.json registers panel_seed_start 3050, not the certification_panel seed 3042",
+    ):
+        validate_evaluation_evidence(run_dir, summary, provenance)
+
+    _freeze(3042)
+    without_role = json.loads(json.dumps(provenance))
+    del without_role["seed_roles"]["certification_panel"]
+    with pytest.raises(ResultBundleError, match=r"must declare certification_panel: stage 3 holds a frozen"):
+        validate_evaluation_evidence(run_dir, summary, without_role)
 
 
 def _declare_task_success_on_stage_three(run_dir: Path, *, min_success_lcb: float, min_eval_episodes: int = 3) -> None:

@@ -73,10 +73,12 @@ from .early_stopping import (
     build_eval_collapse_early_stop_callback,
 )
 from .gate_schema import (
+    DEFAULT_CERTIFICATION_SEEDS,
     FROZEN_NULL_GATE_KINDS,
     GATE_KINDS,
     GATE_SCHEMA_VERSION,
     GateSchemaError,
+    declared_certification_seeds,
     gate_config_differences,
     gate_config_sha256,
     gate_config_view,
@@ -88,6 +90,7 @@ from .schedules import EntCoefDecayCallback, _ConstantSchedule
 from .task_success_gate import TASK_SUCCESS_GATE_KIND
 
 __all__ = [
+    "DEFAULT_CERTIFICATION_SEEDS",
     "FROZEN_NULL_GATE_KINDS",
     "GATE_KINDS",
     "BaselineProgressCallback",
@@ -111,6 +114,7 @@ __all__ = [
     "build_baseline_progress_callback",
     "build_eval_collapse_early_stop_callback",
     "gate_config_differences",
+    "declared_certification_seeds",
     "gate_config_sha256",
     "gate_config_view",
     "load_vecnorm_stats",

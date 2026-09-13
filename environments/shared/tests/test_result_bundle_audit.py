@@ -844,6 +844,275 @@ def test_provenance_deliverables_carry_the_stage_configs_recipe_digest_and_label
     )
 
 
+def _declare_certification_seeds(run_dir: Path, stage_configs: Any, stage: int, seeds: int) -> None:
+    """Declare ``certification_seeds`` on one stage, in memory AND in the resolved config on disk."""
+    stage_configs[stage]["curriculum_kwargs"]["certification_seeds"] = seeds
+    _write_stage_configs(run_dir, {stage: stage_configs[stage]})
+
+
+def _tamper_deliverable(run_dir: Path, stage_key: str, **fields: Any) -> None:
+    """Rewrite one deliverable record consistently in provenance.json and summary.json, re-hashing the manifest."""
+    for name in ("provenance.json", "summary.json"):
+        path = run_dir / name
+        data = json.loads(path.read_text(encoding="utf-8"))
+        block = data["provenance"] if name == "summary.json" else data
+        block["deliverables"][stage_key].update(fields)
+        path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_artifact_manifest(run_dir, status="complete")
+
+
+def test_save_result_bundle_records_replicates_and_the_provisional_label(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Seed replication (plan §4.5, decisions D-B10/D-B11/D-B16): the replicates the caller discovered are
+    recorded after this run, ``certification_seeds`` is the stage's declaration and ``provisional`` is
+    the count read against it — stage 1 at n = 2 of 2 is not provisional, stage 3 at n = 1 of 2 is,
+    stage 2 at the default bar of 1 is not — and the whole bundle audits clean."""
+    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260901_120000"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _declare_certification_seeds(run_dir, stage_configs, 1, 2)
+    _declare_certification_seeds(run_dir, stage_configs, 3, 2)
+    replicate = {"run_id": "velociraptor-stable-baselines3-ppo-seed43", "training_seed": 43}
+
+    _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run", replicates={"1": [replicate]})
+
+    provenance = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))
+    records = provenance["deliverables"]
+    assert records["1"]["replication"] == {
+        "count": 2,
+        "runs": [{"run_id": "velociraptor-this-run", "training_seed": 42}, replicate],
+    }
+    assert (records["1"]["certification_seeds"], records["1"]["provisional"]) == (2, False)
+    assert records["2"]["replication"]["count"] == 1
+    assert (records["2"]["certification_seeds"], records["2"]["provisional"]) == (1, False)
+    assert records["3"]["replication"]["count"] == 1
+    assert (records["3"]["certification_seeds"], records["3"]["provisional"]) == (2, True)
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["provenance"]["deliverables"] == records
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid" and report["errors"] == []
+
+
+@pytest.mark.parametrize(
+    ("replicates", "expected_error"),
+    [
+        (
+            {"1": [{"run_id": "other", "training_seed": 42}]},
+            "repeats training seed 42: a replicate is a different seed",
+        ),
+        ({"1": [{"run_id": "velociraptor-this-run", "training_seed": 43}]}, "is this run or is listed twice"),
+        (
+            {"1": [{"run_id": "a", "training_seed": 43}, {"run_id": "a", "training_seed": 44}]},
+            "replicate a for 1 is this run or is listed twice",
+        ),
+        (
+            {"1": [{"run_id": "a", "training_seed": 43}, {"run_id": "b", "training_seed": 43}]},
+            "replicate b for 1 repeats training seed 43",
+        ),
+        ({"1": [{"run_id": "a"}]}, "must carry exactly \\['run_id', 'training_seed'\\]"),
+        ({"1": [{"run_id": "a", "training_seed": True}]}, "must record a non-negative integer training_seed"),
+        (
+            {"9": [{"run_id": "a", "training_seed": 43}]},
+            "replicates name stage key\\(s\\) \\['9'\\] that are not deliverables of this species",
+        ),
+    ],
+    ids=[
+        "this-runs-seed",
+        "this-runs-id",
+        "duplicate-run-id",
+        "duplicate-seed",
+        "missing-field",
+        "bool-seed",
+        "foreign-key",
+    ],
+)
+def test_a_malformed_replicate_is_refused_before_anything_is_written(
+    tmp_path: Path,
+    stable_provenance: None,
+    replicates: dict[str, Any],
+    expected_error: str,
+) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    before = _snapshot_files(run_dir)
+
+    with pytest.raises(ResultBundleError, match=expected_error):
+        _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run", replicates=replicates)
+
+    assert _snapshot_files(run_dir) == before
+
+
+def test_replicates_of_a_deliverable_outside_the_published_chain_are_dropped(
+    tmp_path: Path,
+    stable_provenance: None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """``discover_replicates_for_run`` scans every node the run directory holds a certifiable verdict for, and a
+    later session may publish a chain that leaves one of them out (stance + recovery over a run that also
+    certified walk): its key names a real deliverable with no record in this bundle, so it is dropped with a
+    logged reason — empty or not — while a key naming no deliverable of the species is still refused."""
+    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260901_120000"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO", stage_refs=(1,))
+    replicates = {"1": [], "2": [{"run_id": "velociraptor-other-run", "training_seed": 43}], "3": []}
+
+    with caplog.at_level(logging.INFO, logger="environments.shared.reporting.bundles"):
+        _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run", replicates=replicates)
+
+    provenance = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))
+    assert set(provenance["deliverables"]) == {"1"}
+    assert provenance["deliverables"]["1"]["replication"]["count"] == 1
+    assert any("replicates for deliverable 2 are not recorded" in r.getMessage() for r in caplog.records)
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-partial" and report["errors"] == []
+
+
+def test_a_complete_bundle_is_regenerated_when_only_its_replication_record_changed(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """A replicate that certifies after publication is counted by re-running the publication (D-B10/D-B16).
+
+    The replication record is a property of the set of sibling runs, not of
+    this run's results, so a complete bundle whose prospective summary
+    differs from the published one in nothing but that record is
+    regenerated rather than refused; an identical re-run stays a read-only
+    no-op, and a re-run that would change any other result is still
+    refused as immutable.
+    """
+    run_dir = tmp_path / "logs" / "velociraptor" / "ppo" / "20260901_120000"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _declare_certification_seeds(run_dir, stage_configs, 3, 2)
+    _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run")
+    assert verify_artifact_manifest(run_dir)["status"] == "complete"
+    published = _snapshot_files(run_dir)
+    records = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))["deliverables"]
+    assert (records["3"]["replication"]["count"], records["3"]["provisional"]) == (1, True)
+
+    # No sibling yet: the re-export is the read-only no-op it always was.
+    paths = _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run")
+    assert paths["artifact_manifest"] == run_dir / "artifact_manifest.json"
+    assert _snapshot_files(run_dir) == published
+
+    replicate = {"run_id": "velociraptor-other-run", "training_seed": 43}
+    _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run", replicates={"3": [replicate]})
+
+    records = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))["deliverables"]
+    assert records["3"]["replication"] == {
+        "count": 2,
+        "runs": [{"run_id": "velociraptor-this-run", "training_seed": 42}, replicate],
+    }
+    assert records["3"]["provisional"] is False
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["provenance"]["deliverables"] == records
+    assert verify_artifact_manifest(run_dir)["status"] == "complete"
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid" and report["errors"] == []
+    # Every certified artifact is byte-identical; only the derived files that
+    # carry the record (and the manifest hashing them) moved — the CSV has
+    # no replication column, so it is rewritten byte-identical.
+    changed = {path for path, content in _snapshot_files(run_dir).items() if published.get(path) != content}
+    assert changed == {Path("provenance.json"), Path("summary.json"), Path("artifact_manifest.json")}
+
+    # Any other difference is still a different result, replicate or not.
+    counted = _snapshot_files(run_dir)
+    different = [dict(result) for result in stage_results]
+    different[2]["best_eval_timestep"] = different[2]["best_eval_timestep"] + 1
+    with pytest.raises(ResultBundleError, match="completed result bundle is immutable"):
+        _save(run_dir, different, stage_configs, run_id="velociraptor-this-run", replicates={"3": [replicate]})
+    assert _snapshot_files(run_dir) == counted
+
+
+def test_a_stage_config_without_a_curriculum_block_declares_the_default_bar_to_the_audit(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """The audit reads ``certification_seeds`` the way the writer does — an absent block declares 1 — so
+    the cross-checks run for such a stage too and a tampered record is flagged."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    del stage_configs[3]["curriculum_kwargs"]
+    _write_stage_configs(run_dir, {3: stage_configs[3]})
+    _save(run_dir, stage_results, stage_configs)
+    records = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))["deliverables"]
+    assert (records["3"]["certification_seeds"], records["3"]["provisional"]) == (1, False)
+    assert audit_result_bundle(run_dir)["status"] == "canonical-valid"
+
+    _tamper_deliverable(run_dir, "3", certification_seeds=5, provisional=True)
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-conflict"
+    assert any(
+        "deliverable 3 certification_seeds 5 does not match the stage config's declared 1" in error
+        for error in report["errors"]
+    ), report["errors"]
+
+
+def test_a_malformed_certification_seeds_declaration_is_refused_at_publication(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _declare_certification_seeds(run_dir, stage_configs, 2, 0)
+
+    with pytest.raises(ResultBundleError, match="stage 2: certification_seeds must be a positive integer"):
+        _save(run_dir, stage_results, stage_configs)
+
+
+def test_recorded_certification_seeds_and_provisional_must_match_the_stage_config(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """The audit reads the pair back against the stage's own ``[curriculum]`` declaration (D-B11): a
+    record claiming a bar of 2 (and, consistently, a provisional label) over a config declaring 1 is a
+    conflict, as is a label that disagrees with the count."""
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _save(run_dir, stage_results, stage_configs)
+    assert audit_result_bundle(run_dir)["status"] == "canonical-valid"
+
+    _tamper_deliverable(run_dir, "3", certification_seeds=2, provisional=True)
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-conflict"
+    assert any(
+        "deliverable 3 certification_seeds 2 does not match the stage config's declared 1" in error
+        for error in report["errors"]
+    ), report["errors"]
+    assert any(
+        "deliverable 3 provisional True does not equal replication.count 1 < certification_seeds 1" in error
+        for error in report["errors"]
+    ), report["errors"]
+
+
+def test_a_replication_record_not_listing_this_run_first_is_refused_by_the_audit(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    _save(run_dir, stage_results, stage_configs, run_id="velociraptor-this-run")
+
+    _tamper_deliverable(
+        run_dir,
+        "3",
+        replication={
+            "count": 2,
+            "runs": [
+                {"run_id": "velociraptor-other-run", "training_seed": 43},
+                {"run_id": "velociraptor-this-run", "training_seed": 42},
+            ],
+        },
+    )
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-conflict"
+    assert any("deliverable 3 replication does not list this run first" in error for error in report["errors"]), report[
+        "errors"
+    ]
+
+
 @pytest.mark.parametrize(
     ("override", "expected_error"),
     [

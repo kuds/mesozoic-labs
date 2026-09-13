@@ -164,6 +164,16 @@ function formatCertification(deliverable: ResultDeliverable, primary: boolean): 
   return primary ? `${status}, primary` : status;
 }
 
+function formatReplication(d: ResultDeliverable): string {
+  // Mirrors _format_replication in species_catalog.py: the count AND the
+  // current config's certification_seeds are always rendered, and a count
+  // below the bar is labelled provisional (plan §4.5, decision D-B11);
+  // test_website_replication_formatter_mirrors_python pins the phrases.
+  const runs = `${d.replicationCount} run${d.replicationCount === 1 ? '' : 's'}`;
+  const seeds = `${d.certificationSeeds} seed${d.certificationSeeds === 1 ? '' : 's'}`;
+  return `${runs} of ${seeds}${d.provisional ? '; provisional' : ''}`;
+}
+
 export function SpeciesSpecifications({species}: {species: Species}): React.JSX.Element {
   const plant = species.model.plantContract;
   return (
@@ -303,7 +313,7 @@ export function PublishedResults({species}: {species: Species}): React.JSX.Eleme
                       <td>{deliverable.recipe ?? deliverable.stageId}</td>
                       <td>{formatCertification(deliverable, deliverable.stageKey === result.primaryDeliverable)}</td>
                       <td>{deliverable.gateKind ?? 'not recorded'}</td>
-                      <td>{deliverable.replicationCount}</td>
+                      <td>{formatReplication(deliverable)}</td>
                       <td>
                         {deliverable.headline.length === 0 ? '—' : deliverable.headline.map(formatHeadlineMetric).join('; ')}
                       </td>

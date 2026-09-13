@@ -159,7 +159,18 @@ validator treats disagreements as conflicts.
 
 - run ID, species, algorithm, and backend;
 - repository URL, exact commit, dirty state, and patch hash when dirty;
-- training and evaluation seed roles;
+- training and evaluation seed roles, and the `certification_panel` role
+  (decision D-B17): the start seed of the registered 40-seed panel block
+  (`constants.PUBLICATION_SEED_START`, 3042) that `stance_panel_selected.csv`
+  rows and a recovery stage's frozen `gate_resolution.json` are bound to at
+  publication — row `i` must carry `panel_seed == role + i`, and the
+  resolution's `decision_procedure.panel_seed_start` must equal the role; a
+  recorded `stance_quality/v1` PASS in a bundle whose provenance lacks the
+  role is refused, and so is a role naming any block other than the
+  registered one (the rows are checked against the role, so the role itself
+  is pinned).  The role is bound per evidence file, not through
+  `evaluation_protocols` (its name deliberately lacks "evaluation"), and it
+  may equal the publication seed;
 - deterministic evaluation protocols and episode counts;
 - Python, platform, and dependency versions;
 - hardware and parallel environment count;
@@ -174,10 +185,43 @@ The bundle writer adds the **finalization** fields (schema v4):
 - every stage's selected checkpoint hash, matching SB3 VecNormalize path/hash,
   and resolved-config hashes (`selected_checkpoints`, `config_hash`);
 - `deliverables` — `{stage_key: {model_path, model_hash, normalization_hash,
-  gate_kind, certified, replication: {count, runs: [{run_id, training_seed}]}}}`
-  for every deliverable present in the run (Phase A writes one run per
-  record), plus the optional `hyperparameters_sha256` and `label` copied
-  from the stage's `stage_config.json` run block (decision D-A21);
+  gate_kind, certified, replication: {count, runs: [{run_id, training_seed}]},
+  certification_seeds, provisional}}` for every deliverable present in the
+  run, plus the optional `hyperparameters_sha256` and `label` copied from
+  the stage's `stage_config.json` run block (decision D-A21).
+  `replication.runs` has exactly `count` entries with distinct run ids and
+  distinct training seeds, THIS run first, then its replicates — the sibling
+  runs under the same `LOG_BASE/<species>/<algo>/` directory that certified
+  the SAME recipe on another seed (decision D-B16; plan §4.5): a sibling
+  counts when its stage directory for the node holds a passed, reusable
+  `gate_verdict.json` with equal `task_sha256` and equal `gate_sha256`, its
+  `stage_config.json` records the same plant identity and the same
+  `hyperparameters_sha256` (recorded in its run block, else derived from its
+  recorded algorithm, hyperparameters block and shaping keys — exactly what
+  `hyperparameters_sha256` hashes — so a pre-D-A21 sibling is never skipped
+  for the missing field alone), and its run block's `seed` differs.  A sibling whose
+  verdict records no `gate_sha256` (judged before decision D-A22) is skipped
+  until re-judged with `backfill_gate_verdict.py --force`, consistent with
+  reuse rule 7.  `environments.shared.replication.discover_replicates_for_run`
+  finds them and the SB3 notebook passes them as `save_result_bundle(replicates=...)`;
+  the JAX saver passes none, so its records count the run alone.  The count
+  is recorded at publication (decision D-B10): a replicate that finishes
+  later is counted when the run's publication cell is re-run with the
+  sibling present, which rebuilds a `partial` bundle and regenerates a
+  `complete` bundle's derived artifacts (`provenance.json`, `summary.json`,
+  the CSV, the manifest) when the replication record is the ONLY thing that
+  changed — every certified artifact and every other result of a complete
+  bundle stays immutable, and a re-run that would change anything else is
+  still refused.  A key naming a deliverable the run holds outside the
+  published chain is dropped (its node has no record in this bundle); a
+  key naming no deliverable of the species is refused.
+  `certification_seeds` is the stage's declared `[curriculum]` value
+  (default 1; trex stance 2) and `provisional` is
+  `count < certification_seeds` (decision D-B11) — the audit refuses a
+  record whose first run is not this run, whose `certification_seeds` is
+  not the stage config's, or whose label disagrees with its count, and the
+  catalog re-derives `provisional` from the CURRENT config so a raised bar
+  relabels a committed bundle without republishing it;
 - `ancestors` — `{stage_key: {run_id, model_hash, normalization_hash,
   gate_kind, passed, task_sha256}}`, the projection of the on-disk
   `ancestors/` records;

@@ -1172,6 +1172,39 @@ class TestPublication:
         assert "NODE_RESULTS[NODE.id] = results" in _branch_source(src, loop.body)
 
 
+class TestSeedReplication:
+    """Plan §4.5 (WS-B4): the certification_panel role and the discovered replicates reach the bundle."""
+
+    PROVENANCE_CELL_MARKER = "PROVENANCE_PATH = initialize_result_bundle("
+
+    def test_seed_roles_declare_the_certification_panel(self):
+        """Both seed_roles dicts carry certification_panel sourced from PUBLICATION_SEED_START (D-B17)."""
+        for marker, func_name in (
+            (self.PROVENANCE_CELL_MARKER, "initialize_result_bundle"),
+            (INFRA_CELL_MARKER, "_lib_save_result_bundle"),
+        ):
+            src = _cell(marker)
+            call = _call(ast.parse(src), func_name)
+            roles = next(keyword.value for keyword in call.keywords if keyword.arg == "seed_roles")
+            assert isinstance(roles, ast.Dict), f"{func_name}(seed_roles=...) must be a literal dict"
+            by_key = {
+                key.value: ast.get_source_segment(src, value)
+                for key, value in zip(roles.keys, roles.values)
+                if isinstance(key, ast.Constant)
+            }
+            assert by_key.get("certification_panel") == "PUBLICATION_SEED_START", by_key
+            assert {"training", "checkpoint_selection_evaluation", "publication_evaluation"} <= set(by_key)
+        assert "from environments.shared.constants import PUBLICATION_SEED_START" in _cell(self.PROVENANCE_CELL_MARKER)
+
+    def test_the_bundle_write_passes_discovered_replicates(self):
+        """save_run_bundle hands the sibling replicates to the writer (D-B10/D-B16)."""
+        src = _cell(INFRA_CELL_MARKER)
+        call = _call(ast.parse(src), "_lib_save_result_bundle")
+        assert "replicates" in _keyword_names(call)
+        assert _keyword_source(src, call, "replicates").startswith("discover_replicates_for_run(run_dir, ")
+        assert "from environments.shared.replication import discover_replicates_for_run" in src
+
+
 class TestEscapeHatch:
     """The manual single-node cell: off by default, records but never enforces, never feeds the chain."""
 

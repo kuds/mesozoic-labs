@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlsplit, urlunsplit
 
+from ..constants import PUBLICATION_SEED_START
 from . import constants, hashing
 from .constants import (
     _DEPENDENCY_PACKAGES,
@@ -191,7 +192,17 @@ def initialize_result_bundle(
         raise ResultBundleError("evaluation_seeds must contain non-negative integers")
     if len(evaluation_seed_list) != len(set(evaluation_seed_list)):
         raise ResultBundleError("evaluation_seeds must not contain duplicates")
-    default_seed_roles = {"training": seed}
+    # The certification panel (decision D-B17, plan §4.5): the START seed of
+    # the registered 40-seed block every stance panel and recovery
+    # resolution roll from (``stance_report`` seeds row i at start + i;
+    # ``harnesses.freeze_recovery_gate.PANEL_SEED_START`` is the same
+    # constant).  A default role, so every bundle initialised without
+    # explicit roles carries it; the notebook declares it explicitly.  The
+    # name deliberately lacks "evaluation": it is bound per evidence file by
+    # the audit (panel rows, ``gate_resolution.json``), not through
+    # ``evaluation_protocols``, and ``seed_role_collisions`` checks training
+    # and selection roles only, so it may equal the publication seed.
+    default_seed_roles = {"training": seed, "certification_panel": PUBLICATION_SEED_START}
     if evaluation_seed_list:
         default_seed_roles["publication_evaluation"] = evaluation_seed_list[0]
         for index, evaluation_seed in enumerate(evaluation_seed_list[1:], start=2):

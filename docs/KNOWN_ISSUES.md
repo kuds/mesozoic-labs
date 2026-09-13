@@ -147,6 +147,36 @@ tolerance) remains the standing recommendation for the divergences above.
   `gate_config_sha256(gate_config_view(stage_config.json["curriculum"]))`
   and compare it with `load_all_stages("trex")[1]["curriculum_kwargs"]`'s
   digest, recording which of the two backfill paths each needed.
+- **MEDIUM (operational)** — **pre-Phase-B stance bundles need republishing
+  with the `certification_panel` seed role, and pre-D-A22 siblings join a
+  deliverable's replication count only after re-backfill** (decisions
+  D-B16/D-B17, Phase B WS-B4; plan §4.5). The publication audit now binds
+  `stance_panel_selected.csv` row `i` to `seed_roles.certification_panel + i`
+  and a recovery `gate_resolution.json`'s `decision_procedure.panel_seed_start`
+  to the role, and REFUSES a recorded `stance_quality/v1` pass whose
+  provenance declares no such role. No committed bundle is affected, but
+  every Drive bundle published before this change — the certified trex
+  stance run `20260810_145546` (the bundle
+  `TREX_STAGE1_GATE_PASS_RUN_2026_08.md` audits) and the seed-44 replicate
+  `20260815_205206` — carries a `seed_roles` without it and fails its next
+  audit or republish; `initialize_result_bundle` also refuses to resume such
+  a run directory from the new notebook (the seed roles are identity, and
+  the mismatch reads as "already belongs to a different run"). To republish:
+  remove the run's `provenance.json` (a regenerated artifact — the manifest
+  may disagree only on those), set `RUN_ID` to the run and re-run the setup
+  and publication cells, which re-capture the provenance with the role under
+  the same run id and re-audit the stance panel against it. Replication is
+  writer-recorded from `LOG_BASE/<species>/<algo>/` siblings whose verdict
+  carries `gate_sha256`, so the seed-44 run counts as the certified run's
+  replicate (and vice versa) only once BOTH directories are re-backfilled
+  per the D-A22 inventory above and the counting run's publication cell is
+  re-run with the sibling present (a `partial` bundle is rebuilt; a
+  `complete` one regenerates its derived artifacts when the replication
+  record is the only change, and stays immutable in everything else). Until
+  then trex stance
+  publishes at n = 1 against `certification_seeds = 2` and the catalog
+  labels it provisional — which is the honest reading of KNOWN_ISSUES'
+  own 2 pass / 1 fail record.
 - **MEDIUM (provisional threshold)** — **the trex hunting bar
   `min_success_lcb = 0.5` in `configs/trex/behavior.toml` is PROVISIONAL
   (decision D-B2, Phase B WS-B2).** It was frozen BEFORE any Phase-B pilot,
