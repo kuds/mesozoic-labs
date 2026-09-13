@@ -19,9 +19,23 @@ re-derives it for pre-Phase-A directories with ``judged_by = "backfill"``.
 never reads as a pass**: :func:`read_gate_verdict` returns None for a
 missing file and raises on a malformed one.
 
+Decision D-A22 (Phase B): the verdict also records the gate configuration
+it was judged under — ``gate`` (the ``curriculum.gate_schema.gate_config_view``
+projection: kind, schema version and the thresholds the kind consumes) and
+``gate_sha256`` (:func:`.hashing.gate_config_sha256` over it) — so reuse
+rule 7 can refuse a candidate judged under a different gate, naming the
+thresholds that differ.  Every writer passes the block it judged under
+(``write_gate_verdict(gate_config=...)`` is required).  A file written
+before D-A22 carries neither field and still reads (the schema is
+unchanged); reuse refuses it until it is re-judged.  When both fields are
+present they must agree — ``gate_sha256`` is the digest of ``gate`` — which
+:func:`read_gate_verdict` enforces, so a verdict edited after judging is
+refused everywhere the reader is used (reuse, the ancestor records, the
+bundle audit).
+
 This module lives under ``result_bundle`` because ``result_bundle`` never
-imports ``reporting``; it depends only on :func:`.hashing.sha256_file` and
-:func:`..file_io.atomic_write_text`.
+imports ``reporting``; it depends only on :func:`.hashing.sha256_file`,
+:func:`.hashing.gate_config_sha256` and :func:`..file_io.atomic_write_text`.
 """
 
 from __future__ import annotations
@@ -34,12 +48,16 @@ from typing import Any, Mapping
 
 from ..file_io import atomic_write_text
 from .errors import ResultBundleError
-from .hashing import sha256_file
+from .hashing import gate_config_sha256, sha256_file
 
 GATE_VERDICT_FILENAME = "gate_verdict.json"
 GATE_VERDICT_SCHEMA = "mesozoic.gate-verdict/v1"
 
 _SHA256_DIGEST = re.compile(r"sha256:[0-9a-f]{64}")
+
+#: The keys of the gate-configuration view a verdict records (D-A22): what
+#: ``curriculum.gate_schema.gate_config_view`` returns, and nothing else.
+_GATE_CONFIG_KEYS = frozenset({"gate_kind", "gate_schema_version", "thresholds"})
 
 #: The ``stage_result`` projection: the keys ``save_jax_stage_artifacts``
 #: persists into ``stage_result.json`` plus the SB3-side handoff and gate
@@ -99,6 +117,30 @@ def _json_default(value: Any) -> Any:
     raise TypeError(f"gate verdict cannot serialise {type(value).__name__}")
 
 
+def _gate_record(gate_config: Any) -> dict[str, Any]:
+    """The ``gate`` block as it will be written: the view, JSON-normalised, validated.
+
+    Normalised through the same serialisation the file gets, so the digest
+    recorded beside it is the digest of the block on disk (a numpy scalar
+    in a threshold serialises to its item, and is hashed as such).
+    """
+    if (
+        not isinstance(gate_config, Mapping)
+        or set(gate_config) != _GATE_CONFIG_KEYS
+        or not isinstance(gate_config["thresholds"], Mapping)
+    ):
+        raise GateVerdictError(
+            "gate verdict 'gate_config' must be the curriculum.gate_schema.gate_config_view projection "
+            "({gate_kind, gate_schema_version, thresholds})"
+        )
+    normalised = json.loads(json.dumps(dict(gate_config), default=_json_default))
+    return {
+        "gate_kind": normalised["gate_kind"],
+        "gate_schema_version": normalised["gate_schema_version"],
+        "thresholds": dict(normalised["thresholds"]),
+    }
+
+
 def _handoff_record(stage_dir: Path, path: "Path | None") -> tuple[str | None, str | None]:
     """The stage-dir-relative POSIX path of a handoff file and its digest."""
     if path is None:
@@ -127,6 +169,7 @@ def write_gate_verdict(
     judged_by: str,
     checkpoint: "Path | None",
     normalization: "Path | None",
+    gate_config: Mapping[str, Any],
     stage_result: "Mapping[str, Any] | None" = None,
 ) -> Path:
     """Atomically write ``gate_verdict.json`` into *stage_dir*'s root.
@@ -138,12 +181,17 @@ def write_gate_verdict(
     hashed and recorded stage-dir-relative, or recorded as null when None
     (a stage with no handoff), which makes the verdict unreusable.  A path
     that is given but missing is an error — a verdict must never describe
-    a file that was not there.
+    a file that was not there.  *gate_config* is the
+    ``curriculum.gate_schema.gate_config_view`` of the block the verdict was
+    judged under (decision D-A22) — required, with no default, so a writer
+    that forgets it cannot write; it is recorded as ``gate`` beside its
+    digest ``gate_sha256``.
     """
     if isinstance(passed, bool) is False:
         raise GateVerdictError(f"gate verdict 'passed' must be a bool, not {passed!r}")
     if not isinstance(judged_by, str) or not judged_by.strip():
         raise GateVerdictError("gate verdict 'judged_by' must name the producer")
+    gate = _gate_record(gate_config)
     root = Path(stage_dir)
     checkpoint_path, checkpoint_sha256 = _handoff_record(root, checkpoint)
     normalization_path, normalization_sha256 = _handoff_record(root, normalization)
@@ -164,6 +212,8 @@ def write_gate_verdict(
         "normalization": normalization_path,
         "normalization_sha256": normalization_sha256,
         "task_sha256": task_sha256,
+        "gate": gate,
+        "gate_sha256": gate_config_sha256(gate),
         "judged_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "judged_by": judged_by,
         "stage_result": projected,
@@ -178,7 +228,11 @@ def read_gate_verdict(stage_dir: "str | Path") -> "dict[str, Any] | None":
     """Read a stage's verdict: None iff the file is absent, error if malformed.
 
     A missing file is the honest state of every pre-Phase-A stage directory
-    and of a node trained without artifacts; it is never a pass.
+    and of a node trained without artifacts; it is never a pass.  ``gate``
+    and ``gate_sha256`` (D-A22) may be absent — a file judged before the
+    decision — but when both are present ``gate_sha256`` must be the digest
+    of ``gate``: a verdict whose recorded gate was edited after judging is
+    malformed, not a verdict for some other gate.
     """
     path = Path(stage_dir) / GATE_VERDICT_FILENAME
     if not path.is_file():
@@ -195,10 +249,19 @@ def read_gate_verdict(stage_dir: "str | Path") -> "dict[str, Any] | None":
         raise GateVerdictError(f"{path}: 'passed' must be a JSON boolean")
     if not isinstance(verdict.get("failures"), list):
         raise GateVerdictError(f"{path}: 'failures' must be a JSON list")
-    for key in ("checkpoint_sha256", "normalization_sha256", "task_sha256"):
+    for key in ("checkpoint_sha256", "normalization_sha256", "task_sha256", "gate_sha256"):
         digest = verdict.get(key)
         if digest is not None and (not isinstance(digest, str) or _SHA256_DIGEST.fullmatch(digest) is None):
             raise GateVerdictError(f"{path}: {key} must be sha256:<64 lowercase hex> or null")
+    gate = verdict.get("gate")
+    if gate is not None and not isinstance(gate, dict):
+        raise GateVerdictError(f"{path}: 'gate' must be a JSON object")
+    recorded_digest = verdict.get("gate_sha256")
+    if gate is not None and recorded_digest is not None and gate_config_sha256(gate) != recorded_digest:
+        raise GateVerdictError(
+            f"{path}: gate_sha256 {recorded_digest} is not the digest of the recorded gate block "
+            f"({gate_config_sha256(gate)}); the verdict was edited after judging"
+        )
     return verdict
 
 

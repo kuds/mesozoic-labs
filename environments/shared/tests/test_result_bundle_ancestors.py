@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from environments.shared.curriculum.gate_schema import gate_config_sha256
 from environments.shared.result_bundle import ResultBundleError
 from environments.shared.result_bundle.ancestors import (
     ANCESTOR_RECORD_KEYS,
@@ -120,6 +121,44 @@ def test_a_task_fingerprint_that_disagrees_between_record_and_config_is_refused(
 
     with pytest.raises(ResultBundleError, match="records task_sha256"):
         load_ancestor_records(run_dir, species="velociraptor")
+
+
+def test_a_copied_verdict_whose_gate_digest_disagrees_with_its_recorded_gate_is_refused(tmp_path: Path) -> None:
+    """D-A22 / D-B8: the copied verdict must agree with itself — ``gate_sha256`` is the digest of
+    ``gate`` — so a verdict edited after judging fails the child's bundle, through the same reader
+    reuse uses.  The ancestor's recorded ``[curriculum]`` block is deliberately NOT compared: a
+    directory re-judged under an edited gate is legitimate."""
+    run_dir = tmp_path / "child"
+    run_dir.mkdir()
+    record_dir, _ = _write_ancestor_record(run_dir, 1)
+    verdict_path = record_dir / "gate_verdict.json"
+    verdict = json.loads(verdict_path.read_text(encoding="utf-8"))
+    assert verdict["gate"]["thresholds"] == {"min_avg_reward": 1.0} and verdict["gate_sha256"].startswith("sha256:")
+    verdict["gate"]["thresholds"]["min_avg_reward"] = 0.5
+    verdict_path.write_text(json.dumps(verdict, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ResultBundleError, match="not the digest of the recorded gate block"):
+        load_ancestor_records(run_dir, species="velociraptor")
+
+    # A verdict judged under a block other than the one the copied config records still loads.
+    verdict["gate_sha256"] = gate_config_sha256(verdict["gate"])
+    verdict_path.write_text(json.dumps(verdict, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    assert load_ancestor_records(run_dir, species="velociraptor")["1"]["passed"] is True
+
+
+def test_a_phase_a_record_without_gate_sha256_still_loads(tmp_path: Path) -> None:
+    """A child of a pre-D-A22 reuse stays auditable: the copied verdict carries neither field."""
+    run_dir = tmp_path / "child"
+    run_dir.mkdir()
+    record_dir, checkpoint_hash = _write_ancestor_record(run_dir, 1)
+    verdict_path = record_dir / "gate_verdict.json"
+    verdict = json.loads(verdict_path.read_text(encoding="utf-8"))
+    phase_a = {key: value for key, value in verdict.items() if key not in {"gate", "gate_sha256"}}
+    verdict_path.write_text(json.dumps(phase_a, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    records = load_ancestor_records(run_dir, species="velociraptor")
+    assert set(records["1"]) == set(ANCESTOR_RECORD_KEYS)
+    assert records["1"]["model_hash"] == checkpoint_hash and records["1"]["passed"] is True
 
 
 def test_a_record_without_a_parent_run_id_is_refused(tmp_path: Path) -> None:

@@ -302,6 +302,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   constraint, and names the off-distribution schedule test as the
   experiment that blocks P5.
 
+#### Phase B (BEHAVIOR_RECIPES_PLAN §4.4/§4.5)
+- **The gate verdict records the gate it was judged under, and reuse checks
+  it** (Phase B, WS-B3; decisions D-A22, D-B6, D-B7, D-B8). `gate_verdict.json`
+  gains `gate` — the `curriculum.gate_schema.gate_config_view` projection of
+  the `[curriculum]` block the verdict was judged under: `gate_kind`,
+  `gate_schema_version` and ONLY the thresholds the kind consumes (every
+  advancing kind's `min_eval_episodes` / `required_consecutive` included;
+  schedule, collapse, diagnostic, retention and provenance keys and any
+  `[curriculum.jax]` table excluded) — and `gate_sha256`, its digest with
+  every numeric threshold `float()`-normalised
+  (`result_bundle.hashing.gate_config_sha256`; `100` and `100.0` are the same
+  gate; `gate_config_differences` names the thresholds two blocks differ on).
+  The schema stays `mesozoic.gate-verdict/v1`: a file judged before D-A22
+  carries neither field and still reads, but when both are present
+  `gate_sha256` must be the digest of `gate` (a verdict edited after judging
+  is refused everywhere the reader is used — reuse, the ancestor records,
+  the bundle audit). `write_gate_verdict(gate_config=...)` is a REQUIRED
+  keyword, and every writer passes the block it judged under: the post-stage
+  judge (`generate_stage_artifacts`) and the in-training verdict pass the
+  current block; `scripts/backfill_gate_verdict.py` passes the block the
+  directory's `stage_config.json` recorded, or, with the new
+  `--gate current`, the checkout's block for the stage (the re-judge path
+  after a threshold edit for a `reward_and_length/v1` directory, whose
+  evidence rows are re-aggregated; `--gate recorded` is the default). A
+  `stance_quality/v1` verdict is read off `stance_gate_report.json` and
+  re-derives nothing, so the tool refuses a report whose recorded
+  `thresholds` are not the block being judged under, under either `--gate`
+  — a stance directory whose rail moved is re-judged through the notebook
+  JUDGE branch, which measures a fresh panel. The post-stage
+  judge logs a WARNING naming the differing thresholds when the block it
+  judges under is not the one the directory's `stage_config.json` recorded
+  — the notebook's JUDGE branch judges under the session's config — and
+  never refuses (D-B8: re-judging under an edited gate is the intended path;
+  edit a threshold, re-judge, never retrain). `find_certified_ancestor`
+  gains rule 7, between the task and the chain: `current_gate_config` (the
+  current `[curriculum]` block) is a required keyword-only argument, None
+  refuses, a verdict without `gate_sha256` is refused naming both re-judge
+  paths (the notebook JUDGE branch / `generate_stage_artifacts`, or
+  `scripts/backfill_gate_verdict.py --force [--gate current]`), and a
+  differing digest is refused naming every threshold that differs; only the
+  gate the verdict was judged under counts, never the block the directory
+  trained under, so a re-judged directory is reusable under the gate it was
+  re-judged under. `CertifiedAncestor` gains `gate_sha256`; `ancestor.json`
+  and the provenance projection are unchanged (the copied
+  `gate_verdict.json` carries the digest). `train_curriculum --trunk-from`
+  passes the node's block and the notebook's chain loop passes
+  `config.get("curriculum_kwargs", {})` (pinned). **Every `gate_verdict.json`
+  written before this change is refused by rule 7 until re-judged**: the
+  certified trex stance directories (`20260810_145546`, and the seed-44
+  replicate `20260815_205206`) must be re-backfilled with `--force`, and
+  re-judged through the notebook JUDGE branch when the refusal then names
+  a threshold that moved since (the stance rail `min_avg_reward` did on
+  2026-08-10) — a refused trunk is otherwise retrained in the new run; see
+  `docs/KNOWN_ISSUES.md`.
+
 ### Changed
 - **`stage_manifest.KNOWN_STAGE_IDS` is renamed `RESERVED_STAGE_IDS`, with
   no alias** (Phase A, WS1). Ids are an open vocabulary

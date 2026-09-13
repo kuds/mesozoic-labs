@@ -97,7 +97,13 @@ which re-derives a `stance_quality/v1` or `reward_and_length/v1` verdict from
 the evidence the directory already holds (`judged_by = "backfill"`), refuses
 to invent one from missing evidence, and cannot backfill
 `recovery_quality/v1` (re-judge that through the notebook chain, which rolls
-the panel).
+the panel). The verdict also records the gate it was judged under —
+`gate` (kind, schema version and the thresholds the kind consumes) and
+`gate_sha256`, its digest (decision D-A22) — which reuse rule 7 compares with
+the reusing run's gate; a verdict written before D-A22 lacks both and is not
+a trunk until re-backfilled with `--force` (`--gate current` after a threshold
+edit, for a `reward_and_length/v1` directory), and a copied verdict whose
+`gate_sha256` is not the digest of its `gate` block fails the audit.
 
 `ancestors/<stage_id>/ancestor.json` records `{schema, stage_id, stage_key,
 parent_run_id, source_run_dir, source_stage_dir, handoff {name, model_path,

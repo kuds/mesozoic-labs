@@ -81,7 +81,11 @@ def load_ancestor_records(run_dir: str | Path, *, species: str) -> dict[str, dic
     ``ancestor.json``, ``gate_verdict.json`` or ``stage_config.json`` is
     absent or malformed, when the verdict's handoff digests disagree with
     the record's, or when the task fingerprint disagrees between the record,
-    the verdict and the config.
+    the verdict and the config.  A copied verdict's ``gate`` / ``gate_sha256``
+    (decision D-A22) must agree with each other — :func:`read_gate_verdict`
+    enforces it — and a verdict without them (judged before D-A22) still
+    loads; the gate the ancestor trained under is deliberately not compared
+    against the digest (decision D-B8: a re-judged directory is legitimate).
     """
     from ..stage_manifest import StageManifestError, load_stage_manifest
 

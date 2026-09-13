@@ -1875,9 +1875,12 @@ def train_curriculum(
     satisfy nodes instead of training them, under the reuse rule
     :func:`~environments.shared.ancestors.find_certified_ancestor` applies
     (passed ``gate_verdict.json`` hash-bound to the handoff pair, plant
-    identity validating, recorded task equal to the current config's, and
-    the candidate's recorded parent checkpoint equal to the one resolved
-    for its declared parent here); the rule is asked to follow the trunk's
+    identity validating, recorded task equal to the current config's, the
+    verdict's ``gate_sha256`` equal to the digest of this run's
+    ``[curriculum]`` block for the node — rule 7, decision D-A22, which is
+    why ``current_gate_config=cur_kwargs`` is passed — and the candidate's
+    recorded parent checkpoint equal to the one resolved for its declared
+    parent here); the rule is asked to follow the trunk's
     own ``ancestors/<stage_id>/ancestor.json`` (``follow_records=True``,
     decision D-A23), so a trunk that itself reused a node resolves it to
     the run that certified it.  Reuse is root-first and stops at the
@@ -1933,6 +1936,7 @@ def train_curriculum(
         CurriculumManager,
         thresholds_from_configs,
     )
+    from .curriculum.gate_schema import gate_config_view
     from .result_bundle import write_gate_verdict
     from .stage_manifest import load_stage_manifest, stage_dirname
     from .task_fingerprint import derive_stage_task_fingerprint
@@ -2104,6 +2108,10 @@ def train_curriculum(
                     plant_identity=plant_identity,
                     parent_model_sha256=parent_node.model_sha256 if parent_node is not None else None,
                     follow_records=True,
+                    # D-A22 (rule 7): the block this run would judge the node
+                    # under; the candidate's verdict must have been judged
+                    # under the same gate.
+                    current_gate_config=cur_kwargs,
                 )
             except AncestorReuseError as exc:
                 logger.warning(
@@ -2392,6 +2400,8 @@ def train_curriculum(
                     judged_by=CURRICULUM_MANAGER_JUDGED_BY,
                     checkpoint=Path(handoff_stem + ".zip"),
                     normalization=Path(handoff_vecnorm),
+                    # D-A22: the manager judged under this run's block.
+                    gate_config=gate_config_view(cur_kwargs),
                 )
             except Exception:  # noqa: BLE001 - the verdict file must never sink the run
                 logger.warning("Stage %s gate verdict could not be recorded", stage, exc_info=True)

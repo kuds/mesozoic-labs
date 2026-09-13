@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import numbers
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -26,6 +27,30 @@ def canonical_json_sha256(value: Any) -> str:
     """Hash a JSON-compatible value independently of formatting."""
     payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
+def gate_config_sha256(view: Mapping[str, Any]) -> str:
+    """Hash a gate-configuration view (decision D-A22) with its numerics normalised.
+
+    *view* is the ``curriculum.gate_schema.gate_config_view`` projection —
+    ``{gate_kind, gate_schema_version, thresholds}``.  Every real number
+    under ``thresholds`` (bools excluded; numpy scalars included, since a
+    sweep override or a loaded ``evaluations.npz`` hands those in and they
+    are neither ``int`` nor ``float`` subclasses) is hashed as its
+    ``float()``, so a cosmetic TOML retype (``100`` to ``100.0``) leaves the
+    digest unchanged and cannot refuse a reuse (decision D-B7); everything
+    else is hashed verbatim through :func:`canonical_json_sha256`.  Pure — no
+    curriculum import — so ``result_bundle`` keeps its hashing-and-file-io-only
+    promise.
+    """
+    normalised = dict(view)
+    thresholds = view.get("thresholds")
+    if isinstance(thresholds, Mapping):
+        normalised["thresholds"] = {
+            key: float(value) if isinstance(value, numbers.Real) and not isinstance(value, bool) else value
+            for key, value in thresholds.items()
+        }
+    return canonical_json_sha256(normalised)
 
 
 def _write_json(path: Path, value: Mapping[str, Any]) -> Path:

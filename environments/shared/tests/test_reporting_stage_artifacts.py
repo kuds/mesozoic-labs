@@ -4,6 +4,7 @@ import csv
 import json
 import logging
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -1016,6 +1017,85 @@ class TestStageGateVerdictRecord:
         assert verdict["stage_result"]["publication_gate_passed"] is True
         assert verdict["stage_result"]["best_model_reward"] == results["best_model_reward"]
         assert verdict_is_reusable(verdict)
+        # D-A22: so does the gate it was judged under — the CURRENT block's
+        # thresholds (the kind's keys only), digested.
+        from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view
+
+        block = self.STANCE_CONFIG["curriculum_kwargs"]
+        assert verdict["gate"] == gate_config_view(block)
+        assert verdict["gate"]["thresholds"] == {
+            key: block[key]
+            for key in (
+                "max_unsupported_duty",
+                "max_unsupported_duty_ucb",
+                "min_avg_reward",
+                "min_eval_episodes",
+                "min_full_horizon_fraction",
+            )
+        }
+        assert re.fullmatch(r"sha256:[0-9a-f]{64}", verdict["gate_sha256"])
+        assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(block))
+
+    def test_judging_under_a_block_the_directory_did_not_train_under_is_logged(self, tmp_path, caplog):
+        """D-B8: the notebook's JUDGE branch judges under the session's config; when that differs from
+        the block stage_config.json recorded, it is a WARNING naming the thresholds — never a refusal,
+        and the verdict (recording the gate judged under) is still written."""
+        from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view
+        from environments.shared.result_bundle import read_gate_verdict
+
+        stage_dir = self._stage_dir(tmp_path)
+        trained_under = {**self.STANCE_CONFIG["curriculum_kwargs"], "max_unsupported_duty_ucb": 0.05, "timesteps": 5}
+        (stage_dir / "stage_config.json").write_text(
+            json.dumps(
+                {
+                    "task_fingerprint": {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": self.TASK},
+                    "curriculum": trained_under,
+                }
+            ),
+            encoding="utf-8",
+        )
+        with caplog.at_level(logging.WARNING):
+            self._apply(stage_dir, {"gate_kind": "stance_quality/v1", "passed": True, "failures": []})
+
+        warnings = [r for r in caplog.records if "judged under a gate configuration that differs" in r.message]
+        assert len(warnings) == 1 and warnings[0].levelno == logging.WARNING
+        assert "max_unsupported_duty_ucb: judged at 0.05, configured 0.02 now" in warnings[0].message
+        assert "timesteps" not in warnings[0].message
+        verdict = read_gate_verdict(stage_dir)
+        assert verdict is not None and verdict["passed"] is True
+        assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(self.STANCE_CONFIG["curriculum_kwargs"]))
+
+        # The same block, retyped (timesteps is not the gate; 0.02 == 0.02): quiet.
+        caplog.clear()
+        (stage_dir / "stage_config.json").write_text(
+            json.dumps(
+                {
+                    "task_fingerprint": {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": self.TASK},
+                    "curriculum_kwargs": {**self.STANCE_CONFIG["curriculum_kwargs"], "min_eval_episodes": 40.0},
+                }
+            ),
+            encoding="utf-8",
+        )
+        with caplog.at_level(logging.WARNING):
+            self._apply(stage_dir, {"gate_kind": "stance_quality/v1", "passed": True, "failures": []})
+        assert not [r for r in caplog.records if "judged under a gate configuration" in r.message]
+
+        # A DIFFERING block under the loaded-config spelling is read, not skipped: the warning names it.
+        caplog.clear()
+        (stage_dir / "stage_config.json").write_text(
+            json.dumps(
+                {
+                    "task_fingerprint": {"schema": "mesozoic.task-fingerprint/v2", "task_sha256": self.TASK},
+                    "curriculum_kwargs": {**self.STANCE_CONFIG["curriculum_kwargs"], "max_unsupported_duty_ucb": 0.05},
+                }
+            ),
+            encoding="utf-8",
+        )
+        with caplog.at_level(logging.WARNING):
+            self._apply(stage_dir, {"gate_kind": "stance_quality/v1", "passed": True, "failures": []})
+        warnings = [r for r in caplog.records if "judged under a gate configuration that differs" in r.message]
+        assert len(warnings) == 1
+        assert "max_unsupported_duty_ucb: judged at 0.05, configured 0.02 now" in warnings[0].message
 
     def test_a_failure_is_recorded_too_and_is_not_reusable(self, tmp_path):
         from environments.shared.result_bundle import read_gate_verdict, verdict_is_reusable

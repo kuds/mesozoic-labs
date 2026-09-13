@@ -359,8 +359,9 @@ them. Across runs:
   a chain that skips a ladder stage.
 - `--trunk-from RUN_DIR` reuses an earlier run's certified ancestors,
   root-first, instead of retraining them (a passed verdict hash-bound to the
-  handoff pair, the same task digest and plant, and each child trained from
-  the very parent checkpoint reused before it). The run's target — `--target`,
+  handoff pair, the same task digest, plant and gate configuration — the
+  verdict's `gate_sha256` — and each child trained from the very parent
+  checkpoint reused before it). The run's target — `--target`,
   the last advancing stage by default — is always trained here; a reused node's verdict, config,
   fingerprint and plant records are copied under `ancestors/<stage_id>/` —
   never the checkpoint pair — and its children record `parent_run_id`. A run

@@ -159,7 +159,26 @@ reason naming it:
 5. the handoff pair the directory selects now re-hashes to the verdict's
    digests, so a checkpoint rewritten after judging is refused;
 6. the checkpoint's recorded plant identity validates against the current
-   plant, with no legacy allowance.
+   plant, with no legacy allowance;
+7. the gate (decision D-A22; evaluated between rules 3 and 4, before the
+   chain, the hashing and the plant): the verdict's `gate_sha256` — the
+   digest of the gate it was judged under (`gate`: kind, schema version and
+   only the thresholds the kind consumes, numerics normalised so `100` and
+   `100.0` are one gate) — equals the digest of the node's current
+   `[curriculum]` block. A verdict without the field was judged before D-A22
+   and is refused until re-judged; a differing digest is refused naming every
+   threshold that differs (`min_avg_reward: judged at 1940.0, configured
+   2100.0 now`). Only the gate the verdict was judged under counts, never
+   the block the directory trained under: a directory re-judged under an
+   edited gate is reusable under that gate (edit a threshold, re-judge, never
+   retrain). The re-judge paths are the notebook's JUDGE branch
+   (`generate_stage_artifacts`, for a directory holding no verdict — remove
+   a refused one first) and `backfill_gate_verdict.py --force [--gate
+   current]` below.
+
+A candidate the rule refuses is not an error: `curriculum --trunk-from` and
+the notebook loop log the refusal and train the node in the new run, so
+inventory the trunk's verdicts before the first trunked run.
 
 Two runs that both certified stance produced two different checkpoints; a
 walk descends from exactly one of them, and ids never stand in for digests.
@@ -198,8 +217,19 @@ python -m environments.shared.scripts.backfill_gate_verdict logs/<run>/<stage_di
 ```
 
 `--species` and `--stage` override what the directory's `stage_config.json`
-records, and `--force` re-derives over an existing verdict. The tool refuses
-when the evidence is missing.
+records, and `--force` re-derives over an existing verdict — the path for a
+verdict written before D-A22, which records no `gate_sha256` and is refused
+by rule 7. `--gate recorded` (the default) judges under the block
+`stage_config.json` recorded and digests it; `--gate current` judges under
+the checkout's block for the stage and digests that one, the re-judge path
+after a threshold edit for a `reward_and_length/v1` directory, whose episode
+rows are re-aggregated under the new floors. A `stance_quality/v1` verdict is
+read off `stance_gate_report.json` and re-derives nothing, so the tool refuses
+a report whose recorded `thresholds` are not the ones being judged under
+(under either `--gate`): a stance directory whose rail moved is re-judged
+through the notebook's JUDGE branch, which measures a fresh panel. The tool
+refuses when the evidence is missing, and cannot backfill
+`recovery_quality/v1`.
 
 ## In the notebook
 
@@ -462,7 +492,7 @@ thresholds. That one fact decides what an edit does to a trunked run:
 |---|---|---|
 | Algorithm block (`[ppo]`, `[sac]`, `warmup_` / `ramp_` shaping) | unchanged | Reuses the old certified checkpoint unless the node is the run's target or `--retrain-from` / `RETRAIN_FROM` covers it. The reuse prints a warning naming the differing keys (`ppo.learning_rate`, `shaping.warmup_timesteps`) and pointing at the retrain knob — never a refusal. |
 | Environment block (`[env]`, pushes, plant) | changes | Rule 3 refuses the old checkpoint; the node and everything below it retrain. Older checkpoints stay valid in the runs that certified them. |
-| Gate thresholds | unchanged | Reuses a pass judged under the old thresholds. The verdict does not record thresholds yet (Phase B), so re-judge the stage directory to re-gate it. |
+| Gate thresholds | unchanged | Rule 7 refuses the old verdict, naming the thresholds that differ (`gate_sha256` no longer matches). Re-judge the directory under the current gate — the notebook JUDGE branch / `generate_stage_artifacts`, or `backfill_gate_verdict.py --force --gate current` for a `reward_and_length/v1` directory — never retrain; until then a trunked run trains the node itself. |
 
 Two variants of one node are two runs: writing into a stage directory that
 already records a node is refused, so give each variant a fresh
@@ -508,5 +538,6 @@ curriculum or a trunked `--retrain-from` run. See
   advancing nodes during training, and semantic-id nodes (recovery) are
   judged after the stage.
 - Stance and recovery deliverables headline a metric name with a null value
-  until per-stage gate metrics are exported into the summary (Phase B), and
-  a verdict does not yet record the thresholds it was judged under.
+  until per-stage gate metrics are exported into the summary (Phase B). A
+  verdict records the gate it was judged under (`gate` / `gate_sha256`,
+  decision D-A22), but the deliverable's summary does not surface it yet.

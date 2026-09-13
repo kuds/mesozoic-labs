@@ -106,6 +106,47 @@ tolerance) remains the standing recommendation for the divergences above.
   0.00 the other) is superseded by the recovery records —
   [STAGE1B_IMPLEMENTATION_PLAN.md](STAGE1B_IMPLEMENTATION_PLAN.md) and
   [investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md](investigations/TREX_RECOVERY_STAGE_FIRST_RUNS_2026_08.md).
+- **MEDIUM (operational)** — **every `gate_verdict.json` written before the
+  gate-configuration digest (decision D-A22, Phase B WS-B3) is refused as a
+  trunk until it is re-judged.** Reuse rule 7 compares the verdict's
+  `gate_sha256` (the digest of the gate it was judged under) with the gate
+  the reusing run declares; a verdict without the field certifies an unknown
+  gate and `--trunk-from` / `TRUNK_FROM` refuses it naming the re-judge
+  paths — and then TRAINS the node in the new run (the refusal is only in
+  the log: `Not reusing 'stance' from --trunk-from ...: ... Training it in
+  this run instead.`), so the inventory below must be done before the first
+  trunked run or the stance retrains for hours. Two re-judge paths exist:
+  the notebook JUDGE branch / `generate_stage_artifacts` for a directory
+  holding no verdict (set `RUN_ID` to the run, remove the refused
+  `gate_verdict.json` from the stage directory, and the chain loop judges
+  the held checkpoints under this session's gate, measuring a fresh stance
+  panel), and `backfill_gate_verdict.py --force` for one that holds a
+  pre-D-A22 verdict. This covers the certified trex stance run `20260810_145546` and the
+  seed-44 replicate `20260815_205206` (backfilled under decision D-A6 before
+  the digest existed), and every other backfilled or Phase-A-judged stage
+  directory. Inventory the log tree with
+  `find <LOG_BASE> -name gate_verdict.json -exec grep -L gate_sha256 {} +`
+  and re-backfill each hit with
+  `python -m environments.shared.scripts.backfill_gate_verdict <stage_dir> --force`;
+  when the rule-7 refusal then names a differing threshold — stance's
+  `min_avg_reward` rail moved 1940.0 → 2100.0 on 2026-08-10, the day
+  `20260810_145546` ran, so its recorded block may not digest to the
+  checkout's — the directory must be re-judged under the current gate (a
+  moved rail or a statue re-measure is a RE-JUDGE of every certified trunk,
+  never a retrain; decisions D-B7/D-B8). For a `reward_and_length/v1`
+  directory that is `--gate current`, which re-aggregates the evidence rows
+  under the checkout's block and records that gate. For a stance directory
+  it is NOT: a `stance_quality/v1` verdict is read off
+  `stance_gate_report.json`, which certifies only the thresholds it scored,
+  so the tool refuses a report scored under the old rail under either
+  `--gate` (a pass at 1950 under the 1940 rail must never be minted as a
+  pass under 2100) — re-judge both stance directories through the notebook
+  JUDGE branch, which measures a fresh panel under the current gate.
+  Recovery verdicts cannot be backfilled and need a notebook re-roll. Measurement still owed before the first Phase-B
+  trunked run: for both stance directories compute
+  `gate_config_sha256(gate_config_view(stage_config.json["curriculum"]))`
+  and compare it with `load_all_stages("trex")[1]["curriculum_kwargs"]`'s
+  digest, recording which of the two backfill paths each needed.
 
 <!-- The items below come from the 2026-07-31 plant validation pass; full
      evidence in PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md. The reset and

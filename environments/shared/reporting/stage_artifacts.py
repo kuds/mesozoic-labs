@@ -745,6 +745,7 @@ def _write_stage_gate_verdict(
     checkpoint the evidence describes.  ``stage_id`` is the manifest id when
     the species is known, else the stage reference spelled out.
     """
+    from ..curriculum.gate_schema import gate_config_view
     from ..result_bundle import write_gate_verdict
     from ..stage_manifest import StageManifestError, load_stage_manifest
     from .gates import _current_task_sha256
@@ -771,7 +772,61 @@ def _write_stage_gate_verdict(
         judged_by=GATE_VERDICT_JUDGED_BY,
         checkpoint=Path(handoff[1] + ".zip") if handoff is not None else None,
         normalization=Path(handoff[2]) if handoff is not None else None,
+        # D-A22: the verdict records the gate it is judged under — the block
+        # handed in, which is the CURRENT config (the notebook's JUDGE branch
+        # judges a directory under the config of the session, not the one
+        # its stage_config.json recorded; see _warn_if_judged_under_another_gate).
+        gate_config=gate_config_view(curriculum),
         stage_result=stage_results,
+    )
+
+
+def _recorded_curriculum_block(stage_dir: Path) -> "Mapping[str, Any] | None":
+    """The ``[curriculum]`` block *stage_dir*'s ``stage_config.json`` recorded, else None.
+
+    Read under either spelling (``curriculum`` as ``save_stage_config``
+    writes it, ``curriculum_kwargs`` as the loaded config carries it), the
+    way the bundle's evidence reader and the backfill tool read it.  None
+    for an absent, unreadable or block-less file.
+    """
+    path = stage_dir / "stage_config.json"
+    if not path.is_file():
+        return None
+    try:
+        record: Any = _json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(record, Mapping):
+        return None
+    block = record.get("curriculum", record.get("curriculum_kwargs"))
+    return block if isinstance(block, Mapping) else None
+
+
+def _warn_if_judged_under_another_gate(stage: "int | str", stage_dir: Path, curriculum: Mapping[str, Any]) -> None:
+    """Decision D-B8: say so when the gate judged under is not the one the stage trained under.
+
+    Re-judging a directory under an edited gate is the intended path (edit
+    a threshold, re-judge, never retrain), so this is a WARNING and never a
+    refusal: the verdict records the gate it is judged under (D-A22) and
+    reuse rule 7 compares against that, not against the recorded block.
+    Names the thresholds that differ, so the log says what changed.
+    """
+    from ..curriculum.gate_schema import gate_config_differences, gate_config_sha256, gate_config_view
+
+    recorded = _recorded_curriculum_block(stage_dir)
+    if recorded is None:
+        return
+    recorded_view = gate_config_view(recorded)
+    current_view = gate_config_view(curriculum)
+    if gate_config_sha256(recorded_view) == gate_config_sha256(current_view):
+        return
+    differences = gate_config_differences(recorded_view["thresholds"], current_view)
+    logger.warning(
+        "Stage %s is judged under a gate configuration that differs from the block its stage_config.json "
+        "recorded (%s): the verdict certifies the gate it is judged under (decision D-A22), not the one the "
+        "stage trained under, and reuse rule 7 compares against this gate",
+        stage,
+        "; ".join(differences) if differences else "the gate kind or schema version differs",
     )
 
 
@@ -844,6 +899,10 @@ def _apply_stage_gate(
     else:
         logger.warning("Stage %s curriculum gate: FAIL — %s", stage, "; ".join(failures))
     if stage_dir is not None:
+        try:
+            _warn_if_judged_under_another_gate(stage, Path(stage_dir), curriculum)
+        except Exception:  # noqa: BLE001 - a diagnostic must never cost the artifacts
+            logger.warning("Stage %s: could not compare the judged gate with the recorded one", stage, exc_info=True)
         try:
             _write_stage_gate_verdict(
                 stage_dir=Path(stage_dir),

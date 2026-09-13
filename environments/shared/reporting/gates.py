@@ -224,15 +224,14 @@ def _current_task_sha256(stage_dir: Path) -> str | None:
 def _same_threshold(declared: Any, frozen: Any) -> bool:
     """Whether a declared threshold and a frozen one state the same criterion.
 
-    Anything that will not compare as a number counts as a disagreement: the
-    fail-closed reading of "these two records cannot be shown to agree".
+    The comparison lives in ``curriculum.gate_schema.same_threshold`` since
+    the gate-configuration digest (decision D-A22) needs it too; this is the
+    same function, reached lazily for the import-cycle reason
+    :func:`evaluate_stage_gate` documents.
     """
-    if declared is None or frozen is None:
-        return declared is None and frozen is None
-    try:
-        return float(declared) == float(frozen)
-    except (TypeError, ValueError):
-        return False
+    from ..curriculum.gate_schema import same_threshold
+
+    return same_threshold(declared, frozen)
 
 
 def _recovery_spec_disagreements(

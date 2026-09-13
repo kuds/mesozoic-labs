@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 from typing import Any, TypedDict
 
+from environments.shared.curriculum.gate_schema import gate_config_view
 from environments.shared.reporting import save_evaluation_episodes, save_result_bundle
 from environments.shared.result_bundle import (
     ANCESTOR_RECORD_NAME,
@@ -333,6 +334,8 @@ def _write_ancestor_record(
         judged_by="reporting.stage_artifacts.generate_stage_artifacts",
         checkpoint=checkpoint,
         normalization=normalization,
+        # D-A22: judged under the block the ancestor's config records.
+        gate_config=gate_config_view(stage_config["curriculum_kwargs"]),
     )
 
     record_dir = run_dir / ANCESTORS_DIRNAME / entry.id

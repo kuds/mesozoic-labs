@@ -236,7 +236,8 @@ class TestMainDispatch:
             "resolved as the notebook's BEHAVIOR knob resolves them, or a legacy number (2), resolved as --stage resolves it"
             in help_text
         )
-        assert "the notebook's TRUNK_FROM does not yet" in help_text
+        assert "gate_verdict.json passed under the current gate configuration" in help_text
+        assert "the command line and the notebook's TRUNK_FROM both follow those records" in help_text
 
     def test_retrain_from_outside_the_targets_chain_is_a_usage_error(self, species_cfg, tmp_path, capsys):
         """``--retrain-from behavior`` names an advancing node a ``--target walk`` run never walks."""
