@@ -8,14 +8,15 @@ Guide to tuning hyperparameters for training experiments.
 
 ## Config Files
 
-All hyperparameters are defined in TOML config files under `configs/<species>/`. The T-Rex has four stage configs plus a `stages.toml` manifest that orders them by semantic id; the other three species have three stage configs each, named by stage number:
+All hyperparameters are defined in TOML config files under `configs/<species>/`. Every species commits a `stages.toml` manifest (schema `mesozoic.stage-manifest/v2`) that names its stage config files and declares the recipe graph over them. Velociraptor, Brachiosaurus and Dibothrosuchus have three stage configs named by stage number; T-Rex, Compsognathus and the Compsognathus robot have four, named by stage id:
 
 ```
 configs/
 ├── velociraptor/
 │   ├── stage1_balance.toml
 │   ├── stage2_locomotion.toml
-│   └── stage3_strike.toml
+│   ├── stage3_strike.toml
+│   └── stages.toml
 ├── trex/
 │   ├── stance.toml
 │   ├── recovery.toml
@@ -25,21 +26,46 @@ configs/
 ├── brachiosaurus/
 │   ├── stage1_balance.toml
 │   ├── stage2_locomotion.toml
-│   └── stage3_food_reach.toml
-└── dibothrosuchus/
-    ├── stage1_balance.toml
-    ├── stage2_locomotion.toml
-    └── stage3_snap.toml
+│   ├── stage3_food_reach.toml
+│   └── stages.toml
+├── dibothrosuchus/
+│   ├── stage1_balance.toml
+│   ├── stage2_locomotion.toml
+│   ├── stage3_snap.toml
+│   └── stages.toml
+├── compsognathus/
+│   ├── stance.toml
+│   ├── recovery.toml
+│   ├── locomotion.toml
+│   ├── behavior.toml
+│   └── stages.toml
+└── compsognathus_robot/
+    ├── stance.toml
+    ├── recovery.toml
+    ├── locomotion.toml
+    ├── behavior.toml
+    └── stages.toml
 ```
 
-Each stage TOML file contains `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]`, `[sac]` and `[jax]` everywhere except the T-Rex recovery stage, which is PPO-only. `stages.toml` carries no hyperparameters: it records the manifest schema and, per stage in curriculum order, the stage id, its config file and (where one exists) its legacy integer number, which is how integer stage references resolve.
+Each stage TOML file contains `[stage]`, `[env]` and `[curriculum]` sections plus the algorithm sections it supports: `[ppo]` and `[sac]` in every stage file except the T-Rex `recovery.toml`, which is PPO-only, and `[jax]` only in the advancing stage files of the four JAX species (T-Rex, Velociraptor, Brachiosaurus and Dibothrosuchus) — the T-Rex `recovery.toml` and every Compsognathus and Compsognathus robot file have no `[jax]` section. `stages.toml` carries no hyperparameters. It records the manifest schema and, per `[[stages]]` entry in manifest order: the stage `id`, its `config` file, an optional `legacy_number` (how integer stage references resolve), `warm_start_from` (the id of an earlier entry the node initialises from; absent means root), `deliverable = true` (its certified checkpoint is a published policy) and a `recipe` label (`stand`, `walk` or `hunt`; a label resolves to its deepest deliverable in manifest order). Recipes are derived from the edges, never declared in a second table. Ids are an open vocabulary matching `^[a-z][a-z0-9_]*$`, with `stance`, `recovery`, `locomotion` and `behavior` reserved. See [Behavior Recipes](recipes.md#the-stage-manifest).
 
 ## Per-Stage Hyperparameters
 
 **Each stage has its own `[ppo]` and `[sac]` sections.** When the
 `curriculum` command advances, it loads the next TOML file and re-initialises
-the model with that stage's settings. Values differ across species and change
-as experiments evolve, so the stage TOML files are the authoritative source.
+the algorithm with that stage's settings; the next node's weights come from
+its declared `warm_start_from` parent's handoff checkpoint, loaded under
+`initialize_next_stage`. Values differ across species and change as
+experiments evolve, so the stage TOML files are the authoritative source.
+
+Every trained node records a `hyperparameters_sha256` in the `run` block of
+its `stage_config.json`: a digest over the stage's `[ppo]` or `[sac]` table
+plus its `warmup_` / `ramp_` shaping keys, independent of key order and
+untouched by env kwargs or gate thresholds. A `label` is recorded beside it
+when `--label TEXT` (`train` or `curriculum`) or the notebook's `RUN_LABEL` is
+set. Both are copied into the run's `provenance.deliverables` records and
+tagged onto the W&B run as `hp:<12 hex>` and `label:<text>`, which is how two
+variants of one node are told apart later.
 
 The broad curriculum intent is balance first, locomotion second, and a
 species-specific simulator task third. Reward weights shift with that intent;
@@ -92,9 +118,11 @@ For the SB3 curriculum, every enabled criterion must pass in the same evaluation
 window, the window must contain at least 10 episodes (the current
 `StageThreshold.min_eval_episodes` implementation default), and this result must
 repeat for `required_consecutive` evaluations before the stage advances early.
-If the `timesteps` budget runs out first, the stage advances anyway. Consult the
-generated model pages or the TOML files for current values rather than relying
-on a static table here.
+If the `timesteps` budget runs out first, the node's `gate_verdict.json`
+records a failure and the `curriculum` command stops before the next node
+rather than training it from an uncertified parent. Consult the generated
+model pages or the TOML files for current values rather than relying on a
+static table here.
 
 JAX/MJX does not currently reproduce that decision loop. The CLI curriculum
 trains the configured stage and performs one reward-only gate afterward. The JAX
@@ -124,7 +152,36 @@ Supported key prefixes:
 | `sac.X` | `sac_kwargs[X]` |
 | `env.X` | `env_kwargs[X]` (reward weights, episode settings) |
 
-For stage-scoped overrides within a curriculum run, prefix with the stage number: `1.ppo.learning_rate=3e-4 2.ppo.learning_rate=1e-4`. Plain `section.key=value` still applies to all stages.
+For stage-scoped overrides, prefix with the stage's legacy number or its id: `1.ppo.learning_rate=3e-4 2.ppo.learning_rate=1e-4`, or `recovery.ppo.learning_rate=1e-4` on a `train --stage recovery` run. Plain `section.key=value` still applies to all stages.
+
+### Experimenting on a node that already passes
+
+When a run is trunked (`curriculum --trunk-from`, or the notebook's
+`TRUNK_FROM`), whether an edited node is reused or retrained depends on which
+block you edited. The task digest a verdict is bound to covers the effective
+`[env]` block, the plant and the push schedule — not `[ppo]` / `[sac]`, the
+`timesteps` budget, or the gate thresholds.
+
+1. **An algorithm-block edit** (`[ppo]`, `[sac]`, or a `warmup_` / `ramp_`
+   shaping key) leaves the digest unchanged, so a trunked run reuses the old
+   certified checkpoint unless the node is the run's target or
+   `--retrain-from <id>` / `RETRAIN_FROM` covers it. The reuse prints a warning
+   naming the differing dotted keys (`ppo.learning_rate`,
+   `shaping.warmup_timesteps`) and pointing at the retrain knob; it is never a
+   refusal.
+2. **An `[env]` edit** changes the digest: the old checkpoint is refused by the
+   reuse rule and the node and everything below it retrain.
+3. **A gate-threshold edit** does not invalidate an old verdict yet: the
+   verdict records no thresholds in Phase A. Re-judge the stage directory to
+   re-gate it.
+
+A variant is a new run directory: writing into a stage directory that already
+holds `stage_config.json` or `gate_verdict.json` is refused unless the load is
+an explicit same-stage resume. It is also a comparison, not a new trunk for
+the nodes it reused: `--trunk-from` follows a run's own stage directories,
+never its `ancestors/` records, so a run that reused stance cannot hand stance
+to a later run. See
+[Behavior Recipes](recipes.md#experiments-on-a-node-that-already-passes).
 
 > **Systematic sweeps:** Use `notebooks/ray_tune_sweep.ipynb` for a Colab/Google
 > Drive workflow, or see [Hyperparameter Sweeps](sweeps.md) for the Vertex AI
@@ -207,6 +264,6 @@ copying values from a guide.
 2. **Diagnose.** If the run fails, match symptoms against the tables above. Do not change more than one group of knobs per run.
 3. **Narrow.** For promising directions, launch a Ray Tune sweep over 3–5 candidate values using `notebooks/ray_tune_sweep.ipynb`. Use the ASHA scheduler to prune early.
 4. **Promote.** Commit the winning values back to the TOML with a trailing comment explaining why (see existing configs for the house style — e.g. `# Setting 4 sweep: ...`).
-5. **Regress-test.** Re-run the full curriculum end-to-end on the winning config before committing. A Stage 1 change often degrades Stage 3.
+5. **Regress-test.** Re-run everything below the edited node on the certified trunk before committing: `curriculum --trunk-from <certified run> --retrain-from <edited node> --output-dir <new run>` retrains that node and every node after it. An `[env]` edit retrains from that node down automatically, since it changes the task digest. A stance change often degrades the behavior node. The regress-test run reuses the trunk's ancestors above the edited node but cannot pass them on — a run serves as a trunk only for the nodes it trained itself — so trunk later behaviors from the run that holds the whole chain, or train the promoted config as a fresh, untrunked curriculum.
 
 For systematic multi-parameter sweeps, see [Hyperparameter Sweeps](sweeps.md).

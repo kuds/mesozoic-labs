@@ -22,7 +22,9 @@ past a couple of files get their own subdirectory with a short README index
 - [PLANT_CONTRACT.md](PLANT_CONTRACT.md) — versioned policy-interface,
   physics, visual, and source identities for MuJoCo models and checkpoints.
 - [RESULT_BUNDLES.md](RESULT_BUNDLES.md) — canonical Colab/Google Drive result
-  artifacts, provenance capture, and promotion validation.
+  artifacts, per-deliverable publication (result schema v4: bundle status,
+  `gate_verdict.json`, `ancestors/` records), provenance capture, and
+  promotion validation.
 
 ## Plans & designs
 
@@ -30,14 +32,14 @@ past a couple of files get their own subdirectory with a short README index
 |---|---|---|
 | [ROADMAP.md](ROADMAP.md) | 2026-04-18 | Active — phased project timeline |
 | [RECOMMENDATIONS.md](RECOMMENDATIONS.md) | 2026-03-25 | Active — codebase-wide improvement backlog |
-| [RL_TRAINING_PLAN.md](RL_TRAINING_PLAN.md) | 2026-03-26 | Active — remaining SAC/PPO runs across species |
+| [RL_TRAINING_PLAN.md](RL_TRAINING_PLAN.md) | 2026-03-26 | Dated planning snapshot (update notes 2026-04-18 and 2026-09-13) — trial list for the remaining SAC/PPO runs; its notebook setup predates the behavior chain loop (`BEHAVIOR`) and the id-named T-Rex stage configs, which the 2026-09-13 note maps |
 | [TREX_LEG_FLEXING_PLAN.md](TREX_LEG_FLEXING_PLAN.md) | 2026-07-27 | Option 1 (stance correction) implemented; options 2–4 open, step 5 (port to the raptor) withdrawn — see the raptor review |
 | [MJX_CONVERSION_PLAN.md](MJX_CONVERSION_PLAN.md) | 2026-07-13 | Implemented design record — current divergences live in KNOWN_ISSUES and the JAX guide |
 | [WEBSITE_PLAN.md](WEBSITE_PLAN.md) | — | Active — Docusaurus site improvements |
 | [BALANCE_REWARD_METRICS.md](BALANCE_REWARD_METRICS.md) | 2026-03-16 | Proposed — composite ASHA metric for stage-1 sweeps |
 | [PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md](PLANT_VALIDATION_AND_STAGE1_OBJECTIVE.md) | 2026-07-31 | Active — **read before any stage-1 work.** Why every reset was geometrically invalid, why the stage-1 objective's optimum is the zero-action policy, and what replaces the reward gate |
 | [STAGE1_SPLIT_PLAN.md](STAGE1_SPLIT_PLAN.md) | 2026-07-31 | Active (rev 5) — design proposal splitting balance into 1a stance / 1b recovery |
-| [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) | 2026-09-05 | Active — adopted design turning the stage ladder into a DAG of behavior recipes (stand / walk / hunt / follow direction), each a separately certified, separately published policy; phases A–E sequenced |
+| [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) | 2026-09-05 | Active — adopted design turning the stage ladder into a DAG of behavior recipes (stand / walk / hunt / follow direction), each a separately certified, separately published policy. Phase A (manifest v2, per-node gate verdicts, cross-run ancestor reuse, per-deliverable publication, the notebook chain loop) merged 2026-09-12 in #528–#530; §6.1 records decisions D-A1–D-A22; Phases B–E (measured hunting gate and seed replication, command-interface bump, follow leaf) pending |
 | [REFACTORING.md](REFACTORING.md) | 2026-03-19 | **Complete** — v0.3.0 consolidation plan |
 | [CODE_CONSOLIDATION.md](CODE_CONSOLIDATION.md) | 2026-03-19 | **Complete** — v0.3.0 implementation record |
 

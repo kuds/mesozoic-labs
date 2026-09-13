@@ -49,6 +49,9 @@ mesozoic-labs/
 │   └── shared/                # Shared base classes and utilities
 │       ├── base_env.py        # BaseDinoEnv abstract class
 │       ├── config.py          # TOML configuration loading
+│       ├── cli.py             # train / curriculum command-line interface
+│       ├── stage_manifest.py  # Stage manifest v2: ids, warm-start edges, deliverables, recipes
+│       ├── ancestors.py       # Certified-ancestor reuse across runs (--trunk-from / TRUNK_FROM)
 │       ├── curriculum/        # Curriculum manager and SB3 callbacks
 │       ├── plant_contract/    # Layered MuJoCo plant safety contract
 │       ├── reporting/         # Result summaries, CSVs, and stage artifacts
@@ -62,7 +65,7 @@ mesozoic-labs/
 │       ├── jax_training.py    # JAX training loop
 │       ├── harnesses/         # Hand-run smoke checks and MJCF viewers
 │       └── tests/             # Shared utility tests
-├── configs/                   # TOML hyperparameter configs per species/stage
+├── configs/                   # Per-species stage manifest (stages.toml) and TOML stage configs
 ├── notebooks/                 # Jupyter training, sweep, and reporting workflows
 ├── website/                   # Documentation site (Docusaurus)
 └── results/                   # Curated historical summaries and available run artifacts
@@ -303,22 +306,82 @@ pip install -e ".[train]"
 # View the velociraptor model
 python environments/velociraptor/scripts/view_model.py
 
-# Full numbered curriculum — one command, all stages handled automatically
+# Full curriculum — one command walks the manifest's advancing stages in order
 # (each stage loads its own hyperparameters from the TOML config)
 cd environments/velociraptor
 python scripts/train_sb3.py curriculum --algorithm ppo
+
+# Reuse the certified trunk of an earlier run and train only what is missing above it
+python scripts/train_sb3.py curriculum --algorithm ppo --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
+
+# Retrain locomotion (and everything after it) on top of the trunk's certified stance
+python scripts/train_sb3.py curriculum --algorithm ppo --trunk-from logs/<earlier_run> --retrain-from locomotion --output-dir logs/<new_run> --label lr-sweep-a
 ```
 
-Stages are identified by a per-species **stage manifest**
-(`configs/<species>/stages.toml`, synthesized for species without one).
-Integer stage references always mean their historical stage, so existing
-artifacts and commands keep their meaning; stages without a numeric history
-are addressed by semantic id. The T-Rex curriculum has four stages —
-stance → **recovery** → locomotion → behavior — where the recovery stage
-(stage 1b) holds the certified stance against scheduled external pushes:
+Stages are declared by a per-species **stage manifest**
+(`configs/<species>/stages.toml`, schema v2 for every species). Each node
+names the node it warm-starts from, whether its certified checkpoint is a
+published **deliverable**, and the behavior **recipe** it belongs to —
+`stand`, `walk`, `hunt`. A recipe is read off those edges: a deliverable plus
+the chain of nodes beneath it, so the stages form a small DAG on one shared
+trunk rather than a ladder whose last rung is the only product. Integer stage
+references always mean their historical stage, so existing artifacts and
+commands keep their meaning; stages without a numeric history are addressed
+by semantic id.
+
+The `curriculum` command trains the advancing stages in manifest order,
+warm-starting each node from its declared parent's handoff checkpoint and
+VecNormalize sidecar. Every trained node is judged and writes a
+`gate_verdict.json` beside its handoff; a node whose parent has no certified
+checkpoint stops the run with a warning, never trains from scratch. On the
+command line that is all a run records — the verdicts and
+`curriculum_results.csv`, which is what lets it serve as a later run's trunk;
+the per-deliverable result bundle is the notebook's. A notebook run publishes
+every deliverable it certified: a failed hunt still publishes the certified
+walk and stance it trained beneath it (bundle status `partial`), and the
+bundle is `complete` only when the target and every present deliverable are
+certified. Ancestors reused from a trunk are not republished — they appear
+under `provenance.ancestors` and stay published by the run that certified
+them. Across runs:
+
+- `--trunk-from RUN_DIR` reuses an earlier run's certified ancestors,
+  root-first, instead of retraining them (a passed verdict hash-bound to the
+  handoff pair, the same task digest and plant, and each child trained from
+  the very parent checkpoint reused before it). The run's target — the last
+  advancing stage — is always trained here; a reused node's verdict, config,
+  fingerprint and plant records are copied under `ancestors/<stage_id>/` —
+  never the checkpoint pair — and its children record `parent_run_id`. A run
+  can serve as a trunk only for the nodes it trained itself; one that reused
+  an ancestor cannot pass it on.
+- `--retrain-from STAGE_ID` (with `--trunk-from`) trains the named advancing
+  stage and everything after it even when the trunk holds a certified copy,
+  reusing only the ancestors strictly above it. A variant is a new run: a
+  stage directory that already records a node is refused, so pair it with a
+  fresh `--output-dir`.
+- `--label TEXT` (on `train` and `curriculum`) is recorded in each trained
+  stage's run block beside its `hyperparameters_sha256` digest, so variants
+  can be told apart; an algorithm-block edit that reuse ignores is warned
+  about by key.
+
+The SB3 notebook does the same through its `BEHAVIOR` (default `"hunt"`; a
+recipe label or a deliverable's stage id), `TRUNK_FROM`, `RETRAIN_FROM` and
+`RUN_LABEL` knobs and one behavior chain-loop cell. The design, its
+decisions and the phases still to come are in
+[docs/BEHAVIOR_RECIPES_PLAN.md](docs/BEHAVIOR_RECIPES_PLAN.md); the site's
+[behavior recipes guide](website/docs/training/recipes.md) walks through a
+run.
+
+The T-Rex manifest is the DAG in miniature: stance is the root; **recovery**
+(`stand`) and locomotion (`walk`) both warm-start from stance; behavior
+(`hunt`) warm-starts from locomotion. Recovery holds the certified stance
+against scheduled external pushes and is a published deliverable, but it has
+no legacy number, so `curriculum` skips it with a log line. Run it as a single
+node, or as the `stand` chain (stance → recovery, verdict enforced) with
+`BEHAVIOR = "stand"` in the notebook:
 
 ```bash
 # Run the T-Rex recovery stage, warm-started from a certified stance checkpoint.
+# The load is refused unless the checkpoint records stance, recovery's declared parent.
 # Its gate (recovery_quality/v1, frozen 2026-08-28) is judged post-stage against
 # the stage directory's gate_resolution.json; see docs/STAGE1B_IMPLEMENTATION_PLAN.md.
 cd environments/trex
@@ -425,6 +488,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 - [ ] Terrain adaptation (uneven ground, obstacles)
 - [-] JAX/MJX migration for faster training (PPO pipeline complete, SAC pending)
 - [-] mjlab pilot (MuJoCo-Warp + Isaac-Lab manager API) — scaffold landed, velociraptor Stage 1 spike pending
+- [-] Behavior recipes on one certified trunk — stand / walk / hunt published per deliverable with cross-run ancestor reuse (Phase A landed 2026-09-12); measured hunting gate and seed replication, command-interface bump and the follow-direction leaf pending (see [docs/BEHAVIOR_RECIPES_PLAN.md](docs/BEHAVIOR_RECIPES_PLAN.md))
 - [ ] Multi-agent pack hunting scenarios
 - [ ] Sim-to-real transfer experiments (future work; no hardware-transfer results are published yet)
 

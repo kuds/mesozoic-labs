@@ -39,16 +39,27 @@ python -m pytest environments/trex/tests/ -v
 # Train stage 1 using its current TOML-configured budget
 python environments/trex/scripts/train_sb3.py train --stage 1
 
-# Train the recovery stage (stage 1b): the stance task plus scheduled
-# 165.5 N / 0.20 s external pushes derived from the plant itself
-# (configs/trex/recovery.toml). Warm-start from a certified stance
-# checkpoint; runs as a non-advancing pilot until the recovery gate's
-# thresholds are calibrated and frozen by the gate resolver.
+# Train the hunt chain (stance -> locomotion -> behavior), reusing an earlier
+# run's certified trunk and training only what is missing above it
+python environments/trex/scripts/train_sb3.py curriculum --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
+
+# Train the recovery stage — the second node of the `stand` recipe, a published
+# deliverable judged post-stage against the frozen recovery_quality/v1 gate
+# (configs/trex/recovery.toml, frozen 2026-08-28): the stance task plus scheduled
+# 165.5 N / 0.20 s external pushes derived from the plant itself. Warm-start from
+# a certified stance checkpoint: the load is refused unless the checkpoint records
+# stance, recovery's declared parent. The `curriculum` command skips this
+# non-advancing node; the notebook runs it with BEHAVIOR = "stand".
 python environments/trex/scripts/train_sb3.py train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
 
 # View the model (requires display)
 python environments/trex/scripts/view_model.py
 ```
+
+Behaviors, their warm-start edges (`configs/trex/stages.toml`) and what a run
+reuses are described in [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md);
+the notebook equivalent is `BEHAVIOR` / `TRUNK_FROM` in
+[notebooks/sb3_training.ipynb](../../notebooks/sb3_training.ipynb).
 
 ## Environment Details
 

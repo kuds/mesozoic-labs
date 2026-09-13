@@ -8,7 +8,7 @@ import {DIBOTHROSUCHUS} from '@site/src/data/species';
 
 # Dibothrosuchus Model
 
-A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs and a snout-contact hunting task. Its stage 3 task uses contact from a fixed snout geom as a snap proxy; the model has no articulated jaw.
+A crocodylomorph-inspired quadrupedal simulation model with erect, gracile limbs and a snout-contact hunting task. Its stage 3 task uses contact from a fixed snout geom as a snap proxy; the model has no articulated jaw. Its manifest (`configs/dibothrosuchus/stages.toml`) declares three published behaviors on one trunk: `stance` (stand), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the snap task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
 
 <SpeciesCatalog species={DIBOTHROSUCHUS} />
 
@@ -31,9 +31,9 @@ Dibothrosuchus is the first non-dinosaur in the project, and the smallest specie
 - **Hindlimbs longer than forelimbs** — the reverse of Brachiosaurus, whose front legs are the longer pair
 - **8.7 kg and 1.24 m nose-to-tail**, an order of magnitude lighter than the T-Rex model
 - **Snout-referenced approach shaping** — the 0.16 m skull rides a mobile neck, so approach distance is measured from the snout tip rather than the trunk
-- **The smallest stage-3 target in the project** — a 0.06 m prey sphere, which makes aiming rather than approach the hard part of the stage
+- **The smallest stage-3 target in the project** — a 0.06 m prey sphere, which makes aiming rather than approach the hard part of the behavior (hunt) node
 
-## Diagnostic Metrics (Stage 3)
+## Diagnostic Metrics (behavior node, hunt)
 
 After each training stage the `eval` command reports:
 
@@ -60,6 +60,15 @@ cd environments/dibothrosuchus
 # View the model
 python scripts/view_model.py
 
-# Train stage 1 using its current TOML-configured budget
+# Train the stance node using its current TOML-configured budget
 python scripts/train_sb3.py train --stage 1
+
+# The advancing stages (stance, locomotion, behavior) in manifest order
+python scripts/train_sb3.py curriculum --algorithm ppo
+
+# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+python scripts/train_sb3.py curriculum --algorithm ppo \
+  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
+
+See [Behavior Recipes](/docs/training/recipes) for the notebook workflow.

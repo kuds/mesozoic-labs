@@ -81,6 +81,13 @@ Config-driven reward weights are loaded for at least one species.
 Finish what's started: all three species fully trained through the 3-stage
 curriculum with published results and reproducible checkpoints.
 
+> **Update (2026-09-13):** since Phase A of
+> [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) (merged 2026-09-12)
+> each species publishes stand, walk and hunt as separately certified
+> deliverables on one certified trunk, and a later run reuses that trunk
+> (`curriculum --trunk-from`, the notebook's `TRUNK_FROM`) instead of
+> retraining it; "fully trained" below means every deliverable certified.
+
 Stage 3 task names below are simulation labels: T-Rex "bite success" is fixed
 head-geom contact (the model has no articulated jaw), and Brachiosaurus
 `food_reach` is a head-tip distance threshold rather than physical food contact.
@@ -274,6 +281,11 @@ critical bridge between "cool demo" and "transferable research."
     prey behaviour (Phase 4), forcing the agent to develop heading
     correction, speed modulation, and sustained pursuit
   - _Dependency: Phase 1 Stages 1-3 + turning and steering_
+  - _Shape (2026-09-13): under [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
+    this lands as a new deliverable node with a `warm_start_from` edge off the
+    certified walker (the follow-direction leaf of Phase D is its first step),
+    and any new observation dims go through the Phase C reserved command
+    slots rather than per-stage zero padding._
 
 - [ ] **Reactive scripted prey**
   - Extend Stage 4's predefined prey paths with reactive evasion behaviours

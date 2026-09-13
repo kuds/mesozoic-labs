@@ -88,12 +88,15 @@ on the robot. `env.render_head_camera()` exposes the single 640 × 480 RGB
 camera separately. Real pose/velocity estimation, noisy sensors, control
 latency, motor calibration and sim-to-real validation remain future work.
 
-Each variant has three advancing stages and an opt-in recovery pilot:
+Each variant has three advancing stages and a recovery node that, like
+locomotion, warm-starts from stance (`configs/<species>/stages.toml`);
+recovery is the second deliverable of the `stand` recipe (`BEHAVIOR = "stand"`
+in the notebook) and the CLI `curriculum` command skips it:
 
 | Stage | Objective and advancement criteria | Initial budget |
 |---|---|---:|
 | 1 / `stance` | Supported upright stance; ≥95% full-horizon episodes, unsupported duty ≤2%, its one-sided 95% upper bound ≤2%, reward rail ≥1,800 | 11M steps |
-| `recovery` (opt-in) | Recover after calibrated horizontal pushes; frozen paired-null evaluation, with provisional pilot targets | 3M steps |
+| `recovery` (`stand` recipe) | Recover after calibrated horizontal pushes; frozen paired-null evaluation, with provisional pilot targets | 3M steps |
 | 2 / `locomotion` | Forward progress; average speed gate above, average length ≥900 and reward ≥500 | 3M steps |
 | 3 / `behavior` | Upright arrival within 8 cm of the goal in XY, horizontal speed ≤0.10 m/s; success rate ≥70% and reward ≥25 | 3M steps |
 
@@ -120,7 +123,9 @@ Stance requires at least 40 evaluation episodes; locomotion and target reaching
 each require at least 20. All three advancing stages require three consecutive
 passing checkpoint evaluations. The notebook also applies the shared
 publication gate to the selected checkpoint's evaluation evidence. These
-thresholds and 17M-step totals (20M with the recovery pilot) are **experimental recipes**, not calibrated claims
+thresholds and per-chain totals — 17M steps for `hunt` (stance, locomotion,
+behavior), 14M for `stand` (stance, recovery), 20M when both chains run in one
+run directory reusing its stance — are **experimental recipes**, not calibrated claims
 about convergence time. The target is a non-contact marker: success is
 `target_success`, distinct from the generic 0.5 m proximity diagnostic.
 The robot does not bite or move its fixed head to reach the marker.

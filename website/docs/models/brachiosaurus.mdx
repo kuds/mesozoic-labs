@@ -19,7 +19,7 @@ A sauropod-inspired quadrupedal simulation model designed for four-legged locomo
 - Front legs longer than rear, producing the model's raised-front posture
 - Simplified column-like legs for support
 - Head-positioning behavior using neck articulation
-- 3-stage curriculum learning (balance, locomotion, food reach)
+- Three published behaviors on one trunk (`configs/brachiosaurus/stages.toml`): stand (`stance`), walk (`locomotion`, warm-started from stance) and hunt (`behavior` — the food-reach task, warm-started from locomotion); see [Behavior Recipes](/docs/training/recipes)
 
 ## Unique Characteristics
 
@@ -28,7 +28,7 @@ Brachiosaurus differs from the bipedal species in the project:
 - **Quadrupedal gait** instead of bipedal
 - **Target-proximity task** using the head tip instead of a predatory contact task
 
-## Diagnostic Metrics (Stage 3)
+## Diagnostic Metrics (behavior node, hunt)
 
 After each training stage the `eval` command reports:
 
@@ -54,6 +54,15 @@ cd environments/brachiosaurus
 # View the model
 python scripts/view_model.py
 
-# Train stage 1 using its current TOML-configured budget
+# Train the stance node using its current TOML-configured budget
 python scripts/train_sb3.py train --stage 1
+
+# The advancing stages (stance, locomotion, behavior) in manifest order
+python scripts/train_sb3.py curriculum --algorithm ppo
+
+# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+python scripts/train_sb3.py curriculum --algorithm ppo \
+  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
+
+See [Behavior Recipes](/docs/training/recipes) for the notebook workflow.

@@ -8,7 +8,7 @@ import {VELOCIRAPTOR} from '@site/src/data/species';
 
 # Velociraptor Model
 
-A dinosaur-inspired bipedal simulation model with actuated sickle-claw geoms, trained for locomotion and target-contact tasks.
+A dinosaur-inspired bipedal simulation model with actuated sickle-claw geoms, trained for locomotion and target-contact tasks. Its manifest (`configs/velociraptor/stages.toml`) declares three published behaviors on one trunk: `stance` (stand), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the strike task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
 
 <SpeciesCatalog species={VELOCIRAPTOR} />
 
@@ -20,7 +20,7 @@ A dinosaur-inspired bipedal simulation model with actuated sickle-claw geoms, tr
 - **Arms** - Stub forelimbs with shoulder pitch/roll actuators
 - **Tail** - 5-segment counterbalance (4 actuated segments)
 
-## Diagnostic Metrics (Stage 3)
+## Diagnostic Metrics (behavior node, hunt)
 
 After each training stage the `eval` command reports:
 
@@ -47,6 +47,15 @@ cd environments/velociraptor
 # View the model
 python scripts/view_model.py
 
-# Train stage 1 using its current TOML-configured budget
+# Train the stance node using its current TOML-configured budget
 python scripts/train_sb3.py train --stage 1
+
+# The advancing stages (stance, locomotion, behavior) in manifest order
+python scripts/train_sb3.py curriculum --algorithm ppo
+
+# Reuse an earlier run's certified stance and walk; train hunt in a fresh directory
+python scripts/train_sb3.py curriculum --algorithm ppo \
+  --trunk-from logs/<earlier_run> --output-dir logs/<new_run>
 ```
+
+See [Behavior Recipes](/docs/training/recipes) for the notebook workflow.
