@@ -56,6 +56,8 @@ import logging
 from pathlib import Path
 from typing import Any, Mapping
 
+from .command_frame import COMMAND_ENV_KEYS, COMMAND_MODE_NONE
+
 _logger = logging.getLogger(__name__)
 
 TASK_FINGERPRINT_SCHEMA = "mesozoic.task-fingerprint/v2"
@@ -156,6 +158,16 @@ def _effective_env_kwargs(species: str, env_kwargs: Mapping[str, Any]) -> dict[s
     ):
         for name in push_keys:
             effective.pop(name, None)
+    # BEHAVIOR_RECIPES_PLAN §4.6 (Phase C, amendment A1): the six command
+    # kwargs landed on every species with inert defaults.  While the
+    # EFFECTIVE command_mode is "none" they change no trajectory and no
+    # reset draw, so they are carved out for EVERY species: off-configs keep
+    # their pre-Phase-C env encoding and a stage's task_sha256 moves only
+    # through the plant's policy_interface_sha256.  A live mode keeps all
+    # six (its ranges and switch schedule ARE the task).
+    if effective.get("command_mode", COMMAND_MODE_NONE) == COMMAND_MODE_NONE:
+        for name in COMMAND_ENV_KEYS:
+            effective.pop(name, None)
     return effective
 
 
@@ -167,6 +179,7 @@ def compute_task_fingerprint(
     env_kwargs: Mapping[str, Any],
     plant_identity: Mapping[str, Any] | None,
     perturbation_manifest: Mapping[str, Any] | None,
+    command_manifest: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the canonical task payload and stamp its sha256.
 
@@ -181,7 +194,11 @@ def compute_task_fingerprint(
     (``perturbation_manifest()``), or ``None`` when pushes are off; it is
     recorded separately from the config keys because the same dimensionless
     multiple means different newtons on different plants, and the newtons
-    are the task.
+    are the task.  ``command_manifest`` is the environment's command-sampler
+    provenance (``command_manifest()``, BEHAVIOR_RECIPES_PLAN §4.6): the
+    payload carries a ``command`` section ONLY when one is passed, so every
+    ``command_mode = "none"`` stage keeps its Phase C hash; Phase D records
+    the sampler ranges and switch-schedule implementation there.
     """
     plant = None
     if plant_identity is not None:
@@ -202,6 +219,8 @@ def compute_task_fingerprint(
         "env": _canonical(_effective_env_kwargs(species, env_kwargs)),
         "perturbation": perturbation,
     }
+    if command_manifest is not None:
+        payload["command"] = _canonical(dict(command_manifest))
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
     ).hexdigest()
@@ -230,7 +249,7 @@ def attach_task_lineage(model: Any, lineage: Mapping[str, Any]) -> None:
 
 
 def _differing_sections(recorded: Mapping[str, Any], current: Mapping[str, Any]) -> list[str]:
-    sections = ("species", "stage", "backend", "plant", "env", "perturbation")
+    sections = ("species", "stage", "backend", "plant", "env", "perturbation", "command")
     return [name for name in sections if _canonical(recorded.get(name)) != _canonical(current.get(name))]
 
 
@@ -248,7 +267,7 @@ def _v1_raw_env_matches_effective(recorded: Mapping[str, Any], current: Mapping[
     """
     if recorded.get("schema") != TASK_FINGERPRINT_SCHEMA_V1 or current.get("schema") != TASK_FINGERPRINT_SCHEMA:
         return False
-    for name in ("species", "stage", "backend", "plant", "perturbation"):
+    for name in ("species", "stage", "backend", "plant", "perturbation", "command"):
         if _canonical(recorded.get(name)) != _canonical(current.get(name)):
             return False
     recorded_env = recorded.get("env")
@@ -488,6 +507,7 @@ def derive_stage_task_fingerprint(
     backend: str,
     env_kwargs: Mapping[str, Any],
     plant_identity: Mapping[str, Any] | None,
+    command_manifest: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compute a stage's task fingerprint without constructing an environment.
 
@@ -504,6 +524,9 @@ def derive_stage_task_fingerprint(
     key at runtime.  Every current species' constructor defaults equal the
     literal fallbacks below, so no recorded manifest moved with the v2
     bump; the fallbacks remain for a constructor that omits a key.
+
+    ``command_manifest`` is forwarded verbatim (``None`` for every
+    ``command_mode = "none"`` stage; BEHAVIOR_RECIPES_PLAN §4.6).
     """
     manifest: dict[str, Any] | None = None
     effective_kwargs = _effective_env_kwargs(species, env_kwargs)
@@ -545,4 +568,5 @@ def derive_stage_task_fingerprint(
         env_kwargs=env_kwargs,
         plant_identity=plant_identity,
         perturbation_manifest=manifest,
+        command_manifest=command_manifest,
     )

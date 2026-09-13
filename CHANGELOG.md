@@ -510,6 +510,105 @@ plan §6.1 (WS-B5); the bullets below are per workstream.
   `SPECIES_MANIFEST_SCHEMA_VERSION` are unchanged (every addition is an
   optional field) and the README RESULTS block is byte-identical.
 
+#### Phase C (BEHAVIOR_RECIPES_PLAN §4.6)
+- **Command-frame helpers and the command-slice reseed plumbing** (Phase C,
+  WS-C0; plan §4.6 "Normalization of the command slice", invariant 8).
+  `environments/shared/command_frame.py` is the one home of the
+  body-relative command frame: `COMMAND_WIDTH = 3`, the components
+  `v_x_cmd` / `v_y_cmd` / `yaw_rate_cmd` pre-scaled to `[-1, 1]`, the modes
+  `none` / `heading` / `heading_and_speed`, the six `command_*` env keys,
+  the probe vector `(0.25, -0.5, 0.75)`, `zero_command`,
+  `validate_command_mode` (an unknown mode is refused on every backend; a
+  live mode is refused on `jax-mjx` until the MJX command path lands and on
+  `stable-baselines3` until Phase D), `command_slice`,
+  `reseed_command_slice` (the trailing slice to mean 0 / var 1 in place,
+  count carried) and `pad_running_stats` (a new `RunningMeanStd` with a
+  reseeded slice appended — the widen tool's primitive). The module imports
+  numpy only. `load_vecnorm_stats(reseed_command_slice=True)` reseeds the
+  carried `obs_rms` on BOTH the train and eval destinations (a slice that
+  was constant zero during the parent run has var ≈ 1e-11 and would clip a
+  live command at `clip_obs`; the eval copy is taken before the train
+  reseed so each destination is reseeded on its own line);
+  `train_base._load_vecnorm_into_envs` derives the flag from the stage's
+  `command_mode` at both call sites — never on a `resume_same_stage` load,
+  whose parent is the same task and already trained under the live slice
+  — and `policy_loading.load_sb3_checkpoint(reseed_command_slice=True)`
+  offers the same to evaluation for a sidecar whose slice was never live.
+  In Phase C every stage is `none`, so the plumbing is the pinned Phase D
+  hook (`test_command_frame.py`).
+- **The one Phase C interface revision: a 3-dim body-relative command
+  segment on all six species** (Phase C, WS-C1; plan §4.6 "The one
+  interface revision", decisions D-C1–D-C7, D-C16, amendments A1–A9, A13).
+  Every species' `_get_obs`, `obs_functions.build_bipedal_obs` /
+  `build_quadruped_obs` (`command=None` means zeros) and
+  `mjx_env.build_mjx_observation(command=)` append `v_x_cmd` / `v_y_cmd` /
+  `yaw_rate_cmd` LAST, so every existing slice offset is unchanged and
+  `obs[-3:]` is the command; `policy_layer.observation_segments` gains the
+  `command` segment. Widths: trex 61 → 64, velociraptor 67 → 70,
+  brachiosaurus 83 → 86, dibothrosuchus 77 → 80, compsognathus 53 → 56,
+  compsognathus_robot 43 → 46; `policy_interface_revision` velociraptor
+  9 → 10, trex 12 → 13, brachiosaurus 7 → 8, dibothrosuchus 6 → 7,
+  compsognathus 1 → 2, compsognathus_robot 1 → 2 (`plant_versions.toml`
+  note 12; physics/visual revisions, `observation_schema` strings, Box
+  bounds and the statue pins unchanged; both manifests, the species
+  catalog and the README species rows regenerated). `BaseDinoEnv` and
+  `MJXEnvConfig` accept the six task-level kwargs `command_mode`,
+  `command_speed_range`, `command_lateral_range`, `command_yaw_rate_max`,
+  `command_switch_interval`, `command_switch_jitter` with inert defaults;
+  only `command_mode = "none"` is implemented — SB3 refuses every live
+  mode ("reserved for … Phase D") and MJX refuses it in
+  `canonicalize_env_kwargs` and `MJXDinoEnv.__init__` ("not implemented on
+  the jax-mjx backend", invariant 9). `BaseDinoEnv.reset` calls the new
+  `_draw_episode_command()` hook once, after the push block (zeros, no RNG
+  draw in Phase C; Phase D replaces the hook body, never `reset()`), and
+  `EnvState.command` rides the MJX pytree; both backends expose
+  `command_manifest()` (`None`). While the effective `command_mode` is
+  `"none"` the six keys are carved out of the task-fingerprint env section
+  for every species, so a stage's `task_sha256` moves only through the
+  plant's `policy_interface_sha256`; `compute_task_fingerprint` /
+  `derive_stage_task_fingerprint` take `command_manifest=` and record a
+  `command` payload section only when one is passed. The SB3 and MJX
+  plant-contract probes inject the non-zero `COMMAND_PROBE_VECTOR`, so
+  backend observation parity is asserted on the new slot, and
+  `validate_mjx_environment_plant` now checks the MJX observation width
+  against the identity. The seeded reset draw stream is pinned by
+  `environments/shared/tests/fixtures/phase_c_reset_golden.json`
+  (captured at 7db7f8e by `tests/reset_golden.py`: trex stance seeds
+  42/3042/3043/3081, trex recovery 3042, compsognathus recovery
+  1042/7042, compsognathus_robot recovery 1042; reset qpos/qvel/targets/
+  push starts and the generator state exact, an unseeded second reset
+  after the 20-step zero-action trajectory exact too, the trajectory
+  itself advisory; the hook is also pinned directly — no `np_random`
+  access under `"none"`, and it runs after the push schedule and before
+  `_get_obs`), which is
+  also the evidence behind restamping — not re-measuring — the two
+  compsognathus recovery calibrations with
+  `environments/shared/scripts/restamp_recovery_calibration.py` (plant
+  identity + task hash + `restamp_history` with a `--reason` that defaults
+  to the Phase C justification; idempotent; refuses a physics change, a
+  changed task and an unknown species): their `profile_sha256` moves, so
+  every compsognathus recovery
+  freeze (`gate_resolution.json`) made before this revision is refused
+  and must be re-frozen. `environments/velociraptor/mjlab_config.py`
+  `obs_dim` 67 → 70 (pinned against the identity);
+  `observation_ablation_report.SLICES["trex"]` gains `command: (61, 64)`.
+  Pins: `test_phase_c_interface.py` (golden replay, six-species layout,
+  SB3 inertness and refusals, the task-fingerprint carve-out, the restamp
+  tool, the mjlab width), `test_mjx_phase_c_interface.py` (MJX refusals on
+  `MJXDinoEnv`, `canonicalize_env_kwargs` and `jax_setup.setup_species`,
+  the widened-but-bit-identical `"none"` path, the MJX width check) and
+  `test_plant_contract_phase_c.py` (non-zero probe parity on both
+  backends, non-vacuous); every existing width / negative-index pin moved
+  with the segment (foot contacts at `obs[-9:-7]`, direction at
+  `obs[-7:-4]`, distance at `obs[-4]`); `test_command_frame.py` and
+  `test_phase_c_interface.py` join the SB3 CI job's explicit list. The
+  stale `obs is N` comments in the trex, dibothrosuchus and brachiosaurus
+  stage TOMLs were refreshed (comments never enter
+  `hyperparameters_sha256`; every stage's digest is unchanged), and the
+  compsognathus README / RECOVERY_CALIBRATION.md, plan §3.2,
+  SIM_TO_REAL_PLAN and MJX_CONVERSION_PLAN prose now state the Phase C
+  layout.
+
 ### Changed
 - **`stage_manifest.KNOWN_STAGE_IDS` is renamed `RESERVED_STAGE_IDS`, with
   no alias** (Phase A, WS1). Ids are an open vocabulary

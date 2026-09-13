@@ -191,14 +191,20 @@ orchestration and publication layers, not training or gating.
 
 Every species' observation is `[joint_pos, joint_vel, root_quat(4),
 root_gyro(3), root_linvel(3), root_accel(3), foot_contact(2|4),
-target_direction(3), target_distance(1)]` — 61 / 67 / 83 / 77 dims for
-trex / velociraptor / brachiosaurus / dibothrosuchus
+target_direction(3), target_distance(1), command(3)]` — 64 / 70 / 86 / 80 /
+56 / 46 dims for trex / velociraptor / brachiosaurus / dibothrosuchus /
+compsognathus / compsognathus_robot since the Phase C interface revision
 (`configs/plant_manifest.generated.json`; segments at
-`environments/shared/plant_contract/policy_layer.py:325-334`). The *only*
-goal signal is a world-frame unit vector from the pelvis to a mocap target
-placed once at reset (`environments/trex/envs/trex_env.py:550-571`). There is
-no command conditioning of any kind: no target heading, no desired speed, no
-moving goal.
+`environments/shared/plant_contract/policy_layer.py` `observation_segments`).
+The trailing `command(3)` segment is the body-relative `(v_x_cmd, v_y_cmd,
+yaw_rate_cmd)` frame of §4.6, pre-scaled to `[-1, 1]` and constant zero
+under `command_mode = "none"` — the only mode implemented in Phase C, so
+the *only* live goal signal is still a world-frame unit vector from the
+pelvis to a mocap target placed once at reset
+(`environments/trex/envs/trex_env.py`, `_get_obs`). At the time this
+section was written (before Phase C) there was no command conditioning of
+any kind: no target heading, no desired speed, no moving goal; the slot now
+exists, and Phase D fills it.
 
 "Walking" is `dot(qvel[0:2], initial_target_direction)` with the direction
 frozen at reset from the world origin to the target spawn

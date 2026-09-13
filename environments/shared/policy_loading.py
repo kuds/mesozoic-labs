@@ -102,6 +102,7 @@ def load_sb3_checkpoint(
     allow_unnormalized: bool = False,
     plant_identity: Any = None,
     allow_legacy_plant: bool = False,
+    reseed_command_slice: bool = False,
 ) -> tuple[Any, Any, str | None]:
     """Return ``(model, normalizer, resolved_vecnorm_path)`` for a saved SB3 checkpoint.
 
@@ -129,6 +130,17 @@ def load_sb3_checkpoint(
     that predates the contract.  An unreadable sidecar raises
     :class:`PolicyLoadError` naming the file; plant refusals propagate as
     ``PlantCompatibilityError``.
+
+    *reseed_command_slice* resets the trailing command slice of the loaded
+    ``obs_rms`` to mean 0 / var 1 (``command_frame.reseed_command_slice``).
+    It is for a sidecar whose command slice was never live -- a
+    ``command_mode = "none"`` parent scored under a live command, the same
+    case ``load_vecnorm_stats`` reseeds when such a parent is loaded into a
+    live node (BEHAVIOR_RECIPES_PLAN §4.6, invariant 8).  A checkpoint saved
+    by a live-command node already carries the slice statistics it trained
+    under; loading it with the flag would score the policy under a
+    normaliser it never saw, so the default stays ``False`` and Phase D
+    wires the flag from the stage config only for that never-live case.
     """
     from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
@@ -164,6 +176,10 @@ def load_sb3_checkpoint(
         ) from exc
     normalizer.training = False
     normalizer.norm_reward = False
+    if reseed_command_slice:
+        from environments.shared.command_frame import reseed_command_slice as _reseed_command_slice
+
+        _reseed_command_slice(normalizer.obs_rms)
 
     if plant_identity is not None:
         from environments.shared.plant_contract import validate_model_plant

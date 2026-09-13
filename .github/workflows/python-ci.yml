@@ -279,6 +279,7 @@ jobs:
       - name: Run SB3 integration tests
         run: |
           pytest \
+            environments/shared/tests/test_command_frame.py \
             environments/shared/tests/test_config.py \
             environments/shared/tests/test_compsognathus_training.py \
             environments/shared/tests/test_recovery_calibration.py \
@@ -286,6 +287,7 @@ jobs:
             environments/shared/tests/test_diagnostics.py \
             environments/shared/tests/test_eval_diagnostics.py \
             environments/shared/tests/test_evaluation.py \
+            environments/shared/tests/test_phase_c_interface.py \
             environments/shared/tests/test_report_script_vecnorm.py \
             environments/shared/tests/test_resume_continuation.py \
             environments/shared/tests/test_resume_load_path.py \

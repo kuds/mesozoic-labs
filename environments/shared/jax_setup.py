@@ -554,6 +554,9 @@ def make_obs_fn(ctx: SpeciesContext):
             pelvis_xpos=data.xpos[root_body_id],
             target_pos=target_pos,
             sensor_layout=sensor_layout,
+            # CPU evaluation of the walker trunk: the command segment is
+            # explicit zeros (BEHAVIOR_RECIPES_PLAN §4.6, command_mode "none").
+            command=jnp.zeros(3, dtype=jnp.float32),
         )
 
     return get_obs

@@ -69,7 +69,7 @@ a short run may fail the advancement gate and stop, as intended.
 |---|---|---|
 | Stable ID / config directory | `compsognathus` | `compsognathus_robot` |
 | Gymnasium ID | `MesozoicLabs/Compsognathus-v0` | `MesozoicLabs/CompsognathusRobot-v0` |
-| Observation dimensions | 53 | 43 |
+| Observation dimensions | 56 | 46 |
 | Action dimensions | 14 | 12 |
 | Control rate / episode horizon | 50 Hz / 1,000 steps (20 s) | 50 Hz / 1,000 steps (20 s) |
 | Initial locomotion velocity gate | 0.08 m/s | 0.04 m/s |
@@ -82,8 +82,11 @@ terminate the episode; time limits remain truncations for SB3 bootstrapping.
 
 The observation contains joint positions/velocities, pelvis orientation,
 angular velocity, world linear velocity, acceleration, ideal foot forces,
-and target direction/distance. **These are privileged simulator-state MLP
-policies.** They do not consume camera images and cannot be deployed as-is
+target direction/distance, and — appended last — the 3-dim body-relative
+command segment (`v_x_cmd`, `v_y_cmd`, `yaw_rate_cmd`, pre-scaled to
+`[-1, 1]`; constant zero under the only implemented `command_mode`,
+`"none"`, per `BEHAVIOR_RECIPES_PLAN.md` §4.6). **These are privileged
+simulator-state MLP policies.** They do not consume camera images and cannot be deployed as-is
 on the robot. `env.render_head_camera()` exposes the single 640 × 480 RGB
 camera separately. Real pose/velocity estimation, noisy sensors, control
 latency, motor calibration and sim-to-real validation remain future work.

@@ -65,7 +65,7 @@ ent_coef_decay_timesteps = 4000000      # Anchor the decay to half the 8M budget
 target_kl = 0.05                        # Loosened from 0.03 for the locomotion stage (fast early learning); matches the JAX path's value.
 
 [ppo.policy_kwargs]
-net_arch = [512, 256]                  # Match raptor width; T-Rex obs is 61 since the arms/distal tail were welded
+net_arch = [512, 256]                  # Match raptor width; T-Rex obs is 64 (arms/distal tail welded, plus the Phase C command segment)
 
 [sac]
 learning_rate = 1e-4              # 3x reduction from Stage 1 — replay buffer provides natural gradient smoothing
@@ -81,7 +81,7 @@ train_freq = 16                  # Collect 16 env steps before training — matc
 gradient_steps = 8               # 2:1 data-to-update ratio — matches raptor; reduces overfitting risk on replay buffer
 
 [sac.policy_kwargs]
-net_arch = [512, 256]            # Match raptor width; T-Rex obs is 61 since the arms/distal tail were welded
+net_arch = [512, 256]            # Match raptor width; T-Rex obs is 64 (arms/distal tail welded, plus the Phase C command segment)
 
 [jax]
 num_envs = 2048

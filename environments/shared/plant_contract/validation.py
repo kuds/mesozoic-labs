@@ -153,6 +153,21 @@ def validate_mjx_environment_plant(
             f"{artifact} is not the current {current.species} MJX interface:\n- " + "\n- ".join(errors)
         )
 
+    # Observation width (decision D-C16): MJX had no width check, so a
+    # dropped or duplicated segment in build_mjx_observation would have
+    # trained a policy the identity could not describe.  Imported lazily:
+    # the package __init__ would cycle through policy_layer otherwise (A8).
+    from .policy_layer import _deterministic_probe_data
+
+    probe = _deterministic_probe_data(model)
+    target_pos = probe.mocap_pos[0] if model.nmocap else np.array([1.25, -0.45, 0.8])
+    observation = np.asarray(mjx_env_module.build_mjx_observation(probe, target_pos, config))
+    width = int(observation.shape[0]) if observation.ndim == 1 else -1
+    if width != int(current.observation_dim):
+        raise PlantCompatibilityError(
+            f"MJX observation width {width} does not match the plant identity ({current.observation_dim})"
+        )
+
 
 def write_plant_identity(path: str | Path, identity: PlantIdentity) -> Path:
     """Atomically write a checkpoint/run identity sidecar."""

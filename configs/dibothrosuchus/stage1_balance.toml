@@ -73,7 +73,7 @@ train_freq = 16
 gradient_steps = 8                # 2:1 data-to-update ratio
 
 [sac.policy_kwargs]
-net_arch = [512, 256]             # Match PPO architecture (obs is 77)
+net_arch = [512, 256]             # Match PPO architecture (obs is 80 with the Phase C command segment)
 
 [jax]
 num_envs = 2048                         # Parallel MJX environments on GPU

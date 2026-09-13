@@ -72,6 +72,7 @@ SLICES: dict[str, dict[str, tuple[int, int, int | None]]] = {
         "root_linvel": (49, 52, 42),
         "target_dir": (57, 60, 42),
         "target_dist": (60, 61, None),
+        "command": (61, 64, None),
     },
 }
 # Slices the simulator can supply but a physical robot could not, per species.

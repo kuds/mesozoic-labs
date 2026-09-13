@@ -144,10 +144,28 @@ canonical_mujoco_version = "3.10.0"
 #     rests on.  The POLICY INTERFACE moves for every species because reset
 #     placement is fingerprinted through home_reset and all four species
 #     carry it; PHYSICS and VISUAL are untouched (no MJCF edit).
+#
+# 12. BEHAVIOR_RECIPES_PLAN §4.6 Phase C: a 3-dim body-relative command
+#     segment (v_x_cmd, v_y_cmd, yaw_rate_cmd, pre-scaled to [-1, 1]) is
+#     appended at the END of every species observation, zero under
+#     command_mode = "none"; BaseDinoEnv.reset gained the per-episode
+#     command hook (no RNG draw under "none"; the seeded draw stream is
+#     pinned by tests/fixtures/phase_c_reset_golden.json); the SB3/MJX
+#     plant-contract probes now inject a non-zero command; the
+#     height-channel removal queued in note 11 is deliberately NOT batched
+#     here (D3).  All six plants move, the two compsognathus recovery
+#     calibrations are restamped (not re-measured).  Existing checkpoints
+#     are widened, never re-labelled: environments/shared/scripts/widen_checkpoint.py
+#     (lands in PR-C2).
+#     The compsognathus recovery calibrations were restamped (plant identity
+#     + task hash + restamp_history) by
+#     environments/shared/scripts/restamp_recovery_calibration.py; their
+#     profile_sha256 therefore moves and every compsognathus recovery freeze
+#     made before this revision must be re-frozen.
 
 [plants.velociraptor]
 physics_revision = 2
-policy_interface_revision = 9
+policy_interface_revision = 10
 visual_revision = 3
 observation_schema = "bipedal-target/v1"
 
@@ -215,7 +233,7 @@ observation_schema = "bipedal-target/v1"
 #     docs/investigations/TREX_STAGE1_NARROW_TOLERANCE_RUN_2026_08.md.
 [plants.trex]
 physics_revision = 7
-policy_interface_revision = 12
+policy_interface_revision = 13
 visual_revision = 4
 observation_schema = "bipedal-target/v1"
 
@@ -298,13 +316,13 @@ observation_schema = "bipedal-target/v1"
 #    section 3) remains open and is NOT part of this entry.
 [plants.brachiosaurus]
 physics_revision = 4
-policy_interface_revision = 7
+policy_interface_revision = 8
 visual_revision = 2
 observation_schema = "quadrupedal-target/v1"
 
 [plants.dibothrosuchus]
 physics_revision = 1
-policy_interface_revision = 6
+policy_interface_revision = 7
 visual_revision = 1
 observation_schema = "quadrupedal-target/v1"
 
@@ -313,12 +331,12 @@ observation_schema = "quadrupedal-target/v1"
 # sensors use xbody (the pelvis frame), not the inertial principal axes.
 [plants.compsognathus]
 physics_revision = 1
-policy_interface_revision = 1
+policy_interface_revision = 2
 visual_revision = 1
 observation_schema = "bipedal-target/v1"
 
 [plants.compsognathus_robot]
 physics_revision = 1
-policy_interface_revision = 1
+policy_interface_revision = 2
 visual_revision = 1
 observation_schema = "bipedal-target/v1"

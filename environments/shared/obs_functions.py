@@ -16,6 +16,8 @@ from typing import Any
 
 import numpy as np
 
+from .command_frame import COMMAND_WIDTH
+
 Array = Any  # np.ndarray | jnp.ndarray
 
 
@@ -83,6 +85,7 @@ def build_bipedal_obs(
     sensor_layout: SensorLayout,
     root_qpos_dim: int = 7,
     root_qvel_dim: int = 6,
+    command: Array | None = None,
 ) -> Array:
     """Construct observation vector for bipedal species.
 
@@ -97,6 +100,9 @@ def build_bipedal_obs(
         sensor_layout: Sensor index layout.
         root_qpos_dim: Number of root freejoint position elements to skip.
         root_qvel_dim: Number of root freejoint velocity elements to skip.
+        command: Body-relative (v_x, v_y, yaw_rate) command pre-scaled to
+            [-1, 1], appended LAST (BEHAVIOR_RECIPES_PLAN §4.6); ``None``
+            means zeros (the walker trunk / ``command_mode = "none"``).
 
     Returns:
         Flat observation array (float32).
@@ -118,6 +124,10 @@ def build_bipedal_obs(
     target_dist = xp.linalg.norm(target_rel)
     target_dir = target_rel / (target_dist + 1e-8)
 
+    command_segment = (
+        xp.zeros(COMMAND_WIDTH, dtype=xp.float32) if command is None else xp.asarray(command, dtype=xp.float32)
+    )
+
     obs = xp.concatenate(
         [
             joint_pos,
@@ -129,6 +139,7 @@ def build_bipedal_obs(
             foot_contacts,
             target_dir,
             xp.array([target_dist]),
+            command_segment,
         ]
     )
     return obs.astype(xp.float32)
@@ -148,12 +159,13 @@ def build_quadruped_obs(
     sensor_layout: SensorLayout,
     root_qpos_dim: int = 7,
     root_qvel_dim: int = 6,
+    command: Array | None = None,
 ) -> Array:
     """Construct observation vector for quadrupedal species.
 
     Same structure as :func:`build_bipedal_obs` but with 4 foot contacts
     and using "torso" terminology.  Kept separate for clarity; the
-    underlying implementation is identical.
+    underlying implementation is identical (``command`` forwarded as-is).
     """
     return build_bipedal_obs(
         qpos=qpos,
@@ -164,4 +176,5 @@ def build_quadruped_obs(
         sensor_layout=sensor_layout,
         root_qpos_dim=root_qpos_dim,
         root_qvel_dim=root_qvel_dim,
+        command=command,
     )

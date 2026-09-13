@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
 
+from .command_frame import validate_command_mode
 from .mjx_utils import check_jax
 
 _logger = logging.getLogger(__name__)
@@ -144,6 +145,13 @@ def canonicalize_env_kwargs(env_kwargs: dict[str, Any]) -> dict[str, Any]:
         if canonical == "natural_pitch":
             out["natural_forward_z"] = -math.sin(float(value))
             continue
+        if canonical == "command_mode":
+            # Fail closed BEFORE any warning (BEHAVIOR_RECIPES_PLAN §4.6,
+            # invariant 9): a live command mode has no MJX reward/sampler
+            # path yet, and a config that merely warned would train a
+            # different task silently.  This also covers jax_setup's CPU
+            # evaluation path, which canonicalises without an MJXDinoEnv.
+            validate_command_mode(str(value), backend="jax-mjx")
         if (
             canonical not in config_fields
             and canonical not in _KNOWN_REWARD_KEYS
@@ -258,6 +266,17 @@ class MJXEnvConfig:
     perturbation_jitter: float = 0.5
     perturbation_duration: float = 0.20
     perturbation_direction: str = "uniform_horizontal"
+    # Body-relative command frame (BEHAVIOR_RECIPES_PLAN §4.6).  Task-level
+    # like perturbation_*; NOT in _PLANT_INTERFACE_CONFIG_FIELDS; the same
+    # names and defaults as BaseDinoEnv.  command_mode != "none" is refused
+    # on this backend (§4.6, A7: SB3 is the evidence backend and MJX fails
+    # closed on command-mode configs until its command path lands).
+    command_mode: str = "none"
+    command_speed_range: tuple[float, float] = (0.0, 0.0)
+    command_lateral_range: tuple[float, float] = (0.0, 0.0)
+    command_yaw_rate_max: float = 0.0
+    command_switch_interval: float = 0.0
+    command_switch_jitter: float = 0.0
 
 
 @dataclass
@@ -285,6 +304,9 @@ class EnvState:
     # the carry costs nothing and the off trace is unchanged.
     push_start_steps: Any  # jnp.int32[max_pushes]
     push_directions: Any  # jnp.float32[max_pushes, 2]
+    # Body-relative command carried for the episode (BEHAVIOR_RECIPES_PLAN
+    # §4.6); a baked zero under command_mode "none", like push_constants None.
+    command: Any  # jnp.float32[3]
 
 
 # Register EnvState as a JAX pytree so it can be returned from jit/vmap.
@@ -306,6 +328,7 @@ try:
             "initial_pos_2d",
             "push_start_steps",
             "push_directions",
+            "command",
         ],
         meta_fields=[],
     )
@@ -344,13 +367,20 @@ def register_species_mjx(species: str, **kwargs: Any) -> None:
     _SPECIES_CONFIGS[species] = kwargs
 
 
-def build_mjx_observation(data: Any, target_pos: Any, config: MJXEnvConfig | Mapping[str, Any]) -> Any:
+def build_mjx_observation(
+    data: Any,
+    target_pos: Any,
+    config: MJXEnvConfig | Mapping[str, Any],
+    command: Any = None,
+) -> Any:
     """Build the production MJX policy observation from registered ABI data.
 
     The plant contract executes and fingerprints this small function directly,
     while both reset and step call the same implementation.  Keep reward and
     termination logic outside it so those changes do not invalidate a policy's
-    observation/action interface.
+    observation/action interface.  ``command`` is the body-relative
+    (v_x, v_y, yaw_rate) segment appended LAST (BEHAVIOR_RECIPES_PLAN §4.6);
+    ``None`` means zeros.
     """
     from .obs_functions import SensorLayout, build_bipedal_obs, build_quadruped_obs
 
@@ -385,6 +415,7 @@ def build_mjx_observation(data: Any, target_pos: Any, config: MJXEnvConfig | Map
         data.xpos[root_body_id],
         target_pos,
         sensor_layout,
+        command=command,
     )
 
 
@@ -672,6 +703,10 @@ class MJXDinoEnv:
             stage=stage,
             **species_kwargs,
         )
+
+        # Refused here as well as in canonicalize_env_kwargs, so neither a
+        # registry default nor a pre-canonicalised kwarg can bypass the raise.
+        validate_command_mode(str(self.config.command_mode), backend="jax-mjx")
 
         support_alive_fraction = float(self.config.reward_weights.get("support_conditioned_alive_fraction", 0.0))
         if not 0.0 <= support_alive_fraction <= 1.0:
@@ -1027,7 +1062,7 @@ class MJXDinoEnv:
             target_pos = state.target_pos
             initial_pos_2d = state.initial_pos_2d
 
-            obs = build_mjx_observation(data, target_pos, config)
+            obs = build_mjx_observation(data, target_pos, config, command=state.command)
 
             # Compute core rewards
             vel_2d = data.qvel[:2]
@@ -1319,6 +1354,7 @@ class MJXDinoEnv:
                 initial_pos_2d=initial_pos_2d,
                 push_start_steps=state.push_start_steps,
                 push_directions=state.push_directions,
+                command=state.command,
             )
 
             return new_state, total_reward, terminated, truncated
@@ -1428,7 +1464,10 @@ class MJXDinoEnv:
             pelvis_id = config.body_ids.get("pelvis", config.body_ids.get("torso", 0))
             pelvis_xpos = data.xpos[pelvis_id]
 
-            obs = build_mjx_observation(data, target_pos, config)
+            # Phase C: the command is a baked zero (BEHAVIOR_RECIPES_PLAN
+            # §4.6); command_mode != "none" is refused at construction.
+            command = jnp.zeros(3, dtype=jnp.float32)
+            obs = build_mjx_observation(data, target_pos, config, command=command)
 
             target_dist = jnp.linalg.norm(target_pos - pelvis_xpos)
             action_dim = model.nu
@@ -1473,6 +1512,7 @@ class MJXDinoEnv:
                 initial_pos_2d=pelvis_xpos[:2],
                 push_start_steps=push_start_steps,
                 push_directions=push_directions,
+                command=command,
             )
             return state
 
@@ -1531,6 +1571,15 @@ class MJXDinoEnv:
         manifest["jitter_s"] = self.config.perturbation_jitter
         manifest["direction"] = self.config.perturbation_direction
         return manifest
+
+    def command_manifest(self) -> "dict[str, Any] | None":
+        """Command-sampler provenance; ``None`` while command_mode is "none".
+
+        Mirrors ``BaseDinoEnv.command_manifest`` (BEHAVIOR_RECIPES_PLAN §4.6).
+        This backend refuses every live mode, so the answer is always ``None``
+        until the MJX command path lands.
+        """
+        return None
 
     def reset(self, rng):
         """Reset all environments.

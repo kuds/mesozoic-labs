@@ -12,6 +12,7 @@ from typing import Any, Mapping
 import mujoco
 import numpy as np
 
+from ..command_frame import COMMAND_COMPONENTS, COMMAND_PROBE_VECTOR, COMMAND_SEGMENT_NAME, COMMAND_WIDTH
 from .constants import (
     _ACTION_MAPPING_HOME_KEYFRAME_RESIDUAL,
     _ACTION_MAPPING_MIDPOINT,
@@ -121,13 +122,18 @@ def _observation_probe(model: mujoco.MjModel, env: Any) -> dict[str, Any]:
 
     original_model = env.model
     original_data = env.data
+    original_command = env._command
     try:
         env.model = model
         env.data = probe_data
+        # A NON-ZERO command so the probe exercises the appended slot and the
+        # SB3/MJX parity below is not vacuous (BEHAVIOR_RECIPES_PLAN §4.6).
+        env._command = np.asarray(COMMAND_PROBE_VECTOR, dtype=np.float32)
         observation = np.asarray(env._get_obs())
     finally:
         env.model = original_model
         env.data = original_data
+        env._command = original_command
 
     expected_shape = tuple(env.observation_space.shape)
     if observation.shape != expected_shape or not np.all(np.isfinite(observation)):
@@ -249,6 +255,7 @@ def _jax_policy_interface_payload(
                 "sensor_foot_indices": sensor_layout.foot_indices,
                 "sensor_foot_aux_indices": sensor_layout.foot_aux_indices,
             },
+            command=np.asarray(COMMAND_PROBE_VECTOR, dtype=np.float32),
         )
     )
     expected_shape = tuple(env.observation_space.shape)
@@ -332,6 +339,15 @@ def _policy_interface_payload(
         {"name": "foot_contact", "components": touch_sensor_names},
         {"name": f"{target_label}_direction", "width": 3, "normalization_epsilon": _canonical_float(1e-8)},
         {"name": f"{target_label}_distance", "width": 1},
+        # Appended LAST on every species (BEHAVIOR_RECIPES_PLAN §4.6, D-C1):
+        # body-relative (v_x, v_y, yaw_rate), pre-scaled; zeros under "none".
+        {
+            "name": COMMAND_SEGMENT_NAME,
+            "width": COMMAND_WIDTH,
+            "components": list(COMMAND_COMPONENTS),
+            "frame": "body-relative",
+            "range": [_canonical_float(-1.0), _canonical_float(1.0)],
+        },
     ]
     collision_ids = np.flatnonzero((model.geom_contype != 0) | (model.geom_conaffinity != 0))
     sb3_observation_probe = _observation_probe(model, env)
