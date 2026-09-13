@@ -354,13 +354,15 @@ def main(species_cfg):
         default=None,
         metavar="RUN_DIR",
         help=(
-            "Earlier run directory whose certified ancestors (gate_verdict.json passed, plant and task "
-            "hash matching the current config, each child recorded as trained from the very parent "
+            "Earlier run directory whose certified ancestors (gate_verdict.json passed under the current gate "
+            "configuration — its gate_sha256 equals the digest of the node's [curriculum] thresholds, so a verdict "
+            "judged before that digest existed or under an edited threshold is refused until re-judged — plant "
+            "and task hash matching the current config, each child recorded as trained from the very parent "
             "checkpoint reused before it) satisfy nodes instead of training them, root-first; the "
             "run's target (--target; the last advancing stage by default) is always trained here. Reused records are copied "
             "into ancestors/ and the lineage records parent_run_id; a run that itself reused a node resolves "
-            "it through its ancestor records to the run that certified it (the command line follows those "
-            "records; the notebook's TRUNK_FROM does not yet)"
+            "it through its ancestor records to the run that certified it (the command line and the notebook's "
+            "TRUNK_FROM both follow those records)"
         ),
     )
     cur_parser.add_argument(

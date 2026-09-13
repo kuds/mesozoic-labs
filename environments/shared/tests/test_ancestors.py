@@ -1,11 +1,13 @@
 """Tests for environments.shared.ancestors — certified-ancestor reuse (BEHAVIOR_RECIPES_PLAN §4.2).
 
-The reuse rule is fail-closed on six independent checks (invariant 6): a
+The reuse rule is fail-closed on seven independent checks (invariant 6): a
 candidate whose gate did not pass, whose plant identity mismatches, or whose
 recorded task hash differs from the current stage config is refused, as is a
-checkpoint rewritten after judging, and a non-root candidate is reused only
+checkpoint rewritten after judging, a non-root candidate is reused only
 on top of the very parent checkpoint it was trained from (rule 4, the
-chain).  The record a child run keeps under ``ancestors/<stage_id>/`` holds
+chain), and a verdict judged under another gate configuration — or before
+the gate was recorded at all — is refused naming the thresholds that differ
+(rule 7, decision D-A22).  The record a child run keeps under ``ancestors/<stage_id>/`` holds
 JSON sidecars only — never a checkpoint.
 
 SB3-free by construction: checkpoints are ``_sb3_style_zip`` archives (a JSON
@@ -32,6 +34,7 @@ from environments.shared.ancestors import (
     record_ancestor,
     run_id_for,
 )
+from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view
 from environments.shared.plant_contract import MODEL_IDENTITY_ATTRIBUTE
 from environments.shared.result_bundle import (
     ANCESTOR_RECORD_NAME,
@@ -56,6 +59,34 @@ STANCE_TASK = "sha256:" + "1" * 64
 OTHER_TASK = "sha256:" + "2" * 64
 LOCOMOTION_TASK = "sha256:" + "3" * 64
 JUDGED_BY = "reporting.stage_artifacts.generate_stage_artifacts"
+
+#: The ``[curriculum]`` block the trunk fixture's stance node records and is
+#: judged under, and the CURRENT block ``_find`` compares it against (rule
+#: 7): the gate keys of ``stance_quality/v1`` plus a few keys that are not
+#: the gate (schedule and collapse), which must never enter the digest.
+STANCE_CURRICULUM: "dict[str, Any]" = {
+    "gate_kind": "stance_quality/v1",
+    "gate_schema_version": 1,
+    "timesteps": 11_000_000,
+    "min_full_horizon_fraction": 0.95,
+    "max_unsupported_duty": 0.02,
+    "max_unsupported_duty_ucb": 0.02,
+    "settle_steps": 200,
+    "min_eval_episodes": 40,
+    "min_avg_reward": 2100.0,
+    "required_consecutive": 3,
+    "collapse_patience": 10,
+}
+#: The locomotion child's block: an unregistered kind (the fixture's, not a
+#: real one), which the view projects through every known threshold key.
+LOCOMOTION_CURRICULUM: "dict[str, Any]" = {
+    "gate_kind": "locomotion/v1",
+    "gate_schema_version": 1,
+    "timesteps": 8_000_000,
+    "min_avg_reward": 100.0,
+    "min_avg_forward_vel": 2.0,
+    "required_consecutive": 3,
+}
 
 
 def _sb3_style_zip(path: Path, data: dict[str, Any]) -> Path:
@@ -87,6 +118,7 @@ def build_trunk_run(
     passed: bool = True,
     lineage: "dict[str, Any] | None" = None,
     species: str = "trex",
+    judged_under: "dict[str, Any] | None" = None,
 ) -> Path:
     """A stage directory shaped like a judged run's: handoff pair, sidecars, verdict.
 
@@ -96,6 +128,11 @@ def build_trunk_run(
     trained from scratch, which records no load keys at all.  *species*
     names the species every record is stamped with; the default plant is
     the trex fake, so pass a matching *plant* for another species.
+    *curriculum* is the block the stage records AND is judged under (its
+    ``gate_config_view`` is the verdict's ``gate``), :data:`STANCE_CURRICULUM`
+    by default; *judged_under* judges the verdict under another block than
+    the directory records (a directory re-judged after a threshold edit,
+    decision D-B8).
     """
     plant = plant or trunk_plant()
     stage_dir = run_dir / stage_dirname
@@ -115,7 +152,7 @@ def build_trunk_run(
     vecnorm = models / f"{handoff}_vecnorm.pkl"
     vecnorm.write_bytes(b"vecnorm-stats")
     (stage_dir / "task_fingerprint.json").write_text(json.dumps(fingerprint, indent=2) + "\n", encoding="utf-8")
-    curriculum = curriculum if curriculum is not None else {"gate_kind": "stance_quality/v1", "gate_schema_version": 1}
+    curriculum = curriculum if curriculum is not None else STANCE_CURRICULUM
     (stage_dir / "stage_config.json").write_text(
         json.dumps(
             {
@@ -149,8 +186,18 @@ def build_trunk_run(
             judged_by=JUDGED_BY,
             checkpoint=zip_path,
             normalization=vecnorm,
+            gate_config=gate_config_view(judged_under if judged_under is not None else curriculum),
         )
     return stage_dir
+
+
+def strip_gate_record(stage_dir: Path) -> Path:
+    """Rewrite *stage_dir*'s verdict as a pre-D-A22 file: no ``gate``, no ``gate_sha256``."""
+    path = stage_dir / "gate_verdict.json"
+    verdict = json.loads(path.read_text(encoding="utf-8"))
+    phase_a = {key: value for key, value in verdict.items() if key not in {"gate", "gate_sha256"}}
+    path.write_text(json.dumps(phase_a, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
 
 
 @pytest.fixture
@@ -167,6 +214,7 @@ def _find(run_dir, **overrides):
         entry=load_stage_manifest("trex").by_id("stance"),
         current_task_sha256=STANCE_TASK,
         plant_identity=trunk_plant(),
+        current_gate_config=STANCE_CURRICULUM,
     )
     kwargs.update(overrides)
     return find_certified_ancestor(run_dir, **kwargs)
@@ -199,6 +247,8 @@ class TestFindCertifiedAncestor:
         assert ancestor.task_sha256 == STANCE_TASK
         assert ancestor.judged_by == JUDGED_BY
         assert ancestor.verdict == read_gate_verdict(stage_dir)
+        assert ancestor.gate_sha256 == gate_config_sha256(gate_config_view(STANCE_CURRICULUM))
+        assert ancestor.gate_sha256 == ancestor.verdict["gate_sha256"]
 
     def test_refuses_a_missing_stage_directory(self, tmp_path):
         with pytest.raises(AncestorReuseError, match="no stage directory for 'stance'"):
@@ -237,6 +287,7 @@ class TestFindCertifiedAncestor:
             judged_by=JUDGED_BY,
             checkpoint=None,
             normalization=None,
+            gate_config=gate_config_view(STANCE_CURRICULUM),
         )
         with pytest.raises(AncestorReuseError, match="no complete handoff pair"):
             _find(tmp_path)
@@ -312,6 +363,153 @@ class TestFindCertifiedAncestor:
         with pytest.raises(AncestorReuseError, match="FAILED gate"):
             _find(tmp_path)
 
+    # -- Rule 7 (decision D-A22): the gate the verdict was judged under. --
+
+    def test_refuses_a_verdict_with_no_gate_sha256(self, tmp_path):
+        """A verdict judged before D-A22 certifies an unknown gate; both re-judge paths are named."""
+        strip_gate_record(build_trunk_run(tmp_path))
+        with pytest.raises(AncestorReuseError, match="records no gate_sha256") as excinfo:
+            _find(tmp_path)
+        message = str(excinfo.value)
+        assert "generate_stage_artifacts" in message
+        assert "scripts/backfill_gate_verdict.py --force [--gate current]" in message
+
+    def test_refuses_when_no_current_gate_configuration_is_given(self, tmp_path):
+        build_trunk_run(tmp_path)
+        with pytest.raises(AncestorReuseError, match="no current gate configuration"):
+            _find(tmp_path, current_gate_config=None)
+        # The keyword is REQUIRED: a caller that forgets it cannot ask at all.
+        with pytest.raises(TypeError, match="current_gate_config"):
+            find_certified_ancestor(  # type: ignore[call-arg]
+                tmp_path,
+                species="trex",
+                entry=load_stage_manifest("trex").by_id("stance"),
+                current_task_sha256=STANCE_TASK,
+                plant_identity=trunk_plant(),
+            )
+
+    def test_refuses_a_verdict_judged_under_a_different_gate_configuration_naming_the_thresholds(self, tmp_path):
+        stage_dir = build_trunk_run(tmp_path)
+        recorded = read_gate_verdict(stage_dir)["gate_sha256"]
+        current = {**STANCE_CURRICULUM, "max_unsupported_duty_ucb": 0.05}
+        with pytest.raises(
+            AncestorReuseError, match="differing thresholds: max_unsupported_duty_ucb: judged at"
+        ) as excinfo:
+            _find(tmp_path, current_gate_config=current)
+        message = str(excinfo.value)
+        assert f"was judged under gate {recorded} (stance_quality/v1)" in message
+        assert (
+            f"'stance' declares gate {gate_config_sha256(gate_config_view(current))} (stance_quality/v1) now" in message
+        )
+        assert "max_unsupported_duty_ucb: judged at 0.02, configured 0.05 now" in message
+        named = message.split("differing thresholds: ", 1)[1].split(";", 1)[0]
+        assert named == "max_unsupported_duty_ucb: judged at 0.02, configured 0.05 now"
+        assert "--gate current" in message and "generate_stage_artifacts" in message
+        # A dropped threshold, another schema version, another kind: each is named or called out.
+        with pytest.raises(AncestorReuseError, match="min_avg_reward: judged at 2100.0, configured None now"):
+            _find(tmp_path, current_gate_config={k: v for k, v in STANCE_CURRICULUM.items() if k != "min_avg_reward"})
+        with pytest.raises(AncestorReuseError, match=r"none nameable \(gate kind or schema version differs\)"):
+            _find(tmp_path, current_gate_config={**STANCE_CURRICULUM, "gate_schema_version": 2})
+        with pytest.raises(AncestorReuseError, match=r"\(recovery_quality/v1\) now"):
+            _find(tmp_path, current_gate_config={**STANCE_CURRICULUM, "gate_kind": "recovery_quality/v1"})
+
+    def test_a_non_gate_key_edit_does_not_refuse_reuse(self, tmp_path):
+        """Schedule, collapse, shaping, retention and the JAX override table are not the gate (D-B7)."""
+        build_trunk_run(tmp_path)
+        current = {
+            **STANCE_CURRICULUM,
+            "timesteps": 1_000,
+            "collapse_patience": 3,
+            "collapse_min_evals": 2,
+            "warmup_timesteps": 5,
+            "max_checkpoints": 1,
+            "jax": {"min_avg_reward": 1.0},
+        }
+        assert _find(tmp_path, current_gate_config=current).stage_id == "stance"
+
+    def test_a_numeric_retype_does_not_refuse_reuse(self, tmp_path):
+        """``100`` and ``100.0`` state the same threshold (D-B7)."""
+        build_trunk_run(tmp_path, curriculum={**STANCE_CURRICULUM, "min_avg_reward": 2100, "settle_steps": 200.0})
+        assert _find(tmp_path).stage_id == "stance"
+        assert (
+            _find(tmp_path, current_gate_config={**STANCE_CURRICULUM, "min_eval_episodes": 40.0}).stage_id == "stance"
+        )
+
+    def test_a_directory_re_judged_under_the_current_gate_is_reusable_although_it_trained_under_another(self, tmp_path):
+        """D-B8: only the gate the verdict was judged under counts.  A directory that trained under
+        one block and was re-judged under the current one (edit a threshold, re-judge, never retrain)
+        is reusable under the current gate — and not under the block it trained under."""
+        trained_under = {**STANCE_CURRICULUM, "max_unsupported_duty_ucb": 0.05}
+        stage_dir = build_trunk_run(tmp_path, curriculum=trained_under, judged_under=STANCE_CURRICULUM)
+        recorded = json.loads((stage_dir / "stage_config.json").read_text(encoding="utf-8"))["curriculum"]
+        assert recorded == trained_under
+        assert read_gate_verdict(stage_dir)["gate_sha256"] == gate_config_sha256(gate_config_view(STANCE_CURRICULUM))
+
+        found = _find(tmp_path)
+        assert found.stage_id == "stance" and found.gate_sha256 == read_gate_verdict(stage_dir)["gate_sha256"]
+        with pytest.raises(AncestorReuseError, match="max_unsupported_duty_ucb: judged at 0.02, configured 0.05 now"):
+            _find(tmp_path, current_gate_config=trained_under)
+
+    def test_a_verdict_whose_gate_digest_disagrees_with_its_recorded_gate_is_refused(self, tmp_path):
+        """A verdict edited after judging is malformed (the reader refuses it), surfaced through rule 2."""
+        stage_dir = build_trunk_run(tmp_path)
+        path = stage_dir / "gate_verdict.json"
+        verdict = json.loads(path.read_text(encoding="utf-8"))
+        verdict["gate"]["thresholds"]["max_unsupported_duty_ucb"] = 0.5
+        path.write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
+        with pytest.raises(AncestorReuseError, match="not the digest of the recorded gate block"):
+            _find(tmp_path)
+        # Nor does re-stamping the digest help: it must match the CURRENT gate too.
+        verdict["gate_sha256"] = gate_config_sha256(verdict["gate"])
+        path.write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
+        with pytest.raises(AncestorReuseError, match="max_unsupported_duty_ucb: judged at 0.5, configured 0.02 now"):
+            _find(tmp_path)
+
+    def test_rule_seven_is_applied_before_the_handoff_is_hashed(self, tmp_path):
+        """Rule order: a gate mismatch is named even when the checkpoint was also rewritten."""
+        stage_dir = build_trunk_run(tmp_path)
+        (stage_dir / "models" / "robust_best_model.zip").write_bytes(b"rewritten")
+        with pytest.raises(AncestorReuseError, match="differing thresholds: max_unsupported_duty_ucb"):
+            _find(tmp_path, current_gate_config={**STANCE_CURRICULUM, "max_unsupported_duty_ucb": 0.05})
+        strip_gate_record(stage_dir)
+        with pytest.raises(AncestorReuseError, match="records no gate_sha256"):
+            _find(tmp_path)
+
+    def test_rule_seven_is_applied_before_the_chain(self, tmp_path):
+        """Rule order: a non-root candidate with both a wrong parent and a stale gate gets the actionable
+        gate refusal (re-judge), not the chain's — rule 7 sits between the task and the chain."""
+        chained = tmp_path / "chained"
+        chained.mkdir()
+        other_stance = "sha256:" + "f" * 64
+        locomotion_dir, stance_sha256 = build_chained_trunk(chained, parent_sha256=other_stance)
+        edited = {**LOCOMOTION_CURRICULUM, "min_avg_forward_vel": 3.0}
+        with pytest.raises(AncestorReuseError) as excinfo:
+            _find_locomotion(chained, parent_model_sha256=stance_sha256, current_gate_config=edited)
+        assert "differing thresholds: min_avg_forward_vel: judged at 2.0, configured 3.0 now" in str(excinfo.value)
+        assert "parent_checkpoint_sha256" not in str(excinfo.value) and other_stance not in str(excinfo.value)
+        strip_gate_record(locomotion_dir)
+        with pytest.raises(AncestorReuseError, match="records no gate_sha256"):
+            _find_locomotion(chained, parent_model_sha256=stance_sha256)
+        # With the gate restored the chain rule is what refuses this candidate.
+        build_chained_trunk(chained, parent_sha256=other_stance)
+        with pytest.raises(AncestorReuseError, match=f"descends from 'stance' checkpoint {other_stance}"):
+            _find_locomotion(chained, parent_model_sha256=stance_sha256)
+
+    def test_a_digest_without_a_gate_block_is_refused_without_inventing_thresholds(self, tmp_path):
+        """The reader allows gate_sha256 beside no gate block; the mismatch then says the thresholds
+        cannot be named rather than listing every key as 'judged at None'."""
+        stage_dir = build_trunk_run(tmp_path)
+        path = stage_dir / "gate_verdict.json"
+        verdict = json.loads(path.read_text(encoding="utf-8"))
+        del verdict["gate"]
+        path.write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
+        assert _find(tmp_path).gate_sha256 == verdict["gate_sha256"]
+        with pytest.raises(AncestorReuseError) as excinfo:
+            _find(tmp_path, current_gate_config={**STANCE_CURRICULUM, "max_unsupported_duty_ucb": 0.05})
+        message = str(excinfo.value)
+        assert "not nameable (the verdict records its gate digest but no gate block)" in message
+        assert "judged at None" not in message
+
 
 def build_chained_trunk(
     run_dir: Path, *, parent_sha256: "str | None" = None, **locomotion_overrides
@@ -335,7 +533,7 @@ def build_chained_trunk(
         stage=2,
         stage_id="locomotion",
         task_sha256=LOCOMOTION_TASK,
-        curriculum={"gate_kind": "locomotion/v1", "gate_schema_version": 1},
+        curriculum=LOCOMOTION_CURRICULUM,
         lineage=lineage,
     )
     kwargs.update(locomotion_overrides)
@@ -346,6 +544,7 @@ def _find_locomotion(run_dir, **overrides):
     kwargs: dict[str, Any] = dict(
         entry=load_stage_manifest("trex").by_id("locomotion"),
         current_task_sha256=LOCOMOTION_TASK,
+        current_gate_config=LOCOMOTION_CURRICULUM,
     )
     kwargs.update(overrides)
     return _find(run_dir, **kwargs)
@@ -572,6 +771,10 @@ def _rejudge_rewritten_stance(stage_dir: Path) -> None:
         judged_by=JUDGED_BY,
         checkpoint=zip_path,
         normalization=stage_dir / "models" / "robust_best_model_vecnorm.pkl",
+        # The same block build_trunk_run records: the re-judged source stays
+        # reusable on its own (rule 7 passes) so the record's handoff-digest
+        # binding is what refuses it.
+        gate_config=gate_config_view(STANCE_CURRICULUM),
     )
 
 
@@ -701,6 +904,10 @@ class TestTrunksCompose:
         assert message.startswith(f"followed the ancestor record in {middle} to {original}: ")
         assert rewritten.model_sha256 in message and bound in message
         assert "rewritten since" in message
+        # The refusal is the record's handoff-digest binding (D-A23), not a
+        # gate one: the re-judged source was judged under the same gate.
+        assert "bound the reuse to handoff.model_sha256" in message
+        assert "judged under gate" not in message and "gate_sha256" not in message
 
     def test_a_record_whose_sidecar_digest_disagrees_is_refused(self, tmp_path):
         original = tmp_path / "original"
@@ -807,6 +1014,7 @@ class TestTrunksCompose:
                 "no complete handoff pair",
             ),
             (lambda run: shutil.rmtree(run / "01_stance"), "no stage directory for 'stance'"),
+            (lambda run: strip_gate_record(run / "01_stance"), "records no gate_sha256"),
         ],
     )
     def test_every_refusal_at_the_source_is_prefixed_with_the_hop_taken(self, tmp_path, break_source, reason):
@@ -819,6 +1027,21 @@ class TestTrunksCompose:
 
         with pytest.raises(AncestorReuseError, match=reason) as excinfo:
             _follow(middle)
+        assert str(excinfo.value).startswith(f"followed the ancestor record in {middle} to {original}: ")
+
+    def test_a_gate_refusal_at_the_source_is_prefixed_with_the_hop_taken(self, tmp_path):
+        """Rule 7 at the source: a stance reused through a record is still checked against THIS
+        run's gate, and refused naming the threshold that differs."""
+        original = tmp_path / "original"
+        original.mkdir()
+        build_trunk_run(original)
+        middle = tmp_path / "middle"
+        build_middle_run(middle, original)
+
+        assert _follow(middle).via == (middle,)
+        current = {**STANCE_CURRICULUM, "min_full_horizon_fraction": 0.99}
+        with pytest.raises(AncestorReuseError, match="min_full_horizon_fraction: judged at 0.95") as excinfo:
+            _follow(middle, current_gate_config=current)
         assert str(excinfo.value).startswith(f"followed the ancestor record in {middle} to {original}: ")
 
     def test_the_chain_rule_is_applied_at_the_source(self, tmp_path):

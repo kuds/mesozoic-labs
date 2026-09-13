@@ -3,7 +3,9 @@
 A node may be satisfied by an existing certified checkpoint instead of
 trained.  ``train_curriculum --trunk-from <run_dir>`` and the notebook's
 chain loop both apply the rule this module owns, in this order, refusing
-on the first failure with a reason naming it:
+on the first failure with a reason naming it (the list is in evaluation
+order; rule 7 was appended by decision D-A22 and keeps its number, which
+is why it sits between 3 and 4):
 
 1. the candidate run has a stage directory for the node, in any layout
    generation (``stage{N}``, ``NN_{id}``, bare id) — preferred whenever it
@@ -35,6 +37,27 @@ on the first failure with a reason naming it:
    CURRENT stage config and the stage directory's own recorded task — exact
    equality, the same check ``resume_same_stage`` applies (the schema-v1
    fingerprint valve is deliberately not extended to reuse);
+7. the gate (decision D-A22): the verdict's ``gate_sha256`` — the digest of
+   the gate configuration it was judged under (``gate``: kind, schema
+   version and the thresholds the kind consumes, numerics normalised;
+   ``curriculum.gate_schema.gate_config_view`` / ``gate_config_sha256``) —
+   equals the digest of the block the CURRENT stage config declares
+   (``current_gate_config``, required: None refuses).  A verdict without
+   the field was judged before D-A22 and is refused until re-judged (the
+   notebook's JUDGE branch / ``generate_stage_artifacts``, or
+   ``scripts/backfill_gate_verdict.py --force [--gate current]``); a
+   differing digest is refused naming every threshold that differs
+   (``gate_config_differences``).  Only the gate the verdict was judged
+   under counts, never the block the directory's own ``stage_config.json``
+   recorded: re-judging a directory under an edited gate is the intended
+   path (edit a threshold, re-judge, never retrain; decision D-B8), so a
+   re-judged directory is reusable under the gate it was re-judged under,
+   and ``generate_stage_artifacts`` logs a warning at judge time when the
+   two blocks differ.  The verdict must agree with itself — ``gate_sha256``
+   is the digest of ``gate`` — which the reader enforces, so a verdict
+   edited after judging is refused by rule 2.  Checked here, after the
+   task and before the chain, because it is cheaper than hashing the
+   handoff pair and validating the plant;
 4. the chain: a non-root node's candidate must record, in its
    ``stage_config.json`` run block, an ``initialize_next_stage`` load whose
    ``parent_checkpoint_sha256`` equals the digest of the checkpoint the
@@ -80,8 +103,11 @@ of the ancestor stage's ``gate_verdict.json``, ``stage_config.json``,
 ``task_fingerprint.json`` and ``plant_identity.json`` — small records only,
 never the checkpoint pair (plan A10) — and the child's lineage names the
 ancestor's run as ``parent_run_id``.  A stage judged before Phase A has no
-verdict file and is refused by rule 2 until it is re-judged
-(``generate_stage_artifacts`` or ``scripts/backfill_gate_verdict.py``).
+verdict file and is refused by rule 2, and a verdict without ``gate_sha256``
+by rule 7, until it is re-judged (``generate_stage_artifacts`` or
+``scripts/backfill_gate_verdict.py``).  The copied ``gate_verdict.json``
+carries ``gate`` / ``gate_sha256`` verbatim, so the digest travels with the
+record; ``ancestor.json`` itself is unchanged.
 
 Lives beside ``task_fingerprint.py`` rather than under ``curriculum/`` so it
 can reach ``reporting.gates`` lazily without closing the reporting <->
@@ -145,6 +171,9 @@ class CertifiedAncestor:
     task_sha256: str
     judged_by: str
     verdict: dict[str, Any]
+    #: The digest of the gate configuration the verdict was judged under
+    #: (rule 7, decision D-A22): the verdict's ``gate_sha256``.
+    gate_sha256: str
     #: The runs whose ``ancestors/<stage_id>/ancestor.json`` rule 1 followed
     #: to reach ``source_run_dir``, outermost first; empty for a direct hit.
     #: Logged, never persisted: ``ancestor.json`` records the source alone.
@@ -241,16 +270,22 @@ def find_certified_ancestor(
     entry: "StageEntry",
     current_task_sha256: "str | None",
     plant_identity: "PlantIdentity",
+    current_gate_config: "Mapping[str, Any] | None",
     parent_model_sha256: "str | None" = None,
     follow_records: bool = False,
 ) -> CertifiedAncestor:
     """Apply the §4.2 reuse rule to *run_dir*'s directory for *entry*.
 
     Raises :class:`AncestorReuseError` naming the first rule that failed
-    (module docstring, rules 1-6); returns the ancestor otherwise.
+    (module docstring, rules 1-7); returns the ancestor otherwise.
     *current_task_sha256* is the digest derived from the CURRENT stage
     config (``derive_stage_task_fingerprint``), which the verdict and the
-    directory's own record must both equal exactly.  *parent_model_sha256*
+    directory's own record must both equal exactly.  *current_gate_config*
+    is the CURRENT stage config's ``[curriculum]`` block
+    (``curriculum_kwargs``), whose gate-configuration digest the verdict's
+    ``gate_sha256`` must equal (rule 7, decision D-A22); required, with no
+    default, and None refuses — like *current_task_sha256*, a missing
+    comparison must not read as a match.  *parent_model_sha256*
     is the digest of the checkpoint resolved for *entry*'s declared parent
     (a reused ancestor's ``model_sha256``): required for a non-root node,
     which is refused when it is None because an unresolved parent leaves the
@@ -274,6 +309,7 @@ def find_certified_ancestor(
         entry=entry,
         current_task_sha256=current_task_sha256,
         plant_identity=plant_identity,
+        current_gate_config=current_gate_config,
         parent_model_sha256=parent_model_sha256,
         follow_records=follow_records,
         via=(),
@@ -351,6 +387,7 @@ def _follow_ancestor_record(
     entry: "StageEntry",
     current_task_sha256: "str | None",
     plant_identity: "PlantIdentity",
+    current_gate_config: "Mapping[str, Any] | None",
     parent_model_sha256: "str | None",
     via: tuple[Path, ...],
 ) -> CertifiedAncestor:
@@ -384,6 +421,7 @@ def _follow_ancestor_record(
             entry=entry,
             current_task_sha256=current_task_sha256,
             plant_identity=plant_identity,
+            current_gate_config=current_gate_config,
             parent_model_sha256=parent_model_sha256,
             follow_records=True,
             via=path,
@@ -415,12 +453,14 @@ def _find_certified_ancestor(
     entry: "StageEntry",
     current_task_sha256: "str | None",
     plant_identity: "PlantIdentity",
+    current_gate_config: "Mapping[str, Any] | None",
     parent_model_sha256: "str | None",
     follow_records: bool,
     via: tuple[Path, ...],
 ) -> CertifiedAncestor:
     """:func:`find_certified_ancestor` with the followed path carried through the recursion."""
     from .curriculum.checkpoints import select_handoff_checkpoint
+    from .curriculum.gate_schema import gate_config_differences, gate_config_sha256, gate_config_view
     from .plant_contract import MODEL_IDENTITY_ATTRIBUTE, PlantCompatibilityError, validate_recorded_identity
     from .reporting.gates import _current_task_sha256
     from .result_bundle import (
@@ -460,6 +500,7 @@ def _find_certified_ancestor(
             entry=entry,
             current_task_sha256=current_task_sha256,
             plant_identity=plant_identity,
+            current_gate_config=current_gate_config,
             parent_model_sha256=parent_model_sha256,
             via=via,
         )
@@ -507,6 +548,43 @@ def _find_certified_ancestor(
         raise AncestorReuseError(
             f"{stage_dir} records task {own_task} in its own stage_config.json / task_fingerprint.json, "
             f"which disagrees with the current task {current_task_sha256}"
+        )
+
+    # (7) The gate: the verdict was judged under the gate configuration the
+    # current config declares (D-A22).  Only the judged-under gate counts
+    # (D-B8): a directory re-judged under an edited gate is reusable under
+    # that gate.  Before the chain, the hashing and the plant: cheapest.
+    if current_gate_config is None:
+        raise AncestorReuseError(f"no current gate configuration to compare {stage_dir} against")
+    recorded_digest = verdict.get("gate_sha256")
+    if not isinstance(recorded_digest, str) or not recorded_digest:
+        raise AncestorReuseError(
+            f"{stage_dir}/gate_verdict.json records no gate_sha256 (judged before decision D-A22), so the gate "
+            "it certifies under is unknown: re-judge it (the notebook JUDGE branch / generate_stage_artifacts, "
+            "or scripts/backfill_gate_verdict.py --force [--gate current]) before it can be reused"
+        )
+    current_view = gate_config_view(current_gate_config)
+    current_digest = gate_config_sha256(current_view)
+    if recorded_digest != current_digest:
+        raw_gate = verdict.get("gate")
+        recorded_gate: Mapping[str, Any] = raw_gate if isinstance(raw_gate, Mapping) else {}
+        raw_thresholds = recorded_gate.get("thresholds")
+        recorded_thresholds: Mapping[str, Any] = raw_thresholds if isinstance(raw_thresholds, Mapping) else {}
+        if not isinstance(raw_gate, Mapping):
+            # The reader allows the digest without the block; without the
+            # block there is nothing to name, and "judged at None" for every
+            # key would read as thresholds that were unset, not unrecorded.
+            named = "not nameable (the verdict records its gate digest but no gate block)"
+        else:
+            differences = gate_config_differences(recorded_thresholds, current_view)
+            named = ", ".join(differences) or "none nameable (gate kind or schema version differs)"
+        raise AncestorReuseError(
+            f"{stage_dir}/gate_verdict.json was judged under gate {recorded_digest} "
+            f"({recorded_gate.get('gate_kind', verdict.get('gate_kind'))}), but {entry.id!r} declares gate "
+            f"{current_digest} ({current_view['gate_kind']}) now; differing thresholds: {named}; a certified "
+            "checkpoint proves only the gate it was judged against — re-judge it under the current gate (the "
+            "notebook JUDGE branch / generate_stage_artifacts, or scripts/backfill_gate_verdict.py --force "
+            "--gate current) to reuse it"
         )
 
     # (4) The chain: the candidate descends from the checkpoint resolved for
@@ -562,6 +640,7 @@ def _find_certified_ancestor(
         task_sha256=recorded_task,
         judged_by=str(verdict.get("judged_by")),
         verdict=dict(verdict),
+        gate_sha256=recorded_digest,
         via=via,
     )
 

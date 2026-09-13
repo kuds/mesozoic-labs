@@ -950,7 +950,14 @@ class TestTrainCurriculumWalksTheManifest:
         model.learn.side_effect = learn_side_effect
 
         def write_verdict(stage_dir, **kwargs):
-            record["verdicts"].append({"stage_dir": stage_dir, **kwargs})
+            # D-A22: every verdict the loop writes names the gate it judged
+            # under; the recorder digests it the way the real writer does.
+            from environments.shared.curriculum.gate_schema import gate_config_sha256
+
+            assert set(kwargs["gate_config"]) == {"gate_kind", "gate_schema_version", "thresholds"}
+            record["verdicts"].append(
+                {"stage_dir": stage_dir, "gate_sha256": gate_config_sha256(kwargs["gate_config"]), **kwargs}
+            )
             return stage_dir / "gate_verdict.json"
 
         # train_curriculum imports the writer at call time from the package,
@@ -1062,12 +1069,13 @@ class TestTrainCurriculumWalksTheManifest:
         leaves the directory without one.  Called before ``_run`` so the real writer is used."""
         from environments.shared.ancestors import CertifiedAncestor
         from environments.shared.config import load_all_stages, save_stage_config
+        from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view
 
         stage_dir = trunk / f"01_{stage_id}"
         (stage_dir / "models").mkdir(parents=True, exist_ok=True)
+        stage_ref = int(stage_key) if stage_key.isdigit() else stage_key
+        recorded = dict(load_all_stages(species)[stage_ref])
         if record_config:
-            stage_ref = int(stage_key) if stage_key.isdigit() else stage_key
-            recorded = dict(load_all_stages(species)[stage_ref])
             for section, changes in (edits or {}).items():
                 recorded[section] = {**recorded.get(section, {}), **changes}
             save_stage_config(stage_dir, stage_ref, recorded, "PPO", species=species)
@@ -1086,6 +1094,7 @@ class TestTrainCurriculumWalksTheManifest:
             task_sha256="sha256:" + "c" * 64,
             judged_by="test",
             verdict={"passed": True},
+            gate_sha256=gate_config_sha256(gate_config_view(recorded.get("curriculum_kwargs", {}))),
         )
 
     def test_trunk_from_reuses_a_certified_ancestor_and_trains_the_rest(self, tmp_path, monkeypatch, caplog):
@@ -1095,16 +1104,29 @@ class TestTrainCurriculumWalksTheManifest:
         trained here without consulting the trunk (nothing there descends from a checkpoint this run
         produced)."""
         from environments.shared.ancestors import AncestorReuseError
+        from environments.shared.config import load_all_stages
+        from environments.shared.curriculum.gate_schema import gate_config_sha256, gate_config_view
 
         trunk = tmp_path / "trunk-run"
         ancestor = self._certified_ancestor(trunk)
         asked: list[tuple[str, str | None]] = []
 
         def find_ancestor(
-            run_dir, *, species, entry, current_task_sha256, plant_identity, parent_model_sha256, follow_records
+            run_dir,
+            *,
+            species,
+            entry,
+            current_task_sha256,
+            plant_identity,
+            current_gate_config,
+            parent_model_sha256,
+            follow_records,
         ):
             asked.append((entry.id, parent_model_sha256))
             assert Path(run_dir) == trunk and species == "velociraptor"
+            # D-A22 (rule 7): the rule is handed the node's CURRENT [curriculum]
+            # block, so it can refuse a verdict judged under another gate.
+            assert current_gate_config == load_all_stages(species)[entry.reference]["curriculum_kwargs"]
             # The trunk is another run by construction, so the curriculum opts
             # in to following its ancestor records (D-A23); the notebook's
             # same-run candidate must not, which is why the library defaults off.
@@ -1121,6 +1143,11 @@ class TestTrainCurriculumWalksTheManifest:
         # Stance was reused, never trained; walk and hunt were trained here.
         assert [stage for stage, _, _ in record["saved"]] == [2, 3]
         assert [v["stage_id"] for v in record["verdicts"]] == ["locomotion", "behavior"]
+        # D-A22: each verdict digests the block the node was judged under.
+        assert [v["gate_sha256"] for v in record["verdicts"]] == [
+            gate_config_sha256(gate_config_view(load_all_stages("velociraptor")[stage]["curriculum_kwargs"]))
+            for stage in (2, 3)
+        ]
         # Walk entered on the ancestor's handoff, crossing the edge, with the
         # trunk's run id recorded as lineage; hunt's parent was trained here.
         assert record["loads"][0] == ancestor.model_stem
@@ -1196,6 +1223,7 @@ class TestTrainCurriculumWalksTheManifest:
         ``parent_run_id`` names; walk, which the middle run neither trained nor reused, is trained
         here, and hunt is the target."""
         from environments.shared.ancestors import find_certified_ancestor, record_ancestor
+        from environments.shared.config import load_all_stages
         from environments.shared.stage_manifest import load_stage_manifest
 
         from .reporting_helpers import make_plant_identity
@@ -1204,7 +1232,10 @@ class TestTrainCurriculumWalksTheManifest:
         plant = make_plant_identity()
         original = tmp_path / "logs" / "original-run"
         original.mkdir(parents=True)
-        stance_dir = build_trunk_run(original, species="velociraptor", plant=plant)
+        # The trunk's stance was judged under the checkout's own velociraptor
+        # stance block, so rule 7 (D-A22) matches the gate this run declares.
+        stance_curriculum = load_all_stages("velociraptor")[1]["curriculum_kwargs"]
+        stance_dir = build_trunk_run(original, species="velociraptor", plant=plant, curriculum=stance_curriculum)
         middle = tmp_path / "logs" / "middle-run"
         middle.mkdir()
         record_ancestor(
@@ -1215,6 +1246,7 @@ class TestTrainCurriculumWalksTheManifest:
                 entry=load_stage_manifest("velociraptor").by_id("stance"),
                 current_task_sha256=STANCE_TASK,
                 plant_identity=plant,
+                current_gate_config=stance_curriculum,
             ),
         )
         assert [child.name for child in middle.iterdir()] == ["ancestors"]

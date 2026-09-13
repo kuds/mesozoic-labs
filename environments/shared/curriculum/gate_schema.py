@@ -255,6 +255,77 @@ BACKEND_OVERRIDABLE_KEYS = frozenset(
 _ALL_THRESHOLD_KEYS = frozenset().union(*GATE_KINDS.values())
 
 
+def gate_config_view(curriculum: Mapping[str, Any]) -> dict[str, Any]:
+    """The gate-configuration projection a verdict records and reuse compares (decision D-A22).
+
+    ``{"gate_kind", "gate_schema_version", "thresholds"}`` where
+    ``thresholds`` holds, in sorted key order, exactly the threshold keys the
+    declared kind consumes (:data:`GATE_KINDS`) that *curriculum* declares —
+    so every advancing kind's ``min_eval_episodes`` / ``required_consecutive``
+    are in it (``none/v1`` consumes nothing), while schedule, collapse,
+    diagnostic, retention and provenance keys and any ``[curriculum.jax]``
+    override table are not (SB3 never applies the override table and the
+    JAX path writes no verdict, decision D-A5).  A null kind (a stage that
+    declares no gate; ``stage_artifacts`` records it as null) or an
+    unregistered one projects through :data:`_ALL_THRESHOLD_KEYS` instead, so
+    it hashes deterministically rather than raising.  Hash it with
+    :func:`gate_config_sha256`.
+    """
+    kind = curriculum.get("gate_kind")
+    keys = GATE_KINDS[kind] if isinstance(kind, str) and kind in GATE_KINDS else _ALL_THRESHOLD_KEYS
+    return {
+        "gate_kind": kind,
+        "gate_schema_version": curriculum.get("gate_schema_version"),
+        "thresholds": {key: curriculum[key] for key in sorted(keys) if key in curriculum},
+    }
+
+
+def gate_config_sha256(view: Mapping[str, Any]) -> str:
+    """:func:`environments.shared.result_bundle.hashing.gate_config_sha256`, re-exported.
+
+    Imported lazily, the way ``config.hyperparameters_sha256`` reaches the
+    same module: ``result_bundle`` must stay importable without
+    ``curriculum``, so the dependency runs one way only.
+    """
+    from ..result_bundle.hashing import gate_config_sha256 as _gate_config_sha256
+
+    return _gate_config_sha256(view)
+
+
+def same_threshold(declared: Any, frozen: Any) -> bool:
+    """Whether a declared threshold and a recorded one state the same criterion.
+
+    Anything that will not compare as a number counts as a disagreement: the
+    fail-closed reading of "these two records cannot be shown to agree".
+    """
+    if declared is None or frozen is None:
+        return declared is None and frozen is None
+    try:
+        return float(declared) == float(frozen)
+    except (TypeError, ValueError):
+        return False
+
+
+def gate_config_differences(recorded_thresholds: Mapping[str, Any], current_view: Mapping[str, Any]) -> list[str]:
+    """Every threshold on which a verdict's recorded gate and the current view disagree.
+
+    One sorted line per differing key, ``"<key>: judged at <recorded>,
+    configured <current> now"``, over the union of both key sets — a key
+    only one side declares is a difference.  Compared through
+    :func:`same_threshold`, so ``100`` and ``100.0`` agree.  Empty when only
+    the kind or schema version differs, which the caller names itself.
+    """
+    current = current_view.get("thresholds")
+    current_thresholds: Mapping[str, Any] = current if isinstance(current, Mapping) else {}
+    differences: list[str] = []
+    for key in sorted(set(recorded_thresholds) | set(current_thresholds)):
+        recorded = recorded_thresholds.get(key)
+        configured = current_thresholds.get(key)
+        if not same_threshold(recorded, configured):
+            differences.append(f"{key}: judged at {recorded!r}, configured {configured!r} now")
+    return differences
+
+
 def finite_gate_metric(value: Any) -> float | None:
     """The metric as a float, or ``None`` when it was not measured.
 

@@ -171,9 +171,13 @@ block you edited. The task digest a verdict is bound to covers the effective
    refusal.
 2. **An `[env]` edit** changes the digest: the old checkpoint is refused by the
    reuse rule and the node and everything below it retrain.
-3. **A gate-threshold edit** does not invalidate an old verdict yet: the
-   verdict records no thresholds in Phase A. Re-judge the stage directory to
-   re-gate it.
+3. **A gate-threshold edit** leaves the digest unchanged but changes the
+   gate digest the verdict records (`gate_sha256`, decision D-A22): reuse
+   rule 7 refuses the old verdict naming the thresholds that differ, and a
+   trunked run then trains the node itself. The remedy is a re-judge under
+   the current gate — the notebook JUDGE branch / `generate_stage_artifacts`,
+   or `backfill_gate_verdict.py --force --gate current` for a
+   `reward_and_length/v1` directory — never a retrain.
 
 A variant is a new run directory: writing into a stage directory that already
 holds `stage_config.json` or `gate_verdict.json` is refused unless the load is

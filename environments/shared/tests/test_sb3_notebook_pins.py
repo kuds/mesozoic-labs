@@ -376,12 +376,20 @@ class TestReuseRule:
     def test_reuse_checks_verdict_plant_and_task_hash(self):
         src, loop = _chain_loop()
         find = _call(loop, "find_certified_ancestor")
-        assert {"species", "entry", "current_task_sha256", "plant_identity", "parent_model_sha256"} <= _keyword_names(
-            find
-        )
+        assert {
+            "species",
+            "entry",
+            "current_task_sha256",
+            "plant_identity",
+            "current_gate_config",
+            "parent_model_sha256",
+        } <= _keyword_names(find)
         assert _keyword_source(src, find, "entry") == "NODE"
         assert _keyword_source(src, find, "current_task_sha256") == "task_sha256"
         assert _keyword_source(src, find, "plant_identity") == "PLANT_IDENTITY"
+        # D-A22 (rule 7): the gate this session would judge the node under is the
+        # block save_stage_config records as 'curriculum' — the same source.
+        assert _keyword_source(src, find, "current_gate_config") == 'config.get("curriculum_kwargs", {})'
         # The task digest comes from the CURRENT config through the shared derivation, for this backend,
         # from exactly the sources train_stage records it from: a drift (env_kwargs={} here, say) would
         # silently refuse every reuse with "judged under task".
@@ -616,16 +624,22 @@ class TestReuseRule:
         )
 
     def test_the_library_rule_the_notebook_relies_on(self, tmp_path):
-        """Invariant 6, thin: the six-rule reuse check the loop delegates to is fail-closed."""
+        """Invariant 6, thin: the seven-rule reuse check the loop delegates to is fail-closed."""
         from environments.shared.ancestors import AncestorReuseError, find_certified_ancestor
 
         from .reporting_helpers import make_plant_identity
-        from .test_ancestors import OTHER_TASK, STANCE_TASK, build_trunk_run, trunk_plant
+        from .test_ancestors import OTHER_TASK, STANCE_CURRICULUM, STANCE_TASK, build_trunk_run, trunk_plant
 
         stance = load_stage_manifest("trex").by_id("stance")
 
         def find(run_dir, **overrides):
-            kwargs = dict(species="trex", entry=stance, current_task_sha256=STANCE_TASK, plant_identity=trunk_plant())
+            kwargs = dict(
+                species="trex",
+                entry=stance,
+                current_task_sha256=STANCE_TASK,
+                plant_identity=trunk_plant(),
+                current_gate_config=STANCE_CURRICULUM,
+            )
             kwargs.update(overrides)
             return find_certified_ancestor(run_dir, **kwargs)
 
@@ -648,6 +662,9 @@ class TestReuseRule:
         )
         with pytest.raises(AncestorReuseError, match="incompatible with the current trex plant"):
             find(passed, plant_identity=other_plant)
+        # D-A22 (rule 7): a verdict judged under another gate is refused naming the threshold.
+        with pytest.raises(AncestorReuseError, match="differing thresholds"):
+            find(passed, current_gate_config={**STANCE_CURRICULUM, "max_unsupported_duty_ucb": 0.05})
         # Absence of a verdict never reads as a pass.
         unjudged = tmp_path / "unjudged"
         unjudged.mkdir()

@@ -11,7 +11,13 @@ evidence the directory already holds, through the one shared judge
 ``judged_by = "backfill"``:
 
 * ``stance_quality/v1`` — from ``stance_gate_report.json`` (the same input
-  ``generate_stage_artifacts`` certifies from);
+  ``generate_stage_artifacts`` certifies from), whose recorded ``thresholds``
+  must state the gate being judged under: the judge reads the report's
+  verdict off the panel it scored and re-derives nothing, so a report
+  scored under other thresholds proves nothing about this gate and is
+  refused (a stance directory whose rail moved is re-judged through the
+  notebook JUDGE branch / ``generate_stage_artifacts``, which measures a
+  fresh panel under the current gate — never through ``--gate current``);
 * ``reward_and_length/v1`` — from the selected checkpoint's
   ``evaluation_selected.csv`` when its rows are hash-bound to the handoff
   checkpoint, else from ``evaluations.npz`` / ``metrics.json`` (the
@@ -29,8 +35,23 @@ no checkpoint path, so the tool cannot prove the report scored that pair —
 it says so in the log.  An existing verdict is never overwritten without
 ``--force``.
 
+Decision D-A22 (Phase B): the verdict records the gate configuration it was
+judged under (``gate`` / ``gate_sha256``), and reuse rule 7 compares it
+against the gate the reusing run declares.  ``--gate recorded`` (the
+default) judges under the block ``stage_config.json`` recorded — what the
+directory actually ran under — and digests that block; ``--gate current``
+judges under the checkout's ``load_all_stages(species)[stage]`` block, the
+re-judge-after-a-threshold-edit path for a directory that was never
+re-judged through the notebook, and digests that one.  Either way the
+verdict's ``gate`` names the block used, and either way the evidence must
+be re-scorable under that block: ``reward_and_length/v1`` is (the episode
+rows are re-aggregated), a stance report is not (see above).  Pre-D-A22
+verdicts carry no ``gate_sha256`` and are refused by reuse rule 7;
+``--force`` re-derives them.  Recovery stays refused, so a recovery
+threshold edit forces a notebook re-roll of the node.
+
 Run: ``python -m environments.shared.scripts.backfill_gate_verdict <stage_dir>
-[--species trex] [--stage 1] [--force]``.
+[--species trex] [--stage 1] [--force] [--gate recorded|current]``.
 """
 
 from __future__ import annotations
@@ -50,6 +71,22 @@ BACKFILL_JUDGED_BY = "backfill"
 
 #: The evidence CSV the verdict is re-derived from for reward gates.
 SELECTED_EVIDENCE_CSV = "evaluation_selected.csv"
+
+#: Which ``[curriculum]`` block the verdict is judged under and digests
+#: (D-A22): the one the directory's ``stage_config.json`` recorded, or the
+#: checkout's current one for the stage.
+GATE_SOURCES = ("recorded", "current")
+
+#: The thresholds ``reporting.stance_report`` records the panel was scored
+#: under.  A stance verdict is read off the report, so every one of these
+#: must state the gate the verdict is judged under.
+_STANCE_REPORT_THRESHOLD_KEYS = (
+    "min_full_horizon_fraction",
+    "max_unsupported_duty",
+    "max_unsupported_duty_ucb",
+    "min_avg_reward",
+    "min_eval_episodes",
+)
 
 
 class BackfillError(RuntimeError):
@@ -138,14 +175,19 @@ def backfill_gate_verdict(
     species: "str | None" = None,
     stage: "int | str | None" = None,
     force: bool = False,
+    gate: str = "recorded",
 ) -> Path:
     """Re-derive and write *stage_dir*'s ``gate_verdict.json`` from its evidence.
 
     *species* and *stage* default to what the directory's
-    ``stage_config.json`` records.  Raises :class:`BackfillError` on any
+    ``stage_config.json`` records.  *gate* names the block the verdict is
+    judged under and digests (:data:`GATE_SOURCES`): ``"recorded"``, the
+    directory's own ``stage_config.json`` block, or ``"current"``, the
+    checkout's block for the stage.  Raises :class:`BackfillError` on any
     missing evidence; returns the written path.
     """
     from environments.shared.curriculum.checkpoints import select_handoff_checkpoint
+    from environments.shared.curriculum.gate_schema import gate_config_view
     from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
     from environments.shared.curriculum.stance_gate import STANCE_GATE_KIND
     from environments.shared.reporting import build_stage_results_from_eval_data, evaluate_stage_gate
@@ -153,6 +195,8 @@ def backfill_gate_verdict(
     from environments.shared.result_bundle import GATE_VERDICT_FILENAME, write_gate_verdict
     from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
+    if gate not in GATE_SOURCES:
+        raise ValueError(f"gate must be one of {GATE_SOURCES}, not {gate!r}")
     stage_path = Path(stage_dir)
     if not stage_path.is_dir():
         raise BackfillError(f"{stage_path} is not a stage directory")
@@ -173,9 +217,18 @@ def backfill_gate_verdict(
         entry = load_stage_manifest(resolved_species).resolve(stage_ref)
     except StageManifestError as exc:
         raise BackfillError(str(exc)) from exc
-    curriculum = record.get("curriculum")
-    if not isinstance(curriculum, Mapping) or not curriculum:
+    recorded_block = record.get("curriculum", record.get("curriculum_kwargs"))
+    if not isinstance(recorded_block, Mapping) or not recorded_block:
         raise BackfillError("stage_config.json records no curriculum block, so the gate the stage ran under is unknown")
+    curriculum: Mapping[str, Any] = recorded_block
+    if gate == "current":
+        curriculum = _current_curriculum_block(resolved_species, entry.reference)
+        logger.info(
+            "Judging %s under the checkout's current %s %r gate, not the block its stage_config.json recorded",
+            stage_path,
+            resolved_species,
+            entry.id,
+        )
     # Recorded as declared (null when undeclared; the judge then fails it).
     gate_kind: Any = curriculum.get("gate_kind")
     # The results builder is typed for the legacy integer but reads the
@@ -203,6 +256,9 @@ def backfill_gate_verdict(
         if not isinstance(stance_report, Mapping):
             raise BackfillError(f"{stage_path / 'stance_gate_report.json'} must hold a JSON object")
         stance_report = dict(stance_report)
+        _require_stance_report_scored_this_gate(
+            stance_report, curriculum, report_path=stage_path / "stance_gate_report.json", stage_id=entry.id, gate=gate
+        )
         logger.warning(
             "The stance report records no checkpoint path; the verdict binds to the handoff pair selected now "
             "(%s). Confirm the report scored that checkpoint before trusting the backfill.",
@@ -265,16 +321,90 @@ def backfill_gate_verdict(
         judged_by=BACKFILL_JUDGED_BY,
         checkpoint=model_zip,
         normalization=normalization_path,
+        # D-A22: the verdict digests the block it was judged under — the
+        # recorded one by default, the checkout's under --gate current.
+        gate_config=gate_config_view(curriculum),
         stage_result=stage_results,
     )
     logger.info(
-        "Backfilled %s: %s gate %s (%s)",
+        "Backfilled %s: %s gate %s (%s), judged under the %s gate configuration",
         written,
         gate_kind,
         "PASS" if passed else "FAIL",
         "; ".join(failures) if failures else "no failures",
+        gate,
     )
     return written
+
+
+def _require_stance_report_scored_this_gate(
+    stance_report: Mapping[str, Any],
+    curriculum: Mapping[str, Any],
+    *,
+    report_path: Path,
+    stage_id: str,
+    gate: str,
+) -> None:
+    """Refuse a stance report that was not scored under the gate being judged under.
+
+    ``evaluate_stage_gate`` reads a ``stance_quality/v1`` verdict off the
+    report's ``passed`` and re-derives nothing, so the thresholds handed to
+    it are never consulted: a report scored under a lower rail would be
+    minted as a pass under the current one.  The report records the
+    thresholds it scored (:data:`_STANCE_REPORT_THRESHOLD_KEYS`); every one
+    must state what the judged block declares, under either ``--gate``.
+    A report without them cannot be shown to have scored any gate.
+    """
+    from environments.shared.curriculum.gate_schema import same_threshold
+    from environments.shared.curriculum.stance_gate import StanceGateThresholds
+
+    recorded = stance_report.get("thresholds")
+    if not isinstance(recorded, Mapping):
+        raise BackfillError(
+            f"{report_path} records no thresholds, so the gate its verdict scored is unknown and cannot be "
+            "shown to be the one being judged under; re-judge the node through the notebook JUDGE branch / "
+            "generate_stage_artifacts, which measures a fresh panel under the current gate"
+        )
+    try:
+        declared = StanceGateThresholds.from_curriculum(curriculum)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise BackfillError(
+            f"the {gate} {stage_id!r} block does not declare a complete stance_quality/v1 gate to judge under "
+            f"({type(exc).__name__}: {exc})"
+        ) from exc
+    disagreements = [
+        f"{key}: report scored at {recorded.get(key)!r}, judging under {getattr(declared, key)!r} now"
+        for key in _STANCE_REPORT_THRESHOLD_KEYS
+        if not same_threshold(recorded.get(key), getattr(declared, key))
+    ]
+    if disagreements:
+        raise BackfillError(
+            f"{report_path} was scored under a gate that differs from the {gate} {stage_id!r} block "
+            f"({'; '.join(disagreements)}): its verdict certifies only the thresholds it scored, and the judge "
+            "re-derives nothing from the report, so it cannot be re-judged under this gate from the report alone; "
+            "re-judge the node through the notebook JUDGE branch / generate_stage_artifacts, which measures a "
+            "fresh panel under the current gate"
+        )
+
+
+def _current_curriculum_block(species: str, stage_ref: "int | str") -> Mapping[str, Any]:
+    """The checkout's ``[curriculum]`` block for *species*' *stage_ref* (``--gate current``)."""
+    from environments.shared.config import load_all_stages
+
+    try:
+        configs = load_all_stages(species)
+    except Exception as exc:  # noqa: BLE001 - any loader failure is "no current gate", never a default
+        raise BackfillError(f"the current {species} stage configs cannot be loaded: {exc}") from exc
+    current = configs.get(stage_ref)
+    if not isinstance(current, Mapping):
+        raise BackfillError(
+            f"the {species} checkout declares no stage {stage_ref!r} (known: {sorted(map(str, configs))}), "
+            "so there is no current gate to judge under"
+        )
+    block = current.get("curriculum_kwargs")
+    if not isinstance(block, Mapping) or not block:
+        raise BackfillError(f"the current {species} stage {stage_ref!r} config declares no [curriculum] block")
+    return block
 
 
 def main(argv: "list[str] | None" = None) -> int:
@@ -287,13 +417,25 @@ def main(argv: "list[str] | None" = None) -> int:
         help="override the stage reference stage_config.json records (a legacy number or a stage id)",
     )
     parser.add_argument("--force", action="store_true", help="re-derive even when a gate_verdict.json exists")
+    parser.add_argument(
+        "--gate",
+        choices=GATE_SOURCES,
+        default="recorded",
+        help=(
+            "which [curriculum] block to judge under and record (decision D-A22): the block the directory's "
+            "stage_config.json recorded (default), or the checkout's current block for the stage — the "
+            "re-judge path after a threshold edit"
+        ),
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     stage: "int | str | None" = None
     if args.stage is not None:
         stage = int(args.stage) if args.stage.isdigit() else args.stage
     try:
-        written = backfill_gate_verdict(args.stage_dir, species=args.species, stage=stage, force=args.force)
+        written = backfill_gate_verdict(
+            args.stage_dir, species=args.species, stage=stage, force=args.force, gate=args.gate
+        )
     except BackfillError as exc:
         logger.error("Refusing to backfill %s: %s", args.stage_dir, exc)
         return 1
