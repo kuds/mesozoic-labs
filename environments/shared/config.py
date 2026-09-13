@@ -384,6 +384,44 @@ def record_stage_duration(stage_dir: str | Path, duration_seconds: float) -> Pat
     return path
 
 
+#: Files whose presence means a stage directory is already a RECORDED stage
+#: (decision D-A20): its config was written by an earlier session, or a gate
+#: has judged it.  Writing a fresh stage into such a directory silently
+#: overwrites that record, so :func:`refuse_occupied_stage_dir` refuses it
+#: unless the load is an explicit same-stage resume.
+STAGE_DIR_OCCUPANCY_FILES = ("stage_config.json", "gate_verdict.json")
+
+
+class StageDirectoryOccupiedError(RuntimeError):
+    """A stage directory already holds a recorded stage and the load is not a same-stage resume."""
+
+
+def refuse_occupied_stage_dir(stage_dir: str | Path, *, task_load_mode: str | None) -> None:
+    """Refuse to write a fresh stage into a directory that already records one (D-A20).
+
+    Raises :class:`StageDirectoryOccupiedError` when *stage_dir* holds any
+    of :data:`STAGE_DIR_OCCUPANCY_FILES` and *task_load_mode* is not
+    ``"resume_same_stage"``.  A same-stage resume continues the stage the
+    directory records, so it is the one load that may re-save its config
+    there; every other write — from scratch, or entering from a parent under
+    ``initialize_next_stage`` — is a new variant, and a variant is a new run.
+    Callers pass the EFFECTIVE load mode: ``None`` when nothing is loaded,
+    exactly as ``save_stage_config`` records ``load_mode``, so a
+    ``resume_same_stage`` default without a checkpoint does not slip past
+    the guard.  Never raises for a missing or empty directory.
+    """
+    directory = Path(stage_dir)
+    found = [name for name in STAGE_DIR_OCCUPANCY_FILES if (directory / name).is_file()]
+    if not found or task_load_mode == "resume_same_stage":
+        return
+    raise StageDirectoryOccupiedError(
+        f"{directory} already records a stage ({', '.join(found)} present) and this is not a "
+        f"same-stage resume (load mode {task_load_mode!r}); refusing to overwrite it. Give a new "
+        "variant a fresh run directory (--output-dir / RUN_ID), or resume this stage explicitly with "
+        "--load <checkpoint> --load-mode resume_same_stage (the notebook's RESUME cell)."
+    )
+
+
 #: Run-block keys recording where a stage's initial weights came from.  Read
 #: back by the result-bundle audit under exactly these names (review RP4),
 #: which audits each key when present and skips it when absent — so a
@@ -397,6 +435,121 @@ def record_stage_duration(stage_dir: str | Path, duration_seconds: float) -> Pat
 #: run's provenance ``run_id`` when it has one, else the run directory name.
 #: A ``--load`` and a same-run curriculum handoff never write it.
 LOAD_LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256", "parent_run_id")
+
+#: A same-stage resume of a stage that ENTERED from its parent keeps that
+#: edge in the :data:`LOAD_LINEAGE_KEYS` (the reuse rule's chain-by-digest
+#: check, ``ancestors._check_chain``, and the audit read those) and records
+#: the periodic checkpoint it continued from under these two keys instead:
+#: the path as given to the trainer and that file's sha256.  Neither is a
+#: lineage key — the resume continues the recorded stage, it does not
+#: re-parent it — so a resumed-then-judged node stays reusable on top of
+#: the parent it was trained from (BEHAVIOR_RECIPES_PLAN §4.7 branch 3).
+RESUME_LINEAGE_KEYS = ("resume_load_path", "resume_checkpoint_sha256")
+
+#: Besides *extra* and the lineage keys, the ``run`` block always records
+#: ``hyperparameters_sha256`` — :func:`hyperparameters_sha256` over the
+#: stage's algorithm block and stage-entry shaping keys — and, when the run
+#: was given one, a free-text ``label`` (decision D-A21).  Neither is a
+#: load-lineage key: they describe THIS stage's training recipe, not where
+#: its weights came from.  ``reporting.bundles`` copies both into the
+#: stage's ``provenance.deliverables`` record and the audit cross-checks
+#: the digest against the run block it came from.
+
+#: The stage-config key holding each algorithm's hyperparameter table —
+#: the block ``save_stage_config`` records as ``"hyperparameters"`` and
+#: :func:`hyperparameters_sha256` digests.
+_ALGORITHM_KWARGS_KEYS = {"PPO": "ppo_kwargs", "SAC": "sac_kwargs", "JAX_PPO": "jax_kwargs"}
+
+#: Prefixes of the ``curriculum_kwargs`` keys that shape a stage's ENTRY
+#: (the warm-up and ramp callbacks): they change what a node is trained
+#: under without touching the task fingerprint, so the digest covers them.
+SHAPING_KEY_PREFIXES = ("warmup_", "ramp_")
+
+
+def _algorithm_kwargs_key(algorithm: str) -> str:
+    return _ALGORITHM_KWARGS_KEYS.get(algorithm.upper(), f"{algorithm.lower()}_kwargs")
+
+
+def _json_ready(value: Any) -> Any:
+    """Canonicalise tuples to lists (recursively), as the stage config on disk records them."""
+    if isinstance(value, (tuple, list)):
+        return [_json_ready(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _json_ready(item) for key, item in value.items()}
+    return value
+
+
+def _hyperparameter_view(algorithm: str, hyperparameters: Any, curriculum: Any) -> dict[str, Any]:
+    """The digested view: the algorithm, its block, and the shaping keys of the curriculum block."""
+    if not isinstance(hyperparameters, dict):
+        hyperparameters = {}
+    if not isinstance(curriculum, dict):
+        curriculum = {}
+    return {
+        "algorithm": algorithm.upper(),
+        "hyperparameters": _json_ready(hyperparameters),
+        "shaping": {str(k): _json_ready(v) for k, v in curriculum.items() if str(k).startswith(SHAPING_KEY_PREFIXES)},
+    }
+
+
+def hyperparameters_sha256(stage_config: dict[str, Any], algorithm: str) -> str:
+    """The ``sha256:<hex>`` digest of a stage's training recipe (decision D-A21).
+
+    Hashes, as canonical JSON, ``{"algorithm": ALGORITHM, "hyperparameters":
+    <the algorithm's kwargs table>, "shaping": <the curriculum_kwargs whose
+    keys start with one of SHAPING_KEY_PREFIXES>}`` — exactly the block
+    ``save_stage_config`` records as ``"hyperparameters"`` plus the
+    stage-entry shaping knobs, with tuples canonicalised to lists as the
+    JSON on disk has them.  Independent of key order.  Env kwargs, gate
+    thresholds and everything else in the config leave it unchanged: the
+    task fingerprint owns the task, this owns how it was trained.
+    """
+    from .result_bundle.hashing import canonical_json_sha256
+
+    view = _hyperparameter_view(
+        algorithm,
+        stage_config.get(_algorithm_kwargs_key(algorithm), {}),
+        stage_config.get("curriculum_kwargs", {}),
+    )
+    return canonical_json_sha256(view)
+
+
+def hyperparameter_diff(
+    stage_config: dict[str, Any],
+    algorithm: str,
+    recorded_stage_config: dict[str, Any],
+) -> list[str]:
+    """Sorted dotted keys on which a stage's recipe differs from a recorded ``stage_config.json``.
+
+    Compares the current node's algorithm block and shaping keys (as
+    :func:`hyperparameters_sha256` sees them) with the recorded file's
+    top-level ``"hyperparameters"`` and the shaping keys of its
+    ``"curriculum"``.  Keys are ``<algorithm>.<key>`` (``ppo.learning_rate``)
+    and ``shaping.<key>`` (``shaping.warmup_timesteps``); a key present on
+    one side only differs; a recorded ``"algorithm"`` other than the
+    current one differs as ``algorithm``.  ``[]`` when nothing differs — in
+    which case the two digests agree.
+    """
+    current = _hyperparameter_view(
+        algorithm,
+        stage_config.get(_algorithm_kwargs_key(algorithm), {}),
+        stage_config.get("curriculum_kwargs", {}),
+    )
+    recorded_algorithm = recorded_stage_config.get("algorithm")
+    recorded = _hyperparameter_view(
+        str(recorded_algorithm) if isinstance(recorded_algorithm, str) and recorded_algorithm else algorithm,
+        recorded_stage_config.get("hyperparameters", {}),
+        recorded_stage_config.get("curriculum", {}),
+    )
+    differing: list[str] = []
+    if current["algorithm"] != recorded["algorithm"]:
+        differing.append("algorithm")
+    for prefix, section in ((algorithm.lower(), "hyperparameters"), ("shaping", "shaping")):
+        ours, theirs = current[section], recorded[section]
+        for key in set(ours) | set(theirs):
+            if key not in ours or key not in theirs or ours[key] != theirs[key]:
+                differing.append(f"{prefix}.{key}")
+    return sorted(differing)
 
 
 def _checkpoint_lineage(
@@ -443,6 +596,27 @@ def _checkpoint_lineage(
     return lineage
 
 
+def _recorded_edge_lineage(stage_dir: Path) -> dict[str, Any]:
+    """The ``initialize_next_stage`` lineage *stage_dir*'s ``stage_config.json`` records, else ``{}``.
+
+    Read by :func:`save_stage_config` before it rewrites the run block on a
+    same-stage resume.  A missing or unreadable config, a run block without
+    a load, or one that records a ``resume_same_stage`` load (a root, or a
+    plain ``--load``) all read as "no edge to keep".
+    """
+    path = stage_dir / "stage_config.json"
+    if not path.is_file():
+        return {}
+    try:
+        record: Any = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    run_block = record.get("run") if isinstance(record, dict) else None
+    if not isinstance(run_block, dict) or run_block.get("load_mode") != "initialize_next_stage":
+        return {}
+    return {key: run_block[key] for key in LOAD_LINEAGE_KEYS if key in run_block}
+
+
 def save_stage_config(
     stage_dir: str | Path,
     stage: "int | str",
@@ -457,6 +631,7 @@ def save_stage_config(
     load_path: str | None = None,
     load_mode: str | None = None,
     parent_run_id: str | None = None,
+    label: str | None = None,
 ) -> Path:
     """Save the reward weights and model hyperparameters for a stage to JSON.
 
@@ -488,10 +663,25 @@ def save_stage_config(
         parent_run_id: The run the loaded checkpoint was reused from when it
             is a certified ancestor of ANOTHER run; ``None`` (or empty) for a
             parent trained in this run or a plain ``--load``.
+        label: Free text naming this run (``--label`` / ``RUN_LABEL``),
+            recorded as ``run["label"]`` only when it is a non-empty string
+            (whitespace is stripped); ``None`` records nothing.
 
-    When a checkpoint was loaded the ``run`` block carries the
-    :data:`LOAD_LINEAGE_KEYS` alongside *extra*; a from-scratch stage
-    carries none of them (the audit reads absence as "no parent").
+    The ``run`` block always carries ``hyperparameters_sha256``
+    (:func:`hyperparameters_sha256` over the algorithm block and the
+    shaping keys; decision D-A21) alongside *extra*, so it is always
+    written; when a checkpoint was loaded it also carries the
+    :data:`LOAD_LINEAGE_KEYS`, and a from-scratch stage carries none of
+    them (the audit reads absence as "no parent").
+
+    A ``resume_same_stage`` load into a directory whose existing
+    ``stage_config.json`` records an ``initialize_next_stage`` entry keeps
+    that edge's lineage keys verbatim (the resume continues the recorded
+    stage on top of the same parent; the reuse rule chains on
+    ``parent_checkpoint_sha256`` and the audit cross-checks it) and records
+    the checkpoint it continued from under the :data:`RESUME_LINEAGE_KEYS`.
+    Any other resume — a root, a plain ``--load`` — records the load under
+    the lineage keys as before.
 
     Returns:
         Path to the written JSON file.
@@ -499,8 +689,7 @@ def save_stage_config(
     stage_dir = Path(stage_dir)
     stage_dir.mkdir(parents=True, exist_ok=True)
 
-    _ALGO_KEY_MAP = {"PPO": "ppo_kwargs", "SAC": "sac_kwargs", "JAX_PPO": "jax_kwargs"}
-    algo_key = _ALGO_KEY_MAP.get(algorithm.upper(), f"{algorithm.lower()}_kwargs")
+    algo_key = _algorithm_kwargs_key(algorithm)
 
     # Start with env class constructor defaults so that the saved JSON
     # captures the full effective configuration, then overlay with
@@ -538,9 +727,25 @@ def save_stage_config(
         "hyperparameters": stage_config.get(algo_key, {}),
         "curriculum": stage_config.get("curriculum_kwargs", {}),
     }
-    run_block = {**(extra or {}), **_checkpoint_lineage(load_path, load_mode, parent_run_id=parent_run_id)}
-    if run_block:
-        data["run"] = run_block
+    # D-A21: the recipe digest is always recorded (so the run block always
+    # exists); the label only when one was given.
+    run_block: dict[str, Any] = {
+        **(extra or {}),
+        "hyperparameters_sha256": hyperparameters_sha256(stage_config, algorithm),
+    }
+    if isinstance(label, str) and label.strip():
+        run_block["label"] = label.strip()
+    lineage = _checkpoint_lineage(load_path, load_mode, parent_run_id=parent_run_id)
+    edge = _recorded_edge_lineage(stage_dir) if load_mode == "resume_same_stage" else {}
+    if edge:
+        # A same-stage resume continues the stage that entered from its
+        # parent: keep the edge, record the continued-from checkpoint apart.
+        run_block.update(edge)
+        run_block["resume_load_path"] = lineage["load_path"]
+        run_block["resume_checkpoint_sha256"] = lineage["parent_checkpoint_sha256"]
+    else:
+        run_block.update(lineage)
+    data["run"] = run_block
     if plant_identity is not None:
         data["plant_identity"] = plant_identity.to_dict()
     if task_fingerprint is not None:

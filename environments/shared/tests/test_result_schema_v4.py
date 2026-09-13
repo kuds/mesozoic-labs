@@ -21,6 +21,8 @@ from environments.shared import stage_manifest
 from environments.shared.result_schema import (
     CANONICAL_RUNTIME_PROVENANCE_FIELDS,
     CANONICAL_RUNTIME_PROVENANCE_FIELDS_V4,
+    DELIVERABLE_RECORD_FIELDS,
+    OPTIONAL_DELIVERABLE_RECORD_FIELDS,
     ResultSchemaError,
     bundle_status_for,
     certified_deliverables,
@@ -409,6 +411,53 @@ def test_v4_deliverable_record_shape_is_fail_closed(mutate, message: str) -> Non
     summary = _canonical_summary_v4()
     mutate(summary["provenance"]["deliverables"]["3"])
     with pytest.raises(ResultSchemaError, match=message):
+        _canonical_publishable(summary)
+
+
+def test_v4_deliverable_record_optional_fields_validate_and_are_kept() -> None:
+    """Decision D-A21: a deliverable record may carry ``hyperparameters_sha256`` and ``label`` —
+    any subset of OPTIONAL_DELIVERABLE_RECORD_FIELDS on top of exactly the required fields — and
+    the validated summary keeps them (type-checked; writers record the label already stripped)."""
+    assert OPTIONAL_DELIVERABLE_RECORD_FIELDS == ("hyperparameters_sha256", "label")
+    assert not set(OPTIONAL_DELIVERABLE_RECORD_FIELDS) & set(DELIVERABLE_RECORD_FIELDS)
+    digest = "sha256:" + "d" * 64
+    summary = _canonical_summary_v4()
+    summary["provenance"]["deliverables"]["3"].update({"hyperparameters_sha256": digest, "label": "lr-sweep-a"})
+    summary["provenance"]["deliverables"]["2"]["label"] = "walk-only"
+
+    validated = _canonical_publishable(summary)
+
+    records = validated["provenance"]["deliverables"]
+    assert records["3"]["hyperparameters_sha256"] == digest and records["3"]["label"] == "lr-sweep-a"
+    assert records["2"]["label"] == "walk-only" and "hyperparameters_sha256" not in records["2"]
+    assert not {"hyperparameters_sha256", "label"} & set(records["1"])
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("hyperparameters_sha256", "d" * 64, "hyperparameters_sha256 must be sha256:<64 lowercase hex>"),
+        ("hyperparameters_sha256", None, "hyperparameters_sha256 must be sha256:<64 lowercase hex>"),
+        ("label", "", "label must be a non-empty string"),
+        ("label", 7, "label must be a non-empty string"),
+    ],
+    ids=["digest-bare-hex", "digest-null", "label-empty", "label-not-a-string"],
+)
+def test_v4_wrong_typed_optional_deliverable_fields_are_refused(field: str, value: Any, message: str) -> None:
+    """Optional means absent-or-valid: a present field of the wrong shape fails closed."""
+    summary = _canonical_summary_v4()
+    summary["provenance"]["deliverables"]["3"][field] = value
+    with pytest.raises(ResultSchemaError, match=message):
+        _canonical_publishable(summary)
+
+
+def test_v4_an_unknown_deliverable_field_is_still_refused_beside_the_optional_ones() -> None:
+    """The optional set widens the record by exactly two names; anything else is still an error."""
+    summary = _canonical_summary_v4()
+    summary["provenance"]["deliverables"]["3"].update(
+        {"hyperparameters_sha256": "sha256:" + "d" * 64, "label": "lr-sweep-a", "notes": "free text"}
+    )
+    with pytest.raises(ResultSchemaError, match="must carry exactly the fields"):
         _canonical_publishable(summary)
 
 

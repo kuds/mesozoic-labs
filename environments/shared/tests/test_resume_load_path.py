@@ -316,8 +316,10 @@ class TestShapingIsWired:
 
     def test_the_notebook_and_the_sweep_route_through_the_helper_too(self):
         # The notebook's train_stage cell is where the inline copy grew (and
-        # lost the ramp guard); it keeps only its PPO-only warm-up filter on
-        # the helper's output. The Ray sweep worker had a third copy.
+        # lost the ramp guard). The Ray sweep worker had a third copy. Since
+        # the behavior-chain loop (Phase A WS5, gap-review DU1) the notebook
+        # uses the helper's output UNFILTERED: its former PPO-only warm-up
+        # filter (`isinstance(cb, StageWarmupCallback)`) is pinned absent.
         repo_root = Path(__file__).resolve().parents[3]
         notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
         cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
@@ -332,6 +334,7 @@ class TestShapingIsWired:
             assert "StageWarmupCallback(" not in src
             assert "RewardRampCallback(" not in src
         assert "task_load_mode=task_load_mode" in cell
+        assert "isinstance(cb, StageWarmupCallback)" not in cell
         assert 'task_load_mode="initialize_next_stage"' in sweep
 
     def test_train_resolves_the_sidecar_from_its_load_path(self):

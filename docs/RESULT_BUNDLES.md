@@ -155,7 +155,8 @@ The bundle writer adds the **finalization** fields (schema v4):
 - `deliverables` — `{stage_key: {model_path, model_hash, normalization_hash,
   gate_kind, certified, replication: {count, runs: [{run_id, training_seed}]}}}`
   for every deliverable present in the run (Phase A writes one run per
-  record);
+  record), plus the optional `hyperparameters_sha256` and `label` copied
+  from the stage's `stage_config.json` run block (decision D-A21);
 - `ancestors` — `{stage_key: {run_id, model_hash, normalization_hash,
   gate_kind, passed, task_sha256}}`, the projection of the on-disk
   `ancestors/` records;

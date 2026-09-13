@@ -169,9 +169,12 @@ The historical Tyrannosaurus Rex gate retains its original single-null rule.
    quiet reference rollout and occupy the safe set for at least 95% of
    samples after the one-second settling period. A mismatch stops before
    recovery training and requires revisiting the reference calibration.
-3. Set `RUN_RECOVERY_STAGE = True`. The existing recovery cell freezes the
-   same-task null panels, then trains from the stance checkpoint and evaluates
-   the selected recovery checkpoint against that frozen judge.
+3. Set `BEHAVIOR = "stand"` in the SB3 notebook's configuration cell. The
+   chain loop trains stance → recovery (a certified stance in `RUN_DIR` or
+   `TRUNK_FROM` is reused rather than retrained), freezes the same-task null
+   panels before recovery trains, trains from the stance handoff, rolls the
+   selected recovery checkpoint over that frozen panel, and enforces the
+   recovery verdict (decision D-A11).
 4. Inspect the gate verdict, episode/shove CSVs, and video together. A short
    smoke run may fail; it is not a qualification experiment. Repeat full runs
    with additional training seeds and evaluate different shove magnitudes

@@ -913,6 +913,45 @@ def _save_final_and_sync_tb(
 # ── Single-stage training ────────────────────────────────────────────────
 
 
+def _wandb_run_tags(config: dict[str, Any], algorithm: str, label: str | None) -> list[str]:
+    """The W&B tags a trained node carries (decision D-A21).
+
+    ``hp:<12 hex>`` is the first twelve hex characters of the node's
+    :func:`~environments.shared.config.hyperparameters_sha256` — the same
+    digest ``stage_config.json`` records — so runs trained under one recipe
+    group in the W&B UI; ``label:<label>`` follows when a label was given.
+    """
+    from .config import hyperparameters_sha256
+
+    digest = hyperparameters_sha256(config, algorithm)
+    tags = [f"hp:{digest.removeprefix('sha256:')[:12]}"]
+    if isinstance(label, str) and label.strip():
+        tags.append(f"label:{label.strip()}")
+    return tags
+
+
+def _ignored_hyperparameter_edits(config: dict[str, Any], algorithm: str, ancestor_stage_dir: Path) -> list[str]:
+    """The dotted keys on which this run's recipe differs from a reused ancestor's record.
+
+    Reads ``<ancestor stage_dir>/stage_config.json`` and delegates to
+    :func:`~environments.shared.config.hyperparameter_diff`; an ancestor
+    whose record cannot be read is reported as
+    ``["<unreadable stage_config.json>"]`` rather than silently trusted
+    (decision D-A21).  Never raises.
+    """
+    import json
+
+    from .config import hyperparameter_diff
+
+    try:
+        recorded = json.loads((Path(ancestor_stage_dir) / "stage_config.json").read_text(encoding="utf-8"))
+        if not isinstance(recorded, dict):
+            raise ValueError("stage_config.json must contain an object")
+    except (OSError, ValueError):
+        return ["<unreadable stage_config.json>"]
+    return hyperparameter_diff(config, algorithm, recorded)
+
+
 def train(
     species_cfg: SpeciesConfig,
     stage_configs: "dict[int | str, dict[str, Any]]",
@@ -934,6 +973,7 @@ def train(
     task_load_mode: str = "resume_same_stage",
     allow_fresh_vecnorm: bool = False,
     post_eval_episodes: int | None = None,
+    label: str | None = None,
 ):
     """Train a single stage of the curriculum.
 
@@ -972,10 +1012,22 @@ def train(
     ``allow_fresh_vecnorm`` is the explicit escape hatch for resuming a
     checkpoint whose VecNormalize sidecar is lost; by default that load
     fails closed (review TC5).
+
+    A stage directory that already records a stage (``stage_config.json``
+    or ``gate_verdict.json`` present) is refused with
+    :class:`~environments.shared.config.StageDirectoryOccupiedError` before
+    anything is written into it, unless the load is an explicit same-stage
+    resume (``load_path`` under ``resume_same_stage``): a new variant is a
+    new run directory (decision D-A20).
+
+    ``label`` is free text naming the run (``--label``); it is recorded in
+    the stage config's ``run`` block beside the ``hyperparameters_sha256``
+    digest every stage records, and both reach the W&B run as tags
+    (``label:<label>``, ``hp:<digest prefix>``; decision D-A21).
     """
     _validate_post_eval_episodes(post_eval_episodes)
 
-    from .config import save_stage_config
+    from .config import refuse_occupied_stage_dir, save_stage_config
     from .stage_manifest import load_stage_manifest
     from .task_fingerprint import (
         derive_stage_task_fingerprint,
@@ -1036,6 +1088,12 @@ def train(
     else:
         log_path = Path(log_dir)
 
+    # D-A20: a directory that already records a stage is written into only
+    # by a same-stage resume of it.  The effective load mode is what
+    # save_stage_config records below (None when nothing is loaded), so a
+    # from-scratch run under the default resume_same_stage is refused too.
+    refuse_occupied_stage_dir(log_path, task_load_mode=task_load_mode if load_path else None)
+
     log_path.mkdir(parents=True, exist_ok=True)
     model_dir = log_path / "models"
     model_dir.mkdir(exist_ok=True)
@@ -1058,6 +1116,7 @@ def train(
         # that provenance becomes readable (no keys at all from scratch).
         load_path=load_path,
         load_mode=task_load_mode if load_path else None,
+        label=label,
     )
 
     # Create environments
@@ -1115,7 +1174,13 @@ def train(
 
     wandb_run = None
     if use_wandb:
-        wandb_run = init_wandb(species=species, stage=stage, config=config, run_dir=str(log_path))
+        wandb_run = init_wandb(
+            species=species,
+            stage=stage,
+            config=config,
+            run_dir=str(log_path),
+            tags=_wandb_run_tags(config, algorithm, label),
+        )
 
     model = _create_or_load_model(
         sb3,
@@ -1651,6 +1716,8 @@ def train_curriculum(
     use_tensorboard: bool = True,
     allow_fresh_vecnorm: bool = False,
     trunk_from: "str | Path | None" = None,
+    retrain_from: "int | str | None" = None,
+    label: str | None = None,
 ):
     """Run the curriculum's advancing stages, in manifest order, with automatic advancement.
 
@@ -1688,12 +1755,38 @@ def train_curriculum(
     record ``parent_run_id``; a candidate that fails the rule is trained
     here with the refusal logged.
 
+    ``retrain_from`` (decision D-A19) names an advancing node — a stage id
+    or legacy number, resolved once through the manifest before the walk —
+    that is trained in this run together with every advancing node after it
+    (its descendants: the walk is linear), even when ``trunk_from`` holds a
+    certified copy; only the certified ancestors strictly above it are
+    reused, as before.  It generalises the target rule: ``--retrain-from``
+    naming the target changes nothing.  A value that does not resolve to an
+    advancing node raises ``ValueError`` naming the advancing ids before any
+    directory is written.  Without ``trunk_from`` every node is trained here
+    already, so the knob has nothing to cover.
+
+    A stage directory under ``base_dir`` that already records a stage
+    (``stage_config.json`` or ``gate_verdict.json``) is refused with
+    :class:`~environments.shared.config.StageDirectoryOccupiedError` before
+    it is written to: the curriculum has no resume mode, so an old run
+    directory is never a valid ``output_dir`` for a variant (decision D-A20).
+
     Every trained node writes ``gate_verdict.json`` from the manager's
     in-training verdict (``judged_by`` names it), which is what lets a CLI
     run serve as a later run's trunk.
+
+    ``label`` (``--label``) is recorded in every trained node's ``run``
+    block beside its ``hyperparameters_sha256`` and both reach W&B as tags
+    (decision D-A21).  Reuse carries the ancestor's recorded recipe, not
+    this run's: when a reused node's current algorithm block or shaping
+    keys differ from the ancestor's ``stage_config.json`` a warning names
+    the differing keys and points at ``--retrain-from`` — the edit is
+    ignored, never silently applied, and never a refusal.
     """
     from .ancestors import AncestorReuseError, find_certified_ancestor, record_ancestor
     from .config import (
+        refuse_occupied_stage_dir,
         save_stage_config,
         upload_curriculum_artifacts,
     )
@@ -1703,7 +1796,7 @@ def train_curriculum(
         thresholds_from_configs,
     )
     from .result_bundle import write_gate_verdict
-    from .stage_manifest import load_stage_manifest, stage_dirname
+    from .stage_manifest import StageManifestError, load_stage_manifest, stage_dirname
     from .task_fingerprint import derive_stage_task_fingerprint
     from .wandb_integration import init_wandb
 
@@ -1713,6 +1806,30 @@ def train_curriculum(
 
     manifest = load_stage_manifest(species)
     advancing = manifest.advancing_stages
+
+    # D-A19: the retrain-from node resolves once, before any directory
+    # exists, so a typo is refused before the run has a footprint.
+    retrain_entry = None
+    if retrain_from is not None:
+        advancing_ids = [entry.id for entry in advancing]
+        try:
+            retrain_entry = manifest.resolve(retrain_from)
+        except StageManifestError as exc:
+            raise ValueError(
+                f"retrain_from {retrain_from!r} is not a stage of {species}: {exc}. "
+                f"It must name one of the advancing stages: {advancing_ids}"
+            ) from exc
+        if retrain_entry not in advancing:
+            raise ValueError(
+                f"retrain_from {retrain_from!r} names the non-advancing stage {retrain_entry.id!r}; "
+                f"the curriculum trains only the advancing stages, so it must be one of {advancing_ids}"
+            )
+        if trunk_from is None:
+            logger.info(
+                "retrain_from %r has nothing to cover without trunk_from: every node is trained in this run.",
+                retrain_entry.id,
+            )
+
     thresholds = thresholds_from_configs(stage_configs)
     manager = CurriculumManager(species=species, stage_thresholds=thresholds, total_stages=len(advancing))
 
@@ -1798,7 +1915,20 @@ def train_curriculum(
             break
         parent_node = resolved[parent.id] if parent is not None else None
 
-        if trunk_from is not None and entry is advancing[-1]:
+        # D-A19: the retrain-from node and its descendants never consult the
+        # trunk; the certified ancestors strictly above it still do.
+        retrain_covers = retrain_entry is not None and (
+            entry == retrain_entry or retrain_entry in manifest.ancestors(entry.id)
+        )
+
+        if trunk_from is not None and retrain_covers:
+            logger.info(
+                "Not reusing %r from --trunk-from %s: --retrain-from %r covers it. Training it here.",
+                entry.id,
+                trunk_from,
+                retrain_entry.id if retrain_entry is not None else None,
+            )
+        elif trunk_from is not None and entry is advancing[-1]:
             logger.info(
                 "Not reusing %r from --trunk-from %s: it is this run's target, and the target is always "
                 "trained here (an earlier run's certified %r is that run's deliverable).",
@@ -1835,6 +1965,22 @@ def train_curriculum(
                     exc,
                 )
             else:
+                # D-A21: reuse carries the ancestor's recipe.  An edit to
+                # this node's algorithm block or shaping keys since the
+                # ancestor was trained is ignored — say so, and say how to
+                # train it here instead.
+                ignored_edits = _ignored_hyperparameter_edits(config, algorithm, ancestor.stage_dir)
+                if ignored_edits:
+                    logger.warning(
+                        "Reusing certified %r from run %s ignores this run's hyperparameter edit: %s differ "
+                        "from the ancestor's recorded stage_config.json, and reuse trains nothing. "
+                        "Pass --retrain-from %s to train %r here under the edited configuration.",
+                        entry.id,
+                        ancestor.run_id,
+                        ", ".join(ignored_edits),
+                        entry.id,
+                        entry.id,
+                    )
                 record_ancestor(base_dir, ancestor)
                 resolved[entry.id] = _ResolvedNode(
                     model_stem=ancestor.model_stem,
@@ -1863,6 +2009,10 @@ def train_curriculum(
         parent_vecnorm_path = parent_node.vecnorm_path if parent_node is not None else None
 
         stage_dir = base_dir / stage_dirname(species, stage)
+        # D-A20: the curriculum has no resume mode, so a stage directory
+        # that already records a stage is never written into.  The mode
+        # passed is the one recorded below (a root loads nothing).
+        refuse_occupied_stage_dir(stage_dir, task_load_mode="initialize_next_stage" if load_path else None)
         stage_dir.mkdir(exist_ok=True)
         model_dir = stage_dir / "models"
         model_dir.mkdir(exist_ok=True)
@@ -1884,6 +2034,7 @@ def train_curriculum(
             load_path=load_path,
             load_mode="initialize_next_stage" if load_path else None,
             parent_run_id=parent_node.run_id if parent_node is not None else None,
+            label=label,
         )
 
         effective_subproc = use_subproc or (algorithm == "sac" and n_envs > 1)
@@ -1936,7 +2087,13 @@ def train_curriculum(
 
         wandb_run = None
         if use_wandb:
-            wandb_run = init_wandb(species=species, stage=stage, config=config, run_dir=str(stage_dir))
+            wandb_run = init_wandb(
+                species=species,
+                stage=stage,
+                config=config,
+                run_dir=str(stage_dir),
+                tags=_wandb_run_tags(config, algorithm, label),
+            )
 
         model = _create_or_load_model(
             sb3,

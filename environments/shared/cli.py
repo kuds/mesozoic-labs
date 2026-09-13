@@ -293,6 +293,14 @@ def main(species_cfg):
     )
     train_parser.add_argument("--output-dir", type=str, default=None, help="Base output directory")
     train_parser.add_argument(
+        "--label",
+        type=str,
+        default=None,
+        metavar="TEXT",
+        help="Free-text label for this run, recorded in the stage config's run block beside its "
+        "hyperparameters_sha256 digest and tagged onto the W&B run (label:<TEXT>)",
+    )
+    train_parser.add_argument(
         "--post-eval-episodes",
         type=_non_negative_int,
         default=None,
@@ -337,6 +345,26 @@ def main(species_cfg):
             "run's target (the last advancing stage) is always trained here. Reused records are copied "
             "into ancestors/ and the lineage records parent_run_id"
         ),
+    )
+    cur_parser.add_argument(
+        "--retrain-from",
+        type=_parse_stage_ref,
+        default=None,
+        metavar="STAGE_ID",
+        help=(
+            "With --trunk-from: an advancing stage (id or legacy number) to train in this run together "
+            "with every advancing stage after it, even when the trunk holds a certified copy; only the "
+            "certified ancestors strictly above it are reused. A variant is a new run: pair it with a "
+            "fresh --output-dir"
+        ),
+    )
+    cur_parser.add_argument(
+        "--label",
+        type=str,
+        default=None,
+        metavar="TEXT",
+        help="Free-text label for this run, recorded in every trained stage's run block beside its "
+        "hyperparameters_sha256 digest and tagged onto each W&B run (label:<TEXT>)",
     )
     cur_parser.add_argument("--gcs-bucket", type=str, default=None)
     cur_parser.add_argument("--gcs-project", type=str, default=None)
@@ -461,6 +489,7 @@ def main(species_cfg):
             allow_legacy_plant=args.allow_legacy_plant,
             allow_fresh_vecnorm=getattr(args, "allow_fresh_vecnorm", False),
             post_eval_episodes=args.post_eval_episodes,
+            label=getattr(args, "label", None),
         )
 
     elif args.command == "curriculum":
@@ -472,6 +501,29 @@ def main(species_cfg):
         trunk_from = getattr(args, "trunk_from", None)
         if trunk_from is not None and not Path(trunk_from).is_dir():
             parser.error(f"--trunk-from {trunk_from!r} is not a directory")
+        retrain_from = getattr(args, "retrain_from", None)
+        if retrain_from is not None:
+            # D-A19: the knob only means something against a trunk, and it
+            # must name a node the curriculum walks — refused here, before
+            # train_curriculum creates the run directory.
+            if trunk_from is None:
+                parser.error(
+                    f"--retrain-from {retrain_from!r} requires --trunk-from: without a trunk every stage "
+                    "is trained in this run already"
+                )
+            from .stage_manifest import StageManifestError, load_stage_manifest
+
+            manifest = load_stage_manifest(species_cfg.species)
+            advancing_ids = [entry.id for entry in manifest.advancing_stages]
+            try:
+                retrain_entry = manifest.resolve(retrain_from)
+            except StageManifestError as exc:
+                parser.error(f"--retrain-from {retrain_from!r}: {exc}; advancing stages: {advancing_ids}")
+            if retrain_entry not in manifest.advancing_stages:
+                parser.error(
+                    f"--retrain-from {retrain_from!r} names the non-advancing stage {retrain_entry.id!r}; "
+                    f"the curriculum trains only the advancing stages: {advancing_ids}"
+                )
         train_curriculum(
             species_cfg=species_cfg,
             stage_configs=stage_configs,
@@ -479,6 +531,8 @@ def main(species_cfg):
             seed=args.seed,
             allow_fresh_vecnorm=getattr(args, "allow_fresh_vecnorm", False),
             trunk_from=trunk_from,
+            retrain_from=retrain_from,
+            label=getattr(args, "label", None),
             eval_freq=args.eval_freq,
             save_freq=args.save_freq,
             log_dir=args.log_dir,

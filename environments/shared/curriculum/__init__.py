@@ -73,6 +73,7 @@ from .early_stopping import (
     build_eval_collapse_early_stop_callback,
 )
 from .gate_schema import (
+    FROZEN_NULL_GATE_KINDS,
     GATE_KINDS,
     GATE_SCHEMA_VERSION,
     GateSchemaError,
@@ -83,6 +84,7 @@ from .manager import CurriculumManager, StageThreshold, thresholds_from_configs
 from .schedules import EntCoefDecayCallback, _ConstantSchedule
 
 __all__ = [
+    "FROZEN_NULL_GATE_KINDS",
     "GATE_KINDS",
     "BaselineProgressCallback",
     "GATE_SCHEMA_VERSION",

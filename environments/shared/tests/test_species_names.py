@@ -10,6 +10,7 @@ import pytest
 from environments.shared.config import SPECIES_NAMES, load_all_stages
 from environments.shared.species_names import resolve_species_id, species_display_name, species_display_names
 from environments.shared.species_registry import get_species_config
+from environments.shared.stage_manifest import load_stage_manifest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 FULL_NAMES = {
@@ -46,7 +47,10 @@ def _selection_code(name):
 
 @pytest.mark.parametrize("species_id,label", FULL_NAMES.items())
 def test_full_name_runs_notebook_selection_and_environment(species_id, label, capsys):
-    namespace = {"load_all_stages": load_all_stages}
+    # The environment cell also resolves BEHAVIOR's chain through the manifest
+    # (Phase A WS5); the setup cell that imports load_stage_manifest is not
+    # executed here, so it is supplied like load_all_stages.
+    namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
     exec(_selection_code(label), namespace)
     exec(compile(_notebook_cell("EnvClass = SPECIES_CFG.env_class"), "sb3_training.ipynb", "exec"), namespace)
 

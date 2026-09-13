@@ -118,6 +118,7 @@ def save_result_bundle(
     )
     from ..result_bundle.audit import _audit_load_lineage, _lineage_parent_keys
     from ..result_schema import (
+        OPTIONAL_DELIVERABLE_RECORD_FIELDS,
         ResultSchemaError,
         bundle_status_for,
         certified_deliverables,
@@ -452,7 +453,9 @@ def save_result_bundle(
     # whose selected checkpoint exists — every present stage's, once the
     # bundle is publishable.  gate_kind is the verdict's own record, else
     # the resolved config's declaration, else null (unrecorded, like the
-    # stage rows).  Phase A replication is this run alone.
+    # stage rows).  Phase A replication is this run alone.  The optional
+    # D-A21 fields are copied from the stage's own run block when it
+    # recorded them (a stage saved before D-A21 has neither).
     deliverables: dict[str, dict[str, Any]] = {}
     for entry, result in keyed_results:
         checkpoint = selected_checkpoints.get(entry.key)
@@ -469,6 +472,12 @@ def save_result_bundle(
             "certified": certified[entry.key],
             "replication": {"count": 1, "runs": [{"run_id": str(captured["run_id"]), "training_seed": seed}]},
         }
+        run_block = run_blocks.get(entry.reference)
+        if isinstance(run_block, Mapping):
+            for optional_field in OPTIONAL_DELIVERABLE_RECORD_FIELDS:
+                value = run_block.get(optional_field)
+                if isinstance(value, str) and value.strip():
+                    deliverables[entry.key][optional_field] = value
     # The published model is the PRIMARY deliverable's checkpoint: the target
     # when certified, else the deepest certified deliverable — never a failed
     # leaf, never a checkpoint of an uncertified node.

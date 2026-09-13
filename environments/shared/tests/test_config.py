@@ -1,5 +1,6 @@
 """Tests for the TOML config loader."""
 
+import ast
 import csv
 import json
 import logging
@@ -14,13 +15,19 @@ import pytest
 from environments.shared.config import (
     _CONFIGS_DIR,
     LOAD_LINEAGE_KEYS,
+    RESUME_LINEAGE_KEYS,
+    STAGE_DIR_OCCUPANCY_FILES,
+    StageDirectoryOccupiedError,
     _detect_gpu_info,
     _detect_gpu_info_nvidia_smi,
     _upload_to_gcs,
     append_stage_result_csv,
     get_git_commit,
+    hyperparameter_diff,
+    hyperparameters_sha256,
     load_all_stages,
     load_stage_config,
+    refuse_occupied_stage_dir,
     save_stage_config,
     upload_curriculum_artifacts,
 )
@@ -820,13 +827,21 @@ class TestSaveStageConfigLoadLineage:
         return json.loads(out.read_text())["run"]
 
     def test_from_scratch_records_no_lineage_keys(self, tmp_path):
+        """Re-pinned for decision D-A21: the run block is *extra* plus the recipe digest every
+        stage records (``hyperparameters_sha256`` is not a lineage key); it was ``{"seed": 1}``
+        alone before the digest existed."""
         run = self._run_block(tmp_path)
-        assert run == {"seed": 1}
+        assert run == {"seed": 1, "hyperparameters_sha256": hyperparameters_sha256(self.STAGE_CONFIG, "PPO")}
         assert not set(LOAD_LINEAGE_KEYS) & set(run)
 
-    def test_from_scratch_without_extra_writes_no_run_block(self, tmp_path):
+    def test_from_scratch_without_extra_writes_only_the_digest_in_the_run_block(self, tmp_path):
+        """Re-pinned for decision D-A21 (was "writes no run block"): the digest is recorded
+        unconditionally, so the run block always exists and, without *extra* or a load, holds
+        exactly it — still none of the lineage keys, still no label."""
         out = save_stage_config(tmp_path / "run", 1, self.STAGE_CONFIG, "PPO")
-        assert "run" not in json.loads(out.read_text())
+        run = json.loads(out.read_text())["run"]
+        assert set(run) == {"hyperparameters_sha256"}
+        assert run["hyperparameters_sha256"] == hyperparameters_sha256(self.STAGE_CONFIG, "PPO")
 
     def test_loaded_checkpoint_records_the_lineage_keys(self, tmp_path):
         from environments.shared.result_bundle import sha256_file
@@ -919,8 +934,111 @@ class TestSaveStageConfigLoadLineage:
         with pytest.raises(FileNotFoundError, match="checkpoint not found"):
             self._run_block(tmp_path, load_path=str(tmp_path / "nope.zip"), load_mode="resume_same_stage")
 
+    def _entered_from_parent(self, tmp_path, *, parent_run_id="20260901_120000"):
+        """A stage record that entered from its parent's handoff, plus a periodic checkpoint of its own."""
+        from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE
+
+        parent = _sb3_style_zip(
+            tmp_path / "stance_final.zip", {MODEL_TASK_ATTRIBUTE: {"task_sha256": "sha256:" + "a" * 64}}
+        )
+        entered = self._run_block(
+            tmp_path, load_path=str(parent), load_mode="initialize_next_stage", parent_run_id=parent_run_id
+        )
+        periodic = _sb3_style_zip(tmp_path / "stage2_100_steps.zip", {})
+        return parent, entered, periodic
+
+    def test_a_same_stage_resume_keeps_the_edge_it_entered_on(self, tmp_path):
+        """A ``resume_same_stage`` re-save of a stage that entered from its parent keeps every
+        lineage key of that edge (``parent_checkpoint_sha256`` is what ancestors rule 4 chains on
+        and the audit cross-checks) and records the continued-from checkpoint under the
+        ``RESUME_LINEAGE_KEYS`` instead — before this, the re-save the notebook's RESUME cell and
+        ``train --load <periodic> --load-mode resume_same_stage`` make replaced the edge with the
+        periodic checkpoint, so a resumed-then-judged node could never be reused."""
+        from environments.shared.result_bundle import sha256_file
+
+        _, entered, periodic = self._entered_from_parent(tmp_path)
+        edge = {key: entered[key] for key in LOAD_LINEAGE_KEYS}
+        assert edge["load_mode"] == "initialize_next_stage" and edge["parent_run_id"] == "20260901_120000"
+
+        resumed = self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
+        assert {key: resumed[key] for key in LOAD_LINEAGE_KEYS} == edge
+        assert resumed["resume_load_path"] == str(periodic)
+        assert resumed["resume_checkpoint_sha256"] == sha256_file(periodic)
+        assert set(RESUME_LINEAGE_KEYS) == {"resume_load_path", "resume_checkpoint_sha256"}
+        assert not set(RESUME_LINEAGE_KEYS) & set(LOAD_LINEAGE_KEYS)
+
+        # A second resume (another runtime cap) still keeps the edge and re-points the resume keys.
+        later = _sb3_style_zip(tmp_path / "stage2_200_steps.zip", {})
+        resumed_again = self._run_block(tmp_path, load_path=str(later), load_mode="resume_same_stage")
+        assert {key: resumed_again[key] for key in LOAD_LINEAGE_KEYS} == edge
+        assert resumed_again["resume_load_path"] == str(later)
+        assert resumed_again["resume_checkpoint_sha256"] == sha256_file(later)
+
+    def test_a_resumed_node_still_chains_onto_its_parent(self, tmp_path):
+        """The reuse rule's chain check reads the kept edge: the resumed stage descends from the
+        parent it entered from, and from nothing else."""
+        from environments.shared.ancestors import AncestorReuseError, _check_chain
+        from environments.shared.result_bundle import sha256_file
+        from environments.shared.stage_manifest import load_stage_manifest
+
+        parent, _, periodic = self._entered_from_parent(tmp_path)
+        self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
+        locomotion = load_stage_manifest("velociraptor").by_id("locomotion")
+        _check_chain(tmp_path / "run", entry=locomotion, parent_model_sha256=sha256_file(parent))
+        with pytest.raises(AncestorReuseError, match="a certified node is reusable only on top of the parent"):
+            _check_chain(tmp_path / "run", entry=locomotion, parent_model_sha256=sha256_file(periodic))
+
+    def test_only_a_same_stage_resume_of_an_entered_stage_keeps_the_edge(self, tmp_path):
+        """A root's resume, a resume over an unreadable record, and a fresh ``initialize_next_stage``
+        entry all record the load under the lineage keys as before, with no resume keys."""
+        from environments.shared.result_bundle import sha256_file
+
+        periodic = _sb3_style_zip(tmp_path / "stage1_100_steps.zip", {})
+        # A root that loads its own periodic checkpoint: nothing entered, nothing kept.
+        self._run_block(tmp_path)
+        run = self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
+        assert run["load_path"] == str(periodic) and run["load_mode"] == "resume_same_stage"
+        assert run["parent_checkpoint_sha256"] == sha256_file(periodic)
+        assert not set(RESUME_LINEAGE_KEYS) & set(run)
+        # A resume of a resumed root keeps recording the newest checkpoint as the load.
+        run = self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
+        assert run["load_mode"] == "resume_same_stage" and not set(RESUME_LINEAGE_KEYS) & set(run)
+        # An unreadable record reads as "no edge".
+        (tmp_path / "run" / "stage_config.json").write_text("{not json")
+        run = self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
+        assert run["load_mode"] == "resume_same_stage" and not set(RESUME_LINEAGE_KEYS) & set(run)
+        # Entering from a parent never reads the old record: the new edge replaces it outright.
+        self._entered_from_parent(tmp_path)
+        other = _sb3_style_zip(tmp_path / "other_stance.zip", {})
+        run = self._run_block(tmp_path, load_path=str(other), load_mode="initialize_next_stage")
+        assert run["load_path"] == str(other) and run["parent_checkpoint_sha256"] == sha256_file(other)
+        assert "parent_run_id" not in run and not set(RESUME_LINEAGE_KEYS) & set(run)
+
+    def test_the_audit_tolerates_the_resume_keys_and_checks_the_kept_edge(self, tmp_path):
+        from environments.shared.result_bundle import audit, sha256_file
+
+        parent, _, periodic = self._entered_from_parent(tmp_path, parent_run_id=None)
+        resumed = self._run_block(tmp_path, load_path=str(periodic), load_mode="resume_same_stage")
+        lineage, problems = audit._audit_load_lineage(
+            resumed, stage=2, run_path=tmp_path, declared_hashes={"stance_final.zip": sha256_file(parent)}
+        )
+        assert problems == [] and lineage["parent_checkpoint_sha256"] == sha256_file(parent)
+        assert not set(RESUME_LINEAGE_KEYS) & set(lineage), "the resume keys are not lineage"
+        _, problems = audit._audit_load_lineage(
+            resumed, stage=2, run_path=tmp_path, declared_hashes={"stance_final.zip": "sha256:" + "0" * 64}
+        )
+        assert len(problems) == 1 and "parent_checkpoint_sha256" in problems[0]
+
     def test_the_notebook_records_lineage_from_a_resolved_load_mode(self):
-        """The notebook saves its config itself; it must pass the same keys."""
+        """The notebook saves its config itself; it must pass the same keys.
+
+        Re-pinned for the behavior-chain loop (Phase A WS5): the load mode is
+        DECLARED by every caller — the chain loop passes the node's edge, the
+        RESUME cell ``resume_same_stage`` — and never inferred, so the former
+        ordering pin (``if task_load_mode is None:`` before the save) became a
+        no-inference pin: no inference block at all, ``task_load_mode`` a
+        required keyword-only argument, and no position-keyed name anywhere.
+        """
         repo_root = Path(__file__).resolve().parents[3]
         notebook = json.loads((repo_root / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
         cells = ["".join(c.get("source", [])) for c in notebook["cells"] if c.get("cell_type") == "code"]
@@ -929,9 +1047,14 @@ class TestSaveStageConfigLoadLineage:
         call_text = cell[save_call : cell.index(")", save_call)]
         assert "load_path=load_path" in call_text
         assert "load_mode=task_load_mode if load_path else None" in call_text
-        # Inferred AFTER the save, the recorded mode would be null for every
-        # per-stage cell (they leave task_load_mode=None to be inferred).
-        assert cell.index("if task_load_mode is None:") < save_call
+        assert "parent_run_id=parent_run_id" in call_text
+        assert "if task_load_mode is None:" not in cell
+        tree = ast.parse(cell)
+        train_stage = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "train_stage")
+        kwonly = [arg.arg for arg in train_stage.args.kwonlyargs]
+        assert "task_load_mode" in kwonly, "task_load_mode must be keyword-only"
+        assert train_stage.args.kw_defaults[kwonly.index("task_load_mode")] is None, "task_load_mode has no default"
+        assert not any(isinstance(n, ast.Name) and n.id == "stage_position" for n in ast.walk(tree))
 
     def test_the_notebook_binds_evidence_to_the_vecnormalize_it_ran_under(self):
         """Every evidence write names the sidecar ``_eval_forward_vel`` evaluated with.
@@ -961,3 +1084,155 @@ class TestSaveStageConfigLoadLineage:
         # The sidecars named are the ones the rollouts were run with.
         assert "_eval_forward_vel(\n        model,\n        stage,\n        final_vecnorm_path," in cell
         assert "_eval_forward_vel(\n            model,\n            stage,\n            vecnorm_save_path," in cell
+
+
+class TestHyperparameterDigestAndLabel:
+    """Decision D-A21: a stage's recipe — its algorithm block and the stage-entry shaping keys —
+    has a digest that ``save_stage_config`` always records, a label it records only when given,
+    and a diff that names the keys an edit changed against a recorded ``stage_config.json``."""
+
+    BASE = {
+        "name": "t",
+        "env_kwargs": {"forward_vel_weight": 1.0, "prey_distance_range": (5.0, 10.0)},
+        "ppo_kwargs": {"learning_rate": 3e-4, "batch_size": 64, "policy_kwargs": {"net_arch": (256, 256)}},
+        "sac_kwargs": {"learning_rate": 1e-4},
+        "curriculum_kwargs": {
+            "min_avg_reward": 10.0,
+            "timesteps": 1_000_000,
+            "warmup_timesteps": 50_000,
+            "ramp_forward_vel_weight": (0.0, 1.0),
+        },
+    }
+
+    @staticmethod
+    def _with(config, section, **changes):
+        return {**config, section: {**config[section], **changes}}
+
+    def test_the_digest_is_a_sha256_stable_under_key_order_and_tuple_spelling(self):
+        digest = hyperparameters_sha256(self.BASE, "PPO")
+        assert re.fullmatch(r"sha256:[0-9a-f]{64}", digest)
+        reordered = {
+            **self.BASE,
+            "ppo_kwargs": dict(reversed(list(self.BASE["ppo_kwargs"].items()))),
+            "curriculum_kwargs": dict(reversed(list(self.BASE["curriculum_kwargs"].items()))),
+        }
+        assert hyperparameters_sha256(reordered, "PPO") == digest
+        # Tuples digest as the lists the JSON on disk records, so the digest of a
+        # loaded TOML equals the digest of its saved stage_config.json.
+        as_lists = self._with(
+            self._with(self.BASE, "ppo_kwargs", policy_kwargs={"net_arch": [256, 256]}),
+            "curriculum_kwargs",
+            ramp_forward_vel_weight=[0.0, 1.0],
+        )
+        assert hyperparameters_sha256(as_lists, "PPO") == digest
+        # The algorithm name is case-insensitive, as save_stage_config records it.
+        assert hyperparameters_sha256(self.BASE, "ppo") == digest
+
+    def test_the_digest_changes_with_a_ppo_or_shaping_key_but_not_with_an_env_or_threshold_key(self):
+        digest = hyperparameters_sha256(self.BASE, "PPO")
+        assert hyperparameters_sha256(self._with(self.BASE, "ppo_kwargs", learning_rate=1e-4), "PPO") != digest
+        assert hyperparameters_sha256(self._with(self.BASE, "ppo_kwargs", n_steps=2048), "PPO") != digest
+        assert hyperparameters_sha256(self._with(self.BASE, "curriculum_kwargs", warmup_timesteps=1), "PPO") != digest
+        assert (
+            hyperparameters_sha256(self._with(self.BASE, "curriculum_kwargs", ramp_alive_bonus=(0.0, 2.0)), "PPO")
+            != digest
+        )
+        # The task fingerprint owns the task and the gate owns advancement.
+        assert hyperparameters_sha256(self._with(self.BASE, "env_kwargs", forward_vel_weight=5.0), "PPO") == digest
+        assert hyperparameters_sha256(self._with(self.BASE, "curriculum_kwargs", min_avg_reward=99.0), "PPO") == digest
+        assert hyperparameters_sha256(self._with(self.BASE, "curriculum_kwargs", timesteps=5), "PPO") == digest
+        # Another algorithm's table is not this recipe.
+        assert hyperparameters_sha256(self._with(self.BASE, "sac_kwargs", learning_rate=9e-4), "PPO") == digest
+        assert hyperparameters_sha256(self.BASE, "SAC") != digest
+
+    def test_the_diff_names_dotted_keys_on_either_side(self, tmp_path):
+        recorded = json.loads(save_stage_config(tmp_path / "recorded", 1, self.BASE, "PPO").read_text())
+        assert hyperparameter_diff(self.BASE, "PPO", recorded) == []
+        edited = self._with(
+            self._with(self.BASE, "ppo_kwargs", learning_rate=1e-4, n_epochs=5),
+            "curriculum_kwargs",
+            warmup_timesteps=1,
+            min_avg_reward=0.0,
+        )
+        edited["curriculum_kwargs"].pop("ramp_forward_vel_weight")
+        assert hyperparameter_diff(edited, "PPO", recorded) == [
+            "ppo.learning_rate",
+            "ppo.n_epochs",
+            "shaping.ramp_forward_vel_weight",
+            "shaping.warmup_timesteps",
+        ]
+        # A recorded key the current config no longer has differs too.
+        trimmed = {**self.BASE, "ppo_kwargs": {"learning_rate": 3e-4}}
+        assert hyperparameter_diff(trimmed, "PPO", recorded) == ["ppo.batch_size", "ppo.policy_kwargs"]
+        # A record trained under another algorithm is a different recipe altogether.
+        assert "algorithm" in hyperparameter_diff(self.BASE, "SAC", recorded)
+        # An empty record differs on every current key — never reads as equal.
+        assert hyperparameter_diff(self.BASE, "PPO", {}) == [
+            "ppo.batch_size",
+            "ppo.learning_rate",
+            "ppo.policy_kwargs",
+            "shaping.ramp_forward_vel_weight",
+            "shaping.warmup_timesteps",
+        ]
+
+    def test_save_stage_config_records_the_digest_always_and_the_label_only_when_non_empty(self, tmp_path):
+        run = json.loads(save_stage_config(tmp_path / "a", 1, self.BASE, "PPO").read_text())["run"]
+        assert run["hyperparameters_sha256"] == hyperparameters_sha256(self.BASE, "PPO")
+        assert "label" not in run
+        for empty in ("", "   ", None):
+            run = json.loads(save_stage_config(tmp_path / "b", 1, self.BASE, "PPO", label=empty).read_text())["run"]
+            assert "label" not in run
+        run = json.loads(
+            save_stage_config(tmp_path / "c", 1, self.BASE, "PPO", extra={"seed": 7}, label=" lr-sweep-a ").read_text()
+        )["run"]
+        assert run == {
+            "seed": 7,
+            "hyperparameters_sha256": hyperparameters_sha256(self.BASE, "PPO"),
+            "label": "lr-sweep-a",
+        }
+        # Neither is a load-lineage key: the audit's lineage reader never sees them.
+        assert not {"hyperparameters_sha256", "label"} & set(LOAD_LINEAGE_KEYS)
+
+
+class TestRefuseOccupiedStageDir:
+    """Decision D-A20: a stage directory holding ``stage_config.json`` or ``gate_verdict.json``
+    is a recorded stage; only an explicit same-stage resume may write into it again."""
+
+    def test_the_occupancy_files_are_the_config_and_the_verdict(self):
+        assert STAGE_DIR_OCCUPANCY_FILES == ("stage_config.json", "gate_verdict.json")
+
+    @pytest.mark.parametrize("occupancy_file", STAGE_DIR_OCCUPANCY_FILES)
+    @pytest.mark.parametrize("task_load_mode", [None, "initialize_next_stage"])
+    def test_either_file_refuses_a_non_resume(self, tmp_path, occupancy_file, task_load_mode):
+        (tmp_path / occupancy_file).write_text("{}")
+
+        with pytest.raises(StageDirectoryOccupiedError) as excinfo:
+            refuse_occupied_stage_dir(tmp_path, task_load_mode=task_load_mode)
+
+        message = str(excinfo.value)
+        assert issubclass(StageDirectoryOccupiedError, RuntimeError)
+        assert str(tmp_path) in message and occupancy_file in message and repr(task_load_mode) in message
+        # Both ways forward are named: a fresh run directory, or an explicit same-stage resume.
+        assert "--output-dir" in message and "RUN_ID" in message
+        assert "--load <checkpoint> --load-mode resume_same_stage" in message and "RESUME" in message
+
+    def test_both_files_are_named_when_both_are_present(self, tmp_path):
+        for name in STAGE_DIR_OCCUPANCY_FILES:
+            (tmp_path / name).write_text("{}")
+        with pytest.raises(StageDirectoryOccupiedError, match="stage_config.json, gate_verdict.json"):
+            refuse_occupied_stage_dir(str(tmp_path), task_load_mode="initialize_next_stage")
+
+    @pytest.mark.parametrize("occupancy_file", STAGE_DIR_OCCUPANCY_FILES)
+    def test_a_same_stage_resume_is_allowed(self, tmp_path, occupancy_file):
+        (tmp_path / occupancy_file).write_text("{}")
+        assert refuse_occupied_stage_dir(tmp_path, task_load_mode="resume_same_stage") is None
+
+    @pytest.mark.parametrize("task_load_mode", [None, "resume_same_stage", "initialize_next_stage"])
+    def test_a_fresh_missing_or_unrelated_directory_is_never_refused(self, tmp_path, task_load_mode):
+        assert refuse_occupied_stage_dir(tmp_path / "missing", task_load_mode=task_load_mode) is None
+        assert refuse_occupied_stage_dir(tmp_path, task_load_mode=task_load_mode) is None
+        # Checkpoints, evidence and a sub-directory named like an occupancy file are not records.
+        (tmp_path / "models").mkdir()
+        (tmp_path / "evaluations.npz").write_bytes(b"")
+        (tmp_path / "gate_verdict.json").mkdir()
+        assert refuse_occupied_stage_dir(tmp_path, task_load_mode=task_load_mode) is None

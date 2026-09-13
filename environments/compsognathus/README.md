@@ -152,9 +152,12 @@ that baseline before interpreting any return improvement; stance is a
 foundation, and passing it does not establish locomotion or active recovery.
 Bilateral support remains a diagnostic: the gate sets no minimum bilateral
 support duty, so passing does not establish sustained two-foot loading.
-Set `RUN_RECOVERY_STAGE = True` after a passing stance run to enable the
-calibrated recovery pilot. The notebook freezes its null comparisons before
-training and saves per-episode and per-push evaluation evidence afterwards.
+Set `BEHAVIOR = "stand"` in the SB3 notebook's configuration cell to run the
+calibrated recovery pilot: the chain loop trains stance → recovery (reusing a
+certified stance from `RUN_DIR` or `TRUNK_FROM` when one exists), freezes the
+null comparisons before recovery trains, rolls the policy panel after, saves
+per-episode and per-push evaluation evidence, and enforces the recovery
+verdict (decision D-A11).
 Automatic reward-collapse
 stopping is deliberately unarmed until this plant has suitable calibration
 data; advisory baseline reporting and the advancement gates remain active.

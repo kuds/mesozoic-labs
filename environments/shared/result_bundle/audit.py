@@ -158,6 +158,9 @@ def audit_result_bundle(
     warnings: list[str] = []
     errors: list[str] = []
     lineage: dict[str, dict[str, Any]] = {}
+    # Each hashed stage config's recorded recipe digest (D-A21), keyed by
+    # stage key, for the cross-check against provenance.deliverables.
+    recorded_hyperparameters: dict[str, Any] = {}
     summary: dict[str, Any] | None = None
     provenance: dict[str, Any] | None = None
     manifest: dict[str, Any] | None = None
@@ -447,6 +450,7 @@ def audit_result_bundle(
                                 errors.append(f"stage {stage} config plant_identity does not match provenance.json")
                         run_block = config_value.get("run")
                         if isinstance(run_block, Mapping):
+                            recorded_hyperparameters[str(stage)] = run_block.get("hyperparameters_sha256")
                             stage_lineage, lineage_problems = _audit_load_lineage(
                                 run_block,
                                 stage=stage,
@@ -536,6 +540,16 @@ def audit_result_bundle(
                             errors.append(
                                 f"deliverable {stage_key} {hash_key} {record.get(hash_key)!r} does not match the "
                                 f"selected checkpoint's {checkpoint_value.get(hash_key)!r}"
+                            )
+                    # D-A21: the optional recipe digest is the stage's own
+                    # record, copied — it must still read the same there.
+                    if "hyperparameters_sha256" in record and str(stage_key) in recorded_hyperparameters:
+                        recorded_digest = recorded_hyperparameters[str(stage_key)]
+                        if record["hyperparameters_sha256"] != recorded_digest:
+                            errors.append(
+                                f"deliverable {stage_key} hyperparameters_sha256 "
+                                f"{record['hyperparameters_sha256']!r} does not match the stage config run "
+                                f"block's {recorded_digest!r}"
                             )
             if "ancestors" in provenance or ancestor_records:
                 claimed_ancestors = provenance.get("ancestors")

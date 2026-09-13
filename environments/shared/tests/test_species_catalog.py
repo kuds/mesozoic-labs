@@ -634,7 +634,7 @@ def test_sb3_notebook_refuses_a_hybrid_model_and_vecnormalize_checkpoint() -> No
 
 
 def test_sb3_notebook_enforces_the_gate_it_no_longer_evaluates() -> None:
-    """Every stage cell must halt on its own gate verdict.
+    """The chain loop must halt on every node's recorded gate verdict.
 
     The notebook used to carry an inline checklist over min_avg_reward /
     min_avg_episode_length / min_avg_forward_vel / min_success_rate. That was
@@ -642,36 +642,51 @@ def test_sb3_notebook_enforces_the_gate_it_no_longer_evaluates() -> None:
     which `generate_stage_artifacts` runs and records onto the results dict --
     so the notebook's remaining job is purely to ENFORCE the recorded verdict.
 
-    Nothing pinned that it still does. Deleting the three enforcement blocks
-    leaves the whole `environments/shared/tests` suite green while every run
-    silently advances on a failed gate, which is section 12.1's lesson ("a
-    gate the trainer never calls is not a gate") reappearing one level up.
+    Nothing pinned that it still does. Deleting the enforcement block leaves
+    the whole `environments/shared/tests` suite green while every run silently
+    advances on a failed gate, which is section 12.1's lesson ("a gate the
+    trainer never calls is not a gate") reappearing one level up.
+
+    Re-pinned for the behavior-chain loop (Phase A WS5): the three per-stage
+    artifact cells collapsed into ONE chain cell whose enforcement runs for
+    every node (recovery included), writes the bundle BEFORE releasing the
+    runtime BEFORE raising (invariant 5), and ONE manual single-node cell that
+    records a verdict without ever enforcing it.
     """
     notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
     code_cells = ["".join(cell.get("source", [])) for cell in notebook["cells"] if cell.get("cell_type") == "code"]
 
-    for stage in (1, 2, 3):
-        results = f"results_{stage}"
-        artifact_cells = [cell for cell in code_cells if f"{results} = generate_stage_artifacts(" in cell]
-        assert len(artifact_cells) == 1, (
-            f"stage {stage} must capture generate_stage_artifacts' return value into {results}; "
-            "the gate verdict is recorded onto the dict it returns"
-        )
-        cell = artifact_cells[0]
-        assert f'if not {results}["publication_gate_passed"]:' in cell, (
-            f"stage {stage} does not halt on its recorded gate verdict"
-        )
-        assert f'"; ".join({results}["gate_failures"])' in cell, f"stage {stage} does not report which criteria failed"
-        assert "raise RuntimeError(_gate_msg)" in cell, f"stage {stage} warns about gate failure without halting"
+    chain_cells = [cell for cell in code_cells if "# ===== BEHAVIOR CHAIN LOOP =====" in cell]
+    manual_cells = [cell for cell in code_cells if "# ===== MANUAL SINGLE NODE" in cell]
+    assert len(chain_cells) == 1, "expected exactly one behavior chain loop cell"
+    assert len(manual_cells) == 1, "expected exactly one manual single-node cell"
+    chain = chain_cells[0]
+    assert "results = generate_stage_artifacts(" in chain, (
+        "the chain loop must capture generate_stage_artifacts' return value into results; "
+        "the gate verdict is recorded onto the dict it returns"
+    )
+    assert 'if not results["publication_gate_passed"]:' in chain, "the chain loop does not halt on the recorded verdict"
+    assert '"; ".join(results["gate_failures"])' in chain, "the chain loop does not report which criteria failed"
+    assert "raise RuntimeError(_gate_msg)" in chain, "the chain loop warns about gate failure without halting"
+    assert (
+        chain.index("save_run_bundle(chain_results()")
+        < chain.index("disconnect_runtime(")
+        < chain.index("raise RuntimeError(_gate_msg)")
+    ), "on a failed gate the bundle is written, then the runtime released, then the loop raises"
+    manual = manual_cells[0]
+    assert "generate_stage_artifacts(" in manual, "the manual cell must still judge and record the node's verdict"
+    assert "raise RuntimeError(_gate_msg)" not in manual and "disconnect_runtime(" not in manual, (
+        "the manual single-node cell records its verdict but never enforces it"
+    )
 
     # The deleted checklist must not creep back: a second implementation that
     # knows nothing about `gate_kind` is the exact defect that let a stance-
     # gated stage advance on its reward rail.
     #
-    # Scoped to the cells the checklist actually lived in -- `train_stage` and
-    # the three artifact cells. The zero-action baseline cell legitimately
-    # reads `min_avg_reward` to report whether the statue clears the rail,
-    # which is a diagnostic about the gate rather than a second copy of it.
+    # Scoped to the cells the checklist actually lived in -- `train_stage`,
+    # the chain loop and the manual cell. The zero-action baseline cell
+    # legitimately reads `min_avg_reward` to report whether the statue clears
+    # the rail, which is a diagnostic about the gate rather than a second copy.
     #
     # Comment lines are excluded because the cell that replaced the checklist
     # explains what it deleted, and naming the retired keys is the point.
@@ -694,20 +709,53 @@ def test_sb3_notebook_enforces_the_gate_it_no_longer_evaluates() -> None:
         )
 
 
-def test_sb3_notebook_finalizes_complete_bundle_once() -> None:
+def test_sb3_notebook_routes_every_bundle_write_through_chain_results() -> None:
+    """Every summary/bundle write passes chain_results(); no hand-threaded stage list survives.
+
+    Re-pinned from ``test_sb3_notebook_finalizes_complete_bundle_once`` for the
+    behavior-chain loop (Phase A WS5): ``curriculum_results(results_1, ...)`` —
+    which spliced the opt-in recovery pilot into a hand-threaded list — is gone
+    with the per-stage cells. ``chain_results()`` is the one source of the
+    stage-results list (NODE_RESULTS in manifest order), so a save can never
+    drop a node this run holds results for, and the ``results_N`` / ``path_N``
+    / ``dir_N`` / ``results_r`` variables the old cells threaded forward are
+    pinned absent from every code cell.
+    """
     notebook = json.loads((REPOSITORY_ROOT / "notebooks" / "sb3_training.ipynb").read_text(encoding="utf-8"))
     code_cells = ["".join(cell.get("source", [])) for cell in notebook["cells"] if cell.get("cell_type") == "code"]
-    # Every summary/bundle call routes through curriculum_results(...), which
-    # splices the opt-in recovery pilot's results in once that stage ran —
-    # a later save with a bare [results_*] list would silently DROP the
-    # pilot's collected_results.csv row and summary stage on rewrite.
-    stage_three_results = "curriculum_results(results_1, results_2, results_3)"
 
-    assert sum(f"write_training_summary(RUN_DIR, {stage_three_results})" in cell for cell in code_cells) == 1
-    assert sum(f"save_run_bundle({stage_three_results}, species=SPECIES)" in cell for cell in code_cells) == 1
-    for stale_list in ("save_run_bundle([results_1, results_2]", "save_run_bundle([results_1, results_2, results_3]"):
-        assert not any(stale_list in cell for cell in code_cells), (
-            f"{stale_list}...) bypasses curriculum_results and would drop the recovery pilot from the bundle"
+    bundle_calls = [
+        line.strip()
+        for cell in code_cells
+        for line in cell.splitlines()
+        if "save_run_bundle(" in line and not line.lstrip().startswith(("def ", "#"))
+    ]
+    summary_calls = [
+        line.strip()
+        for cell in code_cells
+        for line in cell.splitlines()
+        if "write_training_summary(RUN_DIR," in line and not line.lstrip().startswith("#")
+    ]
+    assert bundle_calls and summary_calls
+    assert all("save_run_bundle(chain_results()" in call for call in bundle_calls), bundle_calls
+    assert all("write_training_summary(RUN_DIR, chain_results())" in call for call in summary_calls), summary_calls
+    joined = "\n".join(code_cells)
+    assert "curriculum_results(" not in joined
+    assert "save_run_bundle([" not in joined
+    for stale in (
+        "results_1",
+        "results_2",
+        "results_3",
+        "path_1",
+        "path_2",
+        "path_3",
+        "dir_1",
+        "dir_2",
+        "dir_3",
+        "results_r",
+    ):
+        assert re.search(rf"\b{stale}\b", joined) is None, (
+            f"{stale} is a hand-threaded stage variable; read NODE_HANDOFF"
         )
 
     completion_cells = [cell for cell in code_cells if 'print("Training complete!")' in cell]

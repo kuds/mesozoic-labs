@@ -105,6 +105,18 @@ class TestFrozenDeclaration:
         # the same kind rather than degrading to a non-advancing placeholder.
         assert validate_gate_config("recovery", curriculum, advancement_enabled=False) == RECOVERY_GATE_KIND
 
+    def test_the_recovery_gate_is_the_only_frozen_null_kind(self) -> None:
+        """The kinds whose null resolution is frozen before training and rolled after: the
+        notebook's chain loop keys its freeze-then-roll flow on this set, not on a stage id, so it
+        must be a subset of the declared kinds and, today, exactly the recovery gate."""
+        from environments.shared.curriculum import FROZEN_NULL_GATE_KINDS as exported
+        from environments.shared.curriculum.gate_schema import FROZEN_NULL_GATE_KINDS
+
+        assert FROZEN_NULL_GATE_KINDS is exported
+        assert isinstance(FROZEN_NULL_GATE_KINDS, frozenset)
+        assert FROZEN_NULL_GATE_KINDS <= frozenset(GATE_KINDS)
+        assert FROZEN_NULL_GATE_KINDS == frozenset({RECOVERY_GATE_KIND}) == {"recovery_quality/v1"}
+
     def test_no_threshold_belongs_to_a_different_gate_kind(self, curriculum: dict[str, Any]) -> None:
         """A leftover field from another kind implies a gate nobody enforces."""
         every_threshold_key: set[str] = set().union(*GATE_KINDS.values())

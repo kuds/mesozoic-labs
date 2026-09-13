@@ -801,6 +801,49 @@ def test_load_lineage_in_stage_config_is_validated_and_surfaced(
     assert report["lineage"] == {"2": in_bundle, "3": elsewhere}
 
 
+def test_provenance_deliverables_carry_the_stage_configs_recipe_digest_and_label(
+    tmp_path: Path,
+    stable_provenance: None,
+) -> None:
+    """Decision D-A21: the deliverable record copies ``hyperparameters_sha256`` and ``label`` from
+    its stage's run block when they are there (a stage recorded without them gets neither), the
+    summary mirrors the provenance, the audit accepts them — and a digest tampered in the
+    provenance is reported against the run block it was copied from."""
+    from environments.shared.config import hyperparameters_sha256
+
+    run_dir = tmp_path / "run"
+    stage_results, stage_configs = _complete_bundle_inputs(run_dir, algorithm="PPO")
+    digest = hyperparameters_sha256(stage_configs[3], "PPO")
+    _write_run_block(run_dir, 3, {"seed": 42, "n_envs": 4, "hyperparameters_sha256": digest, "label": "lr-sweep-a"})
+    _save_bundle(run_dir, stage_results, stage_configs)
+
+    provenance = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8"))
+    assert provenance["deliverables"]["3"]["hyperparameters_sha256"] == digest
+    assert provenance["deliverables"]["3"]["label"] == "lr-sweep-a"
+    assert not {"hyperparameters_sha256", "label"} & set(provenance["deliverables"]["1"])
+    summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["provenance"]["deliverables"] == provenance["deliverables"]
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-valid" and report["errors"] == []
+
+    # Tamper with the claim (consistently, in both files, manifest re-hashed
+    # as a rewrite would): the digest no longer reads the same in the stage's
+    # own run block, which is what the audit has to catch.
+    for name in ("provenance.json", "summary.json"):
+        path = run_dir / name
+        data = json.loads(path.read_text(encoding="utf-8"))
+        block = data["provenance"] if name == "summary.json" else data
+        block["deliverables"]["3"]["hyperparameters_sha256"] = "sha256:" + "0" * 64
+        path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_artifact_manifest(run_dir, status="complete")
+
+    report = audit_result_bundle(run_dir)
+    assert report["status"] == "canonical-conflict"
+    assert any("deliverable 3 hyperparameters_sha256" in error and digest in error for error in report["errors"]), (
+        report["errors"]
+    )
+
+
 @pytest.mark.parametrize(
     ("override", "expected_error"),
     [
