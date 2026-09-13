@@ -49,6 +49,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Docusaurus bundles with SWC and does not type-check: a stale
+      # species.ts adapter (a catalog key renamed, a schema_version bump)
+      # used to build and deploy a page that read undefined fields (WS4,
+      # decision D-A8). tsc is the gate that fails such a PR.
+      - name: Type-check website
+        run: npx tsc --noEmit
+
       - name: Build website
         run: npm run build
         env:

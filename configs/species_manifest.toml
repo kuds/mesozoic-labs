@@ -1,4 +1,20 @@
-schema_version = 1
+# Species manifest schema 2 (decision D-A8, 2026-09-12; BEHAVIOR_RECIPES_PLAN §4.3).
+#
+# [[species.deliverable_metrics]] states the success semantics of every
+# behavior a species publishes.  `deliverable` is a recipe label ("stand",
+# "walk", "hunt") or a deliverable stage id, resolved exactly as the
+# notebook's BEHAVIOR knob is: a label means its DEEPEST deliverable in
+# manifest order (on the T-Rex "stand" is recovery, so its stance node is
+# addressed by id).  Every manifest deliverable needs a stable-baselines3
+# entry (the evidence backend, plan §4.9); an unknown deliverable, a backend
+# the species does not train, or two entries for one (stage, backend) fail
+# the generator.  The per-backend [[species.success_metrics]] are unchanged.
+#
+# [[species.stage_videos]] are keyed by STAGE ID (`stage = "stance"`), the
+# spelling that survives renumbering; a legacy integer (`stage = 1`) stays an
+# accepted alias through the stage manifest's legacy_number mapping, and
+# naming one stage both ways is a duplicate.
+schema_version = 2
 
 [project_capabilities.simulation]
 label = "MuJoCo simulation"
@@ -76,8 +92,36 @@ key = "strike_proximity_success"
 label = "Sickle-claw proximity success"
 definition = "Either claw-tip site comes within 0.20 m of the prey target position while the strike bonus is enabled; physical geom contact is not required."
 
+[[species.deliverable_metrics]]
+deliverable = "stand"
+backends = ["stable-baselines3"]
+key = "stance_reward_rail"
+label = "Reward-gated stance (reward_and_length/v1)"
+definition = "The stance checkpoint clears the reward_and_length/v1 gate: mean evaluation reward at or above the statue-derived collapse rail and a near-full-horizon mean episode length over the required consecutive evaluations. The zero-action statue clears this gate, so stand is labelled by its gate kind here rather than claimed as certified stance quality; stance_quality/v1 waits on a foot-sensor repair (the single toe site reads about 55% of true load) (plan §4.8)."
+
+[[species.deliverable_metrics]]
+deliverable = "walk"
+backends = ["stable-baselines3"]
+key = "forward_velocity_gate"
+label = "Gated forward velocity (reward_and_length/v1)"
+definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+
+[[species.deliverable_metrics]]
+deliverable = "hunt"
+backends = ["stable-baselines3"]
+key = "strike_success"
+label = "Sickle-claw contact success"
+definition = "A left or right sickle-claw geom contacts the prey geom while the strike reward is enabled."
+
+[[species.deliverable_metrics]]
+deliverable = "hunt"
+backends = ["jax-mjx"]
+key = "strike_proximity_success"
+label = "Sickle-claw proximity success"
+definition = "Either claw-tip site comes within 0.20 m of the prey target position while the strike bonus is enabled; physical geom contact is not required."
+
 [[species.stage_videos]]
-stage = 1
+stage = "stance"
 path = "website/static/videos/velociraptor_ppo_stage1_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
@@ -85,7 +129,7 @@ model_revision_status = "historical"
 verification_status = "unverified"
 
 [[species.stage_videos]]
-stage = 2
+stage = "locomotion"
 path = "website/static/videos/velociraptor_ppo_stage2_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
@@ -93,7 +137,7 @@ model_revision_status = "historical"
 verification_status = "unverified"
 
 [[species.stage_videos]]
-stage = 3
+stage = "behavior"
 path = "website/static/videos/velociraptor_ppo_stage3_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
@@ -125,8 +169,43 @@ key = "bite_proximity_success"
 label = "Head-tip proximity bite proxy"
 definition = "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
 
+[[species.deliverable_metrics]]                # by id: the "stand" label resolves to recovery, its deepest deliverable
+deliverable = "stance"
+backends = ["stable-baselines3"]
+key = "stance_quality"
+label = "Stance quality (stance_quality/v1)"
+definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json in Phase A, so the catalog names them with no value (decision D-A9)."
+
+[[species.deliverable_metrics]]
+deliverable = "recovery"
+backends = ["stable-baselines3"]
+key = "recovery_quality"
+label = "Recovery under pushes (recovery_quality/v1)"
+definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json in Phase A (decision D-A9)."
+
+[[species.deliverable_metrics]]
+deliverable = "walk"
+backends = ["stable-baselines3"]
+key = "forward_velocity_gate"
+label = "Gated forward velocity (reward_and_length/v1)"
+definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+
+[[species.deliverable_metrics]]
+deliverable = "hunt"
+backends = ["stable-baselines3"]
+key = "bite_success"
+label = "Head-contact bite proxy"
+definition = "The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw."
+
+[[species.deliverable_metrics]]
+deliverable = "hunt"
+backends = ["jax-mjx"]
+key = "bite_proximity_success"
+label = "Head-tip proximity bite proxy"
+definition = "The head-tip site comes within 0.35 m of the prey target position while the bite bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
+
 [[species.stage_videos]]
-stage = 1
+stage = "stance"
 path = "website/static/videos/trex_ppo_stage1_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
@@ -134,7 +213,7 @@ model_revision_status = "historical"
 verification_status = "unverified"
 
 [[species.stage_videos]]
-stage = 2
+stage = "locomotion"
 path = "website/static/videos/trex_ppo_stage2_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
@@ -142,7 +221,7 @@ model_revision_status = "historical"
 verification_status = "unverified"
 
 [[species.stage_videos]]
-stage = 3
+stage = "behavior"
 path = "website/static/videos/trex_ppo_stage3_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
@@ -168,8 +247,29 @@ key = "food_reached"
 label = "Head-tip distance-threshold success"
 definition = "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
 
+[[species.deliverable_metrics]]
+deliverable = "stand"
+backends = ["stable-baselines3"]
+key = "stance_reward_rail"
+label = "Reward-gated stance (reward_and_length/v1)"
+definition = "The stance checkpoint clears the reward_and_length/v1 gate: mean evaluation reward at or above the statue-derived collapse rail and a near-full-horizon mean episode length over the required consecutive evaluations. The zero-action statue clears this gate, so stand is labelled by its gate kind here rather than claimed as certified stance quality; stance_quality/v1 waits on shin instrumentation (a kneeling pose currently reads identically to airborne) (plan §4.8)."
+
+[[species.deliverable_metrics]]
+deliverable = "walk"
+backends = ["stable-baselines3"]
+key = "forward_velocity_gate"
+label = "Gated forward velocity (reward_and_length/v1)"
+definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+
+[[species.deliverable_metrics]]
+deliverable = "hunt"
+backends = ["stable-baselines3", "jax-mjx"]
+key = "food_reached"
+label = "Head-tip distance-threshold success"
+definition = "The head-tip site comes within the configured food-reach threshold of the food target while the food-reach bonus is enabled."
+
 [[species.stage_videos]]
-stage = 1
+stage = "stance"
 path = "website/static/videos/brachiosaurus_ppo_stage1_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
@@ -178,7 +278,7 @@ verification_status = "unverified"
 repository_commit = "e179198baddbaa1b3003031b7e97472594946b34"
 
 [[species.stage_videos]]
-stage = 2
+stage = "locomotion"
 path = "website/static/videos/brachiosaurus_ppo_stage2_best.mp4"
 algorithm = "PPO"
 backend = "stable-baselines3"
@@ -211,6 +311,34 @@ key = "snap_proximity_success"
 label = "Snout-tip proximity snap proxy"
 definition = "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
 
+[[species.deliverable_metrics]]
+deliverable = "stand"
+backends = ["stable-baselines3"]
+key = "stance_reward_rail"
+label = "Reward-gated stance (reward_and_length/v1)"
+definition = "The stance checkpoint clears the reward_and_length/v1 gate: mean evaluation reward at or above the statue-derived collapse rail and a near-full-horizon mean episode length over the required consecutive evaluations. The zero-action statue clears this gate, so stand is labelled by its gate kind here rather than claimed as certified stance quality; stance_quality/v1 waits on a stance-quality and perturbation preflight this plant has not had (plan §4.8)."
+
+[[species.deliverable_metrics]]
+deliverable = "walk"
+backends = ["stable-baselines3"]
+key = "forward_velocity_gate"
+label = "Gated forward velocity (reward_and_length/v1)"
+definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+
+[[species.deliverable_metrics]]
+deliverable = "hunt"
+backends = ["stable-baselines3"]
+key = "snap_success"
+label = "Snout-contact snap proxy"
+definition = "The snout snap geom contacts the prey geom while the snap reward is enabled; the model has no articulated jaw."
+
+[[species.deliverable_metrics]]
+deliverable = "hunt"
+backends = ["jax-mjx"]
+key = "snap_proximity_success"
+label = "Snout-tip proximity snap proxy"
+definition = "The snout-tip site comes within 0.12 m of the prey target position while the snap bonus is enabled; physical geom contact is not required and the model has no articulated jaw."
+
 [[species]]
 id = "compsognathus"
 display_order = 5
@@ -226,6 +354,34 @@ training_notebooks = ["sb3_training"]
 result_summary_paths = []
 
 [[species.success_metrics]]
+backends = ["stable-baselines3"]
+key = "target_success"
+label = "Pelvis target-reaching success"
+definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+
+[[species.deliverable_metrics]]                # by id: the "stand" label resolves to recovery, its deepest deliverable
+deliverable = "stance"
+backends = ["stable-baselines3"]
+key = "stance_quality"
+label = "Stance quality (stance_quality/v1)"
+definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json in Phase A, so the catalog names them with no value (decision D-A9)."
+
+[[species.deliverable_metrics]]
+deliverable = "recovery"
+backends = ["stable-baselines3"]
+key = "recovery_quality"
+label = "Recovery under pushes (recovery_quality/v1)"
+definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json in Phase A (decision D-A9)."
+
+[[species.deliverable_metrics]]
+deliverable = "walk"
+backends = ["stable-baselines3"]
+key = "forward_velocity_gate"
+label = "Gated forward velocity (reward_and_length/v1)"
+definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+
+[[species.deliverable_metrics]]
+deliverable = "hunt"
 backends = ["stable-baselines3"]
 key = "target_success"
 label = "Pelvis target-reaching success"
@@ -247,6 +403,34 @@ training_notebooks = ["sb3_training"]
 result_summary_paths = []
 
 [[species.success_metrics]]
+backends = ["stable-baselines3"]
+key = "target_success"
+label = "Pelvis target-reaching success"
+definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+
+[[species.deliverable_metrics]]                # by id: the "stand" label resolves to recovery, its deepest deliverable
+deliverable = "stance"
+backends = ["stable-baselines3"]
+key = "stance_quality"
+label = "Stance quality (stance_quality/v1)"
+definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json in Phase A, so the catalog names them with no value (decision D-A9)."
+
+[[species.deliverable_metrics]]
+deliverable = "recovery"
+backends = ["stable-baselines3"]
+key = "recovery_quality"
+label = "Recovery under pushes (recovery_quality/v1)"
+definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json in Phase A (decision D-A9)."
+
+[[species.deliverable_metrics]]
+deliverable = "walk"
+backends = ["stable-baselines3"]
+key = "forward_velocity_gate"
+label = "Gated forward velocity (reward_and_length/v1)"
+definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+
+[[species.deliverable_metrics]]
+deliverable = "hunt"
 backends = ["stable-baselines3"]
 key = "target_success"
 label = "Pelvis target-reaching success"

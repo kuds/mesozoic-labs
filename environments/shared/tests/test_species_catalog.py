@@ -4,19 +4,28 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import tomllib
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, cast
 
 import pytest
 
+from environments.shared.curriculum.gate_schema import GATE_KINDS
+from environments.shared.result_schema import certified_deliverables
 from environments.shared.species_catalog import (
+    _HEADLINE_BY_GATE_KIND,
     DEFAULT_MANIFEST_PATH,
     DEFAULT_OUTPUT_PATH,
     DEFAULT_PLANT_MANIFEST_PATH,
     DEFAULT_README_PATH,
     REPOSITORY_ROOT,
     CatalogError,
+    _build_deliverable_metrics,
+    _build_result,
+    _build_stages,
+    _deliverable_headline,
     _format_verdict,
     _max_reported_velocity,
     _validate_result_summary,
@@ -24,13 +33,22 @@ from environments.shared.species_catalog import (
     check_catalog,
     current_gate_kinds,
     render_readme_results,
+    render_readme_species,
 )
-from environments.shared.stage_manifest import load_stage_manifest
+from environments.shared.stage_manifest import load_stage_manifest, resolve_stage_key
+
+GOLDEN_RESULTS_BLOCK = Path(__file__).parent / "fixtures" / "readme_results_block_2026_09_06.md"
 
 
 def test_catalog_derives_current_model_and_stage_facts() -> None:
+    """Pins the catalog schema and the per-species model/stage facts.
+
+    Re-pinned 3 -> 4 on 2026-09-12 (decision D-A8): stage rows carry the
+    recipe DAG and result rows publish per-deliverable certification, and
+    the website adapter guards on this number, so the bump is the contract.
+    """
     catalog = build_catalog()
-    assert catalog["schema_version"] == 3
+    assert catalog["schema_version"] == 4
     species = {entry["id"]: entry for entry in catalog["species"]}
 
     assert {
@@ -75,6 +93,22 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         ("locomotion", 2, "2", 3),
         ("behavior", 3, "3", 4),
     ]
+    # The recipe DAG the committed v2 manifest declares (plan §4.1): every
+    # node a deliverable, recovery and locomotion both rooted on stance,
+    # "stand" spanning stance and recovery.
+    assert [
+        (stage["id"], stage["deliverable"], stage["warm_start_from"], stage["recipe"])
+        for stage in species["trex"]["stages"]
+    ] == [
+        ("stance", True, None, "stand"),
+        ("recovery", True, "stance", "stand"),
+        ("locomotion", True, "stance", "walk"),
+        ("behavior", True, "locomotion", "hunt"),
+    ]
+    for species_id in ("velociraptor", "brachiosaurus", "dibothrosuchus"):
+        assert [stage["deliverable"] for stage in species[species_id]["stages"]] == [True, True, True]
+        assert [stage["warm_start_from"] for stage in species[species_id]["stages"]] == [None, "stance", "locomotion"]
+        assert [stage["recipe"] for stage in species[species_id]["stages"]] == ["stand", "walk", "hunt"]
     assert [stage["timesteps"] for stage in species["brachiosaurus"]["stages"]] == [
         6_000_000,
         16_000_000,
@@ -791,6 +825,12 @@ def test_a_verdict_under_the_current_gate_renders_as_a_bare_pass(tmp_path: Path,
     assert _format_verdict(stages["stance"]) == "Yes"
     assert stages["locomotion"]["gate_retired"] is True
     assert _format_verdict(stages["locomotion"]) == "passed retired gate (reward gate)"
+    # Extended 2026-09-12: a current-gate pass on a schema-2 ladder summary
+    # is still a ladder pass — it publishes NO deliverable and no primary.
+    # Relabelling it certified would mint a certification nothing measured.
+    assert result["deliverables"] == []
+    assert result["primary_deliverable"] is None
+    assert result["target_deliverable"] is None
 
 
 @pytest.mark.parametrize(
@@ -812,3 +852,818 @@ def test_a_verdict_under_the_current_gate_renders_as_a_bare_pass(tmp_path: Path,
 )
 def test_format_verdict_labels_retired_gates(stage: dict[str, Any], expected: str) -> None:
     assert _format_verdict(stage) == expected
+
+
+# ── Catalog schema 4: the recipe DAG, per-deliverable publication, and the
+# generated README (BEHAVIOR_RECIPES_PLAN §4.3, decisions D-A8 / D-A9 / D-A10).
+
+
+def _build_catalog_stages(species_id: str) -> list[dict[str, Any]]:
+    species = next(entry for entry in build_catalog()["species"] if entry["id"] == species_id)
+    return cast(list[dict[str, Any]], species["stages"])
+
+
+def test_stage_rows_carry_the_recipe_dag() -> None:
+    """Every stage row exports deliverable / warm_start_from / recipe as top-level keys.
+
+    Top-level, not inside advancement_gate: the full-dict gate pins above
+    must keep holding, and the edge is a property of the node, not of its
+    gate.  The values are the committed v2 manifest's, not a derivation.
+    """
+    for stage in _build_catalog_stages("trex"):
+        assert {"deliverable", "warm_start_from", "recipe"} <= set(stage)
+        assert not {"deliverable", "warm_start_from", "recipe"} & set(stage["advancement_gate"])
+    manifest = load_stage_manifest("trex")
+    for stage in _build_catalog_stages("trex"):
+        entry = manifest.by_id(stage["id"])
+        assert (stage["deliverable"], stage["warm_start_from"], stage["recipe"]) == (
+            entry.deliverable,
+            entry.warm_start_from,
+            entry.recipe,
+        )
+
+
+def test_synthesized_manifest_stage_rows_derive_legacy_edges(tmp_path: Path) -> None:
+    """A manifest-less species publishes plan §8.1 as the catalog sees it.
+
+    Only the committed v2 files make stand and walk deliverables: with the
+    velociraptor's three stage TOMLs and no stages.toml the reader
+    synthesizes the legacy manifest, and the catalog must publish exactly
+    what it derives — edges to the previous advancing entry, the last
+    advancing entry the only deliverable, no recipe labels — never invent
+    a recipe of its own.  The configs_dir kwarg points the builder at the
+    temporary tree without monkeypatching the loaders' private constants.
+    """
+    species_dir = tmp_path / "configs" / "velociraptor"
+    species_dir.mkdir(parents=True)
+    for config in sorted((REPOSITORY_ROOT / "configs" / "velociraptor").glob("stage*_*.toml")):
+        shutil.copy(config, species_dir / config.name)
+    assert not (species_dir / "stages.toml").exists()
+
+    stages = _build_stages("velociraptor", [], configs_dir=tmp_path / "configs")
+
+    assert [stage["id"] for stage in stages] == ["stance", "locomotion", "behavior"]
+    assert [stage["deliverable"] for stage in stages] == [False, False, True]
+    assert [stage["warm_start_from"] for stage in stages] == [None, "stance", "locomotion"]
+    assert [stage["recipe"] for stage in stages] == [None, None, None]
+    assert stages[0]["config_path"] == "configs/velociraptor/stage1_balance.toml"
+    # The gates come from the temporary tree too, through the same kwarg.
+    assert current_gate_kinds("velociraptor", tmp_path / "configs") == {
+        "stance": "reward_and_length/v1",
+        "locomotion": "reward_and_length/v1",
+        "behavior": "reward_and_length/v1",
+    }
+
+
+def test_stage_rows_carry_recipe_edges_for_every_species() -> None:
+    """Every non-root row names an EARLIER row id (list order is topological)."""
+    for species in build_catalog()["species"]:
+        seen: list[str] = []
+        roots = 0
+        for stage in species["stages"]:
+            parent = stage["warm_start_from"]
+            if parent is None:
+                roots += 1
+            else:
+                assert parent in seen, f"{species['id']} {stage['id']} warm-starts from a later or unknown {parent!r}"
+            seen.append(stage["id"])
+        assert roots >= 1
+        assert any(stage["deliverable"] for stage in species["stages"])
+
+
+def test_ladder_summaries_keep_stage3_headline_and_publish_no_deliverables() -> None:
+    """The four committed schema-2 rows keep their ladder headline and publish nothing new.
+
+    `stage3_success_rate` is the historical headline (plan §4.3 keeps it);
+    `deliverables` is [] and both deliverable keys are null because a
+    reward-gate pass is not a certification and is never synthesized into
+    one.
+    """
+    catalog = build_catalog()
+    rows = {
+        (species["id"], result["algorithm"].lower()): result
+        for species in catalog["species"]
+        for result in species["historical_results"]
+    }
+    assert {key: row["stage3_success_rate"] for key, row in rows.items()} == {
+        ("velociraptor", "ppo"): 0.9333,
+        ("velociraptor", "sac"): 0.9,
+        ("trex", "ppo"): 0.9667,
+        ("brachiosaurus", "ppo"): 1.0,
+    }
+    for row in rows.values():
+        assert row["deliverables"] == []
+        assert row["primary_deliverable"] is None
+        assert row["target_deliverable"] is None
+        assert all({"recipe", "deliverable"} <= set(stage) for stage in row["stages"])
+
+
+_SHA = "sha256:" + "a" * 64
+
+
+def _trex_v4_summary(
+    verdicts: dict[str, bool],
+    *,
+    target: str | None,
+    primary: str | None,
+    bundle_status: str,
+) -> dict[str, Any]:
+    """The committed trex ladder summary re-cut as a schema-4 result.
+
+    Non-canonical provenance (historical, identifiers null), which is the
+    shape the catalog validates: `provenance.species` / `backend` plus the
+    deliverables map, primary and target.  Certification is recomputed
+    from the recorded verdicts through the shared rule so a fixture can
+    never claim more than its chain supports.
+    """
+    summary = deepcopy(json.loads((REPOSITORY_ROOT / "results/trex/ppo/summary.json").read_text(encoding="utf-8")))
+    summary["schema_version"] = 4
+    summary["bundle_status"] = bundle_status
+    summary["stages"] = {key: stage for key, stage in summary["stages"].items() if key in verdicts}
+    gates = current_gate_kinds("trex")
+    manifest = load_stage_manifest("trex")
+    for key, passed in verdicts.items():
+        summary["stages"][key]["stage_passed"] = passed
+        summary["stages"][key]["gate_kind"] = gates[resolve_stage_key("trex", key).id]
+    summary["total_timesteps"] = sum(int(stage["timesteps"]) for stage in summary["stages"].values())
+    entries = [(entry.key, entry) for entry in manifest.stages if entry.key in verdicts]
+    certified = certified_deliverables(entries, verdicts, None, species="trex")
+    summary["provenance"].update(
+        {
+            "species": "trex",
+            "backend": "stable-baselines3",
+            "deliverables": {
+                key: {
+                    "model_path": f"{key}/models/best_model.zip",
+                    "model_hash": _SHA,
+                    "normalization_hash": _SHA,
+                    "gate_kind": summary["stages"][key]["gate_kind"],
+                    "certified": certified[key],
+                    "replication": {"count": 1, "runs": [{"run_id": "trex-test", "training_seed": 42}]},
+                }
+                for key in verdicts
+            },
+            "primary_deliverable": primary,
+            "target_deliverable": target,
+        }
+    )
+    return cast(dict[str, Any], summary)
+
+
+def _build_result_from(tmp_path: Path, monkeypatch: Any, summary: dict[str, Any]) -> dict[str, Any]:
+    from environments.shared import species_catalog
+
+    summary_path = tmp_path / "summary.json"
+    summary_path.write_text(json.dumps(summary), encoding="utf-8")
+    monkeypatch.setattr(species_catalog, "_repo_path", lambda relative_path, *, field: summary_path)
+    return _build_result("trex", "results/trex/ppo/summary.json")
+
+
+def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, monkeypatch: Any) -> None:
+    """A failed-hunt run publishes its certified trunk (plan §8.5) with gate-kind headlines.
+
+    Stance and walk certified, hunt failed: the primary is walk ("2"), the
+    target hunt stays recorded, every deliverable row carries its gate
+    kind, certification, hash, replication and headline, and the stance
+    headline names its statistics with null values (D-A9).
+    """
+    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial")
+
+    result = _build_result_from(tmp_path, monkeypatch, summary)
+
+    assert result["primary_deliverable"] == "2"
+    assert result["target_deliverable"] == "3"
+    assert [
+        (row["id"], row["stage_key"], row["label"], row["recipe"], row["certified"]) for row in result["deliverables"]
+    ] == [
+        ("stance", "1", "1", "stand", True),
+        ("locomotion", "2", "2", "walk", True),
+        ("behavior", "3", "3", "hunt", False),
+    ]
+    by_id = {row["id"]: row for row in result["deliverables"]}
+    assert by_id["stance"]["gate_kind"] == "stance_quality/v1"
+    assert by_id["stance"]["model_hash"] == _SHA
+    assert by_id["stance"]["replication_count"] == 1
+    assert by_id["stance"]["headline"] == [
+        {"key": "unsupported_duty_ucb", "label": "unsupported duty 95% UCB", "value": None, "unit": "ratio"},
+        {"key": "full_horizon_fraction", "label": "full-horizon episodes", "value": None, "unit": "percent"},
+    ]
+    assert by_id["locomotion"]["headline"] == [
+        {"key": "avg_forward_vel", "label": "avg. forward velocity", "value": 3.47, "unit": "m/s"}
+    ]
+    # Trex's hunt gate floors both velocity and success, so both headline.
+    assert by_id["behavior"]["headline"] == [
+        {"key": "avg_forward_vel", "label": "avg. forward velocity", "value": 1.68, "unit": "m/s"},
+        {"key": "mean_success_rate", "label": "task success", "value": 0.9667, "unit": "percent"},
+    ]
+    # The ladder headline is untouched by the per-deliverable rows.
+    assert result["stage3_success_rate"] == 0.9667
+    assert result["max_average_forward_velocity"] == 3.47
+    # The exported provenance is the same six-key identity/status surface a
+    # v2 row exports: the validated block's deliverables map, primary and
+    # target are published only through the rows above, never duplicated
+    # under a second shape the CATALOG ROWS contract does not name.
+    assert sorted(result["provenance"]) == [
+        "config_hash",
+        "evaluation_episodes",
+        "model_hash",
+        "model_revision_status",
+        "repository_commit",
+        "verification_status",
+    ]
+
+
+def test_v4_headline_reads_the_statistic_the_summary_records(tmp_path: Path, monkeypatch: Any) -> None:
+    """A stance statistic recorded in the summary stage row surfaces in the headline.
+
+    Phase A summaries record none (so the value is null, D-A9), but the
+    headline is valued from the summary stage AS WRITTEN, not from the
+    ladder projection that carries only the fixed ladder columns: Phase
+    B's export must surface without a second catalog edit.
+    """
+    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial")
+    summary["stages"]["1"]["unsupported_duty_ucb"] = 0.01
+    summary["stages"]["1"]["full_horizon_fraction"] = 0.99
+
+    result = _build_result_from(tmp_path, monkeypatch, summary)
+
+    stance = next(row for row in result["deliverables"] if row["id"] == "stance")
+    assert [(metric["key"], metric["value"]) for metric in stance["headline"]] == [
+        ("unsupported_duty_ucb", 0.01),
+        ("full_horizon_fraction", 0.99),
+    ]
+    # The ladder row keeps its fixed columns: the statistic is not projected there.
+    assert "unsupported_duty_ucb" not in result["stages"][0]
+
+
+def test_v4_summary_whose_primary_is_spelled_by_id_over_numeric_keys_is_rejected(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """A primary that names a stage by id while the deliverables are keyed by number fails closed.
+
+    The primary is a KEY of provenance.deliverables; "locomotion" over a map
+    keyed "1", "2", "3" resolves to a stage but matches no key.  The shared
+    validator rejects it with a message naming the keys (a CatalogError
+    here, never a bare StopIteration escaping ``python -m ...species_catalog``).
+    """
+    summary = _trex_v4_summary(
+        {"1": True, "2": True, "3": False}, target="3", primary="locomotion", bundle_status="partial"
+    )
+    with pytest.raises(
+        CatalogError, match=r"'locomotion', which is not a key of provenance.deliverables \['1', '2', '3'\]"
+    ):
+        _build_result_from(tmp_path, monkeypatch, summary)
+
+
+def test_v4_summary_whose_primary_is_uncertified_is_rejected(tmp_path: Path, monkeypatch: Any) -> None:
+    """The catalog never headlines a failed leaf: an uncertified primary is fatal."""
+    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="3", bundle_status="partial")
+    with pytest.raises(CatalogError, match="not certified"):
+        _build_result_from(tmp_path, monkeypatch, summary)
+
+    # A certified primary that is not the one the deliverables and target
+    # imply (walk is the deepest certified, so stance cannot be primary).
+    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="1", bundle_status="partial")
+    with pytest.raises(CatalogError, match="is not the one its deliverables and target"):
+        _build_result_from(tmp_path, monkeypatch, summary)
+
+    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary=None, bundle_status="partial")
+    with pytest.raises(CatalogError, match="no primary deliverable"):
+        _build_result_from(tmp_path, monkeypatch, summary)
+
+
+def test_v4_summary_with_unknown_deliverable_stage_is_rejected(tmp_path: Path, monkeypatch: Any) -> None:
+    """A deliverable key outside the species' manifest vocabulary fails closed."""
+    summary = _trex_v4_summary({"1": True, "2": True, "3": True}, target="3", primary="3", bundle_status="complete")
+    summary["provenance"]["deliverables"]["follow_direction"] = deepcopy(summary["provenance"]["deliverables"]["3"])
+    with pytest.raises(CatalogError, match="follow_direction"):
+        _build_result_from(tmp_path, monkeypatch, summary)
+
+
+def test_walk_only_v4_summary_is_publishable(tmp_path: Path, monkeypatch: Any) -> None:
+    """A walk-targeted run with no behavior stage publishes (plan §8.5) and has no ladder headline."""
+    summary = _trex_v4_summary({"1": True, "2": True}, target="2", primary="2", bundle_status="complete")
+
+    result = _build_result_from(tmp_path, monkeypatch, summary)
+
+    assert [row["id"] for row in result["deliverables"]] == ["stance", "locomotion"]
+    assert all(row["certified"] for row in result["deliverables"])
+    assert result["primary_deliverable"] == "2"
+    assert result["target_deliverable"] == "2"
+    assert result["stage3_success_rate"] is None
+    assert [stage["id"] for stage in result["stages"]] == ["stance", "locomotion"]
+
+
+@pytest.mark.parametrize(
+    ("gate_kind", "stage_row", "current_gate", "expected"),
+    [
+        (
+            "stance_quality/v1",
+            {"avg_forward_vel": 0.02},
+            {"min_full_horizon_fraction": 0.95},
+            [("unsupported_duty_ucb", None, "ratio"), ("full_horizon_fraction", None, "percent")],
+        ),
+        # The statistic recorded (Phase B's export): the value passes through.
+        (
+            "stance_quality/v1",
+            {"unsupported_duty_ucb": 0.01, "full_horizon_fraction": 0.99},
+            {"min_full_horizon_fraction": 0.95},
+            [("unsupported_duty_ucb", 0.01, "ratio"), ("full_horizon_fraction", 0.99, "percent")],
+        ),
+        (
+            "recovery_quality/v1",
+            {},
+            {"min_recovery_success_lcb": 0.3},
+            [("recovery_success_lcb", None, "ratio")],
+        ),
+        (
+            "recovery_quality/v1",
+            {"recovery_success_lcb": 0.42},
+            {"min_recovery_success_lcb": 0.3},
+            [("recovery_success_lcb", 0.42, "ratio")],
+        ),
+        (
+            "reward_and_length/v1",
+            {"avg_forward_vel": 3.47, "mean_success_rate": None},
+            {"min_avg_forward_velocity": 1.0, "min_success_rate": None},
+            [("avg_forward_vel", 3.47, "m/s")],
+        ),
+        (
+            "reward_and_length/v1",
+            {"avg_forward_vel": 0.71, "mean_success_rate": 0.9333},
+            {"min_avg_forward_velocity": None, "min_success_rate": 0.5},
+            [("mean_success_rate", 0.9333, "percent")],
+        ),
+        (
+            "reward_and_length/v1",
+            {"avg_forward_vel": 1.68, "mean_success_rate": 0.9667},
+            {"min_avg_forward_velocity": 2.0, "min_success_rate": 0.5},
+            [("avg_forward_vel", 1.68, "m/s"), ("mean_success_rate", 0.9667, "percent")],
+        ),
+        # A reward-only rail headlines nothing: neither floor is declared.
+        ("reward_and_length/v1", {"avg_forward_vel": 0.02}, {"min_avg_reward": 1050.0}, []),
+        ("none/v1", {"mean_success_rate": 1.0}, {"min_success_rate": 0.5}, []),
+        # Unrecorded gate kind: nothing measured, nothing headlined.
+        (None, {"mean_success_rate": 1.0}, {"min_success_rate": 0.5}, []),
+    ],
+)
+def test_headline_metric_by_gate_kind(
+    gate_kind: str | None,
+    stage_row: dict[str, Any],
+    current_gate: dict[str, Any],
+    expected: list[tuple[str, Any, str]],
+) -> None:
+    """The headline is chosen by the certifying gate kind and valued from the stage row.
+
+    Stance and recovery name their statistics with null values in Phase A
+    (D-A9) and carry the value through as soon as the summary stage records
+    it; reward_and_length headlines velocity and/or success according
+    to which floors the current gate declares; none/v1 and an unrecorded
+    kind headline nothing.
+    """
+    headline = _deliverable_headline(gate_kind, stage_row, current_gate)
+    assert [(metric["key"], metric["value"], metric["unit"]) for metric in headline] == expected
+    assert all(set(metric) == {"key", "label", "value", "unit"} for metric in headline)
+
+
+def test_unknown_gate_kind_has_no_headline_and_is_fatal() -> None:
+    """A kind the registry does not know is a catalog failure that names the registry."""
+    with pytest.raises(CatalogError, match="_HEADLINE_BY_GATE_KIND"):
+        _deliverable_headline("tracking_quality/v1", {}, {})
+
+
+def test_every_registered_gate_kind_has_a_headline() -> None:
+    """The headline registry is keyed by exactly the schema's gate kinds.
+
+    A gate kind added to curriculum.gate_schema.GATE_KINDS without a
+    headline entry would publish metric-less deliverables; a stale entry
+    would describe a gate nothing declares.
+    """
+    assert set(_HEADLINE_BY_GATE_KIND) == set(GATE_KINDS)
+
+
+def test_deliverable_metrics_cover_every_declared_deliverable() -> None:
+    """Every manifest deliverable of every species has a stable-baselines3 definition.
+
+    The rows resolve exactly as the notebook's BEHAVIOR knob does, so the
+    published semantics attach to the node a chain would actually target.
+    """
+    catalog = build_catalog()
+    for species in catalog["species"]:
+        manifest = load_stage_manifest(species["id"])
+        metrics = species["deliverable_metrics"]
+        assert metrics, species["id"]
+        for metric in metrics:
+            assert set(metric) == {"deliverable", "stage_id", "backends", "key", "label", "definition"}
+            assert manifest.resolve_behavior(metric["deliverable"]).id == metric["stage_id"]
+        sb3_covered = {metric["stage_id"] for metric in metrics if "stable-baselines3" in metric["backends"]}
+        assert {entry.id for entry in manifest.deliverables} <= sb3_covered, species["id"]
+        # The per-backend success metrics are untouched beside them.
+        assert species["success_metrics"]
+        assert all(set(metric) == {"backends", "key", "label", "definition"} for metric in species["success_metrics"])
+
+    with pytest.raises(CatalogError, match=r"missing \['behavior'\]"):
+        _build_deliverable_metrics(
+            "velociraptor",
+            [
+                {
+                    "deliverable": "stand",
+                    "backends": ["stable-baselines3"],
+                    "key": "k",
+                    "label": "l",
+                    "definition": "d",
+                },
+                {"deliverable": "walk", "backends": ["stable-baselines3"], "key": "k", "label": "l", "definition": "d"},
+            ],
+            {"stable-baselines3", "jax-mjx"},
+        )
+
+
+def _metric(deliverable: str, *backends: str) -> dict[str, Any]:
+    # No backend named means the evidence backend, stable-baselines3.
+    scoped = list(backends) or ["stable-baselines3"]
+    return {"deliverable": deliverable, "backends": scoped, "key": "k", "label": "l", "definition": "d"}
+
+
+def test_deliverable_metrics_reject_unknown_and_duplicate_scopes() -> None:
+    """Label resolution follows the manifest; unknown names, backends and duplicate scopes fail closed."""
+    # "stand" is the recovery node on trex (the deepest deliverable carrying
+    # the label) and the stance node everywhere else.
+    trex = _build_deliverable_metrics(
+        "trex",
+        [_metric("stance"), _metric("stand"), _metric("walk"), _metric("hunt")],
+        {"stable-baselines3", "jax-mjx"},
+    )
+    assert [(metric["deliverable"], metric["stage_id"]) for metric in trex] == [
+        ("stance", "stance"),
+        ("stand", "recovery"),
+        ("walk", "locomotion"),
+        ("hunt", "behavior"),
+    ]
+    velociraptor = _build_deliverable_metrics(
+        "velociraptor", [_metric("stand"), _metric("walk"), _metric("hunt")], {"stable-baselines3", "jax-mjx"}
+    )
+    assert [metric["stage_id"] for metric in velociraptor] == ["stance", "locomotion", "behavior"]
+
+    with pytest.raises(CatalogError, match="unknown deliverable 'follow_direction'"):
+        _build_deliverable_metrics("trex", [_metric("follow_direction")], {"stable-baselines3"})
+    with pytest.raises(CatalogError, match="unknown backends: \\['torch'\\]"):
+        _build_deliverable_metrics("trex", [_metric("stance", "torch")], {"stable-baselines3"})
+    with pytest.raises(CatalogError, match="does not train: \\['jax-mjx'\\]"):
+        _build_deliverable_metrics("compsognathus", [_metric("stance", "jax-mjx")], {"stable-baselines3"})
+    # Two spellings of one (stage, backend) scope are a duplicate.
+    with pytest.raises(CatalogError, match="more than one deliverable metric for stage 'recovery'"):
+        _build_deliverable_metrics("trex", [_metric("stand"), _metric("recovery")], {"stable-baselines3"})
+
+
+def test_deliverable_metrics_for_reward_gated_stance_say_so() -> None:
+    """Reward-cleared stance is labelled by gate kind, never claimed as stance quality (plan §4.8)."""
+    species = {entry["id"]: entry for entry in build_catalog()["species"]}
+
+    def stance_definition(species_id: str) -> str:
+        return next(
+            str(metric["definition"])
+            for metric in species[species_id]["deliverable_metrics"]
+            if metric["stage_id"] == "stance" and "stable-baselines3" in metric["backends"]
+        )
+
+    for species_id in ("velociraptor", "brachiosaurus", "dibothrosuchus"):
+        definition = stance_definition(species_id)
+        assert "reward_and_length/v1" in definition, species_id
+        assert "statue" in definition, species_id
+        assert "certified stance quality" in definition, species_id
+    for species_id in ("trex", "compsognathus", "compsognathus_robot"):
+        assert "stance_quality/v1" in stance_definition(species_id), species_id
+
+
+def test_species_manifest_schema_version_is_2(tmp_path: Path) -> None:
+    """The committed manifest is schema 2 (D-A8) and the reader refuses schema 1."""
+    manifest_text = DEFAULT_MANIFEST_PATH.read_text(encoding="utf-8")
+    with DEFAULT_MANIFEST_PATH.open("rb") as handle:
+        assert tomllib.load(handle)["schema_version"] == 2
+    stale = tmp_path / "species_manifest.toml"
+    stale.write_text(manifest_text.replace("schema_version = 2", "schema_version = 1", 1), encoding="utf-8")
+    with pytest.raises(CatalogError, match="schema_version must be 2"):
+        build_catalog(stale)
+
+
+def _video(stage: "int | str") -> dict[str, Any]:
+    return {
+        "stage": stage,
+        "path": "website/static/videos/trex_ppo_stage1_best.mp4",
+        "algorithm": "PPO",
+        "backend": "stable-baselines3",
+        "model_revision_status": "historical",
+        "verification_status": "unverified",
+    }
+
+
+def test_stage_videos_accept_ids_and_integer_aliases_interchangeably() -> None:
+    """Videos are keyed by stage id; the legacy integer is an alias, and both together are a duplicate."""
+    by_id = _build_stages("trex", [_video("stance")])
+    by_number = _build_stages("trex", [_video(1)])
+    assert by_id == by_number
+    assert by_id[0]["video"] is not None
+    assert by_id[0]["video"]["path"] == "/videos/trex_ppo_stage1_best.mp4"
+
+    with pytest.raises(CatalogError, match="duplicate stage video"):
+        _build_stages("trex", [_video("stance"), _video(1)])
+    # A semantic-only stage is reachable by its id.
+    recovery = next(stage for stage in _build_stages("trex", [_video("recovery")]) if stage["id"] == "recovery")
+    assert recovery["video"] is not None
+    with pytest.raises(CatalogError, match="unknown stage"):
+        _build_stages("trex", [_video("follow_direction")])
+
+
+def test_committed_stage_videos_are_keyed_by_id() -> None:
+    """The committed manifest spells every stage video by id, and the generated rows are unchanged."""
+    with DEFAULT_MANIFEST_PATH.open("rb") as handle:
+        manifest = tomllib.load(handle)
+    for species in manifest["species"]:
+        declared = {entry.id for entry in load_stage_manifest(species["id"]).stages}
+        for video in species.get("stage_videos", []):
+            assert isinstance(video["stage"], str), (species["id"], video["stage"])
+            assert video["stage"] in declared
+    # Migration is presentation-neutral: the committed rows still label the
+    # eight historical videos exactly as test_catalog_labels_published_videos
+    # pins, keyed onto the stage rows by id.
+    videos = {
+        (species["id"], stage["id"]): stage["video"]["path"]
+        for species in build_catalog()["species"]
+        for stage in species["stages"]
+        if stage["video"] is not None
+    }
+    assert videos[("trex", "stance")] == "/videos/trex_ppo_stage1_best.mp4"
+    assert videos[("brachiosaurus", "locomotion")] == "/videos/brachiosaurus_ppo_stage2_best.mp4"
+    assert ("trex", "recovery") not in videos
+
+
+def test_readme_species_table_renders_recipe_edges() -> None:
+    """The SPECIES table gains Recipe and Warm-start-from columns (D-A10), parent named by its row label."""
+    rendered = render_readme_species(build_catalog())
+    assert (
+        "| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |"
+        in rendered
+    )
+    assert "| 1 — Balance | stand (deliverable) | — |" in rendered
+    assert "| recovery — Recovery | stand (deliverable) | 1 — Balance |" in rendered
+    assert "| 2 — Locomotion | walk (deliverable) | 1 — Balance |" in rendered
+    assert "| 3 — Bite | hunt (deliverable) | 2 — Locomotion |" in rendered
+    assert "**Per-deliverable success semantics:**" in rendered
+    assert "- **stance (1 — Balance) · Stable-Baselines3 — Stance quality (stance_quality/v1):**" in rendered
+    assert "- **stand (1 — Balance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):**" in rendered
+
+
+def test_readme_results_block_is_byte_identical_for_ladder_summaries() -> None:
+    """The generated RESULTS block is byte-identical to its pre-Phase-A rendering (D-A10).
+
+    The golden fixture is the block between the RESULTS markers of
+    README.md at the merge of PR #528 (`git show HEAD:README.md`, captured
+    2026-09-12 before any WS4 edit).  A Deliverables line is only emitted
+    for a schema-4 result, and the four committed summaries are schema 2.
+    """
+    golden = GOLDEN_RESULTS_BLOCK.read_text(encoding="utf-8")
+    assert golden.count("### ") == 4
+    assert render_readme_results(build_catalog()).rstrip() + "\n" == golden
+    committed = DEFAULT_README_PATH.read_text(encoding="utf-8")
+    begin, end = "<!-- BEGIN GENERATED: RESULTS -->\n", "<!-- END GENERATED: RESULTS -->"
+    assert committed.split(begin, 1)[1].split(end, 1)[0] == golden
+
+
+def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monkeypatch: Any) -> None:
+    """A schema-4 result adds one Deliverables line, and every ladder section stays as it was."""
+    catalog = build_catalog()
+    baseline = render_readme_results(catalog)
+    summary = _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial")
+    v4_result = _build_result_from(tmp_path, monkeypatch, summary)
+    trex = next(species for species in catalog["species"] if species["id"] == "trex")
+    trex["historical_results"] = [v4_result]
+
+    rendered = render_readme_results(catalog)
+
+    assert "**Deliverables:** " in rendered
+    assert (
+        "1 — stand (certified; gate stance_quality/v1; 1 run; unsupported duty 95% UCB not recorded; "
+        "full-horizon episodes not recorded) · "
+        "2 — walk (certified, primary; gate reward_and_length/v1; 1 run; avg. forward velocity 3.47 m/s) · "
+        "3 — hunt (not certified; gate reward_and_length/v1; 1 run; avg. forward velocity 1.68 m/s; "
+        "task success 96.7%)"
+    ) in rendered
+    assert rendered.count("**Deliverables:**") == 1
+    # The non-trex sections are untouched by the new line.
+    for heading in ("### Velociraptor Mongoliensis (PPO", "### Velociraptor Mongoliensis (SAC", "### Brachiosaurus"):
+        section = lambda text: text.split(heading, 1)[1].split("\n### ", 1)[0]  # noqa: E731
+        assert section(rendered) == section(baseline)
+
+
+# ── Website adapter pins (WS4, decisions D-A8, D-A10, D-A13) ──────────────
+#
+# The site's TypeScript is not imported by any Python test runner, and the
+# Docusaurus build does not type-check, so the adapter's contract with the
+# generated catalog is pinned here as SOURCE TEXT: a catalog key the site
+# never declares, a schema bump the site does not guard, or a gate phrase
+# the two renderers spell differently fails this file, which runs on every
+# website/src/** PR.
+
+WEBSITE_SRC = REPOSITORY_ROOT / "website" / "src"
+
+
+def _website_source(relative_path: str) -> str:
+    return (WEBSITE_SRC / relative_path).read_text(encoding="utf-8")
+
+
+def _ts_block(source: str, header: str) -> str:
+    """The text between *header*'s opening brace and its matching close brace."""
+    start = source.index(header)
+    open_brace = source.index("{", start)
+    depth = 0
+    for index in range(open_brace, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[open_brace + 1 : index]
+    raise AssertionError(f"unterminated block after {header!r}")
+
+
+def _ts_declared_keys(block: str) -> set[str]:
+    """The property names declared at the top level of one TS object type."""
+    depth = 0
+    keys: set[str] = set()
+    for line in block.splitlines():
+        stripped = line.strip()
+        if depth == 0:
+            match = re.match(r"^([a-z][a-z0-9_]*)\??:", stripped)
+            if match:
+                keys.add(match.group(1))
+        depth += stripped.count("{") + stripped.count("<") - stripped.count("}") - stripped.count(">")
+    return keys
+
+
+def test_website_adapter_pins_the_catalog_schema_version() -> None:
+    """species.ts refuses any catalog schema but the one build_catalog emits (D-A8).
+
+    The guard is the site's only defence against a regenerated JSON whose
+    rows changed shape under an unchanged adapter, so its literal is pinned
+    to the Python constant rather than to a number typed twice.
+    """
+    source = _website_source("data/species.ts")
+    guards = re.findall(r"if \(catalog\.schema_version !== (\d+)\) throw", source)
+    assert guards == [str(build_catalog()["schema_version"])]
+
+
+def test_website_adapter_declares_every_exported_key(tmp_path: Path, monkeypatch: Any) -> None:
+    """Every key the catalog exports per row is declared by the matching Raw* TS type, and vice versa.
+
+    Two-sided: an exported key the adapter never declares is a field the
+    site silently drops (the seven gate keys were, before WS4 — D-A13), and
+    a declared key the catalog no longer exports is a field the site reads
+    as undefined.  Deliverable rows are taken from a schema-4 fixture
+    because the four committed ladder summaries publish none (D-A10); the
+    result and provenance pins take the committed v2 rows AND that fixture,
+    so the six-key provenance projection holds for the first schema-4
+    summary committed, not only for the rows committed today.
+    """
+    source = _website_source("data/species.ts")
+    catalog = build_catalog()
+    species = catalog["species"]
+    stage_rows = [stage for entry in species for stage in entry["stages"]]
+    results = [result for entry in species for result in entry["historical_results"]]
+    v4_result = _build_result_from(
+        tmp_path,
+        monkeypatch,
+        _trex_v4_summary({"1": True, "2": True, "3": False}, target="3", primary="2", bundle_status="partial"),
+    )
+    videos = [stage["video"] for stage in stage_rows if stage["video"] is not None]
+    assert videos, "at least one published video is needed to pin the video row"
+
+    def exported(rows: list[dict[str, Any]]) -> set[str]:
+        keys: set[str] = set()
+        for row in rows:
+            keys |= set(row)
+        return keys
+
+    stage_block = _ts_block(source, "interface RawStage ")
+    result_block = _ts_block(source, "interface RawResult ")
+    species_block = _ts_block(source, "interface RawSpecies ")
+    expectations = {
+        "RawCatalog": (_ts_block(source, "interface RawCatalog "), exported([catalog])),
+        "RawSpecies": (species_block, exported(species)),
+        "RawStage": (stage_block, exported(stage_rows)),
+        "RawStage.advancement_gate": (
+            _ts_block(stage_block, "advancement_gate:"),
+            exported([stage["advancement_gate"] for stage in stage_rows]),
+        ),
+        "RawStage.video": (_ts_block(stage_block, "video:"), exported(videos)),
+        "RawResult": (result_block, exported([*results, v4_result])),
+        "RawResult.provenance": (
+            _ts_block(result_block, "provenance:"),
+            exported([result["provenance"] for result in [*results, v4_result]]),
+        ),
+        "RawResultStage": (
+            _ts_block(source, "interface RawResultStage "),
+            exported([stage for result in results for stage in result["stages"]]),
+        ),
+        "RawResultDeliverable": (
+            _ts_block(source, "interface RawResultDeliverable "),
+            exported(v4_result["deliverables"]),
+        ),
+        "RawHeadlineMetric": (
+            _ts_block(source, "interface RawHeadlineMetric "),
+            exported([metric for row in v4_result["deliverables"] for metric in row["headline"]]),
+        ),
+        "RawSuccessMetric": (
+            _ts_block(source, "interface RawSuccessMetric "),
+            exported([metric for entry in species for metric in entry["success_metrics"]]),
+        ),
+        "RawDeliverableMetric": (
+            _ts_block(source, "interface RawDeliverableMetric "),
+            exported([metric for entry in species for metric in entry["deliverable_metrics"]]),
+        ),
+    }
+    mismatches = {
+        name: (sorted(exported_keys - _ts_declared_keys(block)), sorted(_ts_declared_keys(block) - exported_keys))
+        for name, (block, exported_keys) in expectations.items()
+        if _ts_declared_keys(block) != exported_keys
+    }
+    assert mismatches == {}, f"(undeclared, stale) keys per Raw type: {mismatches}"
+
+
+def test_website_gate_formatter_mirrors_python() -> None:
+    """formatGate in SpeciesCatalog/index.tsx renders the same phrases, in the same branch order, as _format_advancement_gate.
+
+    Both renderers are pinned against one phrase list, so a criterion added
+    to one and not the other fails here whichever side moved.  The branch
+    order pin (none/v1, then recovery_quality/v1, then the generic path)
+    keeps the frozen-verdict sentence on the recovery row and the
+    consecutive-passes tail off it, on both sides.
+    """
+    python_source = (REPOSITORY_ROOT / "environments/shared/species_catalog.py").read_text(encoding="utf-8")
+    python_body = python_source.split("def _format_advancement_gate(", 1)[1].split("\ndef ", 1)[0]
+    tsx_source = _website_source("components/SpeciesCatalog/index.tsx")
+    tsx_body = "function formatGate(" + _ts_block(tsx_source, "function formatGate(")
+
+    phrases = [
+        "non-advancing pilot (gate_kind none/v1); never advances",
+        " pending calibration (P5)",
+        "recovery success LCB95 ≥ ",
+        "paired Δ vs each required frozen null LCB95 ≥ ",
+        "re-entry ≤ ",
+        "-step dwell",
+        "verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale)",
+        "reward ≥ ",
+        "episode length ≥ ",
+        "avg. velocity ≥ ",
+        " m/s",
+        "task success ≥ ",
+        "full-horizon episodes ≥ ",
+        "unsupported duty ≤ ",
+        "unsupported duty 95% upper bound ≤ ",
+        " episodes/evaluation",
+        " consecutive passes",
+    ]
+    missing = {
+        phrase: [side for side, body in (("python", python_body), ("tsx", tsx_body)) if phrase not in body]
+        for phrase in phrases
+    }
+    assert {phrase: sides for phrase, sides in missing.items() if sides} == {}
+
+    for body in (python_body, tsx_body):
+        none_branch = body.index("none/v1")
+        recovery_branch = body.index("recovery_quality/v1")
+        generic_path = body.index("reward ≥ ")
+        assert none_branch < recovery_branch < generic_path
+        # The consecutive-passes tail belongs to the generic path only.
+        assert body.index(" consecutive passes") > generic_path
+        assert body.index("verdict from the frozen gate_resolution.json") < generic_path
+
+
+def test_index_page_keys_video_cards_by_stage_id() -> None:
+    """The landing page keys and labels video cards by the manifest stage id/label, never the legacy number (D-A13).
+
+    ``stage.number`` is null for a semantic-only stage (recovery), so a card
+    keyed by it collided with its siblings and read "STAGE null"; the
+    catalog's ``label`` is the canonical reference.  The hero headline comes
+    from ``headlineFor`` so a schema-4 result headlines its certified
+    primary deliverable and the ladder rows render exactly as before;
+    ``stage3SuccessRate`` is read nowhere outside the adapter.
+    """
+    page = _website_source("pages/index.tsx")
+    assert "key={stage.number}" not in page
+    assert "STAGE {stage.number}" not in page
+    assert "stage ${stage.number}" not in page
+    assert "key={stage.id}" in page
+    assert "STAGE {stage.label.toUpperCase()}" in page
+    assert "stage ${stage.label}: ${stage.title}" in page
+
+    import_block = page.split("from '@site/src/data/species';", 1)[0]
+    assert "headlineFor" in import_block
+    assert "headlineFor(result)" in page
+
+    readers = sorted(
+        path.relative_to(WEBSITE_SRC).as_posix()
+        for path in WEBSITE_SRC.rglob("*.ts*")
+        if "stage3SuccessRate" in path.read_text(encoding="utf-8")
+    )
+    assert readers == ["data/species.ts"]

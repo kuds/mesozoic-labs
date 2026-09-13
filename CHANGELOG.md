@@ -52,6 +52,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `generate_stage_artifacts` writes the verdict beside the handoff it judged
   and `scripts/backfill_gate_verdict.py` re-derives it for pre-Phase-A stage
   directories.
+- **Catalog and website per deliverable** (Phase A, WS4): species catalog
+  `schema_version` 4 and `configs/species_manifest.toml` `schema_version` 2
+  (decision D-A8). Stage rows carry `deliverable`, `warm_start_from` and
+  `recipe` from the manifest; result rows carry a `deliverables` list with
+  `primary_deliverable` / `target_deliverable` for a schema-4 summary, each
+  deliverable headlined by its gate kind through a registry that must cover
+  every `GATE_KINDS` entry (stance and recovery values are null until the
+  summary records them, D-A9), and `[]` for a v2/v3 ladder summary, which is
+  never relabelled certified. `[[species.deliverable_metrics]]` states the
+  success semantics of every deliverable per training backend, resolved
+  through the manifest and failing closed on an unknown deliverable, backend
+  or duplicate; stage videos are keyed by stage id with integer aliases. The
+  README SPECIES table gains Recipe and Warm-start-from columns and the
+  per-deliverable semantics; the RESULTS block is byte-identical for the four
+  committed summaries and pinned by a golden fixture (D-A10). The website
+  adapter declares every exported key (the seven stance/recovery gate keys
+  were undeclared), `formatGate` mirrors the Python renderer branch for
+  branch, the home page keys video cards by stage id and labels them by the
+  manifest label (D-A13), published run summaries render byte-identically,
+  and `deploy.yml` type-checks the site with `tsc` before building
+  (`@docusaurus/tsconfig` was never installed, so the check failed on a
+  pristine checkout). `validate_result_summary` now raises a
+  `ResultSchemaError` instead of a bare `StopIteration` when
+  `primary_deliverable` is spelled differently from the deliverables map.
 - **Publication per deliverable** (Phase A, WS3): result schema v4 (v2 and v3
   still read verbatim). `provenance.deliverables` records every deliverable
   the run trained with its checkpoint hashes and a `certified` flag (own gate

@@ -14,7 +14,10 @@ on:
       - "results/**/summary.json"
       - "website/blog/**"
       - "website/docs/**"
-      - "website/src/data/**"
+      # website/src/** rather than website/src/data/**: test_species_catalog.py
+      # pins the TSX adapter and gate formatter against the Python renderer
+      # as source text, so a TSX-only PR must run those pins (WS4, D-A10).
+      - "website/src/**"
       - "website/static/videos/**"
       - "website/static/img/posters/**"
       - "pyproject.toml"
@@ -37,7 +40,10 @@ on:
       - "results/**/summary.json"
       - "website/blog/**"
       - "website/docs/**"
-      - "website/src/data/**"
+      # website/src/** rather than website/src/data/**: test_species_catalog.py
+      # pins the TSX adapter and gate formatter against the Python renderer
+      # as source text, so a TSX-only PR must run those pins (WS4, D-A10).
+      - "website/src/**"
       - "website/static/videos/**"
       - "website/static/img/posters/**"
       - "pyproject.toml"

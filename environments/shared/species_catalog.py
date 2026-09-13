@@ -15,13 +15,15 @@ import importlib
 import json
 import math
 import tomllib
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
 import mujoco
 
-from environments.shared.config import load_all_stages
+from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.curriculum import StageThreshold
+from environments.shared.curriculum.gate_schema import GATE_KINDS, STANCE_GATE_KIND
 from environments.shared.curriculum.recovery_gate import RECOVERY_GATE_KIND
 from environments.shared.plant_contract import (
     GENERATED_MANIFEST_PATH,
@@ -38,11 +40,13 @@ from environments.shared.result_schema import (
     PROVENANCE_IDENTIFIERS,
     ResultSchemaError,
     ordered_stage_entries,
+    primary_deliverable_key,
     validate_provenance,
     validate_result_summary,
 )
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_CONFIGS_DIR = REPOSITORY_ROOT / "configs"
 DEFAULT_MANIFEST_PATH = REPOSITORY_ROOT / "configs" / "species_manifest.toml"
 DEFAULT_PLANT_MANIFEST_PATH = GENERATED_MANIFEST_PATH
 DEFAULT_OUTPUT_PATH = REPOSITORY_ROOT / "website" / "src" / "data" / "species.generated.json"
@@ -69,9 +73,116 @@ DEFAULT_STAGE_THRESHOLD = StageThreshold()
 #: description.
 _PENDING_GATE_KINDS = {"recovery": RECOVERY_GATE_KIND}
 
+#: The species manifest schema this reader accepts.  2 (decision D-A8,
+#: 2026-09-12): ``[[species.deliverable_metrics]]`` beside the per-backend
+#: success metrics, and ``[[species.stage_videos]]`` keyed by stage id.
+SPECIES_MANIFEST_SCHEMA_VERSION = 2
+
+#: The units a deliverable headline metric can carry; the website formats
+#: by unit, so this vocabulary is part of the catalog contract.
+HEADLINE_UNITS = frozenset({"percent", "m/s", "ratio"})
+
 
 class CatalogError(ValueError):
     """Raised when catalog inputs are incomplete or contradictory."""
+
+
+# ── Deliverable headline metrics (plan §4.3, decision D-A9) ───────────────
+#
+# Which statistic headlines a published deliverable is chosen by the gate
+# kind it was certified under: a stance policy is judged on unsupported duty
+# and full-horizon episodes, a recovery policy on its recovery-success lower
+# bound, a walk on velocity and a hunt on task success.  Each spec is
+# ``(summary key, label, unit)``; the VALUE is read from the published stage
+# row under that key, and a statistic the summary does not carry (stance and
+# recovery, whose per-stage gate metrics reach summary.json in Phase B) is
+# published with a null value and the key still named, so a reader sees what
+# the gate measured rather than a blank.
+#
+# The registry is keyed by exactly ``set(GATE_KINDS)`` (pinned): a gate kind
+# added to the schema without a headline entry is a catalog failure, never a
+# silently metric-less deliverable.
+_HeadlineSpec = tuple[str, str, str]
+
+
+def _stance_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
+    return [
+        ("unsupported_duty_ucb", "unsupported duty 95% UCB", "ratio"),
+        ("full_horizon_fraction", "full-horizon episodes", "percent"),
+    ]
+
+
+def _recovery_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
+    return [("recovery_success_lcb", "recovery success LCB95", "ratio")]
+
+
+def _reward_and_length_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
+    # The historical gate measures whatever the stage declares: a walk
+    # (velocity floor) headlines its velocity, a hunt (success floor) its
+    # task success, and a stage gated on both publishes both.
+    specs: list[_HeadlineSpec] = []
+    if current_gate.get("min_avg_forward_velocity") is not None:
+        specs.append(("avg_forward_vel", "avg. forward velocity", "m/s"))
+    if current_gate.get("min_success_rate") is not None:
+        specs.append(("mean_success_rate", "task success", "percent"))
+    return specs
+
+
+def _no_headline_specs(current_gate: dict[str, Any]) -> list[_HeadlineSpec]:
+    # none/v1 certifies nothing, so nothing headlines it.
+    return []
+
+
+_HEADLINE_BY_GATE_KIND: dict[str, Callable[[dict[str, Any]], list[_HeadlineSpec]]] = {
+    STANCE_GATE_KIND: _stance_headline_specs,
+    RECOVERY_GATE_KIND: _recovery_headline_specs,
+    "reward_and_length/v1": _reward_and_length_headline_specs,
+    "none/v1": _no_headline_specs,
+}
+
+if set(_HEADLINE_BY_GATE_KIND) != set(GATE_KINDS):  # pragma: no cover - import-time contract
+    raise RuntimeError(
+        "species_catalog._HEADLINE_BY_GATE_KIND must name exactly the gate kinds in "
+        f"curriculum.gate_schema.GATE_KINDS; missing {sorted(set(GATE_KINDS) - set(_HEADLINE_BY_GATE_KIND))}, "
+        f"extra {sorted(set(_HEADLINE_BY_GATE_KIND) - set(GATE_KINDS))}"
+    )
+
+
+def _deliverable_headline(
+    gate_kind: str | None,
+    stage_row: dict[str, Any],
+    current_gate: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """The headline metrics of a deliverable certified under *gate_kind*.
+
+    Each entry is ``{key, label, value, unit}``; ``value`` is the published
+    stage row's statistic under ``key`` or null when the summary does not
+    record it.  A null *gate_kind* (a record whose verdict and config both
+    left the kind unrecorded) headlines nothing: choosing a metric by the
+    CURRENT gate would present a statistic the certifying gate never
+    measured.  A non-null kind outside the registry is fatal.
+    """
+    if gate_kind is None:
+        return []
+    specs = _HEADLINE_BY_GATE_KIND.get(gate_kind)
+    if specs is None:
+        raise CatalogError(
+            f"no headline metric registered for gate kind {gate_kind!r}; "
+            f"species_catalog._HEADLINE_BY_GATE_KIND knows {sorted(_HEADLINE_BY_GATE_KIND)}"
+        )
+    headline: list[dict[str, Any]] = []
+    for key, label, unit in specs(current_gate):
+        if unit not in HEADLINE_UNITS:  # pragma: no cover - registry contract
+            raise CatalogError(f"headline unit {unit!r} for {key} is not one of {sorted(HEADLINE_UNITS)}")
+        headline.append(
+            {
+                "key": key,
+                "label": label,
+                "value": _optional_number(stage_row.get(key), field=f"headline metric {key}"),
+                "unit": unit,
+            }
+        )
+    return headline
 
 
 def _repo_path(relative_path: str, *, field: str) -> Path:
@@ -89,8 +200,8 @@ def _repo_path(relative_path: str, *, field: str) -> Path:
 def _load_manifest(path: Path) -> dict[str, Any]:
     with path.open("rb") as manifest_file:
         manifest = tomllib.load(manifest_file)
-    if manifest.get("schema_version") != 1:
-        raise CatalogError("species manifest schema_version must be 1")
+    if manifest.get("schema_version") != SPECIES_MANIFEST_SCHEMA_VERSION:
+        raise CatalogError(f"species manifest schema_version must be {SPECIES_MANIFEST_SCHEMA_VERSION}")
     return manifest
 
 
@@ -291,14 +402,94 @@ def _public_plant_contract(
     }
 
 
-def _stage_config_path(species_id: str, stage_ref: "int | str") -> Path:
+def _configs_root(configs_dir: "Path | str | None") -> Path:
+    """The configs directory the catalog reads stage manifests and TOMLs from.
+
+    ``None`` is the repository's ``configs/``; a test may point at a
+    synthesized tree (a species directory without ``stages.toml``) without
+    monkeypatching the loaders' private constants.
+    """
+    return DEFAULT_CONFIGS_DIR if configs_dir is None else Path(configs_dir).resolve()
+
+
+def _load_manifest_and_configs(
+    species_id: str, configs_dir: "Path | str | None" = None
+) -> "tuple[Any, dict[int | str, dict[str, Any]]]":
+    """The species' stage manifest and every stage config it declares, in manifest order."""
     from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
+    root = _configs_root(configs_dir)
     try:
-        entry = load_stage_manifest(species_id).resolve(stage_ref)
+        manifest = load_stage_manifest(species_id, root)
+    except StageManifestError as exc:
+        raise CatalogError(f"cannot load the stage manifest for {species_id}: {exc}") from exc
+    if configs_dir is None:
+        return manifest, load_all_stages(species_id)
+    # A non-default root bypasses load_all_stages (which reads the
+    # repository's configs/) by naming each TOML explicitly; the manifest
+    # already validated that every config file exists.
+    configs: dict[int | str, dict[str, Any]] = {
+        entry.reference: load_stage_config(
+            species_id, entry.reference, config_path=str(root / species_id / entry.config_file)
+        )
+        for entry in manifest.stages
+    }
+    return manifest, configs
+
+
+def _stage_config_path(species_id: str, stage_ref: "int | str", configs_dir: "Path | str | None" = None) -> Path:
+    from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
+
+    root = _configs_root(configs_dir)
+    try:
+        entry = load_stage_manifest(species_id, root).resolve(stage_ref)
     except StageManifestError as exc:
         raise CatalogError(f"cannot resolve stage {stage_ref} config for {species_id}: {exc}") from exc
-    return REPOSITORY_ROOT / "configs" / species_id / entry.config_file
+    return root / species_id / entry.config_file
+
+
+def _advancement_gate(entry: Any, curriculum: dict[str, Any]) -> dict[str, Any]:
+    """The stage's effective early-advancement gate as the catalog exports it."""
+    return {
+        # The declared gate KIND drives rendering: a none/v1
+        # pilot must read as "non-advancing", never as an empty
+        # criteria list that looks like a free pass.
+        "gate_kind": curriculum.get("gate_kind"),
+        "pending_gate_kind": _PENDING_GATE_KINDS.get(entry.id) if curriculum.get("gate_kind") == "none/v1" else None,
+        "min_avg_reward": curriculum.get("min_avg_reward"),
+        "min_avg_episode_length": curriculum.get("min_avg_episode_length"),
+        "min_avg_forward_velocity": curriculum.get("min_avg_forward_vel"),
+        "min_success_rate": curriculum.get("min_success_rate"),
+        # stance_quality/v1. Exported so the published gate is the
+        # one actually enforced: a stance-gated stage whose only
+        # listed criterion was its reward rail would read as gated
+        # on a threshold its own statue clears by 68%.
+        "min_full_horizon_fraction": curriculum.get("min_full_horizon_fraction"),
+        "max_unsupported_duty": curriculum.get("max_unsupported_duty"),
+        "max_unsupported_duty_ucb": curriculum.get("max_unsupported_duty_ucb"),
+        # recovery_quality/v1. The certifying criteria are frozen
+        # in the stage directory's gate_resolution.json
+        # (curriculum/gate_resolver); the config declares the same
+        # numbers and reporting/gates refuses when the two
+        # disagree, so exporting the declared values publishes the
+        # enforced gate rather than an episode-count shell.
+        "min_recovery_success_lcb": curriculum.get("min_recovery_success_lcb"),
+        "min_paired_success_delta_lcb": curriculum.get("min_paired_success_delta_lcb"),
+        "recovery_t_recover_steps": curriculum.get("recovery_t_recover_steps"),
+        "recovery_dwell_steps": curriculum.get("recovery_dwell_steps"),
+        "min_eval_episodes": int(curriculum.get("min_eval_episodes", DEFAULT_STAGE_THRESHOLD.min_eval_episodes)),
+        "required_consecutive": int(
+            curriculum.get("required_consecutive", DEFAULT_STAGE_THRESHOLD.required_consecutive)
+        ),
+    }
+
+
+def current_advancement_gates(species_id: str, configs_dir: "Path | str | None" = None) -> dict[str, dict[str, Any]]:
+    """The gate each of the species' stages declares TODAY, by stage id."""
+    manifest, configs = _load_manifest_and_configs(species_id, configs_dir)
+    return {
+        entry.id: _advancement_gate(entry, configs[entry.reference]["curriculum_kwargs"]) for entry in manifest.stages
+    }
 
 
 def _public_video_path(relative_path: str) -> str:
@@ -308,13 +499,19 @@ def _public_video_path(relative_path: str) -> str:
     return relative_path[len(prefix) :]
 
 
-def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
+def _build_stages(
+    species_id: str,
+    raw_videos: list[dict[str, Any]],
+    *,
+    configs_dir: "Path | str | None" = None,
+) -> list[dict[str, Any]]:
+    from environments.shared.stage_manifest import StageManifestError
 
-    manifest = load_stage_manifest(species_id)
-    # Videos are keyed by stage id: the manifest resolves both spellings a
-    # manifest entry can carry (legacy number, semantic id) and fails closed
-    # on anything the species does not declare.
+    manifest, configs = _load_manifest_and_configs(species_id, configs_dir)
+    # Videos are keyed by stage id (species manifest schema 2); the legacy
+    # number stays an accepted alias because the stage manifest resolves
+    # both spellings an entry can carry, and fails closed on anything the
+    # species does not declare.  Two spellings of one stage are a duplicate.
     video_by_stage: dict[str, dict[str, Any]] = {}
     for raw_video in raw_videos:
         raw_stage_ref = raw_video["stage"]
@@ -372,7 +569,10 @@ def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dic
             **identifiers,
         }
 
-    configs = load_all_stages(species_id)
+    # config_path is rendered relative to the configs root's parent: the
+    # repository root for the committed tree (unchanged), a temporary root
+    # for a synthesized fixture.
+    path_root = _configs_root(configs_dir).parent
     stages: list[dict[str, Any]] = []
     # Every stage the manifest declares, in manifest (curriculum) order —
     # not the retired hardcoded (1, 2, 3), which silently dropped the
@@ -380,7 +580,7 @@ def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dic
     for entry in manifest.stages:
         stage_config = configs[entry.reference]
         curriculum = stage_config["curriculum_kwargs"]
-        config_path = _stage_config_path(species_id, entry.reference)
+        config_path = _stage_config_path(species_id, entry.reference, configs_dir)
         name = str(stage_config["name"])
         stages.append(
             {
@@ -395,44 +595,20 @@ def _build_stages(species_id: str, raw_videos: list[dict[str, Any]]) -> list[dic
                 "name": name,
                 "title": name.replace("_", " ").title(),
                 "description": str(stage_config["description"]),
-                "config_path": config_path.relative_to(REPOSITORY_ROOT).as_posix(),
+                "config_path": config_path.relative_to(path_root).as_posix(),
                 "timesteps": int(curriculum["timesteps"]),
-                "advancement_gate": {
-                    # The declared gate KIND drives rendering: a none/v1
-                    # pilot must read as "non-advancing", never as an empty
-                    # criteria list that looks like a free pass.
-                    "gate_kind": curriculum.get("gate_kind"),
-                    "pending_gate_kind": _PENDING_GATE_KINDS.get(entry.id)
-                    if curriculum.get("gate_kind") == "none/v1"
-                    else None,
-                    "min_avg_reward": curriculum.get("min_avg_reward"),
-                    "min_avg_episode_length": curriculum.get("min_avg_episode_length"),
-                    "min_avg_forward_velocity": curriculum.get("min_avg_forward_vel"),
-                    "min_success_rate": curriculum.get("min_success_rate"),
-                    # stance_quality/v1. Exported so the published gate is the
-                    # one actually enforced: a stance-gated stage whose only
-                    # listed criterion was its reward rail would read as gated
-                    # on a threshold its own statue clears by 68%.
-                    "min_full_horizon_fraction": curriculum.get("min_full_horizon_fraction"),
-                    "max_unsupported_duty": curriculum.get("max_unsupported_duty"),
-                    "max_unsupported_duty_ucb": curriculum.get("max_unsupported_duty_ucb"),
-                    # recovery_quality/v1. The certifying criteria are frozen
-                    # in the stage directory's gate_resolution.json
-                    # (curriculum/gate_resolver); the config declares the same
-                    # numbers and reporting/gates refuses when the two
-                    # disagree, so exporting the declared values publishes the
-                    # enforced gate rather than an episode-count shell.
-                    "min_recovery_success_lcb": curriculum.get("min_recovery_success_lcb"),
-                    "min_paired_success_delta_lcb": curriculum.get("min_paired_success_delta_lcb"),
-                    "recovery_t_recover_steps": curriculum.get("recovery_t_recover_steps"),
-                    "recovery_dwell_steps": curriculum.get("recovery_dwell_steps"),
-                    "min_eval_episodes": int(
-                        curriculum.get("min_eval_episodes", DEFAULT_STAGE_THRESHOLD.min_eval_episodes)
-                    ),
-                    "required_consecutive": int(
-                        curriculum.get("required_consecutive", DEFAULT_STAGE_THRESHOLD.required_consecutive)
-                    ),
-                },
+                # The recipe DAG (stage manifest v2, plan §4.1): whether this
+                # node's certified checkpoint is a published policy, the
+                # EARLIER stage id it warm-starts from (null for a root), and
+                # the behavior label it belongs to.  Top-level rather than
+                # inside advancement_gate, which stays the gate alone.  A v1
+                # or synthesized manifest derives these as the loader did
+                # before v2 (last advancing entry the only deliverable, no
+                # labels), so the catalog never invents a recipe.
+                "deliverable": entry.deliverable,
+                "warm_start_from": entry.warm_start_from,
+                "recipe": entry.recipe,
+                "advancement_gate": _advancement_gate(entry, curriculum),
                 "video": video_by_stage.get(entry.id),
             }
         )
@@ -448,19 +624,26 @@ def _validate_provenance(provenance: Any, *, result_path: str) -> dict[str, Any]
 
 
 def _validate_result_summary(summary: Any, *, species_id: str, relative_path: str) -> dict[str, Any]:
-    """Validate public results while preserving the catalog error API."""
+    """Validate public results while preserving the catalog error API.
+
+    Publishable, not complete (decision D-A2): a schema-4 run that certified
+    walk but failed hunt publishes its certified deliverables as ``partial``.
+    Below schema 4 the two flags are synonyms, so the four committed v2
+    summaries validate exactly as before.
+    """
     try:
         return validate_result_summary(
             summary,
             expected_species=species_id,
             relative_path=relative_path,
-            require_complete=True,
+            require_complete=False,
+            require_publishable=True,
         )
     except ResultSchemaError as exc:
         raise CatalogError(str(exc)) from exc
 
 
-def current_gate_kinds(species_id: str) -> dict[str, "str | None"]:
+def current_gate_kinds(species_id: str, configs_dir: "Path | str | None" = None) -> dict[str, "str | None"]:
     """The gate kind each of the species' stages declares TODAY, by stage id.
 
     What a published verdict is compared against: a ``stage_passed`` earned
@@ -468,13 +651,8 @@ def current_gate_kinds(species_id: str) -> dict[str, "str | None"]:
     the catalog says so instead of re-serving the bare boolean beneath the
     current gate's description (review SS5).
     """
-    from environments.shared.stage_manifest import load_stage_manifest
-
-    configs = load_all_stages(species_id)
-    return {
-        entry.id: configs[entry.reference]["curriculum_kwargs"].get("gate_kind")
-        for entry in load_stage_manifest(species_id).stages
-    }
+    manifest, configs = _load_manifest_and_configs(species_id, configs_dir)
+    return {entry.id: configs[entry.reference]["curriculum_kwargs"].get("gate_kind") for entry in manifest.stages}
 
 
 def _max_reported_velocity(stage_summaries: list[dict[str, Any]]) -> int | float | None:
@@ -510,6 +688,12 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
                 "position": entry.position,
                 "number": entry.legacy_number,
                 "label": entry.key,
+                # The recipe DAG as the CURRENT manifest declares it for this
+                # stage, so a ladder row says which behavior it now belongs
+                # to; certification is per deliverable below, never inferred
+                # from these two keys.
+                "recipe": entry.recipe,
+                "deliverable": entry.deliverable,
                 "name": raw_stage.get("name", entry.id),
                 "description": raw_stage.get("description", ""),
                 "timesteps": raw_stage.get("timesteps"),
@@ -529,6 +713,21 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
             }
         )
 
+    validated_provenance = _validate_provenance(summary["provenance"], result_path=relative_path)
+    raw_stages_by_id = {entry.id: summary["stages"][stage_key] for stage_key, entry in stage_entries}
+    deliverables, primary_deliverable, target_deliverable = _build_result_deliverables(
+        species_id, summary, validated_provenance, raw_stages_by_id, relative_path=relative_path
+    )
+    # The exported provenance is the identity/status surface alone.  A v4
+    # block also validates to its deliverables map, ancestors, primary and
+    # target (and a canonical one to run_id, seeds, ...); those are published
+    # ONLY through the per-deliverable rows below, so every schema exports
+    # the same six keys and the website adapter's RawResult.provenance stays
+    # honest for the first committed schema-4 summary.
+    provenance = {
+        key: validated_provenance[key]
+        for key in ("model_revision_status", "verification_status", "evaluation_episodes", *PROVENANCE_IDENTIFIERS)
+    }
     max_average_forward_velocity = _max_reported_velocity(stage_summaries)
     stage_three = next((stage for stage in stage_summaries if stage["number"] == 3), None)
     return {
@@ -546,10 +745,105 @@ def _build_result(species_id: str, relative_path: str) -> dict[str, Any]:
         "total_training_time": summary.get("total_training_time"),
         "final_avg_reward": summary.get("final_avg_reward"),
         "max_average_forward_velocity": max_average_forward_velocity,
+        # The historical ladder headline (plan §4.3): unchanged for every
+        # committed row; a v4 result's headline comes from its primary
+        # deliverable below, and a v4 run without a behavior stage is null.
         "stage3_success_rate": stage_three.get("mean_success_rate") if stage_three else None,
-        "provenance": _validate_provenance(summary["provenance"], result_path=relative_path),
+        "provenance": provenance,
+        # Per-deliverable publication (schema 4): [] and nulls for every
+        # schema-2/3 summary — never synthesized from a ladder pass.
+        "deliverables": deliverables,
+        "primary_deliverable": primary_deliverable,
+        "target_deliverable": target_deliverable,
         "stages": stage_summaries,
     }
+
+
+def _build_result_deliverables(
+    species_id: str,
+    summary: dict[str, Any],
+    provenance: dict[str, Any],
+    raw_stages_by_id: dict[str, dict[str, Any]],
+    *,
+    relative_path: str,
+) -> "tuple[list[dict[str, Any]], str | None, str | None]":
+    """The published deliverables of one result, in manifest order.
+
+    *provenance* is the VALIDATED provenance block (its ``deliverables``
+    map, primary and target); *raw_stages_by_id* maps each recorded stage's
+    id to its summary row as written, so a headline reads the statistic the
+    summary records (``unsupported_duty_ucb``, ``full_horizon_fraction``,
+    ``recovery_success_lcb`` once Phase B exports them — D-A9) rather than
+    the ladder projection, which carries only the fixed ladder columns.
+
+    A schema-2/3 ladder summary publishes NO deliverable: its ``stage_passed``
+    was a pass of the retired reward gate, and relabelling it "certified"
+    would mint a certification nothing measured.  From schema 4 on each
+    ``provenance.deliverables`` record becomes a row carrying its gate kind,
+    certification, model hash, replication count and gate-kind headline; the
+    primary and target come from the explicit provenance keys, and a primary
+    that is absent, unknown, uncertified or not the one the deliverables
+    imply is a catalog failure.
+    """
+    schema_version = int(summary.get("schema_version") or 0)
+    if schema_version < 4:
+        return [], None, None
+    raw_records = provenance.get("deliverables")
+    if not raw_records:
+        raise CatalogError(f"schema-{schema_version} result {relative_path} publishes no provenance.deliverables")
+    try:
+        entries = ordered_stage_entries(
+            raw_records, species=species_id, field=f"provenance.deliverables in {relative_path}"
+        )
+    except ResultSchemaError as exc:
+        raise CatalogError(str(exc)) from exc
+    current_gates = current_advancement_gates(species_id)
+    deliverables: list[dict[str, Any]] = []
+    for key, entry in entries:
+        record = raw_records[key]
+        stage_row = raw_stages_by_id.get(entry.id)
+        if stage_row is None:
+            raise CatalogError(
+                f"provenance.deliverables in {relative_path} names stage {key!r}, which the summary does not record"
+            )
+        deliverables.append(
+            {
+                "id": entry.id,
+                "stage_key": key,
+                "label": entry.key,
+                "recipe": entry.recipe,
+                "gate_kind": record["gate_kind"],
+                "certified": bool(record["certified"]),
+                "model_hash": record["model_hash"],
+                "replication_count": int(record["replication"]["count"]),
+                "headline": _deliverable_headline(record["gate_kind"], stage_row, current_gates[entry.id]),
+            }
+        )
+    certified_by_key = {row["stage_key"]: row["certified"] for row in deliverables}
+    target_deliverable = provenance.get("target_deliverable")
+    primary_deliverable = provenance.get("primary_deliverable")
+    if primary_deliverable is None:
+        raise CatalogError(f"schema-{schema_version} result {relative_path} names no primary deliverable")
+    if primary_deliverable not in certified_by_key:
+        raise CatalogError(
+            f"primary deliverable {primary_deliverable!r} in {relative_path} is not among the published "
+            f"deliverables {sorted(certified_by_key)}"
+        )
+    if not certified_by_key[primary_deliverable]:
+        raise CatalogError(
+            f"primary deliverable {primary_deliverable!r} in {relative_path} is not certified; the catalog "
+            "publishes only a certified primary"
+        )
+    try:
+        expected_primary = primary_deliverable_key(raw_records, species=species_id, target=target_deliverable)
+    except ResultSchemaError as exc:
+        raise CatalogError(str(exc)) from exc
+    if primary_deliverable != expected_primary:
+        raise CatalogError(
+            f"primary deliverable {primary_deliverable!r} in {relative_path} is not the one its deliverables "
+            f"and target {target_deliverable!r} imply ({expected_primary!r})"
+        )
+    return deliverables, str(primary_deliverable), None if target_deliverable is None else str(target_deliverable)
 
 
 def _build_success_metrics(
@@ -593,6 +887,91 @@ def _build_success_metrics(
         missing = sorted(expected - covered_backends)
         extra = sorted(covered_backends - expected)
         raise CatalogError(f"{species_id} success metric backends mismatch; missing={missing}, unsupported={extra}")
+    return metrics
+
+
+def _build_deliverable_metrics(
+    species_id: str,
+    raw_metrics: Any,
+    expected_backends: set[str] | None = None,
+    *,
+    configs_dir: "Path | str | None" = None,
+) -> list[dict[str, Any]]:
+    """Validate ``[[species.deliverable_metrics]]`` against the species' stage manifest.
+
+    Each entry names a deliverable (a recipe label or a deliverable stage
+    id, resolved exactly as the notebook's ``BEHAVIOR`` knob is — a label
+    means its deepest deliverable), the backends the definition holds for,
+    and the metric's key, label and definition.  Fail-closed: an unknown
+    deliverable or label, a backend the species does not train, and two
+    entries for one (stage, backend) are all fatal.  Coverage: every
+    deliverable the manifest declares has a ``stable-baselines3``
+    definition, the evidence backend (plan §4.9), so a newly declared
+    deliverable cannot publish with no stated semantics.
+    """
+    from environments.shared.stage_manifest import StageManifestError
+
+    manifest, _configs = _load_manifest_and_configs(species_id, configs_dir)
+    if not isinstance(raw_metrics, list):
+        raise CatalogError(f"{species_id} deliverable_metrics must be a list")
+    expected = ALLOWED_TRAINING_BACKENDS if expected_backends is None else expected_backends
+
+    covered: set[tuple[str, str]] = set()
+    metrics: list[dict[str, Any]] = []
+    for index, raw_metric_value in enumerate(raw_metrics, start=1):
+        raw_metric = _require_mapping(raw_metric_value, field=f"{species_id} deliverable metric {index}")
+        deliverable = _require_nonempty_string(
+            raw_metric.get("deliverable"), field=f"deliverable for {species_id} deliverable metric {index}"
+        )
+        try:
+            entry = manifest.resolve_behavior(deliverable)
+        except StageManifestError as exc:
+            raise CatalogError(
+                f"{species_id} deliverable metric {index} names unknown deliverable {deliverable!r}: {exc}"
+            ) from exc
+        backends = raw_metric.get("backends")
+        if not isinstance(backends, list) or not backends:
+            raise CatalogError(f"{species_id} deliverable metric {index} must name at least one backend")
+        unknown_backends = [backend for backend in backends if backend not in ALLOWED_TRAINING_BACKENDS]
+        if unknown_backends:
+            raise CatalogError(f"{species_id} deliverable metric {index} has unknown backends: {unknown_backends}")
+        untrained = sorted(set(backends) - expected)
+        if untrained:
+            raise CatalogError(
+                f"{species_id} deliverable metric {index} names backends the species does not train: {untrained}"
+            )
+        if len(set(backends)) != len(backends):
+            raise CatalogError(f"{species_id} deliverable metric {index} repeats a backend")
+        for backend in backends:
+            scope = (entry.id, str(backend))
+            if scope in covered:
+                raise CatalogError(
+                    f"{species_id} defines more than one deliverable metric for stage {entry.id!r} on {backend}"
+                )
+            covered.add(scope)
+        metrics.append(
+            {
+                "deliverable": deliverable,
+                "stage_id": entry.id,
+                "backends": [str(backend) for backend in backends],
+                "key": _require_nonempty_string(
+                    raw_metric.get("key"), field=f"key for {species_id} deliverable metric {index}"
+                ),
+                "label": _require_nonempty_string(
+                    raw_metric.get("label"), field=f"label for {species_id} deliverable metric {index}"
+                ),
+                "definition": _require_nonempty_string(
+                    raw_metric.get("definition"), field=f"definition for {species_id} deliverable metric {index}"
+                ),
+            }
+        )
+
+    uncovered = [entry.id for entry in manifest.deliverables if (entry.id, "stable-baselines3") not in covered]
+    if uncovered:
+        raise CatalogError(
+            f"{species_id} deliverable_metrics must define a stable-baselines3 metric for every manifest "
+            f"deliverable; missing {uncovered}"
+        )
     return metrics
 
 
@@ -694,6 +1073,9 @@ def build_catalog(
                 "success_metrics": _build_success_metrics(
                     species_id, raw_species.get("success_metrics"), training_backends
                 ),
+                "deliverable_metrics": _build_deliverable_metrics(
+                    species_id, raw_species.get("deliverable_metrics", []), training_backends
+                ),
                 "stages": _build_stages(species_id, raw_species.get("stage_videos", [])),
                 "historical_results": [_build_result(species_id, result_path) for result_path in result_summary_paths],
             }
@@ -738,7 +1120,15 @@ def build_catalog(
         # semantic stage (trex recovery) list it in curriculum order.  The
         # nullable "number" is shape-breaking for a consumer that assumed an
         # integer, hence the bump.
-        "schema_version": 3,
+        # v4 (2026-09-12, decision D-A8): stage rows carry the recipe DAG
+        # (deliverable / warm_start_from / recipe), result rows publish
+        # per-deliverable certification with a gate-kind headline
+        # (deliverables / primary_deliverable / target_deliverable, [] and
+        # nulls for every schema-2/3 ladder summary), per-stage result rows
+        # carry recipe / deliverable, and species carry deliverable_metrics
+        # beside the untouched success_metrics.  The website adapter guards
+        # on this number, hence the bump.
+        "schema_version": 4,
         "manifest_path": manifest_path.relative_to(REPOSITORY_ROOT).as_posix(),
         "plant_manifest": {
             "path": plant_manifest_path.relative_to(REPOSITORY_ROOT).as_posix(),
@@ -809,6 +1199,64 @@ def _success_metric_for_backend(species: dict[str, Any], backend: str) -> dict[s
         if backend in metric["backends"]:
             return cast(dict[str, Any], metric)
     raise CatalogError(f"{species['id']} has no success metric for backend {backend}")
+
+
+def _stage_heading(stage: dict[str, Any]) -> str:
+    """``1 — Balance`` / ``recovery — Recovery``: the label the tables address a stage by."""
+    return f"{stage['label']} — {stage['title']}"
+
+
+def _format_recipe(stage: dict[str, Any]) -> str:
+    """The behavior label a stage belongs to, tagged when its checkpoint is published."""
+    recipe = stage.get("recipe")
+    if recipe is None:
+        return "—"
+    return f"{recipe} (deliverable)" if stage.get("deliverable") else str(recipe)
+
+
+def _format_warm_start(stage: dict[str, Any], stage_headings: dict[str, str]) -> str:
+    """The parent row's heading, or a dash for a root node."""
+    parent = stage.get("warm_start_from")
+    if parent is None:
+        return "—"
+    try:
+        return stage_headings[parent]
+    except KeyError:
+        # The stage manifest only accepts edges to declared earlier entries,
+        # so this is a catalog bug, not a manifest error.
+        raise CatalogError(
+            f"stage {stage['id']} warm-starts from {parent!r}, which the species does not list"
+        ) from None
+
+
+def _format_headline_metric(metric: dict[str, Any]) -> str:
+    """``task success 96.7%`` / ``unsupported duty 95% UCB not recorded`` (D-A9)."""
+    value = metric["value"]
+    if value is None:
+        return f"{metric['label']} not recorded"
+    unit = metric["unit"]
+    if unit == "percent":
+        rendered = _format_percent(value)
+    elif unit == "m/s":
+        rendered = _format_number(value, suffix=" m/s")
+    else:
+        rendered = _format_number(value)
+    return f"{metric['label']} {rendered}"
+
+
+def _format_deliverable(deliverable: dict[str, Any], *, primary: bool) -> str:
+    """One published deliverable with its certification, gate, replication and headline."""
+    status = "certified" if deliverable["certified"] else "not certified"
+    if primary:
+        status += ", primary"
+    details = [
+        status,
+        f"gate {deliverable['gate_kind'] or 'not recorded'}",
+        f"{deliverable['replication_count']} run" + ("" if deliverable["replication_count"] == 1 else "s"),
+        *(_format_headline_metric(metric) for metric in deliverable["headline"]),
+    ]
+    behavior = deliverable["recipe"] or deliverable["id"]
+    return f"{deliverable['label']} — {behavior} ({'; '.join(details)})"
 
 
 def _format_advancement_gate(gate: dict[str, Any]) -> str:
@@ -894,16 +1342,23 @@ def render_readme_species(catalog: dict[str, Any]) -> str:
                 "([details](docs/PLANT_CONTRACT.md)) |",
                 f"| Model | `{model['path']}` |",
                 "",
-                "| Current stage | Objective | SB3 configured budget | SB3 early-advancement gate |",
-                "|---|---|---:|---:|",
+                "| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | "
+                "SB3 early-advancement gate |",
+                "|---|---|---|---|---:|---:|",
             ]
         )
+        stage_headings = {stage["id"]: _stage_heading(stage) for stage in species["stages"]}
         for stage in species["stages"]:
             # The row label is the stage's canonical reference: the legacy
             # number where one exists, the semantic id (recovery) where none
             # does — the manifest is the authority, and no "1b" is invented.
+            # The recipe column says which behavior the node belongs to and
+            # whether its checkpoint is a published deliverable; the
+            # warm-start column names the parent row by ITS label, so an
+            # edge reads as the table reads.
             lines.append(
-                f"| {stage['label']} — {stage['title']} | {stage['description']} | "
+                f"| {stage_headings[stage['id']]} | {_format_recipe(stage)} | "
+                f"{_format_warm_start(stage, stage_headings)} | {stage['description']} | "
                 f"{_format_millions(stage['timesteps'])} | "
                 f"{_format_advancement_gate(stage['advancement_gate'])} |"
             )
@@ -913,6 +1368,15 @@ def render_readme_species(catalog: dict[str, Any]) -> str:
                 _format_backend(backend).replace(" (version not recorded)", "") for backend in metric["backends"]
             )
             lines.append(f"- **{scopes} — {metric['label']}:** {metric['definition']}")
+        lines.extend(["", "**Per-deliverable success semantics:**"])
+        for metric in species["deliverable_metrics"]:
+            scopes = " / ".join(
+                _format_backend(backend).replace(" (version not recorded)", "") for backend in metric["backends"]
+            )
+            lines.append(
+                f"- **{metric['deliverable']} ({stage_headings[metric['stage_id']]}) · {scopes} — "
+                f"{metric['label']}:** {metric['definition']}"
+            )
         model_package = Path(species["model"]["path"]).parent.parent.as_posix()
         lines.extend(["", f"[Full documentation →]({model_package}/README.md)"])
         if species["id"] == "velociraptor":
@@ -961,6 +1425,22 @@ def render_readme_results(catalog: dict[str, Any]) -> str:
                     f"{_format_number(stage['avg_forward_vel'], suffix=' m/s')} | "
                     f"{_format_percent(stage['mean_success_rate'])} | "
                     f"{_format_millions(stage['timesteps'])} | {_format_verdict(stage)} |"
+                )
+            # Only a schema-4 result publishes deliverables; the four
+            # committed ladder summaries publish none, and this block is
+            # byte-identical to its pre-Phase-A rendering for them (D-A10).
+            if result["deliverables"]:
+                lines.extend(
+                    [
+                        "",
+                        "**Deliverables:** "
+                        + " · ".join(
+                            _format_deliverable(
+                                deliverable, primary=deliverable["stage_key"] == result["primary_deliverable"]
+                            )
+                            for deliverable in result["deliverables"]
+                        ),
+                    ]
                 )
             lines.extend(
                 [

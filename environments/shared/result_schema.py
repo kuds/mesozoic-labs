@@ -1518,7 +1518,17 @@ def validate_result_summary(
             if primary is None:
                 primary = primary_deliverable_key(deliverables, species=species, target=target)
             if primary is not None:
-                primary_entry = next(entry for key, entry in deliverable_entries if key == primary)
+                # The primary is a KEY of provenance.deliverables, spelled as
+                # that map spells it (the catalog compares it to those keys
+                # too); a primary that resolves to a stage but matches no key
+                # — "locomotion" over a map keyed "1", "2" — is a schema
+                # error, not a bare StopIteration.
+                primary_entry = next((entry for key, entry in deliverable_entries if key == primary), None)
+                if primary_entry is None:
+                    raise ResultSchemaError(
+                        f"provenance.primary_deliverable in {label} is {primary!r}, which is not a key of "
+                        f"provenance.deliverables {sorted(deliverables)}"
+                    )
                 primary_stage_key = stage_key_by_id[primary_entry.id]
     if canonical_provenance:
         if not v4 and summary.get("bundle_status") != "complete":
