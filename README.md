@@ -504,7 +504,7 @@ and verified. Current stage budgets may therefore differ from the steps reported
 - [ ] Terrain adaptation (uneven ground, obstacles)
 - [-] JAX/MJX migration for faster training (PPO pipeline complete, SAC pending)
 - [-] mjlab pilot (MuJoCo-Warp + Isaac-Lab manager API) — scaffold landed, velociraptor Stage 1 spike pending
-- [-] Behavior recipes on one certified trunk — stand / walk / hunt published per deliverable with cross-run ancestor reuse (Phase A landed 2026-09-12; the measured hunting gate `task_success/v1` landed 2026-09-13 with a provisional 0.5 bar, decision D-B2); seed replication, command-interface bump and the follow-direction leaf pending (see [docs/BEHAVIOR_RECIPES_PLAN.md](docs/BEHAVIOR_RECIPES_PLAN.md))
+- [-] Behavior recipes on one certified trunk — stand / walk / hunt published per deliverable with cross-run ancestor reuse (Phase A landed 2026-09-12; the measured hunting gate `task_success/v1` landed 2026-09-13 with a provisional 0.5 bar, decision D-B2, and seed replication as provenance landed the same day — `certification_seeds`, provisional labels; trex stance declares a 2-seed bar and publishes provisional at 1 of 2 until the replicate is re-backfilled); only the command-interface bump and the follow-direction leaf remain pending (see [docs/BEHAVIOR_RECIPES_PLAN.md](docs/BEHAVIOR_RECIPES_PLAN.md))
 - [ ] Multi-agent pack hunting scenarios
 - [ ] Sim-to-real transfer experiments (future work; no hardware-transfer results are published yet)
 

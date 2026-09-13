@@ -502,7 +502,10 @@ carries `provenance.json` and `summary.json`, whose `provenance.deliverables`
 lists every deliverable trained or judged in that run — a trunk reused from
 another run appears under `provenance.ancestors` instead (per deliverable:
 `model_path`, `model_hash`,
-`normalization_hash`, `gate_kind`, `certified`, `replication`) with
+`normalization_hash`, `gate_kind`, `certified`, `replication`, and
+`certification_seeds` / `provisional`, which the bundle writer derives from
+the stage's declared bar and the replicate count rather than copying from
+the run block) with
 `selected_model_path` pointing at the primary deliverable — the run's target,
 else the deepest certified one. A run copied back whole can be passed to a
 later job as `--trunk-from`; a node it only reused resolves through its

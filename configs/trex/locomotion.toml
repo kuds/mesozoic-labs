@@ -153,9 +153,11 @@ min_avg_forward_vel = 1.0               # A firm walk, re-derived from this plan
                                         # (exponential/quadratic/linear post-ramp fits) on an 8M budget,
                                         # with 0/109 in-training evals passing; 1.0 m/s (Froude 0.14-0.16)
                                         # first-touches at 6.4-8.0M on the same fits — inside the budget.
-                                        # The 2.0 m/s capability target moves to the behavior stage's gate
-                                        # (behavior.toml), which needs closing speed anyway. Re-derive by
-                                        # refitting the post-ramp velocity curve of the next full run.
+                                        # The 2.0 m/s capability target moved to the behavior stage's gate
+                                        # and was retired there on 2026-09-13 (2026-08 review CF2, plan D1):
+                                        # a bite episode cannot average it, so closing speed is measured,
+                                        # not gated. Re-derive this floor by refitting the post-ramp
+                                        # velocity curve of the next full run.
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.

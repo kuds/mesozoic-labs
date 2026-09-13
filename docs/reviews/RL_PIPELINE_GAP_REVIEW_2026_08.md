@@ -1,6 +1,6 @@
 # RL Pipeline Gap Review — 2026-08-28
 
-**Status: findings record. The finding paragraphs describe the code as reviewed on 2026-08-28; what has since been fixed is recorded under the finding in a dated `*Status (…)*` line (as of 2026-09-13: CF2, CF3 and SS2, Phase B), and a finding without one is still open.**
+**Status: findings record. The finding paragraphs describe the code as reviewed on 2026-08-28; what has since been fixed is recorded under the finding in a dated `*Status (…)*` line (as of 2026-09-13: CF2, CF3, SS1 and SS2, Phase B), and a finding without one is still open.**
 Reviewed at commit `ea0d339` (the P5 recovery-gate freeze) on branch
 `claude/trex-review-next-steps-kn9rcj`. This document is the deliverable of the 2026-08-28
 "review the RL pipeline, notebooks, stages, and gaps + cleanup opportunities" request.
@@ -768,6 +768,8 @@ All configuration-level certification decisions (gate-driven disconnect/raise in
 
 *Suggested fix:* Add an enforced multiplicity field: e.g. a required 'training_seeds' list in result-bundle provenance with a warning/refusal when a stage is marked certified from n=1, and a notebook/CLI replicate mode; at minimum record 'n_training_seeds: 1' loudly in stance_gate_report.json and the website generator.
 
+*Status (2026-09-13, Phase B WS-B4):* Resolved as provenance, per BEHAVIOR_RECIPES_PLAN §4.5 (decisions D-B9, D-B10, D-B11, D-B16, D-B17). A stage's `[curriculum]` declares `certification_seeds` (a publication key, default 1, in no digest; `configs/trex/stance.toml` declares 2 on the seed 42 PASS / 43 FAIL / 44 PASS record this finding cites), and every published deliverable records `replication` — this run first, then the sibling runs under `LOG_BASE/<species>/<algo>/` that certified the SAME recipe on another seed (equal `task_sha256`, plant identity, `gate_sha256` and `hyperparameters_sha256`, a passed reusable verdict, a distinct training seed; `environments/shared/replication.py`, writer-recorded when the publication cell runs) — beside `certification_seeds` and `provisional = count < certification_seeds`. The catalog re-derives `provisional` from the current bar and renders `N run(s) of M seed(s); provisional`, so a single-seed certification is labelled, never silent; the 3042–3081 panel block is the `certification_panel` seed role, bound per evidence (stance panel row i must have run on role + i; a recovery `gate_resolution.json`'s `panel_seed_start` must equal the role), and a recorded stance PASS without it is refused at publication. Certification from n = 1 is flagged rather than refused: checkpoint-level advancement stays valid at n = 1, as the finding itself allows. Trex stance therefore publishes at 1 of 2 seeds — provisional — until the seed-44 run `20260815_205206` and the certified `20260810_145546` are re-backfilled under D-A22 and the certified run's publication cell is re-run with the sibling present (`docs/KNOWN_ISSUES.md`).
+
 **SS2. `configs/trex/behavior.toml:106` — eval-validity [medium / fix small]**
 
 Confirmed as stated, with one calibration: the statistical mechanism (raw 30-episode binomial mean vs 0.5, no interval, ~160 unadjusted in-training panels feeding a bare consecutive-3 counter, publication gate that disconnects the runtime on a single n=30 draw) is exactly as described and all quoted numbers reproduce; but its practical bite is conditional on the true bite-success rate landing in roughly the 0.35-0.65 band, whereas the only committed run scored 0.97, and the behavior stage's joint gate may in practice be bound by the co-located 2.0 m/s velocity target rather than the success-rate term.
@@ -1146,9 +1148,11 @@ Phased so that each batch is independently shippable and testable; nothing here 
   freeze of `gate_resolution.json` (§5), NB6, NB7, and TC10/CI6 (stage-scoped `--override` for
   semantic stage ids, so a 1b push-magnitude sweep does not have to edit the TOML).
 - **Phase V — evaluation validity**: ER1, ER3, ER4, OP2, OP7, ER2 (recovery plateau logging
-  crash — latent), CF2, CF3, SS2, SS3/SS4 (held-out confirmation panel), SS1 (seed-multiplicity
-  field), SS5 (retired-gate labeling in published summary), RP1 (audit cross-checks), RP2
-  (session records), RP4 (persist load lineage into stage_config).
+  crash — latent), SS3/SS4 (held-out confirmation panel), SS5 (retired-gate labeling in
+  published summary), RP1 (audit cross-checks), RP2 (session records), RP4 (persist load
+  lineage into stage_config). CF2, CF3, SS2 (the `task_success/v1` hunting gate and the
+  measured collapse floor) and SS1 (seed replication as provenance) were resolved 2026-09-13 by
+  BEHAVIOR_RECIPES_PLAN Phase B — see their Status lines above.
 - **Phase C — CI hardening**: CI3, CI4, CI7, CI9, CI8 (deploy gating), ST1 (matrix
   consolidation), DC1 (double-collected sweep tests).
 - **Phase J — JAX/MJX parity** (before any MJX pilot): JX1, JX5, JX2, JX4, JX6, JX8, JX9, JX7,

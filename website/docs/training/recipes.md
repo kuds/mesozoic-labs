@@ -450,8 +450,31 @@ read):
 - `provenance.deliverables` maps each deliverable the run holds to
   `model_path`, `model_hash`, `normalization_hash`, `gate_kind`, `certified`
   and `replication`, plus the optional `hyperparameters_sha256` and `label`
-  copied from the stage's run block. `provenance.ancestors` is the
+  copied from the stage's run block, and `certification_seeds` and
+  `provisional`, which the bundle writer derives — the stage's declared
+  `[curriculum]` bar (default 1) and `replication.count < certification_seeds`
+  — rather than copying from the run block. `provenance.ancestors` is the
   summary-side projection of `ancestors/<stage_id>/`.
+- `replication` is writer-recorded (decision D-B10). When the notebook's
+  publication cell runs, `environments.shared.replication.discover_replicates_for_run`
+  looks through the sibling runs under `LOG_BASE/<species>/<algo>/` for the
+  same recipe on another seed — a passed, reusable `gate_verdict.json` for
+  the node with equal `task_sha256` and `gate_sha256`, a `stage_config.json`
+  with the same plant identity and `hyperparameters_sha256` (derived from
+  the recorded blocks when a sibling saved before that field existed), and
+  a different training seed (decision D-B16) — and `replication.runs` lists
+  this run first, then those replicates. A sibling whose verdict has no
+  `gate_sha256` is skipped until re-backfilled (rule 7). A deliverable with
+  fewer runs than its stage's `certification_seeds` is `provisional` (trex
+  stance declares 2; once a stance bundle is published the catalog and the
+  species page render it as `1 run of 2 seeds; provisional`, re-deriving
+  the label from the current config — no trex stance bundle is committed
+  yet; see `docs/KNOWN_ISSUES.md`). A replicate that certifies later is counted by re-running the
+  publication cell of the run that should count it, with the sibling
+  present: a `partial` bundle is rebuilt, and a `complete` bundle
+  regenerates its derived artifacts when the replication record is its
+  only change — anything else on a complete bundle is still refused as
+  immutable.
 - `target_deliverable` names the node the run aimed at and
   `primary_deliverable` the published model — the target when certified,
   else the deepest certified deliverable; `selected_model_path` is the
